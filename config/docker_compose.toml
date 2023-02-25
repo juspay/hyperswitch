@@ -105,9 +105,26 @@ base_url = "https://try.access.worldpay.com/"
 [connectors.globalpay]
 base_url = "https://apis.sandbox.globalpay.com/ucp/"
 
+[connectors.nuvei]
+base_url = "https://ppp-test.nuvei.com/"
+
 [connectors.supported]
 wallets = ["klarna", "braintree", "applepay"]
-cards = ["stripe", "adyen", "authorizedotnet", "checkout", "braintree", "shift4", "cybersource", "worldpay", "globalpay", "fiserv"]
+cards = [
+    "adyen",
+    "authorizedotnet",
+    "braintree",
+    "checkout",
+    "cybersource",
+    "fiserv",
+    "globalpay",
+    "nuvei",
+    "payu",
+    "shift4",
+    "stripe",
+    "worldline",
+    "worldpay",
+]
 
 
 [scheduler]

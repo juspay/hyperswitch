@@ -264,8 +264,12 @@ impl
     }
 
     fn get_request_body(&self, req: &types::PaymentsAuthorizeRouterData) -> CustomResult<Option<String>,errors::ConnectorError> {
+        let req_obj = {{project-name | downcase}}::{{project-name | downcase | pascal_case}}PaymentsRequest::try_from(req)?;
         let {{project-name | downcase}}_req =
-            utils::Encode::<{{project-name | downcase}}::{{project-name | downcase | pascal_case}}PaymentsRequest>::convert_and_encode(req).change_context(errors::ConnectorError::RequestEncodingFailed)?;
+            utils::Encode::<{{project-name | downcase}}::{{project-name | downcase | pascal_case}}PaymentsRequest>::encode_to_string_of_json(
+                &req_obj,
+            )
+            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some({{project-name | downcase}}_req))
     }
 
@@ -293,7 +297,7 @@ impl
         data: &types::PaymentsAuthorizeRouterData,
         res: Response,
     ) -> CustomResult<types::PaymentsAuthorizeRouterData,errors::ConnectorError> {
-        let response: {{project-name | downcase}}::{{project-name | downcase | pascal_case}}PaymentsResponse = res.response.parse_struct("PaymentIntentResponse").change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        let response: {{project-name | downcase}}::{{project-name | downcase | pascal_case}}PaymentsResponse = res.response.parse_struct("{{project-name | downcase}} {{project-name | downcase | pascal_case}}PaymentsResponse").change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         logger::debug!({{project-name | downcase}}payments_create_response=?response);
         types::ResponseRouterData {
             response,
