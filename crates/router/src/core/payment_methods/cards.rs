@@ -78,11 +78,9 @@ pub async fn add_payment_method(
                 payment_method_id: payment_method_id.to_string(),
                 payment_method: req.payment_method,
                 payment_method_type: req.payment_method_type,
-                payment_method_issuer: req.payment_method_issuer,
                 card: None,
                 metadata: req.metadata,
                 created: Some(common_utils::date_time::now()),
-                payment_method_issuer_code: req.payment_method_issuer_code,
                 recurring_enabled: false,           //[#219]
                 installment_payment_enabled: false, //[#219]
                 payment_experience: Some(vec![api_models::enums::PaymentExperience::RedirectToUrl]), //[#219]
@@ -867,13 +865,9 @@ pub async fn retrieve_payment_method(
             payment_method_id: pm.payment_method_id,
             payment_method: pm.payment_method.foreign_into(),
             payment_method_type: pm.payment_method_type.map(ForeignInto::foreign_into),
-            payment_method_issuer: pm.payment_method_issuer,
             card,
             metadata: pm.metadata,
             created: Some(pm.created_at),
-            payment_method_issuer_code: pm
-                .payment_method_issuer_code
-                .map(ForeignInto::foreign_into),
             recurring_enabled: false,           //[#219]
             installment_payment_enabled: false, //[#219]
             payment_experience: Some(vec![api_models::enums::PaymentExperience::RedirectToUrl]), //[#219],

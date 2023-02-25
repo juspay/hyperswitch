@@ -100,14 +100,6 @@ pub struct PaymentMethodResponse {
     #[schema(value_type = Option<PaymentMethodType>,example = "credit")]
     pub payment_method_type: Option<api_enums::PaymentMethodType>,
 
-    /// The name of the bank/ provider issuing the payment method to the end user
-    #[schema(example = "Citibank")]
-    pub payment_method_issuer: Option<String>,
-
-    /// A standard code representing the issuer of payment method
-    #[schema(value_type = Option<PaymentMethodIssuerCode>,example = "jp_applepay")]
-    pub payment_method_issuer_code: Option<api_enums::PaymentMethodIssuerCode>,
-
     /// Card details from card locker
     #[schema(example = json!({"last4": "1142","exp_month": "03","exp_year": "2030"}))]
     pub card: Option<CardDetailFromLocker>,
@@ -302,20 +294,12 @@ pub struct ListPaymentMethodResponse {
 #[derive(Eq, PartialEq, Hash, Debug, serde::Deserialize, ToSchema)]
 pub struct ListPaymentMethod {
     /// The type of payment method use for the payment.
-    #[schema(value_type = PaymentMethodType,example = "card")]
+    #[schema(value_type = PaymentMethod,example = "card")]
     pub payment_method: api_enums::PaymentMethod,
 
     /// This is a sub-category of payment method.
-    #[schema(value_type = Option<Vec<PaymentMethodSubType>>,example = json!(["credit_card"]))]
+    #[schema(value_type = Option<Vec<PaymentMethodType>>,example = json!(["credit_card"]))]
     pub payment_method_types: Option<Vec<api_enums::PaymentMethodType>>,
-
-    /// The name of the bank/ provider issuing the payment method to the end user
-    #[schema(example = json!(["Citibank"]))]
-    pub payment_method_issuers: Option<Vec<String>>,
-
-    /// A standard code representing the issuer of payment method
-    #[schema(value_type = Option<Vec<PaymentMethodIssuerCode>>,example = json!(["jp_applepay"]))]
-    pub payment_method_issuer_code: Option<Vec<api_enums::PaymentMethodIssuerCode>>,
 
     /// List of payment schemes accepted or has the processing capabilities of the processor
     #[schema(example = json!(["MASTER", "VISA", "DINERS"]))]
@@ -365,16 +349,10 @@ impl serde::Serialize for ListPaymentMethod {
         let mut state = serializer.serialize_struct("ListPaymentMethod", 4)?;
         state.serialize_field("payment_method", &self.payment_method)?;
         state.serialize_field("payment_experience", &self.payment_experience)?;
-        match self.payment_method {
-            api_enums::PaymentMethod::Wallet | api_enums::PaymentMethod::PayLater => {
-                state.serialize_field("payment_method_issuers", &self.payment_method_issuers)?;
-            }
-            _ => {
-                state.serialize_field("payment_method_issuers", &self.payment_method_issuers)?;
-                state.serialize_field("payment_method_types", &self.payment_method_types)?;
-                state.serialize_field("payment_schemes", &self.payment_schemes)?;
-            }
-        }
+
+        state.serialize_field("payment_method_types", &self.payment_method_types)?;
+        state.serialize_field("payment_schemes", &self.payment_schemes)?;
+
         state.end()
     }
 }

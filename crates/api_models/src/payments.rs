@@ -7,7 +7,7 @@ use time::PrimitiveDateTime;
 use utoipa::ToSchema;
 
 use crate::{
-    enums::{self as api_enums},
+    enums::{self as api_enums, Connector},
     refunds,
 };
 
@@ -1356,6 +1356,29 @@ mod payment_id_type {
     {
         deserializer.deserialize_option(OptionalPaymentIdVisitor)
     }
+}
+
+#[derive(serde::Deserialize)]
+pub struct BankData {
+    payment_method_type: api_enums::PaymentMethodType,
+    code_information: BankCodeInformation,
+}
+
+#[derive(serde::Deserialize)]
+pub struct BankCodeInformation {
+    hyperswitch_code: String,
+    connector_codes: Vec<ConnectorCode>,
+}
+
+#[derive(serde::Deserialize)]
+pub struct ConnectorCode {
+    connector: Connector,
+    code: api_enums::BankNames,
+}
+
+pub struct BankCodeResponse {
+    hyperswitch_code: api_enums::BankNames,
+    connectors: Vec<api_enums::Connector>,
 }
 
 mod amount {

@@ -283,7 +283,7 @@ pub struct PaymentConnectorCreate {
             "installment_payment_enabled": true
         }
     ]))]
-    pub payment_methods_enabled: Option<Vec<PaymentMethods>>,
+    pub payment_methods_enabled: Option<Vec<PaymentMethodsEnabled>>,
     /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
     #[schema(value_type = Option<Object>,max_length = 255,example = json!({ "city": "NY", "unit": "245" }))]
     pub metadata: Option<serde_json::Value>,
@@ -291,19 +291,19 @@ pub struct PaymentConnectorCreate {
 /// Details of all the payment methods enabled for the connector for the given merchant account
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
-pub struct PaymentMethods {
+pub struct PaymentMethodsEnabled {
     /// Type of payment method.
-    #[schema(value_type = PaymentMethodType,example = "card")]
+    #[schema(value_type = PaymentMethod,example = "card")]
     pub payment_method: api_enums::PaymentMethod,
     /// Subtype of payment method
-    #[schema(value_type = Option<Vec<PaymentMethodSubType>>,example = json!(["credit"]))]
+    #[schema(value_type = Option<Vec<PaymentMethodType>>,example = json!(["credit"]))]
     pub payment_method_types: Option<Vec<api_enums::PaymentMethodType>>,
-    /// List of payment method issuers to be enabled for this payment method
-    #[schema(example = json!(["HDFC"]))]
-    pub payment_method_issuers: Option<Vec<String>>,
     /// List of payment schemes accepted or has the processing capabilities of the processor
     #[schema(example = json!(["MASTER","VISA","DINERS"]))]
-    pub payment_schemes: Option<Vec<String>>,
+    pub card_networks: Option<Vec<String>>,
+    /// List of payment schemes accepted or has the processing capabilities of the processor
+    #[schema(example = json!(["MASTER","VISA","DINERS"]))]
+    pub card_issuer: Option<Vec<String>>,
     /// List of currencies accepted or has the processing capabilities of the processor
     #[schema(value_type = Option<Vec<Currency>>,example = json!(["USD","EUR","AED"]))]
     pub accepted_currencies: Option<Vec<api_enums::Currency>>,
