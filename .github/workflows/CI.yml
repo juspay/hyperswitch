@@ -106,49 +106,49 @@ jobs:
       - name: Check files changed
         run: |
           if git diff --exit-code --quiet $GITHUB_BASE_REF...$GITHUB_HEAD_REF -- crates/api_models/; then
-            echo "::set-env name=api_models_changes_exist::false"
+            echo "api_models_changes_exist=false" >> $GITHUB_ENV
           else
-            echo "::set-env name=api_models_changes_exist::true"
+            echo "api_models_changes_exist=true" >> $GITHUB_ENV
           fi
           if git diff --exit-code --quiet $GITHUB_BASE_REF...$GITHUB_HEAD_REF -- crates/common_utils/; then
-            echo "::set-env name=common_utils_changes_exist::false"
+            echo "common_utils_changes_exist=false" >> $GITHUB_ENV
           else
-            echo "::set-env name=common_utils_changes_exist::true"
+            echo "common_utils_changes_exist=true" >> $GITHUB_ENV
           fi
           if git diff --exit-code --quiet $GITHUB_BASE_REF...$GITHUB_HEAD_REF -- crates/drainer/; then
-            echo "::set-env name=drainer_changes_exist::false"
+            echo "drainer_changes_exist=false" >> $GITHUB_ENV
           else
-            echo "::set-env name=drainer_changes_exist::true"
+            echo "drainer_changes_exist=true" >> $GITHUB_ENV
           fi
           if git diff --exit-code --quiet $GITHUB_BASE_REF...$GITHUB_HEAD_REF -- crates/masking/; then
-            echo "::set-env name=masking_changes_exist::false"
+            echo "masking_changes_exist=false" >> $GITHUB_ENV
           else
-            echo "::set-env name=masking_changes_exist::true"
+            echo "masking_changes_exist=true" >> $GITHUB_ENV
           fi
           if git diff --exit-code --quiet $GITHUB_BASE_REF...$GITHUB_HEAD_REF -- crates/redis_interface/; then
-            echo "::set-env name=redis_interface_changes_exist::false"
+            echo "redis_interface_changes_exist=false" >> $GITHUB_ENV
           else
-            echo "::set-env name=redis_interface_changes_exist::true"
+            echo "redis_interface_changes_exist=true" >> $GITHUB_ENV
           fi
           if git diff --exit-code --quiet $GITHUB_BASE_REF...$GITHUB_HEAD_REF -- crates/router/; then
-            echo "::set-env name=router_changes_exist::false"
+            echo "router_changes_exist=false" >> $GITHUB_ENV
           else
-            echo "::set-env name=router_changes_exist::true"
+            echo "router_changes_exist=true" >> $GITHUB_ENV
           fi
           if git diff --exit-code --quiet $GITHUB_BASE_REF...$GITHUB_HEAD_REF -- crates/router_derive/; then
-            echo "::set-env name=router_derive_changes_exist::false"
+            echo "router_derive_changes_exist=false" >> $GITHUB_ENV
           else
-            echo "::set-env name=router_derive_changes_exist::true"
+            echo "router_derive_changes_exist=true" >> $GITHUB_ENV
           fi
           if git diff --exit-code --quiet $GITHUB_BASE_REF...$GITHUB_HEAD_REF -- crates/router_env/; then
-            echo "::set-env name=router_env_changes_exist::false"
+            echo "router_env_changes_exist=false" >> $GITHUB_ENV
           else
-            echo "::set-env name=router_env_changes_exist::true"
+            echo "router_env_changes_exist=true" >> $GITHUB_ENV
           fi
           if git diff --exit-code --quiet $GITHUB_BASE_REF...$GITHUB_HEAD_REF -- crates/storage_models/; then
-            echo "::set-env name=storage_models_changes_exist::false"
+            echo "storage_models_changes_exist=false" >> $GITHUB_ENV
           else
-            echo "::set-env name=storage_models_changes_exist::true"
+            echo "storage_models_changes_exist=true" >> $GITHUB_ENV
           fi
 
       - name: Cargo hack api_models
