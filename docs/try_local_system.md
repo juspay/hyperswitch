@@ -75,6 +75,9 @@ Check the Table Of Contents to jump to the relevant section.
 
 ## Set up a Rust environment and other dependencies
 
+If you are using `nix`, please skip the setup dependencies step and jump to 
+[Set up the database](#set-up-the-database).
+
 ### Set up dependencies on Ubuntu-based systems
 
 This section of the guide provides instructions to install dependencies on
@@ -174,6 +177,10 @@ You can opt to use your favorite package manager instead.
    ```
 
 [winget]: https://github.com/microsoft/winget-cli
+
+Once you're done with setting up the database, proceed with
+[configuring the application](#configure-the-application).
+
 [postgresql-install-windows]: https://www.postgresql.org/download/windows/
 [redis-install-windows]: https://redis.io/docs/getting-started/installation/install-redis-on-windows
 
@@ -328,6 +335,12 @@ Once you're done with configuring the application, proceed with
 
    ```shell
    cargo run
+   ```
+
+   If you are using `nix`, you can compile and run the application using `nix`:
+
+   ```shell
+   nix run
    ```
 
 2. Verify that the server is up and running by hitting the health endpoint:

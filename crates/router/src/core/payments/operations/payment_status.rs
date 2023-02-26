@@ -262,7 +262,11 @@ async fn get_tracker_for_sync<
             confirm: Some(request.force_sync),
             payment_method_data: None,
             force_sync: Some(
-                request.force_sync && helpers::can_call_connector(&payment_attempt.status),
+                request.force_sync
+                    && helpers::check_force_psync_precondition(
+                        &payment_attempt.status,
+                        &payment_attempt.connector_transaction_id,
+                    ),
             ),
             payment_attempt,
             refunds,

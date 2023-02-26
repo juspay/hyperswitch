@@ -1,9 +1,6 @@
-use std::str::FromStr;
+use std::{ops::Deref, str::FromStr};
 
-use api_models::{
-    self,
-    payments::{self},
-};
+use api_models::{self, payments};
 use common_utils::{fp_utils, pii::Email};
 use error_stack::{IntoReport, ResultExt};
 use masking::ExposeInterface;
@@ -270,7 +267,6 @@ fn infer_stripe_pay_later_type(
     }
 }
 
-//TODO: infer this from the payment_method_type
 fn infer_stripe_bank_redirect_issuer(
     payment_method_type: Option<&enums::PaymentMethodType>,
 ) -> Result<StripePaymentMethodType, errors::ConnectorError> {
@@ -605,7 +601,7 @@ impl From<StripePaymentStatus> for enums::AttemptStatus {
     }
 }
 
-#[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize)]
+#[derive(Debug, Default, Eq, PartialEq, Deserialize)]
 pub struct PaymentIntentResponse {
     pub id: String,
     pub object: String,
@@ -623,6 +619,22 @@ pub struct PaymentIntentResponse {
     pub metadata: StripeMetadata,
     pub next_action: Option<StripeNextActionResponse>,
     pub payment_method_options: Option<StripePaymentMethodOptions>,
+    pub last_payment_error: Option<ErrorDetails>,
+}
+
+#[derive(Debug, Default, Eq, PartialEq, Deserialize)]
+pub struct PaymentSyncResponse {
+    #[serde(flatten)]
+    pub intent_fields: PaymentIntentResponse,
+    pub last_payment_error: Option<ErrorDetails>,
+}
+
+impl Deref for PaymentSyncResponse {
+    type Target = PaymentIntentResponse;
+
+    fn deref(&self) -> &Self::Target {
+        &self.intent_fields
+    }
 }
 
 #[derive(Serialize, Deserialize)]
@@ -668,22 +680,12 @@ impl<F, T>
     fn try_from(
         item: types::ResponseRouterData<F, PaymentIntentResponse, T, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
-        let redirection_data = item.response.next_action.as_ref().map(
-            |StripeNextActionResponse::RedirectToUrl(response)| {
-                let mut base_url = response.url.clone();
-                base_url.set_query(None);
-                services::RedirectForm {
-                    url: base_url.to_string(),
-                    method: services::Method::Get,
-                    form_fields: std::collections::HashMap::from_iter(
-                        response
-                            .url
-                            .query_pairs()
-                            .map(|(k, v)| (k.to_string(), v.to_string())),
-                    ),
-                }
-            },
-        );
+        let redirection_data =
+            item.response
+                .next_action
+                .map(|StripeNextActionResponse::RedirectToUrl(response)| {
+                    services::RedirectForm::from((response.url, services::Method::Get))
+                });
 
         let mandate_reference =
             item.response
@@ -714,71 +716,59 @@ impl<F, T>
 }
 
 impl<F, T>
-    TryFrom<types::ResponseRouterData<F, PaymentIntentSyncResponse, T, types::PaymentsResponseData>>
+    TryFrom<types::ResponseRouterData<F, PaymentSyncResponse, T, types::PaymentsResponseData>>
     for types::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::ResponseRouterData<
-            F,
-            PaymentIntentSyncResponse,
-            T,
-            types::PaymentsResponseData,
-        >,
+        item: types::ResponseRouterData<F, PaymentSyncResponse, T, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         let redirection_data = item.response.next_action.as_ref().map(
             |StripeNextActionResponse::RedirectToUrl(response)| {
-                let mut base_url = response.url.clone();
-                base_url.set_query(None);
-                services::RedirectForm {
-                    url: base_url.to_string(),
-                    method: services::Method::Get,
-                    form_fields: std::collections::HashMap::from_iter(
-                        response
-                            .url
-                            .query_pairs()
-                            .map(|(k, v)| (k.to_string(), v.to_string())),
-                    ),
-                }
+                services::RedirectForm::from((response.url.clone(), services::Method::Get))
             },
         );
 
         let mandate_reference =
             item.response
                 .payment_method_options
-                .as_ref()
+                .to_owned()
                 .and_then(|payment_method_options| match payment_method_options {
                     StripePaymentMethodOptions::Card {
                         mandate_options, ..
-                    } => mandate_options
-                        .as_ref()
-                        .map(|mandate_options| mandate_options.reference.clone()),
-                    _ => None,
+                    } => mandate_options.map(|mandate_options| mandate_options.reference),
+                    StripePaymentMethodOptions::Klarna {}
+                    | StripePaymentMethodOptions::Affirm {}
+                    | StripePaymentMethodOptions::AfterpayClearpay {}
+                    | StripePaymentMethodOptions::Eps {}
+                    | StripePaymentMethodOptions::Giropay {}
+                    | StripePaymentMethodOptions::Ideal {}
+                    | StripePaymentMethodOptions::Sofort {} => None,
                 });
 
-        let response = item.response.last_payment_error.as_ref().map_or(
+        let error_res =
+            item.response
+                .last_payment_error
+                .as_ref()
+                .map(|error| types::ErrorResponse {
+                    code: error.code.to_owned().unwrap_or_default(),
+                    message: error.message.to_owned().unwrap_or_default(),
+                    reason: None,
+                    status_code: item.http_code,
+                });
+
+        let response = error_res.map_or(
             Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.id.clone()),
                 redirection_data,
                 mandate_reference,
                 connector_metadata: None,
             }),
-            |error| {
-                Err(types::ErrorResponse {
-                    code: error.code.clone(),
-                    message: error.message.clone(),
-                    reason: None,
-                    status_code: item.http_code,
-                })
-            },
+            Err,
         );
 
         Ok(Self {
-            status: enums::AttemptStatus::from(item.response.status.clone()),
-            // client_secret: Some(item.response.client_secret.clone().as_str()),
-            // description: item.response.description.map(|x| x.as_str()),
-            // statement_descriptor_suffix: item.response.statement_descriptor_suffix.map(|x| x.as_str()),
-            // three_ds_form,
+            status: enums::AttemptStatus::from(item.response.status.to_owned()),
             response,
             amount_captured: Some(item.response.amount_received),
             ..item.data
@@ -794,22 +784,12 @@ impl<F, T>
     fn try_from(
         item: types::ResponseRouterData<F, SetupIntentResponse, T, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
-        let redirection_data = item.response.next_action.as_ref().map(
-            |StripeNextActionResponse::RedirectToUrl(response)| {
-                let mut base_url = response.url.clone();
-                base_url.set_query(None);
-                services::RedirectForm {
-                    url: base_url.to_string(),
-                    method: services::Method::Get,
-                    form_fields: std::collections::HashMap::from_iter(
-                        response
-                            .url
-                            .query_pairs()
-                            .map(|(k, v)| (k.to_string(), v.to_string())),
-                    ),
-                }
-            },
-        );
+        let redirection_data =
+            item.response
+                .next_action
+                .map(|StripeNextActionResponse::RedirectToUrl(response)| {
+                    services::RedirectForm::from((response.url, services::Method::Get))
+                });
 
         let mandate_reference =
             item.response

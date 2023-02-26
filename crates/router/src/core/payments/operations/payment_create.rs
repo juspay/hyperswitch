@@ -259,7 +259,10 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentCreate {
         request: &api::PaymentsRequest,
         _previously_used_connector: Option<&String>,
     ) -> CustomResult<api::ConnectorCallType, errors::ApiErrorResponse> {
-        let request_connector = request.connector.map(|connector| connector.to_string());
+        let request_connector = request
+            .connector
+            .as_ref()
+            .and_then(|connector| connector.first().map(|c| c.to_string()));
         helpers::get_connector_default(state, request_connector.as_ref()).await
     }
 }
@@ -432,7 +435,7 @@ impl PaymentCreate {
         Ok(storage::PaymentAttemptNew {
             payment_id: payment_id.to_string(),
             merchant_id: merchant_id.to_string(),
-            attempt_id: Uuid::new_v4().to_string(),
+            attempt_id: Uuid::new_v4().simple().to_string(),
             status,
             currency,
             amount: amount.into(),
@@ -490,7 +493,7 @@ impl PaymentCreate {
             client_secret: Some(client_secret),
             setup_future_usage: request.setup_future_usage.map(ForeignInto::foreign_into),
             off_session: request.off_session,
-            return_url: request.return_url.clone(),
+            return_url: request.return_url.as_ref().map(|a| a.to_string()),
             shipping_address_id,
             billing_address_id,
             statement_descriptor_name: request.statement_descriptor_name.clone(),

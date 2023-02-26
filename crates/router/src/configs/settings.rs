@@ -123,6 +123,7 @@ pub struct Database {
     pub port: u16,
     pub dbname: String,
     pub pool_size: u32,
+    pub connection_timeout: u64,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -136,14 +137,18 @@ pub struct SupportedConnectors {
 pub struct Connectors {
     pub aci: ConnectorParams,
     pub adyen: ConnectorParams,
+    pub airwallex: ConnectorParams,
     pub applepay: ConnectorParams,
     pub authorizedotnet: ConnectorParams,
+    pub bluesnap: ConnectorParams,
     pub braintree: ConnectorParams,
     pub checkout: ConnectorParams,
     pub cybersource: ConnectorParams,
+    pub dlocal: ConnectorParams,
     pub fiserv: ConnectorParams,
     pub globalpay: ConnectorParams,
     pub klarna: ConnectorParams,
+    pub nuvei: ConnectorParams,
     pub payu: ConnectorParams,
     pub rapyd: ConnectorParams,
     pub shift4: ConnectorParams,

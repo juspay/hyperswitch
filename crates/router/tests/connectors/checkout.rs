@@ -19,7 +19,7 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
         merchant_id: "checkout".to_string(),
         connector: "checkout".to_string(),
         payment_id: uuid::Uuid::new_v4().to_string(),
-        attempt_id: None,
+        attempt_id: uuid::Uuid::new_v4().to_string(),
         status: enums::AttemptStatus::default(),
         router_return_url: None,
         auth_type: enums::AuthenticationType::NoThreeDs,
@@ -58,6 +58,8 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
         connector_meta_data: None,
         amount_captured: None,
         access_token: None,
+        session_token: None,
+        reference_id: None,
     }
 }
 
@@ -72,7 +74,7 @@ fn construct_refund_router_data<F>() -> types::RefundsRouterData<F> {
         merchant_id: "checkout".to_string(),
         connector: "checkout".to_string(),
         payment_id: uuid::Uuid::new_v4().to_string(),
-        attempt_id: None,
+        attempt_id: uuid::Uuid::new_v4().to_string(),
         status: enums::AttemptStatus::default(),
         router_return_url: None,
         payment_method: enums::PaymentMethod::Card,
@@ -95,6 +97,8 @@ fn construct_refund_router_data<F>() -> types::RefundsRouterData<F> {
         address: PaymentAddress::default(),
         amount_captured: None,
         access_token: None,
+        session_token: None,
+        reference_id: None,
     }
 }
 

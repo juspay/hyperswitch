@@ -14,7 +14,9 @@ where
     Fut: futures::Future<Output = CustomResult<T, errors::StorageError>> + Send,
 {
     let type_name = std::any::type_name::<T>();
-    let redis = &store.redis_conn;
+    let redis = &store
+        .redis_conn()
+        .map_err(Into::<errors::StorageError>::into)?;
     let redis_val = redis.get_and_deserialize_key::<T>(key, type_name).await;
     match redis_val {
         Err(err) => match err.current_context() {
@@ -46,7 +48,8 @@ where
 {
     let data = fun().await?;
     store
-        .redis_conn
+        .redis_conn()
+        .map_err(Into::<errors::StorageError>::into)?
         .delete_key(key)
         .await
         .change_context(errors::StorageError::KVError)?;

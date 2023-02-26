@@ -1,6 +1,7 @@
 use common_utils::pii;
 use masking::{Secret, StrongSecret};
 use serde::{Deserialize, Serialize};
+use url;
 use utoipa::ToSchema;
 
 use super::payments::AddressDetails;
@@ -26,7 +27,7 @@ pub struct CreateMerchantAccount {
 
     /// The URL to redirect after the completion of the operation
     #[schema(max_length = 255, example = "https://www.example.com/success")]
-    pub return_url: Option<String>,
+    pub return_url: Option<url::Url>,
 
     /// Webhook related details
     pub webhook_details: Option<WebhookDetails>,
@@ -269,14 +270,14 @@ pub struct PaymentConnectorCreate {
                 "Discover",
                 "Discover"
             ],
-            "accepted_currencies": [
-                "AED",
-                "AED"
-            ],
-            "accepted_countries": [
-                "in",
-                "us"
-            ],
+            "accepted_currencies": {
+                "type": "enable_only",
+                "list": ["USD", "EUR"]
+            },
+            "accepted_countries": {
+                "type": "disable_only",
+                "list": ["FR", "DE","IN"]
+            },
             "minimum_amount": 1,
             "maximum_amount": 68607706,
             "recurring_enabled": true,
@@ -305,11 +306,21 @@ pub struct PaymentMethods {
     #[schema(example = json!(["MASTER","VISA","DINERS"]))]
     pub payment_schemes: Option<Vec<String>>,
     /// List of currencies accepted or has the processing capabilities of the processor
-    #[schema(value_type = Option<Vec<Currency>>,example = json!(["USD","EUR","AED"]))]
-    pub accepted_currencies: Option<Vec<api_enums::Currency>>,
+    #[schema(example = json!(
+        {
+            "type": "enable_only",
+            "list": ["USD", "EUR"]
+        }
+    ))]
+    pub accepted_currencies: Option<AcceptedCurrencies>,
     ///  List of Countries accepted or has the processing capabilities of the processor
-    #[schema(example = json!(["US","IN"]))]
-    pub accepted_countries: Option<Vec<String>>,
+    #[schema(example = json!(
+        {
+            "type": "disable_only",
+            "list": ["FR", "DE","IN"]
+        }
+    ))]
+    pub accepted_countries: Option<AcceptedCountries>,
     /// Minimum amount supported by the processor. To be represented in the lowest denomination of the target currency (For example, for USD it should be in cents)
     #[schema(example = 1)]
     pub minimum_amount: Option<i32>,
@@ -326,6 +337,28 @@ pub struct PaymentMethods {
     /// Type of payment experience enabled with the connector
     #[schema(value_type = Option<Vec<PaymentExperience>>,example = json!(["redirect_to_url"]))]
     pub payment_experience: Option<Vec<api_enums::PaymentExperience>>,
+}
+
+/// List of enabled and disabled currencies, empty in case all currencies are enabled
+#[derive(Eq, PartialEq, Hash, Debug, Clone, serde::Serialize, Deserialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub struct AcceptedCurrencies {
+    /// type of accepted currencies (disable_only, enable_only)
+    #[serde(rename = "type")]
+    pub accept_type: String,
+    /// List of currencies of the provided type
+    pub list: Option<Vec<api_enums::Currency>>,
+}
+
+/// List of enabled and disabled countries, empty in case all countries are enabled
+#[derive(Eq, PartialEq, Hash, Debug, Clone, serde::Serialize, Deserialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub struct AcceptedCountries {
+    /// Type of accepted countries (disable_only, enable_only)
+    #[serde(rename = "type")]
+    pub accept_type: String,
+    /// List of countries of the provided type
+    pub list: Option<Vec<String>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]

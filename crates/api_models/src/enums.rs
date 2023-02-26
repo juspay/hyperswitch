@@ -11,6 +11,7 @@ use utoipa::ToSchema;
     serde::Serialize,
     strum::Display,
     strum::EnumString,
+    frunk::LabelledGeneric,
 )]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
@@ -382,6 +383,66 @@ pub enum PaymentExperience {
     PartialEq,
     serde::Deserialize,
     serde::Serialize,
+    frunk::LabelledGeneric,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum PaymentIssuer {
+    Klarna,
+    Affirm,
+    AfterpayClearpay,
+    AmericanExpress,
+    BankOfAmerica,
+    Barclays,
+    CapitalOne,
+    Chase,
+    Citi,
+    Discover,
+    NavyFederalCreditUnion,
+    PentagonFederalCreditUnion,
+    SynchronyBank,
+    WellsFargo,
+}
+
+#[derive(
+    Eq,
+    PartialEq,
+    Hash,
+    Copy,
+    Clone,
+    Debug,
+    serde::Serialize,
+    serde::Deserialize,
+    ToSchema,
+    Default,
+    frunk::LabelledGeneric,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum PaymentExperience {
+    /// The URL to which the customer needs to be redirected for completing the payment.
+    #[default]
+    RedirectToUrl,
+    /// Contains the data for invoking the sdk client for completing the payment.
+    InvokeSdkClient,
+    /// The QR code data to be displayed to the customer.
+    DisplayQrCode,
+    /// Contains data to finish one click payment.
+    OneClick,
+    /// Redirect customer to link wallet
+    LinkWallet,
+    /// Contains the data for invoking the sdk client for completing the payment.
+    InvokePaymentApp,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
     strum::Display,
     strum::EnumString,
     ToSchema,
@@ -540,16 +601,20 @@ pub enum MandateStatus {
 pub enum Connector {
     Aci,
     Adyen,
+    Airwallex,
     Applepay,
     Authorizedotnet,
+    Bluesnap,
     Braintree,
     Checkout,
     Cybersource,
     #[default]
     Dummy,
+    Dlocal,
     Fiserv,
     Globalpay,
     Klarna,
+    Nuvei,
     Payu,
     Rapyd,
     Shift4,
@@ -560,7 +625,7 @@ pub enum Connector {
 
 impl Connector {
     pub fn supports_access_token(&self) -> bool {
-        matches!(self, Self::Globalpay | Self::Payu)
+        matches!(self, Self::Airwallex | Self::Globalpay | Self::Payu)
     }
 }
 
@@ -581,13 +646,17 @@ impl Connector {
 pub enum RoutableConnectors {
     Aci,
     Adyen,
+    Airwallex,
     Authorizedotnet,
+    Bluesnap,
     Braintree,
     Checkout,
     Cybersource,
+    Dlocal,
     Fiserv,
     Globalpay,
     Klarna,
+    Nuvei,
     Payu,
     Rapyd,
     Shift4,

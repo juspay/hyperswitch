@@ -1,8 +1,9 @@
 use async_bb8_diesel::{AsyncConnection, ConnectionError};
 use bb8::{CustomizeConnection, PooledConnection};
 use diesel::PgConnection;
+use error_stack::{IntoReport, ResultExt};
 
-use crate::configs::settings::Database;
+use crate::{configs::settings::Database, errors};
 
 pub type PgPool = bb8::Pool<async_bb8_diesel::ConnectionManager<PgConnection>>;
 
@@ -42,7 +43,9 @@ pub async fn diesel_make_pg_pool(database: &Database, test_transaction: bool) ->
         database.username, database.password, database.host, database.port, database.dbname
     );
     let manager = async_bb8_diesel::ConnectionManager::<PgConnection>::new(database_url);
-    let mut pool = bb8::Pool::builder().max_size(database.pool_size);
+    let mut pool = bb8::Pool::builder()
+        .max_size(database.pool_size)
+        .connection_timeout(std::time::Duration::from_secs(database.connection_timeout));
 
     if test_transaction {
         pool = pool.connection_customizer(Box::new(TestTransaction));
@@ -53,11 +56,14 @@ pub async fn diesel_make_pg_pool(database: &Database, test_transaction: bool) ->
         .expect("Failed to create PostgreSQL connection pool")
 }
 
-#[allow(clippy::expect_used)]
 pub async fn pg_connection(
     pool: &PgPool,
-) -> PooledConnection<'_, async_bb8_diesel::ConnectionManager<PgConnection>> {
+) -> errors::CustomResult<
+    PooledConnection<'_, async_bb8_diesel::ConnectionManager<PgConnection>>,
+    errors::StorageError,
+> {
     pool.get()
         .await
-        .expect("Couldn't retrieve PostgreSQL connection")
+        .into_report()
+        .change_context(errors::StorageError::DatabaseConnectionError)
 }

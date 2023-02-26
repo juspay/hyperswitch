@@ -1,9 +1,12 @@
+use api_models::payments;
+use base64::Engine;
 use error_stack::ResultExt;
+use masking::Secret;
 use serde::{Deserialize, Serialize};
 
 use crate::{
+    consts,
     core::errors,
-    pii::PeekInterface,
     types::{self, api, storage::enums},
     utils::OptionExt,
 };
@@ -76,10 +79,10 @@ pub struct Card {
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct CardDetails {
-    number: String,
-    expiration_month: String,
-    expiration_year: String,
-    cvv: String,
+    number: Secret<String, common_utils::pii::CardNumber>,
+    expiration_month: Secret<String>,
+    expiration_year: Secret<String>,
+    cvv: Secret<String>,
 }
 
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for BraintreePaymentsRequest {
@@ -97,13 +100,13 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BraintreePaymentsRequest {
         };
         let kind = "sale".to_string();
 
-        let payment_method_data_type = match item.request.payment_method_data {
-            api::PaymentMethodData::Card(ref ccard) => Ok(PaymentMethodType::CreditCard(Card {
+        let payment_method_data_type = match item.request.payment_method_data.clone() {
+            api::PaymentMethodData::Card(ccard) => Ok(PaymentMethodType::CreditCard(Card {
                 credit_card: CardDetails {
-                    number: ccard.card_number.peek().clone(),
-                    expiration_month: ccard.card_exp_month.peek().clone(),
-                    expiration_year: ccard.card_exp_year.peek().clone(),
-                    cvv: ccard.card_cvc.peek().clone(),
+                    number: ccard.card_number,
+                    expiration_month: ccard.card_exp_month,
+                    expiration_year: ccard.card_exp_year,
+                    cvv: ccard.card_cvc,
                 },
             })),
             api::PaymentMethodData::Wallet(ref wallet_data) => {
@@ -135,17 +138,24 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BraintreePaymentsRequest {
 }
 
 pub struct BraintreeAuthType {
-    pub(super) api_key: String,
-    pub(super) merchant_account: String,
+    pub(super) auth_header: String,
+    pub(super) merchant_id: String,
 }
 
 impl TryFrom<&types::ConnectorAuthType> for BraintreeAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
-        if let types::ConnectorAuthType::BodyKey { api_key, key1 } = item {
+        if let types::ConnectorAuthType::SignatureKey {
+            api_key: public_key,
+            key1: merchant_id,
+            api_secret: private_key,
+        } = item
+        {
+            let auth_key = format!("{public_key}:{private_key}");
+            let auth_header = format!("Basic {}", consts::BASE64_ENGINE.encode(auth_key));
             Ok(Self {
-                api_key: api_key.to_string(),
-                merchant_account: key1.to_string(),
+                auth_header,
+                merchant_id: merchant_id.to_owned(),
             })
         } else {
             Err(errors::ConnectorError::FailedToObtainAuthType)?
@@ -234,9 +244,11 @@ impl<F, T>
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             response: Ok(types::PaymentsResponseData::SessionResponse {
-                session_token: types::api::SessionToken::Paypal {
-                    session_token: item.response.client_token.value,
-                },
+                session_token: types::api::SessionToken::Paypal(Box::new(
+                    payments::PaypalSessionTokenResponse {
+                        session_token: item.response.client_token.value,
+                    },
+                )),
             }),
             ..item.data
         })

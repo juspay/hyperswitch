@@ -7,7 +7,6 @@ use crate::{
     consts,
     core::errors::{self, RouterResponse, RouterResult, StorageErrorExt},
     db::StorageInterface,
-    env::{self, Env},
     pii::Secret,
     services::api as service_api,
     types::{
@@ -20,12 +19,11 @@ use crate::{
 
 #[inline]
 pub fn create_merchant_api_key() -> String {
-    let id = Uuid::new_v4().simple();
-    match env::which() {
-        Env::Development => format!("dev_{id}"),
-        Env::Production => format!("prd_{id}"),
-        Env::Sandbox => format!("snd_{id}"),
-    }
+    format!(
+        "{}_{}",
+        router_env::env::prefix_for_env(),
+        Uuid::new_v4().simple()
+    )
 }
 
 pub async fn create_merchant_account(
@@ -65,7 +63,7 @@ pub async fn create_merchant_account(
         merchant_name: req.merchant_name,
         api_key,
         merchant_details,
-        return_url: req.return_url,
+        return_url: req.return_url.map(|a| a.to_string()),
         webhook_details,
         routing_algorithm: req.routing_algorithm,
         sub_merchants_enabled: req.sub_merchants_enabled,
@@ -148,7 +146,7 @@ pub async fn merchant_account_update(
             .transpose()
             .change_context(errors::ApiErrorResponse::InternalServerError)?,
 
-        return_url: req.return_url,
+        return_url: req.return_url.map(|a| a.to_string()),
 
         webhook_details: req
             .webhook_details
@@ -241,6 +239,7 @@ async fn validate_merchant_id<S: Into<String>>(
             error.to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
         })
 }
+
 // Payment Connector API -  Every merchant and connector can have an instance of (merchant <> connector)
 //                          with unique merchant_connector_id for Create Operation
 
