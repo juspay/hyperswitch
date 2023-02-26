@@ -73,11 +73,10 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         let ccard = match item.request.payment_method_data {
-            api::PaymentMethod::Card(ref ccard) => Some(ccard),
-            api::PaymentMethod::BankTransfer
-            | api::PaymentMethod::Wallet(_)
-            | api::PaymentMethod::PayLater(_)
-            | api::PaymentMethod::Paypal => None,
+            api::PaymentMethodData::Card(ref ccard) => Some(ccard),
+            api::PaymentMethodData::Wallet(_)
+            | api::PaymentMethodData::PayLater(_)
+            | api::PaymentMethodData::BankRedirect(_) => None,
         };
 
         let three_ds = match item.auth_type {

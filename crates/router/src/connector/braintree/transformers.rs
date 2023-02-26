@@ -101,7 +101,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BraintreePaymentsRequest {
         let kind = "sale".to_string();
 
         let payment_method_data_type = match item.request.payment_method_data.clone() {
-            api::PaymentMethod::Card(ccard) => Ok(PaymentMethodType::CreditCard(Card {
+            api::PaymentMethodData::Card(ccard) => Ok(PaymentMethodType::CreditCard(Card {
                 credit_card: CardDetails {
                     number: ccard.card_number,
                     expiration_month: ccard.card_exp_month,
@@ -109,7 +109,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BraintreePaymentsRequest {
                     cvv: ccard.card_cvc,
                 },
             })),
-            api::PaymentMethod::Wallet(ref wallet_data) => {
+            api::PaymentMethodData::Wallet(ref wallet_data) => {
                 Ok(PaymentMethodType::PaymentMethodNonce(Nonce {
                     payment_method_nonce: wallet_data
                         .token

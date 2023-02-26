@@ -65,7 +65,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for FiservPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         match item.request.payment_method_data {
-            api::PaymentMethod::Card(ref ccard) => {
+            api::PaymentMethodData::Card(ref ccard) => {
                 let auth: FiservAuthType = FiservAuthType::try_from(&item.connector_auth_type)?;
                 let amount = Amount {
                     total: item.request.amount,

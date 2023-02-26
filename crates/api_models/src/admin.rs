@@ -295,10 +295,10 @@ pub struct PaymentConnectorCreate {
 pub struct PaymentMethods {
     /// Type of payment method.
     #[schema(value_type = PaymentMethodType,example = "card")]
-    pub payment_method: api_enums::PaymentMethodType,
+    pub payment_method: api_enums::PaymentMethod,
     /// Subtype of payment method
     #[schema(value_type = Option<Vec<PaymentMethodSubType>>,example = json!(["credit"]))]
-    pub payment_method_types: Option<Vec<api_enums::PaymentMethodSubType>>,
+    pub payment_method_types: Option<Vec<api_enums::PaymentMethodType>>,
     /// List of payment method issuers to be enabled for this payment method
     #[schema(example = json!(["HDFC"]))]
     pub payment_method_issuers: Option<Vec<String>>,

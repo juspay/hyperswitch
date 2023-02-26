@@ -8,7 +8,6 @@ pub mod diesel_exports {
         DbMandateStatus as MandateStatus, DbMandateType as MandateType,
         DbMerchantStorageScheme as MerchantStorageScheme,
         DbPaymentMethodIssuerCode as PaymentMethodIssuerCode,
-        DbPaymentMethodSubType as PaymentMethodSubType, DbPaymentMethodType as PaymentMethodType,
         DbProcessTrackerStatus as ProcessTrackerStatus, DbRefundStatus as RefundStatus,
         DbRefundType as RefundType,
     };
@@ -415,31 +414,6 @@ pub enum PaymentMethodIssuerCode {
     Clone,
     Copy,
     Debug,
-    Eq,
-    Hash,
-    PartialEq,
-    serde::Deserialize,
-    serde::Serialize,
-    strum::Display,
-    strum::EnumString,
-    frunk::LabelledGeneric,
-)]
-#[router_derive::diesel_enum(storage_type = "pg_enum")]
-#[serde(rename_all = "snake_case")]
-#[strum(serialize_all = "snake_case")]
-pub enum PaymentMethodSubType {
-    Credit,
-    Debit,
-    UpiIntent,
-    UpiCollect,
-    CreditCardInstallments,
-    PayLaterInstallments,
-}
-
-#[derive(
-    Clone,
-    Copy,
-    Debug,
     Default,
     Eq,
     Hash,
@@ -450,23 +424,15 @@ pub enum PaymentMethodSubType {
     strum::EnumString,
     frunk::LabelledGeneric,
 )]
-#[router_derive::diesel_enum(storage_type = "pg_enum")]
+#[router_derive::diesel_enum(storage_type = "text")]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
-pub enum PaymentMethodType {
-    Card,
-    PaymentContainer,
+pub enum PaymentMethod {
     #[default]
-    BankTransfer,
-    BankDebit,
+    Card,
     PayLater,
-    Netbanking,
-    Upi,
-    OpenBanking,
-    ConsumerFinance,
     Wallet,
-    Klarna,
-    Paypal,
+    BankRedirect,
 }
 
 #[derive(
@@ -609,6 +575,36 @@ pub enum MandateStatus {
 
 #[derive(
     Clone,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    frunk::LabelledGeneric,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[strum(serialize_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
+pub enum PaymentMethodType {
+    Credit,
+    Debit,
+    Giropay,
+    Ideal,
+    Sofort,
+    Eps,
+    Klarna,
+    Affirm,
+    AfterpayClearpay,
+    GooglePay,
+    ApplePay,
+    Paypal,
+}
+
+#[derive(
+    Clone,
     Copy,
     Debug,
     Eq,
@@ -623,10 +619,7 @@ pub enum MandateStatus {
 #[router_derive::diesel_enum(storage_type = "text")]
 #[strum(serialize_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
-pub enum PaymentIssuer {
-    Klarna,
-    Affirm,
-    AfterpayClearpay,
+pub enum BankNames {
     AmericanExpress,
     BankOfAmerica,
     Barclays,
@@ -638,6 +631,50 @@ pub enum PaymentIssuer {
     PentagonFederalCreditUnion,
     SynchronyBank,
     WellsFargo,
+    AbnAmro,
+    AsnBank,
+    Bunq,
+    Handelsbanken,
+    Ing,
+    Knab,
+    Moneyou,
+    Rabobank,
+    Regiobank,
+    Revolut,
+    SnsBank,
+    TriodosBank,
+    VanLanschot,
+    ArzteUndApothekerBank,
+    AustrianAnadiBankAg,
+    BankAustria,
+    Bank99Ag,
+    BankhausCarlSpangler,
+    BankhausSchelhammerUndSchatteraAg,
+    BawagPskAg,
+    BksBankAg,
+    BrullKallmusBankAg,
+    BtvVierLanderBank,
+    CapitalBankGraweGruppeAg,
+    Dolomitenbank,
+    EasybankAg,
+    ErsteBankUndSparkassen,
+    HypoAlpeadriabankInternationalAg,
+    HypoNoeLbFurNiederosterreichUWien,
+    HypoOberosterreichSalzburgSteiermark,
+    HypoTirolBankAg,
+    HypoVorarlbergBankAg,
+    HypoBankBurgenlandAktiengesellschaft,
+    MarchfelderBank,
+    OberbankAg,
+    OsterreichischeArzteUndApothekerbank,
+    PosojilnicaBankEGen,
+    RaiffeisenBankengruppeOsterreich,
+    SchelhammerCapitalBankAg,
+    SchoellerbankAg,
+    SpardaBankWien,
+    VolksbankGruppe,
+    VolkskreditbankAg,
+    VrBankBraunau,
 }
 
 #[derive(

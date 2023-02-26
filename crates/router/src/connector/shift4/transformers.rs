@@ -32,7 +32,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for Shift4PaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         match item.request.payment_method_data.clone() {
-            api::PaymentMethod::Card(ccard) => {
+            api::PaymentMethodData::Card(ccard) => {
                 let submit_for_settlement = matches!(
                     item.request.capture_method,
                     Some(enums::CaptureMethod::Automatic) | None

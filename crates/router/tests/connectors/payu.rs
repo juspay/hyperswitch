@@ -85,7 +85,7 @@ async fn should_authorize_card_payment() {
 #[actix_web::test]
 async fn should_authorize_gpay_payment() {
     let authorize_response = Payu {}.authorize_payment(Some(types::PaymentsAuthorizeData{
-            payment_method_data: types::api::PaymentMethod::Wallet(api::WalletData{
+            payment_method_data: types::api::PaymentMethodData::Wallet(api::WalletData{
                     issuer_name: api_models::enums::WalletIssuer::GooglePay,
                     token: Some(r#"{"signature":"MEUCIQD7Ta+d9+buesrH2KKkF+03AqTen+eHHN8KFleHoKaiVAIgGvAXyI0Vg3ws8KlF7agW/gmXJhpJOOPkqiNVbn/4f0Y\u003d","protocolVersion":"ECv1","signedMessage":"{\"encryptedMessage\":\"UcdGP9F/1loU0aXvVj6VqGRPA5EAjHYfJrXD0N+5O13RnaJXKWIjch1zzjpy9ONOZHqEGAqYKIcKcpe5ppN4Fpd0dtbm1H4u+lA+SotCff3euPV6sne22/Pl/MNgbz5QvDWR0UjcXvIKSPNwkds1Ib7QMmH4GfZ3vvn6s534hxAmcv/LlkeM4FFf6py9crJK5fDIxtxRJncfLuuPeAXkyy+u4zE33HmT34Oe5MSW/kYZVz31eWqFy2YCIjbJcC9ElMluoOKSZ305UG7tYGB1LCFGQLtLxphrhPu1lEmGEZE1t2cVDoCzjr3rm1OcfENc7eNC4S+ko6yrXh1ZX06c/F9kunyLn0dAz8K5JLIwLdjw3wPADVSd3L0eM7jkzhH80I6nWkutO0x8BFltxWl+OtzrnAe093OUncH6/DK1pCxtJaHdw1WUWrzULcdaMZmPfA\\u003d\\u003d\",\"ephemeralPublicKey\":\"BH7A1FUBWiePkjh/EYmsjY/63D/6wU+4UmkLh7WW6v7PnoqQkjrFpc4kEP5a1Op4FkIlM9LlEs3wGdFB8xIy9cM\\u003d\",\"tag\":\"e/EOsw2Y2wYpJngNWQqH7J62Fhg/tzmgDl6UFGuAN+A\\u003d\"}"}"#
                     .to_string()) //Generate new GooglePay token this is bound to expire

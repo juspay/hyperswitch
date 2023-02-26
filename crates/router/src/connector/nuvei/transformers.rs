@@ -238,7 +238,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for NuveiPaymentsRequest {
         let time_stamp = date_time::date_as_yyyymmddhhmmss();
         let merchant_secret = connector_meta.merchant_secret;
         match item.request.payment_method_data.clone() {
-            api::PaymentMethod::Card(card) => Ok(Self {
+            api::PaymentMethodData::Card(card) => Ok(Self {
                 merchant_id: merchant_id.clone(),
                 merchant_site_id: merchant_site_id.clone(),
                 client_request_id: client_request_id.clone(),

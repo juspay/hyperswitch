@@ -148,12 +148,14 @@ pub fn validate_for_valid_refunds(
         .get_required_value("connector")?
         .parse_enum("connector")
         .change_context(errors::ApiErrorResponse::IncorrectConnectorNameGiven)?;
-    let payment_method = payment_attempt
-        .payment_method
-        .get_required_value("payment_method")?;
+    let payment_method_type = payment_attempt
+        .payment_method_type
+        .clone()
+        .get_required_value("payment_method_type")?;
+
     utils::when(
         matches!(
-            (connector, payment_method),
+            (connector, payment_method_type),
             (
                 api_models::enums::Connector::Braintree,
                 storage_models::enums::PaymentMethodType::Paypal
