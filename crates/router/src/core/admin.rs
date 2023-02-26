@@ -378,7 +378,7 @@ pub async fn list_payment_connectors(
         })?;
 
     let merchant_connector_accounts = store
-        .find_merchant_connector_account_by_merchant_id_list(&merchant_id)
+        .find_merchant_connector_account_by_merchant_id_and_disabled_list(&merchant_id, true)
         .await
         .map_err(|error| {
             error.to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound)
