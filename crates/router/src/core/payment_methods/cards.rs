@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
 use api_models::{
-    admin::{self, PaymentMethodsEnabled},
+    admin::{ PaymentMethodsEnabled},
     enums as api_enums,
     payment_methods::{
         CardNetworkTypes, PaymentExperienceTypes, RequestPaymentMethodTypes,
@@ -19,7 +19,7 @@ use crate::{
         payment_methods::{transformers as payment_methods, vault},
         payments::helpers,
     },
-    db, logger,
+    db,
     pii::prelude::*,
     routes, services,
     types::{
@@ -444,7 +444,6 @@ pub async fn list_payment_methods(
                 payment_experiences_consolidated_hm.insert(payment_method, HashMap::new());
             }
         }
-        let connector_cloned = element.connector.clone();
 
         if let Some(card_networks) = element.card_networks {
             if let Some(payment_method_hm) = card_networks_consolidated_hm.get_mut(&payment_method)
@@ -479,20 +478,20 @@ pub async fn list_payment_methods(
             let mut payment_experience_types = vec![];
             for payment_experience_type in payment_method_types_hm.1 {
                 payment_experience_types.push(PaymentExperienceTypes {
-                    payment_experience_type: payment_experience_type.0.clone(),
+                    payment_experience_type: *payment_experience_type.0,
                     eligible_connectors: payment_experience_type.1.clone(),
                 })
             }
 
             payment_method_types.push(ResponsePaymentMethodTypes {
-                payment_method_type: payment_method_types_hm.0.clone(),
+                payment_method_type: *payment_method_types_hm.0,
                 payment_experience: Some(payment_experience_types),
                 card_networks: None,
             })
         }
 
         payment_method_responses.push(ResponsePaymentMethodsEnabled {
-            payment_method: key.0.clone(),
+            payment_method: *key.0,
             payment_method_types,
         })
     }
@@ -509,14 +508,14 @@ pub async fn list_payment_methods(
             }
 
             payment_method_types.push(ResponsePaymentMethodTypes {
-                payment_method_type: payment_method_types_hm.0.clone(),
+                payment_method_type: *payment_method_types_hm.0,
                 card_networks: Some(card_network_types),
                 payment_experience: None,
             })
         }
 
         payment_method_responses.push(ResponsePaymentMethodsEnabled {
-            payment_method: key.0.clone(),
+            payment_method: *key.0,
             payment_method_types,
         })
     }
@@ -587,7 +586,6 @@ async fn filter_payment_methods(
                     };
 
                     let connector = connector.clone();
-                    let payment_method = payment_method.clone();
 
                     let response_pm_type = ResponsePaymentMethodIntermediate::new(
                         payment_method_object,

@@ -1404,26 +1404,30 @@ mod payment_id_type {
     }
 }
 
+#[allow(dead_code)]
 #[derive(serde::Deserialize)]
 pub struct BankData {
     payment_method_type: api_enums::PaymentMethodType,
     code_information: BankCodeInformation,
 }
 
+#[allow(dead_code)]
 #[derive(serde::Deserialize)]
 pub struct BankCodeInformation {
     bank_name: String,
     connector_codes: Vec<ConnectorCode>,
 }
 
+#[allow(dead_code)]
 #[derive(serde::Deserialize)]
 pub struct ConnectorCode {
     connector: api_enums::Connector,
     code: api_enums::BankNames,
 }
 
+#[allow(dead_code)]
 pub struct BankCodeResponse {
-    hyperswitch_code: api_enums::BankNames,
+    bank_name: api_enums::BankNames,
     connectors: Vec<api_enums::Connector>,
 }
 

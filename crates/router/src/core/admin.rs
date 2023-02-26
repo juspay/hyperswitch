@@ -240,7 +240,7 @@ async fn validate_merchant_id<S: Into<String>>(
         })
 }
 
-fn validate_pm_enabled(pm: &api::PaymentMethodsEnabled) -> RouterResult<()> {
+fn validate_pm_enabled(_pm: &api::PaymentMethodsEnabled) -> RouterResult<()> {
     //TODO: make changes to this logic when accepted countries is changed to enum
     // if let Some(ac) = pm.accepted_countries.to_owned() {
     //     when(ac.enable_all && ac.enable_only.is_some(), || {
