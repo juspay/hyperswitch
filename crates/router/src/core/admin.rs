@@ -1,4 +1,4 @@
-use common_utils::{ext_traits::ValueExt, fp_utils::when};
+use common_utils::ext_traits::ValueExt;
 use error_stack::{report, FutureExt, ResultExt};
 use storage_models::{enums, merchant_account};
 use uuid::Uuid;
@@ -241,33 +241,34 @@ async fn validate_merchant_id<S: Into<String>>(
 }
 
 fn validate_pm_enabled(pm: &api::PaymentMethodsEnabled) -> RouterResult<()> {
-    if let Some(ac) = pm.accepted_countries.to_owned() {
-        when(ac.enable_all && ac.enable_only.is_some(), || {
-            Err(errors::ApiErrorResponse::PreconditionFailed {
-                message: "In case all countries are enabled,provide the disable_only country"
-                    .to_string(),
-            })
-        })?;
-        when(!ac.enable_all && ac.disable_only.is_some(), || {
-            Err(errors::ApiErrorResponse::PreconditionFailed {
-                message: "In case enable_all is false, provide the enable_only country".to_string(),
-            })
-        })?;
-    };
-    if let Some(ac) = pm.accepted_currencies.to_owned() {
-        when(ac.enable_all && ac.enable_only.is_some(), || {
-            Err(errors::ApiErrorResponse::PreconditionFailed {
-                message: "In case all currencies are enabled, provide the disable_only currency"
-                    .to_string(),
-            })
-        })?;
-        when(!ac.enable_all && ac.disable_only.is_some(), || {
-            Err(errors::ApiErrorResponse::PreconditionFailed {
-                message: "In case enable_all is false, provide the enable_only currency"
-                    .to_string(),
-            })
-        })?;
-    };
+    //TODO: make changes to this logic when accepted countries is changed to enum
+    // if let Some(ac) = pm.accepted_countries.to_owned() {
+    //     when(ac.enable_all && ac.enable_only.is_some(), || {
+    //         Err(errors::ApiErrorResponse::PreconditionFailed {
+    //             message: "In case all countries are enabled,provide the disable_only country"
+    //                 .to_string(),
+    //         })
+    //     })?;
+    //     when(!ac.enable_all && ac.disable_only.is_some(), || {
+    //         Err(errors::ApiErrorResponse::PreconditionFailed {
+    //             message: "In case enable_all is false, provide the enable_only country".to_string(),
+    //         })
+    //     })?;
+    // };
+    // if let Some(ac) = pm.accepted_currencies.to_owned() {
+    //     when(ac.enable_all && ac.enable_only.is_some(), || {
+    //         Err(errors::ApiErrorResponse::PreconditionFailed {
+    //             message: "In case all currencies are enabled, provide the disable_only currency"
+    //                 .to_string(),
+    //         })
+    //     })?;
+    //     when(!ac.enable_all && ac.disable_only.is_some(), || {
+    //         Err(errors::ApiErrorResponse::PreconditionFailed {
+    //             message: "In case enable_all is false, provide the enable_only currency"
+    //                 .to_string(),
+    //         })
+    //     })?;
+    // };
     Ok(())
 }
 

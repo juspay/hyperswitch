@@ -302,69 +302,7 @@ pub struct PaymentMethodsEnabled {
 
     /// Subtype of payment method
     #[schema(value_type = Option<Vec<PaymentMethodType>>,example = json!(["credit"]))]
-    pub payment_method_types: Option<Vec<payment_methods::PaymentMethodTypesInformation>>,
-
-    /// List of currencies accepted or has the processing capabilities of the processor
-    #[schema(example = json!(
-        {
-        "enable_all":false,
-        "disable_only": ["INR", "CAD", "AED","JPY"],
-        "enable_only": ["EUR","USD"]
-        }
-    ))]
-    pub accepted_currencies: Option<AcceptedCurrencies>,
-    ///  List of Countries accepted or has the processing capabilities of the processor
-    #[schema(example = json!(
-        {
-            "enable_all":false,
-            "disable_only": ["FR", "DE","IN"],
-            "enable_only": ["UK","AU"]
-        }
-    ))]
-    pub accepted_countries: Option<AcceptedCountries>,
-    /// Minimum amount supported by the processor. To be represented in the lowest denomination of the target currency (For example, for USD it should be in cents)
-    #[schema(example = 1)]
-    pub minimum_amount: Option<i32>,
-
-    /// Maximum amount supported by the processor. To be represented in the lowest denomination of
-    /// the target currency (For example, for USD it should be in cents)
-    #[schema(example = 1313)]
-    pub maximum_amount: Option<i32>,
-
-    /// Boolean to enable recurring payments / mandates. Default is true.
-    #[schema(default = true, example = false)]
-    pub recurring_enabled: bool,
-
-    /// Boolean to enable installment / EMI / BNPL payments. Default is true.
-    #[schema(default = true, example = false)]
-    pub installment_payment_enabled: bool,
-    /// Type of payment experience enabled with the connector
-    #[schema(value_type = Option<Vec<PaymentExperience>>,example = json!(["redirect_to_url"]))]
-    pub payment_experience: Option<Vec<api_enums::PaymentExperience>>,
-}
-
-/// List of enabled and disabled currencies
-#[derive(Eq, PartialEq, Hash, Debug, Clone, serde::Serialize, Deserialize, ToSchema)]
-#[serde(deny_unknown_fields)]
-pub struct AcceptedCurrencies {
-    /// True in case all currencies are supported
-    pub enable_all: bool,
-    /// List of disabled currencies, provide in case only few of currencies are not supported
-    pub disable_only: Option<Vec<api_enums::Currency>>,
-    /// List of enable currencies, provide in case only few of currencies are supported
-    pub enable_only: Option<Vec<api_enums::Currency>>,
-}
-
-/// List of enabled and disabled countries
-#[derive(Eq, PartialEq, Hash, Debug, Clone, serde::Serialize, Deserialize, ToSchema)]
-#[serde(deny_unknown_fields)]
-pub struct AcceptedCountries {
-    /// True in case all countries are supported
-    pub enable_all: bool,
-    /// List of disabled countries, provide in case only few of countries are not supported
-    pub disable_only: Option<Vec<String>>,
-    /// List of enable countries, provide in case only few of countries are supported
-    pub enable_only: Option<Vec<String>>,
+    pub payment_method_types: Option<Vec<payment_methods::RequestPaymentMethodTypes>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]

@@ -4,7 +4,7 @@ use common_utils::pii;
 use serde::de;
 use utoipa::ToSchema;
 
-use crate::{admin, enums as api_enums};
+use crate::enums as api_enums;
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 #[serde(deny_unknown_fields)]
@@ -151,11 +151,115 @@ pub struct CardDetailFromLocker {
     pub card_fingerprint: Option<masking::Secret<String>>,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
-pub struct PaymentMethodTypesInformation {
+/// List of enabled and disabled currencies
+#[derive(Eq, PartialEq, Hash, Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub struct AcceptedCurrencies {
+    /// True in case all currencies are supported
+    pub enable_all: bool,
+    /// List of disabled currencies, provide in case only few of currencies are not supported
+    pub disable_only: Option<Vec<api_enums::Currency>>,
+    /// List of enable currencies, provide in case only few of currencies are supported
+    pub enable_only: Option<Vec<api_enums::Currency>>,
+}
+
+/// List of enabled and disabled countries
+#[derive(Eq, PartialEq, Hash, Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub struct AcceptedCountries {
+    /// True in case all countries are supported
+    pub enable_all: bool,
+    /// List of disabled countries, provide in case only few of countries are not supported
+    pub disable_only: Option<Vec<String>>,
+    /// List of enable countries, provide in case only few of countries are supported
+    pub enable_only: Option<Vec<String>>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, PartialEq, Eq)]
+pub struct PaymentExperienceTypes {
+    pub payment_experience_type: api_enums::PaymentExperience,
+    pub eligible_connectors: Vec<String>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, PartialEq, Eq)]
+pub struct ResponsePaymentMethodTypes {
+    pub payment_method_type: api_enums::PaymentMethodType,
+    pub payment_experience: Option<Vec<PaymentExperienceTypes>>,
+    pub card_networks: Option<Vec<api_enums::CardNetworks>>,
+}
+
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+pub struct ResponsePaymentMethodsEnabled {
+    pub payment_method: api_enums::PaymentMethod,
+    pub payment_method_types: Vec<ResponsePaymentMethodTypes>,
+}
+
+#[derive(Clone)]
+pub struct ResponsePaymentMethodIntermediate {
     pub payment_method_type: api_enums::PaymentMethodType,
     pub payment_experience: Option<api_enums::PaymentExperience>,
-    pub card_networks: Option<api_enums::CardNetworks>,
+    pub card_networks: Option<Vec<api_enums::CardNetworks>>,
+    pub payment_method: api_enums::PaymentMethod,
+    pub connector: String,
+}
+
+impl ResponsePaymentMethodIntermediate {
+    pub fn new(
+        pm_type: RequestPaymentMethodTypes,
+        connector: String,
+        pm: api_enums::PaymentMethod,
+    ) -> Self {
+        Self {
+            payment_method_type: pm_type.payment_method_type,
+            payment_experience: pm_type.payment_experience,
+            card_networks: pm_type.card_networks,
+            payment_method: pm,
+            connector,
+        }
+    }
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, PartialEq, Eq, Hash)]
+pub struct RequestPaymentMethodTypes {
+    pub payment_method_type: api_enums::PaymentMethodType,
+    pub payment_experience: Option<api_enums::PaymentExperience>,
+    pub card_networks: Option<Vec<api_enums::CardNetworks>>,
+    /// List of currencies accepted or has the processing capabilities of the processor
+    #[schema(example = json!(
+        {
+        "enable_all":false,
+        "disable_only": ["INR", "CAD", "AED","JPY"],
+        "enable_only": ["EUR","USD"]
+        }
+    ))]
+    pub accepted_currencies: Option<AcceptedCurrencies>,
+
+    ///  List of Countries accepted or has the processing capabilities of the processor
+    #[schema(example = json!(
+        {
+            "enable_all":false,
+            "disable_only": ["FR", "DE","IN"],
+            "enable_only": ["UK","AU"]
+        }
+    ))]
+    pub accepted_countries: Option<AcceptedCountries>,
+
+    /// Minimum amount supported by the processor. To be represented in the lowest denomination of the target currency (For example, for USD it should be in cents)
+    #[schema(example = 1)]
+    pub minimum_amount: Option<i32>,
+
+    /// Maximum amount supported by the processor. To be represented in the lowest denomination of
+    /// the target currency (For example, for USD it should be in cents)
+    #[schema(example = 1313)]
+    pub maximum_amount: Option<i32>,
+
+    /// Boolean to enable recurring payments / mandates. Default is true.
+    #[schema(default = true, example = false)]
+    pub recurring_enabled: bool,
+
+    /// Boolean to enable installment / EMI / BNPL payments. Default is true.
+    #[schema(default = true, example = false)]
+    pub installment_payment_enabled: bool,
 }
 
 //List Payment Method
@@ -295,8 +399,24 @@ pub struct ListPaymentMethodResponse {
         }
     ]
     ))]
-    pub payment_methods: HashSet<ListPaymentMethod>,
+    pub payment_methods: Vec<ResponsePaymentMethodsEnabled>,
 }
+
+// impl ResponsePaymentMethodTypes {
+//     pub fn new(
+//         pm_type: RequestPaymentMethodTypes,
+//         connector: String,
+//         payment_method: api_enums::PaymentMethod,
+//     ) -> Self {
+//         Self {
+//             payment_method_type: pm_type.payment_method_type,
+//             payment_experience: pm_type.payment_experience,
+//             connector,
+//             card_networks: pm_type.card_networks,
+//             payment_method,
+//         }
+//     }
+// }
 
 #[derive(Eq, PartialEq, Hash, Debug, serde::Deserialize, ToSchema)]
 pub struct ListPaymentMethod {
@@ -306,53 +426,7 @@ pub struct ListPaymentMethod {
 
     /// This is a sub-category of payment method.
     #[schema(value_type = Option<Vec<PaymentMethodType>>,example = json!(["credit_card"]))]
-    pub payment_method_types: Option<Vec<api_enums::PaymentMethodType>>,
-
-    /// List of payment schemes accepted or has the processing capabilities of the processor
-    #[schema(example = json!(["MASTER", "VISA", "DINERS"]))]
-    pub payment_schemes: Option<Vec<String>>,
-
-    /// List of Countries accepted or has the processing capabilities of the processor
-    #[schema(example = json!(
-        {
-            "enable_all":false,
-            "disable_only": ["FR", "DE","IN"],
-            "enable_only": ["UK","AU"]
-        }
-    ))]
-    pub accepted_countries: Option<admin::AcceptedCountries>,
-
-    /// List of currencies accepted or has the processing capabilities of the processor
-    #[schema(example = json!(
-        {
-        "enable_all":false,
-        "disable_only": ["INR", "CAD", "AED","JPY"],
-        "enable_only": ["EUR","USD"]
-        }
-    ))]
-    pub accepted_currencies: Option<admin::AcceptedCurrencies>,
-
-    /// Minimum amount supported by the processor. To be represented in the lowest denomination of
-    /// the target currency (For example, for USD it should be in cents)
-    #[schema(example = 60000)]
-    pub minimum_amount: Option<i64>,
-
-    /// Maximum amount supported by the processor. To be represented in the lowest denomination of
-    /// the target currency (For example, for USD it should be in cents)
-    #[schema(example = 1)]
-    pub maximum_amount: Option<i64>,
-
-    /// Boolean to enable recurring payments / mandates. Default is true.
-    #[schema(example = true)]
-    pub recurring_enabled: bool,
-
-    /// Boolean to enable installment / EMI / BNPL payments. Default is true.
-    #[schema(example = true)]
-    pub installment_payment_enabled: bool,
-
-    /// Type of payment experience enabled with the connector
-    #[schema(value_type = Option<Vec<PaymentExperience>>, example = json!(["redirect_to_url"]))]
-    pub payment_experience: Option<Vec<api_enums::PaymentExperience>>,
+    pub payment_method_types: Option<Vec<RequestPaymentMethodTypes>>,
 }
 
 /// We need a custom serializer to only send relevant fields in ListPaymentMethodResponse
@@ -367,10 +441,8 @@ impl serde::Serialize for ListPaymentMethod {
         use serde::ser::SerializeStruct;
         let mut state = serializer.serialize_struct("ListPaymentMethod", 4)?;
         state.serialize_field("payment_method", &self.payment_method)?;
-        state.serialize_field("payment_experience", &self.payment_experience)?;
 
         state.serialize_field("payment_method_types", &self.payment_method_types)?;
-        state.serialize_field("payment_schemes", &self.payment_schemes)?;
 
         state.end()
     }

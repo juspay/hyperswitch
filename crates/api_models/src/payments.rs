@@ -6,10 +6,7 @@ use router_derive::Setter;
 use time::PrimitiveDateTime;
 use utoipa::ToSchema;
 
-use crate::{
-    enums::{self as api_enums, Connector},
-    refunds,
-};
+use crate::{enums as api_enums, refunds};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum PaymentOp {
@@ -1421,7 +1418,7 @@ pub struct BankCodeInformation {
 
 #[derive(serde::Deserialize)]
 pub struct ConnectorCode {
-    connector: Connector,
+    connector: api_enums::Connector,
     code: api_enums::BankNames,
 }
 

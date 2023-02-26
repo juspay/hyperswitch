@@ -1,6 +1,13 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
-use api_models::{admin, enums as api_enums};
+use api_models::{
+    admin::{self, PaymentMethodsEnabled},
+    enums as api_enums,
+    payment_methods::{
+        PaymentExperienceTypes, RequestPaymentMethodTypes, ResponsePaymentMethodIntermediate,
+        ResponsePaymentMethodTypes, ResponsePaymentMethodsEnabled,
+    },
+};
 use common_utils::{consts, ext_traits::AsyncExt, generate_id};
 use error_stack::{report, ResultExt};
 use router_env::{instrument, tracing};
@@ -11,7 +18,7 @@ use crate::{
         payment_methods::{transformers as payment_methods, vault},
         payments::helpers,
     },
-    db,
+    db, logger,
     pii::prelude::*,
     routes, services,
     types::{
@@ -148,6 +155,7 @@ pub async fn add_card(
         &locker_id,
         merchant_id,
     )?;
+
     let response = if !locker.mock_locker {
         let response = services::call_connector_api(state, request)
             .await
@@ -380,7 +388,7 @@ pub async fn list_payment_methods(
             error.to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
         })?;
 
-    let mut response: HashSet<api::ListPaymentMethod> = HashSet::new();
+    let mut response: Vec<ResponsePaymentMethodIntermediate> = vec![];
     for mca in all_mcas {
         let payment_methods = match mca.payment_methods_enabled {
             Some(pm) => pm,
@@ -394,8 +402,70 @@ pub async fn list_payment_methods(
             payment_intent.as_ref(),
             payment_attempt.as_ref(),
             address.as_ref(),
+            mca.connector_name,
         )
         .await?;
+    }
+
+    let mut payment_experiences_consolidated_hm: HashMap<
+        api_enums::PaymentMethod,
+        HashMap<api_enums::PaymentMethodType, HashMap<api_enums::PaymentExperience, Vec<String>>>,
+    > = HashMap::new();
+
+    for element in response.clone() {
+        if let Some(payment_experience) = element.payment_experience {
+            let payment_method = element.payment_method;
+            let payment_method_type = element.payment_method_type;
+
+            let connector = element.connector.clone();
+
+            if let Some(payment_method_hm) =
+                payment_experiences_consolidated_hm.get_mut(&payment_method)
+            {
+                if let Some(payment_method_type_hm) =
+                    payment_method_hm.get_mut(&payment_method_type)
+                {
+                    if let Some(vector_of_connectors) =
+                        payment_method_type_hm.get_mut(&payment_experience)
+                    {
+                        vector_of_connectors.push(connector);
+                    } else {
+                        payment_method_type_hm.insert(payment_experience, vec![connector]);
+                    }
+                } else {
+                    payment_method_hm.insert(payment_method_type, HashMap::new());
+                }
+            } else {
+                payment_experiences_consolidated_hm.insert(payment_method, HashMap::new());
+            }
+        } else {
+            // Handle cases for pm_types with no experience mentioned
+        }
+    }
+
+    let mut payment_method_responses: Vec<ResponsePaymentMethodsEnabled> = vec![];
+    for key in payment_experiences_consolidated_hm.iter() {
+        let mut payment_method_types = vec![];
+        for payment_method_types_hm in key.1 {
+            let mut payment_experience_types = vec![];
+            for payment_experience_type in payment_method_types_hm.1 {
+                payment_experience_types.push(PaymentExperienceTypes {
+                    payment_experience_type: payment_experience_type.0.clone(),
+                    eligible_connectors: payment_experience_type.1.clone(),
+                })
+            }
+
+            payment_method_types.push(ResponsePaymentMethodTypes {
+                payment_method_type: payment_method_types_hm.0.clone(),
+                payment_experience: Some(payment_experience_types),
+                card_networks: None,
+            })
+        }
+
+        payment_method_responses.push(ResponsePaymentMethodsEnabled {
+            payment_method: key.0.clone(),
+            payment_method_types,
+        })
     }
 
     response
@@ -404,7 +474,7 @@ pub async fn list_payment_methods(
         .unwrap_or(Ok(services::ApplicationResponse::Json(
             api::ListPaymentMethodResponse {
                 redirect_url: merchant_account.return_url,
-                payment_methods: response,
+                payment_methods: payment_method_responses,
             },
         )))
 }
@@ -412,51 +482,69 @@ pub async fn list_payment_methods(
 async fn filter_payment_methods(
     payment_methods: Vec<serde_json::Value>,
     req: &mut api::ListPaymentMethodRequest,
-    resp: &mut HashSet<api::ListPaymentMethod>,
+    resp: &mut Vec<ResponsePaymentMethodIntermediate>,
     payment_intent: Option<&storage::PaymentIntent>,
     payment_attempt: Option<&storage::PaymentAttempt>,
     address: Option<&storage::Address>,
+    connector: String,
 ) -> errors::CustomResult<(), errors::ApiErrorResponse> {
     for payment_method in payment_methods.into_iter() {
-        if let Ok(payment_method_object) =
-            serde_json::from_value::<api::ListPaymentMethod>(payment_method)
-        {
-            if filter_recurring_based(&payment_method_object, req.recurring_enabled)
-                && filter_installment_based(&payment_method_object, req.installment_payment_enabled)
-                && filter_amount_based(&payment_method_object, req.amount)
+        let parse_result = serde_json::from_value::<PaymentMethodsEnabled>(payment_method);
+        if let Ok(payment_methods_enabled) = parse_result {
+            let payment_method = payment_methods_enabled.payment_method;
+            for payment_method_type_info in payment_methods_enabled
+                .payment_method_types
+                .unwrap_or_default()
             {
-                let mut payment_method_object = payment_method_object;
+                if filter_recurring_based(&payment_method_type_info, req.recurring_enabled)
+                    && filter_installment_based(
+                        &payment_method_type_info,
+                        req.installment_payment_enabled,
+                    )
+                    && filter_amount_based(&payment_method_type_info, req.amount)
+                {
+                    let mut payment_method_object = payment_method_type_info;
 
-                let filter;
-                (
-                    payment_method_object.accepted_countries,
-                    req.accepted_countries,
-                    filter,
-                ) = filter_pm_country_based(
-                    &payment_method_object.accepted_countries,
-                    &req.accepted_countries,
-                );
-                let filter2;
-                (
-                    payment_method_object.accepted_currencies,
-                    req.accepted_currencies,
-                    filter2,
-                ) = filter_pm_currencies_based(
-                    &payment_method_object.accepted_currencies,
-                    &req.accepted_currencies,
-                );
-                let filter3 = if let Some(payment_intent) = payment_intent {
-                    filter_payment_country_based(&payment_method_object, address).await?
-                        && filter_payment_currency_based(payment_intent, &payment_method_object)
-                        && filter_payment_amount_based(payment_intent, &payment_method_object)
-                        && filter_payment_mandate_based(payment_attempt, &payment_method_object)
-                            .await?
-                } else {
-                    true
-                };
+                    let filter;
+                    (
+                        payment_method_object.accepted_countries,
+                        req.accepted_countries,
+                        filter,
+                    ) = filter_pm_country_based(
+                        &payment_method_object.accepted_countries,
+                        &req.accepted_countries,
+                    );
+                    let filter2;
+                    (
+                        payment_method_object.accepted_currencies,
+                        req.accepted_currencies,
+                        filter2,
+                    ) = filter_pm_currencies_based(
+                        &payment_method_object.accepted_currencies,
+                        &req.accepted_currencies,
+                    );
+                    let filter3 = if let Some(payment_intent) = payment_intent {
+                        filter_payment_country_based(&payment_method_object, address).await?
+                            && filter_payment_currency_based(payment_intent, &payment_method_object)
+                            && filter_payment_amount_based(payment_intent, &payment_method_object)
+                            && filter_payment_mandate_based(payment_attempt, &payment_method_object)
+                                .await?
+                    } else {
+                        true
+                    };
 
-                if filter && filter2 && filter3 {
-                    resp.insert(payment_method_object);
+                    let connector = connector.clone();
+                    let payment_method = payment_method.clone();
+
+                    let response_pm_type = ResponsePaymentMethodIntermediate::new(
+                        payment_method_object,
+                        connector,
+                        payment_method,
+                    );
+
+                    if filter && filter2 && filter3 {
+                        resp.push(response_pm_type);
+                    }
                 }
             }
         }
@@ -465,9 +553,13 @@ async fn filter_payment_methods(
 }
 
 fn filter_pm_country_based(
-    accepted_countries: &Option<admin::AcceptedCountries>,
+    accepted_countries: &Option<api_models::payment_methods::AcceptedCountries>,
     req_country_list: &Option<Vec<String>>,
-) -> (Option<admin::AcceptedCountries>, Option<Vec<String>>, bool) {
+) -> (
+    Option<api_models::payment_methods::AcceptedCountries>,
+    Option<Vec<String>>,
+    bool,
+) {
     match (accepted_countries, req_country_list) {
         (None, None) => (None, None, true),
         (None, Some(ref r)) => (None, Some(r.to_vec()), false),
@@ -479,7 +571,7 @@ fn filter_pm_country_based(
                 filter_accepted_enum_based(&l.enable_only, &Some(r.to_owned()))
             };
             (
-                Some(admin::AcceptedCountries {
+                Some(api_models::payment_methods::AcceptedCountries {
                     enable_all: l.enable_all,
                     enable_only,
                     disable_only: None,
@@ -492,10 +584,10 @@ fn filter_pm_country_based(
 }
 
 fn filter_pm_currencies_based(
-    accepted_currency: &Option<admin::AcceptedCurrencies>,
+    accepted_currency: &Option<api_models::payment_methods::AcceptedCurrencies>,
     req_currency_list: &Option<Vec<api_enums::Currency>>,
 ) -> (
-    Option<admin::AcceptedCurrencies>,
+    Option<api_models::payment_methods::AcceptedCurrencies>,
     Option<Vec<api_enums::Currency>>,
     bool,
 ) {
@@ -510,7 +602,7 @@ fn filter_pm_currencies_based(
                 filter_accepted_enum_based(&l.enable_only, &Some(r.to_owned()))
             };
             (
-                Some(admin::AcceptedCurrencies {
+                Some(api_models::payment_methods::AcceptedCurrencies {
                     enable_all: l.enable_all,
                     enable_only,
                     disable_only: None,
@@ -558,12 +650,20 @@ fn filter_disabled_enum_based<T: Eq + std::hash::Hash + Clone>(
     }
 }
 
-fn filter_amount_based(payment_method: &api::ListPaymentMethod, amount: Option<i64>) -> bool {
+fn filter_amount_based(payment_method: &RequestPaymentMethodTypes, amount: Option<i64>) -> bool {
     let min_check = amount
-        .and_then(|amt| payment_method.minimum_amount.map(|min_amt| amt >= min_amt))
+        .and_then(|amt| {
+            payment_method
+                .minimum_amount
+                .map(|min_amt| amt >= min_amt.into())
+        })
         .unwrap_or(true);
     let max_check = amount
-        .and_then(|amt| payment_method.maximum_amount.map(|max_amt| amt <= max_amt))
+        .and_then(|amt| {
+            payment_method
+                .maximum_amount
+                .map(|max_amt| amt <= max_amt.into())
+        })
         .unwrap_or(true);
     // let min_check = match (amount, payment_method.minimum_amount) {
     //     (Some(amt), Some(min_amt)) => amt >= min_amt,
@@ -577,14 +677,14 @@ fn filter_amount_based(payment_method: &api::ListPaymentMethod, amount: Option<i
 }
 
 fn filter_recurring_based(
-    payment_method: &api::ListPaymentMethod,
+    payment_method: &RequestPaymentMethodTypes,
     recurring_enabled: Option<bool>,
 ) -> bool {
     recurring_enabled.map_or(true, |enabled| payment_method.recurring_enabled == enabled)
 }
 
 fn filter_installment_based(
-    payment_method: &api::ListPaymentMethod,
+    payment_method: &RequestPaymentMethodTypes,
     installment_payment_enabled: Option<bool>,
 ) -> bool {
     installment_payment_enabled.map_or(true, |enabled| {
@@ -593,7 +693,7 @@ fn filter_installment_based(
 }
 
 async fn filter_payment_country_based(
-    pm: &api::ListPaymentMethod,
+    pm: &RequestPaymentMethodTypes,
     address: Option<&storage::Address>,
 ) -> errors::CustomResult<bool, errors::ApiErrorResponse> {
     Ok(address.map_or(true, |address| {
@@ -615,7 +715,7 @@ async fn filter_payment_country_based(
 
 fn filter_payment_currency_based(
     payment_intent: &storage::PaymentIntent,
-    pm: &api::ListPaymentMethod,
+    pm: &RequestPaymentMethodTypes,
 ) -> bool {
     payment_intent.currency.map_or(true, |currency| {
         pm.accepted_currencies.as_ref().map_or(true, |ac| {
@@ -634,16 +734,16 @@ fn filter_payment_currency_based(
 
 fn filter_payment_amount_based(
     payment_intent: &storage::PaymentIntent,
-    pm: &api::ListPaymentMethod,
+    pm: &RequestPaymentMethodTypes,
 ) -> bool {
     let amount = payment_intent.amount;
-    pm.maximum_amount.map_or(true, |amt| amount < amt)
-        && pm.minimum_amount.map_or(true, |amt| amount > amt)
+    pm.maximum_amount.map_or(true, |amt| amount < amt.into())
+        && pm.minimum_amount.map_or(true, |amt| amount > amt.into())
 }
 
 async fn filter_payment_mandate_based(
     payment_attempt: Option<&storage::PaymentAttempt>,
-    pm: &api::ListPaymentMethod,
+    pm: &RequestPaymentMethodTypes,
 ) -> errors::CustomResult<bool, errors::ApiErrorResponse> {
     let recurring_filter = if !pm.recurring_enabled {
         payment_attempt.map_or(true, |pa| pa.mandate_id.is_none())
