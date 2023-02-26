@@ -296,7 +296,7 @@ pub struct ListPaymentMethodResponse {
         }
     ]
     ))]
-    pub payment_methods: HashSet<ListPaymentMethod>,
+    pub payment_methods: Vec<ListPaymentMethod>,
 }
 
 #[derive(Eq, PartialEq, Hash, Debug, serde::Deserialize, ToSchema)]
@@ -324,9 +324,8 @@ pub struct ListPaymentMethod {
     /// List of Countries accepted or has the processing capabilities of the processor
     #[schema(example = json!(
         {
-            "enable_all":false,
-            "disable_only": ["FR", "DE","IN"],
-            "enable_only": ["UK","AU"]
+            "type": "disable_only",
+            "list": ["FR", "DE","IN"]
         }
     ))]
     pub accepted_countries: Option<admin::AcceptedCountries>,
@@ -334,9 +333,8 @@ pub struct ListPaymentMethod {
     /// List of currencies accepted or has the processing capabilities of the processor
     #[schema(example = json!(
         {
-        "enable_all":false,
-        "disable_only": ["INR", "CAD", "AED","JPY"],
-        "enable_only": ["EUR","USD"]
+            "type": "enable_only",
+            "list": ["USD", "EUR"]
         }
     ))]
     pub accepted_currencies: Option<admin::AcceptedCurrencies>,
@@ -362,9 +360,12 @@ pub struct ListPaymentMethod {
     /// Type of payment experience enabled with the connector
     #[schema(value_type = Option<Vec<PaymentExperience>>, example = json!(["redirect_to_url"]))]
     pub payment_experience: Option<Vec<api_enums::PaymentExperience>>,
+
+    /// Eligible connectors for this payment method
+    #[schema(example = json!(["stripe", "adyen"]))]
+    pub eligible_connectors: Option<Vec<String>>,
 }
 
-/// We need a custom serializer to only send relevant fields in ListPaymentMethodResponse
 /// Currently if the payment method is Wallet or Paylater the relevant fields are `payment_method`
 /// and `payment_method_issuers`. Otherwise only consider
 /// `payment_method`,`payment_method_issuers`,`payment_method_types`,`payment_schemes` fields.
@@ -377,6 +378,7 @@ impl serde::Serialize for ListPaymentMethod {
         let mut state = serializer.serialize_struct("ListPaymentMethod", 4)?;
         state.serialize_field("payment_method", &self.payment_method)?;
         state.serialize_field("payment_experience", &self.payment_experience)?;
+        state.serialize_field("eligible_connectors", &self.eligible_connectors)?;
         match self.payment_method {
             api_enums::PaymentMethodType::Wallet | api_enums::PaymentMethodType::PayLater => {
                 state.serialize_field("payment_method_issuers", &self.payment_method_issuers)?;

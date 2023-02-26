@@ -8,7 +8,7 @@ use regex::Regex;
 use crate::{
     core::errors::{self, CustomResult},
     pii::PeekInterface,
-    types::{self, api},
+    types::{self, api, PaymentsCancelData},
     utils::OptionExt,
 };
 
@@ -44,6 +44,11 @@ pub trait RouterData {
     fn get_billing_phone(&self) -> Result<&api::PhoneDetails, Error>;
     fn get_description(&self) -> Result<String, Error>;
     fn get_billing_address(&self) -> Result<&api::AddressDetails, Error>;
+    fn get_connector_meta(&self) -> Result<serde_json::Value, Error>;
+    fn get_session_token(&self) -> Result<String, Error>;
+    fn to_connector_meta<T>(&self) -> Result<T, Error>
+    where
+        T: serde::de::DeserializeOwned;
     fn get_return_url(&self) -> Result<String, Error>;
 }
 
@@ -83,8 +88,29 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
             .and_then(|a| a.address.as_ref())
             .ok_or_else(missing_field_err("billing.address"))
     }
+    fn get_connector_meta(&self) -> Result<serde_json::Value, Error> {
+        self.connector_meta_data
+            .clone()
+            .ok_or_else(missing_field_err("connector_meta_data"))
+    }
+
+    fn get_session_token(&self) -> Result<String, Error> {
+        self.session_token
+            .clone()
+            .ok_or_else(missing_field_err("session_token"))
+    }
+
+    fn to_connector_meta<T>(&self) -> Result<T, Error>
+    where
+        T: serde::de::DeserializeOwned,
+    {
+        serde_json::from_value::<T>(self.get_connector_meta()?)
+            .into_report()
+            .change_context(errors::ConnectorError::NoConnectorMetaData)
+    }
+
     fn get_return_url(&self) -> Result<String, Error> {
-        self.return_url
+        self.router_return_url
             .clone()
             .ok_or_else(missing_field_err("return_url"))
     }
@@ -100,6 +126,20 @@ impl PaymentsRequestData for types::PaymentsAuthorizeRouterData {
             api::PaymentMethod::Card(card) => Ok(card),
             _ => Err(missing_field_err("card")()),
         }
+    }
+}
+
+pub trait PaymentsCancelRequestData {
+    fn get_amount(&self) -> Result<i64, Error>;
+    fn get_currency(&self) -> Result<storage_models::enums::Currency, Error>;
+}
+
+impl PaymentsCancelRequestData for PaymentsCancelData {
+    fn get_amount(&self) -> Result<i64, Error> {
+        self.amount.ok_or_else(missing_field_err("amount"))
+    }
+    fn get_currency(&self) -> Result<storage_models::enums::Currency, Error> {
+        self.currency.ok_or_else(missing_field_err("currency"))
     }
 }
 

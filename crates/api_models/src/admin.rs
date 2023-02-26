@@ -1,6 +1,7 @@
 use common_utils::pii;
 use masking::{Secret, StrongSecret};
 use serde::{Deserialize, Serialize};
+use url;
 use utoipa::ToSchema;
 
 use super::payments::AddressDetails;
@@ -26,7 +27,7 @@ pub struct CreateMerchantAccount {
 
     /// The URL to redirect after the completion of the operation
     #[schema(max_length = 255, example = "https://www.example.com/success")]
-    pub return_url: Option<String>,
+    pub return_url: Option<url::Url>,
 
     /// Webhook related details
     pub webhook_details: Option<WebhookDetails>,
@@ -270,14 +271,12 @@ pub struct PaymentConnectorCreate {
                 "Discover"
             ],
             "accepted_currencies": {
-                "enable_all":false,
-                "disable_only": ["INR", "CAD", "AED","JPY"],
-                "enable_only": ["EUR","USD"]
+                "type": "enable_only",
+                "list": ["USD", "EUR"]
             },
             "accepted_countries": {
-                "enable_all":false,
-                "disable_only": ["FR", "DE","IN"],
-                "enable_only": ["UK","AU"]
+                "type": "disable_only",
+                "list": ["FR", "DE","IN"]
             },
             "minimum_amount": 1,
             "maximum_amount": 68607706,
@@ -309,18 +308,16 @@ pub struct PaymentMethods {
     /// List of currencies accepted or has the processing capabilities of the processor
     #[schema(example = json!(
         {
-        "enable_all":false,
-        "disable_only": ["INR", "CAD", "AED","JPY"],
-        "enable_only": ["EUR","USD"]
+            "type": "enable_only",
+            "list": ["USD", "EUR"]
         }
     ))]
     pub accepted_currencies: Option<AcceptedCurrencies>,
     ///  List of Countries accepted or has the processing capabilities of the processor
     #[schema(example = json!(
         {
-            "enable_all":false,
-            "disable_only": ["FR", "DE","IN"],
-            "enable_only": ["UK","AU"]
+            "type": "disable_only",
+            "list": ["FR", "DE","IN"]
         }
     ))]
     pub accepted_countries: Option<AcceptedCountries>,
@@ -342,28 +339,26 @@ pub struct PaymentMethods {
     pub payment_experience: Option<Vec<api_enums::PaymentExperience>>,
 }
 
-/// List of enabled and disabled currencies
+/// List of enabled and disabled currencies, empty in case all currencies are enabled
 #[derive(Eq, PartialEq, Hash, Debug, Clone, serde::Serialize, Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct AcceptedCurrencies {
-    /// True in case all currencies are supported
-    pub enable_all: bool,
-    /// List of disabled currencies, provide in case only few of currencies are not supported
-    pub disable_only: Option<Vec<api_enums::Currency>>,
-    /// List of enable currencies, provide in case only few of currencies are supported
-    pub enable_only: Option<Vec<api_enums::Currency>>,
+    /// type of accepted currencies (disable_only, enable_only)
+    #[serde(rename = "type")]
+    pub accept_type: String,
+    /// List of currencies of the provided type
+    pub list: Option<Vec<api_enums::Currency>>,
 }
 
-/// List of enabled and disabled countries
+/// List of enabled and disabled countries, empty in case all countries are enabled
 #[derive(Eq, PartialEq, Hash, Debug, Clone, serde::Serialize, Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct AcceptedCountries {
-    /// True in case all countries are supported
-    pub enable_all: bool,
-    /// List of disabled countries, provide in case only few of countries are not supported
-    pub disable_only: Option<Vec<String>>,
-    /// List of enable countries, provide in case only few of countries are supported
-    pub enable_only: Option<Vec<String>>,
+    /// Type of accepted countries (disable_only, enable_only)
+    #[serde(rename = "type")]
+    pub accept_type: String,
+    /// List of countries of the provided type
+    pub list: Option<Vec<String>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]

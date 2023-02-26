@@ -4,10 +4,11 @@ use async_trait::async_trait;
 use error_stack::Report;
 use masking::Secret;
 use router::{
+    configs::settings::Settings,
     core::{errors, errors::ConnectorError, payments},
     db::StorageImpl,
     routes, services,
-    types::{self, api, storage::enums, AccessToken, PaymentAddress},
+    types::{self, api, storage::enums, AccessToken, PaymentAddress, RouterData},
 };
 use wiremock::{Mock, MockServer};
 
@@ -30,6 +31,7 @@ pub struct PaymentInfo {
     pub auth_type: Option<enums::AuthenticationType>,
     pub access_token: Option<AccessToken>,
     pub router_return_url: Option<String>,
+    pub connector_meta_data: Option<serde_json::Value>,
 }
 
 #[async_trait]
@@ -40,7 +42,7 @@ pub trait ConnectorActions: Connector {
         payment_info: Option<PaymentInfo>,
     ) -> Result<types::PaymentsAuthorizeRouterData, Report<ConnectorError>> {
         let integration = self.get_data().connector.get_connector_integration();
-        let request = self.generate_data(
+        let mut request = self.generate_data(
             types::PaymentsAuthorizeData {
                 confirm: true,
                 capture_method: Some(storage_models::enums::CaptureMethod::Manual),
@@ -48,6 +50,10 @@ pub trait ConnectorActions: Connector {
             },
             payment_info,
         );
+        let state =
+            routes::AppState::with_storage(Settings::new().unwrap(), StorageImpl::PostgresqlTest)
+                .await;
+        integration.execute_pretasks(&mut request, &state).await?;
         call_connector(request, integration).await
     }
 
@@ -57,7 +63,7 @@ pub trait ConnectorActions: Connector {
         payment_info: Option<PaymentInfo>,
     ) -> Result<types::PaymentsAuthorizeRouterData, Report<ConnectorError>> {
         let integration = self.get_data().connector.get_connector_integration();
-        let request = self.generate_data(
+        let mut request = self.generate_data(
             types::PaymentsAuthorizeData {
                 confirm: true,
                 capture_method: Some(storage_models::enums::CaptureMethod::Automatic),
@@ -65,6 +71,10 @@ pub trait ConnectorActions: Connector {
             },
             payment_info,
         );
+        let state =
+            routes::AppState::with_storage(Settings::new().unwrap(), StorageImpl::PostgresqlTest)
+                .await;
+        integration.execute_pretasks(&mut request, &state).await?;
         call_connector(request, integration).await
     }
 
@@ -342,8 +352,8 @@ pub trait ConnectorActions: Connector {
         &self,
         req: Req,
         info: Option<PaymentInfo>,
-    ) -> types::RouterData<Flow, Req, Res> {
-        types::RouterData {
+    ) -> RouterData<Flow, Req, Res> {
+        RouterData {
             flow: PhantomData,
             merchant_id: self.get_name(),
             connector: self.get_name(),
@@ -369,9 +379,11 @@ pub trait ConnectorActions: Connector {
                 .and_then(|a| a.address)
                 .or_else(|| Some(PaymentAddress::default()))
                 .unwrap(),
-            connector_meta_data: self.get_connector_meta(),
+            connector_meta_data: info.clone().and_then(|a| a.connector_meta_data),
             amount_captured: None,
             access_token: info.and_then(|a| a.access_token),
+            session_token: None,
+            reference_id: None,
         }
     }
 
@@ -384,6 +396,7 @@ pub trait ConnectorActions: Connector {
                 resource_id.get_connector_transaction_id().ok()
             }
             Ok(types::PaymentsResponseData::SessionResponse { .. }) => None,
+            Ok(types::PaymentsResponseData::SessionTokenResponse { .. }) => None,
             Err(_) => None,
         }
     }
@@ -394,10 +407,9 @@ async fn call_connector<
     Req: Debug + Clone + 'static,
     Resp: Debug + Clone + 'static,
 >(
-    request: types::RouterData<T, Req, Resp>,
+    request: RouterData<T, Req, Resp>,
     integration: services::BoxedConnectorIntegration<'_, T, Req, Resp>,
-) -> Result<types::RouterData<T, Req, Resp>, Report<ConnectorError>> {
-    use router::configs::settings::Settings;
+) -> Result<RouterData<T, Req, Resp>, Report<ConnectorError>> {
     let conf = Settings::new().unwrap();
     let state = routes::AppState::with_storage(conf, StorageImpl::PostgresqlTest).await;
     services::api::execute_connector_processing_step(
@@ -492,6 +504,7 @@ impl Default for PaymentCancelType {
         Self(types::PaymentsCancelData {
             cancellation_reason: Some("requested_by_customer".to_string()),
             connector_transaction_id: "".to_string(),
+            ..Default::default()
         })
     }
 }
@@ -551,6 +564,7 @@ pub fn get_connector_transaction_id(
             resource_id.get_connector_transaction_id().ok()
         }
         Ok(types::PaymentsResponseData::SessionResponse { .. }) => None,
+        Ok(types::PaymentsResponseData::SessionTokenResponse { .. }) => None,
         Err(_) => None,
     }
 }
