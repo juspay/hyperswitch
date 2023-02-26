@@ -431,7 +431,7 @@ pub struct ListPaymentMethod {
     pub payment_method: api_enums::PaymentMethod,
 
     /// This is a sub-category of payment method.
-    #[schema(value_type = Option<Vec<PaymentMethodType>>,example = json!(["credit_card"]))]
+    #[schema(value_type = Option<Vec<PaymentMethodType>>,example = json!(["credit"]))]
     pub payment_method_types: Option<Vec<RequestPaymentMethodTypes>>,
 }
 
