@@ -2,14 +2,14 @@ use std::{num::Wrapping, str};
 
 use error_stack::{report, IntoReport, ResultExt};
 #[cfg(feature = "basilisk")]
-use josekit::jwe;
+use josekit::{jwe, jws, jwt};
 use rand;
 use ring::{aead::*, error::Unspecified};
 
 use crate::{
     configs::settings::Jwekey,
     core::errors::{self, CustomResult},
-    utils,
+    logger, utils,
 };
 
 struct NonceGen {
@@ -205,6 +205,33 @@ pub async fn encrypt_jwe(
     Ok(jwt)
 }
 
+pub async fn jws_sign_payload(
+    keys: &Jwekey,
+    msg: &str,
+) -> CustomResult<String, errors::EncryptionError> {
+    let private_key =
+        KeyHandler::get_kms_decrypted_key(keys, keys.vault_private_key.to_string()).await?;
+    let basilisk_hs_key =
+        KeyHandler::get_kms_decrypted_key(keys, keys.vault_encryption_key.to_string()).await?;
+    let signer = jws::RS256
+        .signer_from_pem(&private_key)
+        .into_report()
+        .change_context(errors::EncryptionError)
+        .attach_printable("Error getting signer")?;
+
+    let mut header = jws::JwsHeader::new();
+    header.set_token_type("JWT");
+
+    let mut payload = jwt::JwtPayload::new();
+    payload.set_subject(msg);
+
+    let jwt = jwt::encode_with_signer(&payload, &header, &signer)
+        .into_report()
+        .change_context(errors::EncryptionError)
+        .attach_printable("Error getting signed JWT")?;
+    Ok(jwt)
+}
+
 pub async fn decrypt_jwe(
     keys: &Jwekey,
     jwt: &str,
@@ -272,5 +299,12 @@ mod tests {
             .await
             .unwrap();
         assert_eq!("request_payload".to_string(), payload)
+    }
+
+    #[actix_rt::test]
+    async fn test_jws() {
+        let conf = settings::Settings::new().unwrap();
+        let jwt = jws_sign_payload(&conf.jwekey, "encrypt jws").await.unwrap();
+        ()
     }
 }
