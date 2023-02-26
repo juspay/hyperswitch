@@ -265,9 +265,9 @@ impl
         types::PaymentsAuthorizeData: Clone,
         types::PaymentsResponseData: Clone,
     {
-        let response: stripe::PaymentIntentResponse = res
+        let response: stripe::PaymentIntentSyncResponse = res
             .response
-            .parse_struct("PaymentSyncResponse")
+            .parse_struct("PaymentIntentSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         types::RouterData::try_from(types::ResponseRouterData {
             response,
@@ -980,7 +980,7 @@ impl services::ConnectorRedirectResponse for Stripe {
                 .into_report()
                 .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
-        logger::debug!(stripe_redirect_response=?query);
+        crate::logger::debug!(stripe_redirect_response=?query);
 
         Ok(query
             .redirect_status

@@ -1,4 +1,4 @@
-use std::{ops::Deref, str::FromStr};
+use std::str::FromStr;
 
 use api_models::{self, payments};
 use common_utils::{fp_utils, pii::Email};
@@ -629,7 +629,7 @@ pub struct PaymentSyncResponse {
     pub last_payment_error: Option<ErrorDetails>,
 }
 
-impl Deref for PaymentSyncResponse {
+impl std::ops::Deref for PaymentSyncResponse {
     type Target = PaymentIntentResponse;
 
     fn deref(&self) -> &Self::Target {
@@ -716,12 +716,17 @@ impl<F, T>
 }
 
 impl<F, T>
-    TryFrom<types::ResponseRouterData<F, PaymentSyncResponse, T, types::PaymentsResponseData>>
+    TryFrom<types::ResponseRouterData<F, PaymentIntentSyncResponse, T, types::PaymentsResponseData>>
     for types::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::ResponseRouterData<F, PaymentSyncResponse, T, types::PaymentsResponseData>,
+        item: types::ResponseRouterData<
+            F,
+            PaymentIntentSyncResponse,
+            T,
+            types::PaymentsResponseData,
+        >,
     ) -> Result<Self, Self::Error> {
         let redirection_data = item.response.next_action.as_ref().map(
             |StripeNextActionResponse::RedirectToUrl(response)| {
@@ -751,8 +756,8 @@ impl<F, T>
                 .last_payment_error
                 .as_ref()
                 .map(|error| types::ErrorResponse {
-                    code: error.code.to_owned().unwrap_or_default(),
-                    message: error.message.to_owned().unwrap_or_default(),
+                    code: error.code.to_owned(),
+                    message: error.message.to_owned(),
                     reason: None,
                     status_code: item.http_code,
                 });

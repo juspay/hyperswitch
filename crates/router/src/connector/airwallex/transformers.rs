@@ -83,7 +83,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for AirwallexPaymentsRequest {
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         let mut payment_method_options = None;
         let payment_method = match item.request.payment_method_data.clone() {
-            api::PaymentMethod::Card(ccard) => {
+            api::PaymentMethodData::Card(ccard) => {
                 payment_method_options =
                     Some(AirwallexPaymentOptions::Card(AirwallexCardPaymentOptions {
                         auto_capture: matches!(

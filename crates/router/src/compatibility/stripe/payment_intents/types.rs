@@ -286,7 +286,7 @@ pub struct StripePaymentIntentResponse {
     pub authentication_type: Option<api_models::enums::AuthenticationType>,
     pub next_action: Option<payments::NextAction>,
     pub cancellation_reason: Option<String>,
-    pub payment_method: Option<api_models::enums::PaymentMethodType>,
+    pub payment_method: Option<api_models::enums::PaymentMethod>,
     pub payment_method_data: Option<payments::PaymentMethodDataResponse>,
     pub shipping: Option<payments::Address>,
     pub billing: Option<payments::Address>,
