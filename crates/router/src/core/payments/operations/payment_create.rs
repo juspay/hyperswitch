@@ -432,15 +432,11 @@ impl PaymentCreate {
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to encode additional pm data")?;
 
-        let connector = request
-            .connector
-            .as_ref()
-            .map(|connector_vec| {
-                connector_vec
-                    .first()
-                    .map(|first_connector| first_connector.to_string())
-            })
-            .flatten();
+        let connector = request.connector.as_ref().and_then(|connector_vec| {
+            connector_vec
+                .first()
+                .map(|first_connector| first_connector.to_string())
+        });
 
         Ok(storage::PaymentAttemptNew {
             payment_id: payment_id.to_string(),
