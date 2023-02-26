@@ -304,6 +304,28 @@ pub struct PaymentMethodsEnabled {
     pub payment_method_types: Option<Vec<payment_methods::RequestPaymentMethodTypes>>,
 }
 
+/// List of enabled and disabled currencies, empty in case all currencies are enabled
+#[derive(Eq, PartialEq, Hash, Debug, Clone, serde::Serialize, Deserialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub struct AcceptedCurrencies {
+    /// type of accepted currencies (disable_only, enable_only)
+    #[serde(rename = "type")]
+    pub accept_type: String,
+    /// List of currencies of the provided type
+    pub list: Option<Vec<api_enums::Currency>>,
+}
+
+/// List of enabled and disabled countries, empty in case all countries are enabled
+#[derive(Eq, PartialEq, Hash, Debug, Clone, serde::Serialize, Deserialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub struct AcceptedCountries {
+    /// Type of accepted countries (disable_only, enable_only)
+    #[serde(rename = "type")]
+    pub accept_type: String,
+    /// List of countries of the provided type
+    pub list: Option<Vec<String>>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct DeleteMcaResponse {
     /// The identifier for the Merchant Account

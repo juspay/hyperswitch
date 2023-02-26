@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
 use api_models::{
-    admin::PaymentMethodsEnabled,
+    admin::{self, PaymentMethodsEnabled},
     enums as api_enums,
     payment_methods::{
         CardNetworkTypes, PaymentExperienceTypes, RequestPaymentMethodTypes,
@@ -604,13 +604,9 @@ async fn filter_payment_methods(
 }
 
 fn filter_pm_country_based(
-    accepted_countries: &Option<api_models::payment_methods::AcceptedCountries>,
+    accepted_countries: &Option<admin::AcceptedCountries>,
     req_country_list: &Option<Vec<String>>,
-) -> (
-    Option<api_models::payment_methods::AcceptedCountries>,
-    Option<Vec<String>>,
-    bool,
-) {
+) -> (Option<admin::AcceptedCountries>, Option<Vec<String>>, bool) {
     match (accepted_countries, req_country_list) {
         (None, None) => (None, None, true),
         (None, Some(ref r)) => (
@@ -629,10 +625,9 @@ fn filter_pm_country_based(
                 filter_disabled_enum_based(&l.list, &Some(r.to_owned()))
             };
             (
-                Some(api_models::payment_methods::AcceptedCountries {
-                    enable_all: l.enable_all,
-                    enable_only,
-                    disable_only: None,
+                Some(admin::AcceptedCountries {
+                    accept_type: l.accept_type.to_owned(),
+                    list,
                 }),
                 Some(r.to_vec()),
                 true,
@@ -642,10 +637,10 @@ fn filter_pm_country_based(
 }
 
 fn filter_pm_currencies_based(
-    accepted_currency: &Option<api_models::payment_methods::AcceptedCurrencies>,
+    accepted_currency: &Option<admin::AcceptedCurrencies>,
     req_currency_list: &Option<Vec<api_enums::Currency>>,
 ) -> (
-    Option<api_models::payment_methods::AcceptedCurrencies>,
+    Option<admin::AcceptedCurrencies>,
     Option<Vec<api_enums::Currency>>,
     bool,
 ) {

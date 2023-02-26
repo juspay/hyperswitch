@@ -4,7 +4,7 @@ use common_utils::pii;
 use serde::de;
 use utoipa::ToSchema;
 
-use crate::enums as api_enums;
+use crate::{admin, enums as api_enums};
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 #[serde(deny_unknown_fields)]
@@ -238,7 +238,7 @@ pub struct RequestPaymentMethodTypes {
         "enable_only": ["EUR","USD"]
         }
     ))]
-    pub accepted_currencies: Option<AcceptedCurrencies>,
+    pub accepted_currencies: Option<admin::AcceptedCurrencies>,
 
     ///  List of Countries accepted or has the processing capabilities of the processor
     #[schema(example = json!(
@@ -248,7 +248,7 @@ pub struct RequestPaymentMethodTypes {
             "enable_only": ["UK","AU"]
         }
     ))]
-    pub accepted_countries: Option<AcceptedCountries>,
+    pub accepted_countries: Option<admin::AcceptedCountries>,
 
     /// Minimum amount supported by the processor. To be represented in the lowest denomination of the target currency (For example, for USD it should be in cents)
     #[schema(example = 1)]
