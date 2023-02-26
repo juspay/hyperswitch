@@ -44,7 +44,7 @@ pub enum StripePaymentMethodType {
     Card,
 }
 
-impl From<StripePaymentMethodType> for api_enums::PaymentMethodType {
+impl From<StripePaymentMethodType> for api_enums::PaymentMethod {
     fn from(item: StripePaymentMethodType) -> Self {
         match item {
             StripePaymentMethodType::Card => Self::Card,
@@ -61,12 +61,10 @@ pub struct StripePaymentMethodData {
     pub metadata: Option<Value>,
 }
 
-#[derive(Default, PartialEq, Eq, Deserialize, Clone)]
+#[derive(PartialEq, Eq, Deserialize, Clone)]
 #[serde(rename_all = "snake_case")]
 pub enum StripePaymentMethodDetails {
     Card(StripeCard),
-    #[default]
-    BankTransfer,
 }
 
 impl From<StripeCard> for payments::Card {
@@ -77,14 +75,15 @@ impl From<StripeCard> for payments::Card {
             card_exp_year: card.exp_year,
             card_holder_name: masking::Secret::new("stripe_cust".to_owned()),
             card_cvc: card.cvc,
+            card_issuer: None,
+            card_network: None,
         }
     }
 }
-impl From<StripePaymentMethodDetails> for payments::PaymentMethod {
+impl From<StripePaymentMethodDetails> for payments::PaymentMethodData {
     fn from(item: StripePaymentMethodDetails) -> Self {
         match item {
             StripePaymentMethodDetails::Card(card) => Self::Card(payments::Card::from(card)),
-            StripePaymentMethodDetails::BankTransfer => Self::BankTransfer,
         }
     }
 }
@@ -146,12 +145,12 @@ impl From<StripeSetupIntentRequest> for payments::PaymentsRequest {
             payment_method_data: item.payment_method_data.as_ref().and_then(|pmd| {
                 pmd.payment_method_details
                     .as_ref()
-                    .map(|spmd| payments::PaymentMethod::from(spmd.to_owned()))
+                    .map(|spmd| payments::PaymentMethodData::from(spmd.to_owned()))
             }),
             payment_method: item
                 .payment_method_data
                 .as_ref()
-                .map(|pmd| api_enums::PaymentMethodType::from(pmd.stype.to_owned())),
+                .map(|pmd| api_enums::PaymentMethod::from(pmd.stype.to_owned())),
             shipping: item
                 .shipping
                 .as_ref()

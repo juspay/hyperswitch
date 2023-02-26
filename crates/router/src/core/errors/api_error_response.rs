@@ -78,6 +78,8 @@ pub enum ApiErrorResponse {
         message = "{message}",
     )]
     GenericUnauthorized { message: String },
+    #[error(error_type = ErrorType::InvalidRequestError, code = "IR_19", message = "{message}")]
+    NotSupported { message: String },
 
     #[error(error_type = ErrorType::ConnectorError, code = "CE_00", message = "{code}: {message}", ignore = "status_code")]
     ExternalConnectorError {
@@ -231,7 +233,8 @@ impl actix_web::ResponseError for ApiErrorResponse {
             | Self::IncorrectConnectorNameGiven
             | Self::ResourceIdNotFound
             | Self::ConfigNotFound
-            | Self::AddressNotFound => StatusCode::BAD_REQUEST, // 400
+            | Self::AddressNotFound
+            | Self::NotSupported { .. } => StatusCode::BAD_REQUEST, // 400
             Self::DuplicateMerchantAccount
             | Self::DuplicateMerchantConnectorAccount
             | Self::DuplicatePaymentMethod

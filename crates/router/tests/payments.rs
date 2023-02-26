@@ -299,14 +299,16 @@ async fn payments_create_core() {
         return_url: Some("http://example.com/payments".to_string()),
         setup_future_usage: Some(api_enums::FutureUsage::OnSession),
         authentication_type: Some(api_enums::AuthenticationType::NoThreeDs),
-        payment_method_data: Some(api::PaymentMethod::Card(api::Card {
+        payment_method_data: Some(api::PaymentMethodData::Card(api::Card {
             card_number: "4242424242424242".to_string().into(),
             card_exp_month: "10".to_string().into(),
             card_exp_year: "35".to_string().into(),
             card_holder_name: "Arun Raj".to_string().into(),
             card_cvc: "123".to_string().into(),
+            card_issuer: None,
+            card_network: None,
         })),
-        payment_method: Some(api_enums::PaymentMethodType::Card),
+        payment_method: Some(api_enums::PaymentMethod::Card),
         shipping: Some(api::Address {
             address: None,
             phone: None,
@@ -443,14 +445,16 @@ async fn payments_create_core_adyen_no_redirect() {
         return_url: Some("http://example.com/payments".to_string()),
         setup_future_usage: Some(api_enums::FutureUsage::OnSession),
         authentication_type: Some(api_enums::AuthenticationType::NoThreeDs),
-        payment_method_data: Some(api::PaymentMethod::Card(api::Card {
+        payment_method_data: Some(api::PaymentMethodData::Card(api::Card {
             card_number: "5555 3412 4444 1115".to_string().into(),
             card_exp_month: "03".to_string().into(),
             card_exp_year: "2030".to_string().into(),
             card_holder_name: "JohnDoe".to_string().into(),
             card_cvc: "737".to_string().into(),
+            card_issuer: None,
+            card_network: None,
         })),
-        payment_method: Some(api_enums::PaymentMethodType::Card),
+        payment_method: Some(api_enums::PaymentMethod::Card),
         shipping: Some(api::Address {
             address: None,
             phone: None,

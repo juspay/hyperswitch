@@ -296,16 +296,14 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for AdyenPaymentRequest {
             value: item.request.amount,
         };
         let ccard = match item.request.payment_method_data {
-            api::PaymentMethod::Card(ref ccard) => Some(ccard),
-            api::PaymentMethod::BankTransfer
-            | api::PaymentMethod::Wallet(_)
-            | api::PaymentMethod::PayLater(_)
-            | api::PaymentMethod::Paypal
-            | api::PaymentMethod::BankRedirect(_) => None,
+            api::PaymentMethodData::Card(ref ccard) => Some(ccard),
+            api::PaymentMethodData::Wallet(_)
+            | api::PaymentMethodData::PayLater(_)
+            | api::PaymentMethodData::BankRedirect(_) => None,
         };
 
         let wallet_data = match item.request.payment_method_data {
-            api::PaymentMethod::Wallet(ref wallet_data) => Some(wallet_data),
+            api::PaymentMethodData::Wallet(ref wallet_data) => Some(wallet_data),
             _ => None,
         };
 
@@ -322,8 +320,8 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for AdyenPaymentRequest {
         };
 
         let payment_type = match item.payment_method {
-            storage_enums::PaymentMethodType::Card => "scheme".to_string(),
-            storage_enums::PaymentMethodType::Wallet => wallet_data
+            storage_enums::PaymentMethod::Card => "scheme".to_string(),
+            storage_enums::PaymentMethod::Wallet => wallet_data
                 .get_required_value("wallet_data")
                 .change_context(errors::ConnectorError::RequestEncodingFailed)?
                 .issuer_name
@@ -332,7 +330,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for AdyenPaymentRequest {
         };
 
         let payment_method = match item.payment_method {
-            storage_enums::PaymentMethodType::Card => {
+            storage_enums::PaymentMethod::Card => {
                 let card = AdyenCard {
                     payment_type,
                     number: ccard.map(|x| x.card_number.clone()),
@@ -344,7 +342,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for AdyenPaymentRequest {
                 Ok(AdyenPaymentMethod::AdyenCard(card))
             }
 
-            storage_enums::PaymentMethodType::Wallet => match wallet_data
+            storage_enums::PaymentMethod::Wallet => match wallet_data
                 .get_required_value("wallet_data")
                 .change_context(errors::ConnectorError::RequestEncodingFailed)?
                 .issuer_name

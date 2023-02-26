@@ -69,10 +69,10 @@ enum PaymentDetails {
     BankRedirect,
 }
 
-impl From<api_models::payments::PaymentMethod> for PaymentDetails {
-    fn from(value: api_models::payments::PaymentMethod) -> Self {
+impl From<api_models::payments::PaymentMethodData> for PaymentDetails {
+    fn from(value: api_models::payments::PaymentMethodData) -> Self {
         match value {
-            api::PaymentMethod::Card(ref ccard) => {
+            api::PaymentMethodData::Card(ref ccard) => {
                 let expiry_month = ccard.card_exp_month.peek().clone();
                 let expiry_year = ccard.card_exp_year.peek().clone();
 
@@ -82,13 +82,9 @@ impl From<api_models::payments::PaymentMethod> for PaymentDetails {
                     card_code: Some(ccard.card_cvc.clone()),
                 })
             }
-            api::PaymentMethod::BankTransfer => Self::BankAccount(BankAccountDetails {
-                account_number: "XXXXX".to_string().into(),
-            }),
-            api::PaymentMethod::PayLater(_) => Self::Klarna,
-            api::PaymentMethod::Wallet(_) => Self::Wallet,
-            api::PaymentMethod::Paypal => Self::Paypal,
-            api::PaymentMethod::BankRedirect(_) => Self::BankRedirect,
+            api::PaymentMethodData::PayLater(_) => Self::Klarna,
+            api::PaymentMethodData::Wallet(_) => Self::Wallet,
+            api::PaymentMethodData::BankRedirect(_) => Self::BankRedirect,
         }
     }
 }
