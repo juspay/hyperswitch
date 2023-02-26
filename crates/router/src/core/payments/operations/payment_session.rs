@@ -82,7 +82,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsSessionRequest>
 
         let currency = payment_intent.currency.get_required_value("currency")?;
 
-        payment_attempt.payment_method = Some(storage_enums::PaymentMethodType::Wallet);
+        payment_attempt.payment_method = Some(storage_enums::PaymentMethod::Wallet);
 
         let amount = payment_intent.amount.into();
 
@@ -267,7 +267,7 @@ where
         _storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> RouterResult<(
         BoxedOperation<'b, F, api::PaymentsSessionRequest>,
-        Option<api::PaymentMethod>,
+        Option<api::PaymentMethodData>,
     )> {
         //No payment method data for this operation
         Ok((Box::new(self), None))

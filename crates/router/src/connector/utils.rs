@@ -139,7 +139,7 @@ impl PaymentsRequestData for types::PaymentsAuthorizeRouterData {
     }
     fn get_card(&self) -> Result<api::Card, Error> {
         match self.request.payment_method_data.clone() {
-            api::PaymentMethod::Card(card) => Ok(card),
+            api::PaymentMethodData::Card(card) => Ok(card),
             _ => Err(missing_field_err("card")()),
         }
     }

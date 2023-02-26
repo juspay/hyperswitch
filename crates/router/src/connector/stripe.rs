@@ -4,6 +4,7 @@ use std::{collections::HashMap, fmt::Debug};
 
 use error_stack::{IntoReport, ResultExt};
 use router_env::{instrument, tracing};
+use storage_models::enums;
 
 use self::transformers as stripe;
 use super::utils::RefundsRequestData;
@@ -164,9 +165,9 @@ impl
         types::PaymentsCaptureData: Clone,
         types::PaymentsResponseData: Clone,
     {
-        let response: stripe::PaymentIntentResponse = res
+        let response: stripe::PaymentIntentSyncResponse = res
             .response
-            .parse_struct("PaymentIntentResponse")
+            .parse_struct("PaymentIntentSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         types::RouterData::try_from(types::ResponseRouterData {
             response,
@@ -264,9 +265,9 @@ impl
         types::PaymentsAuthorizeData: Clone,
         types::PaymentsResponseData: Clone,
     {
-        let response: stripe::PaymentIntentResponse = res
+        let response: stripe::PaymentIntentSyncResponse = res
             .response
-            .parse_struct("PaymentSyncResponse")
+            .parse_struct("PaymentIntentSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         types::RouterData::try_from(types::ResponseRouterData {
             response,
@@ -979,15 +980,20 @@ impl services::ConnectorRedirectResponse for Stripe {
                 .into_report()
                 .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
+        crate::logger::debug!(stripe_redirect_response=?query);
+
         Ok(query
             .redirect_status
-            .map_or(payments::CallConnectorAction::Trigger, |status| {
-                // Get failed error message by triggering call to connector
-                if status == transformers::StripePaymentStatus::Failed {
-                    payments::CallConnectorAction::Trigger
-                } else {
-                    payments::CallConnectorAction::StatusUpdate(status.into())
-                }
-            }))
+            .map_or(
+                payments::CallConnectorAction::Trigger,
+                |status| match status {
+                    transformers::StripePaymentStatus::Failed => {
+                        payments::CallConnectorAction::Trigger
+                    }
+                    _ => payments::CallConnectorAction::StatusUpdate(enums::AttemptStatus::from(
+                        status,
+                    )),
+                },
+            ))
     }
 }

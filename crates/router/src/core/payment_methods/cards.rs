@@ -110,7 +110,7 @@ pub async fn update_customer_payment_method(
         .map_err(|error| {
             error.to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)
         })?;
-    if pm.payment_method == enums::PaymentMethodType::Card {
+    if pm.payment_method == enums::PaymentMethod::Card {
         delete_card(state, &pm.merchant_id, &pm.payment_method_id).await?;
     };
     let new_pm = api::CreatePaymentMethod {
@@ -724,7 +724,7 @@ pub async fn list_customer_payment_method(
     let mut vec = Vec::new();
     for pm in resp.into_iter() {
         let payment_token = generate_id(consts::ID_LENGTH, "token");
-        let card = if pm.payment_method == enums::PaymentMethodType::Card {
+        let card = if pm.payment_method == enums::PaymentMethod::Card {
             let locker_id = merchant_account
                 .locker_id
                 .to_owned()
@@ -963,7 +963,7 @@ pub async fn retrieve_payment_method(
         .map_err(|error| {
             error.to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)
         })?;
-    let card = if pm.payment_method == enums::PaymentMethodType::Card {
+    let card = if pm.payment_method == enums::PaymentMethod::Card {
         let locker_id = merchant_account.locker_id.get_required_value("locker_id")?;
         let get_card_resp =
             get_card_from_legacy_locker(state, &locker_id, &pm.payment_method_id).await?;
@@ -1017,7 +1017,7 @@ pub async fn delete_payment_method(
             error.to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)
         })?;
 
-    if pm.payment_method == enums::PaymentMethodType::Card {
+    if pm.payment_method == enums::PaymentMethod::Card {
         let response = delete_card(state, &pm.merchant_id, &payment_method_id).await?;
         if response.status == "success" {
             print!("Card From locker deleted Successfully")

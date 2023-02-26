@@ -38,12 +38,14 @@ async fn should_only_authorize_payment() {
     let response = Rapyd {}
         .authorize_payment(
             Some(types::PaymentsAuthorizeData {
-                payment_method_data: types::api::PaymentMethod::Card(api::Card {
+                payment_method_data: types::api::PaymentMethodData::Card(api::Card {
                     card_number: Secret::new("4111111111111111".to_string()),
                     card_exp_month: Secret::new("02".to_string()),
                     card_exp_year: Secret::new("2024".to_string()),
                     card_holder_name: Secret::new("John Doe".to_string()),
                     card_cvc: Secret::new("123".to_string()),
+                    card_issuer: None,
+                    card_network: None,
                 }),
                 capture_method: Some(storage_models::enums::CaptureMethod::Manual),
                 ..utils::PaymentAuthorizeType::default().0
@@ -60,12 +62,14 @@ async fn should_authorize_and_capture_payment() {
     let response = Rapyd {}
         .make_payment(
             Some(types::PaymentsAuthorizeData {
-                payment_method_data: types::api::PaymentMethod::Card(api::Card {
+                payment_method_data: types::api::PaymentMethodData::Card(api::Card {
                     card_number: Secret::new("4111111111111111".to_string()),
                     card_exp_month: Secret::new("02".to_string()),
                     card_exp_year: Secret::new("2024".to_string()),
                     card_holder_name: Secret::new("John Doe".to_string()),
                     card_cvc: Secret::new("123".to_string()),
+                    card_issuer: None,
+                    card_network: None,
                 }),
                 ..utils::PaymentAuthorizeType::default().0
             }),
@@ -137,7 +141,7 @@ async fn should_fail_payment_for_incorrect_card_number() {
     let response = Rapyd {}
         .make_payment(
             Some(types::PaymentsAuthorizeData {
-                payment_method_data: types::api::PaymentMethod::Card(api::Card {
+                payment_method_data: types::api::PaymentMethodData::Card(api::Card {
                     card_number: Secret::new("0000000000000000".to_string()),
                     ..utils::CCardType::default().0
                 }),

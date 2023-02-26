@@ -420,13 +420,19 @@ pub enum PaymentExperience {
 )]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
-pub enum PaymentMethodSubType {
+pub enum PaymentMethodType {
     Credit,
     Debit,
-    UpiIntent,
-    UpiCollect,
-    CreditCardInstallments,
-    PayLaterInstallments,
+    Giropay,
+    Ideal,
+    Sofort,
+    Eps,
+    Klarna,
+    Affirm,
+    AfterpayClearpay,
+    GooglePay,
+    ApplePay,
+    Paypal,
 }
 
 #[derive(
@@ -446,20 +452,12 @@ pub enum PaymentMethodSubType {
 )]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
-pub enum PaymentMethodType {
-    Card,
-    PaymentContainer,
+pub enum PaymentMethod {
     #[default]
-    BankTransfer,
-    BankDebit,
+    Card,
     PayLater,
-    Netbanking,
-    Upi,
-    OpenBanking,
-    ConsumerFinance,
     Wallet,
-    Klarna,
-    Paypal,
+    BankRedirect,
 }
 
 #[derive(
@@ -645,6 +643,79 @@ pub enum SupportedWallets {
     ApplePay,
     Klarna,
     Gpay,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    frunk::LabelledGeneric,
+)]
+#[strum(serialize_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
+pub enum BankNames {
+    AmericanExpress,
+    BankOfAmerica,
+    Barclays,
+    CapitalOne,
+    Chase,
+    Citi,
+    Discover,
+    NavyFederalCreditUnion,
+    PentagonFederalCreditUnion,
+    SynchronyBank,
+    WellsFargo,
+    AbnAmro,
+    AsnBank,
+    Bunq,
+    Handelsbanken,
+    Ing,
+    Knab,
+    Moneyou,
+    Rabobank,
+    Regiobank,
+    Revolut,
+    SnsBank,
+    TriodosBank,
+    VanLanschot,
+    ArzteUndApothekerBank,
+    AustrianAnadiBankAg,
+    BankAustria,
+    Bank99Ag,
+    BankhausCarlSpangler,
+    BankhausSchelhammerUndSchatteraAg,
+    BawagPskAg,
+    BksBankAg,
+    BrullKallmusBankAg,
+    BtvVierLanderBank,
+    CapitalBankGraweGruppeAg,
+    Dolomitenbank,
+    EasybankAg,
+    ErsteBankUndSparkassen,
+    HypoAlpeadriabankInternationalAg,
+    HypoNoeLbFurNiederosterreichUWien,
+    HypoOberosterreichSalzburgSteiermark,
+    HypoTirolBankAg,
+    HypoVorarlbergBankAg,
+    HypoBankBurgenlandAktiengesellschaft,
+    MarchfelderBank,
+    OberbankAg,
+    OsterreichischeArzteUndApothekerbank,
+    PosojilnicaBankEGen,
+    RaiffeisenBankengruppeOsterreich,
+    SchelhammerCapitalBankAg,
+    SchoellerbankAg,
+    SpardaBankWien,
+    VolksbankGruppe,
+    VolkskreditbankAg,
+    VrBankBraunau,
 }
 
 impl From<AttemptStatus> for IntentStatus {

@@ -11,11 +11,11 @@ use crate::{admin, enums as api_enums};
 pub struct CreatePaymentMethod {
     /// The type of payment method use for the payment.
     #[schema(value_type = PaymentMethodType,example = "card")]
-    pub payment_method: api_enums::PaymentMethodType,
+    pub payment_method: api_enums::PaymentMethod,
 
     /// This is a sub-category of payment method.
-    #[schema(value_type = Option<PaymentMethodSubType>,example = "credit_card")]
-    pub payment_method_type: Option<api_enums::PaymentMethodSubType>,
+    #[schema(value_type = Option<PaymentMethodType>,example = "credit")]
+    pub payment_method_type: Option<api_enums::PaymentMethodType>,
 
     /// The name of the bank/ provider issuing the payment method to the end user
     #[schema(example = "Citibank")]
@@ -94,11 +94,11 @@ pub struct PaymentMethodResponse {
 
     /// The type of payment method use for the payment.
     #[schema(value_type = PaymentMethodType,example = "card")]
-    pub payment_method: api_enums::PaymentMethodType,
+    pub payment_method: api_enums::PaymentMethod,
 
     /// This is a sub-category of payment method.
-    #[schema(value_type = Option<PaymentMethodSubType>,example = "credit_card")]
-    pub payment_method_type: Option<api_enums::PaymentMethodSubType>,
+    #[schema(value_type = Option<PaymentMethodType>,example = "credit")]
+    pub payment_method_type: Option<api_enums::PaymentMethodType>,
 
     /// The name of the bank/ provider issuing the payment method to the end user
     #[schema(example = "Citibank")]
@@ -303,11 +303,11 @@ pub struct ListPaymentMethodResponse {
 pub struct ListPaymentMethod {
     /// The type of payment method use for the payment.
     #[schema(value_type = PaymentMethodType,example = "card")]
-    pub payment_method: api_enums::PaymentMethodType,
+    pub payment_method: api_enums::PaymentMethod,
 
     /// This is a sub-category of payment method.
     #[schema(value_type = Option<Vec<PaymentMethodSubType>>,example = json!(["credit_card"]))]
-    pub payment_method_types: Option<Vec<api_enums::PaymentMethodSubType>>,
+    pub payment_method_types: Option<Vec<api_enums::PaymentMethodType>>,
 
     /// The name of the bank/ provider issuing the payment method to the end user
     #[schema(example = json!(["Citibank"]))]
@@ -380,7 +380,7 @@ impl serde::Serialize for ListPaymentMethod {
         state.serialize_field("payment_experience", &self.payment_experience)?;
         state.serialize_field("eligible_connectors", &self.eligible_connectors)?;
         match self.payment_method {
-            api_enums::PaymentMethodType::Wallet | api_enums::PaymentMethodType::PayLater => {
+            api_enums::PaymentMethod::Wallet | api_enums::PaymentMethod::PayLater => {
                 state.serialize_field("payment_method_issuers", &self.payment_method_issuers)?;
             }
             _ => {
@@ -437,11 +437,11 @@ pub struct CustomerPaymentMethod {
 
     /// The type of payment method use for the payment.
     #[schema(value_type = PaymentMethodType,example = "card")]
-    pub payment_method: api_enums::PaymentMethodType,
+    pub payment_method: api_enums::PaymentMethod,
 
     /// This is a sub-category of payment method.
     #[schema(value_type = Option<PaymentMethodSubType>,example = "credit_card")]
-    pub payment_method_type: Option<api_enums::PaymentMethodSubType>,
+    pub payment_method_type: Option<api_enums::PaymentMethodType>,
 
     /// The name of the bank/ provider issuing the payment method to the end user
     #[schema(example = "Citibank")]
