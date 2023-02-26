@@ -141,7 +141,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::enums::MandateStatus,
         api_models::enums::PaymentExperience,
         api_models::admin::PaymentConnectorCreate,
-        api_models::admin::PaymentMethods,
+        api_models::admin::PaymentMethodsEnabled,
         api_models::payments::AddressDetails,
         api_models::payments::Address,
         api_models::payments::OrderDetails,

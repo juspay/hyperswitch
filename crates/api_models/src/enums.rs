@@ -345,36 +345,6 @@ pub enum PaymentMethodIssuerCode {
 }
 
 #[derive(
-    Clone,
-    Copy,
-    Debug,
-    Eq,
-    Hash,
-    PartialEq,
-    serde::Deserialize,
-    serde::Serialize,
-    frunk::LabelledGeneric,
-    ToSchema,
-)]
-#[serde(rename_all = "snake_case")]
-pub enum PaymentIssuer {
-    Klarna,
-    Affirm,
-    AfterpayClearpay,
-    AmericanExpress,
-    BankOfAmerica,
-    Barclays,
-    CapitalOne,
-    Chase,
-    Citi,
-    Discover,
-    NavyFederalCreditUnion,
-    PentagonFederalCreditUnion,
-    SynchronyBank,
-    WellsFargo,
-}
-
-#[derive(
     Eq,
     PartialEq,
     Hash,
@@ -716,6 +686,25 @@ pub enum BankNames {
     VolksbankGruppe,
     VolkskreditbankAg,
     VrBankBraunau,
+}
+
+#[derive(
+    Clone,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    frunk::LabelledGeneric,
+)]
+#[strum(serialize_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
+pub enum CardNetwork {
+    Visa,
+    Mastercard,
 }
 
 impl From<AttemptStatus> for IntentStatus {
