@@ -383,11 +383,16 @@ pub async fn list_payment_methods(
         .transpose()?;
 
     let all_mcas = db
-        .find_merchant_connector_account_by_merchant_id_list(&merchant_account.merchant_id)
+        .find_merchant_connector_account_by_merchant_id_and_disabled_list(
+            &merchant_account.merchant_id,
+            false,
+        )
         .await
         .map_err(|error| {
             error.to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
         })?;
+
+    crate::logger::debug!(hola=?all_mcas);
 
     let mut response: Vec<ResponsePaymentMethodIntermediate> = vec![];
     for mca in all_mcas {
@@ -819,7 +824,10 @@ pub async fn list_customer_payment_method(
 ) -> errors::RouterResponse<api::ListCustomerPaymentMethodsResponse> {
     let db = &*state.store;
     let all_mcas = db
-        .find_merchant_connector_account_by_merchant_id_list(&merchant_account.merchant_id)
+        .find_merchant_connector_account_by_merchant_id_and_disabled_list(
+            &merchant_account.merchant_id,
+            false,
+        )
         .await
         .map_err(|error| {
             error.to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
