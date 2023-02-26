@@ -2,13 +2,17 @@
 
 mod aci;
 mod adyen;
+mod airwallex;
 mod authorizedotnet;
+mod bluesnap;
 mod checkout;
 mod connector_auth;
 mod cybersource;
+mod dlocal;
 mod fiserv;
 mod globalpay;
 mod intuit;
+mod nuvei;
 mod payu;
 mod rapyd;
 mod shift4;

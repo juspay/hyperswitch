@@ -161,7 +161,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
 
         payment_intent.shipping_address_id = shipping_address.clone().map(|i| i.address_id);
         payment_intent.billing_address_id = billing_address.clone().map(|i| i.address_id);
-        payment_intent.return_url = request.return_url.clone();
+        payment_intent.return_url = request.return_url.as_ref().map(|a| a.to_string());
 
         Ok((
             Box::new(self),
@@ -262,7 +262,10 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentConfirm {
     ) -> CustomResult<api::ConnectorCallType, errors::ApiErrorResponse> {
         // Use a new connector in the confirm call or use the same one which was passed when
         // creating the payment or if none is passed then use the routing algorithm
-        let request_connector = request.connector.map(|connector| connector.to_string());
+        let request_connector = request
+            .connector
+            .as_ref()
+            .and_then(|connector| connector.first().map(|c| c.to_string()));
         helpers::get_connector_default(
             state,
             request_connector.as_ref().or(previously_used_connector),

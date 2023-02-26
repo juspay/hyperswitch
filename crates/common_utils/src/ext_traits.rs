@@ -157,7 +157,7 @@ pub trait BytesExt<T> {
 }
 
 impl<T> BytesExt<T> for bytes::Bytes {
-    fn parse_struct<'de>(&'de self, type_name: &str) -> CustomResult<T, errors::ParsingError>
+    fn parse_struct<'de>(&'de self, _type_name: &str) -> CustomResult<T, errors::ParsingError>
     where
         T: Deserialize<'de>,
     {
@@ -166,7 +166,10 @@ impl<T> BytesExt<T> for bytes::Bytes {
         serde_json::from_slice::<T>(self.chunk())
             .into_report()
             .change_context(errors::ParsingError)
-            .attach_printable_lazy(|| format!("Unable to parse {type_name} from bytes"))
+            .attach_printable_lazy(|| {
+                let variable_type = std::any::type_name::<T>();
+                format!("Unable to parse {variable_type} from bytes {self:?}")
+            })
     }
 }
 

@@ -9,7 +9,7 @@ use crate::{
     configs::settings,
     core::errors::{self, CustomResult},
     headers,
-    services::{self, logger},
+    services::{self},
     types::{
         self,
         api::{self, ConnectorCommon},
@@ -113,7 +113,6 @@ impl
         let klarna_req =
             utils::Encode::<klarna::KlarnaSessionRequest>::encode_to_string_of_json(&connector_req)
                 .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        logger::debug!(klarna_session_request_logs=?klarna_req);
         Ok(Some(klarna_req))
     }
 
@@ -139,7 +138,6 @@ impl
         data: &types::PaymentsSessionRouterData,
         res: types::Response,
     ) -> CustomResult<types::PaymentsSessionRouterData, errors::ConnectorError> {
-        logger::debug!(klarna_session_response_logs=?res);
         let response: klarna::KlarnaSessionResponse = res
             .response
             .parse_struct("KlarnaSessionResponse")
@@ -156,7 +154,6 @@ impl
         &self,
         res: types::Response,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
-        logger::debug!(klarna_session_error_logs=?res);
         let response: klarna::KlarnaErrorResponse = res
             .response
             .parse_struct("KlarnaErrorResponse")
@@ -274,7 +271,6 @@ impl
             &connector_req,
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        logger::debug!(klarna_payment_logs=?klarna_req);
         Ok(Some(klarna_req))
     }
 
@@ -302,7 +298,6 @@ impl
         data: &types::PaymentsAuthorizeRouterData,
         res: types::Response,
     ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
-        logger::debug!(klarna_raw_response=?res);
         let response: klarna::KlarnaPaymentsResponse = res
             .response
             .parse_struct("KlarnaPaymentsResponse")
@@ -319,7 +314,6 @@ impl
         &self,
         res: types::Response,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
-        logger::debug!(klarna_error_response=?res);
         let response: klarna::KlarnaErrorResponse = res
             .response
             .parse_struct("KlarnaErrorResponse")

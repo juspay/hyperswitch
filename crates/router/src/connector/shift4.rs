@@ -14,7 +14,7 @@ use crate::{
         errors::{self, CustomResult},
         payments,
     },
-    headers, logger,
+    headers,
     services::{self, ConnectorIntegration},
     types::{
         self,
@@ -176,7 +176,6 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         data: &types::PaymentsSyncRouterData,
         res: types::Response,
     ) -> CustomResult<types::PaymentsSyncRouterData, errors::ConnectorError> {
-        logger::debug!(payment_sync_response=?res);
         let response: shift4::Shift4PaymentsResponse = res
             .response
             .parse_struct("shift4 PaymentsResponse")
@@ -232,7 +231,6 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
             .response
             .parse_struct("Shift4PaymentsResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        logger::debug!(shift4payments_create_response=?response);
         types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -332,7 +330,6 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
             .response
             .parse_struct("Shift4PaymentsResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        logger::debug!(shift4payments_create_response=?response);
         types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -405,7 +402,6 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         data: &types::RefundsRouterData<api::Execute>,
         res: types::Response,
     ) -> CustomResult<types::RefundsRouterData<api::Execute>, errors::ConnectorError> {
-        logger::debug!(target: "router::connector::shift4", response=?res);
         let response: shift4::RefundResponse = res
             .response
             .parse_struct("RefundResponse")
@@ -473,7 +469,6 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         data: &types::RefundSyncRouterData,
         res: types::Response,
     ) -> CustomResult<types::RefundSyncRouterData, errors::ConnectorError> {
-        logger::debug!(target: "router::connector::shift4", response=?res);
         let response: shift4::RefundResponse =
             res.response
                 .parse_struct("shift4 RefundResponse")

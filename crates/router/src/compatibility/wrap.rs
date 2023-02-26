@@ -23,7 +23,7 @@ where
     F: Fn(&'b A, U, T) -> Fut,
     Fut: Future<Output = RouterResult<api::ApplicationResponse<Q>>>,
     Q: Serialize + std::fmt::Debug + 'a,
-    S: From<Q> + Serialize,
+    S: TryFrom<Q> + Serialize,
     E: Serialize + error_stack::Context + actix_web::ResponseError + Clone,
     errors::ApiErrorResponse: ErrorSwitch<E>,
     T: std::fmt::Debug,

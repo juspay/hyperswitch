@@ -1,6 +1,6 @@
 use std::num::NonZeroI64;
 
-use common_utils::{errors, ext_traits::Encode, pii};
+use common_utils::pii;
 use masking::{PeekInterface, Secret};
 use router_derive::Setter;
 use time::PrimitiveDateTime;
@@ -38,7 +38,7 @@ pub struct PaymentsRequest {
     pub amount: Option<Amount>,
     /// This allows the merchant to manually select a connector with which the payment can go through
     #[schema(value_type = Option<Connector>, max_length = 255, example = "stripe")]
-    pub connector: Option<api_enums::Connector>,
+    pub connector: Option<Vec<api_enums::Connector>>,
     /// The currency of the payment request can be specified here
     #[schema(value_type = Option<Currency>, example = "USD")]
     pub currency: Option<api_enums::Currency>,
@@ -80,7 +80,7 @@ pub struct PaymentsRequest {
     pub description: Option<String>,
     /// The URL to redirect after the completion of the operation
     #[schema(example = "https://hyperswitch.io")]
-    pub return_url: Option<String>,
+    pub return_url: Option<url::Url>,
     /// Indicates that you intend to make future payments with this Payment’s payment method. Providing this parameter will attach the payment method to the Customer, if present, after the Payment is confirmed and any required actions from the user are complete.
     #[schema(value_type = Option<FutureUsage>, example = "off_session")]
     pub setup_future_usage: Option<api_enums::FutureUsage>,
@@ -795,46 +795,6 @@ impl From<&VerifyRequest> for MandateValidationFields {
     }
 }
 
-impl TryFrom<PaymentsRequest> for PaymentsResponse {
-    type Error = error_stack::Report<errors::ParsingError>;
-    fn try_from(item: PaymentsRequest) -> Result<Self, Self::Error> {
-        let payment_id = match item.payment_id {
-            Some(PaymentIdType::PaymentIntentId(id)) => Some(id),
-            _ => None,
-        };
-        let metadata = item
-            .metadata
-            .as_ref()
-            .map(Encode::<Metadata>::encode_to_value)
-            .transpose()?;
-        Ok(Self {
-            payment_id,
-            merchant_id: item.merchant_id,
-            setup_future_usage: item.setup_future_usage,
-            off_session: item.off_session,
-            shipping: item.shipping,
-            billing: item.billing,
-            metadata,
-            capture_method: item.capture_method,
-            payment_method: item.payment_method,
-            capture_on: item.capture_on,
-            payment_method_data: item
-                .payment_method_data
-                .map(PaymentMethodDataResponse::from),
-            email: item.email,
-            name: item.name,
-            phone: item.phone,
-            payment_token: item.payment_token,
-            return_url: item.return_url,
-            authentication_type: item.authentication_type,
-            statement_descriptor_name: item.statement_descriptor_name,
-            statement_descriptor_suffix: item.statement_descriptor_suffix,
-            mandate_data: item.mandate_data,
-            ..Default::default()
-        })
-    }
-}
-
 impl From<VerifyRequest> for VerifyResponse {
     fn from(item: VerifyRequest) -> Self {
         Self {
@@ -848,25 +808,6 @@ impl From<VerifyRequest> for VerifyResponse {
                 .payment_method_data
                 .map(PaymentMethodDataResponse::from),
             payment_token: item.payment_token,
-            ..Default::default()
-        }
-    }
-}
-
-impl From<PaymentsStartRequest> for PaymentsResponse {
-    fn from(item: PaymentsStartRequest) -> Self {
-        Self {
-            payment_id: Some(item.payment_id),
-            merchant_id: Some(item.merchant_id),
-            ..Default::default()
-        }
-    }
-}
-
-impl From<PaymentsSessionRequest> for PaymentsResponse {
-    fn from(item: PaymentsSessionRequest) -> Self {
-        Self {
-            payment_id: Some(item.payment_id),
             ..Default::default()
         }
     }
@@ -889,43 +830,6 @@ impl From<PaymentsStartRequest> for PaymentsRequest {
             payment_id: Some(PaymentIdType::PaymentIntentId(item.payment_id)),
             merchant_id: Some(item.merchant_id),
             ..Default::default()
-        }
-    }
-}
-
-impl From<PaymentsRetrieveRequest> for PaymentsResponse {
-    // After removing the request from the payments_to_payments_response this will no longer be needed
-    fn from(item: PaymentsRetrieveRequest) -> Self {
-        let payment_id = match item.resource_id {
-            PaymentIdType::PaymentIntentId(id) => Some(id),
-            _ => None,
-        };
-
-        Self {
-            payment_id,
-            merchant_id: item.merchant_id,
-            ..Default::default()
-        }
-    }
-}
-
-impl From<PaymentsCancelRequest> for PaymentsResponse {
-    fn from(item: PaymentsCancelRequest) -> Self {
-        Self {
-            payment_id: Some(item.payment_id),
-            cancellation_reason: item.cancellation_reason,
-            ..Default::default()
-        }
-    }
-}
-
-impl From<PaymentsCaptureRequest> for PaymentsResponse {
-    // After removing the request from the payments_to_payments_response this will no longer be needed
-    fn from(item: PaymentsCaptureRequest) -> Self {
-        Self {
-            payment_id: item.payment_id,
-            amount_received: item.amount_to_capture,
-            ..Self::default()
         }
     }
 }
@@ -1096,18 +1000,18 @@ pub struct GpaySessionTokenData {
 #[serde(rename_all = "lowercase")]
 pub enum SessionToken {
     /// The session response structure for Google Pay
-    Gpay(Box<GpayData>),
+    Gpay(Box<GpaySessionTokenResponse>),
     /// The session response structure for Klarna
-    Klarna(Box<KlarnaData>),
+    Klarna(Box<KlarnaSessionTokenResponse>),
     /// The session response structure for PayPal
-    Paypal(Box<PaypalData>),
+    Paypal(Box<PaypalSessionTokenResponse>),
     /// The session response structure for Apple Pay
-    Applepay(Box<ApplepayData>),
+    Applepay(Box<ApplepaySessionTokenResponse>),
 }
 
 #[derive(Debug, Clone, serde::Serialize, ToSchema)]
 #[serde(rename_all = "lowercase")]
-pub struct GpayData {
+pub struct GpaySessionTokenResponse {
     /// The merchant info
     pub merchant_info: GpayMerchantInfo,
     /// List of the allowed payment meythods
@@ -1118,7 +1022,7 @@ pub struct GpayData {
 
 #[derive(Debug, Clone, serde::Serialize, ToSchema)]
 #[serde(rename_all = "lowercase")]
-pub struct KlarnaData {
+pub struct KlarnaSessionTokenResponse {
     /// The session token for Klarna
     pub session_token: String,
     /// The identifier for the session
@@ -1127,29 +1031,29 @@ pub struct KlarnaData {
 
 #[derive(Debug, Clone, serde::Serialize, ToSchema)]
 #[serde(rename_all = "lowercase")]
-pub struct PaypalData {
+pub struct PaypalSessionTokenResponse {
     /// The session token for PayPal
     pub session_token: String,
 }
 
 #[derive(Debug, Clone, serde::Serialize, ToSchema)]
 #[serde(rename_all = "lowercase")]
-pub struct ApplepayData {
+pub struct ApplepaySessionTokenResponse {
     /// Session object for Apple Pay
-    pub session_object: ApplePaySessionObject,
+    pub session_token_data: ApplePaySessionResponse,
     /// Payment request object for Apple Pay
-    pub payment_request_object: ApplePayRequest,
+    pub payment_request_data: ApplePayPaymentRequest,
 }
 
 #[derive(Debug, Clone, serde::Serialize, ToSchema, serde::Deserialize)]
-pub struct ApplePaySessionObject {
+pub struct ApplePaySessionResponse {
     /// Timestamp at which session is requested
     pub epoch_timestamp: u64,
     /// Timestamp at which session expires
     pub expires_at: u64,
     /// The identifier for the merchant session
     pub merchant_session_identifier: String,
-    /// Applepay generates unique ID (UUID) value
+    /// Apple pay generated unique ID (UUID) value
     pub nonce: String,
     /// The identifier for the merchant
     pub merchant_identifier: String,
@@ -1168,7 +1072,7 @@ pub struct ApplePaySessionObject {
 }
 
 #[derive(Debug, Clone, serde::Serialize, ToSchema, serde::Deserialize)]
-pub struct ApplePayRequest {
+pub struct ApplePayPaymentRequest {
     /// The code for country
     pub country_code: String,
     /// The code for currency
@@ -1183,11 +1087,11 @@ pub struct ApplePayRequest {
 
 #[derive(Debug, Clone, serde::Serialize, ToSchema, serde::Deserialize)]
 pub struct AmountInfo {
-    /// the label must be non-empty to pass validation.
+    /// The label must be the name of the merchant.
     pub label: String,
-    /// The type of label
+    /// A value that indicates whether the line item(Ex: total, tax, discount, or grand total) is final or pending.
     #[serde(rename = "type")]
-    pub label_type: String,
+    pub total_type: String,
     /// The total amount for the payment
     pub amount: String,
 }

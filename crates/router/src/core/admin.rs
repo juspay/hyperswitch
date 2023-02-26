@@ -63,7 +63,7 @@ pub async fn create_merchant_account(
         merchant_name: req.merchant_name,
         api_key,
         merchant_details,
-        return_url: req.return_url,
+        return_url: req.return_url.map(|a| a.to_string()),
         webhook_details,
         routing_algorithm: req.routing_algorithm,
         sub_merchants_enabled: req.sub_merchants_enabled,
@@ -146,7 +146,7 @@ pub async fn merchant_account_update(
             .transpose()
             .change_context(errors::ApiErrorResponse::InternalServerError)?,
 
-        return_url: req.return_url,
+        return_url: req.return_url.map(|a| a.to_string()),
 
         webhook_details: req
             .webhook_details

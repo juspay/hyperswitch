@@ -50,4 +50,10 @@ api_key = "API Key"
 api_secret = "API Secret Key"
 
 [intuit]
-api_key = "Bearer MyApiKey"
+api_key = "Bearer Access Token"
+key1 = "Access token expires in"
+
+[dlocal]
+key1 = "key1"
+api_key = "api_key"
+api_secret = "secret"
