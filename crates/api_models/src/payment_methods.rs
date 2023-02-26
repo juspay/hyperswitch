@@ -151,30 +151,6 @@ pub struct CardDetailFromLocker {
     pub card_fingerprint: Option<masking::Secret<String>>,
 }
 
-/// List of enabled and disabled currencies
-#[derive(Eq, PartialEq, Hash, Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
-#[serde(deny_unknown_fields)]
-pub struct AcceptedCurrencies {
-    /// True in case all currencies are supported
-    pub enable_all: bool,
-    /// List of disabled currencies, provide in case only few of currencies are not supported
-    pub disable_only: Option<Vec<api_enums::Currency>>,
-    /// List of enable currencies, provide in case only few of currencies are supported
-    pub enable_only: Option<Vec<api_enums::Currency>>,
-}
-
-/// List of enabled and disabled countries
-#[derive(Eq, PartialEq, Hash, Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
-#[serde(deny_unknown_fields)]
-pub struct AcceptedCountries {
-    /// True in case all countries are supported
-    pub enable_all: bool,
-    /// List of disabled countries, provide in case only few of countries are not supported
-    pub disable_only: Option<Vec<String>>,
-    /// List of enable countries, provide in case only few of countries are supported
-    pub enable_only: Option<Vec<String>>,
-}
-
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, PartialEq, Eq)]
 pub struct PaymentExperienceTypes {
     pub payment_experience_type: api_enums::PaymentExperience,
@@ -295,6 +271,10 @@ pub struct ListPaymentMethodRequest {
     /// Indicates whether the payment method is eligible for installment payments
     #[schema(example = true)]
     pub installment_payment_enabled: Option<bool>,
+
+    /// Indicates whether the payment method is eligible for card netwotks
+    #[schema(value_type = Option<Vec<CardNetwork>>, example = json!(["visa", "mastercard"]))]
+    pub card_networks: Option<Vec<api_enums::CardNetwork>>,
 }
 
 impl<'de> serde::Deserialize<'de> for ListPaymentMethodRequest {

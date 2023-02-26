@@ -580,6 +580,12 @@ async fn filter_payment_methods(
                         &payment_method_object.accepted_currencies,
                         &req.accepted_currencies,
                     );
+
+                    let filter4 = filter_pm_card_network_based(
+                        payment_method_object.card_networks.as_ref(),
+                        req.card_networks.as_ref(),
+                    );
+
                     let filter3 = if let Some(payment_intent) = payment_intent {
                         filter_payment_country_based(&payment_method_object, address).await?
                             && filter_payment_currency_based(payment_intent, &payment_method_object)
@@ -598,7 +604,7 @@ async fn filter_payment_methods(
                         payment_method,
                     );
 
-                    if filter && filter2 && filter3 {
+                    if filter && filter2 && filter3 && filter4 {
                         resp.push(response_pm_type);
                     }
                 }
@@ -608,6 +614,18 @@ async fn filter_payment_methods(
     Ok(())
 }
 
+fn filter_pm_card_network_based(
+    pm_card_networks: Option<&Vec<api_enums::CardNetwork>>,
+    request_card_networks: Option<&Vec<api_enums::CardNetwork>>,
+) -> bool {
+    match (pm_card_networks, request_card_networks) {
+        (Some(pm_card_networks), Some(request_card_networks)) => pm_card_networks
+            .iter()
+            .all(|card_network| request_card_networks.contains(card_network)),
+        (None, Some(_)) => false,
+        _ => true,
+    }
+}
 fn filter_pm_country_based(
     accepted_countries: &Option<admin::AcceptedCountries>,
     req_country_list: &Option<Vec<String>>,
