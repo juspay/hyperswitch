@@ -1,3 +1,4 @@
+use api_models::payments;
 use error_stack::report;
 use serde::{Deserialize, Serialize};
 
@@ -55,7 +56,7 @@ impl TryFrom<&types::PaymentsSessionRouterData> for KlarnaSessionRequest {
                 }],
             }),
             None => Err(report!(errors::ConnectorError::MissingRequiredField {
-                field_name: "product_name".to_string()
+                field_name: "product_name",
             })),
         }
     }
@@ -71,10 +72,12 @@ impl TryFrom<types::PaymentsSessionResponseRouterData<KlarnaSessionResponse>>
         let response = &item.response;
         Ok(Self {
             response: Ok(types::PaymentsResponseData::SessionResponse {
-                session_token: types::api::SessionToken::Klarna {
-                    session_token: response.client_token.clone(),
-                    session_id: response.session_id.clone(),
-                },
+                session_token: types::api::SessionToken::Klarna(Box::new(
+                    payments::KlarnaSessionTokenResponse {
+                        session_token: response.client_token.clone(),
+                        session_id: response.session_id.clone(),
+                    },
+                )),
             }),
             ..item.data
         })
@@ -98,7 +101,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for KlarnaPaymentsRequest {
                 }],
             }),
             None => Err(report!(errors::ConnectorError::MissingRequiredField {
-                field_name: "product_name".to_string()
+                field_name: "product_name"
             })),
         }
     }

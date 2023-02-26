@@ -9,6 +9,7 @@ use storage_models::enums;
 use time::{format_description, OffsetDateTime};
 use transformers as worldline;
 
+use super::utils::RefundsRequestData;
 use crate::{
     configs::settings::Connectors,
     consts,
@@ -20,7 +21,7 @@ use crate::{
         api::{self, ConnectorCommon, ConnectorCommonExt},
         ErrorResponse,
     },
-    utils::{self, BytesExt, OptionExt},
+    utils::{self, BytesExt},
 };
 
 #[derive(Debug, Clone)]
@@ -600,12 +601,7 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         req: &types::RefundSyncRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let refund_id = req
-            .request
-            .connector_refund_id
-            .clone()
-            .get_required_value("connector_refund_id")
-            .change_context(errors::ConnectorError::FailedToObtainIntegrationUrl)?;
+        let refund_id = req.request.get_connector_refund_id()?;
         let base_url = self.base_url(connectors);
         let auth: worldline::AuthType = worldline::AuthType::try_from(&req.connector_auth_type)?;
         let merchant_account_id = auth.merchant_account_id;

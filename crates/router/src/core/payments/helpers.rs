@@ -1,6 +1,6 @@
 use std::borrow::Cow;
 
-use common_utils::ext_traits::AsyncExt;
+use common_utils::{ext_traits::AsyncExt, fp_utils};
 // TODO : Evaluate all the helper functions ()
 use error_stack::{report, IntoReport, ResultExt};
 use masking::ExposeOptionInterface;
@@ -230,8 +230,7 @@ pub fn validate_request_amount_and_amount_to_capture(
                     utils::when(!amount_to_capture.le(&amount_inner.get()), || {
                         Err(report!(errors::ApiErrorResponse::PreconditionFailed {
                             message: format!(
-                            "amount_to_capture is greater than amount capture_amount: {:?} request_amount: {:?}",
-                            amount_to_capture, amount
+                            "amount_to_capture is greater than amount capture_amount: {amount_to_capture:?} request_amount: {amount:?}"
                         )
                         }))
                     })
@@ -540,7 +539,7 @@ pub(crate) async fn call_payment_method(
                             }
                         }
                         None => Err(report!(errors::ApiErrorResponse::MissingRequiredField {
-                            field_name: "customer".to_string()
+                            field_name: "customer"
                         })
                         .attach_printable("Missing Customer Object")),
                     }
@@ -569,12 +568,12 @@ pub(crate) async fn call_payment_method(
                 }
             },
             None => Err(report!(errors::ApiErrorResponse::MissingRequiredField {
-                field_name: "payment_method_type".to_string()
+                field_name: "payment_method_type"
             })
             .attach_printable("PaymentMethodType Required")),
         },
         None => Err(report!(errors::ApiErrorResponse::MissingRequiredField {
-            field_name: "payment_method_data".to_string()
+            field_name: "payment_method_data"
         })
         .attach_printable("PaymentMethodData required Or Card is already saved")),
     }
@@ -830,7 +829,7 @@ pub(crate) fn validate_payment_method_fields_present(
         req.payment_method.is_none() && req.payment_method_data.is_some(),
         || {
             Err(errors::ApiErrorResponse::MissingRequiredField {
-                field_name: "payent_method".to_string(),
+                field_name: "payent_method",
             })
         },
     )?;
@@ -841,7 +840,7 @@ pub(crate) fn validate_payment_method_fields_present(
             && req.payment_token.is_none(),
         || {
             Err(errors::ApiErrorResponse::MissingRequiredField {
-                field_name: "payment_method_data".to_string(),
+                field_name: "payment_method_data",
             })
         },
     )?;
@@ -849,7 +848,10 @@ pub(crate) fn validate_payment_method_fields_present(
     Ok(())
 }
 
-pub fn can_call_connector(status: &storage_enums::AttemptStatus) -> bool {
+pub fn check_force_psync_precondition(
+    status: &storage_enums::AttemptStatus,
+    connector_transaction_id: &Option<String>,
+) -> bool {
     !matches!(
         status,
         storage_enums::AttemptStatus::Charged
@@ -859,7 +861,7 @@ pub fn can_call_connector(status: &storage_enums::AttemptStatus) -> bool {
             | storage_enums::AttemptStatus::Authorized
             | storage_enums::AttemptStatus::Started
             | storage_enums::AttemptStatus::Failure
-    )
+    ) && connector_transaction_id.is_some()
 }
 
 pub fn append_option<T, U, F, V>(func: F, option1: Option<T>, option2: Option<U>) -> Option<V>
@@ -1077,7 +1079,7 @@ pub fn hmac_sha256_sorted_query_params(
 }
 
 pub fn check_if_operation_confirm<Op: std::fmt::Debug>(operations: Op) -> bool {
-    format!("{:?}", operations) == "PaymentConfirm"
+    format!("{operations:?}") == "PaymentConfirm"
 }
 
 pub fn generate_mandate(
@@ -1143,6 +1145,20 @@ pub(crate) fn authenticate_client_secret(
         }),
         _ => Ok(()),
     }
+}
+
+pub(crate) fn validate_payment_status_against_not_allowed_statuses(
+    intent_status: &storage_enums::IntentStatus,
+    not_allowed_statuses: &[storage_enums::IntentStatus],
+    action: &'static str,
+) -> Result<(), errors::ApiErrorResponse> {
+    fp_utils::when(not_allowed_statuses.contains(intent_status), || {
+        Err(errors::ApiErrorResponse::PreconditionFailed {
+            message: format!(
+                "You cannot {action} this payment because it has status {intent_status}",
+            ),
+        })
+    })
 }
 
 pub(crate) fn validate_pm_or_token_given(

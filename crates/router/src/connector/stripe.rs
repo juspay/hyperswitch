@@ -6,6 +6,7 @@ use error_stack::{IntoReport, ResultExt};
 use router_env::{instrument, tracing};
 
 use self::transformers as stripe;
+use super::utils::RefundsRequestData;
 use crate::{
     configs::settings,
     consts,
@@ -19,7 +20,7 @@ use crate::{
         self,
         api::{self, ConnectorCommon},
     },
-    utils::{self, crypto, ByteSliceExt, BytesExt, OptionExt},
+    utils::{self, crypto, ByteSliceExt, BytesExt},
 };
 
 #[derive(Debug, Clone)]
@@ -344,7 +345,8 @@ impl
         &self,
         req: &types::PaymentsAuthorizeRouterData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        let stripe_req = utils::Encode::<stripe::PaymentIntentRequest>::convert_and_url_encode(req)
+        let req = stripe::PaymentIntentRequest::try_from(req)?;
+        let stripe_req = utils::Encode::<stripe::PaymentIntentRequest>::encode(&req)
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(stripe_req))
     }
@@ -778,12 +780,7 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
         req: &types::RefundsRouterData<api::RSync>,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let id = req
-            .request
-            .connector_refund_id
-            .clone()
-            .get_required_value("connector_refund_id")
-            .change_context(errors::ConnectorError::FailedToObtainIntegrationUrl)?;
+        let id = req.request.get_connector_refund_id()?;
         Ok(format!("{}v1/refunds/{}", self.base_url(connectors), id))
     }
 
@@ -910,6 +907,8 @@ impl api::IncomingWebhook for Stripe {
         &self,
         headers: &actix_web::http::header::HeaderMap,
         body: &[u8],
+        _merchant_id: &str,
+        _secret: &[u8],
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let mut security_header_kvs = get_signature_elements_from_header(headers)?;
 

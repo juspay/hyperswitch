@@ -212,7 +212,7 @@ where
     FData: Send,
     Op: Operation<F, Req> + Send + Sync + Clone,
     Req: Debug,
-    Res: transformers::ToResponse<Req, PaymentData<F>, Op> + TryFrom<Req>,
+    Res: transformers::ToResponse<Req, PaymentData<F>, Op>,
     // To create connector flow specific interface data
     PaymentData<F>: ConstructFlowSpecificData<F, FData, types::PaymentsResponseData>,
     types::RouterData<F, FData, types::PaymentsResponseData>: Feature<F, FData>,
@@ -244,7 +244,7 @@ where
 }
 
 fn is_start_pay<Op: Debug>(operation: &Op) -> bool {
-    format!("{:?}", operation).eq("PaymentStart")
+    format!("{operation:?}").eq("PaymentStart")
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -262,7 +262,7 @@ where
 
     let resource_id = api::PaymentIdTypeExt::get_payment_intent_id(&req.resource_id)
         .change_context(errors::ApiErrorResponse::MissingRequiredField {
-            field_name: "payment_id".to_string(),
+            field_name: "payment_id",
         })?;
 
     let connector_data = api::ConnectorData::get_connector_by_name(
@@ -568,7 +568,7 @@ pub fn should_call_connector<Op: Debug, F: Clone>(
     operation: &Op,
     payment_data: &PaymentData<F>,
 ) -> bool {
-    match format!("{:?}", operation).as_str() {
+    match format!("{operation:?}").as_str() {
         "PaymentConfirm" => true,
         "PaymentStart" => {
             !matches!(

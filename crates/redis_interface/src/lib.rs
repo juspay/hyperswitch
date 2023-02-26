@@ -21,6 +21,12 @@ pub mod commands;
 pub mod errors;
 pub mod types;
 
+use std::sync::{atomic, Arc};
+
+use common_utils::errors::CustomResult;
+use error_stack::{IntoReport, ResultExt};
+use fred::interfaces::ClientLike;
+use futures::StreamExt;
 use router_env::logger;
 
 pub use self::{commands::*, types::*};
@@ -28,17 +34,13 @@ pub use self::{commands::*, types::*};
 pub struct RedisConnectionPool {
     pub pool: fred::pool::RedisPool,
     config: RedisConfig,
-    _join_handles: Vec<fred::types::ConnectHandle>,
+    join_handles: Vec<fred::types::ConnectHandle>,
+    pub is_redis_available: Arc<atomic::AtomicBool>,
 }
 
 impl RedisConnectionPool {
     /// Create a new Redis connection
-    ///
-    /// # Panics
-    ///
-    /// Panics if a connection to Redis is not successful.
-    #[allow(clippy::expect_used)]
-    pub async fn new(conf: &RedisSettings) -> Self {
+    pub async fn new(conf: &RedisSettings) -> CustomResult<Self, errors::RedisError> {
         let redis_connection_url = match conf.cluster_enabled {
             // Fred relies on this format for specifying cluster where the host port is ignored & only query parameters are used for node addresses
             // redis-cluster://username:password@host:port?node=bar.com:30002&node=baz.com:30003
@@ -58,34 +60,41 @@ impl RedisConnectionPool {
             ),
         };
         let mut config = fred::types::RedisConfig::from_url(&redis_connection_url)
-            .expect("Invalid Redis connection URL");
+            .into_report()
+            .change_context(errors::RedisError::RedisConnectionError)?;
+
         if !conf.use_legacy_version {
             config.version = fred::types::RespVersion::RESP3;
         }
         config.tracing = true;
+        config.blocking = fred::types::Blocking::Error;
         let policy = fred::types::ReconnectPolicy::new_constant(
             conf.reconnect_max_attempts,
             conf.reconnect_delay,
         );
         let pool = fred::pool::RedisPool::new(config, conf.pool_size)
-            .expect("Unable to construct Redis pool");
+            .into_report()
+            .change_context(errors::RedisError::RedisConnectionError)?;
 
-        let _join_handles = pool.connect(Some(policy));
+        let join_handles = pool.connect(Some(policy));
         pool.wait_for_connect()
             .await
-            .expect("Error connecting to Redis");
+            .into_report()
+            .change_context(errors::RedisError::RedisConnectionError)?;
+
         let config = RedisConfig::from(conf);
 
-        Self {
+        Ok(Self {
             pool,
             config,
-            _join_handles,
-        }
+            join_handles,
+            is_redis_available: Arc::new(atomic::AtomicBool::new(true)),
+        })
     }
 
     pub async fn close_connections(&mut self) {
         self.pool.quit_pool().await;
-        for handle in self._join_handles.drain(..) {
+        for handle in self.join_handles.drain(..) {
             match handle.await {
                 Ok(Ok(_)) => (),
                 Ok(Err(error)) => logger::error!(%error),
@@ -93,11 +102,25 @@ impl RedisConnectionPool {
             };
         }
     }
+    pub async fn on_error(&self) {
+        self.pool
+            .on_error()
+            .for_each(|err| {
+                logger::error!("{err:?}");
+                if self.pool.state() == fred::types::ClientState::Disconnected {
+                    self.is_redis_available
+                        .store(false, atomic::Ordering::SeqCst);
+                }
+                futures::future::ready(())
+            })
+            .await;
+    }
 }
 
 struct RedisConfig {
     default_ttl: u32,
     default_stream_read_count: u64,
+    default_hash_ttl: u32,
 }
 
 impl From<&RedisSettings> for RedisConfig {
@@ -105,6 +128,7 @@ impl From<&RedisSettings> for RedisConfig {
         Self {
             default_ttl: config.default_ttl,
             default_stream_read_count: config.stream_read_count,
+            default_hash_ttl: config.default_hash_ttl,
         }
     }
 }

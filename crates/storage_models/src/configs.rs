@@ -17,7 +17,7 @@ pub struct ConfigNew {
 #[diesel(table_name = configs)]
 
 pub struct Config {
-    #[serde(skip_serializing)]
+    #[serde(skip)]
     pub id: i32,
     pub key: String,
     pub config: String,

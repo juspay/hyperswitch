@@ -8,7 +8,8 @@ use crate::{
     types::api::customers,
 };
 
-/// Create Customer
+// Create Customer
+
 ///
 /// Create a customer object and store the customer details to be reused for future payments. Incase the customer already exists in the system, this API will respond with the customer details.
 #[utoipa::path(
@@ -18,7 +19,9 @@ use crate::{
     responses(
         (status = 200, description = "Customer Created", body = CustomerResponse),
         (status = 400, description = "Invalid data")
-    )
+    ),
+     tag = "Customers",
+     operation_id = "Create a Customer"
 )]
 #[instrument(skip_all, fields(flow = ?Flow::CustomersCreate))]
 pub async fn customers_create(
@@ -27,7 +30,7 @@ pub async fn customers_create(
     json_payload: web::Json<customers::CustomerRequest>,
 ) -> HttpResponse {
     api::server_wrap(
-        &state,
+        state.get_ref(),
         &req,
         json_payload.into_inner(),
         |state, merchant_account, req| create_customer(&*state.store, merchant_account, req),
@@ -36,7 +39,8 @@ pub async fn customers_create(
     .await
 }
 
-/// Retrieve Customer
+// Retrieve Customer
+
 ///
 /// Retrieve a customer's details.
 #[utoipa::path(
@@ -46,7 +50,9 @@ pub async fn customers_create(
     responses(
         (status = 200, description = "Customer Retrieved", body = CustomerResponse),
         (status = 404, description = "Customer was not found")
-    )
+    ),
+    tag = "Customers",
+     operation_id = "Retrieve a Customer"
 )]
 #[instrument(skip_all, fields(flow = ?Flow::CustomersRetrieve))]
 pub async fn customers_retrieve(
@@ -66,7 +72,7 @@ pub async fn customers_retrieve(
         };
 
     api::server_wrap(
-        &state,
+        state.get_ref(),
         &req,
         payload,
         |state, merchant_account, req| retrieve_customer(&*state.store, merchant_account, req),
@@ -75,7 +81,8 @@ pub async fn customers_retrieve(
     .await
 }
 
-/// Update Customer
+// Update Customer
+
 ///
 /// Updates the customer's details in a customer object.
 #[utoipa::path(
@@ -86,7 +93,9 @@ pub async fn customers_retrieve(
     responses(
         (status = 200, description = "Customer was Updated", body = CustomerResponse),
         (status = 404, description = "Customer was not found")
-    )
+    ),
+    tag = "Customers",
+     operation_id = "Update a Customer"
 )]
 #[instrument(skip_all, fields(flow = ?Flow::CustomersUpdate))]
 pub async fn customers_update(
@@ -98,7 +107,7 @@ pub async fn customers_update(
     let customer_id = path.into_inner();
     json_payload.customer_id = customer_id;
     api::server_wrap(
-        &state,
+        state.get_ref(),
         &req,
         json_payload.into_inner(),
         |state, merchant_account, req| update_customer(&*state.store, merchant_account, req),
@@ -107,7 +116,8 @@ pub async fn customers_update(
     .await
 }
 
-/// Delete Customer
+// Delete Customer
+
 ///
 /// Delete a customer record.
 #[utoipa::path(
@@ -117,7 +127,9 @@ pub async fn customers_update(
     responses(
         (status = 200, description = "Customer was Deleted", body = CustomerDeleteResponse),
         (status = 404, description = "Customer was not found")
-    )
+    ),
+    tag = "Customers",
+     operation_id = "Delete a Customer"
 )]
 #[instrument(skip_all, fields(flow = ?Flow::CustomersDelete))]
 pub async fn customers_delete(
@@ -129,7 +141,14 @@ pub async fn customers_delete(
         customer_id: path.into_inner(),
     })
     .into_inner();
-    api::server_wrap(&state, &req, payload, delete_customer, &auth::ApiKeyAuth).await
+    api::server_wrap(
+        state.get_ref(),
+        &req,
+        payload,
+        delete_customer,
+        &auth::ApiKeyAuth,
+    )
+    .await
 }
 
 #[instrument(skip_all, fields(flow = ?Flow::CustomersGetMandates))]
@@ -143,7 +162,7 @@ pub async fn get_customer_mandates(
     };
 
     api::server_wrap(
-        &state,
+        state.get_ref(),
         &req,
         customer_id,
         |state, merchant_account, req| {

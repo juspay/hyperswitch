@@ -8,6 +8,23 @@ use crate::{
     types::api::mandates,
 };
 
+// Mandates - Retrieve Mandate
+
+///
+/// Retrieve a mandate
+#[utoipa::path(
+    get,
+    path = "/mandates/{mandate_id}",
+    params(
+        ("mandate_id" = String, Path, description = "The identifier for mandate")
+    ),
+    responses(
+        (status = 200, description = "The mandate was retrieved successfully", body = MandateResponse),
+        (status = 404, description = "Mandate does not exist in our records")
+    ),
+    tag = "Mandates",
+    operation_id = "Retrieve a Mandate"
+)]
 #[instrument(skip_all, fields(flow = ?Flow::MandatesRetrieve))]
 // #[get("/{id}")]
 pub async fn get_mandate(
@@ -19,7 +36,7 @@ pub async fn get_mandate(
         mandate_id: path.into_inner(),
     };
     api::server_wrap(
-        &state,
+        state.get_ref(),
         &req,
         mandate_id,
         mandate::get_mandate,
@@ -28,6 +45,23 @@ pub async fn get_mandate(
     .await
 }
 
+// Mandates - Revoke Mandate
+
+///
+/// Revoke a mandate
+#[utoipa::path(
+    post,
+    path = "/mandates/revoke/{mandate_id}",
+    params(
+        ("mandate_id" = String, Path, description = "The identifier for mandate")
+    ),
+    responses(
+        (status = 200, description = "The mandate was revoked successfully", body = MandateRevokedResponse),
+        (status = 400, description = "Mandate does not exist in our records")
+    ),
+    tag = "Mandates",
+     operation_id = "Revoke a Mandate"
+)]
 #[instrument(skip_all, fields(flow = ?Flow::MandatesRevoke))]
 // #[post("/revoke/{id}")]
 pub async fn revoke_mandate(
@@ -39,7 +73,7 @@ pub async fn revoke_mandate(
         mandate_id: path.into_inner(),
     };
     api::server_wrap(
-        &state,
+        state.get_ref(),
         &req,
         mandate_id,
         |state, merchant_account, req| {

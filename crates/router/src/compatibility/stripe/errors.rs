@@ -1,7 +1,7 @@
 #![allow(unused_variables)]
 use crate::core::errors;
 
-#[derive(Debug, router_derive::ApiError)]
+#[derive(Debug, router_derive::ApiError, Clone)]
 #[error(error_type_enum = StripeErrorType)]
 pub enum StripeErrorCode {
     /*
@@ -20,7 +20,10 @@ pub enum StripeErrorCode {
     InvalidRequestUrl,
 
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "parameter_missing", message = "Missing required param: {field_name}.")]
-    ParameterMissing { field_name: String, param: String },
+    ParameterMissing {
+        field_name: &'static str,
+        param: &'static str,
+    },
 
     #[error(
         error_type = StripeErrorType::InvalidRequestError, code = "parameter_unknown",
@@ -70,6 +73,9 @@ pub enum StripeErrorCode {
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "resource_missing", message = "No such customer")]
     CustomerNotFound,
 
+    #[error(error_type = StripeErrorType::InvalidRequestError, code = "resource_missing", message = "No such config")]
+    ConfigNotFound,
+
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "resource_missing", message = "No such payment")]
     PaymentNotFound,
 
@@ -87,6 +93,9 @@ pub enum StripeErrorCode {
 
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "resource_missing", message = "No such mandate")]
     MandateNotFound,
+
+    #[error(error_type = StripeErrorType::InvalidRequestError, code = "resource_missing", message = "No such API key")]
+    ApiKeyNotFound,
 
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "parameter_missing", message = "Return url is not available")]
     ReturnUrlUnavailable,
@@ -322,12 +331,12 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
             errors::ApiErrorResponse::Unauthorized
             | errors::ApiErrorResponse::InvalidJwtToken
             | errors::ApiErrorResponse::GenericUnauthorized { .. }
-            | errors::ApiErrorResponse::InvalidEphermeralKey => Self::Unauthorized,
+            | errors::ApiErrorResponse::InvalidEphemeralKey => Self::Unauthorized,
             errors::ApiErrorResponse::InvalidRequestUrl
             | errors::ApiErrorResponse::InvalidHttpMethod => Self::InvalidRequestUrl,
             errors::ApiErrorResponse::MissingRequiredField { field_name } => {
                 Self::ParameterMissing {
-                    field_name: field_name.to_owned(),
+                    field_name,
                     param: field_name,
                 }
             }
@@ -364,6 +373,7 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
             errors::ApiErrorResponse::IncorrectConnectorNameGiven => Self::InternalServerError,
             errors::ApiErrorResponse::MandateActive => Self::MandateActive, //not a stripe code
             errors::ApiErrorResponse::CustomerRedacted => Self::CustomerRedacted, //not a stripe code
+            errors::ApiErrorResponse::ConfigNotFound => Self::ConfigNotFound, // not a stripe code
             errors::ApiErrorResponse::DuplicateRefundRequest => Self::DuplicateRefundRequest,
             errors::ApiErrorResponse::RefundNotFound => Self::RefundNotFound,
             errors::ApiErrorResponse::CustomerNotFound => Self::CustomerNotFound,
@@ -376,6 +386,7 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
                 Self::MerchantConnectorAccountNotFound
             }
             errors::ApiErrorResponse::MandateNotFound => Self::MandateNotFound,
+            errors::ApiErrorResponse::ApiKeyNotFound => Self::ApiKeyNotFound,
             errors::ApiErrorResponse::MandateValidationFailed { reason } => {
                 Self::PaymentIntentMandateInvalid { message: reason }
             }
@@ -395,8 +406,8 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
                 Self::PreconditionFailed { message }
             }
             errors::ApiErrorResponse::InvalidDataValue { field_name } => Self::ParameterMissing {
-                field_name: field_name.to_owned(),
-                param: field_name.to_owned(),
+                field_name,
+                param: field_name,
             },
             errors::ApiErrorResponse::MaximumRefundCount => Self::MaximumRefundCount,
             errors::ApiErrorResponse::PaymentNotSucceeded => Self::PaymentFailed,
@@ -439,12 +450,14 @@ impl actix_web::ResponseError for StripeErrorCode {
             | Self::DuplicateRefundRequest
             | Self::RefundNotFound
             | Self::CustomerNotFound
+            | Self::ConfigNotFound
             | Self::ClientSecretNotFound
             | Self::PaymentNotFound
             | Self::PaymentMethodNotFound
             | Self::MerchantAccountNotFound
             | Self::MerchantConnectorAccountNotFound
             | Self::MandateNotFound
+            | Self::ApiKeyNotFound
             | Self::DuplicateMerchantAccount
             | Self::DuplicateMerchantConnectorAccount
             | Self::DuplicatePaymentMethod
@@ -514,5 +527,11 @@ impl From<serde_qs::Error> for StripeErrorCode {
                 param: None,
             },
         }
+    }
+}
+
+impl common_utils::errors::ErrorSwitch<StripeErrorCode> for errors::ApiErrorResponse {
+    fn switch(&self) -> StripeErrorCode {
+        self.clone().into()
     }
 }

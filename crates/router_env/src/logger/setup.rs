@@ -156,6 +156,6 @@ fn setup_metrics() -> Option<BasicController> {
         .with_period(Duration::from_secs(3))
         .with_timeout(Duration::from_secs(10))
         .build()
-        .map_err(|err| eprintln!("Failed to Setup Metrics with {:?}", err))
+        .map_err(|err| eprintln!("Failed to Setup Metrics with {err:?}"))
         .ok()
 }

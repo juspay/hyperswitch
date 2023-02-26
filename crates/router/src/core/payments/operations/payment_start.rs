@@ -1,7 +1,7 @@
 use std::marker::PhantomData;
 
 use async_trait::async_trait;
-use error_stack::{report, ResultExt};
+use error_stack::ResultExt;
 use router_derive::PaymentOperation;
 use router_env::{instrument, tracing};
 
@@ -17,7 +17,7 @@ use crate::{
     routes::AppState,
     types::{
         api::{self, PaymentIdTypeExt},
-        storage::{self, enums},
+        storage::{self, enums as storage_enums},
         transformers::ForeignInto,
     },
     utils::OptionExt,
@@ -57,6 +57,15 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsStartRequest> f
             .map_err(|error| {
                 error.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
             })?;
+
+        helpers::validate_payment_status_against_not_allowed_statuses(
+            &payment_intent.status,
+            &[
+                storage_enums::IntentStatus::Failed,
+                storage_enums::IntentStatus::Succeeded,
+            ],
+            "update",
+        )?;
 
         payment_attempt = db
             .find_payment_attempt_by_payment_id_merchant_id(
@@ -111,41 +120,32 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsStartRequest> f
                     .attach_printable("Database error when finding connector response")
             })?;
 
-        match payment_intent.status {
-            enums::IntentStatus::Succeeded | enums::IntentStatus::Failed => {
-                Err(report!(errors::ApiErrorResponse::PreconditionFailed {
-                    message: "You cannot confirm this Payment because it has already succeeded \
-                              after being previously confirmed."
-                        .into()
-                }))
-            }
-            _ => Ok((
-                Box::new(self),
-                PaymentData {
-                    flow: PhantomData,
-                    payment_intent,
-                    currency,
-                    amount,
-                    email: None::<Secret<String, pii::Email>>,
-                    mandate_id: None,
-                    connector_response,
-                    setup_mandate: None,
-                    token: None,
-                    address: PaymentAddress {
-                        shipping: shipping_address.as_ref().map(|a| a.foreign_into()),
-                        billing: billing_address.as_ref().map(|a| a.foreign_into()),
-                    },
-                    confirm: Some(payment_attempt.confirm),
-                    payment_attempt,
-                    payment_method_data: None,
-                    force_sync: None,
-                    refunds: vec![],
-                    sessions_token: vec![],
-                    card_cvc: None,
+        Ok((
+            Box::new(self),
+            PaymentData {
+                flow: PhantomData,
+                payment_intent,
+                currency,
+                amount,
+                email: None::<Secret<String, pii::Email>>,
+                mandate_id: None,
+                connector_response,
+                setup_mandate: None,
+                token: None,
+                address: PaymentAddress {
+                    shipping: shipping_address.as_ref().map(|a| a.foreign_into()),
+                    billing: billing_address.as_ref().map(|a| a.foreign_into()),
                 },
-                Some(customer_details),
-            )),
-        }
+                confirm: Some(payment_attempt.confirm),
+                payment_attempt,
+                payment_method_data: None,
+                force_sync: None,
+                refunds: vec![],
+                sessions_token: vec![],
+                card_cvc: None,
+            },
+            Some(customer_details),
+        ))
     }
 }
 
@@ -158,7 +158,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsStartRequest> for P
         _payment_id: &api::PaymentIdType,
         payment_data: PaymentData<F>,
         _customer: Option<storage::Customer>,
-        _storage_scheme: enums::MerchantStorageScheme,
+        _storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> RouterResult<(
         BoxedOperation<'b, F, api::PaymentsStartRequest>,
         PaymentData<F>,
@@ -236,7 +236,7 @@ where
         &'a self,
         state: &'a AppState,
         payment_data: &mut PaymentData<F>,
-        _storage_scheme: enums::MerchantStorageScheme,
+        _storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsStartRequest>,
         Option<api::PaymentMethod>,

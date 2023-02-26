@@ -1,17 +1,19 @@
+use error_stack::{report, IntoReport, ResultExt};
 use masking::Secret;
 
 use crate::{
-    core::errors,
+    core::errors::{self, CustomResult},
     pii::PeekInterface,
     types::{self, api},
+    utils::OptionExt,
 };
 
 pub fn missing_field_err(
-    message: &str,
+    message: &'static str,
 ) -> Box<dyn Fn() -> error_stack::Report<errors::ConnectorError> + '_> {
-    Box::new(|| {
+    Box::new(move || {
         errors::ConnectorError::MissingRequiredField {
-            field_name: message.to_string(),
+            field_name: message,
         }
         .into()
     })
@@ -37,7 +39,21 @@ pub trait PaymentsRequestData {
     fn get_billing(&self) -> Result<&api::Address, Error>;
     fn get_billing_country(&self) -> Result<String, Error>;
     fn get_billing_phone(&self) -> Result<&api::PhoneDetails, Error>;
-    fn get_card(&self) -> Result<api::CCard, Error>;
+    fn get_card(&self) -> Result<api::Card, Error>;
+    fn get_return_url(&self) -> Result<String, Error>;
+}
+
+pub trait RefundsRequestData {
+    fn get_connector_refund_id(&self) -> Result<String, Error>;
+}
+
+impl RefundsRequestData for types::RefundsData {
+    fn get_connector_refund_id(&self) -> Result<String, Error> {
+        self.connector_refund_id
+            .clone()
+            .get_required_value("connector_refund_id")
+            .change_context(errors::ConnectorError::MissingConnectorTransactionID)
+    }
 }
 
 impl PaymentsRequestData for types::PaymentsAuthorizeRouterData {
@@ -56,7 +72,7 @@ impl PaymentsRequestData for types::PaymentsAuthorizeRouterData {
             .ok_or_else(missing_field_err("billing.address.country"))
     }
 
-    fn get_card(&self) -> Result<api::CCard, Error> {
+    fn get_card(&self) -> Result<api::Card, Error> {
         match self.request.payment_method_data.clone() {
             api::PaymentMethod::Card(card) => Ok(card),
             _ => Err(missing_field_err("card")()),
@@ -76,6 +92,12 @@ impl PaymentsRequestData for types::PaymentsAuthorizeRouterData {
             .as_ref()
             .ok_or_else(missing_field_err("billing"))
     }
+
+    fn get_return_url(&self) -> Result<String, Error> {
+        self.router_return_url
+            .clone()
+            .ok_or_else(missing_field_err("router_return_url"))
+    }
 }
 
 pub trait CardData {
@@ -86,7 +108,7 @@ pub trait CardData {
     fn get_card_cvc(&self) -> String;
 }
 
-impl CardData for api::CCard {
+impl CardData for api::Card {
     fn get_card_number(&self) -> String {
         self.card_number.peek().clone()
     }
@@ -174,4 +196,21 @@ impl AddressDetailsData for api::AddressDetails {
             .as_ref()
             .ok_or_else(missing_field_err("address.country"))
     }
+}
+
+pub fn get_header_key_value<'a>(
+    key: &str,
+    headers: &'a actix_web::http::header::HeaderMap,
+) -> CustomResult<&'a str, errors::ConnectorError> {
+    headers
+        .get(key)
+        .map(|header_value| {
+            header_value
+                .to_str()
+                .into_report()
+                .change_context(errors::ConnectorError::WebhookSignatureNotFound)
+        })
+        .ok_or(report!(
+            errors::ConnectorError::WebhookSourceVerificationFailed
+        ))?
 }

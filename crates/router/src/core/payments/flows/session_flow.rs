@@ -74,8 +74,7 @@ fn create_gpay_session_token(
         .parse_value::<payment_types::GpaySessionTokenData>("GpaySessionTokenData")
         .change_context(errors::ConnectorError::NoConnectorMetaData)
         .attach_printable(format!(
-            "cannot parse gpay metadata from the given value {:?}",
-            connector_metadata
+            "cannot parse gpay metadata from the given value {connector_metadata:?}"
         ))
         .change_context(errors::ApiErrorResponse::InvalidDataFormat {
             field_name: "connector_metadata".to_string(),
@@ -92,11 +91,13 @@ fn create_gpay_session_token(
 
     let response_router_data = types::PaymentsSessionRouterData {
         response: Ok(types::PaymentsResponseData::SessionResponse {
-            session_token: payment_types::SessionToken::Gpay {
-                transaction_info,
-                merchant_info: gpay_data.data.merchant_info,
-                allowed_payment_methods: gpay_data.data.allowed_payment_methods,
-            },
+            session_token: payment_types::SessionToken::Gpay(Box::new(
+                payment_types::GpaySessionTokenResponse {
+                    merchant_info: gpay_data.data.merchant_info,
+                    allowed_payment_methods: gpay_data.data.allowed_payment_methods,
+                    transaction_info,
+                },
+            )),
         }),
         ..router_data.clone()
     };

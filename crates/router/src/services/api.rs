@@ -10,6 +10,7 @@ use std::{
 };
 
 use actix_web::{body, HttpRequest, HttpResponse, Responder};
+use common_utils::errors::ReportSwitchExt;
 use error_stack::{report, IntoReport, Report, ResultExt};
 use masking::ExposeOptionInterface;
 use router_env::{instrument, tracing, Tag};
@@ -20,12 +21,12 @@ pub use self::request::{Method, Request, RequestBuilder};
 use crate::{
     configs::settings::Connectors,
     core::{
-        errors::{self, CustomResult, RouterResponse, RouterResult},
+        errors::{self, CustomResult, RouterResult},
         payments,
     },
     db::StorageInterface,
     logger,
-    routes::AppState,
+    routes::{app::AppStateInfo, AppState},
     services::authentication as auth,
     types::{
         self, api,
@@ -384,41 +385,48 @@ pub enum AuthFlow {
 }
 
 #[instrument(skip(request, payload, state, func, api_auth))]
-pub async fn server_wrap_util<'a, 'b, U, T, Q, F, Fut>(
-    state: &'b AppState,
+pub async fn server_wrap_util<'a, 'b, A, U, T, Q, F, Fut, E, OErr>(
+    state: &'b A,
     request: &'a HttpRequest,
     payload: T,
     func: F,
-    api_auth: &dyn auth::AuthenticateAndFetch<U>,
-) -> RouterResult<ApplicationResponse<Q>>
+    api_auth: &dyn auth::AuthenticateAndFetch<U, A>,
+) -> CustomResult<ApplicationResponse<Q>, OErr>
 where
-    F: Fn(&'b AppState, U, T) -> Fut,
-    Fut: Future<Output = RouterResponse<Q>>,
+    F: Fn(&'b A, U, T) -> Fut,
+    Fut: Future<Output = CustomResult<ApplicationResponse<Q>, E>>,
     Q: Serialize + Debug + 'a,
     T: Debug,
+    A: AppStateInfo,
+    CustomResult<ApplicationResponse<Q>, E>: ReportSwitchExt<ApplicationResponse<Q>, OErr>,
+    CustomResult<U, errors::ApiErrorResponse>: ReportSwitchExt<U, OErr>,
 {
     let auth_out = api_auth
         .authenticate_and_fetch(request.headers(), state)
-        .await?;
-    func(state, auth_out, payload).await
+        .await
+        .switch()?;
+    func(state, auth_out, payload).await.switch()
 }
 
 #[instrument(
     skip(request, payload, state, func, api_auth),
     fields(request_method, request_url_path)
 )]
-pub async fn server_wrap<'a, 'b, T, U, Q, F, Fut>(
-    state: &'b AppState,
+pub async fn server_wrap<'a, 'b, A, T, U, Q, F, Fut, E>(
+    state: &'b A,
     request: &'a HttpRequest,
     payload: T,
     func: F,
-    api_auth: &dyn auth::AuthenticateAndFetch<U>,
+    api_auth: &dyn auth::AuthenticateAndFetch<U, A>,
 ) -> HttpResponse
 where
-    F: Fn(&'b AppState, U, T) -> Fut,
-    Fut: Future<Output = RouterResult<ApplicationResponse<Q>>>,
+    F: Fn(&'b A, U, T) -> Fut,
+    Fut: Future<Output = CustomResult<ApplicationResponse<Q>, E>>,
     Q: Serialize + Debug + 'a,
     T: Debug,
+    A: AppStateInfo,
+    CustomResult<ApplicationResponse<Q>, E>:
+        ReportSwitchExt<ApplicationResponse<Q>, api_models::errors::types::ApiErrorResponse>,
 {
     let request_method = request.method().as_str();
     let url_path = request.path();
@@ -474,10 +482,10 @@ where
 
 pub fn log_and_return_error_response<T>(error: Report<T>) -> HttpResponse
 where
-    T: actix_web::ResponseError + error_stack::Context,
+    T: actix_web::ResponseError + error_stack::Context + Clone,
 {
     logger::error!(?error);
-    error.current_context().error_response()
+    HttpResponse::from_error(error.current_context().clone())
 }
 
 pub async fn authenticate_by_api_key(
@@ -564,19 +572,35 @@ pub fn build_redirection_form(form: &RedirectForm) -> maud::Markup {
         html {
             meta name="viewport" content="width=device-width, initial-scale=1";
             head {
-                style { "#loading { -webkit-animation: rotation 2s infinite linear; } @-webkit-keyframes rotation{ from { -webkit-transform: rotate(0deg); } to { -webkit-transform: rotate(359deg); } }" }
+                style {
+                    r##"
+                    
+                    "## 
+                }
+                (PreEscaped(r##"
+                <style>
+                    #loader1 { 
+                        width: 500px,
+                    } 
+                    @media max-width: 600px { 
+                        #loader1 { 
+                            width: 200px 
+                        } 
+                    }
+                </style>
+                "##))
             }
 
             body style="background-color: #ffffff; padding: 20px; font-family: Arial, Helvetica, Sans-Serif;" {
 
-                div id="Loader1" class="lottie" style="width: 500px; height: 150px; display: block; position: relative; margin-left: auto; margin-right: auto;" { "" }
+                div id="loader1" class="lottie" style="height: 150px; display: block; position: relative; margin-left: auto; margin-right: auto;" { "" }
 
                 (PreEscaped(r#"<script src="https://cdnjs.cloudflare.com/ajax/libs/bodymovin/5.7.4/lottie.min.js"></script>"#))
 
                 (PreEscaped(r#"
                 <script>
                 var anime = bodymovin.loadAnimation({
-                    container: document.getElementById('Loader1'),
+                    container: document.getElementById('loader1'),
                     renderer: 'svg',
                     loop: true,
                     autoplay: true,

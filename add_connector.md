@@ -278,7 +278,7 @@ And the below derive traits
 There is a trait bound to implement refunds, if you don't want to implement refunds you can mark them as `todo!()` but code panics when you initiate refunds then.
 
 Don’t forget to add logs lines in appropriate places.
-Refer to other connector code for trait implementations. mostly tThe rust compiler will guide you to do it easily.
+Refer to other connector code for trait implementations. Mostly the rust compiler will guide you to do it easily.
 Feel free to connect with us in case of any queries and if you want to confirm the status mapping.
 
 ### **Test the connector**

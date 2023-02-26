@@ -20,6 +20,7 @@ impl Default for super::settings::Database {
             port: 5432,
             dbname: String::new(),
             pool_size: 5,
+            connection_timeout: 10,
         }
     }
 }
@@ -82,8 +83,8 @@ impl Default for super::settings::SchedulerSettings {
     fn default() -> Self {
         Self {
             stream: "SCHEDULER_STREAM".into(),
-            consumer_group: "SCHEDULER_GROUP".into(),
             producer: super::settings::ProducerSettings::default(),
+            consumer: super::settings::ConsumerSettings::default(),
         }
     }
 }
@@ -100,6 +101,15 @@ impl Default for super::settings::ProducerSettings {
     }
 }
 
+impl Default for super::settings::ConsumerSettings {
+    fn default() -> Self {
+        Self {
+            disabled: false,
+            consumer_group: "SCHEDULER_GROUP".into(),
+        }
+    }
+}
+
 #[cfg(feature = "kv_store")]
 impl Default for super::settings::DrainerSettings {
     fn default() -> Self {
@@ -107,6 +117,8 @@ impl Default for super::settings::DrainerSettings {
             stream_name: "DRAINER_STREAM".into(),
             num_partitions: 64,
             max_read_count: 100,
+            shutdown_interval: 1000,
+            loop_interval: 500,
         }
     }
 }

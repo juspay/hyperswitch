@@ -41,7 +41,7 @@ mod tests {
             .insert_payment_attempt(payment_attempt, enums::MerchantStorageScheme::PostgresOnly)
             .await
             .unwrap();
-        eprintln!("{:?}", response);
+        eprintln!("{response:?}");
 
         assert_eq!(response.payment_id, payment_id.clone());
     }
@@ -82,7 +82,7 @@ mod tests {
             .await
             .unwrap();
 
-        eprintln!("{:?}", response);
+        eprintln!("{response:?}");
 
         assert_eq!(response.payment_id, payment_id);
     }

@@ -4,6 +4,7 @@ use serde::Deserialize;
 #[derive(Debug, Deserialize, Clone)]
 pub(crate) struct ConnectorAuthentication {
     pub aci: Option<BodyKey>,
+    pub adyen: Option<BodyKey>,
     pub authorizedotnet: Option<BodyKey>,
     pub checkout: Option<BodyKey>,
     pub cybersource: Option<SignatureKey>,
@@ -12,6 +13,7 @@ pub(crate) struct ConnectorAuthentication {
     pub payu: Option<BodyKey>,
     pub rapyd: Option<BodyKey>,
     pub shift4: Option<HeaderKey>,
+    pub stripe: Option<HeaderKey>,
     pub worldpay: Option<HeaderKey>,
     pub worldline: Option<SignatureKey>,
 }
@@ -19,8 +21,8 @@ pub(crate) struct ConnectorAuthentication {
 impl ConnectorAuthentication {
     pub(crate) fn new() -> Self {
         #[allow(clippy::expect_used)]
-        toml::de::from_slice(
-            &std::fs::read("tests/connectors/auth.toml")
+        toml::from_str(
+            &std::fs::read_to_string("tests/connectors/auth.toml")
                 .expect("connector authentication config file not found"),
         )
         .expect("Failed to read connector authentication config file")
