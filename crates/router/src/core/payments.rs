@@ -212,7 +212,7 @@ where
     FData: Send,
     Op: Operation<F, Req> + Send + Sync + Clone,
     Req: Debug,
-    Res: transformers::ToResponse<Req, PaymentData<F>, Op> + TryFrom<Req>,
+    Res: transformers::ToResponse<Req, PaymentData<F>, Op>,
     // To create connector flow specific interface data
     PaymentData<F>: ConstructFlowSpecificData<F, FData, types::PaymentsResponseData>,
     types::RouterData<F, FData, types::PaymentsResponseData>: Feature<F, FData>,

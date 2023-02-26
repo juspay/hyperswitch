@@ -1,6 +1,7 @@
 use common_utils::pii;
 use masking::{Secret, StrongSecret};
 use serde::{Deserialize, Serialize};
+use url;
 use utoipa::ToSchema;
 
 use super::payments::AddressDetails;
@@ -26,7 +27,7 @@ pub struct CreateMerchantAccount {
 
     /// The URL to redirect after the completion of the operation
     #[schema(max_length = 255, example = "https://www.example.com/success")]
-    pub return_url: Option<String>,
+    pub return_url: Option<url::Url>,
 
     /// Webhook related details
     pub webhook_details: Option<WebhookDetails>,
@@ -270,14 +271,12 @@ pub struct PaymentConnectorCreate {
                 "Discover"
             ],
             "accepted_currencies": {
-                "enable_all":false,
-                "disable_only": ["INR", "CAD", "AED","JPY"],
-                "enable_only": ["EUR","USD"]
+                "type": "enable_only",
+                "list": ["USD", "EUR"]
             },
             "accepted_countries": {
-                "enable_all":false,
-                "disable_only": ["FR", "DE","IN"],
-                "enable_only": ["UK","AU"]
+                "type": "disable_only",
+                "list": ["FR", "DE","IN"]
             },
             "minimum_amount": 1,
             "maximum_amount": 68607706,
@@ -302,6 +301,28 @@ pub struct PaymentMethodsEnabled {
     /// Subtype of payment method
     #[schema(value_type = Option<Vec<PaymentMethodType>>,example = json!(["credit"]))]
     pub payment_method_types: Option<Vec<payment_methods::RequestPaymentMethodTypes>>,
+}
+
+/// List of enabled and disabled currencies, empty in case all currencies are enabled
+#[derive(Eq, PartialEq, Hash, Debug, Clone, serde::Serialize, Deserialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub struct AcceptedCurrencies {
+    /// type of accepted currencies (disable_only, enable_only)
+    #[serde(rename = "type")]
+    pub accept_type: String,
+    /// List of currencies of the provided type
+    pub list: Option<Vec<api_enums::Currency>>,
+}
+
+/// List of enabled and disabled countries, empty in case all countries are enabled
+#[derive(Eq, PartialEq, Hash, Debug, Clone, serde::Serialize, Deserialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub struct AcceptedCountries {
+    /// Type of accepted countries (disable_only, enable_only)
+    #[serde(rename = "type")]
+    pub accept_type: String,
+    /// List of countries of the provided type
+    pub list: Option<Vec<String>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]

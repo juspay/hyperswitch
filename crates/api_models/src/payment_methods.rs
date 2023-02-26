@@ -4,7 +4,7 @@ use common_utils::pii;
 use serde::de;
 use utoipa::ToSchema;
 
-use crate::enums as api_enums;
+use crate::{admin, enums as api_enums};
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 #[serde(deny_unknown_fields)]
@@ -238,7 +238,7 @@ pub struct RequestPaymentMethodTypes {
         "enable_only": ["EUR","USD"]
         }
     ))]
-    pub accepted_currencies: Option<AcceptedCurrencies>,
+    pub accepted_currencies: Option<admin::AcceptedCurrencies>,
 
     ///  List of Countries accepted or has the processing capabilities of the processor
     #[schema(example = json!(
@@ -248,7 +248,7 @@ pub struct RequestPaymentMethodTypes {
             "enable_only": ["UK","AU"]
         }
     ))]
-    pub accepted_countries: Option<AcceptedCountries>,
+    pub accepted_countries: Option<admin::AcceptedCountries>,
 
     /// Minimum amount supported by the processor. To be represented in the lowest denomination of the target currency (For example, for USD it should be in cents)
     #[schema(example = 1)]
@@ -435,7 +435,6 @@ pub struct ListPaymentMethod {
     pub payment_method_types: Option<Vec<RequestPaymentMethodTypes>>,
 }
 
-/// We need a custom serializer to only send relevant fields in ListPaymentMethodResponse
 /// Currently if the payment method is Wallet or Paylater the relevant fields are `payment_method`
 /// and `payment_method_issuers`. Otherwise only consider
 /// `payment_method`,`payment_method_issuers`,`payment_method_types`,`payment_schemes` fields.

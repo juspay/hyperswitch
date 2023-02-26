@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
 use api_models::{
-    admin::PaymentMethodsEnabled,
+    admin::{self, PaymentMethodsEnabled},
     enums as api_enums,
     payment_methods::{
         CardNetworkTypes, PaymentExperienceTypes, RequestPaymentMethodTypes,
@@ -609,28 +609,30 @@ async fn filter_payment_methods(
 }
 
 fn filter_pm_country_based(
-    accepted_countries: &Option<api_models::payment_methods::AcceptedCountries>,
+    accepted_countries: &Option<admin::AcceptedCountries>,
     req_country_list: &Option<Vec<String>>,
-) -> (
-    Option<api_models::payment_methods::AcceptedCountries>,
-    Option<Vec<String>>,
-    bool,
-) {
+) -> (Option<admin::AcceptedCountries>, Option<Vec<String>>, bool) {
     match (accepted_countries, req_country_list) {
         (None, None) => (None, None, true),
-        (None, Some(ref r)) => (None, Some(r.to_vec()), false),
+        (None, Some(ref r)) => (
+            Some(admin::AcceptedCountries {
+                accept_type: "enable_only".to_owned(),
+                list: Some(r.to_vec()),
+            }),
+            Some(r.to_vec()),
+            true,
+        ),
         (Some(l), None) => (Some(l.to_owned()), None, true),
         (Some(l), Some(ref r)) => {
-            let enable_only = if l.enable_all {
-                filter_disabled_enum_based(&l.disable_only, &Some(r.to_owned()))
+            let list = if l.accept_type == "enable_only" {
+                filter_accepted_enum_based(&l.list, &Some(r.to_owned()))
             } else {
-                filter_accepted_enum_based(&l.enable_only, &Some(r.to_owned()))
+                filter_disabled_enum_based(&l.list, &Some(r.to_owned()))
             };
             (
-                Some(api_models::payment_methods::AcceptedCountries {
-                    enable_all: l.enable_all,
-                    enable_only,
-                    disable_only: None,
+                Some(admin::AcceptedCountries {
+                    accept_type: l.accept_type.to_owned(),
+                    list,
                 }),
                 Some(r.to_vec()),
                 true,
@@ -640,28 +642,34 @@ fn filter_pm_country_based(
 }
 
 fn filter_pm_currencies_based(
-    accepted_currency: &Option<api_models::payment_methods::AcceptedCurrencies>,
+    accepted_currency: &Option<admin::AcceptedCurrencies>,
     req_currency_list: &Option<Vec<api_enums::Currency>>,
 ) -> (
-    Option<api_models::payment_methods::AcceptedCurrencies>,
+    Option<admin::AcceptedCurrencies>,
     Option<Vec<api_enums::Currency>>,
     bool,
 ) {
     match (accepted_currency, req_currency_list) {
         (None, None) => (None, None, true),
-        (None, Some(ref r)) => (None, Some(r.to_vec()), false),
+        (None, Some(ref r)) => (
+            Some(admin::AcceptedCurrencies {
+                accept_type: "enable_only".to_owned(),
+                list: Some(r.to_vec()),
+            }),
+            Some(r.to_vec()),
+            true,
+        ),
         (Some(l), None) => (Some(l.to_owned()), None, true),
         (Some(l), Some(ref r)) => {
-            let enable_only = if l.enable_all {
-                filter_disabled_enum_based(&l.disable_only, &Some(r.to_owned()))
+            let list = if l.accept_type == "enable_only" {
+                filter_accepted_enum_based(&l.list, &Some(r.to_owned()))
             } else {
-                filter_accepted_enum_based(&l.enable_only, &Some(r.to_owned()))
+                filter_disabled_enum_based(&l.list, &Some(r.to_owned()))
             };
             (
-                Some(api_models::payment_methods::AcceptedCurrencies {
-                    enable_all: l.enable_all,
-                    enable_only,
-                    disable_only: None,
+                Some(admin::AcceptedCurrencies {
+                    accept_type: l.accept_type.to_owned(),
+                    list,
                 }),
                 Some(r.to_vec()),
                 true,
@@ -755,14 +763,14 @@ async fn filter_payment_country_based(
     Ok(address.map_or(true, |address| {
         address.country.as_ref().map_or(true, |country| {
             pm.accepted_countries.as_ref().map_or(true, |ac| {
-                if ac.enable_all {
-                    ac.disable_only.as_ref().map_or(true, |disable_countries| {
-                        disable_countries.contains(country)
-                    })
-                } else {
-                    ac.enable_only
+                if ac.accept_type == "enable_only" {
+                    ac.list
                         .as_ref()
                         .map_or(false, |enable_countries| enable_countries.contains(country))
+                } else {
+                    ac.list.as_ref().map_or(true, |disable_countries| {
+                        !disable_countries.contains(country)
+                    })
                 }
             })
         })
@@ -775,13 +783,13 @@ fn filter_payment_currency_based(
 ) -> bool {
     payment_intent.currency.map_or(true, |currency| {
         pm.accepted_currencies.as_ref().map_or(true, |ac| {
-            if ac.enable_all {
-                ac.disable_only.as_ref().map_or(true, |disable_currencies| {
-                    disable_currencies.contains(&currency.foreign_into())
+            if ac.accept_type == "enable_only" {
+                ac.list.as_ref().map_or(false, |enable_currencies| {
+                    enable_currencies.contains(&currency.foreign_into())
                 })
             } else {
-                ac.enable_only.as_ref().map_or(false, |enable_currencies| {
-                    enable_currencies.contains(&currency.foreign_into())
+                ac.list.as_ref().map_or(true, |disable_currencies| {
+                    !disable_currencies.contains(&currency.foreign_into())
                 })
             }
         })

@@ -601,7 +601,7 @@ impl From<StripePaymentStatus> for enums::AttemptStatus {
     }
 }
 
-#[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize)]
+#[derive(Debug, Default, Eq, PartialEq, Deserialize)]
 pub struct PaymentIntentResponse {
     pub id: String,
     pub object: String,
@@ -619,6 +619,22 @@ pub struct PaymentIntentResponse {
     pub metadata: StripeMetadata,
     pub next_action: Option<StripeNextActionResponse>,
     pub payment_method_options: Option<StripePaymentMethodOptions>,
+    pub last_payment_error: Option<ErrorDetails>,
+}
+
+#[derive(Debug, Default, Eq, PartialEq, Deserialize)]
+pub struct PaymentSyncResponse {
+    #[serde(flatten)]
+    pub intent_fields: PaymentIntentResponse,
+    pub last_payment_error: Option<ErrorDetails>,
+}
+
+impl std::ops::Deref for PaymentSyncResponse {
+    type Target = PaymentIntentResponse;
+
+    fn deref(&self) -> &Self::Target {
+        &self.intent_fields
+    }
 }
 
 #[derive(Serialize, Deserialize)]
@@ -721,39 +737,43 @@ impl<F, T>
         let mandate_reference =
             item.response
                 .payment_method_options
-                .as_ref()
+                .to_owned()
                 .and_then(|payment_method_options| match payment_method_options {
                     StripePaymentMethodOptions::Card {
                         mandate_options, ..
-                    } => mandate_options
-                        .as_ref()
-                        .map(|mandate_options| mandate_options.reference.clone()),
-                    _ => None,
+                    } => mandate_options.map(|mandate_options| mandate_options.reference),
+                    StripePaymentMethodOptions::Klarna {}
+                    | StripePaymentMethodOptions::Affirm {}
+                    | StripePaymentMethodOptions::AfterpayClearpay {}
+                    | StripePaymentMethodOptions::Eps {}
+                    | StripePaymentMethodOptions::Giropay {}
+                    | StripePaymentMethodOptions::Ideal {}
+                    | StripePaymentMethodOptions::Sofort {} => None,
                 });
 
-        let response = item.response.last_payment_error.as_ref().map_or(
+        let error_res =
+            item.response
+                .last_payment_error
+                .as_ref()
+                .map(|error| types::ErrorResponse {
+                    code: error.code.to_owned(),
+                    message: error.message.to_owned(),
+                    reason: None,
+                    status_code: item.http_code,
+                });
+
+        let response = error_res.map_or(
             Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.id.clone()),
                 redirection_data,
                 mandate_reference,
                 connector_metadata: None,
             }),
-            |error| {
-                Err(types::ErrorResponse {
-                    code: error.code.clone(),
-                    message: error.message.clone(),
-                    reason: None,
-                    status_code: item.http_code,
-                })
-            },
+            Err,
         );
 
         Ok(Self {
-            status: enums::AttemptStatus::from(item.response.status.clone()),
-            // client_secret: Some(item.response.client_secret.clone().as_str()),
-            // description: item.response.description.map(|x| x.as_str()),
-            // statement_descriptor_suffix: item.response.statement_descriptor_suffix.map(|x| x.as_str()),
-            // three_ds_form,
+            status: enums::AttemptStatus::from(item.response.status.to_owned()),
             response,
             amount_captured: Some(item.response.amount_received),
             ..item.data

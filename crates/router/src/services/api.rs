@@ -29,7 +29,8 @@ use crate::{
     routes::{app::AppStateInfo, AppState},
     services::authentication as auth,
     types::{
-        self, api,
+        self,
+        api::{self},
         storage::{self},
         ErrorResponse,
     },
@@ -51,7 +52,8 @@ where
     }
 }
 
-pub trait ConnectorIntegration<T, Req, Resp>: ConnectorIntegrationAny<T, Req, Resp> {
+#[async_trait::async_trait]
+pub trait ConnectorIntegration<T, Req, Resp>: ConnectorIntegrationAny<T, Req, Resp> + Sync {
     fn get_headers(
         &self,
         _req: &types::RouterData<T, Req, Resp>,
@@ -82,6 +84,26 @@ pub trait ConnectorIntegration<T, Req, Resp>: ConnectorIntegrationAny<T, Req, Re
         _req: &types::RouterData<T, Req, Resp>,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
         Ok(None)
+    }
+
+    /// This module can be called before executing a payment flow where a pre-task is needed
+    /// Eg: Some connectors requires one-time session token before making a payment, we can add the session token creation logic in this block
+    async fn execute_pretasks(
+        &self,
+        _router_data: &mut types::RouterData<T, Req, Resp>,
+        _app_state: &AppState,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        Ok(())
+    }
+
+    /// This module can be called after executing a payment flow where a post-task needed
+    /// Eg: Some connectors require payment sync to happen immediately after the authorize call to complete the transaction, we can add that logic in this block
+    async fn execute_posttasks(
+        &self,
+        _router_data: &mut types::RouterData<T, Req, Resp>,
+        _app_state: &AppState,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        Ok(())
     }
 
     fn build_request(

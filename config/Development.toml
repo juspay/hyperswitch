@@ -43,8 +43,26 @@ locker_decryption_key1 = ""
 locker_decryption_key2 = ""
 
 [connectors.supported]
-wallets = ["klarna","braintree","applepay"]
-cards = ["stripe","adyen","authorizedotnet","checkout","braintree","aci","shift4","cybersource", "worldpay", "globalpay", "fiserv", "payu", "worldline", "dlocal"]
+wallets = ["klarna", "braintree", "applepay"]
+cards = [
+    "aci",
+    "adyen",
+    "airwallex",
+    "authorizedotnet",
+    "bluesnap",
+    "braintree",
+    "checkout",
+    "cybersource",
+    "dlocal",
+    "fiserv",
+    "globalpay",
+    "nuvei",
+    "payu",
+    "shift4",
+    "stripe",
+    "worldline",
+    "worldpay",
+]
 
 [refund]
 max_attempts = 10
@@ -103,6 +121,15 @@ base_url = "https://apis.sandbox.globalpay.com/ucp/"
 
 [connectors.worldline]
 base_url = "https://eu.sandbox.api-ingenico.com/"
+
+[connectors.bluesnap]
+base_url = "https://sandbox.bluesnap.com/"
+
+[connectors.nuvei]
+base_url = "https://ppp-test.nuvei.com/"
+
+[connectors.airwallex]
+base_url = "https://api-demo.airwallex.com/"
 
 [connectors.dlocal]
 base_url = "https://sandbox.dlocal.com/"
