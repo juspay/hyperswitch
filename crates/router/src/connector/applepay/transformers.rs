@@ -16,7 +16,7 @@ pub struct ApplepaySessionRequest {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct ApplepaySessionResponse {
+pub struct ApplepaySessionTokenResponse {
     pub epoch_timestamp: u64,
     pub expires_at: u64,
     pub merchant_session_identifier: String,
@@ -38,20 +38,20 @@ pub struct ErrorResponse {
 }
 
 #[derive(Debug, Default, Serialize, Deserialize)]
-pub struct ApplePayMetaData {
-    pub payment_object: PaymentObjectMetaData,
-    pub session_object: SessionObject,
+pub struct ApplePayMetadata {
+    pub payment_request_data: PaymentRequestMetadata,
+    pub session_token_data: SessionRequest,
 }
 
 #[derive(Debug, Default, Serialize, Deserialize)]
-pub struct PaymentObjectMetaData {
+pub struct PaymentRequestMetadata {
     pub supported_networks: Vec<String>,
     pub merchant_capabilities: Vec<String>,
     pub label: String,
 }
 
 #[derive(Debug, Default, Serialize, Deserialize)]
-pub struct SessionObject {
+pub struct SessionRequest {
     pub certificate: String,
     pub certificate_keys: String,
     pub merchant_identifier: String,
@@ -88,15 +88,15 @@ impl TryFrom<&types::PaymentsSessionRouterData> for ApplepaySessionRequest {
             .get_required_value("connector_meta_data")
             .change_context(errors::ConnectorError::NoConnectorMetaData)?;
 
-        let metadata: ApplePayMetaData = metadata
-            .parse_value("ApplePayMetaData")
+        let metadata: ApplePayMetadata = metadata
+            .parse_value("ApplePayMetadata")
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
 
         Ok(Self {
-            merchant_identifier: metadata.session_object.merchant_identifier,
-            display_name: metadata.session_object.display_name,
-            initiative: metadata.session_object.initiative,
-            initiative_context: metadata.session_object.initiative_context,
+            merchant_identifier: metadata.session_token_data.merchant_identifier,
+            display_name: metadata.session_token_data.display_name,
+            initiative: metadata.session_token_data.initiative,
+            initiative_context: metadata.session_token_data.initiative_context,
         })
     }
 }
@@ -105,7 +105,7 @@ impl<F>
     TryFrom<
         types::ResponseRouterData<
             F,
-            ApplepaySessionResponse,
+            ApplepaySessionTokenResponse,
             types::PaymentsSessionData,
             types::PaymentsResponseData,
         >,
@@ -115,7 +115,7 @@ impl<F>
     fn try_from(
         item: types::ResponseRouterData<
             F,
-            ApplepaySessionResponse,
+            ApplepaySessionTokenResponse,
             types::PaymentsSessionData,
             types::PaymentsResponseData,
         >,
@@ -127,12 +127,12 @@ impl<F>
             .get_required_value("connector_meta_data")
             .change_context(errors::ConnectorError::NoConnectorMetaData)?;
 
-        let metadata: ApplePayMetaData = metadata
-            .parse_value("ApplePayMetaData")
+        let metadata: ApplePayMetadata = metadata
+            .parse_value("ApplePayMetadata")
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
 
         let amount_info = AmountInfo {
-            label: metadata.payment_object.label,
+            label: metadata.payment_request_data.label,
             label_type: "final".to_string(),
             amount: (item.data.request.amount / 100).to_string(),
         };
@@ -149,12 +149,12 @@ impl<F>
                 })?,
             currency_code: item.data.request.currency.to_string(),
             total: amount_info,
-            merchant_capabilities: metadata.payment_object.merchant_capabilities,
-            supported_networks: metadata.payment_object.supported_networks,
-            apple_pay_merchant_id: metadata.session_object.merchant_identifier,
+            merchant_capabilities: metadata.payment_request_data.merchant_capabilities,
+            supported_networks: metadata.payment_request_data.supported_networks,
+            apple_pay_merchant_id: metadata.session_token_data.merchant_identifier,
         };
 
-        let applepay_session_object = ApplepaySessionResponse {
+        let applepay_session = ApplepaySessionTokenResponse {
             epoch_timestamp: item.response.epoch_timestamp,
             expires_at: item.response.expires_at,
             merchant_session_identifier: item.response.merchant_session_identifier,
@@ -171,10 +171,12 @@ impl<F>
         Ok(Self {
             response: Ok(types::PaymentsResponseData::SessionResponse {
                 session_token: {
-                    api_models::payments::SessionToken::Applepay(Box::new(payments::ApplepayData {
-                        session_object: applepay_session_object.into(),
-                        payment_request_object: payment_request.into(),
-                    }))
+                    api_models::payments::SessionToken::Applepay(Box::new(
+                        payments::ApplepaySessionTokenResponse {
+                            session_token_data: applepay_session.into(),
+                            payment_request_data: payment_request.into(),
+                        },
+                    ))
                 },
             }),
             ..item.data
@@ -182,7 +184,7 @@ impl<F>
     }
 }
 
-impl From<PaymentRequest> for payments::ApplePayRequest {
+impl From<PaymentRequest> for payments::ApplePayPaymentRequest {
     fn from(value: PaymentRequest) -> Self {
         Self {
             country_code: value.country_code,
@@ -198,14 +200,14 @@ impl From<AmountInfo> for payments::AmountInfo {
     fn from(value: AmountInfo) -> Self {
         Self {
             label: value.label,
-            label_type: value.label_type,
+            total_type: value.label_type,
             amount: value.amount,
         }
     }
 }
 
-impl From<ApplepaySessionResponse> for payments::ApplePaySessionObject {
-    fn from(value: ApplepaySessionResponse) -> Self {
+impl From<ApplepaySessionTokenResponse> for payments::ApplePaySessionResponse {
+    fn from(value: ApplepaySessionTokenResponse) -> Self {
         Self {
             epoch_timestamp: value.epoch_timestamp,
             expires_at: value.expires_at,

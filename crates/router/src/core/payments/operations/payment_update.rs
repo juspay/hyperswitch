@@ -140,7 +140,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
 
         payment_intent.shipping_address_id = shipping_address.clone().map(|x| x.address_id);
         payment_intent.billing_address_id = billing_address.clone().map(|x| x.address_id);
-        payment_intent.return_url = request.return_url.clone();
+        payment_intent.return_url = request.return_url.as_ref().map(|a| a.to_string());
 
         let token = token.or_else(|| payment_attempt.payment_token.clone());
 

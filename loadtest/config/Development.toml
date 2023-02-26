@@ -85,9 +85,36 @@ base_url = "https://apple-pay-gateway.apple.com/"
 [connectors.klarna]
 base_url = "https://api-na.playground.klarna.com/"
 
+[connectors.bluesnap]
+base_url = "https://sandbox.bluesnap.com/"
+
+[connectors.nuvei]
+base_url = "https://ppp-test.nuvei.com/"
+
+[connectors.airwallex]
+base_url = "https://api-demo.airwallex.com/"
+
 [connectors.dlocal]
 base_url = "https://sandbox.dlocal.com/"
 
 [connectors.supported]
 wallets = ["klarna", "braintree", "applepay"]
-cards = ["stripe", "adyen", "authorizedotnet", "checkout", "braintree", "cybersource", "shift4", "worldpay", "globalpay", "dlocal"]
+cards = [
+    "aci",
+    "adyen",
+    "airwallex",
+    "authorizedotnet",
+    "bluesnap",
+    "braintree",
+    "checkout",
+    "cybersource",
+    "dlocal",
+    "fiserv",
+    "globalpay",
+    "nuvei",
+    "payu",
+    "shift4",
+    "stripe",
+    "worldline",
+    "worldpay",
+]

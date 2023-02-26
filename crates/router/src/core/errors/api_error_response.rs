@@ -238,8 +238,8 @@ impl actix_web::ResponseError for ApiErrorResponse {
             | Self::ResourceIdNotFound
             | Self::ConfigNotFound
             | Self::AddressNotFound
-            | Self::ApiKeyNotFound
-            | Self::NotSupported { .. } => StatusCode::BAD_REQUEST, // 400
+            | Self::NotSupported { .. }
+            | Self::ApiKeyNotFound => StatusCode::BAD_REQUEST, // 400
             Self::DuplicateMerchantAccount
             | Self::DuplicateMerchantConnectorAccount
             | Self::DuplicatePaymentMethod
@@ -421,8 +421,10 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
             },
             Self::ApiKeyNotFound => {
                 AER::NotFound(ApiError::new("HE", 2, "API Key does not exist in our records", None))
-            },
-            Self::NotSupported { message } => AER::BadRequest(ApiError::new("HE", 3, "{message}", None))
+            }
+            Self::NotSupported { message } => {
+                AER::BadRequest(ApiError::new("HE", 3, "{message}", None))
+            }
         }
     }
 }

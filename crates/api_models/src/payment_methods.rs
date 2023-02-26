@@ -435,7 +435,6 @@ pub struct ListPaymentMethod {
     pub payment_method_types: Option<Vec<RequestPaymentMethodTypes>>,
 }
 
-/// We need a custom serializer to only send relevant fields in ListPaymentMethodResponse
 /// Currently if the payment method is Wallet or Paylater the relevant fields are `payment_method`
 /// and `payment_method_issuers`. Otherwise only consider
 /// `payment_method`,`payment_method_issuers`,`payment_method_types`,`payment_schemes` fields.

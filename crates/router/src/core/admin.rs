@@ -63,7 +63,7 @@ pub async fn create_merchant_account(
         merchant_name: req.merchant_name,
         api_key,
         merchant_details,
-        return_url: req.return_url,
+        return_url: req.return_url.map(|a| a.to_string()),
         webhook_details,
         routing_algorithm: req.routing_algorithm,
         sub_merchants_enabled: req.sub_merchants_enabled,
@@ -146,7 +146,7 @@ pub async fn merchant_account_update(
             .transpose()
             .change_context(errors::ApiErrorResponse::InternalServerError)?,
 
-        return_url: req.return_url,
+        return_url: req.return_url.map(|a| a.to_string()),
 
         webhook_details: req
             .webhook_details
@@ -240,38 +240,6 @@ async fn validate_merchant_id<S: Into<String>>(
         })
 }
 
-fn validate_pm_enabled(_pm: &api::PaymentMethodsEnabled) -> RouterResult<()> {
-    //TODO: make changes to this logic when accepted countries is changed to enum
-    // if let Some(ac) = pm.accepted_countries.to_owned() {
-    //     when(ac.enable_all && ac.enable_only.is_some(), || {
-    //         Err(errors::ApiErrorResponse::PreconditionFailed {
-    //             message: "In case all countries are enabled,provide the disable_only country"
-    //                 .to_string(),
-    //         })
-    //     })?;
-    //     when(!ac.enable_all && ac.disable_only.is_some(), || {
-    //         Err(errors::ApiErrorResponse::PreconditionFailed {
-    //             message: "In case enable_all is false, provide the enable_only country".to_string(),
-    //         })
-    //     })?;
-    // };
-    // if let Some(ac) = pm.accepted_currencies.to_owned() {
-    //     when(ac.enable_all && ac.enable_only.is_some(), || {
-    //         Err(errors::ApiErrorResponse::PreconditionFailed {
-    //             message: "In case all currencies are enabled, provide the disable_only currency"
-    //                 .to_string(),
-    //         })
-    //     })?;
-    //     when(!ac.enable_all && ac.disable_only.is_some(), || {
-    //         Err(errors::ApiErrorResponse::PreconditionFailed {
-    //             message: "In case enable_all is false, provide the enable_only currency"
-    //                 .to_string(),
-    //         })
-    //     })?;
-    // };
-    Ok(())
-}
-
 // Payment Connector API -  Every merchant and connector can have an instance of (merchant <> connector)
 //                          with unique merchant_connector_id for Create Operation
 
@@ -292,7 +260,6 @@ pub async fn create_payment_connector(
     let payment_methods_enabled = match req.payment_methods_enabled {
         Some(val) => {
             for pm in val.into_iter() {
-                validate_pm_enabled(&pm)?;
                 let pm_value = utils::Encode::<api::PaymentMethodsEnabled>::encode_to_value(&pm)
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable(
@@ -420,9 +387,6 @@ pub async fn update_payment_connector(
         pm_enabled
             .iter()
             .flat_map(|payment_method| {
-                validate_pm_enabled(payment_method)
-                    .change_context(errors::ParsingError)
-                    .attach_printable("Validation for accepted country and currency failed")?;
                 utils::Encode::<api::PaymentMethodsEnabled>::encode_to_value(payment_method)
             })
             .collect::<Vec<serde_json::Value>>()

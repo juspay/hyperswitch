@@ -275,7 +275,7 @@ pub enum ConnectorError {
     WebhookResourceObjectNotFound,
     #[error("Invalid Date/time format")]
     InvalidDateFormat,
-    #[error("Payment Method data/ Payment Method Type / Payment Experience Mismatch ")]
+    #[error("Payment Method data / Payment Method Type / Payment Experience Mismatch ")]
     MismatchedPaymentData,
 }
 

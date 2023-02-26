@@ -1,6 +1,7 @@
 use common_utils::pii;
 use masking::{Secret, StrongSecret};
 use serde::{Deserialize, Serialize};
+use url;
 use utoipa::ToSchema;
 
 use super::payments::AddressDetails;
@@ -27,7 +28,7 @@ pub struct CreateMerchantAccount {
 
     /// The URL to redirect after the completion of the operation
     #[schema(max_length = 255, example = "https://www.example.com/success")]
-    pub return_url: Option<String>,
+    pub return_url: Option<url::Url>,
 
     /// Webhook related details
     pub webhook_details: Option<WebhookDetails>,
@@ -271,14 +272,12 @@ pub struct PaymentConnectorCreate {
                 "Discover"
             ],
             "accepted_currencies": {
-                "enable_all":false,
-                "disable_only": ["INR", "CAD", "AED","JPY"],
-                "enable_only": ["EUR","USD"]
+                "type": "enable_only",
+                "list": ["USD", "EUR"]
             },
             "accepted_countries": {
-                "enable_all":false,
-                "disable_only": ["FR", "DE","IN"],
-                "enable_only": ["UK","AU"]
+                "type": "disable_only",
+                "list": ["FR", "DE","IN"]
             },
             "minimum_amount": 1,
             "maximum_amount": 68607706,
