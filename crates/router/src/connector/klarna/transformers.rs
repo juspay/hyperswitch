@@ -72,10 +72,12 @@ impl TryFrom<types::PaymentsSessionResponseRouterData<KlarnaSessionResponse>>
         let response = &item.response;
         Ok(Self {
             response: Ok(types::PaymentsResponseData::SessionResponse {
-                session_token: types::api::SessionToken::Klarna(Box::new(payments::KlarnaData {
-                    session_token: response.client_token.clone(),
-                    session_id: response.session_id.clone(),
-                })),
+                session_token: types::api::SessionToken::Klarna(Box::new(
+                    payments::KlarnaSessionTokenResponse {
+                        session_token: response.client_token.clone(),
+                        session_id: response.session_id.clone(),
+                    },
+                )),
             }),
             ..item.data
         })

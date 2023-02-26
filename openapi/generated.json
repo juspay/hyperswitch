@@ -1824,6 +1824,58 @@
           "offline"
         ]
       },
+      "AcceptedCountries": {
+        "type": "object",
+        "description": "List of enabled and disabled countries",
+        "required": [
+          "enable_all"
+        ],
+        "properties": {
+          "enable_all": {
+            "type": "boolean",
+            "description": "True in case all countries are supported"
+          },
+          "disable_only": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "description": "List of disabled countries, provide in case only few of countries are not supported"
+            }
+          },
+          "enable_only": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "description": "List of enable countries, provide in case only few of countries are supported"
+            }
+          }
+        }
+      },
+      "AcceptedCurrencies": {
+        "type": "object",
+        "description": "List of enabled and disabled currencies",
+        "required": [
+          "enable_all"
+        ],
+        "properties": {
+          "enable_all": {
+            "type": "boolean",
+            "description": "True in case all currencies are supported"
+          },
+          "disable_only": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Currency"
+            }
+          },
+          "enable_only": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Currency"
+            }
+          }
+        }
+      },
       "Address": {
         "type": "object",
         "properties": {
@@ -1916,11 +1968,11 @@
         "properties": {
           "label": {
             "type": "string",
-            "description": "the label must be non-empty to pass validation."
+            "description": "The label must be the name of the merchant."
           },
           "type": {
             "type": "string",
-            "description": "The type of label"
+            "description": "A value that indicates whether the line item(Ex: total, tax, discount, or grand total) is final or pending."
           },
           "amount": {
             "type": "string",
@@ -1942,7 +1994,7 @@
           }
         ]
       },
-      "ApplePayRequest": {
+      "ApplePayPaymentRequest": {
         "type": "object",
         "required": [
           "country_code",
@@ -1979,7 +2031,7 @@
           }
         }
       },
-      "ApplePaySessionObject": {
+      "ApplePaySessionResponse": {
         "type": "object",
         "required": [
           "epoch_timestamp",
@@ -2011,7 +2063,7 @@
           },
           "nonce": {
             "type": "string",
-            "description": "Applepay generates unique ID (UUID) value"
+            "description": "Apple pay generated unique ID (UUID) value"
           },
           "merchant_identifier": {
             "type": "string",
@@ -2061,21 +2113,6 @@
           "transaction_identifier": {
             "type": "string",
             "description": "The unique identifier for the transaction"
-          }
-        }
-      },
-      "ApplepayData": {
-        "type": "object",
-        "required": [
-          "session_object",
-          "payment_request_object"
-        ],
-        "properties": {
-          "session_object": {
-            "$ref": "#/components/schemas/ApplePaySessionObject"
-          },
-          "payment_request_object": {
-            "$ref": "#/components/schemas/ApplePayRequest"
           }
         }
       },
@@ -2146,6 +2183,21 @@
           "type": {
             "type": "string",
             "description": "The type of the payment method"
+          }
+        }
+      },
+      "ApplepaySessionTokenResponse": {
+        "type": "object",
+        "required": [
+          "session_token_data",
+          "payment_request_data"
+        ],
+        "properties": {
+          "session_token_data": {
+            "$ref": "#/components/schemas/ApplePaySessionResponse"
+          },
+          "payment_request_data": {
+            "$ref": "#/components/schemas/ApplePayPaymentRequest"
           }
         }
       },
@@ -2267,15 +2319,19 @@
         "enum": [
           "aci",
           "adyen",
+          "airwallex",
           "applepay",
           "authorizedotnet",
+          "bluesnap",
           "braintree",
           "checkout",
           "cybersource",
           "dummy",
+          "dlocal",
           "fiserv",
           "globalpay",
           "klarna",
+          "nuvei",
           "payu",
           "rapyd",
           "shift4",
@@ -2933,28 +2989,6 @@
           }
         }
       },
-      "GpayData": {
-        "type": "object",
-        "required": [
-          "merchant_info",
-          "allowed_payment_methods",
-          "transaction_info"
-        ],
-        "properties": {
-          "merchant_info": {
-            "$ref": "#/components/schemas/GpayMerchantInfo"
-          },
-          "allowed_payment_methods": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/GpayAllowedPaymentMethods"
-            }
-          },
-          "transaction_info": {
-            "$ref": "#/components/schemas/GpayTransactionInfo"
-          }
-        }
-      },
       "GpayMerchantInfo": {
         "type": "object",
         "required": [
@@ -2981,6 +3015,28 @@
           "card_details": {
             "type": "string",
             "description": "The details of the card"
+          }
+        }
+      },
+      "GpaySessionTokenResponse": {
+        "type": "object",
+        "required": [
+          "merchant_info",
+          "allowed_payment_methods",
+          "transaction_info"
+        ],
+        "properties": {
+          "merchant_info": {
+            "$ref": "#/components/schemas/GpayMerchantInfo"
+          },
+          "allowed_payment_methods": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GpayAllowedPaymentMethods"
+            }
+          },
+          "transaction_info": {
+            "$ref": "#/components/schemas/GpayTransactionInfo"
           }
         }
       },
@@ -3100,7 +3156,13 @@
           "requires_capture"
         ]
       },
-      "KlarnaData": {
+      "KlarnaIssuer": {
+        "type": "string",
+        "enum": [
+          "klarna"
+        ]
+      },
+      "KlarnaSessionTokenResponse": {
         "type": "object",
         "required": [
           "session_token",
@@ -3116,12 +3178,6 @@
             "description": "The identifier for the session"
           }
         }
-      },
-      "KlarnaIssuer": {
-        "type": "string",
-        "enum": [
-          "klarna"
-        ]
       },
       "ListCustomerPaymentMethodsResponse": {
         "type": "object",
@@ -3206,26 +3262,10 @@
             ]
           },
           "accepted_countries": {
-            "type": "array",
-            "items": {
-              "type": "string",
-              "description": "List of Countries accepted or has the processing capabilities of the processor"
-            },
-            "example": [
-              "US",
-              "UK",
-              "IN"
-            ]
+            "$ref": "#/components/schemas/AcceptedCountries"
           },
           "accepted_currencies": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/Currency"
-            },
-            "example": [
-              "USD",
-              "EUR"
-            ]
+            "$ref": "#/components/schemas/AcceptedCurrencies"
           },
           "minimum_amount": {
             "type": "integer",
@@ -3256,6 +3296,17 @@
             },
             "example": [
               "redirect_to_url"
+            ]
+          },
+          "eligible_connectors": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "description": "Eligible connectors for this payment method"
+            },
+            "example": [
+              "stripe",
+              "adyen"
             ]
           }
         }
@@ -3820,14 +3871,31 @@
             },
             "example": [
               {
-                "accepted_countries": [
-                  "in",
-                  "us"
-                ],
-                "accepted_currencies": [
-                  "AED",
-                  "AED"
-                ],
+                "accepted_countries": {
+                  "disable_only": [
+                    "FR",
+                    "DE",
+                    "IN"
+                  ],
+                  "enable_all": false,
+                  "enable_only": [
+                    "UK",
+                    "AU"
+                  ]
+                },
+                "accepted_currencies": {
+                  "disable_only": [
+                    "INR",
+                    "CAD",
+                    "AED",
+                    "JPY"
+                  ],
+                  "enable_all": false,
+                  "enable_only": [
+                    "EUR",
+                    "USD"
+                  ]
+                },
                 "installment_payment_enabled": true,
                 "maximum_amount": 68607706,
                 "minimum_amount": 1,
@@ -4200,26 +4268,10 @@
             ]
           },
           "accepted_currencies": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/Currency"
-            },
-            "example": [
-              "USD",
-              "EUR",
-              "AED"
-            ]
+            "$ref": "#/components/schemas/AcceptedCurrencies"
           },
           "accepted_countries": {
-            "type": "array",
-            "items": {
-              "type": "string",
-              "description": "List of Countries accepted or has the processing capabilities of the processor"
-            },
-            "example": [
-              "US",
-              "IN"
-            ]
+            "$ref": "#/components/schemas/AcceptedCountries"
           },
           "minimum_amount": {
             "type": "integer",
@@ -4313,7 +4365,7 @@
         "properties": {
           "payment_id": {
             "type": "string",
-            "description": "Unique identifier for the payment. This ensures impotency for multiple payments\nthat have been done by a single merchant. This field is auto generated and is returned in the API response.",
+            "description": "Unique identifier for the payment. This ensures idempotency for multiple payments\nthat have been done by a single merchant. This field is auto generated and is returned in the API response.",
             "example": "pay_mbabizu24mvu3mela5njyhpit4",
             "maxLength": 30,
             "minLength": 30
@@ -4480,7 +4532,7 @@
         "properties": {
           "payment_id": {
             "type": "string",
-            "description": "Unique identifier for the payment. This ensures impotency for multiple payments\nthat have been done by a single merchant.",
+            "description": "Unique identifier for the payment. This ensures idempotency for multiple payments\nthat have been done by a single merchant.",
             "example": "pay_mbabizu24mvu3mela5njyhpit4",
             "maxLength": 30,
             "minLength": 30
@@ -4739,7 +4791,7 @@
         "properties": {
           "payment_id": {
             "type": "string",
-            "description": "Unique identifier for the payment. This ensures impotency for multiple payments\nthat have been done by a single merchant. This field is auto generated and is returned in the API response."
+            "description": "Unique identifier for the payment. This ensures idempotency for multiple payments\nthat have been done by a single merchant. This field is auto generated and is returned in the API response."
           },
           "merchant_id": {
             "type": "string",
@@ -4751,7 +4803,10 @@
           }
         }
       },
-      "PaypalData": {
+      "PaypalRedirection": {
+        "type": "object"
+      },
+      "PaypalSessionTokenResponse": {
         "type": "object",
         "required": [
           "session_token"
@@ -4762,9 +4817,6 @@
             "description": "The session token for PayPal"
           }
         }
-      },
-      "PaypalRedirection": {
-        "type": "object"
       },
       "PhoneDetails": {
         "type": "object",
@@ -5058,7 +5110,7 @@
           {
             "allOf": [
               {
-                "$ref": "#/components/schemas/GpayData"
+                "$ref": "#/components/schemas/GpaySessionTokenResponse"
               },
               {
                 "type": "object",
@@ -5079,7 +5131,7 @@
           {
             "allOf": [
               {
-                "$ref": "#/components/schemas/KlarnaData"
+                "$ref": "#/components/schemas/KlarnaSessionTokenResponse"
               },
               {
                 "type": "object",
@@ -5100,7 +5152,7 @@
           {
             "allOf": [
               {
-                "$ref": "#/components/schemas/PaypalData"
+                "$ref": "#/components/schemas/PaypalSessionTokenResponse"
               },
               {
                 "type": "object",
@@ -5121,7 +5173,7 @@
           {
             "allOf": [
               {
-                "$ref": "#/components/schemas/ApplepayData"
+                "$ref": "#/components/schemas/ApplepaySessionTokenResponse"
               },
               {
                 "type": "object",

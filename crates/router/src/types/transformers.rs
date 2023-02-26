@@ -463,3 +463,9 @@ impl From<F<api_models::api_keys::UpdateApiKeyRequest>>
         .into()
     }
 }
+
+impl From<F<storage_enums::AttemptStatus>> for F<api_enums::AttemptStatus> {
+    fn from(status: F<storage_enums::AttemptStatus>) -> Self {
+        Self(frunk::labelled_convert_from(status.0))
+    }
+}

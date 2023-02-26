@@ -11,6 +11,7 @@ use utoipa::ToSchema;
     serde::Serialize,
     strum::Display,
     strum::EnumString,
+    frunk::LabelledGeneric,
 )]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
@@ -554,16 +555,20 @@ pub enum MandateStatus {
 pub enum Connector {
     Aci,
     Adyen,
+    Airwallex,
     Applepay,
     Authorizedotnet,
+    Bluesnap,
     Braintree,
     Checkout,
     Cybersource,
     #[default]
     Dummy,
+    Dlocal,
     Fiserv,
     Globalpay,
     Klarna,
+    Nuvei,
     Payu,
     Rapyd,
     Shift4,
@@ -574,7 +579,7 @@ pub enum Connector {
 
 impl Connector {
     pub fn supports_access_token(&self) -> bool {
-        matches!(self, Self::Globalpay | Self::Payu)
+        matches!(self, Self::Airwallex | Self::Globalpay | Self::Payu)
     }
 }
 
@@ -595,13 +600,17 @@ impl Connector {
 pub enum RoutableConnectors {
     Aci,
     Adyen,
+    Airwallex,
     Authorizedotnet,
+    Bluesnap,
     Braintree,
     Checkout,
     Cybersource,
+    Dlocal,
     Fiserv,
     Globalpay,
     Klarna,
+    Nuvei,
     Payu,
     Rapyd,
     Shift4,

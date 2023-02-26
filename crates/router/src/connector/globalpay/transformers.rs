@@ -8,27 +8,25 @@ use super::{
     response::{GlobalpayPaymentStatus, GlobalpayPaymentsResponse, GlobalpayRefreshTokenResponse},
 };
 use crate::{
-    connector::utils::{self, CardData, PaymentsRequestData},
+    connector::utils::{CardData, PaymentsRequestData, RouterData},
     consts,
     core::errors,
     types::{self, api, storage::enums, ErrorResponse},
 };
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct GlobalPayMeta {
+    account_name: String,
+}
+
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for GlobalpayPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
-        let metadata = item
-            .connector_meta_data
-            .to_owned()
-            .ok_or_else(utils::missing_field_err("connector_meta"))?;
-        let account_name = metadata
-            .as_object()
-            .and_then(|o| o.get("account_name"))
-            .map(|o| o.to_string())
-            .ok_or_else(utils::missing_field_err("connector_meta.account_name"))?;
+        let metadata: GlobalPayMeta = item.to_connector_meta()?;
         let card = item.get_card()?;
+        let expiry_year = card.get_card_expiry_year_2_digit();
         Ok(Self {
-            account_name,
+            account_name: metadata.account_name,
             amount: Some(item.request.amount.to_string()),
             currency: item.request.currency.to_string(),
             reference: item.attempt_id.to_string(),
@@ -39,10 +37,10 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for GlobalpayPaymentsRequest {
             }),
             payment_method: requests::PaymentMethod {
                 card: Some(requests::Card {
-                    number: card.get_card_number(),
-                    expiry_month: card.get_card_expiry_month(),
-                    expiry_year: card.get_card_expiry_year_2_digit(),
-                    cvv: card.get_card_cvc(),
+                    number: card.card_number,
+                    expiry_month: card.card_exp_month,
+                    expiry_year,
+                    cvv: card.card_cvc,
                     ..Default::default()
                 }),
                 ..Default::default()

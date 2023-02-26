@@ -158,7 +158,7 @@ impl
         data: &types::PaymentsSessionRouterData,
         res: types::Response,
     ) -> CustomResult<types::PaymentsSessionRouterData, errors::ConnectorError> {
-        let response: applepay::ApplepaySessionResponse = res
+        let response: applepay::ApplepaySessionTokenResponse = res
             .response
             .parse_struct("ApplepaySessionResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
@@ -197,11 +197,11 @@ impl
             .get_required_value("connector_meta_data")
             .change_context(errors::ConnectorError::NoConnectorMetaData)?;
 
-        let metadata: transformers::ApplePayMetaData = metadata
+        let metadata: transformers::ApplePayMetadata = metadata
             .parse_value("ApplePayMetaData")
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
 
-        Ok(Some(metadata.session_object.certificate))
+        Ok(Some(metadata.session_token_data.certificate))
     }
 
     fn get_certificate_key(
@@ -214,11 +214,11 @@ impl
             .get_required_value("connector_meta_data")
             .change_context(errors::ConnectorError::NoConnectorMetaData)?;
 
-        let metadata: transformers::ApplePayMetaData = metadata
+        let metadata: transformers::ApplePayMetadata = metadata
             .parse_value("ApplePayMetaData")
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
 
-        Ok(Some(metadata.session_object.certificate_keys))
+        Ok(Some(metadata.session_token_data.certificate_keys))
     }
 }
 
@@ -242,21 +242,21 @@ impl services::ConnectorRedirectResponse for Applepay {}
 impl api::IncomingWebhook for Applepay {
     fn get_webhook_object_reference_id(
         &self,
-        _body: &[u8],
+        _request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<String, errors::ConnectorError> {
         Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
     }
 
     fn get_webhook_event_type(
         &self,
-        _body: &[u8],
+        _request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api::IncomingWebhookEvent, errors::ConnectorError> {
         Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
     }
 
     fn get_webhook_resource_object(
         &self,
-        _body: &[u8],
+        _request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<serde_json::Value, errors::ConnectorError> {
         Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
     }

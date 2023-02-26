@@ -1,6 +1,7 @@
 use common_utils::pii;
 use masking::{Secret, StrongSecret};
 use serde::{Deserialize, Serialize};
+use url;
 use utoipa::ToSchema;
 
 use super::payments::AddressDetails;
@@ -25,8 +26,8 @@ pub struct CreateMerchantAccount {
     pub merchant_details: Option<MerchantDetails>,
 
     /// The URL to redirect after the completion of the operation
-    #[schema(max_length = 255, example = "https://www.example.com/success")]
-    pub return_url: Option<String>,
+    #[schema(value_type = Option<String>, max_length = 255, example = "https://www.example.com/success")]
+    pub return_url: Option<url::Url>,
 
     /// Webhook related details
     pub webhook_details: Option<WebhookDetails>,
@@ -269,14 +270,16 @@ pub struct PaymentConnectorCreate {
                 "Discover",
                 "Discover"
             ],
-            "accepted_currencies": [
-                "AED",
-                "AED"
-            ],
-            "accepted_countries": [
-                "in",
-                "us"
-            ],
+            "accepted_currencies": {
+                "enable_all":false,
+                "disable_only": ["INR", "CAD", "AED","JPY"],
+                "enable_only": ["EUR","USD"]
+            },
+            "accepted_countries": {
+                "enable_all":false,
+                "disable_only": ["FR", "DE","IN"],
+                "enable_only": ["UK","AU"]
+            },
             "minimum_amount": 1,
             "maximum_amount": 68607706,
             "recurring_enabled": true,
@@ -305,11 +308,23 @@ pub struct PaymentMethods {
     #[schema(example = json!(["MASTER","VISA","DINERS"]))]
     pub payment_schemes: Option<Vec<String>>,
     /// List of currencies accepted or has the processing capabilities of the processor
-    #[schema(value_type = Option<Vec<Currency>>,example = json!(["USD","EUR","AED"]))]
-    pub accepted_currencies: Option<Vec<api_enums::Currency>>,
+    #[schema(example = json!(
+        {
+        "enable_all":false,
+        "disable_only": ["INR", "CAD", "AED","JPY"],
+        "enable_only": ["EUR","USD"]
+        }
+    ))]
+    pub accepted_currencies: Option<AcceptedCurrencies>,
     ///  List of Countries accepted or has the processing capabilities of the processor
-    #[schema(example = json!(["US","IN"]))]
-    pub accepted_countries: Option<Vec<String>>,
+    #[schema(example = json!(
+        {
+            "enable_all":false,
+            "disable_only": ["FR", "DE","IN"],
+            "enable_only": ["UK","AU"]
+        }
+    ))]
+    pub accepted_countries: Option<AcceptedCountries>,
     /// Minimum amount supported by the processor. To be represented in the lowest denomination of the target currency (For example, for USD it should be in cents)
     #[schema(example = 1)]
     pub minimum_amount: Option<i32>,
@@ -326,6 +341,32 @@ pub struct PaymentMethods {
     /// Type of payment experience enabled with the connector
     #[schema(value_type = Option<Vec<PaymentExperience>>,example = json!(["redirect_to_url"]))]
     pub payment_experience: Option<Vec<api_enums::PaymentExperience>>,
+}
+
+/// List of enabled and disabled currencies
+#[derive(Eq, PartialEq, Hash, Debug, Clone, serde::Serialize, Deserialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub struct AcceptedCurrencies {
+    /// True in case all currencies are supported
+    pub enable_all: bool,
+    /// List of disabled currencies, provide in case only few of currencies are not supported
+    #[schema(value_type = Option<Vec<Currency>>)]
+    pub disable_only: Option<Vec<api_enums::Currency>>,
+    /// List of enable currencies, provide in case only few of currencies are supported
+    #[schema(value_type = Option<Vec<Currency>>)]
+    pub enable_only: Option<Vec<api_enums::Currency>>,
+}
+
+/// List of enabled and disabled countries
+#[derive(Eq, PartialEq, Hash, Debug, Clone, serde::Serialize, Deserialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub struct AcceptedCountries {
+    /// True in case all countries are supported
+    pub enable_all: bool,
+    /// List of disabled countries, provide in case only few of countries are not supported
+    pub disable_only: Option<Vec<String>>,
+    /// List of enable countries, provide in case only few of countries are supported
+    pub enable_only: Option<Vec<String>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
