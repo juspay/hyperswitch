@@ -1,4 +1,4 @@
-use std::str::FromStr;
+use std::{ops::Deref, str::FromStr};
 
 use api_models::{self, payments};
 use common_utils::{fp_utils, pii::Email};
@@ -459,7 +459,7 @@ impl From<StripePaymentStatus> for enums::AttemptStatus {
     }
 }
 
-#[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize)]
+#[derive(Debug, Default, Eq, PartialEq, Deserialize)]
 pub struct PaymentIntentResponse {
     pub id: String,
     pub object: String,
@@ -477,6 +477,22 @@ pub struct PaymentIntentResponse {
     pub metadata: StripeMetadata,
     pub next_action: Option<StripeNextActionResponse>,
     pub payment_method_options: Option<StripePaymentMethodOptions>,
+    pub last_payment_error: Option<ErrorDetails>,
+}
+
+#[derive(Debug, Default, Eq, PartialEq, Deserialize)]
+pub struct PaymentSyncResponse {
+    #[serde(flatten)]
+    pub intent_fields: PaymentIntentResponse,
+    pub last_payment_error: Option<ErrorDetails>,
+}
+
+impl Deref for PaymentSyncResponse {
+    type Target = PaymentIntentResponse;
+
+    fn deref(&self) -> &Self::Target {
+        &self.intent_fields
+    }
 }
 
 #[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize)]
@@ -532,6 +548,63 @@ impl<F, T>
                 mandate_reference,
                 connector_metadata: None,
             }),
+            amount_captured: Some(item.response.amount_received),
+            ..item.data
+        })
+    }
+}
+
+impl<F, T>
+    TryFrom<types::ResponseRouterData<F, PaymentSyncResponse, T, types::PaymentsResponseData>>
+    for types::RouterData<F, T, types::PaymentsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: types::ResponseRouterData<F, PaymentSyncResponse, T, types::PaymentsResponseData>,
+    ) -> Result<Self, Self::Error> {
+        let redirection_data = item.response.next_action.as_ref().map(
+            |StripeNextActionResponse::RedirectToUrl(response)| {
+                services::RedirectForm::from((response.url.clone(), services::Method::Get))
+            },
+        );
+
+        let mandate_reference =
+            item.response
+                .payment_method_options
+                .to_owned()
+                .and_then(|payment_method_options| match payment_method_options {
+                    StripePaymentMethodOptions::Card {
+                        mandate_options, ..
+                    } => mandate_options.map(|mandate_options| mandate_options.reference),
+                    StripePaymentMethodOptions::Klarna {}
+                    | StripePaymentMethodOptions::Affirm {}
+                    | StripePaymentMethodOptions::AfterpayClearpay {} => None,
+                });
+
+        let error_res =
+            item.response
+                .last_payment_error
+                .as_ref()
+                .map(|error| types::ErrorResponse {
+                    code: error.code.to_owned().unwrap_or_default(),
+                    message: error.message.to_owned().unwrap_or_default(),
+                    reason: None,
+                    status_code: item.http_code,
+                });
+
+        let response = error_res.map_or(
+            Ok(types::PaymentsResponseData::TransactionResponse {
+                resource_id: types::ResponseId::ConnectorTransactionId(item.response.id.clone()),
+                redirection_data,
+                mandate_reference,
+                connector_metadata: None,
+            }),
+            Err,
+        );
+
+        Ok(Self {
+            status: enums::AttemptStatus::from(item.response.status.to_owned()),
+            response,
             amount_captured: Some(item.response.amount_received),
             ..item.data
         })

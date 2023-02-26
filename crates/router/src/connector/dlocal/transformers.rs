@@ -130,7 +130,7 @@ fn get_payer_name(address: &AddressDetails) -> Option<Secret<String>> {
         .last_name
         .clone()
         .map_or("".to_string(), |last_name| last_name.peek().to_string());
-    let name: String = format!("{} {}", first_name, last_name).trim().to_string();
+    let name: String = format!("{first_name} {last_name}").trim().to_string();
     if !name.is_empty() {
         Some(Secret::new(name))
     } else {

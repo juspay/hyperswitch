@@ -266,7 +266,7 @@ impl
     {
         let response: stripe::PaymentIntentResponse = res
             .response
-            .parse_struct("PaymentIntentResponse")
+            .parse_struct("PaymentSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         types::RouterData::try_from(types::ResponseRouterData {
             response,
@@ -982,7 +982,12 @@ impl services::ConnectorRedirectResponse for Stripe {
         Ok(query
             .redirect_status
             .map_or(payments::CallConnectorAction::Trigger, |status| {
-                payments::CallConnectorAction::StatusUpdate(status.into())
+                // Get failed error message by triggering call to connector
+                if status == transformers::StripePaymentStatus::Failed {
+                    payments::CallConnectorAction::Trigger
+                } else {
+                    payments::CallConnectorAction::StatusUpdate(status.into())
+                }
             }))
     }
 }
