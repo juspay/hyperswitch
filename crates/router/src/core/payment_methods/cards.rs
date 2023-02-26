@@ -362,7 +362,7 @@ pub async fn list_payment_methods(
     let address = payment_intent
         .as_ref()
         .async_map(|pi| async {
-            helpers::get_address_by_id(db, pi.billing_address_id.clone()).await
+            helpers::get_address_by_id(db, pi.shipping_address_id.clone()).await
         })
         .await
         .transpose()?
