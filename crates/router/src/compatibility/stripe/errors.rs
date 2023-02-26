@@ -166,8 +166,20 @@ pub enum StripeErrorCode {
     },
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "", message = "The mandate information is invalid. {message}")]
     PaymentIntentMandateInvalid { message: String },
+
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "", message = "The payment with the specified payment_id '{payment_id}' already exists in our records.")]
     DuplicatePayment { payment_id: String },
+
+    #[error(error_type = StripeErrorType::ConnectorError, code = "", message = "{code}: {message}")]
+    ExternalConnectorError {
+        code: String,
+        message: String,
+        connector: String,
+        status_code: u16,
+    },
+
+    #[error(error_type = StripeErrorType::HyperswitchError, code = "", message = "The connector provided in the request is incorrect or not available")]
+    IncorrectConnectorNameGiven,
     // [#216]: https://github.com/juspay/hyperswitch/issues/216
     // Implement the remaining stripe error codes
 
@@ -323,6 +335,8 @@ pub enum StripeErrorType {
     ApiError,
     CardError,
     InvalidRequestError,
+    ConnectorError,
+    HyperswitchError,
 }
 
 impl From<errors::ApiErrorResponse> for StripeErrorCode {
@@ -369,8 +383,21 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
             errors::ApiErrorResponse::RefundFailed { data } => Self::RefundFailed, // Nothing at stripe to map
 
             errors::ApiErrorResponse::InternalServerError => Self::InternalServerError, // not a stripe code
-            errors::ApiErrorResponse::ExternalConnectorError { .. } => Self::InternalServerError,
-            errors::ApiErrorResponse::IncorrectConnectorNameGiven => Self::InternalServerError,
+            errors::ApiErrorResponse::ExternalConnectorError {
+                code,
+                message,
+                connector,
+                status_code,
+                ..
+            } => Self::ExternalConnectorError {
+                code,
+                message,
+                connector,
+                status_code,
+            },
+            errors::ApiErrorResponse::IncorrectConnectorNameGiven => {
+                Self::IncorrectConnectorNameGiven
+            }
             errors::ApiErrorResponse::MandateActive => Self::MandateActive, //not a stripe code
             errors::ApiErrorResponse::CustomerRedacted => Self::CustomerRedacted, //not a stripe code
             errors::ApiErrorResponse::ConfigNotFound => Self::ConfigNotFound, // not a stripe code
@@ -474,12 +501,16 @@ impl actix_web::ResponseError for StripeErrorCode {
             | Self::ResourceIdNotFound
             | Self::PaymentIntentMandateInvalid { .. }
             | Self::PaymentIntentUnexpectedState { .. }
-            | Self::DuplicatePayment { .. } => StatusCode::BAD_REQUEST,
+            | Self::DuplicatePayment { .. }
+            | Self::IncorrectConnectorNameGiven => StatusCode::BAD_REQUEST,
             Self::RefundFailed
             | Self::InternalServerError
             | Self::MandateActive
             | Self::CustomerRedacted => StatusCode::INTERNAL_SERVER_ERROR,
             Self::ReturnUrlUnavailable => StatusCode::SERVICE_UNAVAILABLE,
+            Self::ExternalConnectorError { status_code, .. } => {
+                StatusCode::from_u16(*status_code).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR)
+            }
         }
     }
 

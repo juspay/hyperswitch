@@ -1916,11 +1916,11 @@
         "properties": {
           "label": {
             "type": "string",
-            "description": "the label must be non-empty to pass validation."
+            "description": "The label must be the name of the merchant."
           },
           "type": {
             "type": "string",
-            "description": "The type of label"
+            "description": "A value that indicates whether the line item(Ex: total, tax, discount, or grand total) is final or pending."
           },
           "amount": {
             "type": "string",
@@ -1942,7 +1942,7 @@
           }
         ]
       },
-      "ApplePayRequest": {
+      "ApplePayPaymentRequest": {
         "type": "object",
         "required": [
           "country_code",
@@ -1979,7 +1979,7 @@
           }
         }
       },
-      "ApplePaySessionObject": {
+      "ApplePaySessionResponse": {
         "type": "object",
         "required": [
           "epoch_timestamp",
@@ -2011,7 +2011,7 @@
           },
           "nonce": {
             "type": "string",
-            "description": "Applepay generates unique ID (UUID) value"
+            "description": "Apple pay generated unique ID (UUID) value"
           },
           "merchant_identifier": {
             "type": "string",
@@ -2044,18 +2044,18 @@
           }
         }
       },
-      "ApplepayData": {
+      "ApplepaySessionTokenResponse": {
         "type": "object",
         "required": [
-          "session_object",
-          "payment_request_object"
+          "session_token_data",
+          "payment_request_data"
         ],
         "properties": {
-          "session_object": {
-            "$ref": "#/components/schemas/ApplePaySessionObject"
+          "session_token_data": {
+            "$ref": "#/components/schemas/ApplePaySessionResponse"
           },
-          "payment_request_object": {
-            "$ref": "#/components/schemas/ApplePayRequest"
+          "payment_request_data": {
+            "$ref": "#/components/schemas/ApplePayPaymentRequest"
           }
         }
       },
@@ -2843,7 +2843,19 @@
           }
         }
       },
-      "GpayData": {
+      "GpayMerchantInfo": {
+        "type": "object",
+        "required": [
+          "merchant_name"
+        ],
+        "properties": {
+          "merchant_name": {
+            "type": "string",
+            "description": "The name of the merchant"
+          }
+        }
+      },
+      "GpaySessionTokenResponse": {
         "type": "object",
         "required": [
           "merchant_info",
@@ -2862,18 +2874,6 @@
           },
           "transaction_info": {
             "$ref": "#/components/schemas/GpayTransactionInfo"
-          }
-        }
-      },
-      "GpayMerchantInfo": {
-        "type": "object",
-        "required": [
-          "merchant_name"
-        ],
-        "properties": {
-          "merchant_name": {
-            "type": "string",
-            "description": "The name of the merchant"
           }
         }
       },
@@ -2951,7 +2951,13 @@
           "requires_capture"
         ]
       },
-      "KlarnaData": {
+      "KlarnaIssuer": {
+        "type": "string",
+        "enum": [
+          "klarna"
+        ]
+      },
+      "KlarnaSessionTokenResponse": {
         "type": "object",
         "required": [
           "session_token",
@@ -2967,12 +2973,6 @@
             "description": "The identifier for the session"
           }
         }
-      },
-      "KlarnaIssuer": {
-        "type": "string",
-        "enum": [
-          "klarna"
-        ]
       },
       "ListCustomerPaymentMethodsResponse": {
         "type": "object",
@@ -3057,26 +3057,10 @@
             ]
           },
           "accepted_countries": {
-            "type": "array",
-            "items": {
-              "type": "string",
-              "description": "List of Countries accepted or has the processing capabilities of the processor"
-            },
-            "example": [
-              "US",
-              "UK",
-              "IN"
-            ]
+            "$ref": "#/components/schemas/admin.AcceptedCountries"
           },
           "accepted_currencies": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/Currency"
-            },
-            "example": [
-              "USD",
-              "EUR"
-            ]
+            "$ref": "#/components/schemas/admin.AcceptedCurrencies"
           },
           "minimum_amount": {
             "type": "integer",
@@ -3107,6 +3091,17 @@
             },
             "example": [
               "redirect_to_url"
+            ]
+          },
+          "eligible_connectors": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "description": "Eligible connectors for this payment method"
+            },
+            "example": [
+              "stripe",
+              "adyen"
             ]
           }
         }
@@ -3659,14 +3654,31 @@
             },
             "example": [
               {
-                "accepted_countries": [
-                  "in",
-                  "us"
-                ],
-                "accepted_currencies": [
-                  "AED",
-                  "AED"
-                ],
+                "accepted_countries": {
+                  "disable_only": [
+                    "FR",
+                    "DE",
+                    "IN"
+                  ],
+                  "enable_all": false,
+                  "enable_only": [
+                    "UK",
+                    "AU"
+                  ]
+                },
+                "accepted_currencies": {
+                  "disable_only": [
+                    "INR",
+                    "CAD",
+                    "AED",
+                    "JPY"
+                  ],
+                  "enable_all": false,
+                  "enable_only": [
+                    "EUR",
+                    "USD"
+                  ]
+                },
                 "installment_payment_enabled": true,
                 "maximum_amount": 68607706,
                 "minimum_amount": 1,
@@ -4036,26 +4048,10 @@
             ]
           },
           "accepted_currencies": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/Currency"
-            },
-            "example": [
-              "USD",
-              "EUR",
-              "AED"
-            ]
+            "$ref": "#/components/schemas/AcceptedCurrencies"
           },
           "accepted_countries": {
-            "type": "array",
-            "items": {
-              "type": "string",
-              "description": "List of Countries accepted or has the processing capabilities of the processor"
-            },
-            "example": [
-              "US",
-              "IN"
-            ]
+            "$ref": "#/components/schemas/AcceptedCountries"
           },
           "minimum_amount": {
             "type": "integer",
@@ -4587,7 +4583,7 @@
           }
         }
       },
-      "PaypalData": {
+      "PaypalSessionTokenResponse": {
         "type": "object",
         "required": [
           "session_token"
@@ -4891,7 +4887,7 @@
           {
             "allOf": [
               {
-                "$ref": "#/components/schemas/GpayData"
+                "$ref": "#/components/schemas/GpaySessionTokenResponse"
               },
               {
                 "type": "object",
@@ -4912,7 +4908,7 @@
           {
             "allOf": [
               {
-                "$ref": "#/components/schemas/KlarnaData"
+                "$ref": "#/components/schemas/KlarnaSessionTokenResponse"
               },
               {
                 "type": "object",
@@ -4933,7 +4929,7 @@
           {
             "allOf": [
               {
-                "$ref": "#/components/schemas/PaypalData"
+                "$ref": "#/components/schemas/PaypalSessionTokenResponse"
               },
               {
                 "type": "object",
@@ -4954,7 +4950,7 @@
           {
             "allOf": [
               {
-                "$ref": "#/components/schemas/ApplepayData"
+                "$ref": "#/components/schemas/ApplepaySessionTokenResponse"
               },
               {
                 "type": "object",
