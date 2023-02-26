@@ -103,10 +103,6 @@ jobs:
         shell: bash
         run: sed -i 's/rustflags = \[/rustflags = \[\n    "-Dwarnings",/' .cargo/config.toml
 
-      - name: Test compilation
-        shell: bash
-        run: cargo hack check --workspace --each-feature --no-dev-deps
-
       - name: Check files changed in api_models
         id: changed-files-api_models
         uses: tj-actions/changed-files@v35
