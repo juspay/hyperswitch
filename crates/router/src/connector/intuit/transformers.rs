@@ -1,19 +1,64 @@
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils,
     core::errors,
-    pii::PeekInterface,
-    types::{self, api, storage::enums},
+    pii::{self, Secret},
+    types::{self, api, storage::enums}, connector::utils::AccessTokenRequestInfo,
 };
 
+#[derive(Debug, Serialize, Eq, PartialEq)]
+pub struct IntuitAuthUpdateRequest {
+    grant_type: IntuitAuthGrantTypes,
+    refresh_token: String,
+}
+
+#[derive(Debug, Serialize, Eq, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum IntuitAuthGrantTypes {
+    RefreshToken,
+}
+
+impl TryFrom<&types::RefreshTokenRouterData> for IntuitAuthUpdateRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &types::RefreshTokenRouterData) -> Result<Self, Self::Error> {
+        Ok(Self {
+            grant_type: IntuitAuthGrantTypes::RefreshToken,
+            refresh_token: item.get_request_id()?,
+        })
+    }
+}
+
+#[derive(Default, Debug, Clone, Deserialize, PartialEq)]
+pub struct IntuitAuthUpdateResponse {
+    access_token: String,
+    expires_in: i64,
+    refresh_token: String,
+    x_refresh_token_expires_in: i64,
+}
+
+impl<F, T> TryFrom<types::ResponseRouterData<F, IntuitAuthUpdateResponse, T, types::AccessToken>>
+    for types::RouterData<F, T, types::AccessToken>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: types::ResponseRouterData<F, IntuitAuthUpdateResponse, T, types::AccessToken>,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            response: Ok(types::AccessToken {
+                token: item.response.access_token,
+                expires: item.response.expires_in,
+            }),
+            ..item.data
+        })
+    }
+}
+
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
-#[serde(rename_all = "camelCase")]
 pub struct IntuitPaymentsRequest {
     amount: String,
-    currency: String,
-    description: String,
-    context: Context,
+    currency: enums::Currency,
+    description: Option<String>,
+    context: IntuitPaymentsRequestContext,
     card: Card,
     capture: bool,
 }
@@ -21,15 +66,15 @@ pub struct IntuitPaymentsRequest {
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct Card {
-    number: String,
-    exp_month: String,
-    exp_year: String,
-    cvc: String,
+    number: Secret<String, pii::CardNumber>,
+    exp_month: Secret<String>,
+    exp_year: Secret<String>,
+    cvc: Secret<String>,
 }
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
-pub struct Context {
+pub struct IntuitPaymentsRequestContext {
     mobile: bool,
     is_ecommerce: bool,
 }
@@ -45,19 +90,19 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for IntuitPaymentsRequest {
                 );
                 Ok(Self {
                     amount: item.request.amount.to_string(),
-                    currency: item.request.currency.to_string().to_uppercase(),
-                    context: Context {
+                    currency: item.request.currency,
+                    context: IntuitPaymentsRequestContext {
                         mobile: item.request.browser_info.clone().map_or(true, |_| false),
                         is_ecommerce: false,
                     },
                     card: Card {
-                        number: ccard.card_number.peek().clone(),
-                        exp_month: ccard.card_exp_month.peek().clone(),
-                        exp_year: ccard.card_exp_year.peek().clone(),
-                        cvc: ccard.card_cvc.peek().clone(),
+                        number: ccard.card_number.clone(),
+                        exp_month: ccard.card_exp_month.clone(),
+                        exp_year: ccard.card_exp_year.clone(),
+                        cvc: ccard.card_cvc.clone(),
                     },
                     capture: submit_for_settlement,
-                    ..Default::default()
+                    description: item.description.clone(),
                 })
             }
             _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
@@ -78,28 +123,14 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for IntuitPaymentsCaptureRequest
             amount: value
                 .request
                 .amount_to_capture
-                .map(|amount| amount.to_string())
-                .ok_or_else(utils::missing_field_err("amount_to_capture"))?,
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "amount_to_capture",
+                })?
+                .to_string(),
         })
     }
 }
 
-pub struct IntuitAuthType {
-    pub(super) api_key: String,
-}
-
-impl TryFrom<&types::ConnectorAuthType> for IntuitAuthType {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
-        if let types::ConnectorAuthType::HeaderKey { api_key } = auth_type {
-            Ok(Self {
-                api_key: api_key.to_string(),
-            })
-        } else {
-            Err(errors::ConnectorError::FailedToObtainAuthType)?
-        }
-    }
-}
 // PaymentsResponse
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "UPPERCASE")]
@@ -111,19 +142,16 @@ pub enum IntuitPaymentStatus {
     Issued,
     Declined,
     Settled,
-    Refunded,
 }
 
 impl From<IntuitPaymentStatus> for enums::AttemptStatus {
     fn from(item: IntuitPaymentStatus) -> Self {
         match item {
-            IntuitPaymentStatus::Captured => Self::Charged,
+            IntuitPaymentStatus::Captured | IntuitPaymentStatus::Settled => Self::Charged,
             IntuitPaymentStatus::Failed => Self::Failure,
             IntuitPaymentStatus::Authorized => Self::Authorized,
             IntuitPaymentStatus::Issued => Self::Voided,
             IntuitPaymentStatus::Declined => Self::VoidFailed,
-            IntuitPaymentStatus::Settled => Self::Charged,
-            IntuitPaymentStatus::Refunded => Self::AutoRefunded,
         }
     }
 }
@@ -147,7 +175,6 @@ impl<F, T>
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
                 redirection_data: None,
-                redirect: false,
                 mandate_reference: None,
                 connector_metadata: None,
             }),
@@ -241,4 +268,9 @@ pub struct IntuitErrorData {
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
 pub struct IntuitErrorResponse {
     pub errors: Vec<IntuitErrorData>,
+}
+
+#[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
+pub struct IntuitAuthErrorResponse {
+    pub error: String,
 }

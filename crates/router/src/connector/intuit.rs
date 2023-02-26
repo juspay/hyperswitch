@@ -2,6 +2,7 @@ mod transformers;
 
 use std::fmt::Debug;
 
+use base64::Engine;
 use error_stack::{IntoReport, ResultExt};
 use transformers as intuit;
 use uuid::Uuid;
@@ -9,6 +10,7 @@ use uuid::Uuid;
 use crate::{
     configs::settings,
     connector::utils::RefundsRequestData,
+    consts,
     core::{
         errors::{self, CustomResult},
         payments,
@@ -23,6 +25,8 @@ use crate::{
     utils::{self, BytesExt},
 };
 
+static INTUIT_AUTH_TOKEN_URL: &str = "https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer";
+
 #[derive(Debug, Clone)]
 pub struct Intuit;
 
@@ -35,6 +39,16 @@ where
         req: &types::RouterData<Flow, Request, Response>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+        let access_token = req
+            .access_token
+            .clone()
+            .ok_or(errors::ConnectorError::FailedToObtainAuthType)?;
+
+        let auth_header = (
+            headers::AUTHORIZATION.to_string(),
+            format!("Bearer {}", access_token.token),
+        );
+
         let mut headers = vec![
             (
                 headers::CONTENT_TYPE.to_string(),
@@ -46,8 +60,7 @@ where
             ),
             ("request-id".to_string(), Uuid::new_v4().to_string()),
         ];
-        let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
-        headers.append(&mut api_key);
+        headers.push(auth_header);
         Ok(headers)
     }
 }
@@ -63,16 +76,6 @@ impl ConnectorCommon for Intuit {
 
     fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
         connectors.intuit.base_url.as_ref()
-    }
-
-    fn get_auth_header(
-        &self,
-        auth_type: &types::ConnectorAuthType,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        let auth: intuit::IntuitAuthType = auth_type
-            .try_into()
-            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-        Ok(vec![(headers::AUTHORIZATION.to_string(), auth.api_key)])
     }
 
     fn build_error_response(
@@ -181,6 +184,108 @@ impl api::ConnectorAccessToken for Intuit {}
 impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, types::AccessToken>
     for Intuit
 {
+    fn get_url(
+        &self,
+        _req: &types::RefreshTokenRouterData,
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(INTUIT_AUTH_TOKEN_URL.to_string())
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        "application/x-www-form-urlencoded"
+    }
+
+    fn get_headers(
+        &self,
+        req: &types::RefreshTokenRouterData,
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+        let encoded_api_key = consts::BASE64_ENGINE.encode(format!(
+            "{}:{}",
+            req.request.app_id,
+            req.request
+                .sig_id
+                .clone()
+                .ok_or(errors::ConnectorError::FailedToObtainAuthType)?
+        ));
+
+        let headers = vec![
+            (
+                headers::CONTENT_TYPE.to_string(),
+                types::RefreshTokenType::get_content_type(self).to_string(),
+            ),
+            (
+                headers::AUTHORIZATION.to_string(),
+                format!("Basic {}", encoded_api_key),
+            ),
+        ];
+        Ok(headers)
+    }
+
+    fn get_request_body(
+        &self,
+        req: &types::RefreshTokenRouterData,
+    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+        let intuit_req =
+            utils::Encode::<intuit::IntuitAuthUpdateRequest>::convert_and_url_encode(req)
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+
+        logger::debug!(intuit_access_token_request=?intuit_req);
+        Ok(Some(intuit_req))
+    }
+
+    fn build_request(
+        &self,
+        req: &types::RefreshTokenRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        let req = Some(
+            services::RequestBuilder::new()
+                .method(services::Method::Post)
+                .headers(types::RefreshTokenType::get_headers(self, req, connectors)?)
+                .url(&types::RefreshTokenType::get_url(self, req, connectors)?)
+                .body(types::RefreshTokenType::get_request_body(self, req)?)
+                .build(),
+        );
+        logger::debug!(intuit_access_token_request=?req);
+        Ok(req)
+    }
+    fn handle_response(
+        &self,
+        data: &types::RefreshTokenRouterData,
+        res: Response,
+    ) -> CustomResult<types::RefreshTokenRouterData, errors::ConnectorError> {
+        logger::debug!(access_token_response=?res);
+        let response: intuit::IntuitAuthUpdateResponse = res
+            .response
+            .parse_struct("airwallex AirwallexAuthUpdateResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        types::ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        }
+        .try_into()
+        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        logger::debug!(access_token_error_response=?res);
+        let response: intuit::IntuitAuthErrorResponse = res
+            .response
+            .parse_struct("Intuit IntuitAuthErrorResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        Ok(ErrorResponse {
+            message: response.error,
+            ..Default::default()
+        })
+    }
 }
 
 impl api::PaymentSync for Intuit {}
@@ -230,13 +335,6 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         ))
     }
 
-    fn get_error_response(
-        &self,
-        res: Response,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res)
-    }
-
     fn handle_response(
         &self,
         data: &types::PaymentsSyncRouterData,
@@ -253,6 +351,13 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
             http_code: res.status_code,
         })
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res)
     }
 }
 
@@ -412,15 +517,10 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         data: &types::PaymentsAuthorizeRouterData,
         res: Response,
     ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
-        logger::debug!(
-            "intuit payment authorize response ---------- {:?}",
-            res.response
-        );
         let response: intuit::IntuitPaymentsResponse = res
             .response
             .parse_struct("PaymentIntentResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        logger::debug!(payments_create_response=?response);
         types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -570,7 +670,6 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         data: &types::RefundSyncRouterData,
         res: Response,
     ) -> CustomResult<types::RefundSyncRouterData, errors::ConnectorError> {
-        logger::debug!(target: "router::connector::intuit", response=?res);
         let response: intuit::RefundResponse =
             res.response
                 .parse_struct("intuit RefundResponse")
@@ -596,21 +695,21 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
 impl api::IncomingWebhook for Intuit {
     fn get_webhook_object_reference_id(
         &self,
-        _body: &[u8],
+        _request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<String, errors::ConnectorError> {
         Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
     }
 
     fn get_webhook_event_type(
         &self,
-        _body: &[u8],
+        _request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api::IncomingWebhookEvent, errors::ConnectorError> {
         Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
     }
 
     fn get_webhook_resource_object(
         &self,
-        _body: &[u8],
+        _request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<serde_json::Value, errors::ConnectorError> {
         Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
     }

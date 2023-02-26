@@ -165,6 +165,7 @@ pub struct VerifyRequestData {
 pub struct AccessTokenRequestData {
     pub app_id: String,
     pub id: Option<String>,
+    pub sig_id: Option<String>,
     // Add more keys if required
 }
 
@@ -337,14 +338,21 @@ impl TryFrom<ConnectorAuthType> for AccessTokenRequestData {
             ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
                 app_id: api_key,
                 id: None,
+                sig_id: None,
             }),
             ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
                 app_id: api_key,
                 id: Some(key1),
+                sig_id: None,
             }),
-            ConnectorAuthType::SignatureKey { api_key, key1, .. } => Ok(Self {
+            ConnectorAuthType::SignatureKey {
+                api_key,
+                key1,
+                api_secret,
+            } => Ok(Self {
                 app_id: api_key,
                 id: Some(key1),
+                sig_id: Some(api_secret),
             }),
             _ => Err(errors::ApiErrorResponse::InvalidDataValue {
                 field_name: "connector_account_details",
