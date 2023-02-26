@@ -598,7 +598,10 @@ pub enum Connector {
 
 impl Connector {
     pub fn supports_access_token(&self) -> bool {
-        matches!(self, Self::Airwallex | Self::Globalpay | Self::Intuit | Self::Payu)
+        matches!(
+            self,
+            Self::Airwallex | Self::Globalpay | Self::Intuit | Self::Payu
+        )
     }
 }
 

@@ -1,9 +1,10 @@
 use serde::{Deserialize, Serialize};
 
 use crate::{
+    connector::utils::AccessTokenRequestInfo,
     core::errors,
     pii::{self, Secret},
-    types::{self, api, storage::enums}, connector::utils::AccessTokenRequestInfo,
+    types::{self, api, storage::enums},
 };
 
 #[derive(Debug, Serialize, Eq, PartialEq)]
