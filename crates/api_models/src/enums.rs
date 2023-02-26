@@ -695,7 +695,7 @@ pub enum BankNames {
 )]
 #[strum(serialize_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
-pub enum CardNetworks {
+pub enum CardNetwork {
     Visa,
     Mastercard,
 }

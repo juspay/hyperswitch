@@ -4,8 +4,9 @@ use api_models::{
     admin::{self, PaymentMethodsEnabled},
     enums as api_enums,
     payment_methods::{
-        PaymentExperienceTypes, RequestPaymentMethodTypes, ResponsePaymentMethodIntermediate,
-        ResponsePaymentMethodTypes, ResponsePaymentMethodsEnabled,
+        CardNetworkTypes, PaymentExperienceTypes, RequestPaymentMethodTypes,
+        ResponsePaymentMethodIntermediate, ResponsePaymentMethodTypes,
+        ResponsePaymentMethodsEnabled,
     },
 };
 use common_utils::{consts, ext_traits::AsyncExt, generate_id};
@@ -412,13 +413,17 @@ pub async fn list_payment_methods(
         HashMap<api_enums::PaymentMethodType, HashMap<api_enums::PaymentExperience, Vec<String>>>,
     > = HashMap::new();
 
+    let mut card_networks_consolidated_hm: HashMap<
+        api_enums::PaymentMethod,
+        HashMap<api_enums::PaymentMethodType, HashMap<api_enums::CardNetwork, Vec<String>>>,
+    > = HashMap::new();
+
     for element in response.clone() {
+        let payment_method = element.payment_method;
+        let payment_method_type = element.payment_method_type;
+        let connector = element.connector.clone();
+
         if let Some(payment_experience) = element.payment_experience {
-            let payment_method = element.payment_method;
-            let payment_method_type = element.payment_method_type;
-
-            let connector = element.connector.clone();
-
             if let Some(payment_method_hm) =
                 payment_experiences_consolidated_hm.get_mut(&payment_method)
             {
@@ -438,8 +443,32 @@ pub async fn list_payment_methods(
             } else {
                 payment_experiences_consolidated_hm.insert(payment_method, HashMap::new());
             }
-        } else {
-            // Handle cases for pm_types with no experience mentioned
+        }
+        let connector_cloned = element.connector.clone();
+
+        if let Some(card_networks) = element.card_networks {
+            if let Some(payment_method_hm) = card_networks_consolidated_hm.get_mut(&payment_method)
+            {
+                if let Some(payment_method_type_hm) =
+                    payment_method_hm.get_mut(&payment_method_type)
+                {
+                    for card_network in card_networks {
+                        if let Some(vector_of_connectors) =
+                            payment_method_type_hm.get_mut(&card_network)
+                        {
+                            let connector = element.connector.clone(); //FIXME: remove clone
+                            vector_of_connectors.push(connector);
+                        } else {
+                            let connector = element.connector.clone(); //FIXME: remove clone
+                            payment_method_type_hm.insert(card_network, vec![connector]);
+                        }
+                    }
+                } else {
+                    payment_method_hm.insert(payment_method_type, HashMap::new());
+                }
+            } else {
+                card_networks_consolidated_hm.insert(payment_method, HashMap::new());
+            }
         }
     }
 
@@ -459,6 +488,30 @@ pub async fn list_payment_methods(
                 payment_method_type: payment_method_types_hm.0.clone(),
                 payment_experience: Some(payment_experience_types),
                 card_networks: None,
+            })
+        }
+
+        payment_method_responses.push(ResponsePaymentMethodsEnabled {
+            payment_method: key.0.clone(),
+            payment_method_types,
+        })
+    }
+
+    for key in card_networks_consolidated_hm.iter() {
+        let mut payment_method_types = vec![];
+        for payment_method_types_hm in key.1 {
+            let mut card_network_types = vec![];
+            for card_network_type in payment_method_types_hm.1 {
+                card_network_types.push(CardNetworkTypes {
+                    card_network: card_network_type.0.clone(),
+                    eligible_connectors: card_network_type.1.clone(),
+                })
+            }
+
+            payment_method_types.push(ResponsePaymentMethodTypes {
+                payment_method_type: payment_method_types_hm.0.clone(),
+                card_networks: Some(card_network_types),
+                payment_experience: None,
             })
         }
 

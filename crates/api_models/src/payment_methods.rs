@@ -182,10 +182,16 @@ pub struct PaymentExperienceTypes {
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, PartialEq, Eq)]
+pub struct CardNetworkTypes {
+    pub card_network: api_enums::CardNetwork,
+    pub eligible_connectors: Vec<String>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, PartialEq, Eq)]
 pub struct ResponsePaymentMethodTypes {
     pub payment_method_type: api_enums::PaymentMethodType,
     pub payment_experience: Option<Vec<PaymentExperienceTypes>>,
-    pub card_networks: Option<Vec<api_enums::CardNetworks>>,
+    pub card_networks: Option<Vec<CardNetworkTypes>>,
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
@@ -198,7 +204,7 @@ pub struct ResponsePaymentMethodsEnabled {
 pub struct ResponsePaymentMethodIntermediate {
     pub payment_method_type: api_enums::PaymentMethodType,
     pub payment_experience: Option<api_enums::PaymentExperience>,
-    pub card_networks: Option<Vec<api_enums::CardNetworks>>,
+    pub card_networks: Option<Vec<api_enums::CardNetwork>>,
     pub payment_method: api_enums::PaymentMethod,
     pub connector: String,
 }
@@ -223,7 +229,7 @@ impl ResponsePaymentMethodIntermediate {
 pub struct RequestPaymentMethodTypes {
     pub payment_method_type: api_enums::PaymentMethodType,
     pub payment_experience: Option<api_enums::PaymentExperience>,
-    pub card_networks: Option<Vec<api_enums::CardNetworks>>,
+    pub card_networks: Option<Vec<api_enums::CardNetwork>>,
     /// List of currencies accepted or has the processing capabilities of the processor
     #[schema(example = json!(
         {
