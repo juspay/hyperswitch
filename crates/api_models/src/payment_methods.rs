@@ -324,9 +324,8 @@ pub struct ListPaymentMethod {
     /// List of Countries accepted or has the processing capabilities of the processor
     #[schema(example = json!(
         {
-            "enable_all":false,
-            "disable_only": ["FR", "DE","IN"],
-            "enable_only": ["UK","AU"]
+            "type": "disable_only",
+            "list": ["FR", "DE","IN"]
         }
     ))]
     pub accepted_countries: Option<admin::AcceptedCountries>,
@@ -334,9 +333,8 @@ pub struct ListPaymentMethod {
     /// List of currencies accepted or has the processing capabilities of the processor
     #[schema(example = json!(
         {
-        "enable_all":false,
-        "disable_only": ["INR", "CAD", "AED","JPY"],
-        "enable_only": ["EUR","USD"]
+            "type": "enable_only",
+            "list": ["USD", "EUR"]
         }
     ))]
     pub accepted_currencies: Option<admin::AcceptedCurrencies>,
