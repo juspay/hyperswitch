@@ -103,94 +103,88 @@ jobs:
         shell: bash
         run: sed -i 's/rustflags = \[/rustflags = \[\n    "-Dwarnings",/' .cargo/config.toml
 
-      - name: Check files changed in api_models
-        id: changed-files-api_models
-        uses: tj-actions/changed-files@v35
-        with:
-          files: crates/api_models/*.rs  # Alternatively using: `docs/**` or `docs`
+      - name: Check files changed
+        run: |
+          if git diff --exit-code --quiet $GITHUB_BASE_REF...$GITHUB_HEAD_REF -- crates/api_models/; then
+            echo "::set-env name=api_models_changes_exist::false"
+          else
+            echo "::set-env name=api_models_changes_exist::true"
+          fi
+          if git diff --exit-code --quiet $GITHUB_BASE_REF...$GITHUB_HEAD_REF -- crates/common_utils/; then
+            echo "::set-env name=common_utils_changes_exist::false"
+          else
+            echo "::set-env name=common_utils_changes_exist::true"
+          fi
+          if git diff --exit-code --quiet $GITHUB_BASE_REF...$GITHUB_HEAD_REF -- crates/drainer/; then
+            echo "::set-env name=drainer_changes_exist::false"
+          else
+            echo "::set-env name=drainer_changes_exist::true"
+          fi
+          if git diff --exit-code --quiet $GITHUB_BASE_REF...$GITHUB_HEAD_REF -- crates/masking/; then
+            echo "::set-env name=masking_changes_exist::false"
+          else
+            echo "::set-env name=masking_changes_exist::true"
+          fi
+          if git diff --exit-code --quiet $GITHUB_BASE_REF...$GITHUB_HEAD_REF -- crates/redis_interface/; then
+            echo "::set-env name=redis_interface_changes_exist::false"
+          else
+            echo "::set-env name=redis_interface_changes_exist::true"
+          fi
+          if git diff --exit-code --quiet $GITHUB_BASE_REF...$GITHUB_HEAD_REF -- crates/router/; then
+            echo "::set-env name=router_changes_exist::false"
+          else
+            echo "::set-env name=router_changes_exist::true"
+          fi
+          if git diff --exit-code --quiet $GITHUB_BASE_REF...$GITHUB_HEAD_REF -- crates/router_derive/; then
+            echo "::set-env name=router_derive_changes_exist::false"
+          else
+            echo "::set-env name=router_derive_changes_exist::true"
+          fi
+          if git diff --exit-code --quiet $GITHUB_BASE_REF...$GITHUB_HEAD_REF -- crates/router_env/; then
+            echo "::set-env name=router_env_changes_exist::false"
+          else
+            echo "::set-env name=router_env_changes_exist::true"
+          fi
+          if git diff --exit-code --quiet $GITHUB_BASE_REF...$GITHUB_HEAD_REF -- crates/storage_models/; then
+            echo "::set-env name=storage_models_changes_exist::false"
+          else
+            echo "::set-env name=storage_models_changes_exist::true"
+          fi
 
       - name: Cargo hack api_models
-        if: steps.changed-files-api_models.outputs.any_changed == 'true'
+        if: env.api_models_changes_exist == 'true'
         run: cargo hack check --workspace --each-feature --no-dev-deps -p api_models
 
-      - name: Check files changed in common_utils
-        id: changed-files-common_utils
-        uses: tj-actions/changed-files@v35
-        with:
-          files: crates/common_utils/*.rs  # Alternatively using: `docs/**` or `docs`
-
       - name: Cargo hack common_utils
-        if: steps.changed-files-common_utils.outputs.any_changed == 'true'
+        if: env.common_utils_changes_exist == 'true'
         run: cargo hack check --workspace --each-feature --no-dev-deps -p common_utils
 
-      - name: Check files changed in drainer
-        id: changed-files-drainer
-        uses: tj-actions/changed-files@v35
-        with:
-          files: crates/drainer/*.rs  # Alternatively using: `docs/**` or `docs`
-
       - name: Cargo hack drainer
-        if: steps.changed-files-drainer.outputs.any_changed == 'true'
+        if: env.drainer_changes_exist == 'true'
         run: cargo hack check --workspace --each-feature --no-dev-deps -p drainer
 
-      - name: Check files changed in masking
-        id: changed-files-masking
-        uses: tj-actions/changed-files@v35
-        with:
-          files: crates/masking/*.rs  # Alternatively using: `docs/**` or `docs`
-
       - name: Cargo hack masking
-        if: steps.changed-files-masking.outputs.any_changed == 'true'
+        if: env.masking_changes_exist == 'true'
         run: cargo hack check --workspace --each-feature --no-dev-deps -p masking
 
-      - name: Check files changed in redis_interface
-        id: changed-files-redis_interface
-        uses: tj-actions/changed-files@v35
-        with:
-          files: crates/redis_interface/*.rs  # Alternatively using: `docs/**` or `docs`
-
       - name: Cargo hack redis_interface
-        if: steps.changed-files-redis_interface.outputs.any_changed == 'true'
+        if: env.redis_interface_changes_exist == 'true'
         run: cargo hack check --workspace --each-feature --no-dev-deps -p redis_interface
 
-      - name: Check files changed in router
-        id: changed-files-router
-        uses: tj-actions/changed-files@v35
-        with:
-          files: crates/router/*.rs  # Alternatively using: `docs/**` or `docs`
-
       - name: Cargo hack router
-        if: steps.changed-files-router.outputs.any_changed == 'true'
+        if: env.router_changes_exist == 'true'
         run: cargo hack check --workspace --each-feature --no-dev-deps -p router
 
-      - name: Check files changed in router_derive
-        id: changed-files-router_derive
-        uses: tj-actions/changed-files@v35
-        with:
-          files: crates/router_derive/*.rs  # Alternatively using: `docs/**` or `docs`
-
       - name: Cargo hack router_derive
-        if: steps.changed-files-router_derive.outputs.any_changed == 'true'
+        if: env.router_derive_changes_exist == 'true'
         run: cargo hack check --workspace --each-feature --no-dev-deps -p router_derive
 
-      - name: Check files changed in router_env
-        id: changed-files-router_env
-        uses: tj-actions/changed-files@v35
-        with:
-          files: crates/router_env/*.rs  # Alternatively using: `docs/**` or `docs`
-
       - name: Cargo hack router_env
-        if: steps.changed-files-router_env.outputs.any_changed == 'true'
+        if: env.router_env_changes_exist == 'true'
         run: cargo hack check --workspace --each-feature --no-dev-deps -p router_env
 
-      - name: Check files changed in storage_models
-        id: changed-files-storage_models
-        uses: tj-actions/changed-files@v35
-        with:
-          files: crates/storage_models/*.rs  # Alternatively using: `docs/**` or `docs`
-
       - name: Cargo hack storage_models
-        if: steps.changed-files-storage_models.outputs.any_changed == 'true'
+        if: env.storage_models_changes_exist == 'true'
         run: cargo hack check --workspace --each-feature --no-dev-deps -p storage_models
 
   # cargo-deny:
