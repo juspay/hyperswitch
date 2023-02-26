@@ -147,15 +147,15 @@ jobs:
         if: steps.changed-files-masking.outputs.any_changed == 'true'
         run: cargo hack check --workspace --each-feature --no-dev-deps -p masking
 
-      - name: Check files changed in redis_inter
-        id: changed-files-router
+      - name: Check files changed in redis_interface
+        id: changed-files-redis_interface
         uses: tj-actions/changed-files@v35
         with:
-          files: crates/router/*.rs  # Alternatively using: `docs/**` or `docs`
+          files: crates/redis_interface/*.rs  # Alternatively using: `docs/**` or `docs`
 
-      - name: Cargo hack router
-        if: steps.changed-files-router.outputs.any_changed == 'true'
-        run: cargo hack check --workspace --each-feature --no-dev-deps -p router
+      - name: Cargo hack redis_interface
+        if: steps.changed-files-redis_interface.outputs.any_changed == 'true'
+        run: cargo hack check --workspace --each-feature --no-dev-deps -p redis_interface
 
       - name: Check files changed in router
         id: changed-files-router
