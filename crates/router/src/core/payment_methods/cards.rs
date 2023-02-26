@@ -392,8 +392,6 @@ pub async fn list_payment_methods(
             error.to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
         })?;
 
-    crate::logger::debug!(hola=?all_mcas);
-
     let mut response: Vec<ResponsePaymentMethodIntermediate> = vec![];
     for mca in all_mcas {
         let payment_methods = match mca.payment_methods_enabled {
