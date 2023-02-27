@@ -369,8 +369,8 @@ pub fn get_banks(
     }
 
     let vector_of_hashsets = bank_names_hm
-        .iter()
-        .map(|(_, v)| v.to_owned())
+        .values()
+        .map(|bank_names_hashset| bank_names_hashset.to_owned())
         .collect::<Vec<_>>();
 
     let mut common_bank_names = HashSet::new();
@@ -392,19 +392,22 @@ pub fn get_banks(
     }
 
     for connector in connectors {
-        let all_bank_codes_for_connector = bank_names_hm.get(&connector).unwrap();
-        let remaining_bank_codes: HashSet<_> = all_bank_codes_for_connector
-            .difference(&common_bank_names)
-            .collect();
+        if let Some(all_bank_codes_for_connector) = bank_names_hm.get(&connector) {
+            let remaining_bank_codes: HashSet<_> = all_bank_codes_for_connector
+                .difference(&common_bank_names)
+                .collect();
 
-        if !remaining_bank_codes.is_empty() {
-            bank_code_responses.push(BankCodeResponse {
-                bank_name: remaining_bank_codes
-                    .into_iter()
-                    .map(|ele| ele.to_owned())
-                    .collect(),
-                eligible_connectors: vec![connector],
-            })
+            if !remaining_bank_codes.is_empty() {
+                bank_code_responses.push(BankCodeResponse {
+                    bank_name: remaining_bank_codes
+                        .into_iter()
+                        .map(|ele| ele.to_owned())
+                        .collect(),
+                    eligible_connectors: vec![connector],
+                })
+            }
+        } else {
+            logger::error!("Could not find any configured banks for payment_method -> {pm_type} for connector -> {connector}");
         }
     }
 
@@ -584,7 +587,7 @@ pub async fn list_payment_methods(
             {
                 vector_of_connectors.push(connector);
             } else {
-                banks_consolidated_hm.insert(element.payment_method_type.clone(), vec![connector]);
+                banks_consolidated_hm.insert(element.payment_method_type, vec![connector]);
             }
         }
     }
@@ -643,7 +646,7 @@ pub async fn list_payment_methods(
     let mut bank_payment_method_types = vec![];
 
     for key in banks_consolidated_hm.iter() {
-        let payment_method_type = key.0.clone();
+        let payment_method_type = *key.0;
         let connectors = key.1.clone();
         let bank_names = get_banks(state, payment_method_type, connectors)?;
         bank_payment_method_types.push({

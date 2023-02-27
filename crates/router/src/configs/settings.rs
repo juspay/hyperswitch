@@ -59,7 +59,7 @@ pub struct Settings {
     pub bank_config: BankRedirectConfig,
 }
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct BankRedirectConfig(
     pub HashMap<api_models::enums::PaymentMethodType, ConnectorBankNames>,
 );
