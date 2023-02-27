@@ -53,3 +53,12 @@ api_secret = "API Secret Key"
 key1 = "key1"
 api_key = "api_key"
 api_secret = "secret"
+
+[bambora]
+api_key = "api_key"
+key1= "key1"
+
+[nuvei]
+api_key = "api_key"
+key1 = "key1"
+api_secret = "secret"

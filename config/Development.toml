@@ -49,6 +49,7 @@ cards = [
     "adyen",
     "airwallex",
     "authorizedotnet",
+    "bambora",
     "bluesnap",
     "braintree",
     "checkout",
@@ -111,7 +112,7 @@ base_url = "https://sandboxapi.rapyd.net"
 base_url = "https://cert.api.fiservapps.com/"
 
 [connectors.worldpay]
-base_url = "http://localhost:9090/"
+base_url = "https://try.access.worldpay.com/"
 
 [connectors.payu]
 base_url = "https://secure.snd.payu.com/"
@@ -133,6 +134,9 @@ base_url = "https://api-demo.airwallex.com/"
 
 [connectors.dlocal]
 base_url = "https://sandbox.dlocal.com/"
+
+[connectors.bambora]
+base_url = "https://api.na.bambora.com"
 
 [scheduler]
 stream = "SCHEDULER_STREAM"

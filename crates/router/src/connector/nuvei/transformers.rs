@@ -448,6 +448,7 @@ pub struct NuveiPaymentsResponse {
     pub payment_option: Option<PaymentOption>,
     pub transaction_status: Option<NuveiTransactionStatus>,
     pub gw_error_code: Option<i64>,
+    pub gw_error_reason: Option<String>,
     pub gw_extended_error_code: Option<i64>,
     pub issuer_decline_code: Option<String>,
     pub issuer_decline_reason: Option<String>,
@@ -530,26 +531,42 @@ impl<F, T>
                     code: item
                         .response
                         .err_code
-                        .ok_or(errors::ParsingError)?
-                        .to_string(),
-                    message: item.response.reason.clone().ok_or(errors::ParsingError)?,
+                        .map(|c| c.to_string())
+                        .unwrap_or_default(),
+                    message: item.response.reason.unwrap_or_default(),
                     reason: None,
                     status_code: item.http_code,
                 }),
-                _ => Ok(types::PaymentsResponseData::TransactionResponse {
-                    resource_id: types::ResponseId::ConnectorTransactionId(
-                        item.response.transaction_id.ok_or(errors::ParsingError)?,
-                    ),
-                    redirection_data: None,
-                    mandate_reference: None,
-                    connector_metadata: Some(
-                        serde_json::to_value(NuveiMeta {
-                            session_token: item.response.session_token.unwrap_or_default(),
-                        })
-                        .into_report()
-                        .change_context(errors::ParsingError)?,
-                    ),
-                }),
+                _ => match item.response.transaction_status {
+                    Some(NuveiTransactionStatus::Error) => Err(types::ErrorResponse {
+                        code: item
+                            .response
+                            .gw_error_code
+                            .map(|c| c.to_string())
+                            .unwrap_or_default(),
+                        message: item
+                            .response
+                            .gw_error_reason
+                            .map(|c| c.to_string())
+                            .unwrap_or_default(),
+                        reason: None,
+                        status_code: item.http_code,
+                    }),
+                    _ => Ok(types::PaymentsResponseData::TransactionResponse {
+                        resource_id: types::ResponseId::ConnectorTransactionId(
+                            item.response.transaction_id.ok_or(errors::ParsingError)?,
+                        ),
+                        redirection_data: None,
+                        mandate_reference: None,
+                        connector_metadata: Some(
+                            serde_json::to_value(NuveiMeta {
+                                session_token: item.response.session_token.unwrap_or_default(),
+                            })
+                            .into_report()
+                            .change_context(errors::ParsingError)?,
+                        ),
+                    }),
+                },
             },
             ..item.data
         })
@@ -576,13 +593,23 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, NuveiPaymentsRespons
         let refund_status = item
             .response
             .transaction_status
+            .clone()
             .map(|a| a.into())
             .unwrap_or(enums::RefundStatus::Failure);
-        Ok(Self {
-            response: Ok(types::RefundsResponseData {
+        let refund_response = match item.response.status {
+            NuveiPaymentStatus::Error => Err(types::ErrorResponse {
+                code: item.response.err_code.map(|c| c.to_string()).unwrap_or_default(),
+                message: item.response.reason.unwrap_or_default(),
+                reason: None,
+                status_code: item.http_code,
+            }),
+            _ => Ok(types::RefundsResponseData {
                 connector_refund_id: item.response.transaction_id.ok_or(errors::ParsingError)?,
                 refund_status,
-            }),
+            })
+        };
+        Ok(Self {
+            response: refund_response,
             ..item.data
         })
     }
@@ -598,13 +625,23 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, NuveiPaymentsResponse>
         let refund_status = item
             .response
             .transaction_status
+            .clone()
             .map(|a| a.into())
             .unwrap_or(enums::RefundStatus::Failure);
-        Ok(Self {
-            response: Ok(types::RefundsResponseData {
+        let refund_response = match item.response.status {
+            NuveiPaymentStatus::Error => Err(types::ErrorResponse {
+                code: item.response.err_code.map(|c| c.to_string()).unwrap_or_default(),
+                message: item.response.reason.unwrap_or_default(),
+                reason: None,
+                status_code: item.http_code,
+            }),
+            _ => Ok(types::RefundsResponseData {
                 connector_refund_id: item.response.transaction_id.ok_or(errors::ParsingError)?,
                 refund_status,
-            }),
+            })
+        };
+        Ok(Self {
+            response: refund_response,
             ..item.data
         })
     }

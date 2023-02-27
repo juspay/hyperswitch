@@ -549,6 +549,7 @@ pub enum Connector {
     Cybersource,
     #[default]
     Dummy,
+    Bambora,
     Dlocal,
     Fiserv,
     Globalpay,
@@ -587,6 +588,7 @@ pub enum RoutableConnectors {
     Adyen,
     Airwallex,
     Authorizedotnet,
+    Bambora,
     Bluesnap,
     Braintree,
     Checkout,
