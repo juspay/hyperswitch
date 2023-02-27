@@ -19,7 +19,7 @@ pub(crate) struct ConnectorAuthentication {
     pub rapyd: Option<BodyKey>,
     pub shift4: Option<HeaderKey>,
     pub stripe: Option<HeaderKey>,
-    pub worldpay: Option<HeaderKey>,
+    pub worldpay: Option<BodyKey>,
     pub worldline: Option<SignatureKey>,
 }
 

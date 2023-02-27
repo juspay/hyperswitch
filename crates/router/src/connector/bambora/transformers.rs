@@ -1,21 +1,21 @@
 use base64::Engine;
+use masking::Secret;
 use serde::{Deserialize, Deserializer, Serialize};
 
 use crate::{
     connector::utils::PaymentsAuthorizeRequestData,
     consts,
     core::errors,
-    pii::PeekInterface,
     types::{self, api, storage::enums},
 };
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
 pub struct BamboraCard {
-    name: String,
-    number: String,
-    expiry_month: String,
-    expiry_year: String,
-    cvd: String,
+    name: Secret<String>,
+    number: Secret<String, common_utils::pii::CardNumber>,
+    expiry_month: Secret<String>,
+    expiry_year: Secret<String>,
+    cvd: Secret<String>,
     complete: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(rename = "3d_secure")]
@@ -51,18 +51,18 @@ pub struct BamboraPaymentsRequest {
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for BamboraPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
-        match item.request.payment_method_data {
-            api::PaymentMethodData::Card(ref req_card) => {
+        match item.request.payment_method_data.clone() {
+            api::PaymentMethodData::Card(req_card) => {
                 let three_ds = match item.auth_type {
                     enums::AuthenticationType::ThreeDs => Some(ThreeDSecure { enabled: true }),
                     enums::AuthenticationType::NoThreeDs => None,
                 };
                 let bambora_card = BamboraCard {
-                    name: req_card.card_holder_name.peek().clone(),
-                    number: req_card.card_number.peek().clone(),
-                    expiry_month: req_card.card_exp_month.peek().clone(),
-                    expiry_year: req_card.card_exp_year.peek().clone(),
-                    cvd: req_card.card_cvc.peek().clone(),
+                    name: req_card.card_holder_name,
+                    number: req_card.card_number,
+                    expiry_month: req_card.card_exp_month,
+                    expiry_year: req_card.card_exp_year,
+                    cvd: req_card.card_cvc,
                     three_d_secure: three_ds,
                     complete: item.request.is_auto_capture(),
                 };

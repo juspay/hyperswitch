@@ -26,7 +26,8 @@ api_secret = "Secret key"
 api_key = "Bearer MyApiKey"
 
 [worldpay]
-api_key = "Bearer MyApiKey"
+api_key = "api_key"
+key1 = "key1"
 
 [payu]
 api_key = "Bearer MyApiKey"

@@ -1,6 +1,7 @@
 use base64::Engine;
 use common_utils::errors::CustomResult;
-use error_stack::ResultExt;
+use error_stack::{ResultExt, IntoReport};
+use masking::PeekInterface;
 use storage_models::enums;
 
 use super::{requests::*, response::*};
@@ -10,14 +11,17 @@ use crate::{
     types::{self, api},
 };
 
+
 fn fetch_payment_instrument(
     payment_method: api::PaymentMethodData,
 ) -> CustomResult<PaymentInstrument, errors::ConnectorError> {
     match payment_method {
         api::PaymentMethodData::Card(card) => Ok(PaymentInstrument::Card(CardPayment {
             card_expiry_date: CardExpiryDate {
-                month: card.card_exp_month,
-                year: card.card_exp_year,
+                month: card.card_exp_month.peek().clone().parse::<i8>().into_report()
+                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?,
+                year: card.card_exp_year.peek().clone().parse::<i32>().into_report()
+                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?,
             },
             card_number: card.card_number,
             ..CardPayment::default()
@@ -73,7 +77,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for WorldpayPaymentsRequest {
                 debt_repayment: None,
             },
             merchant: Merchant {
-                entity: item.payment_id.clone().replace('_', "-"),
+                entity: item.attempt_id.clone().replace('_', "-"),
                 ..Default::default()
             },
             transaction_reference: item.attempt_id.clone(),
