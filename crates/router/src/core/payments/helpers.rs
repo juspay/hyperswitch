@@ -721,18 +721,19 @@ pub async fn make_pm_data<'a, F: Clone, R>(
                     payment_data.payment_attempt.payment_method =
                         Some(storage_enums::PaymentMethod::Wallet);
                     // TODO: Remove redundant update from wallets.
-                    if wallet_data.token.is_some() {
-                        let updated_pm = api::PaymentMethodData::Wallet(wallet_data);
-                        vault::Vault::store_payment_method_data_in_locker(
-                            state,
-                            Some(token),
-                            &updated_pm,
-                            payment_data.payment_intent.customer_id.to_owned(),
-                        )
-                        .await?;
-                        Some(updated_pm)
-                    } else {
-                        pm
+                    match wallet_data {
+                        api_models::payments::WalletData::PaypalRedirect(_) => pm,
+                        _ => {
+                            let updated_pm = api::PaymentMethodData::Wallet(wallet_data);
+                            vault::Vault::store_payment_method_data_in_locker(
+                                state,
+                                Some(token),
+                                &updated_pm,
+                                payment_data.payment_intent.customer_id.to_owned(),
+                            )
+                            .await?;
+                            Some(updated_pm)
+                        }
                     }
                 }
 

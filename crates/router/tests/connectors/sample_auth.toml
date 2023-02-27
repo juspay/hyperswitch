@@ -26,7 +26,8 @@ api_secret = "Secret key"
 api_key = "Bearer MyApiKey"
 
 [worldpay]
-api_key = "Bearer MyApiKey"
+api_key = "api_key"
+key1 = "key1"
 
 [payu]
 api_key = "Bearer MyApiKey"
@@ -52,4 +53,13 @@ api_secret = "API Secret Key"
 [dlocal]
 key1 = "key1"
 api_key = "api_key"
+api_secret = "secret"
+
+[bambora]
+api_key = "api_key"
+key1= "key1"
+
+[nuvei]
+api_key = "api_key"
+key1 = "key1"
 api_secret = "secret"

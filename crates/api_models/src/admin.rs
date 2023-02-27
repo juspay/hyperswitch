@@ -26,7 +26,7 @@ pub struct CreateMerchantAccount {
     pub merchant_details: Option<MerchantDetails>,
 
     /// The URL to redirect after the completion of the operation
-    #[schema(max_length = 255, example = "https://www.example.com/success")]
+    #[schema(value_type = Option<String>, max_length = 255, example = "https://www.example.com/success")]
     pub return_url: Option<url::Url>,
 
     /// Webhook related details
@@ -311,6 +311,7 @@ pub struct AcceptedCurrencies {
     #[serde(rename = "type")]
     pub accept_type: String,
     /// List of currencies of the provided type
+    #[schema(value_type = Option<Vec<Currency>>)]
     pub list: Option<Vec<api_enums::Currency>>,
 }
 

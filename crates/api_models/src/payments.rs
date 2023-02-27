@@ -18,6 +18,30 @@ pub enum PaymentOp {
     Confirm,
 }
 
+#[derive(serde::Deserialize)]
+pub struct BankData {
+    pub payment_method_type: api_enums::PaymentMethodType,
+    pub code_information: Vec<BankCodeInformation>,
+}
+
+#[derive(serde::Deserialize)]
+pub struct BankCodeInformation {
+    pub bank_name: api_enums::BankNames,
+    pub connector_codes: Vec<ConnectorCode>,
+}
+
+#[derive(serde::Deserialize)]
+pub struct ConnectorCode {
+    pub connector: api_enums::Connector,
+    pub code: String,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, PartialEq, Eq)]
+pub struct BankCodeResponse {
+    pub bank_name: Vec<api_enums::BankNames>,
+    pub eligible_connectors: Vec<String>,
+}
+
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct PaymentsRequest {
@@ -97,7 +121,7 @@ pub struct PaymentsRequest {
     pub description: Option<String>,
 
     /// The URL to redirect after the completion of the operation
-    #[schema(example = "https://hyperswitch.io")]
+    #[schema(value_type = Option<String>, example = "https://hyperswitch.io")]
     pub return_url: Option<url::Url>,
     /// Indicates that you intend to make future payments with this Payment’s payment method. Providing this parameter will attach the payment method to the Customer, if present, after the Payment is confirmed and any required actions from the user are complete.
     #[schema(value_type = Option<FutureUsage>, example = "off_session")]
@@ -112,7 +136,7 @@ pub struct PaymentsRequest {
     pub payment_method_data: Option<PaymentMethodData>,
 
     /// The payment method that is to be used
-    #[schema(value_type = Option<PaymentMethodType>, example = "bank_transfer")]
+    #[schema(value_type = Option<PaymentMethod>, example = "card")]
     pub payment_method: Option<api_enums::PaymentMethod>,
 
     /// Provide a reference to a stored payment method
@@ -170,7 +194,7 @@ pub struct PaymentsRequest {
     pub payment_experience: Option<api_enums::PaymentExperience>,
 
     /// Payment Method Type
-    #[schema(value_type = Option<PaymentMethodSubType>, example = "gpay")]
+    #[schema(value_type = Option<PaymentMethodType>, example = "google_pay")]
     pub payment_method_type: Option<api_enums::PaymentMethodType>,
 }
 
@@ -358,7 +382,7 @@ pub struct Card {
     #[schema(value_type = String, example = "242")]
     pub card_cvc: Secret<String>,
     pub card_issuer: Option<String>,
-    pub card_network: Option<String>,
+    pub card_network: Option<api_enums::CardNetwork>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -418,7 +442,10 @@ impl From<&PaymentMethodData> for AdditionalPaymentData {
         match pm_data {
             PaymentMethodData::Card(card_data) => Self::Card {
                 card_issuer: card_data.card_issuer.to_owned(),
-                card_network: card_data.card_network.to_owned(),
+                card_network: card_data
+                    .card_network
+                    .as_ref()
+                    .map(|card_network| card_network.to_string()),
             },
             PaymentMethodData::BankRedirect(bank_redirect_data) => match bank_redirect_data {
                 BankRedirectData::Eps { bank_name, .. } => Self::BankRedirect {
@@ -441,6 +468,7 @@ pub enum BankRedirectData {
     Eps {
         /// The billing details for bank redirection
         billing_details: BankRedirectBilling,
+        #[schema(value_type = BankNames)]
         bank_name: api_enums::BankNames,
     },
     Giropay {
@@ -450,6 +478,7 @@ pub enum BankRedirectData {
     Ideal {
         /// The billing details for bank redirection
         billing_details: BankRedirectBilling,
+        #[schema(value_type = BankNames)]
         bank_name: api_enums::BankNames,
     },
     Sofort {
@@ -472,16 +501,103 @@ pub struct BankRedirectionRequest {}
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct BankRedirectBilling {
     /// The name for which billing is issued
+    #[schema(value_type = String)]
     pub billing_name: Secret<String>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
-pub struct WalletData {
-    /// The issuer of the wallet
-    #[schema(value_type = WalletIssuer)]
-    pub issuer_name: api_enums::WalletIssuer,
+#[serde(rename_all = "snake_case")]
+pub enum WalletData {
+    /// The wallet data for Google pay
+    GooglePay(GpayWalletData),
+    /// The wallet data for Apple pay
+    ApplePay(ApplePayWalletData),
+    /// The wallet data for Paypal
+    PaypalSdk(PayPalWalletData),
+    /// This is for paypal redirection
+    PaypalRedirect(PaypalRedirection),
+}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct GpayWalletData {
+    /// The type of payment method
+    #[serde(rename = "type")]
+    pub pm_type: String,
+    /// User-facing message to describe the payment method that funds this transaction.
+    pub description: String,
+    /// The information of the payment method
+    pub info: GpayPaymentMethodInfo,
+    /// The tokenization data of Google pay
+    pub tokenization_data: GpayTokenizationData,
+}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct PaypalRedirection {}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct GpayPaymentMethodInfo {
+    /// The name of the card network
+    pub card_network: String,
+    /// The details of the card
+    pub card_details: String,
+}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct PayPalWalletData {
+    /// Token generated for the Apple pay
+    pub token: String,
+}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct GpayTokenizationData {
+    /// The type of the token
+    #[serde(rename = "type")]
+    pub token_type: String,
     /// Token generated for the wallet
-    pub token: Option<String>,
+    pub token: String,
+}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct ApplePayWalletData {
+    /// The payment data of Apple pay
+    pub payment_data: ApplepayPaymentData,
+    /// The payment method of Apple pay
+    pub payment_method: ApplepayPaymentMethod,
+    /// The unique identifier for the transaction
+    pub transaction_identifier: String,
+}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct ApplepayPaymentData {
+    /// The data of Apple pay payment
+    pub data: String,
+    /// A string which represents the properties of a payment
+    pub signature: String,
+    /// The Apple pay header
+    pub header: ApplepayHeader,
+    /// The Apple Pay version used
+    pub version: String,
+}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct ApplepayHeader {
+    /// The public key hash used
+    pub public_key_hash: String,
+    /// The ephemeral public key used
+    pub ephemeral_public_key: String,
+    /// The unique identifier for the transaction
+    pub transaction_id: String,
+}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct ApplepayPaymentMethod {
+    /// The name to be displayed on Apple Pay button
+    pub display_name: String,
+    /// The network of the Apple pay payment method
+    pub network: String,
+    /// The type of the payment method
+    #[serde(rename = "type")]
+    pub pm_type: String,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Serialize)]
@@ -785,7 +901,7 @@ pub struct PaymentsResponse {
     #[schema(value_type = Option<PaymentExperience>, example = "redirect_to_url")]
     pub payment_experience: Option<api_enums::PaymentExperience>,
     /// Payment Method Type
-    #[schema(value_type = Option<PaymentMethodSubType>, example = "gpay")]
+    #[schema(value_type = Option<PaymentMethodType>, example = "gpay")]
     pub payment_method_type: Option<api_enums::PaymentMethodType>,
 }
 
@@ -1097,16 +1213,16 @@ pub struct GpaySessionTokenData {
 
 #[derive(Debug, Clone, serde::Serialize, ToSchema)]
 #[serde(tag = "wallet_name")]
-#[serde(rename_all = "lowercase")]
+#[serde(rename_all = "snake_case")]
 pub enum SessionToken {
     /// The session response structure for Google Pay
-    Gpay(Box<GpaySessionTokenResponse>),
+    GooglePay(Box<GpaySessionTokenResponse>),
     /// The session response structure for Klarna
     Klarna(Box<KlarnaSessionTokenResponse>),
     /// The session response structure for PayPal
     Paypal(Box<PaypalSessionTokenResponse>),
     /// The session response structure for Apple Pay
-    Applepay(Box<ApplepaySessionTokenResponse>),
+    ApplePay(Box<ApplepaySessionTokenResponse>),
 }
 
 #[derive(Debug, Clone, serde::Serialize, ToSchema)]
