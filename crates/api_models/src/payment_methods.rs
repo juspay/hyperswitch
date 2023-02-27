@@ -176,7 +176,7 @@ pub struct ResponsePaymentMethodsEnabled {
     pub payment_method_types: Vec<ResponsePaymentMethodTypes>,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct ResponsePaymentMethodIntermediate {
     pub payment_method_type: api_enums::PaymentMethodType,
     pub payment_experience: Option<api_enums::PaymentExperience>,
