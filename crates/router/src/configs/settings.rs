@@ -1,4 +1,8 @@
-use std::{collections::HashMap, path::PathBuf, str::FromStr};
+use std::{
+    collections::{HashMap, HashSet},
+    path::PathBuf,
+    str::FromStr,
+};
 
 use common_utils::ext_traits::ConfigExt;
 use config::{Environment, File};
@@ -67,13 +71,13 @@ pub struct PaymentMethodFilters(
 #[derive(Debug, Deserialize, Clone, Default)]
 #[serde(default)]
 pub struct CurrencyCountryFilter {
-    #[serde(deserialize_with = "currency_vec_deser")]
-    pub currency: Option<Vec<api_models::enums::Currency>>,
-    #[serde(deserialize_with = "string_vec_deser")]
-    pub country: Option<Vec<String>>,
+    #[serde(deserialize_with = "currency_set_deser")]
+    pub currency: Option<HashSet<api_models::enums::Currency>>,
+    #[serde(deserialize_with = "string_set_deser")]
+    pub country: Option<HashSet<String>>,
 }
 
-fn string_vec_deser<'a, D>(deserializer: D) -> Result<Option<Vec<String>>, D::Error>
+fn string_set_deser<'a, D>(deserializer: D) -> Result<Option<HashSet<String>>, D::Error>
 where
     D: Deserializer<'a>,
 {
@@ -83,7 +87,7 @@ where
             .trim()
             .split(',')
             .map(|value| value.to_string())
-            .collect::<Vec<_>>();
+            .collect::<HashSet<_>>();
         match list.len() {
             0 => None,
             _ => Some(list),
@@ -91,9 +95,9 @@ where
     }))
 }
 
-fn currency_vec_deser<'a, D>(
+fn currency_set_deser<'a, D>(
     deserializer: D,
-) -> Result<Option<Vec<api_models::enums::Currency>>, D::Error>
+) -> Result<Option<HashSet<api_models::enums::Currency>>, D::Error>
 where
     D: Deserializer<'a>,
 {
@@ -103,7 +107,7 @@ where
             .trim()
             .split(',')
             .flat_map(api_models::enums::Currency::from_str)
-            .collect::<Vec<_>>();
+            .collect::<HashSet<_>>();
         match list.len() {
             0 => None,
             _ => Some(list),
