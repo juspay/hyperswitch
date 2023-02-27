@@ -598,7 +598,11 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, NuveiPaymentsRespons
             .unwrap_or(enums::RefundStatus::Failure);
         let refund_response = match item.response.status {
             NuveiPaymentStatus::Error => Err(types::ErrorResponse {
-                code: item.response.err_code.map(|c| c.to_string()).unwrap_or_default(),
+                code: item
+                    .response
+                    .err_code
+                    .map(|c| c.to_string())
+                    .unwrap_or_default(),
                 message: item.response.reason.unwrap_or_default(),
                 reason: None,
                 status_code: item.http_code,
@@ -606,7 +610,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, NuveiPaymentsRespons
             _ => Ok(types::RefundsResponseData {
                 connector_refund_id: item.response.transaction_id.ok_or(errors::ParsingError)?,
                 refund_status,
-            })
+            }),
         };
         Ok(Self {
             response: refund_response,
@@ -630,7 +634,11 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, NuveiPaymentsResponse>
             .unwrap_or(enums::RefundStatus::Failure);
         let refund_response = match item.response.status {
             NuveiPaymentStatus::Error => Err(types::ErrorResponse {
-                code: item.response.err_code.map(|c| c.to_string()).unwrap_or_default(),
+                code: item
+                    .response
+                    .err_code
+                    .map(|c| c.to_string())
+                    .unwrap_or_default(),
                 message: item.response.reason.unwrap_or_default(),
                 reason: None,
                 status_code: item.http_code,
@@ -638,7 +646,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, NuveiPaymentsResponse>
             _ => Ok(types::RefundsResponseData {
                 connector_refund_id: item.response.transaction_id.ok_or(errors::ParsingError)?,
                 refund_status,
-            })
+            }),
         };
         Ok(Self {
             response: refund_response,

@@ -1,5 +1,5 @@
 use base64::Engine;
-use serde::{Deserialize, Serialize, Deserializer};
+use serde::{Deserialize, Deserializer, Serialize};
 
 use crate::{
     connector::utils::PaymentsAuthorizeRequestData,
@@ -141,7 +141,7 @@ impl<F, T>
                     PaymentFlow::Capture => enums::AttemptStatus::Charged,
                     PaymentFlow::Void => enums::AttemptStatus::Voided,
                 },
-                &_ => Err(errors::ConnectorError::ResponseDeserializationFailed)?
+                &_ => Err(errors::ConnectorError::ResponseDeserializationFailed)?,
             },
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(pg_response.id.to_string()),
@@ -172,7 +172,6 @@ where
     };
     Ok(res)
 }
-
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct BamboraPaymentsResponse {
@@ -378,7 +377,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
         let refund_status = match item.response.approved.as_str() {
             "0" => enums::RefundStatus::Failure,
             "1" => enums::RefundStatus::Success,
-            &_ => Err(errors::ConnectorError::ResponseDeserializationFailed)?
+            &_ => Err(errors::ConnectorError::ResponseDeserializationFailed)?,
         };
         Ok(Self {
             response: Ok(types::RefundsResponseData {
@@ -400,7 +399,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
         let refund_status = match item.response.approved.as_str() {
             "0" => enums::RefundStatus::Failure,
             "1" => enums::RefundStatus::Success,
-            &_ => Err(errors::ConnectorError::ResponseDeserializationFailed)?
+            &_ => Err(errors::ConnectorError::ResponseDeserializationFailed)?,
         };
         Ok(Self {
             response: Ok(types::RefundsResponseData {

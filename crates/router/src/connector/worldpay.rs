@@ -9,6 +9,7 @@ use storage_models::enums;
 use transformers as worldpay;
 
 use self::{requests::*, response::*};
+use super::utils::RefundsRequestData;
 use crate::{
     configs::settings,
     core::{
@@ -24,8 +25,6 @@ use crate::{
     },
     utils::{self, BytesExt},
 };
-
-use super::utils::RefundsRequestData;
 
 #[derive(Debug, Clone)]
 pub struct Worldpay;

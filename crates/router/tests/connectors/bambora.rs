@@ -1,4 +1,4 @@
-use api_models::{payments::PaymentMethodData};
+use api_models::payments::PaymentMethodData;
 use masking::Secret;
 use router::types::{self, api, storage::enums};
 
@@ -37,7 +37,7 @@ static CONNECTOR: BamboraTest = BamboraTest {};
 
 fn get_default_payment_authorize_data() -> Option<types::PaymentsAuthorizeData> {
     Some(types::PaymentsAuthorizeData {
-        payment_method_data:  types::api::PaymentMethodData::Card(api::Card {
+        payment_method_data: types::api::PaymentMethodData::Card(api::Card {
             card_number: Secret::new("4030000010001234".to_string()),
             card_exp_year: Secret::new("25".to_string()),
             card_cvc: Secret::new("123".to_string()),
@@ -187,14 +187,20 @@ async fn should_sync_manually_captured_refund() {
 // Creates a payment using the automatic capture flow (Non 3DS).
 #[actix_web::test]
 async fn should_make_payment() {
-    let authorize_response = CONNECTOR.make_payment(get_default_payment_authorize_data(), None).await.unwrap();
+    let authorize_response = CONNECTOR
+        .make_payment(get_default_payment_authorize_data(), None)
+        .await
+        .unwrap();
     assert_eq!(authorize_response.status, enums::AttemptStatus::Charged);
 }
 
 // Synchronizes a payment using the automatic capture flow (Non 3DS).
 #[actix_web::test]
 async fn should_sync_auto_captured_payment() {
-    let authorize_response = CONNECTOR.make_payment(get_default_payment_authorize_data(), None).await.unwrap();
+    let authorize_response = CONNECTOR
+        .make_payment(get_default_payment_authorize_data(), None)
+        .await
+        .unwrap();
     assert_eq!(authorize_response.status, enums::AttemptStatus::Charged);
     let txn_id = utils::get_connector_transaction_id(authorize_response.response);
     assert_ne!(txn_id, None, "Empty connector transaction id");
@@ -392,7 +398,10 @@ async fn should_fail_payment_for_incorrect_expiry_year() {
 // Voids a payment using automatic capture flow (Non 3DS).
 #[actix_web::test]
 async fn should_fail_void_payment_for_auto_capture() {
-    let authorize_response = CONNECTOR.make_payment(get_default_payment_authorize_data(), None).await.unwrap();
+    let authorize_response = CONNECTOR
+        .make_payment(get_default_payment_authorize_data(), None)
+        .await
+        .unwrap();
     assert_eq!(authorize_response.status, enums::AttemptStatus::Charged);
     let txn_id = utils::get_connector_transaction_id(authorize_response.response);
     assert_ne!(txn_id, None, "Empty connector transaction id");

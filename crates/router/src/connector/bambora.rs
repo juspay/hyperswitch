@@ -81,7 +81,7 @@ impl ConnectorCommon for Bambora {
             status_code: res.status_code,
             code: response.code.to_string(),
             message: response.message,
-            reason:  Some(serde_json::to_string(&response.details).unwrap_or_default()),
+            reason: Some(serde_json::to_string(&response.details).unwrap_or_default()),
         })
     }
 }
