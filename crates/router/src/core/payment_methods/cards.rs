@@ -14,6 +14,7 @@ use error_stack::{report, ResultExt};
 use router_env::{instrument, tracing};
 
 use crate::{
+    configs::settings,
     core::{
         errors::{self, StorageErrorExt},
         payment_methods::{transformers as payment_methods, vault},
@@ -348,10 +349,13 @@ pub async fn delete_card<'a>(
 }
 
 pub async fn list_payment_methods(
-    db: &dyn db::StorageInterface,
+    state: &routes::AppState,
     merchant_account: storage::MerchantAccount,
     mut req: api::ListPaymentMethodRequest,
 ) -> errors::RouterResponse<api::ListPaymentMethodResponse> {
+    let db = &*state.store;
+    let pm_config_mapping = &state.conf.pm_filters;
+
     let payment_intent = helpers::verify_client_secret(
         db,
         merchant_account.storage_scheme,
@@ -410,6 +414,7 @@ pub async fn list_payment_methods(
             payment_attempt.as_ref(),
             address.as_ref(),
             mca.connector_name,
+            pm_config_mapping,
         )
         .await?;
     }
@@ -567,6 +572,7 @@ pub async fn list_payment_methods(
         )))
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn filter_payment_methods(
     payment_methods: Vec<serde_json::Value>,
     req: &mut api::ListPaymentMethodRequest,
@@ -575,6 +581,7 @@ async fn filter_payment_methods(
     payment_attempt: Option<&storage::PaymentAttempt>,
     address: Option<&storage::Address>,
     connector: String,
+    config: &settings::ConnectorFilters,
 ) -> errors::CustomResult<(), errors::ApiErrorResponse> {
     for payment_method in payment_methods.into_iter() {
         let parse_result = serde_json::from_value::<PaymentMethodsEnabled>(payment_method);
@@ -627,6 +634,16 @@ async fn filter_payment_methods(
                         true
                     };
 
+                    let filter5 = filter_pm_based_on_config(
+                        config,
+                        &connector,
+                        &payment_method_object.payment_method_type,
+                        address.and_then(|inner| inner.country.clone()),
+                        payment_attempt
+                            .and_then(|value| value.currency)
+                            .map(|value| value.foreign_into()),
+                    );
+
                     let connector = connector.clone();
 
                     let response_pm_type = ResponsePaymentMethodIntermediate::new(
@@ -635,7 +652,7 @@ async fn filter_payment_methods(
                         payment_method,
                     );
 
-                    if filter && filter2 && filter3 && filter4 {
+                    if filter && filter2 && filter3 && filter4 && filter5 {
                         resp.push(response_pm_type);
                     }
                 }
@@ -643,6 +660,33 @@ async fn filter_payment_methods(
         }
     }
     Ok(())
+}
+
+fn filter_pm_based_on_config<'a>(
+    config: &'a crate::configs::settings::ConnectorFilters,
+    connector: &'a str,
+    payment_method_type: &'a api_enums::PaymentMethodType,
+    country: Option<String>,
+    currency: Option<api_enums::Currency>,
+) -> bool {
+    config
+        .0
+        .get(connector)
+        .and_then(|inner| inner.0.get(payment_method_type))
+        .map(|value| {
+            let condition1 = value
+                .country
+                .as_ref()
+                .zip(country)
+                .map(|(lhs, rhs)| lhs.contains(&rhs));
+            let condition2 = value
+                .currency
+                .as_ref()
+                .zip(currency)
+                .map(|(lhs, rhs)| lhs.contains(&rhs));
+            condition1.unwrap_or(true) && condition2.unwrap_or(true)
+        })
+        .unwrap_or(true)
 }
 
 fn filter_pm_card_network_based(
