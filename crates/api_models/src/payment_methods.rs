@@ -4,7 +4,10 @@ use common_utils::pii;
 use serde::de;
 use utoipa::ToSchema;
 
-use crate::{admin, enums as api_enums, payments};
+use crate::{
+    admin, enums as api_enums,
+    payments::{self, BankCodeResponse},
+};
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 #[serde(deny_unknown_fields)]
@@ -168,6 +171,7 @@ pub struct ResponsePaymentMethodTypes {
     pub payment_method_type: api_enums::PaymentMethodType,
     pub payment_experience: Option<Vec<PaymentExperienceTypes>>,
     pub card_networks: Option<Vec<CardNetworkTypes>>,
+    pub bank_names: Option<Vec<BankCodeResponse>>,
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]

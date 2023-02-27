@@ -18,6 +18,30 @@ pub enum PaymentOp {
     Confirm,
 }
 
+#[derive(serde::Deserialize)]
+pub struct BankData {
+    pub payment_method_type: api_enums::PaymentMethodType,
+    pub code_information: Vec<BankCodeInformation>,
+}
+
+#[derive(serde::Deserialize)]
+pub struct BankCodeInformation {
+    pub bank_name: api_enums::BankNames,
+    pub connector_codes: Vec<ConnectorCode>,
+}
+
+#[derive(serde::Deserialize)]
+pub struct ConnectorCode {
+    pub connector: api_enums::Connector,
+    pub code: String,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, PartialEq, Eq)]
+pub struct BankCodeResponse {
+    pub bank_name: Vec<api_enums::BankNames>,
+    pub eligible_connectors: Vec<String>,
+}
+
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct PaymentsRequest {
