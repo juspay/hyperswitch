@@ -1,10 +1,14 @@
-use std::path::PathBuf;
+use std::{
+    collections::{HashMap, HashSet},
+    path::PathBuf,
+    str::FromStr,
+};
 
 use common_utils::ext_traits::ConfigExt;
 use config::{Environment, File};
 use redis_interface::RedisSettings;
 pub use router_env::config::{Log, LogConsole, LogFile, LogTelemetry};
-use serde::Deserialize;
+use serde::{Deserialize, Deserializer};
 
 use crate::{
     core::errors::{ApplicationError, ApplicationResult},
@@ -51,6 +55,64 @@ pub struct Settings {
     pub drainer: DrainerSettings,
     pub jwekey: Jwekey,
     pub webhooks: WebhooksSettings,
+    pub pm_filters: ConnectorFilters,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+#[serde(transparent)]
+pub struct ConnectorFilters(pub HashMap<String, PaymentMethodFilters>);
+
+#[derive(Debug, Deserialize, Clone, Default)]
+#[serde(transparent)]
+pub struct PaymentMethodFilters(
+    pub HashMap<api_models::enums::PaymentMethodType, CurrencyCountryFilter>,
+);
+
+#[derive(Debug, Deserialize, Clone, Default)]
+#[serde(default)]
+pub struct CurrencyCountryFilter {
+    #[serde(deserialize_with = "currency_set_deser")]
+    pub currency: Option<HashSet<api_models::enums::Currency>>,
+    #[serde(deserialize_with = "string_set_deser")]
+    pub country: Option<HashSet<String>>,
+}
+
+fn string_set_deser<'a, D>(deserializer: D) -> Result<Option<HashSet<String>>, D::Error>
+where
+    D: Deserializer<'a>,
+{
+    let value = <Option<String>>::deserialize(deserializer)?;
+    Ok(value.and_then(|inner| {
+        let list = inner
+            .trim()
+            .split(',')
+            .map(|value| value.to_string())
+            .collect::<HashSet<_>>();
+        match list.len() {
+            0 => None,
+            _ => Some(list),
+        }
+    }))
+}
+
+fn currency_set_deser<'a, D>(
+    deserializer: D,
+) -> Result<Option<HashSet<api_models::enums::Currency>>, D::Error>
+where
+    D: Deserializer<'a>,
+{
+    let value = <Option<String>>::deserialize(deserializer)?;
+    Ok(value.and_then(|inner| {
+        let list = inner
+            .trim()
+            .split(',')
+            .flat_map(api_models::enums::Currency::from_str)
+            .collect::<HashSet<_>>();
+        match list.len() {
+            0 => None,
+            _ => Some(list),
+        }
+    }))
 }
 
 #[derive(Debug, Deserialize, Clone)]

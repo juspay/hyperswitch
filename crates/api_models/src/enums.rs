@@ -427,7 +427,6 @@ pub enum PaymentMethod {
     Card,
     PayLater,
     Wallet,
-    BankRedirect,
 }
 
 #[derive(
@@ -627,6 +626,7 @@ pub enum SupportedWallets {
     strum::Display,
     strum::EnumString,
     frunk::LabelledGeneric,
+    ToSchema,
 )]
 #[strum(serialize_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
