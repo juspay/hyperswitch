@@ -56,6 +56,20 @@ pub struct Settings {
     pub jwekey: Jwekey,
     pub webhooks: WebhooksSettings,
     pub pm_filters: ConnectorFilters,
+    pub bank_config: BankRedirectConfig,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct BankRedirectConfig(
+    pub HashMap<api_models::enums::PaymentMethodType, ConnectorBankNames>,
+);
+#[derive(Debug, Deserialize, Clone)]
+pub struct ConnectorBankNames(pub HashMap<String, BanksVector>);
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct BanksVector {
+    #[serde(deserialize_with = "bank_vec_deser")]
+    pub banks: HashSet<api_models::enums::BankNames>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -113,6 +127,18 @@ where
             _ => Some(list),
         }
     }))
+}
+
+fn bank_vec_deser<'a, D>(deserializer: D) -> Result<HashSet<api_models::enums::BankNames>, D::Error>
+where
+    D: Deserializer<'a>,
+{
+    let value = <String>::deserialize(deserializer)?;
+    Ok(value
+        .trim()
+        .split(',')
+        .flat_map(api_models::enums::BankNames::from_str)
+        .collect())
 }
 
 #[derive(Debug, Deserialize, Clone)]
