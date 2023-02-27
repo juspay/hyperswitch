@@ -284,7 +284,7 @@ pub struct StripePaymentIntentResponse {
     pub mandate_data: Option<payments::MandateData>,
     pub setup_future_usage: Option<api_models::enums::FutureUsage>,
     pub off_session: Option<bool>,
-    
+
     pub authentication_type: Option<api_models::enums::AuthenticationType>,
     pub next_action: Option<StripeNextAction>,
     pub cancellation_reason: Option<String>,
@@ -476,7 +476,7 @@ pub struct RedirectUrl {
     pub url: Option<String>,
 }
 
-#[derive( Eq, PartialEq, Serialize)]
+#[derive(Eq, PartialEq, Serialize)]
 pub struct StripeNextAction {
     #[serde(rename = "type")]
     stype: payments::NextActionType,
