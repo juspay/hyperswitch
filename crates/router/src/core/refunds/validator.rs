@@ -148,6 +148,7 @@ pub fn validate_for_valid_refunds(
         .get_required_value("connector")?
         .parse_enum("connector")
         .change_context(errors::ApiErrorResponse::IncorrectConnectorNameGiven)?;
+
     let payment_method_type = payment_attempt
         .payment_method_type
         .clone()
