@@ -85,6 +85,7 @@ impl From<StripeCard> for payments::Card {
         }
     }
 }
+
 impl From<StripePaymentMethodDetails> for payments::PaymentMethodData {
     fn from(item: StripePaymentMethodDetails) -> Self {
         match item {
@@ -283,9 +284,9 @@ pub struct StripePaymentIntentResponse {
     pub mandate_data: Option<payments::MandateData>,
     pub setup_future_usage: Option<api_models::enums::FutureUsage>,
     pub off_session: Option<bool>,
-    pub return_url: Option<String>,
+
     pub authentication_type: Option<api_models::enums::AuthenticationType>,
-    pub next_action: Option<payments::NextAction>,
+    pub next_action: Option<StripeNextAction>,
     pub cancellation_reason: Option<String>,
     pub payment_method: Option<api_models::enums::PaymentMethod>,
     pub payment_method_data: Option<payments::PaymentMethodDataResponse>,
@@ -334,11 +335,10 @@ impl From<payments::PaymentsResponse> for StripePaymentIntentResponse {
             email: resp.email,
             name: resp.name,
             phone: resp.phone,
-            return_url: resp.return_url,
             authentication_type: resp.authentication_type,
             statement_descriptor_name: resp.statement_descriptor_name,
             statement_descriptor_suffix: resp.statement_descriptor_suffix,
-            next_action: resp.next_action,
+            next_action: into_stripe_next_action(resp.next_action, resp.return_url),
             cancellation_reason: resp.cancellation_reason,
             error_code: resp.error_code,
             error_message: resp.error_message,
@@ -468,4 +468,30 @@ impl From<Foreign<Option<Request3DS>>> for Foreign<api_models::enums::Authentica
             Request3DS::Any => api_models::enums::AuthenticationType::ThreeDs,
         })
     }
+}
+
+#[derive(Default, Eq, PartialEq, Serialize)]
+pub struct RedirectUrl {
+    pub return_url: Option<String>,
+    pub url: Option<String>,
+}
+
+#[derive(Eq, PartialEq, Serialize)]
+pub struct StripeNextAction {
+    #[serde(rename = "type")]
+    stype: payments::NextActionType,
+    redirect_to_url: RedirectUrl,
+}
+
+fn into_stripe_next_action(
+    next_action: Option<payments::NextAction>,
+    return_url: Option<String>,
+) -> Option<StripeNextAction> {
+    next_action.map(|n| StripeNextAction {
+        stype: n.next_action_type,
+        redirect_to_url: RedirectUrl {
+            return_url,
+            url: n.redirect_to_url,
+        },
+    })
 }

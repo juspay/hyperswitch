@@ -1,5 +1,5 @@
 use base64::Engine;
-use error_stack::ResultExt;
+use error_stack::{IntoReport, ResultExt};
 use masking::PeekInterface;
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
@@ -337,6 +337,11 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for AdyenPaymentRequest {
                 get_paylater_specific_payment_data(item)
             }
             storage_models::enums::PaymentMethod::Wallet => get_wallet_specific_payment_data(item),
+            _ => Err(errors::ConnectorError::NotSupported {
+                payment_method: item.payment_method.to_string(),
+                connector: "adyen",
+            })
+            .into_report()?,
         }
     }
 }
