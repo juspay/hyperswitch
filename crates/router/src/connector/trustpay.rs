@@ -204,15 +204,36 @@ impl
         req: &types::PaymentsSyncRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        let mut header = vec![
-            (
-                headers::CONTENT_TYPE.to_string(),
-                types::PaymentsAuthorizeType::get_content_type(self).to_string(),
-            ),
-        ];
-        let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
-        header.append(&mut api_key);
-        Ok(header)
+        match req.payment_method {
+            storage_models:: enums:: PaymentMethodType::BankRedirect => {
+                let access_token = req
+                    .access_token
+                    .clone()
+                    .ok_or(errors::ConnectorError::FailedToObtainAuthType)?;
+                let header = vec![
+                    (
+                        headers::CONTENT_TYPE.to_string(),
+                        "application/json".to_owned(),
+                    ),
+                    (
+                        headers::AUTHORIZATION.to_string(),
+                        format!("Bearer {}", access_token.token),
+                    ),
+                ];
+                Ok(header)
+            }
+            _ => {
+                let mut header = vec![
+                    (
+                        headers::CONTENT_TYPE.to_string(),
+                        types::PaymentsAuthorizeType::get_content_type(self).to_string(),
+                    ),
+                ];
+                let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
+                header.append(&mut api_key);
+                Ok(header)
+            }
+        }
     }
 
     fn get_content_type(&self) -> &'static str {
@@ -225,13 +246,23 @@ impl
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let id = req.request.connector_transaction_id.clone();
-        Ok(format!(
-            "{}{}/{}",
-            self.base_url(connectors),
-            "api/v1/instance",
-            id.get_connector_transaction_id()
-                .change_context(errors::ConnectorError::MissingConnectorTransactionID)?
-        ))
+        match req.payment_method {
+            storage_models:: enums:: PaymentMethodType::BankRedirect => {
+                Ok(format!(
+                    "{}/{}",
+                    "https://aapi.trustpay.eu/api/Payments/Payment",
+                    id.get_connector_transaction_id()
+                        .change_context(errors::ConnectorError::MissingConnectorTransactionID)?
+                ))
+            },
+            _ => Ok(format!(
+                    "{}{}/{}",
+                    self.base_url(connectors),
+                    "api/v1/instance",
+                    id.get_connector_transaction_id()
+                        .change_context(errors::ConnectorError::MissingConnectorTransactionID)?
+                ))
+        }
     }
 
     fn build_request(
@@ -375,7 +406,7 @@ impl
     > for Trustpay {
     fn get_headers(&self, req: &types::PaymentsAuthorizeRouterData, _connectors: &settings::Connectors,) -> CustomResult<Vec<(String, String)>,errors::ConnectorError> {
         match req.request.payment_method_data {
-            api_models::payments::PaymentMethod::BankTransfer => {
+            api_models::payments::PaymentMethod::BankRedirect{..} => {
                 let access_token = req
                     .access_token
                     .clone()
@@ -412,7 +443,7 @@ impl
 
     fn get_url(&self, req: &types::PaymentsAuthorizeRouterData, connectors: &settings::Connectors,) -> CustomResult<String,errors::ConnectorError> {
         match req.request.payment_method_data {
-            api_models::payments::PaymentMethod::BankTransfer => {
+            api_models::payments::PaymentMethod::BankRedirect{..} => {
                 Ok("https://aapi.trustpay.eu/api/Payments/Payment".to_owned())
             }
             _ => Ok(format!(
@@ -424,12 +455,18 @@ impl
     }
 
     fn get_request_body(&self, req: &types::PaymentsAuthorizeRouterData) -> CustomResult<Option<String>,errors::ConnectorError> {
-        let req = trustpay::TrustpayPaymentsRequest::try_from(req)?;
-        let trustpay_req = utils::Encode::<trustpay::TrustpayPaymentsRequest>::encode(&req)
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        print!(">>>req{}", trustpay_req);
-        logger::debug!(trustpay_payment_logs=?trustpay_req);
-        Ok(Some(trustpay_req))
+        let trustpay_req = trustpay::TrustpayPaymentsRequest::try_from(req)?;
+        let trustpay_req_string = match req.request.payment_method_data {
+            api_models::payments::PaymentMethod::BankRedirect{..} => {
+                utils::Encode::<trustpay::TrustpayPaymentsRequest>::encode_to_string_of_json(&trustpay_req)
+                    .change_context(errors::ConnectorError::RequestEncodingFailed)?
+            },
+            _ => utils::Encode::<trustpay::TrustpayPaymentsRequest>::encode(&trustpay_req)
+                    .change_context(errors::ConnectorError::RequestEncodingFailed)?,
+        };
+        print!(">>>req{}", trustpay_req_string);
+        logger::debug!(trustpay_payment_logs=?trustpay_req_string);
+        Ok(Some(trustpay_req_string))
     }
 
     fn build_request(
