@@ -286,7 +286,10 @@ where
         let supported_connectors: &Vec<String> = state.conf.connectors.supported.wallets.as_ref();
 
         let connector_accounts = db
-            .find_merchant_connector_account_by_merchant_id_list(&merchant_account.merchant_id)
+            .find_merchant_connector_account_by_merchant_id_and_disabled_list(
+                &merchant_account.merchant_id,
+                false,
+            )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Database error when querying for merchant connector accounts")?;

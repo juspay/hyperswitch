@@ -409,7 +409,6 @@ pub enum PaymentMethodIssuerCode {
     JpSepa,
     JpBacs,
 }
-
 #[derive(
     Clone,
     Copy,

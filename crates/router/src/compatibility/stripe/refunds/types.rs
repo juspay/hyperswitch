@@ -78,7 +78,7 @@ impl TryFrom<refunds::RefundResponse> for StripeCreateRefundResponse {
             payment_intent: res.payment_id,
             status: res.status.into(),
             created: res.created_at.map(|t| t.assume_utc().unix_timestamp()),
-            metadata: res.metadata.unwrap_or(serde_json::json!({})),
+            metadata: res.metadata.unwrap_or_else(|| serde_json::json!({})),
         })
     }
 }
