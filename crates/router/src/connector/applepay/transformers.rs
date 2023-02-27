@@ -171,7 +171,7 @@ impl<F>
         Ok(Self {
             response: Ok(types::PaymentsResponseData::SessionResponse {
                 session_token: {
-                    api_models::payments::SessionToken::Applepay(Box::new(
+                    api_models::payments::SessionToken::ApplePay(Box::new(
                         payments::ApplepaySessionTokenResponse {
                             session_token_data: applepay_session.into(),
                             payment_request_data: payment_request.into(),

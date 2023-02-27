@@ -1,18 +1,16 @@
+use base64::Engine;
+use error_stack::ResultExt;
 use masking::PeekInterface;
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils::{self, PaymentsRequestData},
+    connector::utils::PaymentsRequestData,
     consts,
     core::errors,
     pii::{self, Email, Secret},
     services,
-    types::{
-        self,
-        api::{self, enums as api_enums},
-        storage::enums as storage_enums,
-    },
+    types::{self, api, storage::enums as storage_enums},
 };
 
 // Adyen Types Definition
@@ -339,7 +337,6 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for AdyenPaymentRequest {
                 get_paylater_specific_payment_data(item)
             }
             storage_models::enums::PaymentMethod::Wallet => get_wallet_specific_payment_data(item),
-            _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
         }
     }
 }
@@ -480,29 +477,34 @@ fn get_payment_method_data(
             };
             Ok(AdyenPaymentMethod::AdyenCard(adyen_card))
         }
-        api::PaymentMethodData::Wallet(ref wallet_data) => match wallet_data.issuer_name {
-            api_enums::WalletIssuer::GooglePay => {
+        api::PaymentMethodData::Wallet(ref wallet_data) => match wallet_data {
+            api_models::payments::WalletData::GooglePay(data) => {
                 let gpay_data = AdyenGPay {
                     payment_type: PaymentType::Googlepay,
-                    google_pay_token: wallet_data
-                        .token
-                        .clone()
-                        .ok_or_else(utils::missing_field_err("token"))?,
+                    google_pay_token: data.tokenization_data.token.to_owned(),
                 };
                 Ok(AdyenPaymentMethod::Gpay(gpay_data))
             }
-
-            api_enums::WalletIssuer::ApplePay => {
+            api_models::payments::WalletData::ApplePay(data) => {
                 let apple_pay_data = AdyenApplePay {
                     payment_type: PaymentType::Applepay,
-                    apple_pay_token: wallet_data
-                        .token
-                        .clone()
-                        .ok_or_else(utils::missing_field_err("token"))?,
+                    apple_pay_token:
+                        consts::BASE64_ENGINE.encode(
+                            common_utils::ext_traits::Encode::<
+                                api_models::payments::ApplepayPaymentData,
+                            >::encode_to_string_of_json(
+                                &data.payment_data
+                            )
+                            .change_context(errors::ConnectorError::RequestEncodingFailed)?,
+                        ),
                 };
+
                 Ok(AdyenPaymentMethod::ApplePay(apple_pay_data))
             }
-            api_enums::WalletIssuer::Paypal => {
+            api_models::payments::WalletData::PaypalSdk(_) => {
+                Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into())
+            }
+            api_models::payments::WalletData::PaypalRedirect(_) => {
                 let wallet = AdyenPaypal {
                     payment_type: PaymentType::Paypal,
                 };

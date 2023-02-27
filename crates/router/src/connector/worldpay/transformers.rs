@@ -1,12 +1,13 @@
+use base64::Engine;
 use common_utils::errors::CustomResult;
 use error_stack::ResultExt;
 use storage_models::enums;
 
 use super::{requests::*, response::*};
 use crate::{
+    consts,
     core::errors,
     types::{self, api},
-    utils::OptionExt,
 };
 
 fn fetch_payment_instrument(
@@ -21,26 +22,27 @@ fn fetch_payment_instrument(
             card_number: card.card_number,
             ..CardPayment::default()
         })),
-        api::PaymentMethodData::Wallet(wallet) => match wallet.issuer_name {
-            api_models::enums::WalletIssuer::ApplePay => {
-                Ok(PaymentInstrument::Applepay(WalletPayment {
-                    payment_type: PaymentType::Applepay,
-                    wallet_token: wallet
-                        .token
-                        .get_required_value("token")
-                        .change_context(errors::ConnectorError::RequestEncodingFailed)
-                        .attach_printable("No token passed")?,
+        api::PaymentMethodData::Wallet(wallet) => match wallet {
+            api_models::payments::WalletData::GooglePay(data) => {
+                Ok(PaymentInstrument::Googlepay(WalletPayment {
+                    payment_type: PaymentType::Googlepay,
+                    wallet_token: data.tokenization_data.token,
                     ..WalletPayment::default()
                 }))
             }
-            api_models::enums::WalletIssuer::GooglePay => {
-                Ok(PaymentInstrument::Googlepay(WalletPayment {
-                    payment_type: PaymentType::Googlepay,
-                    wallet_token: wallet
-                        .token
-                        .get_required_value("token")
-                        .change_context(errors::ConnectorError::RequestEncodingFailed)
-                        .attach_printable("No token passed")?,
+            api_models::payments::WalletData::ApplePay(data) => {
+                Ok(PaymentInstrument::Applepay(WalletPayment {
+                    payment_type: PaymentType::Applepay,
+
+                    wallet_token:
+                        consts::BASE64_ENGINE.encode(
+                            common_utils::ext_traits::Encode::<
+                                api_models::payments::ApplepayPaymentData,
+                            >::encode_to_string_of_json(
+                                &data.payment_data
+                            )
+                            .change_context(errors::ConnectorError::RequestEncodingFailed)?,
+                        ),
                     ..WalletPayment::default()
                 }))
             }
