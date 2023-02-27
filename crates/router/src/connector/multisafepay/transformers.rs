@@ -2,7 +2,6 @@ use common_utils::pii::Email;
 use masking::ExposeInterface;
 use serde::{Deserialize, Serialize};
 use url::Url;
-use uuid::Uuid;
 
 use crate::{
     connector::utils::{self, AddressDetailsData, CardData, RouterData},
@@ -397,7 +396,7 @@ impl From<MultisafepayPaymentStatus> for enums::AttemptStatus {
 pub struct Data {
     #[serde(rename = "type")]
     pub payment_type: Option<String>,
-    pub order_id: Option<String>,
+    pub order_id: String,
     pub currency: Option<String>,
     pub amount: Option<i64>,
     pub description: Option<String>,
@@ -462,12 +461,7 @@ impl<F, T>
         Ok(Self {
             status: enums::AttemptStatus::from(status),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(
-                    item.response
-                        .data
-                        .order_id
-                        .unwrap_or(Uuid::new_v4().to_string()),
-                ),
+                resource_id: types::ResponseId::ConnectorTransactionId(item.response.data.order_id),
                 redirection_data,
                 mandate_reference: item
                     .response
