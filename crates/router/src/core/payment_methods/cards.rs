@@ -446,11 +446,15 @@ pub async fn list_payment_methods(
                         payment_method_type_hm.insert(payment_experience, vec![connector]);
                     }
                 } else {
-                    // let inner_hashmap = HashMap::new(); //TODO: add the hashmap
-                    payment_method_hm.insert(payment_method_type, HashMap::new());
+                    payment_method_hm.insert(
+                        payment_method_type,
+                        HashMap::from([(payment_experience, vec![connector])]),
+                    );
                 }
             } else {
-                payment_experiences_consolidated_hm.insert(payment_method, HashMap::new());
+                let inner_hm = HashMap::from([(payment_experience, vec![connector])]);
+                let payment_method_type_hm = HashMap::from([(payment_method_type, inner_hm)]);
+                payment_experiences_consolidated_hm.insert(payment_method, payment_method_type_hm);
             }
         }
 
