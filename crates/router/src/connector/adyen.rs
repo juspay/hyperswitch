@@ -398,6 +398,7 @@ impl
         data: &types::PaymentsAuthorizeRouterData,
         res: types::Response,
     ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
+        logger::debug!("adyen_payment_response {:?}", res);
         let response: adyen::AdyenPaymentResponse = res
             .response
             .parse_struct("AdyenPaymentResponse")
@@ -419,6 +420,7 @@ impl
         &self,
         res: types::Response,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
+        logger::debug!("adyen_payment_error_response {:?}", res);
         let response: adyen::ErrorResponse = res
             .response
             .parse_struct("ErrorResponse")
