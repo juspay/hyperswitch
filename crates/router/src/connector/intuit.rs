@@ -157,7 +157,6 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
         data: &types::PaymentsCancelRouterData,
         res: Response,
     ) -> CustomResult<types::PaymentsCancelRouterData, errors::ConnectorError> {
-        logger::debug!(payments_void_response=?res);
         let response: intuit::IntuitPaymentsResponse = res
             .response
             .parse_struct("intuit PaymentResponse")
