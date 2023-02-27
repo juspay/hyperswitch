@@ -1,6 +1,6 @@
 use base64::Engine;
 use common_utils::errors::CustomResult;
-use error_stack::{ResultExt, IntoReport};
+use error_stack::{IntoReport, ResultExt};
 use masking::PeekInterface;
 use storage_models::enums;
 
@@ -11,17 +11,26 @@ use crate::{
     types::{self, api},
 };
 
-
 fn fetch_payment_instrument(
     payment_method: api::PaymentMethodData,
 ) -> CustomResult<PaymentInstrument, errors::ConnectorError> {
     match payment_method {
         api::PaymentMethodData::Card(card) => Ok(PaymentInstrument::Card(CardPayment {
             card_expiry_date: CardExpiryDate {
-                month: card.card_exp_month.peek().clone().parse::<i8>().into_report()
-                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?,
-                year: card.card_exp_year.peek().clone().parse::<i32>().into_report()
-                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?,
+                month: card
+                    .card_exp_month
+                    .peek()
+                    .clone()
+                    .parse::<i8>()
+                    .into_report()
+                    .change_context(errors::ConnectorError::ResponseDeserializationFailed)?,
+                year: card
+                    .card_exp_year
+                    .peek()
+                    .clone()
+                    .parse::<i32>()
+                    .into_report()
+                    .change_context(errors::ConnectorError::ResponseDeserializationFailed)?,
             },
             card_number: card.card_number,
             ..CardPayment::default()
