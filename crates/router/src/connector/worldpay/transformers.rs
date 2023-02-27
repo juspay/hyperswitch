@@ -1,6 +1,7 @@
 use base64::Engine;
 use common_utils::errors::CustomResult;
-use error_stack::ResultExt;
+use error_stack::{IntoReport, ResultExt};
+use masking::PeekInterface;
 use storage_models::enums;
 
 use super::{requests::*, response::*};
@@ -16,8 +17,20 @@ fn fetch_payment_instrument(
     match payment_method {
         api::PaymentMethodData::Card(card) => Ok(PaymentInstrument::Card(CardPayment {
             card_expiry_date: CardExpiryDate {
-                month: card.card_exp_month,
-                year: card.card_exp_year,
+                month: card
+                    .card_exp_month
+                    .peek()
+                    .clone()
+                    .parse::<i8>()
+                    .into_report()
+                    .change_context(errors::ConnectorError::ResponseDeserializationFailed)?,
+                year: card
+                    .card_exp_year
+                    .peek()
+                    .clone()
+                    .parse::<i32>()
+                    .into_report()
+                    .change_context(errors::ConnectorError::ResponseDeserializationFailed)?,
             },
             card_number: card.card_number,
             ..CardPayment::default()
@@ -64,7 +77,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for WorldpayPaymentsRequest {
                     currency: item.request.currency.to_string(),
                 },
                 narrative: InstructionNarrative {
-                    line1: item.merchant_id.clone(),
+                    line1: item.merchant_id.clone().replace('_', "-"),
                     ..Default::default()
                 },
                 payment_instrument: fetch_payment_instrument(
@@ -73,7 +86,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for WorldpayPaymentsRequest {
                 debt_repayment: None,
             },
             merchant: Merchant {
-                entity: item.payment_id.clone(),
+                entity: item.attempt_id.clone().replace('_', "-"),
                 ..Default::default()
             },
             transaction_reference: item.attempt_id.clone(),
@@ -91,9 +104,13 @@ impl TryFrom<&types::ConnectorAuthType> for WorldpayAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
-            types::ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
-                api_key: api_key.to_string(),
-            }),
+            types::ConnectorAuthType::BodyKey { api_key, key1 } => {
+                let auth_key = format!("{key1}:{api_key}");
+                let auth_header = format!("Basic {}", consts::BASE64_ENGINE.encode(auth_key));
+                Ok(Self {
+                    api_key: auth_header,
+                })
+            }
             _ => Err(errors::ConnectorError::FailedToObtainAuthType)?,
         }
     }
