@@ -699,6 +699,7 @@ pub enum BankNames {
     strum::Display,
     strum::EnumString,
     frunk::LabelledGeneric,
+    ToSchema,
 )]
 pub enum CardNetwork {
     Visa,

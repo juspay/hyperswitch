@@ -2605,7 +2605,7 @@
             "type": "string"
           },
           "card_network": {
-            "type": "string"
+            "$ref": "#/components/schemas/CardNetwork"
           }
         }
       },
@@ -2668,6 +2668,22 @@
             "type": "string"
           }
         }
+      },
+      "CardNetwork": {
+        "type": "string",
+        "enum": [
+          "Visa",
+          "Mastercard",
+          "AmericanExpress",
+          "JCB",
+          "DinersClub",
+          "Discover",
+          "CartesBancaires",
+          "UnionPay",
+          "Interac",
+          "RuPay",
+          "Maestro"
+        ]
       },
       "Connector": {
         "type": "string",
