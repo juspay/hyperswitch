@@ -659,10 +659,12 @@ pub async fn list_payment_methods(
         })
     }
 
-    payment_method_responses.push(ResponsePaymentMethodsEnabled {
-        payment_method: api_enums::PaymentMethod::BankRedirect,
-        payment_method_types: bank_payment_method_types,
-    });
+    if !bank_payment_method_types.is_empty() {
+        payment_method_responses.push(ResponsePaymentMethodsEnabled {
+            payment_method: api_enums::PaymentMethod::BankRedirect,
+            payment_method_types: bank_payment_method_types,
+        });
+    }
 
     response
         .is_empty()
