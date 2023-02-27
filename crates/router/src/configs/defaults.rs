@@ -110,6 +110,12 @@ impl Default for super::settings::ConsumerSettings {
     }
 }
 
+impl Default for super::settings::BankRedirectConfig {
+    fn default() -> Self {
+        Self(std::collections::HashMap::new())
+    }
+}
+
 #[cfg(feature = "kv_store")]
 impl Default for super::settings::DrainerSettings {
     fn default() -> Self {
