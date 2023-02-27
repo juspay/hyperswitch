@@ -227,6 +227,9 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3.1.0
+      
+      - name: 'Fetch base branch'
+        run: git fetch origin $GITHUB_BASE_REF --depth 1
 
       - name: Install mold linker
         uses: rui314/setup-mold@v1

@@ -90,7 +90,6 @@ impl From<String> for HashedApiKey {
     }
 }
 
-
 mod diesel_impl {
     use diesel::{
         backend::Backend,
