@@ -152,17 +152,15 @@ impl ForeignTryFrom<(BluesnapTxnType, BluesnapProcessingStatus)> for enums::Atte
         let (item_txn_status, item_processing_status) = item;
         Ok(match item_processing_status {
             BluesnapProcessingStatus::Success => match item_txn_status {
-                BluesnapTxnType::AuthOnly => enums::AttemptStatus::Authorized,
-                BluesnapTxnType::AuthReversal => enums::AttemptStatus::Voided,
-                BluesnapTxnType::AuthCapture | BluesnapTxnType::Capture => {
-                    enums::AttemptStatus::Charged
-                }
-                BluesnapTxnType::Refund => enums::AttemptStatus::Charged,
+                BluesnapTxnType::AuthOnly => Self::Authorized,
+                BluesnapTxnType::AuthReversal => Self::Voided,
+                BluesnapTxnType::AuthCapture | BluesnapTxnType::Capture => Self::Charged,
+                BluesnapTxnType::Refund => Self::Charged,
             },
             BluesnapProcessingStatus::Pending | BluesnapProcessingStatus::PendingMerchantReview => {
-                enums::AttemptStatus::Pending
+                Self::Pending
             }
-            BluesnapProcessingStatus::Fail => enums::AttemptStatus::Failure,
+            BluesnapProcessingStatus::Fail => Self::Failure,
         })
     }
 }

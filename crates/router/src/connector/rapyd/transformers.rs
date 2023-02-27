@@ -179,21 +179,19 @@ impl ForeignFrom<(RapydPaymentStatus, NextAction)> for enums::AttemptStatus {
     fn foreign_from(item: (RapydPaymentStatus, NextAction)) -> Self {
         let (status, next_action) = item;
         match (status, next_action) {
-            (RapydPaymentStatus::Closed, _) => enums::AttemptStatus::Charged,
+            (RapydPaymentStatus::Closed, _) => Self::Charged,
             (RapydPaymentStatus::Active, NextAction::ThreedsVerification) => {
-                enums::AttemptStatus::AuthenticationPending
+                Self::AuthenticationPending
             }
-            (RapydPaymentStatus::Active, NextAction::PendingCapture) => {
-                enums::AttemptStatus::Authorized
-            }
+            (RapydPaymentStatus::Active, NextAction::PendingCapture) => Self::Authorized,
             (
                 RapydPaymentStatus::CanceledByClientOrBank
                 | RapydPaymentStatus::Expired
                 | RapydPaymentStatus::ReversedByRapyd,
                 _,
-            ) => enums::AttemptStatus::Voided,
-            (RapydPaymentStatus::Error, _) => enums::AttemptStatus::Failure,
-            (RapydPaymentStatus::New, _) => enums::AttemptStatus::Authorizing,
+            ) => Self::Voided,
+            (RapydPaymentStatus::Error, _) => Self::Failure,
+            (RapydPaymentStatus::New, _) => Self::Authorizing,
         }
     }
 }

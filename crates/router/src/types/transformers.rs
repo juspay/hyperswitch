@@ -331,7 +331,7 @@ impl ForeignFrom<storage_models::enums::PaymentMethodType>
 impl ForeignFrom<api_models::payments::AddressDetails> for storage_models::address::AddressNew {
     fn foreign_from(item: api_models::payments::AddressDetails) -> Self {
         let address = item;
-        storage_models::address::AddressNew {
+        Self {
             city: address.city,
             country: address.country,
             line1: address.line1,
