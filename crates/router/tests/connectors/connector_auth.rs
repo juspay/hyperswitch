@@ -7,6 +7,7 @@ pub(crate) struct ConnectorAuthentication {
     pub adyen: Option<BodyKey>,
     pub airwallex: Option<BodyKey>,
     pub authorizedotnet: Option<BodyKey>,
+    pub bambora: Option<BodyKey>,
     pub bluesnap: Option<BodyKey>,
     pub checkout: Option<BodyKey>,
     pub cybersource: Option<SignatureKey>,
@@ -19,7 +20,7 @@ pub(crate) struct ConnectorAuthentication {
     pub rapyd: Option<BodyKey>,
     pub shift4: Option<HeaderKey>,
     pub stripe: Option<HeaderKey>,
-    pub worldpay: Option<HeaderKey>,
+    pub worldpay: Option<BodyKey>,
     pub worldline: Option<SignatureKey>,
 }
 

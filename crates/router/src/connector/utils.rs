@@ -129,6 +129,26 @@ impl PaymentsRequestData for types::PaymentsAuthorizeRouterData {
     }
 }
 
+pub trait PaymentsAuthorizeRequestData {
+    fn is_auto_capture(&self) -> bool;
+}
+
+impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
+    fn is_auto_capture(&self) -> bool {
+        self.capture_method == Some(storage_models::enums::CaptureMethod::Automatic)
+    }
+}
+
+pub trait PaymentsSyncRequestData {
+    fn is_auto_capture(&self) -> bool;
+}
+
+impl PaymentsSyncRequestData for types::PaymentsSyncData {
+    fn is_auto_capture(&self) -> bool {
+        self.capture_method == Some(storage_models::enums::CaptureMethod::Automatic)
+    }
+}
+
 pub trait PaymentsCancelRequestData {
     fn get_amount(&self) -> Result<i64, Error>;
     fn get_currency(&self) -> Result<storage_models::enums::Currency, Error>;
