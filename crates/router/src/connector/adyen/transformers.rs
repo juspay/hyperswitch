@@ -337,7 +337,6 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for AdyenPaymentRequest {
                 get_paylater_specific_payment_data(item)
             }
             storage_models::enums::PaymentMethod::Wallet => get_wallet_specific_payment_data(item),
-            _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
         }
     }
 }

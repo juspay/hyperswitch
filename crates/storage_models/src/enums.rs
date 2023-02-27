@@ -431,8 +431,6 @@ pub enum PaymentMethod {
     Card,
     PayLater,
     Wallet,
-    Klarna,
-    Paypal,
 }
 
 #[derive(

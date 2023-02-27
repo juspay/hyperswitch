@@ -101,7 +101,7 @@ impl Vaultable for api::Card {
 impl Vaultable for api::WalletData {
     fn get_value1(&self, _customer_id: Option<String>) -> CustomResult<String, errors::VaultError> {
         let value1 = api::TokenizedWalletValue1 {
-            data: self.to_owned().into(),
+            data: self.to_owned(),
         };
 
         utils::Encode::<api::TokenizedWalletValue1>::encode_to_string_of_json(&value1)
@@ -131,7 +131,7 @@ impl Vaultable for api::WalletData {
             .change_context(errors::VaultError::ResponseDeserializationFailed)
             .attach_printable("Could not deserialize into wallet data value2")?;
 
-        let wallet = value1.data.into();
+        let wallet = value1.data;
 
         let supp_data = SupplementaryVaultData {
             customer_id: value2.customer_id,

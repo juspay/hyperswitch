@@ -1186,16 +1186,16 @@ pub struct GpaySessionTokenData {
 
 #[derive(Debug, Clone, serde::Serialize, ToSchema)]
 #[serde(tag = "wallet_name")]
-#[serde(rename_all = "lowercase")]
+#[serde(rename_all = "snake_case")]
 pub enum SessionToken {
     /// The session response structure for Google Pay
-    Gpay(Box<GpaySessionTokenResponse>),
+    GooglePay(Box<GpaySessionTokenResponse>),
     /// The session response structure for Klarna
     Klarna(Box<KlarnaSessionTokenResponse>),
     /// The session response structure for PayPal
     Paypal(Box<PaypalSessionTokenResponse>),
     /// The session response structure for Apple Pay
-    Applepay(Box<ApplepaySessionTokenResponse>),
+    ApplePay(Box<ApplepaySessionTokenResponse>),
 }
 
 #[derive(Debug, Clone, serde::Serialize, ToSchema)]
