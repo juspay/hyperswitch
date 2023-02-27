@@ -38,15 +38,24 @@ impl utils::Connector for FiservTest {
 
 fn payment_method_details() -> Option<types::PaymentsAuthorizeData> {
     Some(types::PaymentsAuthorizeData {
-        payment_method_data: types::api::PaymentMethod::Card(api::Card {
+        payment_method_data: types::api::PaymentMethodData::Card(api::Card {
             card_number: Secret::new("4005550000000019".to_string()),
             card_exp_month: Secret::new("02".to_string()),
             card_exp_year: Secret::new("2035".to_string()),
             card_holder_name: Secret::new("John Doe".to_string()),
             card_cvc: Secret::new("123".to_string()),
+            card_issuer: None,
+            card_network: None,
         }),
         capture_method: Some(storage_models::enums::CaptureMethod::Manual),
         ..utils::PaymentAuthorizeType::default().0
+    })
+}
+
+fn get_default_payment_info() -> Option<utils::PaymentInfo> {
+    Some(utils::PaymentInfo {
+        connector_meta_data: Some(json!({"terminalId": "10000001"})),
+        ..Default::default()
     })
 }
 
@@ -58,7 +67,7 @@ static CONNECTOR: FiservTest = FiservTest {};
 #[serial_test::serial]
 async fn should_only_authorize_payment() {
     let response = CONNECTOR
-        .authorize_payment(payment_method_details(), None)
+        .authorize_payment(payment_method_details(), get_default_payment_info())
         .await
         .expect("Authorize payment response");
     assert_eq!(response.status, enums::AttemptStatus::Authorized);
@@ -69,7 +78,7 @@ async fn should_only_authorize_payment() {
 #[serial_test::serial]
 async fn should_capture_authorized_payment() {
     let response = CONNECTOR
-        .authorize_and_capture_payment(payment_method_details(), None, None)
+        .authorize_and_capture_payment(payment_method_details(), None, get_default_payment_info())
         .await
         .expect("Capture payment response");
     assert_eq!(response.status, enums::AttemptStatus::Charged);
@@ -86,7 +95,7 @@ async fn should_partially_capture_authorized_payment() {
                 amount_to_capture: Some(50),
                 ..utils::PaymentCaptureType::default().0
             }),
-            None,
+            get_default_payment_info(),
         )
         .await
         .expect("Capture payment response");
@@ -98,7 +107,7 @@ async fn should_partially_capture_authorized_payment() {
 #[serial_test::serial]
 async fn should_sync_authorized_payment() {
     let authorize_response = CONNECTOR
-        .authorize_payment(payment_method_details(), None)
+        .authorize_payment(payment_method_details(), get_default_payment_info())
         .await
         .expect("Authorize payment response");
     let txn_id = utils::get_connector_transaction_id(authorize_response.response);
@@ -113,7 +122,7 @@ async fn should_sync_authorized_payment() {
                 encoded_data: None,
                 capture_method: None,
             }),
-            None,
+            get_default_payment_info(),
         )
         .await
         .expect("PSync response");
@@ -131,8 +140,9 @@ async fn should_void_authorized_payment() {
             Some(types::PaymentsCancelData {
                 connector_transaction_id: String::from(""),
                 cancellation_reason: Some("TIMEOUT".to_string()),
+                ..Default::default()
             }),
-            None,
+            get_default_payment_info(),
         )
         .await
         .expect("Void payment response");
@@ -144,7 +154,12 @@ async fn should_void_authorized_payment() {
 #[serial_test::serial]
 async fn should_refund_manually_captured_payment() {
     let response = CONNECTOR
-        .capture_payment_and_refund(payment_method_details(), None, None, None)
+        .capture_payment_and_refund(
+            payment_method_details(),
+            None,
+            None,
+            get_default_payment_info(),
+        )
         .await
         .unwrap();
     assert_eq!(
@@ -165,7 +180,7 @@ async fn should_partially_refund_manually_captured_payment() {
                 refund_amount: 50,
                 ..utils::PaymentRefundType::default().0
             }),
-            None,
+            get_default_payment_info(),
         )
         .await
         .unwrap();
@@ -180,7 +195,12 @@ async fn should_partially_refund_manually_captured_payment() {
 #[serial_test::serial]
 async fn should_sync_manually_captured_refund() {
     let refund_response = CONNECTOR
-        .capture_payment_and_refund(payment_method_details(), None, None, None)
+        .capture_payment_and_refund(
+            payment_method_details(),
+            None,
+            None,
+            get_default_payment_info(),
+        )
         .await
         .unwrap();
     tokio::time::sleep(std::time::Duration::from_secs(7)).await;
@@ -189,7 +209,7 @@ async fn should_sync_manually_captured_refund() {
             enums::RefundStatus::Success,
             refund_response.response.unwrap().connector_refund_id,
             None,
-            None,
+            get_default_payment_info(),
         )
         .await
         .unwrap();
@@ -204,7 +224,7 @@ async fn should_sync_manually_captured_refund() {
 #[serial_test::serial]
 async fn should_make_payment() {
     let authorize_response = CONNECTOR
-        .make_payment(payment_method_details(), None)
+        .make_payment(payment_method_details(), get_default_payment_info())
         .await
         .unwrap();
     assert_eq!(authorize_response.status, enums::AttemptStatus::Charged);
@@ -215,7 +235,7 @@ async fn should_make_payment() {
 #[serial_test::serial]
 async fn should_sync_auto_captured_payment() {
     let authorize_response = CONNECTOR
-        .make_payment(payment_method_details(), None)
+        .make_payment(payment_method_details(), get_default_payment_info())
         .await
         .unwrap();
     assert_eq!(authorize_response.status, enums::AttemptStatus::Charged);
@@ -232,7 +252,7 @@ async fn should_sync_auto_captured_payment() {
                 encoded_data: None,
                 capture_method: None,
             }),
-            None,
+            get_default_payment_info(),
         )
         .await
         .unwrap();
@@ -244,7 +264,7 @@ async fn should_sync_auto_captured_payment() {
 #[serial_test::serial]
 async fn should_refund_auto_captured_payment() {
     let response = CONNECTOR
-        .make_payment_and_refund(payment_method_details(), None, None)
+        .make_payment_and_refund(payment_method_details(), None, get_default_payment_info())
         .await
         .unwrap();
     assert_eq!(
@@ -264,7 +284,7 @@ async fn should_partially_refund_succeeded_payment() {
                 refund_amount: 50,
                 ..utils::PaymentRefundType::default().0
             }),
-            None,
+            get_default_payment_info(),
         )
         .await
         .unwrap();
@@ -285,7 +305,7 @@ async fn should_refund_succeeded_payment_multiple_times() {
                 refund_amount: 50,
                 ..utils::PaymentRefundType::default().0
             }),
-            None,
+            get_default_payment_info(),
         )
         .await;
 }
@@ -295,7 +315,7 @@ async fn should_refund_succeeded_payment_multiple_times() {
 #[serial_test::serial]
 async fn should_sync_refund() {
     let refund_response = CONNECTOR
-        .make_payment_and_refund(payment_method_details(), None, None)
+        .make_payment_and_refund(payment_method_details(), None, get_default_payment_info())
         .await
         .unwrap();
     tokio::time::sleep(std::time::Duration::from_secs(7)).await;
@@ -304,7 +324,7 @@ async fn should_sync_refund() {
             enums::RefundStatus::Success,
             refund_response.response.unwrap().connector_refund_id,
             None,
-            None,
+            get_default_payment_info(),
         )
         .await
         .unwrap();
@@ -322,13 +342,13 @@ async fn should_fail_payment_for_incorrect_card_number() {
     let response = CONNECTOR
         .make_payment(
             Some(types::PaymentsAuthorizeData {
-                payment_method_data: types::api::PaymentMethod::Card(api::Card {
+                payment_method_data: types::api::PaymentMethodData::Card(api::Card {
                     card_number: Secret::new("1234567891011".to_string()),
                     ..utils::CCardType::default().0
                 }),
                 ..utils::PaymentAuthorizeType::default().0
             }),
-            None,
+            get_default_payment_info(),
         )
         .await
         .unwrap();
@@ -345,13 +365,13 @@ async fn should_fail_payment_for_empty_card_number() {
     let response = CONNECTOR
         .make_payment(
             Some(types::PaymentsAuthorizeData {
-                payment_method_data: types::api::PaymentMethod::Card(api::Card {
+                payment_method_data: types::api::PaymentMethodData::Card(api::Card {
                     card_number: Secret::new(String::from("")),
                     ..utils::CCardType::default().0
                 }),
                 ..utils::PaymentAuthorizeType::default().0
             }),
-            None,
+            get_default_payment_info(),
         )
         .await
         .unwrap();
@@ -366,13 +386,13 @@ async fn should_fail_payment_for_incorrect_cvc() {
     let response = CONNECTOR
         .make_payment(
             Some(types::PaymentsAuthorizeData {
-                payment_method_data: types::api::PaymentMethod::Card(api::Card {
+                payment_method_data: types::api::PaymentMethodData::Card(api::Card {
                     card_cvc: Secret::new("12345".to_string()),
                     ..utils::CCardType::default().0
                 }),
                 ..utils::PaymentAuthorizeType::default().0
             }),
-            None,
+            get_default_payment_info(),
         )
         .await
         .unwrap();
@@ -389,13 +409,13 @@ async fn should_fail_payment_for_invalid_exp_month() {
     let response = CONNECTOR
         .make_payment(
             Some(types::PaymentsAuthorizeData {
-                payment_method_data: types::api::PaymentMethod::Card(api::Card {
+                payment_method_data: types::api::PaymentMethodData::Card(api::Card {
                     card_exp_month: Secret::new("20".to_string()),
                     ..utils::CCardType::default().0
                 }),
                 ..utils::PaymentAuthorizeType::default().0
             }),
-            None,
+            get_default_payment_info(),
         )
         .await
         .unwrap();
@@ -412,13 +432,13 @@ async fn should_fail_payment_for_incorrect_expiry_year() {
     let response = CONNECTOR
         .make_payment(
             Some(types::PaymentsAuthorizeData {
-                payment_method_data: types::api::PaymentMethod::Card(api::Card {
+                payment_method_data: types::api::PaymentMethodData::Card(api::Card {
                     card_exp_year: Secret::new("2000".to_string()),
                     ..utils::CCardType::default().0
                 }),
                 ..utils::PaymentAuthorizeType::default().0
             }),
-            None,
+            get_default_payment_info(),
         )
         .await
         .unwrap();
@@ -434,7 +454,7 @@ async fn should_fail_payment_for_incorrect_expiry_year() {
 #[ignore]
 async fn should_fail_void_payment_for_auto_capture() {
     let authorize_response = CONNECTOR
-        .make_payment(payment_method_details(), None)
+        .make_payment(payment_method_details(), get_default_payment_info())
         .await
         .unwrap();
     assert_eq!(authorize_response.status, enums::AttemptStatus::Charged);
@@ -446,8 +466,9 @@ async fn should_fail_void_payment_for_auto_capture() {
             Some(types::PaymentsCancelData {
                 connector_transaction_id: String::from(""),
                 cancellation_reason: Some("TIMEOUT".to_string()),
+                ..Default::default()
             }),
-            None,
+            get_default_payment_info(),
         )
         .await
         .unwrap();
@@ -462,7 +483,7 @@ async fn should_fail_void_payment_for_auto_capture() {
 #[serial_test::serial]
 async fn should_fail_capture_for_invalid_payment() {
     let capture_response = CONNECTOR
-        .capture_payment("123456789".to_string(), None, None)
+        .capture_payment("123456789".to_string(), None, get_default_payment_info())
         .await
         .unwrap();
     assert_eq!(
@@ -482,7 +503,7 @@ async fn should_fail_for_refund_amount_higher_than_payment_amount() {
                 refund_amount: 150,
                 ..utils::PaymentRefundType::default().0
             }),
-            None,
+            get_default_payment_info(),
         )
         .await
         .unwrap();

@@ -3,7 +3,7 @@ use error_stack::ResultExt;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils,
+    connector::utils::{PaymentsCancelRequestData, PaymentsSyncRequestData, RouterData},
     core::errors,
     pii::{self, Secret},
     types::{self, api, storage::enums},
@@ -122,10 +122,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for FiservPaymentsRequest {
             )),
             reversal_reason_code: None,
         };
-        let metadata = item
-            .connector_meta_data
-            .clone()
-            .ok_or(errors::ConnectorError::RequestEncodingFailed)?;
+        let metadata = item.get_connector_meta()?;
         let session: SessionObject = metadata
             .parse_value("SessionObject")
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
@@ -144,7 +141,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for FiservPaymentsRequest {
             pos_condition_code: TransactionInteractionPosConditionCode::CardNotPresentEcom,
         };
         let source = match item.request.payment_method_data.clone() {
-            api::PaymentMethod::Card(ref ccard) => {
+            api::PaymentMethodData::Card(ref ccard) => {
                 let card = CardData {
                     card_data: ccard.card_number.clone(),
                     expiration_month: ccard.card_exp_month.clone(),
@@ -205,18 +202,11 @@ impl TryFrom<&types::PaymentsCancelRouterData> for FiservCancelRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsCancelRouterData) -> Result<Self, Self::Error> {
         let auth: FiservAuthType = FiservAuthType::try_from(&item.connector_auth_type)?;
-        let metadata = item
-            .connector_meta_data
-            .clone()
-            .ok_or(errors::ConnectorError::RequestEncodingFailed)?;
+        let metadata = item.get_connector_meta()?;
         let session: SessionObject = metadata
             .parse_value("SessionObject")
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        let cancellation_reason = item
-            .request
-            .cancellation_reason
-            .clone()
-            .ok_or_else(utils::missing_field_err("cancellation_reason"))?;
+        let cancellation_reason = item.request.get_cancellation_reason()?;
         Ok(Self {
             merchant_details: MerchantDetails {
                 merchant_id: auth.merchant_account,
@@ -325,7 +315,7 @@ impl<F, T>
         let gateway_resp = item.response.gateway_response;
 
         Ok(Self {
-            status: gateway_resp.transaction_state.into(),
+            status: enums::AttemptStatus::from(gateway_resp.transaction_state),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(
                     gateway_resp.transaction_processing_details.transaction_id,
@@ -359,11 +349,9 @@ impl<F, T>
         };
 
         Ok(Self {
-            status: gateway_resp
-                .gateway_response
-                .transaction_state
-                .clone()
-                .into(),
+            status: enums::AttemptStatus::from(
+                gateway_resp.gateway_response.transaction_state.clone(),
+            ),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(
                     gateway_resp
@@ -456,7 +444,6 @@ impl TryFrom<&types::PaymentsSyncRouterData> for FiservSyncRequest {
             reference_transaction_details: ReferenceTransactionDetails {
                 reference_transaction_id: item
                     .request
-                    .connector_transaction_id
                     .get_connector_transaction_id()
                     .change_context(errors::ConnectorError::MissingConnectorTransactionID)?,
             },
@@ -546,7 +533,9 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
                     .gateway_response
                     .transaction_processing_details
                     .transaction_id,
-                refund_status: item.response.gateway_response.transaction_state.into(),
+                refund_status: enums::RefundStatus::from(
+                    item.response.gateway_response.transaction_state,
+                ),
             }),
             ..item.data
         })
@@ -572,11 +561,9 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundSyncResponse>>
                     .transaction_processing_details
                     .transaction_id
                     .clone(),
-                refund_status: gateway_resp
-                    .gateway_response
-                    .transaction_state
-                    .clone()
-                    .into(),
+                refund_status: enums::RefundStatus::from(
+                    gateway_resp.gateway_response.transaction_state.clone(),
+                ),
             }),
             ..item.data
         })

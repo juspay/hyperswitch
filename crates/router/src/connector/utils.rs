@@ -4,7 +4,7 @@ use masking::Secret;
 use crate::{
     core::errors::{self, CustomResult},
     pii::PeekInterface,
-    types::{self, api, PaymentsCancelData},
+    types::{self, api, PaymentsCancelData, PaymentsSyncData, ResponseId},
     utils::OptionExt,
 };
 
@@ -54,6 +54,7 @@ pub trait PaymentsRequestData {
 pub trait PaymentsCancelRequestData {
     fn get_amount(&self) -> Result<i64, Error>;
     fn get_currency(&self) -> Result<storage_models::enums::Currency, Error>;
+    fn get_cancellation_reason(&self) -> Result<String, Error>;
 }
 
 impl PaymentsCancelRequestData for PaymentsCancelData {
@@ -62,6 +63,28 @@ impl PaymentsCancelRequestData for PaymentsCancelData {
     }
     fn get_currency(&self) -> Result<storage_models::enums::Currency, Error> {
         self.currency.ok_or_else(missing_field_err("currency"))
+    }
+    fn get_cancellation_reason(&self) -> Result<String, Error> {
+        self.cancellation_reason
+            .clone()
+            .ok_or_else(missing_field_err("cancellation_reason"))
+    }
+}
+
+pub trait PaymentsSyncRequestData {
+    fn get_connector_transaction_id(&self) -> CustomResult<String, errors::ValidationError>;
+}
+
+impl PaymentsSyncRequestData for PaymentsSyncData {
+    fn get_connector_transaction_id(&self) -> CustomResult<String, errors::ValidationError> {
+        match self.connector_transaction_id.clone() {
+            ResponseId::ConnectorTransactionId(txn_id) => Ok(txn_id),
+            _ => Err(errors::ValidationError::IncorrectValueProvided {
+                field_name: "connector_transaction_id",
+            })
+            .into_report()
+            .attach_printable("Expected connector transaction ID not found"),
+        }
     }
 }
 

@@ -184,7 +184,8 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!(
-            "{}ch/payments/v1/cancels", //The docs has this url wrong, cancels is the working endpoint
+            //The docs has this url wrong, cancels is the working endpoint
+            "{}ch/payments/v1/cancels",
             connectors.fiserv.base_url
         ))
     }
