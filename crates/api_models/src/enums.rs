@@ -555,6 +555,7 @@ pub enum Connector {
     Fiserv,
     Globalpay,
     Klarna,
+    Multisafepay,
     Nuvei,
     Payu,
     Rapyd,
@@ -605,6 +606,7 @@ pub enum RoutableConnectors {
     Stripe,
     Worldline,
     Worldpay,
+    Multisafepay,
 }
 
 /// Wallets which support obtaining session object
