@@ -544,11 +544,7 @@ impl<F, T>
                             .gw_error_code
                             .map(|c| c.to_string())
                             .unwrap_or_default(),
-                        message: item
-                            .response
-                            .gw_error_reason
-                            .map(|c| c.to_string())
-                            .unwrap_or_default(),
+                        message: item.response.gw_error_reason.unwrap_or_default(),
                         reason: None,
                         status_code: item.http_code,
                     }),

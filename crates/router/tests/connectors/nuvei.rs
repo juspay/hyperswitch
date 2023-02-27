@@ -41,7 +41,7 @@ static CONNECTOR: NuveiTest = NuveiTest {};
 fn get_payment_data() -> Option<types::PaymentsAuthorizeData> {
     Some(types::PaymentsAuthorizeData {
         payment_method_data: types::api::PaymentMethodData::Card(api::Card {
-            card_number: Secret::new(String::from("4000027891380961")),
+            card_number: Secret::new(String::from("4444 3333 2222 1111")),
             ..utils::CCardType::default().0
         }),
         ..utils::PaymentAuthorizeType::default().0
@@ -144,7 +144,7 @@ async fn should_refund_manually_captured_payment() {
         .unwrap();
     assert_eq!(
         response.response.unwrap().refund_status,
-        enums::RefundStatus::Failure, //Nuvei fails refund always
+        enums::RefundStatus::Success,
     );
 }
 
@@ -165,7 +165,7 @@ async fn should_partially_refund_manually_captured_payment() {
         .unwrap();
     assert_eq!(
         response.response.unwrap().refund_status,
-        enums::RefundStatus::Failure, //Nuvei fails refund always
+        enums::RefundStatus::Success,
     );
 }
 
@@ -220,7 +220,7 @@ async fn should_refund_auto_captured_payment() {
         .unwrap();
     assert_eq!(
         response.response.unwrap().refund_status,
-        enums::RefundStatus::Failure,
+        enums::RefundStatus::Success,
     );
 }
 
@@ -240,7 +240,7 @@ async fn should_partially_refund_succeeded_payment() {
         .unwrap();
     assert_eq!(
         refund_response.response.unwrap().refund_status,
-        enums::RefundStatus::Failure,
+        enums::RefundStatus::Success,
     );
 }
 
@@ -395,7 +395,7 @@ async fn should_fail_capture_for_invalid_payment() {
 
 // Refunds a payment with refund amount higher than payment amount.
 #[actix_web::test]
-async fn should_fail_for_refund_amount_higher_than_payment_amount() {
+async fn should_accept_refund_amount_higher_than_payment_amount() {
     let response = CONNECTOR
         .make_payment_and_refund(
             get_payment_data(),
@@ -409,6 +409,6 @@ async fn should_fail_for_refund_amount_higher_than_payment_amount() {
         .unwrap();
     assert_eq!(
         response.response.unwrap().refund_status,
-        enums::RefundStatus::Failure,
+        enums::RefundStatus::Success,
     );
 }

@@ -64,7 +64,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for WorldpayPaymentsRequest {
                     currency: item.request.currency.to_string(),
                 },
                 narrative: InstructionNarrative {
-                    line1: item.merchant_id.clone().replace('_', '-'),
+                    line1: item.merchant_id.clone().replace('_', "-"),
                     ..Default::default()
                 },
                 payment_instrument: fetch_payment_instrument(
@@ -73,7 +73,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for WorldpayPaymentsRequest {
                 debt_repayment: None,
             },
             merchant: Merchant {
-                entity: item.payment_id.clone().replace('_', '-'),
+                entity: item.payment_id.clone().replace('_', "-"),
                 ..Default::default()
             },
             transaction_reference: item.attempt_id.clone(),
