@@ -464,10 +464,10 @@ pub async fn list_payment_methods(
                         if let Some(vector_of_connectors) =
                             payment_method_type_hm.get_mut(&card_network)
                         {
-                            let connector = element.connector.clone(); //FIXME: remove clone
+                            let connector = element.connector.clone();
                             vector_of_connectors.push(connector);
                         } else {
-                            let connector = element.connector.clone(); //FIXME: remove clone
+                            let connector = element.connector.clone();
                             payment_method_type_hm.insert(card_network, vec![connector]);
                         }
                     }
@@ -476,10 +476,10 @@ pub async fn list_payment_methods(
                         HashMap::new();
                     for card_network in card_networks {
                         if let Some(vector_of_connectors) = inner_hashmap.get_mut(&card_network) {
-                            let connector = element.connector.clone(); //FIXME: remove clone
+                            let connector = element.connector.clone();
                             vector_of_connectors.push(connector);
                         } else {
-                            let connector = element.connector.clone(); //FIXME: remove clone
+                            let connector = element.connector.clone();
                             inner_hashmap.insert(card_network, vec![connector]);
                         }
                     }
@@ -490,10 +490,10 @@ pub async fn list_payment_methods(
                     HashMap::new();
                 for card_network in card_networks {
                     if let Some(vector_of_connectors) = inner_hashmap.get_mut(&card_network) {
-                        let connector = element.connector.clone(); //FIXME: remove clone
+                        let connector = element.connector.clone();
                         vector_of_connectors.push(connector);
                     } else {
-                        let connector = element.connector.clone(); //FIXME: remove clone
+                        let connector = element.connector.clone();
                         inner_hashmap.insert(card_network, vec![connector]);
                     }
                 }
