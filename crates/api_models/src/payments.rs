@@ -358,7 +358,7 @@ pub struct Card {
     #[schema(value_type = String, example = "242")]
     pub card_cvc: Secret<String>,
     pub card_issuer: Option<String>,
-    pub card_network: Option<String>,
+    pub card_network: Option<api_enums::CardNetwork>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -418,7 +418,10 @@ impl From<&PaymentMethodData> for AdditionalPaymentData {
         match pm_data {
             PaymentMethodData::Card(card_data) => Self::Card {
                 card_issuer: card_data.card_issuer.to_owned(),
-                card_network: card_data.card_network.to_owned(),
+                card_network: card_data
+                    .card_network
+                    .as_ref()
+                    .map(|card_network| card_network.to_string()),
             },
             PaymentMethodData::BankRedirect(bank_redirect_data) => match bank_redirect_data {
                 BankRedirectData::Eps { bank_name, .. } => Self::BankRedirect {
