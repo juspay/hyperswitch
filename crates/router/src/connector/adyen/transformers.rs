@@ -5,7 +5,7 @@ use reqwest::Url;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils::PaymentsRequestData,
+    connector::utils::RouterData,
     consts,
     core::errors,
     pii::{self, Email, Secret},

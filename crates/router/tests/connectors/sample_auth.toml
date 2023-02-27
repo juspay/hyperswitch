@@ -50,6 +50,9 @@ key1 = "Merchant Id"
 api_key = "API Key"
 api_secret = "API Secret Key"
 
+[multisafepay]
+api_key = "API Key"
+
 [dlocal]
 key1 = "key1"
 api_key = "api_key"

@@ -114,6 +114,9 @@ base_url = "https://ppp-test.nuvei.com/"
 [connectors.airwallex]
 base_url = "https://api-demo.airwallex.com/"
 
+[connectors.multisafepay]
+base_url = "https://testapi.multisafepay.com/"
+
 [connectors.dlocal]
 base_url = "https://sandbox.dlocal.com/"
 
@@ -134,6 +137,7 @@ cards = [
     "dlocal",
     "fiserv",
     "globalpay",
+    "multisafepay",
     "nuvei",
     "payu",
     "shift4",
