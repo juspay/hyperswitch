@@ -166,6 +166,9 @@ base_url = "https://api-demo.airwallex.com/"
 base_url = "https://sandbox.dlocal.com/"
 
 # This data is used to call respective connectors for wallets and cards
+[connectors.bambora]
+base_url = "https://api.na.bambora.com"
+
 [connectors.supported]
 wallets = ["klarna", "braintree", "applepay"]
 cards = [

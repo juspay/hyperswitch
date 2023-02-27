@@ -97,6 +97,9 @@ base_url = "https://api-demo.airwallex.com/"
 [connectors.dlocal]
 base_url = "https://sandbox.dlocal.com/"
 
+[connectors.bambora]
+base_url = "https://api.na.bambora.com"
+
 [connectors.supported]
 wallets = ["klarna", "braintree", "applepay"]
 cards = [
@@ -104,6 +107,7 @@ cards = [
     "adyen",
     "airwallex",
     "authorizedotnet",
+    "bambora",
     "bluesnap",
     "braintree",
     "checkout",
