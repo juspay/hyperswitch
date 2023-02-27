@@ -284,7 +284,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for MultisafepayPaymentsReques
                 card_expiry_date: Some(
                     (format!(
                         "{}{}",
-                        ccard.get_card_expiry_year_2_digit().clone().expose(),
+                        ccard.get_card_expiry_year_2_digit().expose(),
                         ccard.card_exp_month.clone().expose()
                     ))
                     .parse::<i32>()
