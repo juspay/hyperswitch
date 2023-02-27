@@ -427,6 +427,7 @@ pub enum PaymentMethod {
     Card,
     PayLater,
     Wallet,
+    BankRedirect,
 }
 
 #[derive(
@@ -700,11 +701,18 @@ pub enum BankNames {
     strum::EnumString,
     frunk::LabelledGeneric,
 )]
-#[strum(serialize_all = "snake_case")]
-#[serde(rename_all = "snake_case")]
 pub enum CardNetwork {
     Visa,
     Mastercard,
+    AmericanExpress,
+    JCB,
+    DinersClub,
+    Discover,
+    CartesBancaires,
+    UnionPay,
+    Interac,
+    RuPay,
+    Maestro,
 }
 
 impl From<AttemptStatus> for IntentStatus {

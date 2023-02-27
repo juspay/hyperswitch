@@ -431,6 +431,7 @@ pub enum PaymentMethod {
     Card,
     PayLater,
     Wallet,
+    BankRedirect,
 }
 
 #[derive(

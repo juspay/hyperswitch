@@ -193,7 +193,7 @@ mod payments_test {
             card_holder_name: "JohnDoe".to_string().into(),
             card_cvc: "123".to_string().into(),
             card_issuer: Some("HDFC".to_string()),
-            card_network: Some("Visa".to_string()),
+            card_network: Some(api_models::enums::CardNetwork::Visa),
         }
     }
 
