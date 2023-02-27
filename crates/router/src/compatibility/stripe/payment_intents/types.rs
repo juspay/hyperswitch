@@ -24,11 +24,12 @@ pub struct StripeBillingDetails {
 impl From<StripeBillingDetails> for payments::Address {
     fn from(details: StripeBillingDetails) -> Self {
         Self {
-            address: details.address,
             phone: Some(payments::PhoneDetails {
                 number: details.phone,
-                country_code: None,
+                country_code: details.address.as_ref().and_then(|a| a.country.clone()),
             }),
+
+            address: details.address,
         }
     }
 }
@@ -104,11 +105,11 @@ pub struct Shipping {
 impl From<Shipping> for payments::Address {
     fn from(details: Shipping) -> Self {
         Self {
-            address: details.address,
             phone: Some(payments::PhoneDetails {
                 number: details.phone,
-                country_code: None,
+                country_code: details.address.as_ref().and_then(|a| a.country.clone()),
             }),
+            address: details.address,
         }
     }
 }
