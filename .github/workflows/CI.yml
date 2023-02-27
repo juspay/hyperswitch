@@ -156,39 +156,39 @@ jobs:
 
       - name: Cargo hack api_models
         if: env.api_models_changes_exist == 'true'
-        run: cargo hack check --workspace --each-feature --no-dev-deps -p api_models
+        run: cargo hack check --each-feature --no-dev-deps -p api_models
 
       - name: Cargo hack common_utils
         if: env.common_utils_changes_exist == 'true'
-        run: cargo hack check --workspace --each-feature --no-dev-deps -p common_utils
+        run: cargo hack check --each-feature --no-dev-deps -p common_utils
 
       - name: Cargo hack drainer
         if: env.drainer_changes_exist == 'true'
-        run: cargo hack check --workspace --each-feature --no-dev-deps -p drainer
+        run: cargo hack check --each-feature --no-dev-deps -p drainer
 
       - name: Cargo hack masking
         if: env.masking_changes_exist == 'true'
-        run: cargo hack check --workspace --each-feature --no-dev-deps -p masking
+        run: cargo hack check --each-feature --no-dev-deps -p masking
 
       - name: Cargo hack redis_interface
         if: env.redis_interface_changes_exist == 'true'
-        run: cargo hack check --workspace --each-feature --no-dev-deps -p redis_interface
+        run: cargo hack check --each-feature --no-dev-deps -p redis_interface
 
       - name: Cargo hack router
         if: env.router_changes_exist == 'true'
-        run: cargo hack check --workspace --each-feature --no-dev-deps -p router
+        run: cargo hack check --each-feature --no-dev-deps -p router
 
       - name: Cargo hack router_derive
         if: env.router_derive_changes_exist == 'true'
-        run: cargo hack check --workspace --each-feature --no-dev-deps -p router_derive
+        run: cargo hack check --each-feature --no-dev-deps -p router_derive
 
       - name: Cargo hack router_env
         if: env.router_env_changes_exist == 'true'
-        run: cargo hack check --workspace --each-feature --no-dev-deps -p router_env
+        run: cargo hack check --each-feature --no-dev-deps -p router_env
 
       - name: Cargo hack storage_models
         if: env.storage_models_changes_exist == 'true'
-        run: cargo hack check --workspace --each-feature --no-dev-deps -p storage_models
+        run: cargo hack check --each-feature --no-dev-deps -p storage_models
 
   # cargo-deny:
   #   name: Run cargo-deny

@@ -382,6 +382,7 @@ pub async fn list_payment_methods(
             error.to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
         })?;
 
+
     let mut response: HashMap<api::ListPaymentMethod, Vec<String>> = HashMap::new();
     for mca in all_mcas {
         let payment_methods = match mca.payment_methods_enabled {
