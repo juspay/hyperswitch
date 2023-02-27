@@ -2,12 +2,13 @@ use std::collections::{HashMap, HashSet};
 
 use api_models::{
     admin::{self, PaymentMethodsEnabled},
-    enums as api_enums,
+    enums::{self as api_enums},
     payment_methods::{
         CardNetworkTypes, PaymentExperienceTypes, RequestPaymentMethodTypes,
         ResponsePaymentMethodIntermediate, ResponsePaymentMethodTypes,
         ResponsePaymentMethodsEnabled,
     },
+    payments::BankCodeResponse,
 };
 use common_utils::{consts, ext_traits::AsyncExt, generate_id};
 use error_stack::{report, ResultExt};
@@ -348,6 +349,62 @@ pub async fn delete_card<'a>(
     Ok(delete_card_resp)
 }
 
+pub fn get_banks(
+    state: &routes::AppState,
+    pm_type: api_enums::PaymentMethodType,
+    connectors: Vec<String>,
+) -> Result<Vec<BankCodeResponse>, errors::ApiErrorResponse> {
+    let mut bank_names_hm: HashMap<String, HashSet<api_enums::BankNames>> = HashMap::new();
+
+    for connector in &connectors {
+        if let Some(connector_bank_names) = state.conf.bank_config.0.get(&pm_type) {
+            let hs = connector_bank_names.0.get(connector).unwrap().banks.clone();
+            bank_names_hm.insert(connector.clone(), hs);
+        } else {
+            logger::error!("Could not find any configured banks for payment_method -> {pm_type} for connector -> {connector}");
+        }
+    }
+
+    let vector_of_hashsets = bank_names_hm
+        .iter()
+        .map(|(_, v)| v.to_owned())
+        .collect::<Vec<_>>();
+
+    let common_bank_names = vector_of_hashsets
+        .iter()
+        .skip(1)
+        .fold(vector_of_hashsets[0].clone(), |acc, hs| {
+            acc.intersection(hs).cloned().collect()
+        });
+
+    let mut bank_code_responses = vec![];
+    if !common_bank_names.is_empty() {
+        bank_code_responses.push(BankCodeResponse {
+            bank_name: common_bank_names.clone().into_iter().collect(),
+            eligible_connectors: connectors.clone(),
+        });
+    }
+
+    for connector in connectors {
+        let all_bank_codes_for_connector = bank_names_hm.get(&connector).unwrap();
+        let remaining_bank_codes: HashSet<_> = all_bank_codes_for_connector
+            .difference(&common_bank_names)
+            .collect();
+
+        if !remaining_bank_codes.is_empty() {
+            bank_code_responses.push(BankCodeResponse {
+                bank_name: remaining_bank_codes
+                    .into_iter()
+                    .map(|ele| ele.to_owned())
+                    .collect(),
+                eligible_connectors: vec![connector],
+            })
+        }
+    }
+
+    Ok(bank_code_responses)
+}
+
 pub async fn list_payment_methods(
     state: &routes::AppState,
     merchant_account: storage::MerchantAccount,
@@ -431,6 +488,9 @@ pub async fn list_payment_methods(
         HashMap<api_enums::PaymentMethodType, HashMap<api_enums::CardNetwork, Vec<String>>>,
     > = HashMap::new();
 
+    let mut banks_consolidated_hm: HashMap<api_enums::PaymentMethodType, Vec<String>> =
+        HashMap::new();
+
     for element in response.clone() {
         let payment_method = element.payment_method;
         let payment_method_type = element.payment_method_type;
@@ -510,6 +570,17 @@ pub async fn list_payment_methods(
                 card_networks_consolidated_hm.insert(payment_method, payment_method_type_hm);
             }
         }
+
+        if element.payment_method == api_enums::PaymentMethod::BankRedirect {
+            let connector = element.connector.clone();
+            if let Some(vector_of_connectors) =
+                banks_consolidated_hm.get_mut(&element.payment_method_type)
+            {
+                vector_of_connectors.push(connector);
+            } else {
+                banks_consolidated_hm.insert(element.payment_method_type.clone(), vec![connector]);
+            }
+        }
     }
 
     let mut payment_method_responses: Vec<ResponsePaymentMethodsEnabled> = vec![];
@@ -528,6 +599,7 @@ pub async fn list_payment_methods(
                 payment_method_type: *payment_method_types_hm.0,
                 payment_experience: Some(payment_experience_types),
                 card_networks: None,
+                bank_names: None,
             })
         }
 
@@ -552,6 +624,7 @@ pub async fn list_payment_methods(
                 payment_method_type: *payment_method_types_hm.0,
                 card_networks: Some(card_network_types),
                 payment_experience: None,
+                bank_names: None,
             })
         }
 
@@ -560,6 +633,27 @@ pub async fn list_payment_methods(
             payment_method_types,
         })
     }
+
+    let mut bank_payment_method_types = vec![];
+
+    for key in banks_consolidated_hm.iter() {
+        let payment_method_type = key.0.clone();
+        let connectors = key.1.clone();
+        let bank_names = get_banks(state, payment_method_type, connectors)?;
+        bank_payment_method_types.push({
+            ResponsePaymentMethodTypes {
+                payment_method_type,
+                bank_names: Some(bank_names),
+                payment_experience: None,
+                card_networks: None,
+            }
+        })
+    }
+
+    payment_method_responses.push(ResponsePaymentMethodsEnabled {
+        payment_method: api_enums::PaymentMethod::BankRedirect,
+        payment_method_types: bank_payment_method_types,
+    });
 
     response
         .is_empty()
