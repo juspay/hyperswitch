@@ -298,8 +298,6 @@ impl Settings {
                     .list_separator(",")
                     .with_list_parse_key("redis.cluster_urls")
                     .with_list_parse_key("connectors.supported.wallets"),
-                // .with_list_parse_key("pm_filters.*.*.country")
-                // .with_list_parse_key("pm_filters.*.*.currency"),
             )
             .build()?;
 
