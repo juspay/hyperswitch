@@ -367,7 +367,7 @@ pub trait ConnectorActions: Connector {
                     a.auth_type
                         .map_or(enums::AuthenticationType::NoThreeDs, |a| a)
                 }),
-            payment_method: enums::PaymentMethodType::Card,
+            payment_method: enums::PaymentMethod::Card,
             connector_auth_type: self.get_auth_token(),
             description: Some("This is a test".to_string()),
             return_url: None,
@@ -461,6 +461,8 @@ impl Default for CCardType {
             card_exp_year: Secret::new("2025".to_string()),
             card_holder_name: Secret::new("John Doe".to_string()),
             card_cvc: Secret::new("999".to_string()),
+            card_issuer: None,
+            card_network: None,
         })
     }
 }
@@ -468,7 +470,7 @@ impl Default for CCardType {
 impl Default for PaymentAuthorizeType {
     fn default() -> Self {
         let data = types::PaymentsAuthorizeData {
-            payment_method_data: types::api::PaymentMethod::Card(CCardType::default().0),
+            payment_method_data: types::api::PaymentMethodData::Card(CCardType::default().0),
             amount: 100,
             currency: enums::Currency::USD,
             confirm: true,
@@ -482,7 +484,7 @@ impl Default for PaymentAuthorizeType {
             order_details: None,
             email: None,
             payment_experience: None,
-            payment_issuer: None,
+            payment_method_type: None,
         };
         Self(data)
     }

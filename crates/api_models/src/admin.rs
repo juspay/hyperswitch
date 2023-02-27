@@ -5,7 +5,7 @@ use url;
 use utoipa::ToSchema;
 
 use super::payments::AddressDetails;
-use crate::enums as api_enums;
+use crate::{enums as api_enums, payment_methods};
 
 #[derive(Clone, Debug, Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
@@ -271,14 +271,12 @@ pub struct PaymentConnectorCreate {
                 "Discover"
             ],
             "accepted_currencies": {
-                "enable_all":false,
-                "disable_only": ["INR", "CAD", "AED","JPY"],
-                "enable_only": ["EUR","USD"]
+                "type": "enable_only",
+                "list": ["USD", "EUR"]
             },
             "accepted_countries": {
-                "enable_all":false,
-                "disable_only": ["FR", "DE","IN"],
-                "enable_only": ["UK","AU"]
+                "type": "disable_only",
+                "list": ["FR", "DE","IN"]
             },
             "minimum_amount": 1,
             "maximum_amount": 68607706,
@@ -286,87 +284,46 @@ pub struct PaymentConnectorCreate {
             "installment_payment_enabled": true
         }
     ]))]
-    pub payment_methods_enabled: Option<Vec<PaymentMethods>>,
+    pub payment_methods_enabled: Option<Vec<PaymentMethodsEnabled>>,
     /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
     #[schema(value_type = Option<Object>,max_length = 255,example = json!({ "city": "NY", "unit": "245" }))]
     pub metadata: Option<serde_json::Value>,
 }
+
 /// Details of all the payment methods enabled for the connector for the given merchant account
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
-pub struct PaymentMethods {
+pub struct PaymentMethodsEnabled {
     /// Type of payment method.
-    #[schema(value_type = PaymentMethodType,example = "card")]
-    pub payment_method: api_enums::PaymentMethodType,
+    #[schema(value_type = PaymentMethod,example = "card")]
+    pub payment_method: api_enums::PaymentMethod,
+
     /// Subtype of payment method
-    #[schema(value_type = Option<Vec<PaymentMethodSubType>>,example = json!(["credit"]))]
-    pub payment_method_types: Option<Vec<api_enums::PaymentMethodSubType>>,
-    /// List of payment method issuers to be enabled for this payment method
-    #[schema(example = json!(["HDFC"]))]
-    pub payment_method_issuers: Option<Vec<String>>,
-    /// List of payment schemes accepted or has the processing capabilities of the processor
-    #[schema(example = json!(["MASTER","VISA","DINERS"]))]
-    pub payment_schemes: Option<Vec<String>>,
-    /// List of currencies accepted or has the processing capabilities of the processor
-    #[schema(example = json!(
-        {
-        "enable_all":false,
-        "disable_only": ["INR", "CAD", "AED","JPY"],
-        "enable_only": ["EUR","USD"]
-        }
-    ))]
-    pub accepted_currencies: Option<AcceptedCurrencies>,
-    ///  List of Countries accepted or has the processing capabilities of the processor
-    #[schema(example = json!(
-        {
-            "enable_all":false,
-            "disable_only": ["FR", "DE","IN"],
-            "enable_only": ["UK","AU"]
-        }
-    ))]
-    pub accepted_countries: Option<AcceptedCountries>,
-    /// Minimum amount supported by the processor. To be represented in the lowest denomination of the target currency (For example, for USD it should be in cents)
-    #[schema(example = 1)]
-    pub minimum_amount: Option<i32>,
-    /// Maximum amount supported by the processor. To be represented in the lowest denomination of
-    /// the target currency (For example, for USD it should be in cents)
-    #[schema(example = 1313)]
-    pub maximum_amount: Option<i32>,
-    /// Boolean to enable recurring payments / mandates. Default is true.
-    #[schema(default = true, example = false)]
-    pub recurring_enabled: bool,
-    /// Boolean to enable installment / EMI / BNPL payments. Default is true.
-    #[schema(default = true, example = false)]
-    pub installment_payment_enabled: bool,
-    /// Type of payment experience enabled with the connector
-    #[schema(value_type = Option<Vec<PaymentExperience>>,example = json!(["redirect_to_url"]))]
-    pub payment_experience: Option<Vec<api_enums::PaymentExperience>>,
+    #[schema(value_type = Option<Vec<PaymentMethodType>>,example = json!(["credit"]))]
+    pub payment_method_types: Option<Vec<payment_methods::RequestPaymentMethodTypes>>,
 }
 
-/// List of enabled and disabled currencies
+/// List of enabled and disabled currencies, empty in case all currencies are enabled
 #[derive(Eq, PartialEq, Hash, Debug, Clone, serde::Serialize, Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct AcceptedCurrencies {
-    /// True in case all currencies are supported
-    pub enable_all: bool,
-    /// List of disabled currencies, provide in case only few of currencies are not supported
+    /// type of accepted currencies (disable_only, enable_only)
+    #[serde(rename = "type")]
+    pub accept_type: String,
+    /// List of currencies of the provided type
     #[schema(value_type = Option<Vec<Currency>>)]
-    pub disable_only: Option<Vec<api_enums::Currency>>,
-    /// List of enable currencies, provide in case only few of currencies are supported
-    #[schema(value_type = Option<Vec<Currency>>)]
-    pub enable_only: Option<Vec<api_enums::Currency>>,
+    pub list: Option<Vec<api_enums::Currency>>,
 }
 
-/// List of enabled and disabled countries
+/// List of enabled and disabled countries, empty in case all countries are enabled
 #[derive(Eq, PartialEq, Hash, Debug, Clone, serde::Serialize, Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct AcceptedCountries {
-    /// True in case all countries are supported
-    pub enable_all: bool,
-    /// List of disabled countries, provide in case only few of countries are not supported
-    pub disable_only: Option<Vec<String>>,
-    /// List of enable countries, provide in case only few of countries are supported
-    pub enable_only: Option<Vec<String>>,
+    /// Type of accepted countries (disable_only, enable_only)
+    #[serde(rename = "type")]
+    pub accept_type: String,
+    /// List of countries of the provided type
+    pub list: Option<Vec<String>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]

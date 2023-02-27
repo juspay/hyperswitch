@@ -122,7 +122,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         match item.request.payment_method_data {
-            api::PaymentMethod::Card(ref card) => {
+            api::PaymentMethodData::Card(ref card) => {
                 make_card_request(&item.address, &item.request, card)
             }
             _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),

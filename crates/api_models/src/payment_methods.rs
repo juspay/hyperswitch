@@ -11,11 +11,11 @@ use crate::{admin, enums as api_enums, payments};
 pub struct CreatePaymentMethod {
     /// The type of payment method use for the payment.
     #[schema(value_type = PaymentMethodType,example = "card")]
-    pub payment_method: api_enums::PaymentMethodType,
+    pub payment_method: api_enums::PaymentMethod,
 
     /// This is a sub-category of payment method.
-    #[schema(value_type = Option<PaymentMethodSubType>,example = "credit_card")]
-    pub payment_method_type: Option<api_enums::PaymentMethodSubType>,
+    #[schema(value_type = Option<PaymentMethodType>,example = "credit")]
+    pub payment_method_type: Option<api_enums::PaymentMethodType>,
 
     /// The name of the bank/ provider issuing the payment method to the end user
     #[schema(example = "Citibank")]
@@ -94,19 +94,11 @@ pub struct PaymentMethodResponse {
 
     /// The type of payment method use for the payment.
     #[schema(value_type = PaymentMethodType,example = "card")]
-    pub payment_method: api_enums::PaymentMethodType,
+    pub payment_method: api_enums::PaymentMethod,
 
     /// This is a sub-category of payment method.
-    #[schema(value_type = Option<PaymentMethodSubType>,example = "credit_card")]
-    pub payment_method_type: Option<api_enums::PaymentMethodSubType>,
-
-    /// The name of the bank/ provider issuing the payment method to the end user
-    #[schema(example = "Citibank")]
-    pub payment_method_issuer: Option<String>,
-
-    /// A standard code representing the issuer of payment method
-    #[schema(value_type = Option<PaymentMethodIssuerCode>,example = "jp_applepay")]
-    pub payment_method_issuer_code: Option<api_enums::PaymentMethodIssuerCode>,
+    #[schema(value_type = Option<PaymentMethodType>,example = "credit")]
+    pub payment_method_type: Option<api_enums::PaymentMethodType>,
 
     /// Card details from card locker
     #[schema(example = json!({"last4": "1142","exp_month": "03","exp_year": "2030"}))]
@@ -159,6 +151,99 @@ pub struct CardDetailFromLocker {
     pub card_fingerprint: Option<masking::Secret<String>>,
 }
 
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, PartialEq, Eq)]
+pub struct PaymentExperienceTypes {
+    pub payment_experience_type: api_enums::PaymentExperience,
+    pub eligible_connectors: Vec<String>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, PartialEq, Eq)]
+pub struct CardNetworkTypes {
+    pub card_network: api_enums::CardNetwork,
+    pub eligible_connectors: Vec<String>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, PartialEq, Eq)]
+pub struct ResponsePaymentMethodTypes {
+    pub payment_method_type: api_enums::PaymentMethodType,
+    pub payment_experience: Option<Vec<PaymentExperienceTypes>>,
+    pub card_networks: Option<Vec<CardNetworkTypes>>,
+}
+
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+pub struct ResponsePaymentMethodsEnabled {
+    pub payment_method: api_enums::PaymentMethod,
+    pub payment_method_types: Vec<ResponsePaymentMethodTypes>,
+}
+
+#[derive(Clone)]
+pub struct ResponsePaymentMethodIntermediate {
+    pub payment_method_type: api_enums::PaymentMethodType,
+    pub payment_experience: Option<api_enums::PaymentExperience>,
+    pub card_networks: Option<Vec<api_enums::CardNetwork>>,
+    pub payment_method: api_enums::PaymentMethod,
+    pub connector: String,
+}
+
+impl ResponsePaymentMethodIntermediate {
+    pub fn new(
+        pm_type: RequestPaymentMethodTypes,
+        connector: String,
+        pm: api_enums::PaymentMethod,
+    ) -> Self {
+        Self {
+            payment_method_type: pm_type.payment_method_type,
+            payment_experience: pm_type.payment_experience,
+            card_networks: pm_type.card_networks,
+            payment_method: pm,
+            connector,
+        }
+    }
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, PartialEq, Eq, Hash)]
+pub struct RequestPaymentMethodTypes {
+    pub payment_method_type: api_enums::PaymentMethodType,
+    pub payment_experience: Option<api_enums::PaymentExperience>,
+    pub card_networks: Option<Vec<api_enums::CardNetwork>>,
+    /// List of currencies accepted or has the processing capabilities of the processor
+    #[schema(example = json!(
+        {
+        "enable_all":false,
+        "disable_only": ["INR", "CAD", "AED","JPY"],
+        "enable_only": ["EUR","USD"]
+        }
+    ))]
+    pub accepted_currencies: Option<admin::AcceptedCurrencies>,
+
+    ///  List of Countries accepted or has the processing capabilities of the processor
+    #[schema(example = json!(
+        {
+            "enable_all":false,
+            "disable_only": ["FR", "DE","IN"],
+            "enable_only": ["UK","AU"]
+        }
+    ))]
+    pub accepted_countries: Option<admin::AcceptedCountries>,
+
+    /// Minimum amount supported by the processor. To be represented in the lowest denomination of the target currency (For example, for USD it should be in cents)
+    #[schema(example = 1)]
+    pub minimum_amount: Option<i32>,
+
+    /// Maximum amount supported by the processor. To be represented in the lowest denomination of
+    /// the target currency (For example, for USD it should be in cents)
+    #[schema(example = 1313)]
+    pub maximum_amount: Option<i32>,
+
+    /// Boolean to enable recurring payments / mandates. Default is true.
+    #[schema(default = true, example = false)]
+    pub recurring_enabled: bool,
+
+    /// Boolean to enable installment / EMI / BNPL payments. Default is true.
+    #[schema(default = true, example = false)]
+    pub installment_payment_enabled: bool,
+}
+
 //List Payment Method
 #[derive(Debug, serde::Serialize, Default, ToSchema)]
 #[serde(deny_unknown_fields)]
@@ -186,6 +271,10 @@ pub struct ListPaymentMethodRequest {
     /// Indicates whether the payment method is eligible for installment payments
     #[schema(example = true)]
     pub installment_payment_enabled: Option<bool>,
+
+    /// Indicates whether the payment method is eligible for card netwotks
+    #[schema(value_type = Option<Vec<CardNetwork>>, example = json!(["visa", "mastercard"]))]
+    pub card_networks: Option<Vec<api_enums::CardNetwork>>,
 }
 
 impl<'de> serde::Deserialize<'de> for ListPaymentMethodRequest {
@@ -296,76 +385,34 @@ pub struct ListPaymentMethodResponse {
         }
     ]
     ))]
-    pub payment_methods: Vec<ListPaymentMethod>,
+    pub payment_methods: Vec<ResponsePaymentMethodsEnabled>,
 }
+
+// impl ResponsePaymentMethodTypes {
+//     pub fn new(
+//         pm_type: RequestPaymentMethodTypes,
+//         connector: String,
+//         payment_method: api_enums::PaymentMethod,
+//     ) -> Self {
+//         Self {
+//             payment_method_type: pm_type.payment_method_type,
+//             payment_experience: pm_type.payment_experience,
+//             connector,
+//             card_networks: pm_type.card_networks,
+//             payment_method,
+//         }
+//     }
+// }
 
 #[derive(Eq, PartialEq, Hash, Debug, serde::Deserialize, ToSchema)]
 pub struct ListPaymentMethod {
     /// The type of payment method use for the payment.
-    #[schema(value_type = PaymentMethodType,example = "card")]
-    pub payment_method: api_enums::PaymentMethodType,
+    #[schema(value_type = PaymentMethod,example = "card")]
+    pub payment_method: api_enums::PaymentMethod,
 
     /// This is a sub-category of payment method.
-    #[schema(value_type = Option<Vec<PaymentMethodSubType>>,example = json!(["credit_card"]))]
-    pub payment_method_types: Option<Vec<api_enums::PaymentMethodSubType>>,
-
-    /// The name of the bank/ provider issuing the payment method to the end user
-    #[schema(example = json!(["Citibank"]))]
-    pub payment_method_issuers: Option<Vec<String>>,
-
-    /// A standard code representing the issuer of payment method
-    #[schema(value_type = Option<Vec<PaymentMethodIssuerCode>>,example = json!(["jp_applepay"]))]
-    pub payment_method_issuer_code: Option<Vec<api_enums::PaymentMethodIssuerCode>>,
-
-    /// List of payment schemes accepted or has the processing capabilities of the processor
-    #[schema(example = json!(["MASTER", "VISA", "DINERS"]))]
-    pub payment_schemes: Option<Vec<String>>,
-
-    /// List of Countries accepted or has the processing capabilities of the processor
-    #[schema(value_type = Option<AcceptedCountries>, example = json!(
-        {
-            "enable_all":false,
-            "disable_only": ["FR", "DE","IN"],
-            "enable_only": ["UK","AU"]
-        }
-    ))]
-    pub accepted_countries: Option<admin::AcceptedCountries>,
-
-    /// List of currencies accepted or has the processing capabilities of the processor
-    #[schema(value_type = Option<AcceptedCurrencies>, example = json!(
-        {
-        "enable_all":false,
-        "disable_only": ["INR", "CAD", "AED","JPY"],
-        "enable_only": ["EUR","USD"]
-        }
-    ))]
-    pub accepted_currencies: Option<admin::AcceptedCurrencies>,
-
-    /// Minimum amount supported by the processor. To be represented in the lowest denomination of
-    /// the target currency (For example, for USD it should be in cents)
-    #[schema(example = 60000)]
-    pub minimum_amount: Option<i64>,
-
-    /// Maximum amount supported by the processor. To be represented in the lowest denomination of
-    /// the target currency (For example, for USD it should be in cents)
-    #[schema(example = 1)]
-    pub maximum_amount: Option<i64>,
-
-    /// Boolean to enable recurring payments / mandates. Default is true.
-    #[schema(example = true)]
-    pub recurring_enabled: bool,
-
-    /// Boolean to enable installment / EMI / BNPL payments. Default is true.
-    #[schema(example = true)]
-    pub installment_payment_enabled: bool,
-
-    /// Type of payment experience enabled with the connector
-    #[schema(value_type = Option<Vec<PaymentExperience>>, example = json!(["redirect_to_url"]))]
-    pub payment_experience: Option<Vec<api_enums::PaymentExperience>>,
-
-    /// Eligible connectors for this payment method
-    #[schema(example = json!(["stripe", "adyen"]))]
-    pub eligible_connectors: Option<Vec<String>>,
+    #[schema(value_type = Option<Vec<PaymentMethodType>>,example = json!(["credit"]))]
+    pub payment_method_types: Option<Vec<RequestPaymentMethodTypes>>,
 }
 
 /// Currently if the payment method is Wallet or Paylater the relevant fields are `payment_method`
@@ -379,18 +426,9 @@ impl serde::Serialize for ListPaymentMethod {
         use serde::ser::SerializeStruct;
         let mut state = serializer.serialize_struct("ListPaymentMethod", 4)?;
         state.serialize_field("payment_method", &self.payment_method)?;
-        state.serialize_field("payment_experience", &self.payment_experience)?;
-        state.serialize_field("eligible_connectors", &self.eligible_connectors)?;
-        match self.payment_method {
-            api_enums::PaymentMethodType::Wallet | api_enums::PaymentMethodType::PayLater => {
-                state.serialize_field("payment_method_issuers", &self.payment_method_issuers)?;
-            }
-            _ => {
-                state.serialize_field("payment_method_issuers", &self.payment_method_issuers)?;
-                state.serialize_field("payment_method_types", &self.payment_method_types)?;
-                state.serialize_field("payment_schemes", &self.payment_schemes)?;
-            }
-        }
+
+        state.serialize_field("payment_method_types", &self.payment_method_types)?;
+
         state.end()
     }
 }
@@ -439,11 +477,11 @@ pub struct CustomerPaymentMethod {
 
     /// The type of payment method use for the payment.
     #[schema(value_type = PaymentMethodType,example = "card")]
-    pub payment_method: api_enums::PaymentMethodType,
+    pub payment_method: api_enums::PaymentMethod,
 
     /// This is a sub-category of payment method.
-    #[schema(value_type = Option<PaymentMethodSubType>,example = "credit_card")]
-    pub payment_method_type: Option<api_enums::PaymentMethodSubType>,
+    #[schema(value_type = Option<PaymentMethodType>,example = "credit_card")]
+    pub payment_method_type: Option<api_enums::PaymentMethodType>,
 
     /// The name of the bank/ provider issuing the payment method to the end user
     #[schema(example = "Citibank")]
@@ -623,10 +661,10 @@ pub struct TokenizedWalletValue2 {
 impl From<payments::WalletData> for WalletData {
     fn from(value: payments::WalletData) -> Self {
         match value {
-            payments::WalletData::Gpay(data) => Self::GpayWallet(data.into()),
-            payments::WalletData::Applepay(data) => Self::ApplePayWallet(data.into()),
+            payments::WalletData::GooglePay(data) => Self::GpayWallet(data.into()),
+            payments::WalletData::ApplePay(data) => Self::ApplePayWallet(data.into()),
             payments::WalletData::PaypalSdk(data) => Self::PayPalWallet(data.into()),
-            payments::WalletData::Paypal(_) => Self::Paypal(PaypalRedirection {}),
+            payments::WalletData::PaypalRedirect(_) => Self::Paypal(PaypalRedirection {}),
         }
     }
 }
@@ -786,10 +824,10 @@ impl From<payments::GpayTokenizationData> for GpayTokenizationData {
 impl From<WalletData> for payments::WalletData {
     fn from(value: WalletData) -> Self {
         match value {
-            WalletData::GpayWallet(data) => Self::Gpay(data.into()),
-            WalletData::ApplePayWallet(data) => Self::Applepay(data.into()),
+            WalletData::GpayWallet(data) => Self::GooglePay(data.into()),
+            WalletData::ApplePayWallet(data) => Self::ApplePay(data.into()),
             WalletData::PayPalWallet(data) => Self::PaypalSdk(data.into()),
-            WalletData::Paypal(_) => Self::Paypal(payments::PaypalRedirection {}),
+            WalletData::Paypal(_) => Self::PaypalRedirect(payments::PaypalRedirection {}),
         }
     }
 }

@@ -11,11 +11,10 @@ use crate::{
 };
 
 fn fetch_payment_instrument(
-    item: &types::PaymentsAuthorizeRouterData,
+    payment_method: api::PaymentMethodData,
 ) -> CustomResult<PaymentInstrument, errors::ConnectorError> {
-    let payment_method = item.request.payment_method_data.to_owned();
     match payment_method {
-        api::PaymentMethod::Card(card) => Ok(PaymentInstrument::Card(CardPayment {
+        api::PaymentMethodData::Card(card) => Ok(PaymentInstrument::Card(CardPayment {
             card_expiry_date: CardExpiryDate {
                 month: card.card_exp_month,
                 year: card.card_exp_year,
@@ -23,15 +22,15 @@ fn fetch_payment_instrument(
             card_number: card.card_number,
             ..CardPayment::default()
         })),
-        api::PaymentMethod::Wallet(wallet) => match wallet {
-            api_models::payments::WalletData::Gpay(data) => {
+        api::PaymentMethodData::Wallet(wallet) => match wallet {
+            api_models::payments::WalletData::GooglePay(data) => {
                 Ok(PaymentInstrument::Googlepay(WalletPayment {
                     payment_type: PaymentType::Googlepay,
                     wallet_token: data.tokenization_data.token,
                     ..WalletPayment::default()
                 }))
             }
-            api_models::payments::WalletData::Applepay(data) => {
+            api_models::payments::WalletData::ApplePay(data) => {
                 Ok(PaymentInstrument::Applepay(WalletPayment {
                     payment_type: PaymentType::Applepay,
 
@@ -68,7 +67,9 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for WorldpayPaymentsRequest {
                     line1: item.merchant_id.clone(),
                     ..Default::default()
                 },
-                payment_instrument: fetch_payment_instrument(item)?,
+                payment_instrument: fetch_payment_instrument(
+                    item.request.payment_method_data.clone(),
+                )?,
                 debt_repayment: None,
             },
             merchant: Merchant {

@@ -1826,49 +1826,36 @@
       },
       "AcceptedCountries": {
         "type": "object",
-        "description": "List of enabled and disabled countries",
+        "description": "List of enabled and disabled countries, empty in case all countries are enabled",
         "required": [
-          "enable_all"
+          "type"
         ],
         "properties": {
-          "enable_all": {
-            "type": "boolean",
-            "description": "True in case all countries are supported"
+          "type": {
+            "type": "string",
+            "description": "Type of accepted countries (disable_only, enable_only)"
           },
-          "disable_only": {
+          "list": {
             "type": "array",
             "items": {
               "type": "string",
-              "description": "List of disabled countries, provide in case only few of countries are not supported"
-            }
-          },
-          "enable_only": {
-            "type": "array",
-            "items": {
-              "type": "string",
-              "description": "List of enable countries, provide in case only few of countries are supported"
+              "description": "List of countries of the provided type"
             }
           }
         }
       },
       "AcceptedCurrencies": {
         "type": "object",
-        "description": "List of enabled and disabled currencies",
+        "description": "List of enabled and disabled currencies, empty in case all currencies are enabled",
         "required": [
-          "enable_all"
+          "type"
         ],
         "properties": {
-          "enable_all": {
-            "type": "boolean",
-            "description": "True in case all currencies are supported"
+          "type": {
+            "type": "string",
+            "description": "type of accepted currencies (disable_only, enable_only)"
           },
-          "disable_only": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/Currency"
-            }
-          },
-          "enable_only": {
+          "list": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/Currency"
@@ -1945,18 +1932,6 @@
             "maxLength": 255
           }
         }
-      },
-      "AffirmIssuer": {
-        "type": "string",
-        "enum": [
-          "affirm"
-        ]
-      },
-      "AfterpayClearpayIssuer": {
-        "type": "string",
-        "enum": [
-          "afterpay_clearpay"
-        ]
       },
       "AmountInfo": {
         "type": "object",
@@ -2208,6 +2183,172 @@
           "no_three_ds"
         ]
       },
+      "BankNames": {
+        "type": "string",
+        "enum": [
+          "american_express",
+          "bank_of_america",
+          "barclays",
+          "capital_one",
+          "chase",
+          "citi",
+          "discover",
+          "navy_federal_credit_union",
+          "pentagon_federal_credit_union",
+          "synchrony_bank",
+          "wells_fargo",
+          "abn_amro",
+          "asn_bank",
+          "bunq",
+          "handelsbanken",
+          "ing",
+          "knab",
+          "moneyou",
+          "rabobank",
+          "regiobank",
+          "revolut",
+          "sns_bank",
+          "triodos_bank",
+          "van_lanschot",
+          "arzte_und_apotheker_bank",
+          "austrian_anadi_bank_ag",
+          "bank_austria",
+          "bank99_ag",
+          "bankhaus_carl_spangler",
+          "bankhaus_schelhammer_und_schattera_ag",
+          "bawag_psk_ag",
+          "bks_bank_ag",
+          "brull_kallmus_bank_ag",
+          "btv_vier_lander_bank",
+          "capital_bank_grawe_gruppe_ag",
+          "dolomitenbank",
+          "easybank_ag",
+          "erste_bank_und_sparkassen",
+          "hypo_alpeadriabank_international_ag",
+          "hypo_noe_lb_fur_niederosterreich_u_wien",
+          "hypo_oberosterreich_salzburg_steiermark",
+          "hypo_tirol_bank_ag",
+          "hypo_vorarlberg_bank_ag",
+          "hypo_bank_burgenland_aktiengesellschaft",
+          "marchfelder_bank",
+          "oberbank_ag",
+          "osterreichische_arzte_und_apothekerbank",
+          "posojilnica_bank_e_gen",
+          "raiffeisen_bankengruppe_osterreich",
+          "schelhammer_capital_bank_ag",
+          "schoellerbank_ag",
+          "sparda_bank_wien",
+          "volksbank_gruppe",
+          "volkskreditbank_ag",
+          "vr_bank_braunau"
+        ]
+      },
+      "BankRedirectBilling": {
+        "type": "object",
+        "required": [
+          "billing_name"
+        ],
+        "properties": {
+          "billing_name": {
+            "type": "string",
+            "description": "The name for which billing is issued"
+          }
+        }
+      },
+      "BankRedirectData": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "eps"
+            ],
+            "properties": {
+              "eps": {
+                "type": "object",
+                "required": [
+                  "billing_details",
+                  "bank_name"
+                ],
+                "properties": {
+                  "billing_details": {
+                    "$ref": "#/components/schemas/BankRedirectBilling"
+                  },
+                  "bank_name": {
+                    "$ref": "#/components/schemas/BankNames"
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "giropay"
+            ],
+            "properties": {
+              "giropay": {
+                "type": "object",
+                "required": [
+                  "billing_details"
+                ],
+                "properties": {
+                  "billing_details": {
+                    "$ref": "#/components/schemas/BankRedirectBilling"
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "ideal"
+            ],
+            "properties": {
+              "ideal": {
+                "type": "object",
+                "required": [
+                  "billing_details",
+                  "bank_name"
+                ],
+                "properties": {
+                  "billing_details": {
+                    "$ref": "#/components/schemas/BankRedirectBilling"
+                  },
+                  "bank_name": {
+                    "$ref": "#/components/schemas/BankNames"
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "sofort"
+            ],
+            "properties": {
+              "sofort": {
+                "type": "object",
+                "required": [
+                  "country",
+                  "preferred_language"
+                ],
+                "properties": {
+                  "country": {
+                    "type": "string",
+                    "description": "The country for bank payment"
+                  },
+                  "preferred_language": {
+                    "type": "string",
+                    "description": "The preferred language"
+                  }
+                }
+              }
+            }
+          }
+        ]
+      },
       "CaptureMethod": {
         "type": "string",
         "enum": [
@@ -2251,6 +2392,12 @@
             "type": "string",
             "description": "The CVC number for the card",
             "example": "242"
+          },
+          "card_issuer": {
+            "type": "string"
+          },
+          "card_network": {
+            "type": "string"
           }
         }
       },
@@ -2519,7 +2666,7 @@
             "$ref": "#/components/schemas/PaymentMethodType"
           },
           "payment_method_type": {
-            "$ref": "#/components/schemas/PaymentMethodSubType"
+            "$ref": "#/components/schemas/PaymentMethodType"
           },
           "payment_method_issuer": {
             "type": "string",
@@ -2726,7 +2873,7 @@
             "$ref": "#/components/schemas/PaymentMethodType"
           },
           "payment_method_type": {
-            "$ref": "#/components/schemas/PaymentMethodSubType"
+            "$ref": "#/components/schemas/PaymentMethodType"
           },
           "payment_method_issuer": {
             "type": "string",
@@ -3156,12 +3303,6 @@
           "requires_capture"
         ]
       },
-      "KlarnaIssuer": {
-        "type": "string",
-        "enum": [
-          "klarna"
-        ]
-      },
       "KlarnaSessionTokenResponse": {
         "type": "object",
         "required": [
@@ -3213,100 +3354,19 @@
       "ListPaymentMethod": {
         "type": "object",
         "required": [
-          "payment_method",
-          "recurring_enabled",
-          "installment_payment_enabled"
+          "payment_method"
         ],
         "properties": {
           "payment_method": {
-            "$ref": "#/components/schemas/PaymentMethodType"
+            "$ref": "#/components/schemas/PaymentMethod"
           },
           "payment_method_types": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/PaymentMethodSubType"
+              "$ref": "#/components/schemas/PaymentMethodType"
             },
             "example": [
-              "credit_card"
-            ]
-          },
-          "payment_method_issuers": {
-            "type": "array",
-            "items": {
-              "type": "string",
-              "description": "The name of the bank/ provider issuing the payment method to the end user"
-            },
-            "example": [
-              "Citibank"
-            ]
-          },
-          "payment_method_issuer_code": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/PaymentMethodIssuerCode"
-            },
-            "example": [
-              "jp_applepay"
-            ]
-          },
-          "payment_schemes": {
-            "type": "array",
-            "items": {
-              "type": "string",
-              "description": "List of payment schemes accepted or has the processing capabilities of the processor"
-            },
-            "example": [
-              "MASTER",
-              "VISA",
-              "DINERS"
-            ]
-          },
-          "accepted_countries": {
-            "$ref": "#/components/schemas/AcceptedCountries"
-          },
-          "accepted_currencies": {
-            "$ref": "#/components/schemas/AcceptedCurrencies"
-          },
-          "minimum_amount": {
-            "type": "integer",
-            "format": "int64",
-            "description": "Minimum amount supported by the processor. To be represented in the lowest denomination of\nthe target currency (For example, for USD it should be in cents)",
-            "example": 60000
-          },
-          "maximum_amount": {
-            "type": "integer",
-            "format": "int64",
-            "description": "Maximum amount supported by the processor. To be represented in the lowest denomination of\nthe target currency (For example, for USD it should be in cents)",
-            "example": 1
-          },
-          "recurring_enabled": {
-            "type": "boolean",
-            "description": "Boolean to enable recurring payments / mandates. Default is true.",
-            "example": true
-          },
-          "installment_payment_enabled": {
-            "type": "boolean",
-            "description": "Boolean to enable installment / EMI / BNPL payments. Default is true.",
-            "example": true
-          },
-          "payment_experience": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/PaymentExperience"
-            },
-            "example": [
-              "redirect_to_url"
-            ]
-          },
-          "eligible_connectors": {
-            "type": "array",
-            "items": {
-              "type": "string",
-              "description": "Eligible connectors for this payment method"
-            },
-            "example": [
-              "stripe",
-              "adyen"
+              "credit"
             ]
           }
         }
@@ -3867,34 +3927,24 @@
           "payment_methods_enabled": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/PaymentMethods"
+              "$ref": "#/components/schemas/PaymentMethodsEnabled"
             },
             "example": [
               {
                 "accepted_countries": {
-                  "disable_only": [
+                  "list": [
                     "FR",
                     "DE",
                     "IN"
                   ],
-                  "enable_all": false,
-                  "enable_only": [
-                    "UK",
-                    "AU"
-                  ]
+                  "type": "disable_only"
                 },
                 "accepted_currencies": {
-                  "disable_only": [
-                    "INR",
-                    "CAD",
-                    "AED",
-                    "JPY"
+                  "list": [
+                    "USD",
+                    "EUR"
                   ],
-                  "enable_all": false,
-                  "enable_only": [
-                    "EUR",
-                    "USD"
-                  ]
+                  "type": "enable_only"
                 },
                 "installment_payment_enabled": true,
                 "maximum_amount": 68607706,
@@ -3972,28 +4022,6 @@
           }
         ]
       },
-      "PaymentIssuer": {
-        "type": "string",
-        "enum": [
-          "klarna",
-          "affirm",
-          "afterpay_clearpay",
-          "american_express",
-          "bank_of_america",
-          "barclays",
-          "capital_one",
-          "chase",
-          "citi",
-          "discover",
-          "navy_federal_credit_union",
-          "pentagon_federal_credit_union",
-          "synchrony_bank",
-          "wells_fargo",
-          "paypal",
-          "googlepay",
-          "applepay"
-        ]
-      },
       "PaymentListConstraints": {
         "type": "object",
         "properties": {
@@ -4061,6 +4089,16 @@
         }
       },
       "PaymentMethod": {
+        "type": "string",
+        "enum": [
+          "card",
+          "pay_later",
+          "wallet",
+          "klarna",
+          "paypal"
+        ]
+      },
+      "PaymentMethodData": {
         "oneOf": [
           {
             "type": "object",
@@ -4072,12 +4110,6 @@
                 "$ref": "#/components/schemas/Card"
               }
             }
-          },
-          {
-            "type": "string",
-            "enum": [
-              "bank_transfer"
-            ]
           },
           {
             "type": "object",
@@ -4102,10 +4134,15 @@
             }
           },
           {
-            "type": "string",
-            "enum": [
-              "paypal"
-            ]
+            "type": "object",
+            "required": [
+              "bank_redirect"
+            ],
+            "properties": {
+              "bank_redirect": {
+                "$ref": "#/components/schemas/BankRedirectData"
+              }
+            }
           }
         ]
       },
@@ -4153,15 +4190,7 @@
             "$ref": "#/components/schemas/PaymentMethodType"
           },
           "payment_method_type": {
-            "$ref": "#/components/schemas/PaymentMethodSubType"
-          },
-          "payment_method_issuer": {
-            "type": "string",
-            "description": "The name of the bank/ provider issuing the payment method to the end user",
-            "example": "Citibank"
-          },
-          "payment_method_issuer_code": {
-            "$ref": "#/components/schemas/PaymentMethodIssuerCode"
+            "$ref": "#/components/schemas/PaymentMethodType"
           },
           "card": {
             "$ref": "#/components/schemas/CardDetailFromLocker"
@@ -4196,114 +4225,40 @@
           }
         }
       },
-      "PaymentMethodSubType": {
+      "PaymentMethodType": {
         "type": "string",
         "enum": [
           "credit",
           "debit",
-          "upi_intent",
-          "upi_collect",
-          "credit_card_installments",
-          "pay_later_installments"
-        ]
-      },
-      "PaymentMethodType": {
-        "type": "string",
-        "enum": [
-          "card",
-          "payment_container",
-          "bank_transfer",
-          "bank_debit",
-          "pay_later",
-          "netbanking",
-          "upi",
-          "open_banking",
-          "consumer_finance",
-          "wallet",
+          "giropay",
+          "ideal",
+          "sofort",
+          "eps",
           "klarna",
+          "affirm",
+          "afterpay_clearpay",
+          "google_pay",
+          "apple_pay",
           "paypal"
         ]
       },
-      "PaymentMethods": {
+      "PaymentMethodsEnabled": {
         "type": "object",
         "description": "Details of all the payment methods enabled for the connector for the given merchant account",
         "required": [
-          "payment_method",
-          "recurring_enabled",
-          "installment_payment_enabled"
+          "payment_method"
         ],
         "properties": {
           "payment_method": {
-            "$ref": "#/components/schemas/PaymentMethodType"
+            "$ref": "#/components/schemas/PaymentMethod"
           },
           "payment_method_types": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/PaymentMethodSubType"
+              "$ref": "#/components/schemas/PaymentMethodType"
             },
             "example": [
               "credit"
-            ]
-          },
-          "payment_method_issuers": {
-            "type": "array",
-            "items": {
-              "type": "string",
-              "description": "List of payment method issuers to be enabled for this payment method"
-            },
-            "example": [
-              "HDFC"
-            ]
-          },
-          "payment_schemes": {
-            "type": "array",
-            "items": {
-              "type": "string",
-              "description": "List of payment schemes accepted or has the processing capabilities of the processor"
-            },
-            "example": [
-              "MASTER",
-              "VISA",
-              "DINERS"
-            ]
-          },
-          "accepted_currencies": {
-            "$ref": "#/components/schemas/AcceptedCurrencies"
-          },
-          "accepted_countries": {
-            "$ref": "#/components/schemas/AcceptedCountries"
-          },
-          "minimum_amount": {
-            "type": "integer",
-            "format": "int32",
-            "description": "Minimum amount supported by the processor. To be represented in the lowest denomination of the target currency (For example, for USD it should be in cents)",
-            "example": 1
-          },
-          "maximum_amount": {
-            "type": "integer",
-            "format": "int32",
-            "description": "Maximum amount supported by the processor. To be represented in the lowest denomination of\nthe target currency (For example, for USD it should be in cents)",
-            "example": 1313
-          },
-          "recurring_enabled": {
-            "type": "boolean",
-            "description": "Boolean to enable recurring payments / mandates. Default is true.",
-            "default": true,
-            "example": false
-          },
-          "installment_payment_enabled": {
-            "type": "boolean",
-            "description": "Boolean to enable installment / EMI / BNPL payments. Default is true.",
-            "default": true,
-            "example": false
-          },
-          "payment_experience": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/PaymentExperience"
-            },
-            "example": [
-              "redirect_to_url"
             ]
           }
         }
@@ -4461,10 +4416,10 @@
             "$ref": "#/components/schemas/AuthenticationType"
           },
           "payment_method_data": {
-            "$ref": "#/components/schemas/PaymentMethod"
+            "$ref": "#/components/schemas/PaymentMethodData"
           },
           "payment_method": {
-            "$ref": "#/components/schemas/PaymentMethodType"
+            "$ref": "#/components/schemas/PaymentMethod"
           },
           "payment_token": {
             "type": "string",
@@ -4513,11 +4468,11 @@
           "browser_info": {
             "type": "object"
           },
-          "payment_issuer": {
-            "$ref": "#/components/schemas/PaymentIssuer"
-          },
           "payment_experience": {
             "$ref": "#/components/schemas/PaymentExperience"
+          },
+          "payment_method_type": {
+            "$ref": "#/components/schemas/PaymentMethodType"
           }
         }
       },
@@ -4702,6 +4657,12 @@
             "type": "string",
             "description": "If there was an error while calling the connector the error message is received here",
             "example": "Failed while verifying the card"
+          },
+          "payment_experience": {
+            "$ref": "#/components/schemas/PaymentExperience"
+          },
+          "payment_method_type": {
+            "$ref": "#/components/schemas/PaymentMethodType"
           }
         }
       },
@@ -5243,10 +5204,10 @@
           {
             "type": "object",
             "required": [
-              "gpay"
+              "google_pay"
             ],
             "properties": {
-              "gpay": {
+              "google_pay": {
                 "$ref": "#/components/schemas/GpayWalletData"
               }
             }
@@ -5254,10 +5215,10 @@
           {
             "type": "object",
             "required": [
-              "applepay"
+              "apple_pay"
             ],
             "properties": {
-              "applepay": {
+              "apple_pay": {
                 "$ref": "#/components/schemas/ApplePayWalletData"
               }
             }
@@ -5276,10 +5237,10 @@
           {
             "type": "object",
             "required": [
-              "paypal"
+              "paypal_redirect"
             ],
             "properties": {
-              "paypal": {
+              "paypal_redirect": {
                 "$ref": "#/components/schemas/PaypalRedirection"
               }
             }

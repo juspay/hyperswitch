@@ -73,7 +73,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for DlocalPaymentsRequest {
         let country = address.get_country()?;
         let name = get_payer_name(address);
         match item.request.payment_method_data {
-            api::PaymentMethod::Card(ref ccard) => {
+            api::PaymentMethodData::Card(ref ccard) => {
                 let should_capture = matches!(
                     item.request.capture_method,
                     Some(enums::CaptureMethod::Automatic)
@@ -130,7 +130,7 @@ fn get_payer_name(address: &AddressDetails) -> Option<Secret<String>> {
         .last_name
         .clone()
         .map_or("".to_string(), |last_name| last_name.peek().to_string());
-    let name: String = format!("{} {}", first_name, last_name).trim().to_string();
+    let name: String = format!("{first_name} {last_name}").trim().to_string();
     if !name.is_empty() {
         Some(Secret::new(name))
     } else {

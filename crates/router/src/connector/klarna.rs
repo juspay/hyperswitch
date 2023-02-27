@@ -231,15 +231,15 @@ impl
     ) -> CustomResult<String, errors::ConnectorError> {
         let payment_method_data = &req.request.payment_method_data;
         match payment_method_data {
-            api_payments::PaymentMethod::PayLater(api_payments::PayLaterData::KlarnaSdk {
+            api_payments::PaymentMethodData::PayLater(api_payments::PayLaterData::KlarnaSdk {
                 token,
             }) => match (
-                req.request.payment_issuer.as_ref(),
                 req.request.payment_experience.as_ref(),
+                req.request.payment_method_type.as_ref(),
             ) {
                 (
-                    Some(storage_enums::PaymentIssuer::Klarna),
                     Some(storage_enums::PaymentExperience::InvokeSdkClient),
+                    Some(storage_enums::PaymentMethodType::Klarna),
                 ) => Ok(format!(
                     "{}payments/v1/authorizations/{}/order",
                     self.base_url(connectors),
@@ -247,7 +247,7 @@ impl
                 )),
                 (None, _) | (_, None) => Err(error_stack::report!(
                     errors::ConnectorError::MissingRequiredField {
-                        field_name: "payment_issuer and payment_experience"
+                        field_name: "payment_experience/payment_method_type"
                     }
                 )),
                 _ => Err(error_stack::report!(

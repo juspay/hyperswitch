@@ -60,8 +60,8 @@ async fn should_authorize_gpay_payment() {
     let response = conn
         .authorize_payment(
             Some(types::PaymentsAuthorizeData {
-                payment_method_data: types::api::PaymentMethod::Wallet(api::WalletData::Gpay(
-                    api_models::payments::GpayWalletData {
+                payment_method_data: types::api::PaymentMethodData::Wallet(
+                    api::WalletData::GooglePay(api_models::payments::GpayWalletData {
                         pm_type: "CARD".to_string(),
                         description: "Visa1234567890".to_string(),
                         info: api_models::payments::GpayPaymentMethodInfo {
@@ -72,8 +72,8 @@ async fn should_authorize_gpay_payment() {
                             token_type: "worldpay".to_string(),
                             token: "someToken".to_string(),
                         },
-                    },
-                )),
+                    }),
+                ),
                 ..utils::PaymentAuthorizeType::default().0
             }),
             None,
@@ -95,8 +95,8 @@ async fn should_authorize_applepay_payment() {
     let response = conn
         .authorize_payment(
             Some(types::PaymentsAuthorizeData {
-                payment_method_data: types::api::PaymentMethod::Wallet(api::WalletData::Applepay(
-                    api_models::payments::ApplePayWalletData {
+                payment_method_data: types::api::PaymentMethodData::Wallet(
+                    api::WalletData::ApplePay(api_models::payments::ApplePayWalletData {
                         payment_data: api_models::payments::ApplepayPaymentData {
                             data: "someData".to_string(),
                             signature: "someSignature".to_string(),
@@ -113,8 +113,8 @@ async fn should_authorize_applepay_payment() {
                             network: "visa".to_string(),
                             pm_type: "card".to_string(),
                         },
-                    },
-                )),
+                    }),
+                ),
                 ..utils::PaymentAuthorizeType::default().0
             }),
             None,
