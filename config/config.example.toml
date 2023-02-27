@@ -209,6 +209,6 @@ loop_interval = 500            # Specifies how much time to wait after checking 
 [pm_filters.stripe]
 #           ^--- This can be any connector (can be multiple)
 paypal = { currency = "USD,INR", country = "US" }
-# ^                       ^------- comma-seperated values
+# ^                       ^------- comma-separated values
 # ^------------------------------- any valid payment method type (can be multiple)
 # If either currency or country isn't provided then, all possible values are accepted
