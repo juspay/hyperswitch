@@ -121,7 +121,9 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let url = self.base_url(connectors);
-        let api_key = self.get_auth_header(&req.connector_auth_type)?[0].1.clone();
+        let api_key = multisafepay::MultisafepayAuthType::try_from(&req.connector_auth_type)
+            .change_context(errors::ConnectorError::FailedToObtainAuthType)?
+            .api_key;
         let ord_id = req.payment_id.clone();
         Ok(format!("{url}v1/json/orders/{ord_id}?api_key={api_key}"))
     }
@@ -202,7 +204,9 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let url = self.base_url(connectors);
-        let api_key = self.get_auth_header(&req.connector_auth_type)?[0].1.clone();
+        let api_key = multisafepay::MultisafepayAuthType::try_from(&req.connector_auth_type)
+            .change_context(errors::ConnectorError::FailedToObtainAuthType)?
+            .api_key;
         Ok(format!("{url}v1/json/orders?api_key={api_key}"))
     }
 
@@ -289,7 +293,9 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let url = self.base_url(connectors);
-        let api_key = self.get_auth_header(&req.connector_auth_type)?[0].1.clone();
+        let api_key = multisafepay::MultisafepayAuthType::try_from(&req.connector_auth_type)
+            .change_context(errors::ConnectorError::FailedToObtainAuthType)?
+            .api_key;
         let ord_id = req.payment_id.clone();
         Ok(format!(
             "{url}v1/json/orders/{ord_id}/refunds?api_key={api_key}"
@@ -369,7 +375,9 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let url = self.base_url(connectors);
-        let api_key = self.get_auth_header(&req.connector_auth_type)?[0].1.clone();
+        let api_key = multisafepay::MultisafepayAuthType::try_from(&req.connector_auth_type)
+            .change_context(errors::ConnectorError::FailedToObtainAuthType)?
+            .api_key;
         let ord_id = req.payment_id.clone();
         Ok(format!(
             "{url}v1/json/orders/{ord_id}/refunds?api_key={api_key}"

@@ -116,7 +116,7 @@ pub struct Customer {
 #[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
 pub struct GatewayInfo {
     pub card_number: Option<Secret<String, pii::CardNumber>>,
-    pub card_holder_name: Option<String>,
+    pub card_holder_name: Option<Secret<String>>,
     pub card_expiry_date: Option<i32>,
     pub card_cvc: Option<Secret<String>>,
     pub flexible_3d: Option<bool>,
