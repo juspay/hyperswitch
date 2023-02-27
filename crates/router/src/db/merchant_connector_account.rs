@@ -115,9 +115,10 @@ pub trait MerchantConnectorAccountInterface {
         merchant_connector_id: &str,
     ) -> CustomResult<storage::MerchantConnectorAccount, errors::StorageError>;
 
-    async fn find_merchant_connector_account_by_merchant_id_list(
+    async fn find_merchant_connector_account_by_merchant_id_and_disabled_list(
         &self,
         merchant_id: &str,
+        get_disabled: bool,
     ) -> CustomResult<Vec<storage::MerchantConnectorAccount>, errors::StorageError>;
 
     async fn update_merchant_connector_account(
@@ -186,12 +187,13 @@ impl MerchantConnectorAccountInterface for Store {
         t.insert(&conn).await.map_err(Into::into).into_report()
     }
 
-    async fn find_merchant_connector_account_by_merchant_id_list(
+    async fn find_merchant_connector_account_by_merchant_id_and_disabled_list(
         &self,
         merchant_id: &str,
+        get_disabled: bool,
     ) -> CustomResult<Vec<storage::MerchantConnectorAccount>, errors::StorageError> {
         let conn = pg_connection(&self.master_pool).await?;
-        storage::MerchantConnectorAccount::find_by_merchant_id(&conn, merchant_id)
+        storage::MerchantConnectorAccount::find_by_merchant_id(&conn, merchant_id, get_disabled)
             .await
             .map_err(Into::into)
             .into_report()
@@ -293,9 +295,10 @@ impl MerchantConnectorAccountInterface for MockDb {
         Ok(account)
     }
 
-    async fn find_merchant_connector_account_by_merchant_id_list(
+    async fn find_merchant_connector_account_by_merchant_id_and_disabled_list(
         &self,
         _merchant_id: &str,
+        _get_disabled: bool,
     ) -> CustomResult<Vec<storage::MerchantConnectorAccount>, errors::StorageError> {
         // [#172]: Implement function for `MockDb`
         Err(errors::StorageError::MockDbError)?

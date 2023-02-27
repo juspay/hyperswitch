@@ -4,7 +4,7 @@ use masking::Secret;
 use crate::{
     core::errors::{self, CustomResult},
     pii::PeekInterface,
-    types::{self, api, PaymentsCancelData},
+    types::{self, api, PaymentsCancelData, PaymentsCaptureData},
     utils::OptionExt,
 };
 
@@ -62,6 +62,17 @@ impl PaymentsCancelRequestData for PaymentsCancelData {
     }
     fn get_currency(&self) -> Result<storage_models::enums::Currency, Error> {
         self.currency.ok_or_else(missing_field_err("currency"))
+    }
+}
+
+pub trait PaymentsCaptureRequestData {
+    fn get_amount_to_capture(&self) -> Result<i64, Error>;
+}
+
+impl PaymentsCaptureRequestData for PaymentsCaptureData {
+    fn get_amount_to_capture(&self) -> Result<i64, Error> {
+        self.amount_to_capture
+            .ok_or_else(missing_field_err("amount_to_capture"))
     }
 }
 
@@ -139,7 +150,7 @@ impl PaymentsRequestData for types::PaymentsAuthorizeRouterData {
     }
     fn get_card(&self) -> Result<api::Card, Error> {
         match self.request.payment_method_data.clone() {
-            api::PaymentMethod::Card(card) => Ok(card),
+            api::PaymentMethodData::Card(card) => Ok(card),
             _ => Err(missing_field_err("card")()),
         }
     }

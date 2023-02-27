@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils::AccessTokenRequestInfo,
+    connector::utils::{AccessTokenRequestInfo, PaymentsCaptureRequestData},
     core::errors,
     pii::{self, Secret},
     types::{self, api, storage::enums},
@@ -76,7 +76,9 @@ pub struct Card {
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct IntuitPaymentsRequestContext {
+    //Flag that indicates if the charge was made from a mobile device.
     mobile: bool,
+    //Flag that indicates if the charge was made for Ecommerce over Web.
     is_ecommerce: bool,
 }
 
@@ -84,7 +86,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for IntuitPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         match item.request.payment_method_data {
-            api::PaymentMethod::Card(ref ccard) => {
+            api::PaymentMethodData::Card(ref ccard) => {
                 let submit_for_settlement = matches!(
                     item.request.capture_method,
                     Some(enums::CaptureMethod::Automatic) | None
@@ -119,15 +121,9 @@ pub struct IntuitPaymentsCaptureRequest {
 
 impl TryFrom<&types::PaymentsCaptureRouterData> for IntuitPaymentsCaptureRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(value: &types::PaymentsCaptureRouterData) -> Result<Self, Self::Error> {
+    fn try_from(item: &types::PaymentsCaptureRouterData) -> Result<Self, Self::Error> {
         Ok(Self {
-            amount: value
-                .request
-                .amount_to_capture
-                .ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "amount_to_capture",
-                })?
-                .to_string(),
+            amount: item.request.get_amount_to_capture()?.to_string(),
         })
     }
 }
@@ -202,7 +198,7 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for IntuitRefundRequest {
 }
 
 // Type definition for Refund Response
-#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Default, Deserialize, PartialEq)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum IntuitRefundStatus {
     Issued,
@@ -219,7 +215,7 @@ impl From<IntuitRefundStatus> for enums::RefundStatus {
     }
 }
 
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+#[derive(Default, Debug, Clone, Deserialize)]
 pub struct RefundResponse {
     pub id: String,
     pub amount: String,

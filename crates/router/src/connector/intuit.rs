@@ -25,8 +25,6 @@ use crate::{
     utils::{self, BytesExt},
 };
 
-static INTUIT_AUTH_TOKEN_URL: &str = "https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer";
-
 #[derive(Debug, Clone)]
 pub struct Intuit;
 
@@ -58,6 +56,7 @@ where
                 headers::ACCEPT.to_string(),
                 self.get_content_type().to_string(),
             ),
+            //Unique ID used by the connector to differentiate among the incoming operations which might look similar
             ("request-id".to_string(), Uuid::new_v4().to_string()),
         ];
         headers.push(auth_header);
@@ -189,7 +188,7 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
         _req: &types::RefreshTokenRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(INTUIT_AUTH_TOKEN_URL.to_string())
+        Ok("https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer".to_string())
     }
 
     fn get_content_type(&self) -> &'static str {
@@ -227,9 +226,9 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
         &self,
         req: &types::RefreshTokenRouterData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        let intuit_req =
-            utils::Encode::<intuit::IntuitAuthUpdateRequest>::convert_and_url_encode(req)
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let req_obj = intuit::IntuitAuthUpdateRequest::try_from(req)?;
+        let intuit_req = utils::Encode::<intuit::IntuitAuthUpdateRequest>::encode(&req_obj)
+            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
 
         logger::debug!(intuit_access_token_request=?intuit_req);
         Ok(Some(intuit_req))
@@ -256,18 +255,16 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
         data: &types::RefreshTokenRouterData,
         res: Response,
     ) -> CustomResult<types::RefreshTokenRouterData, errors::ConnectorError> {
-        logger::debug!(access_token_response=?res);
         let response: intuit::IntuitAuthUpdateResponse = res
             .response
             .parse_struct("airwallex AirwallexAuthUpdateResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
-        types::ResponseRouterData {
+        types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
-        }
-        .try_into()
+        })
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
@@ -275,7 +272,6 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
         &self,
         res: Response,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        logger::debug!(access_token_error_response=?res);
         let response: intuit::IntuitAuthErrorResponse = res
             .response
             .parse_struct("Intuit IntuitAuthErrorResponse")
@@ -340,7 +336,6 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         data: &types::PaymentsSyncRouterData,
         res: Response,
     ) -> CustomResult<types::PaymentsSyncRouterData, errors::ConnectorError> {
-        logger::debug!(payment_sync_response=?res);
         let response: intuit::IntuitPaymentsResponse = res
             .response
             .parse_struct("intuit PaymentsResponse")
@@ -428,13 +423,11 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
             .response
             .parse_struct("Intuit PaymentsResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        logger::debug!(payments_create_response=?response);
-        types::ResponseRouterData {
+        types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
-        }
-        .try_into()
+        })
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
@@ -521,12 +514,11 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
             .response
             .parse_struct("PaymentIntentResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        types::ResponseRouterData {
+        types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
-        }
-        .try_into()
+        })
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
@@ -600,17 +592,15 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         data: &types::RefundsRouterData<api::Execute>,
         res: Response,
     ) -> CustomResult<types::RefundsRouterData<api::Execute>, errors::ConnectorError> {
-        logger::debug!(target: "router::connector::intuit", response=?res);
         let response: intuit::RefundResponse =
             res.response
                 .parse_struct("intuit RefundResponse")
                 .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        types::ResponseRouterData {
+        types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
-        }
-        .try_into()
+        })
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
@@ -674,12 +664,11 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
             res.response
                 .parse_struct("intuit RefundResponse")
                 .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        types::ResponseRouterData {
+        types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
-        }
-        .try_into()
+        })
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 

@@ -85,7 +85,7 @@ pub struct RouterData<Flow, Request, Response> {
     pub payment_id: String,
     pub attempt_id: String,
     pub status: storage_enums::AttemptStatus,
-    pub payment_method: storage_enums::PaymentMethodType,
+    pub payment_method: storage_enums::PaymentMethod,
     pub connector_auth_type: ConnectorAuthType,
     pub description: Option<String>,
     pub return_url: Option<String>,
@@ -110,7 +110,7 @@ pub struct RouterData<Flow, Request, Response> {
 
 #[derive(Debug, Clone)]
 pub struct PaymentsAuthorizeData {
-    pub payment_method_data: payments::PaymentMethod,
+    pub payment_method_data: payments::PaymentMethodData,
     pub amount: i64,
     pub email: Option<masking::Secret<String, Email>>,
     pub currency: storage_enums::Currency,
@@ -124,8 +124,8 @@ pub struct PaymentsAuthorizeData {
     pub setup_mandate_details: Option<payments::MandateData>,
     pub browser_info: Option<BrowserInformation>,
     pub order_details: Option<api_models::payments::OrderDetails>,
-    pub payment_issuer: Option<storage_enums::PaymentIssuer>,
     pub payment_experience: Option<storage_enums::PaymentExperience>,
+    pub payment_method_type: Option<storage_enums::PaymentMethodType>,
 }
 
 #[derive(Debug, Clone)]
@@ -171,7 +171,7 @@ pub struct PaymentsSessionData {
 #[derive(Debug, Clone)]
 pub struct VerifyRequestData {
     pub currency: storage_enums::Currency,
-    pub payment_method_data: payments::PaymentMethod,
+    pub payment_method_data: payments::PaymentMethodData,
     pub confirm: bool,
     pub statement_descriptor_suffix: Option<String>,
     pub mandate_id: Option<api_models::payments::MandateIds>,

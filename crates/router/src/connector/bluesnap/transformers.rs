@@ -44,7 +44,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BluesnapPaymentsRequest {
             _ => BluesnapTxnType::AuthCapture,
         };
         let payment_method = match item.request.payment_method_data.clone() {
-            api::PaymentMethod::Card(ccard) => Ok(PaymentMethodDetails::CreditCard(Card {
+            api::PaymentMethodData::Card(ccard) => Ok(PaymentMethodDetails::CreditCard(Card {
                 card_number: ccard.card_number,
                 expiration_month: ccard.card_exp_month.clone(),
                 expiration_year: ccard.card_exp_year.clone(),

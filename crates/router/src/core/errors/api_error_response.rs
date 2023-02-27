@@ -81,6 +81,8 @@ pub enum ApiErrorResponse {
         message = "{message}",
     )]
     GenericUnauthorized { message: String },
+    #[error(error_type = ErrorType::InvalidRequestError, code = "IR_19", message = "{message}")]
+    NotSupported { message: String },
 
     #[error(error_type = ErrorType::ConnectorError, code = "CE_00", message = "{code}: {message}", ignore = "status_code")]
     ExternalConnectorError {
@@ -236,6 +238,7 @@ impl actix_web::ResponseError for ApiErrorResponse {
             | Self::ResourceIdNotFound
             | Self::ConfigNotFound
             | Self::AddressNotFound
+            | Self::NotSupported { .. }
             | Self::ApiKeyNotFound => StatusCode::BAD_REQUEST, // 400
             Self::DuplicateMerchantAccount
             | Self::DuplicateMerchantConnectorAccount
@@ -418,6 +421,9 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
             },
             Self::ApiKeyNotFound => {
                 AER::NotFound(ApiError::new("HE", 2, "API Key does not exist in our records", None))
+            }
+            Self::NotSupported { message } => {
+                AER::BadRequest(ApiError::new("HE", 3, "{message}", None))
             }
         }
     }
