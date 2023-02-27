@@ -15,7 +15,7 @@ use crate::{
         errors::{self, CustomResult},
         payments,
     },
-    headers, logger,
+    headers,
     services::{self, ConnectorIntegration},
     types::{
         self,
@@ -300,7 +300,6 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         data: &types::PaymentsCaptureRouterData,
         res: Response,
     ) -> CustomResult<types::PaymentsCaptureRouterData, errors::ConnectorError> {
-        logger::debug!(worldpaypayments_capture_response=?res);
         match res.status_code {
             202 => {
                 let response: WorldpayPaymentsResponse = res
@@ -417,7 +416,6 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
             .response
             .parse_struct("Worldpay PaymentsResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        logger::debug!(worldpaypayments_create_response=?response);
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -497,7 +495,6 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         data: &types::RefundsRouterData<api::Execute>,
         res: Response,
     ) -> CustomResult<types::RefundsRouterData<api::Execute>, errors::ConnectorError> {
-        logger::debug!(target: "router::connector::worldpay", response=?res);
         match res.status_code {
             202 => {
                 let response: WorldpayPaymentsResponse = res
@@ -594,21 +591,21 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
 impl api::IncomingWebhook for Worldpay {
     fn get_webhook_object_reference_id(
         &self,
-        _body: &[u8],
+        _request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<String, errors::ConnectorError> {
         Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
     }
 
     fn get_webhook_event_type(
         &self,
-        _body: &[u8],
+        _request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api::IncomingWebhookEvent, errors::ConnectorError> {
         Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
     }
 
     fn get_webhook_resource_object(
         &self,
-        _body: &[u8],
+        _request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<serde_json::Value, errors::ConnectorError> {
         Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
     }

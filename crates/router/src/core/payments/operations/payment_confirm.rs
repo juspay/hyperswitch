@@ -1,6 +1,7 @@
 use std::marker::PhantomData;
 
 use async_trait::async_trait;
+use common_utils::ext_traits::Encode;
 use error_stack::ResultExt;
 use router_derive::PaymentOperation;
 use router_env::{instrument, tracing};
@@ -72,14 +73,13 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             "confirm",
         )?;
 
-        let (token, payment_method_type, setup_mandate) =
-            helpers::get_token_pm_type_mandate_details(
-                state,
-                request,
-                mandate_type.clone(),
-                merchant_account,
-            )
-            .await?;
+        let (token, payment_method, setup_mandate) = helpers::get_token_pm_type_mandate_details(
+            state,
+            request,
+            mandate_type.clone(),
+            merchant_account,
+        )
+        .await?;
 
         helpers::authenticate_client_secret(
             request.client_secret.as_ref(),
@@ -111,12 +111,22 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         helpers::validate_pm_or_token_given(
             &request.payment_method,
             &request.payment_method_data,
+            &request.payment_method_type,
             &mandate_type,
             &token,
         )?;
 
-        payment_attempt.payment_method = payment_method_type.or(payment_attempt.payment_method);
+        payment_attempt.payment_method = payment_method.or(payment_attempt.payment_method);
         payment_attempt.browser_info = browser_info;
+        payment_attempt.payment_method_type = request
+            .payment_method_type
+            .map(|pmt| pmt.foreign_into())
+            .or(payment_attempt.payment_method_type);
+
+        payment_attempt.payment_experience = request
+            .payment_experience
+            .map(|experience| experience.foreign_into());
+
         currency = payment_attempt.currency.get_required_value("currency")?;
         amount = payment_attempt.amount.into();
 
@@ -161,7 +171,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
 
         payment_intent.shipping_address_id = shipping_address.clone().map(|i| i.address_id);
         payment_intent.billing_address_id = billing_address.clone().map(|i| i.address_id);
-        payment_intent.return_url = request.return_url.clone();
+        payment_intent.return_url = request.return_url.as_ref().map(|a| a.to_string());
 
         Ok((
             Box::new(self),
@@ -232,7 +242,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentConfirm {
         _storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsRequest>,
-        Option<api::PaymentMethod>,
+        Option<api::PaymentMethodData>,
     )> {
         let (op, payment_method_data) =
             helpers::make_pm_data(Box::new(self), state, payment_data).await?;
@@ -262,7 +272,10 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentConfirm {
     ) -> CustomResult<api::ConnectorCallType, errors::ApiErrorResponse> {
         // Use a new connector in the confirm call or use the same one which was passed when
         // creating the payment or if none is passed then use the routing algorithm
-        let request_connector = request.connector.map(|connector| connector.to_string());
+        let request_connector = request
+            .connector
+            .as_ref()
+            .and_then(|connector| connector.first().map(|c| c.to_string()));
         helpers::get_connector_default(
             state,
             request_connector.as_ref().or(previously_used_connector),
@@ -302,6 +315,17 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
 
         let connector = payment_data.payment_attempt.connector.clone();
         let payment_token = payment_data.token.clone();
+        let payment_method_type = payment_data.payment_attempt.payment_method_type.clone();
+        let payment_experience = payment_data.payment_attempt.payment_experience.clone();
+        let additional_pm_data = payment_data
+            .payment_method_data
+            .as_ref()
+            .map(api_models::payments::AdditionalPaymentData::from)
+            .as_ref()
+            .map(Encode::<api_models::payments::AdditionalPaymentData>::encode_to_value)
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to encode additional pm data")?;
 
         payment_data.payment_attempt = db
             .update_payment_attempt(
@@ -315,6 +339,9 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
                     browser_info,
                     connector,
                     payment_token,
+                    payment_method_data: additional_pm_data,
+                    payment_method_type,
+                    payment_experience,
                 },
                 storage_scheme,
             )

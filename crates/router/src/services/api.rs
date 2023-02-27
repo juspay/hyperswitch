@@ -29,7 +29,8 @@ use crate::{
     routes::{app::AppStateInfo, AppState},
     services::authentication as auth,
     types::{
-        self, api,
+        self,
+        api::{self},
         storage::{self},
         ErrorResponse,
     },
@@ -51,7 +52,8 @@ where
     }
 }
 
-pub trait ConnectorIntegration<T, Req, Resp>: ConnectorIntegrationAny<T, Req, Resp> {
+#[async_trait::async_trait]
+pub trait ConnectorIntegration<T, Req, Resp>: ConnectorIntegrationAny<T, Req, Resp> + Sync {
     fn get_headers(
         &self,
         _req: &types::RouterData<T, Req, Resp>,
@@ -82,6 +84,26 @@ pub trait ConnectorIntegration<T, Req, Resp>: ConnectorIntegrationAny<T, Req, Re
         _req: &types::RouterData<T, Req, Resp>,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
         Ok(None)
+    }
+
+    /// This module can be called before executing a payment flow where a pre-task is needed
+    /// Eg: Some connectors requires one-time session token before making a payment, we can add the session token creation logic in this block
+    async fn execute_pretasks(
+        &self,
+        _router_data: &mut types::RouterData<T, Req, Resp>,
+        _app_state: &AppState,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        Ok(())
+    }
+
+    /// This module can be called after executing a payment flow where a post-task needed
+    /// Eg: Some connectors require payment sync to happen immediately after the authorize call to complete the transaction, we can add that logic in this block
+    async fn execute_posttasks(
+        &self,
+        _router_data: &mut types::RouterData<T, Req, Resp>,
+        _app_state: &AppState,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        Ok(())
     }
 
     fn build_request(
@@ -164,7 +186,9 @@ where
         payments::CallConnectorAction::Trigger => {
             match connector_integration.build_request(req, &state.conf.connectors)? {
                 Some(request) => {
+                    logger::debug!(connector_request=?request);
                     let response = call_connector_api(state, request).await;
+                    logger::debug!(connector_response=?response);
                     match response {
                         Ok(body) => {
                             let response = match body {
@@ -176,7 +200,6 @@ where
                                     router_data
                                 }
                             };
-                            logger::debug!(?response);
                             Ok(response)
                         }
                         Err(error) => Err(error
@@ -363,15 +386,24 @@ impl From<&storage::PaymentAttempt> for ApplicationRedirectResponse {
 
 #[derive(Debug, Eq, PartialEq, Clone, serde::Serialize, serde::Deserialize)]
 pub struct RedirectForm {
-    pub url: String,
+    pub endpoint: String,
     pub method: Method,
     pub form_fields: HashMap<String, String>,
 }
 
-impl RedirectForm {
-    pub fn new(url: String, method: Method, form_fields: HashMap<String, String>) -> Self {
+impl From<(url::Url, Method)> for RedirectForm {
+    fn from((mut redirect_url, method): (url::Url, Method)) -> Self {
+        let form_fields = std::collections::HashMap::from_iter(
+            redirect_url
+                .query_pairs()
+                .map(|(key, value)| (key.to_string(), value.to_string())),
+        );
+
+        // Do not include query params in the endpoint
+        redirect_url.set_query(None);
+
         Self {
-            url,
+            endpoint: redirect_url.to_string(),
             method,
             form_fields,
         }
@@ -574,18 +606,18 @@ pub fn build_redirection_form(form: &RedirectForm) -> maud::Markup {
             head {
                 style {
                     r##"
-                    
-                    "## 
+
+                    "##
                 }
                 (PreEscaped(r##"
                 <style>
-                    #loader1 { 
+                    #loader1 {
                         width: 500px,
-                    } 
-                    @media max-width: 600px { 
-                        #loader1 { 
-                            width: 200px 
-                        } 
+                    }
+                    @media max-width: 600px {
+                        #loader1 {
+                            width: 200px
+                        }
                     }
                 </style>
                 "##))
@@ -612,7 +644,7 @@ pub fn build_redirection_form(form: &RedirectForm) -> maud::Markup {
 
 
                 h3 style="text-align: center;" { "Please wait while we process your payment..." }
-                form action=(PreEscaped(&form.url)) method=(form.method.to_string()) #payment_form {
+                form action=(PreEscaped(&form.endpoint)) method=(form.method.to_string()) #payment_form {
                     @for (field, value) in &form.form_fields {
                         input type="hidden" name=(field) value=(value);
                     }

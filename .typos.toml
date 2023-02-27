@@ -2,8 +2,10 @@
 check-filename = true
 
 [default.extend-identifiers]
+flate2 = "flate2"
 payment_vas = "payment_vas"
 PaymentVas = "PaymentVas"
+HypoNoeLbFurNiederosterreichUWien = "HypoNoeLbFurNiederosterreichUWien"
 
 [default.extend-words]
 aci = "aci" # Name of a connector

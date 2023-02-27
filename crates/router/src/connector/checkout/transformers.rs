@@ -1,4 +1,3 @@
-use error_stack::{IntoReport, ResultExt};
 use serde::{Deserialize, Serialize};
 use url::Url;
 
@@ -70,11 +69,10 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         let ccard = match item.request.payment_method_data {
-            api::PaymentMethod::Card(ref ccard) => Some(ccard),
-            api::PaymentMethod::BankTransfer
-            | api::PaymentMethod::Wallet(_)
-            | api::PaymentMethod::PayLater(_)
-            | api::PaymentMethod::Paypal => None,
+            api::PaymentMethodData::Card(ref ccard) => Some(ccard),
+            api::PaymentMethodData::Wallet(_)
+            | api::PaymentMethodData::PayLater(_)
+            | api::PaymentMethodData::BankRedirect(_) => None,
         };
 
         let three_ds = match item.auth_type {
@@ -157,13 +155,16 @@ impl ForeignFrom<(CheckoutPaymentStatus, Option<enums::CaptureMethod>)> for enum
     }
 }
 
-impl ForeignFrom<(CheckoutPaymentStatus, Balances)> for enums::AttemptStatus {
-    fn foreign_from(item: (CheckoutPaymentStatus, Balances)) -> Self {
+impl ForeignFrom<(CheckoutPaymentStatus, Option<Balances>)> for enums::AttemptStatus {
+    fn foreign_from(item: (CheckoutPaymentStatus, Option<Balances>)) -> Self {
         let (status, balances) = item;
 
         match status {
             CheckoutPaymentStatus::Authorized => {
-                if balances.available_to_capture == 0 {
+                if let Some(Balances {
+                    available_to_capture: 0,
+                }) = balances
+                {
                     Self::Charged
                 } else {
                     Self::Authorized
@@ -177,9 +178,10 @@ impl ForeignFrom<(CheckoutPaymentStatus, Balances)> for enums::AttemptStatus {
     }
 }
 
-#[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Deserialize)]
 pub struct Href {
-    href: String,
+    #[serde(rename = "href")]
+    redirection_url: Url,
 }
 
 #[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize)]
@@ -193,7 +195,7 @@ pub struct PaymentsResponse {
     status: CheckoutPaymentStatus,
     #[serde(rename = "_links")]
     links: Links,
-    balances: Balances,
+    balances: Option<Balances>,
 }
 
 #[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize)]
@@ -208,24 +210,10 @@ impl TryFrom<types::PaymentsResponseRouterData<PaymentsResponse>>
     fn try_from(
         item: types::PaymentsResponseRouterData<PaymentsResponse>,
     ) -> Result<Self, Self::Error> {
-        let redirection_url = item
-            .response
-            .links
-            .redirect
-            .map(|data| Url::parse(&data.href))
-            .transpose()
-            .into_report()
-            .change_context(errors::ConnectorError::ResponseHandlingFailed)
-            .attach_printable("Could not parse the redirection data")?;
-
-        let redirection_data = redirection_url.map(|url| services::RedirectForm {
-            url: url.to_string(),
-            method: services::Method::Get,
-            form_fields: std::collections::HashMap::from_iter(
-                url.query_pairs()
-                    .map(|(k, v)| (k.to_string(), v.to_string())),
-            ),
+        let redirection_data = item.response.links.redirect.map(|href| {
+            services::RedirectForm::from((href.redirection_url, services::Method::Get))
         });
+
         Ok(Self {
             status: enums::AttemptStatus::foreign_from((
                 item.response.status,
@@ -249,23 +237,8 @@ impl TryFrom<types::PaymentsSyncResponseRouterData<PaymentsResponse>>
     fn try_from(
         item: types::PaymentsSyncResponseRouterData<PaymentsResponse>,
     ) -> Result<Self, Self::Error> {
-        let redirection_url = item
-            .response
-            .links
-            .redirect
-            .map(|data| Url::parse(&data.href))
-            .transpose()
-            .into_report()
-            .change_context(errors::ConnectorError::ResponseHandlingFailed)
-            .attach_printable("Could not parse the redirection data")?;
-
-        let redirection_data = redirection_url.map(|url| services::RedirectForm {
-            url: url.to_string(),
-            method: services::Method::Get,
-            form_fields: std::collections::HashMap::from_iter(
-                url.query_pairs()
-                    .map(|(k, v)| (k.to_string(), v.to_string())),
-            ),
+        let redirection_data = item.response.links.redirect.map(|href| {
+            services::RedirectForm::from((href.redirection_url, services::Method::Get))
         });
 
         Ok(Self {

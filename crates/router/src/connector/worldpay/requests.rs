@@ -1,3 +1,5 @@
+use common_utils::pii;
+use masking::Secret;
 use serde::{Deserialize, Serialize};
 #[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -148,10 +150,10 @@ pub struct CardPayment {
     pub card_holder_name: Option<String>,
     pub card_expiry_date: CardExpiryDate,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub cvc: Option<String>,
+    pub cvc: Option<Secret<String>>,
     #[serde(rename = "type")]
     pub payment_type: PaymentType,
-    pub card_number: String,
+    pub card_number: Secret<String, pii::CardNumber>,
 }
 
 #[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize)]
@@ -174,8 +176,8 @@ pub struct WalletPayment {
 
 #[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize)]
 pub struct CardExpiryDate {
-    pub month: u8,
-    pub year: u16,
+    pub month: Secret<String>,
+    pub year: Secret<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize)]

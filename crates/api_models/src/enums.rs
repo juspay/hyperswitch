@@ -11,6 +11,7 @@ use utoipa::ToSchema;
     serde::Serialize,
     strum::Display,
     strum::EnumString,
+    frunk::LabelledGeneric,
 )]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
@@ -344,36 +345,6 @@ pub enum PaymentMethodIssuerCode {
 }
 
 #[derive(
-    Clone,
-    Copy,
-    Debug,
-    Eq,
-    Hash,
-    PartialEq,
-    serde::Deserialize,
-    serde::Serialize,
-    frunk::LabelledGeneric,
-    ToSchema,
-)]
-#[serde(rename_all = "snake_case")]
-pub enum PaymentIssuer {
-    Klarna,
-    Affirm,
-    AfterpayClearpay,
-    AmericanExpress,
-    BankOfAmerica,
-    Barclays,
-    CapitalOne,
-    Chase,
-    Citi,
-    Discover,
-    NavyFederalCreditUnion,
-    PentagonFederalCreditUnion,
-    SynchronyBank,
-    WellsFargo,
-}
-
-#[derive(
     Eq,
     PartialEq,
     Hash,
@@ -419,13 +390,19 @@ pub enum PaymentExperience {
 )]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
-pub enum PaymentMethodSubType {
+pub enum PaymentMethodType {
     Credit,
     Debit,
-    UpiIntent,
-    UpiCollect,
-    CreditCardInstallments,
-    PayLaterInstallments,
+    Giropay,
+    Ideal,
+    Sofort,
+    Eps,
+    Klarna,
+    Affirm,
+    AfterpayClearpay,
+    GooglePay,
+    ApplePay,
+    Paypal,
 }
 
 #[derive(
@@ -445,20 +422,12 @@ pub enum PaymentMethodSubType {
 )]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
-pub enum PaymentMethodType {
-    Card,
-    PaymentContainer,
+pub enum PaymentMethod {
     #[default]
-    BankTransfer,
-    BankDebit,
+    Card,
     PayLater,
-    Netbanking,
-    Upi,
-    OpenBanking,
-    ConsumerFinance,
     Wallet,
-    Klarna,
-    Paypal,
+    BankRedirect,
 }
 
 #[derive(
@@ -572,16 +541,20 @@ pub enum MandateStatus {
 pub enum Connector {
     Aci,
     Adyen,
+    Airwallex,
     Applepay,
     Authorizedotnet,
+    Bluesnap,
     Braintree,
     Checkout,
     Cybersource,
     #[default]
     Dummy,
+    Dlocal,
     Fiserv,
     Globalpay,
     Klarna,
+    Nuvei,
     Payu,
     Rapyd,
     Shift4,
@@ -592,7 +565,7 @@ pub enum Connector {
 
 impl Connector {
     pub fn supports_access_token(&self) -> bool {
-        matches!(self, Self::Globalpay | Self::Payu)
+        matches!(self, Self::Airwallex | Self::Globalpay | Self::Payu)
     }
 }
 
@@ -613,13 +586,17 @@ impl Connector {
 pub enum RoutableConnectors {
     Aci,
     Adyen,
+    Airwallex,
     Authorizedotnet,
+    Bluesnap,
     Braintree,
     Checkout,
     Cybersource,
+    Dlocal,
     Fiserv,
     Globalpay,
     Klarna,
+    Nuvei,
     Payu,
     Rapyd,
     Shift4,
@@ -636,6 +613,98 @@ pub enum SupportedWallets {
     ApplePay,
     Klarna,
     Gpay,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    frunk::LabelledGeneric,
+)]
+#[strum(serialize_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
+pub enum BankNames {
+    AmericanExpress,
+    BankOfAmerica,
+    Barclays,
+    CapitalOne,
+    Chase,
+    Citi,
+    Discover,
+    NavyFederalCreditUnion,
+    PentagonFederalCreditUnion,
+    SynchronyBank,
+    WellsFargo,
+    AbnAmro,
+    AsnBank,
+    Bunq,
+    Handelsbanken,
+    Ing,
+    Knab,
+    Moneyou,
+    Rabobank,
+    Regiobank,
+    Revolut,
+    SnsBank,
+    TriodosBank,
+    VanLanschot,
+    ArzteUndApothekerBank,
+    AustrianAnadiBankAg,
+    BankAustria,
+    Bank99Ag,
+    BankhausCarlSpangler,
+    BankhausSchelhammerUndSchatteraAg,
+    BawagPskAg,
+    BksBankAg,
+    BrullKallmusBankAg,
+    BtvVierLanderBank,
+    CapitalBankGraweGruppeAg,
+    Dolomitenbank,
+    EasybankAg,
+    ErsteBankUndSparkassen,
+    HypoAlpeadriabankInternationalAg,
+    HypoNoeLbFurNiederosterreichUWien,
+    HypoOberosterreichSalzburgSteiermark,
+    HypoTirolBankAg,
+    HypoVorarlbergBankAg,
+    HypoBankBurgenlandAktiengesellschaft,
+    MarchfelderBank,
+    OberbankAg,
+    OsterreichischeArzteUndApothekerbank,
+    PosojilnicaBankEGen,
+    RaiffeisenBankengruppeOsterreich,
+    SchelhammerCapitalBankAg,
+    SchoellerbankAg,
+    SpardaBankWien,
+    VolksbankGruppe,
+    VolkskreditbankAg,
+    VrBankBraunau,
+}
+
+#[derive(
+    Clone,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    frunk::LabelledGeneric,
+)]
+#[strum(serialize_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
+pub enum CardNetwork {
+    Visa,
+    Mastercard,
 }
 
 impl From<AttemptStatus> for IntentStatus {

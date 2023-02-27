@@ -75,27 +75,15 @@ impl ForeignFrom<storage_enums::MandateStatus> for api_enums::MandateStatus {
     }
 }
 
-impl ForeignFrom<api_enums::PaymentMethodType> for storage_enums::PaymentMethodType {
-    fn foreign_from(pm_type: api_enums::PaymentMethodType) -> Self {
+impl ForeignFrom<api_enums::PaymentMethod> for storage_enums::PaymentMethod {
+    fn foreign_from(pm_type: api_enums::PaymentMethod) -> Self {
         frunk::labelled_convert_from(pm_type)
     }
 }
 
-impl ForeignFrom<storage_enums::PaymentMethodType> for api_enums::PaymentMethodType {
-    fn foreign_from(pm_type: storage_enums::PaymentMethodType) -> Self {
+impl ForeignFrom<storage_enums::PaymentMethod> for api_enums::PaymentMethod {
+    fn foreign_from(pm_type: storage_enums::PaymentMethod) -> Self {
         frunk::labelled_convert_from(pm_type)
-    }
-}
-
-impl ForeignFrom<api_enums::PaymentMethodSubType> for storage_enums::PaymentMethodSubType {
-    fn foreign_from(pm_subtype: api_enums::PaymentMethodSubType) -> Self {
-        frunk::labelled_convert_from(pm_subtype)
-    }
-}
-
-impl ForeignFrom<storage_enums::PaymentMethodSubType> for api_enums::PaymentMethodSubType {
-    fn foreign_from(pm_subtype: storage_enums::PaymentMethodSubType) -> Self {
-        frunk::labelled_convert_from(pm_subtype)
     }
 }
 
@@ -105,14 +93,14 @@ impl ForeignFrom<storage_enums::PaymentMethodIssuerCode> for api_enums::PaymentM
     }
 }
 
-impl ForeignFrom<api_enums::PaymentIssuer> for storage_enums::PaymentIssuer {
-    fn foreign_from(issuer: api_enums::PaymentIssuer) -> Self {
-        frunk::labelled_convert_from(issuer)
+impl ForeignFrom<api_enums::PaymentExperience> for storage_enums::PaymentExperience {
+    fn foreign_from(experience: api_enums::PaymentExperience) -> Self {
+        frunk::labelled_convert_from(experience)
     }
 }
 
-impl ForeignFrom<api_enums::PaymentExperience> for storage_enums::PaymentExperience {
-    fn foreign_from(experience: api_enums::PaymentExperience) -> Self {
+impl ForeignFrom<storage_enums::PaymentExperience> for api_enums::PaymentExperience {
+    fn foreign_from(experience: storage_enums::PaymentExperience) -> Self {
         frunk::labelled_convert_from(experience)
     }
 }
@@ -324,10 +312,26 @@ impl ForeignTryFrom<storage::MerchantConnectorAccount>
     }
 }
 
+impl ForeignFrom<api_models::enums::PaymentMethodType>
+    for storage_models::enums::PaymentMethodType
+{
+    fn foreign_from(payment_method_type: api_models::enums::PaymentMethodType) -> Self {
+        frunk::labelled_convert_from(payment_method_type)
+    }
+}
+
+impl ForeignFrom<storage_models::enums::PaymentMethodType>
+    for api_models::enums::PaymentMethodType
+{
+    fn foreign_from(payment_method_type: storage_models::enums::PaymentMethodType) -> Self {
+        frunk::labelled_convert_from(payment_method_type)
+    }
+}
+
 impl ForeignFrom<api_models::payments::AddressDetails> for storage_models::address::AddressNew {
     fn foreign_from(item: api_models::payments::AddressDetails) -> Self {
         let address = item;
-        Self {
+        storage_models::address::AddressNew {
             city: address.city,
             country: address.country,
             line1: address.line1,
@@ -401,5 +405,11 @@ impl ForeignFrom<api_models::api_keys::UpdateApiKeyRequest>
             expires_at: api_key.expiration.map(Into::into),
             last_used: None,
         }
+    }
+}
+
+impl ForeignFrom<storage_enums::AttemptStatus> for api_enums::AttemptStatus {
+    fn foreign_from(status: storage_enums::AttemptStatus) -> Self {
+        frunk::labelled_convert_from(status)
     }
 }

@@ -9,12 +9,14 @@ use crate::{enums as api_enums, payments};
 pub enum IncomingWebhookEvent {
     PaymentIntentFailure,
     PaymentIntentSuccess,
+    EndpointVerification,
 }
 
 pub enum WebhookFlow {
     Payment,
     Refund,
     Subscription,
+    ReturnResponse,
 }
 
 impl From<IncomingWebhookEvent> for WebhookFlow {
@@ -22,8 +24,15 @@ impl From<IncomingWebhookEvent> for WebhookFlow {
         match evt {
             IncomingWebhookEvent::PaymentIntentFailure => Self::Payment,
             IncomingWebhookEvent::PaymentIntentSuccess => Self::Payment,
+            IncomingWebhookEvent::EndpointVerification => Self::ReturnResponse,
         }
     }
+}
+
+pub struct IncomingWebhookRequestDetails<'a> {
+    pub method: actix_web::http::Method,
+    pub headers: &'a actix_web::http::header::HeaderMap,
+    pub body: &'a [u8],
 }
 
 pub type MerchantWebhookConfig = std::collections::HashSet<IncomingWebhookEvent>;

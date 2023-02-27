@@ -1,6 +1,3 @@
-use std::{collections::HashMap, str::FromStr};
-
-use error_stack::{IntoReport, ResultExt};
 use masking::PeekInterface;
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
@@ -195,11 +192,11 @@ pub struct AdyenRedirectionResponse {
 #[serde(rename_all = "camelCase")]
 pub struct AdyenRedirectionAction {
     payment_method_type: String,
-    url: String,
-    method: String,
+    url: Url,
+    method: services::Method,
     #[serde(rename = "type")]
     type_of_response: String,
-    data: Option<HashMap<String, String>>,
+    data: Option<std::collections::HashMap<String, String>>,
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
@@ -337,13 +334,11 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for AdyenPaymentRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         match item.payment_method {
-            storage_models::enums::PaymentMethodType::Card => get_card_specific_payment_data(item),
-            storage_models::enums::PaymentMethodType::PayLater => {
+            storage_models::enums::PaymentMethod::Card => get_card_specific_payment_data(item),
+            storage_models::enums::PaymentMethod::PayLater => {
                 get_paylater_specific_payment_data(item)
             }
-            storage_models::enums::PaymentMethodType::Wallet => {
-                get_wallet_specific_payment_data(item)
-            }
+            storage_models::enums::PaymentMethod::Wallet => get_wallet_specific_payment_data(item),
             _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
         }
     }
@@ -475,7 +470,7 @@ fn get_payment_method_data(
     item: &types::PaymentsAuthorizeRouterData,
 ) -> Result<AdyenPaymentMethod, error_stack::Report<errors::ConnectorError>> {
     match item.request.payment_method_data {
-        api::PaymentMethod::Card(ref card) => {
+        api::PaymentMethodData::Card(ref card) => {
             let adyen_card = AdyenCard {
                 payment_type: PaymentType::Scheme,
                 number: card.card_number.clone(),
@@ -485,7 +480,7 @@ fn get_payment_method_data(
             };
             Ok(AdyenPaymentMethod::AdyenCard(adyen_card))
         }
-        api::PaymentMethod::Wallet(ref wallet_data) => match wallet_data.issuer_name {
+        api::PaymentMethodData::Wallet(ref wallet_data) => match wallet_data.issuer_name {
             api_enums::WalletIssuer::GooglePay => {
                 let gpay_data = AdyenGPay {
                     payment_type: PaymentType::Googlepay,
@@ -514,29 +509,30 @@ fn get_payment_method_data(
                 Ok(AdyenPaymentMethod::AdyenPaypal(wallet))
             }
         },
-        api_models::payments::PaymentMethod::PayLater(ref pay_later_data) => match pay_later_data {
-            api_models::payments::PayLaterData::KlarnaRedirect { .. } => {
-                let klarna = AdyenPayLaterData {
-                    payment_type: PaymentType::Klarna,
-                };
-                Ok(AdyenPaymentMethod::AdyenKlarna(klarna))
+        api_models::payments::PaymentMethodData::PayLater(ref pay_later_data) => {
+            match pay_later_data {
+                api_models::payments::PayLaterData::KlarnaRedirect { .. } => {
+                    let klarna = AdyenPayLaterData {
+                        payment_type: PaymentType::Klarna,
+                    };
+                    Ok(AdyenPaymentMethod::AdyenKlarna(klarna))
+                }
+                api_models::payments::PayLaterData::AffirmRedirect { .. } => {
+                    Ok(AdyenPaymentMethod::AdyenAffirm(AdyenPayLaterData {
+                        payment_type: PaymentType::Affirm,
+                    }))
+                }
+                api_models::payments::PayLaterData::AfterpayClearpayRedirect { .. } => {
+                    Ok(AdyenPaymentMethod::AfterPay(AdyenPayLaterData {
+                        payment_type: PaymentType::Afterpaytouch,
+                    }))
+                }
+                _ => Err(
+                    errors::ConnectorError::NotImplemented("Payment methods".to_string()).into(),
+                ),
             }
-            api_models::payments::PayLaterData::AffirmRedirect { .. } => {
-                Ok(AdyenPaymentMethod::AdyenAffirm(AdyenPayLaterData {
-                    payment_type: PaymentType::Affirm,
-                }))
-            }
-            api_models::payments::PayLaterData::AfterpayClearpayRedirect { .. } => {
-                Ok(AdyenPaymentMethod::AfterPay(AdyenPayLaterData {
-                    payment_type: PaymentType::Afterpaytouch,
-                }))
-            }
-            _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
-        },
-        api_models::payments::PaymentMethod::BankTransfer
-        | api_models::payments::PaymentMethod::Paypal => {
-            Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into())
         }
+        _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
     }
 }
 
@@ -755,26 +751,20 @@ pub fn get_redirection_response(
         None
     };
 
-    let redirection_url_response = Url::parse(&response.action.url)
-        .into_report()
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
-        .attach_printable("Failed to parse redirection url")?;
-
-    let form_field_for_redirection = match response.action.data {
-        Some(data) => data,
-        None => std::collections::HashMap::from_iter(
-            redirection_url_response
+    let form_fields = response.action.data.unwrap_or_else(|| {
+        std::collections::HashMap::from_iter(
+            response
+                .action
+                .url
                 .query_pairs()
-                .map(|(k, v)| (k.to_string(), v.to_string())),
-        ),
-    };
+                .map(|(key, value)| (key.to_string(), value.to_string())),
+        )
+    });
 
     let redirection_data = services::RedirectForm {
-        url: redirection_url_response.to_string(),
-        method: services::Method::from_str(&response.action.method)
-            .into_report()
-            .change_context(errors::ConnectorError::ResponseHandlingFailed)?,
-        form_fields: form_field_for_redirection,
+        endpoint: response.action.url.to_string(),
+        method: response.action.method,
+        form_fields,
     };
 
     // We don't get connector transaction id for redirections in Adyen.
