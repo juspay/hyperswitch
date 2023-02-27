@@ -4,6 +4,7 @@ mod aci;
 mod adyen;
 mod airwallex;
 mod authorizedotnet;
+mod bambora;
 mod bluesnap;
 mod checkout;
 mod connector_auth;
