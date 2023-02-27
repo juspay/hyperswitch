@@ -336,6 +336,7 @@ pub enum PaymentType {
     Eps,
     Ideal,
     Giropay,
+    #[serde(rename = "directEbanking")]
     Sofort,
 }
 
@@ -683,19 +684,25 @@ fn get_card_specific_payment_data(
     })
 }
 
-fn get_sofort_shopper_locale(item: &types::PaymentsAuthorizeRouterData) -> Option<String> {
+fn get_sofort_extra_details(
+    item: &types::PaymentsAuthorizeRouterData,
+) -> (Option<String>, Option<String>) {
     match item.request.payment_method_data {
         api_models::payments::PaymentMethodData::BankRedirect(ref b) => {
             if let api_models::payments::BankRedirectData::Sofort {
-                preferred_language, ..
+                country,
+                preferred_language,
             } = b
             {
-                Some(preferred_language.to_string())
+                (
+                    Some(preferred_language.to_string()),
+                    Some(country.to_string()),
+                )
             } else {
-                None
+                (None, None)
             }
         }
-        _ => None,
+        _ => (None, None),
     }
 }
 fn get_bank_redirect_specific_payment_data(
@@ -709,7 +716,8 @@ fn get_bank_redirect_specific_payment_data(
     let additional_data = get_additional_data(item);
     let return_url = item.get_return_url()?;
     let payment_method = get_payment_method_data(item)?;
-    let shopper_locale = get_sofort_shopper_locale(item);
+    let (shopper_locale, country) = get_sofort_extra_details(item);
+
     Ok(AdyenPaymentRequest {
         amount,
         merchant_account: auth_type.merchant_account,
@@ -726,7 +734,7 @@ fn get_bank_redirect_specific_payment_data(
         shopper_locale,
         billing_address: None,
         delivery_address: None,
-        country_code: None,
+        country_code: country,
         line_items: None,
     })
 }
