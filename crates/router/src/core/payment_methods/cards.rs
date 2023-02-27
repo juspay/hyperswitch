@@ -358,8 +358,11 @@ pub fn get_banks(
 
     for connector in &connectors {
         if let Some(connector_bank_names) = state.conf.bank_config.0.get(&pm_type) {
-            let hs = connector_bank_names.0.get(connector).unwrap().banks.clone();
-            bank_names_hm.insert(connector.clone(), hs);
+            if let Some(connector_hash_set) = connector_bank_names.0.get(connector) {
+                bank_names_hm.insert(connector.clone(), connector_hash_set.banks.clone());
+            } else {
+                logger::error!("Could not find any configured connectors for payment_method -> {pm_type} for connector -> {connector}");
+            }
         } else {
             logger::error!("Could not find any configured banks for payment_method -> {pm_type} for connector -> {connector}");
         }
@@ -370,12 +373,15 @@ pub fn get_banks(
         .map(|(_, v)| v.to_owned())
         .collect::<Vec<_>>();
 
-    let common_bank_names = vector_of_hashsets
-        .iter()
-        .skip(1)
-        .fold(vector_of_hashsets[0].clone(), |acc, hs| {
-            acc.intersection(hs).cloned().collect()
-        });
+    let mut common_bank_names = HashSet::new();
+    if let Some(first_element) = vector_of_hashsets.first() {
+        common_bank_names = vector_of_hashsets
+            .iter()
+            .skip(1)
+            .fold(first_element.to_owned(), |acc, hs| {
+                acc.intersection(hs).cloned().collect()
+            });
+    }
 
     let mut bank_code_responses = vec![];
     if !common_bank_names.is_empty() {
