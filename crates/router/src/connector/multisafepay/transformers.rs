@@ -211,17 +211,19 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for MultisafepayPaymentsReques
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         let payment_type = match item.request.payment_method_data {
-            api::PaymentMethod::Card(ref _ccard) => Type::Direct,
-            api::PaymentMethod::PayLater(ref _paylater) => Type::Redirect,
+            api::PaymentMethodData::Card(ref _ccard) => Type::Direct,
+            api::PaymentMethodData::PayLater(ref _paylater) => Type::Redirect,
             _ => Type::Redirect,
         };
 
         let gateway = match item.request.payment_method_data {
-            api::PaymentMethod::Card(ref ccard) => Gateway::from(ccard.get_card_issuer()?),
-            api::PaymentMethod::PayLater(api_models::payments::PayLaterData::KlarnaRedirect {
-                billing_email: _,
-                billing_country: _,
-            }) => Gateway::Klarna,
+            api::PaymentMethodData::Card(ref ccard) => Gateway::from(ccard.get_card_issuer()?),
+            api::PaymentMethodData::PayLater(
+                api_models::payments::PayLaterData::KlarnaRedirect {
+                    billing_email: _,
+                    billing_country: _,
+                },
+            ) => Gateway::Klarna,
             _ => Err(errors::ConnectorError::NotImplemented(
                 "Payment method".to_string(),
             ))?,
@@ -277,12 +279,12 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for MultisafepayPaymentsReques
         };
 
         let gateway_info = match item.request.payment_method_data {
-            api::PaymentMethod::Card(ref ccard) => GatewayInfo {
+            api::PaymentMethodData::Card(ref ccard) => GatewayInfo {
                 card_number: Some(ccard.card_number.clone()),
                 card_expiry_date: Some(
                     (format!(
                         "{}{}",
-                        ccard.card_exp_year.clone().expose(),
+                        ccard.get_card_expiry_year_2_digit().clone().expose(),
                         ccard.card_exp_month.clone().expose()
                     ))
                     .parse::<i32>()
@@ -295,7 +297,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for MultisafepayPaymentsReques
                 term_url: None,
                 email: None,
             },
-            api::PaymentMethod::PayLater(ref paylater) => GatewayInfo {
+            api::PaymentMethodData::PayLater(ref paylater) => GatewayInfo {
                 card_number: None,
                 card_expiry_date: None,
                 card_cvc: None,

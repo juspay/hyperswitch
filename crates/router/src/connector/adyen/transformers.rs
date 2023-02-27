@@ -1,18 +1,16 @@
+use base64::Engine;
+use error_stack::{IntoReport, ResultExt};
 use masking::PeekInterface;
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils::{self, RouterData},
+    connector::utils::RouterData,
     consts,
     core::errors,
     pii::{self, Email, Secret},
     services,
-    types::{
-        self,
-        api::{self, enums as api_enums},
-        storage::enums as storage_enums,
-    },
+    types::{self, api, storage::enums as storage_enums},
 };
 
 // Adyen Types Definition
@@ -334,14 +332,16 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for AdyenPaymentRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         match item.payment_method {
-            storage_models::enums::PaymentMethodType::Card => get_card_specific_payment_data(item),
-            storage_models::enums::PaymentMethodType::PayLater => {
+            storage_models::enums::PaymentMethod::Card => get_card_specific_payment_data(item),
+            storage_models::enums::PaymentMethod::PayLater => {
                 get_paylater_specific_payment_data(item)
             }
-            storage_models::enums::PaymentMethodType::Wallet => {
-                get_wallet_specific_payment_data(item)
-            }
-            _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
+            storage_models::enums::PaymentMethod::Wallet => get_wallet_specific_payment_data(item),
+            _ => Err(errors::ConnectorError::NotSupported {
+                payment_method: item.payment_method.to_string(),
+                connector: "adyen",
+            })
+            .into_report()?,
         }
     }
 }
@@ -472,7 +472,7 @@ fn get_payment_method_data(
     item: &types::PaymentsAuthorizeRouterData,
 ) -> Result<AdyenPaymentMethod, error_stack::Report<errors::ConnectorError>> {
     match item.request.payment_method_data {
-        api::PaymentMethod::Card(ref card) => {
+        api::PaymentMethodData::Card(ref card) => {
             let adyen_card = AdyenCard {
                 payment_type: PaymentType::Scheme,
                 number: card.card_number.clone(),
@@ -482,58 +482,64 @@ fn get_payment_method_data(
             };
             Ok(AdyenPaymentMethod::AdyenCard(adyen_card))
         }
-        api::PaymentMethod::Wallet(ref wallet_data) => match wallet_data.issuer_name {
-            api_enums::WalletIssuer::GooglePay => {
+        api::PaymentMethodData::Wallet(ref wallet_data) => match wallet_data {
+            api_models::payments::WalletData::GooglePay(data) => {
                 let gpay_data = AdyenGPay {
                     payment_type: PaymentType::Googlepay,
-                    google_pay_token: wallet_data
-                        .token
-                        .clone()
-                        .ok_or_else(utils::missing_field_err("token"))?,
+                    google_pay_token: data.tokenization_data.token.to_owned(),
                 };
                 Ok(AdyenPaymentMethod::Gpay(gpay_data))
             }
-
-            api_enums::WalletIssuer::ApplePay => {
+            api_models::payments::WalletData::ApplePay(data) => {
                 let apple_pay_data = AdyenApplePay {
                     payment_type: PaymentType::Applepay,
-                    apple_pay_token: wallet_data
-                        .token
-                        .clone()
-                        .ok_or_else(utils::missing_field_err("token"))?,
+                    apple_pay_token:
+                        consts::BASE64_ENGINE.encode(
+                            common_utils::ext_traits::Encode::<
+                                api_models::payments::ApplepayPaymentData,
+                            >::encode_to_string_of_json(
+                                &data.payment_data
+                            )
+                            .change_context(errors::ConnectorError::RequestEncodingFailed)?,
+                        ),
                 };
+
                 Ok(AdyenPaymentMethod::ApplePay(apple_pay_data))
             }
-            api_enums::WalletIssuer::Paypal => {
+            api_models::payments::WalletData::PaypalSdk(_) => {
+                Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into())
+            }
+            api_models::payments::WalletData::PaypalRedirect(_) => {
                 let wallet = AdyenPaypal {
                     payment_type: PaymentType::Paypal,
                 };
                 Ok(AdyenPaymentMethod::AdyenPaypal(wallet))
             }
         },
-        api_models::payments::PaymentMethod::PayLater(ref pay_later_data) => match pay_later_data {
-            api_models::payments::PayLaterData::KlarnaRedirect { .. } => {
-                let klarna = AdyenPayLaterData {
-                    payment_type: PaymentType::Klarna,
-                };
-                Ok(AdyenPaymentMethod::AdyenKlarna(klarna))
+        api_models::payments::PaymentMethodData::PayLater(ref pay_later_data) => {
+            match pay_later_data {
+                api_models::payments::PayLaterData::KlarnaRedirect { .. } => {
+                    let klarna = AdyenPayLaterData {
+                        payment_type: PaymentType::Klarna,
+                    };
+                    Ok(AdyenPaymentMethod::AdyenKlarna(klarna))
+                }
+                api_models::payments::PayLaterData::AffirmRedirect { .. } => {
+                    Ok(AdyenPaymentMethod::AdyenAffirm(AdyenPayLaterData {
+                        payment_type: PaymentType::Affirm,
+                    }))
+                }
+                api_models::payments::PayLaterData::AfterpayClearpayRedirect { .. } => {
+                    Ok(AdyenPaymentMethod::AfterPay(AdyenPayLaterData {
+                        payment_type: PaymentType::Afterpaytouch,
+                    }))
+                }
+                _ => Err(
+                    errors::ConnectorError::NotImplemented("Payment methods".to_string()).into(),
+                ),
             }
-            api_models::payments::PayLaterData::AffirmRedirect { .. } => {
-                Ok(AdyenPaymentMethod::AdyenAffirm(AdyenPayLaterData {
-                    payment_type: PaymentType::Affirm,
-                }))
-            }
-            api_models::payments::PayLaterData::AfterpayClearpayRedirect { .. } => {
-                Ok(AdyenPaymentMethod::AfterPay(AdyenPayLaterData {
-                    payment_type: PaymentType::Afterpaytouch,
-                }))
-            }
-            _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
-        },
-        api_models::payments::PaymentMethod::BankTransfer
-        | api_models::payments::PaymentMethod::Paypal => {
-            Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into())
         }
+        _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
     }
 }
 

@@ -24,11 +24,12 @@ pub struct StripeBillingDetails {
 impl From<StripeBillingDetails> for payments::Address {
     fn from(details: StripeBillingDetails) -> Self {
         Self {
-            address: details.address,
             phone: Some(payments::PhoneDetails {
                 number: details.phone,
-                country_code: None,
+                country_code: details.address.as_ref().and_then(|a| a.country.clone()),
             }),
+
+            address: details.address,
         }
     }
 }
@@ -48,7 +49,7 @@ pub enum StripePaymentMethodType {
     Card,
 }
 
-impl From<StripePaymentMethodType> for api_enums::PaymentMethodType {
+impl From<StripePaymentMethodType> for api_enums::PaymentMethod {
     fn from(item: StripePaymentMethodType) -> Self {
         match item {
             StripePaymentMethodType::Card => Self::Card,
@@ -65,12 +66,10 @@ pub struct StripePaymentMethodData {
     pub metadata: Option<Value>,
 }
 
-#[derive(Default, PartialEq, Eq, Deserialize, Clone)]
+#[derive(PartialEq, Eq, Deserialize, Clone)]
 #[serde(rename_all = "snake_case")]
 pub enum StripePaymentMethodDetails {
     Card(StripeCard),
-    #[default]
-    BankTransfer,
 }
 
 impl From<StripeCard> for payments::Card {
@@ -81,14 +80,16 @@ impl From<StripeCard> for payments::Card {
             card_exp_year: card.exp_year,
             card_holder_name: masking::Secret::new("stripe_cust".to_owned()),
             card_cvc: card.cvc,
+            card_issuer: None,
+            card_network: None,
         }
     }
 }
-impl From<StripePaymentMethodDetails> for payments::PaymentMethod {
+
+impl From<StripePaymentMethodDetails> for payments::PaymentMethodData {
     fn from(item: StripePaymentMethodDetails) -> Self {
         match item {
             StripePaymentMethodDetails::Card(card) => Self::Card(payments::Card::from(card)),
-            StripePaymentMethodDetails::BankTransfer => Self::BankTransfer,
         }
     }
 }
@@ -105,11 +106,11 @@ pub struct Shipping {
 impl From<Shipping> for payments::Address {
     fn from(details: Shipping) -> Self {
         Self {
-            address: details.address,
             phone: Some(payments::PhoneDetails {
                 number: details.phone,
-                country_code: None,
+                country_code: details.address.as_ref().and_then(|a| a.country.clone()),
             }),
+            address: details.address,
         }
     }
 }
@@ -166,12 +167,12 @@ impl TryFrom<StripePaymentIntentRequest> for payments::PaymentsRequest {
             payment_method_data: item.payment_method_data.as_ref().and_then(|pmd| {
                 pmd.payment_method_details
                     .as_ref()
-                    .map(|spmd| payments::PaymentMethod::from(spmd.to_owned()))
+                    .map(|spmd| payments::PaymentMethodData::from(spmd.to_owned()))
             }),
             payment_method: item
                 .payment_method_data
                 .as_ref()
-                .map(|pmd| api_enums::PaymentMethodType::from(pmd.stype.to_owned())),
+                .map(|pmd| api_enums::PaymentMethod::from(pmd.stype.to_owned())),
             shipping: item
                 .shipping
                 .as_ref()
@@ -283,11 +284,11 @@ pub struct StripePaymentIntentResponse {
     pub mandate_data: Option<payments::MandateData>,
     pub setup_future_usage: Option<api_models::enums::FutureUsage>,
     pub off_session: Option<bool>,
-    pub return_url: Option<String>,
+
     pub authentication_type: Option<api_models::enums::AuthenticationType>,
-    pub next_action: Option<payments::NextAction>,
+    pub next_action: Option<StripeNextAction>,
     pub cancellation_reason: Option<String>,
-    pub payment_method: Option<api_models::enums::PaymentMethodType>,
+    pub payment_method: Option<api_models::enums::PaymentMethod>,
     pub payment_method_data: Option<payments::PaymentMethodDataResponse>,
     pub shipping: Option<payments::Address>,
     pub billing: Option<payments::Address>,
@@ -334,11 +335,10 @@ impl From<payments::PaymentsResponse> for StripePaymentIntentResponse {
             email: resp.email,
             name: resp.name,
             phone: resp.phone,
-            return_url: resp.return_url,
             authentication_type: resp.authentication_type,
             statement_descriptor_name: resp.statement_descriptor_name,
             statement_descriptor_suffix: resp.statement_descriptor_suffix,
-            next_action: resp.next_action,
+            next_action: into_stripe_next_action(resp.next_action, resp.return_url),
             cancellation_reason: resp.cancellation_reason,
             error_code: resp.error_code,
             error_message: resp.error_message,
@@ -468,4 +468,30 @@ impl From<Foreign<Option<Request3DS>>> for Foreign<api_models::enums::Authentica
             Request3DS::Any => api_models::enums::AuthenticationType::ThreeDs,
         })
     }
+}
+
+#[derive(Default, Eq, PartialEq, Serialize)]
+pub struct RedirectUrl {
+    pub return_url: Option<String>,
+    pub url: Option<String>,
+}
+
+#[derive(Eq, PartialEq, Serialize)]
+pub struct StripeNextAction {
+    #[serde(rename = "type")]
+    stype: payments::NextActionType,
+    redirect_to_url: RedirectUrl,
+}
+
+fn into_stripe_next_action(
+    next_action: Option<payments::NextAction>,
+    return_url: Option<String>,
+) -> Option<StripeNextAction> {
+    next_action.map(|n| StripeNextAction {
+        stype: n.next_action_type,
+        redirect_to_url: RedirectUrl {
+            return_url,
+            url: n.redirect_to_url,
+        },
+    })
 }

@@ -8,7 +8,6 @@ use crate::{
     core::errors,
     pii::{self, Secret},
     types::{self, api, storage::enums},
-    utils::OptionExt,
 };
 
 const WALLET_IDENTIFIER: &str = "PBL";
@@ -70,7 +69,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PayuPaymentsRequest {
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         let auth_type = PayuAuthType::try_from(&item.connector_auth_type)?;
         let payment_method = match item.request.payment_method_data.clone() {
-            api::PaymentMethod::Card(ccard) => Ok(PayuPaymentMethod {
+            api::PaymentMethodData::Card(ccard) => Ok(PayuPaymentMethod {
                 pay_method: PayuPaymentMethodData::Card(PayuCard::Card {
                     number: ccard.card_number,
                     expiration_month: ccard.card_exp_month,
@@ -78,33 +77,29 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PayuPaymentsRequest {
                     cvv: ccard.card_cvc,
                 }),
             }),
-            api::PaymentMethod::Wallet(wallet_data) => match wallet_data.issuer_name {
-                api_models::enums::WalletIssuer::GooglePay => Ok(PayuPaymentMethod {
+            api::PaymentMethodData::Wallet(wallet_data) => match wallet_data {
+                api_models::payments::WalletData::GooglePay(data) => Ok(PayuPaymentMethod {
                     pay_method: PayuPaymentMethodData::Wallet({
                         PayuWallet {
                             value: PayuWalletCode::Ap,
                             wallet_type: WALLET_IDENTIFIER.to_string(),
-                            authorization_code: consts::BASE64_ENGINE.encode(
-                                wallet_data
-                                    .token
-                                    .get_required_value("token")
-                                    .change_context(errors::ConnectorError::RequestEncodingFailed)
-                                    .attach_printable("No token passed")?,
-                            ),
+                            authorization_code: consts::BASE64_ENGINE
+                                .encode(data.tokenization_data.token),
                         }
                     }),
                 }),
-                api_models::enums::WalletIssuer::ApplePay => Ok(PayuPaymentMethod {
+                api_models::payments::WalletData::ApplePay(data) => Ok(PayuPaymentMethod {
                     pay_method: PayuPaymentMethodData::Wallet({
                         PayuWallet {
                             value: PayuWalletCode::Jp,
                             wallet_type: WALLET_IDENTIFIER.to_string(),
                             authorization_code: consts::BASE64_ENGINE.encode(
-                                wallet_data
-                                    .token
-                                    .get_required_value("token")
-                                    .change_context(errors::ConnectorError::RequestEncodingFailed)
-                                    .attach_printable("No token passed")?,
+                                common_utils::ext_traits::Encode::<
+                                    api_models::payments::ApplepayPaymentData,
+                                >::encode_to_string_of_json(
+                                    &data.payment_data
+                                )
+                                .change_context(errors::ConnectorError::RequestEncodingFailed)?,
                             ),
                         }
                     }),

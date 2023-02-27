@@ -234,6 +234,8 @@ pub enum ConnectorError {
     FailedToObtainPreferredConnector,
     #[error("An invalid connector name was provided")]
     InvalidConnectorName,
+    #[error("An invalid Wallet was used")]
+    InvalidWallet,
     #[error("Failed to handle connector response")]
     ResponseHandlingFailed,
     #[error("Missing required field: {field_name}")]
@@ -275,7 +277,7 @@ pub enum ConnectorError {
     WebhookResourceObjectNotFound,
     #[error("Invalid Date/time format")]
     InvalidDateFormat,
-    #[error("Payment Issuer does not match the Payment Data provided")]
+    #[error("Payment Method data / Payment Method Type / Payment Experience Mismatch ")]
     MismatchedPaymentData,
 }
 

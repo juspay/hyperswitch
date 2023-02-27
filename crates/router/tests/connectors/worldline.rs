@@ -63,12 +63,14 @@ impl WorldlineTest {
         Some(types::PaymentsAuthorizeData {
             amount: 3500,
             currency: enums::Currency::USD,
-            payment_method_data: types::api::PaymentMethod::Card(types::api::Card {
+            payment_method_data: types::api::PaymentMethodData::Card(types::api::Card {
                 card_number: Secret::new(card_number.to_string()),
                 card_exp_month: Secret::new(card_exp_month.to_string()),
                 card_exp_year: Secret::new(card_exp_year.to_string()),
                 card_holder_name: Secret::new("John Doe".to_string()),
                 card_cvc: Secret::new(card_cvc.to_string()),
+                card_issuer: None,
+                card_network: None,
             }),
             confirm: true,
             statement_descriptor_suffix: None,
@@ -81,7 +83,7 @@ impl WorldlineTest {
             order_details: None,
             email: None,
             payment_experience: None,
-            payment_issuer: None,
+            payment_method_type: None,
         })
     }
 }

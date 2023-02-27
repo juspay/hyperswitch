@@ -509,7 +509,7 @@ where
     pub token: Option<String>,
     pub confirm: Option<bool>,
     pub force_sync: Option<bool>,
-    pub payment_method_data: Option<api::PaymentMethod>,
+    pub payment_method_data: Option<api::PaymentMethodData>,
     pub refunds: Vec<storage::Refund>,
     pub sessions_token: Vec<api::SessionToken>,
     pub card_cvc: Option<pii::Secret<String>>,

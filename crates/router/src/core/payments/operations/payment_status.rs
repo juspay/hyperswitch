@@ -82,7 +82,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentStatus {
         _storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsRequest>,
-        Option<api::PaymentMethod>,
+        Option<api::PaymentMethodData>,
     )> {
         helpers::make_pm_data(Box::new(self), state, payment_data).await
     }
