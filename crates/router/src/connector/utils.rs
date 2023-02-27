@@ -4,7 +4,7 @@ use masking::Secret;
 use crate::{
     core::errors::{self, CustomResult},
     pii::PeekInterface,
-    types::{self, api, PaymentsCancelData, PaymentsSyncData, ResponseId},
+    types::{self, api, PaymentsCancelData, ResponseId},
     utils::OptionExt,
 };
 
@@ -63,11 +63,22 @@ impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
 
 pub trait PaymentsSyncRequestData {
     fn is_auto_capture(&self) -> bool;
+    fn get_connector_transaction_id(&self) -> CustomResult<String, errors::ValidationError>;
 }
 
 impl PaymentsSyncRequestData for types::PaymentsSyncData {
     fn is_auto_capture(&self) -> bool {
         self.capture_method == Some(storage_models::enums::CaptureMethod::Automatic)
+    }
+    fn get_connector_transaction_id(&self) -> CustomResult<String, errors::ValidationError> {
+        match self.connector_transaction_id.clone() {
+            ResponseId::ConnectorTransactionId(txn_id) => Ok(txn_id),
+            _ => Err(errors::ValidationError::IncorrectValueProvided {
+                field_name: "connector_transaction_id",
+            })
+            .into_report()
+            .attach_printable("Expected connector transaction ID not found"),
+        }
     }
 }
 
@@ -88,23 +99,6 @@ impl PaymentsCancelRequestData for PaymentsCancelData {
         self.cancellation_reason
             .clone()
             .ok_or_else(missing_field_err("cancellation_reason"))
-    }
-}
-
-pub trait PaymentsSyncRequestData {
-    fn get_connector_transaction_id(&self) -> CustomResult<String, errors::ValidationError>;
-}
-
-impl PaymentsSyncRequestData for PaymentsSyncData {
-    fn get_connector_transaction_id(&self) -> CustomResult<String, errors::ValidationError> {
-        match self.connector_transaction_id.clone() {
-            ResponseId::ConnectorTransactionId(txn_id) => Ok(txn_id),
-            _ => Err(errors::ValidationError::IncorrectValueProvided {
-                field_name: "connector_transaction_id",
-            })
-            .into_report()
-            .attach_printable("Expected connector transaction ID not found"),
-        }
     }
 }
 
