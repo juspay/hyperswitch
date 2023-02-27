@@ -12,6 +12,7 @@ aci = "aci"                   # Name of a connector
 encrypter = "encrypter"       # Used by the `ring` crate
 nin = "nin"                   # National identification number, a field used by PayU connector
 substituters = "substituters" # Present in `flake.nix`
+hypo_noe_lb_fur_niederosterreich_u_wien = "hypo_noe_lb_fur_niederosterreich_u_wien" # Present in openapi/generated.json
 FO = "FO"                     # Faroe Islands (the) country code
 
 [files]
