@@ -277,7 +277,7 @@ pub enum ConnectorError {
     InvalidDateFormat,
     #[error("Invalid Data format")]
     InvalidDataFormat { field_name: &'static str },
-    #[error("Payment Issuer does not match the Payment Data provided")]
+    #[error("Payment Method data / Payment Method Type / Payment Experience Mismatch ")]
     MismatchedPaymentData,
 }
 

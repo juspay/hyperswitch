@@ -82,6 +82,8 @@ pub async fn construct_refund_router_data<'a, F>(
             refund_status: refund.refund_status,
         }),
         access_token: None,
+        session_token: None,
+        reference_id: None,
     };
 
     Ok(router_data)

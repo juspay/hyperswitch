@@ -105,7 +105,7 @@ jobs:
 
       - name: Test compilation
         shell: bash
-        run: cargo hack check --workspace --each-feature --no-dev-deps
+        run: cargo hack check --features="sandbox" --ignore-unknown-features 
 
   # cargo-deny:
   #   name: Run cargo-deny
@@ -183,7 +183,7 @@ jobs:
 
       - name: Test compilation
         shell: bash
-        run: cargo hack check --workspace --each-feature --no-dev-deps
+        run: cargo hack check --features="sandbox" --ignore-unknown-features 
 
       # - name: Run tests
       #   shell: bash

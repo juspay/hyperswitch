@@ -39,7 +39,7 @@ bytes = "1.3.0"
 clap = { version = "4.1.4", default-features = false, features = ["std", "derive", "help", "usage"] }
 config = { version = "0.13.3", features = ["toml"] }
 crc32fast = "1.3.2"
-diesel = { version = "2.0.3", features = ["postgres", "serde_json", "time"] }
+diesel = { version = "2.0.3", features = ["postgres", "serde_json", "time", "64-column-tables"] }
 dyn-clone = "1.0.10"
 encoding_rs = "0.8.31"
 error-stack = "0.2.4"

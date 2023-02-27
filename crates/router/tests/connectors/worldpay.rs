@@ -64,7 +64,7 @@ async fn should_authorize_gpay_payment() {
     let response = conn
         .authorize_payment(
             Some(types::PaymentsAuthorizeData {
-                payment_method_data: types::api::PaymentMethod::Wallet(api::WalletData {
+                payment_method_data: types::api::PaymentMethodData::Wallet(api::WalletData {
                     issuer_name: api_enums::WalletIssuer::GooglePay,
                     token: Some("someToken".to_string()),
                 }),
@@ -89,7 +89,7 @@ async fn should_authorize_applepay_payment() {
     let response = conn
         .authorize_payment(
             Some(types::PaymentsAuthorizeData {
-                payment_method_data: types::api::PaymentMethod::Wallet(api::WalletData {
+                payment_method_data: types::api::PaymentMethodData::Wallet(api::WalletData {
                     issuer_name: api_enums::WalletIssuer::ApplePay,
                     token: Some("someToken".to_string()),
                 }),

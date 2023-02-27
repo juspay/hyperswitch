@@ -315,7 +315,8 @@ impl Webhooks {
             .app_data(web::Data::new(config))
             .service(
                 web::resource("/{merchant_id}/{connector}")
-                    .route(web::post().to(receive_incoming_webhook)),
+                    .route(web::post().to(receive_incoming_webhook))
+                    .route(web::get().to(receive_incoming_webhook)),
             )
     }
 }

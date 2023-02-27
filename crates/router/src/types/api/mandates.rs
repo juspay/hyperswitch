@@ -47,7 +47,7 @@ impl MandateResponseExt for MandateResponse {
                 error.to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)
             })?;
 
-        let card = if payment_method.payment_method == storage_enums::PaymentMethodType::Card {
+        let card = if payment_method.payment_method == storage_enums::PaymentMethod::Card {
             let locker_id = merchant_account
                 .locker_id
                 .to_owned()
