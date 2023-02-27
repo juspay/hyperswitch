@@ -14,12 +14,13 @@ use error_stack::{report, ResultExt};
 use router_env::{instrument, tracing};
 
 use crate::{
+    configs::settings,
     core::{
         errors::{self, StorageErrorExt},
         payment_methods::{transformers as payment_methods, vault},
         payments::helpers,
     },
-    db,
+    db, logger,
     pii::prelude::*,
     routes, services,
     types::{
@@ -348,10 +349,13 @@ pub async fn delete_card<'a>(
 }
 
 pub async fn list_payment_methods(
-    db: &dyn db::StorageInterface,
+    state: &routes::AppState,
     merchant_account: storage::MerchantAccount,
     mut req: api::ListPaymentMethodRequest,
 ) -> errors::RouterResponse<api::ListPaymentMethodResponse> {
+    let db = &*state.store;
+    let pm_config_mapping = &state.conf.pm_filters;
+
     let payment_intent = helpers::verify_client_secret(
         db,
         merchant_account.storage_scheme,
@@ -359,6 +363,7 @@ pub async fn list_payment_methods(
         &merchant_account.merchant_id,
     )
     .await?;
+
     let address = payment_intent
         .as_ref()
         .async_map(|pi| async {
@@ -392,6 +397,8 @@ pub async fn list_payment_methods(
             error.to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
         })?;
 
+    logger::debug!(mca_before_filtering=?all_mcas);
+
     let mut response: Vec<ResponsePaymentMethodIntermediate> = vec![];
     for mca in all_mcas {
         let payment_methods = match mca.payment_methods_enabled {
@@ -407,9 +414,12 @@ pub async fn list_payment_methods(
             payment_attempt.as_ref(),
             address.as_ref(),
             mca.connector_name,
+            pm_config_mapping,
         )
         .await?;
     }
+
+    logger::debug!(filtered_payment_methods=?response);
 
     let mut payment_experiences_consolidated_hm: HashMap<
         api_enums::PaymentMethod,
@@ -441,10 +451,15 @@ pub async fn list_payment_methods(
                         payment_method_type_hm.insert(payment_experience, vec![connector]);
                     }
                 } else {
-                    payment_method_hm.insert(payment_method_type, HashMap::new());
+                    payment_method_hm.insert(
+                        payment_method_type,
+                        HashMap::from([(payment_experience, vec![connector])]),
+                    );
                 }
             } else {
-                payment_experiences_consolidated_hm.insert(payment_method, HashMap::new());
+                let inner_hm = HashMap::from([(payment_experience, vec![connector])]);
+                let payment_method_type_hm = HashMap::from([(payment_method_type, inner_hm)]);
+                payment_experiences_consolidated_hm.insert(payment_method, payment_method_type_hm);
             }
         }
 
@@ -458,18 +473,41 @@ pub async fn list_payment_methods(
                         if let Some(vector_of_connectors) =
                             payment_method_type_hm.get_mut(&card_network)
                         {
-                            let connector = element.connector.clone(); //FIXME: remove clone
+                            let connector = element.connector.clone();
                             vector_of_connectors.push(connector);
                         } else {
-                            let connector = element.connector.clone(); //FIXME: remove clone
+                            let connector = element.connector.clone();
                             payment_method_type_hm.insert(card_network, vec![connector]);
                         }
                     }
                 } else {
-                    payment_method_hm.insert(payment_method_type, HashMap::new());
+                    let mut inner_hashmap: HashMap<api_enums::CardNetwork, Vec<String>> =
+                        HashMap::new();
+                    for card_network in card_networks {
+                        if let Some(vector_of_connectors) = inner_hashmap.get_mut(&card_network) {
+                            let connector = element.connector.clone();
+                            vector_of_connectors.push(connector);
+                        } else {
+                            let connector = element.connector.clone();
+                            inner_hashmap.insert(card_network, vec![connector]);
+                        }
+                    }
+                    payment_method_hm.insert(payment_method_type, inner_hashmap);
                 }
             } else {
-                card_networks_consolidated_hm.insert(payment_method, HashMap::new());
+                let mut inner_hashmap: HashMap<api_enums::CardNetwork, Vec<String>> =
+                    HashMap::new();
+                for card_network in card_networks {
+                    if let Some(vector_of_connectors) = inner_hashmap.get_mut(&card_network) {
+                        let connector = element.connector.clone();
+                        vector_of_connectors.push(connector);
+                    } else {
+                        let connector = element.connector.clone();
+                        inner_hashmap.insert(card_network, vec![connector]);
+                    }
+                }
+                let payment_method_type_hm = HashMap::from([(payment_method_type, inner_hashmap)]);
+                card_networks_consolidated_hm.insert(payment_method, payment_method_type_hm);
             }
         }
     }
@@ -534,6 +572,7 @@ pub async fn list_payment_methods(
         )))
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn filter_payment_methods(
     payment_methods: Vec<serde_json::Value>,
     req: &mut api::ListPaymentMethodRequest,
@@ -542,6 +581,7 @@ async fn filter_payment_methods(
     payment_attempt: Option<&storage::PaymentAttempt>,
     address: Option<&storage::Address>,
     connector: String,
+    config: &settings::ConnectorFilters,
 ) -> errors::CustomResult<(), errors::ApiErrorResponse> {
     for payment_method in payment_methods.into_iter() {
         let parse_result = serde_json::from_value::<PaymentMethodsEnabled>(payment_method);
@@ -594,6 +634,16 @@ async fn filter_payment_methods(
                         true
                     };
 
+                    let filter5 = filter_pm_based_on_config(
+                        config,
+                        &connector,
+                        &payment_method_object.payment_method_type,
+                        address.and_then(|inner| inner.country.clone()),
+                        payment_attempt
+                            .and_then(|value| value.currency)
+                            .map(|value| value.foreign_into()),
+                    );
+
                     let connector = connector.clone();
 
                     let response_pm_type = ResponsePaymentMethodIntermediate::new(
@@ -602,7 +652,7 @@ async fn filter_payment_methods(
                         payment_method,
                     );
 
-                    if filter && filter2 && filter3 && filter4 {
+                    if filter && filter2 && filter3 && filter4 && filter5 {
                         resp.push(response_pm_type);
                     }
                 }
@@ -612,14 +662,43 @@ async fn filter_payment_methods(
     Ok(())
 }
 
+fn filter_pm_based_on_config<'a>(
+    config: &'a crate::configs::settings::ConnectorFilters,
+    connector: &'a str,
+    payment_method_type: &'a api_enums::PaymentMethodType,
+    country: Option<String>,
+    currency: Option<api_enums::Currency>,
+) -> bool {
+    config
+        .0
+        .get(connector)
+        .and_then(|inner| inner.0.get(payment_method_type))
+        .map(|value| {
+            let condition1 = value
+                .country
+                .as_ref()
+                .zip(country)
+                .map(|(lhs, rhs)| lhs.contains(&rhs));
+            let condition2 = value
+                .currency
+                .as_ref()
+                .zip(currency)
+                .map(|(lhs, rhs)| lhs.contains(&rhs));
+            condition1.unwrap_or(true) && condition2.unwrap_or(true)
+        })
+        .unwrap_or(true)
+}
+
 fn filter_pm_card_network_based(
     pm_card_networks: Option<&Vec<api_enums::CardNetwork>>,
     request_card_networks: Option<&Vec<api_enums::CardNetwork>>,
 ) -> bool {
+    logger::debug!(pm_card_networks=?pm_card_networks);
+    logger::debug!(request_card_networks=?request_card_networks);
     match (pm_card_networks, request_card_networks) {
-        (Some(pm_card_networks), Some(request_card_networks)) => pm_card_networks
+        (Some(pm_card_networks), Some(request_card_networks)) => request_card_networks
             .iter()
-            .all(|card_network| request_card_networks.contains(card_network)),
+            .all(|card_network| pm_card_networks.contains(card_network)),
         (None, Some(_)) => false,
         _ => true,
     }

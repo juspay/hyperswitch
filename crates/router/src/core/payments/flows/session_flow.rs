@@ -91,7 +91,7 @@ fn create_gpay_session_token(
 
     let response_router_data = types::PaymentsSessionRouterData {
         response: Ok(types::PaymentsResponseData::SessionResponse {
-            session_token: payment_types::SessionToken::Gpay(Box::new(
+            session_token: payment_types::SessionToken::GooglePay(Box::new(
                 payment_types::GpaySessionTokenResponse {
                     merchant_info: gpay_data.data.merchant_info,
                     allowed_payment_methods: gpay_data.data.allowed_payment_methods,

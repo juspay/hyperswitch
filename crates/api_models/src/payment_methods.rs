@@ -4,7 +4,7 @@ use common_utils::pii;
 use serde::de;
 use utoipa::ToSchema;
 
-use crate::{admin, enums as api_enums};
+use crate::{admin, enums as api_enums, payments};
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 #[serde(deny_unknown_fields)]
@@ -176,7 +176,7 @@ pub struct ResponsePaymentMethodsEnabled {
     pub payment_method_types: Vec<ResponsePaymentMethodTypes>,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct ResponsePaymentMethodIntermediate {
     pub payment_method_type: api_enums::PaymentMethodType,
     pub payment_experience: Option<api_enums::PaymentExperience>,
@@ -480,7 +480,7 @@ pub struct CustomerPaymentMethod {
     pub payment_method: api_enums::PaymentMethod,
 
     /// This is a sub-category of payment method.
-    #[schema(value_type = Option<PaymentMethodSubType>,example = "credit_card")]
+    #[schema(value_type = Option<PaymentMethodType>,example = "credit_card")]
     pub payment_method_type: Option<api_enums::PaymentMethodType>,
 
     /// The name of the bank/ provider issuing the payment method to the end user
@@ -584,8 +584,7 @@ pub struct TokenizedCardValue2 {
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct TokenizedWalletValue1 {
-    pub issuer: String,
-    pub token: Option<String>,
+    pub data: payments::WalletData,
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]

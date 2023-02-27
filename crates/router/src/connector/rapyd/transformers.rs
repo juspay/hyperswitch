@@ -1,3 +1,4 @@
+use base64::Engine;
 use error_stack::{IntoReport, ResultExt};
 use serde::{Deserialize, Serialize};
 use url::Url;
@@ -62,7 +63,7 @@ pub struct RapydWallet {
     #[serde(rename = "type")]
     payment_type: String,
     #[serde(rename = "details")]
-    apple_pay_token: Option<String>,
+    token: Option<String>,
 }
 
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for RapydPaymentsRequest {
@@ -100,14 +101,23 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for RapydPaymentsRequest {
                 })
             }
             api_models::payments::PaymentMethodData::Wallet(ref wallet_data) => {
-                let digital_wallet = match wallet_data.issuer_name {
-                    api_models::enums::WalletIssuer::GooglePay => Some(RapydWallet {
+                let digital_wallet = match wallet_data {
+                    api_models::payments::WalletData::GooglePay(data) => Some(RapydWallet {
                         payment_type: "google_pay".to_string(),
-                        apple_pay_token: wallet_data.token.to_owned(),
+                        token: Some(data.tokenization_data.token.to_owned()),
                     }),
-                    api_models::enums::WalletIssuer::ApplePay => Some(RapydWallet {
+                    api_models::payments::WalletData::ApplePay(data) => Some(RapydWallet {
                         payment_type: "apple_pay".to_string(),
-                        apple_pay_token: wallet_data.token.to_owned(),
+                        token: Some(
+                            consts::BASE64_ENGINE.encode(
+                                common_utils::ext_traits::Encode::<
+                                    api_models::payments::ApplepayPaymentData,
+                                >::encode_to_string_of_json(
+                                    &data.payment_data
+                                )
+                                .change_context(errors::ConnectorError::RequestEncodingFailed)?,
+                            ),
+                        ),
                     }),
                     _ => None,
                 };
