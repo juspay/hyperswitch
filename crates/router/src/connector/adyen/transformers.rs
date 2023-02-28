@@ -79,10 +79,10 @@ pub struct LineItem {
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct AdyenPaymentRequest {
+pub struct AdyenPaymentRequest<'a> {
     amount: Amount,
     merchant_account: String,
-    payment_method: AdyenPaymentMethod,
+    payment_method: AdyenPaymentMethod<'a>,
     reference: String,
     return_url: String,
     browser_info: Option<AdyenBrowserInfo>,
@@ -208,9 +208,9 @@ pub struct Amount {
     value: i64,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize)]
 #[serde(tag = "type")]
-pub enum AdyenPaymentMethod {
+pub enum AdyenPaymentMethod<'a> {
     AdyenCard(AdyenCard),
     AdyenPaypal(AdyenPaypal),
     Gpay(AdyenGPay),
@@ -218,25 +218,23 @@ pub enum AdyenPaymentMethod {
     AfterPay(AdyenPayLaterData),
     AdyenKlarna(AdyenPayLaterData),
     AdyenAffirm(AdyenPayLaterData),
-    Eps(BankRedirectionWithIssuer),
-    Ideal(BankRedirectionWithIssuer),
+    Eps(BankRedirectionWithIssuer<'a>),
+    Ideal(BankRedirectionWithIssuer<'a>),
     Giropay(BankRedirectionPMData),
     Sofort(BankRedirectionPMData),
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[derive(Debug, Clone, Serialize)]
 pub struct BankRedirectionPMData {
     #[serde(rename = "type")]
     payment_type: PaymentType,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct BankRedirectionWithIssuer {
+#[derive(Debug, Clone, Serialize)]
+pub struct BankRedirectionWithIssuer<'a> {
     #[serde(rename = "type")]
     payment_type: PaymentType,
-    issuer: String,
+    issuer: &'a str,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -420,7 +418,7 @@ impl TryFrom<&types::ConnectorAuthType> for AdyenAuthType {
 }
 
 // Payment Request Transform
-impl TryFrom<&types::PaymentsAuthorizeRouterData> for AdyenPaymentRequest {
+impl<'a> TryFrom<&types::PaymentsAuthorizeRouterData> for AdyenPaymentRequest<'a> {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         match item.payment_method {
@@ -558,9 +556,9 @@ fn get_country_code(item: &types::PaymentsAuthorizeRouterData) -> Option<String>
     address.and_then(|address| address.country.clone())
 }
 
-fn get_payment_method_data(
+fn get_payment_method_data<'a>(
     item: &types::PaymentsAuthorizeRouterData,
-) -> Result<AdyenPaymentMethod, error_stack::Report<errors::ConnectorError>> {
+) -> Result<AdyenPaymentMethod<'a>, error_stack::Report<errors::ConnectorError>> {
     match item.request.payment_method_data {
         api::PaymentMethodData::Card(ref card) => {
             let adyen_card = AdyenCard {
@@ -634,13 +632,13 @@ fn get_payment_method_data(
                 api_models::payments::BankRedirectData::Eps { bank_name, .. } => {
                     Ok(AdyenPaymentMethod::Eps(BankRedirectionWithIssuer {
                         payment_type: PaymentType::Eps,
-                        issuer: AdyenTestBankNames::try_from(bank_name)?.0.to_string(),
+                        issuer: AdyenTestBankNames::try_from(bank_name)?.0,
                     }))
                 }
                 api_models::payments::BankRedirectData::Ideal { bank_name, .. } => {
                     Ok(AdyenPaymentMethod::Ideal(BankRedirectionWithIssuer {
                         payment_type: PaymentType::Ideal,
-                        issuer: AdyenTestBankNames::try_from(bank_name)?.0.to_string(),
+                        issuer: AdyenTestBankNames::try_from(bank_name)?.0,
                     }))
                 }
 
@@ -659,9 +657,9 @@ fn get_payment_method_data(
     }
 }
 
-fn get_card_specific_payment_data(
+fn get_card_specific_payment_data<'a>(
     item: &types::PaymentsAuthorizeRouterData,
-) -> Result<AdyenPaymentRequest, error_stack::Report<errors::ConnectorError>> {
+) -> Result<AdyenPaymentRequest<'a>, error_stack::Report<errors::ConnectorError>> {
     let amount = get_amount_data(item);
     let auth_type = AdyenAuthType::try_from(&item.connector_auth_type)?;
     let shopper_interaction = AdyenShopperInteraction::from(item);
@@ -712,9 +710,9 @@ fn get_sofort_extra_details(
         _ => (None, None),
     }
 }
-fn get_bank_redirect_specific_payment_data(
+fn get_bank_redirect_specific_payment_data<'a>(
     item: &types::PaymentsAuthorizeRouterData,
-) -> Result<AdyenPaymentRequest, error_stack::Report<errors::ConnectorError>> {
+) -> Result<AdyenPaymentRequest<'a>, error_stack::Report<errors::ConnectorError>> {
     let amount = get_amount_data(item);
     let auth_type = AdyenAuthType::try_from(&item.connector_auth_type)?;
     let shopper_interaction = AdyenShopperInteraction::from(item);
@@ -746,9 +744,9 @@ fn get_bank_redirect_specific_payment_data(
     })
 }
 
-fn get_wallet_specific_payment_data(
+fn get_wallet_specific_payment_data<'a>(
     item: &types::PaymentsAuthorizeRouterData,
-) -> Result<AdyenPaymentRequest, error_stack::Report<errors::ConnectorError>> {
+) -> Result<AdyenPaymentRequest<'a>, error_stack::Report<errors::ConnectorError>> {
     let amount = get_amount_data(item);
     let auth_type = AdyenAuthType::try_from(&item.connector_auth_type)?;
     let browser_info = get_browser_info(item);
@@ -778,9 +776,9 @@ fn get_wallet_specific_payment_data(
     })
 }
 
-fn get_paylater_specific_payment_data(
+fn get_paylater_specific_payment_data<'a>(
     item: &types::PaymentsAuthorizeRouterData,
-) -> Result<AdyenPaymentRequest, error_stack::Report<errors::ConnectorError>> {
+) -> Result<AdyenPaymentRequest<'a>, error_stack::Report<errors::ConnectorError>> {
     let amount = get_amount_data(item);
     let auth_type = AdyenAuthType::try_from(&item.connector_auth_type)?;
     let browser_info = get_browser_info(item);

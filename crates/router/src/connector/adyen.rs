@@ -363,9 +363,10 @@ impl
         req: &types::PaymentsAuthorizeRouterData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
         let connector_req = adyen::AdyenPaymentRequest::try_from(req)?;
-        let adyen_req =
-            utils::Encode::<adyen::AdyenPaymentRequest>::encode_to_string_of_json(&connector_req)
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let adyen_req = utils::Encode::<adyen::AdyenPaymentRequest<'_>>::encode_to_string_of_json(
+            &connector_req,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(adyen_req))
     }
 
