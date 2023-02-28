@@ -990,13 +990,25 @@ pub struct AdyenAmountWH {
 }
 
 #[derive(Debug, Deserialize)]
+pub enum WebhookEventCode {
+    #[serde(rename = "AUTHORISATION")]
+    Authorisation,
+    #[serde(rename = "REFUND")]
+    Refund,
+    #[serde(rename = "CANCEL_OR_REFUND")]
+    CancelOrRefund,
+    #[serde(rename = "REFUND_FAILED")]
+    RefundFailed,
+}
+
+#[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AdyenNotificationRequestItemWH {
     pub additional_data: AdyenAdditionalDataWH,
     pub amount: AdyenAmountWH,
     pub original_reference: Option<String>,
     pub psp_reference: String,
-    pub event_code: String,
+    pub event_code: WebhookEventCode,
     pub merchant_account_code: String,
     pub merchant_reference: String,
     pub success: String,

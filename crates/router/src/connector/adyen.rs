@@ -688,7 +688,7 @@ impl api::IncomingWebhook for Adyen {
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
 
         let message = format!(
-            "{}:{}:{}:{}:{}:{}:{}:{}",
+            "{}:{}:{}:{}:{}:{}:{:?}:{}",
             notif.psp_reference,
             notif.original_reference.unwrap_or_default(),
             notif.merchant_account_code,
@@ -733,12 +733,13 @@ impl api::IncomingWebhook for Adyen {
         let notif = get_webhook_object_from_body(request.body)
             .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
 
-        Ok(match notif.event_code.as_str() {
-            "AUTHORISATION" => api::IncomingWebhookEvent::PaymentIntentSuccess,
-            "REFUND" => api::IncomingWebhookEvent::RefundSuccess,
-            "CANCEL_OR_REFUND" => api::IncomingWebhookEvent::RefundSuccess,
-            "REFUND_FAILED" => api::IncomingWebhookEvent::RefundFailure,
-            _ => Err(errors::ConnectorError::WebhookEventTypeNotFound).into_report()?,
+        Ok(match notif.event_code {
+            adyen::WebhookEventCode::Authorisation => {
+                api::IncomingWebhookEvent::PaymentIntentSuccess
+            }
+            adyen::WebhookEventCode::Refund => api::IncomingWebhookEvent::RefundSuccess,
+            adyen::WebhookEventCode::CancelOrRefund => api::IncomingWebhookEvent::RefundSuccess,
+            adyen::WebhookEventCode::RefundFailed => api::IncomingWebhookEvent::RefundFailure,
         })
     }
 

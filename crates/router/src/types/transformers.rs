@@ -229,6 +229,25 @@ impl TryFrom<F<storage_enums::RefundStatus>> for F<storage_enums::EventType> {
     }
 }
 
+impl TryFrom<F<api_models::webhooks::IncomingWebhookEvent>> for F<storage_enums::RefundStatus> {
+    type Error = errors::ValidationError;
+
+    fn try_from(value: F<api_models::webhooks::IncomingWebhookEvent>) -> Result<Self, Self::Error> {
+        match value.0 {
+            api_models::webhooks::IncomingWebhookEvent::RefundSuccess => {
+                Ok(storage_enums::RefundStatus::Success)
+            }
+            api_models::webhooks::IncomingWebhookEvent::RefundFailure => {
+                Ok(storage_enums::RefundStatus::Failure)
+            }
+            _ => Err(errors::ValidationError::IncorrectValueProvided {
+                field_name: "incoming_webhook_event_type",
+            }),
+        }
+        .map(Into::into)
+    }
+}
+
 impl From<F<storage_enums::EventType>> for F<api_enums::EventType> {
     fn from(event_type: F<storage_enums::EventType>) -> Self {
         Self(frunk::labelled_convert_from(event_type.0))

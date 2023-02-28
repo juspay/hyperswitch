@@ -90,20 +90,6 @@ async fn payments_incoming_webhook_flow(
     Ok(())
 }
 
-fn get_refund_status_from_event_type(
-    event_type: api_models::webhooks::IncomingWebhookEvent,
-) -> CustomResult<storage_models::enums::RefundStatus, errors::WebhooksFlowError> {
-    match event_type {
-        api_models::webhooks::IncomingWebhookEvent::RefundSuccess => {
-            Ok(storage_models::enums::RefundStatus::Success)
-        }
-        api_models::webhooks::IncomingWebhookEvent::RefundFailure => {
-            Ok(storage_models::enums::RefundStatus::Failure)
-        }
-        _ => Err(errors::WebhooksFlowError::RefundsCoreFailed.into()),
-    }
-}
-
 #[instrument(skip_all)]
 async fn refunds_incoming_webhook_flow(
     state: AppState,
@@ -131,7 +117,10 @@ async fn refunds_incoming_webhook_flow(
         let refund_update = storage::RefundUpdate::StatusUpdate {
             connector_refund_id: None,
             sent_to_gateway: true,
-            refund_status: get_refund_status_from_event_type(event_type)?,
+            refund_status: event_type
+                .foreign_try_into()
+                .into_report()
+                .change_context(errors::WebhooksFlowError::RefundsCoreFailed)?,
         };
         state
             .store
@@ -145,21 +134,20 @@ async fn refunds_incoming_webhook_flow(
             .attach_printable_lazy(|| {
                 format!(
                     "Failed while updating refund: refund_id: {}",
-                    refund.refund_id
+                    refund_id.to_owned()
                 )
             })?
     } else {
-        refunds::refund_retrieve_core(&state, merchant_account.clone(), refund_id)
+        refunds::refund_retrieve_core(&state, merchant_account.clone(), refund_id.to_owned())
             .await
             .change_context(errors::WebhooksFlowError::RefundsCoreFailed)
             .attach_printable_lazy(|| {
                 format!(
                     "Failed while updating refund: refund_id: {}",
-                    refund.refund_id
+                    refund_id.to_owned()
                 )
             })?
     };
-    let refund_id = updated_refund.refund_id.clone();
     let event_type: enums::EventType = updated_refund
         .refund_status
         .foreign_try_into()
