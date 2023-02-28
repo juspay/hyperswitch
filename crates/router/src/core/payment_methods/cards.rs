@@ -727,6 +727,7 @@ async fn filter_payment_methods(
                     let filter4 = filter_pm_card_network_based(
                         payment_method_object.card_networks.as_ref(),
                         req.card_networks.as_ref(),
+                        &payment_method_object.payment_method_type,
                     );
 
                     let filter3 = if let Some(payment_intent) = payment_intent {
@@ -797,14 +798,20 @@ fn filter_pm_based_on_config<'a>(
 fn filter_pm_card_network_based(
     pm_card_networks: Option<&Vec<api_enums::CardNetwork>>,
     request_card_networks: Option<&Vec<api_enums::CardNetwork>>,
+    pm_type: &api_enums::PaymentMethodType,
 ) -> bool {
     logger::debug!(pm_card_networks=?pm_card_networks);
     logger::debug!(request_card_networks=?request_card_networks);
-    match (pm_card_networks, request_card_networks) {
-        (Some(pm_card_networks), Some(request_card_networks)) => request_card_networks
-            .iter()
-            .all(|card_network| pm_card_networks.contains(card_network)),
-        (None, Some(_)) => false,
+    match pm_type {
+        api_enums::PaymentMethodType::Credit | api_enums::PaymentMethodType::Debit => {
+            match (pm_card_networks, request_card_networks) {
+                (Some(pm_card_networks), Some(request_card_networks)) => request_card_networks
+                    .iter()
+                    .all(|card_network| pm_card_networks.contains(card_network)),
+                (None, Some(_)) => false,
+                _ => true,
+            }
+        }
         _ => true,
     }
 }
