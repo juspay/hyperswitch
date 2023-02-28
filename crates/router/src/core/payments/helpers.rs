@@ -517,11 +517,15 @@ pub(crate) async fn call_payment_method(
                             let payment_method_request = api::CreatePaymentMethod {
                                 payment_method: payment_method_type.foreign_into(),
                                 payment_method_type: None,
-                                payment_method_issuer: None,
+                                payment_method_issuer: card.card_issuer.clone(),
                                 payment_method_issuer_code: None,
                                 card: Some(card_detail),
                                 metadata: None,
                                 customer_id: Some(customer_id),
+                                card_network: card
+                                    .card_network
+                                    .as_ref()
+                                    .map(|card_network| card_network.to_string()),
                             };
                             let resp = cards::add_payment_method(
                                 state,
@@ -553,6 +557,7 @@ pub(crate) async fn call_payment_method(
                         card: None,
                         metadata: None,
                         customer_id: None,
+                        card_network: None,
                     };
                     let resp =
                         cards::add_payment_method(state, payment_method_request, merchant_account)

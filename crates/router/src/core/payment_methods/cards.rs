@@ -48,6 +48,7 @@ pub async fn create_payment_method(
             payment_method: req.payment_method.foreign_into(),
             payment_method_type: req.payment_method_type.map(ForeignInto::foreign_into),
             payment_method_issuer: req.payment_method_issuer.clone(),
+            scheme: req.card_network.clone(),
             metadata: req.metadata.clone(),
             ..storage::PaymentMethodNew::default()
         })
@@ -129,6 +130,10 @@ pub async fn update_customer_payment_method(
         card: req.card,
         metadata: req.metadata,
         customer_id: Some(pm.customer_id),
+        card_network: req
+            .card_network
+            .as_ref()
+            .map(|card_network| card_network.to_string()),
     };
     add_payment_method(state, new_pm, &merchant_account).await
 }
