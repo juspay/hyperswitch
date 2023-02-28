@@ -343,6 +343,10 @@ impl<'de> serde::Deserialize<'de> for ListPaymentMethodRequest {
                                 map.next_value()?,
                             )?;
                         }
+                        "card_network" => match output.card_networks.as_mut() {
+                            Some(inner) => inner.push(map.next_value()?),
+                            None => output.card_networks = Some(vec![map.next_value()?]),
+                        },
                         _ => {}
                     }
                 }
