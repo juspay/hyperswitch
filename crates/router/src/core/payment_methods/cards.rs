@@ -356,62 +356,71 @@ pub fn get_banks(
 ) -> Result<Vec<BankCodeResponse>, errors::ApiErrorResponse> {
     let mut bank_names_hm: HashMap<String, HashSet<api_enums::BankNames>> = HashMap::new();
 
-    for connector in &connectors {
-        if let Some(connector_bank_names) = state.conf.bank_config.0.get(&pm_type) {
-            if let Some(connector_hash_set) = connector_bank_names.0.get(connector) {
-                bank_names_hm.insert(connector.clone(), connector_hash_set.banks.clone());
+    if matches!(
+        pm_type,
+        api_enums::PaymentMethodType::Giropay | api_enums::PaymentMethodType::Sofort
+    ) {
+        Ok(vec![BankCodeResponse {
+            bank_name: vec![],
+            eligible_connectors: connectors,
+        }])
+    } else {
+        let mut bank_code_responses = vec![];
+        for connector in &connectors {
+            if let Some(connector_bank_names) = state.conf.bank_config.0.get(&pm_type) {
+                if let Some(connector_hash_set) = connector_bank_names.0.get(connector) {
+                    bank_names_hm.insert(connector.clone(), connector_hash_set.banks.clone());
+                } else {
+                    logger::error!("Could not find any configured connectors for payment_method -> {pm_type} for connector -> {connector}");
+                }
             } else {
-                logger::error!("Could not find any configured connectors for payment_method -> {pm_type} for connector -> {connector}");
+                logger::error!("Could not find any configured banks for payment_method -> {pm_type} for connector -> {connector}");
             }
-        } else {
-            logger::error!("Could not find any configured banks for payment_method -> {pm_type} for connector -> {connector}");
         }
-    }
 
-    let vector_of_hashsets = bank_names_hm
-        .values()
-        .map(|bank_names_hashset| bank_names_hashset.to_owned())
-        .collect::<Vec<_>>();
+        let vector_of_hashsets = bank_names_hm
+            .values()
+            .map(|bank_names_hashset| bank_names_hashset.to_owned())
+            .collect::<Vec<_>>();
 
-    let mut common_bank_names = HashSet::new();
-    if let Some(first_element) = vector_of_hashsets.first() {
-        common_bank_names = vector_of_hashsets
-            .iter()
-            .skip(1)
-            .fold(first_element.to_owned(), |acc, hs| {
-                acc.intersection(hs).cloned().collect()
+        let mut common_bank_names = HashSet::new();
+        if let Some(first_element) = vector_of_hashsets.first() {
+            common_bank_names = vector_of_hashsets
+                .iter()
+                .skip(1)
+                .fold(first_element.to_owned(), |acc, hs| {
+                    acc.intersection(hs).cloned().collect()
+                });
+        }
+
+        if !common_bank_names.is_empty() {
+            bank_code_responses.push(BankCodeResponse {
+                bank_name: common_bank_names.clone().into_iter().collect(),
+                eligible_connectors: connectors.clone(),
             });
-    }
-
-    let mut bank_code_responses = vec![];
-    if !common_bank_names.is_empty() {
-        bank_code_responses.push(BankCodeResponse {
-            bank_name: common_bank_names.clone().into_iter().collect(),
-            eligible_connectors: connectors.clone(),
-        });
-    }
-
-    for connector in connectors {
-        if let Some(all_bank_codes_for_connector) = bank_names_hm.get(&connector) {
-            let remaining_bank_codes: HashSet<_> = all_bank_codes_for_connector
-                .difference(&common_bank_names)
-                .collect();
-
-            if !remaining_bank_codes.is_empty() {
-                bank_code_responses.push(BankCodeResponse {
-                    bank_name: remaining_bank_codes
-                        .into_iter()
-                        .map(|ele| ele.to_owned())
-                        .collect(),
-                    eligible_connectors: vec![connector],
-                })
-            }
-        } else {
-            logger::error!("Could not find any configured banks for payment_method -> {pm_type} for connector -> {connector}");
         }
-    }
 
-    Ok(bank_code_responses)
+        for connector in connectors {
+            if let Some(all_bank_codes_for_connector) = bank_names_hm.get(&connector) {
+                let remaining_bank_codes: HashSet<_> = all_bank_codes_for_connector
+                    .difference(&common_bank_names)
+                    .collect();
+
+                if !remaining_bank_codes.is_empty() {
+                    bank_code_responses.push(BankCodeResponse {
+                        bank_name: remaining_bank_codes
+                            .into_iter()
+                            .map(|ele| ele.to_owned())
+                            .collect(),
+                        eligible_connectors: vec![connector],
+                    })
+                }
+            } else {
+                logger::error!("Could not find any configured banks for payment_method -> {pm_type} for connector -> {connector}");
+            }
+        }
+        Ok(bank_code_responses)
+    }
 }
 
 pub async fn list_payment_methods(
@@ -659,10 +668,12 @@ pub async fn list_payment_methods(
         })
     }
 
-    payment_method_responses.push(ResponsePaymentMethodsEnabled {
-        payment_method: api_enums::PaymentMethod::BankRedirect,
-        payment_method_types: bank_payment_method_types,
-    });
+    if !bank_payment_method_types.is_empty() {
+        payment_method_responses.push(ResponsePaymentMethodsEnabled {
+            payment_method: api_enums::PaymentMethod::BankRedirect,
+            payment_method_types: bank_payment_method_types,
+        });
+    }
 
     response
         .is_empty()
@@ -725,6 +736,7 @@ async fn filter_payment_methods(
                     let filter4 = filter_pm_card_network_based(
                         payment_method_object.card_networks.as_ref(),
                         req.card_networks.as_ref(),
+                        &payment_method_object.payment_method_type,
                     );
 
                     let filter3 = if let Some(payment_intent) = payment_intent {
@@ -795,14 +807,20 @@ fn filter_pm_based_on_config<'a>(
 fn filter_pm_card_network_based(
     pm_card_networks: Option<&Vec<api_enums::CardNetwork>>,
     request_card_networks: Option<&Vec<api_enums::CardNetwork>>,
+    pm_type: &api_enums::PaymentMethodType,
 ) -> bool {
     logger::debug!(pm_card_networks=?pm_card_networks);
     logger::debug!(request_card_networks=?request_card_networks);
-    match (pm_card_networks, request_card_networks) {
-        (Some(pm_card_networks), Some(request_card_networks)) => request_card_networks
-            .iter()
-            .all(|card_network| pm_card_networks.contains(card_network)),
-        (None, Some(_)) => false,
+    match pm_type {
+        api_enums::PaymentMethodType::Credit | api_enums::PaymentMethodType::Debit => {
+            match (pm_card_networks, request_card_networks) {
+                (Some(pm_card_networks), Some(request_card_networks)) => request_card_networks
+                    .iter()
+                    .all(|card_network| pm_card_networks.contains(card_network)),
+                (None, Some(_)) => false,
+                _ => true,
+            }
+        }
         _ => true,
     }
 }

@@ -831,7 +831,7 @@ pub(crate) fn validate_payment_method_fields_present(
         req.payment_method.is_none() && req.payment_method_data.is_some(),
         || {
             Err(errors::ApiErrorResponse::MissingRequiredField {
-                field_name: "payent_method",
+                field_name: "payment_method",
             })
         },
     )?;
