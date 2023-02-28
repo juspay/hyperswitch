@@ -584,16 +584,23 @@ pub(crate) async fn call_payment_method(
     }
 }
 
-pub async fn get_customer_from_details(
+pub async fn get_customer_from_details<F: Clone>(
     db: &dyn StorageInterface,
     customer_id: Option<String>,
     merchant_id: &str,
+    payment_data: &mut PaymentData<F>,
 ) -> CustomResult<Option<storage::Customer>, errors::StorageError> {
     match customer_id {
         None => Ok(None),
         Some(c_id) => {
-            db.find_customer_optional_by_customer_id_merchant_id(&c_id, merchant_id)
-                .await
+            let customer = db
+                .find_customer_optional_by_customer_id_merchant_id(&c_id, merchant_id)
+                .await?;
+            payment_data.email = payment_data
+                .email
+                .clone()
+                .or(customer.as_ref().and_then(|inner| inner.email.clone()));
+            Ok(customer)
         }
     }
 }
@@ -663,6 +670,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R>(
                 let customer = customer?;
 
                 payment_data.payment_intent.customer_id = Some(customer.customer_id.clone());
+                payment_data.email = payment_data.email.clone().or(customer.email.clone());
 
                 Some(customer)
             }
