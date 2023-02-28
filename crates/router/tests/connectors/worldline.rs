@@ -98,7 +98,7 @@ async fn should_requires_manual_authorization() {
         enums::CaptureMethod::Manual,
     );
     let response = WorldlineTest {}
-        .make_payment(authorize_data, WorldlineTest::get_payment_info())
+        .authorize_payment(authorize_data, WorldlineTest::get_payment_info())
         .await;
     assert_eq!(response.unwrap().status, enums::AttemptStatus::Authorized);
 }
@@ -133,7 +133,10 @@ async fn should_throw_not_implemented_for_unsupported_issuer() {
         .await;
     assert_eq!(
         *response.unwrap_err().current_context(),
-        errors::ConnectorError::NotImplemented(String::from("Payment Method"))
+        errors::ConnectorError::NotSupported {
+            payment_method: "Maestro".to_string(),
+            connector: "worldline"
+        }
     )
 }
 
@@ -195,7 +198,7 @@ async fn should_sync_manual_auth_payment() {
         enums::CaptureMethod::Manual,
     );
     let response = connector
-        .make_payment(authorize_data, WorldlineTest::get_payment_info())
+        .authorize_payment(authorize_data, WorldlineTest::get_payment_info())
         .await
         .unwrap();
     assert_eq!(response.status, enums::AttemptStatus::Authorized);
@@ -261,7 +264,7 @@ async fn should_capture_authorized_payment() {
         enums::CaptureMethod::Manual,
     );
     let response = connector
-        .make_payment(authorize_data, WorldlineTest::get_payment_info())
+        .authorize_payment(authorize_data, WorldlineTest::get_payment_info())
         .await
         .unwrap();
     assert_eq!(response.status, enums::AttemptStatus::Authorized);
@@ -300,7 +303,7 @@ async fn should_cancel_unauthorized_payment() {
         enums::CaptureMethod::Manual,
     );
     let response = connector
-        .make_payment(authorize_data, WorldlineTest::get_payment_info())
+        .authorize_payment(authorize_data, WorldlineTest::get_payment_info())
         .await
         .unwrap();
     assert_eq!(response.status, enums::AttemptStatus::Authorized);
@@ -360,7 +363,7 @@ async fn should_fail_refund_with_invalid_payment_status() {
         enums::CaptureMethod::Manual,
     );
     let response = connector
-        .make_payment(authorize_data, WorldlineTest::get_payment_info())
+        .authorize_payment(authorize_data, WorldlineTest::get_payment_info())
         .await
         .unwrap();
     assert_eq!(response.status, enums::AttemptStatus::Authorized);

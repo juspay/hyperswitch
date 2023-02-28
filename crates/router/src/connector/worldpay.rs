@@ -9,6 +9,7 @@ use storage_models::enums;
 use transformers as worldpay;
 
 use self::{requests::*, response::*};
+use super::utils::RefundsRequestData;
 use crate::{
     configs::settings,
     core::{
@@ -82,7 +83,7 @@ impl ConnectorCommon for Worldpay {
             status_code: res.status_code,
             code: response.error_name,
             message: response.message,
-            reason: None,
+            reason: response.validation_errors.map(|e| e.to_string()),
         })
     }
 }
@@ -542,7 +543,7 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         Ok(format!(
             "{}payments/events/{}",
             self.base_url(connectors),
-            req.request.connector_transaction_id
+            req.request.get_connector_refund_id()?
         ))
     }
 

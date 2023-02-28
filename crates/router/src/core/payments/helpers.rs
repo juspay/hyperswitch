@@ -517,11 +517,15 @@ pub(crate) async fn call_payment_method(
                             let payment_method_request = api::CreatePaymentMethod {
                                 payment_method: payment_method_type.foreign_into(),
                                 payment_method_type: None,
-                                payment_method_issuer: None,
+                                payment_method_issuer: card.card_issuer.clone(),
                                 payment_method_issuer_code: None,
                                 card: Some(card_detail),
                                 metadata: None,
                                 customer_id: Some(customer_id),
+                                card_network: card
+                                    .card_network
+                                    .as_ref()
+                                    .map(|card_network| card_network.to_string()),
                             };
                             let resp = cards::add_payment_method(
                                 state,
@@ -553,6 +557,7 @@ pub(crate) async fn call_payment_method(
                         card: None,
                         metadata: None,
                         customer_id: None,
+                        card_network: None,
                     };
                     let resp =
                         cards::add_payment_method(state, payment_method_request, merchant_account)
@@ -721,18 +726,19 @@ pub async fn make_pm_data<'a, F: Clone, R>(
                     payment_data.payment_attempt.payment_method =
                         Some(storage_enums::PaymentMethod::Wallet);
                     // TODO: Remove redundant update from wallets.
-                    if wallet_data.token.is_some() {
-                        let updated_pm = api::PaymentMethodData::Wallet(wallet_data);
-                        vault::Vault::store_payment_method_data_in_locker(
-                            state,
-                            Some(token),
-                            &updated_pm,
-                            payment_data.payment_intent.customer_id.to_owned(),
-                        )
-                        .await?;
-                        Some(updated_pm)
-                    } else {
-                        pm
+                    match wallet_data {
+                        api_models::payments::WalletData::PaypalRedirect(_) => pm,
+                        _ => {
+                            let updated_pm = api::PaymentMethodData::Wallet(wallet_data);
+                            vault::Vault::store_payment_method_data_in_locker(
+                                state,
+                                Some(token),
+                                &updated_pm,
+                                payment_data.payment_intent.customer_id.to_owned(),
+                            )
+                            .await?;
+                            Some(updated_pm)
+                        }
                     }
                 }
 
@@ -830,7 +836,7 @@ pub(crate) fn validate_payment_method_fields_present(
         req.payment_method.is_none() && req.payment_method_data.is_some(),
         || {
             Err(errors::ApiErrorResponse::MissingRequiredField {
-                field_name: "payent_method",
+                field_name: "payment_method",
             })
         },
     )?;

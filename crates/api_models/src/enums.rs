@@ -144,6 +144,7 @@ pub enum Currency {
     AED,
     ALL,
     AMD,
+    ANG,
     ARS,
     AUD,
     AWG,
@@ -552,10 +553,12 @@ pub enum Connector {
     Cybersource,
     #[default]
     Dummy,
+    Bambora,
     Dlocal,
     Fiserv,
     Globalpay,
     Klarna,
+    Multisafepay,
     Nuvei,
     Payu,
     Rapyd,
@@ -590,6 +593,7 @@ pub enum RoutableConnectors {
     Adyen,
     Airwallex,
     Authorizedotnet,
+    Bambora,
     Bluesnap,
     Braintree,
     Checkout,
@@ -605,6 +609,7 @@ pub enum RoutableConnectors {
     Stripe,
     Worldline,
     Worldpay,
+    Multisafepay,
 }
 
 /// Wallets which support obtaining session object
@@ -629,6 +634,7 @@ pub enum SupportedWallets {
     strum::Display,
     strum::EnumString,
     frunk::LabelledGeneric,
+    ToSchema,
 )]
 #[strum(serialize_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
@@ -702,11 +708,18 @@ pub enum BankNames {
     strum::EnumString,
     frunk::LabelledGeneric,
 )]
-#[strum(serialize_all = "snake_case")]
-#[serde(rename_all = "snake_case")]
 pub enum CardNetwork {
     Visa,
     Mastercard,
+    AmericanExpress,
+    JCB,
+    DinersClub,
+    Discover,
+    CartesBancaires,
+    UnionPay,
+    Interac,
+    RuPay,
+    Maestro,
 }
 
 impl From<AttemptStatus> for IntentStatus {

@@ -3,22 +3,24 @@ use serde::Deserialize;
 
 #[derive(Debug, Deserialize, Clone)]
 pub(crate) struct ConnectorAuthentication {
-    pub dlocal: Option<SignatureKey>,
     pub aci: Option<BodyKey>,
     pub adyen: Option<BodyKey>,
     pub airwallex: Option<BodyKey>,
     pub authorizedotnet: Option<BodyKey>,
+    pub bambora: Option<BodyKey>,
     pub bluesnap: Option<BodyKey>,
     pub checkout: Option<BodyKey>,
     pub cybersource: Option<SignatureKey>,
+    pub dlocal: Option<SignatureKey>,
     pub fiserv: Option<SignatureKey>,
     pub globalpay: Option<HeaderKey>,
+    pub multisafepay: Option<HeaderKey>,
     pub nuvei: Option<SignatureKey>,
     pub payu: Option<BodyKey>,
     pub rapyd: Option<BodyKey>,
     pub shift4: Option<HeaderKey>,
     pub stripe: Option<HeaderKey>,
-    pub worldpay: Option<HeaderKey>,
+    pub worldpay: Option<BodyKey>,
     pub worldline: Option<SignatureKey>,
 }
 
