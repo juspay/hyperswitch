@@ -276,7 +276,10 @@ where
                         .set_merchant_id(Some(payment_attempt.merchant_id))
                         .set_status(payment_intent.status.foreign_into())
                         .set_amount(payment_attempt.amount)
-                        .set_amount_capturable(None)
+                        .set_amount_capturable(Some(
+                            payment_intent.amount
+                                - payment_intent.amount_captured.unwrap_or_default(),
+                        ))
                         .set_amount_received(payment_intent.amount_captured)
                         .set_connector(payment_attempt.connector)
                         .set_client_secret(payment_intent.client_secret.map(masking::Secret::new))
