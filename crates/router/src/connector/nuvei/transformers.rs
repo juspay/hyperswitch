@@ -533,11 +533,11 @@ impl<F, T>
                         .response
                         .err_code
                         .map(|c| c.to_string())
-                        .unwrap_or(consts::NO_ERROR_CODE.to_string()),
+                        .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
                     message: item
                         .response
                         .reason
-                        .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
+                        .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
                     reason: None,
                     status_code: item.http_code,
                 }),
@@ -547,11 +547,11 @@ impl<F, T>
                             .response
                             .gw_error_code
                             .map(|c| c.to_string())
-                            .unwrap_or(consts::NO_ERROR_CODE.to_string()),
+                            .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
                         message: item
                             .response
                             .gw_error_reason
-                            .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
+                            .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
                         reason: None,
                         status_code: item.http_code,
                     }),
@@ -608,11 +608,11 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, NuveiPaymentsRespons
                     .response
                     .err_code
                     .map(|c| c.to_string())
-                    .unwrap_or(consts::NO_ERROR_CODE.to_string()),
+                    .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
                 message: item
                     .response
                     .reason
-                    .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
+                    .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
                 reason: None,
                 status_code: item.http_code,
             }),
@@ -647,11 +647,11 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, NuveiPaymentsResponse>
                     .response
                     .err_code
                     .map(|c| c.to_string())
-                    .unwrap_or(consts::NO_ERROR_CODE.to_string()),
+                    .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
                 message: item
                     .response
                     .reason
-                    .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
+                    .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
                 reason: None,
                 status_code: item.http_code,
             }),
