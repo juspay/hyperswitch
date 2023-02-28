@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use common_utils::pii;
 use error_stack::{report, IntoReport, ResultExt};
 use masking::Secret;
 use once_cell::sync::Lazy;
@@ -212,7 +213,11 @@ impl CardData for api::Card {
         Secret::new(year[year.len() - 2..].to_string())
     }
     fn get_card_issuer(&self) -> Result<CardIssuer, Error> {
-        get_card_issuer(self.card_number.peek().clone().as_str())
+        let card: Secret<String, pii::CardNumber> = self
+            .card_number
+            .clone()
+            .map(|card| card.split_whitespace().collect());
+        get_card_issuer(card.peek().clone().as_str())
     }
 }
 

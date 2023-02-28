@@ -127,6 +127,7 @@ impl TryFrom<utils::CardIssuer> for Gateway {
             utils::CardIssuer::AmericanExpress => Ok(Self::Amex),
             utils::CardIssuer::Master => Ok(Self::MasterCard),
             utils::CardIssuer::Discover => Ok(Self::Discover),
+            utils::CardIssuer::Visa => Ok(Self::Visa),
             _ => Err(errors::ConnectorError::NotSupported {
                 payment_method: format!("{issuer}"),
                 connector: "worldline",
