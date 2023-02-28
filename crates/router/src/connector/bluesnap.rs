@@ -80,25 +80,33 @@ impl ConnectorCommon for Bluesnap {
         res: Response,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         logger::debug!(bluesnap_error_response=?res);
-        let response: bluesnap::BluesnapErrorResponse = res
+        let response: bluesnap::BluesnapErrors = res
             .response
             .parse_struct("BluesnapErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
-        let response_error_message = response.message.first().map_or(
-            ErrorResponse {
+        let response_error_message = match response {
+            bluesnap::BluesnapErrors::PaymentError(error_res) => error_res.message.first().map_or(
+                ErrorResponse {
+                    status_code: res.status_code,
+                    code: consts::NO_ERROR_CODE.to_string(),
+                    message: consts::NO_ERROR_MESSAGE.to_string(),
+                    reason: None,
+                },
+                |error_response| ErrorResponse {
+                    status_code: res.status_code,
+                    code: error_response.code.clone(),
+                    message: error_response.description.clone(),
+                    reason: None,
+                },
+            ),
+            bluesnap::BluesnapErrors::AuthError(error_res) => ErrorResponse {
                 status_code: res.status_code,
-                code: consts::NO_ERROR_CODE.to_string(),
-                message: consts::NO_ERROR_MESSAGE.to_string(),
+                code: error_res.error_code.clone(),
+                message: error_res.error_description,
                 reason: None,
             },
-            |error_response| ErrorResponse {
-                status_code: res.status_code,
-                code: error_response.code.clone(),
-                message: error_response.description.clone(),
-                reason: None,
-            },
-        );
+        };
         Ok(response_error_message)
     }
 }
