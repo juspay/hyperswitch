@@ -735,6 +735,9 @@ impl api::IncomingWebhook for Adyen {
 
         Ok(match notif.event_code.as_str() {
             "AUTHORISATION" => api::IncomingWebhookEvent::PaymentIntentSuccess,
+            "REFUND" => api::IncomingWebhookEvent::RefundSuccess,
+            "CANCEL_OR_REFUND" => api::IncomingWebhookEvent::RefundSuccess,
+            "REFUND_FAILED" => api::IncomingWebhookEvent::RefundFailure,
             _ => Err(errors::ConnectorError::WebhookEventTypeNotFound).into_report()?,
         })
     }

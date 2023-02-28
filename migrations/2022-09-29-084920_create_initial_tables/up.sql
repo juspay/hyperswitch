@@ -143,11 +143,11 @@ CREATE TYPE "Currency" AS ENUM (
     'ZAR'
 );
 
-CREATE TYPE "EventClass" AS ENUM ('payments');
+CREATE TYPE "EventClass" AS ENUM ('payments', 'refunds');
 
-CREATE TYPE "EventObjectType" AS ENUM ('payment_details');
+CREATE TYPE "EventObjectType" AS ENUM ('payment_details', 'refund_details');
 
-CREATE TYPE "EventType" AS ENUM ('payment_succeeded');
+CREATE TYPE "EventType" AS ENUM ('payment_succeeded', 'refund_succeeded', 'refund_failed');
 
 CREATE TYPE "FutureUsage" AS ENUM ('on_session', 'off_session');
 

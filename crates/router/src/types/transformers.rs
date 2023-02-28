@@ -214,6 +214,21 @@ impl TryFrom<F<api_enums::IntentStatus>> for F<storage_enums::EventType> {
     }
 }
 
+impl TryFrom<F<storage_enums::RefundStatus>> for F<storage_enums::EventType> {
+    type Error = errors::ValidationError;
+
+    fn try_from(value: F<storage_enums::RefundStatus>) -> Result<Self, Self::Error> {
+        match value.0 {
+            storage_enums::RefundStatus::Success => Ok(storage_enums::EventType::RefundSucceeded),
+            storage_enums::RefundStatus::Failure => Ok(storage_enums::EventType::RefundFailed),
+            _ => Err(errors::ValidationError::IncorrectValueProvided {
+                field_name: "intent_status",
+            }),
+        }
+        .map(Into::into)
+    }
+}
+
 impl From<F<storage_enums::EventType>> for F<api_enums::EventType> {
     fn from(event_type: F<storage_enums::EventType>) -> Self {
         Self(frunk::labelled_convert_from(event_type.0))
