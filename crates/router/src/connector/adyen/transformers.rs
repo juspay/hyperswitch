@@ -1,3 +1,4 @@
+use api_models::webhooks::IncomingWebhookEvent;
 use masking::PeekInterface;
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
@@ -997,6 +998,17 @@ pub enum WebhookEventCode {
     Refund,
     CancelOrRefund,
     RefundFailed,
+}
+
+impl From<WebhookEventCode> for IncomingWebhookEvent {
+    fn from(code: WebhookEventCode) -> Self {
+        match code {
+            WebhookEventCode::Authorisation => Self::PaymentIntentSuccess,
+            WebhookEventCode::Refund => Self::RefundSuccess,
+            WebhookEventCode::CancelOrRefund => Self::RefundSuccess,
+            WebhookEventCode::RefundFailed => Self::RefundFailure,
+        }
+    }
 }
 
 #[derive(Debug, Deserialize)]

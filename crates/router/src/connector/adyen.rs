@@ -732,15 +732,7 @@ impl api::IncomingWebhook for Adyen {
     ) -> CustomResult<api::IncomingWebhookEvent, errors::ConnectorError> {
         let notif = get_webhook_object_from_body(request.body)
             .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
-
-        Ok(match notif.event_code {
-            adyen::WebhookEventCode::Authorisation => {
-                api::IncomingWebhookEvent::PaymentIntentSuccess
-            }
-            adyen::WebhookEventCode::Refund => api::IncomingWebhookEvent::RefundSuccess,
-            adyen::WebhookEventCode::CancelOrRefund => api::IncomingWebhookEvent::RefundSuccess,
-            adyen::WebhookEventCode::RefundFailed => api::IncomingWebhookEvent::RefundFailure,
-        })
+        Ok(notif.event_code.into())
     }
 
     fn get_webhook_resource_object(
