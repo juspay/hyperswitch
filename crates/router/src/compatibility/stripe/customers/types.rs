@@ -2,20 +2,9 @@ use std::{convert::From, default::Default};
 
 use api_models::payment_methods as api_types;
 use common_utils::date_time;
-use masking;
 use serde::{Deserialize, Serialize};
 
 use crate::{logger, pii, types::api};
-
-#[derive(Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
-pub struct CustomerAddress {
-    pub city: Option<pii::Secret<String>>,
-    pub country: Option<pii::Secret<String>>,
-    pub line1: Option<pii::Secret<String>>,
-    pub line2: Option<pii::Secret<String>>,
-    pub postal_code: Option<pii::Secret<String>>,
-    pub state: Option<pii::Secret<String>>,
-}
 
 #[derive(Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
 pub struct CreateCustomerRequest {
@@ -23,17 +12,19 @@ pub struct CreateCustomerRequest {
     pub invoice_prefix: Option<String>,
     pub name: Option<String>,
     pub phone: Option<masking::Secret<String>>,
-    pub address: Option<CustomerAddress>,
+    pub address: Option<masking::Secret<serde_json::Value>>,
+    pub metadata: Option<serde_json::Value>,
+    pub description: Option<String>,
 }
 
 #[derive(Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
 pub struct CustomerUpdateRequest {
-    pub metadata: Option<String>,
     pub description: Option<String>,
     pub email: Option<masking::Secret<String, pii::Email>>,
     pub phone: Option<masking::Secret<String, masking::WithType>>,
     pub name: Option<String>,
-    pub address: Option<CustomerAddress>,
+    pub address: Option<masking::Secret<serde_json::Value>>,
+    pub metadata: Option<serde_json::Value>,
 }
 
 #[derive(Default, Serialize, PartialEq, Eq)]
@@ -64,7 +55,9 @@ impl From<CreateCustomerRequest> for api::CustomerRequest {
             name: req.name,
             phone: req.phone,
             email: req.email,
-            description: req.invoice_prefix,
+            description: req.description,
+            metadata: req.metadata,
+            address: req.address,
             ..Default::default()
         }
     }
@@ -77,10 +70,7 @@ impl From<CustomerUpdateRequest> for api::CustomerRequest {
             phone: req.phone,
             email: req.email,
             description: req.description,
-            metadata: req
-                .metadata
-                .map(|v| serde_json::from_str(&v).ok())
-                .unwrap_or(None),
+            metadata: req.metadata,
             ..Default::default()
         }
     }

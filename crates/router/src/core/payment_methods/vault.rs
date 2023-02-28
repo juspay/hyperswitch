@@ -1,5 +1,3 @@
-use std::str::FromStr;
-
 use common_utils::generate_id_with_default_len;
 use error_stack::{IntoReport, ResultExt};
 use masking::PeekInterface;
@@ -103,8 +101,7 @@ impl Vaultable for api::Card {
 impl Vaultable for api::WalletData {
     fn get_value1(&self, _customer_id: Option<String>) -> CustomResult<String, errors::VaultError> {
         let value1 = api::TokenizedWalletValue1 {
-            issuer: self.issuer_name.to_string(),
-            token: self.token.clone(),
+            data: self.to_owned(),
         };
 
         utils::Encode::<api::TokenizedWalletValue1>::encode_to_string_of_json(&value1)
@@ -134,13 +131,7 @@ impl Vaultable for api::WalletData {
             .change_context(errors::VaultError::ResponseDeserializationFailed)
             .attach_printable("Could not deserialize into wallet data value2")?;
 
-        let wallet = Self {
-            issuer_name: api::enums::WalletIssuer::from_str(&value1.issuer)
-                .into_report()
-                .change_context(errors::VaultError::ResponseDeserializationFailed)
-                .attach_printable("Invalid issuer name when deserializing wallet data")?,
-            token: value1.token,
-        };
+        let wallet = value1.data;
 
         let supp_data = SupplementaryVaultData {
             customer_id: value2.customer_id,
