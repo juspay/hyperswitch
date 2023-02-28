@@ -990,14 +990,11 @@ pub struct AdyenAmountWH {
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum WebhookEventCode {
-    #[serde(rename = "AUTHORISATION")]
     Authorisation,
-    #[serde(rename = "REFUND")]
     Refund,
-    #[serde(rename = "CANCEL_OR_REFUND")]
     CancelOrRefund,
-    #[serde(rename = "REFUND_FAILED")]
     RefundFailed,
 }
 
