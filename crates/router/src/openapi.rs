@@ -192,8 +192,6 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::GpayTokenizationData,
         api_models::payments::GpayPaymentMethodInfo,
         api_models::payments::ApplePayWalletData,
-        api_models::payments::ApplepayPaymentData,
-        api_models::payments::ApplepayHeader,
         api_models::payments::ApplepayPaymentMethod,
         api_models::payments::PaymentsCancelRequest,
         api_models::payments::PaymentListConstraints,

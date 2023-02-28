@@ -1,4 +1,3 @@
-use base64::Engine;
 use error_stack::{IntoReport, ResultExt};
 use serde::{Deserialize, Serialize};
 use url::Url;
@@ -112,16 +111,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for RapydPaymentsRequest {
                     }),
                     api_models::payments::WalletData::ApplePay(data) => Some(RapydWallet {
                         payment_type: "apple_pay".to_string(),
-                        token: Some(
-                            consts::BASE64_ENGINE.encode(
-                                common_utils::ext_traits::Encode::<
-                                    api_models::payments::ApplepayPaymentData,
-                                >::encode_to_string_of_json(
-                                    &data.payment_data
-                                )
-                                .change_context(errors::ConnectorError::RequestEncodingFailed)?,
-                            ),
-                        ),
+                        token: Some(data.payment_data.to_string()),
                     }),
                     _ => None,
                 };

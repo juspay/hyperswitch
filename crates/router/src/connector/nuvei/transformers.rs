@@ -601,7 +601,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, NuveiPaymentsRespons
             .transaction_status
             .clone()
             .map(|a| a.into())
-            .unwrap_or(enums::RefundStatus::Failure);
+            .unwrap_or_else(|| enums::RefundStatus::Failure);
         let refund_response = match item.response.status {
             NuveiPaymentStatus::Error => Err(types::ErrorResponse {
                 code: item

@@ -599,7 +599,7 @@ pub async fn get_customer_from_details<F: Clone>(
             payment_data.email = payment_data
                 .email
                 .clone()
-                .or(customer.as_ref().and_then(|inner| inner.email.clone()));
+                .or_else(|| customer.as_ref().and_then(|inner| inner.email.clone()));
             Ok(customer)
         }
     }
@@ -670,7 +670,10 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R>(
                 let customer = customer?;
 
                 payment_data.payment_intent.customer_id = Some(customer.customer_id.clone());
-                payment_data.email = payment_data.email.clone().or(customer.email.clone());
+                payment_data.email = payment_data
+                    .email
+                    .clone()
+                    .or_else(|| customer.email.clone());
 
                 Some(customer)
             }
