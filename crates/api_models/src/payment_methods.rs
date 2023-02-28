@@ -1,5 +1,3 @@
-use std::collections::HashSet;
-
 use common_utils::pii;
 use serde::de;
 use utoipa::ToSchema;
@@ -443,21 +441,6 @@ impl serde::Serialize for ListPaymentMethod {
 
 #[derive(Debug, serde::Serialize, ToSchema)]
 pub struct ListCustomerPaymentMethodsResponse {
-    /// List of enabled payment methods for a customer
-    #[schema(value_type = Vec<ListPaymentMethod>,example = json!(
-        [
-            {
-                "payment_method": "wallet",
-                "payment_experience": null,
-                "payment_method_issuers": [
-                    "labore magna ipsum",
-                    "aute"
-                ]
-            }
-        ]
-    ))]
-    pub enabled_payment_methods: HashSet<ListPaymentMethod>,
-
     /// List of payment methods for customer
     pub customer_payment_methods: Vec<CustomerPaymentMethod>,
 }

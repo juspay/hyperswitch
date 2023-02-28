@@ -1039,31 +1039,6 @@ pub async fn list_customer_payment_method(
     customer_id: &str,
 ) -> errors::RouterResponse<api::ListCustomerPaymentMethodsResponse> {
     let db = &*state.store;
-    let all_mcas = db
-        .find_merchant_connector_account_by_merchant_id_and_disabled_list(
-            &merchant_account.merchant_id,
-            false,
-        )
-        .await
-        .map_err(|error| {
-            error.to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
-        })?;
-
-    let mut enabled_methods: HashSet<api::ListPaymentMethod> = HashSet::new();
-    for mca in all_mcas {
-        let payment_methods = match mca.payment_methods_enabled {
-            Some(pm) => pm,
-            None => continue,
-        };
-
-        for payment_method in payment_methods.into_iter() {
-            if let Ok(payment_method_object) =
-                serde_json::from_value::<api::ListPaymentMethod>(payment_method)
-            {
-                enabled_methods.insert(payment_method_object);
-            }
-        }
-    }
 
     let resp = db
         .find_payment_method_by_customer_id_merchant_id_list(
@@ -1080,7 +1055,7 @@ pub async fn list_customer_payment_method(
             errors::ApiErrorResponse::PaymentMethodNotFound
         ));
     }
-    let mut vec = Vec::new();
+    let mut customer_pms = Vec::new();
     for pm in resp.into_iter() {
         let payment_token = generate_id(consts::ID_LENGTH, "token");
         let card = if pm.payment_method == enums::PaymentMethod::Card {
@@ -1109,12 +1084,11 @@ pub async fn list_customer_payment_method(
             payment_experience: Some(vec![api_models::enums::PaymentExperience::RedirectToUrl]),
             created: Some(pm.created_at),
         };
-        vec.push(pma);
+        customer_pms.push(pma);
     }
 
     let response = api::ListCustomerPaymentMethodsResponse {
-        enabled_payment_methods: enabled_methods,
-        customer_payment_methods: vec,
+        customer_payment_methods: customer_pms,
     };
 
     Ok(services::ApplicationResponse::Json(response))
