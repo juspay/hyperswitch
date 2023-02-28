@@ -120,16 +120,11 @@ impl ConnectorCommon for Fiserv {
         let fiserv::ErrorResponse { error, details } = response;
 
         let message = match (error, details) {
-            (Some(err), _) => err
-                .into_iter()
-                .map(|v| v.message)
-                .collect::<Vec<_>>()
-                .join(""),
+            (Some(err), _) => err.into_iter().map(|v| v.message).collect::<String>(),
             (None, Some(err_details)) => err_details
                 .into_iter()
                 .map(|v| v.message)
-                .collect::<Vec<_>>()
-                .join(""),
+                .collect::<String>(),
             (None, None) => consts::NO_ERROR_MESSAGE.to_string(),
         };
 
@@ -697,7 +692,6 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
             .parse_struct("Fiserv Refund Response")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         types::ResponseRouterData {
-            // response:response.first().get_required_value("gatewayResponse").change_context(errors::ConnectorError::ResponseDeserializationFailed).try_into(),
             response,
             data: data.clone(),
             http_code: res.status_code,
