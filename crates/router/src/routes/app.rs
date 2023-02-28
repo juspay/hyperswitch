@@ -203,7 +203,7 @@ impl Payouts {
 
 pub struct PaymentMethods;
 
-#[cfg(feature = "oltp")]
+#[cfg(any(feature = "olap", feature = "oltp"))]
 impl PaymentMethods {
     pub fn server(state: AppState) -> Scope {
         let mut route = web::scope("/payment_methods").app_data(web::Data::new(state));
@@ -217,11 +217,10 @@ impl PaymentMethods {
                         .route(web::post().to(payment_method_update_api))
                         .route(web::delete().to(payment_method_delete_api)),
                 );
-            #[cfg(feature = "oltp")]
-            {
-                route =
-                    route.service(web::resource("").route(web::get().to(list_payment_method_api)));
-            }
+        }
+        #[cfg(feature = "oltp")]
+        {
+            route = route.service(web::resource("").route(web::get().to(list_payment_method_api)));
         }
         route
     }
