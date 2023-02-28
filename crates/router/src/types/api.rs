@@ -165,6 +165,7 @@ impl ConnectorData {
             "airwallex" => Ok(Box::new(&connector::Airwallex)),
             "applepay" => Ok(Box::new(&connector::Applepay)),
             "authorizedotnet" => Ok(Box::new(&connector::Authorizedotnet)),
+            "bambora" => Ok(Box::new(&connector::Bambora)),
             "bluesnap" => Ok(Box::new(&connector::Bluesnap)),
             "braintree" => Ok(Box::new(&connector::Braintree)),
             "checkout" => Ok(Box::new(&connector::Checkout)),
@@ -172,7 +173,9 @@ impl ConnectorData {
             "dlocal" => Ok(Box::new(&connector::Dlocal)),
             "fiserv" => Ok(Box::new(&connector::Fiserv)),
             "globalpay" => Ok(Box::new(&connector::Globalpay)),
+            "intuit" => Ok(Box::new(&connector::Intuit)),
             "klarna" => Ok(Box::new(&connector::Klarna)),
+            "multisafepay" => Ok(Box::new(&connector::Multisafepay)),
             "nuvei" => Ok(Box::new(&connector::Nuvei)),
             "payu" => Ok(Box::new(&connector::Payu)),
             "rapyd" => Ok(Box::new(&connector::Rapyd)),
@@ -180,7 +183,6 @@ impl ConnectorData {
             "stripe" => Ok(Box::new(&connector::Stripe)),
             "worldline" => Ok(Box::new(&connector::Worldline)),
             "worldpay" => Ok(Box::new(&connector::Worldpay)),
-            "intuit" => Ok(Box::new(&connector::Intuit)),
             _ => Err(report!(errors::ConnectorError::InvalidConnectorName)
                 .attach_printable(format!("invalid connector name: {connector_name}")))
             .change_context(errors::ApiErrorResponse::InternalServerError),

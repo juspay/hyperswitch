@@ -1,9 +1,5 @@
 use futures::future::OptionFuture;
-use router::types::{
-    self,
-    api::{self, enums as api_enums},
-    storage::enums,
-};
+use router::types::{self, api, storage::enums};
 use serde_json::json;
 use serial_test::serial;
 use wiremock::{
@@ -64,10 +60,20 @@ async fn should_authorize_gpay_payment() {
     let response = conn
         .authorize_payment(
             Some(types::PaymentsAuthorizeData {
-                payment_method_data: types::api::PaymentMethodData::Wallet(api::WalletData {
-                    issuer_name: api_enums::WalletIssuer::GooglePay,
-                    token: Some("someToken".to_string()),
-                }),
+                payment_method_data: types::api::PaymentMethodData::Wallet(
+                    api::WalletData::GooglePay(api_models::payments::GpayWalletData {
+                        pm_type: "CARD".to_string(),
+                        description: "Visa1234567890".to_string(),
+                        info: api_models::payments::GpayPaymentMethodInfo {
+                            card_network: "VISA".to_string(),
+                            card_details: "1234".to_string(),
+                        },
+                        tokenization_data: api_models::payments::GpayTokenizationData {
+                            token_type: "worldpay".to_string(),
+                            token: "someToken".to_string(),
+                        },
+                    }),
+                ),
                 ..utils::PaymentAuthorizeType::default().0
             }),
             None,
@@ -89,10 +95,26 @@ async fn should_authorize_applepay_payment() {
     let response = conn
         .authorize_payment(
             Some(types::PaymentsAuthorizeData {
-                payment_method_data: types::api::PaymentMethodData::Wallet(api::WalletData {
-                    issuer_name: api_enums::WalletIssuer::ApplePay,
-                    token: Some("someToken".to_string()),
-                }),
+                payment_method_data: types::api::PaymentMethodData::Wallet(
+                    api::WalletData::ApplePay(api_models::payments::ApplePayWalletData {
+                        payment_data: api_models::payments::ApplepayPaymentData {
+                            data: "someData".to_string(),
+                            signature: "someSignature".to_string(),
+                            version: "someVersion".to_string(),
+                            header: api_models::payments::ApplepayHeader {
+                                public_key_hash: "someHash".to_string(),
+                                ephemeral_public_key: "someKey".to_string(),
+                                transaction_id: "someId".to_string(),
+                            },
+                        },
+                        transaction_identifier: "someId".to_string(),
+                        payment_method: api_models::payments::ApplepayPaymentMethod {
+                            display_name: "someName".to_string(),
+                            network: "visa".to_string(),
+                            pm_type: "card".to_string(),
+                        },
+                    }),
+                ),
                 ..utils::PaymentAuthorizeType::default().0
             }),
             None,

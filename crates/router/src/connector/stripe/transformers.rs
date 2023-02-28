@@ -136,11 +136,11 @@ pub struct StripePayLaterData {
 pub enum StripeBankName {
     Eps {
         #[serde(rename = "payment_method_data[eps][bank]")]
-        bank_name: api_models::enums::BankNames,
+        bank_name: StripeBankNames,
     },
     Ideal {
         #[serde(rename = "payment_method_data[ideal][bank]")]
-        ideal_bank_name: api_models::enums::BankNames,
+        ideal_bank_name: StripeBankNames,
     },
 }
 
@@ -162,15 +162,15 @@ fn get_bank_name(
     match (stripe_pm_type, bank_redirect_data) {
         (
             StripePaymentMethodType::Eps,
-            api_models::payments::BankRedirectData::Eps { bank_name, .. },
+            api_models::payments::BankRedirectData::Eps { ref bank_name, .. },
         ) => Ok(Some(StripeBankName::Eps {
-            bank_name: bank_name.to_owned(),
+            bank_name: StripeBankNames::try_from(bank_name)?,
         })),
         (
             StripePaymentMethodType::Ideal,
             api_models::payments::BankRedirectData::Ideal { bank_name, .. },
         ) => Ok(Some(StripeBankName::Ideal {
-            ideal_bank_name: bank_name.to_owned(),
+            ideal_bank_name: StripeBankNames::try_from(bank_name)?,
         })),
         (StripePaymentMethodType::Sofort | StripePaymentMethodType::Giropay, _) => Ok(None),
         _ => Err(errors::ConnectorError::MismatchedPaymentData),
@@ -209,6 +209,117 @@ pub enum StripePaymentMethodType {
     Giropay,
     Ideal,
     Sofort,
+}
+
+#[derive(Debug, Eq, PartialEq, Serialize, Clone)]
+#[serde(rename_all = "snake_case")]
+pub enum StripeBankNames {
+    AbnAmro,
+    ArzteUndApothekerBank,
+    AsnBank,
+    AustrianAnadiBankAg,
+    BankAustria,
+    BankhausCarlSpangler,
+    BankhausSchelhammerUndSchatteraAg,
+    BawagPskAg,
+    BksBankAg,
+    BrullKallmusBankAg,
+    BtvVierLanderBank,
+    Bunq,
+    CapitalBankGraweGruppeAg,
+    Dolomitenbank,
+    EasybankAg,
+    ErsteBankUndSparkassen,
+    Handelsbanken,
+    HypoAlpeadriabankInternationalAg,
+    HypoNoeLbFurNiederosterreichUWien,
+    HypoOberosterreichSalzburgSteiermark,
+    HypoTirolBankAg,
+    HypoVorarlbergBankAg,
+    HypoBankBurgenlandAktiengesellschaft,
+    Ing,
+    Knab,
+    MarchfelderBank,
+    OberbankAg,
+    RaiffeisenBankengruppeOsterreich,
+    SchoellerbankAg,
+    SpardaBankWien,
+    VolksbankGruppe,
+    VolkskreditbankAg,
+    VrBankBraunau,
+    Moneyou,
+    Rabobank,
+    Regiobank,
+    Revolut,
+    SnsBank,
+    TriodosBank,
+    VanLanschot,
+}
+
+impl TryFrom<&api_models::enums::BankNames> for StripeBankNames {
+    type Error = errors::ConnectorError;
+    fn try_from(bank: &api_models::enums::BankNames) -> Result<Self, Self::Error> {
+        Ok(match bank {
+            api_models::enums::BankNames::AbnAmro => Self::AbnAmro,
+            api_models::enums::BankNames::ArzteUndApothekerBank => Self::ArzteUndApothekerBank,
+            api_models::enums::BankNames::AsnBank => Self::AsnBank,
+            api_models::enums::BankNames::AustrianAnadiBankAg => Self::AustrianAnadiBankAg,
+            api_models::enums::BankNames::BankAustria => Self::BankAustria,
+            api_models::enums::BankNames::BankhausCarlSpangler => Self::BankhausCarlSpangler,
+            api_models::enums::BankNames::BankhausSchelhammerUndSchatteraAg => {
+                Self::BankhausSchelhammerUndSchatteraAg
+            }
+            api_models::enums::BankNames::BawagPskAg => Self::BawagPskAg,
+            api_models::enums::BankNames::BksBankAg => Self::BksBankAg,
+            api_models::enums::BankNames::BrullKallmusBankAg => Self::BrullKallmusBankAg,
+            api_models::enums::BankNames::BtvVierLanderBank => Self::BtvVierLanderBank,
+            api_models::enums::BankNames::Bunq => Self::Bunq,
+            api_models::enums::BankNames::CapitalBankGraweGruppeAg => {
+                Self::CapitalBankGraweGruppeAg
+            }
+            api_models::enums::BankNames::Dolomitenbank => Self::Dolomitenbank,
+            api_models::enums::BankNames::EasybankAg => Self::EasybankAg,
+            api_models::enums::BankNames::ErsteBankUndSparkassen => Self::ErsteBankUndSparkassen,
+            api_models::enums::BankNames::Handelsbanken => Self::Handelsbanken,
+            api_models::enums::BankNames::HypoAlpeadriabankInternationalAg => {
+                Self::HypoAlpeadriabankInternationalAg
+            }
+            api_models::enums::BankNames::HypoNoeLbFurNiederosterreichUWien => {
+                Self::HypoNoeLbFurNiederosterreichUWien
+            }
+            api_models::enums::BankNames::HypoOberosterreichSalzburgSteiermark => {
+                Self::HypoOberosterreichSalzburgSteiermark
+            }
+            api_models::enums::BankNames::HypoTirolBankAg => Self::HypoTirolBankAg,
+            api_models::enums::BankNames::HypoVorarlbergBankAg => Self::HypoVorarlbergBankAg,
+            api_models::enums::BankNames::HypoBankBurgenlandAktiengesellschaft => {
+                Self::HypoBankBurgenlandAktiengesellschaft
+            }
+            api_models::enums::BankNames::Ing => Self::Ing,
+            api_models::enums::BankNames::Knab => Self::Knab,
+            api_models::enums::BankNames::MarchfelderBank => Self::MarchfelderBank,
+            api_models::enums::BankNames::OberbankAg => Self::OberbankAg,
+            api_models::enums::BankNames::RaiffeisenBankengruppeOsterreich => {
+                Self::RaiffeisenBankengruppeOsterreich
+            }
+            api_models::enums::BankNames::Rabobank => Self::Rabobank,
+            api_models::enums::BankNames::Regiobank => Self::Regiobank,
+            api_models::enums::BankNames::Revolut => Self::Revolut,
+            api_models::enums::BankNames::SnsBank => Self::SnsBank,
+            api_models::enums::BankNames::TriodosBank => Self::TriodosBank,
+            api_models::enums::BankNames::VanLanschot => Self::VanLanschot,
+            api_models::enums::BankNames::Moneyou => Self::Moneyou,
+            api_models::enums::BankNames::SchoellerbankAg => Self::SchoellerbankAg,
+            api_models::enums::BankNames::SpardaBankWien => Self::SpardaBankWien,
+            api_models::enums::BankNames::VolksbankGruppe => Self::VolksbankGruppe,
+            api_models::enums::BankNames::VolkskreditbankAg => Self::VolkskreditbankAg,
+            api_models::enums::BankNames::VrBankBraunau => Self::VrBankBraunau,
+            _ => Err(errors::ConnectorError::NotSupported {
+                payment_method: String::from("BankRedirect"),
+                connector: "Stripe",
+            })?,
+        })
+    }
 }
 
 fn validate_shipping_address_against_payment_method(

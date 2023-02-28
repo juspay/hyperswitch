@@ -176,8 +176,8 @@ pub struct WalletPayment {
 
 #[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize)]
 pub struct CardExpiryDate {
-    pub month: Secret<String>,
-    pub year: Secret<String>,
+    pub month: i8,
+    pub year: i32,
 }
 
 #[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize)]
