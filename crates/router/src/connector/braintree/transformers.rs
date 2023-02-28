@@ -1,6 +1,5 @@
 use api_models::payments;
 use base64::Engine;
-use error_stack::ResultExt;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 
@@ -8,7 +7,6 @@ use crate::{
     consts,
     core::errors,
     types::{self, api, storage::enums},
-    utils::OptionExt,
 };
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
@@ -111,12 +109,12 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BraintreePaymentsRequest {
             })),
             api::PaymentMethodData::Wallet(ref wallet_data) => {
                 Ok(PaymentMethodType::PaymentMethodNonce(Nonce {
-                    payment_method_nonce: wallet_data
-                        .token
-                        .to_owned()
-                        .get_required_value("token")
-                        .change_context(errors::ConnectorError::RequestEncodingFailed)
-                        .attach_printable("No token passed")?,
+                    payment_method_nonce: match wallet_data {
+                        api_models::payments::WalletData::PaypalSdk(wallet_data) => {
+                            Ok(wallet_data.token.to_owned())
+                        }
+                        _ => Err(errors::ConnectorError::InvalidWallet),
+                    }?,
                 }))
             }
             _ => Err(errors::ConnectorError::NotImplemented(format!(

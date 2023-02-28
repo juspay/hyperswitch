@@ -273,7 +273,7 @@ async fn payment_response_update_tracker<F: Clone, T>(
         Err(err) => (
             Some(storage::PaymentAttemptUpdate::ErrorUpdate {
                 connector: Some(router_data.connector.clone()),
-                status: router_data.status.foreign_into(),
+                status: storage::enums::AttemptStatus::Failure,
                 error_message: Some(err.message),
                 error_code: Some(err.code),
             }),
@@ -364,7 +364,7 @@ async fn payment_response_update_tracker<F: Clone, T>(
 
     let payment_intent_update = match router_data.response {
         Err(_) => storage::PaymentIntentUpdate::PGStatusUpdate {
-            status: router_data.status.foreign_into(),
+            status: enums::IntentStatus::Failed,
         },
         Ok(_) => storage::PaymentIntentUpdate::ResponseUpdate {
             status: router_data.status.foreign_into(),

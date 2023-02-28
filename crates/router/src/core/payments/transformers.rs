@@ -346,6 +346,7 @@ where
                                 .payment_method_type
                                 .map(ForeignInto::foreign_into),
                         )
+                        .set_metadata(payment_intent.metadata)
                         .to_owned(),
                 )
             }

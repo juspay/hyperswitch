@@ -1,14 +1,10 @@
-use std::collections::HashMap;
-
 use api_models::payments as api_models;
 use common_utils::pii::{self, Email};
-use error_stack::{IntoReport, ResultExt};
 use masking::{PeekInterface, Secret};
-use once_cell::sync::Lazy;
-use regex::Regex;
 use serde::{Deserialize, Serialize};
 
 use crate::{
+    connector::utils::{self, CardData},
     core::errors,
     types::{
         self, api,
@@ -16,20 +12,6 @@ use crate::{
         transformers::{self, ForeignFrom},
     },
 };
-
-static CARD_REGEX: Lazy<HashMap<CardProduct, Result<Regex, regex::Error>>> = Lazy::new(|| {
-    let mut map = HashMap::new();
-    // Reference: https://gist.github.com/michaelkeevildown/9096cd3aac9029c4e6e05588448a8841
-    // [#379]: Determine card issuer from card BIN number
-    map.insert(CardProduct::Master, Regex::new(r"^5[1-5][0-9]{14}$"));
-    map.insert(
-        CardProduct::AmericanExpress,
-        Regex::new(r"^3[47][0-9]{13}$"),
-    );
-    map.insert(CardProduct::Visa, Regex::new(r"^4[0-9]{12}(?:[0-9]{3})?$"));
-    map.insert(CardProduct::Discover, Regex::new(r"^65[4-9][0-9]{13}|64[4-9][0-9]{13}|6011[0-9]{12}|(622(?:12[6-9]|1[3-9][0-9]|[2-8][0-9][0-9]|9[01][0-9]|92[0-5])[0-9]{10})$"));
-    map
-});
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
@@ -130,12 +112,35 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentsRequest {
     }
 }
 
+#[derive(Clone, Debug, Eq, Hash, PartialEq, Deserialize, Serialize)]
+pub enum Gateway {
+    Amex = 2,
+    Discover = 128,
+    MasterCard = 3,
+    Visa = 1,
+}
+
+impl TryFrom<utils::CardIssuer> for Gateway {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(issuer: utils::CardIssuer) -> Result<Self, Self::Error> {
+        match issuer {
+            utils::CardIssuer::AmericanExpress => Ok(Self::Amex),
+            utils::CardIssuer::Master => Ok(Self::MasterCard),
+            utils::CardIssuer::Discover => Ok(Self::Discover),
+            _ => Err(errors::ConnectorError::NotSupported {
+                payment_method: format!("{issuer}"),
+                connector: "worldline",
+            }
+            .into()),
+        }
+    }
+}
+
 fn make_card_request(
     address: &types::PaymentAddress,
     req: &types::PaymentsAuthorizeData,
     ccard: &api_models::Card,
 ) -> Result<PaymentsRequest, error_stack::Report<errors::ConnectorError>> {
-    let card_number = ccard.card_number.peek().as_ref();
     let expiry_year = ccard.card_exp_year.peek().clone();
     let secret_value = format!(
         "{}{}",
@@ -149,7 +154,8 @@ fn make_card_request(
         cvv: ccard.card_cvc.clone(),
         expiry_date,
     };
-    let payment_product_id = get_card_product_id(card_number)?;
+    #[allow(clippy::as_conversions)]
+    let payment_product_id = Gateway::try_from(ccard.get_card_issuer()?)? as u16;
     let card_payment_method_specific_input = CardPaymentMethod {
         card,
         requires_approval: matches!(req.capture_method, Some(enums::CaptureMethod::Manual)),
@@ -177,23 +183,6 @@ fn make_card_request(
         order,
         shipping,
     })
-}
-
-fn get_card_product_id(
-    card_number: &str,
-) -> Result<u16, error_stack::Report<errors::ConnectorError>> {
-    for (k, v) in CARD_REGEX.iter() {
-        let regex: Regex = v
-            .clone()
-            .into_report()
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        if regex.is_match(card_number) {
-            return Ok(k.product_id());
-        }
-    }
-    Err(error_stack::Report::new(
-        errors::ConnectorError::NotImplemented("Payment Method".into()),
-    ))
 }
 
 fn get_address(
@@ -495,23 +484,4 @@ pub struct Error {
 pub struct ErrorResponse {
     pub error_id: Option<String>,
     pub errors: Vec<Error>,
-}
-
-#[derive(Debug, Eq, Hash, PartialEq)]
-pub enum CardProduct {
-    AmericanExpress,
-    Master,
-    Visa,
-    Discover,
-}
-
-impl CardProduct {
-    fn product_id(&self) -> u16 {
-        match *self {
-            Self::AmericanExpress => 2,
-            Self::Master => 3,
-            Self::Visa => 1,
-            Self::Discover => 128,
-        }
-    }
 }
