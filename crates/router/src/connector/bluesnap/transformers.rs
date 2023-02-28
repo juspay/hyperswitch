@@ -325,8 +325,22 @@ pub struct ErrorDetails {
     pub description: String,
 }
 
-#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Default, Debug, Clone, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct BluesnapErrorResponse {
     pub message: Vec<ErrorDetails>,
+}
+
+#[derive(Default, Debug, Clone, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct BluesnapAuthErrorResponse {
+    pub error_code: String,
+    pub error_description: String,
+}
+
+#[derive(Debug, Clone, Deserialize, PartialEq)]
+#[serde(untagged)]
+pub enum BluesnapErrors {
+    PaymentError(BluesnapErrorResponse),
+    AuthError(BluesnapAuthErrorResponse),
 }
