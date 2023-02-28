@@ -688,7 +688,7 @@ impl api::IncomingWebhook for Adyen {
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
 
         let message = format!(
-            "{}:{}:{}:{}:{}:{}:{:?}:{}",
+            "{}:{}:{}:{}:{}:{}:{}:{}",
             notif.psp_reference,
             notif.original_reference.unwrap_or_default(),
             notif.merchant_account_code,

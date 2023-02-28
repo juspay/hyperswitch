@@ -222,7 +222,7 @@ impl TryFrom<F<storage_enums::RefundStatus>> for F<storage_enums::EventType> {
             storage_enums::RefundStatus::Success => Ok(storage_enums::EventType::RefundSucceeded),
             storage_enums::RefundStatus::Failure => Ok(storage_enums::EventType::RefundFailed),
             _ => Err(errors::ValidationError::IncorrectValueProvided {
-                field_name: "intent_status",
+                field_name: "refund_status",
             }),
         }
         .map(Into::into)

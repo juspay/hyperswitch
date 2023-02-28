@@ -989,8 +989,9 @@ pub struct AdyenAmountWH {
     pub currency: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, strum::Display)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+#[strum(serialize_all = "SCREAMING_SNAKE_CASE")]
 pub enum WebhookEventCode {
     Authorisation,
     Refund,
