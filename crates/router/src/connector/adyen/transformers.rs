@@ -1,3 +1,4 @@
+use api_models::webhooks::IncomingWebhookEvent;
 use base64::Engine;
 use error_stack::ResultExt;
 use masking::PeekInterface;
@@ -1168,6 +1169,27 @@ pub struct AdyenAmountWH {
     pub currency: String,
 }
 
+#[derive(Debug, Deserialize, strum::Display)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+#[strum(serialize_all = "SCREAMING_SNAKE_CASE")]
+pub enum WebhookEventCode {
+    Authorisation,
+    Refund,
+    CancelOrRefund,
+    RefundFailed,
+}
+
+impl From<WebhookEventCode> for IncomingWebhookEvent {
+    fn from(code: WebhookEventCode) -> Self {
+        match code {
+            WebhookEventCode::Authorisation => Self::PaymentIntentSuccess,
+            WebhookEventCode::Refund => Self::RefundSuccess,
+            WebhookEventCode::CancelOrRefund => Self::RefundSuccess,
+            WebhookEventCode::RefundFailed => Self::RefundFailure,
+        }
+    }
+}
+
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AdyenNotificationRequestItemWH {
@@ -1175,7 +1197,7 @@ pub struct AdyenNotificationRequestItemWH {
     pub amount: AdyenAmountWH,
     pub original_reference: Option<String>,
     pub psp_reference: String,
-    pub event_code: String,
+    pub event_code: WebhookEventCode,
     pub merchant_account_code: String,
     pub merchant_reference: String,
     pub success: String,

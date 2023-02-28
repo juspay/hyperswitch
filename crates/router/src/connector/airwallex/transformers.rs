@@ -93,7 +93,9 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for AirwallexPaymentsRequest {
                     }));
                 Ok(AirwallexPaymentMethod::Card(AirwallexCard {
                     card: AirwallexCardDetails {
-                        number: ccard.card_number,
+                        number: ccard
+                            .card_number
+                            .map(|card| card.split_whitespace().collect()),
                         expiry_month: ccard.card_exp_month.clone(),
                         expiry_year: ccard.card_exp_year.clone(),
                         cvc: ccard.card_cvc,
