@@ -152,6 +152,7 @@ pub enum Currency {
     AED,
     ALL,
     AMD,
+    ANG,
     ARS,
     AUD,
     AWG,
