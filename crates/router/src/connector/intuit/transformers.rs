@@ -129,31 +129,46 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for IntuitPaymentsCaptureRequest
 }
 
 // PaymentsResponse
-#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum IntuitPaymentStatus {
     Captured,
     Failed,
-    #[default]
     Authorized,
-    Issued,
     Declined,
     Settled,
+    Refunded,
 }
 
 impl From<IntuitPaymentStatus> for enums::AttemptStatus {
     fn from(item: IntuitPaymentStatus) -> Self {
         match item {
-            IntuitPaymentStatus::Captured | IntuitPaymentStatus::Settled => Self::Charged,
-            IntuitPaymentStatus::Failed => Self::Failure,
+            IntuitPaymentStatus::Captured
+            | IntuitPaymentStatus::Settled
+            | IntuitPaymentStatus::Refunded => Self::Charged,
+            IntuitPaymentStatus::Failed | IntuitPaymentStatus::Declined => Self::Failure,
             IntuitPaymentStatus::Authorized => Self::Authorized,
-            IntuitPaymentStatus::Issued => Self::Voided,
-            IntuitPaymentStatus::Declined => Self::VoidFailed,
         }
     }
 }
 
-#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "UPPERCASE")]
+pub enum IntuitVoidStatus {
+    Issued,
+    Declined,
+}
+
+impl From<IntuitVoidStatus> for enums::AttemptStatus {
+    fn from(item: IntuitVoidStatus) -> Self {
+        match item {
+            IntuitVoidStatus::Issued => Self::Voided,
+            IntuitVoidStatus::Declined => Self::VoidFailed,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct IntuitPaymentsResponse {
     status: IntuitPaymentStatus,
     id: String,
@@ -163,9 +178,35 @@ impl<F, T>
     TryFrom<types::ResponseRouterData<F, IntuitPaymentsResponse, T, types::PaymentsResponseData>>
     for types::RouterData<F, T, types::PaymentsResponseData>
 {
-    type Error = error_stack::Report<errors::ParsingError>;
+    type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         item: types::ResponseRouterData<F, IntuitPaymentsResponse, T, types::PaymentsResponseData>,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            status: enums::AttemptStatus::from(item.response.status),
+            response: Ok(types::PaymentsResponseData::TransactionResponse {
+                resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
+                redirection_data: None,
+                mandate_reference: None,
+                connector_metadata: None,
+            }),
+            ..item.data
+        })
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct IntuitVoidResponse {
+    status: IntuitVoidStatus,
+    id: String,
+}
+
+impl<F, T> TryFrom<types::ResponseRouterData<F, IntuitVoidResponse, T, types::PaymentsResponseData>>
+    for types::RouterData<F, T, types::PaymentsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: types::ResponseRouterData<F, IntuitVoidResponse, T, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             status: enums::AttemptStatus::from(item.response.status),
@@ -225,7 +266,7 @@ pub struct RefundResponse {
 impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
     for types::RefundsRouterData<api::Execute>
 {
-    type Error = error_stack::Report<errors::ParsingError>;
+    type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         item: types::RefundsResponseRouterData<api::Execute, RefundResponse>,
     ) -> Result<Self, Self::Error> {
@@ -242,7 +283,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
 impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
     for types::RefundsRouterData<api::RSync>
 {
-    type Error = error_stack::Report<errors::ParsingError>;
+    type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         item: types::RefundsResponseRouterData<api::RSync, RefundResponse>,
     ) -> Result<Self, Self::Error> {

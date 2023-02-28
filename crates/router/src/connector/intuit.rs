@@ -157,9 +157,9 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
         data: &types::PaymentsCancelRouterData,
         res: Response,
     ) -> CustomResult<types::PaymentsCancelRouterData, errors::ConnectorError> {
-        let response: intuit::IntuitPaymentsResponse = res
+        let response: intuit::IntuitVoidResponse = res
             .response
-            .parse_struct("intuit PaymentResponse")
+            .parse_struct("intuit VoidResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         types::RouterData::try_from(types::ResponseRouterData {
             response,
