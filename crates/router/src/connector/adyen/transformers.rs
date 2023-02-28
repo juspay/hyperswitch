@@ -1,6 +1,4 @@
 use api_models::webhooks::IncomingWebhookEvent;
-use base64::Engine;
-use error_stack::ResultExt;
 use masking::PeekInterface;
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
@@ -582,15 +580,7 @@ fn get_payment_method_data<'a>(
             api_models::payments::WalletData::ApplePay(data) => {
                 let apple_pay_data = AdyenApplePay {
                     payment_type: PaymentType::Applepay,
-                    apple_pay_token:
-                        consts::BASE64_ENGINE.encode(
-                            common_utils::ext_traits::Encode::<
-                                api_models::payments::ApplepayPaymentData,
-                            >::encode_to_string_of_json(
-                                &data.payment_data
-                            )
-                            .change_context(errors::ConnectorError::RequestEncodingFailed)?,
-                        ),
+                    apple_pay_token: data.payment_data.to_string(),
                 };
 
                 Ok(AdyenPaymentMethod::ApplePay(apple_pay_data))
