@@ -158,6 +158,32 @@ impl PaymentsSessionRequestData for types::PaymentsSessionData {
     }
 }
 
+pub trait PaymentsAuthorizeSessionTokenRequestData {
+    //By default amount will be in cents, this method will convert the amount to dollars. Eg: 991 cents to 9.91 dollars
+    fn get_amount_in_dollars(&self) -> String;
+}
+
+impl PaymentsAuthorizeSessionTokenRequestData for types::AuthorizeSessionTokenData {
+    fn get_amount_in_dollars(&self) -> String {
+        #[allow(clippy::as_conversions)]
+        (self.amount as f32 / 100.0).to_string()
+    }
+}
+
+pub trait PaymentsCaptureRequestData {
+    //By default amount will be in cents, this method will convert the amount to capture to dollars. Eg: 991 cents to 9.91 dollars
+    fn get_amount_to_capture_in_dollars(&self) -> Option<String>;
+}
+
+impl PaymentsCaptureRequestData for types::PaymentsCaptureData {
+    fn get_amount_to_capture_in_dollars(&self) -> Option<String> {
+        #[allow(clippy::as_conversions)]
+        (self
+            .amount_to_capture
+            .map(|a| (a as f32 / 100.0).to_string()))
+    }
+}
+
 pub trait PaymentsSyncRequestData {
     fn is_auto_capture(&self) -> bool;
 }
@@ -184,6 +210,9 @@ impl PaymentsCancelRequestData for PaymentsCancelData {
 
 pub trait RefundsRequestData {
     fn get_connector_refund_id(&self) -> Result<String, Error>;
+
+    //By default amount will be in cents, this method will convert the amount to refund to dollars. Eg: 991 cents to 9.91 dollars
+    fn get_refund_amount_in_dollars(&self) -> String;
 }
 
 impl RefundsRequestData for types::RefundsData {
@@ -192,6 +221,10 @@ impl RefundsRequestData for types::RefundsData {
             .clone()
             .get_required_value("connector_refund_id")
             .change_context(errors::ConnectorError::MissingConnectorTransactionID)
+    }
+    fn get_refund_amount_in_dollars(&self) -> String {
+        #[allow(clippy::as_conversions)]
+        (self.refund_amount as f32 / 100.0).to_string()
     }
 }
 

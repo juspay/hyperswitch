@@ -1,6 +1,9 @@
 use serde::{Deserialize, Serialize};
 
 use crate::{
+    connector::utils::{
+        PaymentsAuthorizeRequestData, PaymentsCaptureRequestData, RefundsRequestData,
+    },
     core::errors,
     pii::{self, Secret},
     types::{
@@ -13,11 +16,10 @@ use crate::{
 #[derive(Debug, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct BluesnapPaymentsRequest {
-    amount: i64,
+    amount: String,
     #[serde(flatten)]
     payment_method: PaymentMethodDetails,
     currency: enums::Currency,
-    soft_descriptor: Option<String>,
     card_transaction_type: BluesnapTxnType,
 }
 
@@ -55,10 +57,9 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BluesnapPaymentsRequest {
             )),
         }?;
         Ok(Self {
-            amount: item.request.amount,
+            amount: item.request.get_amount_in_dollars(),
             payment_method,
             currency: item.request.currency,
-            soft_descriptor: item.description.clone(),
             card_transaction_type: auth_mode,
         })
     }
@@ -88,7 +89,7 @@ impl TryFrom<&types::PaymentsCancelRouterData> for BluesnapVoidRequest {
 pub struct BluesnapCaptureRequest {
     card_transaction_type: BluesnapTxnType,
     transaction_id: String,
-    amount: Option<i64>,
+    amount: Option<String>,
 }
 
 impl TryFrom<&types::PaymentsCaptureRouterData> for BluesnapCaptureRequest {
@@ -99,7 +100,7 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for BluesnapCaptureRequest {
         Ok(Self {
             card_transaction_type,
             transaction_id,
-            amount: item.request.amount_to_capture,
+            amount: item.request.get_amount_to_capture_in_dollars(),
         })
     }
 }
@@ -242,7 +243,7 @@ impl<F, T>
 
 #[derive(Default, Debug, Eq, PartialEq, Serialize)]
 pub struct BluesnapRefundRequest {
-    amount: Option<i64>,
+    amount: Option<String>,
     reason: Option<String>,
 }
 
@@ -251,7 +252,7 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for BluesnapRefundRequest {
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
         Ok(Self {
             reason: item.request.reason.clone(),
-            amount: Some(item.request.refund_amount),
+            amount: Some(item.request.get_refund_amount_in_dollars()),
         })
     }
 }
