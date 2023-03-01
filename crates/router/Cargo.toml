@@ -10,7 +10,7 @@ license = "Apache-2.0"
 build = "src/build.rs"
 
 [features]
-default = ["kv_store", "stripe", "oltp", "olap","accounts_cache"]
+default = ["kv_store", "stripe", "oltp", "olap", "accounts_cache"]
 kms = ["aws-config", "aws-sdk-kms"]
 basilisk = ["josekit"]
 stripe = ["dep:serde_qs"]
@@ -74,7 +74,8 @@ thiserror = "1.0.38"
 time = { version = "0.3.17", features = ["serde", "serde-well-known", "std"] }
 tokio = { version = "1.25.0", features = ["macros", "rt-multi-thread"] }
 url = { version = "2.3.1", features = ["serde"] }
-utoipa = { version = "3.0.1", features = ["preserve_order", "time"] }
+utoipa = { version = "3.0.3", features = ["preserve_order", "time"] }
+utoipa-swagger-ui = { version = "3.0.2", features = ["actix-web"] }
 uuid = { version = "1.2.2", features = ["serde", "v4"] }
 
 # First party crates
