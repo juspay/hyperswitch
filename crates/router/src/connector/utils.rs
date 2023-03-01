@@ -136,7 +136,7 @@ pub trait PaymentsAuthorizeRequestData {
     fn get_amount_in_dollars(&self) -> Result<String, error_stack::Report<errors::ConnectorError>>;
 }
 
-fn to_2_decimal_currency(
+fn to_two_decimal_currency(
     amount: i64,
     currency: storage_models::enums::Currency,
 ) -> Result<String, error_stack::Report<errors::ConnectorError>> {
@@ -160,7 +160,7 @@ impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
         self.capture_method == Some(storage_models::enums::CaptureMethod::Automatic)
     }
     fn get_amount_in_dollars(&self) -> Result<String, error_stack::Report<errors::ConnectorError>> {
-        to_2_decimal_currency(self.amount, self.currency)
+        to_two_decimal_currency(self.amount, self.currency)
     }
 }
 
@@ -171,7 +171,7 @@ pub trait PaymentsSessionRequestData {
 
 impl PaymentsSessionRequestData for types::PaymentsSessionData {
     fn get_amount_in_dollars(&self) -> Result<String, error_stack::Report<errors::ConnectorError>> {
-        to_2_decimal_currency(self.amount, self.currency)
+        to_two_decimal_currency(self.amount, self.currency)
     }
 }
 
@@ -182,7 +182,7 @@ pub trait PaymentsAuthorizeSessionTokenRequestData {
 
 impl PaymentsAuthorizeSessionTokenRequestData for types::AuthorizeSessionTokenData {
     fn get_amount_in_dollars(&self) -> Result<String, error_stack::Report<errors::ConnectorError>> {
-        to_2_decimal_currency(self.amount, self.currency)
+        to_two_decimal_currency(self.amount, self.currency)
     }
 }
 
@@ -198,7 +198,7 @@ impl PaymentsCaptureRequestData for types::PaymentsCaptureData {
         &self,
     ) -> Result<String, error_stack::Report<errors::ConnectorError>> {
         match self.amount_to_capture {
-            Some(_a) => to_2_decimal_currency(self.amount, self.currency),
+            Some(_a) => to_two_decimal_currency(self.amount, self.currency),
             _ => Err(errors::ConnectorError::MissingRequiredField {
                 field_name: "amount_to_capture",
             }
@@ -250,7 +250,7 @@ impl RefundsRequestData for types::RefundsData {
     fn get_refund_amount_in_dollars(
         &self,
     ) -> Result<String, error_stack::Report<errors::ConnectorError>> {
-        to_2_decimal_currency(self.refund_amount, self.currency)
+        to_two_decimal_currency(self.refund_amount, self.currency)
     }
 }
 

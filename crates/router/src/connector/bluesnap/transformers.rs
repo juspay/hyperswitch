@@ -100,7 +100,10 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for BluesnapCaptureRequest {
         Ok(Self {
             card_transaction_type,
             transaction_id,
-            amount: Some(item.request.get_amount_to_capture_in_dollars()?),
+            amount: match item.request.amount_to_capture {
+                Some(_a) => Some(item.request.get_amount_to_capture_in_dollars()?),
+                _ => None
+            },
         })
     }
 }

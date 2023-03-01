@@ -156,7 +156,10 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for AirwallexPaymentsCaptureRequ
     fn try_from(item: &types::PaymentsCaptureRouterData) -> Result<Self, Self::Error> {
         Ok(Self {
             request_id: Uuid::new_v4().to_string(),
-            amount: Some(item.request.get_amount_to_capture_in_dollars()?),
+            amount: match item.request.amount_to_capture {
+                Some(_a) => Some(item.request.get_amount_to_capture_in_dollars()?),
+                _ => None
+            }
         })
     }
 }
