@@ -596,30 +596,42 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, NuveiPaymentsRespons
     fn try_from(
         item: types::RefundsResponseRouterData<api::Execute, NuveiPaymentsResponse>,
     ) -> Result<Self, Self::Error> {
-        let refund_status = item
-            .response
+        let response = item.response;
+        let http_code = item.http_code;
+        let refund_status = response
             .transaction_status
             .clone()
             .map(|a| a.into())
-            .unwrap_or_else(|| enums::RefundStatus::Failure);
-        let refund_response = match item.response.status {
+            .unwrap_or(enums::RefundStatus::Failure);
+        let refund_response = match response.status {
             NuveiPaymentStatus::Error => Err(types::ErrorResponse {
-                code: item
-                    .response
+                code: response
                     .err_code
                     .map(|c| c.to_string())
                     .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
-                message: item
-                    .response
+                message: response
                     .reason
                     .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
                 reason: None,
-                status_code: item.http_code,
+                status_code: http_code,
             }),
-            _ => Ok(types::RefundsResponseData {
-                connector_refund_id: item.response.transaction_id.ok_or(errors::ParsingError)?,
-                refund_status,
-            }),
+            _ => match response.transaction_status {
+                Some(NuveiTransactionStatus::Error) => Err(types::ErrorResponse {
+                    code: response
+                        .gw_error_code
+                        .map(|c| c.to_string())
+                        .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
+                    message: response
+                        .gw_error_reason
+                        .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
+                    reason: None,
+                    status_code: http_code,
+                }),
+                _ => Ok(types::RefundsResponseData {
+                    connector_refund_id: response.transaction_id.ok_or(errors::ParsingError)?,
+                    refund_status,
+                }),
+            },
         };
         Ok(Self {
             response: refund_response,
@@ -635,30 +647,42 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, NuveiPaymentsResponse>
     fn try_from(
         item: types::RefundsResponseRouterData<api::RSync, NuveiPaymentsResponse>,
     ) -> Result<Self, Self::Error> {
-        let refund_status = item
-            .response
+        let response = item.response;
+        let http_code = item.http_code;
+        let refund_status = response
             .transaction_status
             .clone()
             .map(|a| a.into())
             .unwrap_or(enums::RefundStatus::Failure);
-        let refund_response = match item.response.status {
+        let refund_response = match response.status {
             NuveiPaymentStatus::Error => Err(types::ErrorResponse {
-                code: item
-                    .response
+                code: response
                     .err_code
                     .map(|c| c.to_string())
                     .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
-                message: item
-                    .response
+                message: response
                     .reason
                     .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
                 reason: None,
-                status_code: item.http_code,
+                status_code: http_code,
             }),
-            _ => Ok(types::RefundsResponseData {
-                connector_refund_id: item.response.transaction_id.ok_or(errors::ParsingError)?,
-                refund_status,
-            }),
+            _ => match response.transaction_status {
+                Some(NuveiTransactionStatus::Error) => Err(types::ErrorResponse {
+                    code: response
+                        .gw_error_code
+                        .map(|c| c.to_string())
+                        .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
+                    message: response
+                        .gw_error_reason
+                        .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
+                    reason: None,
+                    status_code: http_code,
+                }),
+                _ => Ok(types::RefundsResponseData {
+                    connector_refund_id: response.transaction_id.ok_or(errors::ParsingError)?,
+                    refund_status,
+                }),
+            },
         };
         Ok(Self {
             response: refund_response,

@@ -4,6 +4,7 @@ use masking::Secret;
 use serde::{Deserialize, Serialize};
 
 use crate::{
+    connector::utils::PaymentsAuthorizeRequestData,
     consts,
     core::errors,
     types::{self, api, storage::enums},
@@ -91,7 +92,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BraintreePaymentsRequest {
             Some(enums::CaptureMethod::Automatic) | None
         );
 
-        let amount = item.request.amount.to_string();
+        let amount = item.request.get_amount_in_dollars();
         let device_data = DeviceData {};
         let options = PaymentOptions {
             submit_for_settlement,

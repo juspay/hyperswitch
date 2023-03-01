@@ -3,7 +3,7 @@ use common_utils::ext_traits::ValueExt;
 use error_stack::ResultExt;
 use masking::{Deserialize, Serialize};
 
-use crate::{core::errors, types, utils::OptionExt};
+use crate::{connector::utils::PaymentsSessionRequestData, core::errors, types, utils::OptionExt};
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -134,7 +134,7 @@ impl<F>
         let amount_info = AmountInfo {
             label: metadata.payment_request_data.label,
             label_type: "final".to_string(),
-            amount: (item.data.request.amount / 100).to_string(),
+            amount: item.data.request.get_amount_in_dollars(),
         };
 
         let payment_request = PaymentRequest {
