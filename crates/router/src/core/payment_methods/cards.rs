@@ -796,24 +796,7 @@ fn filter_pm_based_on_config<'a>(
         .get(connector)
         .and_then(|inner| match payment_method_type {
             api_enums::PaymentMethodType::Credit | api_enums::PaymentMethodType::Debit => {
-                if let Some(value) = card_network.as_mut() {
-                    let filtered_card_networks = value
-                        .iter()
-                        .filter(|&element| {
-                            let key =
-                                settings::PaymentMethodFilterKey::CardNetwork(element.clone());
-                            inner
-                                .0
-                                .get(&key)
-                                .map(|value| {
-                                    global_country_currency_filter(value, country.clone(), currency)
-                                })
-                                .unwrap_or(true)
-                        })
-                        .cloned()
-                        .collect::<Vec<_>>();
-                    *value = filtered_card_networks;
-                }
+                card_network_filter(country.clone(), currency, card_network, inner);
                 None
             }
             payment_method_type => inner
@@ -826,22 +809,45 @@ fn filter_pm_based_on_config<'a>(
         .unwrap_or(true)
 }
 
+fn card_network_filter(
+    country: Option<String>,
+    currency: Option<api_enums::Currency>,
+    card_network: &mut Option<Vec<api_enums::CardNetwork>>,
+    payment_method_filters: &settings::PaymentMethodFilters,
+) {
+    if let Some(value) = card_network.as_mut() {
+        let filtered_card_networks = value
+            .iter()
+            .filter(|&element| {
+                let key = settings::PaymentMethodFilterKey::CardNetwork(element.clone());
+                payment_method_filters
+                    .0
+                    .get(&key)
+                    .map(|value| global_country_currency_filter(value, country.clone(), currency))
+                    .unwrap_or(true)
+            })
+            .cloned()
+            .collect::<Vec<_>>();
+        *value = filtered_card_networks;
+    }
+}
+
 fn global_country_currency_filter(
     item: &settings::CurrencyCountryFilter,
     country: Option<String>,
     currency: Option<api_enums::Currency>,
 ) -> bool {
-    let condition1 = item
+    let country_condition = item
         .country
         .as_ref()
         .zip(country)
         .map(|(lhs, rhs)| lhs.contains(&rhs));
-    let condition2 = item
+    let currency_condition = item
         .currency
         .as_ref()
         .zip(currency)
         .map(|(lhs, rhs)| lhs.contains(&rhs));
-    condition1.unwrap_or(true) && condition2.unwrap_or(true)
+    country_condition.unwrap_or(true) && currency_condition.unwrap_or(true)
 }
 
 fn filter_pm_card_network_based(
