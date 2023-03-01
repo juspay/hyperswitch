@@ -264,6 +264,8 @@ pub enum Currency {
 #[strum(serialize_all = "snake_case")]
 pub enum EventType {
     PaymentSucceeded,
+    RefundSucceeded,
+    RefundFailed,
 }
 
 #[derive(
@@ -705,6 +707,7 @@ pub enum BankNames {
     strum::Display,
     strum::EnumString,
     frunk::LabelledGeneric,
+    ToSchema,
 )]
 pub enum CardNetwork {
     Visa,

@@ -23,7 +23,8 @@ use crate::{
         (status = 404, description = "Mandate does not exist in our records")
     ),
     tag = "Mandates",
-    operation_id = "Retrieve a Mandate"
+    operation_id = "Retrieve a Mandate",
+    security(("api_key" = []))
 )]
 #[instrument(skip_all, fields(flow = ?Flow::MandatesRetrieve))]
 // #[get("/{id}")]
@@ -60,7 +61,8 @@ pub async fn get_mandate(
         (status = 400, description = "Mandate does not exist in our records")
     ),
     tag = "Mandates",
-     operation_id = "Revoke a Mandate"
+    operation_id = "Revoke a Mandate",
+    security(("api_key" = []))
 )]
 #[instrument(skip_all, fields(flow = ?Flow::MandatesRevoke))]
 // #[post("/revoke/{id}")]

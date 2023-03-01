@@ -46,16 +46,7 @@ fn fetch_payment_instrument(
             api_models::payments::WalletData::ApplePay(data) => {
                 Ok(PaymentInstrument::Applepay(WalletPayment {
                     payment_type: PaymentType::Applepay,
-
-                    wallet_token:
-                        consts::BASE64_ENGINE.encode(
-                            common_utils::ext_traits::Encode::<
-                                api_models::payments::ApplepayPaymentData,
-                            >::encode_to_string_of_json(
-                                &data.payment_data
-                            )
-                            .change_context(errors::ConnectorError::RequestEncodingFailed)?,
-                        ),
+                    wallet_token: data.payment_data,
                     ..WalletPayment::default()
                 }))
             }

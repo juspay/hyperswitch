@@ -21,7 +21,8 @@ use crate::{
         (status = 400, description = "Missing Mandatory fields")
     ),
     tag = "Refunds",
-    operation_id = "Create a Refund"
+    operation_id = "Create a Refund",
+    security(("api_key" = []))
 )]
 #[instrument(skip_all, fields(flow = ?Flow::RefundsCreate))]
 // #[post("")]
@@ -55,7 +56,8 @@ pub async fn refunds_create(
         (status = 404, description = "Refund does not exist in our records")
     ),
     tag = "Refunds",
-    operation_id = "Retrieve a Refund"
+    operation_id = "Retrieve a Refund",
+    security(("api_key" = []))
 )]
 #[instrument(skip_all, fields(flow = ?Flow::RefundsRetrieve))]
 // #[get("/{id}")]
@@ -94,7 +96,8 @@ pub async fn refunds_retrieve(
         (status = 400, description = "Missing Mandatory fields")
     ),
     tag = "Refunds",
-    operation_id = "Update a Refund"
+    operation_id = "Update a Refund",
+    security(("api_key" = []))
 )]
 #[instrument(skip_all, fields(flow = ?Flow::RefundsUpdate))]
 // #[post("/{id}")]
@@ -138,7 +141,8 @@ pub async fn refunds_update(
         (status = 404, description = "Refund does not exist in our records")
     ),
     tag = "Refunds",
-    operation_id = "List all Refunds"
+    operation_id = "List all Refunds",
+    security(("api_key" = []))
 )]
 #[instrument(skip_all, fields(flow = ?Flow::RefundsList))]
 #[cfg(feature = "olap")]

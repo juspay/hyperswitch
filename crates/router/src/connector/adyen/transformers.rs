@@ -1,5 +1,4 @@
-use base64::Engine;
-use error_stack::ResultExt;
+use api_models::webhooks::IncomingWebhookEvent;
 use masking::PeekInterface;
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
@@ -581,15 +580,7 @@ fn get_payment_method_data<'a>(
             api_models::payments::WalletData::ApplePay(data) => {
                 let apple_pay_data = AdyenApplePay {
                     payment_type: PaymentType::Applepay,
-                    apple_pay_token:
-                        consts::BASE64_ENGINE.encode(
-                            common_utils::ext_traits::Encode::<
-                                api_models::payments::ApplepayPaymentData,
-                            >::encode_to_string_of_json(
-                                &data.payment_data
-                            )
-                            .change_context(errors::ConnectorError::RequestEncodingFailed)?,
-                        ),
+                    apple_pay_token: data.payment_data.to_string(),
                 };
 
                 Ok(AdyenPaymentMethod::ApplePay(apple_pay_data))
@@ -1168,6 +1159,27 @@ pub struct AdyenAmountWH {
     pub currency: String,
 }
 
+#[derive(Debug, Deserialize, strum::Display)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+#[strum(serialize_all = "SCREAMING_SNAKE_CASE")]
+pub enum WebhookEventCode {
+    Authorisation,
+    Refund,
+    CancelOrRefund,
+    RefundFailed,
+}
+
+impl From<WebhookEventCode> for IncomingWebhookEvent {
+    fn from(code: WebhookEventCode) -> Self {
+        match code {
+            WebhookEventCode::Authorisation => Self::PaymentIntentSuccess,
+            WebhookEventCode::Refund => Self::RefundSuccess,
+            WebhookEventCode::CancelOrRefund => Self::RefundSuccess,
+            WebhookEventCode::RefundFailed => Self::RefundFailure,
+        }
+    }
+}
+
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AdyenNotificationRequestItemWH {
@@ -1175,7 +1187,7 @@ pub struct AdyenNotificationRequestItemWH {
     pub amount: AdyenAmountWH,
     pub original_reference: Option<String>,
     pub psp_reference: String,
-    pub event_code: String,
+    pub event_code: WebhookEventCode,
     pub merchant_account_code: String,
     pub merchant_reference: String,
     pub success: String,

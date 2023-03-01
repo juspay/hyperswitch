@@ -2,13 +2,15 @@ use common_utils::custom_serde;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
-use crate::{enums as api_enums, payments};
+use crate::{enums as api_enums, payments, refunds};
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum IncomingWebhookEvent {
     PaymentIntentFailure,
     PaymentIntentSuccess,
+    RefundFailure,
+    RefundSuccess,
     EndpointVerification,
 }
 
@@ -24,6 +26,8 @@ impl From<IncomingWebhookEvent> for WebhookFlow {
         match evt {
             IncomingWebhookEvent::PaymentIntentFailure => Self::Payment,
             IncomingWebhookEvent::PaymentIntentSuccess => Self::Payment,
+            IncomingWebhookEvent::RefundSuccess => Self::Refund,
+            IncomingWebhookEvent::RefundFailure => Self::Refund,
             IncomingWebhookEvent::EndpointVerification => Self::ReturnResponse,
         }
     }
@@ -56,4 +60,5 @@ pub struct OutgoingWebhook {
 #[serde(tag = "type", content = "object", rename_all = "snake_case")]
 pub enum OutgoingWebhookContent {
     PaymentDetails(payments::PaymentsResponse),
+    RefundDetails(refunds::RefundResponse),
 }
