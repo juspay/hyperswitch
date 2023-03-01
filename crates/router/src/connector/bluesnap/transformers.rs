@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::{
+    connector::utils,
     core::errors,
     pii::{self, Secret},
     types::{self, api, storage::enums, transformers::ForeignTryFrom},
@@ -9,11 +10,10 @@ use crate::{
 #[derive(Debug, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct BluesnapPaymentsRequest {
-    amount: i64,
+    amount: String,
     #[serde(flatten)]
     payment_method: PaymentMethodDetails,
     currency: enums::Currency,
-    soft_descriptor: Option<String>,
     card_transaction_type: BluesnapTxnType,
 }
 
@@ -51,10 +51,9 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BluesnapPaymentsRequest {
             )),
         }?;
         Ok(Self {
-            amount: item.request.amount,
+            amount: utils::to_currency_base_unit(item.request.amount, item.request.currency)?,
             payment_method,
             currency: item.request.currency,
-            soft_descriptor: item.description.clone(),
             card_transaction_type: auth_mode,
         })
     }
@@ -84,7 +83,7 @@ impl TryFrom<&types::PaymentsCancelRouterData> for BluesnapVoidRequest {
 pub struct BluesnapCaptureRequest {
     card_transaction_type: BluesnapTxnType,
     transaction_id: String,
-    amount: Option<i64>,
+    amount: Option<String>,
 }
 
 impl TryFrom<&types::PaymentsCaptureRouterData> for BluesnapCaptureRequest {
@@ -92,10 +91,14 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for BluesnapCaptureRequest {
     fn try_from(item: &types::PaymentsCaptureRouterData) -> Result<Self, Self::Error> {
         let card_transaction_type = BluesnapTxnType::Capture;
         let transaction_id = item.request.connector_transaction_id.to_string();
+        let amount = utils::to_currency_base_unit_from_optional_amount(
+            item.request.amount_to_capture,
+            item.request.currency,
+        )?;
         Ok(Self {
             card_transaction_type,
             transaction_id,
-            amount: item.request.amount_to_capture,
+            amount: Some(amount),
         })
     }
 }
@@ -232,7 +235,7 @@ impl<F, T>
 
 #[derive(Default, Debug, Eq, PartialEq, Serialize)]
 pub struct BluesnapRefundRequest {
-    amount: Option<i64>,
+    amount: Option<String>,
     reason: Option<String>,
 }
 
@@ -241,7 +244,10 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for BluesnapRefundRequest {
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
         Ok(Self {
             reason: item.request.reason.clone(),
-            amount: Some(item.request.refund_amount),
+            amount: Some(utils::to_currency_base_unit(
+                item.request.refund_amount,
+                item.request.currency,
+            )?),
         })
     }
 }
