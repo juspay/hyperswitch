@@ -150,7 +150,10 @@ fn make_card_request(
     );
     let expiry_date: Secret<String> = Secret::new(secret_value);
     let card = Card {
-        card_number: ccard.card_number.clone(),
+        card_number: ccard
+            .card_number
+            .clone()
+            .map(|card| card.split_whitespace().collect()),
         cardholder_name: ccard.card_holder_name.clone(),
         cvv: ccard.card_cvc.clone(),
         expiry_date,
