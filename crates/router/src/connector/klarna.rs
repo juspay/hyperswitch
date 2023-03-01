@@ -260,6 +260,10 @@ impl
                     .map(|pm_type| pm_type.to_string())
                     .unwrap_or_default(),
                 connector: "klarna",
+                payment_experience: payment_experience
+                    .as_ref()
+                    .map(|experience| experience.to_string())
+                    .unwrap_or_default()
             })),
         }
     }

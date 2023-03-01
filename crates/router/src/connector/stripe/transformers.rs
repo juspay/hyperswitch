@@ -1,5 +1,6 @@
 use std::str::FromStr;
 
+use api_models::enums as api_enums;
 use api_models::{self, payments};
 use common_utils::{fp_utils, pii::Email};
 use error_stack::{IntoReport, ResultExt};
@@ -315,8 +316,9 @@ impl TryFrom<&api_models::enums::BankNames> for StripeBankNames {
             api_models::enums::BankNames::VolkskreditbankAg => Self::VolkskreditbankAg,
             api_models::enums::BankNames::VrBankBraunau => Self::VrBankBraunau,
             _ => Err(errors::ConnectorError::NotSupported {
-                payment_method: String::from("BankRedirect"),
+                payment_method: api_enums::PaymentMethod::BankRedirect.to_string(),
                 connector: "Stripe",
+                payment_experience: api_enums::PaymentExperience::RedirectToUrl.to_string(),
             })?,
         })
     }
@@ -366,14 +368,16 @@ fn infer_stripe_pay_later_type(
                 Ok(StripePaymentMethodType::AfterpayClearpay)
             }
             _ => Err(errors::ConnectorError::NotSupported {
-                payment_method: format!("{pm_type} payments by {experience}"),
+                payment_method: pm_type.to_string(),
                 connector: "stripe",
+                payment_experience: experience.to_string(),
             }),
         }
     } else {
         Err(errors::ConnectorError::NotSupported {
-            payment_method: format!("{pm_type} payments by {experience}"),
+            payment_method: pm_type.to_string(),
             connector: "stripe",
+            payment_experience: experience.to_string(),
         })
     }
 }

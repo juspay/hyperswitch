@@ -397,6 +397,7 @@ impl<'a> TryFrom<&api_enums::BankNames> for AdyenTestBankNames<'a> {
             _ => Err(errors::ConnectorError::NotSupported {
                 payment_method: String::from("BankRedirect"),
                 connector: "Adyen",
+                payment_experience: api_enums::PaymentExperience::RedirectToUrl.to_string(),
             })?,
         })
     }
