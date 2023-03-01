@@ -7,6 +7,7 @@ use transformers as klarna;
 
 use crate::{
     configs::settings,
+    connector::utils as connector_utils,
     core::errors::{self, CustomResult},
     headers,
     services::{self},
@@ -230,41 +231,38 @@ impl
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let payment_method_data = &req.request.payment_method_data;
-        let payment_experience = &req.request.payment_experience;
-        let payment_method_type = &req.request.payment_method_type;
+        let payment_experience = req
+            .request
+            .payment_experience
+            .as_ref()
+            .ok_or_else(connector_utils::missing_field_err("payment_experience"))?;
+        let payment_method_type = req
+            .request
+            .payment_method_type
+            .as_ref()
+            .ok_or_else(connector_utils::missing_field_err("payment_method_type"))?;
 
         match payment_method_data {
             api_payments::PaymentMethodData::PayLater(api_payments::PayLaterData::KlarnaSdk {
                 token,
             }) => match (payment_experience, payment_method_type) {
                 (
-                    Some(storage_enums::PaymentExperience::InvokeSdkClient),
-                    Some(storage_enums::PaymentMethodType::Klarna),
+                    storage_enums::PaymentExperience::InvokeSdkClient,
+                    storage_enums::PaymentMethodType::Klarna,
                 ) => Ok(format!(
                     "{}payments/v1/authorizations/{}/order",
                     self.base_url(connectors),
                     token
                 )),
-                (None, _) | (_, None) => Err(error_stack::report!(
-                    errors::ConnectorError::MissingRequiredField {
-                        field_name: "payment_experience/payment_method_type"
-                    }
-                )),
-                _ => Err(error_stack::report!(
-                    errors::ConnectorError::MismatchedPaymentData
-                )),
+                _ => Err(error_stack::report!(errors::ConnectorError::NotSupported {
+                    payment_method: payment_method_type.to_string(),
+                    connector: "klarna",
+                    payment_experience: payment_experience.to_string()
+                })),
             },
-            _ => Err(error_stack::report!(errors::ConnectorError::NotSupported {
-                payment_method: payment_method_type
-                    .as_ref()
-                    .map(|pm_type| pm_type.to_string())
-                    .unwrap_or_default(),
-                connector: "klarna",
-                payment_experience: payment_experience
-                    .as_ref()
-                    .map(|experience| experience.to_string())
-                    .unwrap_or_default()
-            })),
+            _ => Err(error_stack::report!(
+                errors::ConnectorError::MismatchedPaymentData
+            )),
         }
     }
 

@@ -1,7 +1,6 @@
 use std::str::FromStr;
 
-use api_models::enums as api_enums;
-use api_models::{self, payments};
+use api_models::{self, enums as api_enums, payments};
 use common_utils::{fp_utils, pii::Email};
 use error_stack::{IntoReport, ResultExt};
 use masking::ExposeInterface;
