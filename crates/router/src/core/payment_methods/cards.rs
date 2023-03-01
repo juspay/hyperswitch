@@ -759,7 +759,7 @@ async fn filter_payment_methods(
                         &connector,
                         &payment_method_object.payment_method_type,
                         &mut payment_method_object.card_networks,
-                        address.and_then(|inner| inner.country.clone()),
+                        &address.and_then(|inner| inner.country.clone()),
                         payment_attempt
                             .and_then(|value| value.currency)
                             .map(|value| value.foreign_into()),
@@ -788,7 +788,7 @@ fn filter_pm_based_on_config<'a>(
     connector: &'a str,
     payment_method_type: &'a api_enums::PaymentMethodType,
     card_network: &mut Option<Vec<api_enums::CardNetwork>>,
-    country: Option<String>,
+    country: &Option<String>,
     currency: Option<api_enums::Currency>,
 ) -> bool {
     config
@@ -796,7 +796,7 @@ fn filter_pm_based_on_config<'a>(
         .get(connector)
         .and_then(|inner| match payment_method_type {
             api_enums::PaymentMethodType::Credit | api_enums::PaymentMethodType::Debit => {
-                card_network_filter(country.clone(), currency, card_network, inner);
+                card_network_filter(country, currency, card_network, inner);
                 None
             }
             payment_method_type => inner
@@ -810,7 +810,7 @@ fn filter_pm_based_on_config<'a>(
 }
 
 fn card_network_filter(
-    country: Option<String>,
+    country: &Option<String>,
     currency: Option<api_enums::Currency>,
     card_network: &mut Option<Vec<api_enums::CardNetwork>>,
     payment_method_filters: &settings::PaymentMethodFilters,
@@ -823,7 +823,7 @@ fn card_network_filter(
                 payment_method_filters
                     .0
                     .get(&key)
-                    .map(|value| global_country_currency_filter(value, country.clone(), currency))
+                    .map(|value| global_country_currency_filter(value, country, currency))
                     .unwrap_or(true)
             })
             .cloned()
@@ -834,14 +834,14 @@ fn card_network_filter(
 
 fn global_country_currency_filter(
     item: &settings::CurrencyCountryFilter,
-    country: Option<String>,
+    country: &Option<String>,
     currency: Option<api_enums::Currency>,
 ) -> bool {
     let country_condition = item
         .country
         .as_ref()
-        .zip(country)
-        .map(|(lhs, rhs)| lhs.contains(&rhs));
+        .zip(country.as_ref())
+        .map(|(lhs, rhs)| lhs.contains(rhs));
     let currency_condition = item
         .currency
         .as_ref()
