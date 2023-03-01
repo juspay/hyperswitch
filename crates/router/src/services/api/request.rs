@@ -1,4 +1,9 @@
-use std::{collections, str::FromStr};
+use std::{
+    collections,
+    fmt::Debug,
+    hash::{Hash, Hasher},
+    str::FromStr,
+};
 
 use error_stack::{IntoReport, ResultExt};
 use masking::Secret;
@@ -10,7 +15,46 @@ use crate::{
     logger,
 };
 
-pub(crate) type Headers = collections::HashSet<(String, String)>;
+pub(crate) type Headers = collections::HashSet<(String, Box<dyn HeaderValue>)>;
+
+pub trait HeaderValue: ToString + Debug + erased_serde::Serialize + Send + Sync {}
+
+impl Hash for dyn HeaderValue {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.to_string().hash(state)
+    }
+}
+
+impl PartialEq for dyn HeaderValue {
+    fn eq(&self, other: &Self) -> bool {
+        // self.to_string() == other.to_string()
+        let mut hasher1 = collections::hash_map::DefaultHasher::new();
+        let mut hasher2 = collections::hash_map::DefaultHasher::new();
+        self.hash(&mut hasher1);
+        other.hash(&mut hasher2);
+        hasher1.finish() == hasher2.finish()
+    }
+}
+
+impl Eq for dyn HeaderValue {}
+
+impl HeaderValue for String {}
+impl HeaderValue for Secret<String, masking::ApiKey> {}
+
+pub fn concat_headers(
+    a: Vec<(String, impl HeaderValue + 'static)>,
+    b: Vec<(String, impl HeaderValue + 'static)>,
+) -> Vec<(String, Box<dyn HeaderValue>)> {
+    a.into_iter()
+        .map(|(key, value)| -> (String, Box<dyn HeaderValue>) { (key, Box::new(value)) })
+        .chain(
+            b.into_iter()
+                .map(|(key, value)| -> (String, Box<dyn HeaderValue>) { (key, Box::new(value)) }),
+        )
+        .collect()
+}
+
+erased_serde::serialize_trait_object!(HeaderValue);
 
 #[derive(
     Clone, Copy, Debug, Eq, PartialEq, Deserialize, Serialize, strum::Display, strum::EnumString,
@@ -30,7 +74,7 @@ pub enum ContentType {
     FormUrlEncoded,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize)]
 pub struct Request {
     pub url: String,
     pub headers: Headers,
@@ -60,7 +104,7 @@ impl Request {
 
     pub fn add_header(&mut self, header: &str, value: &str) {
         self.headers
-            .insert((String::from(header), String::from(value)));
+            .insert((String::from(header), Box::new(String::from(value))));
     }
 
     pub fn add_content_type(&mut self, content_type: ContentType) {
@@ -110,12 +154,15 @@ impl RequestBuilder {
     }
 
     pub fn header(mut self, header: &str, value: &str) -> Self {
-        self.headers.insert((header.into(), value.into()));
+        self.headers
+            .insert((header.into(), Box::new(value.to_string())));
         self
     }
 
-    pub fn headers(mut self, headers: Vec<(String, String)>) -> Self {
-        let mut h = headers.into_iter().map(|(h, v)| (h, v));
+    pub fn headers(mut self, headers: Vec<(String, Box<dyn HeaderValue>)>) -> Self {
+        let mut h = headers
+            .into_iter()
+            .map(|(h, v)| -> (String, Box<dyn HeaderValue>) { (h, v) });
         self.headers.extend(&mut h);
         self
     }
@@ -169,7 +216,7 @@ impl HeaderExt for Headers {
     fn construct_header_map(
         self,
     ) -> CustomResult<reqwest::header::HeaderMap, errors::ApiClientError> {
-        use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
+        use reqwest::header::{self, HeaderMap, HeaderName};
 
         self.iter().fold(
             Ok(HeaderMap::new()),
@@ -177,7 +224,7 @@ impl HeaderExt for Headers {
                 let header_name = HeaderName::from_str(header_name)
                     .into_report()
                     .change_context(errors::ApiClientError::HeaderMapConstructionFailed)?;
-                let header_value = HeaderValue::from_str(header_value)
+                let header_value = header::HeaderValue::from_str(&header_value.to_string())
                     .into_report()
                     .change_context(errors::ApiClientError::HeaderMapConstructionFailed)?;
                 if let Ok(map) = header_map.as_mut() {

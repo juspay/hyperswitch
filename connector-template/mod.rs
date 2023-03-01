@@ -43,7 +43,7 @@ where
         &self,
         _req: &types::RouterData<Flow, Request, Response>,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<\(String, Box<dyn services::request::HeaderValue>\)>, errors::ConnectorError> {
         Err(errors::ConnectorError::NotImplemented("build_headers method".to_string()).into())
     }
 }
@@ -168,7 +168,7 @@ impl
         &self,
         req: &types::PaymentsSyncRouterData,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<\(String, Box<dyn services::request::HeaderValue>\)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -234,7 +234,7 @@ impl
         &self,
         req: &types::PaymentsCaptureRouterData,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<\(String, Box<dyn services::request::HeaderValue>\)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 

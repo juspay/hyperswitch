@@ -15,7 +15,8 @@ use crate::{
         errors::{self, CustomResult},
         payments,
     },
-    headers, services,
+    headers,
+    services::{self, request::concat_headers},
     types::{
         self,
         api::{self, ConnectorCommon},
@@ -38,13 +39,14 @@ impl ConnectorCommon for Checkout {
     fn get_auth_header(
         &self,
         auth_type: &types::ConnectorAuthType,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, masking::Secret<String, masking::ApiKey>)>, errors::ConnectorError>
+    {
         let auth: checkout::CheckoutAuthType = auth_type
             .try_into()
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
-            format!("Bearer {}", auth.api_key),
+            format!("Bearer {}", auth.api_key).into(),
         )])
     }
 
@@ -105,7 +107,8 @@ impl
         &self,
         req: &types::PaymentsCaptureRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, Box<dyn services::request::HeaderValue>)>, errors::ConnectorError>
+    {
         let mut header = vec![
             (
                 headers::CONTENT_TYPE.to_string(),
@@ -114,8 +117,7 @@ impl
             (headers::X_ROUTER.to_string(), "test".to_string()),
         ];
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
-        header.append(&mut api_key);
-        Ok(header)
+        Ok(concat_headers(header, api_key))
     }
 
     fn get_url(
@@ -207,7 +209,8 @@ impl
         &self,
         req: &types::PaymentsSyncRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, Box<dyn services::request::HeaderValue>)>, errors::ConnectorError>
+    {
         let mut header = vec![
             (
                 headers::CONTENT_TYPE.to_string(),
@@ -216,8 +219,7 @@ impl
             (headers::X_ROUTER.to_string(), "test".to_string()),
         ];
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
-        header.append(&mut api_key);
-        Ok(header)
+        Ok(concat_headers(header, api_key))
     }
 
     fn get_url(
@@ -307,7 +309,8 @@ impl
         &self,
         req: &types::PaymentsAuthorizeRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, Box<dyn services::request::HeaderValue>)>, errors::ConnectorError>
+    {
         let mut header = vec![
             (
                 headers::CONTENT_TYPE.to_string(),
@@ -316,8 +319,7 @@ impl
             (headers::X_ROUTER.to_string(), "test".to_string()),
         ];
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
-        header.append(&mut api_key);
-        Ok(header)
+        Ok(concat_headers(header, api_key))
     }
 
     fn get_url(
@@ -424,7 +426,8 @@ impl
         &self,
         req: &types::PaymentsCancelRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, Box<dyn services::request::HeaderValue>)>, errors::ConnectorError>
+    {
         let mut header = vec![
             (
                 headers::CONTENT_TYPE.to_string(),
@@ -433,8 +436,7 @@ impl
             (headers::X_ROUTER.to_string(), "test".to_string()),
         ];
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
-        header.append(&mut api_key);
-        Ok(header)
+        Ok(concat_headers(header, api_key))
     }
 
     fn get_url(
@@ -525,7 +527,8 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
         &self,
         req: &types::RefundsRouterData<api::Execute>,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, Box<dyn services::request::HeaderValue>)>, errors::ConnectorError>
+    {
         let mut header = vec![
             (
                 headers::CONTENT_TYPE.to_string(),
@@ -534,8 +537,7 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
             (headers::X_ROUTER.to_string(), "test".to_string()),
         ];
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
-        header.append(&mut api_key);
-        Ok(header)
+        Ok(concat_headers(header, api_key))
     }
 
     fn get_content_type(&self) -> &'static str {
@@ -633,7 +635,8 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
         &self,
         req: &types::RefundsRouterData<api::RSync>,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, Box<dyn services::request::HeaderValue>)>, errors::ConnectorError>
+    {
         let mut header = vec![
             (
                 headers::CONTENT_TYPE.to_string(),
@@ -642,8 +645,7 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
             (headers::X_ROUTER.to_string(), "test".to_string()),
         ];
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
-        header.append(&mut api_key);
-        Ok(header)
+        Ok(concat_headers(header, api_key))
     }
 
     fn get_url(

@@ -43,6 +43,7 @@ diesel = { version = "2.0.3", features = ["postgres", "serde_json", "time", "64-
 dyn-clone = "1.0.10"
 encoding_rs = "0.8.31"
 error-stack = "0.2.4"
+erased-serde = "0.3.24"
 frunk = "0.4.1"
 frunk_core = "0.4.1"
 futures = "0.3.25"

@@ -25,3 +25,16 @@ impl<T> Strategy<T> for WithoutType {
         fmt.write_str("*** ***")
     }
 }
+
+/// ApiKey strategy
+#[derive(Debug)]
+pub struct ApiKey;
+
+impl<T> Strategy<T> for ApiKey
+where
+    T: AsRef<str>,
+{
+    fn fmt(_value: &T, fmt: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(fmt, " *** api-key *** ")
+    }
+}

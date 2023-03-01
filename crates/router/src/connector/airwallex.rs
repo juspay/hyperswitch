@@ -15,7 +15,7 @@ use crate::{
     },
     db::StorageInterface,
     headers, logger, routes,
-    services::{self, ConnectorIntegration},
+    services::{self, request::concat_headers, ConnectorIntegration},
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
@@ -35,7 +35,8 @@ where
         &self,
         req: &RouterData<Flow, Request, Response>,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, Box<dyn services::request::HeaderValue>)>, errors::ConnectorError>
+    {
         let mut headers = vec![(
             headers::CONTENT_TYPE.to_string(),
             self.get_content_type().to_string(),
@@ -51,7 +52,7 @@ where
         );
 
         headers.push(auth_header);
-        Ok(headers)
+        Ok(concat_headers(headers, Vec::<(String, String)>::new()))
     }
 }
 
@@ -116,13 +117,14 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
         &self,
         req: &types::RefreshTokenRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, Box<dyn services::request::HeaderValue>)>, errors::ConnectorError>
+    {
         let headers = vec![
             (headers::X_API_KEY.to_string(), req.request.app_id.clone()),
             ("Content-Length".to_string(), "0".to_string()),
             ("x-client-id".to_string(), req.get_request_id()?),
         ];
-        Ok(headers)
+        Ok(concat_headers(headers, Vec::<(String, String)>::new()))
     }
 
     fn build_request(
@@ -181,7 +183,8 @@ impl
         &self,
         req: &types::PaymentsAuthorizeSessionTokenRouterData,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, Box<dyn services::request::HeaderValue>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -312,7 +315,8 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         &self,
         req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, Box<dyn services::request::HeaderValue>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -400,7 +404,8 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         &self,
         req: &types::PaymentsSyncRouterData,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, Box<dyn services::request::HeaderValue>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -474,7 +479,8 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         &self,
         req: &types::PaymentsCaptureRouterData,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, Box<dyn services::request::HeaderValue>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -570,7 +576,8 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
         &self,
         req: &types::PaymentsCancelRouterData,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, Box<dyn services::request::HeaderValue>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -656,7 +663,8 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         &self,
         req: &types::RefundsRouterData<api::Execute>,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, Box<dyn services::request::HeaderValue>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -736,7 +744,8 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         &self,
         req: &types::RefundSyncRouterData,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, Box<dyn services::request::HeaderValue>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 

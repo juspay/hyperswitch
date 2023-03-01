@@ -94,14 +94,15 @@ impl
         &self,
         _req: &types::PaymentsSyncRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, Box<dyn services::request::HeaderValue>)>, errors::ConnectorError>
+    {
         // This connector does not require an auth header, the authentication details are sent in the request body
         Ok(vec![
             (
                 headers::CONTENT_TYPE.to_string(),
-                types::PaymentsSyncType::get_content_type(self).to_string(),
+                Box::new(types::PaymentsSyncType::get_content_type(self).to_string()),
             ),
-            (headers::X_ROUTER.to_string(), "test".to_string()),
+            (headers::X_ROUTER.to_string(), Box::new("test".to_string())),
         ])
     }
 
@@ -188,14 +189,15 @@ impl
         &self,
         _req: &types::PaymentsAuthorizeRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, Box<dyn services::request::HeaderValue>)>, errors::ConnectorError>
+    {
         // This connector does not require an auth header, the authentication details are sent in the request body
         Ok(vec![
             (
                 headers::CONTENT_TYPE.to_string(),
-                types::PaymentsAuthorizeType::get_content_type(self).to_string(),
+                Box::new(types::PaymentsAuthorizeType::get_content_type(self).to_string()),
             ),
-            (headers::X_ROUTER.to_string(), "test".to_string()),
+            (headers::X_ROUTER.to_string(), Box::new("test".to_string())),
         ])
     }
 
@@ -295,13 +297,14 @@ impl
         &self,
         _req: &types::PaymentsCancelRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, Box<dyn services::request::HeaderValue>)>, errors::ConnectorError>
+    {
         Ok(vec![
             (
                 headers::CONTENT_TYPE.to_string(),
-                types::PaymentsAuthorizeType::get_content_type(self).to_string(),
+                Box::new(types::PaymentsAuthorizeType::get_content_type(self).to_string()),
             ),
-            (headers::X_ROUTER.to_string(), "test".to_string()),
+            (headers::X_ROUTER.to_string(), Box::new("test".to_string())),
         ])
     }
 
@@ -390,14 +393,15 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
         &self,
         _req: &types::RefundsRouterData<api::Execute>,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, Box<dyn services::request::HeaderValue>)>, errors::ConnectorError>
+    {
         // This connector does not require an auth header, the authentication details are sent in the request body
         Ok(vec![
             (
                 headers::CONTENT_TYPE.to_string(),
-                types::PaymentsAuthorizeType::get_content_type(self).to_string(),
+                Box::new(types::PaymentsAuthorizeType::get_content_type(self).to_string()),
             ),
-            (headers::X_ROUTER.to_string(), "test".to_string()),
+            (headers::X_ROUTER.to_string(), Box::new("test".to_string())),
         ])
     }
 
@@ -485,14 +489,15 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
         &self,
         _req: &types::RefundsRouterData<api::RSync>,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, Box<dyn services::request::HeaderValue>)>, errors::ConnectorError>
+    {
         // This connector does not require an auth header, the authentication details are sent in the request body
         Ok(vec![
             (
                 headers::CONTENT_TYPE.to_string(),
-                types::RefundSyncType::get_content_type(self).to_string(),
+                Box::new(types::RefundSyncType::get_content_type(self).to_string()),
             ),
-            (headers::X_ROUTER.to_string(), "test".to_string()),
+            (headers::X_ROUTER.to_string(), Box::new("test".to_string())),
         ])
     }
 

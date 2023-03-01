@@ -42,7 +42,8 @@ pub trait ConnectorCommon {
     fn get_auth_header(
         &self,
         _auth_type: &types::ConnectorAuthType,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, masking::Secret<String, masking::ApiKey>)>, errors::ConnectorError>
+    {
         Ok(Vec::new())
     }
 
@@ -81,7 +82,10 @@ pub trait ConnectorCommonExt<Flow, Req, Resp>:
         &self,
         _req: &types::RouterData<Flow, Req, Resp>,
         _connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<
+        Vec<(String, Box<dyn crate::services::request::HeaderValue>)>,
+        errors::ConnectorError,
+    > {
         Ok(Vec::new())
     }
 }

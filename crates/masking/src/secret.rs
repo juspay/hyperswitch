@@ -152,3 +152,9 @@ where
         SecretValue::default().into()
     }
 }
+
+impl ToString for Secret<String, crate::strategy::ApiKey> {
+    fn to_string(&self) -> String {
+        self.inner_secret.clone()
+    }
+}

@@ -14,7 +14,7 @@ pub use zeroize::{self, DefaultIsZeroes, Zeroize as ZeroizableSecret};
 
 mod strategy;
 
-pub use strategy::{Strategy, WithType, WithoutType};
+pub use strategy::{ApiKey, Strategy, WithType, WithoutType};
 mod abs;
 pub use abs::{ExposeInterface, ExposeOptionInterface, PeekInterface};
 

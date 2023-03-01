@@ -16,7 +16,8 @@ use crate::{
         errors::{self, CustomResult},
         payments,
     },
-    headers, services,
+    headers,
+    services::{self, request::concat_headers},
     types::{
         self,
         api::{self},
@@ -122,7 +123,8 @@ impl
         &self,
         req: &types::PaymentsCaptureRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, Box<dyn services::request::HeaderValue>)>, errors::ConnectorError>
+    {
         let timestamp = OffsetDateTime::now_utc().unix_timestamp_nanos() / 1_000_000;
         let auth: fiserv::FiservAuthType =
             fiserv::FiservAuthType::try_from(&req.connector_auth_type)?;
@@ -146,7 +148,7 @@ impl
             ("Timestamp".to_string(), timestamp.to_string()),
             ("Authorization".to_string(), hmac),
         ];
-        Ok(headers)
+        Ok(concat_headers(headers, Vec::<(String, String)>::new()))
     }
 
     fn get_content_type(&self) -> &'static str {
@@ -270,7 +272,8 @@ impl
         &self,
         req: &types::PaymentsAuthorizeRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, Box<dyn services::request::HeaderValue>)>, errors::ConnectorError>
+    {
         let timestamp = OffsetDateTime::now_utc().unix_timestamp_nanos() / 1_000_000;
         let auth: fiserv::FiservAuthType =
             fiserv::FiservAuthType::try_from(&req.connector_auth_type)?;
@@ -294,7 +297,7 @@ impl
             ("Timestamp".to_string(), timestamp.to_string()),
             ("Authorization".to_string(), hmac),
         ];
-        Ok(headers)
+        Ok(concat_headers(headers, Vec::<(String, String)>::new()))
     }
 
     fn get_content_type(&self) -> &'static str {
