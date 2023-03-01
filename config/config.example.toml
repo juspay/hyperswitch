@@ -216,5 +216,5 @@ loop_interval = 500            # Specifies how much time to wait after checking 
 #           ^--- This can be any connector (can be multiple)
 paypal = { currency = "USD,INR", country = "US" }
 # ^                       ^------- comma-separated values
-# ^------------------------------- any valid payment method type (can be multiple)
+# ^------------------------------- any valid payment method type (can be multiple) (for cards this should be card_network)
 # If either currency or country isn't provided then, all possible values are accepted

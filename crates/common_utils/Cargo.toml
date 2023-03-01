@@ -34,4 +34,4 @@ router_env = { version = "0.1.0", path = "../router_env", features = ["log_extra
 
 [dev-dependencies]
 fake = "2.5.0"
-proptest = "1.0.0"
+proptest = "1.1.0"
