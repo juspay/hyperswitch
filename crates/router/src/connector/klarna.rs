@@ -230,13 +230,13 @@ impl
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let payment_method_data = &req.request.payment_method_data;
+        let payment_experience = &req.request.payment_experience;
+        let payment_method_type = &req.request.payment_method_type;
+
         match payment_method_data {
             api_payments::PaymentMethodData::PayLater(api_payments::PayLaterData::KlarnaSdk {
                 token,
-            }) => match (
-                req.request.payment_experience.as_ref(),
-                req.request.payment_method_type.as_ref(),
-            ) {
+            }) => match (payment_experience, payment_method_type) {
                 (
                     Some(storage_enums::PaymentExperience::InvokeSdkClient),
                     Some(storage_enums::PaymentMethodType::Klarna),
@@ -254,11 +254,13 @@ impl
                     errors::ConnectorError::MismatchedPaymentData
                 )),
             },
-            _ => Err(error_stack::report!(
-                errors::ConnectorError::NotImplemented(
-                    "We only support wallet payments through klarna".to_string(),
-                )
-            )),
+            _ => Err(error_stack::report!(errors::ConnectorError::NotSupported {
+                payment_method: payment_method_type
+                    .as_ref()
+                    .map(|pm_type| pm_type.to_string())
+                    .unwrap_or_default(),
+                connector: "klarna",
+            })),
         }
     }
 
