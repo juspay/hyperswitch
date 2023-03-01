@@ -183,6 +183,7 @@ where
                 db,
                 payment_data.payment_intent.customer_id.clone(),
                 merchant_id,
+                payment_data,
             )
             .await?,
         ))
@@ -238,6 +239,7 @@ where
                 db,
                 payment_data.payment_intent.customer_id.clone(),
                 merchant_id,
+                payment_data,
             )
             .await?,
         ))
@@ -292,6 +294,7 @@ where
                 db,
                 payment_data.payment_intent.customer_id.clone(),
                 merchant_id,
+                payment_data,
             )
             .await?,
         ))

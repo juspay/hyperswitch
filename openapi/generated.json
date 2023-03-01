@@ -53,7 +53,12 @@
             "description": "Invalid data"
           }
         },
-        "deprecated": false
+        "deprecated": false,
+        "security": [
+          {
+            "admin_api_key": []
+          }
+        ]
       }
     },
     "/accounts/{account_id}": {
@@ -90,7 +95,12 @@
             "description": "Merchant account not found"
           }
         },
-        "deprecated": false
+        "deprecated": false,
+        "security": [
+          {
+            "admin_api_key": []
+          }
+        ]
       },
       "post": {
         "tags": [
@@ -135,7 +145,12 @@
             "description": "Merchant account not found"
           }
         },
-        "deprecated": false
+        "deprecated": false,
+        "security": [
+          {
+            "admin_api_key": []
+          }
+        ]
       },
       "delete": {
         "tags": [
@@ -170,7 +185,12 @@
             "description": "Merchant account not found"
           }
         },
-        "deprecated": false
+        "deprecated": false,
+        "security": [
+          {
+            "admin_api_key": []
+          }
+        ]
       }
     },
     "/accounts/{account_id}/connectors": {
@@ -213,7 +233,12 @@
             "description": "Payment Connector does not exist in records"
           }
         },
-        "deprecated": false
+        "deprecated": false,
+        "security": [
+          {
+            "admin_api_key": []
+          }
+        ]
       },
       "post": {
         "tags": [
@@ -247,7 +272,12 @@
             "description": "Missing Mandatory fields"
           }
         },
-        "deprecated": false
+        "deprecated": false,
+        "security": [
+          {
+            "admin_api_key": []
+          }
+        ]
       }
     },
     "/accounts/{account_id}/connectors/{connector_id}": {
@@ -297,7 +327,12 @@
             "description": "Payment Connector does not exist in records"
           }
         },
-        "deprecated": false
+        "deprecated": false,
+        "security": [
+          {
+            "admin_api_key": []
+          }
+        ]
       },
       "post": {
         "tags": [
@@ -355,7 +390,12 @@
             "description": "Payment Connector does not exist in records"
           }
         },
-        "deprecated": false
+        "deprecated": false,
+        "security": [
+          {
+            "admin_api_key": []
+          }
+        ]
       },
       "delete": {
         "tags": [
@@ -403,7 +443,12 @@
             "description": "Payment Connector does not exist in records"
           }
         },
-        "deprecated": false
+        "deprecated": false,
+        "security": [
+          {
+            "admin_api_key": []
+          }
+        ]
       }
     },
     "/api_keys/{merchant_id)": {
@@ -439,7 +484,12 @@
             "description": "Invalid data"
           }
         },
-        "deprecated": false
+        "deprecated": false,
+        "security": [
+          {
+            "admin_api_key": []
+          }
+        ]
       }
     },
     "/api_keys/{merchant_id)/{key_id}": {
@@ -476,7 +526,12 @@
             "description": "API Key not found"
           }
         },
-        "deprecated": false
+        "deprecated": false,
+        "security": [
+          {
+            "admin_api_key": []
+          }
+        ]
       }
     },
     "/api_keys/{merchant_id}/list": {
@@ -524,7 +579,12 @@
             }
           }
         },
-        "deprecated": false
+        "deprecated": false,
+        "security": [
+          {
+            "admin_api_key": []
+          }
+        ]
       }
     },
     "/api_keys/{merchant_id}/{key_id}": {
@@ -561,7 +621,12 @@
             "description": "API Key not found"
           }
         },
-        "deprecated": false
+        "deprecated": false,
+        "security": [
+          {
+            "admin_api_key": []
+          }
+        ]
       },
       "post": {
         "tags": [
@@ -606,7 +671,12 @@
             "description": "API Key not found"
           }
         },
-        "deprecated": false
+        "deprecated": false,
+        "security": [
+          {
+            "admin_api_key": []
+          }
+        ]
       }
     },
     "/customers": {
@@ -642,7 +712,12 @@
             "description": "Invalid data"
           }
         },
-        "deprecated": false
+        "deprecated": false,
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
       }
     },
     "/customers/{customer_id}": {
@@ -679,7 +754,15 @@
             "description": "Customer was not found"
           }
         },
-        "deprecated": false
+        "deprecated": false,
+        "security": [
+          {
+            "api_key": []
+          },
+          {
+            "ephemeral_key": []
+          }
+        ]
       },
       "post": {
         "tags": [
@@ -724,7 +807,12 @@
             "description": "Customer was not found"
           }
         },
-        "deprecated": false
+        "deprecated": false,
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
       },
       "delete": {
         "tags": [
@@ -759,7 +847,12 @@
             "description": "Customer was not found"
           }
         },
-        "deprecated": false
+        "deprecated": false,
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
       }
     },
     "/mandates/revoke/{mandate_id}": {
@@ -796,7 +889,12 @@
             "description": "Mandate does not exist in our records"
           }
         },
-        "deprecated": false
+        "deprecated": false,
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
       }
     },
     "/mandates/{mandate_id}": {
@@ -833,7 +931,12 @@
             "description": "Mandate does not exist in our records"
           }
         },
-        "deprecated": false
+        "deprecated": false,
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
       }
     },
     "/payment_methods": {
@@ -869,7 +972,12 @@
             "description": "Invalid Data"
           }
         },
-        "deprecated": false
+        "deprecated": false,
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
       }
     },
     "/payment_methods/{account_id}": {
@@ -971,7 +1079,15 @@
             "description": "Payment Methods does not exist in records"
           }
         },
-        "deprecated": false
+        "deprecated": false,
+        "security": [
+          {
+            "api_key": []
+          },
+          {
+            "publishable_key": []
+          }
+        ]
       }
     },
     "/payment_methods/{customer_id}": {
@@ -1073,7 +1189,15 @@
             "description": "Payment Methods does not exist in records"
           }
         },
-        "deprecated": false
+        "deprecated": false,
+        "security": [
+          {
+            "api_key": []
+          },
+          {
+            "ephemeral_key": []
+          }
+        ]
       }
     },
     "/payment_methods/{method_id}": {
@@ -1110,7 +1234,12 @@
             "description": "Payment Method does not exist in records"
           }
         },
-        "deprecated": false
+        "deprecated": false,
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
       },
       "post": {
         "tags": [
@@ -1155,7 +1284,12 @@
             "description": "Payment Method does not exist in records"
           }
         },
-        "deprecated": false
+        "deprecated": false,
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
       },
       "delete": {
         "tags": [
@@ -1190,7 +1324,12 @@
             "description": "Payment Method does not exist in records"
           }
         },
-        "deprecated": false
+        "deprecated": false,
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
       }
     },
     "/payments": {
@@ -1226,7 +1365,12 @@
             "description": "Missing Mandatory fields"
           }
         },
-        "deprecated": false
+        "deprecated": false,
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
       }
     },
     "/payments/list": {
@@ -1334,7 +1478,12 @@
             "description": "No payments found"
           }
         },
-        "deprecated": false
+        "deprecated": false,
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
       }
     },
     "/payments/session_tokens": {
@@ -1370,7 +1519,12 @@
             "description": "Missing mandatory fields"
           }
         },
-        "deprecated": false
+        "deprecated": false,
+        "security": [
+          {
+            "publishable_key": []
+          }
+        ]
       }
     },
     "/payments/{payment_id}": {
@@ -1417,7 +1571,15 @@
             "description": "No payment found"
           }
         },
-        "deprecated": false
+        "deprecated": false,
+        "security": [
+          {
+            "api_key": []
+          },
+          {
+            "publishable_key": []
+          }
+        ]
       },
       "post": {
         "tags": [
@@ -1462,7 +1624,15 @@
             "description": "Missing mandatory fields"
           }
         },
-        "deprecated": false
+        "deprecated": false,
+        "security": [
+          {
+            "api_key": []
+          },
+          {
+            "publishable_key": []
+          }
+        ]
       }
     },
     "/payments/{payment_id}/cancel": {
@@ -1502,7 +1672,12 @@
             "description": "Missing mandatory fields"
           }
         },
-        "deprecated": false
+        "deprecated": false,
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
       }
     },
     "/payments/{payment_id}/capture": {
@@ -1549,7 +1724,12 @@
             "description": "Missing mandatory fields"
           }
         },
-        "deprecated": false
+        "deprecated": false,
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
       }
     },
     "/payments/{payment_id}/confirm": {
@@ -1596,7 +1776,15 @@
             "description": "Missing mandatory fields"
           }
         },
-        "deprecated": false
+        "deprecated": false,
+        "security": [
+          {
+            "api_key": []
+          },
+          {
+            "publishable_key": []
+          }
+        ]
       }
     },
     "/refunds": {
@@ -1632,7 +1820,12 @@
             "description": "Missing Mandatory fields"
           }
         },
-        "deprecated": false
+        "deprecated": false,
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
       }
     },
     "/refunds/list": {
@@ -1729,7 +1922,12 @@
             "description": "Refund does not exist in our records"
           }
         },
-        "deprecated": false
+        "deprecated": false,
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
       }
     },
     "/refunds/{refund_id}": {
@@ -1766,7 +1964,12 @@
             "description": "Refund does not exist in our records"
           }
         },
-        "deprecated": false
+        "deprecated": false,
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
       },
       "post": {
         "tags": [
@@ -1811,7 +2014,12 @@
             "description": "Missing Mandatory fields"
           }
         },
-        "deprecated": false
+        "deprecated": false,
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
       }
     }
   },
@@ -2396,7 +2604,7 @@
             "type": "string"
           },
           "card_network": {
-            "type": "string"
+            "$ref": "#/components/schemas/CardNetwork"
           }
         }
       },
@@ -2459,6 +2667,22 @@
             "type": "string"
           }
         }
+      },
+      "CardNetwork": {
+        "type": "string",
+        "enum": [
+          "Visa",
+          "Mastercard",
+          "AmericanExpress",
+          "JCB",
+          "DinersClub",
+          "Discover",
+          "CartesBancaires",
+          "UnionPay",
+          "Interac",
+          "RuPay",
+          "Maestro"
+        ]
       },
       "Connector": {
         "type": "string",
@@ -4092,9 +4316,7 @@
         "enum": [
           "card",
           "pay_later",
-          "wallet",
-          "klarna",
-          "paypal"
+          "wallet"
         ]
       },
       "PaymentMethodData": {
@@ -5081,7 +5303,7 @@
                   "wallet_name": {
                     "type": "string",
                     "enum": [
-                      "gpay"
+                      "google_pay"
                     ]
                   }
                 }
@@ -5144,7 +5366,7 @@
                   "wallet_name": {
                     "type": "string",
                     "enum": [
-                      "applepay"
+                      "apple_pay"
                     ]
                   }
                 }
@@ -5288,6 +5510,32 @@
             "example": true
           }
         }
+      }
+    },
+    "securitySchemes": {
+      "admin_api_key": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "api-key",
+        "description": "Admin API keys allow you to perform some privileged actions such as creating a merchant account and payment connector account."
+      },
+      "api_key": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "api-key",
+        "description": "API keys are the most common method of authentication and can be obtained from the HyperSwitch dashboard."
+      },
+      "ephemeral_key": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "api-key",
+        "description": "Ephemeral keys provide temporary access to singular data, such as access to a single customer object for a short period of time."
+      },
+      "publishable_key": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "api-key",
+        "description": "Publishable keys are a type of keys that can be public and have limited scope of usage."
       }
     }
   },

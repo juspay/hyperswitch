@@ -20,8 +20,9 @@ use crate::{
         (status = 200, description = "Customer Created", body = CustomerResponse),
         (status = 400, description = "Invalid data")
     ),
-     tag = "Customers",
-     operation_id = "Create a Customer"
+    tag = "Customers",
+    operation_id = "Create a Customer",
+    security(("api_key" = []))
 )]
 #[instrument(skip_all, fields(flow = ?Flow::CustomersCreate))]
 pub async fn customers_create(
@@ -52,7 +53,8 @@ pub async fn customers_create(
         (status = 404, description = "Customer was not found")
     ),
     tag = "Customers",
-     operation_id = "Retrieve a Customer"
+    operation_id = "Retrieve a Customer",
+    security(("api_key" = []), ("ephemeral_key" = []))
 )]
 #[instrument(skip_all, fields(flow = ?Flow::CustomersRetrieve))]
 pub async fn customers_retrieve(
@@ -95,7 +97,8 @@ pub async fn customers_retrieve(
         (status = 404, description = "Customer was not found")
     ),
     tag = "Customers",
-     operation_id = "Update a Customer"
+    operation_id = "Update a Customer",
+    security(("api_key" = []))
 )]
 #[instrument(skip_all, fields(flow = ?Flow::CustomersUpdate))]
 pub async fn customers_update(
@@ -129,7 +132,8 @@ pub async fn customers_update(
         (status = 404, description = "Customer was not found")
     ),
     tag = "Customers",
-     operation_id = "Delete a Customer"
+    operation_id = "Delete a Customer",
+    security(("api_key" = []))
 )]
 #[instrument(skip_all, fields(flow = ?Flow::CustomersDelete))]
 pub async fn customers_delete(
