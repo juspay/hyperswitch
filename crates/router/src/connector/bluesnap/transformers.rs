@@ -17,7 +17,6 @@ pub struct BluesnapPaymentsRequest {
     #[serde(flatten)]
     payment_method: PaymentMethodDetails,
     currency: enums::Currency,
-    soft_descriptor: Option<String>,
     card_transaction_type: BluesnapTxnType,
 }
 
@@ -58,7 +57,6 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BluesnapPaymentsRequest {
             amount: item.request.amount,
             payment_method,
             currency: item.request.currency,
-            soft_descriptor: item.description.clone(),
             card_transaction_type: auth_mode,
         })
     }
