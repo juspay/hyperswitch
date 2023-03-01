@@ -400,6 +400,8 @@ pub enum WebhooksFlowError {
     MerchantWebhookURLNotConfigured,
     #[error("Payments core flow failed")]
     PaymentsCoreFailed,
+    #[error("Refunds core flow failed")]
+    RefundsCoreFailed,
     #[error("Webhook event creation failed")]
     WebhookEventCreationFailed,
     #[error("Unable to fork webhooks flow for outgoing webhooks")]
@@ -408,6 +410,8 @@ pub enum WebhooksFlowError {
     CallToMerchantFailed,
     #[error("Webhook not received by merchant")]
     NotReceivedByMerchant,
+    #[error("Resource not found")]
+    ResourceNotFound,
 }
 
 #[derive(Debug, thiserror::Error)]

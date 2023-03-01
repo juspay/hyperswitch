@@ -363,9 +363,10 @@ impl
         req: &types::PaymentsAuthorizeRouterData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
         let connector_req = adyen::AdyenPaymentRequest::try_from(req)?;
-        let adyen_req =
-            utils::Encode::<adyen::AdyenPaymentRequest>::encode_to_string_of_json(&connector_req)
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let adyen_req = utils::Encode::<adyen::AdyenPaymentRequest<'_>>::encode_to_string_of_json(
+            &connector_req,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(adyen_req))
     }
 
@@ -732,11 +733,7 @@ impl api::IncomingWebhook for Adyen {
     ) -> CustomResult<api::IncomingWebhookEvent, errors::ConnectorError> {
         let notif = get_webhook_object_from_body(request.body)
             .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
-
-        Ok(match notif.event_code.as_str() {
-            "AUTHORISATION" => api::IncomingWebhookEvent::PaymentIntentSuccess,
-            _ => Err(errors::ConnectorError::WebhookEventTypeNotFound).into_report()?,
-        })
+        Ok(notif.event_code.into())
     }
 
     fn get_webhook_resource_object(

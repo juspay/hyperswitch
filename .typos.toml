@@ -6,6 +6,7 @@ flate2 = "flate2"
 payment_vas = "payment_vas"
 PaymentVas = "PaymentVas"
 HypoNoeLbFurNiederosterreichUWien = "HypoNoeLbFurNiederosterreichUWien"
+hypo_noe_lb_fur_niederosterreich_u_wien = "hypo_noe_lb_fur_niederosterreich_u_wien"
 
 [default.extend-words]
 aci = "aci"                   # Name of a connector

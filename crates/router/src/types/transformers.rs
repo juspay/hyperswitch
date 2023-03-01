@@ -163,6 +163,36 @@ impl ForeignTryFrom<api_enums::IntentStatus> for storage_enums::EventType {
     }
 }
 
+impl ForeignTryFrom<storage_enums::RefundStatus> for storage_enums::EventType {
+    type Error = errors::ValidationError;
+
+    fn foreign_try_from(value: storage_enums::RefundStatus) -> Result<Self, Self::Error> {
+        match value {
+            storage_enums::RefundStatus::Success => Ok(Self::RefundSucceeded),
+            storage_enums::RefundStatus::Failure => Ok(Self::RefundFailed),
+            _ => Err(errors::ValidationError::IncorrectValueProvided {
+                field_name: "refund_status",
+            }),
+        }
+    }
+}
+
+impl ForeignTryFrom<api_models::webhooks::IncomingWebhookEvent> for storage_enums::RefundStatus {
+    type Error = errors::ValidationError;
+
+    fn foreign_try_from(
+        value: api_models::webhooks::IncomingWebhookEvent,
+    ) -> Result<Self, Self::Error> {
+        match value {
+            api_models::webhooks::IncomingWebhookEvent::RefundSuccess => Ok(Self::Success),
+            api_models::webhooks::IncomingWebhookEvent::RefundFailure => Ok(Self::Failure),
+            _ => Err(errors::ValidationError::IncorrectValueProvided {
+                field_name: "incoming_webhook_event_type",
+            }),
+        }
+    }
+}
+
 impl ForeignFrom<storage_enums::EventType> for api_enums::EventType {
     fn foreign_from(event_type: storage_enums::EventType) -> Self {
         frunk::labelled_convert_from(event_type)

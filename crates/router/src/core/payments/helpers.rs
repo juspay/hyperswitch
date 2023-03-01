@@ -517,11 +517,15 @@ pub(crate) async fn call_payment_method(
                             let payment_method_request = api::CreatePaymentMethod {
                                 payment_method: payment_method_type.foreign_into(),
                                 payment_method_type: None,
-                                payment_method_issuer: None,
+                                payment_method_issuer: card.card_issuer.clone(),
                                 payment_method_issuer_code: None,
                                 card: Some(card_detail),
                                 metadata: None,
                                 customer_id: Some(customer_id),
+                                card_network: card
+                                    .card_network
+                                    .as_ref()
+                                    .map(|card_network| card_network.to_string()),
                             };
                             let resp = cards::add_payment_method(
                                 state,
@@ -553,6 +557,7 @@ pub(crate) async fn call_payment_method(
                         card: None,
                         metadata: None,
                         customer_id: None,
+                        card_network: None,
                     };
                     let resp =
                         cards::add_payment_method(state, payment_method_request, merchant_account)
@@ -579,16 +584,23 @@ pub(crate) async fn call_payment_method(
     }
 }
 
-pub async fn get_customer_from_details(
+pub async fn get_customer_from_details<F: Clone>(
     db: &dyn StorageInterface,
     customer_id: Option<String>,
     merchant_id: &str,
+    payment_data: &mut PaymentData<F>,
 ) -> CustomResult<Option<storage::Customer>, errors::StorageError> {
     match customer_id {
         None => Ok(None),
         Some(c_id) => {
-            db.find_customer_optional_by_customer_id_merchant_id(&c_id, merchant_id)
-                .await
+            let customer = db
+                .find_customer_optional_by_customer_id_merchant_id(&c_id, merchant_id)
+                .await?;
+            payment_data.email = payment_data
+                .email
+                .clone()
+                .or_else(|| customer.as_ref().and_then(|inner| inner.email.clone()));
+            Ok(customer)
         }
     }
 }
@@ -658,6 +670,10 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R>(
                 let customer = customer?;
 
                 payment_data.payment_intent.customer_id = Some(customer.customer_id.clone());
+                payment_data.email = payment_data
+                    .email
+                    .clone()
+                    .or_else(|| customer.email.clone());
 
                 Some(customer)
             }
@@ -831,7 +847,7 @@ pub(crate) fn validate_payment_method_fields_present(
         req.payment_method.is_none() && req.payment_method_data.is_some(),
         || {
             Err(errors::ApiErrorResponse::MissingRequiredField {
-                field_name: "payent_method",
+                field_name: "payment_method",
             })
         },
     )?;
