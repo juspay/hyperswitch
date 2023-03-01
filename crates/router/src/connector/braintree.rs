@@ -81,7 +81,7 @@ impl
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, Box<dyn services::request::HeaderValue>)>, errors::ConnectorError>
     {
-        let mut headers = vec![
+        let headers = vec![
             (
                 headers::CONTENT_TYPE.to_string(),
                 types::PaymentsSessionType::get_content_type(self).to_string(),
@@ -90,7 +90,7 @@ impl
             (headers::X_API_VERSION.to_string(), "6".to_string()),
             (headers::ACCEPT.to_string(), "application/json".to_string()),
         ];
-        let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
+        let api_key = self.get_auth_header(&req.connector_auth_type)?;
         Ok(concat_headers(headers, api_key))
     }
 
@@ -211,7 +211,7 @@ impl
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, Box<dyn services::request::HeaderValue>)>, errors::ConnectorError>
     {
-        let mut headers = vec![
+        let headers = vec![
             (
                 headers::CONTENT_TYPE.to_string(),
                 types::PaymentsSyncType::get_content_type(self).to_string(),
@@ -220,7 +220,7 @@ impl
             (headers::X_API_VERSION.to_string(), "6".to_string()),
             (headers::ACCEPT.to_string(), "application/json".to_string()),
         ];
-        let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
+        let api_key = self.get_auth_header(&req.connector_auth_type)?;
         Ok(concat_headers(headers, api_key))
     }
 
@@ -318,7 +318,7 @@ impl
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, Box<dyn services::request::HeaderValue>)>, errors::ConnectorError>
     {
-        let mut headers = vec![
+        let headers = vec![
             (
                 headers::CONTENT_TYPE.to_string(),
                 types::PaymentsAuthorizeType::get_content_type(self).to_string(),
@@ -327,7 +327,7 @@ impl
             (headers::X_API_VERSION.to_string(), "6".to_string()),
             (headers::ACCEPT.to_string(), "application/json".to_string()),
         ];
-        let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
+        let api_key = self.get_auth_header(&req.connector_auth_type)?;
         Ok(concat_headers(headers, api_key))
     }
 
@@ -423,7 +423,7 @@ impl
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, Box<dyn services::request::HeaderValue>)>, errors::ConnectorError>
     {
-        let mut headers = vec![
+        let headers = vec![
             (
                 headers::CONTENT_TYPE.to_string(),
                 types::PaymentsAuthorizeType::get_content_type(self).to_string(),
@@ -432,7 +432,7 @@ impl
             (headers::X_API_VERSION.to_string(), "6".to_string()),
             (headers::ACCEPT.to_string(), "application/json".to_string()),
         ];
-        let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
+        let api_key = self.get_auth_header(&req.connector_auth_type)?;
         Ok(concat_headers(headers, api_key))
     }
 
@@ -525,7 +525,7 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, Box<dyn services::request::HeaderValue>)>, errors::ConnectorError>
     {
-        let mut headers = vec![
+        let headers = vec![
             (
                 headers::CONTENT_TYPE.to_string(),
                 types::RefundExecuteType::get_content_type(self).to_string(),
@@ -534,7 +534,7 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
             (headers::X_API_VERSION.to_string(), "6".to_string()),
             (headers::ACCEPT.to_string(), "application/json".to_string()),
         ];
-        let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
+        let api_key = self.get_auth_header(&req.connector_auth_type)?;
         Ok(concat_headers(headers, api_key))
     }
 

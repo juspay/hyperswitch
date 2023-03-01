@@ -116,7 +116,7 @@ impl
             ),
             (headers::X_ROUTER.to_string(), Box::new("test".to_string())),
         ];
-        let mut api_key = self
+        let api_key = self
             .get_auth_header(&req.connector_auth_type)?
             .into_iter()
             .map(
@@ -227,14 +227,14 @@ impl
         Vec<(String, Box<(dyn services::api::request::HeaderValue)>)>,
         errors::ConnectorError,
     > {
-        let mut header = vec![
+        let header = vec![
             (
                 headers::CONTENT_TYPE.to_string(),
                 types::PaymentsAuthorizeType::get_content_type(self).to_string(),
             ),
             (headers::X_ROUTER.to_string(), "test".to_string()),
         ];
-        let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
+        let api_key = self.get_auth_header(&req.connector_auth_type)?;
         Ok(concat_headers(header, api_key))
     }
 
@@ -338,14 +338,14 @@ impl
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, Box<dyn services::request::HeaderValue>)>, errors::ConnectorError>
     {
-        let mut header = vec![
+        let header = vec![
             (
                 headers::CONTENT_TYPE.to_string(),
                 types::PaymentsAuthorizeType::get_content_type(self).to_string(),
             ),
             (headers::X_ROUTER.to_string(), "test".to_string()),
         ];
-        let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
+        let api_key = self.get_auth_header(&req.connector_auth_type)?;
 
         Ok(concat_headers(header, api_key))
     }
@@ -440,14 +440,14 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, Box<dyn services::request::HeaderValue>)>, errors::ConnectorError>
     {
-        let mut header = vec![
+        let header = vec![
             (
                 headers::CONTENT_TYPE.to_string(),
                 types::RefundExecuteType::get_content_type(self).to_string(),
             ),
             (headers::X_ROUTER.to_string(), "test".to_string()),
         ];
-        let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
+        let api_key = self.get_auth_header(&req.connector_auth_type)?;
         Ok(concat_headers(header, api_key))
     }
 

@@ -53,6 +53,7 @@ where
 }
 
 #[async_trait::async_trait]
+#[allow(clippy::type_complexity)]
 pub trait ConnectorIntegration<T, Req, Resp>: ConnectorIntegrationAny<T, Req, Resp> + Sync {
     fn get_headers(
         &self,

@@ -39,6 +39,7 @@ pub trait ConnectorCommon {
     fn id(&self) -> &'static str;
 
     /// HTTP header used for authorization.
+    #[allow(clippy::type_complexity)]
     fn get_auth_header(
         &self,
         _auth_type: &types::ConnectorAuthType,
@@ -78,6 +79,7 @@ pub trait ConnectorCommonExt<Flow, Req, Resp>:
     ConnectorCommon + ConnectorIntegration<Flow, Req, Resp>
 {
     /// common header builder when every request for the connector have same headers
+    #[allow(clippy::type_complexity)]
     fn build_headers(
         &self,
         _req: &types::RouterData<Flow, Req, Resp>,

@@ -36,11 +36,11 @@ where
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, Box<dyn services::request::HeaderValue>)>, errors::ConnectorError>
     {
-        let mut header = vec![(
+        let header = vec![(
             headers::CONTENT_TYPE.to_string(),
             types::PaymentsAuthorizeType::get_content_type(self).to_string(),
         )];
-        let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
+        let api_key = self.get_auth_header(&req.connector_auth_type)?;
         Ok(concat_headers(header, api_key))
     }
 }

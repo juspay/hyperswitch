@@ -39,7 +39,7 @@ where
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, Box<dyn services::request::HeaderValue>)>, errors::ConnectorError>
     {
-        let mut auth_header = self.get_auth_header(&req.connector_auth_type)?;
+        let auth_header = self.get_auth_header(&req.connector_auth_type)?;
         let header = vec![(
             headers::CONTENT_TYPE.to_string(),
             self.get_content_type().to_string(),

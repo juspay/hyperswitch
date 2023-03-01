@@ -34,7 +34,7 @@ where
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, Box<dyn services::request::HeaderValue>)>, errors::ConnectorError>
     {
-        let mut headers = vec![(
+        let headers = vec![(
             headers::CONTENT_TYPE.to_string(),
             self.get_content_type().to_string(),
         )];
