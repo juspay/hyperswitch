@@ -92,7 +92,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BraintreePaymentsRequest {
             Some(enums::CaptureMethod::Automatic) | None
         );
 
-        let amount = item.request.get_amount_in_dollars();
+        let amount = item.request.get_amount_in_dollars()?;
         let device_data = DeviceData {};
         let options = PaymentOptions {
             submit_for_settlement,

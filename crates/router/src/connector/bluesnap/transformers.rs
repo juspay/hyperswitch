@@ -57,7 +57,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BluesnapPaymentsRequest {
             )),
         }?;
         Ok(Self {
-            amount: item.request.get_amount_in_dollars(),
+            amount: item.request.get_amount_in_dollars()?,
             payment_method,
             currency: item.request.currency,
             card_transaction_type: auth_mode,
@@ -100,7 +100,7 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for BluesnapCaptureRequest {
         Ok(Self {
             card_transaction_type,
             transaction_id,
-            amount: item.request.get_amount_to_capture_in_dollars(),
+            amount: Some(item.request.get_amount_to_capture_in_dollars()?),
         })
     }
 }
@@ -252,7 +252,7 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for BluesnapRefundRequest {
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
         Ok(Self {
             reason: item.request.reason.clone(),
-            amount: Some(item.request.get_refund_amount_in_dollars()),
+            amount: Some(item.request.get_refund_amount_in_dollars()?),
         })
     }
 }

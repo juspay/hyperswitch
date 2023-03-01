@@ -29,7 +29,7 @@ impl TryFrom<&types::PaymentsAuthorizeSessionTokenRouterData> for AirwallexInten
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             request_id: Uuid::new_v4().to_string(),
-            amount: item.request.get_amount_in_dollars(),
+            amount: item.request.get_amount_in_dollars()?,
             currency: item.request.currency,
             merchant_order_id: item.payment_id.clone(),
         })
@@ -156,7 +156,7 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for AirwallexPaymentsCaptureRequ
     fn try_from(item: &types::PaymentsCaptureRouterData) -> Result<Self, Self::Error> {
         Ok(Self {
             request_id: Uuid::new_v4().to_string(),
-            amount: item.request.get_amount_to_capture_in_dollars(),
+            amount: Some(item.request.get_amount_to_capture_in_dollars()?),
         })
     }
 }
@@ -287,11 +287,11 @@ pub struct AirwallexRefundRequest {
 }
 
 impl<F> TryFrom<&types::RefundsRouterData<F>> for AirwallexRefundRequest {
-    type Error = error_stack::Report<errors::ParsingError>;
+    type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
         Ok(Self {
             request_id: Uuid::new_v4().to_string(),
-            amount: Some(item.request.get_refund_amount_in_dollars()),
+            amount: Some(item.request.get_refund_amount_in_dollars()?),
             reason: item.request.reason.clone(),
             payment_intent_id: item.request.connector_transaction_id.clone(),
         })

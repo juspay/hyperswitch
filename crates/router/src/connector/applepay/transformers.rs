@@ -134,7 +134,7 @@ impl<F>
         let amount_info = AmountInfo {
             label: metadata.payment_request_data.label,
             label_type: "final".to_string(),
-            amount: item.data.request.get_amount_in_dollars(),
+            amount: item.data.request.get_amount_in_dollars()?,
         };
 
         let payment_request = PaymentRequest {
