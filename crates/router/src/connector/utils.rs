@@ -132,78 +132,11 @@ impl PaymentsRequestData for types::PaymentsAuthorizeRouterData {
 
 pub trait PaymentsAuthorizeRequestData {
     fn is_auto_capture(&self) -> bool;
-    //currently amount will be in cents, this method will convert the amount to dollars Eg: 991 cents to 9.91 dollars
-    fn get_amount_in_dollars(&self) -> Result<String, error_stack::Report<errors::ConnectorError>>;
-}
-
-fn to_two_decimal_currency(
-    amount: i64,
-    currency: storage_models::enums::Currency,
-) -> Result<String, error_stack::Report<errors::ConnectorError>> {
-    let amount_u32 = u32::try_from(amount)
-        .into_report()
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-    match currency {
-        storage_models::enums::Currency::JPY | storage_models::enums::Currency::KRW => {
-            Ok(amount.to_string())
-        }
-        storage_models::enums::Currency::BHD
-        | storage_models::enums::Currency::JOD
-        | storage_models::enums::Currency::KWD
-        | storage_models::enums::Currency::OMR => Ok((f64::from(amount_u32) / 1000.0).to_string()),
-        _ => Ok((f64::from(amount_u32) / 100.0).to_string()),
-    }
 }
 
 impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
     fn is_auto_capture(&self) -> bool {
         self.capture_method == Some(storage_models::enums::CaptureMethod::Automatic)
-    }
-    fn get_amount_in_dollars(&self) -> Result<String, error_stack::Report<errors::ConnectorError>> {
-        to_two_decimal_currency(self.amount, self.currency)
-    }
-}
-
-pub trait PaymentsSessionRequestData {
-    //By default amount will be in cents, this method will convert the amount to dollars. Eg: 991 cents to 9.91 dollars
-    fn get_amount_in_dollars(&self) -> Result<String, error_stack::Report<errors::ConnectorError>>;
-}
-
-impl PaymentsSessionRequestData for types::PaymentsSessionData {
-    fn get_amount_in_dollars(&self) -> Result<String, error_stack::Report<errors::ConnectorError>> {
-        to_two_decimal_currency(self.amount, self.currency)
-    }
-}
-
-pub trait PaymentsAuthorizeSessionTokenRequestData {
-    //By default amount will be in cents, this method will convert the amount to dollars. Eg: 991 cents to 9.91 dollars
-    fn get_amount_in_dollars(&self) -> Result<String, error_stack::Report<errors::ConnectorError>>;
-}
-
-impl PaymentsAuthorizeSessionTokenRequestData for types::AuthorizeSessionTokenData {
-    fn get_amount_in_dollars(&self) -> Result<String, error_stack::Report<errors::ConnectorError>> {
-        to_two_decimal_currency(self.amount, self.currency)
-    }
-}
-
-pub trait PaymentsCaptureRequestData {
-    //By default amount will be in cents, this method will convert the amount to capture to dollars. Eg: 991 cents to 9.91 dollars
-    fn get_amount_to_capture_in_dollars(
-        &self,
-    ) -> Result<String, error_stack::Report<errors::ConnectorError>>;
-}
-
-impl PaymentsCaptureRequestData for types::PaymentsCaptureData {
-    fn get_amount_to_capture_in_dollars(
-        &self,
-    ) -> Result<String, error_stack::Report<errors::ConnectorError>> {
-        match self.amount_to_capture {
-            Some(_a) => to_two_decimal_currency(self.amount, self.currency),
-            _ => Err(errors::ConnectorError::MissingRequiredField {
-                field_name: "amount_to_capture",
-            }
-            .into()),
-        }
     }
 }
 
@@ -233,11 +166,6 @@ impl PaymentsCancelRequestData for PaymentsCancelData {
 
 pub trait RefundsRequestData {
     fn get_connector_refund_id(&self) -> Result<String, Error>;
-
-    //By default amount will be in cents, this method will convert the amount to refund to dollars. Eg: 991 cents to 9.91 dollars
-    fn get_refund_amount_in_dollars(
-        &self,
-    ) -> Result<String, error_stack::Report<errors::ConnectorError>>;
 }
 
 impl RefundsRequestData for types::RefundsData {
@@ -246,11 +174,6 @@ impl RefundsRequestData for types::RefundsData {
             .clone()
             .get_required_value("connector_refund_id")
             .change_context(errors::ConnectorError::MissingConnectorTransactionID)
-    }
-    fn get_refund_amount_in_dollars(
-        &self,
-    ) -> Result<String, error_stack::Report<errors::ConnectorError>> {
-        to_two_decimal_currency(self.refund_amount, self.currency)
     }
 }
 
@@ -399,4 +322,36 @@ pub fn get_header_key_value<'a>(
         .ok_or(report!(
             errors::ConnectorError::WebhookSourceVerificationFailed
         ))?
+}
+
+pub fn to_currency_base_unit_from_optional_amount(
+    amount: Option<i64>,
+    currency: storage_models::enums::Currency,
+) -> Result<String, error_stack::Report<errors::ConnectorError>> {
+    match amount {
+        Some(a) => to_currency_base_unit(a, currency),
+        _ => Err(errors::ConnectorError::MissingRequiredField {
+            field_name: "amount",
+        }
+        .into()),
+    }
+}
+
+pub fn to_currency_base_unit(
+    amount: i64,
+    currency: storage_models::enums::Currency,
+) -> Result<String, error_stack::Report<errors::ConnectorError>> {
+    let amount_u32 = u32::try_from(amount)
+        .into_report()
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+    match currency {
+        storage_models::enums::Currency::JPY | storage_models::enums::Currency::KRW => {
+            Ok(amount.to_string())
+        }
+        storage_models::enums::Currency::BHD
+        | storage_models::enums::Currency::JOD
+        | storage_models::enums::Currency::KWD
+        | storage_models::enums::Currency::OMR => Ok((f64::from(amount_u32) / 1000.0).to_string()),
+        _ => Ok((f64::from(amount_u32) / 100.0).to_string()),
+    }
 }

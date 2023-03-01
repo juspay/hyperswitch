@@ -1,9 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils::{
-        PaymentsAuthorizeRequestData, PaymentsCaptureRequestData, RefundsRequestData,
-    },
+    connector::utils,
     core::errors,
     pii::{self, Secret},
     types::{
@@ -57,7 +55,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BluesnapPaymentsRequest {
             )),
         }?;
         Ok(Self {
-            amount: item.request.get_amount_in_dollars()?,
+            amount: utils::to_currency_base_unit(item.request.amount, item.request.currency)?,
             payment_method,
             currency: item.request.currency,
             card_transaction_type: auth_mode,
@@ -97,13 +95,14 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for BluesnapCaptureRequest {
     fn try_from(item: &types::PaymentsCaptureRouterData) -> Result<Self, Self::Error> {
         let card_transaction_type = BluesnapTxnType::Capture;
         let transaction_id = item.request.connector_transaction_id.to_string();
+        let amount = utils::to_currency_base_unit_from_optional_amount(
+            item.request.amount_to_capture,
+            item.request.currency,
+        )?;
         Ok(Self {
             card_transaction_type,
             transaction_id,
-            amount: match item.request.amount_to_capture {
-                Some(_a) => Some(item.request.get_amount_to_capture_in_dollars()?),
-                _ => None,
-            },
+            amount: Some(amount),
         })
     }
 }
@@ -255,7 +254,10 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for BluesnapRefundRequest {
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
         Ok(Self {
             reason: item.request.reason.clone(),
-            amount: Some(item.request.get_refund_amount_in_dollars()?),
+            amount: Some(utils::to_currency_base_unit(
+                item.request.refund_amount,
+                item.request.currency,
+            )?),
         })
     }
 }
