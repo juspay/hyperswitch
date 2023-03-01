@@ -382,6 +382,7 @@ pub struct Card {
     #[schema(value_type = String, example = "242")]
     pub card_cvc: Secret<String>,
     pub card_issuer: Option<String>,
+    #[schema(value_type = Option<CardNetwork>, example = "Visa")]
     pub card_network: Option<api_enums::CardNetwork>,
 }
 

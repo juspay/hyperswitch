@@ -22,7 +22,8 @@ use crate::{
         (status = 400, description = "Missing Mandatory fields")
     ),
     tag = "Payments",
-    operation_id = "Create a Payment"
+    operation_id = "Create a Payment",
+    security(("api_key" = []))
 )]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsCreate))]
 // #[post("")]
@@ -120,7 +121,8 @@ pub async fn payments_start(
         (status = 404, description = "No payment found")
     ),
     tag = "Payments",
-    operation_id = "Retrieve a Payment"
+    operation_id = "Retrieve a Payment",
+    security(("api_key" = []), ("publishable_key" = []))
 )]
 #[instrument(skip(state), fields(flow = ?Flow::PaymentsRetrieve))]
 // #[get("/{payment_id}")]
@@ -177,7 +179,8 @@ pub async fn payments_retrieve(
         (status = 400, description = "Missing mandatory fields")
     ),
     tag = "Payments",
-    operation_id = "Update a Payment"
+    operation_id = "Update a Payment",
+    security(("api_key" = []), ("publishable_key" = []))
 )]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsUpdate))]
 // #[post("/{payment_id}")]
@@ -236,7 +239,8 @@ pub async fn payments_update(
         (status = 400, description = "Missing mandatory fields")
     ),
     tag = "Payments",
-    operation_id = "Confirm a Payment"
+    operation_id = "Confirm a Payment",
+    security(("api_key" = []), ("publishable_key" = []))
 )]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsConfirm))]
 // #[post("/{payment_id}/confirm")]
@@ -296,7 +300,8 @@ pub async fn payments_confirm(
         (status = 400, description = "Missing mandatory fields")
     ),
     tag = "Payments",
-    operation_id = "Capture a Payment"
+    operation_id = "Capture a Payment",
+    security(("api_key" = []))
 )]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsCapture))]
 // #[post("/{payment_id}/capture")]
@@ -343,7 +348,8 @@ pub async fn payments_capture(
         (status = 400, description = "Missing mandatory fields")
     ),
     tag = "Payments",
-    operation_id = "Create Session tokens for a Payment"
+    operation_id = "Create Session tokens for a Payment",
+    security(("publishable_key" = []))
 )]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsSessionToken))]
 pub async fn payments_connector_session(
@@ -444,7 +450,8 @@ pub async fn payments_redirect_response(
         (status = 400, description = "Missing mandatory fields")
     ),
     tag = "Payments",
-    operation_id = "Cancel a Payment"
+    operation_id = "Cancel a Payment",
+    security(("api_key" = []))
 )]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsCancel))]
 // #[post("/{payment_id}/cancel")]
@@ -500,7 +507,8 @@ pub async fn payments_cancel(
         (status = 404, description = "No payments found")
     ),
     tag = "Payments",
-    operation_id = "List all Payments"
+    operation_id = "List all Payments",
+    security(("api_key" = []))
 )]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsList))]
 #[cfg(feature = "olap")]

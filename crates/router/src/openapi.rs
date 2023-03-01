@@ -64,7 +64,6 @@ Never share your secret api keys. Keep them guarded and secure.
         crate::routes::refunds::refunds_retrieve,
         crate::routes::refunds::refunds_update,
         crate::routes::refunds::refunds_list,
-        crate::routes::refunds::refunds_create,
         crate::routes::admin::merchant_account_create,
         crate::routes::admin::retrieve_merchant_account,
         crate::routes::admin::update_merchant_account,
@@ -142,6 +141,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::enums::MandateStatus,
         api_models::enums::PaymentExperience,
         api_models::enums::BankNames,
+        api_models::enums::CardNetwork,
         api_models::admin::PaymentConnectorCreate,
         api_models::admin::PaymentMethodsEnabled,
         api_models::payments::AddressDetails,
@@ -211,6 +211,52 @@ Never share your secret api keys. Keep them guarded and secure.
         crate::types::api::api_keys::RetrieveApiKeyResponse,
         crate::types::api::api_keys::RevokeApiKeyResponse,
         crate::types::api::api_keys::UpdateApiKeyRequest
-    ))
+    )),
+    modifiers(&SecurityAddon)
 )]
 pub struct ApiDoc;
+
+struct SecurityAddon;
+
+impl utoipa::Modify for SecurityAddon {
+    fn modify(&self, openapi: &mut utoipa::openapi::OpenApi) {
+        use utoipa::openapi::security::{ApiKey, ApiKeyValue, SecurityScheme};
+
+        if let Some(components) = openapi.components.as_mut() {
+            components.add_security_schemes_from_iter([
+                (
+                    "api_key",
+                    SecurityScheme::ApiKey(ApiKey::Header(ApiKeyValue::with_description(
+                        "api-key",
+                        "API keys are the most common method of authentication and can be obtained \
+                         from the HyperSwitch dashboard."
+                    ))),
+                ),
+                (
+                    "admin_api_key",
+                    SecurityScheme::ApiKey(ApiKey::Header(ApiKeyValue::with_description(
+                        "api-key",
+                        "Admin API keys allow you to perform some privileged actions such as \
+                         creating a merchant account and payment connector account."
+                    ))),
+                ),
+                (
+                    "publishable_key",
+                    SecurityScheme::ApiKey(ApiKey::Header(ApiKeyValue::with_description(
+                        "api-key",
+                        "Publishable keys are a type of keys that can be public and have limited \
+                         scope of usage."
+                    ))),
+                ),
+                (
+                    "ephemeral_key",
+                    SecurityScheme::ApiKey(ApiKey::Header(ApiKeyValue::with_description(
+                        "api-key",
+                        "Ephemeral keys provide temporary access to singular data, such as access \
+                         to a single customer object for a short period of time."
+                    ))),
+                ),
+            ]);
+        }
+    }
+}
