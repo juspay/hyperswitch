@@ -6,11 +6,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     connector::utils::{self, CardData},
     core::errors,
-    types::{
-        self, api,
-        storage::enums,
-        transformers::{self, ForeignFrom},
-    },
+    types::{self, api, storage::enums, transformers::ForeignFrom},
 };
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
@@ -297,30 +293,25 @@ pub enum PaymentStatus {
     Processing,
 }
 
-impl From<transformers::Foreign<(PaymentStatus, enums::CaptureMethod)>>
-    for transformers::Foreign<enums::AttemptStatus>
-{
-    fn from(item: transformers::Foreign<(PaymentStatus, enums::CaptureMethod)>) -> Self {
-        let (status, capture_method) = item.0;
+impl ForeignFrom<(PaymentStatus, enums::CaptureMethod)> for enums::AttemptStatus {
+    fn foreign_from(item: (PaymentStatus, enums::CaptureMethod)) -> Self {
+        let (status, capture_method) = item;
         match status {
             PaymentStatus::Captured
             | PaymentStatus::Paid
-            | PaymentStatus::ChargebackNotification => enums::AttemptStatus::Charged,
-            PaymentStatus::Cancelled => enums::AttemptStatus::Voided,
-            PaymentStatus::Rejected | PaymentStatus::RejectedCapture => {
-                enums::AttemptStatus::Failure
-            }
+            | PaymentStatus::ChargebackNotification => Self::Charged,
+            PaymentStatus::Cancelled => Self::Voided,
+            PaymentStatus::Rejected | PaymentStatus::RejectedCapture => Self::Failure,
             PaymentStatus::CaptureRequested => {
                 if capture_method == enums::CaptureMethod::Automatic {
-                    enums::AttemptStatus::Pending
+                    Self::Pending
                 } else {
-                    enums::AttemptStatus::CaptureInitiated
+                    Self::CaptureInitiated
                 }
             }
-            PaymentStatus::PendingApproval => enums::AttemptStatus::Authorized,
-            _ => enums::AttemptStatus::Pending,
+            PaymentStatus::PendingApproval => Self::Authorized,
+            _ => Self::Pending,
         }
-        .into()
     }
 }
 

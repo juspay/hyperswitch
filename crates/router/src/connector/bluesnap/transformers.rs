@@ -3,11 +3,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     core::errors,
     pii::{self, Secret},
-    types::{
-        self, api,
-        storage::enums,
-        transformers::{self, ForeignTryFrom},
-    },
+    types::{self, api, storage::enums, transformers::ForeignTryFrom},
 };
 
 #[derive(Debug, Serialize, PartialEq)]
@@ -148,30 +144,24 @@ pub enum BluesnapProcessingStatus {
     PendingMerchantReview,
 }
 
-impl TryFrom<transformers::Foreign<(BluesnapTxnType, BluesnapProcessingStatus)>>
-    for transformers::Foreign<enums::AttemptStatus>
-{
+impl ForeignTryFrom<(BluesnapTxnType, BluesnapProcessingStatus)> for enums::AttemptStatus {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: transformers::Foreign<(BluesnapTxnType, BluesnapProcessingStatus)>,
+    fn foreign_try_from(
+        item: (BluesnapTxnType, BluesnapProcessingStatus),
     ) -> Result<Self, Self::Error> {
-        let item = item.0;
         let (item_txn_status, item_processing_status) = item;
         Ok(match item_processing_status {
             BluesnapProcessingStatus::Success => match item_txn_status {
-                BluesnapTxnType::AuthOnly => enums::AttemptStatus::Authorized,
-                BluesnapTxnType::AuthReversal => enums::AttemptStatus::Voided,
-                BluesnapTxnType::AuthCapture | BluesnapTxnType::Capture => {
-                    enums::AttemptStatus::Charged
-                }
-                BluesnapTxnType::Refund => enums::AttemptStatus::Charged,
+                BluesnapTxnType::AuthOnly => Self::Authorized,
+                BluesnapTxnType::AuthReversal => Self::Voided,
+                BluesnapTxnType::AuthCapture | BluesnapTxnType::Capture => Self::Charged,
+                BluesnapTxnType::Refund => Self::Charged,
             },
             BluesnapProcessingStatus::Pending | BluesnapProcessingStatus::PendingMerchantReview => {
-                enums::AttemptStatus::Pending
+                Self::Pending
             }
-            BluesnapProcessingStatus::Fail => enums::AttemptStatus::Failure,
-        }
-        .into())
+            BluesnapProcessingStatus::Fail => Self::Failure,
+        })
     }
 }
 
