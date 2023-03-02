@@ -55,11 +55,12 @@ pub struct HashedApiKey(String);
 impl PlaintextApiKey {
     pub const HASH_KEY_LEN: usize = 32;
 
-    const PREFIX_LEN: usize = 8;
+    const PREFIX_LEN: usize = 12;
 
     pub fn new(length: usize) -> Self {
+        let env = router_env::env::prefix_for_env();
         let key = common_utils::crypto::generate_cryptographically_secure_random_string(length);
-        Self(key.into())
+        Self(format!("{env}_{key}").into())
     }
 
     pub fn new_key_id() -> String {
