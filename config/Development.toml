@@ -11,8 +11,8 @@ enabled = false
 
 # TODO: Update database credentials before running application
 [master_database]
-username = "cloud"
-password = "scape"
+username = "db_user"
+password = "db_pass"
 host = "localhost"
 port = 5432
 dbname = "hyperswitch_db"
@@ -41,8 +41,8 @@ locker_encryption_key1 = ""
 locker_encryption_key2 = ""
 locker_decryption_key1 = ""
 locker_decryption_key2 = ""
-vault_encryption_key = "-----BEGIN PUBLIC KEY-----\nMIIBITANBgkqhkiG9w0BAQEFAAOCAQ4AMIIBCQKCAQBi+Y5uYWB25V/T6kOicOyduwV4lIyYhPmqHPUsE2K4wwP4op2G9/kLvTZ8t67WbnnrniRmyuXlHCOmzyP+FNDDaXatQoQezpY1xf/KR5JWxqgsf0ZuWK6DilLoIanI6rln7rD9O4z5up5T587tTNr0rrRcGsPSRz7Jb48wS8G48qh384PEdWkh4F/SVL1RNDc4duMpsIEB56ri/0XK9mrE4rTnXC8UU7t9WrKHmvAU+ANAuejPFU0c5uOH0AjU5ocVyYGvE0jLiaTtRfOBWFHONVeSJ6e5z3NggK/UTZe6adGLGxBfwqChGR29C+kyf0rtQgtY5rFFZPH/XKNBl6rtAgMBAAE=\n-----END PUBLIC KEY-----"
-vault_private_key = "-----BEGIN RSA PRIVATE KEY-----\nMIIEpAIBAAKCAQEA6p6bRJiBKKhgiXfTqvAzVb+ap8gHunil0rAMw6SC5ZGhzPKtlrOyDXMQ0fjdD8Wpr8GuiRinnIJRgBkPs2B/ofWkwt2yHZwrGK0FCioSDIq2eOI+eNxOl2j9d8fBTwOzK0IBUvqDIyVGLdTw8KzSytpNUrnkpjONpnq+HNxTzcBU/i2eEIOTXiZj/wIB2o49tVkgcjULeuLhnWsOPErGUc3WL9AxRvdVSja0vVBccoWsktm1pv3/dTIC2pm87Dt9EAMGp9fdUFaFG6q50iEXPp6NALI6Y4DDsPeZyY3yl8DSMHdEa+tuzQjZ6TvF3CSu8GughTjepbylTFLlnSuWSQIDAQABAoIBAQClkqzsqdtsf/cwzFmaZs0zlHZmNaoOlJohp5A6eVzO+gl/gzuyALqE91FFfSU0vj/UAxFTOwz+TJGLnyQPaOhpuds+kgnjD5TyYxgNZkc6hqHjiXahAIiOHc/SuivXwTquKnSYxKXLJcDzEzW+A5j3AzxSR1HvYK50cGa+I1cY+WpiqJ7e9r7TkTDqh/H9vywANqpFvOqM6VmYdp3FXAT5ALwf7dmHOyHQSoxdveYh37lJhJ0mqmrRj0IjfaCMdG3rrbKUl4zX/hNCwKv873PfxeWv2NlIlgHfRJZbdjLhgBLoPlO5SIUzf0f2zN3RtJILfgvvqgyL4PmdVT4UPD4pAoGBAP3InIOI2uWlwAcWc0ylRVna0jO35TX2C0pa2QMMEU8Dr0GNlASWA7ZANMNIWPc5ifX8SxH6uAo71WquNsKCiMCYPOsAIzJlTzQMkww9Rikw00jJcoHBRRQGrjnxS4wYVXnjTVseB9YKIDfQ6m0JJFBPgRJGEnxvluVErVzcboHLAoGBAOyrJk+z5dfOyKoMMBkyT7ud2OLlKIWdWi8cqioebLVe2ScW+KB1R3vcaDqV40216XwyVqzo11MRHu9H/HHy/1F5HY/Ngo4/pQcgiiP67RpRLhUrKD75fjGfg0B4qh2oMmiEghu+GJC2kuLHM4gDfLCuWuOLckITLds6UlJ9Q3W7AoGBAM2WjYxU+pddPgG/4ymtHVBcXzq8d7fOGXljvTeluAPdhUVCjy1j5Z/nxZaJbmDgwO2AM8Rd6meH7yzb8sqB+oyjB36MfvbdcVtF8H3SyZqmzhLB9rw8uFwvyUZxPfVA5UW3qLvuyQRQ8aal3LL12/AfZ/1IvMMHlyMmDpcSj4cfAoGAFiXKFwlZyAFU6/zp/2Gi7obOBiW1zhM0nlYLYpeoSqzOm4bdy35OKzwsENd4BwywBexcCiBcDiz6/R96c1tvIzu3VX7A6fjww6L66nUP/Td9nYOFZ6dHdPNdgAoKuW3FEdzcpCX8/IXpZwmHPAI/h/U5EjQ5hA9xaiOiEpAgYQMCgYA5kMd5kIuzuyHtO/BaHPzpy31U96yawlnvN/LCOqdctqzR+1HGhXngXDwk8u9tqcLfjb/m2bLHzvzVXkJP3nH75XdC/S5Ndw+2GhlhX4SY0GXLWK3Pv4vn0MrFbbVes20QcRjrmcFrNNTU9p6UgQ09ghCgcGk038U7nHlPocaK3Q==\n-----END RSA PRIVATE KEY-----"
+vault_encryption_key = ""
+vault_private_key = ""
 
 [connectors.supported]
 wallets = ["klarna","braintree","applepay"]
