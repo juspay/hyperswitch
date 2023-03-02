@@ -1,10 +1,10 @@
 use std::{convert::From, default::Default};
 
 use api_models::payment_methods as api_types;
-use common_utils::date_time;
+use common_utils::{date_time, pii};
 use serde::{Deserialize, Serialize};
 
-use crate::{logger, pii, types::api};
+use crate::{logger, types::api};
 
 #[derive(Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
 pub struct CreateCustomerRequest {
