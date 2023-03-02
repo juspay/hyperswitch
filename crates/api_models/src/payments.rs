@@ -6,10 +6,7 @@ use router_derive::Setter;
 use time::PrimitiveDateTime;
 use utoipa::ToSchema;
 
-use crate::{
-    enums::{self as api_enums},
-    refunds,
-};
+use crate::{enums as api_enums, refunds};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum PaymentOp {
@@ -844,7 +841,7 @@ pub struct PaymentsResponse {
     pub billing: Option<Address>,
     /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
     #[schema(value_type = Option<Object>)]
-    pub metadata: Option<serde_json::Value>,
+    pub metadata: Option<Secret<serde_json::Value>>,
     /// description: The customer's email address
     #[schema(max_length = 255, value_type = Option<String>, example = "johntest@test.com")]
     pub email: Option<Secret<String, pii::Email>>,
@@ -1110,7 +1107,7 @@ pub struct Metadata {
     /// Any other metadata that is to be provided
     #[schema(value_type = Object, example = r#"{ "city": "NY", "unit": "245" }"#)]
     #[serde(flatten)]
-    pub data: serde_json::Value,
+    pub data: pii::SecretSerdeValue,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]

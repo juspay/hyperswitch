@@ -379,7 +379,9 @@ pub trait ConnectorActions: Connector {
                 .and_then(|a| a.address)
                 .or_else(|| Some(PaymentAddress::default()))
                 .unwrap(),
-            connector_meta_data: info.clone().and_then(|a| a.connector_meta_data),
+            connector_meta_data: info
+                .clone()
+                .and_then(|a| a.connector_meta_data.map(masking::Secret::new)),
             amount_captured: None,
             access_token: info.and_then(|a| a.access_token),
             session_token: None,

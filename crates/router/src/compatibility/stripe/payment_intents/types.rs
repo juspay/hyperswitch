@@ -63,7 +63,7 @@ pub struct StripePaymentMethodData {
     pub billing_details: Option<StripeBillingDetails>,
     #[serde(flatten)]
     pub payment_method_details: Option<StripePaymentMethodDetails>, // enum
-    pub metadata: Option<Value>,
+    pub metadata: Option<pii::Secret<Value>>,
 }
 
 #[derive(PartialEq, Eq, Deserialize, Clone)]
@@ -277,7 +277,7 @@ pub struct StripePaymentIntentResponse {
     pub customer: Option<String>,
     pub refunds: Option<Vec<refunds::RefundResponse>>,
     pub mandate_id: Option<String>,
-    pub metadata: Option<Value>,
+    pub metadata: Option<pii::Secret<Value>>,
     pub charges: Charges,
     pub connector: Option<String>,
     pub description: Option<String>,

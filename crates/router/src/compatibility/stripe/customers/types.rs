@@ -13,7 +13,7 @@ pub struct CreateCustomerRequest {
     pub name: Option<String>,
     pub phone: Option<masking::Secret<String>>,
     pub address: Option<masking::Secret<serde_json::Value>>,
-    pub metadata: Option<serde_json::Value>,
+    pub metadata: Option<pii::SecretSerdeValue>,
     pub description: Option<String>,
 }
 
@@ -24,7 +24,7 @@ pub struct CustomerUpdateRequest {
     pub phone: Option<masking::Secret<String, masking::WithType>>,
     pub name: Option<String>,
     pub address: Option<masking::Secret<serde_json::Value>>,
-    pub metadata: Option<serde_json::Value>,
+    pub metadata: Option<pii::SecretSerdeValue>,
 }
 
 #[derive(Default, Serialize, PartialEq, Eq)]
@@ -34,7 +34,7 @@ pub struct CreateCustomerResponse {
     pub created: u64,
     pub description: Option<String>,
     pub email: Option<masking::Secret<String, pii::Email>>,
-    pub metadata: Option<serde_json::Value>,
+    pub metadata: Option<pii::SecretSerdeValue>,
     pub name: Option<String>,
     pub phone: Option<masking::Secret<String, masking::WithType>>,
 }
