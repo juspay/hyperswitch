@@ -293,8 +293,6 @@ where
         let normal_connector_names: HashSet<String> = connector_accounts
             .iter()
             .filter(|connector_account| {
-                // let is_supported = supported_connectors.contains(&connector_account.connector_name);
-
                 connector_account
                     .payment_methods_enabled
                     .clone()
