@@ -153,6 +153,77 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for GlobalpayPaymentsRequest {
                     globalpay_payments_request_type: None,
                     user_reference: None,
                 }),
+                api_models::enums::WalletIssuer::GooglePay => {
+                    let wallet_data_token =
+                        wallet_data
+                            .token
+                            .ok_or(errors::ConnectorError::MissingRequiredField {
+                                field_name: "item.payment_method_data.wallet.token",
+                            })?;
+                    let token: Result<serde_json::Value, serde_json::Error> =
+                        serde_json::from_slice(wallet_data_token.as_bytes());
+                    Ok(Self {
+                        account_name,
+                        amount: Some(item.request.amount.to_string()),
+                        currency: item.request.currency.to_string(),
+                        reference: item.attempt_id.to_string(),
+                        country: item.get_billing_country()?,
+                        capture_mode: item.request.capture_method.map(|cap_mode| match cap_mode {
+                            enums::CaptureMethod::Manual => requests::CaptureMode::Later,
+                            _ => requests::CaptureMode::Auto,
+                        }),
+                        payment_method: requests::PaymentMethod {
+                            digital_wallet: Some(requests::DigitalWallet {
+                                provider: Some(requests::DigitalWalletProvider::PayByGoogle),
+                                payment_token: Some(token.ok().ok_or(
+                                    errors::ConnectorError::MissingRequiredField {
+                                        field_name: "item.payment_method_data.wallet.token",
+                                    },
+                                )?),
+                            }),
+                            authentication: None,
+                            bank_transfer: None,
+                            card: None,
+                            apm: None,
+                            encryption: None,
+                            entry_mode: Default::default(),
+                            fingerprint_mode: None,
+                            first_name: None,
+                            id: None,
+                            last_name: None,
+                            name: None,
+                            narrative: None,
+                            storage_mode: None,
+                        },
+                        notifications: Some(requests::Notifications {
+                            return_url: item.router_return_url.clone(),
+                            challenge_return_url: None,
+                            decoupled_challenge_return_url: None,
+                            status_url: None,
+                            three_ds_method_return_url: None,
+                        }),
+                        authorization_mode: None,
+                        cashback_amount: None,
+                        channel: Default::default(),
+                        convenience_amount: None,
+                        currency_conversion: None,
+                        description: None,
+                        device: None,
+                        gratuity_amount: None,
+                        initiator: None,
+                        ip_address: None,
+                        language: None,
+                        lodging: None,
+                        order: None,
+                        payer_reference: None,
+                        site_reference: None,
+                        stored_credential: None,
+                        surcharge_amount: None,
+                        total_capture_count: None,
+                        globalpay_payments_request_type: None,
+                        user_reference: None,
+                    })
+                }
                 _ => Err(
                     errors::ConnectorError::NotImplemented("Payment methods".to_string()).into(),
                 ),

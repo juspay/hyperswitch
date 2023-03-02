@@ -352,34 +352,10 @@ pub struct Card {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct DigitalWallet {
-    /// First line of the address associated with the card.
-    pub avs_address: Option<String>,
-    /// Postal code of the address associated with the card.
-    pub avs_postal_code: Option<String>,
-    /// The authentication value use to verify the validity of the digit wallet transaction.
-    pub cryptogram: Option<String>,
-    /// The numeric value printed on the physical card.
-    pub cvv: Option<String>,
-    /// Card Verification Value Indicator sent by the Merchant indicating the CVV
-    /// availability.
-    pub cvv_indicator: Option<CvvIndicator>,
-    /// An indication of the degree of the authentication and liability shift obtained for this
-    /// transaction. It is determined during the 3D Secure process. 2 or 1  for Mastercard
-    /// indicates the merchant has a liability shift. 5 or 6  for Visa or Amex indicates the
-    /// merchant has a liability shift. However for Amex if the payer is not enrolled the eci may
-    /// still be 6 but liability shift has not bee achieved.
-    pub eci: Option<String>,
-    /// The 2 digit expiry date month of the card.
-    pub expiry_month: Option<String>,
-    /// The 2 digit expiry date year of the card.
-    pub expiry_year: Option<String>,
     /// Identifies who provides the digital wallet for the Payer.
     pub provider: Option<DigitalWalletProvider>,
-    /// A token that represents, or is the payment method, stored with  the digital wallet.
-    pub token: Option<String>,
-    /// Indicates if the actual card number or a token is being used to process the
-    /// transaction.
-    pub token_format: Option<TokenFormat>,
+    /// A token that represents, or is the payment method, stored with  the digital wallet.    
+    pub payment_token: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
