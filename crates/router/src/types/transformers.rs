@@ -116,27 +116,15 @@ impl From<F<storage_enums::MandateStatus>> for F<api_enums::MandateStatus> {
     }
 }
 
-impl From<F<api_enums::PaymentMethodType>> for F<storage_enums::PaymentMethodType> {
-    fn from(pm_type: F<api_enums::PaymentMethodType>) -> Self {
+impl From<F<api_enums::PaymentMethod>> for F<storage_enums::PaymentMethod> {
+    fn from(pm_type: F<api_enums::PaymentMethod>) -> Self {
         Self(frunk::labelled_convert_from(pm_type.0))
     }
 }
 
-impl From<F<storage_enums::PaymentMethodType>> for F<api_enums::PaymentMethodType> {
-    fn from(pm_type: F<storage_enums::PaymentMethodType>) -> Self {
+impl From<F<storage_enums::PaymentMethod>> for F<api_enums::PaymentMethod> {
+    fn from(pm_type: F<storage_enums::PaymentMethod>) -> Self {
         Self(frunk::labelled_convert_from(pm_type.0))
-    }
-}
-
-impl From<F<api_enums::PaymentMethodSubType>> for F<storage_enums::PaymentMethodSubType> {
-    fn from(pm_subtype: F<api_enums::PaymentMethodSubType>) -> Self {
-        Self(frunk::labelled_convert_from(pm_subtype.0))
-    }
-}
-
-impl From<F<storage_enums::PaymentMethodSubType>> for F<api_enums::PaymentMethodSubType> {
-    fn from(pm_subtype: F<storage_enums::PaymentMethodSubType>) -> Self {
-        Self(frunk::labelled_convert_from(pm_subtype.0))
     }
 }
 
@@ -146,14 +134,14 @@ impl From<F<storage_enums::PaymentMethodIssuerCode>> for F<api_enums::PaymentMet
     }
 }
 
-impl From<F<api_enums::PaymentIssuer>> for F<storage_enums::PaymentIssuer> {
-    fn from(issuer: F<api_enums::PaymentIssuer>) -> Self {
-        Self(frunk::labelled_convert_from(issuer.0))
+impl From<F<api_enums::PaymentExperience>> for F<storage_enums::PaymentExperience> {
+    fn from(experience: F<api_enums::PaymentExperience>) -> Self {
+        Self(frunk::labelled_convert_from(experience.0))
     }
 }
 
-impl From<F<api_enums::PaymentExperience>> for F<storage_enums::PaymentExperience> {
-    fn from(experience: F<api_enums::PaymentExperience>) -> Self {
+impl From<F<storage_enums::PaymentExperience>> for F<api_enums::PaymentExperience> {
+    fn from(experience: F<storage_enums::PaymentExperience>) -> Self {
         Self(frunk::labelled_convert_from(experience.0))
     }
 }
@@ -220,6 +208,40 @@ impl TryFrom<F<api_enums::IntentStatus>> for F<storage_enums::EventType> {
             api_enums::IntentStatus::Succeeded => Ok(storage_enums::EventType::PaymentSucceeded),
             _ => Err(errors::ValidationError::IncorrectValueProvided {
                 field_name: "intent_status",
+            }),
+        }
+        .map(Into::into)
+    }
+}
+
+impl TryFrom<F<storage_enums::RefundStatus>> for F<storage_enums::EventType> {
+    type Error = errors::ValidationError;
+
+    fn try_from(value: F<storage_enums::RefundStatus>) -> Result<Self, Self::Error> {
+        match value.0 {
+            storage_enums::RefundStatus::Success => Ok(storage_enums::EventType::RefundSucceeded),
+            storage_enums::RefundStatus::Failure => Ok(storage_enums::EventType::RefundFailed),
+            _ => Err(errors::ValidationError::IncorrectValueProvided {
+                field_name: "refund_status",
+            }),
+        }
+        .map(Into::into)
+    }
+}
+
+impl TryFrom<F<api_models::webhooks::IncomingWebhookEvent>> for F<storage_enums::RefundStatus> {
+    type Error = errors::ValidationError;
+
+    fn try_from(value: F<api_models::webhooks::IncomingWebhookEvent>) -> Result<Self, Self::Error> {
+        match value.0 {
+            api_models::webhooks::IncomingWebhookEvent::RefundSuccess => {
+                Ok(storage_enums::RefundStatus::Success)
+            }
+            api_models::webhooks::IncomingWebhookEvent::RefundFailure => {
+                Ok(storage_enums::RefundStatus::Failure)
+            }
+            _ => Err(errors::ValidationError::IncorrectValueProvided {
+                field_name: "incoming_webhook_event_type",
             }),
         }
         .map(Into::into)
@@ -380,6 +402,18 @@ impl TryFrom<F<storage::MerchantConnectorAccount>>
     }
 }
 
+impl From<F<api_models::enums::PaymentMethodType>> for F<storage_models::enums::PaymentMethodType> {
+    fn from(payment_method_type: F<api_models::enums::PaymentMethodType>) -> Self {
+        Self(frunk::labelled_convert_from(payment_method_type.0))
+    }
+}
+
+impl From<F<storage_models::enums::PaymentMethodType>> for F<api_models::enums::PaymentMethodType> {
+    fn from(payment_method_type: F<storage_models::enums::PaymentMethodType>) -> Self {
+        Self(frunk::labelled_convert_from(payment_method_type.0))
+    }
+}
+
 impl From<F<api_models::payments::AddressDetails>> for F<storage_models::address::AddressNew> {
     fn from(item: F<api_models::payments::AddressDetails>) -> Self {
         let address = item.0;
@@ -461,5 +495,11 @@ impl From<F<api_models::api_keys::UpdateApiKeyRequest>>
             last_used: None,
         }
         .into()
+    }
+}
+
+impl From<F<storage_enums::AttemptStatus>> for F<api_enums::AttemptStatus> {
+    fn from(status: F<storage_enums::AttemptStatus>) -> Self {
+        Self(frunk::labelled_convert_from(status.0))
     }
 }

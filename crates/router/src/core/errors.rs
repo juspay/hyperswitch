@@ -234,6 +234,8 @@ pub enum ConnectorError {
     FailedToObtainPreferredConnector,
     #[error("An invalid connector name was provided")]
     InvalidConnectorName,
+    #[error("An invalid Wallet was used")]
+    InvalidWallet,
     #[error("Failed to handle connector response")]
     ResponseHandlingFailed,
     #[error("Missing required field: {field_name}")]
@@ -275,7 +277,7 @@ pub enum ConnectorError {
     WebhookResourceObjectNotFound,
     #[error("Invalid Date/time format")]
     InvalidDateFormat,
-    #[error("Payment Issuer does not match the Payment Data provided")]
+    #[error("Payment Method data / Payment Method Type / Payment Experience Mismatch ")]
     MismatchedPaymentData,
 }
 
@@ -398,6 +400,8 @@ pub enum WebhooksFlowError {
     MerchantWebhookURLNotConfigured,
     #[error("Payments core flow failed")]
     PaymentsCoreFailed,
+    #[error("Refunds core flow failed")]
+    RefundsCoreFailed,
     #[error("Webhook event creation failed")]
     WebhookEventCreationFailed,
     #[error("Unable to fork webhooks flow for outgoing webhooks")]
@@ -406,6 +410,8 @@ pub enum WebhooksFlowError {
     CallToMerchantFailed,
     #[error("Webhook not received by merchant")]
     NotReceivedByMerchant,
+    #[error("Resource not found")]
+    ResourceNotFound,
 }
 
 #[derive(Debug, thiserror::Error)]

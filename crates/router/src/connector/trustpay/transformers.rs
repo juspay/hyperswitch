@@ -9,7 +9,7 @@ use masking::Secret;
 use once_cell::sync::Lazy;
 use router_env::logger;
 use regex::Regex;
-use crate::{core::errors,types::{self,api, storage::enums, BrowserInformation}, pii::PeekInterface, connector::utils::{PaymentsRequestData}, services,};
+use crate::{core::errors,types::{self,api, storage::enums, BrowserInformation}, pii::PeekInterface, connector::utils::{RouterData}, services,};
 
 #[derive(Debug, Serialize, Deserialize, Eq, PartialEq)]
 pub enum TrustpayPaymentMethod {
@@ -190,7 +190,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for TrustpayPaymentsRequest  {
         };
         let params = get_mandatory_fields(&item)?;
         Ok(match item.request.payment_method_data {
-            api::PaymentMethod::Card(ref ccard) => Ok(Self {
+            api::PaymentMethodData::Card(ref ccard) => Ok(Self {
                 amount                      : Some(item.request.amount),
                 currency                    : Some(item.request.currency.to_string()),
                 pan                         : Some(ccard.card_number.peek().clone()),
@@ -223,7 +223,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for TrustpayPaymentsRequest  {
                 payment_type                : Some("Plain".to_string()),
                 ..Default::default()
             }),
-            api::PaymentMethod::BankRedirect(ref bank_redirection_data) => {
+            api::PaymentMethodData::BankRedirect(ref bank_redirection_data) => {
                 let auth: TrustpayAuthType = (&item.connector_auth_type)
                     .try_into()
                     .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
@@ -354,7 +354,7 @@ fn is_payment_successful(payment_status: &str) -> CustomResult<bool,errors::Conn
             #[deny(clippy::invalid_regex)]
             static TXN_STATUS_REGEX: Lazy<Option<Regex>> = Lazy::new(|| {
                 match Regex::new(
-                    r"^000\\.000\\.|^000\\.100\\.1|^000\\.3|^000\\.6|^000\\.400\\.0[^3]",
+                    r"^000\.000\.|^000\.100\.1|^000\.3|^000\.6|^000\.400\.0[^3]",
                 ) {
                     Ok(regex) => Some(regex),
                     Err(error) => {
@@ -385,11 +385,11 @@ fn get_transaction_status(payment_status : &str, redirect_url : Option<String>) 
     if payment_status == "000.200.000" {
         Ok((pending_status, None))
     }
-    else if is_payment_successful(payment_status)? {
-       Ok((enums:: AttemptStatus:: Charged, None))
-    }
     else if is_failed {
         Ok((enums:: AttemptStatus:: AuthorizationFailed, Some(failure_message.to_string())))
+    }
+    else if is_payment_successful(payment_status)? {
+       Ok((enums:: AttemptStatus:: Charged, None))
     }
     else{
         Ok((pending_status, None))
@@ -610,65 +610,189 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, TrustpayAuthUpdateResponse, T, t
         }
     }
 }
-
-//TODO: Fill the struct with respective fields
 // REFUND :
 // Type definition for RefundRequest
 #[derive(Default, Debug, Serialize)]
-pub struct TrustpayRefundRequest {}
+#[serde(rename_all = "camelCase")]
+pub struct TrustpayRefundRequestCards {
+    instance_id: String,
+    amount: String,
+    currency: String,
+    reference: String,
+}
 
-impl<F> TryFrom<&types::RefundsRouterData<F>> for TrustpayRefundRequest {
-    type Error = error_stack::Report<errors::ParsingError>;
-    fn try_from(_item: &types::RefundsRouterData<F>) -> Result<Self,Self::Error> {
-       todo!()
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TrustpayRefundRequestBankRedirect{
+    pub merchant_identification: MerchantIdentification,
+    pub payment_information: BankPaymentInformation,
+}
+
+#[derive(Default, Debug, Serialize)]
+pub struct TrustpayRefundRequestWrapper {
+    pub card_refunds: Option<TrustpayRefundRequestCards>,
+    pub bank_refunds: Option<TrustpayRefundRequestBankRedirect>,
+}
+
+impl<F> TryFrom<&types::RefundsRouterData<F>> for TrustpayRefundRequestWrapper {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self,Self::Error> {
+       match item.payment_method {
+           storage_models:: enums:: PaymentMethod::BankRedirect => {
+                let auth: TrustpayAuthType = (&item.connector_auth_type)
+                    .try_into()
+                    .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+                Ok(Self {
+                    bank_refunds: Some(TrustpayRefundRequestBankRedirect{
+                        merchant_identification: MerchantIdentification{
+                            project_id: auth.project_id,
+                        },
+                        payment_information: BankPaymentInformation{
+                            amount: Amount {
+                                amount: format!("{}.00", item.request.amount),
+                                currency: item.request.currency.to_string(),
+                            },
+                            references: References {
+                                merchant_reference: format!("{}_{}", item.payment_id, "1"),
+                            },
+                        },
+                    }),
+                    ..Default::default()
+                })
+           },
+           _ => {
+                Ok(Self {
+                    card_refunds: Some(TrustpayRefundRequestCards{
+                        instance_id: item.request.connector_transaction_id.clone(),
+                        amount: item.request.amount.to_string(),
+                        currency: item.request.currency.to_string(),
+                        reference: item.payment_id.clone(),
+                    }),
+                    ..Default::default()
+                })
+           }
+       }
     }
 }
 
-// Type definition for Refund Response
-
-#[allow(dead_code)]
-#[derive(Debug, Serialize, Default, Deserialize, Clone)]
-enum RefundStatus {
-    Succeeded,
-    Failed,
-    #[default]
-    Processing,
+#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RefundResponse {
+    pub status        : Option<i64>,
+    pub description   : Option<String>,
+    pub instance_id   : Option<String>,
+    pub payment_status : Option<String>,
+    pub payment_description : Option<String>,
+    pub result_info: Option<ResultInfo>,
 }
 
-impl From<RefundStatus> for enums::RefundStatus {
-    fn from(item: RefundStatus) -> Self {
-        match item {
-            RefundStatus::Succeeded => Self::Success,
-            RefundStatus::Failed => Self::Failure,
-            RefundStatus::Processing => Self::Pending,
-            //TODO: Review mapping
+impl<F> TryFrom<types::RefundsResponseRouterData<F, RefundResponse>>
+    for types::RefundsRouterData<F>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: types::RefundsResponseRouterData<F, RefundResponse>,
+    ) -> Result<Self, Self::Error> {
+        match(item.response.payment_status, item.response.instance_id, item.response.result_info){
+            (Some(payment_status), Some(instance_id), _) => {
+                let (refund_status, msg) = get_refund_status(&payment_status)?;
+                let error = if msg.is_some() {
+                    Some(types::ErrorResponse {
+                        code: payment_status,
+                        message: msg.unwrap_or_default(),
+                        reason: None,
+                        status_code: item.http_code,
+                    })
+                } else {
+                    None
+                };
+                let refund_response_data = Ok(types::RefundsResponseData {
+                    connector_refund_id: instance_id,
+                    refund_status,
+                });
+                Ok(Self {
+                    response: error.map_or_else(|| refund_response_data, Err),
+                    ..item.data
+                })
+            }
+            (_, _, Some(result_info)) => {
+                let (refund_status, msg) = get_refund_status_from_reesultinfo(result_info.result_code);
+                let error = if msg.is_some() {
+                    Some(types::ErrorResponse {
+                        code: result_info.result_code.to_string(),
+                        message: msg.unwrap_or_default().to_owned(),
+                        reason: None,
+                        status_code: item.http_code,
+                    })
+                } else {
+                    None
+                };
+                let refund_response_data = Ok(types::RefundsResponseData {
+                    connector_refund_id: "".to_owned(),
+                    refund_status,
+                });
+                Ok(Self {
+                    response: error.map_or_else(|| refund_response_data, Err),
+                    ..item.data
+                })
+            }
+            _ => Err(errors::ConnectorError::ResponseDeserializationFailed.into()),
         }
     }
 }
 
-//TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
-pub struct RefundResponse {
-}
-
-impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
-    for types::RefundsRouterData<api::Execute>
-{
-    type Error = error_stack::Report<errors::ParsingError>;
-    fn try_from(
-        _item: types::RefundsResponseRouterData<api::Execute, RefundResponse>,
-    ) -> Result<Self, Self::Error> {
-        todo!()
+fn get_refund_status(payment_status: &str) -> CustomResult<(enums:: RefundStatus, Option<String>),errors::ConnectorError> {
+    let (is_failed, failure_message) = is_payment_failed(payment_status);
+    if payment_status == "000.200.000" {
+        Ok((enums::RefundStatus::Pending, None))
+    }
+    else if is_failed {
+        Ok((enums::RefundStatus::Failure, Some(failure_message.to_string())))
+    }
+    else if is_payment_successful(payment_status)? {
+       Ok((enums::RefundStatus::Success, None))
+    }
+    else{
+        Ok((enums::RefundStatus::Pending, None))
     }
 }
 
-impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>> for types::RefundsRouterData<api::RSync>
-{
-     type Error = error_stack::Report<errors::ParsingError>;
-    fn try_from(_item: types::RefundsResponseRouterData<api::RSync, RefundResponse>) -> Result<Self,Self::Error> {
-         todo!()
-     }
- }
+fn get_refund_status_from_reesultinfo(result_code: i64) -> (enums:: RefundStatus, Option<&'static str>) {
+    match result_code {
+        1001000	=> (enums::RefundStatus::Success, None),
+        1130001	=> (enums::RefundStatus::Pending, Some("MapiPending")),
+        1130000	=> (enums::RefundStatus::Pending, Some("MapiSuccess")),
+        1130004	=> (enums::RefundStatus::Pending, Some("MapiProcessing")),
+        1130002	=> (enums::RefundStatus::Pending, Some("MapiAnnounced")),
+        1130003	=> (enums::RefundStatus::Pending, Some("MapiAuthorized")),
+        1130005	=> (enums::RefundStatus::Pending, Some("MapiAuthorizedOnly")),
+        1112008	=> (enums::RefundStatus::Failure, Some("InvalidPaymentState")),
+        1112009	=> (enums::RefundStatus::Failure, Some("RefundRejected")),
+        1122006	=> (enums::RefundStatus::Failure, Some("AccountCurrencyNotAllowed")),
+        1132000	=> (enums::RefundStatus::Failure, Some("InvalidMapiRequest")),
+        1132001	=> (enums::RefundStatus::Failure, Some("UnknownAccount")),
+        1132002	=> (enums::RefundStatus::Failure, Some("MerchantAccountDisabled")),
+        1132003	=> (enums::RefundStatus::Failure, Some("InvalidSign")),
+        1132004	=> (enums::RefundStatus::Failure, Some("DisposableBalance")),
+        1132005	=> (enums::RefundStatus::Failure, Some("TransactionNotFound")),
+        1132006	=> (enums::RefundStatus::Failure, Some("UnsupportedTransaction")),
+        1132007	=> (enums::RefundStatus::Failure, Some("GeneralMapiError")),
+        1132008	=> (enums::RefundStatus::Failure, Some("UnsupportedCurrencyConversion")),
+        1132009	=> (enums::RefundStatus::Failure, Some("UnknownMandate")),
+        1132010	=> (enums::RefundStatus::Failure, Some("CanceledMandate")),
+        1132011	=> (enums::RefundStatus::Failure, Some("MissingCid")),
+        1132012	=> (enums::RefundStatus::Failure, Some("MandateAlreadyPaid")),
+        1132013	=> (enums::RefundStatus::Failure, Some("AccountIsTesting")),
+        1132014	=> (enums::RefundStatus::Failure, Some("RequestThrottled")),
+        1133000	=> (enums::RefundStatus::Failure, Some("InvalidAuthentication")),
+        1133001	=> (enums::RefundStatus::Failure, Some("ServiceNotAllowed")),
+        1133002	=> (enums::RefundStatus::Failure, Some("PaymentRequestNotFound")),
+        1133003	=> (enums::RefundStatus::Failure, Some("UnexpectedGateway")),
+        1133004	=> (enums::RefundStatus::Failure, Some("MissingExternalId")),
+        1152000	=> (enums::RefundStatus::Failure, Some("RiskDecline")),
+        _       => (enums::RefundStatus::Pending, None)
+    }
+}
 
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
 pub struct Errors {

@@ -82,9 +82,7 @@ pub async fn list_payment_method_api(
         state.get_ref(),
         &req,
         payload,
-        |state, merchant_account, req| {
-            cards::list_payment_methods(&*state.store, merchant_account, req)
-        },
+        cards::list_payment_methods,
         &*auth,
     )
     .await
@@ -268,14 +266,11 @@ mod tests {
 
     #[test]
     fn test_custom_list_deserialization() {
-        let dummy_data = "amount=120&recurring_enabled=true&installment_payment_enabled=true&accepted_countries=US&accepted_countries=IN";
+        let dummy_data = "amount=120&recurring_enabled=true&installment_payment_enabled=true";
         let de_query: web::Query<ListPaymentMethodRequest> =
             web::Query::from_query(dummy_data).unwrap();
         let de_struct = de_query.into_inner();
-        assert_eq!(
-            de_struct.accepted_countries,
-            Some(vec!["US".to_string(), "IN".to_string()])
-        )
+        assert_eq!(de_struct.installment_payment_enabled, Some(true))
     }
 
     #[test]
