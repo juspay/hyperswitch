@@ -1,104 +1,228 @@
+use common_utils::ext_traits::StringExt;
 use error_stack::ResultExt;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    configs::settings::Locker,
+    configs::settings::{Jwekey, Locker},
     core::errors::{self, CustomResult},
     headers,
     pii::{self, prelude::*, Secret},
-    services::api as services,
+    services::{api as services, encryption},
     types::{api, storage},
-    utils::{self, OptionExt},
+    utils,
 };
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct AddCardRequest<'a> {
+pub struct StoreCardReq<'a> {
+    pub merchant_id: &'a str,
+    pub merchant_customer_id: String,
+    pub card: Card,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Card {
     pub card_number: Secret<String, pii::CardNumber>,
-    pub customer_id: &'a str,
+    pub name_on_card: Option<Secret<String>>,
     pub card_exp_month: Secret<String>,
     pub card_exp_year: Secret<String>,
-    pub merchant_id: &'a str,
-    pub email_address: Option<Secret<String, pii::Email>>,
-    pub name_on_card: Option<Secret<String>>,
-    pub nickname: Option<String>,
+    pub card_brand: Option<String>,
+    pub card_is_in: Option<String>,
+    pub nick_name: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct GetCard<'a> {
-    merchant_id: &'a str,
-    card_id: &'a str,
-}
-
-#[derive(Debug, Deserialize, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct AddCardResponse {
-    pub card_id: String,
-    pub external_id: String,
-    pub card_fingerprint: Secret<String>,
-    pub card_global_fingerprint: Secret<String>,
-    #[serde(rename = "merchant_id")]
-    pub merchant_id: Option<String>,
-    pub card_number: Option<Secret<String, pii::CardNumber>>,
-    pub card_exp_year: Option<Secret<String>>,
-    pub card_exp_month: Option<Secret<String>>,
-    pub name_on_card: Option<Secret<String>>,
-    pub nickname: Option<String>,
-    pub customer_id: Option<String>,
-    pub duplicate: Option<bool>,
-}
-
-#[derive(Debug, Deserialize, Serialize)]
-pub struct GetCardResponse {
-    pub card: AddCardResponse,
-}
-
-#[derive(Debug, Deserialize, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct DeleteCardResponse {
-    pub card_id: Option<String>,
-    pub external_id: Option<String>,
-    pub card_isin: Option<Secret<String>>,
+pub struct StoreCardResp {
     pub status: String,
+    pub error_message: Option<String>,
+    pub error_code: Option<String>,
+    pub payload: Option<StoreCardRespPayload>,
 }
 
-pub fn mk_add_card_request(
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StoreCardRespPayload {
+    pub card_reference: String,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CardReqBody<'a> {
+    pub merchant_id: &'a str,
+    pub merchant_customer_id: String,
+    pub card_reference: String,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RetrieveCardResp {
+    pub status: String,
+    pub error_message: Option<String>,
+    pub error_code: Option<String>,
+    pub payload: Option<RetrieveCardRespPayload>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RetrieveCardRespPayload {
+    pub card: Option<Card>,
+    pub enc_card_data: Option<String>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DeleteCardResp {
+    pub status: String,
+    pub error_message: Option<String>,
+    pub error_code: Option<String>,
+}
+
+pub fn basilisk_hs_key_id() -> &'static str {
+    "1"
+}
+
+pub fn get_dotted_jwe(jwe: encryption::JweBody) -> String {
+    let header = jwe.header;
+    let encryption_key = jwe.encrypted_key;
+    let iv = jwe.iv;
+    let encryption_payload = jwe.encrypted_payload;
+    let tag = jwe.tag;
+    format!("{header}.{encryption_key}.{iv}.{encryption_payload}.{tag}")
+}
+
+pub fn get_dotted_jws(jws: encryption::JwsBody) -> String {
+    let header = jws.header;
+    let payload = jws.payload;
+    let signature = jws.signature;
+    format!("{header}.{payload}.{signature}")
+}
+
+pub async fn get_decrypted_response_payload(
+    jwekey: &Jwekey,
+    jwe_body: encryption::JweBody,
+) -> CustomResult<String, errors::VaultError> {
+    let public_key = encryption::KeyHandler::get_kms_decrypted_key(
+        jwekey,
+        jwekey.vault_encryption_key.to_string(),
+    )
+    .await
+    .change_context(errors::VaultError::SaveCardFailed)
+    .attach_printable("Fails to get public key of vault")?;
+    let private_key =
+        encryption::KeyHandler::get_kms_decrypted_key(jwekey, jwekey.vault_private_key.to_string())
+            .await
+            .change_context(errors::VaultError::SaveCardFailed)
+            .attach_printable("Error getting private key for signing jws")?;
+
+    let jwt = get_dotted_jwe(jwe_body);
+    let key_id = basilisk_hs_key_id();
+    let jwe_decrypted = encryption::decrypt_jwe(jwekey, &jwt, key_id, key_id, private_key)
+        .await
+        .change_context(errors::VaultError::SaveCardFailed)
+        .attach_printable("Jwe Decryption failed for JweBody for vault")?;
+
+    let jws = jwe_decrypted
+        .parse_struct("JwsBody")
+        .change_context(errors::VaultError::ResponseDeserializationFailed)?;
+    let jws_body = get_dotted_jws(jws);
+
+    encryption::verify_sign(jws_body, &public_key)
+        .change_context(errors::VaultError::SaveCardFailed)
+        .attach_printable("Jws Decryption failed for JwsBody for vault")
+}
+
+pub async fn mk_basilisk_req(
+    jwekey: &Jwekey,
+    jws: &str,
+) -> CustomResult<encryption::JweBody, errors::VaultError> {
+    let jws_payload: Vec<&str> = jws.split('.').collect();
+    let jws_body = encryption::JwsBody {
+        header: jws_payload[0].to_owned(),
+        payload: jws_payload[1].to_owned(),
+        signature: jws_payload[2].to_owned(),
+    };
+    let payload = utils::Encode::<encryption::JwsBody>::encode_to_string_of_json(&jws_body)
+        .change_context(errors::VaultError::SaveCardFailed)?;
+
+    let public_key = encryption::KeyHandler::get_kms_decrypted_key(
+        jwekey,
+        jwekey.vault_encryption_key.to_string(),
+    )
+    .await
+    .change_context(errors::VaultError::SaveCardFailed)
+    .attach_printable("Fails to get encryption key of vault")?;
+
+    let jwe_encrypted = encryption::encrypt_jwe(jwekey, &payload, public_key)
+        .await
+        .change_context(errors::VaultError::SaveCardFailed)
+        .attach_printable("Error on jwe encrypt")?;
+    let jwe_payload: Vec<&str> = jwe_encrypted.split('.').collect();
+    Ok(encryption::JweBody {
+        header: jwe_payload[0].to_owned(),
+        iv: jwe_payload[2].to_owned(),
+        encrypted_payload: jwe_payload[3].to_owned(),
+        tag: jwe_payload[4].to_owned(),
+        encrypted_key: jwe_payload[1].to_owned(),
+    })
+}
+
+pub async fn mk_add_card_request_hs(
+    jwekey: &Jwekey,
     locker: &Locker,
     card: &api::CardDetail,
     customer_id: &str,
     _req: &api::CreatePaymentMethod,
-    locker_id: &str,
+    _locker_id: &str,
     merchant_id: &str,
 ) -> CustomResult<services::Request, errors::VaultError> {
-    let customer_id = if cfg!(feature = "sandbox") {
+    let merchant_customer_id = if cfg!(feature = "sandbox") {
         format!("{customer_id}::{merchant_id}")
     } else {
         customer_id.to_owned()
     };
-    let add_card_req = AddCardRequest {
-        card_number: card.card_number.clone(),
-        customer_id: &customer_id,
-        card_exp_month: card.card_exp_month.clone(),
-        card_exp_year: card.card_exp_year.clone(),
-        merchant_id: locker_id,
-        email_address: Some("dummy@gmail.com".to_string().into()), //
-        name_on_card: Some("juspay".to_string().into()),           // [#256]
-        nickname: Some("router".to_string()),                      //
+    let card = Card {
+        card_number: card.card_number.to_owned(),
+        name_on_card: card.card_holder_name.to_owned(),
+        card_exp_month: card.card_exp_month.to_owned(),
+        card_exp_year: card.card_exp_year.to_owned(),
+        card_brand: None,
+        card_is_in: None,
+        nick_name: None,
     };
-    let body = utils::Encode::<AddCardRequest<'_>>::encode(&add_card_req)
+    let store_card_req = StoreCardReq {
+        merchant_id,
+        merchant_customer_id,
+        card,
+    };
+    let payload = utils::Encode::<StoreCardReq<'_>>::encode_to_string_of_json(&store_card_req)
+        .change_context(errors::VaultError::RequestEncodingFailed)?;
+
+    let private_key =
+        encryption::KeyHandler::get_kms_decrypted_key(jwekey, jwekey.vault_private_key.to_string())
+            .await
+            .change_context(errors::VaultError::SaveCardFailed)
+            .attach_printable("Error getting private key for signing jws")?;
+
+    let jws = encryption::jws_sign_payload(&payload, basilisk_hs_key_id(), private_key)
+        .await
+        .change_context(errors::VaultError::RequestEncodingFailed)?;
+
+    let jwe_payload = mk_basilisk_req(jwekey, &jws).await?;
+
+    let body = utils::Encode::<encryption::JweBody>::encode(&jwe_payload)
         .change_context(errors::VaultError::RequestEncodingFailed)?;
     let mut url = locker.host.to_owned();
-    url.push_str("/card/addCard");
+    url.push_str("/cards/add");
     let mut request = services::Request::new(services::Method::Post, &url);
-    request.add_header(headers::CONTENT_TYPE, "application/x-www-form-urlencoded");
     request.set_body(body);
     Ok(request)
 }
 
-pub fn mk_add_card_response(
+pub fn mk_add_card_response_hs(
     card: api::CardDetail,
-    response: AddCardResponse,
+    card_reference: String,
     req: api::CreatePaymentMethod,
     merchant_id: &str,
 ) -> api::PaymentMethodResponse {
@@ -110,14 +234,14 @@ pub fn mk_add_card_response(
         card_number: Some(card.card_number),
         expiry_month: Some(card.card_exp_month),
         expiry_year: Some(card.card_exp_year),
-        card_token: Some(response.external_id.into()), // [#256]
-        card_fingerprint: Some(response.card_fingerprint),
-        card_holder_name: None,
+        card_token: None,       // [#256]
+        card_fingerprint: None, // fingerprint not send by basilisk-hs need to have this feature in case we need it in future
+        card_holder_name: card.card_holder_name,
     };
     api::PaymentMethodResponse {
         merchant_id: merchant_id.to_owned(),
         customer_id: req.customer_id,
-        payment_method_id: response.card_id,
+        payment_method_id: card_reference,
         payment_method: req.payment_method,
         payment_method_type: req.payment_method_type,
         payment_method_issuer: req.payment_method_issuer,
@@ -131,65 +255,103 @@ pub fn mk_add_card_response(
     }
 }
 
-pub fn mk_get_card_request<'a>(
+pub async fn mk_get_card_request_hs(
+    jwekey: &Jwekey,
     locker: &Locker,
-    locker_id: &'a str,
-    card_id: &'a str,
+    customer_id: &str,
+    merchant_id: &str,
+    card_reference: &str,
 ) -> CustomResult<services::Request, errors::VaultError> {
-    let get_card_req = GetCard {
-        merchant_id: locker_id,
-        card_id,
+    let merchant_customer_id = if cfg!(feature = "sandbox") {
+        format!("{customer_id}::{merchant_id}")
+    } else {
+        customer_id.to_owned()
     };
+    let card_req_body = CardReqBody {
+        merchant_id,
+        merchant_customer_id,
+        card_reference: card_reference.to_owned(),
+    };
+    let payload = utils::Encode::<CardReqBody<'_>>::encode_to_string_of_json(&card_req_body)
+        .change_context(errors::VaultError::RequestEncodingFailed)?;
 
-    let body = utils::Encode::<GetCard<'_>>::encode(&get_card_req)
+    let private_key =
+        encryption::KeyHandler::get_kms_decrypted_key(jwekey, jwekey.vault_private_key.to_string())
+            .await
+            .change_context(errors::VaultError::SaveCardFailed)
+            .attach_printable("Error getting private key for signing jws")?;
+
+    let jws = encryption::jws_sign_payload(&payload, basilisk_hs_key_id(), private_key)
+        .await
+        .change_context(errors::VaultError::RequestEncodingFailed)?;
+
+    let jwe_payload = mk_basilisk_req(jwekey, &jws).await?;
+
+    let body = utils::Encode::<encryption::JweBody>::encode(&jwe_payload)
         .change_context(errors::VaultError::RequestEncodingFailed)?;
     let mut url = locker.host.to_owned();
-    url.push_str("/card/getCard");
+    url.push_str("/cards/retrieve");
     let mut request = services::Request::new(services::Method::Post, &url);
-    request.add_header(headers::CONTENT_TYPE, "application/x-www-form-urlencoded");
     request.set_body(body);
     Ok(request)
 }
 
-pub fn mk_delete_card_request<'a>(
+pub async fn mk_delete_card_request_hs(
+    jwekey: &Jwekey,
     locker: &Locker,
-    merchant_id: &'a str,
-    card_id: &'a str,
+    customer_id: &str,
+    merchant_id: &str,
+    card_reference: &str,
 ) -> CustomResult<services::Request, errors::VaultError> {
-    let delete_card_req = GetCard {
-        merchant_id,
-        card_id,
+    let merchant_customer_id = if cfg!(feature = "sandbox") {
+        format!("{customer_id}::{merchant_id}")
+    } else {
+        customer_id.to_owned()
     };
-    let body = utils::Encode::<GetCard<'_>>::encode(&delete_card_req)
+    let card_req_body = CardReqBody {
+        merchant_id,
+        merchant_customer_id,
+        card_reference: card_reference.to_owned(),
+    };
+    let payload = utils::Encode::<CardReqBody<'_>>::encode_to_string_of_json(&card_req_body)
+        .change_context(errors::VaultError::RequestEncodingFailed)?;
+
+    let private_key =
+        encryption::KeyHandler::get_kms_decrypted_key(jwekey, jwekey.vault_private_key.to_string())
+            .await
+            .change_context(errors::VaultError::SaveCardFailed)
+            .attach_printable("Error getting private key for signing jws")?;
+
+    let jws = encryption::jws_sign_payload(&payload, basilisk_hs_key_id(), private_key)
+        .await
+        .change_context(errors::VaultError::RequestEncodingFailed)?;
+
+    let jwe_payload = mk_basilisk_req(jwekey, &jws).await?;
+
+    let body = utils::Encode::<encryption::JweBody>::encode(&jwe_payload)
         .change_context(errors::VaultError::RequestEncodingFailed)?;
     let mut url = locker.host.to_owned();
-    url.push_str("/card/deleteCard");
+    url.push_str("/cards/delete");
     let mut request = services::Request::new(services::Method::Post, &url);
-    request.add_header(headers::X_ROUTER, "test");
-    request.add_header(headers::CONTENT_TYPE, "application/x-www-form-urlencoded");
-    //request.add_content_type(Content::FORMURLENCODED);
     request.set_body(body);
     Ok(request)
 }
 
 pub fn get_card_detail(
     pm: &storage::PaymentMethod,
-    response: AddCardResponse,
+    response: Card,
 ) -> CustomResult<api::CardDetailFromLocker, errors::VaultError> {
-    let card_number = response
-        .card_number
-        .get_required_value("card_number")
-        .change_context(errors::VaultError::FetchCardFailed)?;
+    let card_number = response.card_number;
     let mut last4_digits = card_number.peek().to_owned();
     let card_detail = api::CardDetailFromLocker {
-        scheme: pm.scheme.clone(),
+        scheme: pm.scheme.to_owned(),
         issuer_country: pm.issuer_country.clone(),
         last4_digits: Some(last4_digits.split_off(last4_digits.len() - 4)),
         card_number: Some(card_number),
-        expiry_month: response.card_exp_month,
-        expiry_year: response.card_exp_year,
-        card_token: Some(response.external_id.into()), //TODO ?
-        card_fingerprint: Some(response.card_fingerprint),
+        expiry_month: Some(response.card_exp_month),
+        expiry_year: Some(response.card_exp_year),
+        card_token: None,
+        card_fingerprint: None,
         card_holder_name: None,
     };
     Ok(card_detail)

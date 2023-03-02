@@ -2,14 +2,15 @@ use std::{num::Wrapping, str};
 
 use error_stack::{report, IntoReport, ResultExt};
 #[cfg(feature = "basilisk")]
-use josekit::{jwe, jws, jwt};
+use josekit::{jwe, jws};
 use rand;
 use ring::{aead::*, error::Unspecified};
+use serde::{Deserialize, Serialize};
 
 use crate::{
     configs::settings::Jwekey,
     core::errors::{self, CustomResult},
-    logger, utils,
+    utils,
 };
 
 struct NonceGen {
@@ -48,6 +49,24 @@ impl NonceSequence for NonceGen {
         let nonce = Nonce::assume_unique_for_key(value);
         Ok(nonce)
     }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct JwsBody {
+    pub header: String,
+    pub payload: String,
+    pub signature: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct JweBody {
+    pub header: String,
+    pub iv: String,
+    #[serde(rename = "encryptedPayload")]
+    pub encrypted_payload: String,
+    pub tag: String,
+    #[serde(rename = "encryptedKey")]
+    pub encrypted_key: String,
 }
 
 pub struct KeyHandler;
@@ -167,27 +186,13 @@ pub fn decrypt(mut data: Vec<u8>, key: &[u8]) -> CustomResult<String, errors::En
     Ok(response.to_string())
 }
 
-pub fn get_key_id(keys: &Jwekey) -> &str {
-    let key_identifier = "1"; // [#46]: Fetch this value from redis or external sources
-    if key_identifier == "1" {
-        &keys.locker_key_identifier1
-    } else {
-        &keys.locker_key_identifier2
-    }
-}
-
 #[cfg(feature = "basilisk")]
 pub async fn encrypt_jwe(
-    keys: &Jwekey,
+    _keys: &Jwekey,
     msg: &str,
+    public_key: String,
 ) -> CustomResult<String, errors::EncryptionError> {
     let alg = jwe::RSA_OAEP_256;
-    let key_id = get_key_id(keys);
-    let public_key = if key_id == keys.locker_key_identifier1 {
-        KeyHandler::get_kms_decrypted_key(keys, keys.locker_encryption_key1.to_string()).await?
-    } else {
-        KeyHandler::get_kms_decrypted_key(keys, keys.locker_encryption_key2.to_string()).await?
-    };
     let payload = msg.as_bytes();
     let enc = "A256GCM";
     let mut src_header = jwe::JweHeader::new();
@@ -205,45 +210,14 @@ pub async fn encrypt_jwe(
     Ok(jwt)
 }
 
-pub async fn jws_sign_payload(
-    keys: &Jwekey,
-    msg: &str,
-) -> CustomResult<String, errors::EncryptionError> {
-    let private_key =
-        KeyHandler::get_kms_decrypted_key(keys, keys.vault_private_key.to_string()).await?;
-    let basilisk_hs_key =
-        KeyHandler::get_kms_decrypted_key(keys, keys.vault_encryption_key.to_string()).await?;
-    let signer = jws::RS256
-        .signer_from_pem(&private_key)
-        .into_report()
-        .change_context(errors::EncryptionError)
-        .attach_printable("Error getting signer")?;
-
-    let mut header = jws::JwsHeader::new();
-    header.set_token_type("JWT");
-
-    let mut payload = jwt::JwtPayload::new();
-    payload.set_subject(msg);
-
-    let jwt = jwt::encode_with_signer(&payload, &header, &signer)
-        .into_report()
-        .change_context(errors::EncryptionError)
-        .attach_printable("Error getting signed JWT")?;
-    Ok(jwt)
-}
-
 pub async fn decrypt_jwe(
-    keys: &Jwekey,
+    _keys: &Jwekey,
     jwt: &str,
+    key_id: &str,
     resp_key_id: &str,
+    private_key: String,
 ) -> CustomResult<String, errors::EncryptionError> {
     let alg = jwe::RSA_OAEP_256;
-    let key_id = get_key_id(keys);
-    let private_key = if key_id == keys.locker_key_identifier1 {
-        KeyHandler::get_kms_decrypted_key(keys, keys.locker_decryption_key1.to_string()).await?
-    } else {
-        KeyHandler::get_kms_decrypted_key(keys, keys.locker_decryption_key2.to_string()).await?
-    };
 
     let decrypter = alg
         .decrypter_from_pem(private_key)
@@ -259,6 +233,50 @@ pub async fn decrypt_jwe(
         Err(report!(errors::EncryptionError).attach_printable("Missing ciphertext blob"))
             .attach_printable("key_id mismatch, Error authenticating response")
     })?;
+    let resp = String::from_utf8(dst_payload)
+        .into_report()
+        .change_context(errors::EncryptionError)
+        .attach_printable("Could not convert to UTF-8")?;
+    Ok(resp)
+}
+
+pub async fn jws_sign_payload(
+    msg: &str,
+    kid: &str,
+    private_key: String,
+) -> CustomResult<String, errors::EncryptionError> {
+    let alg = jws::RS256;
+    let mut src_header = jws::JwsHeader::new();
+    src_header.set_token_type("JWT");
+    src_header.set_key_id(kid);
+    let payload = msg.as_bytes();
+    let signer = alg
+        .signer_from_pem(private_key)
+        .into_report()
+        .change_context(errors::EncryptionError)
+        .attach_printable("Error getting signer")?;
+    let jwt = jws::serialize_compact(payload, &src_header, &signer)
+        .into_report()
+        .change_context(errors::EncryptionError)
+        .attach_printable("Error getting signed jwt string")?;
+    Ok(jwt)
+}
+
+pub fn verify_sign(
+    jws_body: String,
+    key: &String,
+) -> CustomResult<String, errors::EncryptionError> {
+    let alg = jws::RS256;
+    let input = jws_body.as_bytes();
+    let verifier = alg
+        .verifier_from_pem(key)
+        .into_report()
+        .change_context(errors::EncryptionError)
+        .attach_printable("Error getting verifier")?;
+    let (dst_payload, _dst_header) = jws::deserialize_compact(input, &verifier)
+        .into_report()
+        .change_context(errors::EncryptionError)
+        .attach_printable("Error getting Decrypted jws")?;
     let resp = String::from_utf8(dst_payload)
         .into_report()
         .change_context(errors::EncryptionError)
@@ -294,17 +312,32 @@ mod tests {
     #[actix_rt::test]
     async fn test_jwe() {
         let conf = settings::Settings::new().unwrap();
-        let jwt = encrypt_jwe(&conf.jwekey, "request_payload").await.unwrap();
-        let payload = decrypt_jwe(&conf.jwekey, &jwt, &conf.jwekey.locker_key_identifier1)
-            .await
-            .unwrap();
+        let jwt = encrypt_jwe(
+            &conf.jwekey,
+            "request_payload",
+            conf.jwekey.locker_encryption_key1.to_owned(),
+        )
+        .await
+        .unwrap();
+        let payload = decrypt_jwe(
+            &conf.jwekey,
+            &jwt,
+            &conf.jwekey.locker_key_identifier1,
+            &conf.jwekey.locker_key_identifier1,
+            conf.jwekey.locker_decryption_key1.to_owned(),
+        )
+        .await
+        .unwrap();
         assert_eq!("request_payload".to_string(), payload)
     }
 
     #[actix_rt::test]
     async fn test_jws() {
         let conf = settings::Settings::new().unwrap();
-        let jwt = jws_sign_payload(&conf.jwekey, "encrypt jws").await.unwrap();
-        ()
+        let jwt = jws_sign_payload("jws payload", "1", conf.jwekey.vault_private_key)
+            .await
+            .unwrap();
+        let payload = verify_sign(jwt, &conf.jwekey.vault_encryption_key).unwrap();
+        assert_eq!("jws payload".to_string(), payload)
     }
 }
