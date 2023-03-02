@@ -254,6 +254,7 @@ pub enum ConnectorError {
     NotSupported {
         payment_method: String,
         connector: &'static str,
+        payment_experience: String,
     },
     #[error("Missing connector transaction ID")]
     MissingConnectorTransactionID,

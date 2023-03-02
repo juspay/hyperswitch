@@ -18,7 +18,7 @@ use crate::{
         self,
         api::{self, refunds},
         storage::{self, enums, ProcessTrackerExt},
-        transformers::{Foreign, ForeignInto},
+        transformers::{ForeignFrom, ForeignInto},
     },
     utils::{self, OptionExt},
 };
@@ -560,10 +560,10 @@ pub async fn refund_list(
     ))
 }
 
-impl From<Foreign<storage::Refund>> for Foreign<api::RefundResponse> {
-    fn from(refund: Foreign<storage::Refund>) -> Self {
-        let refund = refund.0;
-        api::RefundResponse {
+impl ForeignFrom<storage::Refund> for api::RefundResponse {
+    fn foreign_from(refund: storage::Refund) -> Self {
+        let refund = refund;
+        Self {
             payment_id: refund.payment_id,
             refund_id: refund.refund_id,
             amount: refund.refund_amount,
@@ -576,7 +576,6 @@ impl From<Foreign<storage::Refund>> for Foreign<api::RefundResponse> {
             created_at: Some(refund.created_at),
             updated_at: Some(refund.updated_at),
         }
-        .into()
     }
 }
 

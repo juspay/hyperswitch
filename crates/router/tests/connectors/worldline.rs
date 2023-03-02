@@ -91,7 +91,7 @@ impl WorldlineTest {
 #[actix_web::test]
 async fn should_requires_manual_authorization() {
     let authorize_data = WorldlineTest::get_payment_authorize_data(
-        "4012000033330026",
+        "5424 1802 7979 1732",
         "10",
         "25",
         "123",
@@ -135,7 +135,8 @@ async fn should_throw_not_implemented_for_unsupported_issuer() {
         *response.unwrap_err().current_context(),
         errors::ConnectorError::NotSupported {
             payment_method: "Maestro".to_string(),
-            connector: "worldline"
+            connector: "worldline",
+            payment_experience: "redirect_to_url".to_string(),
         }
     )
 }
@@ -143,7 +144,7 @@ async fn should_throw_not_implemented_for_unsupported_issuer() {
 #[actix_web::test]
 async fn should_throw_missing_required_field_for_country() {
     let authorize_data = WorldlineTest::get_payment_authorize_data(
-        "4012000033330026",
+        "4012 0000 3333 0026",
         "10",
         "2025",
         "123",
@@ -191,7 +192,7 @@ async fn should_fail_payment_for_invalid_cvc() {
 async fn should_sync_manual_auth_payment() {
     let connector = WorldlineTest {};
     let authorize_data = WorldlineTest::get_payment_authorize_data(
-        "4012000033330026",
+        "4012 0000 3333 0026",
         "10",
         "2025",
         "123",
@@ -257,7 +258,7 @@ async fn should_sync_auto_auth_payment() {
 async fn should_capture_authorized_payment() {
     let connector = WorldlineTest {};
     let authorize_data = WorldlineTest::get_payment_authorize_data(
-        "4012000033330026",
+        "4012 0000 3333 0026",
         "10",
         "2025",
         "123",
@@ -296,7 +297,7 @@ async fn should_fail_capture_payment() {
 async fn should_cancel_unauthorized_payment() {
     let connector = WorldlineTest {};
     let authorize_data = WorldlineTest::get_payment_authorize_data(
-        "4012000033330026",
+        "4012 0000 3333 0026",
         "10",
         "25",
         "123",
@@ -356,7 +357,7 @@ async fn should_fail_cancel_with_invalid_payment_id() {
 async fn should_fail_refund_with_invalid_payment_status() {
     let connector = WorldlineTest {};
     let authorize_data = WorldlineTest::get_payment_authorize_data(
-        "4012000033330026",
+        "4012 0000 3333 0026",
         "10",
         "25",
         "123",

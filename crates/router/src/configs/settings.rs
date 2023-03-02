@@ -78,9 +78,14 @@ pub struct ConnectorFilters(pub HashMap<String, PaymentMethodFilters>);
 
 #[derive(Debug, Deserialize, Clone, Default)]
 #[serde(transparent)]
-pub struct PaymentMethodFilters(
-    pub HashMap<api_models::enums::PaymentMethodType, CurrencyCountryFilter>,
-);
+pub struct PaymentMethodFilters(pub HashMap<PaymentMethodFilterKey, CurrencyCountryFilter>);
+
+#[derive(Debug, Deserialize, Clone, PartialEq, Eq, Hash)]
+#[serde(untagged)]
+pub enum PaymentMethodFilterKey {
+    PaymentMethodType(api_models::enums::PaymentMethodType),
+    CardNetwork(api_models::enums::CardNetwork),
+}
 
 #[derive(Debug, Deserialize, Clone, Default)]
 #[serde(default)]

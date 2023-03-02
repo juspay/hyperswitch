@@ -356,6 +356,7 @@ pub enum PaymentMethodIssuerCode {
     Debug,
     serde::Serialize,
     serde::Deserialize,
+    strum::Display,
     ToSchema,
     Default,
     frunk::LabelledGeneric,
@@ -709,6 +710,7 @@ pub enum BankNames {
     strum::Display,
     strum::EnumString,
     frunk::LabelledGeneric,
+    ToSchema,
 )]
 pub enum CardNetwork {
     Visa,
