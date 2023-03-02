@@ -4,11 +4,7 @@ use url::Url;
 use crate::{
     core::errors,
     pii, services,
-    types::{
-        self, api,
-        storage::enums,
-        transformers::{self, ForeignFrom},
-    },
+    types::{self, api, storage::enums, transformers::ForeignFrom},
 };
 
 #[derive(Debug, Serialize)]
@@ -73,11 +69,10 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         let ccard = match item.request.payment_method_data {
-            api::PaymentMethod::Card(ref ccard) => Some(ccard),
-            api::PaymentMethod::BankTransfer
-            | api::PaymentMethod::Wallet(_)
-            | api::PaymentMethod::PayLater(_)
-            | api::PaymentMethod::Paypal => None,
+            api::PaymentMethodData::Card(ref ccard) => Some(ccard),
+            api::PaymentMethodData::Wallet(_)
+            | api::PaymentMethodData::PayLater(_)
+            | api::PaymentMethodData::BankRedirect(_) => None,
         };
 
         let three_ds = match item.auth_type {
@@ -139,38 +134,30 @@ pub enum CheckoutPaymentStatus {
     Captured,
 }
 
-impl From<transformers::Foreign<(CheckoutPaymentStatus, Option<enums::CaptureMethod>)>>
-    for transformers::Foreign<enums::AttemptStatus>
-{
-    fn from(
-        item: transformers::Foreign<(CheckoutPaymentStatus, Option<enums::CaptureMethod>)>,
-    ) -> Self {
-        let item = item.0;
+impl ForeignFrom<(CheckoutPaymentStatus, Option<enums::CaptureMethod>)> for enums::AttemptStatus {
+    fn foreign_from(item: (CheckoutPaymentStatus, Option<enums::CaptureMethod>)) -> Self {
         let (status, capture_method) = item;
         match status {
             CheckoutPaymentStatus::Authorized => {
                 if capture_method == Some(enums::CaptureMethod::Automatic)
                     || capture_method.is_none()
                 {
-                    enums::AttemptStatus::Charged
+                    Self::Charged
                 } else {
-                    enums::AttemptStatus::Authorized
+                    Self::Authorized
                 }
             }
-            CheckoutPaymentStatus::Captured => enums::AttemptStatus::Charged,
-            CheckoutPaymentStatus::Declined => enums::AttemptStatus::Failure,
-            CheckoutPaymentStatus::Pending => enums::AttemptStatus::AuthenticationPending,
-            CheckoutPaymentStatus::CardVerified => enums::AttemptStatus::Pending,
+            CheckoutPaymentStatus::Captured => Self::Charged,
+            CheckoutPaymentStatus::Declined => Self::Failure,
+            CheckoutPaymentStatus::Pending => Self::AuthenticationPending,
+            CheckoutPaymentStatus::CardVerified => Self::Pending,
         }
-        .into()
     }
 }
 
-impl From<transformers::Foreign<(CheckoutPaymentStatus, Option<Balances>)>>
-    for transformers::Foreign<enums::AttemptStatus>
-{
-    fn from(item: transformers::Foreign<(CheckoutPaymentStatus, Option<Balances>)>) -> Self {
-        let (status, balances) = item.0;
+impl ForeignFrom<(CheckoutPaymentStatus, Option<Balances>)> for enums::AttemptStatus {
+    fn foreign_from(item: (CheckoutPaymentStatus, Option<Balances>)) -> Self {
+        let (status, balances) = item;
 
         match status {
             CheckoutPaymentStatus::Authorized => {
@@ -178,17 +165,16 @@ impl From<transformers::Foreign<(CheckoutPaymentStatus, Option<Balances>)>>
                     available_to_capture: 0,
                 }) = balances
                 {
-                    enums::AttemptStatus::Charged
+                    Self::Charged
                 } else {
-                    enums::AttemptStatus::Authorized
+                    Self::Authorized
                 }
             }
-            CheckoutPaymentStatus::Captured => enums::AttemptStatus::Charged,
-            CheckoutPaymentStatus::Declined => enums::AttemptStatus::Failure,
-            CheckoutPaymentStatus::Pending => enums::AttemptStatus::AuthenticationPending,
-            CheckoutPaymentStatus::CardVerified => enums::AttemptStatus::Pending,
+            CheckoutPaymentStatus::Captured => Self::Charged,
+            CheckoutPaymentStatus::Declined => Self::Failure,
+            CheckoutPaymentStatus::Pending => Self::AuthenticationPending,
+            CheckoutPaymentStatus::CardVerified => Self::Pending,
         }
-        .into()
     }
 }
 

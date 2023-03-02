@@ -303,4 +303,5 @@ impl PaymentsResponseScheme {
 pub struct WorldpayErrorResponse {
     pub error_name: String,
     pub message: String,
+    pub validation_errors: Option<serde_json::Value>,
 }

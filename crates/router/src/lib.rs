@@ -50,6 +50,10 @@ pub mod headers {
     pub const X_API_VERSION: &str = "X-ApiVersion";
     pub const DATE: &str = "Date";
     pub const X_MERCHANT_ID: &str = "X-Merchant-Id";
+    pub const X_LOGIN: &str = "X-Login";
+    pub const X_TRANS_KEY: &str = "X-Trans-Key";
+    pub const X_VERSION: &str = "X-Version";
+    pub const X_DATE: &str = "X-Date";
 }
 
 pub mod pii {
@@ -73,6 +77,15 @@ pub fn mk_app(
     >,
 > {
     let mut server_app = get_application_builder(request_body_limit);
+
+    #[cfg(feature = "openapi")]
+    {
+        use utoipa::OpenApi;
+        server_app = server_app.service(
+            utoipa_swagger_ui::SwaggerUi::new("/docs/{_:.*}")
+                .url("/docs/openapi.json", openapi::ApiDoc::openapi()),
+        );
+    }
 
     #[cfg(any(feature = "olap", feature = "oltp"))]
     {
