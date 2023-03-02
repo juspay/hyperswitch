@@ -152,9 +152,9 @@ pub(super) fn proxy_bypass_urls(locker: &Locker) -> Vec<String> {
     let locker_host = locker.host.to_owned();
     let basilisk_host = locker.basilisk_host.to_owned();
     vec![
-        format!("{locker_host}/card/addCard"),
-        format!("{locker_host}/card/getCard"),
-        format!("{locker_host}/card/deleteCard"),
+        format!("{locker_host}/cards/add"),
+        format!("{locker_host}/cards/retrieve"),
+        format!("{locker_host}/cards/delete"),
         format!("{basilisk_host}/tokenize"),
         format!("{basilisk_host}/tokenize/get"),
         format!("{basilisk_host}/tokenize/delete"),

@@ -13,7 +13,6 @@ use crate::{
 };
 
 #[derive(Debug, Deserialize, Serialize)]
-#[serde(rename_all = "camelCase")]
 pub struct StoreCardReq<'a> {
     pub merchant_id: &'a str,
     pub merchant_customer_id: String,
@@ -21,19 +20,17 @@ pub struct StoreCardReq<'a> {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-#[serde(rename_all = "camelCase")]
 pub struct Card {
     pub card_number: Secret<String, pii::CardNumber>,
     pub name_on_card: Option<Secret<String>>,
     pub card_exp_month: Secret<String>,
     pub card_exp_year: Secret<String>,
     pub card_brand: Option<String>,
-    pub card_is_in: Option<String>,
+    pub card_isin: Option<String>,
     pub nick_name: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-#[serde(rename_all = "camelCase")]
 pub struct StoreCardResp {
     pub status: String,
     pub error_message: Option<String>,
@@ -42,13 +39,11 @@ pub struct StoreCardResp {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-#[serde(rename_all = "camelCase")]
 pub struct StoreCardRespPayload {
     pub card_reference: String,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-#[serde(rename_all = "camelCase")]
 pub struct CardReqBody<'a> {
     pub merchant_id: &'a str,
     pub merchant_customer_id: String,
@@ -56,7 +51,6 @@ pub struct CardReqBody<'a> {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-#[serde(rename_all = "camelCase")]
 pub struct RetrieveCardResp {
     pub status: String,
     pub error_message: Option<String>,
@@ -65,14 +59,12 @@ pub struct RetrieveCardResp {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-#[serde(rename_all = "camelCase")]
 pub struct RetrieveCardRespPayload {
     pub card: Option<Card>,
     pub enc_card_data: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-#[serde(rename_all = "camelCase")]
 pub struct DeleteCardResp {
     pub status: String,
     pub error_message: Option<String>,
@@ -188,7 +180,7 @@ pub async fn mk_add_card_request_hs(
         card_exp_month: card.card_exp_month.to_owned(),
         card_exp_year: card.card_exp_year.to_owned(),
         card_brand: None,
-        card_is_in: None,
+        card_isin: None,
         nick_name: None,
     };
     let store_card_req = StoreCardReq {

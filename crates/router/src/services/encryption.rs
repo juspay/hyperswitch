@@ -1,7 +1,6 @@
 use std::{num::Wrapping, str};
 
 use error_stack::{report, IntoReport, ResultExt};
-#[cfg(feature = "basilisk")]
 use josekit::{jwe, jws};
 use rand;
 use ring::{aead::*, error::Unspecified};
@@ -186,7 +185,6 @@ pub fn decrypt(mut data: Vec<u8>, key: &[u8]) -> CustomResult<String, errors::En
     Ok(response.to_string())
 }
 
-#[cfg(feature = "basilisk")]
 pub async fn encrypt_jwe(
     _keys: &Jwekey,
     msg: &str,

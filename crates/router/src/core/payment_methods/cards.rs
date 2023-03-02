@@ -339,7 +339,7 @@ pub async fn mock_get_card<'a>(
             card_exp_month: locker_mock_up.card_exp_month.into(),
             card_exp_year: locker_mock_up.card_exp_year.into(),
             card_brand: None,
-            card_is_in: None,
+            card_isin: None,
             nick_name: None,
         }),
         enc_card_data: None,
