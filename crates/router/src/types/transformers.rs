@@ -1,5 +1,3 @@
-use std::convert::TryInto;
-
 use api_models::enums as api_enums;
 use common_utils::ext_traits::ValueExt;
 use error_stack::ResultExt;
@@ -9,16 +7,6 @@ use crate::{
     core::errors,
     types::{api as api_types, storage},
 };
-
-pub struct Foreign<T>(pub T);
-
-type F<T> = Foreign<T>;
-
-impl<T> From<T> for Foreign<T> {
-    fn from(val: T) -> Self {
-        Self(val)
-    }
-}
 
 pub trait ForeignInto<T> {
     fn foreign_into(self) -> T;
@@ -42,142 +30,105 @@ pub trait ForeignTryFrom<F>: Sized {
 
 impl<F, T> ForeignInto<T> for F
 where
-    Foreign<F>: Into<Foreign<T>>,
+    T: ForeignFrom<F>,
 {
     fn foreign_into(self) -> T {
-        let f_from = Foreign(self);
-        let f_to: Foreign<T> = f_from.into();
-        f_to.0
+        T::foreign_from(self)
     }
 }
 
 impl<F, T> ForeignTryInto<T> for F
 where
-    Foreign<F>: TryInto<Foreign<T>>,
+    T: ForeignTryFrom<F>,
 {
-    type Error = <Foreign<F> as TryInto<Foreign<T>>>::Error;
+    type Error = <T as ForeignTryFrom<F>>::Error;
 
     fn foreign_try_into(self) -> Result<T, Self::Error> {
-        let f_from = Foreign(self);
-        let f_to: Result<Foreign<T>, Self::Error> = f_from.try_into();
-        f_to.map(|f| f.0)
+        T::foreign_try_from(self)
     }
 }
 
-impl<F, T> ForeignFrom<F> for T
-where
-    Foreign<T>: From<Foreign<F>>,
-{
-    fn foreign_from(from: F) -> Self {
-        let f_from = Foreign(from);
-        let f_to: Foreign<Self> = f_from.into();
-        f_to.0
+impl ForeignFrom<api_enums::ConnectorType> for storage_enums::ConnectorType {
+    fn foreign_from(conn: api_enums::ConnectorType) -> Self {
+        frunk::labelled_convert_from(conn)
     }
 }
 
-impl<F, T> ForeignTryFrom<F> for T
-where
-    Foreign<T>: TryFrom<Foreign<F>>,
-{
-    type Error = <Foreign<T> as TryFrom<Foreign<F>>>::Error;
-
-    fn foreign_try_from(from: F) -> Result<Self, Self::Error> {
-        let f_from = Foreign(from);
-        let f_to: Result<Foreign<Self>, Self::Error> = f_from.try_into();
-        f_to.map(|f| f.0)
+impl ForeignFrom<storage_enums::ConnectorType> for api_enums::ConnectorType {
+    fn foreign_from(conn: storage_enums::ConnectorType) -> Self {
+        frunk::labelled_convert_from(conn)
     }
 }
 
-impl From<F<api_enums::ConnectorType>> for F<storage_enums::ConnectorType> {
-    fn from(conn: F<api_enums::ConnectorType>) -> Self {
-        Self(frunk::labelled_convert_from(conn.0))
-    }
-}
-
-impl From<F<storage_enums::ConnectorType>> for F<api_enums::ConnectorType> {
-    fn from(conn: F<storage_enums::ConnectorType>) -> Self {
-        Self(frunk::labelled_convert_from(conn.0))
-    }
-}
-
-impl From<F<api_models::refunds::RefundType>> for F<storage_enums::RefundType> {
-    fn from(item: F<api_models::refunds::RefundType>) -> Self {
-        match item.0 {
-            api_models::refunds::RefundType::Instant => storage_enums::RefundType::InstantRefund,
-            api_models::refunds::RefundType::Scheduled => storage_enums::RefundType::RegularRefund,
+impl ForeignFrom<api_models::refunds::RefundType> for storage_enums::RefundType {
+    fn foreign_from(item: api_models::refunds::RefundType) -> Self {
+        match item {
+            api_models::refunds::RefundType::Instant => Self::InstantRefund,
+            api_models::refunds::RefundType::Scheduled => Self::RegularRefund,
         }
-        .into()
     }
 }
 
-impl From<F<storage_enums::MandateStatus>> for F<api_enums::MandateStatus> {
-    fn from(status: F<storage_enums::MandateStatus>) -> Self {
-        Self(frunk::labelled_convert_from(status.0))
+impl ForeignFrom<storage_enums::MandateStatus> for api_enums::MandateStatus {
+    fn foreign_from(status: storage_enums::MandateStatus) -> Self {
+        frunk::labelled_convert_from(status)
     }
 }
 
-impl From<F<api_enums::PaymentMethod>> for F<storage_enums::PaymentMethod> {
-    fn from(pm_type: F<api_enums::PaymentMethod>) -> Self {
-        Self(frunk::labelled_convert_from(pm_type.0))
+impl ForeignFrom<api_enums::PaymentMethod> for storage_enums::PaymentMethod {
+    fn foreign_from(pm_type: api_enums::PaymentMethod) -> Self {
+        frunk::labelled_convert_from(pm_type)
     }
 }
 
-impl From<F<storage_enums::PaymentMethod>> for F<api_enums::PaymentMethod> {
-    fn from(pm_type: F<storage_enums::PaymentMethod>) -> Self {
-        Self(frunk::labelled_convert_from(pm_type.0))
+impl ForeignFrom<storage_enums::PaymentMethod> for api_enums::PaymentMethod {
+    fn foreign_from(pm_type: storage_enums::PaymentMethod) -> Self {
+        frunk::labelled_convert_from(pm_type)
     }
 }
 
-impl From<F<storage_enums::PaymentMethodIssuerCode>> for F<api_enums::PaymentMethodIssuerCode> {
-    fn from(issuer_code: F<storage_enums::PaymentMethodIssuerCode>) -> Self {
-        Self(frunk::labelled_convert_from(issuer_code.0))
+impl ForeignFrom<storage_enums::PaymentMethodIssuerCode> for api_enums::PaymentMethodIssuerCode {
+    fn foreign_from(issuer_code: storage_enums::PaymentMethodIssuerCode) -> Self {
+        frunk::labelled_convert_from(issuer_code)
     }
 }
 
-impl From<F<api_enums::PaymentExperience>> for F<storage_enums::PaymentExperience> {
-    fn from(experience: F<api_enums::PaymentExperience>) -> Self {
-        Self(frunk::labelled_convert_from(experience.0))
+impl ForeignFrom<api_enums::PaymentExperience> for storage_enums::PaymentExperience {
+    fn foreign_from(experience: api_enums::PaymentExperience) -> Self {
+        frunk::labelled_convert_from(experience)
     }
 }
 
-impl From<F<storage_enums::PaymentExperience>> for F<api_enums::PaymentExperience> {
-    fn from(experience: F<storage_enums::PaymentExperience>) -> Self {
-        Self(frunk::labelled_convert_from(experience.0))
+impl ForeignFrom<storage_enums::PaymentExperience> for api_enums::PaymentExperience {
+    fn foreign_from(experience: storage_enums::PaymentExperience) -> Self {
+        frunk::labelled_convert_from(experience)
     }
 }
 
-impl From<F<storage_enums::IntentStatus>> for F<api_enums::IntentStatus> {
-    fn from(status: F<storage_enums::IntentStatus>) -> Self {
-        Self(frunk::labelled_convert_from(status.0))
+impl ForeignFrom<storage_enums::IntentStatus> for api_enums::IntentStatus {
+    fn foreign_from(status: storage_enums::IntentStatus) -> Self {
+        frunk::labelled_convert_from(status)
     }
 }
 
-impl From<F<api_enums::IntentStatus>> for F<storage_enums::IntentStatus> {
-    fn from(status: F<api_enums::IntentStatus>) -> Self {
-        Self(frunk::labelled_convert_from(status.0))
+impl ForeignFrom<api_enums::IntentStatus> for storage_enums::IntentStatus {
+    fn foreign_from(status: api_enums::IntentStatus) -> Self {
+        frunk::labelled_convert_from(status)
     }
 }
 
-impl From<F<storage_enums::AttemptStatus>> for F<storage_enums::IntentStatus> {
-    fn from(s: F<storage_enums::AttemptStatus>) -> Self {
-        match s.0 {
+impl ForeignFrom<storage_enums::AttemptStatus> for storage_enums::IntentStatus {
+    fn foreign_from(s: storage_enums::AttemptStatus) -> Self {
+        match s {
             storage_enums::AttemptStatus::Charged | storage_enums::AttemptStatus::AutoRefunded => {
-                storage_enums::IntentStatus::Succeeded
+                Self::Succeeded
             }
 
-            storage_enums::AttemptStatus::ConfirmationAwaited => {
-                storage_enums::IntentStatus::RequiresConfirmation
-            }
-            storage_enums::AttemptStatus::PaymentMethodAwaited => {
-                storage_enums::IntentStatus::RequiresPaymentMethod
-            }
+            storage_enums::AttemptStatus::ConfirmationAwaited => Self::RequiresConfirmation,
+            storage_enums::AttemptStatus::PaymentMethodAwaited => Self::RequiresPaymentMethod,
 
-            storage_enums::AttemptStatus::Authorized => {
-                storage_enums::IntentStatus::RequiresCapture
-            }
-            storage_enums::AttemptStatus::AuthenticationPending => {
-                storage_enums::IntentStatus::RequiresCustomerAction
-            }
+            storage_enums::AttemptStatus::Authorized => Self::RequiresCapture,
+            storage_enums::AttemptStatus::AuthenticationPending => Self::RequiresCustomerAction,
 
             storage_enums::AttemptStatus::PartialCharged
             | storage_enums::AttemptStatus::Started
@@ -186,131 +137,125 @@ impl From<F<storage_enums::AttemptStatus>> for F<storage_enums::IntentStatus> {
             | storage_enums::AttemptStatus::CodInitiated
             | storage_enums::AttemptStatus::VoidInitiated
             | storage_enums::AttemptStatus::CaptureInitiated
-            | storage_enums::AttemptStatus::Pending => storage_enums::IntentStatus::Processing,
+            | storage_enums::AttemptStatus::Pending => Self::Processing,
 
             storage_enums::AttemptStatus::AuthenticationFailed
             | storage_enums::AttemptStatus::AuthorizationFailed
             | storage_enums::AttemptStatus::VoidFailed
             | storage_enums::AttemptStatus::RouterDeclined
             | storage_enums::AttemptStatus::CaptureFailed
-            | storage_enums::AttemptStatus::Failure => storage_enums::IntentStatus::Failed,
-            storage_enums::AttemptStatus::Voided => storage_enums::IntentStatus::Cancelled,
+            | storage_enums::AttemptStatus::Failure => Self::Failed,
+            storage_enums::AttemptStatus::Voided => Self::Cancelled,
         }
-        .into()
     }
 }
 
-impl TryFrom<F<api_enums::IntentStatus>> for F<storage_enums::EventType> {
+impl ForeignTryFrom<api_enums::IntentStatus> for storage_enums::EventType {
     type Error = errors::ValidationError;
 
-    fn try_from(value: F<api_enums::IntentStatus>) -> Result<Self, Self::Error> {
-        match value.0 {
-            api_enums::IntentStatus::Succeeded => Ok(storage_enums::EventType::PaymentSucceeded),
+    fn foreign_try_from(value: api_enums::IntentStatus) -> Result<Self, Self::Error> {
+        match value {
+            api_enums::IntentStatus::Succeeded => Ok(Self::PaymentSucceeded),
             _ => Err(errors::ValidationError::IncorrectValueProvided {
                 field_name: "intent_status",
             }),
         }
-        .map(Into::into)
     }
 }
 
-impl TryFrom<F<storage_enums::RefundStatus>> for F<storage_enums::EventType> {
+impl ForeignTryFrom<storage_enums::RefundStatus> for storage_enums::EventType {
     type Error = errors::ValidationError;
 
-    fn try_from(value: F<storage_enums::RefundStatus>) -> Result<Self, Self::Error> {
-        match value.0 {
-            storage_enums::RefundStatus::Success => Ok(storage_enums::EventType::RefundSucceeded),
-            storage_enums::RefundStatus::Failure => Ok(storage_enums::EventType::RefundFailed),
+    fn foreign_try_from(value: storage_enums::RefundStatus) -> Result<Self, Self::Error> {
+        match value {
+            storage_enums::RefundStatus::Success => Ok(Self::RefundSucceeded),
+            storage_enums::RefundStatus::Failure => Ok(Self::RefundFailed),
             _ => Err(errors::ValidationError::IncorrectValueProvided {
                 field_name: "refund_status",
             }),
         }
-        .map(Into::into)
     }
 }
 
-impl TryFrom<F<api_models::webhooks::IncomingWebhookEvent>> for F<storage_enums::RefundStatus> {
+impl ForeignTryFrom<api_models::webhooks::IncomingWebhookEvent> for storage_enums::RefundStatus {
     type Error = errors::ValidationError;
 
-    fn try_from(value: F<api_models::webhooks::IncomingWebhookEvent>) -> Result<Self, Self::Error> {
-        match value.0 {
-            api_models::webhooks::IncomingWebhookEvent::RefundSuccess => {
-                Ok(storage_enums::RefundStatus::Success)
-            }
-            api_models::webhooks::IncomingWebhookEvent::RefundFailure => {
-                Ok(storage_enums::RefundStatus::Failure)
-            }
+    fn foreign_try_from(
+        value: api_models::webhooks::IncomingWebhookEvent,
+    ) -> Result<Self, Self::Error> {
+        match value {
+            api_models::webhooks::IncomingWebhookEvent::RefundSuccess => Ok(Self::Success),
+            api_models::webhooks::IncomingWebhookEvent::RefundFailure => Ok(Self::Failure),
             _ => Err(errors::ValidationError::IncorrectValueProvided {
                 field_name: "incoming_webhook_event_type",
             }),
         }
-        .map(Into::into)
     }
 }
 
-impl From<F<storage_enums::EventType>> for F<api_enums::EventType> {
-    fn from(event_type: F<storage_enums::EventType>) -> Self {
-        Self(frunk::labelled_convert_from(event_type.0))
+impl ForeignFrom<storage_enums::EventType> for api_enums::EventType {
+    fn foreign_from(event_type: storage_enums::EventType) -> Self {
+        frunk::labelled_convert_from(event_type)
     }
 }
 
-impl From<F<api_enums::FutureUsage>> for F<storage_enums::FutureUsage> {
-    fn from(future_usage: F<api_enums::FutureUsage>) -> Self {
-        Self(frunk::labelled_convert_from(future_usage.0))
+impl ForeignFrom<api_enums::FutureUsage> for storage_enums::FutureUsage {
+    fn foreign_from(future_usage: api_enums::FutureUsage) -> Self {
+        frunk::labelled_convert_from(future_usage)
     }
 }
 
-impl From<F<storage_enums::FutureUsage>> for F<api_enums::FutureUsage> {
-    fn from(future_usage: F<storage_enums::FutureUsage>) -> Self {
-        Self(frunk::labelled_convert_from(future_usage.0))
+impl ForeignFrom<storage_enums::FutureUsage> for api_enums::FutureUsage {
+    fn foreign_from(future_usage: storage_enums::FutureUsage) -> Self {
+        frunk::labelled_convert_from(future_usage)
     }
 }
 
-impl From<F<storage_enums::RefundStatus>> for F<api_enums::RefundStatus> {
-    fn from(status: F<storage_enums::RefundStatus>) -> Self {
-        Self(frunk::labelled_convert_from(status.0))
+impl ForeignFrom<storage_enums::RefundStatus> for api_enums::RefundStatus {
+    fn foreign_from(status: storage_enums::RefundStatus) -> Self {
+        frunk::labelled_convert_from(status)
     }
 }
 
-impl From<F<api_enums::CaptureMethod>> for F<storage_enums::CaptureMethod> {
-    fn from(capture_method: F<api_enums::CaptureMethod>) -> Self {
-        Self(frunk::labelled_convert_from(capture_method.0))
+impl ForeignFrom<api_enums::CaptureMethod> for storage_enums::CaptureMethod {
+    fn foreign_from(capture_method: api_enums::CaptureMethod) -> Self {
+        frunk::labelled_convert_from(capture_method)
     }
 }
 
-impl From<F<storage_enums::CaptureMethod>> for F<api_enums::CaptureMethod> {
-    fn from(capture_method: F<storage_enums::CaptureMethod>) -> Self {
-        Self(frunk::labelled_convert_from(capture_method.0))
+impl ForeignFrom<storage_enums::CaptureMethod> for api_enums::CaptureMethod {
+    fn foreign_from(capture_method: storage_enums::CaptureMethod) -> Self {
+        frunk::labelled_convert_from(capture_method)
     }
 }
 
-impl From<F<api_enums::AuthenticationType>> for F<storage_enums::AuthenticationType> {
-    fn from(auth_type: F<api_enums::AuthenticationType>) -> Self {
-        Self(frunk::labelled_convert_from(auth_type.0))
+impl ForeignFrom<api_enums::AuthenticationType> for storage_enums::AuthenticationType {
+    fn foreign_from(auth_type: api_enums::AuthenticationType) -> Self {
+        frunk::labelled_convert_from(auth_type)
     }
 }
 
-impl From<F<storage_enums::AuthenticationType>> for F<api_enums::AuthenticationType> {
-    fn from(auth_type: F<storage_enums::AuthenticationType>) -> Self {
-        Self(frunk::labelled_convert_from(auth_type.0))
+impl ForeignFrom<storage_enums::AuthenticationType> for api_enums::AuthenticationType {
+    fn foreign_from(auth_type: storage_enums::AuthenticationType) -> Self {
+        frunk::labelled_convert_from(auth_type)
     }
 }
 
-impl From<F<api_enums::Currency>> for F<storage_enums::Currency> {
-    fn from(currency: F<api_enums::Currency>) -> Self {
-        Self(frunk::labelled_convert_from(currency.0))
+impl ForeignFrom<api_enums::Currency> for storage_enums::Currency {
+    fn foreign_from(currency: api_enums::Currency) -> Self {
+        frunk::labelled_convert_from(currency)
     }
 }
-impl From<F<storage_enums::Currency>> for F<api_enums::Currency> {
-    fn from(currency: F<storage_enums::Currency>) -> Self {
-        Self(frunk::labelled_convert_from(currency.0))
+impl ForeignFrom<storage_enums::Currency> for api_enums::Currency {
+    fn foreign_from(currency: storage_enums::Currency) -> Self {
+        frunk::labelled_convert_from(currency)
     }
 }
 
-impl<'a> From<F<&'a api_types::Address>> for F<storage::AddressUpdate> {
-    fn from(address: F<&api_types::Address>) -> Self {
-        let address = address.0;
-        storage::AddressUpdate::Update {
+impl<'a> ForeignFrom<&'a api_types::Address> for storage::AddressUpdate {
+    fn foreign_from(address: &api_types::Address) -> Self {
+        let address = address;
+        Self::Update {
             city: address.address.as_ref().and_then(|a| a.city.clone()),
             country: address.address.as_ref().and_then(|a| a.country.clone()),
             line1: address.address.as_ref().and_then(|a| a.line1.clone()),
@@ -323,35 +268,32 @@ impl<'a> From<F<&'a api_types::Address>> for F<storage::AddressUpdate> {
             phone_number: address.phone.as_ref().and_then(|a| a.number.clone()),
             country_code: address.phone.as_ref().and_then(|a| a.country_code.clone()),
         }
-        .into()
     }
 }
 
-impl From<F<storage::Config>> for F<api_types::Config> {
-    fn from(config: F<storage::Config>) -> Self {
-        let config = config.0;
-        api_types::Config {
+impl ForeignFrom<storage::Config> for api_types::Config {
+    fn foreign_from(config: storage::Config) -> Self {
+        let config = config;
+        Self {
             key: config.key,
             value: config.config,
         }
-        .into()
     }
 }
 
-impl<'a> From<F<&'a api_types::ConfigUpdate>> for F<storage::ConfigUpdate> {
-    fn from(config: F<&api_types::ConfigUpdate>) -> Self {
-        let config_update = config.0;
-        storage::ConfigUpdate::Update {
+impl<'a> ForeignFrom<&'a api_types::ConfigUpdate> for storage::ConfigUpdate {
+    fn foreign_from(config: &api_types::ConfigUpdate) -> Self {
+        let config_update = config;
+        Self::Update {
             config: Some(config_update.value.clone()),
         }
-        .into()
     }
 }
 
-impl<'a> From<F<&'a storage::Address>> for F<api_types::Address> {
-    fn from(address: F<&storage::Address>) -> Self {
-        let address = address.0;
-        api_types::Address {
+impl<'a> ForeignFrom<&'a storage::Address> for api_types::Address {
+    fn foreign_from(address: &storage::Address) -> Self {
+        let address = address;
+        Self {
             address: Some(api_types::AddressDetails {
                 city: address.city.clone(),
                 country: address.country.clone(),
@@ -368,16 +310,15 @@ impl<'a> From<F<&'a storage::Address>> for F<api_types::Address> {
                 country_code: address.country_code.clone(),
             }),
         }
-        .into()
     }
 }
 
-impl TryFrom<F<storage::MerchantConnectorAccount>>
-    for F<api_models::admin::PaymentConnectorCreate>
+impl ForeignTryFrom<storage::MerchantConnectorAccount>
+    for api_models::admin::PaymentConnectorCreate
 {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
-    fn try_from(item: F<storage::MerchantConnectorAccount>) -> Result<Self, Self::Error> {
-        let merchant_ca = item.0;
+    fn foreign_try_from(item: storage::MerchantConnectorAccount) -> Result<Self, Self::Error> {
+        let merchant_ca = item;
 
         let payment_methods_enabled = match merchant_ca.payment_methods_enabled {
             Some(val) => serde_json::Value::Array(val)
@@ -386,7 +327,7 @@ impl TryFrom<F<storage::MerchantConnectorAccount>>
             None => None,
         };
 
-        Ok(api_models::admin::PaymentConnectorCreate {
+        Ok(Self {
             connector_type: merchant_ca.connector_type.foreign_into(),
             connector_name: merchant_ca.connector_name,
             merchant_connector_id: Some(merchant_ca.merchant_connector_id),
@@ -397,27 +338,30 @@ impl TryFrom<F<storage::MerchantConnectorAccount>>
             disabled: merchant_ca.disabled,
             metadata: merchant_ca.metadata,
             payment_methods_enabled,
-        }
-        .into())
+        })
     }
 }
 
-impl From<F<api_models::enums::PaymentMethodType>> for F<storage_models::enums::PaymentMethodType> {
-    fn from(payment_method_type: F<api_models::enums::PaymentMethodType>) -> Self {
-        Self(frunk::labelled_convert_from(payment_method_type.0))
+impl ForeignFrom<api_models::enums::PaymentMethodType>
+    for storage_models::enums::PaymentMethodType
+{
+    fn foreign_from(payment_method_type: api_models::enums::PaymentMethodType) -> Self {
+        frunk::labelled_convert_from(payment_method_type)
     }
 }
 
-impl From<F<storage_models::enums::PaymentMethodType>> for F<api_models::enums::PaymentMethodType> {
-    fn from(payment_method_type: F<storage_models::enums::PaymentMethodType>) -> Self {
-        Self(frunk::labelled_convert_from(payment_method_type.0))
+impl ForeignFrom<storage_models::enums::PaymentMethodType>
+    for api_models::enums::PaymentMethodType
+{
+    fn foreign_from(payment_method_type: storage_models::enums::PaymentMethodType) -> Self {
+        frunk::labelled_convert_from(payment_method_type)
     }
 }
 
-impl From<F<api_models::payments::AddressDetails>> for F<storage_models::address::AddressNew> {
-    fn from(item: F<api_models::payments::AddressDetails>) -> Self {
-        let address = item.0;
-        storage_models::address::AddressNew {
+impl ForeignFrom<api_models::payments::AddressDetails> for storage_models::address::AddressNew {
+    fn foreign_from(item: api_models::payments::AddressDetails) -> Self {
+        let address = item;
+        Self {
             city: address.city,
             country: address.country,
             line1: address.line1,
@@ -429,28 +373,25 @@ impl From<F<api_models::payments::AddressDetails>> for F<storage_models::address
             last_name: address.last_name,
             ..Default::default()
         }
-        .into()
     }
 }
 
 impl
-    From<
-        F<(
-            storage_models::api_keys::ApiKey,
-            crate::core::api_keys::PlaintextApiKey,
-        )>,
-    > for F<api_models::api_keys::CreateApiKeyResponse>
+    ForeignFrom<(
+        storage_models::api_keys::ApiKey,
+        crate::core::api_keys::PlaintextApiKey,
+    )> for api_models::api_keys::CreateApiKeyResponse
 {
-    fn from(
-        item: F<(
+    fn foreign_from(
+        item: (
             storage_models::api_keys::ApiKey,
             crate::core::api_keys::PlaintextApiKey,
-        )>,
+        ),
     ) -> Self {
         use masking::StrongSecret;
 
-        let (api_key, plaintext_api_key) = item.0;
-        api_models::api_keys::CreateApiKeyResponse {
+        let (api_key, plaintext_api_key) = item;
+        Self {
             key_id: api_key.key_id.clone(),
             merchant_id: api_key.merchant_id,
             name: api_key.name,
@@ -463,14 +404,15 @@ impl
             created: api_key.created_at,
             expiration: api_key.expires_at.into(),
         }
-        .into()
     }
 }
 
-impl From<F<storage_models::api_keys::ApiKey>> for F<api_models::api_keys::RetrieveApiKeyResponse> {
-    fn from(item: F<storage_models::api_keys::ApiKey>) -> Self {
-        let api_key = item.0;
-        api_models::api_keys::RetrieveApiKeyResponse {
+impl ForeignFrom<storage_models::api_keys::ApiKey>
+    for api_models::api_keys::RetrieveApiKeyResponse
+{
+    fn foreign_from(item: storage_models::api_keys::ApiKey) -> Self {
+        let api_key = item;
+        Self {
             key_id: api_key.key_id.clone(),
             merchant_id: api_key.merchant_id,
             name: api_key.name,
@@ -479,27 +421,25 @@ impl From<F<storage_models::api_keys::ApiKey>> for F<api_models::api_keys::Retri
             created: api_key.created_at,
             expiration: api_key.expires_at.into(),
         }
-        .into()
     }
 }
 
-impl From<F<api_models::api_keys::UpdateApiKeyRequest>>
-    for F<storage_models::api_keys::ApiKeyUpdate>
+impl ForeignFrom<api_models::api_keys::UpdateApiKeyRequest>
+    for storage_models::api_keys::ApiKeyUpdate
 {
-    fn from(item: F<api_models::api_keys::UpdateApiKeyRequest>) -> Self {
-        let api_key = item.0;
-        storage_models::api_keys::ApiKeyUpdate::Update {
+    fn foreign_from(item: api_models::api_keys::UpdateApiKeyRequest) -> Self {
+        let api_key = item;
+        Self::Update {
             name: api_key.name,
             description: api_key.description,
             expires_at: api_key.expiration.map(Into::into),
             last_used: None,
         }
-        .into()
     }
 }
 
-impl From<F<storage_enums::AttemptStatus>> for F<api_enums::AttemptStatus> {
-    fn from(status: F<storage_enums::AttemptStatus>) -> Self {
-        Self(frunk::labelled_convert_from(status.0))
+impl ForeignFrom<storage_enums::AttemptStatus> for api_enums::AttemptStatus {
+    fn foreign_from(status: storage_enums::AttemptStatus) -> Self {
+        frunk::labelled_convert_from(status)
     }
 }

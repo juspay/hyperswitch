@@ -7,11 +7,7 @@ use crate::{
     core::errors,
     pii::{self, Secret},
     services,
-    types::{
-        self, api,
-        storage::enums,
-        transformers::{self, ForeignFrom},
-    },
+    types::{self, api, storage::enums, transformers::ForeignFrom},
     utils::OptionExt,
 };
 
@@ -179,29 +175,24 @@ pub enum RapydPaymentStatus {
     New,
 }
 
-impl From<transformers::Foreign<(RapydPaymentStatus, NextAction)>>
-    for transformers::Foreign<enums::AttemptStatus>
-{
-    fn from(item: transformers::Foreign<(RapydPaymentStatus, NextAction)>) -> Self {
-        let (status, next_action) = item.0;
+impl ForeignFrom<(RapydPaymentStatus, NextAction)> for enums::AttemptStatus {
+    fn foreign_from(item: (RapydPaymentStatus, NextAction)) -> Self {
+        let (status, next_action) = item;
         match (status, next_action) {
-            (RapydPaymentStatus::Closed, _) => enums::AttemptStatus::Charged,
+            (RapydPaymentStatus::Closed, _) => Self::Charged,
             (RapydPaymentStatus::Active, NextAction::ThreedsVerification) => {
-                enums::AttemptStatus::AuthenticationPending
+                Self::AuthenticationPending
             }
-            (RapydPaymentStatus::Active, NextAction::PendingCapture) => {
-                enums::AttemptStatus::Authorized
-            }
+            (RapydPaymentStatus::Active, NextAction::PendingCapture) => Self::Authorized,
             (
                 RapydPaymentStatus::CanceledByClientOrBank
                 | RapydPaymentStatus::Expired
                 | RapydPaymentStatus::ReversedByRapyd,
                 _,
-            ) => enums::AttemptStatus::Voided,
-            (RapydPaymentStatus::Error, _) => enums::AttemptStatus::Failure,
-            (RapydPaymentStatus::New, _) => enums::AttemptStatus::Authorizing,
+            ) => Self::Voided,
+            (RapydPaymentStatus::Error, _) => Self::Failure,
+            (RapydPaymentStatus::New, _) => Self::Authorizing,
         }
-        .into()
     }
 }
 

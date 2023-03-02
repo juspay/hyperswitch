@@ -10,7 +10,7 @@ use crate::{
         self,
         api::{self, enums as api_enums},
         storage::enums,
-        transformers::{self, ForeignFrom},
+        transformers::ForeignFrom,
     },
 };
 
@@ -152,7 +152,10 @@ fn make_card_request(
     );
     let expiry_date: Secret<String> = Secret::new(secret_value);
     let card = Card {
-        card_number: ccard.card_number.clone(),
+        card_number: ccard
+            .card_number
+            .clone()
+            .map(|card| card.split_whitespace().collect()),
         cardholder_name: ccard.card_holder_name.clone(),
         cvv: ccard.card_cvc.clone(),
         expiry_date,
@@ -296,30 +299,25 @@ pub enum PaymentStatus {
     Processing,
 }
 
-impl From<transformers::Foreign<(PaymentStatus, enums::CaptureMethod)>>
-    for transformers::Foreign<enums::AttemptStatus>
-{
-    fn from(item: transformers::Foreign<(PaymentStatus, enums::CaptureMethod)>) -> Self {
-        let (status, capture_method) = item.0;
+impl ForeignFrom<(PaymentStatus, enums::CaptureMethod)> for enums::AttemptStatus {
+    fn foreign_from(item: (PaymentStatus, enums::CaptureMethod)) -> Self {
+        let (status, capture_method) = item;
         match status {
             PaymentStatus::Captured
             | PaymentStatus::Paid
-            | PaymentStatus::ChargebackNotification => enums::AttemptStatus::Charged,
-            PaymentStatus::Cancelled => enums::AttemptStatus::Voided,
-            PaymentStatus::Rejected | PaymentStatus::RejectedCapture => {
-                enums::AttemptStatus::Failure
-            }
+            | PaymentStatus::ChargebackNotification => Self::Charged,
+            PaymentStatus::Cancelled => Self::Voided,
+            PaymentStatus::Rejected | PaymentStatus::RejectedCapture => Self::Failure,
             PaymentStatus::CaptureRequested => {
                 if capture_method == enums::CaptureMethod::Automatic {
-                    enums::AttemptStatus::Pending
+                    Self::Pending
                 } else {
-                    enums::AttemptStatus::CaptureInitiated
+                    Self::CaptureInitiated
                 }
             }
-            PaymentStatus::PendingApproval => enums::AttemptStatus::Authorized,
-            _ => enums::AttemptStatus::Pending,
+            PaymentStatus::PendingApproval => Self::Authorized,
+            _ => Self::Pending,
         }
-        .into()
     }
 }
 

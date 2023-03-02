@@ -25,8 +25,8 @@
         "tags": [
           "Merchant Account"
         ],
-        "summary": "",
-        "description": "\nCreate a new account for a merchant and the merchant could be a seller or retailer or client who likes to receive and send payments.",
+        "summary": "Merchant Account - Create",
+        "description": "Merchant Account - Create\n\nCreate a new account for a merchant and the merchant could be a seller or retailer or client who likes to receive and send payments.",
         "operationId": "Create a Merchant Account",
         "requestBody": {
           "content": {
@@ -66,8 +66,8 @@
         "tags": [
           "Merchant Account"
         ],
-        "summary": "",
-        "description": "\nRetrieve a merchant account details.",
+        "summary": "Merchant Account - Retrieve",
+        "description": "Merchant Account - Retrieve\n\nRetrieve a merchant account details.",
         "operationId": "Retrieve a Merchant Account",
         "parameters": [
           {
@@ -106,8 +106,8 @@
         "tags": [
           "Merchant Account"
         ],
-        "summary": "",
-        "description": "\nTo update an existing merchant account. Helpful in updating merchant details such as email, contact details, or other configuration details like webhook, routing algorithm etc",
+        "summary": "Merchant Account - Update",
+        "description": "Merchant Account - Update\n\nTo update an existing merchant account. Helpful in updating merchant details such as email, contact details, or other configuration details like webhook, routing algorithm etc",
         "operationId": "Update a Merchant Account",
         "parameters": [
           {
@@ -156,8 +156,8 @@
         "tags": [
           "Merchant Account"
         ],
-        "summary": "",
-        "description": "\nTo delete a merchant account",
+        "summary": "Merchant Account - Delete",
+        "description": "Merchant Account - Delete\n\nTo delete a merchant account",
         "operationId": "Delete a Merchant Account",
         "parameters": [
           {
@@ -198,8 +198,8 @@
         "tags": [
           "Merchant Connector Account"
         ],
-        "summary": "",
-        "description": "\nList Payment Connector Details for the merchant",
+        "summary": "Payment Connector - List",
+        "description": "Payment Connector - List\n\nList Payment Connector Details for the merchant",
         "operationId": "List all Merchant Connectors",
         "parameters": [
           {
@@ -244,8 +244,8 @@
         "tags": [
           "Merchant Connector Account"
         ],
-        "summary": "",
-        "description": "\nCreate a new Payment Connector for the merchant account. The connector could be a payment processor / facilitator / acquirer or specialized services like Fraud / Accounting etc.\"",
+        "summary": "PaymentsConnectors - Create",
+        "description": "PaymentsConnectors - Create\n\nCreate a new Payment Connector for the merchant account. The connector could be a payment processor / facilitator / acquirer or specialized services like Fraud / Accounting etc.\"",
         "operationId": "Create a Merchant Connector",
         "requestBody": {
           "content": {
@@ -285,8 +285,8 @@
         "tags": [
           "Merchant Connector Account"
         ],
-        "summary": "",
-        "description": "\nRetrieve Payment Connector Details",
+        "summary": "Payment Connector - Retrieve",
+        "description": "Payment Connector - Retrieve\n\nRetrieve Payment Connector Details",
         "operationId": "Retrieve a Merchant Connector",
         "parameters": [
           {
@@ -338,8 +338,8 @@
         "tags": [
           "Merchant Connector Account"
         ],
-        "summary": "",
-        "description": "\nTo update an existing Payment Connector. Helpful in enabling / disabling different payment methods and other settings for the connector etc.",
+        "summary": "Payment Connector - Update",
+        "description": "Payment Connector - Update\n\nTo update an existing Payment Connector. Helpful in enabling / disabling different payment methods and other settings for the connector etc.",
         "operationId": "Update a Merchant Connector",
         "parameters": [
           {
@@ -401,8 +401,8 @@
         "tags": [
           "Merchant Connector Account"
         ],
-        "summary": "",
-        "description": "\nDelete or Detach a Payment Connector from Merchant Account",
+        "summary": "Payment Connector - Delete",
+        "description": "Payment Connector - Delete\n\nDelete or Detach a Payment Connector from Merchant Account",
         "operationId": "Delete a Merchant Connector",
         "parameters": [
           {
@@ -451,241 +451,13 @@
         ]
       }
     },
-    "/api_keys/{merchant_id)": {
-      "post": {
-        "tags": [
-          "API Key"
-        ],
-        "summary": "API Key - Create",
-        "description": "API Key - Create\n\nCreate a new API Key for accessing our APIs from your servers. The plaintext API Key will be\ndisplayed only once on creation, so ensure you store it securely.",
-        "operationId": "Create an API Key",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/CreateApiKeyRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "API Key created",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CreateApiKeyResponse"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Invalid data"
-          }
-        },
-        "deprecated": false,
-        "security": [
-          {
-            "admin_api_key": []
-          }
-        ]
-      }
-    },
-    "/api_keys/{merchant_id)/{key_id}": {
-      "delete": {
-        "tags": [
-          "API Key"
-        ],
-        "summary": "API Key - Revoke",
-        "description": "API Key - Revoke\n\nRevoke the specified API Key. Once revoked, the API Key can no longer be used for\nauthenticating with our APIs.",
-        "operationId": "Revoke an API Key",
-        "parameters": [
-          {
-            "name": "key_id",
-            "in": "path",
-            "description": "The unique identifier for the API Key",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "API Key revoked",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/RevokeApiKeyResponse"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "API Key not found"
-          }
-        },
-        "deprecated": false,
-        "security": [
-          {
-            "admin_api_key": []
-          }
-        ]
-      }
-    },
-    "/api_keys/{merchant_id}/list": {
-      "get": {
-        "tags": [
-          "API Key"
-        ],
-        "summary": "API Key - List",
-        "description": "API Key - List\n\nList all API Keys associated with your merchant account.",
-        "operationId": "List all API Keys associated with a merchant account",
-        "parameters": [
-          {
-            "name": "limit",
-            "in": "query",
-            "description": "The maximum number of API Keys to include in the response",
-            "required": false,
-            "schema": {
-              "type": "integer",
-              "format": "int64"
-            }
-          },
-          {
-            "name": "skip",
-            "in": "query",
-            "description": "The number of API Keys to skip when retrieving the list of API keys.",
-            "required": false,
-            "schema": {
-              "type": "integer",
-              "format": "int64"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "List of API Keys retrieved successfully",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/RetrieveApiKeyResponse"
-                  }
-                }
-              }
-            }
-          }
-        },
-        "deprecated": false,
-        "security": [
-          {
-            "admin_api_key": []
-          }
-        ]
-      }
-    },
-    "/api_keys/{merchant_id}/{key_id}": {
-      "get": {
-        "tags": [
-          "API Key"
-        ],
-        "summary": "API Key - Retrieve",
-        "description": "API Key - Retrieve\n\nRetrieve information about the specified API Key.",
-        "operationId": "Retrieve an API Key",
-        "parameters": [
-          {
-            "name": "key_id",
-            "in": "path",
-            "description": "The unique identifier for the API Key",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "API Key retrieved",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/RetrieveApiKeyResponse"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "API Key not found"
-          }
-        },
-        "deprecated": false,
-        "security": [
-          {
-            "admin_api_key": []
-          }
-        ]
-      },
-      "post": {
-        "tags": [
-          "API Key"
-        ],
-        "summary": "API Key - Update",
-        "description": "API Key - Update\n\nUpdate information for the specified API Key.",
-        "operationId": "Update an API Key",
-        "parameters": [
-          {
-            "name": "key_id",
-            "in": "path",
-            "description": "The unique identifier for the API Key",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/UpdateApiKeyRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "API Key updated",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/RetrieveApiKeyResponse"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "API Key not found"
-          }
-        },
-        "deprecated": false,
-        "security": [
-          {
-            "admin_api_key": []
-          }
-        ]
-      }
-    },
     "/customers": {
       "post": {
         "tags": [
           "Customers"
         ],
-        "summary": "",
-        "description": "\nCreate a customer object and store the customer details to be reused for future payments. Incase the customer already exists in the system, this API will respond with the customer details.",
+        "summary": "Create Customer",
+        "description": "Create Customer\n\nCreate a customer object and store the customer details to be reused for future payments. Incase the customer already exists in the system, this API will respond with the customer details.",
         "operationId": "Create a Customer",
         "requestBody": {
           "content": {
@@ -725,8 +497,8 @@
         "tags": [
           "Customers"
         ],
-        "summary": "",
-        "description": "\nRetrieve a customer's details.",
+        "summary": "Retrieve Customer",
+        "description": "Retrieve Customer\n\nRetrieve a customer's details.",
         "operationId": "Retrieve a Customer",
         "parameters": [
           {
@@ -768,8 +540,8 @@
         "tags": [
           "Customers"
         ],
-        "summary": "",
-        "description": "\nUpdates the customer's details in a customer object.",
+        "summary": "Update Customer",
+        "description": "Update Customer\n\nUpdates the customer's details in a customer object.",
         "operationId": "Update a Customer",
         "parameters": [
           {
@@ -818,8 +590,8 @@
         "tags": [
           "Customers"
         ],
-        "summary": "",
-        "description": "\nDelete a customer record.",
+        "summary": "Delete Customer",
+        "description": "Delete Customer\n\nDelete a customer record.",
         "operationId": "Delete a Customer",
         "parameters": [
           {
@@ -860,8 +632,8 @@
         "tags": [
           "Mandates"
         ],
-        "summary": "",
-        "description": "\nRevoke a mandate",
+        "summary": "Mandates - Revoke Mandate",
+        "description": "Mandates - Revoke Mandate\n\nRevoke a mandate",
         "operationId": "Revoke a Mandate",
         "parameters": [
           {
@@ -902,8 +674,8 @@
         "tags": [
           "Mandates"
         ],
-        "summary": "",
-        "description": "\nRetrieve a mandate",
+        "summary": "Mandates - Retrieve Mandate",
+        "description": "Mandates - Retrieve Mandate\n\nRetrieve a mandate",
         "operationId": "Retrieve a Mandate",
         "parameters": [
           {
@@ -944,8 +716,8 @@
         "tags": [
           "Payment Methods"
         ],
-        "summary": "",
-        "description": "\nTo create a payment method against a customer object. In case of cards, this API could be used only by PCI compliant merchants",
+        "summary": "PaymentMethods - Create",
+        "description": "PaymentMethods - Create\n\nTo create a payment method against a customer object. In case of cards, this API could be used only by PCI compliant merchants",
         "operationId": "Create a Payment Method",
         "requestBody": {
           "content": {
@@ -985,8 +757,8 @@
         "tags": [
           "Payment Methods"
         ],
-        "summary": "",
-        "description": "\nTo filter and list the applicable payment methods for a particular Merchant ID",
+        "summary": "List payment methods for a Merchant",
+        "description": "List payment methods for a Merchant\n\nTo filter and list the applicable payment methods for a particular Merchant ID",
         "operationId": "List all Payment Methods for a Merchant",
         "parameters": [
           {
@@ -1095,8 +867,8 @@
         "tags": [
           "Payment Methods"
         ],
-        "summary": "",
-        "description": "\nTo filter and list the applicable payment methods for a particular Customer ID",
+        "summary": "List payment methods for a Customer",
+        "description": "List payment methods for a Customer\n\nTo filter and list the applicable payment methods for a particular Customer ID",
         "operationId": "List all Payment Methods for a Customer",
         "parameters": [
           {
@@ -1205,8 +977,8 @@
         "tags": [
           "Payment Methods"
         ],
-        "summary": "",
-        "description": "\nTo retrieve a payment method",
+        "summary": "Payment Method - Retrieve",
+        "description": "Payment Method - Retrieve\n\nTo retrieve a payment method",
         "operationId": "Retrieve a Payment method",
         "parameters": [
           {
@@ -1245,8 +1017,8 @@
         "tags": [
           "Payment Methods"
         ],
-        "summary": "",
-        "description": "\nTo update an existing payment method attached to a customer object. This API is useful for use cases such as updating the card number for expired cards to prevent discontinuity in recurring payments",
+        "summary": "Payment Method - Update",
+        "description": "Payment Method - Update\n\nTo update an existing payment method attached to a customer object. This API is useful for use cases such as updating the card number for expired cards to prevent discontinuity in recurring payments",
         "operationId": "Update a Payment method",
         "parameters": [
           {
@@ -1295,8 +1067,8 @@
         "tags": [
           "Payment Methods"
         ],
-        "summary": "",
-        "description": "\nDelete payment method",
+        "summary": "Payment Method - Delete",
+        "description": "Payment Method - Delete\n\nDelete payment method",
         "operationId": "Delete a Payment method",
         "parameters": [
           {
@@ -1337,8 +1109,8 @@
         "tags": [
           "Payments"
         ],
-        "summary": "",
-        "description": "\nTo process a payment you will have to create a payment, attach a payment method and confirm. Depending on the user journey you wish to achieve, you may opt to all the steps in a single request or in a sequence of API request using following APIs: (i) Payments - Update, (ii) Payments - Confirm, and (iii) Payments - Capture",
+        "summary": "Payments - Create",
+        "description": "Payments - Create\n\nTo process a payment you will have to create a payment, attach a payment method and confirm. Depending on the user journey you wish to achieve, you may opt to all the steps in a single request or in a sequence of API request using following APIs: (i) Payments - Update, (ii) Payments - Confirm, and (iii) Payments - Capture",
         "operationId": "Create a Payment",
         "requestBody": {
           "content": {
@@ -1378,8 +1150,8 @@
         "tags": [
           "Payments"
         ],
-        "summary": "",
-        "description": "\nTo list the payments",
+        "summary": "Payments - List",
+        "description": "Payments - List\n\nTo list the payments",
         "operationId": "List all Payments",
         "parameters": [
           {
@@ -1491,8 +1263,8 @@
         "tags": [
           "Payments"
         ],
-        "summary": "",
-        "description": "\nTo create the session object or to get session token for wallets",
+        "summary": "Payments - Session token",
+        "description": "Payments - Session token\n\nTo create the session object or to get session token for wallets",
         "operationId": "Create Session tokens for a Payment",
         "requestBody": {
           "content": {
@@ -1532,8 +1304,8 @@
         "tags": [
           "Payments"
         ],
-        "summary": "",
-        "description": "\nTo retrieve the properties of a Payment. This may be used to get the status of a previously initiated payment or next action for an ongoing payment",
+        "summary": "Payments - Retrieve",
+        "description": "Payments - Retrieve\n\nTo retrieve the properties of a Payment. This may be used to get the status of a previously initiated payment or next action for an ongoing payment",
         "operationId": "Retrieve a Payment",
         "parameters": [
           {
@@ -1585,8 +1357,8 @@
         "tags": [
           "Payments"
         ],
-        "summary": "",
-        "description": "\nTo update the properties of a PaymentIntent object. This may include attaching a payment method, or attaching customer object or metadata fields after the Payment is created",
+        "summary": "Payments - Update",
+        "description": "Payments - Update\n\nTo update the properties of a PaymentIntent object. This may include attaching a payment method, or attaching customer object or metadata fields after the Payment is created",
         "operationId": "Update a Payment",
         "parameters": [
           {
@@ -1640,8 +1412,8 @@
         "tags": [
           "Payments"
         ],
-        "summary": "",
-        "description": "\nA Payment could can be cancelled when it is in one of these statuses: requires_payment_method, requires_capture, requires_confirmation, requires_customer_action",
+        "summary": "Payments - Cancel",
+        "description": "Payments - Cancel\n\nA Payment could can be cancelled when it is in one of these statuses: requires_payment_method, requires_capture, requires_confirmation, requires_customer_action",
         "operationId": "Cancel a Payment",
         "parameters": [
           {
@@ -1685,8 +1457,8 @@
         "tags": [
           "Payments"
         ],
-        "summary": "",
-        "description": "\nTo capture the funds for an uncaptured payment",
+        "summary": "Payments - Capture",
+        "description": "Payments - Capture\n\nTo capture the funds for an uncaptured payment",
         "operationId": "Capture a Payment",
         "parameters": [
           {
@@ -1737,8 +1509,8 @@
         "tags": [
           "Payments"
         ],
-        "summary": "",
-        "description": "\nThis API is to confirm the payment request and forward payment to the payment processor. This API provides more granular control upon when the API is forwarded to the payment processor. Alternatively you can confirm the payment within the Payments Create API",
+        "summary": "Payments - Confirm",
+        "description": "Payments - Confirm\n\nThis API is to confirm the payment request and forward payment to the payment processor. This API provides more granular control upon when the API is forwarded to the payment processor. Alternatively you can confirm the payment within the Payments Create API",
         "operationId": "Confirm a Payment",
         "parameters": [
           {
@@ -1792,8 +1564,8 @@
         "tags": [
           "Refunds"
         ],
-        "summary": "",
-        "description": "\nTo create a refund against an already processed payment",
+        "summary": "Refunds - Create",
+        "description": "Refunds - Create\n\nTo create a refund against an already processed payment",
         "operationId": "Create a Refund",
         "requestBody": {
           "content": {
@@ -1833,8 +1605,8 @@
         "tags": [
           "Refunds"
         ],
-        "summary": "",
-        "description": "\nTo list the refunds associated with a payment_id or with the merchant, if payment_id is not provided",
+        "summary": "Refunds - List",
+        "description": "Refunds - List\n\nTo list the refunds associated with a payment_id or with the merchant, if payment_id is not provided",
         "operationId": "List all Refunds",
         "parameters": [
           {
@@ -1935,8 +1707,8 @@
         "tags": [
           "Refunds"
         ],
-        "summary": "",
-        "description": "\nTo retrieve the properties of a Refund. This may be used to get the status of a previously initiated payment or next action for an ongoing payment",
+        "summary": "Refunds - Retrieve",
+        "description": "Refunds - Retrieve\n\nTo retrieve the properties of a Refund. This may be used to get the status of a previously initiated payment or next action for an ongoing payment",
         "operationId": "Retrieve a Refund",
         "parameters": [
           {
@@ -1975,8 +1747,8 @@
         "tags": [
           "Refunds"
         ],
-        "summary": "",
-        "description": "\nTo update the properties of a Refund object. This may include attaching a reason for the refund or metadata fields",
+        "summary": "Refunds - Update",
+        "description": "Refunds - Update\n\nTo update the properties of a Refund object. This may include attaching a reason for the refund or metadata fields",
         "operationId": "Update a Refund",
         "parameters": [
           {
@@ -2046,9 +1818,9 @@
           "list": {
             "type": "array",
             "items": {
-              "type": "string",
-              "description": "List of countries of the provided type"
-            }
+              "type": "string"
+            },
+            "description": "List of countries of the provided type"
           }
         }
       },
@@ -2067,7 +1839,8 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/Currency"
-            }
+            },
+            "description": "List of currencies of the provided type"
           }
         }
       },
@@ -2201,16 +1974,16 @@
           "merchant_capabilities": {
             "type": "array",
             "items": {
-              "type": "string",
-              "description": "The list of merchant capabilities(ex: whether capable of 3ds or no-3ds)"
-            }
+              "type": "string"
+            },
+            "description": "The list of merchant capabilities(ex: whether capable of 3ds or no-3ds)"
           },
           "supported_networks": {
             "type": "array",
             "items": {
-              "type": "string",
-              "description": "The list of supported networks"
-            }
+              "type": "string"
+            },
+            "description": "The list of supported networks"
           }
         }
       },
@@ -2288,7 +2061,8 @@
         ],
         "properties": {
           "payment_data": {
-            "$ref": "#/components/schemas/ApplepayPaymentData"
+            "type": "string",
+            "description": "The payment data of Apple pay"
           },
           "payment_method": {
             "$ref": "#/components/schemas/ApplepayPaymentMethod"
@@ -2296,54 +2070,6 @@
           "transaction_identifier": {
             "type": "string",
             "description": "The unique identifier for the transaction"
-          }
-        }
-      },
-      "ApplepayHeader": {
-        "type": "object",
-        "required": [
-          "public_key_hash",
-          "ephemeral_public_key",
-          "transaction_id"
-        ],
-        "properties": {
-          "public_key_hash": {
-            "type": "string",
-            "description": "The public key hash used"
-          },
-          "ephemeral_public_key": {
-            "type": "string",
-            "description": "The ephemeral public key used"
-          },
-          "transaction_id": {
-            "type": "string",
-            "description": "The unique identifier for the transaction"
-          }
-        }
-      },
-      "ApplepayPaymentData": {
-        "type": "object",
-        "required": [
-          "data",
-          "signature",
-          "header",
-          "version"
-        ],
-        "properties": {
-          "data": {
-            "type": "string",
-            "description": "The data of Apple pay payment"
-          },
-          "signature": {
-            "type": "string",
-            "description": "A string which represents the properties of a payment"
-          },
-          "header": {
-            "$ref": "#/components/schemas/ApplepayHeader"
-          },
-          "version": {
-            "type": "string",
-            "description": "The Apple Pay version used"
           }
         }
       },
@@ -2433,6 +2159,7 @@
           "easybank_ag",
           "erste_bank_und_sparkassen",
           "hypo_alpeadriabank_international_ag",
+          "hypo_noe_lb_fur_niederosterreich_u_wien",
           "hypo_oberosterreich_salzburg_steiermark",
           "hypo_tirol_bank_ag",
           "hypo_vorarlberg_bank_ag",
@@ -2697,10 +2424,12 @@
           "checkout",
           "cybersource",
           "dummy",
+          "bambora",
           "dlocal",
           "fiserv",
           "globalpay",
           "klarna",
+          "multisafepay",
           "nuvei",
           "payu",
           "rapyd",
@@ -2834,7 +2563,8 @@
             "$ref": "#/components/schemas/WebhookDetails"
           },
           "routing_algorithm": {
-            "type": "object"
+            "type": "object",
+            "description": "The routing algorithm to be used for routing payments to desired connectors"
           },
           "sub_merchants_enabled": {
             "type": "boolean",
@@ -2865,7 +2595,8 @@
             "example": true
           },
           "metadata": {
-            "type": "object"
+            "type": "object",
+            "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object."
           },
           "publishable_key": {
             "type": "string",
@@ -2903,12 +2634,18 @@
             "$ref": "#/components/schemas/CardDetail"
           },
           "metadata": {
-            "type": "object"
+            "type": "object",
+            "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object."
           },
           "customer_id": {
             "type": "string",
             "description": "The unique identifier of the customer.",
             "example": "cus_meowerunwiuwiwqw"
+          },
+          "card_network": {
+            "type": "string",
+            "description": "The card network",
+            "example": "Visa"
           }
         }
       },
@@ -2918,6 +2655,7 @@
           "AED",
           "ALL",
           "AMD",
+          "ANG",
           "ARS",
           "AUD",
           "AWG",
@@ -3121,6 +2859,7 @@
             "items": {
               "$ref": "#/components/schemas/PaymentExperience"
             },
+            "description": "Type of payment experience enabled with the connector",
             "example": [
               "redirect_to_url"
             ]
@@ -3129,7 +2868,8 @@
             "$ref": "#/components/schemas/CardDetailFromLocker"
           },
           "metadata": {
-            "type": "object"
+            "type": "object",
+            "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object."
           },
           "created": {
             "type": "string",
@@ -3180,10 +2920,12 @@
             "maxLength": 255
           },
           "address": {
-            "type": "object"
+            "type": "object",
+            "description": "The address for the customer"
           },
           "metadata": {
-            "type": "object"
+            "type": "object",
+            "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500\ncharacters long. Metadata is useful for storing additional, structured information on an\nobject."
           }
         }
       },
@@ -3231,7 +2973,8 @@
             "maxLength": 255
           },
           "address": {
-            "type": "object"
+            "type": "object",
+            "description": "The address for the customer"
           },
           "created_at": {
             "type": "string",
@@ -3240,7 +2983,8 @@
             "example": "2023-01-18T11:04:09.922Z"
           },
           "metadata": {
-            "type": "object"
+            "type": "object",
+            "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500\ncharacters long. Metadata is useful for storing additional, structured information on an\nobject."
           }
         }
       },
@@ -3326,16 +3070,16 @@
           "allowed_auth_methods": {
             "type": "array",
             "items": {
-              "type": "string",
-              "description": "The list of allowed auth methods (ex: 3DS, No3DS, PAN_ONLY etc)"
-            }
+              "type": "string"
+            },
+            "description": "The list of allowed auth methods (ex: 3DS, No3DS, PAN_ONLY etc)"
           },
           "allowed_card_networks": {
             "type": "array",
             "items": {
-              "type": "string",
-              "description": "The list of allowed card networks (ex: AMEX,JCB etc)"
-            }
+              "type": "string"
+            },
+            "description": "The list of allowed card networks (ex: AMEX,JCB etc)"
           }
         }
       },
@@ -3403,7 +3147,8 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/GpayAllowedPaymentMethods"
-            }
+            },
+            "description": "List of the allowed payment meythods"
           },
           "transaction_info": {
             "$ref": "#/components/schemas/GpayTransactionInfo"
@@ -3546,31 +3291,15 @@
       "ListCustomerPaymentMethodsResponse": {
         "type": "object",
         "required": [
-          "enabled_payment_methods",
           "customer_payment_methods"
         ],
         "properties": {
-          "enabled_payment_methods": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/ListPaymentMethod"
-            },
-            "example": [
-              {
-                "payment_experience": null,
-                "payment_method": "wallet",
-                "payment_method_issuers": [
-                  "labore magna ipsum",
-                  "aute"
-                ]
-              }
-            ]
-          },
           "customer_payment_methods": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/CustomerPaymentMethod"
-            }
+            },
+            "description": "List of payment methods for customer"
           }
         }
       },
@@ -3588,6 +3317,7 @@
             "items": {
               "$ref": "#/components/schemas/PaymentMethodType"
             },
+            "description": "This is a sub-category of payment method.",
             "example": [
               "credit"
             ]
@@ -3610,6 +3340,7 @@
             "items": {
               "$ref": "#/components/schemas/ListPaymentMethod"
             },
+            "description": "Information about the payment method",
             "example": [
               {
                 "payment_experience": null,
@@ -3852,7 +3583,8 @@
             "example": "AH3423bkjbkjdsfbkj"
           },
           "metadata": {
-            "type": "object"
+            "type": "object",
+            "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object."
           },
           "locker_id": {
             "type": "string",
@@ -3935,7 +3667,8 @@
       "Metadata": {
         "allOf": [
           {
-            "type": "object"
+            "type": "object",
+            "description": "Any other metadata that is to be provided"
           },
           {
             "type": "object",
@@ -4133,7 +3866,8 @@
             "example": "mca_5apGeP94tMts6rg3U3kR"
           },
           "connector_account_details": {
-            "type": "object"
+            "type": "object",
+            "description": "Account details of the Connector. You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Useful for storing additional, structured information on an object."
           },
           "test_mode": {
             "type": "boolean",
@@ -4152,6 +3886,7 @@
             "items": {
               "$ref": "#/components/schemas/PaymentMethodsEnabled"
             },
+            "description": "Refers to the Parent Merchant ID if the merchant being created is a sub-merchant",
             "example": [
               {
                 "accepted_countries": {
@@ -4190,7 +3925,8 @@
             ]
           },
           "metadata": {
-            "type": "object"
+            "type": "object",
+            "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object."
           }
         }
       },
@@ -4316,7 +4052,8 @@
         "enum": [
           "card",
           "pay_later",
-          "wallet"
+          "wallet",
+          "bank_redirect"
         ]
       },
       "PaymentMethodData": {
@@ -4431,12 +4168,14 @@
             "items": {
               "$ref": "#/components/schemas/PaymentExperience"
             },
+            "description": "Type of payment experience enabled with the connector",
             "example": [
               "redirect_to_url"
             ]
           },
           "metadata": {
-            "type": "object"
+            "type": "object",
+            "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object."
           },
           "created": {
             "type": "string",
@@ -4478,6 +4217,7 @@
             "items": {
               "$ref": "#/components/schemas/PaymentMethodType"
             },
+            "description": "Subtype of payment method",
             "example": [
               "credit"
             ]
@@ -4687,7 +4427,8 @@
             "maxLength": 255
           },
           "browser_info": {
-            "type": "object"
+            "type": "object",
+            "description": "Additional details required by 3DS 2.0"
           },
           "payment_experience": {
             "$ref": "#/components/schemas/PaymentExperience"
@@ -4776,7 +4517,8 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/RefundResponse"
-            }
+            },
+            "description": "List of refund that happened on this intent"
           },
           "mandate_id": {
             "type": "string",
@@ -4822,7 +4564,8 @@
             "$ref": "#/components/schemas/Address"
           },
           "metadata": {
-            "type": "object"
+            "type": "object",
+            "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object."
           },
           "email": {
             "type": "string",
@@ -4935,7 +4678,8 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/SupportedWallets"
-            }
+            },
+            "description": "The list of the supported wallets"
           }
         }
       },
@@ -4959,7 +4703,8 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/SessionToken"
-            }
+            },
+            "description": "The list of session token object"
           }
         }
       },
@@ -5064,7 +4809,8 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/RefundResponse"
-            }
+            },
+            "description": "The list of refund response"
           }
         }
       },
@@ -5111,7 +4857,8 @@
             "$ref": "#/components/schemas/RefundType"
           },
           "metadata": {
-            "type": "object"
+            "type": "object",
+            "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object."
           }
         }
       },
@@ -5150,7 +4897,8 @@
             "$ref": "#/components/schemas/RefundStatus"
           },
           "metadata": {
-            "type": "object"
+            "type": "object",
+            "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object"
           },
           "error_message": {
             "type": "string",
@@ -5199,7 +4947,8 @@
             "maxLength": 255
           },
           "metadata": {
-            "type": "object"
+            "type": "object",
+            "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object."
           }
         }
       },
@@ -5415,8 +5164,12 @@
           "card": {
             "$ref": "#/components/schemas/CardDetail"
           },
+          "card_network": {
+            "$ref": "#/components/schemas/CardNetwork"
+          },
           "metadata": {
-            "type": "object"
+            "type": "object",
+            "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object."
           }
         }
       },
@@ -5567,10 +5320,6 @@
     {
       "name": "Payment Methods",
       "description": "Create and manage payment methods of customers"
-    },
-    {
-      "name": "API Key",
-      "description": "Create and manage API Keys"
     }
   ]
 }
