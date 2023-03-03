@@ -33,10 +33,6 @@ impl TryFrom<&types::ConnectorAuthType> for StripeAuthType {
     }
 }
 
-// Stripe Types Definition
-// PAYMENT
-// PaymentIntentRequest
-
 #[derive(Debug, Default, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum StripeCaptureMethod {
@@ -72,6 +68,7 @@ pub struct PaymentIntentRequest {
     pub amount: i64, //amount in cents, hence passed as integer
     pub currency: String,
     pub statement_descriptor_suffix: Option<String>,
+    pub statement_descriptor: Option<String>,
     #[serde(rename = "metadata[order_id]")]
     pub metadata_order_id: String,
     #[serde(rename = "metadata[txn_id]")]
@@ -626,6 +623,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
             amount: item.request.amount, //hopefully we don't loose some cents here
             currency: item.request.currency.to_string(), //we need to copy the value and not transfer ownership
             statement_descriptor_suffix: item.request.statement_descriptor_suffix.clone(),
+            statement_descriptor: item.request.statement_descriptor.clone(),
             metadata_order_id,
             metadata_txn_id,
             metadata_txn_uuid,
@@ -671,8 +669,6 @@ impl TryFrom<&types::VerifyRouterData> for SetupIntentRequest {
         })
     }
 }
-
-// PaymentIntentResponse
 
 #[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
 pub struct StripeMetadata {

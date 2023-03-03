@@ -500,7 +500,7 @@ impl PaymentCreate {
             return_url: request.return_url.as_ref().map(|a| a.to_string()),
             shipping_address_id,
             billing_address_id,
-            statement_descriptor_name: request.statement_descriptor_name.clone(),
+            statement_descriptor_name: request.statement_descriptor.clone(),
             statement_descriptor_suffix: request.statement_descriptor_suffix.clone(),
             metadata,
             ..storage::PaymentIntentNew::default()

@@ -324,7 +324,7 @@ where
                                 .authentication_type
                                 .map(ForeignInto::foreign_into),
                         )
-                        .set_statement_descriptor_name(payment_intent.statement_descriptor_name)
+                        .set_statement_descriptor(payment_intent.statement_descriptor_name)
                         .set_statement_descriptor_suffix(payment_intent.statement_descriptor_suffix)
                         .set_setup_future_usage(
                             payment_intent
@@ -432,6 +432,7 @@ impl<F: Clone> TryFrom<PaymentData<F>> for types::PaymentsAuthorizeData {
             setup_mandate_details: payment_data.setup_mandate.clone(),
             confirm: payment_data.payment_attempt.confirm,
             statement_descriptor_suffix: payment_data.payment_intent.statement_descriptor_suffix,
+            statement_descriptor: payment_data.payment_intent.statement_descriptor_name,
             capture_method: payment_data.payment_attempt.capture_method,
             amount: payment_data.amount.into(),
             currency: payment_data.currency,
