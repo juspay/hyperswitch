@@ -1,4 +1,5 @@
 use actix_web::{web, Scope};
+use api_models::webhooks as webhook_type;
 
 use super::health::*;
 #[cfg(feature = "olap")]
@@ -319,8 +320,12 @@ impl Webhooks {
             .app_data(web::Data::new(config))
             .service(
                 web::resource("/{merchant_id}/{connector}")
-                    .route(web::post().to(receive_incoming_webhook))
-                    .route(web::get().to(receive_incoming_webhook)),
+                    .route(
+                        web::post().to(receive_incoming_webhook::<webhook_type::OutgoingWebhook>),
+                    )
+                    .route(
+                        web::get().to(receive_incoming_webhook::<webhook_type::OutgoingWebhook>),
+                    ),
             )
     }
 }
