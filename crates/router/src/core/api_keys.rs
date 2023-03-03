@@ -1,6 +1,6 @@
-use common_utils::{date_time, errors::CustomResult, fp_utils};
+use common_utils::date_time;
 use error_stack::{report, IntoReport, ResultExt};
-use masking::{PeekInterface, Secret, StrongSecret};
+use masking::{PeekInterface, StrongSecret};
 use router_env::{instrument, tracing};
 
 #[cfg(feature = "kms")]
@@ -49,11 +49,13 @@ pub async fn get_hash_key(
 
 // Defining new types `PlaintextApiKey` and `HashedApiKey` in the hopes of reducing the possibility
 // of plaintext API key being stored in the data store.
-pub struct PlaintextApiKey(Secret<String>);
+pub struct PlaintextApiKey(StrongSecret<String>);
+
+#[derive(Debug, PartialEq, Eq)]
 pub struct HashedApiKey(String);
 
 impl PlaintextApiKey {
-    pub const HASH_KEY_LEN: usize = 32;
+    const HASH_KEY_LEN: usize = 32;
 
     const PREFIX_LEN: usize = 12;
 
@@ -106,22 +108,6 @@ impl PlaintextApiKey {
                 .to_hex()
                 .to_string(),
         )
-    }
-
-    pub fn verify_hash(
-        &self,
-        key: &[u8; Self::HASH_KEY_LEN],
-        stored_api_key: &HashedApiKey,
-    ) -> CustomResult<(), errors::ApiKeyError> {
-        // Converting both hashes to `blake3::Hash` since it provides constant-time equality checks
-        let provided_api_key_hash = blake3::keyed_hash(key, self.0.peek().as_bytes());
-        let stored_api_key_hash = blake3::Hash::from_hex(&stored_api_key.0)
-            .into_report()
-            .change_context(errors::ApiKeyError::FailedToReadHashFromHex)?;
-
-        fp_utils::when(provided_api_key_hash != stored_api_key_hash, || {
-            Err(errors::ApiKeyError::HashVerificationFailed).into_report()
-        })
     }
 }
 
@@ -224,9 +210,27 @@ pub async fn list_api_keys(
     Ok(ApplicationResponse::Json(api_keys))
 }
 
+impl From<&str> for PlaintextApiKey {
+    fn from(s: &str) -> Self {
+        Self(s.to_owned().into())
+    }
+}
+
+impl From<String> for PlaintextApiKey {
+    fn from(s: String) -> Self {
+        Self(s.into())
+    }
+}
+
 impl From<HashedApiKey> for storage::HashedApiKey {
     fn from(hashed_api_key: HashedApiKey) -> Self {
         hashed_api_key.0.into()
+    }
+}
+
+impl From<storage::HashedApiKey> for HashedApiKey {
+    fn from(hashed_api_key: storage::HashedApiKey) -> Self {
+        Self(hashed_api_key.into_inner())
     }
 }
 
@@ -251,8 +255,7 @@ mod tests {
             hashed_api_key.0.as_bytes()
         );
 
-        plaintext_api_key
-            .verify_hash(hash_key.peek(), &hashed_api_key)
-            .unwrap();
+        let new_hashed_api_key = plaintext_api_key.keyed_hash(hash_key.peek());
+        assert_eq!(hashed_api_key, new_hashed_api_key)
     }
 }
