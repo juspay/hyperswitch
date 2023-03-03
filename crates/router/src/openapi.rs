@@ -108,6 +108,7 @@ Never share your secret api keys. Keep them guarded and secure.
         crate::types::api::refunds::RefundStatus,
         crate::types::api::refunds::RefundUpdateRequest,
         crate::types::api::admin::MerchantAccountCreate,
+        crate::types::api::admin::MerchantAccountUpdate,
         crate::types::api::admin::MerchantAccountDeleteResponse,
         crate::types::api::admin::MerchantConnectorDeleteResponse,
         crate::types::api::customers::CustomerRequest,
