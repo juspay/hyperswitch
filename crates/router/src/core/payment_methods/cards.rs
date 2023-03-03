@@ -33,7 +33,7 @@ use crate::{
         storage::{self, enums},
         transformers::ForeignInto,
     },
-    utils::{self, BytesExt, ConnectorResponseExt, OptionExt},
+    utils::{self, ConnectorResponseExt, OptionExt},
 };
 
 #[instrument(skip_all)]
@@ -177,29 +177,29 @@ pub async fn add_card_hs(
         merchant_id,
     )
     .await?;
-    let response = services::call_connector_api(state, request)
-        .await
-        .change_context(errors::VaultError::SaveCardFailed)?;
-    let stored_card_response = match response {
-        Ok(card) => {
-            let jwe_body: services::JweBody = card
-                .response
-                .parse_struct("JweBody")
-                .change_context(errors::VaultError::ResponseDeserializationFailed)?;
-            let decrypted_payload =
-                payment_methods::get_decrypted_response_payload(jwekey, jwe_body)
-                    .await
-                    .change_context(errors::VaultError::SaveCardFailed)
-                    .attach_printable("Error getting decrypted response payload")?;
-            let stored_card_resp: payment_methods::StoreCardResp = decrypted_payload
-                .parse_struct("StoreCardResp")
-                .change_context(errors::VaultError::ResponseDeserializationFailed)?;
-            Ok(stored_card_resp)
-        }
-        Err(err) => Err(report!(errors::VaultError::UnexpectedResponseError(
-            err.response
-        ))),
-    }?;
+
+    let stored_card_response = if !locker.mock_locker {
+        let response = services::call_connector_api(state, request)
+            .await
+            .change_context(errors::VaultError::SaveCardFailed);
+
+        let jwe_body: services::JweBody = response
+            .get_response_inner("JweBody")
+            .change_context(errors::VaultError::FetchCardFailed)?;
+
+        let decrypted_payload = payment_methods::get_decrypted_response_payload(jwekey, jwe_body)
+            .await
+            .change_context(errors::VaultError::SaveCardFailed)
+            .attach_printable("Error getting decrypted response payload")?;
+        let stored_card_resp: payment_methods::StoreCardResp = decrypted_payload
+            .parse_struct("StoreCardResp")
+            .change_context(errors::VaultError::ResponseDeserializationFailed)?;
+        stored_card_resp
+    } else {
+        let card_id = generate_id(consts::ID_LENGTH, "card");
+        mock_add_card(db, &card_id, &card, None, None, Some(&customer_id)).await?
+    };
+
     let store_card_payload = stored_card_response
         .payload
         .get_required_value("StoreCardRespPayload")
@@ -242,20 +242,27 @@ pub async fn get_card_from_hs_locker<'a>(
     .await
     .change_context(errors::VaultError::FetchCardFailed)
     .attach_printable("Making get card request failed")?;
-    let response = services::call_connector_api(state, request)
-        .await
-        .change_context(errors::VaultError::FetchCardFailed)
-        .attach_printable("Failed while executing call_connector_api for get_card");
-    let jwe_body: services::JweBody = response
-        .get_response_inner("JweBody")
-        .change_context(errors::VaultError::FetchCardFailed)?;
-    let decrypted_payload = payment_methods::get_decrypted_response_payload(jwekey, jwe_body)
-        .await
-        .change_context(errors::VaultError::FetchCardFailed)
-        .attach_printable("Error getting decrypted response payload for get card")?;
-    let get_card_resp: payment_methods::RetrieveCardResp = decrypted_payload
-        .parse_struct("RetrieveCardResp")
-        .change_context(errors::VaultError::FetchCardFailed)?;
+    let get_card_resp = if !locker.mock_locker {
+        let response = services::call_connector_api(state, request)
+            .await
+            .change_context(errors::VaultError::FetchCardFailed)
+            .attach_printable("Failed while executing call_connector_api for get_card");
+        let jwe_body: services::JweBody = response
+            .get_response_inner("JweBody")
+            .change_context(errors::VaultError::FetchCardFailed)?;
+        let decrypted_payload = payment_methods::get_decrypted_response_payload(jwekey, jwe_body)
+            .await
+            .change_context(errors::VaultError::FetchCardFailed)
+            .attach_printable("Error getting decrypted response payload for get card")?;
+        let get_card_resp: payment_methods::RetrieveCardResp = decrypted_payload
+            .parse_struct("RetrieveCardResp")
+            .change_context(errors::VaultError::FetchCardFailed)?;
+        get_card_resp
+    } else {
+        let (get_card_resp, _) = mock_get_card(&*state.store, card_reference).await?;
+        get_card_resp
+    };
+
     let retrieve_card_resp = get_card_resp
         .payload
         .get_required_value("RetrieveCardRespPayload")
@@ -285,19 +292,27 @@ pub async fn delete_card_from_hs_locker<'a>(
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Making delete card request failed")?;
-    let response = services::call_connector_api(state, request)
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed while executing call_connector_api for delete card");
-    let jwe_body: services::JweBody = response.get_response_inner("JweBody")?;
-    let decrypted_payload = payment_methods::get_decrypted_response_payload(jwekey, jwe_body)
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Error getting decrypted response payload for delete card")?;
-    let delete_card_resp: payment_methods::DeleteCardResp = decrypted_payload
-        .parse_struct("DeleteCardResp")
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
-    Ok(delete_card_resp)
+
+    if !locker.mock_locker {
+        let response = services::call_connector_api(state, request)
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed while executing call_connector_api for delete card");
+        let jwe_body: services::JweBody = response.get_response_inner("JweBody")?;
+        let decrypted_payload = payment_methods::get_decrypted_response_payload(jwekey, jwe_body)
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Error getting decrypted response payload for delete card")?;
+        let delete_card_resp: payment_methods::DeleteCardResp = decrypted_payload
+            .parse_struct("DeleteCardResp")
+            .change_context(errors::ApiErrorResponse::InternalServerError)?;
+        Ok(delete_card_resp)
+    } else {
+        Ok(mock_delete_card(&*state.store, card_reference)
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("card_delete_failure_message")?)
+    }
 }
 
 ///Mock api for local testing
