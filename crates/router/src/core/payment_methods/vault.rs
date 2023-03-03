@@ -2,6 +2,8 @@ use std::str::FromStr;
 
 use common_utils::generate_id_with_default_len;
 use error_stack::{IntoReport, ResultExt};
+#[cfg(feature = "basilisk")]
+use josekit::jwe;
 use masking::PeekInterface;
 use router_env::{instrument, tracing};
 
@@ -445,10 +447,11 @@ pub async fn create_tokenize(
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Error getting Encryption key")?;
-    let encrypted_payload = services::encrypt_jwe(&state.conf.jwekey, &payload, public_key)
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Error getting Encrypt JWE response")?;
+    let encrypted_payload =
+        services::encrypt_jwe(&state.conf.jwekey, payload.as_bytes(), public_key)
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Error getting Encrypt JWE response")?;
 
     let create_tokenize_request = api::TokenizePayloadEncrypted {
         payload: encrypted_payload,
@@ -473,12 +476,14 @@ pub async fn create_tokenize(
                 .parse_struct("TokenizePayloadEncrypted")
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Decoding Failed for TokenizePayloadEncrypted")?;
+            let alg = jwe::RSA_OAEP_256;
             let decrypted_payload = services::decrypt_jwe(
                 &state.conf.jwekey,
                 &resp.payload,
                 get_key_id(&state.conf.jwekey),
                 &resp.key_id,
                 private_key,
+                alg,
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -514,10 +519,11 @@ pub async fn get_tokenized_data(
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Error getting Encryption key")?;
-    let encrypted_payload = services::encrypt_jwe(&state.conf.jwekey, &payload, public_key)
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Error getting Encrypt JWE response")?;
+    let encrypted_payload =
+        services::encrypt_jwe(&state.conf.jwekey, payload.as_bytes(), public_key)
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Error getting Encrypt JWE response")?;
     let create_tokenize_request = api::TokenizePayloadEncrypted {
         payload: encrypted_payload,
         key_id: get_key_id(&state.conf.jwekey).to_string(),
@@ -540,12 +546,14 @@ pub async fn get_tokenized_data(
                 .parse_struct("TokenizePayloadEncrypted")
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Decoding Failed for TokenizePayloadEncrypted")?;
+            let alg = jwe::RSA_OAEP_256;
             let decrypted_payload = services::decrypt_jwe(
                 &state.conf.jwekey,
                 &resp.payload,
                 get_key_id(&state.conf.jwekey),
                 &resp.key_id,
                 private_key,
+                alg,
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -577,10 +585,11 @@ pub async fn delete_tokenized_data(
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Error getting Encryption key")?;
-    let encrypted_payload = services::encrypt_jwe(&state.conf.jwekey, &payload, public_key)
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Error getting Encrypt JWE response")?;
+    let encrypted_payload =
+        services::encrypt_jwe(&state.conf.jwekey, payload.as_bytes(), public_key)
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Error getting Encrypt JWE response")?;
     let create_tokenize_request = api::TokenizePayloadEncrypted {
         payload: encrypted_payload,
         key_id: get_key_id(&state.conf.jwekey).to_string(),
@@ -603,12 +612,14 @@ pub async fn delete_tokenized_data(
                 .parse_struct("TokenizePayloadEncrypted")
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Decoding Failed for TokenizePayloadEncrypted")?;
+            let alg = jwe::RSA_OAEP_256;
             let decrypted_payload = services::decrypt_jwe(
                 &state.conf.jwekey,
                 &resp.payload,
                 get_key_id(&state.conf.jwekey),
                 &resp.key_id,
                 private_key,
+                alg,
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)

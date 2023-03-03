@@ -187,11 +187,10 @@ pub fn decrypt(mut data: Vec<u8>, key: &[u8]) -> CustomResult<String, errors::En
 
 pub async fn encrypt_jwe(
     _keys: &Jwekey,
-    msg: &str,
+    payload: &[u8],
     public_key: String,
 ) -> CustomResult<String, errors::EncryptionError> {
     let alg = jwe::RSA_OAEP_256;
-    let payload = msg.as_bytes();
     let enc = "A256GCM";
     let mut src_header = jwe::JweHeader::new();
     src_header.set_content_encryption(enc);
@@ -214,9 +213,8 @@ pub async fn decrypt_jwe(
     key_id: &str,
     resp_key_id: &str,
     private_key: String,
+    alg: jwe::alg::rsaes::RsaesJweAlgorithm,
 ) -> CustomResult<String, errors::EncryptionError> {
-    let alg = jwe::RSA_OAEP_256;
-
     let decrypter = alg
         .decrypter_from_pem(private_key)
         .into_report()
@@ -239,15 +237,13 @@ pub async fn decrypt_jwe(
 }
 
 pub async fn jws_sign_payload(
-    msg: &str,
+    payload: &[u8],
     kid: &str,
     private_key: String,
 ) -> CustomResult<String, errors::EncryptionError> {
     let alg = jws::RS256;
     let mut src_header = jws::JwsHeader::new();
-    src_header.set_token_type("JWT");
     src_header.set_key_id(kid);
-    let payload = msg.as_bytes();
     let signer = alg
         .signer_from_pem(private_key)
         .into_report()
@@ -312,17 +308,19 @@ mod tests {
         let conf = settings::Settings::new().unwrap();
         let jwt = encrypt_jwe(
             &conf.jwekey,
-            "request_payload",
+            "request_payload".as_bytes(),
             conf.jwekey.locker_encryption_key1.to_owned(),
         )
         .await
         .unwrap();
+        let alg = jwe::RSA_OAEP_256;
         let payload = decrypt_jwe(
             &conf.jwekey,
             &jwt,
             &conf.jwekey.locker_key_identifier1,
             &conf.jwekey.locker_key_identifier1,
             conf.jwekey.locker_decryption_key1.to_owned(),
+            alg,
         )
         .await
         .unwrap();
@@ -332,7 +330,7 @@ mod tests {
     #[actix_rt::test]
     async fn test_jws() {
         let conf = settings::Settings::new().unwrap();
-        let jwt = jws_sign_payload("jws payload", "1", conf.jwekey.vault_private_key)
+        let jwt = jws_sign_payload("jws payload".as_bytes(), "1", conf.jwekey.vault_private_key)
             .await
             .unwrap();
         let payload = verify_sign(jwt, &conf.jwekey.vault_encryption_key).unwrap();
