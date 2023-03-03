@@ -323,3 +323,35 @@ pub fn get_header_key_value<'a>(
             errors::ConnectorError::WebhookSourceVerificationFailed
         ))?
 }
+
+pub fn to_currency_base_unit_from_optional_amount(
+    amount: Option<i64>,
+    currency: storage_models::enums::Currency,
+) -> Result<String, error_stack::Report<errors::ConnectorError>> {
+    match amount {
+        Some(a) => to_currency_base_unit(a, currency),
+        _ => Err(errors::ConnectorError::MissingRequiredField {
+            field_name: "amount",
+        }
+        .into()),
+    }
+}
+
+pub fn to_currency_base_unit(
+    amount: i64,
+    currency: storage_models::enums::Currency,
+) -> Result<String, error_stack::Report<errors::ConnectorError>> {
+    let amount_u32 = u32::try_from(amount)
+        .into_report()
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+    match currency {
+        storage_models::enums::Currency::JPY | storage_models::enums::Currency::KRW => {
+            Ok(amount.to_string())
+        }
+        storage_models::enums::Currency::BHD
+        | storage_models::enums::Currency::JOD
+        | storage_models::enums::Currency::KWD
+        | storage_models::enums::Currency::OMR => Ok((f64::from(amount_u32) / 1000.0).to_string()),
+        _ => Ok((f64::from(amount_u32) / 100.0).to_string()),
+    }
+}

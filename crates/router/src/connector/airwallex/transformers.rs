@@ -4,6 +4,7 @@ use url::Url;
 use uuid::Uuid;
 
 use crate::{
+    connector::utils,
     core::errors,
     pii::{self, Secret},
     services,
@@ -14,7 +15,7 @@ use crate::{
 pub struct AirwallexIntentRequest {
     // Unique ID to be sent for each transaction/operation request to the connector
     request_id: String,
-    amount: i64,
+    amount: String,
     currency: enums::Currency,
     //ID created in merchant's order system that corresponds to this PaymentIntent.
     merchant_order_id: String,
@@ -26,7 +27,7 @@ impl TryFrom<&types::PaymentsAuthorizeSessionTokenRouterData> for AirwallexInten
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             request_id: Uuid::new_v4().to_string(),
-            amount: item.request.amount,
+            amount: utils::to_currency_base_unit(item.request.amount, item.request.currency)?,
             currency: item.request.currency,
             merchant_order_id: item.payment_id.clone(),
         })
@@ -145,7 +146,7 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, AirwallexAuthUpdateResponse, T, 
 pub struct AirwallexPaymentsCaptureRequest {
     // Unique ID to be sent for each transaction/operation request to the connector
     request_id: String,
-    amount: Option<i64>,
+    amount: Option<String>,
 }
 
 impl TryFrom<&types::PaymentsCaptureRouterData> for AirwallexPaymentsCaptureRequest {
@@ -153,7 +154,13 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for AirwallexPaymentsCaptureRequ
     fn try_from(item: &types::PaymentsCaptureRouterData) -> Result<Self, Self::Error> {
         Ok(Self {
             request_id: Uuid::new_v4().to_string(),
-            amount: item.request.amount_to_capture,
+            amount: match item.request.amount_to_capture {
+                Some(_a) => Some(utils::to_currency_base_unit(
+                    item.request.amount,
+                    item.request.currency,
+                )?),
+                _ => None,
+            },
         })
     }
 }
@@ -224,7 +231,7 @@ pub struct AirwallexPaymentsResponse {
     status: AirwallexPaymentStatus,
     //Unique identifier for the PaymentIntent
     id: String,
-    amount: Option<i64>,
+    amount: Option<f32>,
     //ID of the PaymentConsent related to this PaymentIntent
     payment_consent_id: Option<String>,
     next_action: Option<AirwallexPaymentsNextAction>,
@@ -277,18 +284,21 @@ impl<F, T>
 pub struct AirwallexRefundRequest {
     // Unique ID to be sent for each transaction/operation request to the connector
     request_id: String,
-    amount: Option<i64>,
+    amount: Option<String>,
     reason: Option<String>,
     //Identifier for the PaymentIntent for which Refund is requested
     payment_intent_id: String,
 }
 
 impl<F> TryFrom<&types::RefundsRouterData<F>> for AirwallexRefundRequest {
-    type Error = error_stack::Report<errors::ParsingError>;
+    type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
         Ok(Self {
             request_id: Uuid::new_v4().to_string(),
-            amount: Some(item.request.refund_amount),
+            amount: Some(utils::to_currency_base_unit(
+                item.request.refund_amount,
+                item.request.currency,
+            )?),
             reason: item.request.reason.clone(),
             payment_intent_id: item.request.connector_transaction_id.clone(),
         })
@@ -320,7 +330,7 @@ impl From<RefundStatus> for enums::RefundStatus {
 pub struct RefundResponse {
     //A unique number that tags a credit or debit card transaction when it goes from the merchant's bank through to the cardholder's bank.
     acquirer_reference_number: String,
-    amount: i64,
+    amount: f32,
     //Unique identifier for the Refund
     id: String,
     status: RefundStatus,

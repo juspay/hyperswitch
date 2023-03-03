@@ -74,6 +74,7 @@ impl WorldlineTest {
             }),
             confirm: true,
             statement_descriptor_suffix: None,
+            statement_descriptor: None,
             setup_future_usage: None,
             mandate_id: None,
             off_session: None,
@@ -135,7 +136,8 @@ async fn should_throw_not_implemented_for_unsupported_issuer() {
         *response.unwrap_err().current_context(),
         errors::ConnectorError::NotSupported {
             payment_method: "Maestro".to_string(),
-            connector: "worldline"
+            connector: "worldline",
+            payment_experience: "redirect_to_url".to_string(),
         }
     )
 }

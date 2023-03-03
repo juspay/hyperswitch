@@ -78,6 +78,15 @@ pub fn mk_app(
 > {
     let mut server_app = get_application_builder(request_body_limit);
 
+    #[cfg(feature = "openapi")]
+    {
+        use utoipa::OpenApi;
+        server_app = server_app.service(
+            utoipa_swagger_ui::SwaggerUi::new("/docs/{_:.*}")
+                .url("/docs/openapi.json", openapi::ApiDoc::openapi()),
+        );
+    }
+
     #[cfg(any(feature = "olap", feature = "oltp"))]
     {
         server_app = server_app

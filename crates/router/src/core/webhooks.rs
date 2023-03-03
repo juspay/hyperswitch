@@ -153,10 +153,7 @@ async fn refunds_incoming_webhook_flow(
         .foreign_try_into()
         .into_report()
         .change_context(errors::WebhooksFlowError::RefundsCoreFailed)?;
-    let refund_response: api_models::refunds::RefundResponse = updated_refund
-        .foreign_try_into()
-        .into_report()
-        .change_context(errors::WebhooksFlowError::RefundsCoreFailed)?;
+    let refund_response: api_models::refunds::RefundResponse = updated_refund.foreign_into();
     create_event_and_trigger_outgoing_webhook(
         state,
         merchant_account,

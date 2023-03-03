@@ -317,8 +317,8 @@ async fn payments_create_core() {
             address: None,
             phone: None,
         }),
-        statement_descriptor_name: Some("Juspay".to_string()),
-        statement_descriptor_suffix: Some("Router".to_string()),
+        statement_descriptor: Some("Hyperswtich".to_string()),
+        statement_descriptor_suffix: Some("Hyperswitch".to_string()),
         ..Default::default()
     };
 
@@ -463,7 +463,7 @@ async fn payments_create_core_adyen_no_redirect() {
             address: None,
             phone: None,
         }),
-        statement_descriptor_name: Some("Juspay".to_string()),
+        statement_descriptor: Some("Juspay".to_string()),
         statement_descriptor_suffix: Some("Router".to_string()),
         ..Default::default()
     };

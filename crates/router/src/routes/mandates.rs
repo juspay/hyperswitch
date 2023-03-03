@@ -8,8 +8,7 @@ use crate::{
     types::api::mandates,
 };
 
-// Mandates - Retrieve Mandate
-
+/// Mandates - Retrieve Mandate
 ///
 /// Retrieve a mandate
 #[utoipa::path(
@@ -46,8 +45,7 @@ pub async fn get_mandate(
     .await
 }
 
-// Mandates - Revoke Mandate
-
+/// Mandates - Revoke Mandate
 ///
 /// Revoke a mandate
 #[utoipa::path(

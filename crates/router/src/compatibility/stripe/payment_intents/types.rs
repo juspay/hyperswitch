@@ -9,7 +9,7 @@ use crate::{
     pii::{self, PeekInterface},
     types::{
         api::enums as api_enums,
-        transformers::{Foreign, ForeignInto},
+        transformers::{ForeignFrom, ForeignInto},
     },
 };
 
@@ -181,7 +181,7 @@ impl TryFrom<StripePaymentIntentRequest> for payments::PaymentsRequest {
                 .billing_details
                 .as_ref()
                 .map(|b| payments::Address::from(b.to_owned())),
-            statement_descriptor_name: item.statement_descriptor,
+            statement_descriptor: item.statement_descriptor,
             statement_descriptor_suffix: item.statement_descriptor_suffix,
             metadata: item.metadata,
             client_secret: item.client_secret.map(|s| s.peek().clone()),
@@ -336,7 +336,7 @@ impl From<payments::PaymentsResponse> for StripePaymentIntentResponse {
             name: resp.name,
             phone: resp.phone,
             authentication_type: resp.authentication_type,
-            statement_descriptor_name: resp.statement_descriptor_name,
+            statement_descriptor_name: resp.statement_descriptor,
             statement_descriptor_suffix: resp.statement_descriptor_suffix,
             next_action: into_stripe_next_action(resp.next_action, resp.return_url),
             cancellation_reason: resp.cancellation_reason,
@@ -461,12 +461,12 @@ pub enum Request3DS {
     Any,
 }
 
-impl From<Foreign<Option<Request3DS>>> for Foreign<api_models::enums::AuthenticationType> {
-    fn from(item: Foreign<Option<Request3DS>>) -> Self {
-        Self(match item.0.unwrap_or_default() {
-            Request3DS::Automatic => api_models::enums::AuthenticationType::NoThreeDs,
-            Request3DS::Any => api_models::enums::AuthenticationType::ThreeDs,
-        })
+impl ForeignFrom<Option<Request3DS>> for api_models::enums::AuthenticationType {
+    fn foreign_from(item: Option<Request3DS>) -> Self {
+        match item.unwrap_or_default() {
+            Request3DS::Automatic => Self::NoThreeDs,
+            Request3DS::Any => Self::ThreeDs,
+        }
     }
 }
 
