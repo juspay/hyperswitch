@@ -107,9 +107,9 @@ Never share your secret api keys. Keep them guarded and secure.
         crate::types::api::refunds::RefundResponse,
         crate::types::api::refunds::RefundStatus,
         crate::types::api::refunds::RefundUpdateRequest,
-        crate::types::api::admin::CreateMerchantAccount,
-        crate::types::api::admin::DeleteMerchantAccountResponse,
-        crate::types::api::admin::DeleteMcaResponse,
+        crate::types::api::admin::MerchantAccountCreate,
+        crate::types::api::admin::MerchantAccountDeleteResponse,
+        crate::types::api::admin::MerchantConnectorDeleteResponse,
         crate::types::api::customers::CustomerRequest,
         crate::types::api::customers::CustomerDeleteResponse,
         crate::types::api::payment_methods::CreatePaymentMethod,
@@ -142,7 +142,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::enums::PaymentExperience,
         api_models::enums::BankNames,
         api_models::enums::CardNetwork,
-        api_models::admin::PaymentConnectorCreate,
+        api_models::admin::MerchantConnector,
         api_models::admin::PaymentMethodsEnabled,
         api_models::payments::AddressDetails,
         api_models::payments::Address,
@@ -237,7 +237,7 @@ impl utoipa::Modify for SecurityAddon {
                     SecurityScheme::ApiKey(ApiKey::Header(ApiKeyValue::with_description(
                         "api-key",
                         "Admin API keys allow you to perform some privileged actions such as \
-                         creating a merchant account and payment connector account."
+                         creating a merchant account and Merchant Connector account."
                     ))),
                 ),
                 (

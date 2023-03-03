@@ -431,7 +431,7 @@ pub fn get_banks(
 pub async fn list_payment_methods(
     state: &routes::AppState,
     merchant_account: storage::MerchantAccount,
-    mut req: api::ListPaymentMethodRequest,
+    mut req: api::PaymentMethodListRequest,
 ) -> errors::RouterResponse<api::ListPaymentMethodResponse> {
     let db = &*state.store;
     let pm_config_mapping = &state.conf.pm_filters;
@@ -694,7 +694,7 @@ pub async fn list_payment_methods(
 #[allow(clippy::too_many_arguments)]
 async fn filter_payment_methods(
     payment_methods: Vec<serde_json::Value>,
-    req: &mut api::ListPaymentMethodRequest,
+    req: &mut api::PaymentMethodListRequest,
     resp: &mut Vec<ResponsePaymentMethodIntermediate>,
     payment_intent: Option<&storage::PaymentIntent>,
     payment_attempt: Option<&storage::PaymentAttempt>,

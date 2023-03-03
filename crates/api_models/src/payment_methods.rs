@@ -257,7 +257,7 @@ pub struct RequestPaymentMethodTypes {
 //List Payment Method
 #[derive(Debug, serde::Serialize, Default, ToSchema)]
 #[serde(deny_unknown_fields)]
-pub struct ListPaymentMethodRequest {
+pub struct PaymentMethodListRequest {
     /// This is a 15 minute expiry token which shall be used from the client to authenticate and perform sessions from the SDK
     #[schema(max_length = 30, min_length = 30, example = "secret_k2uj3he2893ein2d")]
     pub client_secret: Option<String>,
@@ -287,7 +287,7 @@ pub struct ListPaymentMethodRequest {
     pub card_networks: Option<Vec<api_enums::CardNetwork>>,
 }
 
-impl<'de> serde::Deserialize<'de> for ListPaymentMethodRequest {
+impl<'de> serde::Deserialize<'de> for PaymentMethodListRequest {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
@@ -295,7 +295,7 @@ impl<'de> serde::Deserialize<'de> for ListPaymentMethodRequest {
         struct FieldVisitor;
 
         impl<'de> de::Visitor<'de> for FieldVisitor {
-            type Value = ListPaymentMethodRequest;
+            type Value = PaymentMethodListRequest;
 
             fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
                 formatter.write_str("Failed while deserializing as map")
@@ -305,7 +305,7 @@ impl<'de> serde::Deserialize<'de> for ListPaymentMethodRequest {
             where
                 A: de::MapAccess<'de>,
             {
-                let mut output = ListPaymentMethodRequest::default();
+                let mut output = PaymentMethodListRequest::default();
 
                 while let Some(key) = map.next_key()? {
                     match key {

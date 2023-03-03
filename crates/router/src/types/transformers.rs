@@ -313,9 +313,7 @@ impl<'a> ForeignFrom<&'a storage::Address> for api_types::Address {
     }
 }
 
-impl ForeignTryFrom<storage::MerchantConnectorAccount>
-    for api_models::admin::PaymentConnectorCreate
-{
+impl ForeignTryFrom<storage::MerchantConnectorAccount> for api_models::admin::MerchantConnector {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
     fn foreign_try_from(item: storage::MerchantConnectorAccount) -> Result<Self, Self::Error> {
         let merchant_ca = item;

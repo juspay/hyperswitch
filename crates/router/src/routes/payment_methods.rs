@@ -69,7 +69,7 @@ pub async fn create_payment_method_api(
 pub async fn list_payment_method_api(
     state: web::Data<AppState>,
     req: HttpRequest,
-    json_payload: web::Query<payment_methods::ListPaymentMethodRequest>,
+    json_payload: web::Query<payment_methods::PaymentMethodListRequest>,
 ) -> HttpResponse {
     let payload = json_payload.into_inner();
 
@@ -117,7 +117,7 @@ pub async fn list_customer_payment_method_api(
     state: web::Data<AppState>,
     customer_id: web::Path<(String,)>,
     req: HttpRequest,
-    json_payload: web::Query<payment_methods::ListPaymentMethodRequest>,
+    json_payload: web::Query<payment_methods::PaymentMethodListRequest>,
 ) -> HttpResponse {
     let customer_id = customer_id.into_inner().0;
 
@@ -260,14 +260,14 @@ pub async fn payment_method_delete_api(
 #[cfg(test)]
 mod tests {
     #![allow(clippy::unwrap_used)]
-    use api_models::payment_methods::ListPaymentMethodRequest;
+    use api_models::payment_methods::PaymentMethodListRequest;
 
     use super::*;
 
     #[test]
     fn test_custom_list_deserialization() {
         let dummy_data = "amount=120&recurring_enabled=true&installment_payment_enabled=true";
-        let de_query: web::Query<ListPaymentMethodRequest> =
+        let de_query: web::Query<PaymentMethodListRequest> =
             web::Query::from_query(dummy_data).unwrap();
         let de_struct = de_query.into_inner();
         assert_eq!(de_struct.installment_payment_enabled, Some(true))
@@ -276,7 +276,7 @@ mod tests {
     #[test]
     fn test_custom_list_deserialization_multi_amount() {
         let dummy_data = "amount=120&recurring_enabled=true&amount=1000";
-        let de_query: Result<web::Query<ListPaymentMethodRequest>, _> =
+        let de_query: Result<web::Query<PaymentMethodListRequest>, _> =
             web::Query::from_query(dummy_data);
         assert!(de_query.is_err())
     }
