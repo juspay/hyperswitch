@@ -942,30 +942,47 @@ pub struct PaymentsResponse {
 #[serde(deny_unknown_fields)]
 pub struct PaymentListConstraints {
     /// The identifier for customer
+    #[schema(example = "cus_meowuwunwiuwiwqw")]
     pub customer_id: Option<String>,
+
     /// A cursor for use in pagination, fetch the next list after some object
+    #[schema(example = "pay_fafa124123")]
     pub starting_after: Option<String>,
+
     /// A cursor for use in pagination, fetch the previous list before some object
+    #[schema(example = "pay_fafa124123")]
     pub ending_before: Option<String>,
+
     /// limit on the number of objects to return
+    #[schema(default = 10)]
     #[serde(default = "default_limit")]
     pub limit: i64,
+
     /// The time at which payment is created
+    #[schema(example = "2022-09-10T10:11:12Z")]
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub created: Option<PrimitiveDateTime>,
+
     /// Time less than the payment created time
+    #[schema(example = "2022-09-10T10:11:12Z")]
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     #[serde(rename = "created.lt")]
     pub created_lt: Option<PrimitiveDateTime>,
+
     /// Time greater than the payment created time
+    #[schema(example = "2022-09-10T10:11:12Z")]
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     #[serde(rename = "created.gt")]
     pub created_gt: Option<PrimitiveDateTime>,
+
     /// Time less than or equals to the payment created time
+    #[schema(example = "2022-09-10T10:11:12Z")]
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     #[serde(rename = "created.lte")]
     pub created_lte: Option<PrimitiveDateTime>,
+
     /// Time greater than or equals to the payment created time
+    #[schema(example = "2022-09-10T10:11:12Z")]
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     #[serde(rename = "created.gte")]
     pub created_gte: Option<PrimitiveDateTime>,
