@@ -22,7 +22,7 @@ pub trait ApiKeyInterface {
 
     async fn revoke_api_key(&self, key_id: &str) -> CustomResult<bool, errors::StorageError>;
 
-    async fn find_api_key_optional(
+    async fn find_api_key_by_key_id_optional(
         &self,
         key_id: &str,
     ) -> CustomResult<Option<storage::ApiKey>, errors::StorageError>;
@@ -69,7 +69,7 @@ impl ApiKeyInterface for Store {
             .into_report()
     }
 
-    async fn find_api_key_optional(
+    async fn find_api_key_by_key_id_optional(
         &self,
         key_id: &str,
     ) -> CustomResult<Option<storage::ApiKey>, errors::StorageError> {
@@ -118,7 +118,7 @@ impl ApiKeyInterface for MockDb {
         Err(errors::StorageError::MockDbError)?
     }
 
-    async fn find_api_key_optional(
+    async fn find_api_key_by_key_id_optional(
         &self,
         _key_id: &str,
     ) -> CustomResult<Option<storage::ApiKey>, errors::StorageError> {

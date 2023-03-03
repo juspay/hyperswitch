@@ -165,7 +165,7 @@ pub async fn retrieve_api_key(
     key_id: &str,
 ) -> RouterResponse<api::RetrieveApiKeyResponse> {
     let api_key = store
-        .find_api_key_optional(key_id)
+        .find_api_key_by_key_id_optional(key_id)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError) // If retrieve failed
         .attach_printable("Failed to retrieve new API key")?
