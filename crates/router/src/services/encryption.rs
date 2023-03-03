@@ -58,13 +58,12 @@ pub struct JwsBody {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct JweBody {
     pub header: String,
     pub iv: String,
-    #[serde(rename = "encryptedPayload")]
     pub encrypted_payload: String,
     pub tag: String,
-    #[serde(rename = "encryptedKey")]
     pub encrypted_key: String,
 }
 

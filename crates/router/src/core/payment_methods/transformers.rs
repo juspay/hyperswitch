@@ -1,4 +1,4 @@
-use common_utils::ext_traits::StringExt;
+use common_utils::{ext_traits::StringExt, fp_utils::when};
 use error_stack::ResultExt;
 use josekit::jwe;
 use serde::{Deserialize, Serialize};
@@ -132,6 +132,9 @@ pub async fn mk_basilisk_req(
     jws: &str,
 ) -> CustomResult<encryption::JweBody, errors::VaultError> {
     let jws_payload: Vec<&str> = jws.split('.').collect();
+    when(jws_payload.len().ne(&3), || {
+        Err(errors::VaultError::SaveCardFailed)
+    })?;
     let jws_body = encryption::JwsBody {
         header: jws_payload[0].to_owned(),
         payload: jws_payload[1].to_owned(),
@@ -153,6 +156,9 @@ pub async fn mk_basilisk_req(
         .change_context(errors::VaultError::SaveCardFailed)
         .attach_printable("Error on jwe encrypt")?;
     let jwe_payload: Vec<&str> = jwe_encrypted.split('.').collect();
+    when(jwe_payload.len().ne(&5), || {
+        Err(errors::VaultError::SaveCardFailed)
+    })?;
     Ok(encryption::JweBody {
         header: jwe_payload[0].to_owned(),
         iv: jwe_payload[2].to_owned(),

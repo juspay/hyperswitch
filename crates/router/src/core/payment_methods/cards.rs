@@ -229,7 +229,7 @@ pub async fn get_card_from_hs_locker<'a>(
     customer_id: &str,
     merchant_id: &str,
     card_reference: &'a str,
-) -> errors::RouterResult<payment_methods::Card> {
+) -> errors::CustomResult<payment_methods::Card, errors::VaultError> {
     let locker = &state.conf.locker;
     let jwekey = &state.conf.jwekey;
     let request = payment_methods::mk_get_card_request_hs(
@@ -240,28 +240,30 @@ pub async fn get_card_from_hs_locker<'a>(
         card_reference,
     )
     .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .change_context(errors::VaultError::FetchCardFailed)
     .attach_printable("Making get card request failed")?;
     let response = services::call_connector_api(state, request)
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .change_context(errors::VaultError::FetchCardFailed)
         .attach_printable("Failed while executing call_connector_api for get_card");
-    let jwe_body: services::JweBody = response.get_response_inner("JweBody")?;
+    let jwe_body: services::JweBody = response
+        .get_response_inner("JweBody")
+        .change_context(errors::VaultError::FetchCardFailed)?;
     let decrypted_payload = payment_methods::get_decrypted_response_payload(jwekey, jwe_body)
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .change_context(errors::VaultError::FetchCardFailed)
         .attach_printable("Error getting decrypted response payload for get card")?;
     let get_card_resp: payment_methods::RetrieveCardResp = decrypted_payload
         .parse_struct("RetrieveCardResp")
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+        .change_context(errors::VaultError::FetchCardFailed)?;
     let retrieve_card_resp = get_card_resp
         .payload
         .get_required_value("RetrieveCardRespPayload")
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+        .change_context(errors::VaultError::FetchCardFailed)?;
     retrieve_card_resp
         .card
         .get_required_value("Card")
-        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .change_context(errors::VaultError::FetchCardFailed)
 }
 
 #[instrument(skip_all)]
@@ -1182,7 +1184,9 @@ pub async fn get_lookup_key_from_locker(
         &pm.merchant_id,
         pm.payment_method_id.as_str(),
     )
-    .await?;
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Error getting card from card vault")?;
     let card_detail = payment_methods::get_card_detail(pm, card)
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Get Card Details Failed")?;
@@ -1384,7 +1388,9 @@ pub async fn retrieve_payment_method(
             &pm.merchant_id,
             &pm.payment_method_id,
         )
-        .await?;
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Error getting card from card vault")?;
         let card_detail = payment_methods::get_card_detail(&pm, card)
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed while getting card details from locker")?;
