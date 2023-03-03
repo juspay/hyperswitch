@@ -88,10 +88,10 @@ async fn should_authorize_gpay_payment() {
         .authorize_payment(
             Some(types::PaymentsAuthorizeData {
                 payment_method_data: types::api::PaymentMethodData::Wallet(api::WalletData::GooglePay(
-                    api_models::payments::GpayWalletData {
+                    api_models::payments::GooglePayWalletData {
                         pm_type: "CARD".to_string(),
                         description: "Visa1234567890".to_string(),
-                        info: api_models::payments::GpayPaymentMethodInfo {
+                        info: api_models::payments::GooglePayPaymentMethodInfo {
                             card_network: "VISA".to_string(),
                             card_details: "1234".to_string(),
                         },

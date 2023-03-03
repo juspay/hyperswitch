@@ -162,27 +162,52 @@ pub struct CardDetailFromLocker {
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, PartialEq, Eq)]
 pub struct PaymentExperienceTypes {
+    /// The payment experience enabled
+    #[schema(value_type = Option<PaymentExperience>, example = "redirect_to_url")]
     pub payment_experience_type: api_enums::PaymentExperience,
+
+    /// The list of eligible connectors for a given payment experience
+    #[schema(value_type = Vec<String>, example = json!(["stripe", "adyen"]))]
     pub eligible_connectors: Vec<String>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, PartialEq, Eq)]
 pub struct CardNetworkTypes {
+    /// The card network enabled
+    #[schema(value_type = Option<CardNetwork>, example = "Visa")]
     pub card_network: api_enums::CardNetwork,
+
+    /// The list of eligible connectors for a given card network
+    #[schema(value_type = Vec<String>, example = json!(["stripe", "adyen"]))]
     pub eligible_connectors: Vec<String>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, PartialEq, Eq)]
 pub struct ResponsePaymentMethodTypes {
+    /// The payment method type enabled
+    #[schema(value_type = PaymentMethodType, example = "klarna")]
     pub payment_method_type: api_enums::PaymentMethodType,
+
+    /// The list of payment experiences enabled, if applicable for a payment method type
+    #[schema(value_type = Option<Vec<PaymentExperienceTypes>>)]
     pub payment_experience: Option<Vec<PaymentExperienceTypes>>,
+
+    /// The list of card networks enabled, if applicable for a payment method type
+    #[schema(value_type = Option<Vec<CardNetworkTypes>>)]
     pub card_networks: Option<Vec<CardNetworkTypes>>,
+
+    /// The list of banks enabled, if applicable for a payment method type
     pub bank_names: Option<Vec<BankCodeResponse>>,
 }
 
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct ResponsePaymentMethodsEnabled {
+    /// The payment method enabled
+    #[schema(value_type = PaymentMethod)]
     pub payment_method: api_enums::PaymentMethod,
+
+    /// The list of payment method types enabled for a connector account
+    #[schema(value_type = Vec<ResponsePaymentMethodTypes>)]
     pub payment_method_types: Vec<ResponsePaymentMethodTypes>,
 }
 
@@ -401,22 +426,6 @@ pub struct ListPaymentMethodResponse {
     ))]
     pub payment_methods: Vec<ResponsePaymentMethodsEnabled>,
 }
-
-// impl ResponsePaymentMethodTypes {
-//     pub fn new(
-//         pm_type: RequestPaymentMethodTypes,
-//         connector: String,
-//         payment_method: api_enums::PaymentMethod,
-//     ) -> Self {
-//         Self {
-//             payment_method_type: pm_type.payment_method_type,
-//             payment_experience: pm_type.payment_experience,
-//             connector,
-//             card_networks: pm_type.card_networks,
-//             payment_method,
-//         }
-//     }
-// }
 
 #[derive(Eq, PartialEq, Hash, Debug, serde::Deserialize, ToSchema)]
 pub struct ListPaymentMethod {
