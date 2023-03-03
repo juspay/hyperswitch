@@ -1,5 +1,3 @@
-use std::str::FromStr;
-
 use common_utils::generate_id_with_default_len;
 use error_stack::{IntoReport, ResultExt};
 #[cfg(feature = "basilisk")]
@@ -90,6 +88,8 @@ impl Vaultable for api::Card {
             card_exp_year: value1.exp_year.into(),
             card_holder_name: value1.name_on_card.unwrap_or_default().into(),
             card_cvc: value2.card_security_code.unwrap_or_default().into(),
+            card_issuer: None,
+            card_network: None,
         };
 
         let supp_data = SupplementaryVaultData {
@@ -104,8 +104,7 @@ impl Vaultable for api::Card {
 impl Vaultable for api::WalletData {
     fn get_value1(&self, _customer_id: Option<String>) -> CustomResult<String, errors::VaultError> {
         let value1 = api::TokenizedWalletValue1 {
-            issuer: self.issuer_name.to_string(),
-            token: self.token.clone(),
+            data: self.to_owned(),
         };
 
         utils::Encode::<api::TokenizedWalletValue1>::encode_to_string_of_json(&value1)
@@ -135,13 +134,7 @@ impl Vaultable for api::WalletData {
             .change_context(errors::VaultError::ResponseDeserializationFailed)
             .attach_printable("Could not deserialize into wallet data value2")?;
 
-        let wallet = Self {
-            issuer_name: api::enums::WalletIssuer::from_str(&value1.issuer)
-                .into_report()
-                .change_context(errors::VaultError::ResponseDeserializationFailed)
-                .attach_printable("Invalid issuer name when deserializing wallet data")?,
-            token: value1.token,
-        };
+        let wallet = value1.data;
 
         let supp_data = SupplementaryVaultData {
             customer_id: value2.customer_id,
@@ -159,7 +152,7 @@ pub enum VaultPaymentMethod {
     Wallet(String),
 }
 
-impl Vaultable for api::PaymentMethod {
+impl Vaultable for api::PaymentMethodData {
     fn get_value1(&self, customer_id: Option<String>) -> CustomResult<String, errors::VaultError> {
         let value1 = match self {
             Self::Card(card) => VaultPaymentMethod::Card(card.get_value1(customer_id)?),
@@ -232,7 +225,7 @@ impl Vault {
     pub async fn get_payment_method_data_from_locker(
         state: &routes::AppState,
         lookup_key: &str,
-    ) -> RouterResult<(Option<api::PaymentMethod>, SupplementaryVaultData)> {
+    ) -> RouterResult<(Option<api::PaymentMethodData>, SupplementaryVaultData)> {
         let config = state
             .store
             .find_config_by_key(lookup_key)
@@ -247,7 +240,7 @@ impl Vault {
             .attach_printable("Unable to deserialize Mock tokenize db value")?;
 
         let (payment_method, supp_data) =
-            api::PaymentMethod::from_values(tokenize_value.value1, tokenize_value.value2)
+            api::PaymentMethodData::from_values(tokenize_value.value1, tokenize_value.value2)
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Error parsing Payment Method from Values")?;
 
@@ -258,7 +251,7 @@ impl Vault {
     pub async fn store_payment_method_data_in_locker(
         state: &routes::AppState,
         token_id: Option<String>,
-        payment_method: &api::PaymentMethod,
+        payment_method: &api::PaymentMethodData,
         customer_id: Option<String>,
     ) -> RouterResult<String> {
         let value1 = payment_method
@@ -330,10 +323,10 @@ impl Vault {
     pub async fn get_payment_method_data_from_locker(
         state: &routes::AppState,
         lookup_key: &str,
-    ) -> RouterResult<(Option<api::PaymentMethod>, SupplementaryVaultData)> {
+    ) -> RouterResult<(Option<api::PaymentMethodData>, SupplementaryVaultData)> {
         let de_tokenize = get_tokenized_data(state, lookup_key, true).await?;
         let (payment_method, customer_id) =
-            api::PaymentMethod::from_values(de_tokenize.value1, de_tokenize.value2)
+            api::PaymentMethodData::from_values(de_tokenize.value1, de_tokenize.value2)
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Error parsing Payment Method from Values")?;
 
@@ -344,7 +337,7 @@ impl Vault {
     pub async fn store_payment_method_data_in_locker(
         state: &routes::AppState,
         token_id: Option<String>,
-        payment_method: &api::PaymentMethod,
+        payment_method: &api::PaymentMethodData,
         customer_id: Option<String>,
     ) -> RouterResult<String> {
         let value1 = payment_method

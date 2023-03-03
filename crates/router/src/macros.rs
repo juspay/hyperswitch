@@ -44,3 +44,10 @@ macro_rules! newtype {
         $crate::newtype_impl!($is_pub, $name, $ty_path);
     };
 }
+
+#[macro_export]
+macro_rules! async_spawn {
+    ($t:block) => {
+        tokio::spawn(async move { $t });
+    };
+}

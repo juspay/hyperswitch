@@ -9,7 +9,7 @@ use crate::{
     consts,
     core::{
         errors::{self, CustomResult, RouterResponse},
-        payments,
+        payments, refunds,
     },
     db::StorageInterface,
     logger,
@@ -87,6 +87,84 @@ async fn payments_incoming_webhook_flow(
         _ => Err(errors::WebhooksFlowError::PaymentsCoreFailed).into_report()?,
     }
 
+    Ok(())
+}
+
+#[instrument(skip_all)]
+async fn refunds_incoming_webhook_flow(
+    state: AppState,
+    merchant_account: storage::MerchantAccount,
+    webhook_details: api::IncomingWebhookDetails,
+    connector_name: &str,
+    source_verified: bool,
+    event_type: api_models::webhooks::IncomingWebhookEvent,
+) -> CustomResult<(), errors::WebhooksFlowError> {
+    let db = &*state.store;
+    //find refund by connector refund id
+    let refund = db
+        .find_refund_by_merchant_id_connector_refund_id_connector(
+            &merchant_account.merchant_id,
+            &webhook_details.object_reference_id,
+            connector_name,
+            merchant_account.storage_scheme,
+        )
+        .await
+        .change_context(errors::WebhooksFlowError::ResourceNotFound)
+        .attach_printable_lazy(|| "Failed fetching the refund")?;
+    let refund_id = refund.refund_id.to_owned();
+    //if source verified then update refund status else trigger refund sync
+    let updated_refund = if source_verified {
+        let refund_update = storage::RefundUpdate::StatusUpdate {
+            connector_refund_id: None,
+            sent_to_gateway: true,
+            refund_status: event_type
+                .foreign_try_into()
+                .into_report()
+                .change_context(errors::WebhooksFlowError::RefundsCoreFailed)?,
+        };
+        state
+            .store
+            .update_refund(
+                refund.to_owned(),
+                refund_update,
+                merchant_account.storage_scheme,
+            )
+            .await
+            .change_context(errors::WebhooksFlowError::RefundsCoreFailed)
+            .attach_printable_lazy(|| {
+                format!(
+                    "Failed while updating refund: refund_id: {}",
+                    refund_id.to_owned()
+                )
+            })?
+    } else {
+        refunds::refund_retrieve_core(&state, merchant_account.clone(), refund_id.to_owned())
+            .await
+            .change_context(errors::WebhooksFlowError::RefundsCoreFailed)
+            .attach_printable_lazy(|| {
+                format!(
+                    "Failed while updating refund: refund_id: {}",
+                    refund_id.to_owned()
+                )
+            })?
+    };
+    let event_type: enums::EventType = updated_refund
+        .refund_status
+        .foreign_try_into()
+        .into_report()
+        .change_context(errors::WebhooksFlowError::RefundsCoreFailed)?;
+    let refund_response: api_models::refunds::RefundResponse = updated_refund.foreign_into();
+    create_event_and_trigger_outgoing_webhook(
+        state,
+        merchant_account,
+        event_type,
+        enums::EventClass::Refunds,
+        None,
+        refund_id,
+        enums::EventObjectType::RefundDetails,
+        api::OutgoingWebhookContent::RefundDetails(refund_response),
+    )
+    .await?;
     Ok(())
 }
 
@@ -211,11 +289,16 @@ pub async fn webhooks_core(
 
     let connector = connector.connector;
 
+    let mut request_details = api::IncomingWebhookRequestDetails {
+        method: req.method().clone(),
+        headers: req.headers(),
+        body: &body,
+    };
+
     let source_verified = connector
         .verify_webhook_source(
             &*state.store,
-            req.headers(),
-            &body,
+            &request_details,
             &merchant_account.merchant_id,
         )
         .await
@@ -225,16 +308,17 @@ pub async fn webhooks_core(
     let decoded_body = connector
         .decode_webhook_body(
             &*state.store,
-            req.headers(),
-            &body,
+            &request_details,
             &merchant_account.merchant_id,
         )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("There was an error in incoming webhook body decoding")?;
 
+    request_details.body = &decoded_body;
+
     let event_type = connector
-        .get_webhook_event_type(&decoded_body)
+        .get_webhook_event_type(&request_details)
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Could not find event type in incoming webhook body")?;
 
@@ -248,12 +332,12 @@ pub async fn webhooks_core(
 
     if process_webhook_further {
         let object_ref_id = connector
-            .get_webhook_object_reference_id(&decoded_body)
+            .get_webhook_object_reference_id(&request_details)
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Could not find object reference id in incoming webhook body")?;
 
         let event_object = connector
-            .get_webhook_resource_object(&decoded_body)
+            .get_webhook_resource_object(&request_details)
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Could not find resource object in incoming webhook body")?;
 
@@ -266,7 +350,7 @@ pub async fn webhooks_core(
                 )?,
         };
 
-        let flow_type: api::WebhookFlow = event_type.into();
+        let flow_type: api::WebhookFlow = event_type.to_owned().into();
         match flow_type {
             api::WebhookFlow::Payment => payments_incoming_webhook_flow(
                 state.clone(),
@@ -277,6 +361,21 @@ pub async fn webhooks_core(
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Incoming webhook flow for payments failed")?,
+
+            api::WebhookFlow::Refund => refunds_incoming_webhook_flow(
+                state.clone(),
+                merchant_account,
+                webhook_details,
+                connector_name,
+                source_verified,
+                event_type,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Incoming webhook flow for refunds failed")?,
+
+            api::WebhookFlow::ReturnResponse => {}
+
             _ => Err(errors::ApiErrorResponse::InternalServerError)
                 .into_report()
                 .attach_printable("Unsupported Flow Type received in incoming webhooks")?,
@@ -284,7 +383,7 @@ pub async fn webhooks_core(
     }
 
     let response = connector
-        .get_webhook_api_response()
+        .get_webhook_api_response(&request_details)
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Could not get incoming webhook api response from connector")?;
 

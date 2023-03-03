@@ -239,11 +239,9 @@ pub fn mk_add_card_response_hs(
         payment_method_id: card_reference,
         payment_method: req.payment_method,
         payment_method_type: req.payment_method_type,
-        payment_method_issuer: req.payment_method_issuer,
         card: Some(card),
         metadata: req.metadata,
         created: Some(common_utils::date_time::now()),
-        payment_method_issuer_code: req.payment_method_issuer_code,
         recurring_enabled: false,           // [#256]
         installment_payment_enabled: false, // #[#256]
         payment_experience: Some(vec![api_models::enums::PaymentExperience::RedirectToUrl]), // [#256]

@@ -239,7 +239,7 @@ where
         _storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsStartRequest>,
-        Option<api::PaymentMethod>,
+        Option<api::PaymentMethodData>,
     )> {
         helpers::make_pm_data(Box::new(self), state, payment_data).await
     }

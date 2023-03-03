@@ -33,7 +33,7 @@ impl utils::Connector for Stripe {
 
 fn get_payment_authorize_data() -> Option<types::PaymentsAuthorizeData> {
     Some(types::PaymentsAuthorizeData {
-        payment_method_data: types::api::PaymentMethod::Card(api::Card {
+        payment_method_data: types::api::PaymentMethodData::Card(api::Card {
             card_number: Secret::new("4242424242424242".to_string()),
             ..utils::CCardType::default().0
         }),
@@ -143,6 +143,7 @@ async fn should_void_already_authorized_payment() {
             Some(types::PaymentsCancelData {
                 connector_transaction_id: "".to_string(), // this connector_transaction_id will be ignored and the transaction_id from payment authorize data will be used for void
                 cancellation_reason: Some("requested_by_customer".to_string()),
+                ..Default::default()
             }),
             None,
         )
@@ -155,7 +156,7 @@ async fn should_fail_payment_for_incorrect_card_number() {
     let response = Stripe {}
         .make_payment(
             Some(types::PaymentsAuthorizeData {
-                payment_method_data: types::api::PaymentMethod::Card(api::Card {
+                payment_method_data: types::api::PaymentMethodData::Card(api::Card {
                     card_number: Secret::new("4024007134364842".to_string()),
                     ..utils::CCardType::default().0
                 }),
@@ -177,7 +178,7 @@ async fn should_fail_payment_for_no_card_number() {
     let response = Stripe {}
         .make_payment(
             Some(types::PaymentsAuthorizeData {
-                payment_method_data: types::api::PaymentMethod::Card(api::Card {
+                payment_method_data: types::api::PaymentMethodData::Card(api::Card {
                     card_number: Secret::new("".to_string()),
                     ..utils::CCardType::default().0
                 }),
@@ -199,7 +200,7 @@ async fn should_fail_payment_for_invalid_exp_month() {
     let response = Stripe {}
         .make_payment(
             Some(types::PaymentsAuthorizeData {
-                payment_method_data: types::api::PaymentMethod::Card(api::Card {
+                payment_method_data: types::api::PaymentMethodData::Card(api::Card {
                     card_exp_month: Secret::new("13".to_string()),
                     ..utils::CCardType::default().0
                 }),
@@ -218,7 +219,7 @@ async fn should_fail_payment_for_invalid_exp_year() {
     let response = Stripe {}
         .make_payment(
             Some(types::PaymentsAuthorizeData {
-                payment_method_data: types::api::PaymentMethod::Card(api::Card {
+                payment_method_data: types::api::PaymentMethodData::Card(api::Card {
                     card_exp_year: Secret::new("2022".to_string()),
                     ..utils::CCardType::default().0
                 }),
@@ -237,7 +238,7 @@ async fn should_fail_payment_for_invalid_card_cvc() {
     let response = Stripe {}
         .make_payment(
             Some(types::PaymentsAuthorizeData {
-                payment_method_data: types::api::PaymentMethod::Card(api::Card {
+                payment_method_data: types::api::PaymentMethodData::Card(api::Card {
                     card_cvc: Secret::new("12".to_string()),
                     ..utils::CCardType::default().0
                 }),
