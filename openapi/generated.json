@@ -2128,6 +2128,7 @@
       },
       "BankNames": {
         "type": "string",
+        "description": "The hyperswitch code of all the supported banks",
         "enum": [
           "american_express",
           "bank_of_america",
@@ -2194,7 +2195,8 @@
         "properties": {
           "billing_name": {
             "type": "string",
-            "description": "The name for which billing is issued"
+            "description": "The name for which billing is issued",
+            "example": "John Doe"
           }
         }
       },
@@ -2280,11 +2282,13 @@
                 "properties": {
                   "country": {
                     "type": "string",
-                    "description": "The country for bank payment"
+                    "description": "The country for bank payment",
+                    "example": "US"
                   },
                   "preferred_language": {
                     "type": "string",
-                    "description": "The preferred language"
+                    "description": "The preferred language",
+                    "example": "en"
                   }
                 }
               }
@@ -2337,7 +2341,9 @@
             "example": "242"
           },
           "card_issuer": {
-            "type": "string"
+            "type": "string",
+            "description": "The name of the issuer of card",
+            "example": "chase"
           },
           "card_network": {
             "$ref": "#/components/schemas/CardNetwork"
@@ -2941,6 +2947,48 @@
           "on_session"
         ]
       },
+      "GooglePayPaymentMethodInfo": {
+        "type": "object",
+        "required": [
+          "card_network",
+          "card_details"
+        ],
+        "properties": {
+          "card_network": {
+            "type": "string",
+            "description": "The name of the card network"
+          },
+          "card_details": {
+            "type": "string",
+            "description": "The details of the card"
+          }
+        }
+      },
+      "GooglePayWalletData": {
+        "type": "object",
+        "required": [
+          "type",
+          "description",
+          "info",
+          "tokenization_data"
+        ],
+        "properties": {
+          "type": {
+            "type": "string",
+            "description": "The type of payment method"
+          },
+          "description": {
+            "type": "string",
+            "description": "User-facing message to describe the payment method that funds this transaction."
+          },
+          "info": {
+            "$ref": "#/components/schemas/GooglePayPaymentMethodInfo"
+          },
+          "tokenization_data": {
+            "$ref": "#/components/schemas/GpayTokenizationData"
+          }
+        }
+      },
       "GpayAllowedMethodsParameters": {
         "type": "object",
         "required": [
@@ -2993,23 +3041,6 @@
           "merchant_name": {
             "type": "string",
             "description": "The name of the merchant"
-          }
-        }
-      },
-      "GpayPaymentMethodInfo": {
-        "type": "object",
-        "required": [
-          "card_network",
-          "card_details"
-        ],
-        "properties": {
-          "card_network": {
-            "type": "string",
-            "description": "The name of the card network"
-          },
-          "card_details": {
-            "type": "string",
-            "description": "The details of the card"
           }
         }
       },
@@ -3111,31 +3142,6 @@
             "type": "integer",
             "format": "int64",
             "description": "The total price"
-          }
-        }
-      },
-      "GpayWalletData": {
-        "type": "object",
-        "required": [
-          "type",
-          "description",
-          "info",
-          "tokenization_data"
-        ],
-        "properties": {
-          "type": {
-            "type": "string",
-            "description": "The type of payment method"
-          },
-          "description": {
-            "type": "string",
-            "description": "User-facing message to describe the payment method that funds this transaction."
-          },
-          "info": {
-            "$ref": "#/components/schemas/GpayPaymentMethodInfo"
-          },
-          "tokenization_data": {
-            "$ref": "#/components/schemas/GpayTokenizationData"
           }
         }
       },
@@ -3568,6 +3574,88 @@
           "metadata": {
             "type": "object",
             "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object."
+          },
+          "locker_id": {
+            "type": "string",
+            "description": "An identifier for the vault used to store payment method information.",
+            "example": "locker_abc123"
+          }
+        }
+      },
+      "MerchantAccountUpdate": {
+        "type": "object",
+        "required": [
+          "merchant_id"
+        ],
+        "properties": {
+          "merchant_id": {
+            "type": "string",
+            "description": "The identifier for the Merchant Account",
+            "example": "y3oqhf46pyzuxjbcn2giaqnb44",
+            "maxLength": 255
+          },
+          "merchant_name": {
+            "type": "string",
+            "description": "Name of the Merchant Account",
+            "example": "NewAge Retailer"
+          },
+          "api_key": {
+            "type": "string",
+            "description": "API key that will be used for server side API access",
+            "example": "Ah2354543543523"
+          },
+          "merchant_details": {
+            "$ref": "#/components/schemas/MerchantDetails"
+          },
+          "return_url": {
+            "type": "string",
+            "description": "The URL to redirect after the completion of the operation",
+            "example": "https://www.example.com/success",
+            "maxLength": 255
+          },
+          "webhook_details": {
+            "$ref": "#/components/schemas/WebhookDetails"
+          },
+          "routing_algorithm": {
+            "type": "object",
+            "description": "The routing algorithm to be used for routing payments to desired connectors"
+          },
+          "sub_merchants_enabled": {
+            "type": "boolean",
+            "description": "A boolean value to indicate if the merchant is a sub-merchant under a master or a parent merchant. By default, its value is false.",
+            "default": false,
+            "example": false
+          },
+          "parent_merchant_id": {
+            "type": "string",
+            "description": "Refers to the Parent Merchant ID if the merchant being created is a sub-merchant",
+            "example": "xkkdf909012sdjki2dkh5sdf",
+            "maxLength": 255
+          },
+          "enable_payment_response_hash": {
+            "type": "boolean",
+            "description": "A boolean value to indicate if payment response hash needs to be enabled",
+            "default": false,
+            "example": true
+          },
+          "payment_response_hash_key": {
+            "type": "string",
+            "description": "Refers to the hash key used for payment response"
+          },
+          "redirect_to_merchant_with_http_post": {
+            "type": "boolean",
+            "description": "A boolean value to indicate if redirect to merchant with http post needs to be enabled",
+            "default": false,
+            "example": true
+          },
+          "metadata": {
+            "type": "object",
+            "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object."
+          },
+          "publishable_key": {
+            "type": "string",
+            "description": "API key that will be used for server side API access",
+            "example": "AH3423bkjbkjdsfbkj"
           },
           "locker_id": {
             "type": "string",
@@ -5191,7 +5279,7 @@
             ],
             "properties": {
               "google_pay": {
-                "$ref": "#/components/schemas/GpayWalletData"
+                "$ref": "#/components/schemas/GooglePayWalletData"
               }
             }
           },
