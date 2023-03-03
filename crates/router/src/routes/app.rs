@@ -1,5 +1,4 @@
 use actix_web::{web, Scope};
-use api_models::webhooks as webhook_type;
 
 use super::health::*;
 #[cfg(feature = "olap")]
@@ -316,6 +315,8 @@ pub struct Webhooks;
 #[cfg(feature = "oltp")]
 impl Webhooks {
     pub fn server(config: AppState) -> Scope {
+        use api_models::webhooks as webhook_type;
+
         web::scope("/webhooks")
             .app_data(web::Data::new(config))
             .service(

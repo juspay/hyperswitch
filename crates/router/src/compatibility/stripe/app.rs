@@ -5,7 +5,6 @@ use crate::routes::{self, webhooks};
 
 pub struct PaymentIntents;
 
-#[cfg(feature = "oltp")]
 impl PaymentIntents {
     pub fn server(state: routes::AppState) -> Scope {
         web::scope("/payment_intents")
@@ -20,7 +19,6 @@ impl PaymentIntents {
 
 pub struct SetupIntents;
 
-#[cfg(feature = "oltp")]
 impl SetupIntents {
     pub fn server(state: routes::AppState) -> Scope {
         web::scope("/setup_intents")
@@ -34,7 +32,6 @@ impl SetupIntents {
 
 pub struct Refunds;
 
-#[cfg(feature = "oltp")]
 impl Refunds {
     pub fn server(config: routes::AppState) -> Scope {
         web::scope("/refunds")
@@ -47,7 +44,6 @@ impl Refunds {
 
 pub struct Customers;
 
-#[cfg(feature = "oltp")]
 impl Customers {
     pub fn server(config: routes::AppState) -> Scope {
         web::scope("/customers")
@@ -62,7 +58,6 @@ impl Customers {
 
 pub struct Webhooks;
 
-#[cfg(feature = "oltp")]
 impl Webhooks {
     pub fn server(config: routes::AppState) -> Scope {
         web::scope("/webhooks")

@@ -63,8 +63,5 @@ pub enum OutgoingWebhookContent {
     RefundDetails(refunds::RefundResponse),
 }
 
-pub trait OutgoingWebhookType:
-    Serialize + TryFrom<OutgoingWebhook> + From<OutgoingWebhook> + Sync + Send
-{
-}
+pub trait OutgoingWebhookType: Serialize + From<OutgoingWebhook> + Sync + Send {}
 impl OutgoingWebhookType for OutgoingWebhook {}
