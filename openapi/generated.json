@@ -4083,45 +4083,54 @@
         "properties": {
           "customer_id": {
             "type": "string",
-            "description": "The identifier for customer"
+            "description": "The identifier for customer",
+            "example": "cus_meowuwunwiuwiwqw"
           },
           "starting_after": {
             "type": "string",
-            "description": "A cursor for use in pagination, fetch the next list after some object"
+            "description": "A cursor for use in pagination, fetch the next list after some object",
+            "example": "pay_fafa124123"
           },
           "ending_before": {
             "type": "string",
-            "description": "A cursor for use in pagination, fetch the previous list before some object"
+            "description": "A cursor for use in pagination, fetch the previous list before some object",
+            "example": "pay_fafa124123"
           },
           "limit": {
             "type": "integer",
             "format": "int64",
-            "description": "limit on the number of objects to return"
+            "description": "limit on the number of objects to return",
+            "default": 10
           },
           "created": {
             "type": "string",
             "format": "date-time",
-            "description": "The time at which payment is created"
+            "description": "The time at which payment is created",
+            "example": "2022-09-10T10:11:12Z"
           },
           "created.lt": {
             "type": "string",
             "format": "date-time",
-            "description": "Time less than the payment created time"
+            "description": "Time less than the payment created time",
+            "example": "2022-09-10T10:11:12Z"
           },
           "created.gt": {
             "type": "string",
             "format": "date-time",
-            "description": "Time greater than the payment created time"
+            "description": "Time greater than the payment created time",
+            "example": "2022-09-10T10:11:12Z"
           },
           "created.lte": {
             "type": "string",
             "format": "date-time",
-            "description": "Time less than or equals to the payment created time"
+            "description": "Time less than or equals to the payment created time",
+            "example": "2022-09-10T10:11:12Z"
           },
           "created.gte": {
             "type": "string",
             "format": "date-time",
-            "description": "Time greater than or equals to the payment created time"
+            "description": "Time greater than or equals to the payment created time",
+            "example": "2022-09-10T10:11:12Z"
           }
         }
       },
