@@ -159,7 +159,7 @@ impl From<StripeSetupIntentRequest> for payments::PaymentsRequest {
                 .billing_details
                 .as_ref()
                 .map(|b| payments::Address::from(b.to_owned())),
-            statement_descriptor_name: item.statement_descriptor,
+            statement_descriptor: item.statement_descriptor,
             statement_descriptor_suffix: item.statement_descriptor_suffix,
             metadata: item.metadata,
             client_secret: item.client_secret.map(|s| s.peek().clone()),

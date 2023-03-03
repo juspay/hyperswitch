@@ -250,8 +250,8 @@ fn mk_payment(amount: i64, amount_to_capture: i32) -> Value {
           "card_cvc": "123"
         }
       },
-      "statement_descriptor_name": "Juspay",
-      "statement_descriptor_suffix": "Router",
+      "statement_descriptor_name": "Hyperswitch",
+      "statement_descriptor_suffix": "Hyperswitch",
       "metadata": {
         "udf1": "value1",
         "new_customer": "true",
