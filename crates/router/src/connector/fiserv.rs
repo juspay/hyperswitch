@@ -17,10 +17,7 @@ use crate::{
         payments,
     },
     headers, services,
-    types::{
-        self,
-        api::{self},
-    },
+    types::{self, api},
     utils::{self, BytesExt},
 };
 
