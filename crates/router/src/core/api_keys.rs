@@ -3,8 +3,6 @@ use error_stack::{report, IntoReport, ResultExt};
 use masking::{PeekInterface, StrongSecret};
 use router_env::{instrument, tracing};
 
-#[cfg(feature = "kms")]
-use crate::services::kms;
 use crate::{
     configs::settings,
     consts,
@@ -14,6 +12,8 @@ use crate::{
     types::{api, storage, transformers::ForeignInto},
     utils,
 };
+#[cfg(feature = "kms")]
+use crate::{routes::metrics, services::kms};
 
 pub static HASH_KEY: tokio::sync::OnceCell<StrongSecret<[u8; PlaintextApiKey::HASH_KEY_LEN]>> =
     tokio::sync::OnceCell::const_new();
@@ -28,6 +28,10 @@ pub async fn get_hash_key(
         api_key_config.kms_encrypted_hash_key.clone(),
     )
     .await
+    .map_err(|error| {
+        metrics::AWS_KMS_FAILURES.add(&metrics::CONTEXT, 1, &[]);
+        error
+    })
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to KMS decrypt API key hashing key")?;
 
