@@ -12,7 +12,7 @@ build = "src/build.rs"
 [features]
 default = ["kv_store", "stripe", "oltp", "olap", "accounts_cache"]
 kms = ["aws-config", "aws-sdk-kms"]
-basilisk = ["josekit"]
+basilisk = ["josekit", "kms"]
 stripe = ["dep:serde_qs"]
 sandbox = ["kms", "stripe", "basilisk"]
 olap = []

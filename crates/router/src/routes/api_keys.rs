@@ -39,7 +39,13 @@ pub async fn api_key_create(
         &req,
         payload,
         |state, _, payload| async {
-            api_keys::create_api_key(&*state.store, payload, merchant_id.clone()).await
+            api_keys::create_api_key(
+                &*state.store,
+                &state.conf.api_keys,
+                payload,
+                merchant_id.clone(),
+            )
+            .await
         },
         &auth::AdminApiAuth,
     )
