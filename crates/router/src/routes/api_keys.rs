@@ -15,6 +15,7 @@ use crate::{
 #[utoipa::path(
     post,
     path = "/api_keys/{merchant_id)",
+    params(("merchant_id" = String, Path, description = "The unique identifier for the merchant account")),
     request_body= CreateApiKeyRequest,
     responses(
         (status = 200, description = "API Key created", body = CreateApiKeyResponse),
@@ -58,7 +59,10 @@ pub async fn api_key_create(
 #[utoipa::path(
     get,
     path = "/api_keys/{merchant_id}/{key_id}",
-    params (("key_id" = String, Path, description = "The unique identifier for the API Key")),
+    params (
+        ("merchant_id" = String, Path, description = "The unique identifier for the merchant account"),
+        ("key_id" = String, Path, description = "The unique identifier for the API Key")
+    ),
     responses(
         (status = 200, description = "API Key retrieved", body = RetrieveApiKeyResponse),
         (status = 404, description = "API Key not found")
@@ -92,7 +96,10 @@ pub async fn api_key_retrieve(
     post,
     path = "/api_keys/{merchant_id}/{key_id}",
     request_body = UpdateApiKeyRequest,
-    params (("key_id" = String, Path, description = "The unique identifier for the API Key")),
+    params (
+        ("merchant_id" = String, Path, description = "The unique identifier for the merchant account"),
+        ("key_id" = String, Path, description = "The unique identifier for the API Key")
+    ),
     responses(
         (status = 200, description = "API Key updated", body = RetrieveApiKeyResponse),
         (status = 404, description = "API Key not found")
@@ -128,7 +135,10 @@ pub async fn api_key_update(
 #[utoipa::path(
     delete,
     path = "/api_keys/{merchant_id)/{key_id}",
-    params (("key_id" = String, Path, description = "The unique identifier for the API Key")),
+    params (
+        ("merchant_id" = String, Path, description = "The unique identifier for the merchant account"),
+        ("key_id" = String, Path, description = "The unique identifier for the API Key")
+    ),
     responses(
         (status = 200, description = "API Key revoked", body = RevokeApiKeyResponse),
         (status = 404, description = "API Key not found")
@@ -162,6 +172,7 @@ pub async fn api_key_revoke(
     get,
     path = "/api_keys/{merchant_id}/list",
     params(
+        ("merchant_id" = String, Path, description = "The unique identifier for the merchant account"),
         ("limit" = Option<i64>, Query, description = "The maximum number of API Keys to include in the response"),
         ("skip" = Option<i64>, Query, description = "The number of API Keys to skip when retrieving the list of API keys."),
     ),
