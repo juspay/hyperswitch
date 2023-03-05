@@ -392,15 +392,11 @@ impl
 
         let (api_key, plaintext_api_key) = item;
         Self {
-            key_id: api_key.key_id.clone(),
+            key_id: api_key.key_id,
             merchant_id: api_key.merchant_id,
             name: api_key.name,
             description: api_key.description,
-            api_key: StrongSecret::from(format!(
-                "{}-{}",
-                api_key.key_id,
-                plaintext_api_key.peek().to_owned()
-            )),
+            api_key: StrongSecret::from(plaintext_api_key.peek().to_owned()),
             created: api_key.created_at,
             expiration: api_key.expires_at.into(),
         }
@@ -410,14 +406,13 @@ impl
 impl ForeignFrom<storage_models::api_keys::ApiKey>
     for api_models::api_keys::RetrieveApiKeyResponse
 {
-    fn foreign_from(item: storage_models::api_keys::ApiKey) -> Self {
-        let api_key = item;
+    fn foreign_from(api_key: storage_models::api_keys::ApiKey) -> Self {
         Self {
-            key_id: api_key.key_id.clone(),
+            key_id: api_key.key_id,
             merchant_id: api_key.merchant_id,
             name: api_key.name,
             description: api_key.description,
-            prefix: format!("{}-{}", api_key.key_id, api_key.prefix).into(),
+            prefix: api_key.prefix.into(),
             created: api_key.created_at,
             expiration: api_key.expires_at.into(),
         }
@@ -427,8 +422,7 @@ impl ForeignFrom<storage_models::api_keys::ApiKey>
 impl ForeignFrom<api_models::api_keys::UpdateApiKeyRequest>
     for storage_models::api_keys::ApiKeyUpdate
 {
-    fn foreign_from(item: api_models::api_keys::UpdateApiKeyRequest) -> Self {
-        let api_key = item;
+    fn foreign_from(api_key: api_models::api_keys::UpdateApiKeyRequest) -> Self {
         Self::Update {
             name: api_key.name,
             description: api_key.description,
