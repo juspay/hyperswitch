@@ -72,12 +72,12 @@ pub enum StorageError {
     #[error("Deserialization failure")]
     DeserializationFailed,
     #[error("Received Error RedisError: {0}")]
-    ERedisError(error_stack::Report<RedisError>),
+    RedisError(error_stack::Report<RedisError>),
 }
 
 impl From<error_stack::Report<RedisError>> for StorageError {
     fn from(err: error_stack::Report<RedisError>) -> Self {
-        Self::ERedisError(err)
+        Self::RedisError(err)
     }
 }
 
