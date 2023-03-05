@@ -49,7 +49,7 @@
 * **adyen:**  adyen psync fail fix (#691) (2e99152d)
 * **customer:**  populate email from customer table if not present in request (#692) (cf71d7aa)
 * **list:**
-  *  remove enabled payment methods from list customer payment … (#689) (5c29f37a)
+  *  remove enabled payment methods from list customer payment method (#689) (5c29f37a)
   *  fix card network filtering (#684) (718c8a42)
   *  adding config changes for filtering `pm` based on countries & currencies (#669) (060c5419)
 * **compatibility:**
