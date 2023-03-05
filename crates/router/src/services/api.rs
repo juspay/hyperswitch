@@ -315,14 +315,22 @@ async fn handle_response(
                 }
 
                 status_code @ 500..=599 => {
-                    let error = match status_code {
-                        500 => errors::ApiClientError::InternalServerErrorReceived,
-                        502 => errors::ApiClientError::BadGatewayReceived,
-                        503 => errors::ApiClientError::ServiceUnavailableReceived,
-                        504 => errors::ApiClientError::GatewayTimeoutReceived,
-                        _ => errors::ApiClientError::UnexpectedServerResponse,
-                    };
-                    Err(Report::new(error).attach_printable("Server error response received"))
+                    let bytes = response.bytes().await.map_err(|error| {
+                        report!(error)
+                            .change_context(errors::ApiClientError::ResponseDecodingFailed)
+                            .attach_printable("Client error response received")
+                    })?;
+                    // let error = match status_code {
+                    //     500 => errors::ApiClientError::InternalServerErrorReceived,
+                    //     502 => errors::ApiClientError::BadGatewayReceived,
+                    //     503 => errors::ApiClientError::ServiceUnavailableReceived,
+                    //     504 => errors::ApiClientError::GatewayTimeoutReceived,
+                    //     _ => errors::ApiClientError::UnexpectedServerResponse,
+                    // };
+                    Ok(Err(types::Response {
+                        response: bytes,
+                        status_code,
+                    }))
                 }
 
                 status_code @ 400..=499 => {

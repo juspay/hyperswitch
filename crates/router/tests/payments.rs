@@ -317,8 +317,8 @@ async fn payments_create_core() {
             address: None,
             phone: None,
         }),
-        statement_descriptor_name: Some("Juspay".to_string()),
-        statement_descriptor_suffix: Some("Router".to_string()),
+        statement_descriptor_name: Some("Hyperswtich".to_string()),
+        statement_descriptor_suffix: Some("Hyperswitch".to_string()),
         ..Default::default()
     };
 
