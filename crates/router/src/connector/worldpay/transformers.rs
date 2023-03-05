@@ -1,63 +1,52 @@
-use std::str::FromStr;
-
+use base64::Engine;
 use common_utils::errors::CustomResult;
-use error_stack::ResultExt;
+use error_stack::{IntoReport, ResultExt};
 use masking::PeekInterface;
 use storage_models::enums;
 
 use super::{requests::*, response::*};
 use crate::{
+    consts,
     core::errors,
     types::{self, api},
-    utils::OptionExt,
 };
 
-fn parse_int<T: FromStr>(
-    val: masking::Secret<String, masking::WithType>,
-) -> CustomResult<T, errors::ConnectorError>
-where
-    <T as FromStr>::Err: Sync,
-{
-    let res = val.peek().parse::<T>();
-    if let Ok(val) = res {
-        Ok(val)
-    } else {
-        Err(errors::ConnectorError::RequestEncodingFailed)?
-    }
-}
-
 fn fetch_payment_instrument(
-    payment_method: api::PaymentMethod,
+    payment_method: api::PaymentMethodData,
 ) -> CustomResult<PaymentInstrument, errors::ConnectorError> {
     match payment_method {
-        api::PaymentMethod::Card(card) => Ok(PaymentInstrument::Card(CardPayment {
+        api::PaymentMethodData::Card(card) => Ok(PaymentInstrument::Card(CardPayment {
             card_expiry_date: CardExpiryDate {
-                month: parse_int::<u8>(card.card_exp_month)?,
-                year: parse_int::<u16>(card.card_exp_year)?,
+                month: card
+                    .card_exp_month
+                    .peek()
+                    .clone()
+                    .parse::<i8>()
+                    .into_report()
+                    .change_context(errors::ConnectorError::ResponseDeserializationFailed)?,
+                year: card
+                    .card_exp_year
+                    .peek()
+                    .clone()
+                    .parse::<i32>()
+                    .into_report()
+                    .change_context(errors::ConnectorError::ResponseDeserializationFailed)?,
             },
-            card_number: card.card_number.peek().to_string(),
+            card_number: card.card_number,
             ..CardPayment::default()
         })),
-        api::PaymentMethod::Wallet(wallet) => match wallet.issuer_name {
-            api_models::enums::WalletIssuer::ApplePay => {
-                Ok(PaymentInstrument::Applepay(WalletPayment {
-                    payment_type: PaymentType::Applepay,
-                    wallet_token: wallet
-                        .token
-                        .get_required_value("token")
-                        .change_context(errors::ConnectorError::RequestEncodingFailed)
-                        .attach_printable("No token passed")?,
+        api::PaymentMethodData::Wallet(wallet) => match wallet {
+            api_models::payments::WalletData::GooglePay(data) => {
+                Ok(PaymentInstrument::Googlepay(WalletPayment {
+                    payment_type: PaymentType::Googlepay,
+                    wallet_token: data.tokenization_data.token,
                     ..WalletPayment::default()
                 }))
             }
-            api_models::enums::WalletIssuer::GooglePay => {
-                Ok(PaymentInstrument::Googlepay(WalletPayment {
-                    payment_type: PaymentType::Googlepay,
-                    wallet_token: wallet
-                        .token
-                        .get_required_value("token")
-                        .change_context(errors::ConnectorError::RequestEncodingFailed)
-                        .attach_printable("No token passed")?,
+            api_models::payments::WalletData::ApplePay(data) => {
+                Ok(PaymentInstrument::Applepay(WalletPayment {
+                    payment_type: PaymentType::Applepay,
+                    wallet_token: data.payment_data,
                     ..WalletPayment::default()
                 }))
             }
@@ -79,7 +68,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for WorldpayPaymentsRequest {
                     currency: item.request.currency.to_string(),
                 },
                 narrative: InstructionNarrative {
-                    line1: item.merchant_id.clone(),
+                    line1: item.merchant_id.clone().replace('_', "-"),
                     ..Default::default()
                 },
                 payment_instrument: fetch_payment_instrument(
@@ -88,7 +77,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for WorldpayPaymentsRequest {
                 debt_repayment: None,
             },
             merchant: Merchant {
-                entity: item.payment_id.clone(),
+                entity: item.attempt_id.clone().replace('_', "-"),
                 ..Default::default()
             },
             transaction_reference: item.attempt_id.clone(),
@@ -106,9 +95,13 @@ impl TryFrom<&types::ConnectorAuthType> for WorldpayAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
-            types::ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
-                api_key: api_key.to_string(),
-            }),
+            types::ConnectorAuthType::BodyKey { api_key, key1 } => {
+                let auth_key = format!("{key1}:{api_key}");
+                let auth_header = format!("Basic {}", consts::BASE64_ENGINE.encode(auth_key));
+                Ok(Self {
+                    api_key: auth_header,
+                })
+            }
             _ => Err(errors::ConnectorError::FailedToObtainAuthType)?,
         }
     }

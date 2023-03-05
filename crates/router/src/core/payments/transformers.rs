@@ -98,6 +98,8 @@ where
         response: response.map_or_else(|| Err(types::ErrorResponse::default()), Ok),
         amount_captured: payment_data.payment_intent.amount_captured,
         access_token: None,
+        session_token: None,
+        reference_id: None,
     };
 
     Ok(router_data)
@@ -105,7 +107,7 @@ where
 
 pub trait ToResponse<Req, D, Op>
 where
-    Self: TryFrom<Req>,
+    Self: Sized,
     Op: Debug,
 {
     fn generate_response(
@@ -120,7 +122,6 @@ where
 
 impl<F, Req, Op> ToResponse<Req, PaymentData<F>, Op> for api::PaymentsResponse
 where
-    Self: TryFrom<Req>,
     F: Clone,
     Op: Debug,
 {
@@ -226,7 +227,7 @@ pub fn payments_to_payments_response<R, Op>(
     payment_attempt: storage::PaymentAttempt,
     payment_intent: storage::PaymentIntent,
     refunds: Vec<storage::Refund>,
-    payment_method_data: Option<api::PaymentMethod>,
+    payment_method_data: Option<api::PaymentMethodData>,
     customer: Option<storage::Customer>,
     auth_flow: services::AuthFlow,
     address: PaymentAddress,
@@ -235,7 +236,6 @@ pub fn payments_to_payments_response<R, Op>(
     operation: Op,
 ) -> RouterResponse<api::PaymentsResponse>
 where
-    api::PaymentsResponse: TryFrom<R>,
     Op: Debug,
 {
     let currency = payment_attempt
@@ -251,16 +251,13 @@ where
     };
 
     Ok(match payment_request {
-        Some(request) => {
+        Some(_request) => {
             if payments::is_start_pay(&operation) && redirection_data.is_some() {
                 let redirection_data = redirection_data.get_required_value("redirection_data")?;
                 let form: RedirectForm = serde_json::from_value(redirection_data)
                     .map_err(|_| errors::ApiErrorResponse::InternalServerError)?;
                 services::ApplicationResponse::Form(form)
             } else {
-                let mut response: api::PaymentsResponse = request
-                    .try_into()
-                    .map_err(|_| errors::ApiErrorResponse::InternalServerError)?;
                 let mut next_action_response = None;
                 if payment_intent.status == enums::IntentStatus::RequiresCustomerAction {
                     next_action_response = Some(api::NextAction {
@@ -272,7 +269,7 @@ where
                         )),
                     })
                 }
-
+                let mut response: api::PaymentsResponse = Default::default();
                 services::ApplicationResponse::Json(
                     response
                         .set_payment_id(Some(payment_attempt.payment_id))
@@ -319,7 +316,6 @@ where
                         .set_error_code(payment_attempt.error_code)
                         .set_shipping(address.shipping)
                         .set_billing(address.billing)
-                        .to_owned()
                         .set_next_action(next_action_response)
                         .set_return_url(payment_intent.return_url)
                         .set_cancellation_reason(payment_attempt.cancellation_reason)
@@ -340,6 +336,17 @@ where
                                 .capture_method
                                 .map(ForeignInto::foreign_into),
                         )
+                        .set_payment_experience(
+                            payment_attempt
+                                .payment_experience
+                                .map(ForeignInto::foreign_into),
+                        )
+                        .set_payment_method_type(
+                            payment_attempt
+                                .payment_method_type
+                                .map(ForeignInto::foreign_into),
+                        )
+                        .set_metadata(payment_intent.metadata)
                         .to_owned(),
                 )
             }
@@ -380,6 +387,7 @@ where
             billing: address.billing,
             cancellation_reason: payment_attempt.cancellation_reason,
             payment_token: payment_attempt.payment_token,
+            metadata: payment_intent.metadata,
             ..Default::default()
         }),
     })
@@ -424,14 +432,15 @@ impl<F: Clone> TryFrom<PaymentData<F>> for types::PaymentsAuthorizeData {
             setup_mandate_details: payment_data.setup_mandate.clone(),
             confirm: payment_data.payment_attempt.confirm,
             statement_descriptor_suffix: payment_data.payment_intent.statement_descriptor_suffix,
+            statement_descriptor: payment_data.payment_intent.statement_descriptor_name,
             capture_method: payment_data.payment_attempt.capture_method,
             amount: payment_data.amount.into(),
             currency: payment_data.currency,
             browser_info,
             email: payment_data.email,
             payment_experience: payment_data.payment_attempt.payment_experience,
-            payment_issuer: payment_data.payment_attempt.payment_issuer,
             order_details,
+            payment_method_type: payment_data.payment_attempt.payment_method_type,
         })
     }
 }
@@ -474,6 +483,8 @@ impl<F: Clone> TryFrom<PaymentData<F>> for types::PaymentsCancelData {
 
     fn try_from(payment_data: PaymentData<F>) -> Result<Self, Self::Error> {
         Ok(Self {
+            amount: Some(payment_data.amount.into()),
+            currency: Some(payment_data.currency),
             connector_transaction_id: payment_data
                 .payment_attempt
                 .connector_transaction_id
@@ -523,6 +534,7 @@ impl<F: Clone> TryFrom<PaymentData<F>> for types::VerifyRequestData {
 
     fn try_from(payment_data: PaymentData<F>) -> Result<Self, Self::Error> {
         Ok(Self {
+            currency: payment_data.currency,
             confirm: true,
             payment_method_data: payment_data
                 .payment_method_data

@@ -104,8 +104,11 @@ impl ConnectorErrorExt for error_stack::Report<errors::ConnectorError> {
             errors::ConnectorError::MismatchedPaymentData => {
                 errors::ApiErrorResponse::InvalidDataValue {
                     field_name:
-                        "payment_method_data and payment_issuer, payment_experience does not match",
+                        "payment_method_data, payment_method_type and payment_experience does not match",
                 }
+            },
+            errors::ConnectorError::NotSupported { payment_method, connector, payment_experience } => {
+                errors::ApiErrorResponse::NotSupported { message: format!("Payment method type {payment_method} is not supported by {connector} through payment experience {payment_experience}") }
             }
             _ => errors::ApiErrorResponse::InternalServerError,
         };

@@ -1,5 +1,5 @@
 use common_utils::crypto::{self, GenerateDigest};
-use error_stack::ResultExt;
+use error_stack::{IntoReport, ResultExt};
 use rand::distributions::DistString;
 use serde::{Deserialize, Serialize};
 
@@ -8,12 +8,17 @@ use super::{
     response::{GlobalpayPaymentStatus, GlobalpayPaymentsResponse, GlobalpayRefreshTokenResponse},
 };
 use crate::{
-    connector::utils::{self, CardData, PaymentsRequestData},
+    connector::utils::{self, RouterData},
     consts,
     core::errors,
     services::{self},
     types::{self, api, storage::enums, ErrorResponse},
 };
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct GlobalPayMeta {
+    account_name: String,
+}
 
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for GlobalpayPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
@@ -29,7 +34,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for GlobalpayPaymentsRequest {
             .ok_or_else(utils::missing_field_err("connector_meta.account_name"))?;
 
         match item.request.payment_method_data.clone() {
-            api::PaymentMethod::Card(ccard) => Ok(Self {
+            api::PaymentMethodData::Card(ccard) => Ok(Self {
                 account_name,
                 amount: Some(item.request.amount.to_string()),
                 currency: item.request.currency.to_string(),
@@ -44,10 +49,10 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for GlobalpayPaymentsRequest {
                     }),
                 payment_method: requests::PaymentMethod {
                     card: Some(requests::Card {
-                        number: ccard.get_card_number(),
-                        expiry_month: ccard.get_card_expiry_month(),
-                        expiry_year: ccard.get_card_expiry_year_2_digit(),
-                        cvv: ccard.get_card_cvc(),
+                        number: ccard.card_number,
+                        expiry_month: ccard.card_exp_month,
+                        expiry_year: ccard.card_exp_year,
+                        cvv: ccard.card_cvc,
                         account_type: None,
                         authcode: None,
                         avs_address: None,
@@ -96,8 +101,8 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for GlobalpayPaymentsRequest {
                 globalpay_payments_request_type: None,
                 user_reference: None,
             }),
-            api::PaymentMethod::Wallet(wallet_data) => match wallet_data.issuer_name {
-                api_models::enums::WalletIssuer::Paypal => Ok(Self {
+            api::PaymentMethodData::Wallet(wallet_data) => match wallet_data {
+                api_models::payments::WalletData::PaypalRedirect(_) => Ok(Self {
                     account_name,
                     amount: Some(item.request.amount.to_string()),
                     currency: item.request.currency.to_string(),
@@ -153,15 +158,13 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for GlobalpayPaymentsRequest {
                     globalpay_payments_request_type: None,
                     user_reference: None,
                 }),
-                api_models::enums::WalletIssuer::GooglePay => {
-                    let wallet_data_token =
-                        wallet_data
-                            .token
-                            .ok_or(errors::ConnectorError::MissingRequiredField {
-                                field_name: "item.payment_method_data.wallet.token",
-                            })?;
-                    let token: Result<serde_json::Value, serde_json::Error> =
-                        serde_json::from_slice(wallet_data_token.as_bytes());
+                api_models::payments::WalletData::GooglePay(data) => {
+                    let wallet_data_token = data.tokenization_data.token.as_str();
+                    let token = serde_json::from_str(wallet_data_token)
+                        .map_err(|_| errors::ParsingError)
+                        .into_report()
+                        .change_context(errors::ParsingError)
+                        .unwrap_or(serde_json::Value::Null);
                     Ok(Self {
                         account_name,
                         amount: Some(item.request.amount.to_string()),
@@ -175,11 +178,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for GlobalpayPaymentsRequest {
                         payment_method: requests::PaymentMethod {
                             digital_wallet: Some(requests::DigitalWallet {
                                 provider: Some(requests::DigitalWalletProvider::PayByGoogle),
-                                payment_token: Some(token.ok().ok_or(
-                                    errors::ConnectorError::MissingRequiredField {
-                                        field_name: "item.payment_method_data.wallet.token",
-                                    },
-                                )?),
+                                payment_token: Some(token),
                             }),
                             authentication: None,
                             bank_transfer: None,

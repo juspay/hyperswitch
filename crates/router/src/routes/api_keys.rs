@@ -21,7 +21,8 @@ use crate::{
         (status = 400, description = "Invalid data")
     ),
     tag = "API Key",
-    operation_id = "Create an API Key"
+    operation_id = "Create an API Key",
+    security(("admin_api_key" = []))
 )]
 #[instrument(skip_all, fields(flow = ?Flow::ApiKeyCreate))]
 pub async fn api_key_create(
@@ -57,7 +58,8 @@ pub async fn api_key_create(
         (status = 404, description = "API Key not found")
     ),
     tag = "API Key",
-    operation_id = "Retrieve an API Key"
+    operation_id = "Retrieve an API Key",
+    security(("admin_api_key" = []))
 )]
 #[instrument(skip_all, fields(flow = ?Flow::ApiKeyRetrieve))]
 pub async fn api_key_retrieve(
@@ -90,7 +92,8 @@ pub async fn api_key_retrieve(
         (status = 404, description = "API Key not found")
     ),
     tag = "API Key",
-    operation_id = "Update an API Key"
+    operation_id = "Update an API Key",
+    security(("admin_api_key" = []))
 )]
 #[instrument(skip_all, fields(flow = ?Flow::ApiKeyUpdate))]
 pub async fn api_key_update(
@@ -125,7 +128,8 @@ pub async fn api_key_update(
         (status = 404, description = "API Key not found")
     ),
     tag = "API Key",
-    operation_id = "Revoke an API Key"
+    operation_id = "Revoke an API Key",
+    security(("admin_api_key" = []))
 )]
 #[instrument(skip_all, fields(flow = ?Flow::ApiKeyRevoke))]
 pub async fn api_key_revoke(
@@ -159,7 +163,8 @@ pub async fn api_key_revoke(
         (status = 200, description = "List of API Keys retrieved successfully", body = Vec<RetrieveApiKeyResponse>),
     ),
     tag = "API Key",
-    operation_id = "List all API Keys associated with a merchant account"
+    operation_id = "List all API Keys associated with a merchant account",
+    security(("admin_api_key" = []))
 )]
 #[instrument(skip_all, fields(flow = ?Flow::ApiKeyList))]
 pub async fn api_key_list(

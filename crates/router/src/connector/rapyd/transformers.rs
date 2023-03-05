@@ -7,11 +7,7 @@ use crate::{
     core::errors,
     pii::{self, Secret},
     services,
-    types::{
-        self, api,
-        storage::enums,
-        transformers::{self, ForeignFrom},
-    },
+    types::{self, api, storage::enums, transformers::ForeignFrom},
     utils::OptionExt,
 };
 
@@ -66,14 +62,14 @@ pub struct RapydWallet {
     #[serde(rename = "type")]
     payment_type: String,
     #[serde(rename = "details")]
-    apple_pay_token: Option<String>,
+    token: Option<String>,
 }
 
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for RapydPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         let (capture, payment_method_options) = match item.payment_method {
-            storage_models::enums::PaymentMethodType::Card => {
+            storage_models::enums::PaymentMethod::Card => {
                 let three_ds_enabled = matches!(item.auth_type, enums::AuthenticationType::ThreeDs);
                 let payment_method_options = PaymentMethodOptions {
                     three_ds: three_ds_enabled,
@@ -89,7 +85,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for RapydPaymentsRequest {
             _ => (None, None),
         };
         let payment_method = match item.request.payment_method_data {
-            api_models::payments::PaymentMethod::Card(ref ccard) => {
+            api_models::payments::PaymentMethodData::Card(ref ccard) => {
                 Some(PaymentMethod {
                     pm_type: "in_amex_card".to_owned(), //[#369] Map payment method type based on country
                     fields: Some(PaymentFields {
@@ -103,15 +99,15 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for RapydPaymentsRequest {
                     digital_wallet: None,
                 })
             }
-            api_models::payments::PaymentMethod::Wallet(ref wallet_data) => {
-                let digital_wallet = match wallet_data.issuer_name {
-                    api_models::enums::WalletIssuer::GooglePay => Some(RapydWallet {
+            api_models::payments::PaymentMethodData::Wallet(ref wallet_data) => {
+                let digital_wallet = match wallet_data {
+                    api_models::payments::WalletData::GooglePay(data) => Some(RapydWallet {
                         payment_type: "google_pay".to_string(),
-                        apple_pay_token: wallet_data.token.to_owned(),
+                        token: Some(data.tokenization_data.token.to_owned()),
                     }),
-                    api_models::enums::WalletIssuer::ApplePay => Some(RapydWallet {
+                    api_models::payments::WalletData::ApplePay(data) => Some(RapydWallet {
                         payment_type: "apple_pay".to_string(),
-                        apple_pay_token: wallet_data.token.to_owned(),
+                        token: Some(data.payment_data.to_string()),
                     }),
                     _ => None,
                 };
@@ -179,29 +175,24 @@ pub enum RapydPaymentStatus {
     New,
 }
 
-impl From<transformers::Foreign<(RapydPaymentStatus, NextAction)>>
-    for transformers::Foreign<enums::AttemptStatus>
-{
-    fn from(item: transformers::Foreign<(RapydPaymentStatus, NextAction)>) -> Self {
-        let (status, next_action) = item.0;
+impl ForeignFrom<(RapydPaymentStatus, NextAction)> for enums::AttemptStatus {
+    fn foreign_from(item: (RapydPaymentStatus, NextAction)) -> Self {
+        let (status, next_action) = item;
         match (status, next_action) {
-            (RapydPaymentStatus::Closed, _) => enums::AttemptStatus::Charged,
+            (RapydPaymentStatus::Closed, _) => Self::Charged,
             (RapydPaymentStatus::Active, NextAction::ThreedsVerification) => {
-                enums::AttemptStatus::AuthenticationPending
+                Self::AuthenticationPending
             }
-            (RapydPaymentStatus::Active, NextAction::PendingCapture) => {
-                enums::AttemptStatus::Authorized
-            }
+            (RapydPaymentStatus::Active, NextAction::PendingCapture) => Self::Authorized,
             (
                 RapydPaymentStatus::CanceledByClientOrBank
                 | RapydPaymentStatus::Expired
                 | RapydPaymentStatus::ReversedByRapyd,
                 _,
-            ) => enums::AttemptStatus::Voided,
-            (RapydPaymentStatus::Error, _) => enums::AttemptStatus::Failure,
-            (RapydPaymentStatus::New, _) => enums::AttemptStatus::Authorizing,
+            ) => Self::Voided,
+            (RapydPaymentStatus::Error, _) => Self::Failure,
+            (RapydPaymentStatus::New, _) => Self::Authorizing,
         }
-        .into()
     }
 }
 

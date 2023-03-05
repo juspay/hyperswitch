@@ -1,10 +1,14 @@
-use std::path::PathBuf;
+use std::{
+    collections::{HashMap, HashSet},
+    path::PathBuf,
+    str::FromStr,
+};
 
 use common_utils::ext_traits::ConfigExt;
 use config::{Environment, File};
 use redis_interface::RedisSettings;
 pub use router_env::config::{Log, LogConsole, LogFile, LogTelemetry};
-use serde::Deserialize;
+use serde::{Deserialize, Deserializer};
 
 use crate::{
     core::errors::{ApplicationError, ApplicationResult},
@@ -51,6 +55,95 @@ pub struct Settings {
     pub drainer: DrainerSettings,
     pub jwekey: Jwekey,
     pub webhooks: WebhooksSettings,
+    pub pm_filters: ConnectorFilters,
+    pub bank_config: BankRedirectConfig,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct BankRedirectConfig(
+    pub HashMap<api_models::enums::PaymentMethodType, ConnectorBankNames>,
+);
+#[derive(Debug, Deserialize, Clone)]
+pub struct ConnectorBankNames(pub HashMap<String, BanksVector>);
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct BanksVector {
+    #[serde(deserialize_with = "bank_vec_deser")]
+    pub banks: HashSet<api_models::enums::BankNames>,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+#[serde(transparent)]
+pub struct ConnectorFilters(pub HashMap<String, PaymentMethodFilters>);
+
+#[derive(Debug, Deserialize, Clone, Default)]
+#[serde(transparent)]
+pub struct PaymentMethodFilters(pub HashMap<PaymentMethodFilterKey, CurrencyCountryFilter>);
+
+#[derive(Debug, Deserialize, Clone, PartialEq, Eq, Hash)]
+#[serde(untagged)]
+pub enum PaymentMethodFilterKey {
+    PaymentMethodType(api_models::enums::PaymentMethodType),
+    CardNetwork(api_models::enums::CardNetwork),
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+#[serde(default)]
+pub struct CurrencyCountryFilter {
+    #[serde(deserialize_with = "currency_set_deser")]
+    pub currency: Option<HashSet<api_models::enums::Currency>>,
+    #[serde(deserialize_with = "string_set_deser")]
+    pub country: Option<HashSet<String>>,
+}
+
+fn string_set_deser<'a, D>(deserializer: D) -> Result<Option<HashSet<String>>, D::Error>
+where
+    D: Deserializer<'a>,
+{
+    let value = <Option<String>>::deserialize(deserializer)?;
+    Ok(value.and_then(|inner| {
+        let list = inner
+            .trim()
+            .split(',')
+            .map(|value| value.to_string())
+            .collect::<HashSet<_>>();
+        match list.len() {
+            0 => None,
+            _ => Some(list),
+        }
+    }))
+}
+
+fn currency_set_deser<'a, D>(
+    deserializer: D,
+) -> Result<Option<HashSet<api_models::enums::Currency>>, D::Error>
+where
+    D: Deserializer<'a>,
+{
+    let value = <Option<String>>::deserialize(deserializer)?;
+    Ok(value.and_then(|inner| {
+        let list = inner
+            .trim()
+            .split(',')
+            .flat_map(api_models::enums::Currency::from_str)
+            .collect::<HashSet<_>>();
+        match list.len() {
+            0 => None,
+            _ => Some(list),
+        }
+    }))
+}
+
+fn bank_vec_deser<'a, D>(deserializer: D) -> Result<HashSet<api_models::enums::BankNames>, D::Error>
+where
+    D: Deserializer<'a>,
+{
+    let value = <String>::deserialize(deserializer)?;
+    Ok(value
+        .trim()
+        .split(',')
+        .flat_map(api_models::enums::BankNames::from_str)
+        .collect())
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -137,14 +230,20 @@ pub struct SupportedConnectors {
 pub struct Connectors {
     pub aci: ConnectorParams,
     pub adyen: ConnectorParams,
+    pub airwallex: ConnectorParams,
     pub applepay: ConnectorParams,
     pub authorizedotnet: ConnectorParams,
+    pub bambora: ConnectorParams,
+    pub bluesnap: ConnectorParams,
     pub braintree: ConnectorParams,
     pub checkout: ConnectorParams,
     pub cybersource: ConnectorParams,
+    pub dlocal: ConnectorParams,
     pub fiserv: ConnectorParams,
     pub globalpay: ConnectorParams,
     pub klarna: ConnectorParams,
+    pub multisafepay: ConnectorParams,
+    pub nuvei: ConnectorParams,
     pub payu: ConnectorParams,
     pub rapyd: ConnectorParams,
     pub shift4: ConnectorParams,
