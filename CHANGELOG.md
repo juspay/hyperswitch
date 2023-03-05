@@ -51,7 +51,7 @@
 * **list:**
   *  remove enabled payment methods from list customer payment … (#689) (5c29f37a)
   *  fix card network filtering (#684) (718c8a42)
-  *  adding configuation changes for filtering `pm` based on countries & currencies (#669) (060c5419)
+  *  adding config changes for filtering `pm` based on countries & currencies (#669) (060c5419)
 * **compatibility:**
   *  change next_action type and customer request type (#675) (7f22c22c)
   *  map stripe country_code to payment_request country code (#667) (7044b80b)
@@ -62,7 +62,7 @@
 
 * **stripe:**  send statement descriptor to stripe (#707) (641c4d6d)
 *  use connector error handler for 500 error messages. (#696) (9fe20932)
-*  populate failed status and add bank_redirect (#674) (b1685ba1)
+*  populate failed status and add bank_redirect (#674)
 * **refunds:**  skip validate refunds for card (#672) (5cdbef04)
 * **router/webhooks:**  expose additional incoming request details to webhooks flow (#637) (1b3b7f5b)
 * **braintree:**  create basic auth for braintree (#602) (c47619b5)
