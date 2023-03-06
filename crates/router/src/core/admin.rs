@@ -320,7 +320,7 @@ pub async fn create_payment_connector(
         metadata: req.metadata,
         connector_label: Some(req.connector_label),
         business_country: Some(req.business_country),
-        business_type: Some(req.business_type),
+        business_label: Some(req.business_label),
     };
 
     let mca = store
@@ -433,7 +433,7 @@ pub async fn update_payment_connector(
         metadata: req.metadata,
         connector_label: Some(req.connector_label),
         business_country: Some(req.business_country),
-        business_type: Some(req.business_type),
+        business_label: Some(req.business_label),
     };
 
     let updated_mca = db
@@ -466,7 +466,7 @@ pub async fn update_payment_connector(
         metadata: updated_mca.metadata,
         connector_label: updated_mca.connector_label,
         business_country: updated_mca.business_country,
-        business_type: updated_mca.business_type,
+        business_label: updated_mca.business_label,
     };
     Ok(service_api::ApplicationResponse::Json(response))
 }

@@ -29,7 +29,7 @@ pub struct MerchantConnectorAccount {
     pub metadata: Option<serde_json::Value>,
     pub connector_label: String,
     pub business_country: String,
-    pub business_type: String,
+    pub business_label: String,
 }
 
 #[derive(Clone, Debug, Default, Insertable, router_derive::DebugAsDisplay)]
@@ -46,7 +46,7 @@ pub struct MerchantConnectorAccountNew {
     pub metadata: Option<serde_json::Value>,
     pub connector_label: Option<String>,
     pub business_country: Option<String>,
-    pub business_type: Option<String>,
+    pub business_label: Option<String>,
 }
 
 #[derive(Debug)]
@@ -63,7 +63,7 @@ pub enum MerchantConnectorAccountUpdate {
         metadata: Option<serde_json::Value>,
         connector_label: Option<String>,
         business_country: Option<String>,
-        business_type: Option<String>,
+        business_label: Option<String>,
     },
 }
 #[derive(Clone, Debug, Default, AsChangeset, router_derive::DebugAsDisplay)]
@@ -80,7 +80,7 @@ pub struct MerchantConnectorAccountUpdateInternal {
     metadata: Option<serde_json::Value>,
     connector_label: Option<String>,
     business_country: Option<String>,
-    business_type: Option<String>,
+    business_label: Option<String>,
 }
 
 impl From<MerchantConnectorAccountUpdate> for MerchantConnectorAccountUpdateInternal {
@@ -98,7 +98,7 @@ impl From<MerchantConnectorAccountUpdate> for MerchantConnectorAccountUpdateInte
                 metadata,
                 connector_label,
                 business_country,
-                business_type,
+                business_label,
             } => Self {
                 merchant_id,
                 connector_type,
@@ -111,7 +111,7 @@ impl From<MerchantConnectorAccountUpdate> for MerchantConnectorAccountUpdateInte
                 metadata,
                 connector_label,
                 business_country,
-                business_type,
+                business_label,
             },
         }
     }

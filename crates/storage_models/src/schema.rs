@@ -199,7 +199,7 @@ diesel::table! {
         metadata -> Nullable<Jsonb>,
         connector_label -> Varchar,
         business_country -> Varchar,
-        business_type -> Varchar,
+        business_label -> Varchar,
     }
 }
 

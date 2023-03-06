@@ -292,7 +292,7 @@ impl MerchantConnectorAccountInterface for MockDb {
                 .unwrap_or(crate::types::storage::enums::ConnectorType::FinOperations),
             connector_label: t.connector_label.unwrap_or_default(),
             business_country: t.business_country.unwrap_or_default(),
-            business_type: t.business_type.unwrap_or_default(),
+            business_label: t.business_label.unwrap_or_default(),
         };
         accounts.push(account.clone());
         Ok(account)

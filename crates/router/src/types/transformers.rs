@@ -340,9 +340,8 @@ impl ForeignTryFrom<storage::MerchantConnectorAccount>
             payment_methods_enabled,
             connector_label: merchant_ca.connector_label,
             business_country: merchant_ca.business_country,
-            business_type: merchant_ca.business_type,
-        }
-        .into())
+            business_label: merchant_ca.business_label,
+        })
     }
 }
 

@@ -264,7 +264,7 @@ pub struct PaymentConnectorCreate {
     pub business_country: String,
     ///Business Type of the merchant
     #[schema(example = "travel")]
-    pub business_type: String,
+    pub business_label: String,
     /// Unique ID of the connector
     #[schema(example = "mca_5apGeP94tMts6rg3U3kR")]
     pub merchant_connector_id: Option<String>,
