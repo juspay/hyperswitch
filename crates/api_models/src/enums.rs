@@ -623,7 +623,7 @@ pub enum SupportedWallets {
     Gpay,
 }
 
-/// The hyperswitch code of all the supported banks
+/// Name of banks supported by Hyperswitch
 #[derive(
     Clone,
     Copy,
