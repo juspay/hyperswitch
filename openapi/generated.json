@@ -723,7 +723,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/CreatePaymentMethod"
+                "$ref": "#/components/schemas/PaymentMethodCreate"
               }
             }
           },
@@ -949,7 +949,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ListCustomerPaymentMethodsResponse"
+                  "$ref": "#/components/schemas/CustomerPaymentMethodsListResponse"
                 }
               }
             }
@@ -1035,7 +1035,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/UpdatePaymentMethod"
+                "$ref": "#/components/schemas/PaymentMethodUpdate"
               }
             }
           },
@@ -1087,7 +1087,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/DeletePaymentMethodResponse"
+                  "$ref": "#/components/schemas/PaymentMethodDeleteResponse"
                 }
               }
             }
@@ -2543,45 +2543,6 @@
           }
         }
       },
-      "CreatePaymentMethod": {
-        "type": "object",
-        "required": [
-          "payment_method"
-        ],
-        "properties": {
-          "payment_method": {
-            "$ref": "#/components/schemas/PaymentMethodType"
-          },
-          "payment_method_type": {
-            "$ref": "#/components/schemas/PaymentMethodType"
-          },
-          "payment_method_issuer": {
-            "type": "string",
-            "description": "The name of the bank/ provider issuing the payment method to the end user",
-            "example": "Citibank"
-          },
-          "payment_method_issuer_code": {
-            "$ref": "#/components/schemas/PaymentMethodIssuerCode"
-          },
-          "card": {
-            "$ref": "#/components/schemas/CardDetail"
-          },
-          "metadata": {
-            "type": "object",
-            "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object."
-          },
-          "customer_id": {
-            "type": "string",
-            "description": "The unique identifier of the customer.",
-            "example": "cus_meowerunwiuwiwqw"
-          },
-          "card_network": {
-            "type": "string",
-            "description": "The card network",
-            "example": "Visa"
-          }
-        }
-      },
       "Currency": {
         "type": "string",
         "enum": [
@@ -2812,6 +2773,21 @@
           }
         }
       },
+      "CustomerPaymentMethodsListResponse": {
+        "type": "object",
+        "required": [
+          "customer_payment_methods"
+        ],
+        "properties": {
+          "customer_payment_methods": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CustomerPaymentMethod"
+            },
+            "description": "List of payment methods for customer"
+          }
+        }
+      },
       "CustomerRequest": {
         "type": "object",
         "description": "The customer details",
@@ -2918,25 +2894,6 @@
           "metadata": {
             "type": "object",
             "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500\ncharacters long. Metadata is useful for storing additional, structured information on an\nobject."
-          }
-        }
-      },
-      "DeletePaymentMethodResponse": {
-        "type": "object",
-        "required": [
-          "payment_method_id",
-          "deleted"
-        ],
-        "properties": {
-          "payment_method_id": {
-            "type": "string",
-            "description": "The unique identifier of the Payment method",
-            "example": "card_rGK4Vi5iSW70MY7J2mIy"
-          },
-          "deleted": {
-            "type": "boolean",
-            "description": "Whether payment method was deleted or not",
-            "example": true
           }
         }
       },
@@ -3172,21 +3129,6 @@
           "session_id": {
             "type": "string",
             "description": "The identifier for the session"
-          }
-        }
-      },
-      "ListCustomerPaymentMethodsResponse": {
-        "type": "object",
-        "required": [
-          "customer_payment_methods"
-        ],
-        "properties": {
-          "customer_payment_methods": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/CustomerPaymentMethod"
-            },
-            "description": "List of payment methods for customer"
           }
         }
       },
@@ -4111,6 +4053,45 @@
           "bank_redirect"
         ]
       },
+      "PaymentMethodCreate": {
+        "type": "object",
+        "required": [
+          "payment_method"
+        ],
+        "properties": {
+          "payment_method": {
+            "$ref": "#/components/schemas/PaymentMethodType"
+          },
+          "payment_method_type": {
+            "$ref": "#/components/schemas/PaymentMethodType"
+          },
+          "payment_method_issuer": {
+            "type": "string",
+            "description": "The name of the bank/ provider issuing the payment method to the end user",
+            "example": "Citibank"
+          },
+          "payment_method_issuer_code": {
+            "$ref": "#/components/schemas/PaymentMethodIssuerCode"
+          },
+          "card": {
+            "$ref": "#/components/schemas/CardDetail"
+          },
+          "metadata": {
+            "type": "object",
+            "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object."
+          },
+          "customer_id": {
+            "type": "string",
+            "description": "The unique identifier of the customer.",
+            "example": "cus_meowerunwiuwiwqw"
+          },
+          "card_network": {
+            "type": "string",
+            "description": "The card network",
+            "example": "Visa"
+          }
+        }
+      },
       "PaymentMethodData": {
         "oneOf": [
           {
@@ -4158,6 +4139,25 @@
             }
           }
         ]
+      },
+      "PaymentMethodDeleteResponse": {
+        "type": "object",
+        "required": [
+          "payment_method_id",
+          "deleted"
+        ],
+        "properties": {
+          "payment_method_id": {
+            "type": "string",
+            "description": "The unique identifier of the Payment method",
+            "example": "card_rGK4Vi5iSW70MY7J2mIy"
+          },
+          "deleted": {
+            "type": "boolean",
+            "description": "Whether payment method was deleted or not",
+            "example": true
+          }
+        }
       },
       "PaymentMethodIssuerCode": {
         "type": "string",
@@ -4307,6 +4307,21 @@
           "apple_pay",
           "paypal"
         ]
+      },
+      "PaymentMethodUpdate": {
+        "type": "object",
+        "properties": {
+          "card": {
+            "$ref": "#/components/schemas/CardDetail"
+          },
+          "card_network": {
+            "$ref": "#/components/schemas/CardNetwork"
+          },
+          "metadata": {
+            "type": "object",
+            "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object."
+          }
+        }
       },
       "PaymentMethodsEnabled": {
         "type": "object",
@@ -5261,21 +5276,6 @@
           },
           "expiration": {
             "$ref": "#/components/schemas/ApiKeyExpiration"
-          }
-        }
-      },
-      "UpdatePaymentMethod": {
-        "type": "object",
-        "properties": {
-          "card": {
-            "$ref": "#/components/schemas/CardDetail"
-          },
-          "card_network": {
-            "$ref": "#/components/schemas/CardNetwork"
-          },
-          "metadata": {
-            "type": "object",
-            "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object."
           }
         }
       },

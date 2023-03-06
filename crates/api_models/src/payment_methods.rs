@@ -9,7 +9,7 @@ use crate::{
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 #[serde(deny_unknown_fields)]
-pub struct CreatePaymentMethod {
+pub struct PaymentMethodCreate {
     /// The type of payment method use for the payment.
     #[schema(value_type = PaymentMethodType,example = "card")]
     pub payment_method: api_enums::PaymentMethod,
@@ -49,7 +49,7 @@ pub struct CreatePaymentMethod {
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 #[serde(deny_unknown_fields)]
-pub struct UpdatePaymentMethod {
+pub struct PaymentMethodUpdate {
     /// Card Details
     #[schema(example = json!({
     "card_number": "4111111145551142",
@@ -454,13 +454,13 @@ impl serde::Serialize for PaymentMethodList {
 }
 
 #[derive(Debug, serde::Serialize, ToSchema)]
-pub struct ListCustomerPaymentMethodsResponse {
+pub struct CustomerPaymentMethodsListResponse {
     /// List of payment methods for customer
     pub customer_payment_methods: Vec<CustomerPaymentMethod>,
 }
 
 #[derive(Debug, serde::Serialize, ToSchema)]
-pub struct DeletePaymentMethodResponse {
+pub struct PaymentMethodDeleteResponse {
     /// The unique identifier of the Payment method
     #[schema(example = "card_rGK4Vi5iSW70MY7J2mIy")]
     pub payment_method_id: String,

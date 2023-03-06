@@ -25,7 +25,7 @@ use crate::{
     pii::prelude::*,
     routes, services,
     types::{
-        api::{self, CreatePaymentMethodExt},
+        api::{self, PaymentMethodCreateExt},
         storage::{self, enums},
         transformers::ForeignInto,
     },
@@ -35,7 +35,7 @@ use crate::{
 #[instrument(skip_all)]
 pub async fn create_payment_method(
     db: &dyn db::StorageInterface,
-    req: &api::CreatePaymentMethod,
+    req: &api::PaymentMethodCreate,
     customer_id: &str,
     payment_method_id: &str,
     merchant_id: &str,
@@ -60,7 +60,7 @@ pub async fn create_payment_method(
 #[instrument(skip_all)]
 pub async fn add_payment_method(
     state: &routes::AppState,
-    req: api::CreatePaymentMethod,
+    req: api::PaymentMethodCreate,
     merchant_account: &storage::MerchantAccount,
 ) -> errors::RouterResponse<api::PaymentMethodResponse> {
     req.validate()?;
@@ -106,7 +106,7 @@ pub async fn add_payment_method(
 pub async fn update_customer_payment_method(
     state: &routes::AppState,
     merchant_account: storage::MerchantAccount,
-    req: api::UpdatePaymentMethod,
+    req: api::PaymentMethodUpdate,
     payment_method_id: &str,
 ) -> errors::RouterResponse<api::PaymentMethodResponse> {
     let db = &*state.store;
@@ -122,7 +122,7 @@ pub async fn update_customer_payment_method(
     if pm.payment_method == enums::PaymentMethod::Card {
         delete_card(state, &pm.merchant_id, &pm.payment_method_id).await?;
     };
-    let new_pm = api::CreatePaymentMethod {
+    let new_pm = api::PaymentMethodCreate {
         payment_method: pm.payment_method.foreign_into(),
         payment_method_type: pm.payment_method_type.map(|x| x.foreign_into()),
         payment_method_issuer: pm.payment_method_issuer,
@@ -141,7 +141,7 @@ pub async fn update_customer_payment_method(
 #[instrument(skip_all)]
 pub async fn add_card(
     state: &routes::AppState,
-    req: api::CreatePaymentMethod,
+    req: api::PaymentMethodCreate,
     card: api::CardDetail,
     customer_id: String,
     merchant_account: &storage::MerchantAccount,
@@ -1083,7 +1083,7 @@ pub async fn list_customer_payment_method(
     state: &routes::AppState,
     merchant_account: storage::MerchantAccount,
     customer_id: &str,
-) -> errors::RouterResponse<api::ListCustomerPaymentMethodsResponse> {
+) -> errors::RouterResponse<api::CustomerPaymentMethodsListResponse> {
     let db = &*state.store;
 
     let resp = db
@@ -1133,7 +1133,7 @@ pub async fn list_customer_payment_method(
         customer_pms.push(pma);
     }
 
-    let response = api::ListCustomerPaymentMethodsResponse {
+    let response = api::CustomerPaymentMethodsListResponse {
         customer_payment_methods: customer_pms,
     };
 
@@ -1375,7 +1375,7 @@ pub async fn delete_payment_method(
     state: &routes::AppState,
     merchant_account: storage::MerchantAccount,
     pm: api::PaymentMethodId,
-) -> errors::RouterResponse<api::DeletePaymentMethodResponse> {
+) -> errors::RouterResponse<api::PaymentMethodDeleteResponse> {
     let (_, supplementary_data) =
         vault::Vault::get_payment_method_data_from_locker(state, &pm.payment_method_id).await?;
     let payment_method_id = supplementary_data
@@ -1402,7 +1402,7 @@ pub async fn delete_payment_method(
     };
 
     Ok(services::ApplicationResponse::Json(
-        api::DeletePaymentMethodResponse {
+        api::PaymentMethodDeleteResponse {
             payment_method_id: pm.payment_method_id,
             deleted: true,
         },

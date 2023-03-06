@@ -1,12 +1,12 @@
 use std::collections::HashMap;
 
 pub use api_models::payment_methods::{
-    CardDetail, CardDetailFromLocker, CreatePaymentMethod, CustomerPaymentMethod,
-    DeletePaymentMethodResponse, DeleteTokenizeByDateRequest, DeleteTokenizeByTokenRequest,
-    GetTokenizePayloadRequest, GetTokenizePayloadResponse, ListCustomerPaymentMethodsResponse,
+    CardDetail, CardDetailFromLocker, PaymentMethodCreate, CustomerPaymentMethod,
+    PaymentMethodDeleteResponse, DeleteTokenizeByDateRequest, DeleteTokenizeByTokenRequest,
+    GetTokenizePayloadRequest, GetTokenizePayloadResponse, CustomerPaymentMethodsListResponse,
     PaymentMethodId, PaymentMethodList, PaymentMethodListRequest, PaymentMethodListResponse,
     PaymentMethodResponse, TokenizePayloadEncrypted, TokenizePayloadRequest, TokenizedCardValue1,
-    TokenizedCardValue2, TokenizedWalletValue1, TokenizedWalletValue2, UpdatePaymentMethod,
+    TokenizedCardValue2, TokenizedWalletValue1, TokenizedWalletValue2, PaymentMethodUpdate,
 };
 use error_stack::report;
 use literally::hmap;
@@ -53,7 +53,7 @@ static PAYMENT_METHOD_ISSUER_SET: Lazy<
     }
 });
 
-pub(crate) trait CreatePaymentMethodExt {
+pub(crate) trait PaymentMethodCreateExt {
     fn validate(&self) -> RouterResult<()>;
     fn check_subtype_mapping<T, U>(
         dict: &HashMap<T, Vec<U>>,
@@ -65,7 +65,7 @@ pub(crate) trait CreatePaymentMethodExt {
         U: PartialEq;
 }
 
-impl CreatePaymentMethodExt for CreatePaymentMethod {
+impl PaymentMethodCreateExt for PaymentMethodCreate {
     fn validate(&self) -> RouterResult<()> {
         let pm_subtype_map = Lazy::get(&PAYMENT_METHOD_TYPE_SET)
             .unwrap_or_else(|| Lazy::force(&PAYMENT_METHOD_TYPE_SET));

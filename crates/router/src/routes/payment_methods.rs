@@ -14,7 +14,7 @@ use crate::{
 #[utoipa::path(
     post,
     path = "/payment_methods",
-    request_body = CreatePaymentMethod,
+    request_body = PaymentMethodCreate,
     responses(
         (status = 200, description = "Payment Method Created", body = PaymentMethodResponse),
         (status = 400, description = "Invalid Data")
@@ -27,7 +27,7 @@ use crate::{
 pub async fn create_payment_method_api(
     state: web::Data<AppState>,
     req: HttpRequest,
-    json_payload: web::Json<payment_methods::CreatePaymentMethod>,
+    json_payload: web::Json<payment_methods::PaymentMethodCreate>,
 ) -> HttpResponse {
     api::server_wrap(
         state.get_ref(),
@@ -104,7 +104,7 @@ pub async fn list_payment_method_api(
         ("installment_payment_enabled" = bool, Query, description = "Indicates whether the payment method is eligible for installment payments"),
     ),
     responses(
-        (status = 200, description = "Payment Methods retrieved", body = ListCustomerPaymentMethodsResponse),
+        (status = 200, description = "Payment Methods retrieved", body = CustomerPaymentMethodsListResponse),
         (status = 400, description = "Invalid Data"),
         (status = 404, description = "Payment Methods does not exist in records")
     ),
@@ -186,7 +186,7 @@ pub async fn payment_method_retrieve_api(
     params (
         ("method_id" = String, Path, description = "The unique identifier for the Payment Method"),
     ),
-    request_body = UpdatePaymentMethod,
+    request_body = PaymentMethodUpdate,
     responses(
         (status = 200, description = "Payment Method updated", body = PaymentMethodResponse),
         (status = 404, description = "Payment Method does not exist in records")
@@ -200,7 +200,7 @@ pub async fn payment_method_update_api(
     state: web::Data<AppState>,
     req: HttpRequest,
     path: web::Path<String>,
-    json_payload: web::Json<payment_methods::UpdatePaymentMethod>,
+    json_payload: web::Json<payment_methods::PaymentMethodUpdate>,
 ) -> HttpResponse {
     let payment_method_id = path.into_inner();
 
@@ -231,7 +231,7 @@ pub async fn payment_method_update_api(
         ("method_id" = String, Path, description = "The unique identifier for the Payment Method"),
     ),
     responses(
-        (status = 200, description = "Payment Method deleted", body = DeletePaymentMethodResponse),
+        (status = 200, description = "Payment Method deleted", body = PaymentMethodDeleteResponse),
         (status = 404, description = "Payment Method does not exist in records")
     ),
     tag = "Payment Methods",
