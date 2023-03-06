@@ -432,7 +432,7 @@ pub async fn list_payment_methods(
     state: &routes::AppState,
     merchant_account: storage::MerchantAccount,
     mut req: api::PaymentMethodListRequest,
-) -> errors::RouterResponse<api::ListPaymentMethodResponse> {
+) -> errors::RouterResponse<api::PaymentMethodListResponse> {
     let db = &*state.store;
     let pm_config_mapping = &state.conf.pm_filters;
 
@@ -684,7 +684,7 @@ pub async fn list_payment_methods(
         .is_empty()
         .then(|| Err(report!(errors::ApiErrorResponse::PaymentMethodNotFound)))
         .unwrap_or(Ok(services::ApplicationResponse::Json(
-            api::ListPaymentMethodResponse {
+            api::PaymentMethodListResponse {
                 redirect_url: merchant_account.return_url,
                 payment_methods: payment_method_responses,
             },

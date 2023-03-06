@@ -839,7 +839,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ListPaymentMethodResponse"
+                  "$ref": "#/components/schemas/PaymentMethodListResponse"
                 }
               }
             }
@@ -3190,57 +3190,6 @@
           }
         }
       },
-      "ListPaymentMethod": {
-        "type": "object",
-        "required": [
-          "payment_method"
-        ],
-        "properties": {
-          "payment_method": {
-            "$ref": "#/components/schemas/PaymentMethod"
-          },
-          "payment_method_types": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/PaymentMethodType"
-            },
-            "description": "This is a sub-category of payment method.",
-            "example": [
-              "credit"
-            ]
-          }
-        }
-      },
-      "ListPaymentMethodResponse": {
-        "type": "object",
-        "required": [
-          "payment_methods"
-        ],
-        "properties": {
-          "redirect_url": {
-            "type": "string",
-            "description": "Redirect URL of the merchant",
-            "example": "https://www.google.com"
-          },
-          "payment_methods": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/ListPaymentMethod"
-            },
-            "description": "Information about the payment method",
-            "example": [
-              {
-                "payment_experience": null,
-                "payment_method": "wallet",
-                "payment_method_issuers": [
-                  "labore magna ipsum",
-                  "aute"
-                ]
-              }
-            ]
-          }
-        }
-      },
       "MandateAmountData": {
         "type": "object",
         "required": [
@@ -4225,6 +4174,57 @@
           "jp_bacs"
         ]
       },
+      "PaymentMethodList": {
+        "type": "object",
+        "required": [
+          "payment_method"
+        ],
+        "properties": {
+          "payment_method": {
+            "$ref": "#/components/schemas/PaymentMethod"
+          },
+          "payment_method_types": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PaymentMethodType"
+            },
+            "description": "This is a sub-category of payment method.",
+            "example": [
+              "credit"
+            ]
+          }
+        }
+      },
+      "PaymentMethodListResponse": {
+        "type": "object",
+        "required": [
+          "payment_methods"
+        ],
+        "properties": {
+          "redirect_url": {
+            "type": "string",
+            "description": "Redirect URL of the merchant",
+            "example": "https://www.google.com"
+          },
+          "payment_methods": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PaymentMethodList"
+            },
+            "description": "Information about the payment method",
+            "example": [
+              {
+                "payment_experience": null,
+                "payment_method": "wallet",
+                "payment_method_issuers": [
+                  "labore magna ipsum",
+                  "aute"
+                ]
+              }
+            ]
+          }
+        }
+      },
       "PaymentMethodResponse": {
         "type": "object",
         "required": [
@@ -4503,7 +4503,7 @@
           "billing": {
             "$ref": "#/components/schemas/Address"
           },
-          "statement_descriptor": {
+          "statement_descriptor_name": {
             "type": "string",
             "description": "For non-card charges, you can use this value as the complete description that appears on your customers’ statements. Must contain at least one letter, maximum 22 characters.",
             "example": "Hyperswitch Router",
@@ -4699,7 +4699,7 @@
           "authentication_type": {
             "$ref": "#/components/schemas/AuthenticationType"
           },
-          "statement_descriptor": {
+          "statement_descriptor_name": {
             "type": "string",
             "description": "For non-card charges, you can use this value as the complete description that appears on your customers’ statements. Must contain at least one letter, maximum 22 characters.",
             "example": "Hyperswitch Router",

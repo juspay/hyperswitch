@@ -403,13 +403,13 @@ fn set_or_reject_duplicate<T, E: de::Error>(
 }
 
 #[derive(Debug, serde::Serialize, ToSchema)]
-pub struct ListPaymentMethodResponse {
+pub struct PaymentMethodListResponse {
     /// Redirect URL of the merchant
     #[schema(example = "https://www.google.com")]
     pub redirect_url: Option<String>,
 
     /// Information about the payment method
-    #[schema(value_type = Vec<ListPaymentMethod>,example = json!(
+    #[schema(value_type = Vec<PaymentMethodList>,example = json!(
     [
         {
             "payment_method": "wallet",
@@ -425,7 +425,7 @@ pub struct ListPaymentMethodResponse {
 }
 
 #[derive(Eq, PartialEq, Hash, Debug, serde::Deserialize, ToSchema)]
-pub struct ListPaymentMethod {
+pub struct PaymentMethodList {
     /// The type of payment method use for the payment.
     #[schema(value_type = PaymentMethod,example = "card")]
     pub payment_method: api_enums::PaymentMethod,
@@ -438,13 +438,13 @@ pub struct ListPaymentMethod {
 /// Currently if the payment method is Wallet or Paylater the relevant fields are `payment_method`
 /// and `payment_method_issuers`. Otherwise only consider
 /// `payment_method`,`payment_method_issuers`,`payment_method_types`,`payment_schemes` fields.
-impl serde::Serialize for ListPaymentMethod {
+impl serde::Serialize for PaymentMethodList {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
     {
         use serde::ser::SerializeStruct;
-        let mut state = serializer.serialize_struct("ListPaymentMethod", 4)?;
+        let mut state = serializer.serialize_struct("PaymentMethodList", 4)?;
         state.serialize_field("payment_method", &self.payment_method)?;
 
         state.serialize_field("payment_method_types", &self.payment_method_types)?;
