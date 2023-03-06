@@ -514,7 +514,7 @@ pub(crate) async fn call_payment_method(
                     match maybe_customer {
                         Some(customer) => {
                             let customer_id = customer.customer_id.clone();
-                            let payment_method_request = api::CreatePaymentMethod {
+                            let payment_method_request = api::PaymentMethodCreate {
                                 payment_method: payment_method_type.foreign_into(),
                                 payment_method_type: None,
                                 payment_method_issuer: card.card_issuer.clone(),
@@ -549,7 +549,7 @@ pub(crate) async fn call_payment_method(
                     }
                 }
                 _ => {
-                    let payment_method_request = api::CreatePaymentMethod {
+                    let payment_method_request = api::PaymentMethodCreate {
                         payment_method: payment_method_type.foreign_into(),
                         payment_method_type: None,
                         payment_method_issuer: None,

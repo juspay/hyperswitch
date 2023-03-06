@@ -324,7 +324,7 @@ where
                                 .authentication_type
                                 .map(ForeignInto::foreign_into),
                         )
-                        .set_statement_descriptor(payment_intent.statement_descriptor_name)
+                        .set_statement_descriptor_name(payment_intent.statement_descriptor_name)
                         .set_statement_descriptor_suffix(payment_intent.statement_descriptor_suffix)
                         .set_setup_future_usage(
                             payment_intent

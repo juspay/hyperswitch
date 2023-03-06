@@ -7,7 +7,7 @@ edition = "2021"
 
 [dependencies]
 actix-web = "4.3.0"
-error-stack = "0.2.4"
+error-stack = "0.3.1"
 frunk = "0.4.1"
 frunk_core = "0.4.1"
 mime = "0.3.16"

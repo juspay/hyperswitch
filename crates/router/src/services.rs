@@ -2,6 +2,7 @@ pub mod api;
 pub mod authentication;
 #[cfg(feature = "basilisk")]
 pub mod encryption;
+pub mod kms;
 pub mod logger;
 
 use std::sync::{atomic, Arc};
