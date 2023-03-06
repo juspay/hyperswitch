@@ -32,7 +32,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/CreateMerchantAccount"
+                "$ref": "#/components/schemas/MerchantAccountCreate"
               }
             }
           },
@@ -124,7 +124,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/CreateMerchantAccount"
+                "$ref": "#/components/schemas/MerchantAccountUpdate"
               }
             }
           },
@@ -176,7 +176,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/DeleteMerchantAccountResponse"
+                  "$ref": "#/components/schemas/MerchantAccountDeleteResponse"
                 }
               }
             }
@@ -198,8 +198,8 @@
         "tags": [
           "Merchant Connector Account"
         ],
-        "summary": "Payment Connector - List",
-        "description": "Payment Connector - List\n\nList Payment Connector Details for the merchant",
+        "summary": "Merchant Connector - List",
+        "description": "Merchant Connector - List\n\nList Merchant Connector Details for the merchant",
         "operationId": "List all Merchant Connectors",
         "parameters": [
           {
@@ -214,13 +214,13 @@
         ],
         "responses": {
           "200": {
-            "description": "Payment Connector list retrieved successfully",
+            "description": "Merchant Connector list retrieved successfully",
             "content": {
               "application/json": {
                 "schema": {
                   "type": "array",
                   "items": {
-                    "$ref": "#/components/schemas/PaymentConnectorCreate"
+                    "$ref": "#/components/schemas/MerchantConnector"
                   }
                 }
               }
@@ -230,7 +230,7 @@
             "description": "Unauthorized request"
           },
           "404": {
-            "description": "Payment Connector does not exist in records"
+            "description": "Merchant Connector does not exist in records"
           }
         },
         "deprecated": false,
@@ -245,13 +245,13 @@
           "Merchant Connector Account"
         ],
         "summary": "PaymentsConnectors - Create",
-        "description": "PaymentsConnectors - Create\n\nCreate a new Payment Connector for the merchant account. The connector could be a payment processor / facilitator / acquirer or specialized services like Fraud / Accounting etc.\"",
+        "description": "PaymentsConnectors - Create\n\nCreate a new Merchant Connector for the merchant account. The connector could be a payment processor / facilitator / acquirer or specialized services like Fraud / Accounting etc.\"",
         "operationId": "Create a Merchant Connector",
         "requestBody": {
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/PaymentConnectorCreate"
+                "$ref": "#/components/schemas/MerchantConnector"
               }
             }
           },
@@ -259,11 +259,11 @@
         },
         "responses": {
           "200": {
-            "description": "Payment Connector Created",
+            "description": "Merchant Connector Created",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PaymentConnectorCreate"
+                  "$ref": "#/components/schemas/MerchantConnector"
                 }
               }
             }
@@ -285,8 +285,8 @@
         "tags": [
           "Merchant Connector Account"
         ],
-        "summary": "Payment Connector - Retrieve",
-        "description": "Payment Connector - Retrieve\n\nRetrieve Payment Connector Details",
+        "summary": "Merchant Connector - Retrieve",
+        "description": "Merchant Connector - Retrieve\n\nRetrieve Merchant Connector Details",
         "operationId": "Retrieve a Merchant Connector",
         "parameters": [
           {
@@ -301,7 +301,7 @@
           {
             "name": "connector_id",
             "in": "path",
-            "description": "The unique identifier for the payment connector",
+            "description": "The unique identifier for the Merchant Connector",
             "required": true,
             "schema": {
               "type": "integer",
@@ -311,11 +311,11 @@
         ],
         "responses": {
           "200": {
-            "description": "Payment Connector retrieved successfully",
+            "description": "Merchant Connector retrieved successfully",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PaymentConnectorCreate"
+                  "$ref": "#/components/schemas/MerchantConnector"
                 }
               }
             }
@@ -324,7 +324,7 @@
             "description": "Unauthorized request"
           },
           "404": {
-            "description": "Payment Connector does not exist in records"
+            "description": "Merchant Connector does not exist in records"
           }
         },
         "deprecated": false,
@@ -338,8 +338,8 @@
         "tags": [
           "Merchant Connector Account"
         ],
-        "summary": "Payment Connector - Update",
-        "description": "Payment Connector - Update\n\nTo update an existing Payment Connector. Helpful in enabling / disabling different payment methods and other settings for the connector etc.",
+        "summary": "Merchant Connector - Update",
+        "description": "Merchant Connector - Update\n\nTo update an existing Merchant Connector. Helpful in enabling / disabling different payment methods and other settings for the connector etc.",
         "operationId": "Update a Merchant Connector",
         "parameters": [
           {
@@ -354,7 +354,7 @@
           {
             "name": "connector_id",
             "in": "path",
-            "description": "The unique identifier for the payment connector",
+            "description": "The unique identifier for the Merchant Connector",
             "required": true,
             "schema": {
               "type": "integer",
@@ -366,7 +366,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/PaymentConnectorCreate"
+                "$ref": "#/components/schemas/MerchantConnector"
               }
             }
           },
@@ -374,11 +374,11 @@
         },
         "responses": {
           "200": {
-            "description": "Payment Connector Updated",
+            "description": "Merchant Connector Updated",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PaymentConnectorCreate"
+                  "$ref": "#/components/schemas/MerchantConnector"
                 }
               }
             }
@@ -387,7 +387,7 @@
             "description": "Unauthorized request"
           },
           "404": {
-            "description": "Payment Connector does not exist in records"
+            "description": "Merchant Connector does not exist in records"
           }
         },
         "deprecated": false,
@@ -401,8 +401,8 @@
         "tags": [
           "Merchant Connector Account"
         ],
-        "summary": "Payment Connector - Delete",
-        "description": "Payment Connector - Delete\n\nDelete or Detach a Payment Connector from Merchant Account",
+        "summary": "Merchant Connector - Delete",
+        "description": "Merchant Connector - Delete\n\nDelete or Detach a Merchant Connector from Merchant Account",
         "operationId": "Delete a Merchant Connector",
         "parameters": [
           {
@@ -417,7 +417,7 @@
           {
             "name": "connector_id",
             "in": "path",
-            "description": "The unique identifier for the payment connector",
+            "description": "The unique identifier for the Merchant Connector",
             "required": true,
             "schema": {
               "type": "integer",
@@ -427,11 +427,11 @@
         ],
         "responses": {
           "200": {
-            "description": "Payment Connector Deleted",
+            "description": "Merchant Connector Deleted",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/DeleteMcaResponse"
+                  "$ref": "#/components/schemas/MerchantConnectorDeleteResponse"
                 }
               }
             }
@@ -440,7 +440,7 @@
             "description": "Unauthorized request"
           },
           "404": {
-            "description": "Payment Connector does not exist in records"
+            "description": "Merchant Connector does not exist in records"
           }
         },
         "deprecated": false,
@@ -723,7 +723,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/CreatePaymentMethod"
+                "$ref": "#/components/schemas/PaymentMethodCreate"
               }
             }
           },
@@ -839,7 +839,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ListPaymentMethodResponse"
+                  "$ref": "#/components/schemas/PaymentMethodListResponse"
                 }
               }
             }
@@ -949,7 +949,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ListCustomerPaymentMethodsResponse"
+                  "$ref": "#/components/schemas/CustomerPaymentMethodsListResponse"
                 }
               }
             }
@@ -1035,7 +1035,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/UpdatePaymentMethod"
+                "$ref": "#/components/schemas/PaymentMethodUpdate"
               }
             }
           },
@@ -1087,7 +1087,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/DeletePaymentMethodResponse"
+                  "$ref": "#/components/schemas/PaymentMethodDeleteResponse"
                 }
               }
             }
@@ -1820,7 +1820,12 @@
             "items": {
               "type": "string"
             },
-            "description": "List of countries of the provided type"
+            "description": "List of countries of the provided type",
+            "example": [
+              "FR",
+              "DE",
+              "IN"
+            ]
           }
         }
       },
@@ -1840,7 +1845,11 @@
             "items": {
               "$ref": "#/components/schemas/Currency"
             },
-            "description": "List of currencies of the provided type"
+            "description": "List of currencies of the provided type",
+            "example": [
+              "USD",
+              "EUR"
+            ]
           }
         }
       },
@@ -2119,6 +2128,7 @@
       },
       "BankNames": {
         "type": "string",
+        "description": "Name of banks supported by Hyperswitch",
         "enum": [
           "american_express",
           "bank_of_america",
@@ -2185,7 +2195,8 @@
         "properties": {
           "billing_name": {
             "type": "string",
-            "description": "The name for which billing is issued"
+            "description": "The name for which billing is issued",
+            "example": "John Doe"
           }
         }
       },
@@ -2271,11 +2282,13 @@
                 "properties": {
                   "country": {
                     "type": "string",
-                    "description": "The country for bank payment"
+                    "description": "The country for bank payment",
+                    "example": "US"
                   },
                   "preferred_language": {
                     "type": "string",
-                    "description": "The preferred language"
+                    "description": "The preferred language",
+                    "example": "en"
                   }
                 }
               }
@@ -2328,7 +2341,9 @@
             "example": "242"
           },
           "card_issuer": {
-            "type": "string"
+            "type": "string",
+            "description": "The name of the issuer of card",
+            "example": "chase"
           },
           "card_network": {
             "$ref": "#/components/schemas/CardNetwork"
@@ -2525,127 +2540,6 @@
           },
           "expiration": {
             "$ref": "#/components/schemas/ApiKeyExpiration"
-          }
-        }
-      },
-      "CreateMerchantAccount": {
-        "type": "object",
-        "required": [
-          "merchant_id"
-        ],
-        "properties": {
-          "merchant_id": {
-            "type": "string",
-            "description": "The identifier for the Merchant Account",
-            "example": "y3oqhf46pyzuxjbcn2giaqnb44",
-            "maxLength": 255
-          },
-          "merchant_name": {
-            "type": "string",
-            "description": "Name of the Merchant Account",
-            "example": "NewAge Retailer"
-          },
-          "api_key": {
-            "type": "string",
-            "description": "API key that will be used for server side API access",
-            "example": "Ah2354543543523"
-          },
-          "merchant_details": {
-            "$ref": "#/components/schemas/MerchantDetails"
-          },
-          "return_url": {
-            "type": "string",
-            "description": "The URL to redirect after the completion of the operation",
-            "example": "https://www.example.com/success",
-            "maxLength": 255
-          },
-          "webhook_details": {
-            "$ref": "#/components/schemas/WebhookDetails"
-          },
-          "routing_algorithm": {
-            "type": "object",
-            "description": "The routing algorithm to be used for routing payments to desired connectors"
-          },
-          "sub_merchants_enabled": {
-            "type": "boolean",
-            "description": "A boolean value to indicate if the merchant is a sub-merchant under a master or a parent merchant. By default, its value is false.",
-            "default": false,
-            "example": false
-          },
-          "parent_merchant_id": {
-            "type": "string",
-            "description": "Refers to the Parent Merchant ID if the merchant being created is a sub-merchant",
-            "example": "xkkdf909012sdjki2dkh5sdf",
-            "maxLength": 255
-          },
-          "enable_payment_response_hash": {
-            "type": "boolean",
-            "description": "A boolean value to indicate if payment response hash needs to be enabled",
-            "default": false,
-            "example": true
-          },
-          "payment_response_hash_key": {
-            "type": "string",
-            "description": "Refers to the hash key used for payment response"
-          },
-          "redirect_to_merchant_with_http_post": {
-            "type": "boolean",
-            "description": "A boolean value to indicate if redirect to merchant with http post needs to be enabled",
-            "default": false,
-            "example": true
-          },
-          "metadata": {
-            "type": "object",
-            "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object."
-          },
-          "publishable_key": {
-            "type": "string",
-            "description": "API key that will be used for server side API access",
-            "example": "AH3423bkjbkjdsfbkj"
-          },
-          "locker_id": {
-            "type": "string",
-            "description": "An identifier for the vault used to store payment method information.",
-            "example": "locker_abc123"
-          }
-        }
-      },
-      "CreatePaymentMethod": {
-        "type": "object",
-        "required": [
-          "payment_method"
-        ],
-        "properties": {
-          "payment_method": {
-            "$ref": "#/components/schemas/PaymentMethodType"
-          },
-          "payment_method_type": {
-            "$ref": "#/components/schemas/PaymentMethodType"
-          },
-          "payment_method_issuer": {
-            "type": "string",
-            "description": "The name of the bank/ provider issuing the payment method to the end user",
-            "example": "Citibank"
-          },
-          "payment_method_issuer_code": {
-            "$ref": "#/components/schemas/PaymentMethodIssuerCode"
-          },
-          "card": {
-            "$ref": "#/components/schemas/CardDetail"
-          },
-          "metadata": {
-            "type": "object",
-            "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object."
-          },
-          "customer_id": {
-            "type": "string",
-            "description": "The unique identifier of the customer.",
-            "example": "cus_meowerunwiuwiwqw"
-          },
-          "card_network": {
-            "type": "string",
-            "description": "The card network",
-            "example": "Visa"
           }
         }
       },
@@ -2879,6 +2773,21 @@
           }
         }
       },
+      "CustomerPaymentMethodsListResponse": {
+        "type": "object",
+        "required": [
+          "customer_payment_methods"
+        ],
+        "properties": {
+          "customer_payment_methods": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CustomerPaymentMethod"
+            },
+            "description": "List of payment methods for customer"
+          }
+        }
+      },
       "CustomerRequest": {
         "type": "object",
         "description": "The customer details",
@@ -2988,77 +2897,54 @@
           }
         }
       },
-      "DeleteMcaResponse": {
-        "type": "object",
-        "required": [
-          "merchant_id",
-          "merchant_connector_id",
-          "deleted"
-        ],
-        "properties": {
-          "merchant_id": {
-            "type": "string",
-            "description": "The identifier for the Merchant Account",
-            "example": "y3oqhf46pyzuxjbcn2giaqnb44",
-            "maxLength": 255
-          },
-          "merchant_connector_id": {
-            "type": "string",
-            "description": "Unique ID of the connector",
-            "example": "mca_5apGeP94tMts6rg3U3kR"
-          },
-          "deleted": {
-            "type": "boolean",
-            "description": "If the connector is deleted or not",
-            "example": false
-          }
-        }
-      },
-      "DeleteMerchantAccountResponse": {
-        "type": "object",
-        "required": [
-          "merchant_id",
-          "deleted"
-        ],
-        "properties": {
-          "merchant_id": {
-            "type": "string",
-            "description": "The identifier for the Merchant Account",
-            "example": "y3oqhf46pyzuxjbcn2giaqnb44",
-            "maxLength": 255
-          },
-          "deleted": {
-            "type": "boolean",
-            "description": "If the connector is deleted or not",
-            "example": false
-          }
-        }
-      },
-      "DeletePaymentMethodResponse": {
-        "type": "object",
-        "required": [
-          "payment_method_id",
-          "deleted"
-        ],
-        "properties": {
-          "payment_method_id": {
-            "type": "string",
-            "description": "The unique identifier of the Payment method",
-            "example": "card_rGK4Vi5iSW70MY7J2mIy"
-          },
-          "deleted": {
-            "type": "boolean",
-            "description": "Whether payment method was deleted or not",
-            "example": true
-          }
-        }
-      },
       "FutureUsage": {
         "type": "string",
         "enum": [
           "off_session",
           "on_session"
         ]
+      },
+      "GooglePayPaymentMethodInfo": {
+        "type": "object",
+        "required": [
+          "card_network",
+          "card_details"
+        ],
+        "properties": {
+          "card_network": {
+            "type": "string",
+            "description": "The name of the card network"
+          },
+          "card_details": {
+            "type": "string",
+            "description": "The details of the card"
+          }
+        }
+      },
+      "GooglePayWalletData": {
+        "type": "object",
+        "required": [
+          "type",
+          "description",
+          "info",
+          "tokenization_data"
+        ],
+        "properties": {
+          "type": {
+            "type": "string",
+            "description": "The type of payment method"
+          },
+          "description": {
+            "type": "string",
+            "description": "User-facing message to describe the payment method that funds this transaction."
+          },
+          "info": {
+            "$ref": "#/components/schemas/GooglePayPaymentMethodInfo"
+          },
+          "tokenization_data": {
+            "$ref": "#/components/schemas/GpayTokenizationData"
+          }
+        }
       },
       "GpayAllowedMethodsParameters": {
         "type": "object",
@@ -3112,23 +2998,6 @@
           "merchant_name": {
             "type": "string",
             "description": "The name of the merchant"
-          }
-        }
-      },
-      "GpayPaymentMethodInfo": {
-        "type": "object",
-        "required": [
-          "card_network",
-          "card_details"
-        ],
-        "properties": {
-          "card_network": {
-            "type": "string",
-            "description": "The name of the card network"
-          },
-          "card_details": {
-            "type": "string",
-            "description": "The details of the card"
           }
         }
       },
@@ -3233,31 +3102,6 @@
           }
         }
       },
-      "GpayWalletData": {
-        "type": "object",
-        "required": [
-          "type",
-          "description",
-          "info",
-          "tokenization_data"
-        ],
-        "properties": {
-          "type": {
-            "type": "string",
-            "description": "The type of payment method"
-          },
-          "description": {
-            "type": "string",
-            "description": "User-facing message to describe the payment method that funds this transaction."
-          },
-          "info": {
-            "$ref": "#/components/schemas/GpayPaymentMethodInfo"
-          },
-          "tokenization_data": {
-            "$ref": "#/components/schemas/GpayTokenizationData"
-          }
-        }
-      },
       "IntentStatus": {
         "type": "string",
         "enum": [
@@ -3285,72 +3129,6 @@
           "session_id": {
             "type": "string",
             "description": "The identifier for the session"
-          }
-        }
-      },
-      "ListCustomerPaymentMethodsResponse": {
-        "type": "object",
-        "required": [
-          "customer_payment_methods"
-        ],
-        "properties": {
-          "customer_payment_methods": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/CustomerPaymentMethod"
-            },
-            "description": "List of payment methods for customer"
-          }
-        }
-      },
-      "ListPaymentMethod": {
-        "type": "object",
-        "required": [
-          "payment_method"
-        ],
-        "properties": {
-          "payment_method": {
-            "$ref": "#/components/schemas/PaymentMethod"
-          },
-          "payment_method_types": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/PaymentMethodType"
-            },
-            "description": "This is a sub-category of payment method.",
-            "example": [
-              "credit"
-            ]
-          }
-        }
-      },
-      "ListPaymentMethodResponse": {
-        "type": "object",
-        "required": [
-          "payment_methods"
-        ],
-        "properties": {
-          "redirect_url": {
-            "type": "string",
-            "description": "Redirect URL of the merchant",
-            "example": "https://www.google.com"
-          },
-          "payment_methods": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/ListPaymentMethod"
-            },
-            "description": "Information about the payment method",
-            "example": [
-              {
-                "payment_experience": null,
-                "payment_method": "wallet",
-                "payment_method_issuers": [
-                  "labore magna ipsum",
-                  "aute"
-                ]
-              }
-            ]
           }
         }
       },
@@ -3508,6 +3286,108 @@
           }
         ]
       },
+      "MerchantAccountCreate": {
+        "type": "object",
+        "required": [
+          "merchant_id"
+        ],
+        "properties": {
+          "merchant_id": {
+            "type": "string",
+            "description": "The identifier for the Merchant Account",
+            "example": "y3oqhf46pyzuxjbcn2giaqnb44",
+            "maxLength": 255
+          },
+          "merchant_name": {
+            "type": "string",
+            "description": "Name of the Merchant Account",
+            "example": "NewAge Retailer"
+          },
+          "api_key": {
+            "type": "string",
+            "description": "API key that will be used for server side API access",
+            "example": "Ah2354543543523"
+          },
+          "merchant_details": {
+            "$ref": "#/components/schemas/MerchantDetails"
+          },
+          "return_url": {
+            "type": "string",
+            "description": "The URL to redirect after the completion of the operation",
+            "example": "https://www.example.com/success",
+            "maxLength": 255
+          },
+          "webhook_details": {
+            "$ref": "#/components/schemas/WebhookDetails"
+          },
+          "routing_algorithm": {
+            "type": "object",
+            "description": "The routing algorithm to be used for routing payments to desired connectors"
+          },
+          "sub_merchants_enabled": {
+            "type": "boolean",
+            "description": "A boolean value to indicate if the merchant is a sub-merchant under a master or a parent merchant. By default, its value is false.",
+            "default": false,
+            "example": false
+          },
+          "parent_merchant_id": {
+            "type": "string",
+            "description": "Refers to the Parent Merchant ID if the merchant being created is a sub-merchant",
+            "example": "xkkdf909012sdjki2dkh5sdf",
+            "maxLength": 255
+          },
+          "enable_payment_response_hash": {
+            "type": "boolean",
+            "description": "A boolean value to indicate if payment response hash needs to be enabled",
+            "default": false,
+            "example": true
+          },
+          "payment_response_hash_key": {
+            "type": "string",
+            "description": "Refers to the hash key used for payment response"
+          },
+          "redirect_to_merchant_with_http_post": {
+            "type": "boolean",
+            "description": "A boolean value to indicate if redirect to merchant with http post needs to be enabled",
+            "default": false,
+            "example": true
+          },
+          "metadata": {
+            "type": "object",
+            "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object."
+          },
+          "publishable_key": {
+            "type": "string",
+            "description": "API key that will be used for server side API access",
+            "example": "AH3423bkjbkjdsfbkj"
+          },
+          "locker_id": {
+            "type": "string",
+            "description": "An identifier for the vault used to store payment method information.",
+            "example": "locker_abc123"
+          }
+        }
+      },
+      "MerchantAccountDeleteResponse": {
+        "type": "object",
+        "required": [
+          "merchant_id",
+          "deleted"
+        ],
+        "properties": {
+          "merchant_id": {
+            "type": "string",
+            "description": "The identifier for the Merchant Account",
+            "example": "y3oqhf46pyzuxjbcn2giaqnb44",
+            "maxLength": 255
+          },
+          "deleted": {
+            "type": "boolean",
+            "description": "If the connector is deleted or not",
+            "example": false
+          }
+        }
+      },
       "MerchantAccountResponse": {
         "type": "object",
         "required": [
@@ -3590,6 +3470,200 @@
             "type": "string",
             "description": "An identifier for the vault used to store payment method information.",
             "example": "locker_abc123"
+          }
+        }
+      },
+      "MerchantAccountUpdate": {
+        "type": "object",
+        "required": [
+          "merchant_id"
+        ],
+        "properties": {
+          "merchant_id": {
+            "type": "string",
+            "description": "The identifier for the Merchant Account",
+            "example": "y3oqhf46pyzuxjbcn2giaqnb44",
+            "maxLength": 255
+          },
+          "merchant_name": {
+            "type": "string",
+            "description": "Name of the Merchant Account",
+            "example": "NewAge Retailer"
+          },
+          "api_key": {
+            "type": "string",
+            "description": "API key that will be used for server side API access",
+            "example": "Ah2354543543523"
+          },
+          "merchant_details": {
+            "$ref": "#/components/schemas/MerchantDetails"
+          },
+          "return_url": {
+            "type": "string",
+            "description": "The URL to redirect after the completion of the operation",
+            "example": "https://www.example.com/success",
+            "maxLength": 255
+          },
+          "webhook_details": {
+            "$ref": "#/components/schemas/WebhookDetails"
+          },
+          "routing_algorithm": {
+            "type": "object",
+            "description": "The routing algorithm to be used for routing payments to desired connectors"
+          },
+          "sub_merchants_enabled": {
+            "type": "boolean",
+            "description": "A boolean value to indicate if the merchant is a sub-merchant under a master or a parent merchant. By default, its value is false.",
+            "default": false,
+            "example": false
+          },
+          "parent_merchant_id": {
+            "type": "string",
+            "description": "Refers to the Parent Merchant ID if the merchant being created is a sub-merchant",
+            "example": "xkkdf909012sdjki2dkh5sdf",
+            "maxLength": 255
+          },
+          "enable_payment_response_hash": {
+            "type": "boolean",
+            "description": "A boolean value to indicate if payment response hash needs to be enabled",
+            "default": false,
+            "example": true
+          },
+          "payment_response_hash_key": {
+            "type": "string",
+            "description": "Refers to the hash key used for payment response"
+          },
+          "redirect_to_merchant_with_http_post": {
+            "type": "boolean",
+            "description": "A boolean value to indicate if redirect to merchant with http post needs to be enabled",
+            "default": false,
+            "example": true
+          },
+          "metadata": {
+            "type": "object",
+            "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object."
+          },
+          "publishable_key": {
+            "type": "string",
+            "description": "API key that will be used for server side API access",
+            "example": "AH3423bkjbkjdsfbkj"
+          },
+          "locker_id": {
+            "type": "string",
+            "description": "An identifier for the vault used to store payment method information.",
+            "example": "locker_abc123"
+          }
+        }
+      },
+      "MerchantConnector": {
+        "type": "object",
+        "description": "Create a new Merchant Connector for the merchant account. The connector could be a payment processor / facilitator / acquirer or specialized services like Fraud / Accounting etc.\"",
+        "required": [
+          "connector_type",
+          "connector_name"
+        ],
+        "properties": {
+          "connector_type": {
+            "$ref": "#/components/schemas/ConnectorType"
+          },
+          "connector_name": {
+            "type": "string",
+            "description": "Name of the Connector",
+            "example": "stripe"
+          },
+          "merchant_connector_id": {
+            "type": "string",
+            "description": "Unique ID of the connector",
+            "example": "mca_5apGeP94tMts6rg3U3kR"
+          },
+          "connector_account_details": {
+            "type": "object",
+            "description": "Account details of the Connector. You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Useful for storing additional, structured information on an object."
+          },
+          "test_mode": {
+            "type": "boolean",
+            "description": "A boolean value to indicate if the connector is in Test mode. By default, its value is false.",
+            "default": false,
+            "example": false
+          },
+          "disabled": {
+            "type": "boolean",
+            "description": "A boolean value to indicate if the connector is disabled. By default, its value is false.",
+            "default": false,
+            "example": false
+          },
+          "payment_methods_enabled": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PaymentMethodsEnabled"
+            },
+            "description": "Refers to the Parent Merchant ID if the merchant being created is a sub-merchant",
+            "example": [
+              {
+                "accepted_countries": {
+                  "list": [
+                    "FR",
+                    "DE",
+                    "IN"
+                  ],
+                  "type": "disable_only"
+                },
+                "accepted_currencies": {
+                  "list": [
+                    "USD",
+                    "EUR"
+                  ],
+                  "type": "enable_only"
+                },
+                "installment_payment_enabled": true,
+                "maximum_amount": 68607706,
+                "minimum_amount": 1,
+                "payment_method": "wallet",
+                "payment_method_issuers": [
+                  "labore magna ipsum",
+                  "aute"
+                ],
+                "payment_method_types": [
+                  "upi_collect",
+                  "upi_intent"
+                ],
+                "payment_schemes": [
+                  "Discover",
+                  "Discover"
+                ],
+                "recurring_enabled": true
+              }
+            ]
+          },
+          "metadata": {
+            "type": "object",
+            "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object."
+          }
+        }
+      },
+      "MerchantConnectorDeleteResponse": {
+        "type": "object",
+        "required": [
+          "merchant_id",
+          "merchant_connector_id",
+          "deleted"
+        ],
+        "properties": {
+          "merchant_id": {
+            "type": "string",
+            "description": "The identifier for the Merchant Account",
+            "example": "y3oqhf46pyzuxjbcn2giaqnb44",
+            "maxLength": 255
+          },
+          "merchant_connector_id": {
+            "type": "string",
+            "description": "Unique ID of the connector",
+            "example": "mca_5apGeP94tMts6rg3U3kR"
+          },
+          "deleted": {
+            "type": "boolean",
+            "description": "If the connector is deleted or not",
+            "example": false
           }
         }
       },
@@ -3844,92 +3918,6 @@
           }
         }
       },
-      "PaymentConnectorCreate": {
-        "type": "object",
-        "description": "Create a new Payment Connector for the merchant account. The connector could be a payment processor / facilitator / acquirer or specialized services like Fraud / Accounting etc.\"",
-        "required": [
-          "connector_type",
-          "connector_name"
-        ],
-        "properties": {
-          "connector_type": {
-            "$ref": "#/components/schemas/ConnectorType"
-          },
-          "connector_name": {
-            "type": "string",
-            "description": "Name of the Connector",
-            "example": "stripe"
-          },
-          "merchant_connector_id": {
-            "type": "string",
-            "description": "Unique ID of the connector",
-            "example": "mca_5apGeP94tMts6rg3U3kR"
-          },
-          "connector_account_details": {
-            "type": "object",
-            "description": "Account details of the Connector. You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Useful for storing additional, structured information on an object."
-          },
-          "test_mode": {
-            "type": "boolean",
-            "description": "A boolean value to indicate if the connector is in Test mode. By default, its value is false.",
-            "default": false,
-            "example": false
-          },
-          "disabled": {
-            "type": "boolean",
-            "description": "A boolean value to indicate if the connector is disabled. By default, its value is false.",
-            "default": false,
-            "example": false
-          },
-          "payment_methods_enabled": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/PaymentMethodsEnabled"
-            },
-            "description": "Refers to the Parent Merchant ID if the merchant being created is a sub-merchant",
-            "example": [
-              {
-                "accepted_countries": {
-                  "list": [
-                    "FR",
-                    "DE",
-                    "IN"
-                  ],
-                  "type": "disable_only"
-                },
-                "accepted_currencies": {
-                  "list": [
-                    "USD",
-                    "EUR"
-                  ],
-                  "type": "enable_only"
-                },
-                "installment_payment_enabled": true,
-                "maximum_amount": 68607706,
-                "minimum_amount": 1,
-                "payment_method": "wallet",
-                "payment_method_issuers": [
-                  "labore magna ipsum",
-                  "aute"
-                ],
-                "payment_method_types": [
-                  "upi_collect",
-                  "upi_intent"
-                ],
-                "payment_schemes": [
-                  "Discover",
-                  "Discover"
-                ],
-                "recurring_enabled": true
-              }
-            ]
-          },
-          "metadata": {
-            "type": "object",
-            "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object."
-          }
-        }
-      },
       "PaymentExperience": {
         "type": "string",
         "enum": [
@@ -3986,45 +3974,54 @@
         "properties": {
           "customer_id": {
             "type": "string",
-            "description": "The identifier for customer"
+            "description": "The identifier for customer",
+            "example": "cus_meowuwunwiuwiwqw"
           },
           "starting_after": {
             "type": "string",
-            "description": "A cursor for use in pagination, fetch the next list after some object"
+            "description": "A cursor for use in pagination, fetch the next list after some object",
+            "example": "pay_fafa124123"
           },
           "ending_before": {
             "type": "string",
-            "description": "A cursor for use in pagination, fetch the previous list before some object"
+            "description": "A cursor for use in pagination, fetch the previous list before some object",
+            "example": "pay_fafa124123"
           },
           "limit": {
             "type": "integer",
             "format": "int64",
-            "description": "limit on the number of objects to return"
+            "description": "limit on the number of objects to return",
+            "default": 10
           },
           "created": {
             "type": "string",
             "format": "date-time",
-            "description": "The time at which payment is created"
+            "description": "The time at which payment is created",
+            "example": "2022-09-10T10:11:12Z"
           },
           "created.lt": {
             "type": "string",
             "format": "date-time",
-            "description": "Time less than the payment created time"
+            "description": "Time less than the payment created time",
+            "example": "2022-09-10T10:11:12Z"
           },
           "created.gt": {
             "type": "string",
             "format": "date-time",
-            "description": "Time greater than the payment created time"
+            "description": "Time greater than the payment created time",
+            "example": "2022-09-10T10:11:12Z"
           },
           "created.lte": {
             "type": "string",
             "format": "date-time",
-            "description": "Time less than or equals to the payment created time"
+            "description": "Time less than or equals to the payment created time",
+            "example": "2022-09-10T10:11:12Z"
           },
           "created.gte": {
             "type": "string",
             "format": "date-time",
-            "description": "Time greater than or equals to the payment created time"
+            "description": "Time greater than or equals to the payment created time",
+            "example": "2022-09-10T10:11:12Z"
           }
         }
       },
@@ -4055,6 +4052,45 @@
           "wallet",
           "bank_redirect"
         ]
+      },
+      "PaymentMethodCreate": {
+        "type": "object",
+        "required": [
+          "payment_method"
+        ],
+        "properties": {
+          "payment_method": {
+            "$ref": "#/components/schemas/PaymentMethodType"
+          },
+          "payment_method_type": {
+            "$ref": "#/components/schemas/PaymentMethodType"
+          },
+          "payment_method_issuer": {
+            "type": "string",
+            "description": "The name of the bank/ provider issuing the payment method to the end user",
+            "example": "Citibank"
+          },
+          "payment_method_issuer_code": {
+            "$ref": "#/components/schemas/PaymentMethodIssuerCode"
+          },
+          "card": {
+            "$ref": "#/components/schemas/CardDetail"
+          },
+          "metadata": {
+            "type": "object",
+            "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object."
+          },
+          "customer_id": {
+            "type": "string",
+            "description": "The unique identifier of the customer.",
+            "example": "cus_meowerunwiuwiwqw"
+          },
+          "card_network": {
+            "type": "string",
+            "description": "The card network",
+            "example": "Visa"
+          }
+        }
       },
       "PaymentMethodData": {
         "oneOf": [
@@ -4104,6 +4140,25 @@
           }
         ]
       },
+      "PaymentMethodDeleteResponse": {
+        "type": "object",
+        "required": [
+          "payment_method_id",
+          "deleted"
+        ],
+        "properties": {
+          "payment_method_id": {
+            "type": "string",
+            "description": "The unique identifier of the Payment method",
+            "example": "card_rGK4Vi5iSW70MY7J2mIy"
+          },
+          "deleted": {
+            "type": "boolean",
+            "description": "Whether payment method was deleted or not",
+            "example": true
+          }
+        }
+      },
       "PaymentMethodIssuerCode": {
         "type": "string",
         "enum": [
@@ -4118,6 +4173,57 @@
           "jp_sepa",
           "jp_bacs"
         ]
+      },
+      "PaymentMethodList": {
+        "type": "object",
+        "required": [
+          "payment_method"
+        ],
+        "properties": {
+          "payment_method": {
+            "$ref": "#/components/schemas/PaymentMethod"
+          },
+          "payment_method_types": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PaymentMethodType"
+            },
+            "description": "This is a sub-category of payment method.",
+            "example": [
+              "credit"
+            ]
+          }
+        }
+      },
+      "PaymentMethodListResponse": {
+        "type": "object",
+        "required": [
+          "payment_methods"
+        ],
+        "properties": {
+          "redirect_url": {
+            "type": "string",
+            "description": "Redirect URL of the merchant",
+            "example": "https://www.google.com"
+          },
+          "payment_methods": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PaymentMethodList"
+            },
+            "description": "Information about the payment method",
+            "example": [
+              {
+                "payment_experience": null,
+                "payment_method": "wallet",
+                "payment_method_issuers": [
+                  "labore magna ipsum",
+                  "aute"
+                ]
+              }
+            ]
+          }
+        }
       },
       "PaymentMethodResponse": {
         "type": "object",
@@ -4201,6 +4307,21 @@
           "apple_pay",
           "paypal"
         ]
+      },
+      "PaymentMethodUpdate": {
+        "type": "object",
+        "properties": {
+          "card": {
+            "$ref": "#/components/schemas/CardDetail"
+          },
+          "card_network": {
+            "$ref": "#/components/schemas/CardNetwork"
+          },
+          "metadata": {
+            "type": "object",
+            "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object."
+          }
+        }
       },
       "PaymentMethodsEnabled": {
         "type": "object",
@@ -4397,7 +4518,7 @@
           "billing": {
             "$ref": "#/components/schemas/Address"
           },
-          "statement_descriptor": {
+          "statement_descriptor_name": {
             "type": "string",
             "description": "For non-card charges, you can use this value as the complete description that appears on your customers’ statements. Must contain at least one letter, maximum 22 characters.",
             "example": "Hyperswitch Router",
@@ -4593,7 +4714,7 @@
           "authentication_type": {
             "$ref": "#/components/schemas/AuthenticationType"
           },
-          "statement_descriptor": {
+          "statement_descriptor_name": {
             "type": "string",
             "description": "For non-card charges, you can use this value as the complete description that appears on your customers’ statements. Must contain at least one letter, maximum 22 characters.",
             "example": "Hyperswitch Router",
@@ -5158,21 +5279,6 @@
           }
         }
       },
-      "UpdatePaymentMethod": {
-        "type": "object",
-        "properties": {
-          "card": {
-            "$ref": "#/components/schemas/CardDetail"
-          },
-          "card_network": {
-            "$ref": "#/components/schemas/CardNetwork"
-          },
-          "metadata": {
-            "type": "object",
-            "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object."
-          }
-        }
-      },
       "WalletData": {
         "oneOf": [
           {
@@ -5182,7 +5288,7 @@
             ],
             "properties": {
               "google_pay": {
-                "$ref": "#/components/schemas/GpayWalletData"
+                "$ref": "#/components/schemas/GooglePayWalletData"
               }
             }
           },
@@ -5270,7 +5376,7 @@
         "type": "apiKey",
         "in": "header",
         "name": "api-key",
-        "description": "Admin API keys allow you to perform some privileged actions such as creating a merchant account and payment connector account."
+        "description": "Admin API keys allow you to perform some privileged actions such as creating a merchant account and Merchant Connector account."
       },
       "api_key": {
         "type": "apiKey",
