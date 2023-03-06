@@ -107,6 +107,16 @@ outgoing_enabled = true
 [eph_key]
 validity = 1
 
+[api_keys]
+# Key ID for the KMS managed key used to decrypt the API key hashing key
+aws_key_id = ""
+# The AWS region for the KMS managed key used to decrypt the API key hashing key
+aws_region = ""
+# Base64-encoded (KMS encrypted) ciphertext of the API key hashing key
+kms_encrypted_hash_key = ""
+# Hex-encoded 32-byte long (64 characters long when hex-encoded) key used for calculating hashes of API keys
+hash_key = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+
 # Connector configuration, provided attributes will be used to fulfill API requests.
 # Examples provided here are sandbox/test base urls, can be replaced by live or mock
 # base urls based on your need.

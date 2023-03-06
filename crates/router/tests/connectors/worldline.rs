@@ -74,6 +74,7 @@ impl WorldlineTest {
             }),
             confirm: true,
             statement_descriptor_suffix: None,
+            statement_descriptor: None,
             setup_future_usage: None,
             mandate_id: None,
             off_session: None,
