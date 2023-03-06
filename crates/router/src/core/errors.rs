@@ -50,7 +50,7 @@ macro_rules! impl_error_type {
 
 #[derive(Debug, thiserror::Error)]
 pub enum StorageError {
-    #[error("DatabaseError: {0}")]
+    #[error("DatabaseError: {0:?}")]
     DatabaseError(error_stack::Report<storage_errors::DatabaseError>),
     #[error("ValueNotFound: {0}")]
     ValueNotFound(String),
@@ -71,13 +71,13 @@ pub enum StorageError {
     CustomerRedacted,
     #[error("Deserialization failure")]
     DeserializationFailed,
-    #[error("Received Error RedisError: {0}")]
-    ERedisError(error_stack::Report<RedisError>),
+    #[error("RedisError: {0:?}")]
+    RedisError(error_stack::Report<RedisError>),
 }
 
 impl From<error_stack::Report<RedisError>> for StorageError {
     fn from(err: error_stack::Report<RedisError>) -> Self {
-        Self::ERedisError(err)
+        Self::RedisError(err)
     }
 }
 

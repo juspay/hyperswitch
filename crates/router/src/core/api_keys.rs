@@ -1,9 +1,12 @@
 use common_utils::{date_time, errors::CustomResult, fp_utils};
 use error_stack::{report, IntoReport, ResultExt};
-use masking::{PeekInterface, Secret};
+use masking::{PeekInterface, Secret, StrongSecret};
 use router_env::{instrument, tracing};
 
+#[cfg(feature = "kms")]
+use crate::services::kms;
 use crate::{
+    configs::settings,
     consts,
     core::errors::{self, RouterResponse, StorageErrorExt},
     db::StorageInterface,
@@ -12,23 +15,52 @@ use crate::{
     utils,
 };
 
+pub static HASH_KEY: tokio::sync::OnceCell<StrongSecret<[u8; PlaintextApiKey::HASH_KEY_LEN]>> =
+    tokio::sync::OnceCell::const_new();
+
+pub async fn get_hash_key(
+    api_key_config: &settings::ApiKeys,
+) -> errors::RouterResult<StrongSecret<[u8; PlaintextApiKey::HASH_KEY_LEN]>> {
+    #[cfg(feature = "kms")]
+    let hash_key = kms::KeyHandler::get_kms_decrypted_key(
+        &api_key_config.aws_region,
+        &api_key_config.aws_key_id,
+        api_key_config.kms_encrypted_hash_key.clone(),
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed to KMS decrypt API key hashing key")?;
+
+    #[cfg(not(feature = "kms"))]
+    let hash_key = &api_key_config.hash_key;
+
+    <[u8; PlaintextApiKey::HASH_KEY_LEN]>::try_from(
+        hex::decode(hash_key)
+            .into_report()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("API key hash key has invalid hexadecimal data")?
+            .as_slice(),
+    )
+    .into_report()
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("The API hashing key has incorrect length")
+    .map(StrongSecret::new)
+}
+
 // Defining new types `PlaintextApiKey` and `HashedApiKey` in the hopes of reducing the possibility
 // of plaintext API key being stored in the data store.
 pub struct PlaintextApiKey(Secret<String>);
 pub struct HashedApiKey(String);
 
 impl PlaintextApiKey {
-    const HASH_KEY_LEN: usize = 32;
+    pub const HASH_KEY_LEN: usize = 32;
 
-    const PREFIX_LEN: usize = 8;
+    const PREFIX_LEN: usize = 12;
 
     pub fn new(length: usize) -> Self {
+        let env = router_env::env::prefix_for_env();
         let key = common_utils::crypto::generate_cryptographically_secure_random_string(length);
-        Self(key.into())
-    }
-
-    pub fn new_hash_key() -> [u8; Self::HASH_KEY_LEN] {
-        common_utils::crypto::generate_cryptographically_secure_random_bytes()
+        Self(format!("{env}_{key}").into())
     }
 
     pub fn new_key_id() -> String {
@@ -96,18 +128,20 @@ impl PlaintextApiKey {
 #[instrument(skip_all)]
 pub async fn create_api_key(
     store: &dyn StorageInterface,
+    api_key_config: &settings::ApiKeys,
     api_key: api::CreateApiKeyRequest,
     merchant_id: String,
 ) -> RouterResponse<api::CreateApiKeyResponse> {
-    let hash_key = PlaintextApiKey::new_hash_key();
+    let hash_key = HASH_KEY
+        .get_or_try_init(|| get_hash_key(api_key_config))
+        .await?;
     let plaintext_api_key = PlaintextApiKey::new(consts::API_KEY_LENGTH);
     let api_key = storage::ApiKeyNew {
         key_id: PlaintextApiKey::new_key_id(),
         merchant_id,
         name: api_key.name,
         description: api_key.description,
-        hash_key: Secret::from(hex::encode(hash_key)),
-        hashed_api_key: plaintext_api_key.keyed_hash(&hash_key).into(),
+        hashed_api_key: plaintext_api_key.keyed_hash(hash_key.peek()).into(),
         prefix: plaintext_api_key.prefix(),
         created_at: date_time::now(),
         expires_at: api_key.expiration.into(),
@@ -198,14 +232,19 @@ impl From<HashedApiKey> for storage::HashedApiKey {
 
 #[cfg(test)]
 mod tests {
-    #![allow(clippy::unwrap_used)]
+    #![allow(clippy::expect_used, clippy::unwrap_used)]
     use super::*;
 
-    #[test]
-    fn test_hashing_and_verification() {
+    #[tokio::test]
+    async fn test_hashing_and_verification() {
+        let settings = settings::Settings::new().expect("invalid settings");
+
         let plaintext_api_key = PlaintextApiKey::new(consts::API_KEY_LENGTH);
-        let hash_key = PlaintextApiKey::new_hash_key();
-        let hashed_api_key = plaintext_api_key.keyed_hash(&hash_key);
+        let hash_key = HASH_KEY
+            .get_or_try_init(|| get_hash_key(&settings.api_keys))
+            .await
+            .unwrap();
+        let hashed_api_key = plaintext_api_key.keyed_hash(hash_key.peek());
 
         assert_ne!(
             plaintext_api_key.0.peek().as_bytes(),
@@ -213,7 +252,7 @@ mod tests {
         );
 
         plaintext_api_key
-            .verify_hash(&hash_key, &hashed_api_key)
+            .verify_hash(hash_key.peek(), &hashed_api_key)
             .unwrap();
     }
 }
