@@ -280,6 +280,8 @@ pub enum ConnectorError {
     InvalidDateFormat,
     #[error("Payment Method data / Payment Method Type / Payment Experience Mismatch ")]
     MismatchedPaymentData,
+    #[error("Failed to parse Wallet token")]
+    InvalidWalletToken,
 }
 
 #[derive(Debug, thiserror::Error)]

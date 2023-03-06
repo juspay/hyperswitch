@@ -119,6 +119,10 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
 
 pub trait PaymentsRequestData {
     fn get_card(&self) -> Result<api::Card, Error>;
+    fn get_wallet_token(&self) -> Result<String, Error>;
+    fn get_wallet_token_as_json<T>(&self) -> Result<T, Error>
+    where
+        T: serde::de::DeserializeOwned;
 }
 
 impl PaymentsRequestData for types::PaymentsAuthorizeRouterData {
@@ -127,6 +131,25 @@ impl PaymentsRequestData for types::PaymentsAuthorizeRouterData {
             api::PaymentMethodData::Card(card) => Ok(card),
             _ => Err(missing_field_err("card")()),
         }
+    }
+    fn get_wallet_token(&self) -> Result<String, Error> {
+        match self.request.payment_method_data.clone() {
+            api_models::payments::PaymentMethodData::Wallet(wallet_data) => match wallet_data {
+                api_models::payments::WalletData::GooglePay(data) => {
+                    Ok(data.tokenization_data.token)
+                }
+                _ => Err(missing_field_err("google_pay")()),
+            },
+            _ => Err(missing_field_err("wallet")()),
+        }
+    }
+    fn get_wallet_token_as_json<T>(&self) -> Result<T, Error>
+    where
+        T: serde::de::DeserializeOwned,
+    {
+        serde_json::from_str::<T>(&self.get_wallet_token()?)
+            .into_report()
+            .change_context(errors::ConnectorError::InvalidWalletToken)
     }
 }
 

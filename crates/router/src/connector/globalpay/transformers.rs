@@ -1,5 +1,5 @@
 use common_utils::crypto::{self, GenerateDigest};
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use rand::distributions::DistString;
 use serde::{Deserialize, Serialize};
 
@@ -8,7 +8,7 @@ use super::{
     response::{GlobalpayPaymentStatus, GlobalpayPaymentsResponse, GlobalpayRefreshTokenResponse},
 };
 use crate::{
-    connector::utils::{self, RouterData},
+    connector::utils::{PaymentsRequestData, RouterData},
     consts,
     core::errors,
     services::{self},
@@ -23,15 +23,8 @@ pub struct GlobalPayMeta {
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for GlobalpayPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
-        let metadata = item
-            .connector_meta_data
-            .to_owned()
-            .ok_or_else(utils::missing_field_err("connector_meta"))?;
-        let account_name = metadata
-            .as_object()
-            .and_then(|acc_name| acc_name.get("account_name"))
-            .map(|acc_name| acc_name.to_string())
-            .ok_or_else(utils::missing_field_err("connector_meta.account_name"))?;
+        let metadata: GlobalPayMeta = item.to_connector_meta()?;
+        let account_name = metadata.account_name;
 
         match item.request.payment_method_data.clone() {
             api::PaymentMethodData::Card(ccard) => Ok(Self {
@@ -158,71 +151,63 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for GlobalpayPaymentsRequest {
                     globalpay_payments_request_type: None,
                     user_reference: None,
                 }),
-                api_models::payments::WalletData::GooglePay(data) => {
-                    let wallet_data_token = data.tokenization_data.token.as_str();
-                    let token = serde_json::from_str(wallet_data_token)
-                        .map_err(|_| errors::ParsingError)
-                        .into_report()
-                        .change_context(errors::ParsingError)
-                        .unwrap_or(serde_json::Value::Null);
-                    Ok(Self {
-                        account_name,
-                        amount: Some(item.request.amount.to_string()),
-                        currency: item.request.currency.to_string(),
-                        reference: item.attempt_id.to_string(),
-                        country: item.get_billing_country()?,
-                        capture_mode: item.request.capture_method.map(|cap_mode| match cap_mode {
-                            enums::CaptureMethod::Manual => requests::CaptureMode::Later,
-                            _ => requests::CaptureMode::Auto,
+                api_models::payments::WalletData::GooglePay(_) => Ok(Self {
+                    account_name,
+                    amount: Some(item.request.amount.to_string()),
+                    currency: item.request.currency.to_string(),
+                    reference: item.attempt_id.to_string(),
+                    country: item.get_billing_country()?,
+                    capture_mode: item.request.capture_method.map(|cap_mode| match cap_mode {
+                        enums::CaptureMethod::Manual => requests::CaptureMode::Later,
+                        _ => requests::CaptureMode::Auto,
+                    }),
+                    payment_method: requests::PaymentMethod {
+                        digital_wallet: Some(requests::DigitalWallet {
+                            provider: Some(requests::DigitalWalletProvider::PayByGoogle),
+                            payment_token: item.get_wallet_token_as_json()?,
                         }),
-                        payment_method: requests::PaymentMethod {
-                            digital_wallet: Some(requests::DigitalWallet {
-                                provider: Some(requests::DigitalWalletProvider::PayByGoogle),
-                                payment_token: Some(token),
-                            }),
-                            authentication: None,
-                            bank_transfer: None,
-                            card: None,
-                            apm: None,
-                            encryption: None,
-                            entry_mode: Default::default(),
-                            fingerprint_mode: None,
-                            first_name: None,
-                            id: None,
-                            last_name: None,
-                            name: None,
-                            narrative: None,
-                            storage_mode: None,
-                        },
-                        notifications: Some(requests::Notifications {
-                            return_url: item.router_return_url.clone(),
-                            challenge_return_url: None,
-                            decoupled_challenge_return_url: None,
-                            status_url: None,
-                            three_ds_method_return_url: None,
-                        }),
-                        authorization_mode: None,
-                        cashback_amount: None,
-                        channel: Default::default(),
-                        convenience_amount: None,
-                        currency_conversion: None,
-                        description: None,
-                        device: None,
-                        gratuity_amount: None,
-                        initiator: None,
-                        ip_address: None,
-                        language: None,
-                        lodging: None,
-                        order: None,
-                        payer_reference: None,
-                        site_reference: None,
-                        stored_credential: None,
-                        surcharge_amount: None,
-                        total_capture_count: None,
-                        globalpay_payments_request_type: None,
-                        user_reference: None,
-                    })
-                }
+                        authentication: None,
+                        bank_transfer: None,
+                        card: None,
+                        apm: None,
+                        encryption: None,
+                        entry_mode: Default::default(),
+                        fingerprint_mode: None,
+                        first_name: None,
+                        id: None,
+                        last_name: None,
+                        name: None,
+                        narrative: None,
+                        storage_mode: None,
+                    },
+                    notifications: Some(requests::Notifications {
+                        return_url: item.router_return_url.clone(),
+                        challenge_return_url: None,
+                        decoupled_challenge_return_url: None,
+                        status_url: None,
+                        three_ds_method_return_url: None,
+                    }),
+                    authorization_mode: None,
+                    cashback_amount: None,
+                    channel: Default::default(),
+                    convenience_amount: None,
+                    currency_conversion: None,
+                    description: None,
+                    device: None,
+                    gratuity_amount: None,
+                    initiator: None,
+                    ip_address: None,
+                    language: None,
+                    lodging: None,
+                    order: None,
+                    payer_reference: None,
+                    site_reference: None,
+                    stored_credential: None,
+                    surcharge_amount: None,
+                    total_capture_count: None,
+                    globalpay_payments_request_type: None,
+                    user_reference: None,
+                }),
                 _ => Err(
                     errors::ConnectorError::NotImplemented("Payment methods".to_string()).into(),
                 ),
