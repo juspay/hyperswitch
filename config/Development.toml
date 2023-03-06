@@ -76,6 +76,9 @@ outgoing_enabled = true
 [eph_key]
 validity = 1
 
+[api_keys]
+hash_key = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+
 [connectors.aci]
 base_url = "https://eu-test.oppwa.com/"
 

@@ -315,12 +315,18 @@ pub struct Webhooks;
 #[cfg(feature = "oltp")]
 impl Webhooks {
     pub fn server(config: AppState) -> Scope {
+        use api_models::webhooks as webhook_type;
+
         web::scope("/webhooks")
             .app_data(web::Data::new(config))
             .service(
                 web::resource("/{merchant_id}/{connector}")
-                    .route(web::post().to(receive_incoming_webhook))
-                    .route(web::get().to(receive_incoming_webhook)),
+                    .route(
+                        web::post().to(receive_incoming_webhook::<webhook_type::OutgoingWebhook>),
+                    )
+                    .route(
+                        web::get().to(receive_incoming_webhook::<webhook_type::OutgoingWebhook>),
+                    ),
             )
     }
 }
