@@ -3,7 +3,7 @@ use error_stack::ResultExt;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils::{PaymentsCancelRequestData, PaymentsSyncRequestData, RouterData},
+    connector::utils::{self, PaymentsCancelRequestData, PaymentsSyncRequestData, RouterData},
     core::errors,
     pii::{self, Secret},
     types::{self, api, storage::enums},
@@ -52,7 +52,8 @@ pub struct GooglePayToken {
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
 pub struct Amount {
-    total: i64,
+    #[serde(serialize_with = "utils::str_to_f32")]
+    total: String,
     currency: String,
 }
 
@@ -112,7 +113,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for FiservPaymentsRequest {
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         let auth: FiservAuthType = FiservAuthType::try_from(&item.connector_auth_type)?;
         let amount = Amount {
-            total: item.request.amount,
+            total: utils::to_currency_base_unit(item.request.amount, item.request.currency)?,
             currency: item.request.currency.to_string(),
         };
         let transaction_details = TransactionDetails {
@@ -143,7 +144,10 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for FiservPaymentsRequest {
         let source = match item.request.payment_method_data.clone() {
             api::PaymentMethodData::Card(ref ccard) => {
                 let card = CardData {
-                    card_data: ccard.card_number.clone(),
+                    card_data: ccard
+                        .card_number
+                        .clone()
+                        .map(|card| card.split_whitespace().collect()),
                     expiration_month: ccard.card_exp_month.clone(),
                     expiration_year: ccard.card_exp_year.clone(),
                     security_code: ccard.card_cvc.clone(),
@@ -401,10 +405,10 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for FiservCaptureRequest {
         let session: SessionObject = metadata
             .parse_value("SessionObject")
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        let amount = item
-            .request
-            .amount_to_capture
-            .ok_or(errors::ConnectorError::RequestEncodingFailed)?;
+        let amount = match item.request.amount_to_capture {
+            Some(a) => utils::to_currency_base_unit(a, item.request.currency)?,
+            _ => utils::to_currency_base_unit(item.request.amount, item.request.currency)?,
+        };
         Ok(Self {
             amount: Amount {
                 total: amount,
@@ -492,7 +496,10 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for FiservRefundRequest {
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Self {
             amount: Amount {
-                total: item.request.refund_amount,
+                total: utils::to_currency_base_unit(
+                    item.request.refund_amount,
+                    item.request.currency,
+                )?,
                 currency: item.request.currency.to_string(),
             },
             merchant_details: MerchantDetails {

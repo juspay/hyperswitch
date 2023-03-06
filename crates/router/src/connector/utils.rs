@@ -5,6 +5,7 @@ use error_stack::{report, IntoReport, ResultExt};
 use masking::Secret;
 use once_cell::sync::Lazy;
 use regex::Regex;
+use serde::Serializer;
 
 use crate::{
     core::errors::{self, CustomResult},
@@ -371,4 +372,14 @@ pub fn to_currency_base_unit(
         | storage_models::enums::Currency::OMR => Ok((f64::from(amount_u32) / 1000.0).to_string()),
         _ => Ok((f64::from(amount_u32) / 100.0).to_string()),
     }
+}
+
+pub fn str_to_f32<S>(value: &str, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    let float_value = value.parse::<f64>().map_err(|_| {
+        serde::ser::Error::custom("Invalid string, cannot be converted to float value")
+    })?;
+    serializer.serialize_f64(float_value)
 }
