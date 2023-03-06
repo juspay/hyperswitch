@@ -276,7 +276,7 @@ pub struct StripePaymentIntentResponse {
     pub customer: Option<String>,
     pub refunds: Option<Vec<refunds::RefundResponse>>,
     pub mandate_id: Option<String>,
-    pub metadata: Option<pii::SecretSerdeValue>,
+    pub metadata: Option<secret::SecretSerdeValue>,
     pub charges: Charges,
     pub connector: Option<String>,
     pub description: Option<String>,
