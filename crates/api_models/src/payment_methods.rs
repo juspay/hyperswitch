@@ -167,7 +167,7 @@ pub struct PaymentExperienceTypes {
     pub payment_experience_type: api_enums::PaymentExperience,
 
     /// The list of eligible connectors for a given payment experience
-    #[schema(value_type = Vec<String>, example = json!(["stripe", "adyen"]))]
+    #[schema(example = json!(["stripe", "adyen"]))]
     pub eligible_connectors: Vec<String>,
 }
 
@@ -178,22 +178,20 @@ pub struct CardNetworkTypes {
     pub card_network: api_enums::CardNetwork,
 
     /// The list of eligible connectors for a given card network
-    #[schema(value_type = Vec<String>, example = json!(["stripe", "adyen"]))]
+    #[schema(example = json!(["stripe", "adyen"]))]
     pub eligible_connectors: Vec<String>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, PartialEq, Eq)]
 pub struct ResponsePaymentMethodTypes {
     /// The payment method type enabled
-    #[schema(value_type = PaymentMethodType, example = "klarna")]
+    #[schema(example = "klarna")]
     pub payment_method_type: api_enums::PaymentMethodType,
 
     /// The list of payment experiences enabled, if applicable for a payment method type
-    #[schema(value_type = Option<Vec<PaymentExperienceTypes>>)]
     pub payment_experience: Option<Vec<PaymentExperienceTypes>>,
 
     /// The list of card networks enabled, if applicable for a payment method type
-    #[schema(value_type = Option<Vec<CardNetworkTypes>>)]
     pub card_networks: Option<Vec<CardNetworkTypes>>,
 
     /// The list of banks enabled, if applicable for a payment method type
@@ -207,7 +205,6 @@ pub struct ResponsePaymentMethodsEnabled {
     pub payment_method: api_enums::PaymentMethod,
 
     /// The list of payment method types enabled for a connector account
-    #[schema(value_type = Vec<ResponsePaymentMethodTypes>)]
     pub payment_method_types: Vec<ResponsePaymentMethodTypes>,
 }
 

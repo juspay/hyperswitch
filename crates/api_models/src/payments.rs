@@ -387,7 +387,7 @@ pub struct Card {
     pub card_cvc: Secret<String>,
 
     /// The name of the issuer of card
-    #[schema(value_type = Option<String>, example = "chase")]
+    #[schema(example = "chase")]
     pub card_issuer: Option<String>,
 
     /// The card network for the card
@@ -477,7 +477,6 @@ impl From<&PaymentMethodData> for AdditionalPaymentData {
 pub enum BankRedirectData {
     Eps {
         /// The billing details for bank redirection
-        #[schema(value_type = BankRedirectBilling)]
         billing_details: BankRedirectBilling,
 
         /// The hyperswitch bank code for eps
@@ -486,12 +485,10 @@ pub enum BankRedirectData {
     },
     Giropay {
         /// The billing details for bank redirection
-        #[schema(value_type = BankRedirectBilling)]
         billing_details: BankRedirectBilling,
     },
     Ideal {
         /// The billing details for bank redirection
-        #[schema(value_type = BankRedirectBilling)]
         billing_details: BankRedirectBilling,
 
         /// The hyperswitch bank code for ideal
