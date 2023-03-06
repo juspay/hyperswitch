@@ -1,12 +1,12 @@
 use std::collections::HashMap;
 
 pub use api_models::payment_methods::{
-    CardDetail, CardDetailFromLocker, PaymentMethodCreate, CustomerPaymentMethod,
-    PaymentMethodDeleteResponse, DeleteTokenizeByDateRequest, DeleteTokenizeByTokenRequest,
-    GetTokenizePayloadRequest, GetTokenizePayloadResponse, CustomerPaymentMethodsListResponse,
-    PaymentMethodId, PaymentMethodList, PaymentMethodListRequest, PaymentMethodListResponse,
-    PaymentMethodResponse, TokenizePayloadEncrypted, TokenizePayloadRequest, TokenizedCardValue1,
-    TokenizedCardValue2, TokenizedWalletValue1, TokenizedWalletValue2, PaymentMethodUpdate,
+    CardDetail, CardDetailFromLocker, CustomerPaymentMethod, CustomerPaymentMethodsListResponse,
+    DeleteTokenizeByDateRequest, DeleteTokenizeByTokenRequest, GetTokenizePayloadRequest,
+    GetTokenizePayloadResponse, PaymentMethodCreate, PaymentMethodDeleteResponse, PaymentMethodId,
+    PaymentMethodList, PaymentMethodListRequest, PaymentMethodListResponse, PaymentMethodResponse,
+    PaymentMethodUpdate, TokenizePayloadEncrypted, TokenizePayloadRequest, TokenizedCardValue1,
+    TokenizedCardValue2, TokenizedWalletValue1, TokenizedWalletValue2,
 };
 use error_stack::report;
 use literally::hmap;
