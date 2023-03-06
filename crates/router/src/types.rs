@@ -116,6 +116,7 @@ pub struct PaymentsAuthorizeData {
     pub currency: storage_enums::Currency,
     pub confirm: bool,
     pub statement_descriptor_suffix: Option<String>,
+    pub statement_descriptor: Option<String>,
     pub capture_method: Option<storage_enums::CaptureMethod>,
     // Mandates
     pub setup_future_usage: Option<storage_enums::FutureUsage>,

@@ -1,5 +1,4 @@
 use diesel::{AsChangeset, AsExpression, Identifiable, Insertable, Queryable};
-use masking::Secret;
 use time::PrimitiveDateTime;
 
 use crate::schema::api_keys;
@@ -11,7 +10,6 @@ pub struct ApiKey {
     pub merchant_id: String,
     pub name: String,
     pub description: Option<String>,
-    pub hash_key: Secret<String>,
     pub hashed_api_key: HashedApiKey,
     pub prefix: String,
     pub created_at: PrimitiveDateTime,
@@ -26,7 +24,6 @@ pub struct ApiKeyNew {
     pub merchant_id: String,
     pub name: String,
     pub description: Option<String>,
-    pub hash_key: Secret<String>,
     pub hashed_api_key: HashedApiKey,
     pub prefix: String,
     pub created_at: PrimitiveDateTime,

@@ -362,6 +362,13 @@ async fn payment_response_update_tracker<F: Clone, T>(
         None => payment_data.connector_response,
     };
 
+    let amount_captured = router_data.amount_captured.or_else(|| {
+        if router_data.status == enums::AttemptStatus::Charged {
+            Some(payment_data.payment_intent.amount)
+        } else {
+            None
+        }
+    });
     let payment_intent_update = match router_data.response {
         Err(_) => storage::PaymentIntentUpdate::PGStatusUpdate {
             status: enums::IntentStatus::Failed,
@@ -369,7 +376,7 @@ async fn payment_response_update_tracker<F: Clone, T>(
         Ok(_) => storage::PaymentIntentUpdate::ResponseUpdate {
             status: router_data.status.foreign_into(),
             return_url: router_data.return_url.clone(),
-            amount_captured: router_data.amount_captured,
+            amount_captured,
         },
     };
 

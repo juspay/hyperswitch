@@ -6,7 +6,12 @@ use serde::{Deserialize, Serialize};
 use crate::{
     connector::utils::{self, CardData},
     core::errors,
-    types::{self, api, storage::enums, transformers::ForeignFrom},
+    types::{
+        self,
+        api::{self, enums as api_enums},
+        storage::enums,
+        transformers::ForeignFrom,
+    },
 };
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
@@ -125,8 +130,9 @@ impl TryFrom<utils::CardIssuer> for Gateway {
             utils::CardIssuer::Discover => Ok(Self::Discover),
             utils::CardIssuer::Visa => Ok(Self::Visa),
             _ => Err(errors::ConnectorError::NotSupported {
-                payment_method: format!("{issuer}"),
+                payment_method: api_enums::PaymentMethod::Card.to_string(),
                 connector: "worldline",
+                payment_experience: api_enums::PaymentExperience::RedirectToUrl.to_string(),
             }
             .into()),
         }

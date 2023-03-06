@@ -4397,10 +4397,10 @@
           "billing": {
             "$ref": "#/components/schemas/Address"
           },
-          "statement_descriptor_name": {
+          "statement_descriptor": {
             "type": "string",
             "description": "For non-card charges, you can use this value as the complete description that appears on your customers’ statements. Must contain at least one letter, maximum 22 characters.",
-            "example": "Juspay Router",
+            "example": "Hyperswitch Router",
             "maxLength": 255
           },
           "statement_descriptor_suffix": {
@@ -4593,10 +4593,10 @@
           "authentication_type": {
             "$ref": "#/components/schemas/AuthenticationType"
           },
-          "statement_descriptor_name": {
+          "statement_descriptor": {
             "type": "string",
             "description": "For non-card charges, you can use this value as the complete description that appears on your customers’ statements. Must contain at least one letter, maximum 22 characters.",
-            "example": "Juspay Router",
+            "example": "Hyperswitch Router",
             "maxLength": 255
           },
           "statement_descriptor_suffix": {

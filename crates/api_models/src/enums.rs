@@ -356,6 +356,7 @@ pub enum PaymentMethodIssuerCode {
     Debug,
     serde::Serialize,
     serde::Deserialize,
+    strum::Display,
     ToSchema,
     Default,
     frunk::LabelledGeneric,

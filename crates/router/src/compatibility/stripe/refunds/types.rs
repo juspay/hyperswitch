@@ -3,7 +3,7 @@ use std::{convert::From, default::Default};
 use common_utils::pii;
 use serde::{Deserialize, Serialize};
 
-use crate::{core::errors, types::api::refunds};
+use crate::types::api::refunds;
 
 #[derive(Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
 pub struct StripeCreateRefundRequest {
@@ -69,10 +69,9 @@ impl From<refunds::RefundStatus> for StripeRefundStatus {
     }
 }
 
-impl TryFrom<refunds::RefundResponse> for StripeCreateRefundResponse {
-    type Error = error_stack::Report<errors::ApiErrorResponse>;
-    fn try_from(res: refunds::RefundResponse) -> Result<Self, Self::Error> {
-        Ok(Self {
+impl From<refunds::RefundResponse> for StripeCreateRefundResponse {
+    fn from(res: refunds::RefundResponse) -> Self {
+        Self {
             id: res.refund_id,
             amount: res.amount,
             currency: res.currency.to_ascii_lowercase(),
@@ -82,6 +81,6 @@ impl TryFrom<refunds::RefundResponse> for StripeCreateRefundResponse {
             metadata: res
                 .metadata
                 .unwrap_or_else(|| masking::Secret::new(serde_json::json!({}))),
-        })
+        }
     }
 }
