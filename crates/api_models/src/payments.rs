@@ -154,7 +154,7 @@ pub struct PaymentsRequest {
     pub billing: Option<Address>,
 
     /// For non-card charges, you can use this value as the complete description that appears on your customers’ statements. Must contain at least one letter, maximum 22 characters.
-    #[schema(max_length = 255, example = "Juspay Router")]
+    #[schema(max_length = 255, example = "Hyperswitch Router")]
     pub statement_descriptor_name: Option<String>,
 
     /// Provides information about a card payment that customers see on their statements. Concatenated with the prefix (shortened descriptor) or statement descriptor that’s set on the account to form the complete statement descriptor. Maximum 22 characters for the concatenated descriptor.
@@ -382,6 +382,7 @@ pub struct Card {
     #[schema(value_type = String, example = "242")]
     pub card_cvc: Secret<String>,
     pub card_issuer: Option<String>,
+    #[schema(value_type = Option<CardNetwork>, example = "Visa")]
     pub card_network: Option<api_enums::CardNetwork>,
 }
 
@@ -560,33 +561,11 @@ pub struct GpayTokenizationData {
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct ApplePayWalletData {
     /// The payment data of Apple pay
-    pub payment_data: ApplepayPaymentData,
+    pub payment_data: String,
     /// The payment method of Apple pay
     pub payment_method: ApplepayPaymentMethod,
     /// The unique identifier for the transaction
     pub transaction_identifier: String,
-}
-
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
-pub struct ApplepayPaymentData {
-    /// The data of Apple pay payment
-    pub data: String,
-    /// A string which represents the properties of a payment
-    pub signature: String,
-    /// The Apple pay header
-    pub header: ApplepayHeader,
-    /// The Apple Pay version used
-    pub version: String,
-}
-
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
-pub struct ApplepayHeader {
-    /// The public key hash used
-    pub public_key_hash: String,
-    /// The ephemeral public key used
-    pub ephemeral_public_key: String,
-    /// The unique identifier for the transaction
-    pub transaction_id: String,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -882,7 +861,7 @@ pub struct PaymentsResponse {
     #[schema(value_type = Option<AuthenticationType>, example = "no_three_ds", default = "three_ds")]
     pub authentication_type: Option<api_enums::AuthenticationType>,
     /// For non-card charges, you can use this value as the complete description that appears on your customers’ statements. Must contain at least one letter, maximum 22 characters.
-    #[schema(max_length = 255, example = "Juspay Router")]
+    #[schema(max_length = 255, example = "Hyperswitch Router")]
     pub statement_descriptor_name: Option<String>,
     /// Provides information about a card payment that customers see on their statements. Concatenated with the prefix (shortened descriptor) or statement descriptor that’s set on the account to form the complete statement descriptor. Maximum 255 characters for the concatenated descriptor.
     #[schema(max_length = 255, example = "Payment for shoes purchase")]

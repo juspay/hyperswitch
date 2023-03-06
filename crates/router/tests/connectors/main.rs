@@ -12,6 +12,7 @@ mod cybersource;
 mod dlocal;
 mod fiserv;
 mod globalpay;
+mod multisafepay;
 mod nuvei;
 mod payu;
 mod rapyd;

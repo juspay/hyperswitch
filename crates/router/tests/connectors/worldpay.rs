@@ -97,16 +97,7 @@ async fn should_authorize_applepay_payment() {
             Some(types::PaymentsAuthorizeData {
                 payment_method_data: types::api::PaymentMethodData::Wallet(
                     api::WalletData::ApplePay(api_models::payments::ApplePayWalletData {
-                        payment_data: api_models::payments::ApplepayPaymentData {
-                            data: "someData".to_string(),
-                            signature: "someSignature".to_string(),
-                            version: "someVersion".to_string(),
-                            header: api_models::payments::ApplepayHeader {
-                                public_key_hash: "someHash".to_string(),
-                                ephemeral_public_key: "someKey".to_string(),
-                                transaction_id: "someId".to_string(),
-                            },
-                        },
+                        payment_data: "someData".to_string(),
                         transaction_identifier: "someId".to_string(),
                         payment_method: api_models::payments::ApplepayPaymentMethod {
                             display_name: "someName".to_string(),

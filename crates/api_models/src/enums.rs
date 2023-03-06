@@ -144,6 +144,7 @@ pub enum Currency {
     AED,
     ALL,
     AMD,
+    ANG,
     ARS,
     AUD,
     AWG,
@@ -263,6 +264,8 @@ pub enum Currency {
 #[strum(serialize_all = "snake_case")]
 pub enum EventType {
     PaymentSucceeded,
+    RefundSucceeded,
+    RefundFailed,
 }
 
 #[derive(
@@ -353,6 +356,7 @@ pub enum PaymentMethodIssuerCode {
     Debug,
     serde::Serialize,
     serde::Deserialize,
+    strum::Display,
     ToSchema,
     Default,
     frunk::LabelledGeneric,
@@ -555,6 +559,7 @@ pub enum Connector {
     Fiserv,
     Globalpay,
     Klarna,
+    Multisafepay,
     Nuvei,
     Payu,
     Rapyd,
@@ -605,6 +610,7 @@ pub enum RoutableConnectors {
     Stripe,
     Worldline,
     Worldpay,
+    Multisafepay,
 }
 
 /// Wallets which support obtaining session object
@@ -702,6 +708,7 @@ pub enum BankNames {
     strum::Display,
     strum::EnumString,
     frunk::LabelledGeneric,
+    ToSchema,
 )]
 pub enum CardNetwork {
     Visa,

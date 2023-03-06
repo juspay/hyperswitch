@@ -475,6 +475,7 @@ impl Default for PaymentAuthorizeType {
             currency: enums::Currency::USD,
             confirm: true,
             statement_descriptor_suffix: None,
+            statement_descriptor: None,
             capture_method: None,
             setup_future_usage: None,
             mandate_id: None,

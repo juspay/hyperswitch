@@ -1,5 +1,3 @@
-use std::collections::HashSet;
-
 use common_utils::pii;
 use serde::de;
 use utoipa::ToSchema;
@@ -43,6 +41,10 @@ pub struct CreatePaymentMethod {
     /// The unique identifier of the customer.
     #[schema(example = "cus_meowerunwiuwiwqw")]
     pub customer_id: Option<String>,
+
+    /// The card network
+    #[schema(example = "Visa")]
+    pub card_network: Option<String>,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
@@ -55,6 +57,10 @@ pub struct UpdatePaymentMethod {
     "card_exp_year": "25",
     "card_holder_name": "John Doe"}))]
     pub card: Option<CardDetail>,
+
+    /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
+    #[schema(value_type = Option<CardNetwork>,example = "Visa")]
+    pub card_network: Option<api_enums::CardNetwork>,
 
     /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
     #[schema(value_type = Option<Object>,example = json!({ "city": "NY", "unit": "245" }))]
@@ -343,6 +349,10 @@ impl<'de> serde::Deserialize<'de> for ListPaymentMethodRequest {
                                 map.next_value()?,
                             )?;
                         }
+                        "card_network" => match output.card_networks.as_mut() {
+                            Some(inner) => inner.push(map.next_value()?),
+                            None => output.card_networks = Some(vec![map.next_value()?]),
+                        },
                         _ => {}
                     }
                 }
@@ -439,21 +449,6 @@ impl serde::Serialize for ListPaymentMethod {
 
 #[derive(Debug, serde::Serialize, ToSchema)]
 pub struct ListCustomerPaymentMethodsResponse {
-    /// List of enabled payment methods for a customer
-    #[schema(value_type = Vec<ListPaymentMethod>,example = json!(
-        [
-            {
-                "payment_method": "wallet",
-                "payment_experience": null,
-                "payment_method_issuers": [
-                    "labore magna ipsum",
-                    "aute"
-                ]
-            }
-        ]
-    ))]
-    pub enabled_payment_methods: HashSet<ListPaymentMethod>,
-
     /// List of payment methods for customer
     pub customer_payment_methods: Vec<CustomerPaymentMethod>,
 }

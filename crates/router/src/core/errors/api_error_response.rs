@@ -423,7 +423,7 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
                 AER::NotFound(ApiError::new("HE", 2, "API Key does not exist in our records", None))
             }
             Self::NotSupported { message } => {
-                AER::BadRequest(ApiError::new("HE", 3, "{message}", None))
+                AER::BadRequest(ApiError::new("HE", 3, "Payment method type not supported", Some(Extra {reason: Some(message.to_owned()), ..Default::default()})))
             }
         }
     }
