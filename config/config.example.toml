@@ -172,6 +172,9 @@ base_url = "https://sandbox.dlocal.com/"
 [connectors.bambora]
 base_url = "https://api.na.bambora.com"
 
+[connectors.zen]
+base_url = "https://api.zen.com/"
+
 [connectors.supported]
 wallets = ["klarna", "braintree", "applepay"]
 cards = [
@@ -184,6 +187,7 @@ cards = [
     "shift4",
     "worldpay",
     "globalpay",
+	"zen",
 ]
 
 # Scheduler settings provides a point to modify the behaviour of scheduler flow.

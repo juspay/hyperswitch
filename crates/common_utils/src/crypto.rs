@@ -236,6 +236,27 @@ impl GenerateDigest for Sha512 {
         Ok(digest.as_ref().to_vec())
     }
 }
+
+impl GenerateDigest for Sha256 {
+    fn generate_digest(&self, message: &[u8]) -> CustomResult<Vec<u8>, errors::CryptoError> {
+        let digest = ring::digest::digest(&ring::digest::SHA256, message);
+        Ok(digest.as_ref().to_vec())
+    }
+}
+
+impl VerifySignature for Sha256 {
+    fn verify_signature(
+        &self,
+        _secret: &[u8],
+        signature: &[u8],
+        msg: &[u8],
+    ) -> CustomResult<bool, errors::CryptoError> {
+        let hashed_digest = Self
+            .generate_digest(msg)
+            .change_context(errors::CryptoError::SignatureVerificationFailed)?;
+        Ok(hashed_digest == signature)
+    }
+}
 /// MD5 hash function
 #[derive(Debug)]
 pub struct Md5;
@@ -261,12 +282,6 @@ impl VerifySignature for Md5 {
     }
 }
 
-impl GenerateDigest for Sha256 {
-    fn generate_digest(&self, message: &[u8]) -> CustomResult<Vec<u8>, errors::CryptoError> {
-        let digest = ring::digest::digest(&ring::digest::SHA256, message);
-        Ok(digest.as_ref().to_vec())
-    }
-}
 
 /// Generate a random string using a cryptographically secure pseudo-random number generator
 /// (CSPRNG). Typically used for generating (readable) keys and passwords.

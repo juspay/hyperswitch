@@ -9,7 +9,7 @@ use regex::Regex;
 use crate::{
     core::errors::{self, CustomResult},
     pii::PeekInterface,
-    types::{self, api, PaymentsCancelData},
+    types::{self, api, PaymentsCancelData, BrowserInformation},
     utils::OptionExt,
 };
 
@@ -118,69 +118,37 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
 }
 
 pub trait PaymentsRequestData {
-    fn get_card(&self) -> Result<api::Card, Error>;
 }
 
 impl PaymentsRequestData for types::PaymentsAuthorizeRouterData {
+    
+}
+
+pub trait PaymentsAuthorizeRequestData {
+    fn get_card(&self) -> Result<api::Card, Error>;
+    fn is_auto_capture(&self) -> bool;
+    fn get_email(&self) -> Result<Secret<String, pii::Email>, Error>;
+    fn get_browser_info(&self) -> Result<BrowserInformation, Error>;
+}
+
+impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
     fn get_card(&self) -> Result<api::Card, Error> {
-        match self.request.payment_method_data.clone() {
+        match self.payment_method_data.clone() {
             api::PaymentMethodData::Card(card) => Ok(card),
             _ => Err(missing_field_err("card")()),
         }
     }
-}
 
-pub trait PaymentsAuthorizeRequestData {
-    fn is_auto_capture(&self) -> bool;
-    //currently amount will be in cents, this method will convert the amount to dollars Eg: 991 cents to 9.91 dollars
-    fn get_amount_in_dollars(&self) -> String;
-}
-
-impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
     fn is_auto_capture(&self) -> bool {
         self.capture_method == Some(storage_models::enums::CaptureMethod::Automatic)
     }
-    fn get_amount_in_dollars(&self) -> String {
-        #[allow(clippy::as_conversions)]
-        (self.amount as f32 / 100.0).to_string()
+
+    fn get_email(&self) -> Result<Secret<String, pii::Email>, Error> {
+        self.email.clone().ok_or_else(missing_field_err("email"))
     }
-}
 
-pub trait PaymentsSessionRequestData {
-    //By default amount will be in cents, this method will convert the amount to dollars. Eg: 991 cents to 9.91 dollars
-    fn get_amount_in_dollars(&self) -> String;
-}
-
-impl PaymentsSessionRequestData for types::PaymentsSessionData {
-    fn get_amount_in_dollars(&self) -> String {
-        #[allow(clippy::as_conversions)]
-        (self.amount as f32 / 100.0).to_string()
-    }
-}
-
-pub trait PaymentsAuthorizeSessionTokenRequestData {
-    //By default amount will be in cents, this method will convert the amount to dollars. Eg: 991 cents to 9.91 dollars
-    fn get_amount_in_dollars(&self) -> String;
-}
-
-impl PaymentsAuthorizeSessionTokenRequestData for types::AuthorizeSessionTokenData {
-    fn get_amount_in_dollars(&self) -> String {
-        #[allow(clippy::as_conversions)]
-        (self.amount as f32 / 100.0).to_string()
-    }
-}
-
-pub trait PaymentsCaptureRequestData {
-    //By default amount will be in cents, this method will convert the amount to capture to dollars. Eg: 991 cents to 9.91 dollars
-    fn get_amount_to_capture_in_dollars(&self) -> Option<String>;
-}
-
-impl PaymentsCaptureRequestData for types::PaymentsCaptureData {
-    fn get_amount_to_capture_in_dollars(&self) -> Option<String> {
-        #[allow(clippy::as_conversions)]
-        (self
-            .amount_to_capture
-            .map(|a| (a as f32 / 100.0).to_string()))
+    fn get_browser_info(&self) -> Result< BrowserInformation, Error> {
+        self.browser_info.clone().ok_or_else(missing_field_err("browser information"))
     }
 }
 

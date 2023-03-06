@@ -64,6 +64,7 @@ cards = [
     "stripe",
     "worldline",
     "worldpay",
+	"zen",
 ]
 
 [refund]
@@ -141,6 +142,9 @@ base_url = "https://sandbox.dlocal.com/"
 
 [connectors.bambora]
 base_url = "https://api.na.bambora.com"
+
+[connectors.zen]
+base_url = "https://api.zen.com/"
 
 [scheduler]
 stream = "SCHEDULER_STREAM"

@@ -566,6 +566,7 @@ pub enum Connector {
     Stripe,
     Worldline,
     Worldpay,
+	Zen,
 }
 
 impl Connector {
@@ -610,6 +611,7 @@ pub enum RoutableConnectors {
     Worldline,
     Worldpay,
     Multisafepay,
+	Zen,
 }
 
 /// Wallets which support obtaining session object
