@@ -282,7 +282,6 @@ impl VerifySignature for Md5 {
     }
 }
 
-
 /// Generate a random string using a cryptographically secure pseudo-random number generator
 /// (CSPRNG). Typically used for generating (readable) keys and passwords.
 #[inline]

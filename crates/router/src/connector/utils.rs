@@ -9,7 +9,7 @@ use regex::Regex;
 use crate::{
     core::errors::{self, CustomResult},
     pii::PeekInterface,
-    types::{self, api, PaymentsCancelData, BrowserInformation},
+    types::{self, api, BrowserInformation, PaymentsCancelData},
     utils::OptionExt,
 };
 
@@ -117,12 +117,9 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
     }
 }
 
-pub trait PaymentsRequestData {
-}
+pub trait PaymentsRequestData {}
 
-impl PaymentsRequestData for types::PaymentsAuthorizeRouterData {
-    
-}
+impl PaymentsRequestData for types::PaymentsAuthorizeRouterData {}
 
 pub trait PaymentsAuthorizeRequestData {
     fn get_card(&self) -> Result<api::Card, Error>;
@@ -147,8 +144,10 @@ impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
         self.email.clone().ok_or_else(missing_field_err("email"))
     }
 
-    fn get_browser_info(&self) -> Result< BrowserInformation, Error> {
-        self.browser_info.clone().ok_or_else(missing_field_err("browser information"))
+    fn get_browser_info(&self) -> Result<BrowserInformation, Error> {
+        self.browser_info
+            .clone()
+            .ok_or_else(missing_field_err("browser information"))
     }
 }
 

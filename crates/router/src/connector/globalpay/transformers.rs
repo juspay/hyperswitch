@@ -8,7 +8,7 @@ use super::{
     response::{GlobalpayPaymentStatus, GlobalpayPaymentsResponse, GlobalpayRefreshTokenResponse},
 };
 use crate::{
-    connector::utils::{CardData, RouterData, PaymentsAuthorizeRequestData},
+    connector::utils::{CardData, PaymentsAuthorizeRequestData, RouterData},
     consts,
     core::errors,
     types::{self, api, storage::enums, ErrorResponse},
