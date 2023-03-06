@@ -1,5 +1,5 @@
 use actix_web::http::header::HeaderMap;
-use api_models::{payment_methods::ListPaymentMethodRequest, payments::PaymentsRequest};
+use api_models::{payment_methods::PaymentMethodListRequest, payments::PaymentsRequest};
 use async_trait::async_trait;
 use error_stack::{report, IntoReport, ResultExt};
 use jsonwebtoken::{decode, Algorithm, DecodingKey, Validation};
@@ -189,7 +189,7 @@ impl ClientSecretFetch for PaymentsRequest {
     }
 }
 
-impl ClientSecretFetch for ListPaymentMethodRequest {
+impl ClientSecretFetch for PaymentMethodListRequest {
     fn get_client_secret(&self) -> Option<&String> {
         self.client_secret.as_ref()
     }
