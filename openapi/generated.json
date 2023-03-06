@@ -5248,23 +5248,6 @@
           "propertyName": "wallet_name"
         }
       },
-      "SofortRequestData": {
-        "type": "object",
-        "required": [
-          "country",
-          "preferred_language"
-        ],
-        "properties": {
-          "country": {
-            "type": "string",
-            "description": "The billing details for bank redirection"
-          },
-          "preferred_language": {
-            "type": "string",
-            "description": "The preferred language"
-          }
-        }
-      },
       "SupportedWallets": {
         "type": "string",
         "description": "Wallets which support obtaining session object",
