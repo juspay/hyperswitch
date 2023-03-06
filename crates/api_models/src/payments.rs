@@ -841,7 +841,7 @@ pub struct PaymentsResponse {
     pub billing: Option<Address>,
     /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
     #[schema(value_type = Option<Object>)]
-    pub metadata: Option<Secret<serde_json::Value>>,
+    pub metadata: Option<pii::SecretSerdeValue>,
     /// description: The customer's email address
     #[schema(max_length = 255, value_type = Option<String>, example = "johntest@test.com")]
     pub email: Option<Secret<String, pii::Email>>,

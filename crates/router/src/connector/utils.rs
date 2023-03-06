@@ -106,7 +106,7 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
         T: serde::de::DeserializeOwned,
     {
         self.get_connector_meta()?
-            .parse_value("SecretSerdeValue")
+            .parse_value(std::any::type_name::<T>())
             .change_context(errors::ConnectorError::NoConnectorMetaData)
     }
 
