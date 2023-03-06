@@ -2128,7 +2128,7 @@
       },
       "BankNames": {
         "type": "string",
-        "description": "The hyperswitch code of all the supported banks",
+        "description": "Name of banks supported by Hyperswitch",
         "enum": [
           "american_express",
           "bank_of_america",
