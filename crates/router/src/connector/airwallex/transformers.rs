@@ -4,9 +4,7 @@ use url::Url;
 use uuid::Uuid;
 
 use crate::{
-    connector::utils::{
-        PaymentsAuthorizeSessionTokenRequestData, PaymentsCaptureRequestData, RefundsRequestData,
-    },
+    connector::utils,
     core::errors,
     pii::{self, Secret},
     services,
@@ -29,7 +27,7 @@ impl TryFrom<&types::PaymentsAuthorizeSessionTokenRouterData> for AirwallexInten
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             request_id: Uuid::new_v4().to_string(),
-            amount: item.request.get_amount_in_dollars(),
+            amount: item.request.amount.to_string(),
             currency: item.request.currency,
             merchant_order_id: item.payment_id.clone(),
         })
@@ -156,7 +154,13 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for AirwallexPaymentsCaptureRequ
     fn try_from(item: &types::PaymentsCaptureRouterData) -> Result<Self, Self::Error> {
         Ok(Self {
             request_id: Uuid::new_v4().to_string(),
-            amount: item.request.get_amount_to_capture_in_dollars(),
+            amount: match item.request.amount_to_capture {
+                Some(_a) => Some(utils::to_currency_base_unit(
+                    item.request.amount,
+                    item.request.currency,
+                )?),
+                _ => None,
+            },
         })
     }
 }
@@ -287,11 +291,14 @@ pub struct AirwallexRefundRequest {
 }
 
 impl<F> TryFrom<&types::RefundsRouterData<F>> for AirwallexRefundRequest {
-    type Error = error_stack::Report<errors::ParsingError>;
+    type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
         Ok(Self {
             request_id: Uuid::new_v4().to_string(),
-            amount: Some(item.request.get_refund_amount_in_dollars()),
+            amount: Some(utils::to_currency_base_unit(
+                item.request.refund_amount,
+                item.request.currency,
+            )?),
             reason: item.request.reason.clone(),
             payment_intent_id: item.request.connector_transaction_id.clone(),
         })

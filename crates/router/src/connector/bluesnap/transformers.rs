@@ -1,16 +1,10 @@
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils::{
-        PaymentsAuthorizeRequestData, PaymentsCaptureRequestData, RefundsRequestData,
-    },
+    connector::utils,
     core::errors,
     pii::{self, Secret},
-    types::{
-        self, api,
-        storage::enums,
-        transformers::{self, ForeignTryFrom},
-    },
+    types::{self, api, storage::enums, transformers::ForeignTryFrom},
 };
 
 #[derive(Debug, Serialize, PartialEq)]
@@ -57,7 +51,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BluesnapPaymentsRequest {
             )),
         }?;
         Ok(Self {
-            amount: item.request.get_amount_in_dollars(),
+            amount: utils::to_currency_base_unit(item.request.amount, item.request.currency)?,
             payment_method,
             currency: item.request.currency,
             card_transaction_type: auth_mode,
@@ -97,10 +91,14 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for BluesnapCaptureRequest {
     fn try_from(item: &types::PaymentsCaptureRouterData) -> Result<Self, Self::Error> {
         let card_transaction_type = BluesnapTxnType::Capture;
         let transaction_id = item.request.connector_transaction_id.to_string();
+        let amount = utils::to_currency_base_unit_from_optional_amount(
+            item.request.amount_to_capture,
+            item.request.currency,
+        )?;
         Ok(Self {
             card_transaction_type,
             transaction_id,
-            amount: item.request.get_amount_to_capture_in_dollars(),
+            amount: Some(amount),
         })
     }
 }
@@ -149,30 +147,24 @@ pub enum BluesnapProcessingStatus {
     PendingMerchantReview,
 }
 
-impl TryFrom<transformers::Foreign<(BluesnapTxnType, BluesnapProcessingStatus)>>
-    for transformers::Foreign<enums::AttemptStatus>
-{
+impl ForeignTryFrom<(BluesnapTxnType, BluesnapProcessingStatus)> for enums::AttemptStatus {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: transformers::Foreign<(BluesnapTxnType, BluesnapProcessingStatus)>,
+    fn foreign_try_from(
+        item: (BluesnapTxnType, BluesnapProcessingStatus),
     ) -> Result<Self, Self::Error> {
-        let item = item.0;
         let (item_txn_status, item_processing_status) = item;
         Ok(match item_processing_status {
             BluesnapProcessingStatus::Success => match item_txn_status {
-                BluesnapTxnType::AuthOnly => enums::AttemptStatus::Authorized,
-                BluesnapTxnType::AuthReversal => enums::AttemptStatus::Voided,
-                BluesnapTxnType::AuthCapture | BluesnapTxnType::Capture => {
-                    enums::AttemptStatus::Charged
-                }
-                BluesnapTxnType::Refund => enums::AttemptStatus::Charged,
+                BluesnapTxnType::AuthOnly => Self::Authorized,
+                BluesnapTxnType::AuthReversal => Self::Voided,
+                BluesnapTxnType::AuthCapture | BluesnapTxnType::Capture => Self::Charged,
+                BluesnapTxnType::Refund => Self::Charged,
             },
             BluesnapProcessingStatus::Pending | BluesnapProcessingStatus::PendingMerchantReview => {
-                enums::AttemptStatus::Pending
+                Self::Pending
             }
-            BluesnapProcessingStatus::Fail => enums::AttemptStatus::Failure,
-        }
-        .into())
+            BluesnapProcessingStatus::Fail => Self::Failure,
+        })
     }
 }
 
@@ -252,7 +244,10 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for BluesnapRefundRequest {
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
         Ok(Self {
             reason: item.request.reason.clone(),
-            amount: Some(item.request.get_refund_amount_in_dollars()),
+            amount: Some(utils::to_currency_base_unit(
+                item.request.refund_amount,
+                item.request.currency,
+            )?),
         })
     }
 }

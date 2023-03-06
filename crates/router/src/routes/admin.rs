@@ -8,8 +8,7 @@ use crate::{
     types::api::admin,
 };
 
-// ### Merchant Account - Create
-
+/// Merchant Account - Create
 ///
 /// Create a new account for a merchant and the merchant could be a seller or retailer or client who likes to receive and send payments.
 #[utoipa::path(
@@ -40,8 +39,7 @@ pub async fn merchant_account_create(
     .await
 }
 
-// Merchant Account - Retrieve
-
+/// Merchant Account - Retrieve
 ///
 /// Retrieve a merchant account details.
 #[utoipa::path(
@@ -76,8 +74,7 @@ pub async fn retrieve_merchant_account(
     .await
 }
 
-// Merchant Account - Update
-
+/// Merchant Account - Update
 ///
 /// To update an existing merchant account. Helpful in updating merchant details such as email, contact details, or other configuration details like webhook, routing algorithm etc
 #[utoipa::path(
@@ -111,8 +108,7 @@ pub async fn update_merchant_account(
     .await
 }
 
-// Merchant Account - Delete
-
+/// Merchant Account - Delete
 ///
 /// To delete a merchant account
 #[utoipa::path(
@@ -148,8 +144,7 @@ pub async fn delete_merchant_account(
     .await
 }
 
-// PaymentsConnectors - Create
-
+/// PaymentsConnectors - Create
 ///
 /// Create a new Payment Connector for the merchant account. The connector could be a payment processor / facilitator / acquirer or specialized services like Fraud / Accounting etc."
 #[utoipa::path(
@@ -182,8 +177,7 @@ pub async fn payment_connector_create(
     .await
 }
 
-// Payment Connector - Retrieve
-
+/// Payment Connector - Retrieve
 ///
 /// Retrieve Payment Connector Details
 #[utoipa::path(
@@ -226,8 +220,7 @@ pub async fn payment_connector_retrieve(
     .await
 }
 
-// Payment Connector - List
-
+/// Payment Connector - List
 ///
 /// List Payment Connector Details for the merchant
 #[utoipa::path(
@@ -262,8 +255,7 @@ pub async fn payment_connector_list(
     .await
 }
 
-// Payment Connector - Update
-
+/// Payment Connector - Update
 ///
 /// To update an existing Payment Connector. Helpful in enabling / disabling different payment methods and other settings for the connector etc.
 #[utoipa::path(
@@ -303,8 +295,7 @@ pub async fn payment_connector_update(
     .await
 }
 
-// Payment Connector - Delete
-
+/// Payment Connector - Delete
 ///
 /// Delete or Detach a Payment Connector from Merchant Account
 #[utoipa::path(
@@ -347,8 +338,7 @@ pub async fn payment_connector_delete(
     .await
 }
 
-// Merchant Account - Toggle KV
-
+/// Merchant Account - Toggle KV
 ///
 /// Toggle KV mode for the Merchant Account
 #[instrument(skip_all)]
@@ -372,8 +362,7 @@ pub async fn merchant_account_toggle_kv(
     .await
 }
 
-// Merchant Account - KV Status
-
+/// Merchant Account - KV Status
 ///
 /// Toggle KV mode for the Merchant Account
 #[instrument(skip_all)]

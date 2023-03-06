@@ -8,8 +8,7 @@ use crate::{
     types::api::payment_methods::{self, PaymentMethodId},
 };
 
-// PaymentMethods - Create
-
+/// PaymentMethods - Create
 ///
 /// To create a payment method against a customer object. In case of cards, this API could be used only by PCI compliant merchants
 #[utoipa::path(
@@ -42,8 +41,7 @@ pub async fn create_payment_method_api(
     .await
 }
 
-// List payment methods for a Merchant
-
+/// List payment methods for a Merchant
 ///
 /// To filter and list the applicable payment methods for a particular Merchant ID
 #[utoipa::path(
@@ -90,8 +88,7 @@ pub async fn list_payment_method_api(
     .await
 }
 
-// List payment methods for a Customer
-
+/// List payment methods for a Customer
 ///
 /// To filter and list the applicable payment methods for a particular Customer ID
 #[utoipa::path(
@@ -142,8 +139,7 @@ pub async fn list_customer_payment_method_api(
     .await
 }
 
-// Payment Method - Retrieve
-
+/// Payment Method - Retrieve
 ///
 /// To retrieve a payment method
 #[utoipa::path(
@@ -181,8 +177,7 @@ pub async fn payment_method_retrieve_api(
     .await
 }
 
-// Payment Method - Update
-
+/// Payment Method - Update
 ///
 /// To update an existing payment method attached to a customer object. This API is useful for use cases such as updating the card number for expired cards to prevent discontinuity in recurring payments
 #[utoipa::path(
@@ -226,8 +221,7 @@ pub async fn payment_method_update_api(
     .await
 }
 
-// Payment Method - Delete
-
+/// Payment Method - Delete
 ///
 /// Delete payment method
 #[utoipa::path(

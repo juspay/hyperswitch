@@ -758,7 +758,8 @@ async fn filter_payment_methods(
                         config,
                         &connector,
                         &payment_method_object.payment_method_type,
-                        address.and_then(|inner| inner.country.clone()),
+                        &mut payment_method_object.card_networks,
+                        &address.and_then(|inner| inner.country.clone()),
                         payment_attempt
                             .and_then(|value| value.currency)
                             .map(|value| value.foreign_into()),
@@ -786,27 +787,67 @@ fn filter_pm_based_on_config<'a>(
     config: &'a crate::configs::settings::ConnectorFilters,
     connector: &'a str,
     payment_method_type: &'a api_enums::PaymentMethodType,
-    country: Option<String>,
+    card_network: &mut Option<Vec<api_enums::CardNetwork>>,
+    country: &Option<String>,
     currency: Option<api_enums::Currency>,
 ) -> bool {
     config
         .0
         .get(connector)
-        .and_then(|inner| inner.0.get(payment_method_type))
-        .map(|value| {
-            let condition1 = value
-                .country
-                .as_ref()
-                .zip(country)
-                .map(|(lhs, rhs)| lhs.contains(&rhs));
-            let condition2 = value
-                .currency
-                .as_ref()
-                .zip(currency)
-                .map(|(lhs, rhs)| lhs.contains(&rhs));
-            condition1.unwrap_or(true) && condition2.unwrap_or(true)
+        .and_then(|inner| match payment_method_type {
+            api_enums::PaymentMethodType::Credit | api_enums::PaymentMethodType::Debit => {
+                card_network_filter(country, currency, card_network, inner);
+                None
+            }
+            payment_method_type => inner
+                .0
+                .get(&settings::PaymentMethodFilterKey::PaymentMethodType(
+                    *payment_method_type,
+                ))
+                .map(|value| global_country_currency_filter(value, country, currency)),
         })
         .unwrap_or(true)
+}
+
+fn card_network_filter(
+    country: &Option<String>,
+    currency: Option<api_enums::Currency>,
+    card_network: &mut Option<Vec<api_enums::CardNetwork>>,
+    payment_method_filters: &settings::PaymentMethodFilters,
+) {
+    if let Some(value) = card_network.as_mut() {
+        let filtered_card_networks = value
+            .iter()
+            .filter(|&element| {
+                let key = settings::PaymentMethodFilterKey::CardNetwork(element.clone());
+                payment_method_filters
+                    .0
+                    .get(&key)
+                    .map(|value| global_country_currency_filter(value, country, currency))
+                    .unwrap_or(true)
+            })
+            .cloned()
+            .collect::<Vec<_>>();
+        *value = filtered_card_networks;
+    }
+}
+
+fn global_country_currency_filter(
+    item: &settings::CurrencyCountryFilter,
+    country: &Option<String>,
+    currency: Option<api_enums::Currency>,
+) -> bool {
+    let country_condition = item
+        .country
+        .as_ref()
+        .zip(country.as_ref())
+        .map(|(lhs, rhs)| lhs.contains(rhs));
+    let currency_condition = item
+        .currency
+        .as_ref()
+        .zip(currency)
+        .map(|(lhs, rhs)| lhs.contains(&rhs));
+    country_condition.unwrap_or(true) && currency_condition.unwrap_or(true)
 }
 
 fn filter_pm_card_network_based(
