@@ -7,9 +7,10 @@ use transformers as klarna;
 
 use crate::{
     configs::settings,
+    connector::utils as connector_utils,
     core::errors::{self, CustomResult},
     headers,
-    services::{self, logger},
+    services::{self},
     types::{
         self,
         api::{self, ConnectorCommon},
@@ -113,7 +114,6 @@ impl
         let klarna_req =
             utils::Encode::<klarna::KlarnaSessionRequest>::encode_to_string_of_json(&connector_req)
                 .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        logger::debug!(klarna_session_request_logs=?klarna_req);
         Ok(Some(klarna_req))
     }
 
@@ -139,7 +139,6 @@ impl
         data: &types::PaymentsSessionRouterData,
         res: types::Response,
     ) -> CustomResult<types::PaymentsSessionRouterData, errors::ConnectorError> {
-        logger::debug!(klarna_session_response_logs=?res);
         let response: klarna::KlarnaSessionResponse = res
             .response
             .parse_struct("KlarnaSessionResponse")
@@ -156,7 +155,6 @@ impl
         &self,
         res: types::Response,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
-        logger::debug!(klarna_session_error_logs=?res);
         let response: klarna::KlarnaErrorResponse = res
             .response
             .parse_struct("KlarnaErrorResponse")
@@ -233,34 +231,37 @@ impl
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let payment_method_data = &req.request.payment_method_data;
+        let payment_experience = req
+            .request
+            .payment_experience
+            .as_ref()
+            .ok_or_else(connector_utils::missing_field_err("payment_experience"))?;
+        let payment_method_type = req
+            .request
+            .payment_method_type
+            .as_ref()
+            .ok_or_else(connector_utils::missing_field_err("payment_method_type"))?;
+
         match payment_method_data {
-            api_payments::PaymentMethod::PayLater(api_payments::PayLaterData::KlarnaSdk {
+            api_payments::PaymentMethodData::PayLater(api_payments::PayLaterData::KlarnaSdk {
                 token,
-            }) => match (
-                req.request.payment_issuer.as_ref(),
-                req.request.payment_experience.as_ref(),
-            ) {
+            }) => match (payment_experience, payment_method_type) {
                 (
-                    Some(storage_enums::PaymentIssuer::Klarna),
-                    Some(storage_enums::PaymentExperience::InvokeSdkClient),
+                    storage_enums::PaymentExperience::InvokeSdkClient,
+                    storage_enums::PaymentMethodType::Klarna,
                 ) => Ok(format!(
                     "{}payments/v1/authorizations/{}/order",
                     self.base_url(connectors),
                     token
                 )),
-                (None, _) | (_, None) => Err(error_stack::report!(
-                    errors::ConnectorError::MissingRequiredField {
-                        field_name: "payment_issuer and payment_experience"
-                    }
-                )),
-                _ => Err(error_stack::report!(
-                    errors::ConnectorError::MismatchedPaymentData
-                )),
+                _ => Err(error_stack::report!(errors::ConnectorError::NotSupported {
+                    payment_method: payment_method_type.to_string(),
+                    connector: "klarna",
+                    payment_experience: payment_experience.to_string()
+                })),
             },
             _ => Err(error_stack::report!(
-                errors::ConnectorError::NotImplemented(
-                    "We only support wallet payments through klarna".to_string(),
-                )
+                errors::ConnectorError::MismatchedPaymentData
             )),
         }
     }
@@ -274,7 +275,6 @@ impl
             &connector_req,
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        logger::debug!(klarna_payment_logs=?klarna_req);
         Ok(Some(klarna_req))
     }
 
@@ -302,7 +302,6 @@ impl
         data: &types::PaymentsAuthorizeRouterData,
         res: types::Response,
     ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
-        logger::debug!(klarna_raw_response=?res);
         let response: klarna::KlarnaPaymentsResponse = res
             .response
             .parse_struct("KlarnaPaymentsResponse")
@@ -319,7 +318,6 @@ impl
         &self,
         res: types::Response,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
-        logger::debug!(klarna_error_response=?res);
         let response: klarna::KlarnaErrorResponse = res
             .response
             .parse_struct("KlarnaErrorResponse")
@@ -360,21 +358,21 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
 impl api::IncomingWebhook for Klarna {
     fn get_webhook_object_reference_id(
         &self,
-        _body: &[u8],
+        _request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<String, errors::ConnectorError> {
         Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
     }
 
     fn get_webhook_event_type(
         &self,
-        _body: &[u8],
+        _request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api::IncomingWebhookEvent, errors::ConnectorError> {
         Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
     }
 
     fn get_webhook_resource_object(
         &self,
-        _body: &[u8],
+        _request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<serde_json::Value, errors::ConnectorError> {
         Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
     }

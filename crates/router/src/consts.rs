@@ -23,3 +23,4 @@ pub(crate) const BASE64_ENGINE_URL_SAFE: base64::engine::GeneralPurpose =
     base64::engine::general_purpose::URL_SAFE;
 
 pub(crate) const API_KEY_LENGTH: usize = 64;
+pub(crate) const PUB_SUB_CHANNEL: &str = "hyperswitch_invalidate";

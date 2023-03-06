@@ -1,15 +1,10 @@
-use error_stack::{IntoReport, ResultExt};
 use serde::{Deserialize, Serialize};
 use url::Url;
 
 use crate::{
     core::errors,
     pii, services,
-    types::{
-        self, api,
-        storage::enums,
-        transformers::{self, ForeignFrom},
-    },
+    types::{self, api, storage::enums, transformers::ForeignFrom},
 };
 
 #[derive(Debug, Serialize)]
@@ -74,11 +69,10 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         let ccard = match item.request.payment_method_data {
-            api::PaymentMethod::Card(ref ccard) => Some(ccard),
-            api::PaymentMethod::BankTransfer
-            | api::PaymentMethod::Wallet(_)
-            | api::PaymentMethod::PayLater(_)
-            | api::PaymentMethod::Paypal => None,
+            api::PaymentMethodData::Card(ref ccard) => Some(ccard),
+            api::PaymentMethodData::Wallet(_)
+            | api::PaymentMethodData::PayLater(_)
+            | api::PaymentMethodData::BankRedirect(_) => None,
         };
 
         let three_ds = match item.auth_type {
@@ -140,59 +134,54 @@ pub enum CheckoutPaymentStatus {
     Captured,
 }
 
-impl From<transformers::Foreign<(CheckoutPaymentStatus, Option<enums::CaptureMethod>)>>
-    for transformers::Foreign<enums::AttemptStatus>
-{
-    fn from(
-        item: transformers::Foreign<(CheckoutPaymentStatus, Option<enums::CaptureMethod>)>,
-    ) -> Self {
-        let item = item.0;
+impl ForeignFrom<(CheckoutPaymentStatus, Option<enums::CaptureMethod>)> for enums::AttemptStatus {
+    fn foreign_from(item: (CheckoutPaymentStatus, Option<enums::CaptureMethod>)) -> Self {
         let (status, capture_method) = item;
         match status {
             CheckoutPaymentStatus::Authorized => {
                 if capture_method == Some(enums::CaptureMethod::Automatic)
                     || capture_method.is_none()
                 {
-                    enums::AttemptStatus::Charged
+                    Self::Charged
                 } else {
-                    enums::AttemptStatus::Authorized
+                    Self::Authorized
                 }
             }
-            CheckoutPaymentStatus::Captured => enums::AttemptStatus::Charged,
-            CheckoutPaymentStatus::Declined => enums::AttemptStatus::Failure,
-            CheckoutPaymentStatus::Pending => enums::AttemptStatus::AuthenticationPending,
-            CheckoutPaymentStatus::CardVerified => enums::AttemptStatus::Pending,
+            CheckoutPaymentStatus::Captured => Self::Charged,
+            CheckoutPaymentStatus::Declined => Self::Failure,
+            CheckoutPaymentStatus::Pending => Self::AuthenticationPending,
+            CheckoutPaymentStatus::CardVerified => Self::Pending,
         }
-        .into()
     }
 }
 
-impl From<transformers::Foreign<(CheckoutPaymentStatus, Balances)>>
-    for transformers::Foreign<enums::AttemptStatus>
-{
-    fn from(item: transformers::Foreign<(CheckoutPaymentStatus, Balances)>) -> Self {
-        let (status, balances) = item.0;
+impl ForeignFrom<(CheckoutPaymentStatus, Option<Balances>)> for enums::AttemptStatus {
+    fn foreign_from(item: (CheckoutPaymentStatus, Option<Balances>)) -> Self {
+        let (status, balances) = item;
 
         match status {
             CheckoutPaymentStatus::Authorized => {
-                if balances.available_to_capture == 0 {
-                    enums::AttemptStatus::Charged
+                if let Some(Balances {
+                    available_to_capture: 0,
+                }) = balances
+                {
+                    Self::Charged
                 } else {
-                    enums::AttemptStatus::Authorized
+                    Self::Authorized
                 }
             }
-            CheckoutPaymentStatus::Captured => enums::AttemptStatus::Charged,
-            CheckoutPaymentStatus::Declined => enums::AttemptStatus::Failure,
-            CheckoutPaymentStatus::Pending => enums::AttemptStatus::AuthenticationPending,
-            CheckoutPaymentStatus::CardVerified => enums::AttemptStatus::Pending,
+            CheckoutPaymentStatus::Captured => Self::Charged,
+            CheckoutPaymentStatus::Declined => Self::Failure,
+            CheckoutPaymentStatus::Pending => Self::AuthenticationPending,
+            CheckoutPaymentStatus::CardVerified => Self::Pending,
         }
-        .into()
     }
 }
 
-#[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Deserialize)]
 pub struct Href {
-    href: String,
+    #[serde(rename = "href")]
+    redirection_url: Url,
 }
 
 #[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize)]
@@ -206,7 +195,7 @@ pub struct PaymentsResponse {
     status: CheckoutPaymentStatus,
     #[serde(rename = "_links")]
     links: Links,
-    balances: Balances,
+    balances: Option<Balances>,
 }
 
 #[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize)]
@@ -221,24 +210,10 @@ impl TryFrom<types::PaymentsResponseRouterData<PaymentsResponse>>
     fn try_from(
         item: types::PaymentsResponseRouterData<PaymentsResponse>,
     ) -> Result<Self, Self::Error> {
-        let redirection_url = item
-            .response
-            .links
-            .redirect
-            .map(|data| Url::parse(&data.href))
-            .transpose()
-            .into_report()
-            .change_context(errors::ConnectorError::ResponseHandlingFailed)
-            .attach_printable("Could not parse the redirection data")?;
-
-        let redirection_data = redirection_url.map(|url| services::RedirectForm {
-            url: url.to_string(),
-            method: services::Method::Get,
-            form_fields: std::collections::HashMap::from_iter(
-                url.query_pairs()
-                    .map(|(k, v)| (k.to_string(), v.to_string())),
-            ),
+        let redirection_data = item.response.links.redirect.map(|href| {
+            services::RedirectForm::from((href.redirection_url, services::Method::Get))
         });
+
         Ok(Self {
             status: enums::AttemptStatus::foreign_from((
                 item.response.status,
@@ -262,23 +237,8 @@ impl TryFrom<types::PaymentsSyncResponseRouterData<PaymentsResponse>>
     fn try_from(
         item: types::PaymentsSyncResponseRouterData<PaymentsResponse>,
     ) -> Result<Self, Self::Error> {
-        let redirection_url = item
-            .response
-            .links
-            .redirect
-            .map(|data| Url::parse(&data.href))
-            .transpose()
-            .into_report()
-            .change_context(errors::ConnectorError::ResponseHandlingFailed)
-            .attach_printable("Could not parse the redirection data")?;
-
-        let redirection_data = redirection_url.map(|url| services::RedirectForm {
-            url: url.to_string(),
-            method: services::Method::Get,
-            form_fields: std::collections::HashMap::from_iter(
-                url.query_pairs()
-                    .map(|(k, v)| (k.to_string(), v.to_string())),
-            ),
+        let redirection_data = item.response.links.redirect.map(|href| {
+            services::RedirectForm::from((href.redirection_url, services::Method::Get))
         });
 
         Ok(Self {

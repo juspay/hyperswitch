@@ -82,7 +82,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentStatus {
         _storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsRequest>,
-        Option<api::PaymentMethod>,
+        Option<api::PaymentMethodData>,
     )> {
         helpers::make_pm_data(Box::new(self), state, payment_data).await
     }
@@ -243,6 +243,8 @@ async fn get_tracker_for_sync<
             )
         })?;
 
+    let contains_encoded_data = connector_response.encoded_data.is_some();
+
     Ok((
         Box::new(operation),
         PaymentData {
@@ -263,10 +265,10 @@ async fn get_tracker_for_sync<
             payment_method_data: None,
             force_sync: Some(
                 request.force_sync
-                    && helpers::check_force_psync_precondition(
+                    && (helpers::check_force_psync_precondition(
                         &payment_attempt.status,
                         &payment_attempt.connector_transaction_id,
-                    ),
+                    ) || contains_encoded_data),
             ),
             payment_attempt,
             refunds,

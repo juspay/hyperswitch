@@ -57,14 +57,13 @@ Never share your secret api keys. Keep them guarded and secure.
         (name = "Mandates", description = "Manage mandates"),
         (name = "Customers", description = "Create and manage customers"),
         (name = "Payment Methods", description = "Create and manage payment methods of customers"),
-        (name = "API Key", description = "Create and manage API Keys"),
+        // (name = "API Key", description = "Create and manage API Keys"),
     ),
     paths(
         crate::routes::refunds::refunds_create,
         crate::routes::refunds::refunds_retrieve,
         crate::routes::refunds::refunds_update,
         crate::routes::refunds::refunds_list,
-        crate::routes::refunds::refunds_create,
         crate::routes::admin::merchant_account_create,
         crate::routes::admin::retrieve_merchant_account,
         crate::routes::admin::update_merchant_account,
@@ -96,11 +95,11 @@ Never share your secret api keys. Keep them guarded and secure.
         crate::routes::customers::customers_retrieve,
         crate::routes::customers::customers_update,
         crate::routes::customers::customers_delete,
-        crate::routes::api_keys::api_key_create,
-        crate::routes::api_keys::api_key_retrieve,
-        crate::routes::api_keys::api_key_update,
-        crate::routes::api_keys::api_key_revoke,
-        crate::routes::api_keys::api_key_list,
+        // crate::routes::api_keys::api_key_create,
+        // crate::routes::api_keys::api_key_retrieve,
+        // crate::routes::api_keys::api_key_update,
+        // crate::routes::api_keys::api_key_revoke,
+        // crate::routes::api_keys::api_key_list,
     ),
     components(schemas(
         crate::types::api::refunds::RefundRequest,
@@ -124,39 +123,40 @@ Never share your secret api keys. Keep them guarded and secure.
         crate::types::api::payment_methods::CardDetailFromLocker,
         crate::types::api::payment_methods::CardDetail,
         api_models::customers::CustomerResponse,
+        api_models::admin::AcceptedCountries,
+        api_models::admin::AcceptedCurrencies,
         api_models::enums::RoutingAlgorithm,
+        api_models::enums::PaymentMethod,
         api_models::enums::PaymentMethodType,
-        api_models::enums::PaymentMethodSubType,
         api_models::enums::ConnectorType,
         api_models::enums::Currency,
         api_models::enums::IntentStatus,
         api_models::enums::CaptureMethod,
         api_models::enums::FutureUsage,
         api_models::enums::AuthenticationType,
-        api_models::enums::WalletIssuer,
         api_models::enums::Connector,
-        api_models::enums::PaymentMethodType,
+        api_models::enums::PaymentMethod,
         api_models::enums::SupportedWallets,
         api_models::enums::PaymentMethodIssuerCode,
         api_models::enums::MandateStatus,
         api_models::enums::PaymentExperience,
-        api_models::enums::PaymentIssuer,
+        api_models::enums::BankNames,
+        api_models::enums::CardNetwork,
         api_models::admin::PaymentConnectorCreate,
-        api_models::admin::PaymentMethods,
+        api_models::admin::PaymentMethodsEnabled,
         api_models::payments::AddressDetails,
         api_models::payments::Address,
+        api_models::payments::BankRedirectData,
+        api_models::payments::BankRedirectBilling,
         api_models::payments::OrderDetails,
         api_models::payments::NextActionType,
         api_models::payments::Metadata,
         api_models::payments::WalletData,
-        api_models::payments::KlarnaIssuer,
-        api_models::payments::AffirmIssuer,
-        api_models::payments::AfterpayClearpayIssuer,
         api_models::payments::NextAction,
         api_models::payments::PayLaterData,
         api_models::payments::MandateData,
         api_models::payments::PhoneDetails,
-        api_models::payments::PaymentMethod,
+        api_models::payments::PaymentMethodData,
         api_models::payments::MandateType,
         api_models::payments::AcceptanceType,
         api_models::payments::MandateAmountData,
@@ -173,12 +173,26 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::PaymentsSessionRequest,
         api_models::payments::PaymentsSessionResponse,
         api_models::payments::SessionToken,
+        api_models::payments::ApplePaySessionResponse,
+        api_models::payments::ApplePayPaymentRequest,
+        api_models::payments::AmountInfo,
+        api_models::payments::GpayWalletData,
+        api_models::payments::PayPalWalletData,
+        api_models::payments::PaypalRedirection,
         api_models::payments::GpayMerchantInfo,
         api_models::payments::GpayAllowedPaymentMethods,
         api_models::payments::GpayAllowedMethodsParameters,
         api_models::payments::GpayTokenizationSpecification,
         api_models::payments::GpayTokenParameters,
         api_models::payments::GpayTransactionInfo,
+        api_models::payments::GpaySessionTokenResponse,
+        api_models::payments::KlarnaSessionTokenResponse,
+        api_models::payments::PaypalSessionTokenResponse,
+        api_models::payments::ApplepaySessionTokenResponse,
+        api_models::payments::GpayTokenizationData,
+        api_models::payments::GpayPaymentMethodInfo,
+        api_models::payments::ApplePayWalletData,
+        api_models::payments::ApplepayPaymentMethod,
         api_models::payments::PaymentsCancelRequest,
         api_models::payments::PaymentListConstraints,
         api_models::payments::PaymentListResponse,
@@ -197,6 +211,52 @@ Never share your secret api keys. Keep them guarded and secure.
         crate::types::api::api_keys::RetrieveApiKeyResponse,
         crate::types::api::api_keys::RevokeApiKeyResponse,
         crate::types::api::api_keys::UpdateApiKeyRequest
-    ))
+    )),
+    modifiers(&SecurityAddon)
 )]
 pub struct ApiDoc;
+
+struct SecurityAddon;
+
+impl utoipa::Modify for SecurityAddon {
+    fn modify(&self, openapi: &mut utoipa::openapi::OpenApi) {
+        use utoipa::openapi::security::{ApiKey, ApiKeyValue, SecurityScheme};
+
+        if let Some(components) = openapi.components.as_mut() {
+            components.add_security_schemes_from_iter([
+                (
+                    "api_key",
+                    SecurityScheme::ApiKey(ApiKey::Header(ApiKeyValue::with_description(
+                        "api-key",
+                        "API keys are the most common method of authentication and can be obtained \
+                         from the HyperSwitch dashboard."
+                    ))),
+                ),
+                (
+                    "admin_api_key",
+                    SecurityScheme::ApiKey(ApiKey::Header(ApiKeyValue::with_description(
+                        "api-key",
+                        "Admin API keys allow you to perform some privileged actions such as \
+                         creating a merchant account and payment connector account."
+                    ))),
+                ),
+                (
+                    "publishable_key",
+                    SecurityScheme::ApiKey(ApiKey::Header(ApiKeyValue::with_description(
+                        "api-key",
+                        "Publishable keys are a type of keys that can be public and have limited \
+                         scope of usage."
+                    ))),
+                ),
+                (
+                    "ephemeral_key",
+                    SecurityScheme::ApiKey(ApiKey::Header(ApiKeyValue::with_description(
+                        "api-key",
+                        "Ephemeral keys provide temporary access to singular data, such as access \
+                         to a single customer object for a short period of time."
+                    ))),
+                ),
+            ]);
+        }
+    }
+}

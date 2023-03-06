@@ -83,7 +83,7 @@ pub fn mk_add_card_request(
         card_exp_year: card.card_exp_year.clone(),
         merchant_id: locker_id,
         email_address: Some("dummy@gmail.com".to_string().into()), //
-        name_on_card: Some("juspay".to_string().into()),           // [#256]
+        name_on_card: Some("John Doe".to_string().into()),         // [#256]
         nickname: Some("router".to_string()),                      //
     };
     let body = utils::Encode::<AddCardRequest<'_>>::encode(&add_card_req)
@@ -120,11 +120,9 @@ pub fn mk_add_card_response(
         payment_method_id: response.card_id,
         payment_method: req.payment_method,
         payment_method_type: req.payment_method_type,
-        payment_method_issuer: req.payment_method_issuer,
         card: Some(card),
         metadata: req.metadata,
         created: Some(common_utils::date_time::now()),
-        payment_method_issuer_code: req.payment_method_issuer_code,
         recurring_enabled: false,           // [#256]
         installment_payment_enabled: false, // #[#256]
         payment_experience: Some(vec![api_models::enums::PaymentExperience::RedirectToUrl]), // [#256]

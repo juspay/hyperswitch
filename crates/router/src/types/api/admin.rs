@@ -1,16 +1,16 @@
 pub use api_models::admin::{
     CreateMerchantAccount, DeleteMcaResponse, DeleteMerchantAccountResponse,
     MerchantAccountResponse, MerchantConnectorId, MerchantDetails, MerchantId,
-    PaymentConnectorCreate, PaymentMethods, PrimaryBusinessDetails, RoutingAlgorithm,
+    PaymentConnectorCreate, PaymentMethodsEnabled, PrimaryBusinessDetails, RoutingAlgorithm,
     ToggleKVRequest, ToggleKVResponse, WebhookDetails,
 };
 
-use crate::types::{storage, transformers::Foreign};
+use crate::types::{storage, transformers::ForeignFrom};
 
-impl From<Foreign<storage::MerchantAccount>> for Foreign<MerchantAccountResponse> {
-    fn from(value: Foreign<storage::MerchantAccount>) -> Self {
-        let item = value.0;
-        MerchantAccountResponse {
+impl ForeignFrom<storage::MerchantAccount> for MerchantAccountResponse {
+    fn foreign_from(value: storage::MerchantAccount) -> Self {
+        let item = value;
+        Self {
             merchant_id: item.merchant_id,
             merchant_name: item.merchant_name,
             api_key: item.api_key,
@@ -28,62 +28,5 @@ impl From<Foreign<storage::MerchantAccount>> for Foreign<MerchantAccountResponse
             locker_id: item.locker_id,
             primary_business_details: item.primary_business_details,
         }
-        .into()
     }
 }
-
-//use serde::{Serialize, Deserialize};
-
-//use crate::newtype;
-
-//use api_models::admin;
-
-//newtype!(
-//pub CreateMerchantAccount = admin::CreateMerchantAccount,
-//derives = (Clone, Debug, Deserialize, Serialize)
-//);
-
-//newtype!(
-//pub MerchantDetails = admin::MerchantDetails,
-//derives = (Clone, Debug, Deserialize, Serialize)
-//);
-
-//newtype!(
-//pub WebhookDetails = admin::WebhookDetails,
-//derives = (Clone, Debug, Deserialize, Serialize)
-//);
-
-//newtype!(
-//pub CustomRoutingRules = admin::CustomRoutingRules,
-//derives = (Default, Clone, Debug, Deserialize, Serialize)
-//);
-
-//newtype!(
-//pub DeleteResponse = admin::DeleteResponse,
-//derives = (Debug, Serialize)
-//);
-
-//newtype!(
-//pub MerchantId = admin::MerchantId,
-//derives = (Default, Debug, Deserialize, Serialize)
-//);
-
-//newtype!(
-//pub MerchantConnectorId = admin::MerchantConnectorId,
-//derives = (Default, Debug, Deserialize, Serialize)
-//);
-
-//newtype!(
-//pub PaymentConnectorCreate = admin::PaymentConnectorCreate,
-//derives = (Debug, Clone, Serialize, Deserialize)
-//);
-
-//newtype!(
-//pub PaymentMethods = admin::PaymentMethods,
-//derives = (Debug, Clone, Serialize, Deserialize)
-//);
-
-//newtype!(
-//pub DeleteMcaResponse = admin::DeleteMcaResponse,
-//derives = (Debug, Clone, Serialize, Deserialize)
-//);

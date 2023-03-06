@@ -106,6 +106,7 @@ async fn should_void_authorized_payment() {
             Some(types::PaymentsCancelData {
                 connector_transaction_id: String::from(""),
                 cancellation_reason: Some("requested_by_customer".to_string()),
+                ..Default::default()
             }),
             None,
         )
@@ -192,7 +193,7 @@ async fn should_sync_auto_captured_payment() {
                     txn_id.unwrap(),
                 ),
                 encoded_data: None,
-                capture_method: None,
+                capture_method: Some(enums::CaptureMethod::Automatic),
             }),
             None,
         )

@@ -7,11 +7,7 @@ use crate::{
     core::errors,
     pii::{self, Secret},
     services,
-    types::{
-        self, api,
-        storage::enums,
-        transformers::{self, ForeignFrom},
-    },
+    types::{self, api, storage::enums, transformers::ForeignFrom},
     utils::OptionExt,
 };
 
@@ -66,14 +62,14 @@ pub struct RapydWallet {
     #[serde(rename = "type")]
     payment_type: String,
     #[serde(rename = "details")]
-    apple_pay_token: Option<String>,
+    token: Option<String>,
 }
 
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for RapydPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         let (capture, payment_method_options) = match item.payment_method {
-            storage_models::enums::PaymentMethodType::Card => {
+            storage_models::enums::PaymentMethod::Card => {
                 let three_ds_enabled = matches!(item.auth_type, enums::AuthenticationType::ThreeDs);
                 let payment_method_options = PaymentMethodOptions {
                     three_ds: three_ds_enabled,
@@ -89,7 +85,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for RapydPaymentsRequest {
             _ => (None, None),
         };
         let payment_method = match item.request.payment_method_data {
-            api_models::payments::PaymentMethod::Card(ref ccard) => {
+            api_models::payments::PaymentMethodData::Card(ref ccard) => {
                 Some(PaymentMethod {
                     pm_type: "in_amex_card".to_owned(), //[#369] Map payment method type based on country
                     fields: Some(PaymentFields {
@@ -103,15 +99,15 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for RapydPaymentsRequest {
                     digital_wallet: None,
                 })
             }
-            api_models::payments::PaymentMethod::Wallet(ref wallet_data) => {
-                let digital_wallet = match wallet_data.issuer_name {
-                    api_models::enums::WalletIssuer::GooglePay => Some(RapydWallet {
+            api_models::payments::PaymentMethodData::Wallet(ref wallet_data) => {
+                let digital_wallet = match wallet_data {
+                    api_models::payments::WalletData::GooglePay(data) => Some(RapydWallet {
                         payment_type: "google_pay".to_string(),
-                        apple_pay_token: wallet_data.token.to_owned(),
+                        token: Some(data.tokenization_data.token.to_owned()),
                     }),
-                    api_models::enums::WalletIssuer::ApplePay => Some(RapydWallet {
+                    api_models::payments::WalletData::ApplePay(data) => Some(RapydWallet {
                         payment_type: "apple_pay".to_string(),
-                        apple_pay_token: wallet_data.token.to_owned(),
+                        token: Some(data.payment_data.to_string()),
                     }),
                     _ => None,
                 };
@@ -179,40 +175,34 @@ pub enum RapydPaymentStatus {
     New,
 }
 
-impl From<transformers::Foreign<(RapydPaymentStatus, String)>>
-    for transformers::Foreign<enums::AttemptStatus>
-{
-    fn from(item: transformers::Foreign<(RapydPaymentStatus, String)>) -> Self {
-        let (status, next_action) = item.0;
-        match status {
-            RapydPaymentStatus::Closed => enums::AttemptStatus::Charged,
-            RapydPaymentStatus::Active => {
-                if next_action == "3d_verification" {
-                    enums::AttemptStatus::AuthenticationPending
-                } else if next_action == "pending_capture" {
-                    enums::AttemptStatus::Authorized
-                } else {
-                    enums::AttemptStatus::Pending
-                }
+impl ForeignFrom<(RapydPaymentStatus, NextAction)> for enums::AttemptStatus {
+    fn foreign_from(item: (RapydPaymentStatus, NextAction)) -> Self {
+        let (status, next_action) = item;
+        match (status, next_action) {
+            (RapydPaymentStatus::Closed, _) => Self::Charged,
+            (RapydPaymentStatus::Active, NextAction::ThreedsVerification) => {
+                Self::AuthenticationPending
             }
-            RapydPaymentStatus::CanceledByClientOrBank
-            | RapydPaymentStatus::Expired
-            | RapydPaymentStatus::ReversedByRapyd => enums::AttemptStatus::Voided,
-            RapydPaymentStatus::Error => enums::AttemptStatus::Failure,
-
-            RapydPaymentStatus::New => enums::AttemptStatus::Authorizing,
+            (RapydPaymentStatus::Active, NextAction::PendingCapture) => Self::Authorized,
+            (
+                RapydPaymentStatus::CanceledByClientOrBank
+                | RapydPaymentStatus::Expired
+                | RapydPaymentStatus::ReversedByRapyd,
+                _,
+            ) => Self::Voided,
+            (RapydPaymentStatus::Error, _) => Self::Failure,
+            (RapydPaymentStatus::New, _) => Self::Authorizing,
         }
-        .into()
     }
 }
 
-#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct RapydPaymentsResponse {
     pub status: Status,
     pub data: Option<ResponseData>,
 }
 
-#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Status {
     pub error_code: String,
     pub status: Option<String>,
@@ -221,13 +211,21 @@ pub struct Status {
     pub operation_id: Option<String>,
 }
 
-#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub enum NextAction {
+    #[serde(rename = "3d_verification")]
+    ThreedsVerification,
+    #[serde(rename = "pending_capture")]
+    PendingCapture,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ResponseData {
     pub id: String,
     pub amount: i64,
     pub status: RapydPaymentStatus,
-    pub next_action: String,
-    pub redirect_url: Option<String>,
+    pub next_action: NextAction,
+    pub redirect_url: Option<Url>,
     pub original_amount: Option<i64>,
     pub is_partial: Option<bool>,
     pub currency_code: Option<enums::Currency>,
@@ -277,13 +275,13 @@ impl From<RefundStatus> for enums::RefundStatus {
     }
 }
 
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RefundResponse {
     pub status: Status,
     pub data: Option<RefundResponseData>,
 }
 
-#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct RefundResponseData {
     //Some field related to forign exchange and split payment can be added as and when implemented
     pub id: String,
@@ -389,25 +387,12 @@ impl<F, T>
                         }),
                     ),
                     _ => {
-                        let redirection_data =
-                            match (data.next_action.as_str(), data.redirect_url.to_owned()) {
-                                ("3d_verification", Some(url)) => {
-                                    let url = Url::parse(&url).into_report().change_context(
-                                        errors::ConnectorError::ResponseHandlingFailed,
-                                    )?;
-                                    let mut base_url = url.clone();
-                                    base_url.set_query(None);
-                                    Some(services::RedirectForm {
-                                        url: base_url.to_string(),
-                                        method: services::Method::Get,
-                                        form_fields: std::collections::HashMap::from_iter(
-                                            url.query_pairs()
-                                                .map(|(k, v)| (k.to_string(), v.to_string())),
-                                        ),
-                                    })
-                                }
-                                (_, _) => None,
-                            };
+                        let redirection_data = data.redirect_url.as_ref().map(|redirect_url| {
+                            services::RedirectForm::from((
+                                redirect_url.to_owned(),
+                                services::Method::Get,
+                            ))
+                        });
                         (
                             attempt_status,
                             Ok(types::PaymentsResponseData::TransactionResponse {
