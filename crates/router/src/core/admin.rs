@@ -1,11 +1,12 @@
 use common_utils::ext_traits::ValueExt;
 use error_stack::{report, FutureExt, ResultExt};
+use storage_models::{enums, merchant_account};
 use uuid::Uuid;
 
 use crate::{
+    consts,
     core::errors::{self, RouterResponse, RouterResult, StorageErrorExt},
     db::StorageInterface,
-    env::{self, Env},
     pii::Secret,
     services::api as service_api,
     types::{
@@ -18,12 +19,11 @@ use crate::{
 
 #[inline]
 pub fn create_merchant_api_key() -> String {
-    let id = Uuid::new_v4().simple();
-    match env::which() {
-        Env::Development => format!("dev_{id}"),
-        Env::Production => format!("prd_{id}"),
-        Env::Sandbox => format!("snd_{id}"),
-    }
+    format!(
+        "{}_{}",
+        router_env::env::prefix_for_env(),
+        Uuid::new_v4().simple()
+    )
 }
 
 pub async fn create_merchant_account(
@@ -63,7 +63,7 @@ pub async fn create_merchant_account(
         merchant_name: req.merchant_name,
         api_key,
         merchant_details,
-        return_url: req.return_url,
+        return_url: req.return_url.map(|a| a.to_string()),
         webhook_details,
         routing_algorithm: req.routing_algorithm,
         sub_merchants_enabled: req.sub_merchants_enabled,
@@ -114,13 +114,6 @@ pub async fn merchant_account_update(
     merchant_id: &String,
     req: api::CreateMerchantAccount,
 ) -> RouterResponse<api::MerchantAccountResponse> {
-    let merchant_account = db
-        .find_merchant_account_by_merchant_id(merchant_id)
-        .await
-        .map_err(|error| {
-            error.to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
-        })?;
-
     if &req.merchant_id != merchant_id {
         Err(report!(errors::ValidationError::IncorrectValueProvided {
             field_name: "parent_merchant_id"
@@ -153,7 +146,7 @@ pub async fn merchant_account_update(
             .transpose()
             .change_context(errors::ApiErrorResponse::InternalServerError)?,
 
-        return_url: req.return_url,
+        return_url: req.return_url.map(|a| a.to_string()),
 
         webhook_details: req
             .webhook_details
@@ -167,10 +160,8 @@ pub async fn merchant_account_update(
 
         parent_merchant_id: get_parent_merchant(
             db,
-            req.sub_merchants_enabled
-                .or(merchant_account.sub_merchants_enabled),
-            req.parent_merchant_id
-                .or_else(|| merchant_account.parent_merchant_id.clone()),
+            req.sub_merchants_enabled,
+            req.parent_merchant_id,
         )
         .await?,
         enable_payment_response_hash: req.enable_payment_response_hash,
@@ -178,13 +169,12 @@ pub async fn merchant_account_update(
         redirect_to_merchant_with_http_post: req.redirect_to_merchant_with_http_post,
         locker_id: req.locker_id,
         metadata: req.metadata,
-        merchant_id: merchant_account.merchant_id.to_owned(),
         api_key: None,
         publishable_key: None,
     };
 
     let response = db
-        .update_merchant(merchant_account, updated_merchant_account)
+        .update_specific_fields_in_merchant(merchant_id, updated_merchant_account)
         .await
         .map_err(|error| {
             error.to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
@@ -230,7 +220,9 @@ async fn get_parent_merchant(
                 })
                 .map(|id| validate_merchant_id(db, id).change_context(
                     errors::ApiErrorResponse::InvalidDataValue { field_name: "parent_merchant_id" }
-                ))?.await?.merchant_id
+                ))?
+                .await?
+                .merchant_id
             )
         }
         _ => None,
@@ -247,6 +239,7 @@ async fn validate_merchant_id<S: Into<String>>(
             error.to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
         })
 }
+
 // Payment Connector API -  Every merchant and connector can have an instance of (merchant <> connector)
 //                          with unique merchant_connector_id for Create Operation
 
@@ -267,7 +260,7 @@ pub async fn create_payment_connector(
     let payment_methods_enabled = match req.payment_methods_enabled {
         Some(val) => {
             for pm in val.into_iter() {
-                let pm_value = utils::Encode::<api::PaymentMethods>::encode_to_value(&pm)
+                let pm_value = utils::Encode::<api::PaymentMethodsEnabled>::encode_to_value(&pm)
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable(
                         "Failed while encoding to serde_json::Value, PaymentMethod",
@@ -293,7 +286,7 @@ pub async fn create_payment_connector(
         merchant_id: Some(merchant_id.to_string()),
         connector_type: Some(req.connector_type.foreign_into()),
         connector_name: Some(req.connector_name),
-        merchant_connector_id: None,
+        merchant_connector_id: utils::generate_id(consts::ID_LENGTH, "mca"),
         connector_account_details: req.connector_account_details,
         payment_methods_enabled,
         test_mode: req.test_mode,
@@ -315,7 +308,7 @@ pub async fn create_payment_connector(
 pub async fn retrieve_payment_connector(
     store: &dyn StorageInterface,
     merchant_id: String,
-    merchant_connector_id: i32,
+    merchant_connector_id: String,
 ) -> RouterResponse<api::PaymentConnectorCreate> {
     let _merchant_account = store
         .find_merchant_account_by_merchant_id(&merchant_id)
@@ -352,7 +345,7 @@ pub async fn list_payment_connectors(
         })?;
 
     let merchant_connector_accounts = store
-        .find_merchant_connector_account_by_merchant_id_list(&merchant_id)
+        .find_merchant_connector_account_by_merchant_id_and_disabled_list(&merchant_id, true)
         .await
         .map_err(|error| {
             error.to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound)
@@ -370,7 +363,7 @@ pub async fn list_payment_connectors(
 pub async fn update_payment_connector(
     db: &dyn StorageInterface,
     merchant_id: &str,
-    merchant_connector_id: i32,
+    merchant_connector_id: &str,
     req: api::PaymentConnectorCreate,
 ) -> RouterResponse<api::PaymentConnectorCreate> {
     let _merchant_account = db
@@ -383,7 +376,7 @@ pub async fn update_payment_connector(
     let mca = db
         .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
             merchant_id,
-            &merchant_connector_id,
+            merchant_connector_id,
         )
         .await
         .map_err(|error| {
@@ -394,7 +387,7 @@ pub async fn update_payment_connector(
         pm_enabled
             .iter()
             .flat_map(|payment_method| {
-                utils::Encode::<api::PaymentMethods>::encode_to_value(payment_method)
+                utils::Encode::<api::PaymentMethodsEnabled>::encode_to_value(payment_method)
             })
             .collect::<Vec<serde_json::Value>>()
     });
@@ -403,7 +396,7 @@ pub async fn update_payment_connector(
         merchant_id: Some(merchant_id.to_string()),
         connector_type: Some(req.connector_type.foreign_into()),
         connector_name: Some(req.connector_name),
-        merchant_connector_id: Some(merchant_connector_id),
+        merchant_connector_id: Some(merchant_connector_id.to_string()),
         connector_account_details: req.connector_account_details,
         payment_methods_enabled,
         test_mode: req.test_mode,
@@ -422,12 +415,12 @@ pub async fn update_payment_connector(
     let updated_pm_enabled = updated_mca.payment_methods_enabled.map(|pm| {
         pm.into_iter()
             .flat_map(|pm_value| {
-                ValueExt::<api_models::admin::PaymentMethods>::parse_value(
+                ValueExt::<api_models::admin::PaymentMethodsEnabled>::parse_value(
                     pm_value,
                     "PaymentMethods",
                 )
             })
-            .collect::<Vec<api_models::admin::PaymentMethods>>()
+            .collect::<Vec<api_models::admin::PaymentMethodsEnabled>>()
     });
 
     let response = api::PaymentConnectorCreate {
@@ -446,7 +439,7 @@ pub async fn update_payment_connector(
 pub async fn delete_payment_connector(
     db: &dyn StorageInterface,
     merchant_id: String,
-    merchant_connector_id: i32,
+    merchant_connector_id: String,
 ) -> RouterResponse<api::DeleteMcaResponse> {
     let _merchant_account = db
         .find_merchant_account_by_merchant_id(&merchant_id)
@@ -470,4 +463,82 @@ pub async fn delete_payment_connector(
         deleted: is_deleted,
     };
     Ok(service_api::ApplicationResponse::Json(response))
+}
+
+pub async fn kv_for_merchant(
+    db: &dyn StorageInterface,
+    merchant_id: String,
+    enable: bool,
+) -> RouterResponse<api_models::admin::ToggleKVResponse> {
+    // check if the merchant account exists
+    let merchant_account = db
+        .find_merchant_account_by_merchant_id(&merchant_id)
+        .await
+        .map_err(|error| {
+            error.to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
+        })?;
+
+    let updated_merchant_account = match (enable, merchant_account.storage_scheme) {
+        (true, enums::MerchantStorageScheme::RedisKv)
+        | (false, enums::MerchantStorageScheme::PostgresOnly) => Ok(merchant_account),
+        (true, enums::MerchantStorageScheme::PostgresOnly) => {
+            db.update_merchant(
+                merchant_account,
+                merchant_account::MerchantAccountUpdate::StorageSchemeUpdate {
+                    storage_scheme: enums::MerchantStorageScheme::RedisKv,
+                },
+            )
+            .await
+        }
+        (false, enums::MerchantStorageScheme::RedisKv) => {
+            db.update_merchant(
+                merchant_account,
+                merchant_account::MerchantAccountUpdate::StorageSchemeUpdate {
+                    storage_scheme: enums::MerchantStorageScheme::PostgresOnly,
+                },
+            )
+            .await
+        }
+    }
+    .map_err(|error| {
+        error
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("failed to switch merchant_storage_scheme")
+    })?;
+    let kv_status = matches!(
+        updated_merchant_account.storage_scheme,
+        enums::MerchantStorageScheme::RedisKv
+    );
+
+    Ok(service_api::ApplicationResponse::Json(
+        api_models::admin::ToggleKVResponse {
+            merchant_id: updated_merchant_account.merchant_id,
+            kv_enabled: kv_status,
+        },
+    ))
+}
+
+pub async fn check_merchant_account_kv_status(
+    db: &dyn StorageInterface,
+    merchant_id: String,
+) -> RouterResponse<api_models::admin::ToggleKVResponse> {
+    // check if the merchant account exists
+    let merchant_account = db
+        .find_merchant_account_by_merchant_id(&merchant_id)
+        .await
+        .map_err(|error| {
+            error.to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
+        })?;
+
+    let kv_status = matches!(
+        merchant_account.storage_scheme,
+        enums::MerchantStorageScheme::RedisKv
+    );
+
+    Ok(service_api::ApplicationResponse::Json(
+        api_models::admin::ToggleKVResponse {
+            merchant_id: merchant_account.merchant_id,
+            kv_enabled: kv_status,
+        },
+    ))
 }

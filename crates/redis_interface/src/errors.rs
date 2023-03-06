@@ -52,4 +52,10 @@ pub enum RedisError {
     NotFound,
     #[error("Invalid RedisEntryId provided")]
     InvalidRedisEntryId,
+    #[error("Failed to establish Redis connection")]
+    RedisConnectionError,
+    #[error("Failed to subscribe to a channel")]
+    SubscribeError,
+    #[error("Failed to publish to a channel")]
+    PublishError,
 }

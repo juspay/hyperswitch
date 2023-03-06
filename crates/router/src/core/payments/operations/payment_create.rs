@@ -28,7 +28,7 @@ use crate::{
             self,
             enums::{self, IntentStatus},
         },
-        transformers::ForeignInto,
+        transformers::{ForeignFrom, ForeignInto},
     },
     utils::OptionExt,
 };
@@ -61,9 +61,6 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         let payment_id = payment_id
             .get_payment_intent_id()
             .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
-
-        let payment_method_type: Option<storage_models::enums::PaymentMethodType> =
-            request.payment_method.map(ForeignInto::foreign_into);
 
         let shipping_address_id = request
             .shipping
@@ -111,14 +108,8 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             billing_address_id.as_ref(),
         )?;
 
-        let api_payment_attempt = Self::make_payment_attempt(
-            &payment_id,
-            merchant_id,
-            money,
-            payment_method_type,
-            request,
-            browser_info,
-        );
+        let api_payment_attempt =
+            Self::make_payment_attempt(&payment_id, merchant_id, money, request, browser_info)?;
 
         let api_connector_response = Self::make_connector_response(&api_payment_attempt);
 
@@ -263,7 +254,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentCreate {
         _storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsRequest>,
-        Option<api::PaymentMethod>,
+        Option<api::PaymentMethodData>,
     )> {
         helpers::make_pm_data(Box::new(self), state, payment_data).await
     }
@@ -284,7 +275,10 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentCreate {
         request: &api::PaymentsRequest,
         _previously_used_connector: Option<&String>,
     ) -> CustomResult<api::ConnectorCallType, errors::ApiErrorResponse> {
-        let request_connector = request.connector.map(|connector| connector.to_string());
+        let request_connector = request
+            .connector
+            .as_ref()
+            .and_then(|connector| connector.first().map(|c| c.to_string()));
         helpers::get_connector_default(state, request_connector.as_ref()).await
     }
 }
@@ -404,6 +398,7 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest> for PaymentCreate
             helpers::validate_pm_or_token_given(
                 &request.payment_method,
                 &request.payment_method_data,
+                &request.payment_method_type,
                 &mandate_type,
                 &request.payment_token,
             )?;
@@ -434,22 +429,38 @@ impl PaymentCreate {
         payment_id: &str,
         merchant_id: &str,
         money: (api::Amount, enums::Currency),
-        payment_method: Option<enums::PaymentMethodType>,
         request: &api::PaymentsRequest,
         browser_info: Option<serde_json::Value>,
-    ) -> storage::PaymentAttemptNew {
+    ) -> RouterResult<storage::PaymentAttemptNew> {
         let created_at @ modified_at @ last_synced = Some(common_utils::date_time::now());
         let status =
             helpers::payment_attempt_status_fsm(&request.payment_method_data, request.confirm);
         let (amount, currency) = (money.0, Some(money.1));
-        storage::PaymentAttemptNew {
+
+        let additional_pm_data = request
+            .payment_method_data
+            .as_ref()
+            .map(api_models::payments::AdditionalPaymentData::from)
+            .as_ref()
+            .map(Encode::<api_models::payments::AdditionalPaymentData>::encode_to_value)
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to encode additional pm data")?;
+
+        let connector = request.connector.as_ref().and_then(|connector_vec| {
+            connector_vec
+                .first()
+                .map(|first_connector| first_connector.to_string())
+        });
+
+        Ok(storage::PaymentAttemptNew {
             payment_id: payment_id.to_string(),
             merchant_id: merchant_id.to_string(),
-            attempt_id: Uuid::new_v4().to_string(),
+            attempt_id: Uuid::new_v4().simple().to_string(),
             status,
-            amount: amount.into(),
             currency,
-            payment_method,
+            amount: amount.into(),
+            payment_method: request.payment_method.map(ForeignFrom::foreign_from),
             capture_method: request.capture_method.map(ForeignInto::foreign_into),
             capture_on: request.capture_on,
             confirm: request.confirm.unwrap_or(false),
@@ -458,8 +469,12 @@ impl PaymentCreate {
             last_synced,
             authentication_type: request.authentication_type.map(ForeignInto::foreign_into),
             browser_info,
+            payment_experience: request.payment_experience.map(ForeignInto::foreign_into),
+            payment_method_type: request.payment_method_type.map(ForeignInto::foreign_into),
+            payment_method_data: additional_pm_data,
+            connector,
             ..storage::PaymentAttemptNew::default()
-        }
+        })
     }
 
     #[instrument(skip_all)]
@@ -497,7 +512,7 @@ impl PaymentCreate {
             client_secret: Some(client_secret),
             setup_future_usage: request.setup_future_usage.map(ForeignInto::foreign_into),
             off_session: request.off_session,
-            return_url: request.return_url.clone(),
+            return_url: request.return_url.as_ref().map(|url| url.to_string()),
             shipping_address_id: shipping_address_id.map(ToString::to_string),
             billing_address_id: billing_address_id.map(ToString::to_string),
             statement_descriptor_name: request.statement_descriptor_name.clone(),

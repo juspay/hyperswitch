@@ -239,7 +239,7 @@ where
         _storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::VerifyRequest>,
-        Option<api::PaymentMethod>,
+        Option<api::PaymentMethodData>,
     )> {
         helpers::make_pm_data(Box::new(self), state, payment_data).await
     }
@@ -260,7 +260,7 @@ impl PaymentMethodValidate {
     fn make_payment_attempt(
         payment_id: &str,
         merchant_id: &str,
-        payment_method: Option<api_enums::PaymentMethodType>,
+        payment_method: Option<api_enums::PaymentMethod>,
         _request: &api::VerifyRequest,
     ) -> storage::PaymentAttemptNew {
         let created_at @ modified_at @ last_synced = Some(date_time::now());
@@ -269,7 +269,7 @@ impl PaymentMethodValidate {
         storage::PaymentAttemptNew {
             payment_id: payment_id.to_string(),
             merchant_id: merchant_id.to_string(),
-            attempt_id: Uuid::new_v4().to_string(),
+            attempt_id: Uuid::new_v4().simple().to_string(),
             status,
             // Amount & Currency will be zero in this case
             amount: 0,

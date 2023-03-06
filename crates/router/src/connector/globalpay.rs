@@ -19,7 +19,7 @@ use crate::{
         errors::{self, CustomResult},
         payments,
     },
-    headers, logger,
+    headers,
     services::{self, ConnectorIntegration},
     types::{
         self,
@@ -160,7 +160,6 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
         data: &types::RefreshTokenRouterData,
         res: types::Response,
     ) -> CustomResult<types::RefreshTokenRouterData, errors::ConnectorError> {
-        logger::debug!(globalpaypayments_raw_refresh_token_response=?res);
         let response: GlobalpayRefreshTokenResponse = res
             .response
             .parse_struct("Globalpay PaymentsResponse")
@@ -265,7 +264,6 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
             .response
             .parse_struct("Globalpay PaymentsResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        logger::debug!(globalpaypayments_create_response=?response);
         types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -340,7 +338,6 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         data: &types::PaymentsSyncRouterData,
         res: types::Response,
     ) -> CustomResult<types::PaymentsSyncRouterData, errors::ConnectorError> {
-        logger::debug!(payment_sync_response=?res);
         let response: GlobalpayPaymentsResponse = res
             .response
             .parse_struct("globalpay PaymentsResponse")
@@ -419,7 +416,6 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
             .response
             .parse_struct("Globalpay PaymentsResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        logger::debug!(globalpaypayments_create_response=?response);
         types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -508,7 +504,6 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
             .response
             .parse_struct("Globalpay PaymentsResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        logger::debug!(globalpaypayments_create_response=?response);
         types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -591,17 +586,15 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         data: &types::RefundsRouterData<api::Execute>,
         res: types::Response,
     ) -> CustomResult<types::RefundsRouterData<api::Execute>, errors::ConnectorError> {
-        logger::debug!(target: "router::connector::globalpay", response=?res);
         let response: GlobalpayPaymentsResponse = res
             .response
             .parse_struct("globalpay RefundResponse")
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        types::ResponseRouterData {
+        types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
-        }
-        .try_into()
+        })
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
@@ -667,7 +660,6 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         data: &types::RefundSyncRouterData,
         res: types::Response,
     ) -> CustomResult<types::RefundSyncRouterData, errors::ConnectorError> {
-        logger::debug!(target: "router::connector::globalpay", response=?res);
         let response: GlobalpayPaymentsResponse = res
             .response
             .parse_struct("globalpay RefundResponse")
@@ -693,21 +685,21 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
 impl api::IncomingWebhook for Globalpay {
     fn get_webhook_object_reference_id(
         &self,
-        _body: &[u8],
+        _request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<String, errors::ConnectorError> {
         Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
     }
 
     fn get_webhook_event_type(
         &self,
-        _body: &[u8],
+        _request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api::IncomingWebhookEvent, errors::ConnectorError> {
         Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
     }
 
     fn get_webhook_resource_object(
         &self,
-        _body: &[u8],
+        _request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<serde_json::Value, errors::ConnectorError> {
         Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
     }

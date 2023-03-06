@@ -33,7 +33,7 @@ pub struct CustomerRequest {
     #[schema(value_type = Option<Object>,example = json!({
     "city": "Bangalore",
     "country": "IN",
-    "line1": "Juspay router",
+    "line1": "Hyperswitch router",
     "line2": "Koramangala",
     "line3": "Stallion",
     "state": "Karnataka",
@@ -73,7 +73,7 @@ pub struct CustomerResponse {
     #[schema(value_type = Option<Object>,example = json!({
     "city": "Bangalore",
     "country": "IN",
-    "line1": "Juspay router",
+    "line1": "Hyperswitch router",
     "line2": "Koramangala",
     "line3": "Stallion",
     "state": "Karnataka",

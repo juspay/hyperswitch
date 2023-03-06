@@ -24,6 +24,14 @@ port = 5432
 dbname = "hyperswitch_db"
 pool_size = 5
 
+[replica_database]
+username = "db_user"
+password = "db_pass"
+host = "pg"
+port = 5432
+dbname = "hyperswitch_db"
+pool_size = 5
+
 [proxy]
 # http_url = "http proxy URL"
 # https_url = "https proxy URL"
@@ -54,6 +62,9 @@ cluster_urls = ["redis-queue:6379"]
 [refund]
 max_attempts = 10
 max_age = 365
+
+[api_keys]
+hash_key = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
 
 [connectors.aci]
 base_url = "https://eu-test.oppwa.com/"
@@ -97,6 +108,51 @@ base_url = "https://try.access.worldpay.com/"
 [connectors.globalpay]
 base_url = "https://apis.sandbox.globalpay.com/ucp/"
 
+[connectors.bluesnap]
+base_url = "https://sandbox.bluesnap.com/"
+
+[connectors.nuvei]
+base_url = "https://ppp-test.nuvei.com/"
+
+[connectors.airwallex]
+base_url = "https://api-demo.airwallex.com/"
+
+[connectors.multisafepay]
+base_url = "https://testapi.multisafepay.com/"
+
+[connectors.dlocal]
+base_url = "https://sandbox.dlocal.com/"
+
+[connectors.bambora]
+base_url = "https://api.na.bambora.com"
+
 [connectors.supported]
 wallets = ["klarna", "braintree", "applepay"]
-cards = ["stripe", "adyen", "authorizedotnet", "checkout", "braintree", "shift4", "cybersource", "worldpay", "globalpay", "fiserv"]
+cards = [
+    "adyen",
+    "airwallex",
+    "authorizedotnet",
+    "bambora",
+    "bluesnap",
+    "braintree",
+    "checkout",
+    "cybersource",
+    "dlocal",
+    "fiserv",
+    "globalpay",
+    "multisafepay",
+    "nuvei",
+    "payu",
+    "shift4",
+    "stripe",
+    "worldline",
+    "worldpay",
+]
+
+
+[scheduler]
+stream = "SCHEDULER_STREAM"
+
+[scheduler.consumer]
+disabled = false
+consumer_group = "SCHEDULER_GROUP"

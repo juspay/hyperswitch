@@ -2,8 +2,8 @@ pub use api_models::payments::{
     AcceptanceType, Address, AddressDetails, Amount, AuthenticationForStartResponse, Card,
     CustomerAcceptance, MandateData, MandateTxnType, MandateType, MandateValidationFields,
     NextAction, NextActionType, OnlineMandate, PayLaterData, PaymentIdType, PaymentListConstraints,
-    PaymentListResponse, PaymentMethod, PaymentMethodDataResponse, PaymentOp, PaymentRetrieveBody,
-    PaymentsCancelRequest, PaymentsCaptureRequest, PaymentsRedirectRequest,
+    PaymentListResponse, PaymentMethodData, PaymentMethodDataResponse, PaymentOp,
+    PaymentRetrieveBody, PaymentsCancelRequest, PaymentsCaptureRequest, PaymentsRedirectRequest,
     PaymentsRedirectionResponse, PaymentsRequest, PaymentsResponse, PaymentsResponseForm,
     PaymentsRetrieveRequest, PaymentsSessionRequest, PaymentsSessionResponse, PaymentsStartRequest,
     PgRedirectResponse, PhoneDetails, RedirectionResponse, SessionToken, UrlDetails, VerifyRequest,
@@ -18,7 +18,7 @@ use crate::{
     services::api,
     types::{
         self, api as api_types, storage,
-        transformers::{Foreign, ForeignInto},
+        transformers::{ForeignFrom, ForeignInto},
     },
 };
 
@@ -64,6 +64,9 @@ impl super::Router for PaymentsRequest {}
 // Core related api layer.
 #[derive(Debug, Clone)]
 pub struct Authorize;
+
+#[derive(Debug, Clone)]
+pub struct AuthorizeSessionToken;
 #[derive(Debug, Clone)]
 pub struct Capture;
 
@@ -111,10 +114,10 @@ impl MandateValidationFieldsExt for MandateValidationFields {
     }
 }
 
-impl From<Foreign<storage::PaymentIntent>> for Foreign<PaymentsResponse> {
-    fn from(item: Foreign<storage::PaymentIntent>) -> Self {
-        let item = item.0;
-        PaymentsResponse {
+impl ForeignFrom<storage::PaymentIntent> for PaymentsResponse {
+    fn foreign_from(item: storage::PaymentIntent) -> Self {
+        let item = item;
+        Self {
             payment_id: Some(item.payment_id),
             merchant_id: Some(item.merchant_id),
             status: item.status.foreign_into(),
@@ -128,7 +131,6 @@ impl From<Foreign<storage::PaymentIntent>> for Foreign<PaymentsResponse> {
             customer_id: item.customer_id,
             ..Default::default()
         }
-        .into()
     }
 }
 
@@ -189,6 +191,8 @@ mod payments_test {
             card_exp_year: "99".to_string().into(),
             card_holder_name: "JohnDoe".to_string().into(),
             card_cvc: "123".to_string().into(),
+            card_issuer: Some("HDFC".to_string()),
+            card_network: Some(api_models::enums::CardNetwork::Visa),
         }
     }
 
@@ -196,7 +200,7 @@ mod payments_test {
     fn payments_request() -> PaymentsRequest {
         PaymentsRequest {
             amount: Some(Amount::from(200)),
-            payment_method_data: Some(PaymentMethod::Card(card())),
+            payment_method_data: Some(PaymentMethodData::Card(card())),
             ..PaymentsRequest::default()
         }
     }

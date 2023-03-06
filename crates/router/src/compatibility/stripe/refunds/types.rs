@@ -23,6 +23,8 @@ pub struct StripeCreateRefundResponse {
     pub currency: String,
     pub payment_intent: String,
     pub status: StripeRefundStatus,
+    pub created: Option<i64>,
+    pub metadata: serde_json::Value,
 }
 
 #[derive(Clone, Serialize, Deserialize, Eq, PartialEq)]
@@ -40,6 +42,7 @@ impl From<StripeCreateRefundRequest> for refunds::RefundRequest {
             amount: req.amount,
             payment_id: req.payment_intent,
             reason: req.reason,
+            refund_type: Some(refunds::RefundType::Instant),
             ..Default::default()
         }
     }
@@ -73,6 +76,8 @@ impl From<refunds::RefundResponse> for StripeCreateRefundResponse {
             currency: res.currency.to_ascii_lowercase(),
             payment_intent: res.payment_id,
             status: res.status.into(),
+            created: res.created_at.map(|t| t.assume_utc().unix_timestamp()),
+            metadata: res.metadata.unwrap_or_else(|| serde_json::json!({})),
         }
     }
 }

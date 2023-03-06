@@ -22,10 +22,10 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
         merchant_id: String::from("authorizedotnet"),
         connector: "authorizedotnet".to_string(),
         payment_id: uuid::Uuid::new_v4().to_string(),
-        attempt_id: None,
+        attempt_id: uuid::Uuid::new_v4().to_string(),
         status: enums::AttemptStatus::default(),
         router_return_url: None,
-        payment_method: enums::PaymentMethodType::Card,
+        payment_method: enums::PaymentMethod::Card,
         connector_auth_type: auth.into(),
         auth_type: enums::AuthenticationType::NoThreeDs,
         description: Some("This is a test".to_string()),
@@ -33,15 +33,18 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
         request: types::PaymentsAuthorizeData {
             amount: 100,
             currency: enums::Currency::USD,
-            payment_method_data: types::api::PaymentMethod::Card(types::api::Card {
+            payment_method_data: types::api::PaymentMethodData::Card(types::api::Card {
                 card_number: Secret::new("5424000000000015".to_string()),
                 card_exp_month: Secret::new("10".to_string()),
                 card_exp_year: Secret::new("2025".to_string()),
                 card_holder_name: Secret::new("John Doe".to_string()),
                 card_cvc: Secret::new("999".to_string()),
+                card_issuer: None,
+                card_network: None,
             }),
             confirm: true,
             statement_descriptor_suffix: None,
+            statement_descriptor: None,
             setup_future_usage: None,
             mandate_id: None,
             off_session: None,
@@ -50,6 +53,8 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
             browser_info: None,
             order_details: None,
             email: None,
+            payment_experience: None,
+            payment_method_type: None,
         },
         payment_method_id: None,
         response: Err(types::ErrorResponse::default()),
@@ -57,6 +62,8 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
         connector_meta_data: None,
         amount_captured: None,
         access_token: None,
+        session_token: None,
+        reference_id: None,
     }
 }
 
@@ -71,11 +78,11 @@ fn construct_refund_router_data<F>() -> types::RefundsRouterData<F> {
         merchant_id: String::from("authorizedotnet"),
         connector: "authorizedotnet".to_string(),
         payment_id: uuid::Uuid::new_v4().to_string(),
-        attempt_id: None,
+        attempt_id: uuid::Uuid::new_v4().to_string(),
         status: enums::AttemptStatus::default(),
         router_return_url: None,
         auth_type: enums::AuthenticationType::NoThreeDs,
-        payment_method: enums::PaymentMethodType::Card,
+        payment_method: enums::PaymentMethod::Card,
         connector_auth_type: auth.into(),
         description: Some("This is a test".to_string()),
         return_url: None,
@@ -94,6 +101,8 @@ fn construct_refund_router_data<F>() -> types::RefundsRouterData<F> {
         address: PaymentAddress::default(),
         amount_captured: None,
         access_token: None,
+        session_token: None,
+        reference_id: None,
     }
 }
 
@@ -153,13 +162,16 @@ async fn payments_create_failure() {
         > = connector.connector.get_connector_integration();
         let mut request = construct_payment_router_data();
 
-        request.request.payment_method_data = types::api::PaymentMethod::Card(types::api::Card {
-            card_number: Secret::new("542400000000001".to_string()),
-            card_exp_month: Secret::new("10".to_string()),
-            card_exp_year: Secret::new("2025".to_string()),
-            card_holder_name: Secret::new("John Doe".to_string()),
-            card_cvc: Secret::new("999".to_string()),
-        });
+        request.request.payment_method_data =
+            types::api::PaymentMethodData::Card(types::api::Card {
+                card_number: Secret::new("542400000000001".to_string()),
+                card_exp_month: Secret::new("10".to_string()),
+                card_exp_year: Secret::new("2025".to_string()),
+                card_holder_name: Secret::new("John Doe".to_string()),
+                card_cvc: Secret::new("999".to_string()),
+                card_issuer: None,
+                card_network: None,
+            });
 
         let response = services::api::execute_connector_processing_step(
             &state,

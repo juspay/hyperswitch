@@ -22,6 +22,8 @@ pub struct RedisSettings {
     pub reconnect_delay: u32,
     /// TTL in seconds
     pub default_ttl: u32,
+    /// TTL for hash-tables in seconds
+    pub default_hash_ttl: u32,
     pub stream_read_count: u64,
 }
 
@@ -59,6 +61,7 @@ impl Default for RedisSettings {
             reconnect_delay: 5,
             default_ttl: 300,
             stream_read_count: 1,
+            default_hash_ttl: 900,
         }
     }
 }

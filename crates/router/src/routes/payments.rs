@@ -9,8 +9,7 @@ use crate::{
     types::api::{self as api_types, enums as api_enums, payments as payment_types},
 };
 
-// Payments - Create
-
+/// Payments - Create
 ///
 /// To process a payment you will have to create a payment, attach a payment method and confirm. Depending on the user journey you wish to achieve, you may opt to all the steps in a single request or in a sequence of API request using following APIs: (i) Payments - Update, (ii) Payments - Confirm, and (iii) Payments - Capture
 #[utoipa::path(
@@ -22,7 +21,8 @@ use crate::{
         (status = 400, description = "Missing Mandatory fields")
     ),
     tag = "Payments",
-    operation_id = "Create a Payment"
+    operation_id = "Create a Payment",
+    security(("api_key" = []))
 )]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsCreate))]
 // #[post("")]
@@ -38,7 +38,7 @@ pub async fn payments_create(
     };
 
     api::server_wrap(
-        &state,
+        state.get_ref(),
         &req,
         payload,
         |state, merchant_account, req| {
@@ -86,7 +86,7 @@ pub async fn payments_start(
         attempt_id: attempt_id.clone(),
     };
     api::server_wrap(
-        &state,
+        state.get_ref(),
         &req,
         payload,
         |state, merchant_account, req| {
@@ -104,8 +104,7 @@ pub async fn payments_start(
     .await
 }
 
-// Payments - Retrieve
-
+/// Payments - Retrieve
 ///
 /// To retrieve the properties of a Payment. This may be used to get the status of a previously initiated payment or next action for an ongoing payment
 #[utoipa::path(
@@ -120,7 +119,8 @@ pub async fn payments_start(
         (status = 404, description = "No payment found")
     ),
     tag = "Payments",
-    operation_id = "Retrieve a Payment"
+    operation_id = "Retrieve a Payment",
+    security(("api_key" = []), ("publishable_key" = []))
 )]
 #[instrument(skip(state), fields(flow = ?Flow::PaymentsRetrieve))]
 // #[get("/{payment_id}")]
@@ -143,7 +143,7 @@ pub async fn payments_retrieve(
     };
 
     api::server_wrap(
-        &state,
+        state.get_ref(),
         &req,
         payload,
         |state, merchant_account, req| {
@@ -161,8 +161,7 @@ pub async fn payments_retrieve(
     .await
 }
 
-// Payments - Update
-
+/// Payments - Update
 ///
 /// To update the properties of a PaymentIntent object. This may include attaching a payment method, or attaching customer object or metadata fields after the Payment is created
 #[utoipa::path(
@@ -177,7 +176,8 @@ pub async fn payments_retrieve(
         (status = 400, description = "Missing mandatory fields")
     ),
     tag = "Payments",
-    operation_id = "Update a Payment"
+    operation_id = "Update a Payment",
+    security(("api_key" = []), ("publishable_key" = []))
 )]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsUpdate))]
 // #[post("/{payment_id}")]
@@ -203,7 +203,7 @@ pub async fn payments_update(
     };
 
     api::server_wrap(
-        &state,
+        state.get_ref(),
         &req,
         payload,
         |state, merchant_account, req| {
@@ -220,8 +220,7 @@ pub async fn payments_update(
     .await
 }
 
-// Payments - Confirm
-
+/// Payments - Confirm
 ///
 /// This API is to confirm the payment request and forward payment to the payment processor. This API provides more granular control upon when the API is forwarded to the payment processor. Alternatively you can confirm the payment within the Payments Create API
 #[utoipa::path(
@@ -236,7 +235,8 @@ pub async fn payments_update(
         (status = 400, description = "Missing mandatory fields")
     ),
     tag = "Payments",
-    operation_id = "Confirm a Payment"
+    operation_id = "Confirm a Payment",
+    security(("api_key" = []), ("publishable_key" = []))
 )]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsConfirm))]
 // #[post("/{payment_id}/confirm")]
@@ -263,7 +263,7 @@ pub async fn payments_confirm(
         };
 
     api::server_wrap(
-        &state,
+        state.get_ref(),
         &req,
         payload,
         |state, merchant_account, req| {
@@ -280,8 +280,7 @@ pub async fn payments_confirm(
     .await
 }
 
-// Payments - Capture
-
+/// Payments - Capture
 ///
 /// To capture the funds for an uncaptured payment
 #[utoipa::path(
@@ -296,7 +295,8 @@ pub async fn payments_confirm(
         (status = 400, description = "Missing mandatory fields")
     ),
     tag = "Payments",
-    operation_id = "Capture a Payment"
+    operation_id = "Capture a Payment",
+    security(("api_key" = []))
 )]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsCapture))]
 // #[post("/{payment_id}/capture")]
@@ -312,7 +312,7 @@ pub async fn payments_capture(
     };
 
     api::server_wrap(
-        &state,
+        state.get_ref(),
         &req,
         capture_payload,
         |state, merchant_account, payload| {
@@ -330,8 +330,7 @@ pub async fn payments_capture(
     .await
 }
 
-// Payments - Session token
-
+/// Payments - Session token
 ///
 /// To create the session object or to get session token for wallets
 #[utoipa::path(
@@ -343,7 +342,8 @@ pub async fn payments_capture(
         (status = 400, description = "Missing mandatory fields")
     ),
     tag = "Payments",
-    operation_id = "Create Session tokens for a Payment"
+    operation_id = "Create Session tokens for a Payment",
+    security(("publishable_key" = []))
 )]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsSessionToken))]
 pub async fn payments_connector_session(
@@ -354,7 +354,7 @@ pub async fn payments_connector_session(
     let sessions_payload = json_payload.into_inner();
 
     api::server_wrap(
-        &state,
+        state.get_ref(),
         &req,
         sessions_payload,
         |state, merchant_account, payload| {
@@ -413,7 +413,7 @@ pub async fn payments_redirect_response(
         connector: Some(connector),
     };
     api::server_wrap(
-        &state,
+        state.get_ref(),
         &req,
         payload,
         |state, merchant_account, req| {
@@ -428,8 +428,7 @@ pub async fn payments_redirect_response(
     .await
 }
 
-// Payments - Cancel
-
+/// Payments - Cancel
 ///
 /// A Payment could can be cancelled when it is in one of these statuses: requires_payment_method, requires_capture, requires_confirmation, requires_customer_action
 #[utoipa::path(
@@ -444,7 +443,8 @@ pub async fn payments_redirect_response(
         (status = 400, description = "Missing mandatory fields")
     ),
     tag = "Payments",
-    operation_id = "Cancel a Payment"
+    operation_id = "Cancel a Payment",
+    security(("api_key" = []))
 )]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsCancel))]
 // #[post("/{payment_id}/cancel")]
@@ -459,7 +459,7 @@ pub async fn payments_cancel(
     payload.payment_id = payment_id;
 
     api::server_wrap(
-        &state,
+        state.get_ref(),
         &req,
         payload,
         |state, merchant_account, req| {
@@ -477,8 +477,7 @@ pub async fn payments_cancel(
     .await
 }
 
-// Payments - List
-
+/// Payments - List
 ///
 /// To list the payments
 #[utoipa::path(
@@ -500,7 +499,8 @@ pub async fn payments_cancel(
         (status = 404, description = "No payments found")
     ),
     tag = "Payments",
-    operation_id = "List all Payments"
+    operation_id = "List all Payments",
+    security(("api_key" = []))
 )]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsList))]
 #[cfg(feature = "olap")]
@@ -512,7 +512,7 @@ pub async fn payments_list(
 ) -> impl Responder {
     let payload = payload.into_inner();
     api::server_wrap(
-        &state,
+        state.get_ref(),
         &req,
         payload,
         |state, merchant_account, req| {

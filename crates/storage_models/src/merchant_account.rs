@@ -3,7 +3,17 @@ use masking::StrongSecret;
 
 use crate::{enums as storage_enums, schema::merchant_account};
 
-#[derive(Clone, Debug, Eq, PartialEq, Identifiable, Queryable, router_derive::DebugAsDisplay)]
+#[derive(
+    Clone,
+    Debug,
+    serde::Deserialize,
+    serde::Serialize,
+    Eq,
+    PartialEq,
+    Identifiable,
+    Queryable,
+    router_derive::DebugAsDisplay,
+)]
 #[diesel(table_name = merchant_account)]
 pub struct MerchantAccount {
     pub id: i32,
@@ -21,8 +31,8 @@ pub struct MerchantAccount {
     pub publishable_key: Option<String>,
     pub storage_scheme: storage_enums::MerchantStorageScheme,
     pub locker_id: Option<String>,
-    pub routing_algorithm: Option<serde_json::Value>,
     pub metadata: Option<serde_json::Value>,
+    pub routing_algorithm: Option<serde_json::Value>,
 }
 
 #[derive(Clone, Debug, Default, Insertable, router_derive::DebugAsDisplay)]
@@ -41,14 +51,13 @@ pub struct MerchantAccountNew {
     pub redirect_to_merchant_with_http_post: Option<bool>,
     pub publishable_key: Option<String>,
     pub locker_id: Option<String>,
-    pub routing_algorithm: Option<serde_json::Value>,
     pub metadata: Option<serde_json::Value>,
+    pub routing_algorithm: Option<serde_json::Value>,
 }
 
 #[derive(Debug)]
 pub enum MerchantAccountUpdate {
     Update {
-        merchant_id: String,
         merchant_name: Option<String>,
         api_key: Option<StrongSecret<String>>,
         merchant_details: Option<serde_json::Value>,
@@ -61,15 +70,17 @@ pub enum MerchantAccountUpdate {
         redirect_to_merchant_with_http_post: Option<bool>,
         publishable_key: Option<String>,
         locker_id: Option<String>,
-        routing_algorithm: Option<serde_json::Value>,
         metadata: Option<serde_json::Value>,
+        routing_algorithm: Option<serde_json::Value>,
+    },
+    StorageSchemeUpdate {
+        storage_scheme: storage_enums::MerchantStorageScheme,
     },
 }
 
 #[derive(Clone, Debug, Default, AsChangeset, router_derive::DebugAsDisplay)]
 #[diesel(table_name = merchant_account)]
 pub struct MerchantAccountUpdateInternal {
-    merchant_id: Option<String>,
     merchant_name: Option<String>,
     api_key: Option<StrongSecret<String>>,
     merchant_details: Option<serde_json::Value>,
@@ -81,16 +92,16 @@ pub struct MerchantAccountUpdateInternal {
     payment_response_hash_key: Option<String>,
     redirect_to_merchant_with_http_post: Option<bool>,
     publishable_key: Option<String>,
+    storage_scheme: Option<storage_enums::MerchantStorageScheme>,
     locker_id: Option<String>,
-    routing_algorithm: Option<serde_json::Value>,
     metadata: Option<serde_json::Value>,
+    routing_algorithm: Option<serde_json::Value>,
 }
 
 impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
     fn from(merchant_account_update: MerchantAccountUpdate) -> Self {
         match merchant_account_update {
             MerchantAccountUpdate::Update {
-                merchant_id,
                 merchant_name,
                 api_key,
                 merchant_details,
@@ -106,7 +117,6 @@ impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
                 locker_id,
                 metadata,
             } => Self {
-                merchant_id: Some(merchant_id),
                 merchant_name,
                 api_key,
                 merchant_details,
@@ -121,6 +131,11 @@ impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
                 publishable_key,
                 locker_id,
                 metadata,
+                ..Default::default()
+            },
+            MerchantAccountUpdate::StorageSchemeUpdate { storage_scheme } => Self {
+                storage_scheme: Some(storage_scheme),
+                ..Default::default()
             },
         }
     }

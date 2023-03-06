@@ -27,10 +27,11 @@ pub async fn refund_create(
         _,
         _,
         _,
+        _,
         types::StripeCreateRefundResponse,
         errors::StripeErrorCode,
     >(
-        &state,
+        state.get_ref(),
         &req,
         create_refund_req,
         refunds::refund_create_core,
@@ -53,10 +54,11 @@ pub async fn refund_retrieve(
         _,
         _,
         _,
+        _,
         types::StripeCreateRefundResponse,
         errors::StripeErrorCode,
     >(
-        &state,
+        state.get_ref(),
         &req,
         refund_id,
         |state, merchant_account, refund_id| {
@@ -90,10 +92,11 @@ pub async fn refund_update(
         _,
         _,
         _,
+        _,
         types::StripeCreateRefundResponse,
         errors::StripeErrorCode,
     >(
-        &state,
+        state.get_ref(),
         &req,
         create_refund_update_req,
         |state, merchant_account, req| {

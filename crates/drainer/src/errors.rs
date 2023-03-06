@@ -5,10 +5,16 @@ use thiserror::Error;
 pub enum DrainerError {
     #[error("Error in parsing config : {0}")]
     ConfigParsingError(String),
-    #[error("Error during redis operation : {0}")]
+    #[error("Error during redis operation : {0:?}")]
     RedisError(error_stack::Report<redis::errors::RedisError>),
     #[error("Application configuration error: {0}")]
     ConfigurationError(config::ConfigError),
+    #[error("Metrics initialization error")]
+    MetricsError,
+    #[error("Error while configuring signals: {0}")]
+    SignalError(String),
+    #[error("Unexpected error occurred: {0}")]
+    UnexpectedError(String),
 }
 
 pub type DrainerResult<T> = error_stack::Result<T, DrainerError>;

@@ -37,6 +37,16 @@ pub fn which() -> Env {
     std::env::var(RUN_ENV).map_or_else(|_| default_env, |v| v.parse().unwrap_or(default_env))
 }
 
+/// Three letter (lowercase) prefix corresponding to the current environment.
+/// Either `dev`, `snd` or `prd`.
+pub fn prefix_for_env() -> &'static str {
+    match which() {
+        Env::Development => "dev",
+        Env::Sandbox => "snd",
+        Env::Production => "prd",
+    }
+}
+
 ///
 /// Base path to look for config and logs directories.
 /// Application expects to find `./config/` and `./logs/` relative this directories.

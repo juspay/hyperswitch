@@ -8,8 +8,7 @@ use crate::{
     types::api::mandates,
 };
 
-// Mandates - Retrieve Mandate
-
+/// Mandates - Retrieve Mandate
 ///
 /// Retrieve a mandate
 #[utoipa::path(
@@ -23,7 +22,8 @@ use crate::{
         (status = 404, description = "Mandate does not exist in our records")
     ),
     tag = "Mandates",
-    operation_id = "Retrieve a Mandate"
+    operation_id = "Retrieve a Mandate",
+    security(("api_key" = []))
 )]
 #[instrument(skip_all, fields(flow = ?Flow::MandatesRetrieve))]
 // #[get("/{id}")]
@@ -36,7 +36,7 @@ pub async fn get_mandate(
         mandate_id: path.into_inner(),
     };
     api::server_wrap(
-        &state,
+        state.get_ref(),
         &req,
         mandate_id,
         mandate::get_mandate,
@@ -45,8 +45,7 @@ pub async fn get_mandate(
     .await
 }
 
-// Mandates - Revoke Mandate
-
+/// Mandates - Revoke Mandate
 ///
 /// Revoke a mandate
 #[utoipa::path(
@@ -60,7 +59,8 @@ pub async fn get_mandate(
         (status = 400, description = "Mandate does not exist in our records")
     ),
     tag = "Mandates",
-     operation_id = "Revoke a Mandate"
+    operation_id = "Revoke a Mandate",
+    security(("api_key" = []))
 )]
 #[instrument(skip_all, fields(flow = ?Flow::MandatesRevoke))]
 // #[post("/revoke/{id}")]
@@ -73,7 +73,7 @@ pub async fn revoke_mandate(
         mandate_id: path.into_inner(),
     };
     api::server_wrap(
-        &state,
+        state.get_ref(),
         &req,
         mandate_id,
         |state, merchant_account, req| {

@@ -8,8 +8,7 @@ use crate::{
     types::api::admin,
 };
 
-// ### Merchant Account - Create
-
+/// Merchant Account - Create
 ///
 /// Create a new account for a merchant and the merchant could be a seller or retailer or client who likes to receive and send payments.
 #[utoipa::path(
@@ -21,7 +20,8 @@ use crate::{
         (status = 400, description = "Invalid data")
     ),
     tag = "Merchant Account",
-    operation_id = "Create a Merchant Account"
+    operation_id = "Create a Merchant Account",
+    security(("admin_api_key" = []))
 )]
 #[instrument(skip_all, fields(flow = ?Flow::MerchantsAccountCreate))]
 pub async fn merchant_account_create(
@@ -30,7 +30,7 @@ pub async fn merchant_account_create(
     json_payload: web::Json<admin::CreateMerchantAccount>,
 ) -> HttpResponse {
     api::server_wrap(
-        &state,
+        state.get_ref(),
         &req,
         json_payload.into_inner(),
         |state, _, req| create_merchant_account(&*state.store, req),
@@ -39,8 +39,7 @@ pub async fn merchant_account_create(
     .await
 }
 
-// Merchant Account - Retrieve
-
+/// Merchant Account - Retrieve
 ///
 /// Retrieve a merchant account details.
 #[utoipa::path(
@@ -52,7 +51,8 @@ pub async fn merchant_account_create(
         (status = 404, description = "Merchant account not found")
     ),
     tag = "Merchant Account",
-    operation_id = "Retrieve a Merchant Account"
+    operation_id = "Retrieve a Merchant Account",
+    security(("admin_api_key" = []))
 )]
 #[instrument(skip_all, fields(flow = ?Flow::MerchantsAccountRetrieve))]
 pub async fn retrieve_merchant_account(
@@ -65,7 +65,7 @@ pub async fn retrieve_merchant_account(
     })
     .into_inner();
     api::server_wrap(
-        &state,
+        state.get_ref(),
         &req,
         payload,
         |state, _, req| get_merchant_account(&*state.store, req),
@@ -74,8 +74,7 @@ pub async fn retrieve_merchant_account(
     .await
 }
 
-// Merchant Account - Update
-
+/// Merchant Account - Update
 ///
 /// To update an existing merchant account. Helpful in updating merchant details such as email, contact details, or other configuration details like webhook, routing algorithm etc
 #[utoipa::path(
@@ -88,7 +87,8 @@ pub async fn retrieve_merchant_account(
         (status = 404, description = "Merchant account not found")
     ),
     tag = "Merchant Account",
-    operation_id = "Update a Merchant Account"
+    operation_id = "Update a Merchant Account",
+    security(("admin_api_key" = []))
 )]
 #[instrument(skip_all, fields(flow = ?Flow::MerchantsAccountUpdate))]
 pub async fn update_merchant_account(
@@ -99,7 +99,7 @@ pub async fn update_merchant_account(
 ) -> HttpResponse {
     let merchant_id = mid.into_inner();
     api::server_wrap(
-        &state,
+        state.get_ref(),
         &req,
         json_payload.into_inner(),
         |state, _, req| merchant_account_update(&*state.store, &merchant_id, req),
@@ -108,8 +108,7 @@ pub async fn update_merchant_account(
     .await
 }
 
-// Merchant Account - Delete
-
+/// Merchant Account - Delete
 ///
 /// To delete a merchant account
 #[utoipa::path(
@@ -121,7 +120,8 @@ pub async fn update_merchant_account(
         (status = 404, description = "Merchant account not found")
     ),
     tag = "Merchant Account",
-    operation_id = "Delete a Merchant Account"
+    operation_id = "Delete a Merchant Account",
+    security(("admin_api_key" = []))
 )]
 #[instrument(skip_all, fields(flow = ?Flow::MerchantsAccountDelete))]
 // #[delete("/{id}")]
@@ -135,7 +135,7 @@ pub async fn delete_merchant_account(
     })
     .into_inner();
     api::server_wrap(
-        &state,
+        state.get_ref(),
         &req,
         payload,
         |state, _, req| merchant_account_delete(&*state.store, req.merchant_id),
@@ -144,8 +144,7 @@ pub async fn delete_merchant_account(
     .await
 }
 
-// PaymentsConnectors - Create
-
+/// PaymentsConnectors - Create
 ///
 /// Create a new Payment Connector for the merchant account. The connector could be a payment processor / facilitator / acquirer or specialized services like Fraud / Accounting etc."
 #[utoipa::path(
@@ -157,7 +156,8 @@ pub async fn delete_merchant_account(
         (status = 400, description = "Missing Mandatory fields"),
     ),
     tag = "Merchant Connector Account",
-    operation_id = "Create a Merchant Connector"
+    operation_id = "Create a Merchant Connector",
+    security(("admin_api_key" = []))
 )]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentConnectorsCreate))]
 pub async fn payment_connector_create(
@@ -168,7 +168,7 @@ pub async fn payment_connector_create(
 ) -> HttpResponse {
     let merchant_id = path.into_inner();
     api::server_wrap(
-        &state,
+        state.get_ref(),
         &req,
         json_payload.into_inner(),
         |state, _, req| create_payment_connector(&*state.store, req, &merchant_id),
@@ -177,8 +177,7 @@ pub async fn payment_connector_create(
     .await
 }
 
-// Payment Connector - Retrieve
-
+/// Payment Connector - Retrieve
 ///
 /// Retrieve Payment Connector Details
 #[utoipa::path(
@@ -194,13 +193,14 @@ pub async fn payment_connector_create(
         (status = 401, description = "Unauthorized request")
     ),
     tag = "Merchant Connector Account",
-    operation_id = "Retrieve a Merchant Connector"
+    operation_id = "Retrieve a Merchant Connector",
+    security(("admin_api_key" = []))
 )]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentConnectorsRetrieve))]
 pub async fn payment_connector_retrieve(
     state: web::Data<AppState>,
     req: HttpRequest,
-    path: web::Path<(String, i32)>,
+    path: web::Path<(String, String)>,
 ) -> HttpResponse {
     let (merchant_id, merchant_connector_id) = path.into_inner();
     let payload = web::Json(admin::MerchantConnectorId {
@@ -209,7 +209,7 @@ pub async fn payment_connector_retrieve(
     })
     .into_inner();
     api::server_wrap(
-        &state,
+        state.get_ref(),
         &req,
         payload,
         |state, _, req| {
@@ -220,8 +220,7 @@ pub async fn payment_connector_retrieve(
     .await
 }
 
-// Payment Connector - List
-
+/// Payment Connector - List
 ///
 /// List Payment Connector Details for the merchant
 #[utoipa::path(
@@ -236,7 +235,8 @@ pub async fn payment_connector_retrieve(
         (status = 401, description = "Unauthorized request")
     ),
     tag = "Merchant Connector Account",
-    operation_id = "List all Merchant Connectors"
+    operation_id = "List all Merchant Connectors",
+    security(("admin_api_key" = []))
 )]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentConnectorsList))]
 pub async fn payment_connector_list(
@@ -246,7 +246,7 @@ pub async fn payment_connector_list(
 ) -> HttpResponse {
     let merchant_id = path.into_inner();
     api::server_wrap(
-        &state,
+        state.get_ref(),
         &req,
         merchant_id,
         |state, _, merchant_id| list_payment_connectors(&*state.store, merchant_id),
@@ -255,8 +255,7 @@ pub async fn payment_connector_list(
     .await
 }
 
-// Payment Connector - Update
-
+/// Payment Connector - Update
 ///
 /// To update an existing Payment Connector. Helpful in enabling / disabling different payment methods and other settings for the connector etc.
 #[utoipa::path(
@@ -273,30 +272,30 @@ pub async fn payment_connector_list(
         (status = 401, description = "Unauthorized request")
     ),
    tag = "Merchant Connector Account",
-   operation_id = "Update a Merchant Connector"
+   operation_id = "Update a Merchant Connector",
+   security(("admin_api_key" = []))
 )]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentConnectorsUpdate))]
 pub async fn payment_connector_update(
     state: web::Data<AppState>,
     req: HttpRequest,
-    path: web::Path<(String, i32)>,
+    path: web::Path<(String, String)>,
     json_payload: web::Json<admin::PaymentConnectorCreate>,
 ) -> HttpResponse {
     let (merchant_id, merchant_connector_id) = path.into_inner();
     api::server_wrap(
-        &state,
+        state.get_ref(),
         &req,
         json_payload.into_inner(),
         |state, _, req| {
-            update_payment_connector(&*state.store, &merchant_id, merchant_connector_id, req)
+            update_payment_connector(&*state.store, &merchant_id, &merchant_connector_id, req)
         },
         &auth::AdminApiAuth,
     )
     .await
 }
 
-// Payment Connector - Delete
-
+/// Payment Connector - Delete
 ///
 /// Delete or Detach a Payment Connector from Merchant Account
 #[utoipa::path(
@@ -312,13 +311,14 @@ pub async fn payment_connector_update(
         (status = 401, description = "Unauthorized request")
     ),
     tag = "Merchant Connector Account",
-    operation_id = "Delete a Merchant Connector"
+    operation_id = "Delete a Merchant Connector",
+    security(("admin_api_key" = []))
 )]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentConnectorsDelete))]
 pub async fn payment_connector_delete(
     state: web::Data<AppState>,
     req: HttpRequest,
-    path: web::Path<(String, i32)>,
+    path: web::Path<(String, String)>,
 ) -> HttpResponse {
     let (merchant_id, merchant_connector_id) = path.into_inner();
     let payload = web::Json(admin::MerchantConnectorId {
@@ -327,12 +327,56 @@ pub async fn payment_connector_delete(
     })
     .into_inner();
     api::server_wrap(
-        &state,
+        state.get_ref(),
         &req,
         payload,
         |state, _, req| {
             delete_payment_connector(&*state.store, req.merchant_id, req.merchant_connector_id)
         },
+        &auth::AdminApiAuth,
+    )
+    .await
+}
+
+/// Merchant Account - Toggle KV
+///
+/// Toggle KV mode for the Merchant Account
+#[instrument(skip_all)]
+pub async fn merchant_account_toggle_kv(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    path: web::Path<String>,
+    json_payload: web::Json<admin::ToggleKVRequest>,
+) -> HttpResponse {
+    let payload = json_payload.into_inner();
+    let merchant_id = path.into_inner();
+    api::server_wrap(
+        state.get_ref(),
+        &req,
+        (merchant_id, payload),
+        |state, _, (merchant_id, payload)| {
+            kv_for_merchant(&*state.store, merchant_id, payload.kv_enabled)
+        },
+        &auth::AdminApiAuth,
+    )
+    .await
+}
+
+/// Merchant Account - KV Status
+///
+/// Toggle KV mode for the Merchant Account
+#[instrument(skip_all)]
+pub async fn merchant_account_kv_status(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    path: web::Path<String>,
+) -> HttpResponse {
+    let merchant_id = path.into_inner();
+    api::server_wrap(
+        state.get_ref(),
+        &req,
+        merchant_id,
+        |state, _, req| check_merchant_account_kv_status(&*state.store, req),
         &auth::AdminApiAuth,
     )
     .await

@@ -21,7 +21,7 @@ impl EventInterface for Store {
         &self,
         event: storage::EventNew,
     ) -> CustomResult<storage::Event, errors::StorageError> {
-        let conn = pg_connection(&self.master_pool).await;
+        let conn = pg_connection(&self.master_pool).await?;
         event.insert(&conn).await.map_err(Into::into).into_report()
     }
 }

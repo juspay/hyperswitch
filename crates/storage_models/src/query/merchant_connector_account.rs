@@ -1,4 +1,4 @@
-use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods};
+use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods, Table};
 use router_env::{instrument, tracing};
 
 use super::generics;
@@ -44,7 +44,7 @@ impl MerchantConnectorAccount {
     pub async fn delete_by_merchant_id_merchant_connector_id(
         conn: &PgPooledConn,
         merchant_id: &str,
-        merchant_connector_id: &i32,
+        merchant_connector_id: &str,
     ) -> StorageResult<bool> {
         generics::generic_delete::<<Self as HasTable>::Table, _>(
             conn,
@@ -74,7 +74,7 @@ impl MerchantConnectorAccount {
     pub async fn find_by_merchant_id_merchant_connector_id(
         conn: &PgPooledConn,
         merchant_id: &str,
-        merchant_connector_id: &i32,
+        merchant_connector_id: &str,
     ) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
             conn,
@@ -89,12 +89,38 @@ impl MerchantConnectorAccount {
     pub async fn find_by_merchant_id(
         conn: &PgPooledConn,
         merchant_id: &str,
+        get_disabled: bool,
     ) -> StorageResult<Vec<Self>> {
-        generics::generic_filter::<<Self as HasTable>::Table, _, _>(
-            conn,
-            dsl::merchant_id.eq(merchant_id.to_owned()),
-            None,
-        )
-        .await
+        if get_disabled {
+            generics::generic_filter::<
+                <Self as HasTable>::Table,
+                _,
+                <<Self as HasTable>::Table as Table>::PrimaryKey,
+                _,
+            >(
+                conn,
+                dsl::merchant_id.eq(merchant_id.to_owned()),
+                None,
+                None,
+                None,
+            )
+            .await
+        } else {
+            generics::generic_filter::<
+                <Self as HasTable>::Table,
+                _,
+                <<Self as HasTable>::Table as Table>::PrimaryKey,
+                _,
+            >(
+                conn,
+                dsl::merchant_id
+                    .eq(merchant_id.to_owned())
+                    .and(dsl::disabled.eq(false)),
+                None,
+                None,
+                None,
+            )
+            .await
+        }
     }
 }
