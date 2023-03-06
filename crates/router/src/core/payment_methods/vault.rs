@@ -387,7 +387,7 @@ pub fn get_key_id(keys: &Jwekey) -> &str {
 }
 
 #[cfg(feature = "basilisk")]
-pub async fn get_locker_jwe_keys(
+async fn get_locker_jwe_keys(
     keys: &Jwekey,
 ) -> CustomResult<(String, String), errors::EncryptionError> {
     let key_id = get_key_id(keys);
@@ -403,7 +403,7 @@ pub async fn get_locker_jwe_keys(
         )
         .await?;
         Ok((public_key, private_key))
-    } else {
+    } else if key_id == keys.locker_key_identifier2 {
         let public_key = services::KeyHandler::get_kms_decrypted_key(
             keys,
             keys.locker_encryption_key2.to_string(),
@@ -415,6 +415,8 @@ pub async fn get_locker_jwe_keys(
         )
         .await?;
         Ok((public_key, private_key))
+    } else {
+        Err(errors::EncryptionError.into())
     }
 }
 

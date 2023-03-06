@@ -1,4 +1,4 @@
-use common_utils::{ext_traits::StringExt, fp_utils::when};
+use common_utils::ext_traits::StringExt;
 use error_stack::ResultExt;
 use josekit::jwe;
 use serde::{Deserialize, Serialize};
@@ -132,14 +132,17 @@ pub async fn mk_basilisk_req(
     jws: &str,
 ) -> CustomResult<encryption::JweBody, errors::VaultError> {
     let jws_payload: Vec<&str> = jws.split('.').collect();
-    when(jws_payload.len().ne(&3), || {
-        Err(errors::VaultError::SaveCardFailed)
-    })?;
-    let jws_body = encryption::JwsBody {
-        header: jws_payload[0].to_owned(),
-        payload: jws_payload[1].to_owned(),
-        signature: jws_payload[2].to_owned(),
+
+    let generate_jws_body = |payload: Vec<&str>| -> Option<encryption::JwsBody> {
+        Some(encryption::JwsBody {
+            header: payload.first()?.to_string(),
+            payload: payload.get(1)?.to_string(),
+            signature: payload.get(2)?.to_string(),
+        })
     };
+
+    let jws_body = generate_jws_body(jws_payload).ok_or(errors::VaultError::SaveCardFailed)?;
+
     let payload = utils::Encode::<encryption::JwsBody>::encode_to_vec(&jws_body)
         .change_context(errors::VaultError::SaveCardFailed)?;
 
@@ -156,16 +159,20 @@ pub async fn mk_basilisk_req(
         .change_context(errors::VaultError::SaveCardFailed)
         .attach_printable("Error on jwe encrypt")?;
     let jwe_payload: Vec<&str> = jwe_encrypted.split('.').collect();
-    when(jwe_payload.len().ne(&5), || {
-        Err(errors::VaultError::SaveCardFailed)
-    })?;
-    Ok(encryption::JweBody {
-        header: jwe_payload[0].to_owned(),
-        iv: jwe_payload[2].to_owned(),
-        encrypted_payload: jwe_payload[3].to_owned(),
-        tag: jwe_payload[4].to_owned(),
-        encrypted_key: jwe_payload[1].to_owned(),
-    })
+
+    let generate_jwe_body = |payload: Vec<&str>| -> Option<encryption::JweBody> {
+        Some(encryption::JweBody {
+            header: payload.first()?.to_string(),
+            iv: payload.get(2)?.to_string(),
+            encrypted_payload: payload.get(3)?.to_string(),
+            tag: payload.get(4)?.to_string(),
+            encrypted_key: payload.get(1)?.to_string(),
+        })
+    };
+
+    let jwe_body = generate_jwe_body(jwe_payload).ok_or(errors::VaultError::SaveCardFailed)?;
+
+    Ok(jwe_body)
 }
 
 pub async fn mk_add_card_request_hs(
