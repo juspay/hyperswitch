@@ -962,20 +962,29 @@ pub struct PaymentListConstraints {
 
     /// Time less than the payment created time
     #[schema(example = "2022-09-10T10:11:12Z")]
-    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
-    #[serde(rename = "created.lt")]
+    #[serde(
+        default,
+        with = "common_utils::custom_serde::iso8601::option",
+        rename = "created.lt"
+    )]
     pub created_lt: Option<PrimitiveDateTime>,
 
     /// Time greater than the payment created time
     #[schema(example = "2022-09-10T10:11:12Z")]
-    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
-    #[serde(rename = "created.gt")]
+    #[serde(
+        default,
+        with = "common_utils::custom_serde::iso8601::option",
+        rename = "created.gt"
+    )]
     pub created_gt: Option<PrimitiveDateTime>,
 
     /// Time less than or equals to the payment created time
     #[schema(example = "2022-09-10T10:11:12Z")]
-    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
-    #[serde(rename = "created.lte")]
+    #[serde(
+        default,
+        with = "common_utils::custom_serde::iso8601::option",
+        rename = "created.lte"
+    )]
     pub created_lte: Option<PrimitiveDateTime>,
 
     /// Time greater than or equals to the payment created time
