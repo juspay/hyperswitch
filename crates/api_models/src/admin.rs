@@ -66,6 +66,10 @@ pub struct MerchantAccountCreate {
     /// An identifier for the vault used to store payment method information.
     #[schema(example = "locker_abc123")]
     pub locker_id: Option<String>,
+
+    ///Default business details for connector routing
+    #[schema(value_type = Option<PrimaryBusinessDetails>)]
+    pub primary_business_details: Option<serde_json::Value>,
 }
 
 #[derive(Clone, Debug, Deserialize, ToSchema)]
