@@ -33,13 +33,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for GlobalpayPaymentsRequest {
                 currency: item.request.currency.to_string(),
                 reference: item.attempt_id.to_string(),
                 country: item.get_billing_country()?,
-                capture_mode: item
-                    .request
-                    .capture_method
-                    .map(|cap_method| match cap_method {
-                        enums::CaptureMethod::Manual => requests::CaptureMode::Later,
-                        _ => requests::CaptureMode::Auto,
-                    }),
+                capture_mode: Some(requests::CaptureMode::from(item.request.capture_method)),
                 payment_method: requests::PaymentMethod {
                     card: Some(requests::Card {
                         number: ccard.card_number,
@@ -101,10 +95,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for GlobalpayPaymentsRequest {
                     currency: item.request.currency.to_string(),
                     reference: item.attempt_id.to_string(),
                     country: item.get_billing_country()?,
-                    capture_mode: item.request.capture_method.map(|cap_mode| match cap_mode {
-                        enums::CaptureMethod::Manual => requests::CaptureMode::Later,
-                        _ => requests::CaptureMode::Auto,
-                    }),
+                    capture_mode: Some(requests::CaptureMode::from(item.request.capture_method)),
                     payment_method: requests::PaymentMethod {
                         apm: Some(requests::Apm {
                             provider: Some(requests::ApmProvider::Paypal),
@@ -157,10 +148,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for GlobalpayPaymentsRequest {
                     currency: item.request.currency.to_string(),
                     reference: item.attempt_id.to_string(),
                     country: item.get_billing_country()?,
-                    capture_mode: item.request.capture_method.map(|cap_mode| match cap_mode {
-                        enums::CaptureMethod::Manual => requests::CaptureMode::Later,
-                        _ => requests::CaptureMode::Auto,
-                    }),
+                    capture_mode: Some(requests::CaptureMode::from(item.request.capture_method)),
                     payment_method: requests::PaymentMethod {
                         digital_wallet: Some(requests::DigitalWallet {
                             provider: Some(requests::DigitalWalletProvider::PayByGoogle),
@@ -312,6 +300,15 @@ impl From<GlobalpayPaymentStatus> for enums::RefundStatus {
             GlobalpayPaymentStatus::Declined | GlobalpayPaymentStatus::Rejected => Self::Failure,
             GlobalpayPaymentStatus::Initiated | GlobalpayPaymentStatus::Pending => Self::Pending,
             _ => Self::Pending,
+        }
+    }
+}
+
+impl From<Option<enums::CaptureMethod>> for requests::CaptureMode {
+    fn from(capture_method: Option<enums::CaptureMethod>) -> Self {
+        match capture_method {
+            Some(enums::CaptureMethod::Manual) => Self::Later,
+            _ => Self::Auto,
         }
     }
 }
