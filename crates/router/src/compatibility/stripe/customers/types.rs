@@ -135,8 +135,8 @@ pub struct CardDetails {
     pub fingerprint: Option<masking::Secret<String>>,
 }
 
-impl From<api::ListCustomerPaymentMethodsResponse> for CustomerPaymentMethodListResponse {
-    fn from(item: api::ListCustomerPaymentMethodsResponse) -> Self {
+impl From<api::CustomerPaymentMethodsListResponse> for CustomerPaymentMethodListResponse {
+    fn from(item: api::CustomerPaymentMethodsListResponse) -> Self {
         let customer_payment_methods = item.customer_payment_methods;
         let data = customer_payment_methods
             .into_iter()
