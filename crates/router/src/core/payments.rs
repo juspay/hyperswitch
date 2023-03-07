@@ -4,7 +4,7 @@ pub mod helpers;
 pub mod operations;
 pub mod transformers;
 
-use std::{fmt::Debug, marker::PhantomData, time::Instant};
+use std::{fmt::Debug, marker::PhantomData, time::Instant, vec::IntoIter};
 
 use error_stack::{IntoReport, ResultExt};
 use futures::future::join_all;
@@ -139,19 +139,12 @@ where
 
     if let Some(connector_details) = connector {
         payment_data = match connector_details {
-            api::NextConnectorCallType::Single(mut connectors) => {
-                connectors.reverse();
-
-                let connector = connectors
-                    .pop()
-                    .ok_or(errors::ApiErrorResponse::InternalServerError)
-                    .into_report()
-                    .attach_printable("Failed to get connector from vector of connectors")?;
-
+            api::ConnectorCallType::Single(connectors) => {
+                let mut connectors = connectors.into_iter();
                 let router_data = call_connector_service(
                     state,
                     &merchant_account,
-                    connector,
+                    get_connector_data(&mut connectors)?,
                     &operation,
                     &payment_data,
                     &customer,
@@ -168,7 +161,7 @@ where
                 )
                 .await?
             }
-            api::NextConnectorCallType::Multiple(connectors) => {
+            api::ConnectorCallType::Multiple(connectors) => {
                 call_multiple_connectors_service(
                     state,
                     &merchant_account,
@@ -659,19 +652,19 @@ pub async fn route_connector<F>(
     state: &AppState,
     merchant_account: &storage::MerchantAccount,
     payment_data: &mut PaymentData<F>,
-    connector_call_type: api::ConnectorCallType,
-) -> RouterResult<api::NextConnectorCallType>
+    connector_call_type: api::ConnectorChoice,
+) -> RouterResult<api::ConnectorCallType>
 where
     F: Send + Clone,
 {
     match connector_call_type {
-        api::ConnectorCallType::Single(connector) => {
+        api::ConnectorChoice::Single(connector) => {
             payment_data.payment_attempt.connector = Some(connector.connector_name.to_string());
 
-            Ok(api::NextConnectorCallType::Single(vec![connector]))
+            Ok(api::ConnectorCallType::Single(vec![connector]))
         }
 
-        api::ConnectorCallType::Routing => {
+        api::ConnectorChoice::Routing => {
             let routing_algorithm: api::RoutingAlgorithm = merchant_account
                 .routing_algorithm
                 .clone()
@@ -693,11 +686,22 @@ where
 
             payment_data.payment_attempt.connector = Some(connector_name);
 
-            Ok(api::NextConnectorCallType::Single(vec![connector_data]))
+            Ok(api::ConnectorCallType::Single(vec![connector_data]))
         }
 
-        api::ConnectorCallType::Multiple(connectors) => {
-            Ok(api::NextConnectorCallType::Multiple(connectors))
+        api::ConnectorChoice::Multiple(connectors) => {
+            Ok(api::ConnectorCallType::Multiple(connectors))
         }
     }
+}
+
+#[inline]
+pub fn get_connector_data(
+    connectors: &mut IntoIter<api::ConnectorData>,
+) -> RouterResult<api::ConnectorData> {
+    connectors
+        .next()
+        .ok_or(errors::ApiErrorResponse::InternalServerError)
+        .into_report()
+        .attach_printable("Failed to get connector from iterator of connectors")
 }

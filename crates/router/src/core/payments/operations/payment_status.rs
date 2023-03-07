@@ -102,7 +102,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentStatus {
         state: &AppState,
         _request: &api::PaymentsRequest,
         previously_used_connector: Option<&String>,
-    ) -> CustomResult<api::ConnectorCallType, errors::ApiErrorResponse> {
+    ) -> CustomResult<api::ConnectorChoice, errors::ApiErrorResponse> {
         helpers::get_connector_default(state, previously_used_connector).await
     }
 }
