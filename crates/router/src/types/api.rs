@@ -79,15 +79,12 @@ pub trait ConnectorCommonExt<Flow, Req, Resp>:
     ConnectorCommon + ConnectorIntegration<Flow, Req, Resp>
 {
     /// common header builder when every request for the connector have same headers
-    #[allow(clippy::type_complexity)]
     fn build_headers(
         &self,
         _req: &types::RouterData<Flow, Req, Resp>,
         _connectors: &Connectors,
-    ) -> CustomResult<
-        Vec<(String, Box<dyn crate::services::request::HeaderValue>)>,
-        errors::ConnectorError,
-    > {
+    ) -> CustomResult<Vec<(String, crate::services::request::header::Value)>, errors::ConnectorError>
+    {
         Ok(Vec::new())
     }
 }

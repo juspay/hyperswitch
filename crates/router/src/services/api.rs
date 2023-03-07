@@ -53,13 +53,12 @@ where
 }
 
 #[async_trait::async_trait]
-#[allow(clippy::type_complexity)]
 pub trait ConnectorIntegration<T, Req, Resp>: ConnectorIntegrationAny<T, Req, Resp> + Sync {
     fn get_headers(
         &self,
         _req: &types::RouterData<T, Req, Resp>,
         _connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, Box<dyn request::HeaderValue>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, request::header::Value)>, errors::ConnectorError> {
         Ok(vec![])
     }
 
