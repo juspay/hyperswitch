@@ -126,9 +126,13 @@ base_url = "https://sandbox.dlocal.com/"
 [connectors.bambora]
 base_url = "https://api.na.bambora.com"
 
+[connectors.mollie]
+base_url = 
+
 [connectors.supported]
 wallets = ["klarna", "braintree", "applepay"]
 cards = [
+	"mollie",
     "adyen",
     "airwallex",
     "authorizedotnet",

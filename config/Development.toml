@@ -45,6 +45,7 @@ locker_decryption_key2 = ""
 [connectors.supported]
 wallets = ["klarna", "braintree", "applepay"]
 cards = [
+	"mollie",
     "aci",
     "adyen",
     "airwallex",
@@ -144,6 +145,9 @@ base_url = "https://sandbox.dlocal.com/"
 
 [connectors.bambora]
 base_url = "https://api.na.bambora.com"
+
+[connectors.mollie]
+base_url = ""
 
 [scheduler]
 stream = "SCHEDULER_STREAM"
