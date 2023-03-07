@@ -112,7 +112,7 @@ pub async fn get_merchant_account(
 pub async fn merchant_account_update(
     db: &dyn StorageInterface,
     merchant_id: &String,
-    req: api::MerchantAccountUpdate,
+    req: api::MerchantAccountCreate,
 ) -> RouterResponse<api::MerchantAccountResponse> {
     if &req.merchant_id != merchant_id {
         Err(report!(errors::ValidationError::IncorrectValueProvided {

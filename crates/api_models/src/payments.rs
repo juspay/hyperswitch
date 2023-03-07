@@ -1379,7 +1379,7 @@ pub struct PaymentsSessionResponse {
     pub session_token: Vec<SessionToken>,
 }
 
-#[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+#[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone)]
 pub struct PaymentRetrieveBody {
     /// The identifier for the Merchant Account.
     pub merchant_id: Option<String>,

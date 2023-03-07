@@ -80,7 +80,7 @@ pub async fn retrieve_merchant_account(
 #[utoipa::path(
     post,
     path = "/accounts/{account_id}",
-    request_body = MerchantAccountUpdate,
+    request_body = MerchantAccountCreate,
     params (("account_id" = String, Path, description = "The unique identifier for the merchant account")),
     responses(
         (status = 200, description = "Merchant Account Updated", body = MerchantAccountResponse),
@@ -95,7 +95,7 @@ pub async fn update_merchant_account(
     state: web::Data<AppState>,
     req: HttpRequest,
     mid: web::Path<String>,
-    json_payload: web::Json<admin::MerchantAccountUpdate>,
+    json_payload: web::Json<admin::MerchantAccountCreate>,
 ) -> HttpResponse {
     let merchant_id = mid.into_inner();
     api::server_wrap(

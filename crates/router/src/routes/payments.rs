@@ -111,9 +111,10 @@ pub async fn payments_start(
     get,
     path = "/payments/{payment_id}",
     params(
-        ("payment_id" = String, Path, description = "The identifier for payment")
+        ("payment_id" = String, Path, description = "The identifier for payment"),
+        ("merchant_id" = Option<String>, Query, description = "The identifier for merchant"),
+        ("force_sync" = Option<bool>, Query, description = "Decider to enable or disable the connector call for retrieve request")
     ),
-    request_body=PaymentRetrieveBody,
     responses(
         (status = 200, description = "Gets the payment with final status", body = PaymentsResponse),
         (status = 404, description = "No payment found")
