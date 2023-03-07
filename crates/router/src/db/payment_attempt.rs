@@ -579,7 +579,7 @@ mod storage {
                     ) {
                         (None, Some(connector_transaction_id)) => {
                             add_connector_txn_id_to_reverse_lookup(
-                                &self,
+                                self,
                                 key.as_str(),
                                 this.merchant_id.as_str(),
                                 updated_attempt.attempt_id.as_str(),
@@ -590,7 +590,7 @@ mod storage {
                         (Some(old_connector_transaction_id), Some(connector_transaction_id)) => {
                             if old_connector_transaction_id.ne(connector_transaction_id) {
                                 add_connector_txn_id_to_reverse_lookup(
-                                    &self,
+                                    self,
                                     key.as_str(),
                                     this.merchant_id.as_str(),
                                     updated_attempt.attempt_id.as_str(),
