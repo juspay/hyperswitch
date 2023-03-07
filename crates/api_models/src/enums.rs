@@ -756,7 +756,6 @@ impl From<AttemptStatus> for IntentStatus {
     }
 }
 
-// use strum maybe
 impl From<RoutableConnectors> for Connector {
     fn from(item: RoutableConnectors) -> Self {
         match item {
@@ -775,6 +774,12 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Stripe => Self::Stripe,
             RoutableConnectors::Worldline => Self::Worldline,
             RoutableConnectors::Worldpay => Self::Worldpay,
+            RoutableConnectors::Airwallex => Self::Airwallex,
+            RoutableConnectors::Bambora => Self::Bambora,
+            RoutableConnectors::Bluesnap => Self::Bluesnap,
+            RoutableConnectors::Dlocal => Self::Dlocal,
+            RoutableConnectors::Nuvei => Self::Nuvei,
+            RoutableConnectors::Multisafepay => Self::Multisafepay,
         }
     }
 }

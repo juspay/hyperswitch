@@ -550,7 +550,7 @@ mod storage {
         ) -> CustomResult<PaymentAttempt, errors::StorageError> {
             match storage_scheme {
                 enums::MerchantStorageScheme::PostgresOnly => {
-                    let conn = pg_connection(&self.master_pool).await;
+                    let conn = pg_connection(&self.master_pool).await?;
                     this.update_with_attempt_id(&conn, payment_attempt)
                         .await
                         .map_err(Into::into)
@@ -795,7 +795,7 @@ mod storage {
         updated_attempt_attempt_id: &str,
         connector_transaction_id: &str,
     ) -> CustomResult<ReverseLookup, errors::StorageError> {
-        let conn = pg_connection(&store.master_pool).await;
+        let conn = pg_connection(&store.master_pool).await?;
         let field = format!("pa_{}", updated_attempt_attempt_id);
         ReverseLookupNew {
             lookup_id: format!("{}_{}", merchant_id, connector_transaction_id),
