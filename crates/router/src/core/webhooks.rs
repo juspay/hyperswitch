@@ -26,7 +26,7 @@ use crate::{
 const OUTGOING_WEBHOOK_TIMEOUT_MS: u64 = 5000;
 
 #[instrument(skip_all)]
-async fn payments_incoming_webhook_flow(
+async fn payments_incoming_webhook_flow<W: api::OutgoingWebhookType>(
     state: AppState,
     merchant_account: storage::MerchantAccount,
     webhook_details: api::IncomingWebhookDetails,
@@ -71,7 +71,7 @@ async fn payments_incoming_webhook_flow(
                 .into_report()
                 .change_context(errors::WebhooksFlowError::PaymentsCoreFailed)?;
 
-            create_event_and_trigger_outgoing_webhook(
+            create_event_and_trigger_outgoing_webhook::<W>(
                 state,
                 merchant_account,
                 event_type,
@@ -91,7 +91,7 @@ async fn payments_incoming_webhook_flow(
 }
 
 #[instrument(skip_all)]
-async fn refunds_incoming_webhook_flow(
+async fn refunds_incoming_webhook_flow<W: api::OutgoingWebhookType>(
     state: AppState,
     merchant_account: storage::MerchantAccount,
     webhook_details: api::IncomingWebhookDetails,
@@ -154,7 +154,7 @@ async fn refunds_incoming_webhook_flow(
         .into_report()
         .change_context(errors::WebhooksFlowError::RefundsCoreFailed)?;
     let refund_response: api_models::refunds::RefundResponse = updated_refund.foreign_into();
-    create_event_and_trigger_outgoing_webhook(
+    create_event_and_trigger_outgoing_webhook::<W>(
         state,
         merchant_account,
         event_type,
@@ -170,7 +170,7 @@ async fn refunds_incoming_webhook_flow(
 
 #[allow(clippy::too_many_arguments)]
 #[instrument(skip_all)]
-async fn create_event_and_trigger_outgoing_webhook(
+async fn create_event_and_trigger_outgoing_webhook<W: api::OutgoingWebhookType>(
     state: AppState,
     merchant_account: storage::MerchantAccount,
     event_type: enums::EventType,
@@ -211,7 +211,8 @@ async fn create_event_and_trigger_outgoing_webhook(
 
         arbiter.spawn(async move {
             let result =
-                trigger_webhook_to_merchant(merchant_account, outgoing_webhook, state.store).await;
+                trigger_webhook_to_merchant::<W>(merchant_account, outgoing_webhook, state.store)
+                    .await;
 
             if let Err(e) = result {
                 logger::error!(?e);
@@ -222,7 +223,7 @@ async fn create_event_and_trigger_outgoing_webhook(
     Ok(())
 }
 
-async fn trigger_webhook_to_merchant(
+async fn trigger_webhook_to_merchant<W: api::OutgoingWebhookType>(
     merchant_account: storage::MerchantAccount,
     webhook: api::OutgoingWebhook,
     _db: Box<dyn StorageInterface>,
@@ -243,10 +244,12 @@ async fn trigger_webhook_to_merchant(
         .change_context(errors::WebhooksFlowError::MerchantWebhookURLNotConfigured)
         .map(ExposeInterface::expose)?;
 
+    let transformed_outgoing_webhook = W::from(webhook);
+
     let response = reqwest::Client::new()
         .post(&webhook_url)
         .header(reqwest::header::CONTENT_TYPE, "application/json")
-        .json(&webhook)
+        .json(&transformed_outgoing_webhook)
         .timeout(core::time::Duration::from_millis(
             OUTGOING_WEBHOOK_TIMEOUT_MS,
         ))
@@ -272,7 +275,7 @@ async fn trigger_webhook_to_merchant(
 }
 
 #[instrument(skip_all)]
-pub async fn webhooks_core(
+pub async fn webhooks_core<W: api::OutgoingWebhookType>(
     state: &AppState,
     req: &actix_web::HttpRequest,
     merchant_account: storage::MerchantAccount,
@@ -352,7 +355,7 @@ pub async fn webhooks_core(
 
         let flow_type: api::WebhookFlow = event_type.to_owned().into();
         match flow_type {
-            api::WebhookFlow::Payment => payments_incoming_webhook_flow(
+            api::WebhookFlow::Payment => payments_incoming_webhook_flow::<W>(
                 state.clone(),
                 merchant_account,
                 webhook_details,
@@ -362,7 +365,7 @@ pub async fn webhooks_core(
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Incoming webhook flow for payments failed")?,
 
-            api::WebhookFlow::Refund => refunds_incoming_webhook_flow(
+            api::WebhookFlow::Refund => refunds_incoming_webhook_flow::<W>(
                 state.clone(),
                 merchant_account,
                 webhook_details,

@@ -15,7 +15,11 @@ use crate::{
     utils::{self, StringExt},
 };
 #[cfg(feature = "basilisk")]
-use crate::{core::payment_methods::transformers as payment_methods, services, utils::BytesExt};
+use crate::{
+    core::payment_methods::transformers as payment_methods,
+    services::{self, kms},
+    utils::BytesExt,
+};
 #[cfg(feature = "basilisk")]
 const VAULT_SERVICE_NAME: &str = "CARD";
 #[cfg(feature = "basilisk")]
@@ -392,25 +396,29 @@ async fn get_locker_jwe_keys(
 ) -> CustomResult<(String, String), errors::EncryptionError> {
     let key_id = get_key_id(keys);
     if key_id == keys.locker_key_identifier1 {
-        let public_key = services::KeyHandler::get_kms_decrypted_key(
-            keys,
+        let public_key = kms::KeyHandler::get_kms_decrypted_key(
+            &keys.aws_region,
+            &keys.aws_key_id,
             keys.locker_encryption_key1.to_string(),
         )
         .await?;
-        let private_key = services::KeyHandler::get_kms_decrypted_key(
-            keys,
+        let private_key = kms::KeyHandler::get_kms_decrypted_key(
+            &keys.aws_region,
+            &keys.aws_key_id,
             keys.locker_decryption_key1.to_string(),
         )
         .await?;
         Ok((public_key, private_key))
     } else if key_id == keys.locker_key_identifier2 {
-        let public_key = services::KeyHandler::get_kms_decrypted_key(
-            keys,
+        let public_key = kms::KeyHandler::get_kms_decrypted_key(
+            &keys.aws_region,
+            &keys.aws_key_id,
             keys.locker_encryption_key2.to_string(),
         )
         .await?;
-        let private_key = services::KeyHandler::get_kms_decrypted_key(
-            keys,
+        let private_key = kms::KeyHandler::get_kms_decrypted_key(
+            &keys.aws_region,
+            &keys.aws_key_id,
             keys.locker_decryption_key2.to_string(),
         )
         .await?;

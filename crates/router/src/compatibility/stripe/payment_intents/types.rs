@@ -181,7 +181,7 @@ impl TryFrom<StripePaymentIntentRequest> for payments::PaymentsRequest {
                 .billing_details
                 .as_ref()
                 .map(|b| payments::Address::from(b.to_owned())),
-            statement_descriptor: item.statement_descriptor,
+            statement_descriptor_name: item.statement_descriptor,
             statement_descriptor_suffix: item.statement_descriptor_suffix,
             metadata: item.metadata,
             client_secret: item.client_secret.map(|s| s.peek().clone()),
@@ -336,7 +336,7 @@ impl From<payments::PaymentsResponse> for StripePaymentIntentResponse {
             name: resp.name,
             phone: resp.phone,
             authentication_type: resp.authentication_type,
-            statement_descriptor_name: resp.statement_descriptor,
+            statement_descriptor_name: resp.statement_descriptor_name,
             statement_descriptor_suffix: resp.statement_descriptor_suffix,
             next_action: into_stripe_next_action(resp.next_action, resp.return_url),
             cancellation_reason: resp.cancellation_reason,
