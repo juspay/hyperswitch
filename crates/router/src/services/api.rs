@@ -598,7 +598,7 @@ impl Authenticate for api_models::payments::PaymentsRequest {
     }
 }
 
-impl Authenticate for api_models::payment_methods::ListPaymentMethodRequest {
+impl Authenticate for api_models::payment_methods::PaymentMethodListRequest {
     fn get_client_secret(&self) -> Option<&String> {
         self.client_secret.as_ref()
     }

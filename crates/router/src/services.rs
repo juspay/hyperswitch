@@ -1,6 +1,7 @@
 pub mod api;
 pub mod authentication;
 pub mod encryption;
+pub mod kms;
 pub mod logger;
 
 use std::sync::{atomic, Arc};

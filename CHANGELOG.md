@@ -1,3 +1,89 @@
+# 0.3.0 (2023-03-05)
+
+## Chores
+* **connectors:**  log connector request and response at debug level (#624) (6a487b19)
+
+## Continuous Integration
+
+* **workflow:** adding build only sandbox feature to reduce build time (#664) (d1c9305e)
+* **workflow:** run cargo hack only for code changes (#663) (f931c427)
+
+## Documentation Changes
+
+* **openapi:**  document security schemes (#676) (c5fda7ac)
+
+## New Features
+
+* **session_token:**  create session token only if pmt is enabled (#703) (e1afeb64)
+* **router:**
+  *  serve OpenAPI docs at `/docs` (#698) (ed2907e1)
+  *  added incoming refund webhooks flow (#683) (f12abbce)
+* **list:**  global filter mapping for payment methods via card network (#694) (adca6bca)
+*  store card network for cards (#687) (bfca26d9)
+*  add support for `ANG` currency (#681) (03096eff)
+*  Add bank redirect mapping to adyen and stripe (#680) (e6f627d9)
+*  api contract change for wallet (#628) (ff86417e)
+*  Add support for a redis pubsub interface (#614) (aaf37250)
+*  initial `nix` setup using `cargo2nix` (#599) (73d0538d)
+* **connector:**
+  *  [Bambora] Add support for cards Authorize, psync, capture, void, refund, Rsync (#677) (0de5d441)
+  *  [MultiSafePay] Add support for cards Authorize, psync, capture, void, refund, Rsync  (#658) (79aa8f3d)
+  *  [Dlocal] Add support for authorize, capture, void, refund, psync, rsync (#650) (7792de55)
+* **pm_list:**  support for sending bank names (#678) (576f8e1f)
+* **card_network:**  add additional enum variants in card network (#671) (db8bc164)
+* **stripe:**
+  *  eps, giropay and ideal using stripe (#529) (028e1401)
+  *  get error message for failed redirect payments (#615) (12f25f05)
+
+## Bug Fixes
+
+*  Populate amount_captured in case of success (#700) (d622b743)
+*  Error Mapping for Bluensap & Card Number for Airwallex (#686) (35a74baf)
+*  add currency in verify request data (#619) (32de632d)
+*  add zero-padded formatting for error code (#627) (63f9b612)
+*  check if bank_pm exists and then send request (#679) (76a9b557)
+* **connector:**
+  *  convert cents to dollar before sending to connector (#699) (3e883192)
+  *  fix wordline card number validation issue (#695) (1a875348)
+  *  fix wordline tests and visa card issuer support (#688) (d0c9dded)
+* **adyen:**  adyen psync fail fix (#691) (2e99152d)
+* **customer:**  populate email from customer table if not present in request (#692) (cf71d7aa)
+* **list:**
+  *  remove enabled payment methods from list customer payment method (#689) (5c29f37a)
+  *  fix card network filtering (#684) (718c8a42)
+  *  adding config changes for filtering `pm` based on countries & currencies (#669) (060c5419)
+* **compatibility:**
+  *  change next_action type and customer request type (#675) (7f22c22c)
+  *  map stripe country_code to payment_request country code (#667) (7044b80b)
+* **core:**  send metadata in payments response (#670) (b80f19e2)
+* **router:**  allow setup future usage to be updated in payment update and confirm requests (#610) (7fd82211)
+
+## Other Changes
+
+* **stripe:**  send statement descriptor to stripe (#707) (641c4d6d)
+*  use connector error handler for 500 error messages. (#696) (9fe20932)
+*  populate failed status and add bank_redirect (#674)
+* **refunds:**  skip validate refunds for card (#672) (5cdbef04)
+* **router/webhooks:**  expose additional incoming request details to webhooks flow (#637) (1b3b7f5b)
+* **braintree:**  create basic auth for braintree (#602) (c47619b5)
+
+## Refactors
+
+*  add better log to parse struct (#621) (275155a8)
+*  Pass country and currency as json format in MCA (#523) (d27e6be5)
+*  use simple uuid instead of hyphens (#605) (c467a47a)
+*  add payment_issuer and payment_experience in pa (#491) (66563595)
+* **router:**  remove foreign wrapper type (#616) (7bd2008a)
+* **core:**
+  *  add payment method list route to payment_methods (#682) (5449ce46)
+  *  make attempt id as mandatory in router_data (#604) (626e467e)
+* **pm_list:**
+  *  pm_list for bank redirects (#685) (2701cceb)
+  *  modify pm list to support new api contract (#657) (a2616d87)
+* **connector:**  remove `peek()` on PII info (#642) (46f77d07)
+* **connector-template:**  raise errors instead of using `todo!()` (#620) (b1a6be5a)
+* **redirection:**  `From` impl for redirection data for ease of use (#613) (e8255b4a)
+
 # 0.3.0 (2023-02-25)
 
 ## Build System / Dependencies

@@ -1,7 +1,7 @@
 use actix_web::{web, Scope};
 
-use super::{customers::*, payment_intents::*, refunds::*, setup_intents::*};
-use crate::routes;
+use super::{customers::*, payment_intents::*, refunds::*, setup_intents::*, webhooks::*};
+use crate::routes::{self, webhooks};
 
 pub struct PaymentIntents;
 
@@ -53,5 +53,23 @@ impl Customers {
             .service(customer_update)
             .service(customer_delete)
             .service(list_customer_payment_method_api)
+    }
+}
+
+pub struct Webhooks;
+
+impl Webhooks {
+    pub fn server(config: routes::AppState) -> Scope {
+        web::scope("/webhooks")
+            .app_data(web::Data::new(config))
+            .service(
+                web::resource("/{merchant_id}/{connector}")
+                    .route(
+                        web::post().to(webhooks::receive_incoming_webhook::<StripeOutgoingWebhook>),
+                    )
+                    .route(
+                        web::get().to(webhooks::receive_incoming_webhook::<StripeOutgoingWebhook>),
+                    ),
+            )
     }
 }
