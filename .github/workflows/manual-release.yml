@@ -1,7 +1,6 @@
 name: Release branch manually
 
-on:
-  workflow_dispatch
+on: workflow_dispatch
 
 jobs:
   build:
@@ -9,6 +8,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
 
       - name: Build router Docker image
         run: docker build . --file Dockerfile --tag juspaydotin/orca:${{ github.sha }} --build-arg BINARY=router
@@ -22,7 +23,7 @@ jobs:
       - name: Build drainer Docker image
         run: docker build . --file Dockerfile --tag juspaydotin/orca:drainer-${{ github.sha }} --build-arg BINARY=drainer
 
-      - name: Docker Login      
+      - name: Docker Login
         env:
           DOCKER_USER: ${{secrets.DOCKERHUB_USER}}
           DOCKER_TOKEN: ${{secrets.DOCKERHUB_PASSWD}}

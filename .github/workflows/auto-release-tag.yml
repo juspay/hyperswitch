@@ -11,6 +11,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
 
       - name: Build router Docker image
         run: docker build . --file Dockerfile --tag juspaydotin/orca:${{ github.ref_name }} --build-arg BINARY=router
@@ -24,7 +26,7 @@ jobs:
       - name: Build drainer Docker image
         run: docker build . --file Dockerfile --tag juspaydotin/orca:drainer-${{ github.ref_name }} --build-arg BINARY=drainer
 
-      - name: Docker Login      
+      - name: Docker Login
         env:
           DOCKER_USER: ${{secrets.DOCKERHUB_USER}}
           DOCKER_TOKEN: ${{secrets.DOCKERHUB_PASSWD}}
