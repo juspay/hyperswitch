@@ -93,6 +93,7 @@ worldpay.base_url = "https://try.access.worldpay.com/"
 [connectors.supported]
 wallets = ["klarna", "braintree", "applepay"]
 cards = [
+    "aci",
     "adyen",
     "airwallex",
     "authorizedotnet",
