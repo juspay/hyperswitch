@@ -1,4 +1,4 @@
-use common_utils::ext_traits::{StringExt, ValueExt};
+use common_utils::ext_traits::ValueExt;
 use error_stack::ResultExt;
 use serde::{Deserialize, Serialize};
 
@@ -61,17 +61,7 @@ pub struct Amount {
 #[serde(rename_all = "camelCase")]
 pub struct TransactionDetails {
     capture_flag: Option<bool>,
-    reversal_reason_code: Option<ReversalReasonCodes>,
-}
-
-#[derive(Debug, Clone, Serialize, Eq, PartialEq, Deserialize, strum::EnumString)]
-#[strum(serialize_all = "SCREAMING_SNAKE_CASE")]
-#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-pub enum ReversalReasonCodes {
-    Void,
-    Timeout,
-    SuspectedFraud,
-    CardOverride,
+    reversal_reason_code: Option<String>,
 }
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
@@ -210,7 +200,6 @@ impl TryFrom<&types::PaymentsCancelRouterData> for FiservCancelRequest {
         let session: SessionObject = metadata
             .parse_value("SessionObject")
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        let cancellation_reason = item.request.get_cancellation_reason()?;
         Ok(Self {
             merchant_details: MerchantDetails {
                 merchant_id: auth.merchant_account,
@@ -221,7 +210,7 @@ impl TryFrom<&types::PaymentsCancelRouterData> for FiservCancelRequest {
             },
             transaction_details: TransactionDetails {
                 capture_flag: None,
-                reversal_reason_code: Some(cancellation_reason.parse_enum("ReversalReasonCodes").change_context(errors::ConnectorError::InvalidDataFormat { field_name: "cancellation reason should be: VOID, TIMEOUT, SUSPECTED_FRAUD, CARD_OVERRIDE" })?)
+                reversal_reason_code: Some(item.request.get_cancellation_reason()?),
             },
         })
     }
@@ -241,6 +230,7 @@ pub struct ErrorDetails {
     pub error_type: String,
     pub code: Option<String>,
     pub message: String,
+    pub field: Option<String>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]

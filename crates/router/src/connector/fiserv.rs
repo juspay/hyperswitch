@@ -119,21 +119,27 @@ impl ConnectorCommon for Fiserv {
 
         let fiserv::ErrorResponse { error, details } = response;
 
-        let message = match (error, details) {
-            (Some(err), _) => err.into_iter().map(|v| v.message).collect::<String>(),
-            (None, Some(err_details)) => err_details
-                .into_iter()
-                .map(|v| v.message)
-                .collect::<String>(),
-            (None, None) => consts::NO_ERROR_MESSAGE.to_string(),
-        };
-
-        Ok(types::ErrorResponse {
-            status_code: res.status_code,
-            code: consts::NO_ERROR_CODE.to_string(),
-            message,
-            reason: None,
-        })
+        Ok(error
+            .or(details)
+            .and_then(|error_details| {
+                error_details
+                    .first()
+                    .map(|first_error| types::ErrorResponse {
+                        code: first_error
+                            .code
+                            .to_owned()
+                            .unwrap_or(consts::NO_ERROR_CODE.to_string()),
+                        message: first_error.message.to_owned(),
+                        reason: first_error.field.to_owned(),
+                        status_code: res.status_code,
+                    })
+            })
+            .unwrap_or(types::ErrorResponse {
+                code: consts::NO_ERROR_CODE.to_string(),
+                message: consts::NO_ERROR_MESSAGE.to_string(),
+                reason: None,
+                status_code: res.status_code,
+            }))
     }
 }
 
@@ -400,33 +406,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         &self,
         res: types::Response,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
-        let response: fiserv::ErrorResponse = res
-            .response
-            .parse_struct("Fiserv ErrorResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-
-        let fiserv::ErrorResponse { error, details } = response;
-
-        let message = match (error, details) {
-            (Some(err), _) => err
-                .iter()
-                .map(|v| v.message.clone())
-                .collect::<Vec<String>>()
-                .join(""),
-            (None, Some(err_details)) => err_details
-                .iter()
-                .map(|v| v.message.clone())
-                .collect::<Vec<String>>()
-                .join(""),
-            (None, None) => consts::NO_ERROR_MESSAGE.to_string(),
-        };
-
-        Ok(types::ErrorResponse {
-            status_code: res.status_code,
-            code: consts::NO_ERROR_CODE.to_string(),
-            message,
-            reason: None,
-        })
+        self.build_error_response(res)
     }
 }
 
@@ -521,32 +501,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         &self,
         res: types::Response,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
-        let response: fiserv::ErrorResponse = res
-            .response
-            .parse_struct("Fiserv ErrorResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-
-        let fiserv::ErrorResponse { error, details } = response;
-
-        let message = match (error, details) {
-            (Some(err), _) => err
-                .iter()
-                .map(|v| v.message.clone())
-                .collect::<Vec<String>>()
-                .join(""),
-            (None, Some(err_details)) => err_details
-                .iter()
-                .map(|v| v.message.clone())
-                .collect::<Vec<String>>()
-                .join(""),
-            (None, None) => consts::NO_ERROR_MESSAGE.to_string(),
-        };
-        Ok(types::ErrorResponse {
-            status_code: res.status_code,
-            code: consts::NO_ERROR_CODE.to_string(),
-            message,
-            reason: None,
-        })
+        self.build_error_response(res)
     }
 }
 
