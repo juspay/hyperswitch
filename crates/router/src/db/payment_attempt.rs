@@ -433,7 +433,7 @@ mod storage {
                                     "{}_{}",
                                     &created_attempt.merchant_id,
                                     // [#439]: Change this to `attempt_id`
-                                    &created_attempt.payment_id,
+                                    &created_attempt.attempt_id,
                                 ),
                                 pk_id: key,
                                 sk_id: field,
