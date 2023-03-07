@@ -65,7 +65,7 @@
             ]
         },
         {
-            "openApiOperation": "createPaymentConnector",
+            "openApiOperation": "createMerchantConnector",
             "collectionVariables": [
                 {
                     "responseBodyProp": "merchant_connector_id",
