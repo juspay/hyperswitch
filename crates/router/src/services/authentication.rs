@@ -1,6 +1,7 @@
 use actix_web::http::header::HeaderMap;
 use api_models::{payment_methods::ListPaymentMethodRequest, payments::PaymentsRequest};
 use async_trait::async_trait;
+use common_utils::date_time;
 use error_stack::{report, IntoReport, ResultExt};
 use jsonwebtoken::{decode, Algorithm, DecodingKey, Validation};
 use masking::PeekInterface;
@@ -68,6 +69,15 @@ where
             .attach_printable("Failed to retrieve API key")?
             .ok_or(report!(errors::ApiErrorResponse::Unauthorized)) // If retrieve returned `None`
             .attach_printable("Merchant not authenticated")?;
+
+        if stored_api_key
+            .expires_at
+            .map(|expires_at| expires_at < date_time::now())
+            .unwrap_or(false)
+        {
+            return Err(report!(errors::ApiErrorResponse::Unauthorized))
+                .attach_printable("API key has expired");
+        }
 
         state
             .store()
