@@ -341,6 +341,7 @@ mod storage {
     use common_utils::date_time;
     use error_stack::{IntoReport, ResultExt};
     use redis_interface::HsetnxReply;
+    use storage_models::reverse_lookup::ReverseLookup;
 
     use super::PaymentAttemptInterface;
     use crate::{
@@ -557,7 +558,7 @@ mod storage {
                 }
 
                 enums::MerchantStorageScheme::RedisKv => {
-                    let key = format!("{}_{}", this.merchant_id, this.attempt_id);
+                    let key = format!("{}_{}", this.merchant_id, this.payment_id);
                     let old_connector_transaction_id = &this.connector_transaction_id;
                     let updated_attempt = payment_attempt.clone().apply_changeset(this.clone());
                     // Check for database presence as well Maybe use a read replica here ?
@@ -572,26 +573,33 @@ mod storage {
                         .map(|_| updated_attempt)
                         .change_context(errors::StorageError::KVError)?;
 
-                    let conn = pg_connection(&self.master_pool).await;
-                    // Reverse lookup for connector_transaction_id
-                    if let (None, Some(connector_transaction_id)) = (
+                    match (
                         old_connector_transaction_id,
                         &updated_attempt.connector_transaction_id,
                     ) {
-                        let field = format!("pa_{}", updated_attempt.attempt_id);
-                        ReverseLookupNew {
-                            lookup_id: format!(
-                                "{}_{}",
-                                &updated_attempt.merchant_id, connector_transaction_id
-                            ),
-                            pk_id: key.clone(),
-                            sk_id: field.clone(),
-                            source: "payment_attempt".to_string(),
+                        (None, Some(connector_transaction_id)) => {
+                            add_connector_txn_id_to_reverse_lookup(
+                                &self,
+                                key.as_str(),
+                                this.merchant_id.as_str(),
+                                updated_attempt.attempt_id.as_str(),
+                                connector_transaction_id.as_str(),
+                            )
+                            .await?;
                         }
-                        .insert(&conn)
-                        .await
-                        .map_err(Into::<errors::StorageError>::into)
-                        .into_report()?;
+                        (Some(old_connector_transaction_id), Some(connector_transaction_id)) => {
+                            if old_connector_transaction_id.ne(connector_transaction_id) {
+                                add_connector_txn_id_to_reverse_lookup(
+                                    &self,
+                                    key.as_str(),
+                                    this.merchant_id.as_str(),
+                                    updated_attempt.attempt_id.as_str(),
+                                    connector_transaction_id.as_str(),
+                                )
+                                .await?;
+                            }
+                        }
+                        (_, _) => {}
                     }
 
                     let redis_entry = kv::TypedSql {
@@ -777,5 +785,27 @@ mod storage {
                 }
             }
         }
+    }
+
+    #[inline]
+    async fn add_connector_txn_id_to_reverse_lookup(
+        store: &Store,
+        key: &str,
+        merchant_id: &str,
+        updated_attempt_attempt_id: &str,
+        connector_transaction_id: &str,
+    ) -> CustomResult<ReverseLookup, errors::StorageError> {
+        let conn = pg_connection(&store.master_pool).await;
+        let field = format!("pa_{}", updated_attempt_attempt_id);
+        ReverseLookupNew {
+            lookup_id: format!("{}_{}", merchant_id, connector_transaction_id),
+            pk_id: key.to_owned(),
+            sk_id: field.clone(),
+            source: "payment_attempt".to_string(),
+        }
+        .insert(&conn)
+        .await
+        .map_err(Into::<errors::StorageError>::into)
+        .into_report()
     }
 }
