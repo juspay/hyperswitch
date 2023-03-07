@@ -19,6 +19,11 @@ pub(crate) type Headers = collections::HashSet<(String, Box<dyn HeaderValue>)>;
 
 pub trait HeaderValue: ToString + Debug + erased_serde::Serialize + Send + Sync {}
 
+pub mod header {
+    use super::HeaderValue;
+    pub type Value = Box<dyn HeaderValue>;
+}
+
 impl Hash for dyn HeaderValue {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.to_string().hash(state)
@@ -51,6 +56,15 @@ pub fn concat_headers(
             b.into_iter()
                 .map(|(key, value)| -> (String, Box<dyn HeaderValue>) { (key, Box::new(value)) }),
         )
+        .collect()
+}
+
+pub fn construct_headers(
+    value: Vec<(String, impl HeaderValue + 'static)>,
+) -> Vec<(String, header::Value)> {
+    value
+        .into_iter()
+        .map(|(key, value)| -> (String, header::Value) { (key, Box::new(value)) })
         .collect()
 }
 

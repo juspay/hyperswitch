@@ -9,8 +9,7 @@ use self::transformers as applepay;
 use crate::{
     configs::settings,
     core::errors::{self, CustomResult},
-    headers,
-    services::{self, request::concat_headers},
+    headers, services,
     types::{
         self,
         api::{self, ConnectorCommon},
@@ -104,13 +103,12 @@ impl
         &self,
         _req: &types::PaymentsSessionRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, Box<dyn services::request::HeaderValue>)>, errors::ConnectorError>
-    {
+    ) -> CustomResult<Vec<(String, services::request::header::Value)>, errors::ConnectorError> {
         let header = vec![(
             headers::CONTENT_TYPE.to_string(),
             types::PaymentsSessionType::get_content_type(self).to_string(),
         )];
-        Ok(concat_headers(header, Vec::<(String, String)>::new()))
+        Ok(services::request::construct_headers(header))
     }
 
     fn get_url(

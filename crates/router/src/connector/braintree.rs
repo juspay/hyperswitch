@@ -79,8 +79,7 @@ impl
         &self,
         req: &types::PaymentsSessionRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, Box<dyn services::request::HeaderValue>)>, errors::ConnectorError>
-    {
+    ) -> CustomResult<Vec<(String, services::request::header::Value)>, errors::ConnectorError> {
         let headers = vec![
             (
                 headers::CONTENT_TYPE.to_string(),
@@ -209,8 +208,7 @@ impl
         &self,
         req: &types::PaymentsSyncRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, Box<dyn services::request::HeaderValue>)>, errors::ConnectorError>
-    {
+    ) -> CustomResult<Vec<(String, services::request::header::Value)>, errors::ConnectorError> {
         let headers = vec![
             (
                 headers::CONTENT_TYPE.to_string(),
@@ -316,8 +314,7 @@ impl
         &self,
         req: &types::PaymentsAuthorizeRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, Box<dyn services::request::HeaderValue>)>, errors::ConnectorError>
-    {
+    ) -> CustomResult<Vec<(String, services::request::header::Value)>, errors::ConnectorError> {
         let headers = vec![
             (
                 headers::CONTENT_TYPE.to_string(),
@@ -421,8 +418,7 @@ impl
         &self,
         req: &types::PaymentsCancelRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, Box<dyn services::request::HeaderValue>)>, errors::ConnectorError>
-    {
+    ) -> CustomResult<Vec<(String, services::request::header::Value)>, errors::ConnectorError> {
         let headers = vec![
             (
                 headers::CONTENT_TYPE.to_string(),
@@ -523,8 +519,7 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
         &self,
         req: &types::RefundsRouterData<api::Execute>,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, Box<dyn services::request::HeaderValue>)>, errors::ConnectorError>
-    {
+    ) -> CustomResult<Vec<(String, services::request::header::Value)>, errors::ConnectorError> {
         let headers = vec![
             (
                 headers::CONTENT_TYPE.to_string(),
@@ -618,8 +613,7 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
         &self,
         _req: &types::RouterData<api::RSync, types::RefundsData, types::RefundsResponseData>,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, Box<dyn services::request::HeaderValue>)>, errors::ConnectorError>
-    {
+    ) -> CustomResult<Vec<(String, services::request::header::Value)>, errors::ConnectorError> {
         Err(errors::ConnectorError::NotImplemented("braintree".to_string()).into())
     }
 

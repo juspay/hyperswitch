@@ -80,8 +80,7 @@ impl
         &self,
         req: &types::PaymentsSessionRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, Box<dyn services::request::HeaderValue>)>, errors::ConnectorError>
-    {
+    ) -> CustomResult<Vec<(String, services::request::header::Value)>, errors::ConnectorError> {
         let header = vec![
             (
                 headers::CONTENT_TYPE.to_string(),
@@ -212,8 +211,7 @@ impl
         &self,
         req: &types::PaymentsAuthorizeRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, Box<dyn services::request::HeaderValue>)>, errors::ConnectorError>
-    {
+    ) -> CustomResult<Vec<(String, services::request::header::Value)>, errors::ConnectorError> {
         let header = vec![
             (
                 headers::CONTENT_TYPE.to_string(),

@@ -107,9 +107,8 @@ impl
         &self,
         req: &types::PaymentsSyncRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, Box<dyn services::request::HeaderValue>)>, errors::ConnectorError>
-    {
-        let mut header: Vec<(_, Box<dyn services::request::HeaderValue>)> = vec![
+    ) -> CustomResult<Vec<(String, services::request::header::Value)>, errors::ConnectorError> {
+        let mut header: Vec<(_, services::request::header::Value)> = vec![
             (
                 headers::CONTENT_TYPE.to_string(),
                 Box::new(types::PaymentsSyncType::get_content_type(self).to_string()),
@@ -120,7 +119,7 @@ impl
             .get_auth_header(&req.connector_auth_type)?
             .into_iter()
             .map(
-                |(key, value)| -> (String, Box<dyn services::request::HeaderValue>) {
+                |(key, value)| -> (String, services::request::header::Value) {
                     (key, Box::new(value))
                 },
             );
@@ -336,8 +335,7 @@ impl
         &self,
         req: &types::PaymentsCancelRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, Box<dyn services::request::HeaderValue>)>, errors::ConnectorError>
-    {
+    ) -> CustomResult<Vec<(String, services::request::header::Value)>, errors::ConnectorError> {
         let header = vec![
             (
                 headers::CONTENT_TYPE.to_string(),
@@ -438,8 +436,7 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
         &self,
         req: &types::RefundsRouterData<api::Execute>,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, Box<dyn services::request::HeaderValue>)>, errors::ConnectorError>
-    {
+    ) -> CustomResult<Vec<(String, services::request::header::Value)>, errors::ConnectorError> {
         let header = vec![
             (
                 headers::CONTENT_TYPE.to_string(),

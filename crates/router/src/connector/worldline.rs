@@ -75,8 +75,7 @@ where
         &self,
         req: &types::RouterData<Flow, Request, Response>,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, Box<dyn services::request::HeaderValue>)>, errors::ConnectorError>
-    {
+    ) -> CustomResult<Vec<(String, services::request::header::Value)>, errors::ConnectorError> {
         let base_url = self.base_url(connectors);
         let url = Self::get_url(self, req, connectors)?;
         let endpoint = url.replace(base_url, "");
@@ -90,17 +89,15 @@ where
         Ok(vec![
             (
                 headers::DATE.to_string(),
-                Box::new(Into::<masking::Secret<String, masking::ApiKey>>::into(date)),
+                Box::new(masking::Secret::<_, masking::ApiKey>::new(date)),
             ),
             (
                 headers::AUTHORIZATION.to_string(),
-                Box::new(Into::<masking::Secret<String, masking::ApiKey>>::into(
-                    signed_data,
-                )),
+                Box::new(masking::Secret::<_, masking::ApiKey>::new(signed_data)),
             ),
             (
                 headers::CONTENT_TYPE.to_string(),
-                Box::new(Into::<masking::Secret<String, masking::ApiKey>>::into(
+                Box::new(masking::Secret::<_, masking::ApiKey>::new(
                     content_type.to_string(),
                 )),
             ),
@@ -163,8 +160,7 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
         &self,
         req: &types::RouterData<api::Void, types::PaymentsCancelData, types::PaymentsResponseData>,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, Box<dyn services::request::HeaderValue>)>, errors::ConnectorError>
-    {
+    ) -> CustomResult<Vec<(String, services::request::header::Value)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -238,8 +234,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         &self,
         req: &types::RouterData<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, Box<dyn services::request::HeaderValue>)>, errors::ConnectorError>
-    {
+    ) -> CustomResult<Vec<(String, services::request::header::Value)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -314,8 +309,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
             types::PaymentsResponseData,
         >,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, Box<dyn services::request::HeaderValue>)>, errors::ConnectorError>
-    {
+    ) -> CustomResult<Vec<(String, services::request::header::Value)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -433,8 +427,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
             types::PaymentsResponseData,
         >,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, Box<dyn services::request::HeaderValue>)>, errors::ConnectorError>
-    {
+    ) -> CustomResult<Vec<(String, services::request::header::Value)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -521,8 +514,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         &self,
         req: &types::RefundsRouterData<api::Execute>,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, Box<dyn services::request::HeaderValue>)>, errors::ConnectorError>
-    {
+    ) -> CustomResult<Vec<(String, services::request::header::Value)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -611,8 +603,7 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         &self,
         req: &types::RefundSyncRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, Box<dyn services::request::HeaderValue>)>, errors::ConnectorError>
-    {
+    ) -> CustomResult<Vec<(String, services::request::header::Value)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
