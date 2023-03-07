@@ -343,8 +343,6 @@ pub fn mk_add_card_response(
         recurring_enabled: false,           // [#256]
         installment_payment_enabled: false, // #[#256]
         payment_experience: Some(vec![api_models::enums::PaymentExperience::RedirectToUrl]), // [#256]
-        payment_method_issuer: req.payment_method_issuer,
-        payment_method_issuer_code: req.payment_method_issuer_code,
     }
 }
 

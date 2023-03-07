@@ -12,7 +12,7 @@ use api_models::{
 };
 use common_utils::{
     consts,
-    ext_traits::{AsyncExt, StringExt},
+    ext_traits::{AsyncExt, BytesExt, StringExt},
     generate_id,
 };
 use error_stack::{report, ResultExt};
@@ -184,7 +184,10 @@ pub async fn get_card_wrapper(
             .await
         }
         settings::LockerSetup::BasiliskLocker => {
-            get_card_from_hs_locker(state, customer_id, merchant_id, card_reference).await
+            get_card_from_hs_locker(state, customer_id, merchant_id, card_reference)
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed while getting card from basilisk_hs")
         }
     }
 }
@@ -254,7 +257,7 @@ pub async fn add_card_hs(
         stored_card_resp
     } else {
         let card_id = generate_id(consts::ID_LENGTH, "card");
-        mock_add_card(db, &card_id, &card, None, None, Some(&customer_id)).await?
+        mock_add_card_hs(db, &card_id, &card, None, None, Some(&customer_id)).await?
     };
 
     let store_card_payload = stored_card_response
@@ -383,20 +386,21 @@ pub async fn get_card_from_hs_locker<'a>(
         let get_card_resp: payment_methods::RetrieveCardResp = decrypted_payload
             .parse_struct("RetrieveCardResp")
             .change_context(errors::VaultError::FetchCardFailed)?;
-        get_card_resp
+        let retrieve_card_resp = get_card_resp
+            .payload
+            .get_required_value("RetrieveCardRespPayload")
+            .change_context(errors::VaultError::FetchCardFailed)?;
+        retrieve_card_resp
+            .card
+            .get_required_value("Card")
+            .change_context(errors::VaultError::FetchCardFailed)
     } else {
         let (get_card_resp, _) = mock_get_card(&*state.store, card_reference).await?;
-        get_card_resp
+        payment_methods::mk_get_card_response(get_card_resp)
+            .change_context(errors::VaultError::ResponseDeserializationFailed)
     };
 
-    let retrieve_card_resp = get_card_resp
-        .payload
-        .get_required_value("RetrieveCardRespPayload")
-        .change_context(errors::VaultError::FetchCardFailed)?;
-    retrieve_card_resp
-        .card
-        .get_required_value("Card")
-        .change_context(errors::VaultError::FetchCardFailed)
+    get_card_resp
 }
 
 // Legacy Locker Function
@@ -426,8 +430,6 @@ pub async fn get_card_from_legacy_locker<'a>(
     };
 
     payment_methods::mk_get_card_response(get_card_result)
-
-    // Ok(get_card_result)
 }
 
 #[instrument(skip_all)]
@@ -465,7 +467,7 @@ pub async fn delete_card_from_hs_locker<'a>(
             .change_context(errors::ApiErrorResponse::InternalServerError)?;
         Ok(delete_card_resp)
     } else {
-        Ok(mock_delete_card(&*state.store, card_reference)
+        Ok(mock_delete_card_hs(&*state.store, card_reference)
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("card_delete_failure_message")?)
