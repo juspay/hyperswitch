@@ -124,7 +124,7 @@ pub async fn update_customer_payment_method(
             error.to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)
         })?;
     if pm.payment_method == enums::PaymentMethod::Card {
-        delete_card_from_hs_locker(
+        delete_card_wrapper(
             state,
             &pm.customer_id,
             &pm.merchant_id,
@@ -152,7 +152,7 @@ pub async fn update_customer_payment_method(
 
 pub async fn add_card_wrapper(
     state: &routes::AppState,
-    req: api::CreatePaymentMethod,
+    req: api::PaymentMethodCreate,
     card: api::CardDetail,
     customer_id: String,
     merchant_account: &storage::MerchantAccount,
@@ -286,7 +286,7 @@ pub async fn add_card_hs(
 // Legacy Locker Function
 pub async fn add_card(
     state: &routes::AppState,
-    req: api::CreatePaymentMethod,
+    req: api::PaymentMethodCreate,
     card: api::CardDetail,
     customer_id: String,
     merchant_account: &storage::MerchantAccount,

@@ -335,7 +335,7 @@ pub fn mk_add_card_response_hs(
 pub fn mk_add_card_response(
     card: api::CardDetail,
     response: AddCardResponse,
-    req: api::CreatePaymentMethod,
+    req: api::PaymentMethodCreate,
     merchant_id: &str,
 ) -> api::PaymentMethodResponse {
     let mut card_number = card.card_number.peek().to_owned();
@@ -369,7 +369,7 @@ pub fn mk_add_card_request(
     locker: &Locker,
     card: &api::CardDetail,
     customer_id: &str,
-    _req: &api::CreatePaymentMethod,
+    _req: &api::PaymentMethodCreate,
     locker_id: &str,
     merchant_id: &str,
 ) -> CustomResult<services::Request, errors::VaultError> {
