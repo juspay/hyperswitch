@@ -66,6 +66,15 @@ pub struct Locker {
     pub host: String,
     pub mock_locker: bool,
     pub basilisk_host: String,
+    pub locker_setup: LockerSetup,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum LockerSetup {
+    #[default]
+    LegacyLocker,
+    BasiliskLocker,
 }
 
 #[derive(Debug, Deserialize, Clone)]
