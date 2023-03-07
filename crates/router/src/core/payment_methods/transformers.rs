@@ -3,12 +3,14 @@ use error_stack::ResultExt;
 use josekit::jwe;
 use serde::{Deserialize, Serialize};
 
+#[cfg(feature = "kms")]
+use crate::services::kms;
 use crate::{
     configs::settings::{Jwekey, Locker},
     core::errors::{self, CustomResult},
     headers,
     pii::{self, prelude::*, Secret},
-    services::{api as services, encryption, kms},
+    services::{api as services, encryption},
     types::{api, storage},
     utils,
 };
