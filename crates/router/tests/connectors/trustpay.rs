@@ -146,41 +146,6 @@ async fn should_refund_auto_captured_payment() {
     );
 }
 
-// Partially refunds a payment using the automatic capture flow (Non 3DS).
-// #[actix_web::test]
-// async fn should_partially_refund_succeeded_payment() {
-//     let refund_response = CONNECTOR
-//         .make_payment_and_refund(
-//             get_default_payment_authorize_data(),
-//             Some(types::RefundsData {
-//                 refund_amount: 50,
-//                 ..utils::PaymentRefundType::default().0
-//             }),
-//             get_default_payment_info(),
-//         )
-//         .await
-//         .unwrap();
-//     assert_eq!(
-//         refund_response.response.unwrap().refund_status,
-//         enums::RefundStatus::Success,
-//     );
-// }
-
-// Creates multiple refunds against a payment using the automatic capture flow (Non 3DS).
-// #[actix_web::test]
-// async fn should_refund_succeeded_payment_multiple_times() {
-//     CONNECTOR
-//         .make_payment_and_multiple_refund(
-//             get_default_payment_authorize_data(),
-//             Some(types::RefundsData {
-//                 refund_amount: 50,
-//                 ..utils::PaymentRefundType::default().0
-//             }),
-//             get_default_payment_info(),
-//         )
-//         .await;
-// }
-
 // Synchronizes a refund using the automatic capture flow (Non 3DS).
 #[actix_web::test]
 async fn should_sync_refund() {
@@ -278,27 +243,3 @@ async fn should_fail_payment_for_incorrect_expiry_year() {
             .to_string(),
     );
 }
-
-// Refunds a payment with refund amount higher than payment amount.
-// #[actix_web::test]
-// async fn should_fail_for_refund_amount_higher_than_payment_amount() {
-//     let response = CONNECTOR
-//         .make_payment_and_refund(
-//             get_default_payment_authorize_data(),
-//             Some(types::RefundsData {
-//                 refund_amount: 150,
-//                 ..utils::PaymentRefundType::default().0
-//             }),
-//             get_default_payment_info(),
-//         )
-//         .await
-//         .unwrap();
-//     assert_eq!(
-//         response.response.unwrap_err().message,
-//         "Refund amount (₹1.50) is greater than charge amount (₹1.00)",
-//     );
-// }
-
-// Connector dependent test cases goes here
-
-// [#478]: add unit tests for non 3DS, wallets & webhooks in connector tests

@@ -43,9 +43,7 @@ impl ConnectorCommon for Trustpay {
         &self,
         auth_type: &types::ConnectorAuthType,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        let auth: trustpay::TrustpayAuthType = auth_type
-            .try_into()
-            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+        let auth = trustpay::TrustpayAuthType::try_from(auth_type).change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(vec![(headers::X_API_KEY.to_string(), auth.api_key)])
     }
 
@@ -60,7 +58,7 @@ impl ConnectorCommon for Trustpay {
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         let default_error = trustpay::Errors {
             code: 0,
-            description: "".to_string(),
+            description: consts::NO_ERROR_CODE.to_string(),
         };
         Ok(ErrorResponse {
             status_code: res.status_code,
@@ -108,8 +106,7 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
         req: &types::RefreshTokenRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        let auth: trustpay::TrustpayAuthType = (&req.connector_auth_type)
-            .try_into()
+        let auth = trustpay::TrustpayAuthType::try_from(&req.connector_auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         let auth_value = format!(
             "Basic {}",
@@ -156,18 +153,15 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
         data: &types::RefreshTokenRouterData,
         res: Response,
     ) -> CustomResult<types::RefreshTokenRouterData, errors::ConnectorError> {
-        logger::debug!(access_token_response=?res);
         let response: trustpay::TrustpayAuthUpdateResponse = res
             .response
             .parse_struct("trustpay TrustpayAuthUpdateResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-
-        types::ResponseRouterData {
+        types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
-        }
-        .try_into()
+        })
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
@@ -175,7 +169,6 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
         &self,
         res: Response,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        logger::debug!(access_token_error_response=?res);
         let response: trustpay::TrustpayAccessTokenErrorResponse = res
             .response
             .parse_struct("Trustpay AccessTokenErrorResponse")
@@ -281,7 +274,6 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         data: &types::PaymentsSyncRouterData,
         res: Response,
     ) -> CustomResult<types::PaymentsSyncRouterData, errors::ConnectorError> {
-        logger::debug!(payment_sync_response=?res);
         let response: trustpay::TrustpayPaymentsResponse = res
             .response
             .parse_struct("trustpay PaymentsResponse")
@@ -318,8 +310,8 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         req: &types::PaymentsAuthorizeRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        match req.request.payment_method_data {
-            api_models::payments::PaymentMethodData::BankRedirect { .. } => {
+        match req.payment_method {
+            storage_models::enums::PaymentMethod::BankRedirect => {
                 let access_token = req
                     .access_token
                     .clone()
@@ -357,8 +349,8 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        match req.request.payment_method_data {
-            api_models::payments::PaymentMethodData::BankRedirect { .. } => {
+        match req.payment_method {
+            storage_models::enums::PaymentMethod::BankRedirect => {
                 Ok("https://aapi.trustpay.eu/api/Payments/Payment".to_owned())
             }
             _ => Ok(format!(
@@ -374,8 +366,8 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         req: &types::PaymentsAuthorizeRouterData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
         let trustpay_req = trustpay::TrustpayPaymentsRequest::try_from(req)?;
-        let trustpay_req_string = match req.request.payment_method_data {
-            api_models::payments::PaymentMethodData::BankRedirect { .. } => {
+        let trustpay_req_string = match req.payment_method {
+            storage_models::enums::PaymentMethod::BankRedirect => {
                 utils::Encode::<trustpay::PaymentRequestBankRedirect>::encode_to_string_of_json(
                     &trustpay_req.bank_payment_request,
                 )
@@ -419,12 +411,11 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
             .parse_struct("trustpay PaymentsResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         logger::debug!(trustpaypayments_create_response=?response);
-        types::ResponseRouterData {
+        types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
-        }
-        .try_into()
+        })
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
@@ -539,17 +530,15 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         data: &types::RefundsRouterData<api::Execute>,
         res: Response,
     ) -> CustomResult<types::RefundsRouterData<api::Execute>, errors::ConnectorError> {
-        logger::debug!(target: "router::connector::trustpay", response=?res);
         let response: trustpay::RefundResponse = res
             .response
             .parse_struct("trustpay RefundResponse")
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        types::ResponseRouterData {
+        types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
-        }
-        .try_into()
+        })
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
@@ -603,13 +592,16 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         req: &types::RefundSyncRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        Ok(Some(
-            services::RequestBuilder::new()
-                .method(services::Method::Get)
-                .url(&types::RefundSyncType::get_url(self, req, connectors)?)
-                .headers(types::RefundSyncType::get_headers(self, req, connectors)?)
-                .build(),
-        ))
+        match req.payment_method {
+            storage_models::enums::PaymentMethod::BankRedirect =>  Err(errors::ConnectorError::WebhooksNotImplemented).into_report(),
+            _ => Ok(Some(
+                    services::RequestBuilder::new()
+                        .method(services::Method::Get)
+                        .url(&types::RefundSyncType::get_url(self, req, connectors)?)
+                        .headers(types::RefundSyncType::get_headers(self, req, connectors)?)
+                        .build(),
+                )),
+        }
     }
 
     fn handle_response(
@@ -617,17 +609,15 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         data: &types::RefundSyncRouterData,
         res: Response,
     ) -> CustomResult<types::RefundSyncRouterData, errors::ConnectorError> {
-        logger::debug!(target: "router::connector::trustpay", response=?res);
         let response: trustpay::RefundResponse = res
             .response
             .parse_struct("trustpay RefundResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        types::ResponseRouterData {
+        types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
-        }
-        .try_into()
+        })
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 

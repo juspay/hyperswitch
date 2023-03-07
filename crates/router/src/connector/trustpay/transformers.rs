@@ -11,11 +11,11 @@ use router_env::logger;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils::{self, RouterData},
+    connector::utils::{self, RouterData, AddressDetailsData, CardData},
     core::errors,
-    pii::PeekInterface,
+    pii::{self},
     services,
-    types::{self, api, storage::enums, BrowserInformation},
+    types::{self, api, storage::enums, BrowserInformation}, consts,
 };
 
 pub struct TrustpayAuthType {
@@ -110,11 +110,11 @@ pub struct CallbackURLs {
 pub struct PaymentRequestCards {
     pub amount: String,
     pub currency: String,
-    pub pan: String,
-    pub cvv: String,
+    pub pan: Secret<String, pii::CardNumber>,
+    pub cvv: Secret<String>,
     #[serde(rename = "exp")]
     pub expiry_date: String,
-    pub cardholder: String,
+    pub cardholder: Secret<String>,
     pub reference: String,
     #[serde(rename = "redirectUrl")]
     pub redirect_url: String,
@@ -191,34 +191,15 @@ fn get_trustpay_payment_method(bank_redirection_data: &BankRedirectData) -> Trus
 fn get_mandatory_fields(
     item: &types::PaymentsAuthorizeRouterData,
 ) -> Result<TrustpayMandatoryParams, error_stack::Report<errors::ConnectorError>> {
-    let billing_address = item
+    let billing_address = item.get_billing()?
         .address
-        .billing
-        .clone()
-        .unwrap_or_default()
-        .address
-        .unwrap_or_default();
+        .as_ref()
+        .ok_or_else(utils::missing_field_err("billing.address"))?;
     Ok(TrustpayMandatoryParams {
-        billing_city: billing_address
-            .city
-            .ok_or(errors::ConnectorError::MissingRequiredField {
-                field_name: "billing.address.city",
-            })?,
-        billing_country: billing_address.country.ok_or(
-            errors::ConnectorError::MissingRequiredField {
-                field_name: "billing.address.country",
-            },
-        )?,
-        billing_street1: billing_address.line1.ok_or(
-            errors::ConnectorError::MissingRequiredField {
-                field_name: "billing.address.line1",
-            },
-        )?,
-        billing_postcode: billing_address.zip.ok_or(
-            errors::ConnectorError::MissingRequiredField {
-                field_name: "billing.address.postcode",
-            },
-        )?,
+        billing_city: billing_address.get_city()?.to_owned(),
+        billing_country: billing_address.get_country()?.to_owned(),
+        billing_street1: billing_address.get_line1()?.to_owned(),
+        billing_postcode: billing_address.get_zip()?.to_owned(),
     })
 }
 
@@ -237,24 +218,21 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for TrustpayPaymentsRequest {
             user_agent: "none".to_string(),
             ip_address: None,
         };
+        let browser_info = item.request.browser_info.as_ref().unwrap_or(&default_browser_info);
         let params = get_mandatory_fields(item)?;
-        let amount = utils::to_currency_base_unit(item.request.amount, item.request.currency)?
+        let amount = format!("{:.2}", utils::to_currency_base_unit(item.request.amount, item.request.currency)?
             .parse::<f64>()
             .ok()
-            .ok_or_else(|| errors::ConnectorError::RequestEncodingFailed)?;
+            .ok_or_else(|| errors::ConnectorError::RequestEncodingFailed)?);
         Ok(match item.request.payment_method_data {
             api::PaymentMethodData::Card(ref ccard) => Ok(Self {
                 cards_payment_request: Some(PaymentRequestCards {
-                    amount: format!("{:.2}", amount),
+                    amount: amount,
                     currency: item.request.currency.to_string(),
-                    pan: ccard.card_number.peek().clone(),
-                    cvv: ccard.card_cvc.peek().clone(),
-                    expiry_date: format!(
-                        "{}/{}",
-                        ccard.card_exp_month.peek().clone(),
-                        ccard.card_exp_year.peek().clone()
-                    ),
-                    cardholder: ccard.card_holder_name.peek().clone(),
+                    pan: ccard.card_number.clone(),
+                    cvv: ccard.card_cvc.clone(),
+                    expiry_date: ccard.get_card_expiry_month_year_2_digit_with_delimeter("/".to_owned()),
+                    cardholder: ccard.card_holder_name.clone(),
                     reference: item.payment_id.clone(),
                     redirect_url: item.get_return_url()?,
                     billing_city: params.billing_city,
@@ -262,81 +240,16 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for TrustpayPaymentsRequest {
                     billing_street1: params.billing_street1,
                     billing_postcode: params.billing_postcode,
                     customer_email: item.request.email.clone(),
-                    customer_ip_address: item
-                        .request
-                        .browser_info
-                        .as_ref()
-                        .unwrap_or(&default_browser_info)
-                        .ip_address,
-                    browser_accept_header: item
-                        .request
-                        .browser_info
-                        .as_ref()
-                        .unwrap_or(&default_browser_info)
-                        .accept_header
-                        .clone(),
-                    browser_language: item
-                        .request
-                        .browser_info
-                        .as_ref()
-                        .unwrap_or(&default_browser_info)
-                        .language
-                        .clone(),
-                    browser_screen_height: item
-                        .request
-                        .browser_info
-                        .as_ref()
-                        .unwrap_or(&default_browser_info)
-                        .screen_height
-                        .clone()
-                        .to_string(),
-                    browser_screen_width: item
-                        .request
-                        .browser_info
-                        .as_ref()
-                        .unwrap_or(&default_browser_info)
-                        .screen_width
-                        .clone()
-                        .to_string(),
-                    browser_timezone: item
-                        .request
-                        .browser_info
-                        .as_ref()
-                        .unwrap_or(&default_browser_info)
-                        .time_zone
-                        .clone()
-                        .to_string(),
-                    browser_user_agent: item
-                        .request
-                        .browser_info
-                        .as_ref()
-                        .unwrap_or(&default_browser_info)
-                        .user_agent
-                        .clone(),
-                    browser_java_enabled: item
-                        .request
-                        .browser_info
-                        .as_ref()
-                        .unwrap_or(&default_browser_info)
-                        .java_enabled
-                        .clone()
-                        .to_string(),
-                    browser_java_script_enabled: item
-                        .request
-                        .browser_info
-                        .as_ref()
-                        .unwrap_or(&default_browser_info)
-                        .java_script_enabled
-                        .clone()
-                        .to_string(),
-                    browser_screen_color_depth: item
-                        .request
-                        .browser_info
-                        .as_ref()
-                        .unwrap_or(&default_browser_info)
-                        .color_depth
-                        .clone()
-                        .to_string(),
+                    customer_ip_address: browser_info.ip_address,
+                    browser_accept_header: browser_info.accept_header.clone(),
+                    browser_language: browser_info.language.clone(),
+                    browser_screen_height: browser_info.screen_height.clone().to_string(),
+                    browser_screen_width: browser_info.screen_width.clone().to_string(),
+                    browser_timezone: browser_info.time_zone.clone().to_string(),
+                    browser_user_agent: browser_info.user_agent.clone(),
+                    browser_java_enabled: browser_info.java_enabled.clone().to_string(),
+                    browser_java_script_enabled: browser_info.java_script_enabled.clone().to_string(),
+                    browser_screen_color_depth: browser_info.color_depth.clone().to_string(),
                     browser_challenge_window: "1".to_string(),
                     payment_action: None,
                     payment_type: "Plain".to_string(),
@@ -344,9 +257,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for TrustpayPaymentsRequest {
                 ..Default::default()
             }),
             api::PaymentMethodData::BankRedirect(ref bank_redirection_data) => {
-                let auth: TrustpayAuthType = (&item.connector_auth_type)
-                    .try_into()
-                    .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+                let auth = TrustpayAuthType::try_from(&item.connector_auth_type).change_context(errors::ConnectorError::FailedToObtainAuthType)?;
                 Ok(Self {
                     bank_payment_request: Some(PaymentRequestBankRedirect {
                         payment_method: get_trustpay_payment_method(bank_redirection_data),
@@ -355,11 +266,11 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for TrustpayPaymentsRequest {
                         },
                         payment_information: BankPaymentInformation {
                             amount: Amount {
-                                amount: format!("{:.2}", amount),
+                                amount: amount,
                                 currency: item.request.currency.to_string(),
                             },
                             references: References {
-                                merchant_reference: format!("{}_{}", item.payment_id, "1"),
+                                merchant_reference: item.payment_id.clone(),
                             },
                         },
                         callback_urls: CallbackURLs {
@@ -593,7 +504,7 @@ pub fn get_trustpay_response(
             let error = if msg.is_some() {
                 Some(types::ErrorResponse {
                     code: payment_status,
-                    message: msg.unwrap_or_default(),
+                    message: msg.unwrap_or(consts::NO_ERROR_CODE.to_string()),
                     reason: None,
                     status_code,
                 })
@@ -634,7 +545,7 @@ pub fn get_trustpay_response(
             let status = enums::AttemptStatus::AuthorizationFailed;
             let error = Some(types::ErrorResponse {
                 code: result_info.result_code.to_string(),
-                message: result_info.additional_info.unwrap_or_default(),
+                message: result_info.additional_info.unwrap_or(consts::NO_ERROR_CODE.to_string()),
                 reason: None,
                 status_code,
             });
@@ -656,7 +567,7 @@ pub fn get_trustpay_response(
                     .unwrap_or_default();
                 Some(types::ErrorResponse {
                     code: reason_info.reason.code,
-                    message: reason_info.reason.reject_reason.unwrap_or_default(),
+                    message: reason_info.reason.reject_reason.unwrap_or(consts::NO_ERROR_CODE.to_string()),
                     reason: None,
                     status_code,
                 })
@@ -734,7 +645,7 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, TrustpayAuthUpdateResponse, T, t
                         .response
                         .result_info
                         .additional_info
-                        .unwrap_or_default(),
+                        .unwrap_or(consts::NO_ERROR_CODE.to_string()),
                     reason: None,
                     status_code: item.http_code,
                 }),
@@ -771,9 +682,7 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for TrustpayRefundRequestWrapper {
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
         match item.payment_method {
             storage_models::enums::PaymentMethod::BankRedirect => {
-                let auth: TrustpayAuthType = (&item.connector_auth_type)
-                    .try_into()
-                    .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+                let auth = TrustpayAuthType::try_from(&item.connector_auth_type).change_context(errors::ConnectorError::FailedToObtainAuthType)?;
                 let amount =
                     utils::to_currency_base_unit(item.request.amount, item.request.currency)?
                         .parse::<f64>()
@@ -841,7 +750,7 @@ impl<F> TryFrom<types::RefundsResponseRouterData<F, RefundResponse>>
                 let error = if msg.is_some() {
                     Some(types::ErrorResponse {
                         code: payment_status,
-                        message: msg.unwrap_or_default(),
+                        message: msg.unwrap_or(consts::NO_ERROR_CODE.to_string()),
                         reason: None,
                         status_code: item.http_code,
                     })
@@ -859,11 +768,11 @@ impl<F> TryFrom<types::RefundsResponseRouterData<F, RefundResponse>>
             }
             (_, _, Some(result_info)) => {
                 let (refund_status, msg) =
-                    get_refund_status_from_reesultinfo(result_info.result_code);
+                    get_refund_status_from_result_info(result_info.result_code);
                 let error = if msg.is_some() {
                     Some(types::ErrorResponse {
                         code: result_info.result_code.to_string(),
-                        message: msg.unwrap_or_default().to_owned(),
+                        message: msg.unwrap_or_else(|| consts::NO_ERROR_CODE).to_owned(),
                         reason: None,
                         status_code: item.http_code,
                     })
@@ -871,6 +780,7 @@ impl<F> TryFrom<types::RefundsResponseRouterData<F, RefundResponse>>
                     None
                 };
                 let refund_response_data = Ok(types::RefundsResponseData {
+                    //We always get terminal status for bank redirects refunds and don't get any refund id
                     connector_refund_id: "".to_owned(),
                     refund_status,
                 });
@@ -902,7 +812,7 @@ fn get_refund_status(
     }
 }
 
-fn get_refund_status_from_reesultinfo(
+fn get_refund_status_from_result_info(
     result_code: i64,
 ) -> (enums::RefundStatus, Option<&'static str>) {
     match result_code {

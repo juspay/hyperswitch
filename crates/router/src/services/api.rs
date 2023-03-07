@@ -400,7 +400,7 @@ pub struct RedirectForm {
 }
 
 impl From<(url::Url, Method)> for RedirectForm {
-    fn from((mut redirect_url, method): (url::Url, Method)) -> Self {
+    fn from((mut redirect_url, method, ): (url::Url, Method)) -> Self {
         let form_fields = std::collections::HashMap::from_iter(
             redirect_url
                 .query_pairs()
