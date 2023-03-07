@@ -52,59 +52,29 @@ outgoing_enabled = true
 [api_keys]
 hash_key = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
 
-[connectors.aci]
-base_url = "https://eu-test.oppwa.com/"
-
-[connectors.adyen]
-base_url = "https://checkout-test.adyen.com/"
-
-[connectors.authorizedotnet]
-base_url = "https://apitest.authorize.net/xml/v1/request.api"
-
-[connectors.checkout]
-base_url = "https://api.sandbox.checkout.com/"
-
-[connectors.stripe]
-base_url = "http://stripe-mock:12111/"
-
-[connectors.braintree]
-base_url = "https://api.sandbox.braintreegateway.com/"
-
-[connectors.cybersource]
-base_url = "https://apitest.cybersource.com/"
-
-[connectors.shift4]
-base_url = "https://api.shift4.com/"
-
-[connectors.worldpay]
-base_url = "https://try.access.worldpay.com/"
-
-[connectors.globalpay]
-base_url = "https://apis.sandbox.globalpay.com/ucp/"
-
-[connectors.applepay]
-base_url = "https://apple-pay-gateway.apple.com/"
-
-[connectors.klarna]
-base_url = "https://api-na.playground.klarna.com/"
-
-[connectors.bluesnap]
-base_url = "https://sandbox.bluesnap.com/"
-
-[connectors.nuvei]
-base_url = "https://ppp-test.nuvei.com/"
-
-[connectors.airwallex]
-base_url = "https://api-demo.airwallex.com/"
-
-[connectors.multisafepay]
-base_url = "https://testapi.multisafepay.com/"
-
-[connectors.dlocal]
-base_url = "https://sandbox.dlocal.com/"
-
-[connectors.bambora]
-base_url = "https://api.na.bambora.com"
+[connectors]
+aci.base_url = "https://eu-test.oppwa.com/"
+adyen.base_url = "https://checkout-test.adyen.com/"
+airwallex.base_url = "https://api-demo.airwallex.com/"
+applepay.base_url = "https://apple-pay-gateway.apple.com/"
+authorizedotnet.base_url = "https://apitest.authorize.net/xml/v1/request.api"
+bambora.base_url = "https://api.na.bambora.com"
+bluesnap.base_url = "https://sandbox.bluesnap.com/"
+braintree.base_url = "https://api.sandbox.braintreegateway.com/"
+checkout.base_url = "https://api.sandbox.checkout.com/"
+cybersource.base_url = "https://apitest.cybersource.com/"
+dlocal.base_url = "https://sandbox.dlocal.com/"
+fiserv.base_url = "https://cert.api.fiservapps.com/"
+globalpay.base_url = "https://apis.sandbox.globalpay.com/ucp/"
+klarna.base_url = "https://api-na.playground.klarna.com/"
+multisafepay.base_url = "https://testapi.multisafepay.com/"
+nuvei.base_url = "https://ppp-test.nuvei.com/"
+payu.base_url = "https://secure.snd.payu.com/"
+rapyd.base_url = "https://sandboxapi.rapyd.net"
+shift4.base_url = "https://api.shift4.com/"
+stripe.base_url = "https://api.stripe.com/"
+worldline.base_url = "https://eu.sandbox.api-ingenico.com/"
+worldpay.base_url = "https://try.access.worldpay.com/"
 
 [connectors.supported]
 wallets = ["klarna", "braintree", "applepay"]
