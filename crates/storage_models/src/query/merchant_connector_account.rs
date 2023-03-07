@@ -89,19 +89,38 @@ impl MerchantConnectorAccount {
     pub async fn find_by_merchant_id(
         conn: &PgPooledConn,
         merchant_id: &str,
+        get_disabled: bool,
     ) -> StorageResult<Vec<Self>> {
-        generics::generic_filter::<
-            <Self as HasTable>::Table,
-            _,
-            <<Self as HasTable>::Table as Table>::PrimaryKey,
-            _,
-        >(
-            conn,
-            dsl::merchant_id.eq(merchant_id.to_owned()),
-            None,
-            None,
-            None,
-        )
-        .await
+        if get_disabled {
+            generics::generic_filter::<
+                <Self as HasTable>::Table,
+                _,
+                <<Self as HasTable>::Table as Table>::PrimaryKey,
+                _,
+            >(
+                conn,
+                dsl::merchant_id.eq(merchant_id.to_owned()),
+                None,
+                None,
+                None,
+            )
+            .await
+        } else {
+            generics::generic_filter::<
+                <Self as HasTable>::Table,
+                _,
+                <<Self as HasTable>::Table as Table>::PrimaryKey,
+                _,
+            >(
+                conn,
+                dsl::merchant_id
+                    .eq(merchant_id.to_owned())
+                    .and(dsl::disabled.eq(false)),
+                None,
+                None,
+                None,
+            )
+            .await
+        }
     }
 }

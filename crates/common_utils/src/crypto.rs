@@ -1,5 +1,6 @@
 //! Utilities for cryptographic algorithms
 use error_stack::{IntoReport, ResultExt};
+use md5;
 use ring::{aead, hmac};
 
 use crate::errors::{self, CustomResult};
@@ -219,6 +220,10 @@ impl DecodeMessage for GcmAes256 {
 #[derive(Debug)]
 pub struct Sha512;
 
+/// Secure Hash Algorithm 256
+#[derive(Debug)]
+pub struct Sha256;
+
 /// Trait for generating a digest for SHA
 pub trait GenerateDigest {
     /// takes a message and creates a digest for it
@@ -228,6 +233,37 @@ pub trait GenerateDigest {
 impl GenerateDigest for Sha512 {
     fn generate_digest(&self, message: &[u8]) -> CustomResult<Vec<u8>, errors::CryptoError> {
         let digest = ring::digest::digest(&ring::digest::SHA512, message);
+        Ok(digest.as_ref().to_vec())
+    }
+}
+/// MD5 hash function
+#[derive(Debug)]
+pub struct Md5;
+
+impl GenerateDigest for Md5 {
+    fn generate_digest(&self, message: &[u8]) -> CustomResult<Vec<u8>, errors::CryptoError> {
+        let digest = md5::compute(message);
+        Ok(digest.as_ref().to_vec())
+    }
+}
+
+impl VerifySignature for Md5 {
+    fn verify_signature(
+        &self,
+        _secret: &[u8],
+        signature: &[u8],
+        msg: &[u8],
+    ) -> CustomResult<bool, errors::CryptoError> {
+        let hashed_digest = Self
+            .generate_digest(msg)
+            .change_context(errors::CryptoError::SignatureVerificationFailed)?;
+        Ok(hashed_digest == signature)
+    }
+}
+
+impl GenerateDigest for Sha256 {
+    fn generate_digest(&self, message: &[u8]) -> CustomResult<Vec<u8>, errors::CryptoError> {
+        let digest = ring::digest::digest(&ring::digest::SHA256, message);
         Ok(digest.as_ref().to_vec())
     }
 }
@@ -256,6 +292,7 @@ pub fn generate_cryptographically_secure_random_bytes<const N: usize>() -> [u8; 
 mod crypto_tests {
     #![allow(clippy::expect_used)]
     use super::{DecodeMessage, EncodeMessage, SignMessage, VerifySignature};
+    use crate::crypto::GenerateDigest;
 
     #[test]
     fn test_hmac_sha256_sign_message() {
@@ -386,5 +423,40 @@ mod crypto_tests {
         let err_decoded = algorithm.decode_message(&wrong_secret, &message);
 
         assert!(err_decoded.is_err());
+    }
+
+    #[test]
+    fn test_md5_digest() {
+        let message = "abcdefghijklmnopqrstuvwxyz".as_bytes();
+        assert_eq!(
+            format!(
+                "{}",
+                hex::encode(super::Md5.generate_digest(message).expect("Digest"))
+            ),
+            "c3fcd3d76192e4007dfb496cca67e13b"
+        );
+    }
+
+    #[test]
+    fn test_md5_verify_signature() {
+        let right_signature =
+            hex::decode("c3fcd3d76192e4007dfb496cca67e13b").expect("signature decoding");
+        let wrong_signature =
+            hex::decode("d5550730377011948f12cc28889bee590d2a5434d6f54b87562f2dbc2657823f")
+                .expect("Wrong signature decoding");
+        let secret = "".as_bytes();
+        let data = "abcdefghijklmnopqrstuvwxyz".as_bytes();
+
+        let right_verified = super::Md5
+            .verify_signature(secret, &right_signature, data)
+            .expect("Right signature verification result");
+
+        assert!(right_verified);
+
+        let wrong_verified = super::Md5
+            .verify_signature(secret, &wrong_signature, data)
+            .expect("Wrong signature verification result");
+
+        assert!(!wrong_verified);
     }
 }

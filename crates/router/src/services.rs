@@ -1,18 +1,17 @@
 pub mod api;
 pub mod authentication;
-// #[cfg(feature = "basilisk")]
 pub mod encryption;
 pub mod logger;
 
 use std::sync::{atomic, Arc};
 
-use redis_interface::errors::RedisError;
+use redis_interface::{errors::RedisError, PubSubInterface};
 
-pub use self::api::*;
-// #[cfg(feature = "basilisk")]
-pub use self::encryption::*;
+pub use self::{api::*, encryption::*};
 use crate::{
+    async_spawn,
     connection::{diesel_make_pg_pool, PgPool},
+    consts,
     core::errors,
 };
 
@@ -38,7 +37,17 @@ impl Store {
         let redis_conn = Arc::new(crate::connection::redis_connection(config).await);
         let redis_clone = redis_conn.clone();
 
-        tokio::spawn(async move {
+        let subscriber_conn = redis_conn.clone();
+
+        redis_conn.subscribe(consts::PUB_SUB_CHANNEL).await.ok();
+
+        async_spawn!({
+            if let Err(e) = subscriber_conn.on_message().await {
+                logger::error!(pubsub_err=?e);
+            }
+        });
+
+        async_spawn!({
             redis_clone.on_error().await;
         });
 

@@ -63,7 +63,7 @@ pub async fn create_merchant_account(
         merchant_name: req.merchant_name,
         api_key,
         merchant_details,
-        return_url: req.return_url,
+        return_url: req.return_url.map(|a| a.to_string()),
         webhook_details,
         routing_algorithm: req.routing_algorithm,
         sub_merchants_enabled: req.sub_merchants_enabled,
@@ -146,7 +146,7 @@ pub async fn merchant_account_update(
             .transpose()
             .change_context(errors::ApiErrorResponse::InternalServerError)?,
 
-        return_url: req.return_url,
+        return_url: req.return_url.map(|a| a.to_string()),
 
         webhook_details: req
             .webhook_details
@@ -239,6 +239,7 @@ async fn validate_merchant_id<S: Into<String>>(
             error.to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
         })
 }
+
 // Payment Connector API -  Every merchant and connector can have an instance of (merchant <> connector)
 //                          with unique merchant_connector_id for Create Operation
 
@@ -259,7 +260,7 @@ pub async fn create_payment_connector(
     let payment_methods_enabled = match req.payment_methods_enabled {
         Some(val) => {
             for pm in val.into_iter() {
-                let pm_value = utils::Encode::<api::PaymentMethods>::encode_to_value(&pm)
+                let pm_value = utils::Encode::<api::PaymentMethodsEnabled>::encode_to_value(&pm)
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable(
                         "Failed while encoding to serde_json::Value, PaymentMethod",
@@ -344,7 +345,7 @@ pub async fn list_payment_connectors(
         })?;
 
     let merchant_connector_accounts = store
-        .find_merchant_connector_account_by_merchant_id_list(&merchant_id)
+        .find_merchant_connector_account_by_merchant_id_and_disabled_list(&merchant_id, true)
         .await
         .map_err(|error| {
             error.to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound)
@@ -386,7 +387,7 @@ pub async fn update_payment_connector(
         pm_enabled
             .iter()
             .flat_map(|payment_method| {
-                utils::Encode::<api::PaymentMethods>::encode_to_value(payment_method)
+                utils::Encode::<api::PaymentMethodsEnabled>::encode_to_value(payment_method)
             })
             .collect::<Vec<serde_json::Value>>()
     });
@@ -414,12 +415,12 @@ pub async fn update_payment_connector(
     let updated_pm_enabled = updated_mca.payment_methods_enabled.map(|pm| {
         pm.into_iter()
             .flat_map(|pm_value| {
-                ValueExt::<api_models::admin::PaymentMethods>::parse_value(
+                ValueExt::<api_models::admin::PaymentMethodsEnabled>::parse_value(
                     pm_value,
                     "PaymentMethods",
                 )
             })
-            .collect::<Vec<api_models::admin::PaymentMethods>>()
+            .collect::<Vec<api_models::admin::PaymentMethodsEnabled>>()
     });
 
     let response = api::PaymentConnectorCreate {

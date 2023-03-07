@@ -1,5 +1,6 @@
 use common_utils::ext_traits::StringExt;
 use error_stack::ResultExt;
+use josekit::jwe;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -162,7 +163,8 @@ pub async fn get_decrypted_response_payload(
 
     let jwt = get_dotted_jwe(jwe_body);
     let key_id = basilisk_hs_key_id();
-    let jwe_decrypted = encryption::decrypt_jwe(jwekey, &jwt, key_id, key_id, private_key)
+    let alg = jwe::RSA_OAEP;
+    let jwe_decrypted = encryption::decrypt_jwe(jwekey, &jwt, key_id, key_id, private_key, alg)
         .await
         .change_context(errors::VaultError::SaveCardFailed)
         .attach_printable("Jwe Decryption failed for JweBody for vault")?;
@@ -182,12 +184,18 @@ pub async fn mk_basilisk_req(
     jws: &str,
 ) -> CustomResult<encryption::JweBody, errors::VaultError> {
     let jws_payload: Vec<&str> = jws.split('.').collect();
-    let jws_body = encryption::JwsBody {
-        header: jws_payload[0].to_owned(),
-        payload: jws_payload[1].to_owned(),
-        signature: jws_payload[2].to_owned(),
+
+    let generate_jws_body = |payload: Vec<&str>| -> Option<encryption::JwsBody> {
+        Some(encryption::JwsBody {
+            header: payload.first()?.to_string(),
+            payload: payload.get(1)?.to_string(),
+            signature: payload.get(2)?.to_string(),
+        })
     };
-    let payload = utils::Encode::<encryption::JwsBody>::encode_to_string_of_json(&jws_body)
+
+    let jws_body = generate_jws_body(jws_payload).ok_or(errors::VaultError::SaveCardFailed)?;
+
+    let payload = utils::Encode::<encryption::JwsBody>::encode_to_vec(&jws_body)
         .change_context(errors::VaultError::SaveCardFailed)?;
 
     let public_key = encryption::KeyHandler::get_kms_decrypted_key(
@@ -203,13 +211,20 @@ pub async fn mk_basilisk_req(
         .change_context(errors::VaultError::SaveCardFailed)
         .attach_printable("Error on jwe encrypt")?;
     let jwe_payload: Vec<&str> = jwe_encrypted.split('.').collect();
-    Ok(encryption::JweBody {
-        header: jwe_payload[0].to_owned(),
-        iv: jwe_payload[2].to_owned(),
-        encrypted_payload: jwe_payload[3].to_owned(),
-        tag: jwe_payload[4].to_owned(),
-        encrypted_key: jwe_payload[1].to_owned(),
-    })
+
+    let generate_jwe_body = |payload: Vec<&str>| -> Option<encryption::JweBody> {
+        Some(encryption::JweBody {
+            header: payload.first()?.to_string(),
+            iv: payload.get(2)?.to_string(),
+            encrypted_payload: payload.get(3)?.to_string(),
+            tag: payload.get(4)?.to_string(),
+            encrypted_key: payload.get(1)?.to_string(),
+        })
+    };
+
+    let jwe_body = generate_jwe_body(jwe_payload).ok_or(errors::VaultError::SaveCardFailed)?;
+
+    Ok(jwe_body)
 }
 
 pub async fn mk_add_card_request_hs(
@@ -240,7 +255,7 @@ pub async fn mk_add_card_request_hs(
         merchant_customer_id,
         card,
     };
-    let payload = utils::Encode::<StoreCardReq<'_>>::encode_to_string_of_json(&store_card_req)
+    let payload = utils::Encode::<StoreCardReq<'_>>::encode_to_vec(&store_card_req)
         .change_context(errors::VaultError::RequestEncodingFailed)?;
 
     let private_key =
@@ -255,12 +270,13 @@ pub async fn mk_add_card_request_hs(
 
     let jwe_payload = mk_basilisk_req(jwekey, &jws).await?;
 
-    let body = utils::Encode::<encryption::JweBody>::encode(&jwe_payload)
+    let body = utils::Encode::<encryption::JweBody>::encode_to_value(&jwe_payload)
         .change_context(errors::VaultError::RequestEncodingFailed)?;
     let mut url = locker.host.to_owned();
     url.push_str("/cards/add");
     let mut request = services::Request::new(services::Method::Post, &url);
-    request.set_body(body);
+    request.add_header(headers::CONTENT_TYPE, "application/json");
+    request.set_body(body.to_string());
     Ok(request)
 }
 
@@ -288,11 +304,9 @@ pub fn mk_add_card_response_hs(
         payment_method_id: card_reference,
         payment_method: req.payment_method,
         payment_method_type: req.payment_method_type,
-        payment_method_issuer: req.payment_method_issuer,
         card: Some(card),
         metadata: req.metadata,
         created: Some(common_utils::date_time::now()),
-        payment_method_issuer_code: req.payment_method_issuer_code,
         recurring_enabled: false,           // [#256]
         installment_payment_enabled: false, // #[#256]
         payment_experience: Some(vec![api_models::enums::PaymentExperience::RedirectToUrl]), // [#256]
@@ -384,7 +398,7 @@ pub async fn mk_get_card_request_hs(
         merchant_customer_id,
         card_reference: card_reference.to_owned(),
     };
-    let payload = utils::Encode::<CardReqBody<'_>>::encode_to_string_of_json(&card_req_body)
+    let payload = utils::Encode::<CardReqBody<'_>>::encode_to_vec(&card_req_body)
         .change_context(errors::VaultError::RequestEncodingFailed)?;
 
     let private_key =
@@ -399,12 +413,13 @@ pub async fn mk_get_card_request_hs(
 
     let jwe_payload = mk_basilisk_req(jwekey, &jws).await?;
 
-    let body = utils::Encode::<encryption::JweBody>::encode(&jwe_payload)
+    let body = utils::Encode::<encryption::JweBody>::encode_to_value(&jwe_payload)
         .change_context(errors::VaultError::RequestEncodingFailed)?;
     let mut url = locker.host.to_owned();
     url.push_str("/cards/retrieve");
     let mut request = services::Request::new(services::Method::Post, &url);
-    request.set_body(body);
+    request.add_header(headers::CONTENT_TYPE, "application/json");
+    request.set_body(body.to_string());
     Ok(request)
 }
 
@@ -463,7 +478,7 @@ pub async fn mk_delete_card_request_hs(
         merchant_customer_id,
         card_reference: card_reference.to_owned(),
     };
-    let payload = utils::Encode::<CardReqBody<'_>>::encode_to_string_of_json(&card_req_body)
+    let payload = utils::Encode::<CardReqBody<'_>>::encode_to_vec(&card_req_body)
         .change_context(errors::VaultError::RequestEncodingFailed)?;
 
     let private_key =
@@ -478,12 +493,13 @@ pub async fn mk_delete_card_request_hs(
 
     let jwe_payload = mk_basilisk_req(jwekey, &jws).await?;
 
-    let body = utils::Encode::<encryption::JweBody>::encode(&jwe_payload)
+    let body = utils::Encode::<encryption::JweBody>::encode_to_value(&jwe_payload)
         .change_context(errors::VaultError::RequestEncodingFailed)?;
     let mut url = locker.host.to_owned();
     url.push_str("/cards/delete");
     let mut request = services::Request::new(services::Method::Post, &url);
-    request.set_body(body);
+    request.add_header(headers::CONTENT_TYPE, "application/json");
+    request.set_body(body.to_string());
     Ok(request)
 }
 

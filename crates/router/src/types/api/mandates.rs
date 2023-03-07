@@ -46,14 +46,16 @@ impl MandateResponseExt for MandateResponse {
                 error.to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)
             })?;
 
-        let card = if payment_method.payment_method == storage_enums::PaymentMethodType::Card {
+        let card = if payment_method.payment_method == storage_enums::PaymentMethod::Card {
             let card = payment_methods::cards::get_card_from_hs_locker(
                 state,
                 &payment_method.customer_id,
                 &payment_method.merchant_id,
                 &payment_method.payment_method_id,
             )
-            .await?;
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Error getting card from card vault")?;
             let card_detail = payment_methods::transformers::get_card_detail(&payment_method, card)
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed while getting card details")?;
