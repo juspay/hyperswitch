@@ -70,8 +70,7 @@ async fn should_authorize_card_payment() {
                     connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
                         transaction_id.clone(),
                     ),
-                    encoded_data: None,
-                    capture_method: None,
+                    ..Default::default()
                 }),
                 get_default_payment_info(),
             )
@@ -101,8 +100,7 @@ async fn should_authorize_gpay_payment() {
                     connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
                         transaction_id.clone(),
                     ),
-                    encoded_data: None,
-                    capture_method: None,
+                    ..Default::default()
                 }),
                 get_default_payment_info(),
             )
@@ -135,8 +133,7 @@ async fn should_capture_already_authorized_payment() {
                     connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
                         transaction_id.clone(),
                     ),
-                    encoded_data: None,
-                    capture_method: None,
+                    ..Default::default()
                 }),
                 get_default_payment_info(),
             )
@@ -155,8 +152,7 @@ async fn should_capture_already_authorized_payment() {
                     connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
                         transaction_id,
                     ),
-                    encoded_data: None,
-                    capture_method: None,
+                    ..Default::default()
                 }),
                 get_default_payment_info(),
             )
@@ -192,8 +188,7 @@ async fn should_sync_payment() {
                     connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
                         transaction_id,
                     ),
-                    encoded_data: None,
-                    capture_method: None,
+                    ..Default::default()
                 }),
                 get_default_payment_info(),
             )
@@ -236,8 +231,7 @@ async fn should_void_already_authorized_payment() {
                     connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
                         transaction_id,
                     ),
-                    encoded_data: None,
-                    capture_method: None,
+                    ..Default::default()
                 }),
                 get_default_payment_info(),
             )
@@ -271,8 +265,7 @@ async fn should_refund_succeeded_payment() {
                     connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
                         transaction_id.clone(),
                     ),
-                    encoded_data: None,
-                    capture_method: None,
+                    ..Default::default()
                 }),
                 get_default_payment_info(),
             )
@@ -293,8 +286,7 @@ async fn should_refund_succeeded_payment() {
                     connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
                         transaction_id.clone(),
                     ),
-                    encoded_data: None,
-                    capture_method: None,
+                    ..Default::default()
                 }),
                 get_default_payment_info(),
             )

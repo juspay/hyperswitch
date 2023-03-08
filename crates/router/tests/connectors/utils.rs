@@ -395,6 +395,7 @@ pub trait ConnectorActions: Connector {
                 resource_id.get_connector_transaction_id().ok()
             }
             Ok(types::PaymentsResponseData::SessionResponse { .. }) => None,
+            Ok(types::PaymentsResponseData::SessionTokenResponse { .. }) => None,
             Err(_) => None,
         }
     }
@@ -479,6 +480,9 @@ impl Default for PaymentAuthorizeType {
             browser_info: Some(BrowserInfoType::default().0),
             order_details: None,
             email: None,
+            session_token: None,
+            enrolled_for_3ds: false,
+            related_transaction_id: None,
         };
         Self(data)
     }
@@ -531,6 +535,7 @@ impl Default for PaymentSyncType {
             ),
             encoded_data: None,
             capture_method: None,
+            connector_meta: None,
         };
         Self(data)
     }
@@ -560,6 +565,7 @@ pub fn get_connector_transaction_id(
             resource_id.get_connector_transaction_id().ok()
         }
         Ok(types::PaymentsResponseData::SessionResponse { .. }) => None,
+        Ok(types::PaymentsResponseData::SessionTokenResponse { .. }) => None,
         Err(_) => None,
     }
 }
