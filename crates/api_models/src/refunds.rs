@@ -1,4 +1,4 @@
-use common_utils::custom_serde;
+use common_utils::{custom_serde, pii};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 use utoipa::ToSchema;
@@ -42,7 +42,7 @@ pub struct RefundRequest {
 
     /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
     #[schema(value_type  = Option<Object>, example = r#"{ "city": "NY", "unit": "245" }"#)]
-    pub metadata: Option<serde_json::Value>,
+    pub metadata: Option<pii::SecretSerdeValue>,
 }
 
 #[derive(Default, Debug, ToSchema, Clone, Deserialize)]
@@ -54,7 +54,7 @@ pub struct RefundUpdateRequest {
 
     /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
     #[schema(value_type  = Option<Object>, example = r#"{ "city": "NY", "unit": "245" }"#)]
-    pub metadata: Option<serde_json::Value>,
+    pub metadata: Option<pii::SecretSerdeValue>,
 }
 
 #[derive(Default, Debug, Clone, ToSchema, Deserialize)]
@@ -81,7 +81,7 @@ pub struct RefundResponse {
     pub status: RefundStatus,
     /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object
     #[schema(value_type = Option<Object>)]
-    pub metadata: Option<serde_json::Value>,
+    pub metadata: Option<pii::SecretSerdeValue>,
     /// The error message
     pub error_message: Option<String>,
     /// The code for the error

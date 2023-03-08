@@ -13,7 +13,7 @@ pub mod transformers;
 use std::marker::PhantomData;
 
 pub use api_models::enums::Connector;
-use common_utils::pii::Email;
+use common_utils::{pii, pii::Email};
 use error_stack::{IntoReport, ResultExt};
 
 use self::{api::payments, storage::enums as storage_enums};
@@ -92,7 +92,7 @@ pub struct RouterData<Flow, Request, Response> {
     pub router_return_url: Option<String>,
     pub address: PaymentAddress,
     pub auth_type: storage_enums::AuthenticationType,
-    pub connector_meta_data: Option<serde_json::Value>,
+    pub connector_meta_data: Option<pii::SecretSerdeValue>,
     pub amount_captured: Option<i64>,
     pub access_token: Option<AccessToken>,
     pub session_token: Option<String>,
