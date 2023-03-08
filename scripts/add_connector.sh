@@ -21,14 +21,8 @@ sed -i'' -e "s/pub use self::{/pub mod ${pg};\n\npub use self::{/" $conn.rs
 sed -i'' -e "s/};/${pg}::${pgc},\n};/" $conn.rs 
 sed -i'' -e "s/_ => Err/\"${pg}\" => Ok(Box::new(\&connector::${pgc})),\n\t\t\t_ => Err/" $src/types/api.rs
 sed -i'' -e "s/pub supported: SupportedConnectors,/pub supported: SupportedConnectors,\n\tpub ${pg}: ConnectorParams,/" $src/configs/settings.rs
-sed -i'' -e "s/\[scheduler\]/${pg}.base_url = \"\"\n\n[scheduler]/" config/Development.toml
-sed  -r -i'' -e "s/cards = \[/cards = [\n\t\"${pg}\",/" config/Development.toml
-sed -i'' -e "s/\[connectors.supported\]/${pg}.base_url = ""\n\n[connectors.supported]/" config/docker_compose.toml
-sed  -r -i'' -e "s/cards = \[/cards = [\n\t\"${pg}\",/" config/docker_compose.toml
-sed -i'' -e "s/\[connectors.supported\]/${pg}.base_url = ""\n\n[connectors.supported]/" config/config.example.toml
-sed  -r -i'' -e "s/cards = \[/cards = [\n\t\"${pg}\",/" config/config.example.toml
-sed -i'' -e "s/\[connectors.supported\]/${pg}.base_url = ""\n\n[connectors.supported]/" loadtest/config/Development.toml
-sed  -r -i'' -e "s/cards = \[/cards = [\n\t\"${pg}\",/" loadtest/config/Development.toml
+sed -i'' -e "s/\[connectors\]/[connectors]\n${pg}.base_url = \"\"/" config/Development.toml config/docker_compose.toml config/config.example.toml loadtest/config/Development.toml
+sed  -r -i'' -e "s/cards = \[/cards = [\n    \"${pg}\",/" config/Development.toml config/docker_compose.toml config/config.example.toml loadtest/config/Development.toml
 sed -i'' -e "s/Dummy,/Dummy,\n\t${pgc},/" crates/api_models/src/enums.rs
 sed -i'' -e "s/pub enum RoutableConnectors {/pub enum RoutableConnectors {\n\t${pgc},/" crates/api_models/src/enums.rs
 
