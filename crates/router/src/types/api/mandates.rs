@@ -47,7 +47,7 @@ impl MandateResponseExt for MandateResponse {
             })?;
 
         let card = if payment_method.payment_method == storage_enums::PaymentMethod::Card {
-            let card = payment_methods::cards::get_card_wrapper(
+            let card = payment_methods::cards::get_card_from_locker(
                 state,
                 &payment_method.customer_id,
                 &payment_method.merchant_id,

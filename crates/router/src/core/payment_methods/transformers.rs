@@ -360,8 +360,8 @@ pub fn mk_add_card_response(
         metadata: req.metadata,
         created: Some(common_utils::date_time::now()),
         recurring_enabled: false,           // [#256]
-        installment_payment_enabled: false, // #[#256]
-        payment_experience: Some(vec![api_models::enums::PaymentExperience::RedirectToUrl]), // [#256]
+        installment_payment_enabled: false, // [#256] Pending on discussion, and not stored in the card locker
+        payment_experience: None,           // [#256]
     }
 }
 
@@ -547,7 +547,7 @@ pub fn mk_delete_card_request<'a>(
     let mut request = services::Request::new(services::Method::Post, &url);
     request.add_header(headers::X_ROUTER, "test");
     request.add_header(headers::CONTENT_TYPE, "application/x-www-form-urlencoded");
-    //request.add_content_type(Content::FORMURLENCODED);
+
     request.set_body(body);
     Ok(request)
 }

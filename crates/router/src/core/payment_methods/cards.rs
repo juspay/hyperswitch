@@ -71,7 +71,7 @@ pub async fn add_payment_method(
     let merchant_id = &merchant_account.merchant_id;
     let customer_id = req.customer_id.clone().get_required_value("customer_id")?;
     match req.card.clone() {
-        Some(card) => add_card_wrapper(state, req, card, customer_id, merchant_account)
+        Some(card) => add_card_to_locker(state, req, card, customer_id, merchant_account)
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Add Card Failed"),
@@ -124,7 +124,7 @@ pub async fn update_customer_payment_method(
             error.to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)
         })?;
     if pm.payment_method == enums::PaymentMethod::Card {
-        delete_card_wrapper(
+        delete_card_from_locker(
             state,
             &pm.customer_id,
             &pm.merchant_id,
@@ -150,7 +150,7 @@ pub async fn update_customer_payment_method(
 
 // Wrapper function to switch lockers
 
-pub async fn add_card_wrapper(
+pub async fn add_card_to_locker(
     state: &routes::AppState,
     req: api::PaymentMethodCreate,
     card: api::CardDetail,
@@ -167,7 +167,7 @@ pub async fn add_card_wrapper(
     }
 }
 
-pub async fn get_card_wrapper(
+pub async fn get_card_from_locker(
     state: &routes::AppState,
     customer_id: &str,
     merchant_id: &str,
@@ -192,7 +192,7 @@ pub async fn get_card_wrapper(
     }
 }
 
-pub async fn delete_card_wrapper(
+pub async fn delete_card_from_locker(
     state: &routes::AppState,
     customer_id: &str,
     merchant_id: &str,
@@ -1439,7 +1439,7 @@ pub async fn get_lookup_key_from_locker(
     pm: &storage::PaymentMethod,
     locker_id: &str,
 ) -> errors::RouterResult<api::CardDetailFromLocker> {
-    let card = get_card_wrapper(
+    let card = get_card_from_locker(
         state,
         &pm.customer_id,
         &pm.merchant_id,
@@ -1644,7 +1644,7 @@ pub async fn retrieve_payment_method(
             error.to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)
         })?;
     let card = if pm.payment_method == enums::PaymentMethod::Card {
-        let card = get_card_wrapper(
+        let card = get_card_from_locker(
             state,
             &pm.customer_id,
             &pm.merchant_id,
@@ -1702,7 +1702,7 @@ pub async fn delete_payment_method(
 
     if pm.payment_method == enums::PaymentMethod::Card {
         let response =
-            delete_card_wrapper(state, &pm.customer_id, &pm.merchant_id, &payment_method_id)
+            delete_card_from_locker(state, &pm.customer_id, &pm.merchant_id, &payment_method_id)
                 .await?;
         if response.status == "SUCCESS" {
             print!("Card From locker deleted Successfully")
