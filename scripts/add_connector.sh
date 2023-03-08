@@ -47,6 +47,7 @@ sed -i'' -e "s/struct ConnectorAuthentication {/struct ConnectorAuthentication {
 
 # remove temporary files created in above step
 rm ${tests}/main.rs-e ${tests}/connector_auth.rs-e 
+cargo +nightly fmt --all
 cargo build
 echo "Successfully created connector. Running the tests of "$pg.rs
 
