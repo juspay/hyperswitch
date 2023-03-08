@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use utoipa::ToSchema;
 
 #[derive(
@@ -539,6 +541,7 @@ pub enum MandateStatus {
     strum::Display,
     strum::EnumString,
     frunk::LabelledGeneric,
+    Hash,
 )]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
@@ -571,11 +574,18 @@ pub enum Connector {
 }
 
 impl Connector {
-    pub fn supports_access_token(&self) -> bool {
-        matches!(
-            self,
-            Self::Trustpay | Self::Airwallex | Self::Globalpay | Self::Payu
-        )
+    pub fn supports_access_token(&self, payment_method: PaymentMethod) -> bool {
+        //add connector in supported_connector_payment_methods if access token is required only for specific payment methods
+        let supported_connector_payment_methods =
+            HashMap::from([(Self::Trustpay, vec![PaymentMethod::BankRedirect])]);
+        match supported_connector_payment_methods.get(self) {
+            None => matches!(
+                self,
+                //add connector here if access token is required for all the payment methods
+                Self::Airwallex | Self::Globalpay | Self::Payu
+            ),
+            Some(payment_methods_vec) => payment_methods_vec.contains(&payment_method),
+        }
     }
 }
 

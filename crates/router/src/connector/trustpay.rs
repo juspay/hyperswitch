@@ -43,7 +43,8 @@ impl ConnectorCommon for Trustpay {
         &self,
         auth_type: &types::ConnectorAuthType,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        let auth = trustpay::TrustpayAuthType::try_from(auth_type).change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+        let auth = trustpay::TrustpayAuthType::try_from(auth_type)
+            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(vec![(headers::X_API_KEY.to_string(), auth.api_key)])
     }
 
@@ -369,14 +370,12 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         let trustpay_req_string = match req.payment_method {
             storage_models::enums::PaymentMethod::BankRedirect => {
                 utils::Encode::<trustpay::PaymentRequestBankRedirect>::encode_to_string_of_json(
-                    &trustpay_req.bank_payment_request,
+                    &trustpay_req,
                 )
                 .change_context(errors::ConnectorError::RequestEncodingFailed)?
             }
-            _ => utils::Encode::<trustpay::PaymentRequestCards>::encode(
-                &trustpay_req.cards_payment_request,
-            )
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?,
+            _ => utils::Encode::<trustpay::PaymentRequestCards>::encode(&trustpay_req)
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?,
         };
         print!(">>>{:?}", trustpay_req_string);
         Ok(Some(trustpay_req_string))
@@ -493,18 +492,16 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         &self,
         req: &types::RefundsRouterData<api::Execute>,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        let trustpay_req = trustpay::TrustpayRefundRequestWrapper::try_from(req)?;
+        let trustpay_req = trustpay::TrustpayRefundRequest::try_from(req)?;
         let trustpay_req_string = match req.payment_method {
             storage_models::enums::PaymentMethod::BankRedirect => utils::Encode::<
                 trustpay::TrustpayRefundRequestBankRedirect,
             >::encode_to_string_of_json(
-                &trustpay_req.bank_refunds
+                &trustpay_req
             )
             .change_context(errors::ConnectorError::RequestEncodingFailed)?,
-            _ => utils::Encode::<trustpay::TrustpayRefundRequestCards>::encode(
-                &trustpay_req.card_refunds,
-            )
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?,
+            _ => utils::Encode::<trustpay::TrustpayRefundRequestCards>::encode(&trustpay_req)
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?,
         };
         Ok(Some(trustpay_req_string))
     }
@@ -593,14 +590,16 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         match req.payment_method {
-            storage_models::enums::PaymentMethod::BankRedirect =>  Err(errors::ConnectorError::WebhooksNotImplemented).into_report(),
+            storage_models::enums::PaymentMethod::BankRedirect => {
+                Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
+            }
             _ => Ok(Some(
-                    services::RequestBuilder::new()
-                        .method(services::Method::Get)
-                        .url(&types::RefundSyncType::get_url(self, req, connectors)?)
-                        .headers(types::RefundSyncType::get_headers(self, req, connectors)?)
-                        .build(),
-                )),
+                services::RequestBuilder::new()
+                    .method(services::Method::Get)
+                    .url(&types::RefundSyncType::get_url(self, req, connectors)?)
+                    .headers(types::RefundSyncType::get_headers(self, req, connectors)?)
+                    .build(),
+            )),
         }
     }
 

@@ -11,11 +11,12 @@ use router_env::logger;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils::{self, RouterData, AddressDetailsData, CardData},
+    connector::utils::{self, AddressDetailsData, CardData, RouterData},
+    consts,
     core::errors,
     pii::{self},
     services,
-    types::{self, api, storage::enums, BrowserInformation}, consts,
+    types::{self, api, storage::enums, BrowserInformation},
 };
 
 pub struct TrustpayAuthType {
@@ -92,10 +93,10 @@ pub struct BankPaymentInformation {
     pub references: References,
 }
 
-#[derive(Default, Debug, Serialize, Deserialize, Eq, PartialEq, Clone)]
+#[derive(Debug, Serialize, Deserialize, Eq, PartialEq, Clone)]
 #[serde(rename_all = "PascalCase")]
 pub struct BankPaymentInformationResponse {
-    pub status: Option<TrustpayBankRedirectPaymentStatus>,
+    pub status: TrustpayBankRedirectPaymentStatus,
     pub status_reason: Option<StatusReasonInformation>,
 }
 
@@ -165,10 +166,11 @@ pub struct PaymentRequestBankRedirect {
     pub callback_urls: CallbackURLs,
 }
 
-#[derive(Default, Debug, Serialize, PartialEq)]
-pub struct TrustpayPaymentsRequest {
-    pub cards_payment_request: Option<PaymentRequestCards>,
-    pub bank_payment_request: Option<PaymentRequestBankRedirect>,
+#[derive(Debug, Serialize, PartialEq)]
+#[serde(untagged)]
+pub enum TrustpayPaymentsRequest {
+    CardsPaymentRequest(Box<PaymentRequestCards>),
+    BankRedirectPaymentRequest(PaymentRequestBankRedirect),
 }
 
 #[derive(Debug, Serialize, Eq, PartialEq)]
@@ -191,7 +193,8 @@ fn get_trustpay_payment_method(bank_redirection_data: &BankRedirectData) -> Trus
 fn get_mandatory_fields(
     item: &types::PaymentsAuthorizeRouterData,
 ) -> Result<TrustpayMandatoryParams, error_stack::Report<errors::ConnectorError>> {
-    let billing_address = item.get_billing()?
+    let billing_address = item
+        .get_billing()?
         .address
         .as_ref()
         .ok_or_else(utils::missing_field_err("billing.address"))?;
@@ -218,20 +221,28 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for TrustpayPaymentsRequest {
             user_agent: "none".to_string(),
             ip_address: None,
         };
-        let browser_info = item.request.browser_info.as_ref().unwrap_or(&default_browser_info);
+        let browser_info = item
+            .request
+            .browser_info
+            .as_ref()
+            .unwrap_or(&default_browser_info);
         let params = get_mandatory_fields(item)?;
-        let amount = format!("{:.2}", utils::to_currency_base_unit(item.request.amount, item.request.currency)?
-            .parse::<f64>()
-            .ok()
-            .ok_or_else(|| errors::ConnectorError::RequestEncodingFailed)?);
+        let amount = format!(
+            "{:.2}",
+            utils::to_currency_base_unit(item.request.amount, item.request.currency)?
+                .parse::<f64>()
+                .ok()
+                .ok_or_else(|| errors::ConnectorError::RequestEncodingFailed)?
+        );
         Ok(match item.request.payment_method_data {
-            api::PaymentMethodData::Card(ref ccard) => Ok(Self {
-                cards_payment_request: Some(PaymentRequestCards {
-                    amount: amount,
+            api::PaymentMethodData::Card(ref ccard) => {
+                Ok(Self::CardsPaymentRequest(Box::new(PaymentRequestCards {
+                    amount,
                     currency: item.request.currency.to_string(),
                     pan: ccard.card_number.clone(),
                     cvv: ccard.card_cvc.clone(),
-                    expiry_date: ccard.get_card_expiry_month_year_2_digit_with_delimeter("/".to_owned()),
+                    expiry_date: ccard
+                        .get_card_expiry_month_year_2_digit_with_delimeter("/".to_owned()),
                     cardholder: ccard.card_holder_name.clone(),
                     reference: item.payment_id.clone(),
                     redirect_url: item.get_return_url()?,
@@ -248,25 +259,28 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for TrustpayPaymentsRequest {
                     browser_timezone: browser_info.time_zone.clone().to_string(),
                     browser_user_agent: browser_info.user_agent.clone(),
                     browser_java_enabled: browser_info.java_enabled.clone().to_string(),
-                    browser_java_script_enabled: browser_info.java_script_enabled.clone().to_string(),
+                    browser_java_script_enabled: browser_info
+                        .java_script_enabled
+                        .clone()
+                        .to_string(),
                     browser_screen_color_depth: browser_info.color_depth.clone().to_string(),
                     browser_challenge_window: "1".to_string(),
                     payment_action: None,
                     payment_type: "Plain".to_string(),
-                }),
-                ..Default::default()
-            }),
+                })))
+            }
             api::PaymentMethodData::BankRedirect(ref bank_redirection_data) => {
-                let auth = TrustpayAuthType::try_from(&item.connector_auth_type).change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-                Ok(Self {
-                    bank_payment_request: Some(PaymentRequestBankRedirect {
+                let auth = TrustpayAuthType::try_from(&item.connector_auth_type)
+                    .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+                Ok(Self::BankRedirectPaymentRequest(
+                    PaymentRequestBankRedirect {
                         payment_method: get_trustpay_payment_method(bank_redirection_data),
                         merchant_identification: MerchantIdentification {
                             project_id: auth.project_id,
                         },
                         payment_information: BankPaymentInformation {
                             amount: Amount {
-                                amount: amount,
+                                amount,
                                 currency: item.request.currency.to_string(),
                             },
                             references: References {
@@ -278,9 +292,8 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for TrustpayPaymentsRequest {
                             cancel: item.get_return_url()?,
                             error: item.get_return_url()?,
                         },
-                    }),
-                    ..Default::default()
-                })
+                    },
+                ))
             }
             _ => Err(errors::ConnectorError::NotImplemented(format!(
                 "Current Payment Method - {:?}",
@@ -416,24 +429,28 @@ impl From<TrustpayBankRedirectPaymentStatus> for enums::AttemptStatus {
     }
 }
 
-#[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
-pub struct TrustpayPaymentsResponse {
-    pub status: Option<i64>,
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
+pub struct PaymentsResponseCards {
+    pub status: i64,
     pub description: Option<String>,
     #[serde(rename = "instanceId")]
-    pub instance_id: Option<String>,
+    pub instance_id: String,
     #[serde(rename = "paymentStatus")]
-    pub payment_status: Option<String>,
+    pub payment_status: String,
     #[serde(rename = "paymentDescription")]
     pub payment_description: Option<String>,
     #[serde(rename = "redirectUrl")]
     pub redirect_url: Option<String>,
     #[serde(rename = "redirectParams")]
     pub redirect_params: Option<HashMap<String, String>>,
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
+pub struct PaymentsResponseBankRedirect {
     #[serde(rename = "PaymentRequestId")]
-    pub payment_request_id: Option<i64>,
+    pub payment_request_id: i64,
     #[serde(rename = "GatewayUrl")]
-    pub gateway_url: Option<Url>,
+    pub gateway_url: Url,
     #[serde(rename = "ResultInfo")]
     pub payment_result_info: Option<ResultInfo>,
     #[serde(rename = "PaymentMethod")]
@@ -442,6 +459,27 @@ pub struct TrustpayPaymentsResponse {
     pub merchant_identification_response: Option<MerchantIdentification>,
     #[serde(rename = "PaymentInformation")]
     pub payment_information_response: Option<BankPaymentInformationResponse>,
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
+pub struct ErrorResponseBankRedirect {
+    #[serde(rename = "ResultInfo")]
+    pub payment_result_info: ResultInfo,
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
+pub struct SyncResponseBankRedirect {
+    #[serde(rename = "PaymentInformation")]
+    pub payment_information_response: BankPaymentInformationResponse,
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[serde(untagged)]
+pub enum TrustpayPaymentsResponse {
+    CardsPayments(PaymentsResponseCards),
+    BankRedirectPayments(PaymentsResponseBankRedirect),
+    BankRedirectSync(SyncResponseBankRedirect),
+    BankRedirectError(ErrorResponseBankRedirect),
 }
 
 impl<F, T>
@@ -478,21 +516,12 @@ pub fn get_trustpay_response(
     ),
     errors::ConnectorError,
 > {
-    match (
-        response.instance_id,
-        response.payment_status,
-        response.payment_request_id,
-        response.gateway_url,
-        response.payment_result_info,
-        response
-            .payment_information_response
-            .clone()
-            .unwrap_or_default()
-            .status,
-    ) {
-        (Some(instance_id), Some(payment_status), _, _, _, _) => {
-            let (status, msg) =
-                get_transaction_status(payment_status.as_str(), response.redirect_url.clone())?;
+    match response {
+        TrustpayPaymentsResponse::CardsPayments(response) => {
+            let (status, msg) = get_transaction_status(
+                response.payment_status.as_str(),
+                response.redirect_url.clone(),
+            )?;
             let form_fields = response
                 .redirect_params
                 .unwrap_or(std::collections::HashMap::new());
@@ -503,7 +532,7 @@ pub fn get_trustpay_response(
             });
             let error = if msg.is_some() {
                 Some(types::ErrorResponse {
-                    code: payment_status,
+                    code: response.payment_status,
                     message: msg.unwrap_or(consts::NO_ERROR_CODE.to_string()),
                     reason: None,
                     status_code,
@@ -512,27 +541,28 @@ pub fn get_trustpay_response(
                 None
             };
             let payment_response_data = types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(instance_id),
+                resource_id: types::ResponseId::ConnectorTransactionId(response.instance_id),
                 redirection_data,
                 mandate_reference: None,
                 connector_metadata: None,
             };
             Ok((status, error, payment_response_data))
         }
-        (_, _, Some(payment_request_id), Some(gateway_url), _, _) => {
+        TrustpayPaymentsResponse::BankRedirectPayments(response) => {
             let status = enums::AttemptStatus::AuthenticationPending;
             let error = None;
             let form_fields: HashMap<String, String> = HashMap::from_iter(
-                gateway_url
+                response
+                    .gateway_url
                     .query_pairs()
                     .map(|(key, value)| (key.to_string(), value.to_string())),
             );
             let payment_response_data = types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(
-                    payment_request_id.to_string(),
+                    response.payment_request_id.to_string(),
                 ),
                 redirection_data: Some(services::RedirectForm {
-                    endpoint: gateway_url.to_string(),
+                    endpoint: response.gateway_url.to_string(),
                     method: services::Method::Get,
                     form_fields,
                 }),
@@ -541,11 +571,14 @@ pub fn get_trustpay_response(
             };
             Ok((status, error, payment_response_data))
         }
-        (_, _, _, _, Some(result_info), _) => {
+        TrustpayPaymentsResponse::BankRedirectError(response) => {
             let status = enums::AttemptStatus::AuthorizationFailed;
             let error = Some(types::ErrorResponse {
-                code: result_info.result_code.to_string(),
-                message: result_info.additional_info.unwrap_or(consts::NO_ERROR_CODE.to_string()),
+                code: response.payment_result_info.result_code.to_string(),
+                message: response
+                    .payment_result_info
+                    .additional_info
+                    .unwrap_or(consts::NO_ERROR_CODE.to_string()),
                 reason: None,
                 status_code,
             });
@@ -557,17 +590,19 @@ pub fn get_trustpay_response(
             };
             Ok((status, error, payment_response_data))
         }
-        (_, _, _, _, _, Some(status)) => {
-            let status = enums::AttemptStatus::from(status);
+        TrustpayPaymentsResponse::BankRedirectSync(response) => {
+            let status = enums::AttemptStatus::from(response.payment_information_response.status);
             let error = if status == enums::AttemptStatus::AuthenticationFailed {
                 let reason_info = response
                     .payment_information_response
-                    .unwrap_or_default()
                     .status_reason
                     .unwrap_or_default();
                 Some(types::ErrorResponse {
                     code: reason_info.reason.code,
-                    message: reason_info.reason.reject_reason.unwrap_or(consts::NO_ERROR_CODE.to_string()),
+                    message: reason_info
+                        .reason
+                        .reject_reason
+                        .unwrap_or(consts::NO_ERROR_CODE.to_string()),
                     reason: None,
                     status_code,
                 })
@@ -582,7 +617,6 @@ pub fn get_trustpay_response(
             };
             Ok((status, error, payment_response_data))
         }
-        _ => Err(errors::ConnectorError::ResponseDeserializationFailed.into()),
     }
 }
 
@@ -671,25 +705,27 @@ pub struct TrustpayRefundRequestBankRedirect {
     pub payment_information: BankPaymentInformation,
 }
 
-#[derive(Default, Debug, Serialize)]
-pub struct TrustpayRefundRequestWrapper {
-    pub card_refunds: Option<TrustpayRefundRequestCards>,
-    pub bank_refunds: Option<TrustpayRefundRequestBankRedirect>,
+#[derive(Debug, Serialize)]
+#[serde(untagged)]
+pub enum TrustpayRefundRequest {
+    CardsRefund(TrustpayRefundRequestCards),
+    BankRedirectRefund(TrustpayRefundRequestBankRedirect),
 }
 
-impl<F> TryFrom<&types::RefundsRouterData<F>> for TrustpayRefundRequestWrapper {
+impl<F> TryFrom<&types::RefundsRouterData<F>> for TrustpayRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
         match item.payment_method {
             storage_models::enums::PaymentMethod::BankRedirect => {
-                let auth = TrustpayAuthType::try_from(&item.connector_auth_type).change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+                let auth = TrustpayAuthType::try_from(&item.connector_auth_type)
+                    .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
                 let amount =
                     utils::to_currency_base_unit(item.request.amount, item.request.currency)?
                         .parse::<f64>()
                         .ok()
                         .ok_or_else(|| errors::ConnectorError::RequestEncodingFailed)?;
-                Ok(Self {
-                    bank_refunds: Some(TrustpayRefundRequestBankRedirect {
+                Ok(Self::BankRedirectRefund(
+                    TrustpayRefundRequestBankRedirect {
                         merchant_identification: MerchantIdentification {
                             project_id: auth.project_id,
                         },
@@ -702,35 +738,40 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for TrustpayRefundRequestWrapper {
                                 merchant_reference: format!("{}_{}", item.payment_id, "1"),
                             },
                         },
-                    }),
-                    ..Default::default()
-                })
+                    },
+                ))
             }
-            _ => Ok(Self {
-                card_refunds: Some(TrustpayRefundRequestCards {
-                    instance_id: item.request.connector_transaction_id.clone(),
-                    amount: utils::to_currency_base_unit(
-                        item.request.amount,
-                        item.request.currency,
-                    )?,
-                    currency: item.request.currency.to_string(),
-                    reference: item.payment_id.clone(),
-                }),
-                ..Default::default()
-            }),
+            _ => Ok(Self::CardsRefund(TrustpayRefundRequestCards {
+                instance_id: item.request.connector_transaction_id.clone(),
+                amount: utils::to_currency_base_unit(item.request.amount, item.request.currency)?,
+                currency: item.request.currency.to_string(),
+                reference: item.payment_id.clone(),
+            })),
         }
     }
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct RefundResponse {
-    pub status: Option<i64>,
+pub struct CardsRefundResponse {
+    pub status: i64,
     pub description: Option<String>,
-    pub instance_id: Option<String>,
-    pub payment_status: Option<String>,
+    pub instance_id: String,
+    pub payment_status: String,
     pub payment_description: Option<String>,
-    pub result_info: Option<ResultInfo>,
+}
+
+#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BankRedirectRefundResponse {
+    pub result_info: ResultInfo,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum RefundResponse {
+    CardsRefund(CardsRefundResponse),
+    BankRedirectRefund(BankRedirectRefundResponse),
 }
 
 impl<F> TryFrom<types::RefundsResponseRouterData<F, RefundResponse>>
@@ -740,16 +781,12 @@ impl<F> TryFrom<types::RefundsResponseRouterData<F, RefundResponse>>
     fn try_from(
         item: types::RefundsResponseRouterData<F, RefundResponse>,
     ) -> Result<Self, Self::Error> {
-        match (
-            item.response.payment_status,
-            item.response.instance_id,
-            item.response.result_info,
-        ) {
-            (Some(payment_status), Some(instance_id), _) => {
-                let (refund_status, msg) = get_refund_status(&payment_status)?;
+        match item.response {
+            RefundResponse::CardsRefund(response) => {
+                let (refund_status, msg) = get_refund_status(&response.payment_status)?;
                 let error = if msg.is_some() {
                     Some(types::ErrorResponse {
-                        code: payment_status,
+                        code: response.payment_status,
                         message: msg.unwrap_or(consts::NO_ERROR_CODE.to_string()),
                         reason: None,
                         status_code: item.http_code,
@@ -758,7 +795,7 @@ impl<F> TryFrom<types::RefundsResponseRouterData<F, RefundResponse>>
                     None
                 };
                 let refund_response_data = Ok(types::RefundsResponseData {
-                    connector_refund_id: instance_id,
+                    connector_refund_id: response.instance_id,
                     refund_status,
                 });
                 Ok(Self {
@@ -766,13 +803,13 @@ impl<F> TryFrom<types::RefundsResponseRouterData<F, RefundResponse>>
                     ..item.data
                 })
             }
-            (_, _, Some(result_info)) => {
+            RefundResponse::BankRedirectRefund(response) => {
                 let (refund_status, msg) =
-                    get_refund_status_from_result_info(result_info.result_code);
+                    get_refund_status_from_result_info(response.result_info.result_code);
                 let error = if msg.is_some() {
                     Some(types::ErrorResponse {
-                        code: result_info.result_code.to_string(),
-                        message: msg.unwrap_or_else(|| consts::NO_ERROR_CODE).to_owned(),
+                        code: response.result_info.result_code.to_string(),
+                        message: msg.unwrap_or(consts::NO_ERROR_CODE).to_owned(),
                         reason: None,
                         status_code: item.http_code,
                     })
@@ -789,7 +826,6 @@ impl<F> TryFrom<types::RefundsResponseRouterData<F, RefundResponse>>
                     ..item.data
                 })
             }
-            _ => Err(errors::ConnectorError::ResponseDeserializationFailed.into()),
         }
     }
 }
