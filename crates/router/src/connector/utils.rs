@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use common_utils::pii;
+use common_utils::{ext_traits::ValueExt, pii};
 use error_stack::{report, IntoReport, ResultExt};
 use masking::Secret;
 use once_cell::sync::Lazy;
@@ -45,7 +45,7 @@ pub trait RouterData {
     fn get_billing_phone(&self) -> Result<&api::PhoneDetails, Error>;
     fn get_description(&self) -> Result<String, Error>;
     fn get_billing_address(&self) -> Result<&api::AddressDetails, Error>;
-    fn get_connector_meta(&self) -> Result<serde_json::Value, Error>;
+    fn get_connector_meta(&self) -> Result<pii::SecretSerdeValue, Error>;
     fn get_session_token(&self) -> Result<String, Error>;
     fn to_connector_meta<T>(&self) -> Result<T, Error>
     where
@@ -89,7 +89,7 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
             .and_then(|a| a.address.as_ref())
             .ok_or_else(missing_field_err("billing.address"))
     }
-    fn get_connector_meta(&self) -> Result<serde_json::Value, Error> {
+    fn get_connector_meta(&self) -> Result<pii::SecretSerdeValue, Error> {
         self.connector_meta_data
             .clone()
             .ok_or_else(missing_field_err("connector_meta_data"))
@@ -105,8 +105,8 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
     where
         T: serde::de::DeserializeOwned,
     {
-        serde_json::from_value::<T>(self.get_connector_meta()?)
-            .into_report()
+        self.get_connector_meta()?
+            .parse_value(std::any::type_name::<T>())
             .change_context(errors::ConnectorError::NoConnectorMetaData)
     }
 

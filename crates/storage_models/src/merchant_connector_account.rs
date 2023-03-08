@@ -1,3 +1,4 @@
+use common_utils::pii;
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
 use masking::Secret;
 
@@ -26,7 +27,7 @@ pub struct MerchantConnectorAccount {
     #[diesel(deserialize_as = super::OptionalDieselArray<serde_json::Value>)]
     pub payment_methods_enabled: Option<Vec<serde_json::Value>>,
     pub connector_type: storage_enums::ConnectorType,
-    pub metadata: Option<serde_json::Value>,
+    pub metadata: Option<pii::SecretSerdeValue>,
     pub connector_label: String,
     pub business_country: String,
     pub business_label: String,
@@ -43,7 +44,7 @@ pub struct MerchantConnectorAccountNew {
     pub disabled: Option<bool>,
     pub merchant_connector_id: String,
     pub payment_methods_enabled: Option<Vec<serde_json::Value>>,
-    pub metadata: Option<serde_json::Value>,
+    pub metadata: Option<pii::SecretSerdeValue>,
     pub connector_label: Option<String>,
     pub business_country: Option<String>,
     pub business_label: Option<String>,
@@ -60,7 +61,7 @@ pub enum MerchantConnectorAccountUpdate {
         disabled: Option<bool>,
         merchant_connector_id: Option<String>,
         payment_methods_enabled: Option<Vec<serde_json::Value>>,
-        metadata: Option<serde_json::Value>,
+        metadata: Option<pii::SecretSerdeValue>,
         connector_label: Option<String>,
         business_country: Option<String>,
         business_label: Option<String>,
@@ -77,7 +78,7 @@ pub struct MerchantConnectorAccountUpdateInternal {
     disabled: Option<bool>,
     merchant_connector_id: Option<String>,
     payment_methods_enabled: Option<Vec<serde_json::Value>>,
-    metadata: Option<serde_json::Value>,
+    metadata: Option<pii::SecretSerdeValue>,
     connector_label: Option<String>,
     business_country: Option<String>,
     business_label: Option<String>,
