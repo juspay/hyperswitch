@@ -745,16 +745,20 @@ impl services::ConnectorRedirectResponse for Checkout {
     fn get_flow_type(
         &self,
         query_params: &str,
-    ) -> CustomResult<payments::CallConnectorAction, errors::ConnectorError> {
+    ) -> CustomResult<payments::ConnectorRedirectFlow, errors::ConnectorError> {
         let query =
             serde_urlencoded::from_str::<transformers::CheckoutRedirectResponse>(query_params)
                 .into_report()
                 .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        Ok(query
+        let connector_action = query
             .status
             .map(|checkout_status| {
                 payments::CallConnectorAction::StatusUpdate(checkout_status.into())
             })
-            .unwrap_or(payments::CallConnectorAction::Trigger))
+            .unwrap_or(payments::CallConnectorAction::Trigger);
+        Ok(payments::ConnectorRedirectFlow {
+            connector_action,
+            payment_flow: payments::PaymentFlow::Psync,
+        })
     }
 }

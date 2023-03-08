@@ -537,7 +537,10 @@ impl services::ConnectorRedirectResponse for Shift4 {
     fn get_flow_type(
         &self,
         _query_params: &str,
-    ) -> CustomResult<payments::CallConnectorAction, errors::ConnectorError> {
-        Ok(payments::CallConnectorAction::Trigger)
+    ) -> CustomResult<payments::ConnectorRedirectFlow, errors::ConnectorError> {
+        Ok(payments::ConnectorRedirectFlow {
+            connector_action: payments::CallConnectorAction::Trigger,
+            payment_flow: payments::PaymentFlow::Psync,
+        })
     }
 }

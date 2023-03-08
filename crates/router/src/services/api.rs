@@ -559,8 +559,11 @@ pub trait ConnectorRedirectResponse {
     fn get_flow_type(
         &self,
         _query_params: &str,
-    ) -> CustomResult<payments::CallConnectorAction, errors::ConnectorError> {
-        Ok(payments::CallConnectorAction::Avoid)
+    ) -> CustomResult<payments::ConnectorRedirectFlow, errors::ConnectorError> {
+        Ok(payments::ConnectorRedirectFlow {
+            connector_action: payments::CallConnectorAction::Avoid,
+            payment_flow: payments::PaymentFlow::Psync,
+        })
     }
 }
 

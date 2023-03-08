@@ -981,16 +981,19 @@ impl services::ConnectorRedirectResponse for Stripe {
     fn get_flow_type(
         &self,
         query_params: &str,
-    ) -> CustomResult<crate::core::payments::CallConnectorAction, errors::ConnectorError> {
+    ) -> CustomResult<crate::core::payments::ConnectorRedirectFlow, errors::ConnectorError> {
         let query =
             serde_urlencoded::from_str::<transformers::StripeRedirectResponse>(query_params)
                 .into_report()
                 .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-
-        Ok(query
+        let connector_action = query
             .redirect_status
             .map_or(payments::CallConnectorAction::Trigger, |status| {
                 payments::CallConnectorAction::StatusUpdate(status.into())
-            }))
+            });
+        Ok(payments::ConnectorRedirectFlow {
+            connector_action,
+            payment_flow: payments::PaymentFlow::Psync,
+        })
     }
 }
