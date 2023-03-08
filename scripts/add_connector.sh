@@ -1,3 +1,5 @@
+#! /usr/bin/env bash
+
 pg=$1;
 pgc="$(tr '[:lower:]' '[:upper:]' <<< ${pg:0:1})${pg:1}"
 src="crates/router/src"
