@@ -37,7 +37,7 @@ pub async fn create_merchant_account(
     let merchant_details = req
         .merchant_details
         .map(|md| {
-            utils::Encode::<api::PrimaryBusinessDetails>::encode_to_value(&md).change_context(
+            utils::Encode::<api::MerchantDetails>::encode_to_value(&md).change_context(
                 errors::ApiErrorResponse::InvalidDataValue {
                     field_name: "merchant_details",
                 },
@@ -48,7 +48,7 @@ pub async fn create_merchant_account(
     let webhook_details = req
         .webhook_details
         .map(|wd| {
-            utils::Encode::<api::PrimaryBusinessDetails>::encode_to_value(&wd).change_context(
+            utils::Encode::<api::WebhookDetails>::encode_to_value(&wd).change_context(
                 errors::ApiErrorResponse::InvalidDataValue {
                     field_name: "webhook details",
                 },
