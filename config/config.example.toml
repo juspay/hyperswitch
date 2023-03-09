@@ -183,7 +183,7 @@ base_url = "https://sandbox.dlocal.com/"
 base_url = "https://api.na.bambora.com"
 
 [connectors.mollie]
-base_url = 
+base_url = "https://api.mollie.com/v2"
 
 [connectors.supported]
 wallets = ["klarna", "braintree", "applepay"]

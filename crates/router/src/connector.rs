@@ -28,7 +28,7 @@ pub use self::{
     aci::Aci, adyen::Adyen, airwallex::Airwallex, applepay::Applepay,
     authorizedotnet::Authorizedotnet, bambora::Bambora, bluesnap::Bluesnap, braintree::Braintree,
     checkout::Checkout, cybersource::Cybersource, dlocal::Dlocal, fiserv::Fiserv,
-    globalpay::Globalpay, klarna::Klarna, multisafepay::Multisafepay, nuvei::Nuvei, payu::Payu,
-    rapyd::Rapyd, shift4::Shift4, stripe::Stripe, worldline::Worldline, worldpay::Worldpay,
-mollie::Mollie,
+    globalpay::Globalpay, klarna::Klarna, mollie::Mollie, multisafepay::Multisafepay, nuvei::Nuvei,
+    payu::Payu, rapyd::Rapyd, shift4::Shift4, stripe::Stripe, worldline::Worldline,
+    worldpay::Worldpay,
 };

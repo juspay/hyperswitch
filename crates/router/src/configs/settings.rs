@@ -254,7 +254,7 @@ pub struct Connectors {
 
     // Keep this field separate from the remaining fields
     pub supported: SupportedConnectors,
-	pub mollie: ConnectorParams,
+    pub mollie: ConnectorParams,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
