@@ -3,12 +3,15 @@ use error_stack::{IntoReport, ResultExt};
 use masking::PeekInterface;
 use router_env::{instrument, tracing};
 
-#[cfg(not(feature = "basilisk"))]
-use crate::types::storage;
+#[cfg(feature = "basilisk")]
+use crate::types::storage::enums;
 use crate::{
     core::errors::{self, CustomResult, RouterResult},
-    logger, routes,
-    types::api,
+    db, logger, routes,
+    types::{
+        api,
+        storage::{self, ProcessTrackerExt},
+    },
     utils::{self, StringExt},
 };
 #[cfg(feature = "basilisk")]
@@ -349,7 +352,9 @@ impl Vault {
 
         let lookup_key = token_id.unwrap_or_else(|| generate_id_with_default_len("token"));
 
-        create_tokenize(state, value1, Some(value2), lookup_key).await
+        let lookup_key = create_tokenize(state, value1, Some(value2), lookup_key).await?;
+        add_tokenize_data_task(&*state.store, &lookup_key, "Delete_Tokenize_Data_Workflow").await?;
+        Ok(lookup_key)
     }
 
     #[instrument(skip_all)]
@@ -550,4 +555,81 @@ pub async fn delete_tokenized_data(
             .into_report()
             .attach_printable(format!("Got 4xx from the basilisk locker: {err:?}")),
     }
+}
+
+// ********************************************** PROCESS TRACKER **********************************************
+#[cfg(feature = "basilisk")]
+pub async fn add_tokenize_data_task(
+    db: &dyn db::StorageInterface,
+    lookup_key: &str,
+    runner: &str,
+) -> RouterResult<storage::ProcessTracker> {
+    let task = "DELETE_TOKENIZE_DATA";
+    let current_time = common_utils::date_time::now();
+    let tracking_data = serde_json::to_value(api::DeleteTokenizeByTokenRequest {
+        lookup_key: lookup_key.to_owned(),
+    })
+    .into_report()
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable_lazy(|| format!("unable to convert into value {:?}", lookup_key))?;
+
+    let process_tracker_entry = storage::ProcessTrackerNew {
+        id: format!("{}_{}_{}", runner, task, lookup_key),
+        name: Some(String::from(task)),
+        tag: vec![String::from("BASILISK-V3")],
+        runner: Some(String::from(runner)),
+        retry_count: 0,
+        schedule_time: Some(common_utils::date_time::now() + time::Duration::DAY), // should we keep it in redis, the duration?
+        rule: String::new(),
+        tracking_data,
+        business_status: String::from("Pending"),
+        status: enums::ProcessTrackerStatus::New,
+        event: vec![],
+        created_at: current_time,
+        updated_at: current_time,
+    };
+    let response = db
+        .insert_process(process_tracker_entry)
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable_lazy(|| {
+            format!(
+                "Failed while inserting task in process_tracker: lookup_key: {}",
+                lookup_key
+            )
+        })?;
+    Ok(response)
+}
+
+#[cfg(feature = "basilisk")]
+pub async fn start_tokenize_data_workflow(
+    state: &routes::AppState,
+    tokenize_tracker: &storage::ProcessTracker,
+) -> Result<(), errors::ProcessTrackerError> {
+    let db = &*state.store;
+    let delete_tokenize_data = serde_json::from_value::<api::DeleteTokenizeByTokenRequest>(
+        tokenize_tracker.tracking_data.clone(),
+    )
+    .into_report()
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable_lazy(|| {
+        format!(
+            "unable to convert into DeleteTokenizeByTokenRequest {:?}",
+            tokenize_tracker.tracking_data
+        )
+    })?;
+    //TODO: Add retry logic in case deletion failed, in case card was deleted session based mark as finished
+    Vault::delete_locker_payment_method_by_lookup_key(
+        state,
+        &Some(delete_tokenize_data.lookup_key),
+    )
+    .await;
+
+    //mark task as finished
+    let id = tokenize_tracker.id.clone();
+    tokenize_tracker
+        .clone()
+        .finish_with_status(db, format!("COMPLETED_BY_PT_{id}"))
+        .await?;
+    Ok(())
 }

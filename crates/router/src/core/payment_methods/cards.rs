@@ -1324,7 +1324,10 @@ impl BasiliskCardSupport {
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Wrapped value2 construction failed when saving card to locker")?;
 
-        vault::create_tokenize(state, value1, Some(value2), payment_token.to_string()).await?;
+        let lookup_key =
+            vault::create_tokenize(state, value1, Some(value2), payment_token.to_string()).await?;
+        vault::add_tokenize_data_task(&*state.store, &lookup_key, "Delete_Tokenize_Data_Workflow")
+            .await?;
         Ok(card)
     }
 }
