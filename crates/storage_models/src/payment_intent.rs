@@ -242,9 +242,14 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
 fn make_client_secret_null_if_success(
     status: Option<storage_enums::IntentStatus>,
 ) -> Option<Option<String>> {
-    if status == Some(storage_enums::IntentStatus::Succeeded) {
-        Some(None)
-    } else {
-        None
-    }
+    status.and_then(|status| match status {
+        storage_enums::IntentStatus::Succeeded
+        | storage_enums::IntentStatus::Failed
+        | storage_enums::IntentStatus::Cancelled => Some(None),
+        storage_enums::IntentStatus::Processing
+        | storage_enums::IntentStatus::RequiresCustomerAction
+        | storage_enums::IntentStatus::RequiresPaymentMethod
+        | storage_enums::IntentStatus::RequiresConfirmation
+        | storage_enums::IntentStatus::RequiresCapture => None,
+    })
 }
