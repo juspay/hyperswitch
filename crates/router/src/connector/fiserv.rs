@@ -306,7 +306,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         data: &types::PaymentsSyncRouterData,
         res: types::Response,
     ) -> CustomResult<types::PaymentsSyncRouterData, errors::ConnectorError> {
-        let response: fiserv::FiservPaymentsSyncResponse = res
+        let response: fiserv::FiservSyncResponse = res
             .response
             .parse_struct("Fiserv PaymentSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
@@ -642,7 +642,7 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
     ) -> CustomResult<types::RefundSyncRouterData, errors::ConnectorError> {
         logger::debug!(target: "router::connector::fiserv", response=?res);
 
-        let response: fiserv::RefundSyncResponse = res
+        let response: fiserv::FiservSyncResponse = res
             .response
             .parse_struct("Fiserv Refund Response")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;

@@ -279,7 +279,7 @@ pub struct FiservPaymentsResponse {
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 #[serde(transparent)]
-pub struct FiservPaymentsSyncResponse {
+pub struct FiservSyncResponse {
     sync_responses: Vec<FiservPaymentsResponse>,
 }
 
@@ -323,19 +323,12 @@ impl<F, T>
     }
 }
 
-impl<F, T>
-    TryFrom<
-        types::ResponseRouterData<F, FiservPaymentsSyncResponse, T, types::PaymentsResponseData>,
-    > for types::RouterData<F, T, types::PaymentsResponseData>
+impl<F, T> TryFrom<types::ResponseRouterData<F, FiservSyncResponse, T, types::PaymentsResponseData>>
+    for types::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::ResponseRouterData<
-            F,
-            FiservPaymentsSyncResponse,
-            T,
-            types::PaymentsResponseData,
-        >,
+        item: types::ResponseRouterData<F, FiservSyncResponse, T, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         let gateway_resp = match item.response.sync_responses.first() {
             Some(gateway_response) => gateway_response,
@@ -509,13 +502,6 @@ pub struct RefundResponse {
     gateway_response: GatewayResponse,
 }
 
-#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
-#[serde(rename_all = "camelCase")]
-#[serde(transparent)]
-pub struct RefundSyncResponse {
-    sync_responses: Vec<FiservPaymentsResponse>,
-}
-
 impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
     for types::RefundsRouterData<api::Execute>
 {
@@ -539,12 +525,12 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
     }
 }
 
-impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundSyncResponse>>
+impl TryFrom<types::RefundsResponseRouterData<api::RSync, FiservSyncResponse>>
     for types::RefundsRouterData<api::RSync>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::RefundsResponseRouterData<api::RSync, RefundSyncResponse>,
+        item: types::RefundsResponseRouterData<api::RSync, FiservSyncResponse>,
     ) -> Result<Self, Self::Error> {
         let gateway_resp = item
             .response
