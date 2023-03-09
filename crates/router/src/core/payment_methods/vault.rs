@@ -3,19 +3,19 @@ use error_stack::{IntoReport, ResultExt};
 use masking::PeekInterface;
 use router_env::{instrument, tracing};
 
-#[cfg(feature = "basilisk")]
-use crate::types::storage::enums;
 use crate::{
     core::errors::{self, CustomResult, RouterResult},
-    db, logger, routes,
-    types::{
-        api,
-        storage::{self, ProcessTrackerExt},
-    },
+    logger, routes,
+    types::{api, storage},
     utils::{self, StringExt},
 };
 #[cfg(feature = "basilisk")]
 use crate::{core::payment_methods::transformers as payment_methods, services, utils::BytesExt};
+#[cfg(feature = "basilisk")]
+use crate::{
+    db,
+    types::storage::{enums, ProcessTrackerExt},
+};
 #[cfg(feature = "basilisk")]
 const VAULT_SERVICE_NAME: &str = "CARD";
 #[cfg(feature = "basilisk")]
