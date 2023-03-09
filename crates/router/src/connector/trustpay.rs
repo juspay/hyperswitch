@@ -70,6 +70,35 @@ impl ConnectorCommon for Trustpay {
     }
 }
 
+fn get_trustpay_headers(
+    payment_method: storage_models::enums::PaymentMethod,
+    content_type: String,
+    auth_header: Vec<(String, String)>,
+    access_token: Option<&types::AccessToken>,
+) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+    match payment_method {
+        storage_models::enums::PaymentMethod::BankRedirect => {
+            let token = access_token.ok_or(errors::ConnectorError::FailedToObtainAuthType)?;
+            Ok(vec![
+                (
+                    headers::CONTENT_TYPE.to_string(),
+                    "application/json".to_owned(),
+                ),
+                (
+                    headers::AUTHORIZATION.to_string(),
+                    format!("Bearer {}", token.token),
+                ),
+            ])
+        }
+        _ => {
+            let mut header = vec![(headers::CONTENT_TYPE.to_string(), content_type)];
+            let mut api_key = auth_header;
+            header.append(&mut api_key);
+            Ok(header)
+        }
+    }
+}
+
 impl api::Payment for Trustpay {}
 
 impl api::PreVerify for Trustpay {}
@@ -192,34 +221,12 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         req: &types::PaymentsSyncRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        match req.payment_method {
-            storage_models::enums::PaymentMethod::BankRedirect => {
-                let access_token = req
-                    .access_token
-                    .clone()
-                    .ok_or(errors::ConnectorError::FailedToObtainAuthType)?;
-                let header = vec![
-                    (
-                        headers::CONTENT_TYPE.to_string(),
-                        "application/json".to_owned(),
-                    ),
-                    (
-                        headers::AUTHORIZATION.to_string(),
-                        format!("Bearer {}", access_token.token),
-                    ),
-                ];
-                Ok(header)
-            }
-            _ => {
-                let mut header = vec![(
-                    headers::CONTENT_TYPE.to_string(),
-                    types::PaymentsAuthorizeType::get_content_type(self).to_string(),
-                )];
-                let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
-                header.append(&mut api_key);
-                Ok(header)
-            }
-        }
+        get_trustpay_headers(
+            req.payment_method,
+            types::PaymentsSyncType::get_content_type(self).to_string(),
+            self.get_auth_header(&req.connector_auth_type)?,
+            req.access_token.as_ref(),
+        )
     }
 
     fn get_content_type(&self) -> &'static str {
@@ -311,34 +318,12 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         req: &types::PaymentsAuthorizeRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        match req.payment_method {
-            storage_models::enums::PaymentMethod::BankRedirect => {
-                let access_token = req
-                    .access_token
-                    .clone()
-                    .ok_or(errors::ConnectorError::FailedToObtainAuthType)?;
-                let header = vec![
-                    (
-                        headers::CONTENT_TYPE.to_string(),
-                        "application/json".to_owned(),
-                    ),
-                    (
-                        headers::AUTHORIZATION.to_string(),
-                        format!("Bearer {}", access_token.token),
-                    ),
-                ];
-                Ok(header)
-            }
-            _ => {
-                let mut header = vec![(
-                    headers::CONTENT_TYPE.to_string(),
-                    types::PaymentsAuthorizeType::get_content_type(self).to_string(),
-                )];
-                let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
-                header.append(&mut api_key);
-                Ok(header)
-            }
-        }
+        get_trustpay_headers(
+            req.payment_method,
+            types::PaymentsAuthorizeType::get_content_type(self).to_string(),
+            self.get_auth_header(&req.connector_auth_type)?,
+            req.access_token.as_ref(),
+        )
     }
 
     fn get_content_type(&self) -> &'static str {
@@ -438,34 +423,12 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         req: &types::RefundsRouterData<api::Execute>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        match req.payment_method {
-            storage_models::enums::PaymentMethod::BankRedirect => {
-                let access_token = req
-                    .access_token
-                    .clone()
-                    .ok_or(errors::ConnectorError::FailedToObtainAuthType)?;
-                let header = vec![
-                    (
-                        headers::CONTENT_TYPE.to_string(),
-                        "application/json".to_owned(),
-                    ),
-                    (
-                        headers::AUTHORIZATION.to_string(),
-                        format!("Bearer {}", access_token.token),
-                    ),
-                ];
-                Ok(header)
-            }
-            _ => {
-                let mut header = vec![(
-                    headers::CONTENT_TYPE.to_string(),
-                    types::RefundExecuteType::get_content_type(self).to_string(),
-                )];
-                let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
-                header.append(&mut api_key);
-                Ok(header)
-            }
-        }
+        get_trustpay_headers(
+            req.payment_method,
+            types::RefundExecuteType::get_content_type(self).to_string(),
+            self.get_auth_header(&req.connector_auth_type)?,
+            req.access_token.as_ref(),
+        )
     }
 
     fn get_content_type(&self) -> &'static str {
@@ -655,8 +618,21 @@ impl api::IncomingWebhook for Trustpay {
 impl services::ConnectorRedirectResponse for Trustpay {
     fn get_flow_type(
         &self,
-        _query_params: &str,
+        query_params: &str,
     ) -> CustomResult<payments::CallConnectorAction, errors::ConnectorError> {
-        Ok(payments::CallConnectorAction::Trigger)
+        let query =
+            serde_urlencoded::from_str::<transformers::TrustpayRedirectResponse>(query_params)
+                .into_report()
+                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        crate::logger::debug!(trustpay_redirect_response=?query);
+        Ok(query.status.map_or(
+            payments::CallConnectorAction::Trigger,
+            |status| match status.as_str() {
+                "SuccessOk" => payments::CallConnectorAction::StatusUpdate(
+                    storage_models::enums::AttemptStatus::Charged,
+                ),
+                _ => payments::CallConnectorAction::Trigger,
+            },
+        ))
     }
 }

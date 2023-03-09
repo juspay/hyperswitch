@@ -204,7 +204,7 @@ pub enum CardIssuer {
 pub trait CardData {
     fn get_card_expiry_year_2_digit(&self) -> Secret<String>;
     fn get_card_issuer(&self) -> Result<CardIssuer, Error>;
-    fn get_card_expiry_month_year_2_digit_with_delimeter(&self, delimeter: String) -> String;
+    fn get_card_expiry_month_year_2_digit_with_delimiter(&self, delimiter: String) -> String;
 }
 
 impl CardData for api::Card {
@@ -220,12 +220,12 @@ impl CardData for api::Card {
             .map(|card| card.split_whitespace().collect());
         get_card_issuer(card.peek().clone().as_str())
     }
-    fn get_card_expiry_month_year_2_digit_with_delimeter(&self, delimeter: String) -> String {
+    fn get_card_expiry_month_year_2_digit_with_delimiter(&self, delimiter: String) -> String {
         let year = self.get_card_expiry_year_2_digit();
         format!(
             "{}{}{}",
             self.card_exp_month.peek().clone(),
-            delimeter,
+            delimiter,
             year.peek()
         )
     }
