@@ -121,67 +121,31 @@ hash_key = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
 # Examples provided here are sandbox/test base urls, can be replaced by live or mock
 # base urls based on your need.
 # Note: These are not optional attributes. hyperswitch request can fail due to invalid/empty values.
-[connectors.aci]
-base_url = "https://eu-test.oppwa.com/"
-
-[connectors.adyen]
-base_url = "https://checkout-test.adyen.com/"
-
-[connectors.authorizedotnet]
-base_url = "https://apitest.authorize.net/xml/v1/request.api"
-
-[connectors.checkout]
-base_url = "https://api.sandbox.checkout.com/"
-
-[connectors.stripe]
-base_url = "https://api.stripe.com/"
-
-[connectors.braintree]
-base_url = "https://api.sandbox.braintreegateway.com/"
-
-[connectors.klarna]
-base_url = "https://api-na.playground.klarna.com/"
-
-[connectors.applepay]
-base_url = "https://apple-pay-gateway.apple.com/"
-
-[connectors.cybersource]
-base_url = "https://apitest.cybersource.com/"
-
-[connectors.shift4]
-base_url = "https://api.shift4.com/"
-
-[connectors.rapyd]
-base_url = "https://sandboxapi.rapyd.net"
-
-[connectors.fiserv]
-base_url = "https://cert.api.fiservapps.com/"
-
-[connectors.worldpay]
-base_url = "https://try.access.worldpay.com/"
-
-[connectors.globalpay]
-base_url = "https://apis.sandbox.globalpay.com/ucp/"
-
-[connectors.bluesnap]
-base_url = "https://sandbox.bluesnap.com/"
-
-[connectors.nuvei]
-base_url = "https://ppp-test.nuvei.com/"
-
-[connectors.airwallex]
-base_url = "https://api-demo.airwallex.com/"
-
-[connectors.multisafepay]
-base_url = "https://testapi.multisafepay.com/"
-
-[connectors.dlocal]
-base_url = "https://sandbox.dlocal.com/"
+[connectors]
+aci.base_url = "https://eu-test.oppwa.com/"
+adyen.base_url = "https://checkout-test.adyen.com/"
+airwallex.base_url = "https://api-demo.airwallex.com/"
+applepay.base_url = "https://apple-pay-gateway.apple.com/"
+authorizedotnet.base_url = "https://apitest.authorize.net/xml/v1/request.api"
+bambora.base_url = "https://api.na.bambora.com"
+bluesnap.base_url = "https://sandbox.bluesnap.com/"
+braintree.base_url = "https://api.sandbox.braintreegateway.com/"
+checkout.base_url = "https://api.sandbox.checkout.com/"
+cybersource.base_url = "https://apitest.cybersource.com/"
+dlocal.base_url = "https://sandbox.dlocal.com/"
+fiserv.base_url = "https://cert.api.fiservapps.com/"
+globalpay.base_url = "https://apis.sandbox.globalpay.com/ucp/"
+klarna.base_url = "https://api-na.playground.klarna.com/"
+multisafepay.base_url = "https://testapi.multisafepay.com/"
+nuvei.base_url = "https://ppp-test.nuvei.com/"
+payu.base_url = "https://secure.snd.payu.com/"
+rapyd.base_url = "https://sandboxapi.rapyd.net"
+shift4.base_url = "https://api.shift4.com/"
+stripe.base_url = "https://api.stripe.com/"
+worldline.base_url = "https://eu.sandbox.api-ingenico.com/"
+worldpay.base_url = "https://try.access.worldpay.com/"
 
 # This data is used to call respective connectors for wallets and cards
-[connectors.bambora]
-base_url = "https://api.na.bambora.com"
-
 [connectors.supported]
 wallets = ["klarna", "braintree", "applepay"]
 cards = [

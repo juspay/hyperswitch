@@ -1,11 +1,16 @@
 use actix_web::http::header::HeaderMap;
 use api_models::{payment_methods::PaymentMethodListRequest, payments::PaymentsRequest};
 use async_trait::async_trait;
+use common_utils::date_time;
 use error_stack::{report, IntoReport, ResultExt};
 use jsonwebtoken::{decode, Algorithm, DecodingKey, Validation};
+use masking::PeekInterface;
 
 use crate::{
-    core::errors::{self, RouterResult},
+    core::{
+        api_keys,
+        errors::{self, RouterResult},
+    },
     db::StorageInterface,
     routes::{app::AppStateInfo, AppState},
     services::api,
@@ -38,11 +43,45 @@ where
         request_headers: &HeaderMap,
         state: &A,
     ) -> RouterResult<storage::MerchantAccount> {
-        let api_key =
-            get_api_key(request_headers).change_context(errors::ApiErrorResponse::Unauthorized)?;
+        let api_key = get_api_key(request_headers)
+            .change_context(errors::ApiErrorResponse::Unauthorized)?
+            .trim();
+        if api_key.is_empty() {
+            return Err(errors::ApiErrorResponse::Unauthorized)
+                .into_report()
+                .attach_printable("API key is empty");
+        }
+
+        let api_key = api_keys::PlaintextApiKey::from(api_key);
+        let hash_key = {
+            let config = state.conf();
+            api_keys::HASH_KEY
+                .get_or_try_init(|| api_keys::get_hash_key(&config.api_keys))
+                .await?
+        };
+        let hashed_api_key = api_key.keyed_hash(hash_key.peek());
+
+        let stored_api_key = state
+            .store()
+            .find_api_key_by_hash_optional(hashed_api_key.into())
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError) // If retrieve failed
+            .attach_printable("Failed to retrieve API key")?
+            .ok_or(report!(errors::ApiErrorResponse::Unauthorized)) // If retrieve returned `None`
+            .attach_printable("Merchant not authenticated")?;
+
+        if stored_api_key
+            .expires_at
+            .map(|expires_at| expires_at < date_time::now())
+            .unwrap_or(false)
+        {
+            return Err(report!(errors::ApiErrorResponse::Unauthorized))
+                .attach_printable("API key has expired");
+        }
+
         state
             .store()
-            .find_merchant_account_by_api_key(api_key)
+            .find_merchant_account_by_merchant_id(&stored_api_key.merchant_id)
             .await
             .map_err(|e| {
                 if e.current_context().is_db_not_found() {
