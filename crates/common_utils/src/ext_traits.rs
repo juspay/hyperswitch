@@ -176,17 +176,17 @@ impl<T> BytesExt<T> for bytes::Bytes {
 ///
 /// Extending functionalities of `[u8]` for performing parsing
 ///
-pub trait ByteSliceExt<T> {
+pub trait ByteSliceExt {
     ///
     /// Convert `[u8]` into type `<T>` by using `serde::Deserialize`
     ///
-    fn parse_struct<'de>(&'de self, type_name: &str) -> CustomResult<T, errors::ParsingError>
+    fn parse_struct<'de, T>(&'de self, type_name: &str) -> CustomResult<T, errors::ParsingError>
     where
         T: Deserialize<'de>;
 }
 
-impl<T> ByteSliceExt<T> for [u8] {
-    fn parse_struct<'de>(&'de self, type_name: &str) -> CustomResult<T, errors::ParsingError>
+impl ByteSliceExt for [u8] {
+    fn parse_struct<'de, T>(&'de self, type_name: &str) -> CustomResult<T, errors::ParsingError>
     where
         T: Deserialize<'de>,
     {

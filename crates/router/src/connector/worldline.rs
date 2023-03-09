@@ -6,7 +6,6 @@ use base64::Engine;
 use common_utils::ext_traits::ByteSliceExt;
 use error_stack::{IntoReport, ResultExt};
 use ring::hmac;
-use serde_json::json;
 use storage_models::enums;
 use time::{format_description, OffsetDateTime};
 use transformers as worldline;
@@ -664,37 +663,28 @@ fn is_endpoint_verification(headers: &actix_web::http::header::HeaderMap) -> boo
 impl api::IncomingWebhook for Worldline {
     fn get_webhook_source_verification_algorithm(
         &self,
-        request: &api::IncomingWebhookRequestDetails<'_>,
+        _request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn crypto::VerifySignature + Send>, errors::ConnectorError> {
-        if is_endpoint_verification(request.headers) {
-            Ok(Box::new(crypto::NoAlgorithm))
-        } else {
-            Ok(Box::new(crypto::HmacSha256))
-        }
+        Ok(Box::new(crypto::HmacSha256))
     }
 
     fn get_webhook_source_verification_signature(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
-        if is_endpoint_verification(request.headers) {
-            Ok(vec![])
-        } else {
-            let header_value = match request.headers.get("X-GCS-Signature") {
-                Some(value) => Ok(value),
-                None => Err(errors::ConnectorError::WebhookSignatureNotFound),
-            }?
-            .to_str();
-            let value = match header_value {
-                Ok(value) => Ok(value.to_string()),
-                Err(_err) => Err(errors::ConnectorError::WebhookSignatureNotFound),
-            }?;
-            let signature = consts::BASE64_ENGINE
-                .decode(value.as_bytes())
-                .into_report()
-                .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
-            Ok(signature)
-        }
+        let header_value = request
+            .headers
+            .get("X-GCS-Signature")
+            .ok_or(errors::ConnectorError::WebhookSignatureNotFound)?
+            .to_str()
+            .into_report()
+            .change_context(errors::ConnectorError::WebhookSignatureNotFound)?;
+
+        let signature = consts::BASE64_ENGINE
+            .decode(header_value.as_bytes())
+            .into_report()
+            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
+        Ok(signature)
     }
 
     fn get_webhook_source_verification_message(
@@ -724,19 +714,15 @@ impl api::IncomingWebhook for Worldline {
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<String, errors::ConnectorError> {
-        if is_endpoint_verification(request.headers) {
-            Ok(String::from(""))
-        } else {
-            let details: worldline::WebhookBody = request
+        || -> _ {
+            Ok(request
                 .body
-                .parse_struct("WorldlineWebhookObjectId")
-                .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
-            let payment: worldline::Payment = details
+                .parse_struct::<worldline::WebhookBody>("WorldlineWebhookEvent")?
                 .payment
-                .parse_value("WorldlineWebhookObjectId")
-                .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
-            Ok(payment.id)
-        }
+                .parse_value::<worldline::Payment>("WorldlineWebhookObjectId")?
+                .id)
+        }()
+        .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)
     }
 
     fn get_webhook_event_type(
@@ -764,18 +750,13 @@ impl api::IncomingWebhook for Worldline {
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<serde_json::Value, errors::ConnectorError> {
-        if is_endpoint_verification(request.headers) {
-            Ok(json!({}))
-        } else {
-            let details: worldline::WebhookBody = request
-                .body
-                .parse_struct("WorldlineWebhookObjectId")
-                .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
-            match details.payment {
-                Some(value) => Ok(value),
-                None => Err(errors::ConnectorError::WebhookResourceObjectNotFound).into_report(),
-            }
-        }
+        let details = request
+            .body
+            .parse_struct::<worldline::WebhookBody>("WorldlineWebhookObjectId")
+            .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?
+            .payment
+            .ok_or(errors::ConnectorError::WebhookResourceObjectNotFound)?;
+        Ok(details)
     }
 
     fn get_webhook_api_response(
@@ -787,11 +768,11 @@ impl api::IncomingWebhook for Worldline {
         let response = match verification_header {
             None => services::api::ApplicationResponse::StatusOk,
             Some(header_value) => {
-                let verification_signature_value = match header_value.to_str() {
-                    Ok(value) => Ok(value),
-                    Err(_err) => Err(errors::ConnectorError::WebhookResponseEncodingFailed),
-                }?
-                .to_string();
+                let verification_signature_value = header_value
+                    .to_str()
+                    .into_report()
+                    .change_context(errors::ConnectorError::WebhookResponseEncodingFailed)?
+                    .to_string();
                 services::api::ApplicationResponse::TextPlain(verification_signature_value)
             }
         };
