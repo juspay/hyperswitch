@@ -259,7 +259,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentCreate {
         state: &AppState,
         request: &api::PaymentsRequest,
         _previously_used_connector: Option<&String>,
-    ) -> CustomResult<api::ConnectorChoice, errors::ApiErrorResponse> {
+    ) -> CustomResult<api::ConnectorCallType, errors::ApiErrorResponse> {
         let request_connector = request
             .connector
             .as_ref()

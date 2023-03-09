@@ -124,18 +124,18 @@ pub struct ConnectorData {
     pub get_token: GetToken,
 }
 
-pub enum ConnectorChoice {
+pub enum ConnectorCallType {
     Routing,
     Multiple(Vec<ConnectorData>),
     Single(ConnectorData),
 }
 
-pub enum ConnectorCallType {
+pub enum NextConnectorCallType {
     Multiple(Vec<ConnectorData>),
     Single(Vec<ConnectorData>),
 }
 
-impl ConnectorChoice {
+impl ConnectorCallType {
     pub fn is_single(&self) -> bool {
         matches!(self, Self::Single(_))
     }

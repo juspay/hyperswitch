@@ -269,7 +269,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentConfirm {
         state: &AppState,
         request: &api::PaymentsRequest,
         previously_used_connector: Option<&String>,
-    ) -> CustomResult<api::ConnectorChoice, errors::ApiErrorResponse> {
+    ) -> CustomResult<api::ConnectorCallType, errors::ApiErrorResponse> {
         // Use a new connector in the confirm call or use the same one which was passed when
         // creating the payment or if none is passed then use the routing algorithm
         let request_connector = request
