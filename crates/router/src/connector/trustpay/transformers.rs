@@ -407,7 +407,7 @@ fn is_payment_successful(payment_status: &str) -> CustomResult<bool, errors::Con
     }
 }
 
-fn get_pending_status_based_on_redirect_url(redirect_url: Option<String>) -> enums::AttemptStatus {
+fn get_pending_status_based_on_redirect_url(redirect_url: Option<Url>) -> enums::AttemptStatus {
     match redirect_url {
         Some(_url) => enums::AttemptStatus::AuthenticationPending,
         None => enums::AttemptStatus::Authorizing,
@@ -416,7 +416,7 @@ fn get_pending_status_based_on_redirect_url(redirect_url: Option<String>) -> enu
 
 fn get_transaction_status(
     payment_status: &str,
-    redirect_url: Option<String>,
+    redirect_url: Option<Url>,
 ) -> CustomResult<(enums::AttemptStatus, Option<String>), errors::ConnectorError> {
     let (is_failed, failure_message) = is_payment_failed(payment_status);
     let pending_status = get_pending_status_based_on_redirect_url(redirect_url);
@@ -466,7 +466,7 @@ pub struct PaymentsResponseCards {
     #[serde(rename = "paymentDescription")]
     pub payment_description: Option<String>,
     #[serde(rename = "redirectUrl")]
-    pub redirect_url: Option<String>,
+    pub redirect_url: Option<Url>,
     #[serde(rename = "redirectParams")]
     pub redirect_params: Option<HashMap<String, String>>,
 }
@@ -550,7 +550,7 @@ fn handle_cards_response(
         .redirect_params
         .unwrap_or(std::collections::HashMap::new());
     let redirection_data = response.redirect_url.map(|url| services::RedirectForm {
-        endpoint: url,
+        endpoint: url.to_string(),
         method: services::Method::Post,
         form_fields,
     });
@@ -585,21 +585,14 @@ fn handle_bank_redirects_response(
 > {
     let status = enums::AttemptStatus::AuthenticationPending;
     let error = None;
-    let form_fields: HashMap<String, String> = HashMap::from_iter(
-        response
-            .gateway_url
-            .query_pairs()
-            .map(|(key, value)| (key.to_string(), value.to_string())),
-    );
     let payment_response_data = types::PaymentsResponseData::TransactionResponse {
         resource_id: types::ResponseId::ConnectorTransactionId(
             response.payment_request_id.to_string(),
         ),
-        redirection_data: Some(services::RedirectForm {
-            endpoint: response.gateway_url.to_string(),
-            method: services::Method::Get,
-            form_fields,
-        }),
+        redirection_data: Some(services::RedirectForm::from((
+            response.gateway_url,
+            services::Method::Get,
+        ))),
         mandate_reference: None,
         connector_metadata: None,
     };
@@ -658,7 +651,7 @@ fn handle_bank_redirects_sync_response(
             message: reason_info
                 .reason
                 .reject_reason
-                .unwrap_or(consts::NO_ERROR_CODE.to_string()),
+                .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
             reason: None,
             status_code,
         })
@@ -864,7 +857,7 @@ fn handle_cards_refund_response(
     let error = if msg.is_some() {
         Some(types::ErrorResponse {
             code: response.payment_status,
-            message: msg.unwrap_or(consts::NO_ERROR_CODE.to_string()),
+            message: msg.unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
             reason: None,
             status_code,
         })
@@ -886,7 +879,7 @@ fn handle_bank_redirects_refund_response(
     let error = if msg.is_some() {
         Some(types::ErrorResponse {
             code: response.result_info.result_code.to_string(),
-            message: msg.unwrap_or(consts::NO_ERROR_CODE).to_owned(),
+            message: msg.unwrap_or(consts::NO_ERROR_MESSAGE).to_owned(),
             reason: None,
             status_code,
         })

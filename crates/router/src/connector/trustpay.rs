@@ -362,7 +362,6 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
             _ => utils::Encode::<trustpay::PaymentRequestCards>::encode(&trustpay_req)
                 .change_context(errors::ConnectorError::RequestEncodingFailed)?,
         };
-        print!(">>>{:?}", trustpay_req_string);
         Ok(Some(trustpay_req_string))
     }
 
@@ -518,7 +517,7 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
         let mut header = vec![(
             headers::CONTENT_TYPE.to_string(),
-            types::PaymentsAuthorizeType::get_content_type(self).to_string(),
+            types::RefundSyncType::get_content_type(self).to_string(),
         )];
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         header.append(&mut api_key);
@@ -554,7 +553,10 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         match req.payment_method {
             storage_models::enums::PaymentMethod::BankRedirect => {
-                Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
+                Err(errors::ConnectorError::NotImplemented(
+                    "RSync is not supported for Bank Redirects".to_owned(),
+                ))
+                .into_report()
             }
             _ => Ok(Some(
                 services::RequestBuilder::new()
