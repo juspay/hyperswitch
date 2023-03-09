@@ -5,11 +5,12 @@ use error_stack::{report, IntoReport, ResultExt};
 use masking::Secret;
 use once_cell::sync::Lazy;
 use regex::Regex;
+use serde::Serializer;
 
 use crate::{
     core::errors::{self, CustomResult},
     pii::PeekInterface,
-    types::{self, api, PaymentsCancelData},
+    types::{self, api, PaymentsCancelData, ResponseId},
     utils::OptionExt,
 };
 
@@ -142,17 +143,29 @@ impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
 
 pub trait PaymentsSyncRequestData {
     fn is_auto_capture(&self) -> bool;
+    fn get_connector_transaction_id(&self) -> CustomResult<String, errors::ValidationError>;
 }
 
 impl PaymentsSyncRequestData for types::PaymentsSyncData {
     fn is_auto_capture(&self) -> bool {
         self.capture_method == Some(storage_models::enums::CaptureMethod::Automatic)
     }
+    fn get_connector_transaction_id(&self) -> CustomResult<String, errors::ValidationError> {
+        match self.connector_transaction_id.clone() {
+            ResponseId::ConnectorTransactionId(txn_id) => Ok(txn_id),
+            _ => Err(errors::ValidationError::IncorrectValueProvided {
+                field_name: "connector_transaction_id",
+            })
+            .into_report()
+            .attach_printable("Expected connector transaction ID not found"),
+        }
+    }
 }
 
 pub trait PaymentsCancelRequestData {
     fn get_amount(&self) -> Result<i64, Error>;
     fn get_currency(&self) -> Result<storage_models::enums::Currency, Error>;
+    fn get_cancellation_reason(&self) -> Result<String, Error>;
 }
 
 impl PaymentsCancelRequestData for PaymentsCancelData {
@@ -161,6 +174,11 @@ impl PaymentsCancelRequestData for PaymentsCancelData {
     }
     fn get_currency(&self) -> Result<storage_models::enums::Currency, Error> {
         self.currency.ok_or_else(missing_field_err("currency"))
+    }
+    fn get_cancellation_reason(&self) -> Result<String, Error> {
+        self.cancellation_reason
+            .clone()
+            .ok_or_else(missing_field_err("cancellation_reason"))
     }
 }
 
@@ -354,4 +372,14 @@ pub fn to_currency_base_unit(
         | storage_models::enums::Currency::OMR => Ok((f64::from(amount_u32) / 1000.0).to_string()),
         _ => Ok((f64::from(amount_u32) / 100.0).to_string()),
     }
+}
+
+pub fn str_to_f32<S>(value: &str, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    let float_value = value.parse::<f64>().map_err(|_| {
+        serde::ser::Error::custom("Invalid string, cannot be converted to float value")
+    })?;
+    serializer.serialize_f64(float_value)
 }
