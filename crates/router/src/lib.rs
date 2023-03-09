@@ -54,6 +54,8 @@ pub mod headers {
     pub const X_TRANS_KEY: &str = "X-Trans-Key";
     pub const X_VERSION: &str = "X-Version";
     pub const X_DATE: &str = "X-Date";
+    pub const HSTS: &str = "Strict-Transport-Security";
+    pub const VIA: &str = "Via";
 }
 
 pub mod pii {
