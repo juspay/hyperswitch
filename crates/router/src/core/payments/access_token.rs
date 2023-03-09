@@ -13,6 +13,19 @@ use crate::{
     types::{self, api as api_types, storage},
 };
 
+#[derive(serde::Serialize, serde::Deserialize)]
+pub struct ProcessTrackerAccessTokenData {
+    // Required to construct the request
+    pub access_token_request: types::AccessTokenRequestData,
+
+    // Fields required to construct router data
+    pub merchant_id: String,
+    pub connector: String,
+    pub payment_id: String,
+    pub attempt_id: String,
+    pub payment_method: storage_models::enums::PaymentMethod,
+}
+
 /// This function replaces the request and response type of routerdata with the
 /// request and response type passed
 /// # Arguments
@@ -132,6 +145,20 @@ pub async fn add_access_token<
                         .await
                         .change_context(errors::ApiErrorResponse::InternalServerError)
                         .attach_printable("DB error when setting the access token");
+
+                    // Scheduler to get a new access token 60 seconds before it expires
+                    let time_untill_refresh = access_token.expires.saturating_sub(60);
+
+                    let next_schedule_time = common_utils::date_time::now()
+                        .saturating_add(time::Duration::seconds(time_untill_refresh));
+
+                    let _ = payments::add_access_token_refresh_task(
+                        store,
+                        next_schedule_time,
+                        &refresh_token_router_data,
+                    )
+                    .await;
+
                     Some(access_token)
                 })
                 .await

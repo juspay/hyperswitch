@@ -181,7 +181,7 @@ pub struct VerifyRequestData {
     pub setup_mandate_details: Option<payments::MandateData>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct AccessTokenRequestData {
     pub app_id: String,
     pub id: Option<String>,

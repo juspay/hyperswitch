@@ -633,6 +633,38 @@ pub async fn list_payments(
     ))
 }
 
+pub async fn add_access_token_refresh_task<Flow, Response>(
+    db: &dyn StorageInterface,
+    schedule_time: time::PrimitiveDateTime,
+    router_data: &types::RouterData<Flow, types::AccessTokenRequestData, Response>,
+) -> Result<(), errors::ProcessTrackerError> {
+    let tracking_data = access_token::ProcessTrackerAccessTokenData {
+        access_token_request: router_data.request.clone(),
+        merchant_id: router_data.merchant_id.clone(),
+        connector: router_data.connector.clone(),
+        payment_id: router_data.payment_id.clone(),
+        attempt_id: router_data.attempt_id.clone(),
+        payment_method: router_data.payment_method,
+    };
+
+    let runner = "ACCESS_TOKEN_REFRESH";
+    let task = "ACCESS_TOKEN_REFRESH";
+
+    let process_tracker_id = format!("{}_{}", task, router_data.connector);
+
+    let process_tracker_entry =
+        <storage::ProcessTracker as storage::ProcessTrackerExt>::make_process_tracker_new(
+            process_tracker_id,
+            task,
+            runner,
+            tracking_data,
+            schedule_time,
+        )?;
+
+    db.insert_process(process_tracker_entry).await?;
+    Ok(())
+}
+
 pub async fn add_process_sync_task(
     db: &dyn StorageInterface,
     payment_attempt: &storage::PaymentAttempt,
