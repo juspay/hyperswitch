@@ -530,7 +530,6 @@ pub enum MandateStatus {
     Clone,
     Copy,
     Debug,
-    Default,
     Eq,
     PartialEq,
     ToSchema,
@@ -552,7 +551,6 @@ pub enum Connector {
     Braintree,
     Checkout,
     Cybersource,
-    #[default]
     Dummy,
     Bambora,
     Dlocal,
@@ -590,6 +588,7 @@ impl Connector {
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum RoutableConnectors {
+    Dummy,
     Aci,
     Adyen,
     Airwallex,

@@ -91,6 +91,12 @@ impl types::PaymentsAuthorizeRouterData {
     ) -> RouterResult<Self> {
         match confirm {
             Some(true) => {
+                let call_connector_action = match connector.connector_name {
+                    api_models::enums::Connector::Dummy => {
+                        payments::CallConnectorAction::HandleResponse(vec![])
+                    }
+                    _ => call_connector_action,
+                };
                 let connector_integration: services::BoxedConnectorIntegration<
                     '_,
                     api::Authorize,

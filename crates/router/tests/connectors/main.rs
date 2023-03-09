@@ -10,6 +10,7 @@ mod checkout;
 mod connector_auth;
 mod cybersource;
 mod dlocal;
+mod dummy;
 mod fiserv;
 mod globalpay;
 mod multisafepay;

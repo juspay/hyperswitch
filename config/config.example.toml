@@ -122,6 +122,7 @@ hash_key = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
 # base urls based on your need.
 # Note: These are not optional attributes. hyperswitch request can fail due to invalid/empty values.
 [connectors]
+dummy.base_url = ""
 aci.base_url = "https://eu-test.oppwa.com/"
 adyen.base_url = "https://checkout-test.adyen.com/"
 airwallex.base_url = "https://api-demo.airwallex.com/"
@@ -149,6 +150,7 @@ worldpay.base_url = "https://try.access.worldpay.com/"
 [connectors.supported]
 wallets = ["klarna", "braintree", "applepay"]
 cards = [
+    "dummy",
     "stripe",
     "adyen",
     "authorizedotnet",
