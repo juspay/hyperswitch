@@ -1,3 +1,4 @@
+use common_utils::pii;
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
@@ -17,7 +18,7 @@ pub struct PaymentIntent {
     pub customer_id: Option<String>,
     pub description: Option<String>,
     pub return_url: Option<String>,
-    pub metadata: Option<serde_json::Value>,
+    pub metadata: Option<pii::SecretSerdeValue>,
     pub connector_id: Option<String>,
     pub shipping_address_id: Option<String>,
     pub billing_address_id: Option<String>,
@@ -53,7 +54,7 @@ pub struct PaymentIntentNew {
     pub customer_id: Option<String>,
     pub description: Option<String>,
     pub return_url: Option<String>,
-    pub metadata: Option<serde_json::Value>,
+    pub metadata: Option<pii::SecretSerdeValue>,
     pub connector_id: Option<String>,
     pub shipping_address_id: Option<String>,
     pub billing_address_id: Option<String>,
@@ -75,7 +76,7 @@ pub enum PaymentIntentUpdate {
         return_url: Option<String>,
     },
     MetadataUpdate {
-        metadata: serde_json::Value,
+        metadata: pii::SecretSerdeValue,
     },
     ReturnUrlUpdate {
         return_url: Option<String>,
@@ -116,7 +117,7 @@ pub struct PaymentIntentUpdateInternal {
     pub return_url: Option<String>,
     pub setup_future_usage: Option<storage_enums::FutureUsage>,
     pub off_session: Option<bool>,
-    pub metadata: Option<serde_json::Value>,
+    pub metadata: Option<pii::SecretSerdeValue>,
     pub client_secret: Option<Option<String>>,
     pub billing_address_id: Option<String>,
     pub shipping_address_id: Option<String>,

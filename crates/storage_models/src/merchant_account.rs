@@ -1,3 +1,4 @@
+use common_utils::pii;
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
 use masking::StrongSecret;
 
@@ -31,7 +32,7 @@ pub struct MerchantAccount {
     pub publishable_key: Option<String>,
     pub storage_scheme: storage_enums::MerchantStorageScheme,
     pub locker_id: Option<String>,
-    pub metadata: Option<serde_json::Value>,
+    pub metadata: Option<pii::SecretSerdeValue>,
     pub routing_algorithm: Option<serde_json::Value>,
 }
 
@@ -51,7 +52,7 @@ pub struct MerchantAccountNew {
     pub redirect_to_merchant_with_http_post: Option<bool>,
     pub publishable_key: Option<String>,
     pub locker_id: Option<String>,
-    pub metadata: Option<serde_json::Value>,
+    pub metadata: Option<pii::SecretSerdeValue>,
     pub routing_algorithm: Option<serde_json::Value>,
 }
 
@@ -70,7 +71,7 @@ pub enum MerchantAccountUpdate {
         redirect_to_merchant_with_http_post: Option<bool>,
         publishable_key: Option<String>,
         locker_id: Option<String>,
-        metadata: Option<serde_json::Value>,
+        metadata: Option<pii::SecretSerdeValue>,
         routing_algorithm: Option<serde_json::Value>,
     },
     StorageSchemeUpdate {
@@ -94,7 +95,7 @@ pub struct MerchantAccountUpdateInternal {
     publishable_key: Option<String>,
     storage_scheme: Option<storage_enums::MerchantStorageScheme>,
     locker_id: Option<String>,
-    metadata: Option<serde_json::Value>,
+    metadata: Option<pii::SecretSerdeValue>,
     routing_algorithm: Option<serde_json::Value>,
 }
 
