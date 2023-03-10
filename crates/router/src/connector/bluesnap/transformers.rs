@@ -21,6 +21,7 @@ pub struct BluesnapPaymentsRequest {
 #[serde(rename_all = "camelCase")]
 pub enum PaymentMethodDetails {
     CreditCard(Card),
+    Wallet(BluesnapWallet)
 }
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
@@ -30,6 +31,19 @@ pub struct Card {
     expiration_month: Secret<String>,
     expiration_year: Secret<String>,
     security_code: Secret<String>,
+}
+
+#[derive(Debug, Serialize, Eq, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct BluesnapWallet {
+    wallet_type: BluesnapWalletTypes,
+    encoded_payment_token: String,
+}
+
+#[derive(Debug, Serialize, Eq, PartialEq)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum BluesnapWalletTypes{
+    GooglePay
 }
 
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for BluesnapPaymentsRequest {
@@ -46,6 +60,15 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BluesnapPaymentsRequest {
                 expiration_year: ccard.card_exp_year.clone(),
                 security_code: ccard.card_cvc,
             })),
+            api::PaymentMethodData::Wallet(wallet_data) => match wallet_data {
+                api_models::payments::WalletData::GooglePay(data) => Ok(PaymentMethodDetails::Wallet(BluesnapWallet{
+                    wallet_type: BluesnapWalletTypes::GooglePay,
+                    encoded_payment_token: data.tokenization_data.token,
+                })),
+                _ => Err(errors::ConnectorError::NotImplemented(
+                    "Wallets".to_string(),
+                )),
+            }
             _ => Err(errors::ConnectorError::NotImplemented(
                 "payment method".to_string(),
             )),
