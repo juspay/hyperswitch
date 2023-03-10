@@ -297,4 +297,11 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
 
 //TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
-pub struct MollieErrorResponse {}
+pub struct MollieErrorResponse {
+    pub status: i32,
+    pub title: String,
+    pub detail: String,
+    pub field: Option<String>,
+    #[serde(rename = "_links")]
+    pub links: Links,
+}
