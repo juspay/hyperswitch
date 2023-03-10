@@ -7,6 +7,7 @@ use crate::types::api::refunds;
 
 #[derive(Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
 pub struct StripeCreateRefundRequest {
+    pub refund_id: Option<String>,
     pub amount: Option<i64>,
     pub payment_intent: String,
     pub reason: Option<String>,
@@ -40,6 +41,7 @@ pub enum StripeRefundStatus {
 impl From<StripeCreateRefundRequest> for refunds::RefundRequest {
     fn from(req: StripeCreateRefundRequest) -> Self {
         Self {
+            refund_id: req.refund_id,
             amount: req.amount,
             payment_id: req.payment_intent,
             reason: req.reason,

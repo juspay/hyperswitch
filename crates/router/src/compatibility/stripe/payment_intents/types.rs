@@ -143,9 +143,7 @@ impl TryFrom<StripePaymentIntentRequest> for payments::PaymentsRequest {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
     fn try_from(item: StripePaymentIntentRequest) -> errors::RouterResult<Self> {
         Ok(Self {
-            payment_id: item
-                .payment_id
-                .map(|id| payments::PaymentIdType(id)),
+            payment_id: item.payment_id.map(|id| payments::PaymentIdType(id)),
             amount: item.amount.map(|amount| amount.into()),
             connector: item.connector,
             currency: item
