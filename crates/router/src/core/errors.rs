@@ -16,7 +16,7 @@ pub use self::{
     api_error_response::ApiErrorResponse,
     utils::{ConnectorErrorExt, StorageErrorExt},
 };
-use crate::{headers, services};
+use crate::services;
 pub type RouterResult<T> = CustomResult<T, ApiErrorResponse>;
 pub type RouterResponse<T> = CustomResult<services::ApplicationResponse<T>, ApiErrorResponse>;
 
@@ -153,9 +153,13 @@ impl From<ConfigError> for ApplicationError {
 }
 
 fn error_response<T: Display>(err: &T) -> actix_web::HttpResponse {
+    use actix_web::http::header;
+
+    use crate::consts;
+
     actix_web::HttpResponse::BadRequest()
-        .append_header((headers::HSTS, 31536000))
-        .append_header((headers::VIA, "Juspay_Router"))
+        .append_header((header::STRICT_TRANSPORT_SECURITY, consts::HSTS_HEADER_VALUE))
+        .append_header((header::VIA, "Juspay_Router"))
         .content_type("application/json")
         .body(format!(r#"{{ "error": {{ "message": "{err}" }} }}"#))
 }
