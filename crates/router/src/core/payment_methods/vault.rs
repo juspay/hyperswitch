@@ -14,6 +14,7 @@ use crate::{core::payment_methods::transformers as payment_methods, services, ut
 #[cfg(feature = "basilisk")]
 use crate::{
     db,
+    scheduler::{process_data, utils as process_tracker_utils},
     types::storage::{enums, ProcessTrackerExt},
 };
 #[cfg(feature = "basilisk")]
@@ -618,18 +619,66 @@ pub async fn start_tokenize_data_workflow(
             tokenize_tracker.tracking_data
         )
     })?;
-    //TODO: Add retry logic in case deletion failed, in case card was deleted session based mark as finished
-    Vault::delete_locker_payment_method_by_lookup_key(
-        state,
-        &Some(delete_tokenize_data.lookup_key),
-    )
-    .await;
 
-    //mark task as finished
-    let id = tokenize_tracker.id.clone();
-    tokenize_tracker
-        .clone()
-        .finish_with_status(db, format!("COMPLETED_BY_PT_{id}"))
-        .await?;
+    let delete_resp = delete_tokenized_data(state, &delete_tokenize_data.lookup_key).await;
+    match delete_resp {
+        Ok(resp) => {
+            if resp == "Ok" {
+                logger::info!("Card From locker deleted Successfully");
+                //mark task as finished
+                let id = tokenize_tracker.id.clone();
+                tokenize_tracker
+                    .clone()
+                    .finish_with_status(db, format!("COMPLETED_BY_PT_{id}"))
+                    .await?;
+            } else {
+                logger::error!("Error: Deleting Card From Locker : {}", resp);
+                retry_delete_tokenize(db, "Hyperswitch", tokenize_tracker.to_owned()).await?;
+            }
+        }
+        Err(err) => {
+            logger::error!("Err: Deleting Card From Locker : {}", err);
+            retry_delete_tokenize(db, "Hyperswitch", tokenize_tracker.to_owned()).await?;
+        }
+    }
     Ok(())
+}
+
+#[cfg(feature = "basilisk")]
+pub async fn get_delete_tokenize_schedule_time(
+    db: &dyn db::StorageInterface,
+    merchant_id: &str,
+    retry_count: i32,
+) -> Result<Option<time::PrimitiveDateTime>, errors::ProcessTrackerError> {
+    let redis_mapping =
+        db::get_and_deserialize_key(db, "pt_mapping_delete_tokenize_data", "ConnectorPTMapping")
+            .await;
+    let mapping = match redis_mapping {
+        Ok(x) => x,
+        Err(err) => {
+            logger::info!("Redis Mapping Error: {}", err);
+            process_data::ConnectorPTMapping::default()
+        }
+    };
+    let time_delta =
+        process_tracker_utils::get_schedule_time(mapping, merchant_id, retry_count + 1);
+
+    Ok(process_tracker_utils::get_time_from_delta(time_delta))
+}
+
+#[cfg(feature = "basilisk")]
+pub async fn retry_delete_tokenize(
+    db: &dyn db::StorageInterface,
+    merchant_id: &str, //Service using the temp locker
+    pt: storage::ProcessTracker,
+) -> Result<(), errors::ProcessTrackerError> {
+    let schedule_time = get_delete_tokenize_schedule_time(db, merchant_id, pt.retry_count).await?;
+
+    match schedule_time {
+        Some(s_time) => pt.retry(db, s_time).await,
+        None => {
+            pt.finish_with_status(db, "RETRIES_EXCEEDED".to_string())
+                .await
+        }
+    }
 }
