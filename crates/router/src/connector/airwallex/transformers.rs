@@ -155,10 +155,7 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for AirwallexPaymentsCaptureRequ
         Ok(Self {
             request_id: Uuid::new_v4().to_string(),
             amount: match item.request.amount_to_capture {
-                Some(_a) => Some(utils::to_currency_base_unit(
-                    item.request.amount,
-                    item.request.currency,
-                )?),
+                Some(a) => Some(utils::to_currency_base_unit(a, item.request.currency)?),
                 _ => None,
             },
         })
