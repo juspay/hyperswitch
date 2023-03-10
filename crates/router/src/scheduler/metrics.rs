@@ -11,6 +11,7 @@ static PT_METER: Lazy<Meter> = Lazy::new(|| global::meter("PROCESS_TRACKER"));
 pub(crate) static CONSUMER_STATS: Lazy<Histogram<f64>> =
     Lazy::new(|| PT_METER.f64_histogram("CONSUMER_OPS").init());
 
+#[macro_export]
 macro_rules! create_counter {
     ($name:ident, $meter:ident) => {
         pub(crate) static $name: Lazy<Counter<u64>> =

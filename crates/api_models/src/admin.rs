@@ -57,7 +57,7 @@ pub struct MerchantAccountCreate {
 
     /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
     #[schema(value_type = Option<Object>, example = r#"{ "city": "NY", "unit": "245" }"#)]
-    pub metadata: Option<serde_json::Value>,
+    pub metadata: Option<pii::SecretSerdeValue>,
 
     /// API key that will be used for server side API access
     #[schema(example = "AH3423bkjbkjdsfbkj")]
@@ -118,7 +118,7 @@ pub struct MerchantAccountUpdate {
 
     /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
     #[schema(value_type = Option<Object>, example = r#"{ "city": "NY", "unit": "245" }"#)]
-    pub metadata: Option<serde_json::Value>,
+    pub metadata: Option<pii::SecretSerdeValue>,
 
     /// API key that will be used for server side API access
     #[schema(example = "AH3423bkjbkjdsfbkj")]
@@ -185,7 +185,7 @@ pub struct MerchantAccountResponse {
 
     /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
     #[schema(value_type = Option<Object>, example = r#"{ "city": "NY", "unit": "245" }"#)]
-    pub metadata: Option<serde_json::Value>,
+    pub metadata: Option<pii::SecretSerdeValue>,
 
     /// An identifier for the vault used to store payment method information.
     #[schema(example = "locker_abc123")]
@@ -308,7 +308,7 @@ pub struct MerchantConnector {
     pub merchant_connector_id: Option<String>,
     /// Account details of the Connector. You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Useful for storing additional, structured information on an object.
     #[schema(value_type = Option<Object>,example = json!({ "auth_type": "HeaderKey","api_key": "Basic MyVerySecretApiKey" }))]
-    pub connector_account_details: Option<Secret<serde_json::Value>>,
+    pub connector_account_details: Option<pii::SecretSerdeValue>,
     /// A boolean value to indicate if the connector is in Test mode. By default, its value is false.
     #[schema(default = false, example = false)]
     pub test_mode: Option<bool>,
@@ -348,7 +348,7 @@ pub struct MerchantConnector {
     pub payment_methods_enabled: Option<Vec<PaymentMethodsEnabled>>,
     /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
     #[schema(value_type = Option<Object>,max_length = 255,example = json!({ "city": "NY", "unit": "245" }))]
-    pub metadata: Option<serde_json::Value>,
+    pub metadata: Option<pii::SecretSerdeValue>,
 }
 
 /// Details of all the payment methods enabled for the connector for the given merchant account

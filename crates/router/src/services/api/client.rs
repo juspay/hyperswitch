@@ -8,9 +8,6 @@ use crate::{
     core::errors::{self, CustomResult},
 };
 
-const HTTP_PROXY: &str = "ROUTER_HTTP_PROXY";
-const HTTPS_PROXY: &str = "ROUTER_HTTPS_PROXY";
-
 static PLAIN_CLIENT: OnceCell<reqwest::Client> = OnceCell::new();
 static HTTPS_PROXY_CLIENT: OnceCell<reqwest::Client> = OnceCell::new();
 static HTTP_PROXY_CLIENT: OnceCell<reqwest::Client> = OnceCell::new();
@@ -22,15 +19,9 @@ enum ProxyType {
 
 impl ProxyType {
     fn get_proxy_url(&self, proxy: &Proxy) -> Option<String> {
-        use std::env::var;
-
         match self {
-            Self::Http => var(HTTP_PROXY)
-                .or_else(|_| proxy.http_url.clone().ok_or(()))
-                .ok(),
-            Self::Https => var(HTTPS_PROXY)
-                .or_else(|_| proxy.https_url.clone().ok_or(()))
-                .ok(),
+            Self::Http => proxy.http_url.clone(),
+            Self::Https => proxy.https_url.clone(),
         }
     }
 }
