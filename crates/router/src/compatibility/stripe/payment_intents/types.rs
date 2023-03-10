@@ -113,8 +113,10 @@ impl From<Shipping> for payments::Address {
         }
     }
 }
+
 #[derive(PartialEq, Eq, Deserialize, Clone)]
 pub struct StripePaymentIntentRequest {
+    pub payment_id: Option<String>,
     pub amount: Option<i64>, //amount in cents, hence passed as integer
     pub connector: Option<Vec<api_enums::Connector>>,
     pub currency: Option<String>,
@@ -141,6 +143,9 @@ impl TryFrom<StripePaymentIntentRequest> for payments::PaymentsRequest {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
     fn try_from(item: StripePaymentIntentRequest) -> errors::RouterResult<Self> {
         Ok(Self {
+            payment_id: item
+                .payment_id
+                .map(|id| payments::PaymentIdType(id)),
             amount: item.amount.map(|amount| amount.into()),
             connector: item.connector,
             currency: item
