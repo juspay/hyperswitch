@@ -41,12 +41,12 @@ pub struct CustomerRequest {
     "first_name": "John",
     "last_name": "Doe"
   }))]
-    pub address: Option<Secret<serde_json::Value>>,
+    pub address: Option<pii::SecretSerdeValue>,
     /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500
     /// characters long. Metadata is useful for storing additional, structured information on an
     /// object.
     #[schema(value_type = Option<Object>,example = json!({ "city": "NY", "unit": "245" }))]
-    pub metadata: Option<serde_json::Value>,
+    pub metadata: Option<pii::SecretSerdeValue>,
 }
 
 #[derive(Debug, Clone, Serialize, ToSchema)]
@@ -90,7 +90,7 @@ pub struct CustomerResponse {
     /// characters long. Metadata is useful for storing additional, structured information on an
     /// object.
     #[schema(value_type = Option<Object>,example = json!({ "city": "NY", "unit": "245" }))]
-    pub metadata: Option<serde_json::Value>,
+    pub metadata: Option<pii::SecretSerdeValue>,
 }
 
 #[derive(Default, Debug, Deserialize, Serialize)]
