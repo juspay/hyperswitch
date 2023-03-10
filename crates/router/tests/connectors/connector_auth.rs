@@ -1,6 +1,7 @@
+use std::env;
+
 use router::types::ConnectorAuthType;
 use serde::Deserialize;
-use std::env;
 
 #[derive(Debug, Deserialize, Clone)]
 pub(crate) struct ConnectorAuthentication {
@@ -26,8 +27,8 @@ pub(crate) struct ConnectorAuthentication {
 }
 
 impl ConnectorAuthentication {
+    #[allow(clippy::expect_used)]
     pub(crate) fn new() -> Self {
-        #[allow(clippy::expect_used)]
         let path = env::var("CONNECTOR_AUTH_FILE_PATH")
             .expect("connector authentication path file is wrong");
         toml::from_str(
