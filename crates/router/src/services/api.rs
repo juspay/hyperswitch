@@ -9,7 +9,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use actix_web::{body, HttpRequest, HttpResponse, Responder};
+use actix_web::{body, http::header, HttpRequest, HttpResponse, Responder};
 use common_utils::errors::ReportSwitchExt;
 use error_stack::{report, IntoReport, Report, ResultExt};
 use masking::ExposeOptionInterface;
@@ -20,6 +20,7 @@ use self::request::{ContentType, HeaderExt, RequestBuilderExt};
 pub use self::request::{Method, Request, RequestBuilder};
 use crate::{
     configs::settings::Connectors,
+    consts,
     core::{
         errors::{self, CustomResult, RouterResult},
         payments,
@@ -28,12 +29,7 @@ use crate::{
     logger,
     routes::{app::AppStateInfo, AppState},
     services::authentication as auth,
-    types::{
-        self,
-        api::{self},
-        storage::{self},
-        ErrorResponse,
-    },
+    types::{self, api, storage, ErrorResponse},
 };
 
 pub type BoxedConnectorIntegration<'a, T, Req, Resp> =
@@ -542,19 +538,24 @@ pub async fn authenticate_by_api_key(
 pub fn http_response_json<T: body::MessageBody + 'static>(response: T) -> HttpResponse {
     HttpResponse::Ok()
         .content_type("application/json")
-        .append_header(("Via", "Juspay_router"))
+        .append_header((header::VIA, "Juspay_router"))
+        .append_header((header::STRICT_TRANSPORT_SECURITY, consts::HSTS_HEADER_VALUE))
         .body(response)
 }
 
 pub fn http_response_plaintext<T: body::MessageBody + 'static>(res: T) -> HttpResponse {
     HttpResponse::Ok()
         .content_type("text/plain")
-        .append_header(("Via", "Juspay_router"))
+        .append_header((header::VIA, "Juspay_router"))
+        .append_header((header::STRICT_TRANSPORT_SECURITY, consts::HSTS_HEADER_VALUE))
         .body(res)
 }
 
 pub fn http_response_ok() -> HttpResponse {
-    HttpResponse::Ok().finish()
+    HttpResponse::Ok()
+        .append_header((header::VIA, "Juspay_router"))
+        .append_header((header::STRICT_TRANSPORT_SECURITY, consts::HSTS_HEADER_VALUE))
+        .finish()
 }
 
 pub fn http_redirect_response<T: body::MessageBody + 'static>(
@@ -563,11 +564,12 @@ pub fn http_redirect_response<T: body::MessageBody + 'static>(
 ) -> HttpResponse {
     HttpResponse::Ok()
         .content_type("application/json")
-        .append_header(("Via", "Juspay_router"))
+        .append_header((header::VIA, "Juspay_router"))
         .append_header((
             "Location",
             redirection_response.return_url_with_query_params,
         ))
+        .append_header((header::STRICT_TRANSPORT_SECURITY, consts::HSTS_HEADER_VALUE))
         .status(http::StatusCode::FOUND)
         .body(response)
 }
@@ -575,7 +577,8 @@ pub fn http_redirect_response<T: body::MessageBody + 'static>(
 pub fn http_response_err<T: body::MessageBody + 'static>(response: T) -> HttpResponse {
     HttpResponse::BadRequest()
         .content_type("application/json")
-        .append_header(("Via", "Juspay_router"))
+        .append_header((header::VIA, "Juspay_router"))
+        .append_header((header::STRICT_TRANSPORT_SECURITY, consts::HSTS_HEADER_VALUE))
         .body(response)
 }
 
