@@ -1,5 +1,6 @@
 use std::{convert::From, default::Default};
 
+use common_utils::pii;
 use serde::{Deserialize, Serialize};
 
 use crate::types::api::refunds;
@@ -13,7 +14,7 @@ pub struct StripeCreateRefundRequest {
 
 #[derive(Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
 pub struct StripeUpdateRefundRequest {
-    pub metadata: Option<serde_json::Value>,
+    pub metadata: Option<pii::SecretSerdeValue>,
 }
 
 #[derive(Clone, Serialize, PartialEq, Eq)]
@@ -24,7 +25,7 @@ pub struct StripeCreateRefundResponse {
     pub payment_intent: String,
     pub status: StripeRefundStatus,
     pub created: Option<i64>,
-    pub metadata: serde_json::Value,
+    pub metadata: pii::SecretSerdeValue,
 }
 
 #[derive(Clone, Serialize, Deserialize, Eq, PartialEq)]
@@ -77,7 +78,9 @@ impl From<refunds::RefundResponse> for StripeCreateRefundResponse {
             payment_intent: res.payment_id,
             status: res.status.into(),
             created: res.created_at.map(|t| t.assume_utc().unix_timestamp()),
-            metadata: res.metadata.unwrap_or_else(|| serde_json::json!({})),
+            metadata: res
+                .metadata
+                .unwrap_or_else(|| masking::Secret::new(serde_json::json!({}))),
         }
     }
 }

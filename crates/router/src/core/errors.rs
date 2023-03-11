@@ -153,8 +153,13 @@ impl From<ConfigError> for ApplicationError {
 }
 
 fn error_response<T: Display>(err: &T) -> actix_web::HttpResponse {
+    use actix_web::http::header;
+
+    use crate::consts;
+
     actix_web::HttpResponse::BadRequest()
-        .append_header(("Via", "Juspay_Router"))
+        .append_header((header::STRICT_TRANSPORT_SECURITY, consts::HSTS_HEADER_VALUE))
+        .append_header((header::VIA, "Juspay_Router"))
         .content_type("application/json")
         .body(format!(r#"{{ "error": {{ "message": "{err}" }} }}"#))
 }
@@ -278,6 +283,8 @@ pub enum ConnectorError {
     WebhookResourceObjectNotFound,
     #[error("Invalid Date/time format")]
     InvalidDateFormat,
+    #[error("Invalid Data format")]
+    InvalidDataFormat { field_name: &'static str },
     #[error("Payment Method data / Payment Method Type / Payment Experience Mismatch ")]
     MismatchedPaymentData,
     #[error("Failed to parse Wallet token")]
@@ -415,12 +422,4 @@ pub enum WebhooksFlowError {
     NotReceivedByMerchant,
     #[error("Resource not found")]
     ResourceNotFound,
-}
-
-#[derive(Debug, thiserror::Error)]
-pub enum ApiKeyError {
-    #[error("Failed to read API key hash from hexadecimal string")]
-    FailedToReadHashFromHex,
-    #[error("Failed to verify provided API key hash against stored API key hash")]
-    HashVerificationFailed,
 }
