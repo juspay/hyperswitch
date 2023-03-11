@@ -2,12 +2,9 @@ use std::collections::HashMap;
 
 use api_models::payments::BankRedirectData;
 use common_utils::{errors::CustomResult, pii::Email};
-use error_stack::{report, ResultExt};
+use error_stack::ResultExt;
 use masking::Secret;
-use once_cell::sync::Lazy;
-use regex::Regex;
 use reqwest::Url;
-use router_env::logger;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -98,6 +95,7 @@ pub struct BankPaymentInformation {
 pub struct BankPaymentInformationResponse {
     pub status: TrustpayBankRedirectPaymentStatus,
     pub status_reason_information: Option<StatusReasonInformation>,
+    pub references: ReferencesResponse,
 }
 
 #[derive(Debug, Serialize, Eq, PartialEq)]
@@ -170,7 +168,7 @@ pub struct PaymentRequestBankRedirect {
 #[serde(untagged)]
 pub enum TrustpayPaymentsRequest {
     CardsPaymentRequest(Box<PaymentRequestCards>),
-    BankRedirectPaymentRequest(PaymentRequestBankRedirect),
+    BankRedirectPaymentRequest(Box<PaymentRequestBankRedirect>),
 }
 
 #[derive(Debug, Serialize, Eq, PartialEq)]
@@ -251,7 +249,7 @@ fn get_bank_redirection_request_data(
     return_url: String,
     auth: TrustpayAuthType,
 ) -> TrustpayPaymentsRequest {
-    TrustpayPaymentsRequest::BankRedirectPaymentRequest(PaymentRequestBankRedirect {
+    TrustpayPaymentsRequest::BankRedirectPaymentRequest(Box::new(PaymentRequestBankRedirect {
         payment_method: get_trustpay_payment_method(bank_redirection_data),
         merchant_identification: MerchantIdentification {
             project_id: auth.project_id,
@@ -270,7 +268,7 @@ fn get_bank_redirection_request_data(
             cancel: return_url.clone(),
             error: return_url,
         },
-    })
+    }))
 }
 
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for TrustpayPaymentsRequest {
@@ -388,21 +386,24 @@ fn is_payment_successful(payment_status: &str) -> CustomResult<bool, errors::Con
     match payment_status {
         "000.400.100" => Ok(true),
         _ => {
-            #[deny(clippy::invalid_regex)]
-            static TXN_STATUS_REGEX: Lazy<Option<Regex>> = Lazy::new(|| {
-                match Regex::new(r"^000\.000\.|^000\.100\.1|^000\.3|^000\.6|^000\.400\.0[^3]") {
-                    Ok(regex) => Some(regex),
-                    Err(error) => {
-                        logger::error!(?error);
-                        None
-                    }
-                }
-            });
-            let txn_status_regex = match TXN_STATUS_REGEX.as_ref() {
-                Some(regex) => Ok(regex),
-                None => Err(report!(errors::ConnectorError::ResponseHandlingFailed)),
-            }?;
-            Ok(txn_status_regex.is_match(payment_status))
+            let allowed_prefixes = [
+                "000.000.",
+                "000.100.1",
+                "000.3",
+                "000.6",
+                "000.400.01",
+                "000.400.02",
+                "000.400.04",
+                "000.400.05",
+                "000.400.06",
+                "000.400.07",
+                "000.400.08",
+                "000.400.09",
+            ];
+            let is_valid = allowed_prefixes
+                .iter()
+                .any(|&prefix| payment_status.starts_with(prefix));
+            Ok(is_valid)
         }
     }
 }
@@ -421,17 +422,18 @@ fn get_transaction_status(
     let (is_failed, failure_message) = is_payment_failed(payment_status);
     let pending_status = get_pending_status_based_on_redirect_url(redirect_url);
     if payment_status == "000.200.000" {
-        Ok((pending_status, None))
-    } else if is_failed {
-        Ok((
+        return Ok((pending_status, None));
+    }
+    if is_failed {
+        return Ok((
             enums::AttemptStatus::AuthorizationFailed,
             Some(failure_message.to_string()),
-        ))
-    } else if is_payment_successful(payment_status)? {
-        Ok((enums::AttemptStatus::Charged, None))
-    } else {
-        Ok((pending_status, None))
+        ));
     }
+    if is_payment_successful(payment_status)? {
+        return Ok((enums::AttemptStatus::Charged, None));
+    }
+    Ok((pending_status, None))
 }
 
 #[derive(Debug, Serialize, Deserialize, Eq, PartialEq, Clone)]
@@ -455,57 +457,64 @@ impl From<TrustpayBankRedirectPaymentStatus> for enums::AttemptStatus {
     }
 }
 
+impl From<TrustpayBankRedirectPaymentStatus> for enums::RefundStatus {
+    fn from(item: TrustpayBankRedirectPaymentStatus) -> Self {
+        match item {
+            TrustpayBankRedirectPaymentStatus::Paid => Self::Success,
+            TrustpayBankRedirectPaymentStatus::Rejected => Self::Failure,
+            _ => Self::Pending,
+        }
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
 pub struct PaymentsResponseCards {
     pub status: i64,
     pub description: Option<String>,
-    #[serde(rename = "instanceId")]
     pub instance_id: String,
-    #[serde(rename = "paymentStatus")]
     pub payment_status: String,
-    #[serde(rename = "paymentDescription")]
     pub payment_description: Option<String>,
-    #[serde(rename = "redirectUrl")]
     pub redirect_url: Option<Url>,
-    #[serde(rename = "redirectParams")]
     pub redirect_params: Option<HashMap<String, String>>,
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "PascalCase")]
 pub struct PaymentsResponseBankRedirect {
-    #[serde(rename = "PaymentRequestId")]
     pub payment_request_id: i64,
-    #[serde(rename = "GatewayUrl")]
     pub gateway_url: Url,
-    #[serde(rename = "ResultInfo")]
     pub payment_result_info: Option<ResultInfo>,
-    #[serde(rename = "PaymentMethod")]
     pub payment_method_response: Option<TrustpayPaymentMethod>,
-    #[serde(rename = "MerchantIdentification")]
     pub merchant_identification_response: Option<MerchantIdentification>,
-    #[serde(rename = "PaymentInformation")]
     pub payment_information_response: Option<BankPaymentInformationResponse>,
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub struct ErrorResponseBankRedirect {
     #[serde(rename = "ResultInfo")]
     pub payment_result_info: ResultInfo,
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, Eq, PartialEq, Clone)]
+#[serde(rename_all = "PascalCase")]
+pub struct ReferencesResponse {
+    pub payment_request_id: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
+#[serde(rename_all = "PascalCase")]
 pub struct SyncResponseBankRedirect {
-    #[serde(rename = "PaymentInformation")]
-    pub payment_information_response: BankPaymentInformationResponse,
+    pub payment_information: BankPaymentInformationResponse,
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 #[serde(untagged)]
 pub enum TrustpayPaymentsResponse {
-    CardsPayments(PaymentsResponseCards),
-    BankRedirectPayments(PaymentsResponseBankRedirect),
-    BankRedirectSync(SyncResponseBankRedirect),
-    BankRedirectError(ErrorResponseBankRedirect),
+    CardsPayments(Box<PaymentsResponseCards>),
+    BankRedirectPayments(Box<PaymentsResponseBankRedirect>),
+    BankRedirectSync(Box<SyncResponseBankRedirect>),
+    BankRedirectError(Box<ErrorResponseBankRedirect>),
 }
 
 impl<F, T>
@@ -557,7 +566,7 @@ fn handle_cards_response(
     let error = if msg.is_some() {
         Some(types::ErrorResponse {
             code: response.payment_status,
-            message: msg.unwrap_or(consts::NO_ERROR_CODE.to_string()),
+            message: msg.unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
             reason: None,
             status_code,
         })
@@ -616,7 +625,7 @@ fn handle_bank_redirects_error_response(
         message: response
             .payment_result_info
             .additional_info
-            .unwrap_or(consts::NO_ERROR_CODE.to_string()),
+            .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
         reason: None,
         status_code,
     });
@@ -631,7 +640,6 @@ fn handle_bank_redirects_error_response(
 
 fn handle_bank_redirects_sync_response(
     response: SyncResponseBankRedirect,
-    status_code: u16,
 ) -> CustomResult<
     (
         enums::AttemptStatus,
@@ -640,31 +648,16 @@ fn handle_bank_redirects_sync_response(
     ),
     errors::ConnectorError,
 > {
-    let status = enums::AttemptStatus::from(response.payment_information_response.status);
-    let error = if status == enums::AttemptStatus::AuthorizationFailed {
-        let reason_info = response
-            .payment_information_response
-            .status_reason_information
-            .unwrap_or_default();
-        Some(types::ErrorResponse {
-            code: reason_info.reason.code,
-            message: reason_info
-                .reason
-                .reject_reason
-                .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
-            reason: None,
-            status_code,
-        })
-    } else {
-        None
-    };
+    let status = enums::AttemptStatus::from(response.payment_information.status);
     let payment_response_data = types::PaymentsResponseData::TransactionResponse {
-        resource_id: types::ResponseId::NoResponseId,
+        resource_id: types::ResponseId::ConnectorTransactionId(
+            response.payment_information.references.payment_request_id,
+        ),
         redirection_data: None,
         mandate_reference: None,
         connector_metadata: None,
     };
-    Ok((status, error, payment_response_data))
+    Ok((status, None, payment_response_data))
 }
 
 pub fn get_trustpay_response(
@@ -680,16 +673,16 @@ pub fn get_trustpay_response(
 > {
     match response {
         TrustpayPaymentsResponse::CardsPayments(response) => {
-            handle_cards_response(response, status_code)
+            handle_cards_response(*response, status_code)
         }
         TrustpayPaymentsResponse::BankRedirectPayments(response) => {
-            handle_bank_redirects_response(response)
+            handle_bank_redirects_response(*response)
         }
         TrustpayPaymentsResponse::BankRedirectError(response) => {
-            handle_bank_redirects_error_response(response, status_code)
+            handle_bank_redirects_error_response(*response, status_code)
         }
         TrustpayPaymentsResponse::BankRedirectSync(response) => {
-            handle_bank_redirects_sync_response(response, status_code)
+            handle_bank_redirects_sync_response(*response)
         }
     }
 }
@@ -782,8 +775,8 @@ pub struct TrustpayRefundRequestBankRedirect {
 #[derive(Debug, Serialize)]
 #[serde(untagged)]
 pub enum TrustpayRefundRequest {
-    CardsRefund(TrustpayRefundRequestCards),
-    BankRedirectRefund(TrustpayRefundRequestBankRedirect),
+    CardsRefund(Box<TrustpayRefundRequestCards>),
+    BankRedirectRefund(Box<TrustpayRefundRequestBankRedirect>),
 }
 
 impl<F> TryFrom<&types::RefundsRouterData<F>> for TrustpayRefundRequest {
@@ -798,7 +791,7 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for TrustpayRefundRequest {
                         .parse::<f64>()
                         .ok()
                         .ok_or_else(|| errors::ConnectorError::RequestEncodingFailed)?;
-                Ok(Self::BankRedirectRefund(
+                Ok(Self::BankRedirectRefund(Box::new(
                     TrustpayRefundRequestBankRedirect {
                         merchant_identification: MerchantIdentification {
                             project_id: auth.project_id,
@@ -813,14 +806,14 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for TrustpayRefundRequest {
                             },
                         },
                     },
-                ))
+                )))
             }
-            _ => Ok(Self::CardsRefund(TrustpayRefundRequestCards {
+            _ => Ok(Self::CardsRefund(Box::new(TrustpayRefundRequestCards {
                 instance_id: item.request.connector_transaction_id.clone(),
                 amount: utils::to_currency_base_unit(item.request.amount, item.request.currency)?,
                 currency: item.request.currency.to_string(),
                 reference: item.payment_id.clone(),
-            })),
+            }))),
         }
     }
 }
@@ -836,16 +829,19 @@ pub struct CardsRefundResponse {
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "PascalCase")]
 pub struct BankRedirectRefundResponse {
+    pub payment_request_id: Option<i64>,
     pub result_info: ResultInfo,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum RefundResponse {
-    CardsRefund(CardsRefundResponse),
-    BankRedirectRefund(BankRedirectRefundResponse),
+    CardsRefund(Box<CardsRefundResponse>),
+    BankRedirectRefund(Box<BankRedirectRefundResponse>),
+    BankRedirectRefundSyncResponse(Box<SyncResponseBankRedirect>),
+    BankRedirectError(Box<ErrorResponseBankRedirect>),
 }
 
 fn handle_cards_refund_response(
@@ -876,7 +872,7 @@ fn handle_bank_redirects_refund_response(
     status_code: u16,
 ) -> (Option<types::ErrorResponse>, types::RefundsResponseData) {
     let (refund_status, msg) = get_refund_status_from_result_info(response.result_info.result_code);
-    let error = if msg.is_some() {
+    let error = if response.payment_request_id.is_none() {
         Some(types::ErrorResponse {
             code: response.result_info.result_code.to_string(),
             message: msg.unwrap_or(consts::NO_ERROR_MESSAGE).to_owned(),
@@ -887,10 +883,43 @@ fn handle_bank_redirects_refund_response(
         None
     };
     let refund_response_data = types::RefundsResponseData {
-        //We always get terminal status for bank redirects refunds and don't get any refund id
-        connector_refund_id: "".to_owned(),
+        connector_refund_id: response.payment_request_id.unwrap_or_default().to_string(),
         refund_status,
     };
+    print!(">>>{:?}", refund_response_data);
+    (error, refund_response_data)
+}
+
+fn handle_bank_redirects_refund_sync_response(
+    response: SyncResponseBankRedirect,
+) -> (Option<types::ErrorResponse>, types::RefundsResponseData) {
+    let refund_status = enums::RefundStatus::from(response.payment_information.status);
+    let refund_response_data = types::RefundsResponseData {
+        connector_refund_id: response.payment_information.references.payment_request_id,
+        refund_status,
+    };
+    (None, refund_response_data)
+}
+
+fn handle_bank_redirects_refund_sync_error_response(
+    response: ErrorResponseBankRedirect,
+    status_code: u16,
+) -> (Option<types::ErrorResponse>, types::RefundsResponseData) {
+    let error = Some(types::ErrorResponse {
+        code: response.payment_result_info.result_code.to_string(),
+        message: response
+            .payment_result_info
+            .additional_info
+            .unwrap_or(consts::NO_ERROR_MESSAGE.to_owned()),
+        reason: None,
+        status_code,
+    });
+    //unreachable case as we are sending error as Some() every time
+    let refund_response_data = types::RefundsResponseData {
+        connector_refund_id: "".to_string(),
+        refund_status: enums::RefundStatus::Failure,
+    };
+    print!(">>>{:?}", refund_response_data);
     (error, refund_response_data)
 }
 
@@ -903,10 +932,16 @@ impl<F> TryFrom<types::RefundsResponseRouterData<F, RefundResponse>>
     ) -> Result<Self, Self::Error> {
         let (error, response) = match item.response {
             RefundResponse::CardsRefund(response) => {
-                handle_cards_refund_response(response, item.http_code)?
+                handle_cards_refund_response(*response, item.http_code)?
             }
             RefundResponse::BankRedirectRefund(response) => {
-                handle_bank_redirects_refund_response(response, item.http_code)
+                handle_bank_redirects_refund_response(*response, item.http_code)
+            }
+            RefundResponse::BankRedirectRefundSyncResponse(response) => {
+                handle_bank_redirects_refund_sync_response(*response)
+            }
+            RefundResponse::BankRedirectError(response) => {
+                handle_bank_redirects_refund_sync_error_response(*response, item.http_code)
             }
         };
         Ok(Self {
