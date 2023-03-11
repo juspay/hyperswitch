@@ -515,13 +515,12 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         req: &types::RefundSyncRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        let mut header = vec![(
-            headers::CONTENT_TYPE.to_string(),
+        get_trustpay_headers(
+            req.payment_method,
             types::RefundSyncType::get_content_type(self).to_string(),
-        )];
-        let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
-        header.append(&mut api_key);
-        Ok(header)
+            self.get_auth_header(&req.connector_auth_type)?,
+            req.access_token.as_ref(),
+        )
     }
 
     fn get_content_type(&self) -> &'static str {
@@ -538,12 +537,18 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
             .connector_refund_id
             .to_owned()
             .ok_or_else(|| errors::ConnectorError::MissingConnectorRefundID)?;
-        Ok(format!(
-            "{}{}/{}",
-            self.base_url(connectors),
-            "api/v1/instance",
-            id
-        ))
+        match req.payment_method {
+            storage_models::enums::PaymentMethod::BankRedirect => Ok(format!(
+                "{}/{}",
+                "https://aapi.trustpay.eu/api/Payments/Payment", id
+            )),
+            _ => Ok(format!(
+                "{}{}/{}",
+                self.base_url(connectors),
+                "api/v1/instance",
+                id
+            )),
+        }
     }
 
     fn build_request(
@@ -551,21 +556,13 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         req: &types::RefundSyncRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        match req.payment_method {
-            storage_models::enums::PaymentMethod::BankRedirect => {
-                Err(errors::ConnectorError::NotImplemented(
-                    "RSync is not supported for Bank Redirects".to_owned(),
-                ))
-                .into_report()
-            }
-            _ => Ok(Some(
-                services::RequestBuilder::new()
-                    .method(services::Method::Get)
-                    .url(&types::RefundSyncType::get_url(self, req, connectors)?)
-                    .headers(types::RefundSyncType::get_headers(self, req, connectors)?)
-                    .build(),
-            )),
-        }
+        Ok(Some(
+            services::RequestBuilder::new()
+                .method(services::Method::Get)
+                .url(&types::RefundSyncType::get_url(self, req, connectors)?)
+                .headers(types::RefundSyncType::get_headers(self, req, connectors)?)
+                .build(),
+        ))
     }
 
     fn handle_response(
