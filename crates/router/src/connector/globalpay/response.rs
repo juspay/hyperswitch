@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use url::Url;
 
 use super::requests;
 #[derive(Debug, Serialize, Deserialize)]
@@ -131,6 +132,7 @@ pub struct PaymentMethod {
     pub message: Option<String>,
     /// Result code from the payment method provider.
     pub result: Option<String>,
+    pub redirect_url: Option<Url>,
 }
 
 /// Data associated with the response of an APM transaction.
@@ -162,6 +164,21 @@ pub struct Apm {
     /// Indicates to instruct the payer to wait for an update at the time the transaction is
     /// being executed or that an update will be given later.
     pub wait_notification: Option<f64>,
+
+    pub payment_description : Option<String>,
+
+    pub account_number : Option<String>,
+
+    pub bank_address : Option<String>,
+
+    pub bank_identifier_code : Option<String>,
+
+    pub bank_name : Option<String>,
+
+    pub confirmed_accountholder : Option<String>,
+
+    pub iban :  Option<String>,
+
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -278,7 +295,7 @@ pub enum FundStatus {
 /// A string used to identify the payment method provider being used to execute this
 /// transaction.
 #[derive(Debug, Serialize, Deserialize)]
-#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+#[serde(rename_all = "snake_case")]
 pub enum ApmProvider {
     Giropay,
     Ideal,
@@ -372,4 +389,41 @@ pub enum GlobalpayPaymentStatus {
     /// A Transaction that had a status of PENDING, PREAUTHORIZED or CAPTURED has
     /// subsequently been reversed which voids/cancels a transaction before it is funded.
     Reversed,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct GlobalpayWebhoookResourceObject{
+    pub data : GlobalpayWebhookDataResource
+}
+
+#[derive(Debug, Deserialize)]
+pub struct GlobalpayWebhookDataResource {
+    pub object: serde_json::Value
+}
+
+#[derive(Debug, Deserialize)]
+pub struct GlobalpayWebhookObjectId{
+    pub id : String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct GlobalpayWebhookDataId{
+    pub object : GlobalpayWebhookObjectDataId,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct GlobalpayWebhookObjectDataId{
+    pub id  : String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct GlobalpayWebhookObjectEventType{
+    pub status: String,
+}
+
+#[derive(Debug,Deserialize,Serialize)]
+pub struct GlobalpayPaymentsWebhookResponse{
+    pub id : String,
+    pub account_id : Option<String>,
+    pub account_name : Option<String>
 }

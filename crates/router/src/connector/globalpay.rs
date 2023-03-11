@@ -4,17 +4,24 @@ mod transformers;
 
 use std::fmt::Debug;
 
+use common_utils::ext_traits::ByteSliceExt;
 use error_stack::{IntoReport, ResultExt};
+use frunk::labelled::chars::x;
+use serde_json::Value;
+use serde_json::{json, to_writer};
+use std::io::Cursor;
+use common_utils::crypto::GenerateDigest;
 
 use self::{
     requests::{GlobalpayPaymentsRequest, GlobalpayRefreshTokenRequest},
     response::{
         GlobalpayPaymentsResponse, GlobalpayRefreshTokenErrorResponse,
-        GlobalpayRefreshTokenResponse,
+        GlobalpayRefreshTokenResponse,GlobalpayPaymentsWebhookResponse
     },
 };
 use crate::{
     configs::settings,
+    connector::utils as conn_utils,
     core::{
         errors::{self, CustomResult},
         payments,
@@ -26,7 +33,7 @@ use crate::{
         api::{self, ConnectorCommon, ConnectorCommonExt},
         ErrorResponse,
     },
-    utils::{self, BytesExt, OptionExt},
+    utils::{self, crypto, BytesExt, OptionExt},
 };
 
 #[derive(Debug, Clone)]
@@ -681,29 +688,135 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
     }
 }
 
+// crypto::GenerateDigest::generate_digest(&crypto::Sha512, hashed_digest.as_bytes())
 #[async_trait::async_trait]
 impl api::IncomingWebhook for Globalpay {
-    fn get_webhook_object_reference_id(
+    fn get_webhook_source_verification_algorithm(
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<Box<dyn crypto::VerifySignature + Send>, errors::ConnectorError> {
+        Ok(Box::new(crypto::Sha512))
+    }
+
+    async fn get_webhook_source_verification_merchant_secret(
+        &self,
+        db: &dyn crate::db::StorageInterface,
+        merchant_id: &str,
+    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
+        let key = format!("whsec_verification_{}_{}", self.id(), merchant_id);
+        let secret = db
+            .get_key(&key)
+            .await
+            .change_context(errors::ConnectorError::WebhookVerificationSecretNotFound)?;
+        println!("*******{:?}", secret);
+        Ok(secret)
+    }
+
+    fn get_webhook_source_verification_signature(
+        &self,
+        request: &api::IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
+        let signature = conn_utils::get_header_key_value("x-gp-signature", request.headers)?;
+        println!("######{}", signature);
+        Ok(signature.as_bytes().to_vec())
+    }
+
+    fn get_webhook_source_verification_message(
+        &self,
+        request: &api::IncomingWebhookRequestDetails<'_>,
+        _merchant_id: &str,
+        secret: &[u8],
+    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
+
+
+        let payload_str: Value = serde_json::from_slice(request.body)
+            .into_report()
+            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+        let payload_bytes = serde_json::to_vec(&payload_str).into_report()
+        .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+        let payload =  std::str::from_utf8(&payload_bytes).into_report()
+        .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+    println!("????{:?}",payload);
+        let mut body = payload.replace("\\", "").replace("\"", "'").replace(" ", "").to_owned();
+        println!(">>>>{:?}",body);
+
+        // let stringify_auth = String::from_utf8(secret.to_vec())
+        //     .into_report()
+        //     .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)
+        //     .attach_printable("Could not convert secret to UTF-8")?;
+        body.push_str("P2wBMG0EhuivNkD6");
+
+        println!("&&&&{:?}",body);
+        println!("!!!!{:?}",format!("{:?}{:?}",payload_str,"P2wBMG0EhuivNkD6".to_string()));
+        println!("!!!!{:?}",format!("{:?}{:?}",payload,"P2wBMG0EhuivNkD6".to_string()));
+        // let hashed_digest = format!("{:?}{:?}",body,"P2wBMG0EhuivNkD6".to_string());
+        let x = crypto::Sha512
+        .generate_digest(body.as_bytes())
+        .change_context(errors::ConnectorError::RequestEncodingFailed)
+        .attach_printable("error creating request nonce")?;
+        Ok(x)
+        // let payload_str: serde_json::Value = serde_json::from_slice(request.body)
+        //     .into_report()
+        //     .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+        // let payload_bytes = serde_json::to_vec(&payload_str).into_report()
+        // .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+        // let payload =  std::str::from_utf8(&payload_bytes)?;
+        // println!("{:?}", payload);
+
+        // let mut buffer = Cursor::new(Vec::new());
+        // to_writer(&mut buffer, &res_json).into_report().change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
+        // let json_bytes = buffer.into_inner();
+
+        // println!("$$${:?}", std::str::from_utf8(&json_bytes));
+
+        // Ok(format!("{:?}{:?}", std::str::from_utf8(&json_bytes), secret).into_bytes())
+    }
+
+    fn get_webhook_object_reference_id(
+        &self,
+        request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
+        let details: response::GlobalpayWebhookObjectId = request
+            .body
+            .parse_struct("GlobalpayWebhookObjectId")
+            .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
+        println!(">>>>>>>>{:?}", details);
+        Ok(details.id)
     }
 
     fn get_webhook_event_type(
         &self,
-        _request: &api::IncomingWebhookRequestDetails<'_>,
+        request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api::IncomingWebhookEvent, errors::ConnectorError> {
-        Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
+        let details: response::GlobalpayWebhookObjectEventType = request
+            .body
+            .parse_struct("GlobalpayWebhookObjectEventType")
+            .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
+        println!("%%%%%%%{:?}", details);
+        Ok(match details.status.as_str() {
+            "DECLINED" => api::IncomingWebhookEvent::PaymentIntentFailure,
+            "CAPTURED" => api::IncomingWebhookEvent::PaymentIntentSuccess,
+            _ => Err(errors::ConnectorError::WebhookEventTypeNotFound).into_report()?,
+        })
     }
 
     fn get_webhook_resource_object(
         &self,
-        _request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<serde_json::Value, errors::ConnectorError> {
-        Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
+        request: &api::IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<Value, errors::ConnectorError> {
+        let details = std::str::from_utf8(request.body)
+            .into_report()
+            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+        let res_json = serde_json::from_str(details)
+            .into_report()
+            .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
+        println!("*****{:?}", res_json);
+        Ok(res_json)
     }
+
 }
+
+
 
 impl services::ConnectorRedirectResponse for Globalpay {
     fn get_flow_type(

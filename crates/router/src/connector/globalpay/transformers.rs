@@ -8,45 +8,201 @@ use super::{
     response::{GlobalpayPaymentStatus, GlobalpayPaymentsResponse, GlobalpayRefreshTokenResponse},
 };
 use crate::{
-    connector::utils::{CardData, PaymentsRequestData, RouterData},
+    connector::utils::{PaymentsRequestData, RouterData},
     consts,
     core::errors,
+    services::{self},
     types::{self, api, storage::enums, ErrorResponse},
 };
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct GlobalPayMeta {
     account_name: String,
+    status_url : String,
 }
 
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for GlobalpayPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         let metadata: GlobalPayMeta = item.to_connector_meta()?;
-        let card = item.get_card()?;
-        let expiry_year = card.get_card_expiry_year_2_digit();
-        Ok(Self {
-            account_name: metadata.account_name,
-            amount: Some(item.request.amount.to_string()),
-            currency: item.request.currency.to_string(),
-            reference: item.attempt_id.to_string(),
-            country: item.get_billing_country()?,
-            capture_mode: item.request.capture_method.map(|f| match f {
-                enums::CaptureMethod::Manual => requests::CaptureMode::Later,
-                _ => requests::CaptureMode::Auto,
+        let account_name = metadata.account_name;
+
+        match item.request.payment_method_data.clone() {
+            api::PaymentMethodData::Card(ccard) => Ok(Self {
+                account_name,
+                amount: Some(item.request.amount.to_string()),
+                currency: item.request.currency.to_string(),
+                reference: item.attempt_id.to_string(),
+                country: item.get_billing_country()?,
+                capture_mode: Some(requests::CaptureMode::from(item.request.capture_method)),
+                payment_method: requests::PaymentMethod {
+                    card: Some(requests::Card {
+                        number: ccard.card_number,
+                        expiry_month: ccard.card_exp_month,
+                        expiry_year: ccard.card_exp_year,
+                        cvv: ccard.card_cvc,
+                        account_type: None,
+                        authcode: None,
+                        avs_address: None,
+                        avs_postal_code: None,
+                        brand_reference: None,
+                        chip_condition: None,
+                        cvv_indicator: Default::default(),
+                        funding: None,
+                        pin_block: None,
+                        tag: None,
+                        track: None,
+                    }),
+                    apm: None,
+                    authentication: None,
+                    bank_transfer: None,
+                    digital_wallet: None,
+                    encryption: None,
+                    entry_mode: Default::default(),
+                    fingerprint_mode: None,
+                    first_name: None,
+                    id: None,
+                    last_name: None,
+                    name: None,
+                    narrative: None,
+                    storage_mode: None,
+                },
+                authorization_mode: None,
+                cashback_amount: None,
+                channel: Default::default(),
+                convenience_amount: None,
+                currency_conversion: None,
+                description: None,
+                device: None,
+                gratuity_amount: None,
+                initiator: None,
+                ip_address: None,
+                language: None,
+                lodging: None,
+                notifications: None,
+                order: None,
+                payer_reference: None,
+                site_reference: None,
+                stored_credential: None,
+                surcharge_amount: None,
+                total_capture_count: None,
+                globalpay_payments_request_type: None,
+                user_reference: None,
             }),
-            payment_method: requests::PaymentMethod {
-                card: Some(requests::Card {
-                    number: card.card_number,
-                    expiry_month: card.card_exp_month,
-                    expiry_year,
-                    cvv: card.card_cvc,
-                    ..Default::default()
+            api::PaymentMethodData::Wallet(wallet_data) => match wallet_data {
+                api_models::payments::WalletData::PaypalRedirect(_) => Ok(Self {
+                    account_name,
+                    amount: Some(item.request.amount.to_string()),
+                    currency: item.request.currency.to_string(),
+                    reference: item.attempt_id.to_string(),
+                    country: item.get_billing_country()?,
+                    capture_mode: Some(requests::CaptureMode::from(item.request.capture_method)),
+                    payment_method: requests::PaymentMethod {
+                        apm: Some(requests::Apm {
+                            provider: Some(requests::ApmProvider::Testpay),
+                        }),
+                        authentication: None,
+                        bank_transfer: None,
+                        card: None,
+                        digital_wallet: None,
+                        encryption: None,
+                        entry_mode: Default::default(),
+                        fingerprint_mode: None,
+                        first_name: None,
+                        id: None,
+                        last_name: None,
+                        name: None,
+                        narrative: None,
+                        storage_mode: None,
+                    },
+                    notifications: Some(requests::Notifications {
+                        return_url: item.router_return_url.clone(),
+                        challenge_return_url: None,
+                        decoupled_challenge_return_url: None,
+                        status_url: Some(metadata.status_url),
+                        three_ds_method_return_url: None,
+                    }),
+                    authorization_mode: None,
+                    cashback_amount: None,
+                    channel: Default::default(),
+                    convenience_amount: None,
+                    currency_conversion: None,
+                    description: None,
+                    device: None,
+                    gratuity_amount: None,
+                    initiator: None,
+                    ip_address: None,
+                    language: None,
+                    lodging: None,
+                    order: None,
+                    payer_reference: None,
+                    site_reference: None,
+                    stored_credential: None,
+                    surcharge_amount: None,
+                    total_capture_count: None,
+                    globalpay_payments_request_type: None,
+                    user_reference: None,
                 }),
-                ..Default::default()
+                api_models::payments::WalletData::GooglePay(_) => Ok(Self {
+                    account_name,
+                    amount: Some(item.request.amount.to_string()),
+                    currency: item.request.currency.to_string(),
+                    reference: item.attempt_id.to_string(),
+                    country: item.get_billing_country()?,
+                    capture_mode: Some(requests::CaptureMode::from(item.request.capture_method)),
+                    payment_method: requests::PaymentMethod {
+                        digital_wallet: Some(requests::DigitalWallet {
+                            provider: Some(requests::DigitalWalletProvider::PayByGoogle),
+                            payment_token: item.get_wallet_token_as_json()?,
+                        }),
+                        authentication: None,
+                        bank_transfer: None,
+                        card: None,
+                        apm: None,
+                        encryption: None,
+                        entry_mode: Default::default(),
+                        fingerprint_mode: None,
+                        first_name: None,
+                        id: None,
+                        last_name: None,
+                        name: None,
+                        narrative: None,
+                        storage_mode: None,
+                    },
+                    notifications: Some(requests::Notifications {
+                        return_url: item.router_return_url.clone(),
+                        challenge_return_url: None,
+                        decoupled_challenge_return_url: None,
+                        status_url: None,
+                        three_ds_method_return_url: None,
+                    }),
+                    authorization_mode: None,
+                    cashback_amount: None,
+                    channel: Default::default(),
+                    convenience_amount: None,
+                    currency_conversion: None,
+                    description: None,
+                    device: None,
+                    gratuity_amount: None,
+                    initiator: None,
+                    ip_address: None,
+                    language: None,
+                    lodging: None,
+                    order: None,
+                    payer_reference: None,
+                    site_reference: None,
+                    stored_credential: None,
+                    surcharge_amount: None,
+                    total_capture_count: None,
+                    globalpay_payments_request_type: None,
+                    user_reference: None,
+                }),
+                _ => Err(
+                    errors::ConnectorError::NotImplemented("Payment methods".to_string()).into(),
+                ),
             },
-            ..Default::default()
-        })
+            _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
+        }
     }
 }
 
@@ -132,7 +288,8 @@ impl From<GlobalpayPaymentStatus> for enums::AttemptStatus {
             GlobalpayPaymentStatus::Declined | GlobalpayPaymentStatus::Rejected => Self::Failure,
             GlobalpayPaymentStatus::Preauthorized => Self::Authorized,
             GlobalpayPaymentStatus::Reversed => Self::Voided,
-            GlobalpayPaymentStatus::Initiated | GlobalpayPaymentStatus::Pending => Self::Pending,
+            GlobalpayPaymentStatus::Initiated => Self::AuthenticationPending,
+            GlobalpayPaymentStatus::Pending => Self::Pending,
         }
     }
 }
@@ -148,10 +305,25 @@ impl From<GlobalpayPaymentStatus> for enums::RefundStatus {
     }
 }
 
+
+impl From<Option<enums::CaptureMethod>> for requests::CaptureMode {
+    fn from(capture_method: Option<enums::CaptureMethod>) -> Self {
+        match capture_method {
+            Some(enums::CaptureMethod::Manual) => Self::Later,
+            _ => Self::Auto,
+        }
+    }
+}
+
 fn get_payment_response(
     status: enums::AttemptStatus,
     response: GlobalpayPaymentsResponse,
 ) -> Result<types::PaymentsResponseData, ErrorResponse> {
+    let redirection_data = response.payment_method.as_ref().and_then(|payment_method| {
+        payment_method.redirect_url.as_ref().map(|redirect_url| {
+            services::RedirectForm::from((redirect_url.to_owned(), services::Method::Get))
+        })
+    });
     match status {
         enums::AttemptStatus::Failure => Err(ErrorResponse {
             message: response
@@ -162,7 +334,7 @@ fn get_payment_response(
         }),
         _ => Ok(types::PaymentsResponseData::TransactionResponse {
             resource_id: types::ResponseId::ConnectorTransactionId(response.id),
-            redirection_data: None,
+            redirection_data,
             mandate_reference: None,
             connector_metadata: None,
         }),

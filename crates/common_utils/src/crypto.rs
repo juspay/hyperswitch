@@ -236,6 +236,21 @@ impl GenerateDigest for Sha512 {
         Ok(digest.as_ref().to_vec())
     }
 }
+impl VerifySignature for Sha512 {
+    fn verify_signature(
+        &self,
+        _secret: &[u8],
+        signature: &[u8],
+        msg: &[u8],
+    ) -> CustomResult<bool, errors::CryptoError> {
+        let mesg = std::str::from_utf8(&msg).into_report().change_context(errors::CryptoError::SignatureVerificationFailed)?;
+        let sign  = std::str::from_utf8(&signature).into_report().change_context(errors::CryptoError::SignatureVerificationFailed)?;
+        println!("@@@@@{}{}",mesg,sign);
+        println!("!!!{:?},{:?}",msg,signature);
+        println!("^^^^^^^{}",msg==signature);
+        Ok(msg == signature)
+    }
+} 
 /// MD5 hash function
 #[derive(Debug)]
 pub struct Md5;
