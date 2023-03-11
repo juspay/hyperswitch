@@ -261,11 +261,7 @@ mod storage {
                 enums::MerchantStorageScheme::PostgresOnly => database_call().await,
                 enums::MerchantStorageScheme::RedisKv => {
                     let lookup_id = format!("{merchant_id}_{internal_reference_id}");
-                    let lookup = self
-                        .get_lookup_by_lookup_id(&lookup_id)
-                        .await
-                        .map_err(Into::<errors::StorageError>::into)
-                        .into_report()?;
+                    let lookup = self.get_lookup_by_lookup_id(&lookup_id).await?;
 
                     let key = &lookup.pk_id;
                     db_utils::try_redis_get_else_try_database_get(
@@ -461,11 +457,7 @@ mod storage {
                     let updated_refund = refund.clone().apply_changeset(this.clone());
                     // Check for database presence as well Maybe use a read replica here ?
 
-                    let lookup = self
-                        .get_lookup_by_lookup_id(&key)
-                        .await
-                        .map_err(Into::<errors::StorageError>::into)
-                        .into_report()?;
+                    let lookup = self.get_lookup_by_lookup_id(&key).await?;
 
                     let field = &lookup.sk_id;
 
@@ -519,11 +511,7 @@ mod storage {
                 enums::MerchantStorageScheme::PostgresOnly => database_call().await,
                 enums::MerchantStorageScheme::RedisKv => {
                     let lookup_id = format!("{merchant_id}_{refund_id}");
-                    let lookup = self
-                        .get_lookup_by_lookup_id(&lookup_id)
-                        .await
-                        .map_err(Into::<errors::StorageError>::into)
-                        .into_report()?;
+                    let lookup = self.get_lookup_by_lookup_id(&lookup_id).await?;
 
                     let key = &lookup.pk_id;
                     db_utils::try_redis_get_else_try_database_get(
@@ -560,11 +548,7 @@ mod storage {
                 enums::MerchantStorageScheme::PostgresOnly => database_call().await,
                 enums::MerchantStorageScheme::RedisKv => {
                     let lookup_id = format!("{merchant_id}_{connector_refund_id}_{connector}");
-                    let lookup = self
-                        .get_lookup_by_lookup_id(&lookup_id)
-                        .await
-                        .map_err(Into::<errors::StorageError>::into)
-                        .into_report()?;
+                    let lookup = self.get_lookup_by_lookup_id(&lookup_id).await?;
 
                     let key = &lookup.pk_id;
                     db_utils::try_redis_get_else_try_database_get(
@@ -609,11 +593,7 @@ mod storage {
                 }
                 enums::MerchantStorageScheme::RedisKv => {
                     let key = format!("{merchant_id}_{payment_id}");
-                    let lookup = self
-                        .get_lookup_by_lookup_id(&key)
-                        .await
-                        .map_err(Into::<errors::StorageError>::into)
-                        .into_report()?;
+                    let lookup = self.get_lookup_by_lookup_id(&key).await?;
 
                     let pattern = db_utils::generate_hscan_pattern_for_refund(&lookup.sk_id);
 

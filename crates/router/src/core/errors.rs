@@ -278,6 +278,8 @@ pub enum ConnectorError {
     WebhookResourceObjectNotFound,
     #[error("Invalid Date/time format")]
     InvalidDateFormat,
+    #[error("Invalid Data format")]
+    InvalidDataFormat { field_name: &'static str },
     #[error("Payment Method data / Payment Method Type / Payment Experience Mismatch ")]
     MismatchedPaymentData,
 }
@@ -413,12 +415,4 @@ pub enum WebhooksFlowError {
     NotReceivedByMerchant,
     #[error("Resource not found")]
     ResourceNotFound,
-}
-
-#[derive(Debug, thiserror::Error)]
-pub enum ApiKeyError {
-    #[error("Failed to read API key hash from hexadecimal string")]
-    FailedToReadHashFromHex,
-    #[error("Failed to verify provided API key hash against stored API key hash")]
-    HashVerificationFailed,
 }
