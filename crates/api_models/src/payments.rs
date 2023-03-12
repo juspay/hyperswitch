@@ -6,7 +6,7 @@ use router_derive::Setter;
 use time::PrimitiveDateTime;
 use utoipa::ToSchema;
 
-use crate::{enums as api_enums, refunds};
+use crate::{admin, enums as api_enums, refunds};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum PaymentOp {
@@ -193,6 +193,19 @@ pub struct PaymentsRequest {
     /// Payment Method Type
     #[schema(value_type = Option<PaymentMethodType>, example = "google_pay")]
     pub payment_method_type: Option<api_enums::PaymentMethodType>,
+
+    /// Merchant connector details type type
+    #[schema(value_type = Option<MerchantConnectorDetails>, example = r#"{
+        "connector_account_details": {
+            "auth_type": "HeaderKey",
+            "api_key":"sk_test_xxxxxexamplexxxxxx12345"
+        },
+        "metadata": {
+            "user_defined_field_1": "sample_1",
+            "user_defined_field_2": "sample_2", 
+        },
+    }"#)]
+    pub merchant_connector_details: Option<admin::MerchantConnectorDetails>,
 }
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, Copy, PartialEq, Eq)]
@@ -624,19 +637,6 @@ impl Default for PaymentIdType {
         Self::PaymentIntentId(Default::default())
     }
 }
-
-//#[derive(Debug, serde::Deserialize, serde::Serialize)]
-//#[serde(untagged)]
-//pub enum enums::CaptureMethod {
-//Automatic,
-//Manual,
-//}
-
-//impl Default for enums::CaptureMethod {
-//fn default() -> Self {
-//enums::CaptureMethod::Manual
-//}
-//}
 
 #[derive(
     Default,
@@ -1165,6 +1165,18 @@ pub struct PaymentsRetrieveRequest {
     pub param: Option<String>,
     /// The name of the connector
     pub connector: Option<String>,
+    /// Merchant connector details type type
+    #[schema(value_type = Option<MerchantConnectorDetails>, example = r#"{
+        "connector_account_details": {
+            "auth_type": "HeaderKey",
+            "api_key":"sk_test_xxxxxexamplexxxxxx12345"
+        },
+        "metadata": {
+            "user_defined_field_1": "sample_1",
+            "user_defined_field_2": "sample_2", 
+        },
+    }"#)]
+    pub merchant_connector_details: Option<admin::MerchantConnectorDetails>,
 }
 
 #[derive(Debug, Default, Eq, PartialEq, serde::Deserialize, serde::Serialize, Clone, ToSchema)]

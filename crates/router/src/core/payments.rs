@@ -6,6 +6,7 @@ pub mod transformers;
 
 use std::{fmt::Debug, marker::PhantomData, time::Instant};
 
+use api_models::admin;
 use common_utils::ext_traits::AsyncExt;
 use error_stack::{IntoReport, ResultExt};
 use futures::future::join_all;
@@ -514,6 +515,7 @@ where
     pub sessions_token: Vec<api::SessionToken>,
     pub card_cvc: Option<pii::Secret<String>>,
     pub email: Option<masking::Secret<String, pii::Email>>,
+    pub merchant_connector_account: Option<admin::MerchantConnectorDetails>,
 }
 
 #[derive(Debug, Default)]
@@ -641,10 +643,8 @@ pub async fn add_process_sync_task(
     let tracking_data = api::PaymentsRetrieveRequest {
         force_sync: true,
         merchant_id: Some(payment_attempt.merchant_id.clone()),
-
         resource_id: api::PaymentIdType::PaymentAttemptId(payment_attempt.attempt_id.clone()),
-        param: None,
-        connector: None,
+        ..Default::default()
     };
     let runner = "PAYMENTS_SYNC_WORKFLOW";
     let task = "PAYMENTS_SYNC";

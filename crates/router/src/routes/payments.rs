@@ -134,8 +134,7 @@ pub async fn payments_retrieve(
         resource_id: payment_types::PaymentIdType::PaymentIntentId(path.to_string()),
         merchant_id: json_payload.merchant_id.clone(),
         force_sync: json_payload.force_sync.unwrap_or(false),
-        param: None,
-        connector: None,
+        ..Default::default()
     };
     let (auth_type, _auth_flow) = match auth::get_auth_type_and_flow(req.headers()) {
         Ok(auth) => auth,
@@ -411,6 +410,7 @@ pub async fn payments_redirect_response(
         force_sync: true,
         param: Some(param_string.to_string()),
         connector: Some(connector),
+        ..Default::default()
     };
     api::server_wrap(
         state.get_ref(),

@@ -48,8 +48,7 @@ async fn payments_incoming_webhook_flow<W: api::OutgoingWebhookType>(
             ),
             merchant_id: Some(merchant_account.merchant_id.clone()),
             force_sync: true,
-            connector: None,
-            param: None,
+            ..Default::default()
         },
         services::AuthFlow::Merchant,
         consume_or_trigger_flow,
