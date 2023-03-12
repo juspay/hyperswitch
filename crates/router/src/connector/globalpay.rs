@@ -4,19 +4,19 @@ mod transformers;
 
 use std::fmt::Debug;
 
+use common_utils::crypto::GenerateDigest;
 use common_utils::ext_traits::ByteSliceExt;
 use error_stack::{IntoReport, ResultExt};
 use frunk::labelled::chars::x;
 use serde_json::Value;
 use serde_json::{json, to_writer};
 use std::io::Cursor;
-use common_utils::crypto::GenerateDigest;
 
 use self::{
     requests::{GlobalpayPaymentsRequest, GlobalpayRefreshTokenRequest},
     response::{
-        GlobalpayPaymentsResponse, GlobalpayRefreshTokenErrorResponse,
-        GlobalpayRefreshTokenResponse,GlobalpayPaymentsWebhookResponse
+        GlobalpayPaymentsResponse, GlobalpayPaymentsWebhookResponse,
+        GlobalpayRefreshTokenErrorResponse, GlobalpayRefreshTokenResponse,
     },
 };
 use crate::{
@@ -727,49 +727,23 @@ impl api::IncomingWebhook for Globalpay {
         _merchant_id: &str,
         secret: &[u8],
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
-
-
-        let payload_str: Value = serde_json::from_slice(request.body)
+        let payload = std::str::from_utf8(request.body)
             .into_report()
-            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
-        let payload_bytes = serde_json::to_vec(&payload_str).into_report()
-        .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
-        let payload =  std::str::from_utf8(&payload_bytes).into_report()
-        .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
-    println!("????{:?}",payload);
-        let mut body = payload.replace("\\", "").replace("\"", "'").replace(" ", "").to_owned();
-        println!(">>>>{:?}",body);
+            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?
+            .to_owned();
+        let json_payload = json::parse(&payload)
+            .into_report()
+            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?
+            .to_owned();
+        let mut payload_str = json::stringify(json_payload.clone()).to_owned();
+        payload_str.push_str("P2wBMG0EhuivNkD6");
 
-        // let stringify_auth = String::from_utf8(secret.to_vec())
-        //     .into_report()
-        //     .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)
-        //     .attach_printable("Could not convert secret to UTF-8")?;
-        body.push_str("P2wBMG0EhuivNkD6");
+        let y = hex::encode(crypto::Sha512
+            .generate_digest(payload_str.as_bytes())
+            .change_context(errors::ConnectorError::RequestEncodingFailed)
+            .attach_printable("error creating request nonce")?);
 
-        println!("&&&&{:?}",body);
-        println!("!!!!{:?}",format!("{:?}{:?}",payload_str,"P2wBMG0EhuivNkD6".to_string()));
-        println!("!!!!{:?}",format!("{:?}{:?}",payload,"P2wBMG0EhuivNkD6".to_string()));
-        // let hashed_digest = format!("{:?}{:?}",body,"P2wBMG0EhuivNkD6".to_string());
-        let x = crypto::Sha512
-        .generate_digest(body.as_bytes())
-        .change_context(errors::ConnectorError::RequestEncodingFailed)
-        .attach_printable("error creating request nonce")?;
-        Ok(x)
-        // let payload_str: serde_json::Value = serde_json::from_slice(request.body)
-        //     .into_report()
-        //     .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
-        // let payload_bytes = serde_json::to_vec(&payload_str).into_report()
-        // .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
-        // let payload =  std::str::from_utf8(&payload_bytes)?;
-        // println!("{:?}", payload);
-
-        // let mut buffer = Cursor::new(Vec::new());
-        // to_writer(&mut buffer, &res_json).into_report().change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
-        // let json_bytes = buffer.into_inner();
-
-        // println!("$$${:?}", std::str::from_utf8(&json_bytes));
-
-        // Ok(format!("{:?}{:?}", std::str::from_utf8(&json_bytes), secret).into_bytes())
+        Ok(y.into_bytes())
     }
 
     fn get_webhook_object_reference_id(

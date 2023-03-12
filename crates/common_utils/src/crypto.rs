@@ -243,9 +243,6 @@ impl VerifySignature for Sha512 {
         signature: &[u8],
         msg: &[u8],
     ) -> CustomResult<bool, errors::CryptoError> {
-        let mesg = std::str::from_utf8(&msg).into_report().change_context(errors::CryptoError::SignatureVerificationFailed)?;
-        let sign  = std::str::from_utf8(&signature).into_report().change_context(errors::CryptoError::SignatureVerificationFailed)?;
-        println!("@@@@@{}{}",mesg,sign);
         println!("!!!{:?},{:?}",msg,signature);
         println!("^^^^^^^{}",msg==signature);
         Ok(msg == signature)
