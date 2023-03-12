@@ -11,6 +11,7 @@ pub struct StripeCreateRefundRequest {
     pub amount: Option<i64>,
     pub payment_intent: String,
     pub reason: Option<String>,
+    pub metadata: Option<pii::SecretSerdeValue>,
 }
 
 #[derive(Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
@@ -46,6 +47,7 @@ impl From<StripeCreateRefundRequest> for refunds::RefundRequest {
             payment_id: req.payment_intent,
             reason: req.reason,
             refund_type: Some(refunds::RefundType::Instant),
+            metadata: req.metadata,
             ..Default::default()
         }
     }
