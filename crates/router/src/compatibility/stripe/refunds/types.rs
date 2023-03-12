@@ -19,7 +19,7 @@ pub struct StripeUpdateRefundRequest {
 }
 
 #[derive(Clone, Serialize, PartialEq, Eq)]
-pub struct StripeCreateRefundResponse {
+pub struct StripeRefundResponse {
     pub id: String,
     pub amount: i64,
     pub currency: String,
@@ -71,7 +71,7 @@ impl From<refunds::RefundStatus> for StripeRefundStatus {
     }
 }
 
-impl From<refunds::RefundResponse> for StripeCreateRefundResponse {
+impl From<refunds::RefundResponse> for StripeRefundResponse {
     fn from(res: refunds::RefundResponse) -> Self {
         Self {
             id: res.refund_id,
