@@ -495,7 +495,7 @@ pub enum BankRedirectData {
     Sofort {
         /// The country for bank payment
         #[schema(example = "US")]
-        country: String,
+        country: api_enums::Country,
 
         /// The preferred language
         #[schema(example = "en")]
@@ -677,7 +677,7 @@ pub struct AddressDetails {
 
     /// The two-letter ISO country code for the address
     #[schema(max_length = 2, min_length = 2, example = "US")]
-    pub country: Option<String>,
+    pub country: Option<api_enums::Country>,
 
     /// The first line of the address
     #[schema(value_type = Option<String>, max_length = 200, example = "123, King Street")]
@@ -1237,7 +1237,7 @@ pub struct GpayAllowedPaymentMethods {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct GpayTransactionInfo {
     /// The country code
-    pub country_code: String,
+    pub country_code: api_enums::Country,
     /// The currency code
     pub currency_code: String,
     /// The total price status (ex: 'FINAL')
@@ -1343,7 +1343,7 @@ pub struct ApplePaySessionResponse {
 #[derive(Debug, Clone, serde::Serialize, ToSchema, serde::Deserialize)]
 pub struct ApplePayPaymentRequest {
     /// The code for country
-    pub country_code: String,
+    pub country_code: api_enums::Country,
     /// The code for currency
     pub currency_code: String,
     /// Represents the total for the payment.

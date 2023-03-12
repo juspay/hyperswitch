@@ -58,7 +58,7 @@ pub struct ShopperName {
 #[serde(rename_all = "camelCase")]
 pub struct Address {
     city: Option<String>,
-    country: Option<String>,
+    country: Option<api_enums::Country>,
     house_number_or_name: Option<Secret<String>>,
     postal_code: Option<Secret<String>>,
     state_or_province: Option<Secret<String>>,
@@ -95,7 +95,7 @@ pub struct AdyenPaymentRequest<'a> {
     telephone_number: Option<Secret<String>>,
     billing_address: Option<Address>,
     delivery_address: Option<Address>,
-    country_code: Option<String>,
+    country_code: Option<api_enums::Country>,
     line_items: Option<Vec<LineItem>>,
 }
 
@@ -547,13 +547,13 @@ fn get_shopper_name(item: &types::PaymentsAuthorizeRouterData) -> Option<Shopper
     })
 }
 
-fn get_country_code(item: &types::PaymentsAuthorizeRouterData) -> Option<String> {
-    let address = item
-        .address
-        .billing
-        .as_ref()
-        .and_then(|billing| billing.address.as_ref());
-    address.and_then(|address| address.country.clone())
+fn get_country_code(item: &types::PaymentsAuthorizeRouterData) -> Option<api_enums::Country> {
+    item.address.billing.as_ref().and_then(|billing| {
+        billing
+            .address
+            .as_ref()
+            .and_then(|address| address.country.clone())
+    })
 }
 
 fn get_payment_method_data<'a>(
@@ -683,7 +683,7 @@ fn get_card_specific_payment_data<'a>(
 
 fn get_sofort_extra_details(
     item: &types::PaymentsAuthorizeRouterData,
-) -> (Option<String>, Option<String>) {
+) -> (Option<String>, Option<api_enums::Country>) {
     match item.request.payment_method_data {
         api_models::payments::PaymentMethodData::BankRedirect(ref b) => {
             if let api_models::payments::BankRedirectData::Sofort {
@@ -693,7 +693,7 @@ fn get_sofort_extra_details(
             {
                 (
                     Some(preferred_language.to_string()),
-                    Some(country.to_string()),
+                    Some(country.to_owned()),
                 )
             } else {
                 (None, None)
