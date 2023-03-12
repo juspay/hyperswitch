@@ -25,6 +25,7 @@ impl actix_web::ResponseError for ApiErrorResponse {
 
         actix_web::HttpResponseBuilder::new(self.status_code())
             .insert_header((header::CONTENT_TYPE, mime::APPLICATION_JSON))
+            .insert_header((header::STRICT_TRANSPORT_SECURITY, "max-age=31536000"))
             .insert_header((header::VIA, "Juspay_Router"))
             .body(self.to_string())
     }

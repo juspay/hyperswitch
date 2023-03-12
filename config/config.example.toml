@@ -14,8 +14,8 @@ request_body_limit = 16_384
 # Proxy server configuration for connecting to payment gateways.
 # Don't define the fields if a Proxy isn't needed. Empty strings will cause failure.
 [proxy]
-# http_url = "http proxy url"
-# https_url = "https proxy url"
+# http_url = "http proxy url"   # Proxy all HTTP traffic via this proxy
+# https_url = "https proxy url" # Proxy all HTTPS traffic via this proxy
 
 # Main SQL data store credentials
 [master_database]
