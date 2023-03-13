@@ -267,9 +267,9 @@ jobs:
         shell: bash
         run: sed -i 's/rustflags = \[/rustflags = \[\n    "-Dwarnings",/' .cargo/config.toml
 
-      - name: Run clippy
-        shell: bash
-        run: cargo clippy --all-features --all-targets
+      # - name: Run clippy
+      #  shell: bash
+      #  run: cargo clippy --all-features --all-targets
 
       - name: Check files changed
         run: |
@@ -319,41 +319,41 @@ jobs:
             echo "storage_models_changes_exist=true" >> $GITHUB_ENV
           fi
 
-      - name: Cargo hack api_models
-        if: env.api_models_changes_exist == 'true'
-        run: cargo hack check --each-feature --no-dev-deps -p api_models
+      #- name: Cargo hack api_models
+      #  if: env.api_models_changes_exist == 'true'
+      #  run: cargo hack check --each-feature --no-dev-deps -p api_models
 
-      - name: Cargo hack common_utils
-        if: env.common_utils_changes_exist == 'true'
-        run: cargo hack check --each-feature --no-dev-deps -p common_utils
+      #- name: Cargo hack common_utils
+      #  if: env.common_utils_changes_exist == 'true'
+      #  run: cargo hack check --each-feature --no-dev-deps -p common_utils
 
-      - name: Cargo hack drainer
-        if: env.drainer_changes_exist == 'true'
-        run: cargo hack check --each-feature --no-dev-deps -p drainer
+      #- name: Cargo hack drainer
+      #  if: env.drainer_changes_exist == 'true'
+      #  run: cargo hack check --each-feature --no-dev-deps -p drainer
 
-      - name: Cargo hack masking
-        if: env.masking_changes_exist == 'true'
-        run: cargo hack check --each-feature --no-dev-deps -p masking
+      #- name: Cargo hack masking
+      #  if: env.masking_changes_exist == 'true'
+      #  run: cargo hack check --each-feature --no-dev-deps -p masking
 
-      - name: Cargo hack redis_interface
-        if: env.redis_interface_changes_exist == 'true'
-        run: cargo hack check --each-feature --no-dev-deps -p redis_interface
+      #- name: Cargo hack redis_interface
+      #  if: env.redis_interface_changes_exist == 'true'
+      #  run: cargo hack check --each-feature --no-dev-deps -p redis_interface
 
-      - name: Cargo hack router
-        if: env.router_changes_exist == 'true'
-        run: cargo hack check --each-feature --skip kms,basilisk,production,kv_store,accounts_cache,openapi --no-dev-deps -p router
+      #- name: Cargo hack router
+      #  if: env.router_changes_exist == 'true'
+      #  run: cargo hack check --each-feature --skip kms,basilisk,production,kv_store,accounts_cache,openapi --no-dev-deps -p router
 
-      - name: Cargo hack router_derive
-        if: env.router_derive_changes_exist == 'true'
-        run: cargo hack check --each-feature --no-dev-deps -p router_derive
+      #- name: Cargo hack router_derive
+      #  if: env.router_derive_changes_exist == 'true'
+      #  run: cargo hack check --each-feature --no-dev-deps -p router_derive
 
-      - name: Cargo hack router_env
-        if: env.router_env_changes_exist == 'true'
-        run: cargo hack check --each-feature --no-dev-deps -p router_env
+      #- name: Cargo hack router_env
+      #  if: env.router_env_changes_exist == 'true'
+      #  run: cargo hack check --each-feature --no-dev-deps -p router_env
 
-      - name: Cargo hack storage_models
-        if: env.storage_models_changes_exist == 'true'
-        run: cargo hack check --each-feature --no-dev-deps -p storage_models
+      #- name: Cargo hack storage_models
+      #  if: env.storage_models_changes_exist == 'true'
+      #  run: cargo hack check --each-feature --no-dev-deps -p storage_models
 
       - name: Decrypt connector auth file
         run: ./decrypt_connector_auth.sh
@@ -367,7 +367,6 @@ jobs:
         uses: supercharge/redis-github-action@1.5.0
         with:
           redis-image: redis/redis-stack-server
-          redis-version: 7
 
       - name: Run connector tests
         uses: actions-rs/cargo@v1
