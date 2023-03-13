@@ -45,26 +45,13 @@ where
         req: &types::RouterData<Flow, Request, Response>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        let mut header = vec![
-            (
-                headers::CONTENT_TYPE.to_string(),
-                types::PaymentsSyncType::get_content_type(self).to_string(),
-            ),
-            (headers::X_ROUTER.to_string(), "test".to_string()),
-        ];
-        let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
-        header.append(&mut api_key);
-        Ok(header)
+        self.get_auth_header(&req.connector_auth_type)
     }
 }
 
 impl ConnectorCommon for Mollie {
     fn id(&self) -> &'static str {
         "mollie"
-    }
-
-    fn common_get_content_type(&self) -> &'static str {
-        "application/json"
     }
 
     fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
@@ -107,22 +94,9 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     fn get_headers(
         &self,
         req: &types::PaymentsAuthorizeRouterData,
-        _connectors: &settings::Connectors,
+        connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        let mut header = vec![
-            (
-                headers::CONTENT_TYPE.to_string(),
-                types::PaymentsAuthorizeType::get_content_type(self).to_string(),
-            ),
-            (headers::X_ROUTER.to_string(), "test".to_string()),
-        ];
-        let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
-        header.append(&mut api_key);
-        Ok(header)
-    }
-
-    fn get_content_type(&self) -> &'static str {
-        self.common_get_content_type()
+        self.build_headers(req, connectors)
     }
 
     fn get_url(
@@ -130,7 +104,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         _req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!("{}/{}", self.base_url(connectors), "payments"))
+        Ok(format!("{}payments", self.base_url(connectors)))
     }
 
     fn get_request_body(
@@ -141,6 +115,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         let mollie_req =
             utils::Encode::<mollie::MolliePaymentsRequest>::encode_to_string_of_json(&req_obj)
                 .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        println!("mollie_req:--->{}", mollie_req);
         Ok(Some(mollie_req))
     }
 
@@ -158,7 +133,6 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
                 .headers(types::PaymentsAuthorizeType::get_headers(
                     self, req, connectors,
                 )?)
-                // .header(headers::X_ROUTER, "test")
                 .body(types::PaymentsAuthorizeType::get_request_body(self, req)?)
                 .build(),
         ))
@@ -169,6 +143,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         data: &types::PaymentsAuthorizeRouterData,
         res: Response,
     ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
+        println!("mollie_res:--->{:?}", res.response);
         let response: mollie::MolliePaymentsResponse = res
             .response
             .parse_struct("MolliePaymentsResponse")
@@ -186,11 +161,12 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         &self,
         res: Response,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        println!("mollie_err_res:--->{:?}", res.response);
         let response: mollie::MollieErrorResponse = res
             .response
             .parse_struct("MollieErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        Ok(types::ErrorResponse {
+        Ok(ErrorResponse {
             status_code: res.status_code,
             code: response.title,
             message: response.detail,
@@ -210,16 +186,16 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         self.build_headers(req, connectors)
     }
 
-    fn get_content_type(&self) -> &'static str {
-        self.common_get_content_type()
-    }
-
     fn get_url(
         &self,
-        _req: &types::PaymentsSyncRouterData,
-        _connectors: &settings::Connectors,
+        req: &types::PaymentsSyncRouterData,
+        connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        Ok(format!(
+            "{}payments/{}",
+            self.base_url(connectors),
+            req.payment_id
+        ))
     }
 
     fn build_request(
@@ -264,72 +240,16 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
 impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::PaymentsResponseData>
     for Mollie
 {
-    fn get_headers(
-        &self,
-        req: &types::PaymentsCaptureRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        self.build_headers(req, connectors)
-    }
-
-    fn get_content_type(&self) -> &'static str {
-        self.common_get_content_type()
-    }
-
-    fn get_url(
+    fn build_request(
         &self,
         _req: &types::PaymentsCaptureRouterData,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
-    }
-
-    fn get_request_body(
-        &self,
-        _req: &types::PaymentsCaptureRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_request_body method".to_string()).into())
-    }
-
-    fn build_request(
-        &self,
-        req: &types::PaymentsCaptureRouterData,
-        connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        Ok(Some(
-            services::RequestBuilder::new()
-                .method(services::Method::Post)
-                .url(&types::PaymentsCaptureType::get_url(self, req, connectors)?)
-                .headers(types::PaymentsCaptureType::get_headers(
-                    self, req, connectors,
-                )?)
-                .build(),
+        Err(errors::ConnectorError::FlowNotSupported(
+            "Capture".to_string(),
+            self.id().to_string(),
         ))
-    }
-
-    fn handle_response(
-        &self,
-        data: &types::PaymentsCaptureRouterData,
-        res: Response,
-    ) -> CustomResult<types::PaymentsCaptureRouterData, errors::ConnectorError> {
-        let response: mollie::MolliePaymentsResponse = res
-            .response
-            .parse_struct("Mollie PaymentsCaptureResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        types::ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        }
-        .try_into()
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
-    }
-
-    fn get_error_response(
-        &self,
-        res: Response,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res)
+        .into_report()
     }
 }
 

@@ -45,6 +45,7 @@ pub trait RouterData {
     fn get_billing_phone(&self) -> Result<&api::PhoneDetails, Error>;
     fn get_description(&self) -> Result<String, Error>;
     fn get_billing_address(&self) -> Result<&api::AddressDetails, Error>;
+    fn get_shipping_address(&self) -> Result<&api::AddressDetails, Error>;
     fn get_connector_meta(&self) -> Result<serde_json::Value, Error>;
     fn get_session_token(&self) -> Result<String, Error>;
     fn to_connector_meta<T>(&self) -> Result<T, Error>
@@ -114,6 +115,14 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
         self.router_return_url
             .clone()
             .ok_or_else(missing_field_err("return_url"))
+    }
+
+    fn get_shipping_address(&self) -> Result<&api::AddressDetails, Error> {
+        self.address
+            .shipping
+            .as_ref()
+            .and_then(|a| a.address.as_ref())
+            .ok_or_else(missing_field_err("shipping.address"))
     }
 }
 
@@ -344,14 +353,14 @@ pub fn to_currency_base_unit(
     let amount_u32 = u32::try_from(amount)
         .into_report()
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-    match currency {
-        storage_models::enums::Currency::JPY | storage_models::enums::Currency::KRW => {
-            Ok(amount.to_string())
-        }
+    let amount_f64 = f64::from(amount_u32);
+    let amount = match currency {
+        storage_models::enums::Currency::JPY | storage_models::enums::Currency::KRW => amount_f64,
         storage_models::enums::Currency::BHD
         | storage_models::enums::Currency::JOD
         | storage_models::enums::Currency::KWD
-        | storage_models::enums::Currency::OMR => Ok((f64::from(amount_u32) / 1000.0).to_string()),
-        _ => Ok((f64::from(amount_u32) / 100.0).to_string()),
-    }
+        | storage_models::enums::Currency::OMR => amount_f64 / 1000.00,
+        _ => amount_f64 / 100.00,
+    };
+    Ok(format!("{:.2}", amount))
 }

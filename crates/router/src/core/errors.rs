@@ -256,6 +256,8 @@ pub enum ConnectorError {
         connector: &'static str,
         payment_experience: String,
     },
+    #[error("{0} flow is not supported by {1}")]
+    FlowNotSupported(String, String),
     #[error("Missing connector transaction ID")]
     MissingConnectorTransactionID,
     #[error("Missing connector refund ID")]
