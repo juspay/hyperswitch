@@ -274,11 +274,11 @@ pub enum Currency {
 #[router_derive::diesel_enum(storage_type = "text")]
 #[rustfmt::skip]
 pub enum Country {
-    AL,DZ,AS,AO,AG,AR,AU,AT,AZ,BH,BY,BE,BR,BG,CA,CL,CO,HR,CZ,DK,DO,EG,
-    EE,FI,FR,DE,GR,HK,HU,IN,ID,IE,IL,IT,JP,JO,KZ,KE,KW,LV,LB,LT,LU,MY,
-    MX,NL,NZ,NO,OM,PK,PA,PE,PH,PL,PT,QA,RO,RU,SA,SG,SK,ZA,ES,LK,SE,CH,
-    TW,TH,TR,UA,AE,GB,UY,VN,CN,MO,AM,CY,FO,GE,GL,GG,IS,IM,JE,LI,MT,
-    MD,MC,ME,SM,RS,SI,CR,PS,UM,
+    AL, DZ, AS, AO, AG, AR, AU, AT, AZ, BH, BY, BE, BR, BG, CA, CL, CO, HR, CZ, DK, DO, EG,
+    EE, FI, FR, DE, GR, HK, HU, IN, ID, IE, IL, IT, JP, JO, KZ, KE, KW, LV, LB, LT, LU, MY,
+    MX, NL, NZ, NO, OM, PK, PA, PE, PH, PL, PT, QA, RO, RU, SA, SG, SK, ZA, ES, LK, SE, CH,
+    TW, TH, TR, UA, AE, GB, UY, VN, CN, MO, AM, CY, FO, GE, GL, GG, IS, IM, JE, LI, MT,
+    MD, MC, ME, SM, RS, SI, CR, PS, UM,
     #[default]
     US
 }

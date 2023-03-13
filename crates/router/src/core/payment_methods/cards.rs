@@ -27,7 +27,7 @@ use crate::{
     types::{
         api::{self, PaymentMethodCreateExt},
         storage::{self, enums},
-        transformers::ForeignInto,
+        transformers::{ForeignFrom, ForeignInto},
     },
     utils::{self, BytesExt, ConnectorResponseExt, OptionExt},
 };
@@ -759,7 +759,7 @@ async fn filter_payment_methods(
                         &connector,
                         &payment_method_object.payment_method_type,
                         &mut payment_method_object.card_networks,
-                        &address.and_then(|inner| inner.country.map(|country| country.to_string())),
+                        &address.and_then(|inner| inner.country.map(ForeignFrom::foreign_from)),
                         payment_attempt
                             .and_then(|value| value.currency)
                             .map(|value| value.foreign_into()),
@@ -788,7 +788,7 @@ fn filter_pm_based_on_config<'a>(
     connector: &'a str,
     payment_method_type: &'a api_enums::PaymentMethodType,
     card_network: &mut Option<Vec<api_enums::CardNetwork>>,
-    country: &Option<String>,
+    country: &Option<api_enums::Country>,
     currency: Option<api_enums::Currency>,
 ) -> bool {
     config
@@ -810,7 +810,7 @@ fn filter_pm_based_on_config<'a>(
 }
 
 fn card_network_filter(
-    country: &Option<String>,
+    country: &Option<api_enums::Country>,
     currency: Option<api_enums::Currency>,
     card_network: &mut Option<Vec<api_enums::CardNetwork>>,
     payment_method_filters: &settings::PaymentMethodFilters,
@@ -834,7 +834,7 @@ fn card_network_filter(
 
 fn global_country_currency_filter(
     item: &settings::CurrencyCountryFilter,
-    country: &Option<String>,
+    country: &Option<api_enums::Country>,
     currency: Option<api_enums::Currency>,
 ) -> bool {
     let country_condition = item
@@ -872,8 +872,12 @@ fn filter_pm_card_network_based(
 }
 fn filter_pm_country_based(
     accepted_countries: &Option<admin::AcceptedCountries>,
-    req_country_list: &Option<Vec<String>>,
-) -> (Option<admin::AcceptedCountries>, Option<Vec<String>>, bool) {
+    req_country_list: &Option<Vec<api_enums::Country>>,
+) -> (
+    Option<admin::AcceptedCountries>,
+    Option<Vec<api_enums::Country>>,
+    bool,
+) {
     match (accepted_countries, req_country_list) {
         (None, None) => (None, None, true),
         (None, Some(ref r)) => (
@@ -1027,11 +1031,13 @@ async fn filter_payment_country_based(
             pm.accepted_countries.as_ref().map_or(true, |ac| {
                 if ac.accept_type == "enable_only" {
                     ac.list.as_ref().map_or(false, |enable_countries| {
-                        enable_countries.contains(&country.to_string())
+                        enable_countries
+                            .contains(&api_enums::Country::foreign_from(country.to_owned()))
                     })
                 } else {
                     ac.list.as_ref().map_or(true, |disable_countries| {
-                        !disable_countries.contains(&country.to_string())
+                        !disable_countries
+                            .contains(&api_enums::Country::foreign_from(country.to_owned()))
                     })
                 }
             })
