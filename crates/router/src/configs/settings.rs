@@ -251,7 +251,7 @@ pub struct Connectors {
     pub stripe: ConnectorParams,
     pub worldline: ConnectorParams,
     pub worldpay: ConnectorParams,
-    pub trustpay: ConnectorParameters,
+    pub trustpay: ConnectorParamsWithMoreUrls,
 
     // Keep this field separate from the remaining fields
     pub supported: SupportedConnectors,
@@ -265,7 +265,7 @@ pub struct ConnectorParams {
 
 #[derive(Debug, Deserialize, Clone, Default)]
 #[serde(default)]
-pub struct ConnectorParameters {
+pub struct ConnectorParamsWithMoreUrls {
     pub base_url: String,
     pub base_url_bank_redirects: String,
 }

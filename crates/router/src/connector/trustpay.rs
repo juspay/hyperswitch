@@ -362,7 +362,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
                 )
                 .change_context(errors::ConnectorError::RequestEncodingFailed)?
             }
-            _ => utils::Encode::<trustpay::PaymentRequestCards>::encode(&trustpay_req)
+            _ => utils::Encode::<trustpay::PaymentRequestCards>::url_encode(&trustpay_req)
                 .change_context(errors::ConnectorError::RequestEncodingFailed)?,
         };
         Ok(Some(trustpay_req_string))
@@ -460,7 +460,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
                 &trustpay_req
             )
             .change_context(errors::ConnectorError::RequestEncodingFailed)?,
-            _ => utils::Encode::<trustpay::TrustpayRefundRequestCards>::encode(&trustpay_req)
+            _ => utils::Encode::<trustpay::TrustpayRefundRequestCards>::url_encode(&trustpay_req)
                 .change_context(errors::ConnectorError::RequestEncodingFailed)?,
         };
         Ok(Some(trustpay_req_string))
