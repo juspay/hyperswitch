@@ -372,7 +372,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --package router --test connectors -- stripe
+          args: --package router --test connectors -- stripe --test-threads=1
 
       # - name: Run tests
       #   shell: bash
