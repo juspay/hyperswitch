@@ -18,6 +18,7 @@ pub mod payu;
 pub mod rapyd;
 pub mod shift4;
 pub mod stripe;
+pub mod trustpay;
 pub mod utils;
 pub mod worldline;
 pub mod worldpay;
@@ -27,5 +28,6 @@ pub use self::{
     authorizedotnet::Authorizedotnet, bambora::Bambora, bluesnap::Bluesnap, braintree::Braintree,
     checkout::Checkout, cybersource::Cybersource, dlocal::Dlocal, fiserv::Fiserv,
     globalpay::Globalpay, klarna::Klarna, multisafepay::Multisafepay, nuvei::Nuvei, payu::Payu,
-    rapyd::Rapyd, shift4::Shift4, stripe::Stripe, worldline::Worldline, worldpay::Worldpay,
+    rapyd::Rapyd, shift4::Shift4, stripe::Stripe, trustpay::Trustpay, worldline::Worldline,
+    worldpay::Worldpay,
 };
