@@ -1238,6 +1238,7 @@ pub struct GpayAllowedPaymentMethods {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct GpayTransactionInfo {
     /// The country code
+    #[schema(value_type = Country)]
     pub country_code: api_enums::Country,
     /// The currency code
     pub currency_code: String,
@@ -1344,6 +1345,7 @@ pub struct ApplePaySessionResponse {
 #[derive(Debug, Clone, serde::Serialize, ToSchema, serde::Deserialize)]
 pub struct ApplePayPaymentRequest {
     /// The code for country
+    #[schema(value_type = Country)]
     pub country_code: api_enums::Country,
     /// The code for currency
     pub currency_code: String,
