@@ -368,9 +368,22 @@ jobs:
       matrix:
         connector:
           - stripe
+          - aci
           - adyen
-        # - macos-latest
-        # - windows-latest
+          - authorizedotnet 
+          - checkout
+          - cybersource
+          - shift4
+          - worldpay
+          - payu
+          - globalpay
+          - rapyd
+          - fiserv
+          - worldline
+          - multisafepay
+          - dlocal
+          - bambora
+          - nuvei
 
     steps:
       - name: Checkout repository
