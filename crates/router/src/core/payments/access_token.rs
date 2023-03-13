@@ -10,7 +10,7 @@ use crate::{
     },
     routes::AppState,
     services,
-    types::{self, api as api_types, storage},
+    types::{self, api as api_types, storage, transformers::ForeignInto},
 };
 
 /// This function replaces the request and response type of routerdata with the
@@ -82,7 +82,10 @@ pub async fn add_access_token<
     merchant_account: &storage::MerchantAccount,
     router_data: &types::RouterData<F, Req, Res>,
 ) -> RouterResult<types::AddAccessTokenResult> {
-    if connector.connector_name.supports_access_token() {
+    if connector
+        .connector_name
+        .supports_access_token(router_data.payment_method.foreign_into())
+    {
         let merchant_id = &merchant_account.merchant_id;
         let store = &*state.store;
         let old_access_token = store

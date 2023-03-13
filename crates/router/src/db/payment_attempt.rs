@@ -535,11 +535,7 @@ mod storage {
                 enums::MerchantStorageScheme::RedisKv => {
                     // [#439]: get the attempt_id from payment_intent
                     let key = format!("{merchant_id}_{payment_id}");
-                    let lookup = self
-                        .get_lookup_by_lookup_id(&key)
-                        .await
-                        .map_err(Into::<errors::StorageError>::into)
-                        .into_report()?;
+                    let lookup = self.get_lookup_by_lookup_id(&key).await?;
 
                     db_utils::try_redis_get_else_try_database_get(
                         self.redis_conn()
@@ -580,11 +576,7 @@ mod storage {
                 enums::MerchantStorageScheme::RedisKv => {
                     // We assume that PaymentAttempt <=> PaymentIntent is a one-to-one relation for now
                     let lookup_id = format!("{merchant_id}_{connector_transaction_id}");
-                    let lookup = self
-                        .get_lookup_by_lookup_id(&lookup_id)
-                        .await
-                        .map_err(Into::<errors::StorageError>::into)
-                        .into_report()?;
+                    let lookup = self.get_lookup_by_lookup_id(&lookup_id).await?;
                     let key = &lookup.pk_id;
 
                     db_utils::try_redis_get_else_try_database_get(
@@ -641,11 +633,7 @@ mod storage {
 
                 enums::MerchantStorageScheme::RedisKv => {
                     let lookup_id = format!("{merchant_id}_{connector_txn_id}");
-                    let lookup = self
-                        .get_lookup_by_lookup_id(&lookup_id)
-                        .await
-                        .map_err(Into::<errors::StorageError>::into)
-                        .into_report()?;
+                    let lookup = self.get_lookup_by_lookup_id(&lookup_id).await?;
 
                     let key = &lookup.pk_id;
                     db_utils::try_redis_get_else_try_database_get(
@@ -677,11 +665,7 @@ mod storage {
 
                 enums::MerchantStorageScheme::RedisKv => {
                     let lookup_id = format!("{merchant_id}_{attempt_id}");
-                    let lookup = self
-                        .get_lookup_by_lookup_id(&lookup_id)
-                        .await
-                        .map_err(Into::<errors::StorageError>::into)
-                        .into_report()?;
+                    let lookup = self.get_lookup_by_lookup_id(&lookup_id).await?;
                     let key = &lookup.pk_id;
                     db_utils::try_redis_get_else_try_database_get(
                         self.redis_conn()

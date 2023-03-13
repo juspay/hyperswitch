@@ -345,13 +345,14 @@ where
     let lock_val = "LOCKED";
     let ttl = settings.producer.lock_ttl;
 
-    let result = if state
+    if state
         .store
         .acquire_pt_lock(tag, lock_key, lock_val, ttl)
         .await
         .change_context(errors::ProcessTrackerError::ERedisError(
             errors::RedisError::RedisConnectionError.into(),
-        ))? {
+        ))?
+    {
         let result = callback().await;
         state
             .store
@@ -361,8 +362,7 @@ where
         result
     } else {
         Ok(())
-    };
-    result
+    }
 }
 
 pub(crate) async fn signal_handler(

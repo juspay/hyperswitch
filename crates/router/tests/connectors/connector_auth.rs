@@ -23,6 +23,7 @@ pub(crate) struct ConnectorAuthentication {
     pub stripe: Option<HeaderKey>,
     pub worldpay: Option<BodyKey>,
     pub worldline: Option<SignatureKey>,
+    pub trustpay: Option<SignatureKey>,
 }
 
 impl ConnectorAuthentication {

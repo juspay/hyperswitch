@@ -3,7 +3,7 @@ use router_env::{instrument, tracing};
 
 use super::generics;
 use crate::{
-    api_keys::{ApiKey, ApiKeyNew, ApiKeyUpdate, ApiKeyUpdateInternal},
+    api_keys::{ApiKey, ApiKeyNew, ApiKeyUpdate, ApiKeyUpdateInternal, HashedApiKey},
     errors,
     schema::api_keys::dsl,
     PgPooledConn, StorageResult,
@@ -61,6 +61,18 @@ impl ApiKey {
         generics::generic_find_by_id_optional::<<Self as HasTable>::Table, _, _>(
             conn,
             key_id.to_owned(),
+        )
+        .await
+    }
+
+    #[instrument(skip(conn))]
+    pub async fn find_optional_by_hashed_api_key(
+        conn: &PgPooledConn,
+        hashed_api_key: HashedApiKey,
+    ) -> StorageResult<Option<Self>> {
+        generics::generic_find_one_optional::<<Self as HasTable>::Table, _, _>(
+            conn,
+            dsl::hashed_api_key.eq(hashed_api_key),
         )
         .await
     }
