@@ -355,6 +355,39 @@ jobs:
       #  if: env.storage_models_changes_exist == 'true'
       #  run: cargo hack check --each-feature --no-dev-deps -p storage_models
 
+
+      # - name: Run tests
+      #   shell: bash
+      #   run: cargo nextest run --all-features
+  
+  test_connectors:
+    name: Run tests on stable toolchain for connectors
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        connector:
+          - stripe
+          - adyen
+        # - macos-latest
+        # - windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3.1.0
+      
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+
+      - name: Install cargo-nextest
+        uses: baptiste0928/cargo-install@v1.3.0
+        with:
+          crate: cargo-nextest
+
+      - uses: Swatinem/rust-cache@v2.2.0
+
       - name: Decrypt connector auth file
         run: ./decrypt_connector_auth.sh
         env:
@@ -372,12 +405,8 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --package router --test connectors -- stripe --test-threads=1
-
-      # - name: Run tests
-      #   shell: bash
-      #   run: cargo nextest run --all-features
-
+          args: --package router --test connectors -- ${{ matrix.connector }} --test-threads=1
+  
   typos:
     name: Spell check
     runs-on: ubuntu-latest
