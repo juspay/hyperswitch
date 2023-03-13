@@ -1,6 +1,7 @@
+use std::any::Any;
+
 use dyn_clone::DynClone;
 use moka::future::Cache as MokaCache;
-use std::any::Any;
 
 /// Trait which defines the behaviour of types that's gonna be stored in Cache
 pub trait Cacheable: Any + Send + Sync + DynClone {
