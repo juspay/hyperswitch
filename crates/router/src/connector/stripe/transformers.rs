@@ -1100,7 +1100,7 @@ pub struct StripeBillingAddress {
     #[serde(rename = "payment_method_data[billing_details][email]")]
     pub email: Option<Secret<String, Email>>,
     #[serde(rename = "payment_method_data[billing_details][address][country]")]
-    pub country: Option<String>,
+    pub country: Option<api_enums::Country>,
     #[serde(rename = "payment_method_data[billing_details][name]")]
     pub name: Option<Secret<String>>,
 }

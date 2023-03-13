@@ -401,7 +401,8 @@ pub enum PayLaterData {
         #[schema(value_type = String)]
         billing_email: Secret<String, pii::Email>,
         // The billing country code
-        billing_country: String,
+        #[schema(value_type = Country)]
+        billing_country: api_enums::Country,
     },
     /// For Klarna Sdk as PayLater Option
     KlarnaSdk {
@@ -494,7 +495,7 @@ pub enum BankRedirectData {
     },
     Sofort {
         /// The country for bank payment
-        #[schema(example = "US")]
+        #[schema(value_type = Country, example = "US")]
         country: api_enums::Country,
 
         /// The preferred language
@@ -676,7 +677,7 @@ pub struct AddressDetails {
     pub city: Option<String>,
 
     /// The two-letter ISO country code for the address
-    #[schema(max_length = 2, min_length = 2, example = "US")]
+    #[schema(value_type = Option<Country>, max_length = 2, min_length = 2, example = "US")]
     pub country: Option<api_enums::Country>,
 
     /// The first line of the address
