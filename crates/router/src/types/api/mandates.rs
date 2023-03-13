@@ -36,7 +36,7 @@ impl MandateResponseExt for MandateResponse {
     async fn from_db_mandate(
         state: &AppState,
         mandate: storage::Mandate,
-        _merchant_account: &storage::MerchantAccount,
+        merchant_account: &storage::MerchantAccount,
     ) -> RouterResult<Self> {
         let db = &*state.store;
         let payment_method = db
@@ -47,11 +47,12 @@ impl MandateResponseExt for MandateResponse {
             })?;
 
         let card = if payment_method.payment_method == storage_enums::PaymentMethod::Card {
-            let card = payment_methods::cards::get_card_from_hs_locker(
+            let card = payment_methods::cards::get_card_from_locker(
                 state,
                 &payment_method.customer_id,
                 &payment_method.merchant_id,
                 &payment_method.payment_method_id,
+                merchant_account.locker_id.clone(),
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
