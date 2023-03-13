@@ -29,6 +29,7 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
         connector_auth_type: auth.into(),
         description: Some("This is a test".to_string()),
         router_return_url: None,
+        complete_authorize_url: None,
         return_url: None,
         request: types::PaymentsAuthorizeData {
             amount: 1000,
@@ -77,6 +78,7 @@ fn construct_refund_router_data<F>() -> types::RefundsRouterData<F> {
         attempt_id: None,
         status: enums::AttemptStatus::default(),
         router_return_url: None,
+        complete_authorize_url: None,
         payment_method: enums::PaymentMethodType::Card,
         auth_type: enums::AuthenticationType::NoThreeDs,
         connector_auth_type: auth.into(),

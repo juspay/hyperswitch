@@ -236,8 +236,6 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
 {
 }
 
-impl services::ConnectorRedirectResponse for Applepay {}
-
 #[async_trait::async_trait]
 impl api::IncomingWebhook for Applepay {
     fn get_webhook_object_reference_id(

@@ -745,7 +745,9 @@ impl services::ConnectorRedirectResponse for Checkout {
     fn get_flow_type(
         &self,
         query_params: &str,
-    ) -> CustomResult<payments::ConnectorRedirectFlow, errors::ConnectorError> {
+        _json_payload: Option<serde_json::Value>,
+        _action: services::PaymentAction,
+    ) -> CustomResult<payments::CallConnectorAction, errors::ConnectorError> {
         let query =
             serde_urlencoded::from_str::<transformers::CheckoutRedirectResponse>(query_params)
                 .into_report()
@@ -756,9 +758,6 @@ impl services::ConnectorRedirectResponse for Checkout {
                 payments::CallConnectorAction::StatusUpdate(checkout_status.into())
             })
             .unwrap_or(payments::CallConnectorAction::Trigger);
-        Ok(payments::ConnectorRedirectFlow {
-            connector_action,
-            payment_flow: payments::PaymentFlow::Psync,
-        })
+        Ok(connector_action)
     }
 }

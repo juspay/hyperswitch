@@ -7,10 +7,7 @@ use transformers as payu;
 
 use crate::{
     configs::settings,
-    core::{
-        errors::{self, CustomResult},
-        payments,
-    },
+    core::errors::{self, CustomResult},
     headers, logger,
     services::{self, ConnectorIntegration},
     types::{
@@ -701,17 +698,5 @@ impl api::IncomingWebhook for Payu {
         _body: &[u8],
     ) -> CustomResult<serde_json::Value, errors::ConnectorError> {
         Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
-    }
-}
-
-impl services::ConnectorRedirectResponse for Payu {
-    fn get_flow_type(
-        &self,
-        _query_params: &str,
-    ) -> CustomResult<payments::ConnectorRedirectFlow, errors::ConnectorError> {
-        Ok(payments::ConnectorRedirectFlow {
-            connector_action: payments::CallConnectorAction::Trigger,
-            payment_flow: payments::PaymentFlow::Psync,
-        })
     }
 }

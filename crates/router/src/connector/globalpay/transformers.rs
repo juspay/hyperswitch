@@ -8,7 +8,7 @@ use super::{
     response::{GlobalpayPaymentStatus, GlobalpayPaymentsResponse, GlobalpayRefreshTokenResponse},
 };
 use crate::{
-    connector::utils::{CardData, PaymentsRequestData, RouterData},
+    connector::utils::{self, CardData, PaymentsRequestData, RouterData},
     consts,
     core::errors,
     types::{self, api, storage::enums, ErrorResponse},
@@ -22,8 +22,8 @@ pub struct GlobalPayMeta {
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for GlobalpayPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
-        let metadata: GlobalPayMeta = item.to_connector_meta()?;
-        let card = item.get_card()?;
+        let metadata: GlobalPayMeta = utils::to_connector_meta(item.connector_meta_data.clone())?;
+        let card = item.request.get_card()?;
         Ok(Self {
             account_name: metadata.account_name,
             amount: Some(item.request.amount.to_string()),

@@ -549,5 +549,3 @@ impl api::IncomingWebhook for Aci {
         Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
     }
 }
-
-impl services::ConnectorRedirectResponse for Aci {}

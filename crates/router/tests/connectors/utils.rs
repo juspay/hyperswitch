@@ -361,6 +361,7 @@ pub trait ConnectorActions: Connector {
             attempt_id: Some(uuid::Uuid::new_v4().to_string()),
             status: enums::AttemptStatus::default(),
             router_return_url: info.clone().and_then(|a| a.router_return_url),
+            complete_authorize_url: None,
             auth_type: info
                 .clone()
                 .map_or(enums::AuthenticationType::NoThreeDs, |a| {

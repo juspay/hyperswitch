@@ -38,6 +38,7 @@ pub fn router_data_type_conversion<F1, F2, Req1, Req2, Res1, Res2>(
         connector_meta_data: router_data.connector_meta_data,
         description: router_data.description,
         router_return_url: router_data.router_return_url,
+        complete_authorize_url: router_data.complete_authorize_url,
         payment_id: router_data.payment_id,
         payment_method: router_data.payment_method,
         payment_method_id: router_data.payment_method_id,

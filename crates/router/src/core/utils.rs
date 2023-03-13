@@ -60,6 +60,7 @@ pub async fn construct_refund_router_data<'a, F>(
         description: None,
         return_url: payment_intent.return_url.clone(),
         router_return_url: None,
+        complete_authorize_url: None,
         payment_method_id: payment_attempt.payment_method_id.clone(),
         // Does refund need shipping/billing address ?
         address: PaymentAddress::default(),

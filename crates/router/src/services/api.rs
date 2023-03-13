@@ -364,6 +364,12 @@ pub enum ApplicationResponse<R> {
     Form(RedirectForm),
 }
 
+#[derive(Debug, Eq, PartialEq)]
+pub enum PaymentAction {
+    PSync,
+    CompleteAuthorize,
+}
+
 #[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct ApplicationRedirectResponse {
     pub url: String,
@@ -559,11 +565,10 @@ pub trait ConnectorRedirectResponse {
     fn get_flow_type(
         &self,
         _query_params: &str,
-    ) -> CustomResult<payments::ConnectorRedirectFlow, errors::ConnectorError> {
-        Ok(payments::ConnectorRedirectFlow {
-            connector_action: payments::CallConnectorAction::Avoid,
-            payment_flow: payments::PaymentFlow::Psync,
-        })
+        _json_payload: Option<serde_json::Value>,
+        _action: PaymentAction,
+    ) -> CustomResult<payments::CallConnectorAction, errors::ConnectorError> {
+        Ok(payments::CallConnectorAction::Avoid)
     }
 }
 

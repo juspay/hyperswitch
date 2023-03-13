@@ -674,5 +674,3 @@ impl api::IncomingWebhook for Worldline {
         Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
     }
 }
-
-impl services::ConnectorRedirectResponse for Worldline {}
