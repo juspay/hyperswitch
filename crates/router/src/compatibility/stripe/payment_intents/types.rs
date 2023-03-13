@@ -145,7 +145,7 @@ impl TryFrom<StripePaymentIntentRequest> for payments::PaymentsRequest {
         Ok(Self {
             payment_id: item
                 .payment_id
-                .map(|id| payments::PaymentIdType::PaymentIntentId(id)),
+                .map(payments::PaymentIdType::PaymentIntentId),
             amount: item.amount.map(|amount| amount.into()),
             connector: item.connector,
             currency: item
