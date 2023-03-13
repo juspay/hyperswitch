@@ -2,6 +2,7 @@ mod transformers;
 
 use std::fmt::Debug;
 
+use api_models::webhooks::ObjectReferenceId;
 use error_stack::{IntoReport, ResultExt};
 use transformers as multisafepay;
 
@@ -430,7 +431,7 @@ impl api::IncomingWebhook for Multisafepay {
     fn get_webhook_object_reference_id(
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<String, errors::ConnectorError> {
+    ) -> CustomResult<ObjectReferenceId, errors::ConnectorError> {
         Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
     }
 

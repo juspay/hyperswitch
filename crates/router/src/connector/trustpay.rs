@@ -2,7 +2,9 @@ mod transformers;
 
 use std::fmt::Debug;
 
+use api_models::webhooks::ObjectReferenceId;
 use base64::Engine;
+use common_utils::ext_traits::ByteSliceExt;
 use error_stack::{IntoReport, ResultExt};
 use transformers as trustpay;
 
@@ -587,23 +589,48 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
 impl api::IncomingWebhook for Trustpay {
     fn get_webhook_object_reference_id(
         &self,
-        _request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
+        request: &api::IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<ObjectReferenceId, errors::ConnectorError> {
+        let details: trustpay::TrustpayWebhookResponse = request
+            .body
+            .parse_struct("TrustpayWebhookResponse")
+            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+        match details.payment_information.credit_debit_indicator {
+            trustpay::CreditDebitIndicator::CRDT => Ok(ObjectReferenceId::PaymentId(api_models::payments::PaymentIdType::PaymentIntentId(details.payment_information.references.merchant_reference))),
+            _ => Ok(ObjectReferenceId::RefundId(api_models::webhooks::RefundIdType::RefundId(details.payment_information.references.merchant_reference))),
+        }
     }
 
     fn get_webhook_event_type(
         &self,
-        _request: &api::IncomingWebhookRequestDetails<'_>,
+        request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api::IncomingWebhookEvent, errors::ConnectorError> {
-        Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
+        let response: trustpay::TrustpayWebhookResponse = request
+            .body
+            .parse_struct("TrustpayWebhookResponse")
+            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+        match (response.payment_information.credit_debit_indicator, response.payment_information.status) {
+            (trustpay::CreditDebitIndicator::CRDT, trustpay::WebhookStatus::Paid) => Ok(api_models::webhooks::IncomingWebhookEvent::PaymentIntentSuccess),
+            (trustpay::CreditDebitIndicator::CRDT, trustpay::WebhookStatus::Rejected) => Ok(api_models::webhooks::IncomingWebhookEvent::PaymentIntentFailure),
+            (trustpay::CreditDebitIndicator::DBIT, trustpay::WebhookStatus::Paid) => Ok(api_models::webhooks::IncomingWebhookEvent::RefundSuccess),
+            (trustpay::CreditDebitIndicator::DBIT, trustpay::WebhookStatus::Refunded) => Ok(api_models::webhooks::IncomingWebhookEvent::RefundSuccess),
+            (trustpay::CreditDebitIndicator::DBIT, trustpay::WebhookStatus::Rejected) => Ok(api_models::webhooks::IncomingWebhookEvent::RefundFailure),
+            _ => Err(errors::ConnectorError::WebhookEventTypeNotFound).into_report()?,
+        }
     }
 
     fn get_webhook_resource_object(
         &self,
-        _request: &api::IncomingWebhookRequestDetails<'_>,
+        request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<serde_json::Value, errors::ConnectorError> {
-        Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
+        let response: trustpay::TrustpayWebhookResponse = request
+            .body
+            .parse_struct("TrustpayWebhookResponse")
+            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+        let res_json = serde_json::to_value(response.payment_information)
+            .into_report()
+            .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
+        Ok(res_json)
     }
 }
 
@@ -616,7 +643,6 @@ impl services::ConnectorRedirectResponse for Trustpay {
             serde_urlencoded::from_str::<transformers::TrustpayRedirectResponse>(query_params)
                 .into_report()
                 .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        crate::logger::debug!(trustpay_redirect_response=?query);
         Ok(query.status.map_or(
             payments::CallConnectorAction::Trigger,
             |status| match status.as_str() {

@@ -6,6 +6,7 @@ use std::fmt::Debug;
 
 use error_stack::{IntoReport, ResultExt};
 
+use api_models::webhooks::ObjectReferenceId;
 use self::transformers as checkout;
 use super::utils::RefundsRequestData;
 use crate::{
@@ -726,7 +727,7 @@ impl api::IncomingWebhook for Checkout {
     fn get_webhook_object_reference_id(
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<String, errors::ConnectorError> {
+    ) -> CustomResult<ObjectReferenceId, errors::ConnectorError> {
         Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
     }
 

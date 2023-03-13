@@ -2,6 +2,7 @@ mod transformers;
 
 use std::fmt::Debug;
 
+use api_models::webhooks::ObjectReferenceId;
 use base64::Engine;
 use error_stack::{IntoReport, ResultExt};
 use router_env::{instrument, tracing};
@@ -720,11 +721,11 @@ impl api::IncomingWebhook for Adyen {
     fn get_webhook_object_reference_id(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<String, errors::ConnectorError> {
+    ) -> CustomResult<ObjectReferenceId, errors::ConnectorError> {
         let notif = get_webhook_object_from_body(request.body)
             .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
 
-        Ok(notif.psp_reference)
+        Ok(ObjectReferenceId::PaymentId(api_models::payments::PaymentIdType::ConnectorTransactionId(notif.psp_reference)))
     }
 
     fn get_webhook_event_type(

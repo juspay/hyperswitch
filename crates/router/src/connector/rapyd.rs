@@ -1,6 +1,7 @@
 mod transformers;
 use std::fmt::Debug;
 
+use api_models::webhooks::ObjectReferenceId;
 use base64::Engine;
 use common_utils::{date_time, ext_traits::StringExt};
 use error_stack::{IntoReport, ResultExt};
@@ -760,15 +761,15 @@ impl api::IncomingWebhook for Rapyd {
     fn get_webhook_object_reference_id(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<String, errors::ConnectorError> {
+    ) -> CustomResult<ObjectReferenceId, errors::ConnectorError> {
         let webhook: transformers::RapydIncomingWebhook = request
             .body
             .parse_struct("RapydIncomingWebhook")
             .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
 
         Ok(match webhook.data {
-            transformers::WebhookData::PaymentData(payment_data) => payment_data.id,
-            transformers::WebhookData::RefundData(refund_data) => refund_data.id,
+            transformers::WebhookData::PaymentData(payment_data) => ObjectReferenceId::PaymentId(api_models::payments::PaymentIdType::ConnectorTransactionId(payment_data.id)),
+            transformers::WebhookData::RefundData(refund_data) => ObjectReferenceId::RefundId(api_models::webhooks::RefundIdType::ConnectorRefundId(refund_data.id)),
         })
     }
 

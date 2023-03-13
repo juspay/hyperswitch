@@ -4,6 +4,7 @@ mod transformers;
 
 use std::fmt::Debug;
 
+use api_models::webhooks::ObjectReferenceId;
 use error_stack::{IntoReport, ResultExt};
 use storage_models::enums;
 use transformers as worldpay;
@@ -593,7 +594,7 @@ impl api::IncomingWebhook for Worldpay {
     fn get_webhook_object_reference_id(
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<String, errors::ConnectorError> {
+    ) -> CustomResult<ObjectReferenceId, errors::ConnectorError> {
         Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
     }
 

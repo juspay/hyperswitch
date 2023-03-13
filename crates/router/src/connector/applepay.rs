@@ -2,6 +2,7 @@ mod transformers;
 
 use std::fmt::Debug;
 
+use api_models::webhooks::ObjectReferenceId;
 use common_utils::ext_traits::ValueExt;
 use error_stack::{IntoReport, ResultExt};
 
@@ -243,7 +244,7 @@ impl api::IncomingWebhook for Applepay {
     fn get_webhook_object_reference_id(
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<String, errors::ConnectorError> {
+    ) -> CustomResult<ObjectReferenceId, errors::ConnectorError> {
         Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
     }
 
