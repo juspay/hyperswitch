@@ -256,7 +256,6 @@ pub enum Currency {
     ZAR,
 }
 
-#[allow(clippy::upper_case_acronyms)]
 #[derive(
     Clone,
     Copy,
