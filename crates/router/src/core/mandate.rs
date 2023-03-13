@@ -97,6 +97,7 @@ pub async fn mandate_procedure<F, FData>(
     mut resp: types::RouterData<F, FData, types::PaymentsResponseData>,
     maybe_customer: &Option<storage::Customer>,
     merchant_account: &storage::MerchantAccount,
+    connector: &types::api::ConnectorData,
 ) -> errors::RouterResult<types::RouterData<F, FData, types::PaymentsResponseData>>
 where
     FData: MandateBehaviour,
@@ -146,6 +147,8 @@ where
                     Some(&resp.request.get_payment_method_data()),
                     Some(resp.payment_method),
                     maybe_customer,
+                    Some(connector),
+                    None,
                 )
                 .await?
                 .payment_method_id;
@@ -184,12 +187,31 @@ where
                         })?;
                 };
             } else if resp.request.get_setup_future_usage().is_some() {
+                let token = resp.store_connector_token.and_then(|store_token_check| {
+                    if store_token_check {
+                        if let Ok(payments_response_data) = resp.response.to_owned() {
+                            match payments_response_data {
+                                types::PaymentsResponseData::TokenizationResponse { token } => {
+                                    Some(token)
+                                }
+                                _ => None,
+                            }
+                        } else {
+                            None
+                        }
+                    } else {
+                        None
+                    }
+                });
+
                 helpers::call_payment_method(
                     state,
                     merchant_account,
                     Some(&resp.request.get_payment_method_data()),
                     Some(resp.payment_method),
                     maybe_customer,
+                    Some(connector),
+                    token,
                 )
                 .await?;
             }

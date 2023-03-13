@@ -140,6 +140,14 @@ impl ConnectorIntegration<api::Verify, types::VerifyRequestData, types::Payments
 {
 }
 
+impl api::PaymentToken for Worldline {}
+
+impl ConnectorIntegration<api::Token, types::TokenizationData, types::PaymentsResponseData>
+    for Worldline
+{
+    // Not Implemented (R)
+}
+
 impl api::PaymentVoid for Worldline {}
 
 impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsResponseData>

@@ -58,6 +58,31 @@ pub struct Settings {
     pub pm_filters: ConnectorFilters,
     pub bank_config: BankRedirectConfig,
     pub api_keys: ApiKeys,
+    pub tokenization: TokenizationConfig,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+#[serde(transparent)]
+pub struct TokenizationConfig(pub HashMap<String, PaymentMethodTokenFilter>);
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct PaymentMethodTokenFilter {
+    #[serde(deserialize_with = "pm_deser")]
+    pub payment_method: HashSet<storage_models::enums::PaymentMethod>,
+}
+
+fn pm_deser<'a, D>(
+    deserializer: D,
+) -> Result<HashSet<storage_models::enums::PaymentMethod>, D::Error>
+where
+    D: Deserializer<'a>,
+{
+    let value = <String>::deserialize(deserializer)?;
+    Ok(value
+        .trim()
+        .split(',')
+        .flat_map(storage_models::enums::PaymentMethod::from_str)
+        .collect())
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]

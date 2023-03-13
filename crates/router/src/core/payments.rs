@@ -21,6 +21,7 @@ use self::{
     operations::{BoxedOperation, Operation},
 };
 use crate::{
+    connection,
     core::{
         errors::{self, RouterResponse, RouterResult},
         payment_methods::vault,
@@ -37,7 +38,6 @@ use crate::{
     utils::OptionExt,
 };
 
-#[instrument(skip_all)]
 pub async fn payments_operation_core<F, Req, Op, FData>(
     state: &AppState,
     merchant_account: storage::MerchantAccount,
@@ -92,13 +92,6 @@ where
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed while fetching/creating customer")?;
 
-    let (operation, payment_method_data) = operation
-        .to_domain()?
-        .make_pm_data(state, &mut payment_data, validate_result.storage_scheme)
-        .await?;
-
-    payment_data.payment_method_data = payment_method_data;
-
     let connector_details = operation
         .to_domain()?
         .get_connector(
@@ -115,11 +108,100 @@ where
                 state,
                 &merchant_account,
                 &mut payment_data,
-                connector_details,
+                connector_details.to_owned(),
             )
             .await?,
         ),
         false => None,
+    };
+
+    let connector_for_tokenization = match connector_details {
+        api::ConnectorCallType::Single(data) => Some(data.connector_name.to_string()),
+        _ => None,
+    };
+
+    let tokenization = if let Some(connector) = connector_for_tokenization.to_owned() {
+        let redis_conn = connection::redis_connection(&state.conf).await;
+        let token = payment_data.token.to_owned().get_required_value("token")?;
+        let key = format!(
+            "{}_token_{}_{}",
+            connector,
+            payment_data
+                .payment_attempt
+                .payment_method
+                .to_owned()
+                .get_required_value("payment_method")?,
+            token
+        );
+        let val = redis_conn.get_key::<String>(&key).await;
+
+        match val {
+            Ok(token) => {
+                payment_data.payment_attempt.payment_token = Some(token);
+                true
+            }
+            Err(_) => false,
+        }
+    } else {
+        false
+    };
+
+    if !tokenization {
+        let (operation, payment_method_data) = operation
+            .to_domain()?
+            .make_pm_data(state, &mut payment_data, validate_result.storage_scheme)
+            .await?;
+
+        payment_data.payment_method_data = payment_method_data;
+
+        if connector.is_some() {
+            let connector_name = payment_data
+                .payment_attempt
+                .connector
+                .to_owned()
+                .get_required_value("connector")?;
+
+            let connector_data = api::ConnectorData::get_connector_by_name(
+                &state.conf.connectors,
+                &connector_name,
+                api::GetToken::Connector,
+            )
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to get connector data")?;
+
+            let tokenization_connector_check = state.conf.tokenization.0.get(&connector_name);
+
+            let tokenization_pm_check = if let Some(connector_check) = tokenization_connector_check
+            {
+                connector_check.payment_method.contains(
+                    &payment_data
+                        .payment_attempt
+                        .payment_method
+                        .get_required_value("payment_method")?,
+                )
+            } else {
+                false
+            };
+
+            if tokenization_pm_check {
+                let mut token_payment_data = pdc::<_, api::Token>(payment_data.clone());
+                token_payment_data = call_connector_service::<api::Token, _, _>(
+                    state,
+                    &merchant_account,
+                    &validate_result.payment_id,
+                    connector_data,
+                    &operation,
+                    token_payment_data.to_owned(),
+                    &customer,
+                    call_connector_action.to_owned(),
+                )
+                .await?;
+
+                payment_data = pdc::<_, F>(token_payment_data.to_owned());
+                payment_data.payment_attempt.payment_token =
+                    token_payment_data.payment_attempt.payment_token.to_owned();
+            }
+        };
     };
 
     let (operation, mut payment_data) = operation
@@ -479,6 +561,7 @@ where
     Ok(payment_data)
 }
 
+#[derive(Clone)]
 pub enum CallConnectorAction {
     Trigger,
     Avoid,
@@ -514,6 +597,7 @@ where
     pub sessions_token: Vec<api::SessionToken>,
     pub card_cvc: Option<pii::Secret<String>>,
     pub email: Option<masking::Secret<String, pii::Email>>,
+    pub store_connector_token: Option<bool>,
 }
 
 #[derive(Debug, Default)]
@@ -709,5 +793,29 @@ where
         }
 
         call_type @ api::ConnectorCallType::Multiple(_) => Ok(call_type),
+    }
+}
+
+pub fn pdc<F: Clone, R: Clone>(p: PaymentData<F>) -> PaymentData<R> {
+    let PaymentData { .. } = p;
+    PaymentData {
+        flow: PhantomData,
+        payment_intent: p.payment_intent,
+        payment_attempt: p.payment_attempt,
+        connector_response: p.connector_response,
+        amount: p.amount,
+        mandate_id: p.mandate_id,
+        currency: p.currency,
+        setup_mandate: p.setup_mandate,
+        address: p.address,
+        token: p.token,
+        confirm: p.confirm,
+        force_sync: p.force_sync,
+        payment_method_data: p.payment_method_data,
+        refunds: p.refunds,
+        sessions_token: p.sessions_token,
+        card_cvc: p.card_cvc,
+        email: p.email,
+        store_connector_token: p.store_connector_token,
     }
 }

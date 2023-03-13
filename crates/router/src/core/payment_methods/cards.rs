@@ -11,14 +11,20 @@ use api_models::{
     payments::BankCodeResponse,
 };
 use common_utils::{consts, ext_traits::AsyncExt, generate_id};
-use error_stack::{report, ResultExt};
+use error_stack::{report, IntoReport, ResultExt};
 use router_env::{instrument, tracing};
+use serde_json::Value;
+use storage_models::payment_method::PaymentMethodUpdate;
 
 use crate::{
     configs::settings,
+    connection,
     core::{
         errors::{self, StorageErrorExt},
-        payment_methods::{transformers as payment_methods, vault},
+        payment_methods::{
+            transformers::{self as payment_methods},
+            vault,
+        },
         payments::helpers,
     },
     db, logger,
@@ -39,7 +45,26 @@ pub async fn create_payment_method(
     customer_id: &str,
     payment_method_id: &str,
     merchant_id: &str,
+    connector: Option<&api::ConnectorData>,
+    token: Option<String>,
 ) -> errors::CustomResult<storage::PaymentMethod, errors::StorageError> {
+    let pm_metadata = token
+        .map(|token| -> errors::CustomResult<_, errors::StorageError> {
+            let metadata = payment_methods::PaymentMethodMetadata {
+                connector: connector
+                    .ok_or(errors::StorageError::ValueNotFound("connector".to_string()))?
+                    .connector_name
+                    .to_string(),
+                token,
+            };
+            let metadata_value =
+                utils::Encode::<payment_methods::PaymentMethodMetadata>::encode_to_value(&metadata)
+                    .change_context(errors::StorageError::SerializationFailed)?;
+            let vec_value: Vec<Value> = vec![metadata_value];
+            Ok(Value::Array(vec_value))
+        })
+        .transpose()?;
+
     let response = db
         .insert_payment_method(storage::PaymentMethodNew {
             customer_id: customer_id.to_string(),
@@ -49,7 +74,7 @@ pub async fn create_payment_method(
             payment_method_type: req.payment_method_type.map(ForeignInto::foreign_into),
             payment_method_issuer: req.payment_method_issuer.clone(),
             scheme: req.card_network.clone(),
-            metadata: req.metadata.clone(),
+            metadata: pm_metadata,
             ..storage::PaymentMethodNew::default()
         })
         .await?;
@@ -62,15 +87,25 @@ pub async fn add_payment_method(
     state: &routes::AppState,
     req: api::PaymentMethodCreate,
     merchant_account: &storage::MerchantAccount,
+    connector: Option<&api::ConnectorData>,
+    token: Option<String>,
 ) -> errors::RouterResponse<api::PaymentMethodResponse> {
     req.validate()?;
     let merchant_id = &merchant_account.merchant_id;
     let customer_id = req.customer_id.clone().get_required_value("customer_id")?;
     match req.card.clone() {
-        Some(card) => add_card(state, req, card, customer_id, merchant_account)
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Add Card Failed"),
+        Some(card) => add_card(
+            state,
+            req,
+            card,
+            customer_id,
+            merchant_account,
+            connector,
+            token,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Add Card Failed"),
         None => {
             let payment_method_id = generate_id(consts::ID_LENGTH, "pm");
             create_payment_method(
@@ -79,6 +114,8 @@ pub async fn add_payment_method(
                 &customer_id,
                 &payment_method_id,
                 merchant_id,
+                connector,
+                token,
             )
             .await
             .map_err(|error| {
@@ -135,7 +172,7 @@ pub async fn update_customer_payment_method(
             .as_ref()
             .map(|card_network| card_network.to_string()),
     };
-    add_payment_method(state, new_pm, &merchant_account).await
+    add_payment_method(state, new_pm, &merchant_account, None, None).await
 }
 
 #[instrument(skip_all)]
@@ -145,6 +182,8 @@ pub async fn add_card(
     card: api::CardDetail,
     customer_id: String,
     merchant_account: &storage::MerchantAccount,
+    connector: Option<&api::ConnectorData>,
+    token: Option<String>,
 ) -> errors::CustomResult<api::PaymentMethodResponse, errors::VaultError> {
     let locker = &state.conf.locker;
     let db = &*state.store;
@@ -184,26 +223,69 @@ pub async fn add_card(
         mock_add_card(db, &card_id, &card, None, None, Some(&customer_id)).await?
     };
 
-    if let Some(false) = response.duplicate {
-        create_payment_method(db, &req, &customer_id, &response.card_id, merchant_id)
-            .await
-            .change_context(errors::VaultError::PaymentMethodCreationFailed)?;
-    } else {
-        match db.find_payment_method(&response.card_id).await {
-            Ok(_) => (),
-            Err(err) => {
-                if err.current_context().is_db_not_found() {
-                    create_payment_method(db, &req, &customer_id, &response.card_id, merchant_id)
-                        .await
-                        .change_context(errors::VaultError::PaymentMethodCreationFailed)?;
+    match db.find_payment_method(&response.card_id).await {
+        Ok(pm) => {
+            if let Some(token) = token.to_owned() {
+                let metadata = payment_methods::PaymentMethodMetadata {
+                    connector: connector
+                        .ok_or(errors::VaultError::MissingRequiredField {
+                            field_name: "connector",
+                        })?
+                        .connector_name
+                        .to_string(),
+                    token,
+                };
+                let metadata_value =
+                    utils::Encode::<payment_methods::PaymentMethodMetadata>::encode_to_value(
+                        &metadata,
+                    )
+                    .change_context(errors::VaultError::RequestEncodingFailed)?;
+
+                let mut vec_value: Vec<Value> = Vec::new();
+                if let Some(pm_metadata) = pm.metadata.to_owned() {
+                    let pm_metadata_vec = pm_metadata.as_array();
+                    if let Some(data) = pm_metadata_vec {
+                        for val in data {
+                            vec_value.push(val.to_owned());
+                        }
+                        vec_value.push(metadata_value);
+                    } else {
+                        vec_value.push(metadata_value);
+                    }
                 } else {
-                    Err(errors::VaultError::PaymentMethodCreationFailed)?;
+                    vec_value.push(metadata_value);
                 }
+
+                let pm_update = PaymentMethodUpdate::MetadataUpdate {
+                    metadata: Some(Value::Array(vec_value)),
+                };
+
+                let _updated_pm = db
+                    .update_payment_method(pm, pm_update)
+                    .await
+                    .change_context(errors::VaultError::UpdateInPMDTableFailed)?;
+            };
+        }
+        Err(err) => {
+            if err.current_context().is_db_not_found() {
+                create_payment_method(
+                    db,
+                    &req,
+                    &customer_id,
+                    &response.card_id,
+                    merchant_id,
+                    connector,
+                    token.to_owned(),
+                )
+                .await
+                .change_context(errors::VaultError::PaymentMethodCreationFailed)?;
+            } else {
+                Err(errors::VaultError::PaymentMethodCreationFailed)?;
             }
         }
     }
     let payment_method_resp =
-        payment_methods::mk_add_card_response(card, response, req, merchant_id);
+        payment_methods::mk_add_card_response(card, response, req, merchant_id, connector, token);
     Ok(payment_method_resp)
 }
 
@@ -693,7 +775,7 @@ pub async fn list_payment_methods(
 
 #[allow(clippy::too_many_arguments)]
 async fn filter_payment_methods(
-    payment_methods: Vec<serde_json::Value>,
+    payment_methods: Vec<Value>,
     req: &mut api::PaymentMethodListRequest,
     resp: &mut Vec<ResponsePaymentMethodIntermediate>,
     payment_intent: Option<&storage::PaymentIntent>,
@@ -1130,7 +1212,39 @@ pub async fn list_customer_payment_method(
             payment_experience: Some(vec![api_models::enums::PaymentExperience::RedirectToUrl]),
             created: Some(pm.created_at),
         };
-        customer_pms.push(pma);
+        customer_pms.push(pma.to_owned());
+
+        if let Some(metadata) = pma.metadata {
+            let redis_conn = connection::redis_connection(&state.conf).await;
+            let connector_token_data = utils::Encode::<Value>::encode_to_string_of_json(&metadata)
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Encoding to string of json failed")?;
+
+            let pm_metadata_vec: Vec<payment_methods::PaymentMethodMetadata> =
+                serde_json::from_str(connector_token_data.as_str())
+                    .into_report()
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable(
+                        "Failed to deserialize metadata to PaymmentmethodMetadata struct",
+                    )?;
+
+            for pm_metadata in pm_metadata_vec {
+                let key = format!(
+                    "{}_token_{}_hyperswitch_{}",
+                    pm_metadata.connector, pma.payment_method, payment_token
+                );
+                redis_conn
+                    .set_key_with_expiry(&key, pm_metadata.token, 900)
+                    .await
+                    .map_err(|error| {
+                        logger::error!(access_token_kv_error=?error);
+                        errors::StorageError::KVError
+                    })
+                    .into_report()
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to add data in redis")?;
+            }
+        }
     }
 
     let response = api::CustomerPaymentMethodsListResponse {

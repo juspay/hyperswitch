@@ -33,6 +33,7 @@ pub type PaymentsSessionRouterData =
 pub type RefundsRouterData<F> = RouterData<F, RefundsData, RefundsResponseData>;
 pub type RefundExecuteRouterData = RouterData<api::Execute, RefundsData, RefundsResponseData>;
 pub type RefundSyncRouterData = RouterData<api::RSync, RefundsData, RefundsResponseData>;
+pub type TokenizationRouterData = RouterData<api::Token, TokenizationData, PaymentsResponseData>;
 
 pub type RefreshTokenRouterData =
     RouterData<api::AccessTokenAuth, AccessTokenRequestData, AccessToken>;
@@ -47,6 +48,8 @@ pub type PaymentsSessionResponseRouterData<R> =
     ResponseRouterData<api::Session, R, PaymentsSessionData, PaymentsResponseData>;
 pub type PaymentsCaptureResponseRouterData<R> =
     ResponseRouterData<api::Capture, R, PaymentsCaptureData, PaymentsResponseData>;
+pub type TokenizationResponseRouterData<R> =
+    ResponseRouterData<api::Token, R, TokenizationData, PaymentsResponseData>;
 
 pub type RefundsResponseRouterData<F, R> =
     ResponseRouterData<F, R, RefundsData, RefundsResponseData>;
@@ -66,6 +69,9 @@ pub type PaymentsSessionType =
     dyn services::ConnectorIntegration<api::Session, PaymentsSessionData, PaymentsResponseData>;
 pub type PaymentsVoidType =
     dyn services::ConnectorIntegration<api::Void, PaymentsCancelData, PaymentsResponseData>;
+
+pub type TokenizationType =
+    dyn services::ConnectorIntegration<api::Token, TokenizationData, PaymentsResponseData>;
 
 pub type RefundExecuteType =
     dyn services::ConnectorIntegration<api::Execute, RefundsData, RefundsResponseData>;
@@ -97,6 +103,7 @@ pub struct RouterData<Flow, Request, Response> {
     pub access_token: Option<AccessToken>,
     pub session_token: Option<String>,
     pub reference_id: Option<String>,
+    pub store_connector_token: Option<bool>,
 
     /// Contains flow-specific data required to construct a request and send it to the connector.
     pub request: Request,
@@ -143,6 +150,11 @@ pub struct AuthorizeSessionTokenData {
     pub currency: storage_enums::Currency,
     pub connector_transaction_id: String,
     pub amount: i64,
+}
+
+#[derive(Debug, Clone)]
+pub struct TokenizationData {
+    pub payment_method_data: payments::PaymentMethodData,
 }
 
 #[derive(Debug, Clone)]
@@ -212,6 +224,9 @@ pub enum PaymentsResponseData {
     },
     SessionTokenResponse {
         session_token: String,
+    },
+    TokenizationResponse {
+        token: String,
     },
 }
 
@@ -425,6 +440,7 @@ impl From<&&mut PaymentsAuthorizeRouterData> for PaymentsAuthorizeSessionTokenRo
             payment_id: data.payment_id.clone(),
             session_token: data.session_token.clone(),
             reference_id: data.reference_id.clone(),
+            store_connector_token: None,
         }
     }
 }

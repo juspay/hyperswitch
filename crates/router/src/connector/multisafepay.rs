@@ -79,6 +79,14 @@ impl ConnectorCommon for Multisafepay {
 
 impl api::Payment for Multisafepay {}
 
+impl api::PaymentToken for Multisafepay {}
+
+impl ConnectorIntegration<api::Token, types::TokenizationData, types::PaymentsResponseData>
+    for Multisafepay
+{
+    // Not Implemented (R)
+}
+
 impl api::PreVerify for Multisafepay {}
 impl ConnectorIntegration<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>
     for Multisafepay

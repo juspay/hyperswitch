@@ -192,6 +192,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 connector_response,
                 sessions_token: vec![],
                 card_cvc: request.card_cvc.clone(),
+                store_connector_token: request.store_connector_token,
             },
             Some(CustomerDetails {
                 customer_id: request.customer_id.clone(),

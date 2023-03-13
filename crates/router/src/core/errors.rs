@@ -300,6 +300,8 @@ pub enum VaultError {
     MissingRequiredField { field_name: &'static str },
     #[error("The card vault returned an unexpected response: {0:?}")]
     UnexpectedResponseError(bytes::Bytes),
+    #[error("Failed to update in PMD table")]
+    UpdateInPMDTableFailed,
 }
 
 #[derive(Debug, thiserror::Error)]

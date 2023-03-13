@@ -38,6 +38,14 @@ impl api::PaymentCapture for Applepay {}
 impl api::PreVerify for Applepay {}
 impl api::PaymentSession for Applepay {}
 impl api::ConnectorAccessToken for Applepay {}
+impl api::PaymentToken for Applepay {}
+
+impl
+    services::ConnectorIntegration<api::Token, types::TokenizationData, types::PaymentsResponseData>
+    for Applepay
+{
+    // Not Implemented (R)
+}
 
 impl
     services::ConnectorIntegration<

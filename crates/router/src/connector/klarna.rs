@@ -54,6 +54,14 @@ impl api::PaymentVoid for Klarna {}
 impl api::PaymentCapture for Klarna {}
 impl api::PaymentSession for Klarna {}
 impl api::ConnectorAccessToken for Klarna {}
+impl api::PaymentToken for Klarna {}
+
+impl
+    services::ConnectorIntegration<api::Token, types::TokenizationData, types::PaymentsResponseData>
+    for Klarna
+{
+    // Not Implemented (R)
+}
 
 impl
     services::ConnectorIntegration<

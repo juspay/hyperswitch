@@ -143,6 +143,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsStartRequest> f
                 refunds: vec![],
                 sessions_token: vec![],
                 card_cvc: None,
+                store_connector_token: None,
             },
             Some(customer_details),
         ))

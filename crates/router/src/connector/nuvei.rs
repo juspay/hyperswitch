@@ -64,6 +64,14 @@ impl ConnectorCommon for Nuvei {
 
 impl api::Payment for Nuvei {}
 
+impl api::PaymentToken for Nuvei {}
+
+impl ConnectorIntegration<api::Token, types::TokenizationData, types::PaymentsResponseData>
+    for Nuvei
+{
+    // Not Implemented (R)
+}
+
 impl api::PreVerify for Nuvei {}
 impl ConnectorIntegration<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>
     for Nuvei

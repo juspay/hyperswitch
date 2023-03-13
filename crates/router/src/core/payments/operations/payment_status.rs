@@ -274,6 +274,7 @@ async fn get_tracker_for_sync<
             refunds,
             sessions_token: vec![],
             card_cvc: None,
+            store_connector_token: None,
         },
         None,
     ))

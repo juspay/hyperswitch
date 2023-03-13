@@ -194,6 +194,14 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
 
 impl api::Payment for Globalpay {}
 
+impl api::PaymentToken for Globalpay {}
+
+impl ConnectorIntegration<api::Token, types::TokenizationData, types::PaymentsResponseData>
+    for Globalpay
+{
+    // Not Implemented (R)
+}
+
 impl api::PreVerify for Globalpay {}
 impl ConnectorIntegration<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>
     for Globalpay

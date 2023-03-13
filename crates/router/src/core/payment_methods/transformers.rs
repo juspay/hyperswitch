@@ -63,6 +63,18 @@ pub struct DeleteCardResponse {
     pub status: String,
 }
 
+#[derive(Debug, Deserialize, Serialize)]
+pub struct ListOfPmMetadata {
+    #[serde(flatten)]
+    list_of_metadata: Vec<PaymentMethodMetadata>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct PaymentMethodMetadata {
+    pub connector: String,
+    pub token: String,
+}
+
 pub fn mk_add_card_request(
     locker: &Locker,
     card: &api::CardDetail,
@@ -101,6 +113,8 @@ pub fn mk_add_card_response(
     response: AddCardResponse,
     req: api::PaymentMethodCreate,
     merchant_id: &str,
+    _connector: Option<&api::ConnectorData>,
+    _token: Option<String>,
 ) -> api::PaymentMethodResponse {
     let mut card_number = card.card_number.peek().to_owned();
     let card = api::CardDetailFromLocker {

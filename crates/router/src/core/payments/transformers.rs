@@ -100,6 +100,7 @@ where
         access_token: None,
         session_token: None,
         reference_id: None,
+        store_connector_token: payment_data.store_connector_token,
     };
 
     Ok(router_data)
@@ -544,6 +545,18 @@ impl<F: Clone> TryFrom<PaymentData<F>> for types::VerifyRequestData {
             off_session: payment_data.mandate_id.as_ref().map(|_| true),
             mandate_id: payment_data.mandate_id.clone(),
             setup_mandate_details: payment_data.setup_mandate,
+        })
+    }
+}
+
+impl<F: Clone> TryFrom<PaymentData<F>> for types::TokenizationData {
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
+
+    fn try_from(payment_data: PaymentData<F>) -> Result<Self, Self::Error> {
+        Ok(Self {
+            payment_method_data: payment_data
+                .payment_method_data
+                .get_required_value("payment_method_data")?,
         })
     }
 }

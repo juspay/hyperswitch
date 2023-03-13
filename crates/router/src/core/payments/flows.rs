@@ -3,6 +3,7 @@ pub mod cancel_flow;
 pub mod capture_flow;
 pub mod psync_flow;
 pub mod session_flow;
+pub mod tokenization_flow;
 pub mod verfiy_flow;
 
 use async_trait::async_trait;

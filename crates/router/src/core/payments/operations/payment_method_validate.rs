@@ -151,6 +151,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::VerifyRequest> for Paym
                 refunds: vec![],
                 sessions_token: vec![],
                 card_cvc: None,
+                store_connector_token: None,
             },
             Some(payments::CustomerDetails {
                 customer_id: request.customer_id.clone(),

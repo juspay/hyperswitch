@@ -500,6 +500,8 @@ pub(crate) async fn call_payment_method(
     payment_method: Option<&api::PaymentMethodData>,
     payment_method_type: Option<storage_enums::PaymentMethod>,
     maybe_customer: &Option<storage::Customer>,
+    connector: Option<&api::ConnectorData>,
+    token: Option<String>,
 ) -> RouterResult<api::PaymentMethodResponse> {
     match payment_method {
         Some(pm_data) => match payment_method_type {
@@ -531,6 +533,8 @@ pub(crate) async fn call_payment_method(
                                 state,
                                 payment_method_request,
                                 merchant_account,
+                                connector,
+                                token,
                             )
                             .await
                             .attach_printable("Error on adding payment method")?;
@@ -559,10 +563,15 @@ pub(crate) async fn call_payment_method(
                         customer_id: None,
                         card_network: None,
                     };
-                    let resp =
-                        cards::add_payment_method(state, payment_method_request, merchant_account)
-                            .await
-                            .attach_printable("Error on adding payment method")?;
+                    let resp = cards::add_payment_method(
+                        state,
+                        payment_method_request,
+                        merchant_account,
+                        connector,
+                        token,
+                    )
+                    .await
+                    .attach_printable("Error on adding payment method")?;
                     match resp {
                         crate::services::ApplicationResponse::Json(payment_method) => {
                             Ok(payment_method)

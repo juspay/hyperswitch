@@ -30,6 +30,7 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
         description: Some("This is a test".to_string()),
         router_return_url: None,
         return_url: None,
+        store_connector_token: None,
         request: types::PaymentsAuthorizeData {
             amount: 1000,
             currency: enums::Currency::USD,
@@ -104,6 +105,7 @@ fn construct_refund_router_data<F>() -> types::RefundsRouterData<F> {
         access_token: None,
         session_token: None,
         reference_id: None,
+        store_connector_token: None,
     }
 }
 

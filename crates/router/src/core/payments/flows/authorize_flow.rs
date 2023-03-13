@@ -110,10 +110,14 @@ impl types::PaymentsAuthorizeRouterData {
                 .await
                 .map_err(|error| error.to_payment_failed_response())?;
 
-                Ok(
-                    mandate::mandate_procedure(state, resp, maybe_customer, merchant_account)
-                        .await?,
+                Ok(mandate::mandate_procedure(
+                    state,
+                    resp,
+                    maybe_customer,
+                    merchant_account,
+                    connector,
                 )
+                .await?)
             }
             _ => Ok(self.clone()),
         }

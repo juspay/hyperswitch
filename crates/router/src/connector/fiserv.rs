@@ -77,6 +77,15 @@ impl
 
 impl api::Payment for Fiserv {}
 
+impl api::PaymentToken for Fiserv {}
+
+impl
+    services::ConnectorIntegration<api::Token, types::TokenizationData, types::PaymentsResponseData>
+    for Fiserv
+{
+    // Not Implemented (R)
+}
+
 impl api::PreVerify for Fiserv {}
 
 #[allow(dead_code)]

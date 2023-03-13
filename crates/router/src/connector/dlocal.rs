@@ -30,6 +30,7 @@ use crate::{
 pub struct Dlocal;
 
 impl api::Payment for Dlocal {}
+impl api::PaymentToken for Dlocal {}
 impl api::PaymentSession for Dlocal {}
 impl api::ConnectorAccessToken for Dlocal {}
 impl api::PreVerify for Dlocal {}
@@ -113,6 +114,12 @@ impl ConnectorCommon for Dlocal {
             reason: response.param,
         })
     }
+}
+
+impl ConnectorIntegration<api::Token, types::TokenizationData, types::PaymentsResponseData>
+    for Dlocal
+{
+    // Not Implemented (R)
 }
 
 impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::PaymentsResponseData>

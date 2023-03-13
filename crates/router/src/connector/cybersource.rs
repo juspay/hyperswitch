@@ -178,6 +178,13 @@ impl api::PaymentVoid for Cybersource {}
 impl api::PaymentCapture for Cybersource {}
 impl api::PreVerify for Cybersource {}
 impl api::ConnectorAccessToken for Cybersource {}
+impl api::PaymentToken for Cybersource {}
+
+impl ConnectorIntegration<api::Token, types::TokenizationData, types::PaymentsResponseData>
+    for Cybersource
+{
+    // Not Implemented (R)
+}
 
 impl ConnectorIntegration<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>
     for Cybersource

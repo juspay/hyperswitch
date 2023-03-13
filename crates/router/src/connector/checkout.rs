@@ -61,6 +61,14 @@ impl api::PaymentVoid for Checkout {}
 impl api::PaymentCapture for Checkout {}
 impl api::PaymentSession for Checkout {}
 impl api::ConnectorAccessToken for Checkout {}
+impl api::PaymentToken for Checkout {}
+
+impl
+    services::ConnectorIntegration<api::Token, types::TokenizationData, types::PaymentsResponseData>
+    for Checkout
+{
+    // Not Implemented (R)
+}
 
 impl
     services::ConnectorIntegration<

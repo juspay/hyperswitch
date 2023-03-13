@@ -196,6 +196,9 @@ pub struct PaymentsRequest {
     /// Payment Method Type
     #[schema(value_type = Option<PaymentMethodType>, example = "google_pay")]
     pub payment_method_type: Option<api_enums::PaymentMethodType>,
+
+    /// It is set to true, if the token is long lived and is set to false, if the token  is short lived
+    pub store_connector_token: Option<bool>,
 }
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, Copy, PartialEq, Eq)]
