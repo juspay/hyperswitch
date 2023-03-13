@@ -1,5 +1,4 @@
-use error_stack::{IntoReport, Report};
-use masking::PeekInterface;
+use error_stack::IntoReport;
 
 use super::{MockDb, Store};
 use crate::{
@@ -30,11 +29,6 @@ pub trait MerchantAccountInterface {
         &self,
         merchant_id: &str,
         merchant_account: storage::MerchantAccountUpdate,
-    ) -> CustomResult<storage::MerchantAccount, errors::StorageError>;
-
-    async fn find_merchant_account_by_api_key(
-        &self,
-        api_key: &str,
     ) -> CustomResult<storage::MerchantAccount, errors::StorageError>;
 
     async fn find_merchant_account_by_publishable_key(
@@ -138,17 +132,6 @@ impl MerchantAccountInterface for Store {
         }
     }
 
-    async fn find_merchant_account_by_api_key(
-        &self,
-        api_key: &str,
-    ) -> CustomResult<storage::MerchantAccount, errors::StorageError> {
-        let conn = pg_connection(&self.master_pool).await?;
-        storage::MerchantAccount::find_by_api_key(&conn, api_key)
-            .await
-            .map_err(Into::into)
-            .into_report()
-    }
-
     async fn find_merchant_account_by_publishable_key(
         &self,
         publishable_key: &str,
@@ -196,7 +179,6 @@ impl MerchantAccountInterface for MockDb {
             #[allow(clippy::as_conversions)]
             id: accounts.len() as i32,
             merchant_id: merchant_account.merchant_id,
-            api_key: merchant_account.api_key,
             return_url: merchant_account.return_url,
             enable_payment_response_hash: merchant_account
                 .enable_payment_response_hash
@@ -253,21 +235,6 @@ impl MerchantAccountInterface for MockDb {
     ) -> CustomResult<storage::MerchantAccount, errors::StorageError> {
         // [#TODO]: Implement function for `MockDb`
         Err(errors::StorageError::MockDbError)?
-    }
-
-    #[allow(clippy::panic)]
-    async fn find_merchant_account_by_api_key(
-        &self,
-        api_key: &str,
-    ) -> CustomResult<storage::MerchantAccount, errors::StorageError> {
-        let accounts = self.merchant_accounts.lock().await;
-
-        accounts
-            .iter()
-            .find(|account| account.api_key.as_ref().map(|s| s.peek()) == Some(&api_key.into()))
-            .cloned()
-            .ok_or_else(|| Report::from(storage_models::errors::DatabaseError::NotFound).into())
-            .into_report()
     }
 
     async fn find_merchant_account_by_publishable_key(
