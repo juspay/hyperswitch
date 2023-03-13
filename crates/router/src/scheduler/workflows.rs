@@ -44,7 +44,8 @@ macro_rules! as_item {
 
 runners! {
     PaymentsSyncWorkflow,
-    RefundWorkflowRouter
+    RefundWorkflowRouter,
+    AccessTokenRefresh
 }
 
 #[async_trait]
