@@ -371,7 +371,7 @@ pub async fn get_card_from_hs_locker<'a>(
     .await
     .change_context(errors::VaultError::FetchCardFailed)
     .attach_printable("Making get card request failed")?;
-    let get_card_resp = if !locker.mock_locker {
+    if !locker.mock_locker {
         let response = services::call_connector_api(state, request)
             .await
             .change_context(errors::VaultError::FetchCardFailed)
@@ -398,9 +398,7 @@ pub async fn get_card_from_hs_locker<'a>(
         let (get_card_resp, _) = mock_get_card(&*state.store, card_reference).await?;
         payment_methods::mk_get_card_response(get_card_resp)
             .change_context(errors::VaultError::ResponseDeserializationFailed)
-    };
-
-    get_card_resp
+    }
 }
 
 // Legacy Locker Function
