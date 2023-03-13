@@ -5,6 +5,7 @@ use common_utils::{ext_traits::AsyncExt, fp_utils};
 use error_stack::{report, IntoReport, ResultExt};
 use masking::ExposeOptionInterface;
 use router_env::{instrument, tracing};
+use storage_models::enums;
 use uuid::Uuid;
 
 use super::{
@@ -725,6 +726,7 @@ pub async fn make_pm_data<'a, F: Clone, R>(
                             Some(token),
                             &updated_pm,
                             payment_data.payment_intent.customer_id.to_owned(),
+                            enums::PaymentMethod::Card,
                         )
                         .await?;
                         Some(updated_pm)
@@ -746,6 +748,7 @@ pub async fn make_pm_data<'a, F: Clone, R>(
                                 Some(token),
                                 &updated_pm,
                                 payment_data.payment_intent.customer_id.to_owned(),
+                                enums::PaymentMethod::Wallet,
                             )
                             .await?;
                             Some(updated_pm)
@@ -768,6 +771,7 @@ pub async fn make_pm_data<'a, F: Clone, R>(
                 None,
                 pm,
                 payment_data.payment_intent.customer_id.to_owned(),
+                enums::PaymentMethod::Card,
             )
             .await?;
             payment_data.token = Some(token);
@@ -781,6 +785,7 @@ pub async fn make_pm_data<'a, F: Clone, R>(
                 None,
                 pm,
                 payment_data.payment_intent.customer_id.to_owned(),
+                enums::PaymentMethod::Wallet,
             )
             .await?;
             payment_data.token = Some(token);
