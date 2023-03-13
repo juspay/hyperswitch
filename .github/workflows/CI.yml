@@ -415,10 +415,13 @@ jobs:
           redis-image: redis/redis-stack-server
 
       - name: Run connector tests
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: --package router --test connectors -- ${{ matrix.connector }} --test-threads=1
+        shell: bash
+        run: cargo nextest run --package router --test connectors -- ${{ matrix.connector }}
+      #- name: Run connector tests
+      #  uses: actions-rs/cargo@v1
+      #  with:
+      #    command: test
+      #    args: --package router --test connectors -- ${{ matrix.connector }} --test-threads=1
   
   typos:
     name: Spell check
