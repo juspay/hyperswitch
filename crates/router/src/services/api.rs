@@ -22,10 +22,9 @@ use crate::{
     configs::settings::Connectors,
     consts,
     core::{
-        errors::{self, CustomResult, RouterResult},
+        errors::{self, CustomResult},
         payments,
     },
-    db::StorageInterface,
     logger,
     routes::{app::AppStateInfo, AppState},
     services::authentication as auth,
@@ -522,17 +521,6 @@ where
 {
     logger::error!(?error);
     HttpResponse::from_error(error.current_context().clone())
-}
-
-pub async fn authenticate_by_api_key(
-    store: &dyn StorageInterface,
-    api_key: &str,
-) -> RouterResult<storage::MerchantAccount> {
-    store
-        .find_merchant_account_by_api_key(api_key)
-        .await
-        .change_context(errors::ApiErrorResponse::Unauthorized)
-        .attach_printable("Merchant not authenticated")
 }
 
 pub fn http_response_json<T: body::MessageBody + 'static>(response: T) -> HttpResponse {
