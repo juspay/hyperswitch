@@ -18,7 +18,7 @@ use crate::{
 #[derive(Debug, Serialize, Deserialize)]
 pub struct GlobalPayMeta {
     account_name: String,
-    status_url : String,
+    status_url: String,
 }
 
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for GlobalpayPaymentsRequest {
@@ -305,7 +305,6 @@ impl From<GlobalpayPaymentStatus> for enums::RefundStatus {
     }
 }
 
-
 impl From<Option<enums::CaptureMethod>> for requests::CaptureMode {
     fn from(capture_method: Option<enums::CaptureMethod>) -> Self {
         match capture_method {
@@ -320,8 +319,10 @@ fn get_payment_response(
     response: GlobalpayPaymentsResponse,
 ) -> Result<types::PaymentsResponseData, ErrorResponse> {
     let redirection_data = response.payment_method.as_ref().and_then(|payment_method| {
-        payment_method.redirect_url.as_ref().map(|redirect_url| {
-            services::RedirectForm::from((redirect_url.to_owned(), services::Method::Get))
+        payment_method.apm.as_ref().and_then(|apm| {
+            apm.redirect_url.as_ref().map(|redirect_url| {
+                services::RedirectForm::from((redirect_url.to_owned(), services::Method::Get))
+            })
         })
     });
     match status {

@@ -75,6 +75,12 @@ where
         &merchant_connector_account.connector_name,
     ));
 
+    let webhook_url = Some(helpers::create_redirect_url(
+        &state.conf.server,
+        &payment_data.payment_attempt,
+        &merchant_connector_account.connector_name,
+    ));
+
     router_data = types::RouterData {
         flow: PhantomData,
         merchant_id: merchant_account.merchant_id.clone(),
@@ -87,6 +93,7 @@ where
         description: payment_data.payment_intent.description.clone(),
         return_url: payment_data.payment_intent.return_url.clone(),
         router_return_url,
+        webhook_url,
         payment_method_id: payment_data.payment_attempt.payment_method_id.clone(),
         address: payment_data.address.clone(),
         auth_type: payment_data

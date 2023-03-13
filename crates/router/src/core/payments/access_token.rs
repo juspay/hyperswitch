@@ -42,6 +42,7 @@ pub fn router_data_type_conversion<F1, F2, Req1, Req2, Res1, Res2>(
         payment_method: router_data.payment_method,
         payment_method_id: router_data.payment_method_id,
         return_url: router_data.return_url,
+        webhook_url: router_data.webhook_url,
         status: router_data.status,
         attempt_id: router_data.attempt_id,
         access_token: router_data.access_token,
@@ -61,7 +62,7 @@ pub fn update_router_data_with_access_token_result<F, Req, Res>(
             add_access_token_result.connector_supports_access_token,
             call_connector_action
         ),
-        (true, payments::CallConnectorAction::Trigger)
+        (true, payments::CallConnectorAction::Trigger) | (true, payments::CallConnectorAction::HandleResponse(_)) 
     );
 
     if should_update_router_data {
