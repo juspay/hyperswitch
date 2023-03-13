@@ -1,3 +1,4 @@
+use common_utils::pii;
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
@@ -25,7 +26,7 @@ pub struct Refund {
     pub refund_status: storage_enums::RefundStatus,
     pub sent_to_gateway: bool,
     pub refund_error_message: Option<String>,
-    pub metadata: Option<serde_json::Value>,
+    pub metadata: Option<pii::SecretSerdeValue>,
     pub refund_arn: Option<String>,
     pub created_at: PrimitiveDateTime,
     pub updated_at: PrimitiveDateTime,
@@ -63,7 +64,7 @@ pub struct RefundNew {
     pub refund_amount: i64,
     pub refund_status: storage_enums::RefundStatus,
     pub sent_to_gateway: bool,
-    pub metadata: Option<serde_json::Value>,
+    pub metadata: Option<pii::SecretSerdeValue>,
     pub refund_arn: Option<String>,
     pub created_at: Option<PrimitiveDateTime>,
     pub modified_at: Option<PrimitiveDateTime>,
@@ -82,7 +83,7 @@ pub enum RefundUpdate {
         refund_arn: String,
     },
     MetadataAndReasonUpdate {
-        metadata: Option<serde_json::Value>,
+        metadata: Option<pii::SecretSerdeValue>,
         reason: Option<String>,
     },
     StatusUpdate {
@@ -105,7 +106,7 @@ pub struct RefundUpdateInternal {
     sent_to_gateway: Option<bool>,
     refund_error_message: Option<String>,
     refund_arn: Option<String>,
-    metadata: Option<serde_json::Value>,
+    metadata: Option<pii::SecretSerdeValue>,
     refund_reason: Option<String>,
     refund_error_code: Option<String>,
 }
@@ -160,13 +161,15 @@ impl RefundUpdate {
     pub fn apply_changeset(self, source: Refund) -> Refund {
         let pa_update: RefundUpdateInternal = self.into();
         Refund {
-            connector_refund_id: pa_update.connector_refund_id,
+            connector_refund_id: pa_update.connector_refund_id.or(source.connector_refund_id),
             refund_status: pa_update.refund_status.unwrap_or(source.refund_status),
             sent_to_gateway: pa_update.sent_to_gateway.unwrap_or(source.sent_to_gateway),
-            refund_error_message: pa_update.refund_error_message,
-            refund_error_code: pa_update.refund_error_code,
-            refund_arn: pa_update.refund_arn,
-            metadata: pa_update.metadata,
+            refund_error_message: pa_update
+                .refund_error_message
+                .or(source.refund_error_message),
+            refund_error_code: pa_update.refund_error_code.or(source.refund_error_code),
+            refund_arn: pa_update.refund_arn.or(source.refund_arn),
+            metadata: pa_update.metadata.or(source.metadata),
             ..source
         }
     }

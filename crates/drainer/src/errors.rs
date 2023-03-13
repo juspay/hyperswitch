@@ -5,7 +5,7 @@ use thiserror::Error;
 pub enum DrainerError {
     #[error("Error in parsing config : {0}")]
     ConfigParsingError(String),
-    #[error("Error during redis operation : {0}")]
+    #[error("Error during redis operation : {0:?}")]
     RedisError(error_stack::Report<redis::errors::RedisError>),
     #[error("Application configuration error: {0}")]
     ConfigurationError(config::ConfigError),

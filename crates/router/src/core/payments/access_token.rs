@@ -10,7 +10,7 @@ use crate::{
     },
     routes::AppState,
     services,
-    types::{self, api as api_types, storage},
+    types::{self, api as api_types, storage, transformers::ForeignInto},
 };
 
 /// This function replaces the request and response type of routerdata with the
@@ -47,6 +47,29 @@ pub fn router_data_type_conversion<F1, F2, Req1, Req2, Res1, Res2>(
         attempt_id: router_data.attempt_id,
         access_token: router_data.access_token,
         session_token: router_data.session_token,
+        reference_id: None,
+    }
+}
+
+pub fn update_router_data_with_access_token_result<F, Req, Res>(
+    add_access_token_result: &types::AddAccessTokenResult,
+    router_data: &mut types::RouterData<F, Req, Res>,
+    call_connector_action: &payments::CallConnectorAction,
+) {
+    // Update router data with access token or error only if it will be calling connector
+    let should_update_router_data = matches!(
+        (
+            add_access_token_result.connector_supports_access_token,
+            call_connector_action
+        ),
+        (true, payments::CallConnectorAction::Trigger)
+    );
+
+    if should_update_router_data {
+        match add_access_token_result.access_token_result.as_ref() {
+            Ok(access_token) => router_data.access_token = access_token.clone(),
+            Err(connector_error) => router_data.response = Err(connector_error.clone()),
+        }
     }
 }
 
@@ -60,7 +83,10 @@ pub async fn add_access_token<
     merchant_account: &storage::MerchantAccount,
     router_data: &types::RouterData<F, Req, Res>,
 ) -> RouterResult<types::AddAccessTokenResult> {
-    if connector.connector_name.supports_access_token() {
+    if connector
+        .connector_name
+        .supports_access_token(router_data.payment_method.foreign_into())
+    {
         let merchant_id = &merchant_account.merchant_id;
         let store = &*state.store;
         let old_access_token = store

@@ -10,7 +10,6 @@ use router::{
 };
 use time::macros::datetime;
 use uuid::Uuid;
-// use router;
 
 #[test]
 fn connector_list() {
@@ -37,7 +36,9 @@ async fn payments_create_core() {
 
     let state = routes::AppState::with_storage(conf, StorageImpl::PostgresqlTest).await;
 
-    let merchant_account = services::authenticate_by_api_key(&*state.store, "MySecretApiKey")
+    let merchant_account = state
+        .store
+        .find_merchant_account_by_merchant_id("juspay_merchant")
         .await
         .unwrap();
 
@@ -56,17 +57,19 @@ async fn payments_create_core() {
         email: None,
         name: None,
         description: Some("Its my first payment request".to_string()),
-        return_url: Some("http://example.com/payments".to_string()),
+        return_url: Some(url::Url::parse("http://example.com/payments").unwrap()),
         setup_future_usage: None,
         authentication_type: Some(api_enums::AuthenticationType::NoThreeDs),
-        payment_method_data: Some(api::PaymentMethod::Card(api::Card {
+        payment_method_data: Some(api::PaymentMethodData::Card(api::Card {
             card_number: "4242424242424242".to_string().into(),
             card_exp_month: "10".to_string().into(),
             card_exp_year: "35".to_string().into(),
             card_holder_name: "Arun Raj".to_string().into(),
             card_cvc: "123".to_string().into(),
+            card_issuer: None,
+            card_network: None,
         })),
-        payment_method: Some(api_enums::PaymentMethodType::Card),
+        payment_method: Some(api_enums::PaymentMethod::Card),
         shipping: Some(api::Address {
             address: None,
             phone: None,
@@ -75,8 +78,8 @@ async fn payments_create_core() {
             address: None,
             phone: None,
         }),
-        statement_descriptor_name: Some("Juspay".to_string()),
-        statement_descriptor_suffix: Some("Router".to_string()),
+        statement_descriptor_name: Some("Hyperswitch".to_string()),
+        statement_descriptor_suffix: Some("Hyperswitch".to_string()),
         ..<_>::default()
     };
 
@@ -190,7 +193,9 @@ async fn payments_create_core_adyen_no_redirect() {
     let merchant_id = "arunraj".to_string();
     let payment_id = "pay_mbabizu24mvu3mela5njyhpit10".to_string();
 
-    let merchant_account = services::authenticate_by_api_key(&*state.store, "321")
+    let merchant_account = state
+        .store
+        .find_merchant_account_by_merchant_id("juspay_merchant")
         .await
         .unwrap();
 
@@ -206,17 +211,19 @@ async fn payments_create_core_adyen_no_redirect() {
         confirm: Some(true),
         customer_id: Some(customer_id),
         description: Some("Its my first payment request".to_string()),
-        return_url: Some("http://example.com/payments".to_string()),
+        return_url: Some(url::Url::parse("http://example.com/payments").unwrap()),
         setup_future_usage: Some(api_enums::FutureUsage::OffSession),
         authentication_type: Some(api_enums::AuthenticationType::NoThreeDs),
-        payment_method_data: Some(api::PaymentMethod::Card(api::Card {
+        payment_method_data: Some(api::PaymentMethodData::Card(api::Card {
             card_number: "5555 3412 4444 1115".to_string().into(),
             card_exp_month: "03".to_string().into(),
             card_exp_year: "2030".to_string().into(),
             card_holder_name: "JohnDoe".to_string().into(),
             card_cvc: "737".to_string().into(),
+            card_issuer: None,
+            card_network: None,
         })),
-        payment_method: Some(api_enums::PaymentMethodType::Card),
+        payment_method: Some(api_enums::PaymentMethod::Card),
         shipping: Some(api::Address {
             address: None,
             phone: None,
@@ -227,18 +234,7 @@ async fn payments_create_core_adyen_no_redirect() {
         }),
         statement_descriptor_name: Some("Juspay".to_string()),
         statement_descriptor_suffix: Some("Router".to_string()),
-        payment_token: None,
-        card_cvc: None,
-        email: None,
-        name: None,
-        phone: None,
-        phone_country_code: None,
-        metadata: None,
-        mandate_data: None,
-        off_session: None,
-        mandate_id: None,
-        client_secret: None,
-        browser_info: None,
+        ..Default::default()
     };
 
     let expected_response = services::ApplicationResponse::Json(api::PaymentsResponse {

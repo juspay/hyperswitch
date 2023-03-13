@@ -1,8 +1,8 @@
 use actix_web::{web, Scope};
 
-#[cfg(feature = "olap")]
-use super::admin::*;
 use super::health::*;
+#[cfg(feature = "olap")]
+use super::{admin::*, api_keys::*};
 #[cfg(any(feature = "olap", feature = "oltp"))]
 use super::{configs::*, customers::*, mandates::*, payments::*, payouts::*, refunds::*};
 #[cfg(feature = "oltp")]
@@ -213,7 +213,11 @@ impl PaymentMethods {
     pub fn server(state: AppState) -> Scope {
         web::scope("/payment_methods")
             .app_data(web::Data::new(state))
-            .service(web::resource("").route(web::post().to(create_payment_method_api)))
+            .service(
+                web::resource("")
+                    .route(web::post().to(create_payment_method_api))
+                    .route(web::get().to(list_payment_method_api)), // TODO : added for sdk compatibility for now, need to deprecate this later
+            )
             .service(
                 web::resource("/{payment_method_id}")
                     .route(web::get().to(payment_method_retrieve_api))
@@ -231,6 +235,11 @@ impl MerchantAccount {
         web::scope("/accounts")
             .app_data(web::Data::new(state))
             .service(web::resource("").route(web::post().to(merchant_account_create)))
+            .service(
+                web::resource("/{id}/kv")
+                    .route(web::post().to(merchant_account_toggle_kv))
+                    .route(web::get().to(merchant_account_kv_status)),
+            )
             .service(
                 web::resource("/{id}")
                     .route(web::get().to(retrieve_merchant_account))
@@ -311,11 +320,18 @@ pub struct Webhooks;
 #[cfg(feature = "oltp")]
 impl Webhooks {
     pub fn server(config: AppState) -> Scope {
+        use api_models::webhooks as webhook_type;
+
         web::scope("/webhooks")
             .app_data(web::Data::new(config))
             .service(
                 web::resource("/{merchant_id}/{connector}")
-                    .route(web::post().to(receive_incoming_webhook)),
+                    .route(
+                        web::post().to(receive_incoming_webhook::<webhook_type::OutgoingWebhook>),
+                    )
+                    .route(
+                        web::get().to(receive_incoming_webhook::<webhook_type::OutgoingWebhook>),
+                    ),
             )
     }
 }
@@ -331,6 +347,24 @@ impl Configs {
                 web::resource("/{key}")
                     .route(web::get().to(config_key_retrieve))
                     .route(web::post().to(config_key_update)),
+            )
+    }
+}
+
+pub struct ApiKeys;
+
+#[cfg(feature = "olap")]
+impl ApiKeys {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/api_keys/{merchant_id}")
+            .app_data(web::Data::new(state))
+            .service(web::resource("").route(web::post().to(api_key_create)))
+            .service(web::resource("/list").route(web::get().to(api_key_list)))
+            .service(
+                web::resource("/{key_id}")
+                    .route(web::get().to(api_key_retrieve))
+                    .route(web::post().to(api_key_update))
+                    .route(web::delete().to(api_key_revoke)),
             )
     }
 }

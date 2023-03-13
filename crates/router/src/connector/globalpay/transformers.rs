@@ -8,7 +8,7 @@ use super::{
     response::{GlobalpayPaymentStatus, GlobalpayPaymentsResponse, GlobalpayRefreshTokenResponse},
 };
 use crate::{
-    connector::utils::{self, CardData, PaymentsRequestData, RouterData},
+    connector::utils::{self, CardData, PaymentsAuthorizeRequestData, RouterData},
     consts,
     core::errors,
     types::{self, api, storage::enums, ErrorResponse},
@@ -22,13 +22,15 @@ pub struct GlobalPayMeta {
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for GlobalpayPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
-        let metadata: GlobalPayMeta = utils::to_connector_meta(item.connector_meta_data.clone())?;
+        let metadata: GlobalPayMeta =
+            utils::to_connector_meta_from_secret(item.connector_meta_data.clone())?;
         let card = item.request.get_card()?;
+        let expiry_year = card.get_card_expiry_year_2_digit();
         Ok(Self {
             account_name: metadata.account_name,
             amount: Some(item.request.amount.to_string()),
             currency: item.request.currency.to_string(),
-            reference: item.get_attempt_id()?,
+            reference: item.attempt_id.to_string(),
             country: item.get_billing_country()?,
             capture_mode: item.request.capture_method.map(|f| match f {
                 enums::CaptureMethod::Manual => requests::CaptureMode::Later,
@@ -36,10 +38,10 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for GlobalpayPaymentsRequest {
             }),
             payment_method: requests::PaymentMethod {
                 card: Some(requests::Card {
-                    number: card.get_card_number(),
-                    expiry_month: card.get_card_expiry_month(),
-                    expiry_year: card.get_card_expiry_year_2_digit(),
-                    cvv: card.get_card_cvc(),
+                    number: card.card_number,
+                    expiry_month: card.card_exp_month,
+                    expiry_year,
+                    cvv: card.card_cvc,
                     ..Default::default()
                 }),
                 ..Default::default()
@@ -162,7 +164,6 @@ fn get_payment_response(
         _ => Ok(types::PaymentsResponseData::TransactionResponse {
             resource_id: types::ResponseId::ConnectorTransactionId(response.id),
             redirection_data: None,
-            redirect: false,
             mandate_reference: None,
             connector_metadata: None,
         }),

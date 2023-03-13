@@ -184,3 +184,37 @@ impl super::settings::DrainerSettings {
         })
     }
 }
+
+impl super::settings::ApiKeys {
+    pub fn validate(&self) -> Result<(), ApplicationError> {
+        use common_utils::fp_utils::when;
+
+        #[cfg(feature = "kms")]
+        {
+            when(self.aws_key_id.is_default_or_empty(), || {
+                Err(ApplicationError::InvalidConfigurationValueError(
+                    "API key AWS key ID must not be empty when KMS feature is enabled".into(),
+                ))
+            })?;
+
+            when(self.aws_region.is_default_or_empty(), || {
+                Err(ApplicationError::InvalidConfigurationValueError(
+                    "API key AWS region must not be empty when KMS feature is enabled".into(),
+                ))
+            })?;
+
+            when(self.kms_encrypted_hash_key.is_default_or_empty(), || {
+                Err(ApplicationError::InvalidConfigurationValueError(
+                    "API key hashing key must not be empty when KMS feature is enabled".into(),
+                ))
+            })
+        }
+
+        #[cfg(not(feature = "kms"))]
+        when(self.hash_key.is_empty(), || {
+            Err(ApplicationError::InvalidConfigurationValueError(
+                "API key hashing key must not be empty".into(),
+            ))
+        })
+    }
+}

@@ -56,7 +56,8 @@ mod storage {
             };
 
             match self
-                .redis_conn
+                .redis_conn()
+                .map_err(Into::<errors::StorageError>::into)?
                 .serialize_and_set_multiple_hash_field_if_not_exist(
                     &[(&secret_key, &created_ek), (&id_key, &created_ek)],
                     "ephkey",
@@ -72,11 +73,13 @@ mod storage {
                 }
                 Ok(_) => {
                     let expire_at = expires.assume_utc().unix_timestamp();
-                    self.redis_conn
+                    self.redis_conn()
+                        .map_err(Into::<errors::StorageError>::into)?
                         .set_expire_at(&secret_key, expire_at)
                         .await
                         .change_context(errors::StorageError::KVError)?;
-                    self.redis_conn
+                    self.redis_conn()
+                        .map_err(Into::<errors::StorageError>::into)?
                         .set_expire_at(&id_key, expire_at)
                         .await
                         .change_context(errors::StorageError::KVError)?;
@@ -90,7 +93,8 @@ mod storage {
             key: &str,
         ) -> CustomResult<EphemeralKey, errors::StorageError> {
             let key = format!("epkey_{key}");
-            self.redis_conn
+            self.redis_conn()
+                .map_err(Into::<errors::StorageError>::into)?
                 .get_hash_field_and_deserialize(&key, "ephkey", "EphemeralKey")
                 .await
                 .change_context(errors::StorageError::KVError)
@@ -101,12 +105,14 @@ mod storage {
         ) -> CustomResult<EphemeralKey, errors::StorageError> {
             let ek = self.get_ephemeral_key(id).await?;
 
-            self.redis_conn
+            self.redis_conn()
+                .map_err(Into::<errors::StorageError>::into)?
                 .delete_key(&format!("epkey_{}", &ek.id))
                 .await
                 .change_context(errors::StorageError::KVError)?;
 
-            self.redis_conn
+            self.redis_conn()
+                .map_err(Into::<errors::StorageError>::into)?
                 .delete_key(&format!("epkey_{}", &ek.secret))
                 .await
                 .change_context(errors::StorageError::KVError)?;

@@ -13,7 +13,7 @@ pub mod transformers;
 use std::marker::PhantomData;
 
 pub use api_models::enums::Connector;
-use common_utils::pii::Email;
+use common_utils::{pii, pii::Email};
 use error_stack::{IntoReport, ResultExt};
 
 use self::{api::payments, storage::enums as storage_enums};
@@ -22,8 +22,8 @@ use crate::{core::errors, services};
 
 pub type PaymentsAuthorizeRouterData =
     RouterData<api::Authorize, PaymentsAuthorizeData, PaymentsResponseData>;
-pub type PaymentsPreAuthorizeRouterData =
-    RouterData<api::PreAuthorize, PreAuthorizeData, PaymentsResponseData>;
+pub type PaymentsAuthorizeSessionTokenRouterData =
+    RouterData<api::AuthorizeSessionToken, AuthorizeSessionTokenData, PaymentsResponseData>;
 pub type PaymentsCompleteAuthorizeRouterData =
     RouterData<api::CompleteAuthorize, CompleteAuthorizeData, PaymentsResponseData>;
 pub type PaymentsInitRouterData =
@@ -62,8 +62,11 @@ pub type PaymentsComeplteAuthorizeType = dyn services::ConnectorIntegration<
     CompleteAuthorizeData,
     PaymentsResponseData,
 >;
-pub type PaymentsPreAuthorizeType =
-    dyn services::ConnectorIntegration<api::PreAuthorize, PreAuthorizeData, PaymentsResponseData>;
+pub type PaymentsPreAuthorizeType = dyn services::ConnectorIntegration<
+    api::AuthorizeSessionToken,
+    AuthorizeSessionTokenData,
+    PaymentsResponseData,
+>;
 pub type PaymentsInitType = dyn services::ConnectorIntegration<
     api::InitPayment,
     PaymentsAuthorizeData,
@@ -94,9 +97,9 @@ pub struct RouterData<Flow, Request, Response> {
     pub merchant_id: String,
     pub connector: String,
     pub payment_id: String,
-    pub attempt_id: Option<String>,
+    pub attempt_id: String,
     pub status: storage_enums::AttemptStatus,
-    pub payment_method: storage_enums::PaymentMethodType,
+    pub payment_method: storage_enums::PaymentMethod,
     pub connector_auth_type: ConnectorAuthType,
     pub description: Option<String>,
     pub return_url: Option<String>,
@@ -104,10 +107,11 @@ pub struct RouterData<Flow, Request, Response> {
     pub complete_authorize_url: Option<String>,
     pub address: PaymentAddress,
     pub auth_type: storage_enums::AuthenticationType,
-    pub connector_meta_data: Option<serde_json::Value>,
+    pub connector_meta_data: Option<pii::SecretSerdeValue>,
     pub amount_captured: Option<i64>,
     pub access_token: Option<AccessToken>,
     pub session_token: Option<String>,
+    pub reference_id: Option<String>,
 
     /// Contains flow-specific data required to construct a request and send it to the connector.
     pub request: Request,
@@ -121,12 +125,13 @@ pub struct RouterData<Flow, Request, Response> {
 
 #[derive(Debug, Clone)]
 pub struct PaymentsAuthorizeData {
-    pub payment_method_data: payments::PaymentMethod,
+    pub payment_method_data: payments::PaymentMethodData,
     pub amount: i64,
     pub email: Option<masking::Secret<String, Email>>,
     pub currency: storage_enums::Currency,
     pub confirm: bool,
     pub statement_descriptor_suffix: Option<String>,
+    pub statement_descriptor: Option<String>,
     pub capture_method: Option<storage_enums::CaptureMethod>,
     // Mandates
     pub setup_future_usage: Option<storage_enums::FutureUsage>,
@@ -138,6 +143,8 @@ pub struct PaymentsAuthorizeData {
     pub session_token: Option<String>,
     pub enrolled_for_3ds: bool,
     pub related_transaction_id: Option<String>,
+    pub payment_experience: Option<storage_enums::PaymentExperience>,
+    pub payment_method_type: Option<storage_enums::PaymentMethodType>,
 }
 
 #[derive(Debug, Clone)]
@@ -149,7 +156,7 @@ pub struct PaymentsCaptureData {
 }
 
 #[derive(Debug, Clone)]
-pub struct PreAuthorizeData {
+pub struct AuthorizeSessionTokenData {
     pub amount_to_capture: Option<i64>,
     pub currency: storage_enums::Currency,
     pub connector_transaction_id: String,
@@ -158,7 +165,7 @@ pub struct PreAuthorizeData {
 
 #[derive(Debug, Clone)]
 pub struct CompleteAuthorizeData {
-    pub payment_method_data: Option<payments::PaymentMethod>,
+    pub payment_method_data: Option<payments::PaymentMethodData>,
     pub amount: i64,
     pub email: Option<masking::Secret<String, Email>>,
     pub currency: storage_enums::Currency,
@@ -202,7 +209,8 @@ pub struct PaymentsSessionData {
 
 #[derive(Debug, Clone)]
 pub struct VerifyRequestData {
-    pub payment_method_data: payments::PaymentMethod,
+    pub currency: storage_enums::Currency,
+    pub payment_method_data: payments::PaymentMethodData,
     pub confirm: bool,
     pub statement_descriptor_suffix: Option<String>,
     pub mandate_id: Option<api_models::payments::MandateIds>,
@@ -234,7 +242,6 @@ pub enum PaymentsResponseData {
     TransactionResponse {
         resource_id: ResponseId,
         redirection_data: Option<services::RedirectForm>,
-        redirect: bool,
         mandate_reference: Option<String>,
         connector_metadata: Option<serde_json::Value>,
     },
@@ -427,7 +434,7 @@ impl Default for ErrorResponse {
     }
 }
 
-impl From<&&mut PaymentsAuthorizeRouterData> for PreAuthorizeData {
+impl From<&&mut PaymentsAuthorizeRouterData> for AuthorizeSessionTokenData {
     fn from(data: &&mut PaymentsAuthorizeRouterData) -> Self {
         Self {
             amount_to_capture: data.amount_captured,
@@ -462,10 +469,11 @@ impl<F1, F2, T1, T2> From<(&&mut RouterData<F1, T1, PaymentsResponseData>, T2)>
             connector_meta_data: data.connector_meta_data.clone(),
             amount_captured: data.amount_captured,
             access_token: data.access_token.clone(),
-            response: Err(ErrorResponse::default()),
+            response: data.response.clone(),
             payment_method_id: data.payment_method_id.clone(),
             payment_id: data.payment_id.clone(),
             session_token: data.session_token.clone(),
+            reference_id: data.reference_id.clone(),
         }
     }
 }

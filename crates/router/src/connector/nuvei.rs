@@ -432,16 +432,16 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     ) -> CustomResult<(), errors::ConnectorError> {
         let integ: Box<
             &(dyn ConnectorIntegration<
-                api::PreAuthorize,
-                types::PreAuthorizeData,
+                api::AuthorizeSessionToken,
+                types::AuthorizeSessionTokenData,
                 types::PaymentsResponseData,
             > + Send
                   + Sync
                   + 'static),
         > = Box::new(&Self);
-        let authorize_data = &types::PaymentsPreAuthorizeRouterData::from((
+        let authorize_data = &types::PaymentsAuthorizeSessionTokenRouterData::from((
             &router_data,
-            types::PreAuthorizeData::from(&router_data),
+            types::AuthorizeSessionTokenData::from(&router_data),
         ));
         let resp = services::execute_connector_processing_step(
             app_state,
@@ -451,27 +451,38 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         )
         .await?;
         router_data.session_token = resp.session_token;
-        let integ: Box<
-            &(dyn ConnectorIntegration<
-                InitPayment,
-                types::PaymentsAuthorizeData,
-                types::PaymentsResponseData,
-            > + Send
-                  + Sync
-                  + 'static),
-        > = Box::new(&Self);
-        let init_data =
-            &types::PaymentsInitRouterData::from((&router_data, router_data.request.clone()));
-        let init_resp = services::execute_connector_processing_step(
-            app_state,
-            integ,
-            init_data,
-            payments::CallConnectorAction::Trigger,
-        )
-        .await?;
+        let (enrolled_for_3ds, related_transaction_id) = match router_data.auth_type {
+            storage_models::enums::AuthenticationType::ThreeDs => {
+                let integ: Box<
+                    &(dyn ConnectorIntegration<
+                        InitPayment,
+                        types::PaymentsAuthorizeData,
+                        types::PaymentsResponseData,
+                    > + Send
+                          + Sync
+                          + 'static),
+                > = Box::new(&Self);
+                let init_data = &types::PaymentsInitRouterData::from((
+                    &router_data,
+                    router_data.request.clone(),
+                ));
+                let init_resp = services::execute_connector_processing_step(
+                    app_state,
+                    integ,
+                    init_data,
+                    payments::CallConnectorAction::Trigger,
+                )
+                .await?;
+                (
+                    init_resp.request.enrolled_for_3ds,
+                    init_resp.request.related_transaction_id,
+                )
+            }
+            storage_models::enums::AuthenticationType::NoThreeDs => (false, None),
+        };
 
-        router_data.request.enrolled_for_3ds = init_resp.request.enrolled_for_3ds;
-        router_data.request.related_transaction_id = init_resp.request.related_transaction_id;
+        router_data.request.enrolled_for_3ds = enrolled_for_3ds;
+        router_data.request.related_transaction_id = related_transaction_id;
         Ok(())
     }
     fn get_request_body(
@@ -527,16 +538,16 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     }
 }
 
-impl ConnectorIntegration<api::PreAuthorize, types::PreAuthorizeData, types::PaymentsResponseData>
-    for Nuvei
+impl
+    ConnectorIntegration<
+        api::AuthorizeSessionToken,
+        types::AuthorizeSessionTokenData,
+        types::PaymentsResponseData,
+    > for Nuvei
 {
     fn get_headers(
         &self,
-        req: &types::RouterData<
-            types::api::payments::PreAuthorize,
-            types::PreAuthorizeData,
-            types::PaymentsResponseData,
-        >,
+        req: &types::PaymentsAuthorizeSessionTokenRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
@@ -548,11 +559,7 @@ impl ConnectorIntegration<api::PreAuthorize, types::PreAuthorizeData, types::Pay
 
     fn get_url(
         &self,
-        _req: &types::RouterData<
-            types::api::payments::PreAuthorize,
-            types::PreAuthorizeData,
-            types::PaymentsResponseData,
-        >,
+        _req: &types::PaymentsAuthorizeSessionTokenRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!(
@@ -563,11 +570,7 @@ impl ConnectorIntegration<api::PreAuthorize, types::PreAuthorizeData, types::Pay
 
     fn get_request_body(
         &self,
-        req: &types::RouterData<
-            types::api::payments::PreAuthorize,
-            types::PreAuthorizeData,
-            types::PaymentsResponseData,
-        >,
+        req: &types::PaymentsAuthorizeSessionTokenRouterData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
         let req_obj = nuvei::NuveiSessionRequest::try_from(req)?;
         let req =
@@ -578,11 +581,7 @@ impl ConnectorIntegration<api::PreAuthorize, types::PreAuthorizeData, types::Pay
 
     fn build_request(
         &self,
-        req: &types::RouterData<
-            types::api::payments::PreAuthorize,
-            types::PreAuthorizeData,
-            types::PaymentsResponseData,
-        >,
+        req: &types::PaymentsAuthorizeSessionTokenRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         Ok(Some(
@@ -603,16 +602,9 @@ impl ConnectorIntegration<api::PreAuthorize, types::PreAuthorizeData, types::Pay
 
     fn handle_response(
         &self,
-        data: &types::RouterData<
-            api::PreAuthorize,
-            types::PreAuthorizeData,
-            types::PaymentsResponseData,
-        >,
+        data: &types::PaymentsAuthorizeSessionTokenRouterData,
         res: Response,
-    ) -> CustomResult<
-        types::RouterData<api::PreAuthorize, types::PreAuthorizeData, types::PaymentsResponseData>,
-        errors::ConnectorError,
-    > {
+    ) -> CustomResult<types::PaymentsAuthorizeSessionTokenRouterData, errors::ConnectorError> {
         let response: nuvei::NuveiSessionResponse = utils::parse_struct_from_bytes(res.response)?;
         types::RouterData::try_from(types::ResponseRouterData {
             response,
@@ -800,21 +792,21 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
 impl api::IncomingWebhook for Nuvei {
     fn get_webhook_object_reference_id(
         &self,
-        _body: &[u8],
+        _request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<String, errors::ConnectorError> {
         Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
     }
 
     fn get_webhook_event_type(
         &self,
-        _body: &[u8],
+        _request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api::IncomingWebhookEvent, errors::ConnectorError> {
         Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
     }
 
     fn get_webhook_resource_object(
         &self,
-        _body: &[u8],
+        _request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<serde_json::Value, errors::ConnectorError> {
         Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
     }

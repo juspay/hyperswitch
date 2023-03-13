@@ -15,7 +15,7 @@ pub(crate) mod macros;
 pub mod routes;
 pub mod scheduler;
 
-mod middleware;
+pub mod middleware;
 #[cfg(feature = "openapi")]
 pub mod openapi;
 pub mod services;
@@ -42,13 +42,20 @@ static ALLOC: mimalloc::MiMalloc = mimalloc::MiMalloc;
 
 /// Header Constants
 pub mod headers {
-    pub const X_API_KEY: &str = "X-API-KEY";
-    pub const CONTENT_TYPE: &str = "Content-Type";
-    pub const X_ROUTER: &str = "X-router";
-    pub const AUTHORIZATION: &str = "Authorization";
     pub const ACCEPT: &str = "Accept";
-    pub const X_API_VERSION: &str = "X-ApiVersion";
+    pub const API_KEY: &str = "API-KEY";
+    pub const AUTHORIZATION: &str = "Authorization";
+    pub const CONTENT_TYPE: &str = "Content-Type";
     pub const DATE: &str = "Date";
+    pub const TIMESTAMP: &str = "Timestamp";
+    pub const X_API_KEY: &str = "X-API-KEY";
+    pub const X_API_VERSION: &str = "X-ApiVersion";
+    pub const X_MERCHANT_ID: &str = "X-Merchant-Id";
+    pub const X_ROUTER: &str = "X-router";
+    pub const X_LOGIN: &str = "X-Login";
+    pub const X_TRANS_KEY: &str = "X-Trans-Key";
+    pub const X_VERSION: &str = "X-Version";
+    pub const X_DATE: &str = "X-Date";
 }
 
 pub mod pii {
@@ -73,6 +80,15 @@ pub fn mk_app(
 > {
     let mut server_app = get_application_builder(request_body_limit);
 
+    #[cfg(feature = "openapi")]
+    {
+        use utoipa::OpenApi;
+        server_app = server_app.service(
+            utoipa_swagger_ui::SwaggerUi::new("/docs/{_:.*}")
+                .url("/docs/openapi.json", openapi::ApiDoc::openapi()),
+        );
+    }
+
     #[cfg(any(feature = "olap", feature = "oltp"))]
     {
         server_app = server_app
@@ -95,7 +111,9 @@ pub fn mk_app(
 
     #[cfg(feature = "olap")]
     {
-        server_app = server_app.service(routes::MerchantAccount::server(state.clone()));
+        server_app = server_app
+            .service(routes::MerchantAccount::server(state.clone()))
+            .service(routes::ApiKeys::server(state.clone()));
     }
 
     #[cfg(feature = "stripe")]

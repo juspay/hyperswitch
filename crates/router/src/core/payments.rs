@@ -109,13 +109,18 @@ where
         )
         .await?;
 
-    let connector_details = route_connector(
-        state,
-        &merchant_account,
-        &mut payment_data,
-        connector_details,
-    )
-    .await?;
+    let connector = match should_call_connector(&operation, &payment_data) {
+        true => Some(
+            route_connector(
+                state,
+                &merchant_account,
+                &mut payment_data,
+                connector_details,
+            )
+            .await?,
+        ),
+        false => None,
+    };
 
     let (operation, mut payment_data) = operation
         .to_update_tracker()?
@@ -133,7 +138,7 @@ where
         .add_task_to_process_tracker(state, &payment_data.payment_attempt)
         .await?;
 
-    if should_call_connector(&operation, &payment_data) {
+    if let Some(connector_details) = connector {
         payment_data = match connector_details {
             api::ConnectorCallType::Single(connector) => {
                 call_connector_service(
@@ -211,7 +216,7 @@ where
     FData: Send,
     Op: Operation<F, Req> + Send + Sync + Clone,
     Req: Debug,
-    Res: transformers::ToResponse<Req, PaymentData<F>, Op> + TryFrom<Req>,
+    Res: transformers::ToResponse<Req, PaymentData<F>, Op>,
     // To create connector flow specific interface data
     PaymentData<F>: ConstructFlowSpecificData<F, FData, types::PaymentsResponseData>,
     types::RouterData<F, FData, types::PaymentsResponseData>: Feature<F, FData>,
@@ -429,10 +434,11 @@ where
         .add_access_token(state, &connector, merchant_account)
         .await?;
 
-    match add_access_token_result.access_token_result {
-        Ok(access_token) => router_data.access_token = access_token,
-        Err(connector_error) => router_data.response = Err(connector_error),
-    }
+    access_token::update_router_data_with_access_token_result(
+        &add_access_token_result,
+        &mut router_data,
+        &call_connector_action,
+    );
 
     let router_data_res = if !(add_access_token_result.connector_supports_access_token
         && router_data.access_token.is_none())
@@ -577,7 +583,7 @@ where
     pub token: Option<String>,
     pub confirm: Option<bool>,
     pub force_sync: Option<bool>,
-    pub payment_method_data: Option<api::PaymentMethod>,
+    pub payment_method_data: Option<api::PaymentMethodData>,
     pub refunds: Vec<storage::Refund>,
     pub sessions_token: Vec<api::SessionToken>,
     pub card_cvc: Option<pii::Secret<String>>,

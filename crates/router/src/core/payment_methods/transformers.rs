@@ -67,7 +67,7 @@ pub fn mk_add_card_request(
     locker: &Locker,
     card: &api::CardDetail,
     customer_id: &str,
-    _req: &api::CreatePaymentMethod,
+    _req: &api::PaymentMethodCreate,
     locker_id: &str,
     merchant_id: &str,
 ) -> CustomResult<services::Request, errors::VaultError> {
@@ -83,10 +83,10 @@ pub fn mk_add_card_request(
         card_exp_year: card.card_exp_year.clone(),
         merchant_id: locker_id,
         email_address: Some("dummy@gmail.com".to_string().into()), //
-        name_on_card: Some("juspay".to_string().into()),           // [#256]
+        name_on_card: Some("John Doe".to_string().into()),         // [#256]
         nickname: Some("router".to_string()),                      //
     };
-    let body = utils::Encode::<AddCardRequest<'_>>::encode(&add_card_req)
+    let body = utils::Encode::<AddCardRequest<'_>>::url_encode(&add_card_req)
         .change_context(errors::VaultError::RequestEncodingFailed)?;
     let mut url = locker.host.to_owned();
     url.push_str("/card/addCard");
@@ -99,7 +99,7 @@ pub fn mk_add_card_request(
 pub fn mk_add_card_response(
     card: api::CardDetail,
     response: AddCardResponse,
-    req: api::CreatePaymentMethod,
+    req: api::PaymentMethodCreate,
     merchant_id: &str,
 ) -> api::PaymentMethodResponse {
     let mut card_number = card.card_number.peek().to_owned();
@@ -120,16 +120,12 @@ pub fn mk_add_card_response(
         payment_method_id: response.card_id,
         payment_method: req.payment_method,
         payment_method_type: req.payment_method_type,
-        payment_method_issuer: req.payment_method_issuer,
         card: Some(card),
         metadata: req.metadata,
         created: Some(common_utils::date_time::now()),
-        payment_method_issuer_code: req.payment_method_issuer_code,
         recurring_enabled: false,           // [#256]
         installment_payment_enabled: false, // #[#256]
-        payment_experience: Some(vec![
-            api_models::payment_methods::PaymentExperience::RedirectToUrl,
-        ]), // [#256]
+        payment_experience: Some(vec![api_models::enums::PaymentExperience::RedirectToUrl]), // [#256]
     }
 }
 
@@ -143,7 +139,7 @@ pub fn mk_get_card_request<'a>(
         card_id,
     };
 
-    let body = utils::Encode::<GetCard<'_>>::encode(&get_card_req)
+    let body = utils::Encode::<GetCard<'_>>::url_encode(&get_card_req)
         .change_context(errors::VaultError::RequestEncodingFailed)?;
     let mut url = locker.host.to_owned();
     url.push_str("/card/getCard");
@@ -162,7 +158,7 @@ pub fn mk_delete_card_request<'a>(
         merchant_id,
         card_id,
     };
-    let body = utils::Encode::<GetCard<'_>>::encode(&delete_card_req)
+    let body = utils::Encode::<GetCard<'_>>::url_encode(&delete_card_req)
         .change_context(errors::VaultError::RequestEncodingFailed)?;
     let mut url = locker.host.to_owned();
     url.push_str("/card/deleteCard");

@@ -1,3 +1,4 @@
+use common_utils::pii;
 use diesel::{Identifiable, Insertable, Queryable};
 use masking::Secret;
 use time::PrimitiveDateTime;
@@ -25,11 +26,11 @@ pub struct PaymentMethod {
     pub direct_debit_token: Option<String>,
     pub created_at: PrimitiveDateTime,
     pub last_modified: PrimitiveDateTime,
-    pub payment_method: storage_enums::PaymentMethodType,
-    pub payment_method_type: Option<storage_enums::PaymentMethodSubType>,
+    pub payment_method: storage_enums::PaymentMethod,
+    pub payment_method_type: Option<storage_enums::PaymentMethodType>,
     pub payment_method_issuer: Option<String>,
     pub payment_method_issuer_code: Option<storage_enums::PaymentMethodIssuerCode>,
-    pub metadata: Option<serde_json::Value>,
+    pub metadata: Option<pii::SecretSerdeValue>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Insertable, Queryable, router_derive::DebugAsDisplay)]
@@ -38,8 +39,8 @@ pub struct PaymentMethodNew {
     pub customer_id: String,
     pub merchant_id: String,
     pub payment_method_id: String,
-    pub payment_method: storage_enums::PaymentMethodType,
-    pub payment_method_type: Option<storage_enums::PaymentMethodSubType>,
+    pub payment_method: storage_enums::PaymentMethod,
+    pub payment_method_type: Option<storage_enums::PaymentMethodType>,
     pub payment_method_issuer: Option<String>,
     pub payment_method_issuer_code: Option<storage_enums::PaymentMethodIssuerCode>,
     pub accepted_currency: Option<Vec<storage_enums::Currency>>,
@@ -54,7 +55,7 @@ pub struct PaymentMethodNew {
     pub direct_debit_token: Option<String>,
     pub created_at: PrimitiveDateTime,
     pub last_modified: PrimitiveDateTime,
-    pub metadata: Option<serde_json::Value>,
+    pub metadata: Option<pii::SecretSerdeValue>,
 }
 
 impl Default for PaymentMethodNew {
@@ -65,7 +66,7 @@ impl Default for PaymentMethodNew {
             customer_id: String::default(),
             merchant_id: String::default(),
             payment_method_id: String::default(),
-            payment_method: storage_enums::PaymentMethodType::default(),
+            payment_method: storage_enums::PaymentMethod::default(),
             payment_method_type: Option::default(),
             payment_method_issuer: Option::default(),
             payment_method_issuer_code: Option::default(),

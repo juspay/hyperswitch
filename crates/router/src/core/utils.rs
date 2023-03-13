@@ -53,7 +53,7 @@ pub async fn construct_refund_router_data<'a, F>(
         merchant_id: merchant_account.merchant_id.clone(),
         connector: merchant_connector_account.connector_name,
         payment_id: payment_attempt.payment_id.clone(),
-        attempt_id: Some(payment_attempt.attempt_id.clone()),
+        attempt_id: payment_attempt.attempt_id.clone(),
         status,
         payment_method: payment_method_type,
         connector_auth_type: auth_type,
@@ -65,7 +65,7 @@ pub async fn construct_refund_router_data<'a, F>(
         // Does refund need shipping/billing address ?
         address: PaymentAddress::default(),
         auth_type: payment_attempt.authentication_type.unwrap_or_default(),
-        connector_meta_data: None,
+        connector_meta_data: merchant_connector_account.metadata,
         amount_captured: payment_intent.amount_captured,
         request: types::RefundsData {
             refund_id: refund.refund_id.clone(),
@@ -84,6 +84,7 @@ pub async fn construct_refund_router_data<'a, F>(
         }),
         access_token: None,
         session_token: None,
+        reference_id: None,
     };
 
     Ok(router_data)

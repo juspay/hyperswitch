@@ -358,7 +358,7 @@ pub trait ConnectorActions: Connector {
             merchant_id: self.get_name(),
             connector: self.get_name(),
             payment_id: uuid::Uuid::new_v4().to_string(),
-            attempt_id: Some(uuid::Uuid::new_v4().to_string()),
+            attempt_id: uuid::Uuid::new_v4().to_string(),
             status: enums::AttemptStatus::default(),
             router_return_url: info.clone().and_then(|a| a.router_return_url),
             complete_authorize_url: None,
@@ -368,7 +368,7 @@ pub trait ConnectorActions: Connector {
                     a.auth_type
                         .map_or(enums::AuthenticationType::NoThreeDs, |a| a)
                 }),
-            payment_method: enums::PaymentMethodType::Card,
+            payment_method: enums::PaymentMethod::Card,
             connector_auth_type: self.get_auth_token(),
             description: Some("This is a test".to_string()),
             return_url: None,
@@ -380,10 +380,13 @@ pub trait ConnectorActions: Connector {
                 .and_then(|a| a.address)
                 .or_else(|| Some(PaymentAddress::default()))
                 .unwrap(),
-            connector_meta_data: info.clone().and_then(|a| a.connector_meta_data),
+            connector_meta_data: info
+                .clone()
+                .and_then(|a| a.connector_meta_data.map(masking::Secret::new)),
             amount_captured: None,
             access_token: info.and_then(|a| a.access_token),
             session_token: None,
+            reference_id: None,
         }
     }
 
@@ -461,6 +464,8 @@ impl Default for CCardType {
             card_exp_year: Secret::new("2025".to_string()),
             card_holder_name: Secret::new("John Doe".to_string()),
             card_cvc: Secret::new("999".to_string()),
+            card_issuer: None,
+            card_network: None,
         })
     }
 }
@@ -468,11 +473,12 @@ impl Default for CCardType {
 impl Default for PaymentAuthorizeType {
     fn default() -> Self {
         let data = types::PaymentsAuthorizeData {
-            payment_method_data: types::api::PaymentMethod::Card(CCardType::default().0),
+            payment_method_data: types::api::PaymentMethodData::Card(CCardType::default().0),
             amount: 100,
             currency: enums::Currency::USD,
             confirm: true,
             statement_descriptor_suffix: None,
+            statement_descriptor: None,
             capture_method: None,
             setup_future_usage: None,
             mandate_id: None,
@@ -484,6 +490,8 @@ impl Default for PaymentAuthorizeType {
             session_token: None,
             enrolled_for_3ds: false,
             related_transaction_id: None,
+            payment_experience: None,
+            payment_method_type: None,
         };
         Self(data)
     }

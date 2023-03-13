@@ -18,7 +18,7 @@ use crate::{
         self,
         api::{self, refunds},
         storage::{self, enums, ProcessTrackerExt},
-        transformers::{Foreign, ForeignInto},
+        transformers::{ForeignFrom, ForeignInto},
     },
     utils::{self, OptionExt},
 };
@@ -131,10 +131,11 @@ pub async fn trigger_refund_to_gateway(
 
     logger::debug!(refund_router_data=?router_data);
 
-    match add_access_token_result.access_token_result {
-        Ok(access_token) => router_data.access_token = access_token,
-        Err(connector_error) => router_data.response = Err(connector_error),
-    }
+    access_token::update_router_data_with_access_token_result(
+        &add_access_token_result,
+        &mut router_data,
+        &payments::CallConnectorAction::Trigger,
+    );
 
     let router_data_res = if !(add_access_token_result.connector_supports_access_token
         && router_data.access_token.is_none())
@@ -295,12 +296,11 @@ pub async fn sync_refund_with_gateway(
 
     logger::debug!(refund_retrieve_router_data=?router_data);
 
-    if add_access_token_result.connector_supports_access_token {
-        match add_access_token_result.access_token_result {
-            Ok(access_token) => router_data.access_token = access_token,
-            Err(connector_error) => router_data.response = Err(connector_error),
-        }
-    }
+    access_token::update_router_data_with_access_token_result(
+        &add_access_token_result,
+        &mut router_data,
+        &payments::CallConnectorAction::Trigger,
+    );
 
     let router_data_res = if !(add_access_token_result.connector_supports_access_token
         && router_data.access_token.is_none())
@@ -491,7 +491,7 @@ pub async fn validate_and_create_refund(
                 .set_merchant_id(merchant_account.merchant_id.clone())
                 .set_connector_transaction_id(connecter_transaction_id.to_string())
                 .set_connector(connector)
-                .set_refund_type(enums::RefundType::RegularRefund)
+                .set_refund_type(req.refund_type.unwrap_or_default().foreign_into())
                 .set_total_amount(payment_attempt.amount)
                 .set_refund_amount(refund_amount)
                 .set_currency(currency)
@@ -560,10 +560,10 @@ pub async fn refund_list(
     ))
 }
 
-impl From<Foreign<storage::Refund>> for Foreign<api::RefundResponse> {
-    fn from(refund: Foreign<storage::Refund>) -> Self {
-        let refund = refund.0;
-        api::RefundResponse {
+impl ForeignFrom<storage::Refund> for api::RefundResponse {
+    fn foreign_from(refund: storage::Refund) -> Self {
+        let refund = refund;
+        Self {
             payment_id: refund.payment_id,
             refund_id: refund.refund_id,
             amount: refund.refund_amount,
@@ -576,7 +576,6 @@ impl From<Foreign<storage::Refund>> for Foreign<api::RefundResponse> {
             created_at: Some(refund.created_at),
             updated_at: Some(refund.updated_at),
         }
-        .into()
     }
 }
 

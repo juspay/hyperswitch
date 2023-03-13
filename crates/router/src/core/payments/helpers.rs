@@ -103,7 +103,7 @@ pub async fn get_token_pm_type_mandate_details(
     merchant_account: &storage::MerchantAccount,
 ) -> RouterResult<(
     Option<String>,
-    Option<storage_enums::PaymentMethodType>,
+    Option<storage_enums::PaymentMethod>,
     Option<api::MandateData>,
 )> {
     match mandate_type {
@@ -135,7 +135,7 @@ pub async fn get_token_for_recurring_mandate(
     state: &AppState,
     req: &api::PaymentsRequest,
     merchant_account: &storage::MerchantAccount,
-) -> RouterResult<(Option<String>, Option<storage_enums::PaymentMethodType>)> {
+) -> RouterResult<(Option<String>, Option<storage_enums::PaymentMethod>)> {
     let db = &*state.store;
     let mandate_id = req.mandate_id.clone().get_required_value("mandate_id")?;
 
@@ -180,7 +180,7 @@ pub async fn get_token_for_recurring_mandate(
     let _ = cards::get_lookup_key_from_locker(state, &token, &payment_method, &locker_id).await?;
 
     if let Some(payment_method_from_request) = req.payment_method {
-        let pm: storage_enums::PaymentMethodType = payment_method_from_request.foreign_into();
+        let pm: storage_enums::PaymentMethod = payment_method_from_request.foreign_into();
         if pm != payment_method.payment_method {
             Err(report!(errors::ApiErrorResponse::PreconditionFailed {
                 message: "payment method in request does not match previously provided payment \
@@ -430,7 +430,7 @@ pub fn verify_mandate_details(
 
 #[instrument(skip_all)]
 pub fn payment_attempt_status_fsm(
-    payment_method_data: &Option<api::PaymentMethod>,
+    payment_method_data: &Option<api::PaymentMethodData>,
     confirm: Option<bool>,
 ) -> storage_enums::AttemptStatus {
     match payment_method_data {
@@ -443,7 +443,7 @@ pub fn payment_attempt_status_fsm(
 }
 
 pub fn payment_intent_status_fsm(
-    payment_method_data: &Option<api::PaymentMethod>,
+    payment_method_data: &Option<api::PaymentMethodData>,
     confirm: Option<bool>,
 ) -> storage_enums::IntentStatus {
     match payment_method_data {
@@ -508,14 +508,14 @@ where
 pub(crate) async fn call_payment_method(
     state: &AppState,
     merchant_account: &storage::MerchantAccount,
-    payment_method: Option<&api::PaymentMethod>,
-    payment_method_type: Option<storage_enums::PaymentMethodType>,
+    payment_method: Option<&api::PaymentMethodData>,
+    payment_method_type: Option<storage_enums::PaymentMethod>,
     maybe_customer: &Option<storage::Customer>,
 ) -> RouterResult<api::PaymentMethodResponse> {
     match payment_method {
         Some(pm_data) => match payment_method_type {
             Some(payment_method_type) => match pm_data {
-                api::PaymentMethod::Card(card) => {
+                api::PaymentMethodData::Card(card) => {
                     let card_detail = api::CardDetail {
                         card_number: card.card_number.clone(),
                         card_exp_month: card.card_exp_month.clone(),
@@ -525,14 +525,18 @@ pub(crate) async fn call_payment_method(
                     match maybe_customer {
                         Some(customer) => {
                             let customer_id = customer.customer_id.clone();
-                            let payment_method_request = api::CreatePaymentMethod {
+                            let payment_method_request = api::PaymentMethodCreate {
                                 payment_method: payment_method_type.foreign_into(),
                                 payment_method_type: None,
-                                payment_method_issuer: None,
+                                payment_method_issuer: card.card_issuer.clone(),
                                 payment_method_issuer_code: None,
                                 card: Some(card_detail),
                                 metadata: None,
                                 customer_id: Some(customer_id),
+                                card_network: card
+                                    .card_network
+                                    .as_ref()
+                                    .map(|card_network| card_network.to_string()),
                             };
                             let resp = cards::add_payment_method(
                                 state,
@@ -556,7 +560,7 @@ pub(crate) async fn call_payment_method(
                     }
                 }
                 _ => {
-                    let payment_method_request = api::CreatePaymentMethod {
+                    let payment_method_request = api::PaymentMethodCreate {
                         payment_method: payment_method_type.foreign_into(),
                         payment_method_type: None,
                         payment_method_issuer: None,
@@ -564,6 +568,7 @@ pub(crate) async fn call_payment_method(
                         card: None,
                         metadata: None,
                         customer_id: None,
+                        card_network: None,
                     };
                     let resp =
                         cards::add_payment_method(state, payment_method_request, merchant_account)
@@ -590,16 +595,23 @@ pub(crate) async fn call_payment_method(
     }
 }
 
-pub async fn get_customer_from_details(
+pub async fn get_customer_from_details<F: Clone>(
     db: &dyn StorageInterface,
     customer_id: Option<String>,
     merchant_id: &str,
+    payment_data: &mut PaymentData<F>,
 ) -> CustomResult<Option<storage::Customer>, errors::StorageError> {
     match customer_id {
         None => Ok(None),
         Some(c_id) => {
-            db.find_customer_optional_by_customer_id_merchant_id(&c_id, merchant_id)
-                .await
+            let customer = db
+                .find_customer_optional_by_customer_id_merchant_id(&c_id, merchant_id)
+                .await?;
+            payment_data.email = payment_data
+                .email
+                .clone()
+                .or_else(|| customer.as_ref().and_then(|inner| inner.email.clone()));
+            Ok(customer)
         }
     }
 }
@@ -669,6 +681,10 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R>(
                 let customer = customer?;
 
                 payment_data.payment_intent.customer_id = Some(customer.customer_id.clone());
+                payment_data.email = payment_data
+                    .email
+                    .clone()
+                    .or_else(|| customer.email.clone());
 
                 Some(customer)
             }
@@ -682,7 +698,7 @@ pub async fn make_pm_data<'a, F: Clone, R>(
     operation: BoxedOperation<'a, F, R>,
     state: &'a AppState,
     payment_data: &mut PaymentData<F>,
-) -> RouterResult<(BoxedOperation<'a, F, R>, Option<api::PaymentMethod>)> {
+) -> RouterResult<(BoxedOperation<'a, F, R>, Option<api::PaymentMethodData>)> {
     let request = &payment_data.payment_method_data;
     let token = payment_data.token.clone();
     let card_cvc = payment_data.card_cvc.clone();
@@ -708,13 +724,13 @@ pub async fn make_pm_data<'a, F: Clone, R>(
             )?;
 
             Ok::<_, error_stack::Report<errors::ApiErrorResponse>>(match pm.clone() {
-                Some(api::PaymentMethod::Card(card)) => {
+                Some(api::PaymentMethodData::Card(card)) => {
                     payment_data.payment_attempt.payment_method =
-                        Some(storage_enums::PaymentMethodType::Card);
+                        Some(storage_enums::PaymentMethod::Card);
                     if let Some(cvc) = card_cvc {
                         let mut updated_card = card;
                         updated_card.card_cvc = cvc;
-                        let updated_pm = api::PaymentMethod::Card(updated_card);
+                        let updated_pm = api::PaymentMethodData::Card(updated_card);
                         vault::Vault::store_payment_method_data_in_locker(
                             state,
                             Some(token),
@@ -728,22 +744,23 @@ pub async fn make_pm_data<'a, F: Clone, R>(
                     }
                 }
 
-                Some(api::PaymentMethod::Wallet(wallet_data)) => {
+                Some(api::PaymentMethodData::Wallet(wallet_data)) => {
                     payment_data.payment_attempt.payment_method =
-                        Some(storage_enums::PaymentMethodType::Wallet);
+                        Some(storage_enums::PaymentMethod::Wallet);
                     // TODO: Remove redundant update from wallets.
-                    if wallet_data.token.is_some() {
-                        let updated_pm = api::PaymentMethod::Wallet(wallet_data);
-                        vault::Vault::store_payment_method_data_in_locker(
-                            state,
-                            Some(token),
-                            &updated_pm,
-                            payment_data.payment_intent.customer_id.to_owned(),
-                        )
-                        .await?;
-                        Some(updated_pm)
-                    } else {
-                        pm
+                    match wallet_data {
+                        api_models::payments::WalletData::PaypalRedirect(_) => pm,
+                        _ => {
+                            let updated_pm = api::PaymentMethodData::Wallet(wallet_data);
+                            vault::Vault::store_payment_method_data_in_locker(
+                                state,
+                                Some(token),
+                                &updated_pm,
+                                payment_data.payment_intent.customer_id.to_owned(),
+                            )
+                            .await?;
+                            Some(updated_pm)
+                        }
                     }
                 }
 
@@ -756,7 +773,7 @@ pub async fn make_pm_data<'a, F: Clone, R>(
                 None => None,
             })
         }
-        (pm_opt @ Some(pm @ api::PaymentMethod::Card(_)), _) => {
+        (pm_opt @ Some(pm @ api::PaymentMethodData::Card(_)), _) => {
             let token = vault::Vault::store_payment_method_data_in_locker(
                 state,
                 None,
@@ -767,8 +784,9 @@ pub async fn make_pm_data<'a, F: Clone, R>(
             payment_data.token = Some(token);
             Ok(pm_opt.to_owned())
         }
-        (pm @ Some(api::PaymentMethod::PayLater(_)), _) => Ok(pm.to_owned()),
-        (pm_opt @ Some(pm @ api::PaymentMethod::Wallet(_)), _) => {
+        (pm @ Some(api::PaymentMethodData::PayLater(_)), _) => Ok(pm.to_owned()),
+        (pm @ Some(api::PaymentMethodData::BankRedirect(_)), _) => Ok(pm.to_owned()),
+        (pm_opt @ Some(pm @ api::PaymentMethodData::Wallet(_)), _) => {
             let token = vault::Vault::store_payment_method_data_in_locker(
                 state,
                 None,
@@ -840,7 +858,7 @@ pub(crate) fn validate_payment_method_fields_present(
         req.payment_method.is_none() && req.payment_method_data.is_some(),
         || {
             Err(errors::ApiErrorResponse::MissingRequiredField {
-                field_name: "payent_method",
+                field_name: "payment_method",
             })
         },
     )?;
@@ -859,7 +877,10 @@ pub(crate) fn validate_payment_method_fields_present(
     Ok(())
 }
 
-pub fn can_call_connector(status: &storage_enums::AttemptStatus) -> bool {
+pub fn check_force_psync_precondition(
+    status: &storage_enums::AttemptStatus,
+    connector_transaction_id: &Option<String>,
+) -> bool {
     !matches!(
         status,
         storage_enums::AttemptStatus::Charged
@@ -869,7 +890,7 @@ pub fn can_call_connector(status: &storage_enums::AttemptStatus) -> bool {
             | storage_enums::AttemptStatus::Authorized
             | storage_enums::AttemptStatus::Started
             | storage_enums::AttemptStatus::Failure
-    )
+    ) && connector_transaction_id.is_some()
 }
 
 pub fn append_option<T, U, F, V>(func: F, option1: Option<T>, option2: Option<U>) -> Option<V>
@@ -1170,14 +1191,17 @@ pub(crate) fn validate_payment_status_against_not_allowed_statuses(
 }
 
 pub(crate) fn validate_pm_or_token_given(
-    payment_method: &Option<api_enums::PaymentMethodType>,
-    payment_method_data: &Option<api::PaymentMethod>,
+    payment_method: &Option<api_enums::PaymentMethod>,
+    payment_method_data: &Option<api::PaymentMethodData>,
+    payment_method_type: &Option<api_enums::PaymentMethodType>,
     mandate_type: &Option<api::MandateTxnType>,
     token: &Option<String>,
 ) -> Result<(), errors::ApiErrorResponse> {
     utils::when(
-        !matches!(payment_method, Some(api_enums::PaymentMethodType::Paypal))
-            && !matches!(mandate_type, Some(api::MandateTxnType::RecurringMandateTxn))
+        !matches!(
+            payment_method_type,
+            Some(api_enums::PaymentMethodType::Paypal)
+        ) && !matches!(mandate_type, Some(api::MandateTxnType::RecurringMandateTxn))
             && token.is_none()
             && (payment_method_data.is_none() || payment_method.is_none()),
         || {

@@ -1,5 +1,4 @@
-use error_stack::{IntoReport, Report};
-use masking::PeekInterface;
+use error_stack::IntoReport;
 
 use super::{MockDb, Store};
 use crate::{
@@ -32,11 +31,6 @@ pub trait MerchantAccountInterface {
         merchant_account: storage::MerchantAccountUpdate,
     ) -> CustomResult<storage::MerchantAccount, errors::StorageError>;
 
-    async fn find_merchant_account_by_api_key(
-        &self,
-        api_key: &str,
-    ) -> CustomResult<storage::MerchantAccount, errors::StorageError>;
-
     async fn find_merchant_account_by_publishable_key(
         &self,
         publishable_key: &str,
@@ -54,7 +48,7 @@ impl MerchantAccountInterface for Store {
         &self,
         merchant_account: storage::MerchantAccountNew,
     ) -> CustomResult<storage::MerchantAccount, errors::StorageError> {
-        let conn = pg_connection(&self.master_pool).await;
+        let conn = pg_connection(&self.master_pool).await?;
         merchant_account
             .insert(&conn)
             .await
@@ -66,11 +60,23 @@ impl MerchantAccountInterface for Store {
         &self,
         merchant_id: &str,
     ) -> CustomResult<storage::MerchantAccount, errors::StorageError> {
-        let conn = pg_connection(&self.master_pool).await;
-        storage::MerchantAccount::find_by_merchant_id(&conn, merchant_id)
-            .await
-            .map_err(Into::into)
-            .into_report()
+        let fetch_func = || async {
+            let conn = pg_connection(&self.master_pool).await?;
+            storage::MerchantAccount::find_by_merchant_id(&conn, merchant_id)
+                .await
+                .map_err(Into::into)
+                .into_report()
+        };
+
+        #[cfg(not(feature = "accounts_cache"))]
+        {
+            fetch_func().await
+        }
+
+        #[cfg(feature = "accounts_cache")]
+        {
+            super::cache::get_or_populate_cache(self, merchant_id, fetch_func).await
+        }
     }
 
     async fn update_merchant(
@@ -78,11 +84,24 @@ impl MerchantAccountInterface for Store {
         this: storage::MerchantAccount,
         merchant_account: storage::MerchantAccountUpdate,
     ) -> CustomResult<storage::MerchantAccount, errors::StorageError> {
-        let conn = pg_connection(&self.master_pool).await;
-        this.update(&conn, merchant_account)
-            .await
-            .map_err(Into::into)
-            .into_report()
+        let _merchant_id = this.merchant_id.clone();
+        let update_func = || async {
+            let conn = pg_connection(&self.master_pool).await?;
+            this.update(&conn, merchant_account)
+                .await
+                .map_err(Into::into)
+                .into_report()
+        };
+
+        #[cfg(not(feature = "accounts_cache"))]
+        {
+            update_func().await
+        }
+
+        #[cfg(feature = "accounts_cache")]
+        {
+            super::cache::redact_cache(self, &_merchant_id, update_func).await
+        }
     }
 
     async fn update_specific_fields_in_merchant(
@@ -90,29 +109,34 @@ impl MerchantAccountInterface for Store {
         merchant_id: &str,
         merchant_account: storage::MerchantAccountUpdate,
     ) -> CustomResult<storage::MerchantAccount, errors::StorageError> {
-        let conn = pg_connection(&self.master_pool).await;
-        storage::MerchantAccount::update_with_specific_fields(&conn, merchant_id, merchant_account)
+        let update_func = || async {
+            let conn = pg_connection(&self.master_pool).await?;
+            storage::MerchantAccount::update_with_specific_fields(
+                &conn,
+                merchant_id,
+                merchant_account,
+            )
             .await
             .map_err(Into::into)
             .into_report()
-    }
+        };
 
-    async fn find_merchant_account_by_api_key(
-        &self,
-        api_key: &str,
-    ) -> CustomResult<storage::MerchantAccount, errors::StorageError> {
-        let conn = pg_connection(&self.master_pool).await;
-        storage::MerchantAccount::find_by_api_key(&conn, api_key)
-            .await
-            .map_err(Into::into)
-            .into_report()
+        #[cfg(not(feature = "accounts_cache"))]
+        {
+            update_func().await
+        }
+
+        #[cfg(feature = "accounts_cache")]
+        {
+            super::cache::redact_cache(self, merchant_id, update_func).await
+        }
     }
 
     async fn find_merchant_account_by_publishable_key(
         &self,
         publishable_key: &str,
     ) -> CustomResult<storage::MerchantAccount, errors::StorageError> {
-        let conn = pg_connection(&self.master_pool).await;
+        let conn = pg_connection(&self.master_pool).await?;
         storage::MerchantAccount::find_by_publishable_key(&conn, publishable_key)
             .await
             .map_err(Into::into)
@@ -123,11 +147,23 @@ impl MerchantAccountInterface for Store {
         &self,
         merchant_id: &str,
     ) -> CustomResult<bool, errors::StorageError> {
-        let conn = pg_connection(&self.master_pool).await;
-        storage::MerchantAccount::delete_by_merchant_id(&conn, merchant_id)
-            .await
-            .map_err(Into::into)
-            .into_report()
+        let delete_func = || async {
+            let conn = pg_connection(&self.master_pool).await?;
+            storage::MerchantAccount::delete_by_merchant_id(&conn, merchant_id)
+                .await
+                .map_err(Into::into)
+                .into_report()
+        };
+
+        #[cfg(not(feature = "accounts_cache"))]
+        {
+            delete_func().await
+        }
+
+        #[cfg(feature = "accounts_cache")]
+        {
+            super::cache::redact_cache(self, merchant_id, delete_func).await
+        }
     }
 }
 
@@ -143,7 +179,6 @@ impl MerchantAccountInterface for MockDb {
             #[allow(clippy::as_conversions)]
             id: accounts.len() as i32,
             merchant_id: merchant_account.merchant_id,
-            api_key: merchant_account.api_key,
             return_url: merchant_account.return_url,
             enable_payment_response_hash: merchant_account
                 .enable_payment_response_hash
@@ -200,21 +235,6 @@ impl MerchantAccountInterface for MockDb {
     ) -> CustomResult<storage::MerchantAccount, errors::StorageError> {
         // [#TODO]: Implement function for `MockDb`
         Err(errors::StorageError::MockDbError)?
-    }
-
-    #[allow(clippy::panic)]
-    async fn find_merchant_account_by_api_key(
-        &self,
-        api_key: &str,
-    ) -> CustomResult<storage::MerchantAccount, errors::StorageError> {
-        let accounts = self.merchant_accounts.lock().await;
-
-        accounts
-            .iter()
-            .find(|account| account.api_key.as_ref().map(|s| s.peek()) == Some(&api_key.into()))
-            .cloned()
-            .ok_or_else(|| Report::from(storage_models::errors::DatabaseError::NotFound).into())
-            .into_report()
     }
 
     async fn find_merchant_account_by_publishable_key(

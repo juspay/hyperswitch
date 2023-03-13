@@ -57,14 +57,17 @@ pub mod error_parser {
         fn error_response(&self) -> actix_web::HttpResponse<actix_web::body::BoxBody> {
             use actix_web::http::header;
 
+            use crate::consts;
+
             actix_web::HttpResponseBuilder::new(StatusCode::BAD_REQUEST)
                 .insert_header((header::CONTENT_TYPE, mime::APPLICATION_JSON))
+                .insert_header((header::STRICT_TRANSPORT_SECURITY, consts::HSTS_HEADER_VALUE))
                 .insert_header((header::VIA, "Juspay_Router"))
                 .body(self.to_string())
         }
     }
 
-    pub(crate) fn custom_json_error_handler(err: JsonPayloadError, _req: &HttpRequest) -> Error {
+    pub fn custom_json_error_handler(err: JsonPayloadError, _req: &HttpRequest) -> Error {
         actix_web::error::Error::from(CustomJsonError { err })
     }
 }

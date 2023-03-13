@@ -14,8 +14,8 @@ request_body_limit = 16_384
 # Proxy server configuration for connecting to payment gateways.
 # Don't define the fields if a Proxy isn't needed. Empty strings will cause failure.
 [proxy]
-# http_url = "http proxy url"
-# https_url = "https proxy url"
+# http_url = "http proxy url"   # Proxy all HTTP traffic via this proxy
+# https_url = "https proxy url" # Proxy all HTTPS traffic via this proxy
 
 # Main SQL data store credentials
 [master_database]
@@ -25,6 +25,7 @@ host = "localhost"        # DB Host
 port = 5432               # DB Port
 dbname = "hyperswitch_db" # Name of Database
 pool_size = 5             # Number of connections to keep open
+connection_timeout = 10   # Timeout for database connection in seconds
 
 # Replica SQL data store credentials
 [replica_database]
@@ -34,6 +35,7 @@ host = "localhost"        # DB Host
 port = 5432               # DB Port
 dbname = "hyperswitch_db" # Name of Database
 pool_size = 5             # Number of connections to keep open
+connection_timeout = 10   # Timeout for database connection in seconds
 
 # Redis credentials
 [redis]
@@ -43,6 +45,7 @@ pool_size = 5              # Number of connections to keep open
 reconnect_max_attempts = 5 # Maximum number of reconnection attempts to make before failing. Set to 0 to retry forever.
 reconnect_delay = 5        # Delay between reconnection attempts, in milliseconds
 default_ttl = 300          # Default TTL for entries, in seconds
+default_hash_ttl = 900     # Default TTL for hashes entries, in seconds
 use_legacy_version = false # Resp protocol for fred crate (set this to true if using RESPv2 or redis version < 6)
 stream_read_count = 1      # Default number of entries to read from stream if not provided in stream read options
 
@@ -104,51 +107,45 @@ outgoing_enabled = true
 [eph_key]
 validity = 1
 
+[api_keys]
+# Key ID for the KMS managed key used to decrypt the API key hashing key
+aws_key_id = ""
+# The AWS region for the KMS managed key used to decrypt the API key hashing key
+aws_region = ""
+# Base64-encoded (KMS encrypted) ciphertext of the API key hashing key
+kms_encrypted_hash_key = ""
+# Hex-encoded 32-byte long (64 characters long when hex-encoded) key used for calculating hashes of API keys
+hash_key = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+
 # Connector configuration, provided attributes will be used to fulfill API requests.
 # Examples provided here are sandbox/test base urls, can be replaced by live or mock
 # base urls based on your need.
 # Note: These are not optional attributes. hyperswitch request can fail due to invalid/empty values.
-[connectors.aci]
-base_url = "https://eu-test.oppwa.com/"
-
-[connectors.adyen]
-base_url = "https://checkout-test.adyen.com/"
-
-[connectors.authorizedotnet]
-base_url = "https://apitest.authorize.net/xml/v1/request.api"
-
-[connectors.checkout]
-base_url = "https://api.sandbox.checkout.com/"
-
-[connectors.stripe]
-base_url = "https://api.stripe.com/"
-
-[connectors.braintree]
-base_url = "https://api.sandbox.braintreegateway.com/"
-
-[connectors.klarna]
-base_url = "https://api-na.playground.klarna.com/"
-
-[connectors.applepay]
-base_url = "https://apple-pay-gateway.apple.com/"
-
-[connectors.cybersource]
-base_url = "https://apitest.cybersource.com/"
-
-[connectors.shift4]
-base_url = "https://api.shift4.com/"
-
-[connectors.rapyd]
-base_url = "https://sandboxapi.rapyd.net"
-
-[connectors.fiserv]
-base_url = "https://cert.api.fiservapps.com/"
-
-[connectors.worldpay]
-base_url = "https://try.access.worldpay.com/"
-
-[connectors.globalpay]
-base_url = "https://apis.sandbox.globalpay.com/ucp/"
+[connectors]
+aci.base_url = "https://eu-test.oppwa.com/"
+adyen.base_url = "https://checkout-test.adyen.com/"
+airwallex.base_url = "https://api-demo.airwallex.com/"
+applepay.base_url = "https://apple-pay-gateway.apple.com/"
+authorizedotnet.base_url = "https://apitest.authorize.net/xml/v1/request.api"
+bambora.base_url = "https://api.na.bambora.com"
+bluesnap.base_url = "https://sandbox.bluesnap.com/"
+braintree.base_url = "https://api.sandbox.braintreegateway.com/"
+checkout.base_url = "https://api.sandbox.checkout.com/"
+cybersource.base_url = "https://apitest.cybersource.com/"
+dlocal.base_url = "https://sandbox.dlocal.com/"
+fiserv.base_url = "https://cert.api.fiservapps.com/"
+globalpay.base_url = "https://apis.sandbox.globalpay.com/ucp/"
+klarna.base_url = "https://api-na.playground.klarna.com/"
+multisafepay.base_url = "https://testapi.multisafepay.com/"
+nuvei.base_url = "https://ppp-test.nuvei.com/"
+payu.base_url = "https://secure.snd.payu.com/"
+rapyd.base_url = "https://sandboxapi.rapyd.net"
+shift4.base_url = "https://api.shift4.com/"
+stripe.base_url = "https://api.stripe.com/"
+worldline.base_url = "https://eu.sandbox.api-ingenico.com/"
+worldpay.base_url = "https://try.access.worldpay.com/"
+trustpay.base_url = "https://test-tpgw.trustpay.eu/"
+trustpay.base_url_bank_redirects = "https://aapi.trustpay.eu/"
 
 [connectors.nuvei]
 base_url = "https://ppp-test.nuvei.com/"
@@ -190,4 +187,13 @@ batch_size = 200 # Specifies the batch size the producer will push under a singl
 stream_name = "DRAINER_STREAM" # Specifies the stream name to be used by the drainer
 num_partitions = 64            # Specifies the number of partitions the stream will be divided into
 max_read_count = 100           # Specifies the maximum number of entries that would be read from redis stream in one call
-shutdown_interval = 1000       # Specifies how much time to wait, while waiting for threads to complete execution
+shutdown_interval = 1000       # Specifies how much time to wait, while waiting for threads to complete execution (in milliseconds)
+loop_interval = 500            # Specifies how much time to wait after checking all the possible streams in completed (in milliseconds)
+
+# Filteration logic for list payment method, allowing use to limit payment methods based on the requirement country and currency
+[pm_filters.stripe]
+#           ^--- This can be any connector (can be multiple)
+paypal = { currency = "USD,INR", country = "US" }
+# ^                       ^------- comma-separated values
+# ^------------------------------- any valid payment method type (can be multiple) (for cards this should be card_network)
+# If either currency or country isn't provided then, all possible values are accepted

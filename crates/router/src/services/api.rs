@@ -9,7 +9,8 @@ use std::{
     time::{Duration, Instant},
 };
 
-use actix_web::{body, HttpRequest, HttpResponse, Responder};
+use actix_web::{body, http::header, HttpRequest, HttpResponse, Responder};
+use common_utils::errors::ReportSwitchExt;
 use error_stack::{report, IntoReport, Report, ResultExt};
 use masking::ExposeOptionInterface;
 use router_env::{instrument, tracing, Tag};
@@ -19,20 +20,15 @@ use self::request::{ContentType, HeaderExt, RequestBuilderExt};
 pub use self::request::{Method, Request, RequestBuilder};
 use crate::{
     configs::settings::Connectors,
+    consts,
     core::{
-        errors::{self, CustomResult, RouterResponse, RouterResult},
+        errors::{self, CustomResult},
         payments,
     },
-    db::StorageInterface,
     logger,
     routes::{app::AppStateInfo, AppState},
     services::authentication as auth,
-    types::{
-        self,
-        api::{self},
-        storage::{self},
-        ErrorResponse,
-    },
+    types::{self, api, storage, ErrorResponse},
 };
 
 pub type BoxedConnectorIntegration<'a, T, Req, Resp> =
@@ -185,7 +181,9 @@ where
         payments::CallConnectorAction::Trigger => {
             match connector_integration.build_request(req, &state.conf.connectors)? {
                 Some(request) => {
+                    logger::debug!(connector_request=?request);
                     let response = call_connector_api(state, request).await;
+                    logger::debug!(connector_response=?response);
                     match response {
                         Ok(body) => {
                             let response = match body {
@@ -197,7 +195,6 @@ where
                                     router_data
                                 }
                             };
-                            logger::debug!(?response);
                             Ok(response)
                         }
                         Err(error) => Err(error
@@ -313,14 +310,22 @@ async fn handle_response(
                 }
 
                 status_code @ 500..=599 => {
-                    let error = match status_code {
-                        500 => errors::ApiClientError::InternalServerErrorReceived,
-                        502 => errors::ApiClientError::BadGatewayReceived,
-                        503 => errors::ApiClientError::ServiceUnavailableReceived,
-                        504 => errors::ApiClientError::GatewayTimeoutReceived,
-                        _ => errors::ApiClientError::UnexpectedServerResponse,
-                    };
-                    Err(Report::new(error).attach_printable("Server error response received"))
+                    let bytes = response.bytes().await.map_err(|error| {
+                        report!(error)
+                            .change_context(errors::ApiClientError::ResponseDecodingFailed)
+                            .attach_printable("Client error response received")
+                    })?;
+                    // let error = match status_code {
+                    //     500 => errors::ApiClientError::InternalServerErrorReceived,
+                    //     502 => errors::ApiClientError::BadGatewayReceived,
+                    //     503 => errors::ApiClientError::ServiceUnavailableReceived,
+                    //     504 => errors::ApiClientError::GatewayTimeoutReceived,
+                    //     _ => errors::ApiClientError::UnexpectedServerResponse,
+                    // };
+                    Ok(Err(types::Response {
+                        response: bytes,
+                        status_code,
+                    }))
                 }
 
                 status_code @ 400..=499 => {
@@ -390,15 +395,24 @@ impl From<&storage::PaymentAttempt> for ApplicationRedirectResponse {
 
 #[derive(Debug, Eq, PartialEq, Clone, serde::Serialize, serde::Deserialize)]
 pub struct RedirectForm {
-    pub url: String,
+    pub endpoint: String,
     pub method: Method,
     pub form_fields: HashMap<String, String>,
 }
 
-impl RedirectForm {
-    pub fn new(url: String, method: Method, form_fields: HashMap<String, String>) -> Self {
+impl From<(url::Url, Method)> for RedirectForm {
+    fn from((mut redirect_url, method): (url::Url, Method)) -> Self {
+        let form_fields = std::collections::HashMap::from_iter(
+            redirect_url
+                .query_pairs()
+                .map(|(key, value)| (key.to_string(), value.to_string())),
+        );
+
+        // Do not include query params in the endpoint
+        redirect_url.set_query(None);
+
         Self {
-            url,
+            endpoint: redirect_url.to_string(),
             method,
             form_fields,
         }
@@ -412,31 +426,34 @@ pub enum AuthFlow {
 }
 
 #[instrument(skip(request, payload, state, func, api_auth))]
-pub async fn server_wrap_util<'a, 'b, A, U, T, Q, F, Fut>(
+pub async fn server_wrap_util<'a, 'b, A, U, T, Q, F, Fut, E, OErr>(
     state: &'b A,
     request: &'a HttpRequest,
     payload: T,
     func: F,
     api_auth: &dyn auth::AuthenticateAndFetch<U, A>,
-) -> RouterResult<ApplicationResponse<Q>>
+) -> CustomResult<ApplicationResponse<Q>, OErr>
 where
     F: Fn(&'b A, U, T) -> Fut,
-    Fut: Future<Output = RouterResponse<Q>>,
+    Fut: Future<Output = CustomResult<ApplicationResponse<Q>, E>>,
     Q: Serialize + Debug + 'a,
     T: Debug,
     A: AppStateInfo,
+    CustomResult<ApplicationResponse<Q>, E>: ReportSwitchExt<ApplicationResponse<Q>, OErr>,
+    CustomResult<U, errors::ApiErrorResponse>: ReportSwitchExt<U, OErr>,
 {
     let auth_out = api_auth
         .authenticate_and_fetch(request.headers(), state)
-        .await?;
-    func(state, auth_out, payload).await
+        .await
+        .switch()?;
+    func(state, auth_out, payload).await.switch()
 }
 
 #[instrument(
     skip(request, payload, state, func, api_auth),
     fields(request_method, request_url_path)
 )]
-pub async fn server_wrap<'a, 'b, A, T, U, Q, F, Fut>(
+pub async fn server_wrap<'a, 'b, A, T, U, Q, F, Fut, E>(
     state: &'b A,
     request: &'a HttpRequest,
     payload: T,
@@ -445,10 +462,12 @@ pub async fn server_wrap<'a, 'b, A, T, U, Q, F, Fut>(
 ) -> HttpResponse
 where
     F: Fn(&'b A, U, T) -> Fut,
-    Fut: Future<Output = RouterResult<ApplicationResponse<Q>>>,
+    Fut: Future<Output = CustomResult<ApplicationResponse<Q>, E>>,
     Q: Serialize + Debug + 'a,
     T: Debug,
     A: AppStateInfo,
+    CustomResult<ApplicationResponse<Q>, E>:
+        ReportSwitchExt<ApplicationResponse<Q>, api_models::errors::types::ApiErrorResponse>,
 {
     let request_method = request.method().as_str();
     let url_path = request.path();
@@ -504,39 +523,33 @@ where
 
 pub fn log_and_return_error_response<T>(error: Report<T>) -> HttpResponse
 where
-    T: actix_web::ResponseError + error_stack::Context,
+    T: actix_web::ResponseError + error_stack::Context + Clone,
 {
     logger::error!(?error);
-    error.current_context().error_response()
-}
-
-pub async fn authenticate_by_api_key(
-    store: &dyn StorageInterface,
-    api_key: &str,
-) -> RouterResult<storage::MerchantAccount> {
-    store
-        .find_merchant_account_by_api_key(api_key)
-        .await
-        .change_context(errors::ApiErrorResponse::Unauthorized)
-        .attach_printable("Merchant not authenticated")
+    HttpResponse::from_error(error.current_context().clone())
 }
 
 pub fn http_response_json<T: body::MessageBody + 'static>(response: T) -> HttpResponse {
     HttpResponse::Ok()
         .content_type("application/json")
-        .append_header(("Via", "Juspay_router"))
+        .append_header((header::VIA, "Juspay_router"))
+        .append_header((header::STRICT_TRANSPORT_SECURITY, consts::HSTS_HEADER_VALUE))
         .body(response)
 }
 
 pub fn http_response_plaintext<T: body::MessageBody + 'static>(res: T) -> HttpResponse {
     HttpResponse::Ok()
         .content_type("text/plain")
-        .append_header(("Via", "Juspay_router"))
+        .append_header((header::VIA, "Juspay_router"))
+        .append_header((header::STRICT_TRANSPORT_SECURITY, consts::HSTS_HEADER_VALUE))
         .body(res)
 }
 
 pub fn http_response_ok() -> HttpResponse {
-    HttpResponse::Ok().finish()
+    HttpResponse::Ok()
+        .append_header((header::VIA, "Juspay_router"))
+        .append_header((header::STRICT_TRANSPORT_SECURITY, consts::HSTS_HEADER_VALUE))
+        .finish()
 }
 
 pub fn http_redirect_response<T: body::MessageBody + 'static>(
@@ -545,11 +558,12 @@ pub fn http_redirect_response<T: body::MessageBody + 'static>(
 ) -> HttpResponse {
     HttpResponse::Ok()
         .content_type("application/json")
-        .append_header(("Via", "Juspay_router"))
+        .append_header((header::VIA, "Juspay_router"))
         .append_header((
             "Location",
             redirection_response.return_url_with_query_params,
         ))
+        .append_header((header::STRICT_TRANSPORT_SECURITY, consts::HSTS_HEADER_VALUE))
         .status(http::StatusCode::FOUND)
         .body(response)
 }
@@ -557,7 +571,8 @@ pub fn http_redirect_response<T: body::MessageBody + 'static>(
 pub fn http_response_err<T: body::MessageBody + 'static>(response: T) -> HttpResponse {
     HttpResponse::BadRequest()
         .content_type("application/json")
-        .append_header(("Via", "Juspay_router"))
+        .append_header((header::VIA, "Juspay_router"))
+        .append_header((header::STRICT_TRANSPORT_SECURITY, consts::HSTS_HEADER_VALUE))
         .body(response)
 }
 
@@ -582,7 +597,7 @@ impl Authenticate for api_models::payments::PaymentsRequest {
     }
 }
 
-impl Authenticate for api_models::payment_methods::ListPaymentMethodRequest {
+impl Authenticate for api_models::payment_methods::PaymentMethodListRequest {
     fn get_client_secret(&self) -> Option<&String> {
         self.client_secret.as_ref()
     }
@@ -596,19 +611,35 @@ pub fn build_redirection_form(form: &RedirectForm) -> maud::Markup {
         html {
             meta name="viewport" content="width=device-width, initial-scale=1";
             head {
-                style { "#loading { -webkit-animation: rotation 2s infinite linear; } @-webkit-keyframes rotation{ from { -webkit-transform: rotate(0deg); } to { -webkit-transform: rotate(359deg); } }" }
+                style {
+                    r##"
+
+                    "##
+                }
+                (PreEscaped(r##"
+                <style>
+                    #loader1 {
+                        width: 500px,
+                    }
+                    @media max-width: 600px {
+                        #loader1 {
+                            width: 200px
+                        }
+                    }
+                </style>
+                "##))
             }
 
             body style="background-color: #ffffff; padding: 20px; font-family: Arial, Helvetica, Sans-Serif;" {
 
-                div id="Loader1" class="lottie" style="width: 500px; height: 150px; display: block; position: relative; margin-left: auto; margin-right: auto;" { "" }
+                div id="loader1" class="lottie" style="height: 150px; display: block; position: relative; margin-left: auto; margin-right: auto;" { "" }
 
                 (PreEscaped(r#"<script src="https://cdnjs.cloudflare.com/ajax/libs/bodymovin/5.7.4/lottie.min.js"></script>"#))
 
                 (PreEscaped(r#"
                 <script>
                 var anime = bodymovin.loadAnimation({
-                    container: document.getElementById('Loader1'),
+                    container: document.getElementById('loader1'),
                     renderer: 'svg',
                     loop: true,
                     autoplay: true,
@@ -620,7 +651,7 @@ pub fn build_redirection_form(form: &RedirectForm) -> maud::Markup {
 
 
                 h3 style="text-align: center;" { "Please wait while we process your payment..." }
-                form action=(PreEscaped(&form.url)) method=(form.method.to_string()) #payment_form {
+                form action=(PreEscaped(&form.endpoint)) method=(form.method.to_string()) #payment_form {
                     @for (field, value) in &form.form_fields {
                         input type="hidden" name=(field) value=(value);
                     }

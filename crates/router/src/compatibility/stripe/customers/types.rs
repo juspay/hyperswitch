@@ -1,21 +1,10 @@
 use std::{convert::From, default::Default};
 
 use api_models::payment_methods as api_types;
-use common_utils::date_time;
-use masking;
+use common_utils::{date_time, pii};
 use serde::{Deserialize, Serialize};
 
-use crate::{logger, pii, types::api};
-
-#[derive(Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
-pub struct CustomerAddress {
-    pub city: Option<pii::Secret<String>>,
-    pub country: Option<pii::Secret<String>>,
-    pub line1: Option<pii::Secret<String>>,
-    pub line2: Option<pii::Secret<String>>,
-    pub postal_code: Option<pii::Secret<String>>,
-    pub state: Option<pii::Secret<String>>,
-}
+use crate::{logger, types::api};
 
 #[derive(Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
 pub struct CreateCustomerRequest {
@@ -23,17 +12,19 @@ pub struct CreateCustomerRequest {
     pub invoice_prefix: Option<String>,
     pub name: Option<String>,
     pub phone: Option<masking::Secret<String>>,
-    pub address: Option<CustomerAddress>,
+    pub address: Option<masking::Secret<serde_json::Value>>,
+    pub metadata: Option<pii::SecretSerdeValue>,
+    pub description: Option<String>,
 }
 
 #[derive(Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
 pub struct CustomerUpdateRequest {
-    pub metadata: Option<String>,
     pub description: Option<String>,
     pub email: Option<masking::Secret<String, pii::Email>>,
     pub phone: Option<masking::Secret<String, masking::WithType>>,
     pub name: Option<String>,
-    pub address: Option<CustomerAddress>,
+    pub address: Option<masking::Secret<serde_json::Value>>,
+    pub metadata: Option<pii::SecretSerdeValue>,
 }
 
 #[derive(Default, Serialize, PartialEq, Eq)]
@@ -43,7 +34,7 @@ pub struct CreateCustomerResponse {
     pub created: u64,
     pub description: Option<String>,
     pub email: Option<masking::Secret<String, pii::Email>>,
-    pub metadata: Option<serde_json::Value>,
+    pub metadata: Option<pii::SecretSerdeValue>,
     pub name: Option<String>,
     pub phone: Option<masking::Secret<String, masking::WithType>>,
 }
@@ -64,7 +55,9 @@ impl From<CreateCustomerRequest> for api::CustomerRequest {
             name: req.name,
             phone: req.phone,
             email: req.email,
-            description: req.invoice_prefix,
+            description: req.description,
+            metadata: req.metadata,
+            address: req.address,
             ..Default::default()
         }
     }
@@ -77,10 +70,7 @@ impl From<CustomerUpdateRequest> for api::CustomerRequest {
             phone: req.phone,
             email: req.email,
             description: req.description,
-            metadata: req
-                .metadata
-                .map(|v| serde_json::from_str(&v).ok())
-                .unwrap_or(None),
+            metadata: req.metadata,
             ..Default::default()
         }
     }
@@ -145,8 +135,8 @@ pub struct CardDetails {
     pub fingerprint: Option<masking::Secret<String>>,
 }
 
-impl From<api::ListCustomerPaymentMethodsResponse> for CustomerPaymentMethodListResponse {
-    fn from(item: api::ListCustomerPaymentMethodsResponse) -> Self {
+impl From<api::CustomerPaymentMethodsListResponse> for CustomerPaymentMethodListResponse {
+    fn from(item: api::CustomerPaymentMethodsListResponse) -> Self {
         let customer_payment_methods = item.customer_payment_methods;
         let data = customer_payment_methods
             .into_iter()

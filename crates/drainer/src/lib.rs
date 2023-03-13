@@ -19,12 +19,15 @@ pub async fn start_drainer(
     number_of_streams: u8,
     max_read_count: u64,
     shutdown_interval: u32,
+    loop_interval: u32,
 ) -> errors::DrainerResult<()> {
     let mut stream_index: u8 = 0;
     let mut jobs_picked: u8 = 0;
 
     let mut shutdown_interval =
         tokio::time::interval(std::time::Duration::from_millis(shutdown_interval.into()));
+    let mut loop_interval =
+        tokio::time::interval(std::time::Duration::from_millis(loop_interval.into()));
 
     let signal =
         get_allowed_signals()
@@ -49,8 +52,12 @@ pub async fn start_drainer(
                     ));
                     jobs_picked += 1;
                 }
-                (stream_index, jobs_picked) =
-                    utils::increment_stream_index((stream_index, jobs_picked), number_of_streams);
+                (stream_index, jobs_picked) = utils::increment_stream_index(
+                    (stream_index, jobs_picked),
+                    number_of_streams,
+                    &mut loop_interval,
+                )
+                .await;
             }
             Ok(()) | Err(oneshot::error::TryRecvError::Closed) => {
                 logger::info!("Awaiting shutdown!");

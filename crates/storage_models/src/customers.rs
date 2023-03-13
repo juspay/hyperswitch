@@ -15,7 +15,7 @@ pub struct CustomerNew {
     pub phone: Option<Secret<String>>,
     pub description: Option<String>,
     pub phone_country_code: Option<String>,
-    pub metadata: Option<serde_json::Value>,
+    pub metadata: Option<pii::SecretSerdeValue>,
 }
 
 #[derive(Clone, Debug, Identifiable, Queryable)]
@@ -30,7 +30,7 @@ pub struct Customer {
     pub phone_country_code: Option<String>,
     pub description: Option<String>,
     pub created_at: PrimitiveDateTime,
-    pub metadata: Option<serde_json::Value>,
+    pub metadata: Option<pii::SecretSerdeValue>,
 }
 
 #[derive(Debug)]
@@ -41,7 +41,7 @@ pub enum CustomerUpdate {
         phone: Option<Secret<String>>,
         description: Option<String>,
         phone_country_code: Option<String>,
-        metadata: Option<serde_json::Value>,
+        metadata: Option<pii::SecretSerdeValue>,
     },
 }
 
@@ -53,7 +53,7 @@ pub struct CustomerUpdateInternal {
     phone: Option<Secret<String>>,
     description: Option<String>,
     phone_country_code: Option<String>,
-    metadata: Option<serde_json::Value>,
+    metadata: Option<pii::SecretSerdeValue>,
 }
 
 impl From<CustomerUpdate> for CustomerUpdateInternal {
