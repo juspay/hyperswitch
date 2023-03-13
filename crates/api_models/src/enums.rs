@@ -554,12 +554,12 @@ pub enum Connector {
     Cybersource,
     #[default]
     Dummy,
-    Mollie,
     Bambora,
     Dlocal,
     Fiserv,
     Globalpay,
     Klarna,
+    Mollie,
     Multisafepay,
     Nuvei,
     Payu,
@@ -591,7 +591,6 @@ impl Connector {
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum RoutableConnectors {
-    Mollie,
     Aci,
     Adyen,
     Airwallex,
@@ -605,6 +604,8 @@ pub enum RoutableConnectors {
     Fiserv,
     Globalpay,
     Klarna,
+    Mollie,
+    Multisafepay,
     Nuvei,
     Payu,
     Rapyd,
@@ -612,7 +613,6 @@ pub enum RoutableConnectors {
     Stripe,
     Worldline,
     Worldpay,
-    Multisafepay,
 }
 
 /// Wallets which support obtaining session object
