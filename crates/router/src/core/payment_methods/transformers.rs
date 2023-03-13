@@ -86,7 +86,7 @@ pub fn mk_add_card_request(
         name_on_card: Some("John Doe".to_string().into()),         // [#256]
         nickname: Some("router".to_string()),                      //
     };
-    let body = utils::Encode::<AddCardRequest<'_>>::encode(&add_card_req)
+    let body = utils::Encode::<AddCardRequest<'_>>::url_encode(&add_card_req)
         .change_context(errors::VaultError::RequestEncodingFailed)?;
     let mut url = locker.host.to_owned();
     url.push_str("/card/addCard");
@@ -139,7 +139,7 @@ pub fn mk_get_card_request<'a>(
         card_id,
     };
 
-    let body = utils::Encode::<GetCard<'_>>::encode(&get_card_req)
+    let body = utils::Encode::<GetCard<'_>>::url_encode(&get_card_req)
         .change_context(errors::VaultError::RequestEncodingFailed)?;
     let mut url = locker.host.to_owned();
     url.push_str("/card/getCard");
@@ -158,7 +158,7 @@ pub fn mk_delete_card_request<'a>(
         merchant_id,
         card_id,
     };
-    let body = utils::Encode::<GetCard<'_>>::encode(&delete_card_req)
+    let body = utils::Encode::<GetCard<'_>>::url_encode(&delete_card_req)
         .change_context(errors::VaultError::RequestEncodingFailed)?;
     let mut url = locker.host.to_owned();
     url.push_str("/card/deleteCard");
