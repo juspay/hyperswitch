@@ -447,6 +447,7 @@ pub async fn get_tokenized_data(
     let payload_to_be_encrypted = api::GetTokenizePayloadRequest {
         lookup_key: lookup_key.to_string(),
         get_value2: should_get_value2,
+        service_name: VAULT_SERVICE_NAME.to_string(),
     };
     let payload = serde_json::to_string(&payload_to_be_encrypted)
         .map_err(|_x| errors::ApiErrorResponse::InternalServerError)?;
@@ -502,6 +503,7 @@ pub async fn delete_tokenized_data(
 ) -> RouterResult<String> {
     let payload_to_be_encrypted = api::DeleteTokenizeByTokenRequest {
         lookup_key: lookup_key.to_string(),
+        service_name: VAULT_SERVICE_NAME.to_string(),
     };
     let payload = serde_json::to_string(&payload_to_be_encrypted)
         .map_err(|_x| errors::ApiErrorResponse::InternalServerError)?;
