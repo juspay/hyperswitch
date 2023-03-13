@@ -386,6 +386,7 @@ pub trait ConnectorActions: Connector {
             access_token: info.and_then(|a| a.access_token),
             session_token: None,
             reference_id: None,
+            webhook_url: None,
         }
     }
 

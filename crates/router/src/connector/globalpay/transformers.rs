@@ -18,7 +18,6 @@ use crate::{
 #[derive(Debug, Serialize, Deserialize)]
 pub struct GlobalPayMeta {
     account_name: String,
-    status_url: String,
 }
 
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for GlobalpayPaymentsRequest {
@@ -79,7 +78,13 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for GlobalpayPaymentsRequest {
                 ip_address: None,
                 language: None,
                 lodging: None,
-                notifications: None,
+                notifications: Some(requests::Notifications {
+                    return_url: item.router_return_url.clone(),
+                    challenge_return_url: None,
+                    decoupled_challenge_return_url: None,
+                    status_url: item.webhook_url.clone(),
+                    three_ds_method_return_url: None,
+                }),
                 order: None,
                 payer_reference: None,
                 site_reference: None,
@@ -99,7 +104,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for GlobalpayPaymentsRequest {
                     capture_mode: Some(requests::CaptureMode::from(item.request.capture_method)),
                     payment_method: requests::PaymentMethod {
                         apm: Some(requests::Apm {
-                            provider: Some(requests::ApmProvider::Testpay),
+                            provider: Some(requests::ApmProvider::Paypal),
                         }),
                         authentication: None,
                         bank_transfer: None,
@@ -119,7 +124,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for GlobalpayPaymentsRequest {
                         return_url: item.router_return_url.clone(),
                         challenge_return_url: None,
                         decoupled_challenge_return_url: None,
-                        status_url: Some(metadata.status_url),
+                        status_url: item.webhook_url.clone(),
                         three_ds_method_return_url: None,
                     }),
                     authorization_mode: None,
@@ -173,7 +178,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for GlobalpayPaymentsRequest {
                         return_url: item.router_return_url.clone(),
                         challenge_return_url: None,
                         decoupled_challenge_return_url: None,
-                        status_url: None,
+                        status_url: item.webhook_url.clone(),
                         three_ds_method_return_url: None,
                     }),
                     authorization_mode: None,
@@ -319,10 +324,8 @@ fn get_payment_response(
     response: GlobalpayPaymentsResponse,
 ) -> Result<types::PaymentsResponseData, ErrorResponse> {
     let redirection_data = response.payment_method.as_ref().and_then(|payment_method| {
-        payment_method.apm.as_ref().and_then(|apm| {
-            apm.redirect_url.as_ref().map(|redirect_url| {
-                services::RedirectForm::from((redirect_url.to_owned(), services::Method::Get))
-            })
+        payment_method.redirect_url.as_ref().map(|redirect_url| {
+            services::RedirectForm::from((redirect_url.to_owned(), services::Method::Get))
         })
     });
     match status {

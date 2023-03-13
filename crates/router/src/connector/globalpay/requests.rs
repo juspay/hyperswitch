@@ -149,7 +149,7 @@ pub struct LodgingChargeItem {
 
 /// Indicates to Global Payments where the merchant wants to receive notifications of certain
 /// events that occur on the Global Payments system.
-#[derive(Debug, Serialize, Deserialize,Default)]
+#[derive(Debug, Serialize, Deserialize, Default)]
 pub struct Notifications {
     /// The merchant URL that will receive the notification when the customer has completed the
     /// authentication.

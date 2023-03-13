@@ -62,7 +62,8 @@ pub fn update_router_data_with_access_token_result<F, Req, Res>(
             add_access_token_result.connector_supports_access_token,
             call_connector_action
         ),
-        (true, payments::CallConnectorAction::Trigger) | (true, payments::CallConnectorAction::HandleResponse(_)) 
+        (true, payments::CallConnectorAction::Trigger)
+            | (true, payments::CallConnectorAction::HandleResponse(_))
     );
 
     if should_update_router_data {

@@ -4,19 +4,15 @@ mod transformers;
 
 use std::fmt::Debug;
 
-use common_utils::crypto::GenerateDigest;
 use common_utils::ext_traits::ByteSliceExt;
 use error_stack::{IntoReport, ResultExt};
-use frunk::labelled::chars::x;
 use serde_json::Value;
-use serde_json::{json, to_writer};
-use std::io::Cursor;
 
 use self::{
     requests::{GlobalpayPaymentsRequest, GlobalpayRefreshTokenRequest},
     response::{
-        GlobalpayPaymentsResponse, GlobalpayPaymentsWebhookResponse,
-        GlobalpayRefreshTokenErrorResponse, GlobalpayRefreshTokenResponse,
+        GlobalpayPaymentsResponse, GlobalpayRefreshTokenErrorResponse,
+        GlobalpayRefreshTokenResponse,
     },
 };
 use crate::{
@@ -688,7 +684,6 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
     }
 }
 
-// crypto::GenerateDigest::generate_digest(&crypto::Sha512, hashed_digest.as_bytes())
 #[async_trait::async_trait]
 impl api::IncomingWebhook for Globalpay {
     fn get_webhook_source_verification_algorithm(
@@ -705,11 +700,10 @@ impl api::IncomingWebhook for Globalpay {
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let key = format!("whsec_verification_{}_{}", self.id(), merchant_id);
         let secret = db
-            .get_key(&key)
+            .find_config_by_key(&key)
             .await
             .change_context(errors::ConnectorError::WebhookVerificationSecretNotFound)?;
-        println!("*******{:?}", secret);
-        Ok(secret)
+        Ok(secret.config.into_bytes())
     }
 
     fn get_webhook_source_verification_signature(
@@ -717,7 +711,6 @@ impl api::IncomingWebhook for Globalpay {
         request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let signature = conn_utils::get_header_key_value("x-gp-signature", request.headers)?;
-        println!("######{}", signature);
         Ok(signature.as_bytes().to_vec())
     }
 
@@ -733,17 +726,13 @@ impl api::IncomingWebhook for Globalpay {
             .to_owned();
         let json_payload = json::parse(&payload)
             .into_report()
-            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?
-            .to_owned();
-        let mut payload_str = json::stringify(json_payload.clone()).to_owned();
-        payload_str.push_str("P2wBMG0EhuivNkD6");
-
-        let y = hex::encode(crypto::Sha512
-            .generate_digest(payload_str.as_bytes())
-            .change_context(errors::ConnectorError::RequestEncodingFailed)
-            .attach_printable("error creating request nonce")?);
-
-        Ok(y.into_bytes())
+            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+        let mut payload_str = json::stringify(json_payload);
+        let sec = std::str::from_utf8(secret)
+            .into_report()
+            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+        payload_str.push_str(sec);
+        Ok(payload_str.into_bytes())
     }
 
     fn get_webhook_object_reference_id(
@@ -754,7 +743,6 @@ impl api::IncomingWebhook for Globalpay {
             .body
             .parse_struct("GlobalpayWebhookObjectId")
             .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
-        println!(">>>>>>>>{:?}", details);
         Ok(details.id)
     }
 
@@ -766,7 +754,6 @@ impl api::IncomingWebhook for Globalpay {
             .body
             .parse_struct("GlobalpayWebhookObjectEventType")
             .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
-        println!("%%%%%%%{:?}", details);
         Ok(match details.status.as_str() {
             "DECLINED" => api::IncomingWebhookEvent::PaymentIntentFailure,
             "CAPTURED" => api::IncomingWebhookEvent::PaymentIntentSuccess,
@@ -784,13 +771,9 @@ impl api::IncomingWebhook for Globalpay {
         let res_json = serde_json::from_str(details)
             .into_report()
             .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
-        println!("*****{:?}", res_json);
         Ok(res_json)
     }
-
 }
-
-
 
 impl services::ConnectorRedirectResponse for Globalpay {
     fn get_flow_type(

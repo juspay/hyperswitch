@@ -75,7 +75,7 @@ where
         &merchant_connector_account.connector_name,
     ));
 
-    let webhook_url = Some(helpers::create_redirect_url(
+    let webhook_url = Some(helpers::create_webhook_url(
         &state.conf.server,
         &payment_data.payment_attempt,
         &merchant_connector_account.connector_name,
