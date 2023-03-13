@@ -4,8 +4,7 @@ use masking::Secret;
 use serde::{Deserialize, Serialize};
 use time::{OffsetDateTime, PrimitiveDateTime};
 
-use crate::enums;
-use crate::schema::address;
+use crate::{enums, schema::address};
 
 #[derive(Clone, Debug, Deserialize, Serialize, Insertable, router_derive::DebugAsDisplay)]
 #[diesel(table_name = address)]
