@@ -25,7 +25,7 @@ impl ReverseLookupInterface for Store {
         &self,
         new: ReverseLookupNew,
     ) -> CustomResult<ReverseLookup, errors::StorageError> {
-        let conn = pg_connection(&self.master_pool).await?;
+        let conn = pg_connection(self).await?;
         new.insert(&conn).await.map_err(Into::into).into_report()
     }
 
@@ -34,7 +34,7 @@ impl ReverseLookupInterface for Store {
         id: &str,
     ) -> CustomResult<ReverseLookup, errors::StorageError> {
         let database_call = || async {
-            let conn = pg_connection(&self.master_pool).await?;
+            let conn = pg_connection(self).await?;
             ReverseLookup::find_by_lookup_id(id, &conn)
                 .await
                 .map_err(Into::into)
