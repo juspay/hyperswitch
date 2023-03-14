@@ -271,12 +271,12 @@ pub struct MessageExtension {
     pub name: String,
     pub id: String,
     pub criticality_indicator: bool,
-    pub data: Data,
+    pub data: MessageExtensionData,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct Data {
+pub struct MessageExtensionData {
     pub value_one: String,
     pub value_two: String,
 }
@@ -309,7 +309,8 @@ impl TryFrom<&types::PaymentsAuthorizeSessionTokenRouterData> for NuveiSessionRe
         let merchant_id = connector_meta.merchant_id;
         let merchant_site_id = connector_meta.merchant_site_id;
         let client_request_id = item.attempt_id.clone();
-        let time_stamp = date_time::date_as_yyyymmddhhmmss();
+        let time_stamp = date_time::date_as_yyyymmddhhmmss().into_report()
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         let merchant_secret = connector_meta.merchant_secret;
         Ok(Self {
             merchant_id: merchant_id.clone(),
@@ -371,7 +372,8 @@ impl<F>
         let merchant_id = connector_meta.merchant_id;
         let merchant_site_id = connector_meta.merchant_site_id;
         let client_request_id = item.attempt_id.clone();
-        let time_stamp = date_time::date_as_yyyymmddhhmmss();
+        let time_stamp = date_time::date_as_yyyymmddhhmmss().into_report()
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         let merchant_secret = connector_meta.merchant_secret;
         let request_data = match item.request.payment_method_data.clone() {
             api::PaymentMethodData::Card(card) => get_card_info(item, &card),
@@ -415,9 +417,12 @@ impl<F>
                     }),
                     ..Default::default()
                 }),
-                _ => Err(
-                    errors::ConnectorError::NotImplemented("Payment methods".to_string()).into(),
-                ),
+                _ => Err(errors::ConnectorError::NotSupported {
+                    payment_method: "Wallet".to_string(),
+                    connector: "Nuvei",
+                    payment_experience: "RedirectToUrl".to_string(),
+                }
+                .into()),
             },
             _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
         }?;
@@ -524,7 +529,8 @@ impl<F>
         let merchant_id = connector_meta.merchant_id;
         let merchant_site_id = connector_meta.merchant_site_id;
         let client_request_id = item.attempt_id.clone();
-        let time_stamp = date_time::date_as_yyyymmddhhmmss();
+        let time_stamp = date_time::date_as_yyyymmddhhmmss().into_report()
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         let merchant_secret = connector_meta.merchant_secret;
         let request_data = match item.request.payment_method_data.clone() {
             Some(api::PaymentMethodData::Card(card)) => Ok(Self {
@@ -580,7 +586,8 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for NuveiPaymentFlowRequest {
         let merchant_id = connector_meta.merchant_id;
         let merchant_site_id = connector_meta.merchant_site_id;
         let client_request_id = item.attempt_id.clone();
-        let time_stamp = date_time::date_as_yyyymmddhhmmss();
+        let time_stamp = date_time::date_as_yyyymmddhhmmss().into_report()
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         let merchant_secret = connector_meta.merchant_secret;
         Ok(Self {
             merchant_id: merchant_id.clone(),
@@ -611,7 +618,8 @@ impl TryFrom<&types::RefundExecuteRouterData> for NuveiPaymentFlowRequest {
         let merchant_id = connector_meta.merchant_id;
         let merchant_site_id = connector_meta.merchant_site_id;
         let client_request_id = item.attempt_id.clone();
-        let time_stamp = date_time::date_as_yyyymmddhhmmss();
+        let time_stamp = date_time::date_as_yyyymmddhhmmss().into_report()
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         let merchant_secret = connector_meta.merchant_secret;
         Ok(Self {
             merchant_id: merchant_id.clone(),
@@ -652,7 +660,8 @@ impl TryFrom<&types::PaymentsCancelRouterData> for NuveiPaymentFlowRequest {
         let merchant_id = connector_meta.merchant_id;
         let merchant_site_id = connector_meta.merchant_site_id;
         let client_request_id = item.attempt_id.clone();
-        let time_stamp = date_time::date_as_yyyymmddhhmmss();
+        let time_stamp = date_time::date_as_yyyymmddhhmmss().into_report()
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         let merchant_secret = connector_meta.merchant_secret;
         let amount = item.request.get_amount()?.to_string();
         let currency = item.request.get_currency()?.to_string();
@@ -832,13 +841,7 @@ impl<F, T>
             .as_ref()
             .and_then(|o| o.card.clone())
             .and_then(|card| card.three_d)
-            .and_then(|three_ds| {
-                if let (Some(acs_url), Some(c_req)) = (three_ds.acs_url, three_ds.c_req) {
-                    Some((acs_url, c_req))
-                } else {
-                    None
-                }
-            })
+            .and_then(|three_ds| three_ds.acs_url.zip(three_ds.c_req))
             .map(|(base_url, creq)| services::RedirectForm {
                 endpoint: base_url,
                 method: services::Method::Post,
@@ -881,16 +884,18 @@ impl<F, T>
                         ),
                         redirection_data,
                         mandate_reference: None,
-                        connector_metadata: Some(
-                            serde_json::to_value(NuveiMeta {
-                                session_token: item
-                                    .response
-                                    .session_token
-                                    .ok_or(errors::ConnectorError::ResponseHandlingFailed)?,
-                            })
-                            .into_report()
-                            .change_context(errors::ConnectorError::ResponseHandlingFailed)?,
-                        ),
+                        // we don't need to save session token for capture, void flow so ignoring if it is not present
+                        connector_metadata: if let Some(token) = item.response.session_token {
+                            Some(
+                                serde_json::to_value(NuveiMeta {
+                                    session_token: token,
+                                })
+                                .into_report()
+                                .change_context(errors::ConnectorError::ResponseHandlingFailed)?,
+                            )
+                        } else {
+                            None
+                        },
                     }),
                 },
             },

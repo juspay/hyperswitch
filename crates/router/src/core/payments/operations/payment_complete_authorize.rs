@@ -1,7 +1,6 @@
 use std::marker::PhantomData;
 
 use async_trait::async_trait;
-use common_utils::ext_traits::Encode;
 use error_stack::ResultExt;
 use router_derive::PaymentOperation;
 use router_env::{instrument, tracing};
@@ -286,96 +285,15 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Comple
     #[instrument(skip_all)]
     async fn update_trackers<'b>(
         &'b self,
-        db: &dyn StorageInterface,
+        _db: &dyn StorageInterface,
         _payment_id: &api::PaymentIdType,
-        mut payment_data: PaymentData<F>,
-        customer: Option<storage::Customer>,
-        storage_scheme: storage_enums::MerchantStorageScheme,
+        payment_data: PaymentData<F>,
+        _customer: Option<storage::Customer>,
+        _storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> RouterResult<(BoxedOperation<'b, F, api::PaymentsRequest>, PaymentData<F>)>
     where
         F: 'b + Send,
     {
-        let payment_method = payment_data.payment_attempt.payment_method;
-        let browser_info = payment_data.payment_attempt.browser_info.clone();
-
-        let (intent_status, attempt_status) = match payment_data.payment_attempt.authentication_type
-        {
-            Some(storage_enums::AuthenticationType::NoThreeDs) => (
-                storage_enums::IntentStatus::Processing,
-                storage_enums::AttemptStatus::Pending,
-            ),
-            _ => (
-                storage_enums::IntentStatus::RequiresCustomerAction,
-                storage_enums::AttemptStatus::AuthenticationPending,
-            ),
-        };
-
-        let connector = payment_data.payment_attempt.connector.clone();
-        let payment_token = payment_data.token.clone();
-        let payment_method_type = payment_data.payment_attempt.payment_method_type.clone();
-        let payment_experience = payment_data.payment_attempt.payment_experience.clone();
-        let additional_pm_data = payment_data
-            .payment_method_data
-            .as_ref()
-            .map(api_models::payments::AdditionalPaymentData::from)
-            .as_ref()
-            .map(Encode::<api_models::payments::AdditionalPaymentData>::encode_to_value)
-            .transpose()
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to encode additional pm data")?;
-
-        payment_data.payment_attempt = db
-            .update_payment_attempt(
-                payment_data.payment_attempt,
-                storage::PaymentAttemptUpdate::ConfirmUpdate {
-                    amount: payment_data.amount.into(),
-                    currency: payment_data.currency,
-                    status: attempt_status,
-                    payment_method,
-                    authentication_type: None,
-                    browser_info,
-                    connector,
-                    payment_token,
-                    payment_method_data: additional_pm_data,
-                    payment_method_type,
-                    payment_experience,
-                },
-                storage_scheme,
-            )
-            .await
-            .map_err(|error| {
-                error.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
-            })?;
-
-        let (shipping_address, billing_address) = (
-            payment_data.payment_intent.shipping_address_id.clone(),
-            payment_data.payment_intent.billing_address_id.clone(),
-        );
-
-        let customer_id = customer.map(|c| c.customer_id);
-        let return_url = payment_data.payment_intent.return_url.clone();
-        let setup_future_usage = payment_data.payment_intent.setup_future_usage;
-
-        payment_data.payment_intent = db
-            .update_payment_intent(
-                payment_data.payment_intent,
-                storage::PaymentIntentUpdate::Update {
-                    amount: payment_data.amount.into(),
-                    currency: payment_data.currency,
-                    setup_future_usage,
-                    status: intent_status,
-                    customer_id,
-                    shipping_address_id: shipping_address,
-                    billing_address_id: billing_address,
-                    return_url,
-                },
-                storage_scheme,
-            )
-            .await
-            .map_err(|error| {
-                error.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
-            })?;
-
         Ok((Box::new(self), payment_data))
     }
 }

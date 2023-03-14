@@ -18,7 +18,7 @@ pub use self::operations::{
 };
 use self::{
     flows::{ConstructFlowSpecificData, Feature},
-    operations::{payment_complete_authorize::CompleteAuthorize, BoxedOperation, Operation},
+    operations::{payment_complete_authorize, BoxedOperation, Operation},
 };
 use crate::{
     core::{
@@ -348,7 +348,7 @@ impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
         payments_core::<api::CompleteAuthorize, api::PaymentsResponse, _, _, _>(
             state,
             merchant_account,
-            CompleteAuthorize,
+            payment_complete_authorize::CompleteAuthorize,
             payment_confirm_req,
             services::api::AuthFlow::Merchant,
             connector_action,

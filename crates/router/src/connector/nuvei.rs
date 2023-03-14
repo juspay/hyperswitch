@@ -829,16 +829,18 @@ impl services::ConnectorRedirectResponse for Nuvei {
                         utils::parse_struct_from_bytes_slice(&utils::base64_decode(
                             redirect_response.cres,
                         )?)?;
-                    return match acs_response.trans_status {
+                    match acs_response.trans_status {
                         None | Some(nuvei::LiabilityShift::Failed) => {
                             Ok(payments::CallConnectorAction::StatusUpdate(
                                 enums::AttemptStatus::AuthenticationFailed,
                             ))
                         }
                         _ => Ok(payments::CallConnectorAction::Trigger),
-                    };
+                    }
                 }
-                Ok(payments::CallConnectorAction::Trigger)
+                else {
+                    Ok(payments::CallConnectorAction::Trigger)
+                }
             }
         }
     }
