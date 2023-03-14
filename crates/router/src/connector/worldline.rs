@@ -13,6 +13,7 @@ use transformers as worldline;
 use super::utils::RefundsRequestData;
 use crate::{
     configs::settings::Connectors,
+    connector::utils as conn_utils,
     consts,
     core::errors::{self, CustomResult},
     db::StorageInterface,
@@ -672,14 +673,7 @@ impl api::IncomingWebhook for Worldline {
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
-        let header_value = request
-            .headers
-            .get("X-GCS-Signature")
-            .ok_or(errors::ConnectorError::WebhookSignatureNotFound)?
-            .to_str()
-            .into_report()
-            .change_context(errors::ConnectorError::WebhookSignatureNotFound)?;
-
+        let header_value = conn_utils::get_header_key_value("X-GCS-Signature", request.headers)?;
         let signature = consts::BASE64_ENGINE
             .decode(header_value.as_bytes())
             .into_report()
@@ -693,7 +687,7 @@ impl api::IncomingWebhook for Worldline {
         _merchant_id: &str,
         _secret: &[u8],
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
-        Ok(format!("{}", String::from_utf8_lossy(request.body)).into_bytes())
+        Ok(request.body.to_vec())
     }
 
     async fn get_webhook_source_verification_merchant_secret(

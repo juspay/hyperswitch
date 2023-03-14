@@ -493,7 +493,7 @@ pub struct ErrorResponse {
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct WebhookBody {
-    pub api_version: String,
+    pub api_version: Option<String>,
     pub id: String,
     pub created: String,
     pub merchant_id: String,
