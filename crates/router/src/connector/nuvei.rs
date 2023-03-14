@@ -2,6 +2,10 @@ mod transformers;
 
 use std::fmt::Debug;
 
+use ::common_utils::{
+    errors::ReportSwitchExt,
+    ext_traits::{BytesExt, StringExt, ValueExt},
+};
 use error_stack::{IntoReport, ResultExt};
 use transformers as nuvei;
 
@@ -146,7 +150,10 @@ impl
         data: &types::PaymentsCompleteAuthorizeRouterData,
         res: Response,
     ) -> CustomResult<types::PaymentsCompleteAuthorizeRouterData, errors::ConnectorError> {
-        let response: nuvei::NuveiPaymentsResponse = utils::parse_struct_from_bytes(res.response)?;
+        let response: nuvei::NuveiPaymentsResponse = res
+            .response
+            .parse_struct("NuveiPaymentsResponse")
+            .switch()?;
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -220,7 +227,10 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
         data: &types::PaymentsCancelRouterData,
         res: Response,
     ) -> CustomResult<types::PaymentsCancelRouterData, errors::ConnectorError> {
-        let response: nuvei::NuveiPaymentsResponse = utils::parse_struct_from_bytes(res.response)?;
+        let response: nuvei::NuveiPaymentsResponse = res
+            .response
+            .parse_struct("NuveiPaymentsResponse")
+            .switch()?;
         types::PaymentsCancelRouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -306,7 +316,10 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         data: &types::PaymentsSyncRouterData,
         res: Response,
     ) -> CustomResult<types::PaymentsSyncRouterData, errors::ConnectorError> {
-        let response: nuvei::NuveiPaymentsResponse = utils::parse_struct_from_bytes(res.response)?;
+        let response: nuvei::NuveiPaymentsResponse = res
+            .response
+            .parse_struct("NuveiPaymentsResponse")
+            .switch()?;
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -376,7 +389,10 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         data: &types::PaymentsCaptureRouterData,
         res: Response,
     ) -> CustomResult<types::PaymentsCaptureRouterData, errors::ConnectorError> {
-        let response: nuvei::NuveiPaymentsResponse = utils::parse_struct_from_bytes(res.response)?;
+        let response: nuvei::NuveiPaymentsResponse = res
+            .response
+            .parse_struct("NuveiPaymentsResponse")
+            .switch()?;
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -521,7 +537,10 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         data: &types::PaymentsAuthorizeRouterData,
         res: Response,
     ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
-        let response: nuvei::NuveiPaymentsResponse = utils::parse_struct_from_bytes(res.response)?;
+        let response: nuvei::NuveiPaymentsResponse = res
+            .response
+            .parse_struct("NuveiPaymentsResponse")
+            .switch()?;
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -605,7 +624,8 @@ impl
         data: &types::PaymentsAuthorizeSessionTokenRouterData,
         res: Response,
     ) -> CustomResult<types::PaymentsAuthorizeSessionTokenRouterData, errors::ConnectorError> {
-        let response: nuvei::NuveiSessionResponse = utils::parse_struct_from_bytes(res.response)?;
+        let response: nuvei::NuveiSessionResponse =
+            res.response.parse_struct("NuveiSessionResponse").switch()?;
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -679,7 +699,10 @@ impl ConnectorIntegration<InitPayment, types::PaymentsAuthorizeData, types::Paym
         data: &types::PaymentsInitRouterData,
         res: Response,
     ) -> CustomResult<types::PaymentsInitRouterData, errors::ConnectorError> {
-        let response: nuvei::NuveiPaymentsResponse = utils::parse_struct_from_bytes(res.response)?;
+        let response: nuvei::NuveiPaymentsResponse = res
+            .response
+            .parse_struct("NuveiPaymentsResponse")
+            .switch()?;
         let response_data = types::RouterData::try_from(types::ResponseRouterData {
             response: response.clone(),
             data: data.clone(),
@@ -769,7 +792,10 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         data: &types::RefundsRouterData<api::Execute>,
         res: Response,
     ) -> CustomResult<types::RefundsRouterData<api::Execute>, errors::ConnectorError> {
-        let response: nuvei::NuveiPaymentsResponse = utils::parse_struct_from_bytes(res.response)?;
+        let response: nuvei::NuveiPaymentsResponse = res
+            .response
+            .parse_struct("NuveiPaymentsResponse")
+            .switch()?;
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -824,11 +850,11 @@ impl services::ConnectorRedirectResponse for Nuvei {
             services::PaymentAction::CompleteAuthorize => {
                 if let Some(payload) = json_payload {
                     let redirect_response: nuvei::NuveiRedirectionResponse =
-                        utils::parse_struct(payload)?;
-                    let acs_response: nuvei::NuveiACSResponse =
-                        utils::parse_struct_from_bytes_slice(&utils::base64_decode(
-                            redirect_response.cres,
-                        )?)?;
+                        payload.parse_value("NuveiRedirectionResponse").switch()?;
+                    let acs_response: nuvei::NuveiACSResponse = redirect_response
+                        .cres
+                        .parse_struct("NuveiACSResponse")
+                        .switch()?;
                     match acs_response.trans_status {
                         None | Some(nuvei::LiabilityShift::Failed) => {
                             Ok(payments::CallConnectorAction::StatusUpdate(

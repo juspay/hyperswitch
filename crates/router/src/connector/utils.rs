@@ -1,9 +1,8 @@
 use std::collections::HashMap;
 
 use base64::Engine;
-use bytes::Buf;
 use common_utils::{
-    ext_traits::ValueExt,
+    errors::ReportSwitchExt,
     pii::{self, Email},
 };
 use error_stack::{report, IntoReport, ResultExt};
@@ -17,7 +16,7 @@ use crate::{
     core::errors::{self, CustomResult},
     pii::PeekInterface,
     types::{self, api, PaymentsCancelData, ResponseId},
-    utils::OptionExt,
+    utils::{OptionExt, ValueExt},
 };
 
 pub fn missing_field_err(
@@ -392,7 +391,7 @@ where
     T: serde::de::DeserializeOwned,
 {
     let json = connector_meta.ok_or_else(missing_field_err("connector_meta_data"))?;
-    parse_struct(json)
+    json.parse_value(std::any::type_name::<T>()).switch()
 }
 
 pub fn to_connector_meta_from_secret<T>(
@@ -404,50 +403,13 @@ where
     let connector_meta_secret =
         connector_meta.ok_or_else(missing_field_err("connector_meta_data"))?;
     let json = connector_meta_secret.peek().clone();
-    parse_struct(json)
+    json.parse_value(std::any::type_name::<T>()).switch()
 }
 
-pub fn parse_struct<T>(json: serde_json::Value) -> Result<T, Error>
-where
-    T: serde::de::DeserializeOwned,
-{
-    serde_json::from_value::<T>(json.clone())
-        .into_report()
-        .change_context(errors::ConnectorError::ParsingFailed {
-            from_type: "Json",
-            to_type: std::any::type_name::<T>(),
-            data: json.to_string(),
-        })
-}
-
-pub fn parse_struct_from_bytes<T>(bytes: bytes::Bytes) -> Result<T, Error>
-where
-    T: serde::de::DeserializeOwned,
-{
-    serde_json::from_slice::<T>(bytes.chunk())
-        .into_report()
-        .change_context(errors::ConnectorError::ParsingFailed {
-            from_type: "Bytes",
-            to_type: std::any::type_name::<T>(),
-            data: String::from_utf8(bytes.to_vec())
-                .into_report()
-                .change_context(errors::ConnectorError::ResponseHandlingFailed)?,
-        })
-}
-
-pub fn parse_struct_from_bytes_slice<T>(bytes: &[u8]) -> Result<T, Error>
-where
-    T: serde::de::DeserializeOwned,
-{
-    serde_json::from_slice::<T>(bytes)
-        .into_report()
-        .change_context(errors::ConnectorError::ParsingFailed {
-            from_type: "&[u8]",
-            to_type: std::any::type_name::<T>(),
-            data: String::from_utf8(bytes.to_vec())
-                .into_report()
-                .change_context(errors::ConnectorError::ResponseHandlingFailed)?,
-        })
+impl common_utils::errors::ErrorSwitch<errors::ConnectorError> for errors::ParsingError {
+    fn switch(&self) -> errors::ConnectorError {
+        errors::ConnectorError::ParsingFailed
+    }
 }
 
 pub fn to_string<T>(data: &T) -> Result<String, Error>

@@ -29,7 +29,7 @@ use crate::{
     logger, pii,
     routes::AppState,
     scheduler::utils as pt_utils,
-    services::{self, PaymentAction},
+    services,
     types::{
         self, api,
         storage::{self, enums as storage_enums},
@@ -271,7 +271,7 @@ pub trait PaymentRedirectFlow: Sync {
         connector_action: CallConnectorAction,
     ) -> RouterResponse<api::PaymentsResponse>;
 
-    fn get_payment_action(&self) -> PaymentAction;
+    fn get_payment_action(&self) -> services::PaymentAction;
 
     #[allow(clippy::too_many_arguments)]
     async fn handle_payments_redirect_response(
@@ -356,8 +356,8 @@ impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
         .await
     }
 
-    fn get_payment_action(&self) -> PaymentAction {
-        PaymentAction::CompleteAuthorize
+    fn get_payment_action(&self) -> services::PaymentAction {
+        services::PaymentAction::CompleteAuthorize
     }
 }
 
@@ -391,8 +391,8 @@ impl PaymentRedirectFlow for PaymentRedirectSync {
         .await
     }
 
-    fn get_payment_action(&self) -> PaymentAction {
-        PaymentAction::PSync
+    fn get_payment_action(&self) -> services::PaymentAction {
+        services::PaymentAction::PSync
     }
 }
 

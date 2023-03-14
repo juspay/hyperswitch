@@ -227,12 +227,8 @@ pub enum ConnectorError {
     RequestEncodingFailed,
     #[error("Request encoding failed : {0}")]
     RequestEncodingFailedWithReason(String),
-    #[error("Failed to parse {to_type} from {from_type} {data:?}")]
-    ParsingFailed {
-        from_type: &'static str,
-        to_type: &'static str,
-        data: String,
-    },
+    #[error("Parsing failed")]
+    ParsingFailed,
     #[error("Failed to deserialize connector response")]
     ResponseDeserializationFailed,
     #[error("Failed to execute a processing step: {0:?}")]
