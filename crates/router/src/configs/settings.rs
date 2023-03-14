@@ -160,6 +160,15 @@ pub struct Locker {
     pub host: String,
     pub mock_locker: bool,
     pub basilisk_host: String,
+    pub locker_setup: LockerSetup,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum LockerSetup {
+    #[default]
+    LegacyLocker,
+    BasiliskLocker,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -188,6 +197,8 @@ pub struct Jwekey {
     pub locker_encryption_key2: String,
     pub locker_decryption_key1: String,
     pub locker_decryption_key2: String,
+    pub vault_encryption_key: String,
+    pub vault_private_key: String,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -251,7 +262,7 @@ pub struct Connectors {
     pub stripe: ConnectorParams,
     pub worldline: ConnectorParams,
     pub worldpay: ConnectorParams,
-    pub trustpay: ConnectorParameters,
+    pub trustpay: ConnectorParamsWithMoreUrls,
 
     // Keep this field separate from the remaining fields
     pub supported: SupportedConnectors,
@@ -265,7 +276,7 @@ pub struct ConnectorParams {
 
 #[derive(Debug, Deserialize, Clone, Default)]
 #[serde(default)]
-pub struct ConnectorParameters {
+pub struct ConnectorParamsWithMoreUrls {
     pub base_url: String,
     pub base_url_bank_redirects: String,
 }

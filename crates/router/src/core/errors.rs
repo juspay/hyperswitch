@@ -281,6 +281,8 @@ pub enum ConnectorError {
     WebhookEventTypeNotFound,
     #[error("Incoming webhook event resource object not found")]
     WebhookResourceObjectNotFound,
+    #[error("Could not respond to the incoming webhook event")]
+    WebhookResponseEncodingFailed,
     #[error("Invalid Date/time format")]
     InvalidDateFormat,
     #[error("Invalid Data format")]

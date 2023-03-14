@@ -364,7 +364,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
                 )
                 .change_context(errors::ConnectorError::RequestEncodingFailed)?
             }
-            _ => utils::Encode::<trustpay::PaymentRequestCards>::encode(&trustpay_req)
+            _ => utils::Encode::<trustpay::PaymentRequestCards>::url_encode(&trustpay_req)
                 .change_context(errors::ConnectorError::RequestEncodingFailed)?,
         };
         Ok(Some(trustpay_req_string))
@@ -462,7 +462,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
                 &trustpay_req
             )
             .change_context(errors::ConnectorError::RequestEncodingFailed)?,
-            _ => utils::Encode::<trustpay::TrustpayRefundRequestCards>::encode(&trustpay_req)
+            _ => utils::Encode::<trustpay::TrustpayRefundRequestCards>::url_encode(&trustpay_req)
                 .change_context(errors::ConnectorError::RequestEncodingFailed)?,
         };
         Ok(Some(trustpay_req_string))
@@ -717,6 +717,7 @@ impl services::ConnectorRedirectResponse for Trustpay {
             serde_urlencoded::from_str::<transformers::TrustpayRedirectResponse>(query_params)
                 .into_report()
                 .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        crate::logger::debug!(trustpay_redirect_response=?query);
         Ok(query.status.map_or(
             payments::CallConnectorAction::Trigger,
             |status| match status.as_str() {
