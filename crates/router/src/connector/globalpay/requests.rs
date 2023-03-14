@@ -190,7 +190,6 @@ pub struct Order {
     pub reference: Option<String>,
 }
 #[skip_serializing_none]
-#[skip_serializing_none]
 #[derive(Debug, Default, Serialize, Deserialize)]
 
 pub struct PaymentMethod {
