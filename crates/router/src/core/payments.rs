@@ -631,7 +631,8 @@ pub async fn list_payments(
                 .find_payment_attempt_by_payment_id_merchant_id(
                     &pi.payment_id,
                     merchant_id,
-                    merchant.storage_scheme,
+                    // since OLAP doesn't have KV. Force to get the data from PSQL.
+                    storage_enums::MerchantStorageScheme::PostgresOnly,
                 )
                 .await
                 .ok()?;
