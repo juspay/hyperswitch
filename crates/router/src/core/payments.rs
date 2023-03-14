@@ -4,7 +4,7 @@ pub mod helpers;
 pub mod operations;
 pub mod transformers;
 
-use std::{fmt::Debug, marker::PhantomData, time::Instant};
+use std::{fmt::Debug, marker::PhantomData, time::Instant, vec::IntoIter};
 
 use error_stack::{IntoReport, ResultExt};
 use futures::future::join_all;
@@ -139,19 +139,13 @@ where
 
     if let Some(connector_details) = connector {
         payment_data = match connector_details {
-            api::ConnectorCallType::Single(mut connectors) => {
-                connectors.reverse();
-
-                let connector = connectors
-                    .pop()
-                    .ok_or(errors::ApiErrorResponse::InternalServerError)
-                    .into_report()
-                    .attach_printable("Failed to get connector from vector of connectors")?;
+            api::ConnectorCallType::Single(connectors) => {
+                let mut connectors = connectors.into_iter();
 
                 let router_data = call_connector_service(
                     state,
                     &merchant_account,
-                    connector,
+                    get_connector_data(&mut connectors)?,
                     &operation,
                     &payment_data,
                     &customer,
@@ -159,14 +153,18 @@ where
                 )
                 .await?;
 
-                post_update_trackers(
-                    state,
-                    router_data,
-                    &validate_result.payment_id,
-                    payment_data,
-                    merchant_account.storage_scheme,
-                )
-                .await?
+                let operation = Box::new(PaymentResponse);
+                let db = &*state.store;
+                operation
+                    .to_post_update_tracker()?
+                    .update_tracker(
+                        db,
+                        &validate_result.payment_id,
+                        payment_data,
+                        router_data,
+                        merchant_account.storage_scheme,
+                    )
+                    .await?
             }
             api::ConnectorCallType::Multiple(connectors) => {
                 call_multiple_connectors_service(
@@ -179,11 +177,9 @@ where
                 )
                 .await?
             }
-            api::ConnectorCallType::Routing => {
-                Err(errors::ApiErrorResponse::InternalServerError)
-                    .into_report()
-                    .attach_printable("Routing logic not run properly")?
-            }
+            api::ConnectorCallType::Routing => Err(errors::ApiErrorResponse::InternalServerError)
+                .into_report()
+                .attach_printable("Routing logic not run properly")?,
         };
         vault::Vault::delete_locker_payment_method_by_lookup_key(state, &payment_data.token).await
     }
@@ -451,26 +447,6 @@ where
     Ok(payment_data)
 }
 
-pub async fn post_update_trackers<F, FData>(
-    state: &AppState,
-    router_data: types::RouterData<F, FData, types::PaymentsResponseData>,
-    payment_id: &api::PaymentIdType,
-    payment_data: PaymentData<F>,
-    storage_scheme: storage_enums::MerchantStorageScheme,
-) -> RouterResult<PaymentData<F>>
-where
-    F: Clone + Send,
-    PaymentResponse: Operation<F, FData>,
-{
-    let operation = Box::new(PaymentResponse);
-    let db = &*state.store;
-    let payment_data = operation
-        .to_post_update_tracker()?
-        .update_tracker(db, payment_id, payment_data, router_data, storage_scheme)
-        .await?;
-    Ok(payment_data)
-}
-
 #[derive(Clone)]
 pub enum CallConnectorAction {
     Trigger,
@@ -713,4 +689,15 @@ where
             Ok(api::ConnectorCallType::Multiple(connectors))
         }
     }
+}
+
+#[inline]
+pub fn get_connector_data(
+    connectors: &mut IntoIter<api::ConnectorData>,
+) -> RouterResult<api::ConnectorData> {
+    connectors
+        .next()
+        .ok_or(errors::ApiErrorResponse::InternalServerError)
+        .into_report()
+        .attach_printable("Failed to get connector from iterator of connectors")
 }
