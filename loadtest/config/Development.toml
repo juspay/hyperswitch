@@ -45,6 +45,8 @@ locker_encryption_key1 = ""
 locker_encryption_key2 = ""
 locker_decryption_key1 = ""
 locker_decryption_key2 = ""
+vault_encryption_key = ""
+vault_private_key = ""
 
 [webhooks]
 outgoing_enabled = true
@@ -75,6 +77,8 @@ shift4.base_url = "https://api.shift4.com/"
 stripe.base_url = "https://api.stripe.com/"
 worldline.base_url = "https://eu.sandbox.api-ingenico.com/"
 worldpay.base_url = "https://try.access.worldpay.com/"
+trustpay.base_url = "https://test-tpgw.trustpay.eu/"
+trustpay.base_url_bank_redirects = "https://aapi.trustpay.eu/"
 
 [connectors.supported]
 wallets = ["klarna", "braintree", "applepay"]
@@ -98,4 +102,5 @@ cards = [
     "stripe",
     "worldline",
     "worldpay",
+    "trustpay",
 ]

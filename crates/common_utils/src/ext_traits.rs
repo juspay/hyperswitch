@@ -44,7 +44,7 @@ where
     /// Functionality, for specifically encoding `Self` into `String`
     /// after serialization by using `serde::Serialize`
     ///
-    fn encode(&'e self) -> CustomResult<String, errors::ParsingError>
+    fn url_encode(&'e self) -> CustomResult<String, errors::ParsingError>
     where
         Self: Serialize;
 
@@ -103,7 +103,7 @@ where
     }
 
     // Check without two functions can we combine this
-    fn encode(&'e self) -> CustomResult<String, errors::ParsingError>
+    fn url_encode(&'e self) -> CustomResult<String, errors::ParsingError>
     where
         Self: Serialize,
     {
