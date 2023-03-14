@@ -9,8 +9,10 @@ use super::{
 };
 use crate::{
     connector::utils::{PaymentsRequestData, RouterData},
+    connector::utils::{PaymentsRequestData, RouterData},
     consts,
     core::errors,
+    services::{self},
     services::{self},
     types::{self, api, storage::enums, ErrorResponse},
 };
@@ -205,7 +207,12 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for GlobalpayPaymentsRequest {
                 _ => Err(
                     errors::ConnectorError::NotImplemented("Payment methods".to_string()).into(),
                 ),
+                _ => Err(
+                    errors::ConnectorError::NotImplemented("Payment methods".to_string()).into(),
+                ),
             },
+            _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
+        }
             _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
         }
     }
