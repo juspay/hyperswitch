@@ -837,8 +837,7 @@ impl services::ConnectorRedirectResponse for Nuvei {
                         }
                         _ => Ok(payments::CallConnectorAction::Trigger),
                     }
-                }
-                else {
+                } else {
                     Ok(payments::CallConnectorAction::Trigger)
                 }
             }

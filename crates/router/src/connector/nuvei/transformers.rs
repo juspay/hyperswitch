@@ -309,8 +309,9 @@ impl TryFrom<&types::PaymentsAuthorizeSessionTokenRouterData> for NuveiSessionRe
         let merchant_id = connector_meta.merchant_id;
         let merchant_site_id = connector_meta.merchant_site_id;
         let client_request_id = item.attempt_id.clone();
-        let time_stamp = date_time::date_as_yyyymmddhhmmss().into_report()
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let time_stamp = date_time::date_as_yyyymmddhhmmss()
+            .into_report()
+            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         let merchant_secret = connector_meta.merchant_secret;
         Ok(Self {
             merchant_id: merchant_id.clone(),
@@ -372,8 +373,9 @@ impl<F>
         let merchant_id = connector_meta.merchant_id;
         let merchant_site_id = connector_meta.merchant_site_id;
         let client_request_id = item.attempt_id.clone();
-        let time_stamp = date_time::date_as_yyyymmddhhmmss().into_report()
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let time_stamp = date_time::date_as_yyyymmddhhmmss()
+            .into_report()
+            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         let merchant_secret = connector_meta.merchant_secret;
         let request_data = match item.request.payment_method_data.clone() {
             api::PaymentMethodData::Card(card) => get_card_info(item, &card),
@@ -529,8 +531,9 @@ impl<F>
         let merchant_id = connector_meta.merchant_id;
         let merchant_site_id = connector_meta.merchant_site_id;
         let client_request_id = item.attempt_id.clone();
-        let time_stamp = date_time::date_as_yyyymmddhhmmss().into_report()
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let time_stamp = date_time::date_as_yyyymmddhhmmss()
+            .into_report()
+            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         let merchant_secret = connector_meta.merchant_secret;
         let request_data = match item.request.payment_method_data.clone() {
             Some(api::PaymentMethodData::Card(card)) => Ok(Self {
@@ -586,8 +589,9 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for NuveiPaymentFlowRequest {
         let merchant_id = connector_meta.merchant_id;
         let merchant_site_id = connector_meta.merchant_site_id;
         let client_request_id = item.attempt_id.clone();
-        let time_stamp = date_time::date_as_yyyymmddhhmmss().into_report()
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let time_stamp = date_time::date_as_yyyymmddhhmmss()
+            .into_report()
+            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         let merchant_secret = connector_meta.merchant_secret;
         Ok(Self {
             merchant_id: merchant_id.clone(),
@@ -618,8 +622,9 @@ impl TryFrom<&types::RefundExecuteRouterData> for NuveiPaymentFlowRequest {
         let merchant_id = connector_meta.merchant_id;
         let merchant_site_id = connector_meta.merchant_site_id;
         let client_request_id = item.attempt_id.clone();
-        let time_stamp = date_time::date_as_yyyymmddhhmmss().into_report()
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let time_stamp = date_time::date_as_yyyymmddhhmmss()
+            .into_report()
+            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         let merchant_secret = connector_meta.merchant_secret;
         Ok(Self {
             merchant_id: merchant_id.clone(),
@@ -660,8 +665,9 @@ impl TryFrom<&types::PaymentsCancelRouterData> for NuveiPaymentFlowRequest {
         let merchant_id = connector_meta.merchant_id;
         let merchant_site_id = connector_meta.merchant_site_id;
         let client_request_id = item.attempt_id.clone();
-        let time_stamp = date_time::date_as_yyyymmddhhmmss().into_report()
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let time_stamp = date_time::date_as_yyyymmddhhmmss()
+            .into_report()
+            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         let merchant_secret = connector_meta.merchant_secret;
         let amount = item.request.get_amount()?.to_string();
         let currency = item.request.get_currency()?.to_string();

@@ -7,7 +7,7 @@ use serde_json::json;
 
 use crate::{
     connector_auth,
-    utils::{self, ConnectorActions, PaymentInfo},
+    utils::{self, ConnectorActions},
 };
 
 #[derive(Clone, Copy)]
