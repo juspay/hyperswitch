@@ -1,0 +1,2 @@
+ALTER TABLE merchant_account
+ADD COLUMN primary_business_details JSON;

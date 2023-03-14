@@ -34,19 +34,38 @@ pub async fn create_merchant_account(
 
     let api_key = Some(create_merchant_api_key().into());
 
-    let merchant_details = Some(
-        utils::Encode::<api::MerchantDetails>::encode_to_value(&req.merchant_details)
-            .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "merchant_details",
-            })?,
-    );
+    let merchant_details = req
+        .merchant_details
+        .map(|md| {
+            utils::Encode::<api::MerchantDetails>::encode_to_value(&md).change_context(
+                errors::ApiErrorResponse::InvalidDataValue {
+                    field_name: "merchant_details",
+                },
+            )
+        })
+        .transpose()?;
 
-    let webhook_details = Some(
-        utils::Encode::<api::WebhookDetails>::encode_to_value(&req.webhook_details)
-            .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "webhook details",
-            })?,
-    );
+    let webhook_details = req
+        .webhook_details
+        .map(|wd| {
+            utils::Encode::<api::WebhookDetails>::encode_to_value(&wd).change_context(
+                errors::ApiErrorResponse::InvalidDataValue {
+                    field_name: "webhook details",
+                },
+            )
+        })
+        .transpose()?;
+
+    let primary_business_details = req
+        .primary_business_details
+        .map(|pbd| {
+            utils::Encode::<api::PrimaryBusinessDetails>::encode_to_value(&pbd).change_context(
+                errors::ApiErrorResponse::InvalidDataValue {
+                    field_name: "default business details",
+                },
+            )
+        })
+        .transpose()?;
 
     if let Some(ref routing_algorithm) = req.routing_algorithm {
         let _: api::RoutingAlgorithm = routing_algorithm
@@ -79,6 +98,7 @@ pub async fn create_merchant_account(
         publishable_key,
         locker_id: req.locker_id,
         metadata: req.metadata,
+        primary_business_details,
     };
 
     let merchant_account = db
@@ -171,6 +191,12 @@ pub async fn merchant_account_update(
         metadata: req.metadata,
         api_key: None,
         publishable_key: None,
+        primary_business_details: req
+            .primary_business_details
+            .as_ref()
+            .map(utils::Encode::<api::PrimaryBusinessDetails>::encode_to_value)
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)?,
     };
 
     let response = db
@@ -292,6 +318,9 @@ pub async fn create_payment_connector(
         test_mode: req.test_mode,
         disabled: req.disabled,
         metadata: req.metadata,
+        connector_label: Some(req.connector_label),
+        business_country: Some(req.business_country),
+        business_label: Some(req.business_label),
     };
 
     let mca = store
@@ -402,6 +431,9 @@ pub async fn update_payment_connector(
         test_mode: req.test_mode,
         disabled: req.disabled,
         metadata: req.metadata,
+        connector_label: Some(req.connector_label),
+        business_country: Some(req.business_country),
+        business_label: Some(req.business_label),
     };
 
     let updated_mca = db
@@ -432,6 +464,9 @@ pub async fn update_payment_connector(
         disabled: updated_mca.disabled,
         payment_methods_enabled: updated_pm_enabled,
         metadata: updated_mca.metadata,
+        connector_label: updated_mca.connector_label,
+        business_country: updated_mca.business_country,
+        business_label: updated_mca.business_label,
     };
     Ok(service_api::ApplicationResponse::Json(response))
 }

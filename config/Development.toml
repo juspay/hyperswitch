@@ -17,6 +17,7 @@ host = "localhost"
 port = 5432
 dbname = "hyperswitch_db"
 pool_size = 5
+connection_timeout = 10
 
 [replica_database]
 username = "replica_user"
@@ -79,71 +80,29 @@ validity = 1
 [api_keys]
 hash_key = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
 
-[connectors.aci]
-base_url = "https://eu-test.oppwa.com/"
-
-[connectors.adyen]
-base_url = "https://checkout-test.adyen.com/"
-
-[connectors.authorizedotnet]
-base_url = "https://apitest.authorize.net/xml/v1/request.api"
-
-[connectors.checkout]
-base_url = "https://api.sandbox.checkout.com/"
-
-[connectors.stripe]
-base_url = "https://api.stripe.com/"
-
-[connectors.braintree]
-base_url = "https://api.sandbox.braintreegateway.com/"
-
-[connectors.klarna]
-base_url = "https://api-na.playground.klarna.com/"
-
-[connectors.applepay]
-base_url = "https://apple-pay-gateway.apple.com/"
-
-[connectors.cybersource]
-base_url = "https://apitest.cybersource.com/"
-
-[connectors.shift4]
-base_url = "https://api.shift4.com/"
-
-[connectors.rapyd]
-base_url = "https://sandboxapi.rapyd.net"
-
-[connectors.fiserv]
-base_url = "https://cert.api.fiservapps.com/"
-
-[connectors.worldpay]
-base_url = "https://try.access.worldpay.com/"
-
-[connectors.payu]
-base_url = "https://secure.snd.payu.com/"
-
-[connectors.globalpay]
-base_url = "https://apis.sandbox.globalpay.com/ucp/"
-
-[connectors.worldline]
-base_url = "https://eu.sandbox.api-ingenico.com/"
-
-[connectors.bluesnap]
-base_url = "https://sandbox.bluesnap.com/"
-
-[connectors.nuvei]
-base_url = "https://ppp-test.nuvei.com/"
-
-[connectors.airwallex]
-base_url = "https://api-demo.airwallex.com/"
-
-[connectors.multisafepay]
-base_url = "https://testapi.multisafepay.com/"
-
-[connectors.dlocal]
-base_url = "https://sandbox.dlocal.com/"
-
-[connectors.bambora]
-base_url = "https://api.na.bambora.com"
+[connectors]
+aci.base_url = "https://eu-test.oppwa.com/"
+adyen.base_url = "https://checkout-test.adyen.com/"
+airwallex.base_url = "https://api-demo.airwallex.com/"
+applepay.base_url = "https://apple-pay-gateway.apple.com/"
+authorizedotnet.base_url = "https://apitest.authorize.net/xml/v1/request.api"
+bambora.base_url = "https://api.na.bambora.com"
+bluesnap.base_url = "https://sandbox.bluesnap.com/"
+braintree.base_url = "https://api.sandbox.braintreegateway.com/"
+checkout.base_url = "https://api.sandbox.checkout.com/"
+cybersource.base_url = "https://apitest.cybersource.com/"
+dlocal.base_url = "https://sandbox.dlocal.com/"
+fiserv.base_url = "https://cert.api.fiservapps.com/"
+globalpay.base_url = "https://apis.sandbox.globalpay.com/ucp/"
+klarna.base_url = "https://api-na.playground.klarna.com/"
+multisafepay.base_url = "https://testapi.multisafepay.com/"
+nuvei.base_url = "https://ppp-test.nuvei.com/"
+payu.base_url = "https://secure.snd.payu.com/"
+rapyd.base_url = "https://sandboxapi.rapyd.net"
+shift4.base_url = "https://api.shift4.com/"
+stripe.base_url = "https://api.stripe.com/"
+worldline.base_url = "https://eu.sandbox.api-ingenico.com/"
+worldpay.base_url = "https://try.access.worldpay.com/"
 
 [scheduler]
 stream = "SCHEDULER_STREAM"
@@ -153,12 +112,12 @@ disabled = false
 consumer_group = "SCHEDULER_GROUP"
 
 [bank_config.eps]
-stripe = {banks = "arzte_und_apotheker_bank,austrian_anadi_bank_ag,bank_austria,bankhaus_carl_spangler,bankhaus_schelhammer_und_schattera_ag,bawag_psk_ag,bks_bank_ag,brull_kallmus_bank_ag,btv_vier_lander_bank,capital_bank_grawe_gruppe_ag,dolomitenbank,easybank_ag,erste_bank_und_sparkassen,hypo_alpeadriabank_international_ag,hypo_noe_lb_fur_niederosterreich_u_wien,hypo_oberosterreich_salzburg_steiermark,hypo_tirol_bank_ag,hypo_vorarlberg_bank_ag,hypo_bank_burgenland_aktiengesellschaft,marchfelder_bank,oberbank_ag,raiffeisen_bankengruppe_osterreich,schoellerbank_ag,sparda_bank_wien,volksbank_gruppe,volkskreditbank_ag,vr_bank_braunau"}
-adyen = {banks = "bank_austria,bawag_psk_ag,dolomitenbank,easybank_ag,erste_bank_und_sparkassen,hypo_tirol_bank_ag,posojilnica_bank_e_gen,raiffeisen_bankengruppe_osterreich,schoellerbank_ag,sparda_bank_wien,volksbank_gruppe,volkskreditbank_ag"}
+stripe = { banks = "arzte_und_apotheker_bank,austrian_anadi_bank_ag,bank_austria,bankhaus_carl_spangler,bankhaus_schelhammer_und_schattera_ag,bawag_psk_ag,bks_bank_ag,brull_kallmus_bank_ag,btv_vier_lander_bank,capital_bank_grawe_gruppe_ag,dolomitenbank,easybank_ag,erste_bank_und_sparkassen,hypo_alpeadriabank_international_ag,hypo_noe_lb_fur_niederosterreich_u_wien,hypo_oberosterreich_salzburg_steiermark,hypo_tirol_bank_ag,hypo_vorarlberg_bank_ag,hypo_bank_burgenland_aktiengesellschaft,marchfelder_bank,oberbank_ag,raiffeisen_bankengruppe_osterreich,schoellerbank_ag,sparda_bank_wien,volksbank_gruppe,volkskreditbank_ag,vr_bank_braunau" }
+adyen = { banks = "bank_austria,bawag_psk_ag,dolomitenbank,easybank_ag,erste_bank_und_sparkassen,hypo_tirol_bank_ag,posojilnica_bank_e_gen,raiffeisen_bankengruppe_osterreich,schoellerbank_ag,sparda_bank_wien,volksbank_gruppe,volkskreditbank_ag" }
 
 [bank_config.ideal]
-stripe = {banks = "abn_amro,asn_bank,bunq,handelsbanken,ing,knab,moneyou,rabobank,regiobank,revolut,sns_bank,triodos_bank,van_lanschot"}
-adyen = {banks = "abn_amro,asn_bank,bunq,handelsbanken,ing,knab,moneyou,rabobank,regiobank,revolut,sns_bank,triodos_bank,van_lanschot"}
+stripe = { banks = "abn_amro,asn_bank,bunq,handelsbanken,ing,knab,moneyou,rabobank,regiobank,revolut,sns_bank,triodos_bank,van_lanschot" }
+adyen = { banks = "abn_amro,asn_bank,bunq,handelsbanken,ing,knab,moneyou,rabobank,regiobank,revolut,sns_bank,triodos_bank,van_lanschot" }
 
 [pm_filters.stripe]
 google_pay = { country = "AL,DZ,AS,AO,AG,AR,AU,AT,AZ,BH,BY,BE,BR,BG,CA,CL,CO,HR,CZ,DK,DO,EG,EE,FI,FR,DE,GR,HK,HU,IN,ID,IE,IL,IT,JP,JO,KZ,KE,KW,LV,LB,LT,LU,MY,MX,NL,NZ,NO,OM,PK,PA,PE,PH,PL,PT,QA,RO,RU,SA,SG,SK,ZA,ES,LK,SE,CH,TW,TH,TR,UA,AE,GB,US,UY,VN" }

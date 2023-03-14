@@ -1,8 +1,8 @@
 pub use api_models::admin::{
     MerchantAccountCreate, MerchantAccountDeleteResponse, MerchantAccountResponse,
     MerchantAccountUpdate, MerchantConnector, MerchantConnectorDeleteResponse, MerchantConnectorId,
-    MerchantDetails, MerchantId, PaymentMethodsEnabled, RoutingAlgorithm, ToggleKVRequest,
-    ToggleKVResponse, WebhookDetails,
+    MerchantDetails, MerchantId, PaymentMethodsEnabled, PrimaryBusinessDetails, RoutingAlgorithm,
+    ToggleKVRequest, ToggleKVResponse, WebhookDetails,
 };
 
 use crate::types::{storage, transformers::ForeignFrom};
@@ -26,6 +26,7 @@ impl ForeignFrom<storage::MerchantAccount> for MerchantAccountResponse {
             publishable_key: item.publishable_key,
             metadata: item.metadata,
             locker_id: item.locker_id,
+            primary_business_details: item.primary_business_details,
         }
     }
 }

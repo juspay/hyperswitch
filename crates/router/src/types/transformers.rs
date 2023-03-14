@@ -336,6 +336,9 @@ impl ForeignTryFrom<storage::MerchantConnectorAccount> for api_models::admin::Me
             disabled: merchant_ca.disabled,
             metadata: merchant_ca.metadata,
             payment_methods_enabled,
+            connector_label: merchant_ca.connector_label,
+            business_country: merchant_ca.business_country,
+            business_label: merchant_ca.business_label,
         })
     }
 }
