@@ -359,13 +359,7 @@ impl Vault {
         let lookup_key = token_id.unwrap_or_else(|| generate_id_with_default_len("token"));
 
         let lookup_key = create_tokenize(state, value1, Some(value2), lookup_key).await?;
-        add_tokenize_data_task(
-            &*state.store,
-            &lookup_key,
-            pm,
-            "Delete_Tokenize_Data_Workflow",
-        )
-        .await?;
+        add_delete_tokenized_data_task(&*state.store, &lookup_key, pm).await?;
         Ok(lookup_key)
     }
 
@@ -571,13 +565,12 @@ pub async fn delete_tokenized_data(
 
 // ********************************************** PROCESS TRACKER **********************************************
 #[cfg(feature = "basilisk")]
-pub async fn add_tokenize_data_task(
+pub async fn add_delete_tokenized_data_task(
     db: &dyn db::StorageInterface,
     lookup_key: &str,
     pm: enums::PaymentMethod,
-    runner: &str,
 ) -> RouterResult<storage::ProcessTracker> {
-    let task = "DELETE_TOKENIZE_DATA";
+    let runner = "DELETE_TOKENIZE_DATA_WORKFLOW";
     let current_time = common_utils::date_time::now();
     let tracking_data = serde_json::to_value(storage::TokenizeCoreWorkflow {
         lookup_key: lookup_key.to_owned(),
@@ -587,15 +580,11 @@ pub async fn add_tokenize_data_task(
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable_lazy(|| format!("unable to convert into value {:?}", lookup_key))?;
 
-    let schedule_time = get_delete_tokenize_schedule_time(db, &pm, 0)
-        .await
-        .into_report()
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed while getting delete tokenize data schedule time")?;
+    let schedule_time = get_delete_tokenize_schedule_time(db, &pm, 0).await;
 
     let process_tracker_entry = storage::ProcessTrackerNew {
-        id: format!("{}_{}_{}", runner, task, lookup_key),
-        name: Some(String::from(task)),
+        id: format!("{}_{}", runner, lookup_key),
+        name: Some(String::from(runner)),
         tag: vec![String::from("BASILISK-V3")],
         runner: Some(String::from(runner)),
         retry_count: 0,
@@ -670,7 +659,7 @@ pub async fn get_delete_tokenize_schedule_time(
     db: &dyn db::StorageInterface,
     pm: &enums::PaymentMethod,
     retry_count: i32,
-) -> Result<Option<time::PrimitiveDateTime>, errors::ProcessTrackerError> {
+) -> Option<time::PrimitiveDateTime> {
     let redis_mapping = db::get_and_deserialize_key(
         db,
         &format!("pt_mapping_delete_{pm}_tokenize_data"),
@@ -686,7 +675,7 @@ pub async fn get_delete_tokenize_schedule_time(
     };
     let time_delta = process_tracker_utils::get_pm_schedule_time(mapping, pm, retry_count + 1);
 
-    Ok(process_tracker_utils::get_time_from_delta(time_delta))
+    process_tracker_utils::get_time_from_delta(time_delta)
 }
 
 #[cfg(feature = "basilisk")]
@@ -695,7 +684,7 @@ pub async fn retry_delete_tokenize(
     pm: &enums::PaymentMethod,
     pt: storage::ProcessTracker,
 ) -> Result<(), errors::ProcessTrackerError> {
-    let schedule_time = get_delete_tokenize_schedule_time(db, pm, pt.retry_count).await?;
+    let schedule_time = get_delete_tokenize_schedule_time(db, pm, pt.retry_count).await;
 
     match schedule_time {
         Some(s_time) => pt.retry(db, s_time).await,
