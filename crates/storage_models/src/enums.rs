@@ -478,7 +478,7 @@ pub enum ProcessTrackerStatus {
     Processing,
     // State when the task is added
     New,
-    // Send to retry
+    // Send to retry or requeue
     Pending,
     // Picked by consumer
     ProcessStarted,

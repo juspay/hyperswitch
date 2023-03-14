@@ -1,5 +1,6 @@
 use common_utils::ext_traits::{AsyncExt, ValueExt};
 use error_stack::{IntoReport, ResultExt};
+use std::fmt::Debug;
 
 use crate::{
     core::{
@@ -10,7 +11,10 @@ use crate::{
     routes::AppState,
     scheduler::workflows::{AccessTokenRefresh, ProcessTrackerWorkflow},
     services,
-    types::{self, api as api_types, storage},
+    types::{
+        self, api as api_types,
+        storage::{self, ProcessTrackerExt},
+    },
 };
 
 #[derive(serde::Serialize, serde::Deserialize)]
@@ -102,7 +106,7 @@ pub async fn add_access_token<
             .get_access_token(merchant_id, connector.connector.id())
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("DB error when accessing the access token")?;
+            .attach_printable("Redis error when accessing the access token")?;
 
         let res = match old_access_token {
             Some(access_token) => Ok(Some(access_token)),
@@ -140,16 +144,9 @@ pub async fn add_access_token<
                             )
                             .await
                             .change_context(errors::ApiErrorResponse::InternalServerError)
-                            .attach_printable("DB error when setting the access token");
+                            .attach_printable("Redis error when setting the access token");
 
-                        // Scheduler to get a new access token 60 seconds before it expires
-                        let time_untill_refresh = access_token.expires.saturating_sub(60);
-
-                        // let next_schedule_time = common_utils::date_time::now()
-                        //     .saturating_add(time::Duration::seconds(time_untill_refresh));
-
-                        let next_schedule_time = common_utils::date_time::now()
-                            .saturating_add(time::Duration::seconds(30));
+                        let next_schedule_time = get_schedule_time(access_token.expires);
 
                         let _ = add_access_token_refresh_task(
                             store,
@@ -176,7 +173,18 @@ pub async fn add_access_token<
     }
 }
 
-pub async fn add_access_token_refresh_task<Flow, Response>(
+fn get_schedule_time(access_token_ttl: i64) -> time::PrimitiveDateTime {
+    // Scheduler to get a new access token 60 seconds before it expires
+    // If for some reason the ttl is negative, get the time untill refresh to be 0 seconds
+    let time_untill_refresh = u64::try_from(access_token_ttl)
+        .unwrap_or(0)
+        .saturating_sub(60);
+
+    common_utils::date_time::now()
+        .saturating_add(time::Duration::seconds(time_untill_refresh as i64))
+}
+
+async fn add_access_token_refresh_task<Flow, Response>(
     db: &dyn db::StorageInterface,
     schedule_time: time::PrimitiveDateTime,
     router_data: &types::RouterData<Flow, types::AccessTokenRequestData, Response>,
@@ -193,7 +201,10 @@ pub async fn add_access_token_refresh_task<Flow, Response>(
     let runner = "ACCESS_TOKEN_REFRESH";
     let task = "ACCESS_TOKEN_REFRESH";
 
-    let process_tracker_id = format!("{}_{}", task, router_data.connector);
+    let process_tracker_id = format!(
+        "{}_{}_{}",
+        task, router_data.connector, router_data.merchant_id
+    );
 
     let process_tracker_entry =
         <storage::ProcessTracker as storage::ProcessTrackerExt>::make_process_tracker_new(
@@ -290,8 +301,10 @@ impl ProcessTrackerWorkflow for AccessTokenRefresh {
         state: &'a AppState,
         process: storage::ProcessTracker,
     ) -> Result<(), errors::ProcessTrackerError> {
-        let tracking_data: ProcessTrackerAccessTokenData =
-            process.tracking_data.parse_value("AccessTokenData")?;
+        let tracking_data: ProcessTrackerAccessTokenData = process
+            .tracking_data
+            .clone()
+            .parse_value("AccessTokenData")?;
         let db: &dyn db::StorageInterface = &*state.store;
 
         let merchant_connector_account = db
@@ -310,12 +323,32 @@ impl ProcessTrackerWorkflow for AccessTokenRefresh {
             types::api::GetToken::Connector,
         )?;
 
-        let _new_access_token =
+        let new_access_token_result =
             refresh_connector_auth(state, &connector, &access_token_router_data).await?;
 
-        //TODO: update status of process tracker
-        //TODO: schedule task for next refresh
+        match new_access_token_result {
+            Ok(access_token) => {
+                // Update the access token in redis
+                let store = &*state.store;
+                let _ = state
+                    .store
+                    .set_access_token(
+                        &tracking_data.merchant_id,
+                        connector.connector.id(),
+                        access_token.clone(),
+                    )
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Redis error when setting the access token");
 
+                // Requeue the task for next scheduled time
+                let next_schedule_time = get_schedule_time(access_token.expires);
+                process.requeue(store, next_schedule_time).await?;
+            }
+            Err(_) => {
+                // Update the status of current task
+            }
+        }
         Ok(())
     }
 }
