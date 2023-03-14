@@ -10,9 +10,9 @@ license = "Apache-2.0"
 build = "src/build.rs"
 
 [features]
-default = ["kv_store", "stripe", "oltp", "olap", "accounts_cache"]
+default = ["kv_store", "stripe", "oltp", "olap","accounts_cache"]
 kms = ["aws-config", "aws-sdk-kms"]
-basilisk = ["josekit", "kms"]
+basilisk = ["kms"]
 stripe = ["dep:serde_qs"]
 sandbox = ["kms", "stripe", "basilisk"]
 olap = []
@@ -48,7 +48,7 @@ frunk_core = "0.4.1"
 futures = "0.3.27"
 hex = "0.4.3"
 http = "0.2.9"
-josekit = { version = "0.8.2", optional = true }
+josekit = "0.8.2"
 jsonwebtoken = "8.2.0"
 literally = "0.1.3"
 maud = { version = "0.24", features = ["actix-web"] }
