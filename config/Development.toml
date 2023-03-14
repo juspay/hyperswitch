@@ -34,6 +34,7 @@ connection_timeout = 10
 host = ""
 mock_locker = true
 basilisk_host = ""
+locker_setup = "legacy_locker"
 
 [jwekey]
 locker_key_identifier1 = ""
@@ -42,6 +43,8 @@ locker_encryption_key1 = ""
 locker_encryption_key2 = ""
 locker_decryption_key1 = ""
 locker_decryption_key2 = ""
+vault_encryption_key = ""
+vault_private_key = ""
 
 [connectors.supported]
 wallets = ["klarna", "braintree", "applepay"]

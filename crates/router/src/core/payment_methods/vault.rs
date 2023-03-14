@@ -1,18 +1,25 @@
 use common_utils::generate_id_with_default_len;
 use error_stack::{IntoReport, ResultExt};
+#[cfg(feature = "basilisk")]
+use josekit::jwe;
 use masking::PeekInterface;
 use router_env::{instrument, tracing};
 
 #[cfg(not(feature = "basilisk"))]
 use crate::types::storage;
 use crate::{
+    configs::settings::Jwekey,
     core::errors::{self, CustomResult, RouterResult},
     logger, routes,
     types::api,
     utils::{self, StringExt},
 };
 #[cfg(feature = "basilisk")]
-use crate::{core::payment_methods::transformers as payment_methods, services, utils::BytesExt};
+use crate::{
+    core::payment_methods::transformers as payment_methods,
+    services::{self, kms},
+    utils::BytesExt,
+};
 #[cfg(feature = "basilisk")]
 const VAULT_SERVICE_NAME: &str = "CARD";
 #[cfg(feature = "basilisk")]
@@ -374,6 +381,53 @@ impl Vault {
 }
 
 //------------------------------------------------TokenizeService------------------------------------------------
+pub fn get_key_id(keys: &Jwekey) -> &str {
+    let key_identifier = "1"; // [#46]: Fetch this value from redis or external sources
+    if key_identifier == "1" {
+        &keys.locker_key_identifier1
+    } else {
+        &keys.locker_key_identifier2
+    }
+}
+
+#[cfg(feature = "basilisk")]
+async fn get_locker_jwe_keys(
+    keys: &Jwekey,
+) -> CustomResult<(String, String), errors::EncryptionError> {
+    let key_id = get_key_id(keys);
+    if key_id == keys.locker_key_identifier1 {
+        let public_key = kms::KeyHandler::get_kms_decrypted_key(
+            &keys.aws_region,
+            &keys.aws_key_id,
+            keys.locker_encryption_key1.to_string(),
+        )
+        .await?;
+        let private_key = kms::KeyHandler::get_kms_decrypted_key(
+            &keys.aws_region,
+            &keys.aws_key_id,
+            keys.locker_decryption_key1.to_string(),
+        )
+        .await?;
+        Ok((public_key, private_key))
+    } else if key_id == keys.locker_key_identifier2 {
+        let public_key = kms::KeyHandler::get_kms_decrypted_key(
+            &keys.aws_region,
+            &keys.aws_key_id,
+            keys.locker_encryption_key2.to_string(),
+        )
+        .await?;
+        let private_key = kms::KeyHandler::get_kms_decrypted_key(
+            &keys.aws_region,
+            &keys.aws_key_id,
+            keys.locker_decryption_key2.to_string(),
+        )
+        .await?;
+        Ok((public_key, private_key))
+    } else {
+        Err(errors::EncryptionError.into())
+    }
+}
+
 #[cfg(feature = "basilisk")]
 pub async fn create_tokenize(
     state: &routes::AppState,
@@ -391,14 +445,20 @@ pub async fn create_tokenize(
         &payload_to_be_encrypted,
     )
     .change_context(errors::ApiErrorResponse::InternalServerError)?;
-    let encrypted_payload = services::encrypt_jwe(&state.conf.jwekey, &payload)
+
+    let (public_key, private_key) = get_locker_jwe_keys(&state.conf.jwekey)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Error getting Encrypt JWE response")?;
+        .attach_printable("Error getting Encryption key")?;
+    let encrypted_payload =
+        services::encrypt_jwe(&state.conf.jwekey, payload.as_bytes(), public_key)
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Error getting Encrypt JWE response")?;
 
     let create_tokenize_request = api::TokenizePayloadEncrypted {
         payload: encrypted_payload,
-        key_id: services::get_key_id(&state.conf.jwekey).to_string(),
+        key_id: get_key_id(&state.conf.jwekey).to_string(),
         version: Some(VAULT_VERSION.to_string()),
     };
     let request = payment_methods::mk_crud_locker_request(
@@ -419,11 +479,18 @@ pub async fn create_tokenize(
                 .parse_struct("TokenizePayloadEncrypted")
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Decoding Failed for TokenizePayloadEncrypted")?;
-            let decrypted_payload =
-                services::decrypt_jwe(&state.conf.jwekey, &resp.payload, &resp.key_id)
-                    .await
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Decrypt Jwe failed for TokenizePayloadEncrypted")?;
+            let alg = jwe::RSA_OAEP_256;
+            let decrypted_payload = services::decrypt_jwe(
+                &state.conf.jwekey,
+                &resp.payload,
+                get_key_id(&state.conf.jwekey),
+                &resp.key_id,
+                private_key,
+                alg,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Decrypt Jwe failed for TokenizePayloadEncrypted")?;
             let get_response: api::GetTokenizePayloadResponse = decrypted_payload
                 .parse_struct("GetTokenizePayloadResponse")
                 .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -451,13 +518,19 @@ pub async fn get_tokenized_data(
     };
     let payload = serde_json::to_string(&payload_to_be_encrypted)
         .map_err(|_x| errors::ApiErrorResponse::InternalServerError)?;
-    let encrypted_payload = services::encrypt_jwe(&state.conf.jwekey, &payload)
+
+    let (public_key, private_key) = get_locker_jwe_keys(&state.conf.jwekey)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Error getting Encrypt JWE response")?;
+        .attach_printable("Error getting Encryption key")?;
+    let encrypted_payload =
+        services::encrypt_jwe(&state.conf.jwekey, payload.as_bytes(), public_key)
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Error getting Encrypt JWE response")?;
     let create_tokenize_request = api::TokenizePayloadEncrypted {
         payload: encrypted_payload,
-        key_id: services::get_key_id(&state.conf.jwekey).to_string(),
+        key_id: get_key_id(&state.conf.jwekey).to_string(),
         version: Some("0".to_string()),
     };
     let request = payment_methods::mk_crud_locker_request(
@@ -477,13 +550,18 @@ pub async fn get_tokenized_data(
                 .parse_struct("TokenizePayloadEncrypted")
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Decoding Failed for TokenizePayloadEncrypted")?;
-            let decrypted_payload =
-                services::decrypt_jwe(&state.conf.jwekey, &resp.payload, &resp.key_id)
-                    .await
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable(
-                        "GetTokenizedApi: Decrypt Jwe failed for TokenizePayloadEncrypted",
-                    )?;
+            let alg = jwe::RSA_OAEP_256;
+            let decrypted_payload = services::decrypt_jwe(
+                &state.conf.jwekey,
+                &resp.payload,
+                get_key_id(&state.conf.jwekey),
+                &resp.key_id,
+                private_key,
+                alg,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("GetTokenizedApi: Decrypt Jwe failed for TokenizePayloadEncrypted")?;
             let get_response: api::TokenizePayloadRequest = decrypted_payload
                 .parse_struct("TokenizePayloadRequest")
                 .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -507,13 +585,19 @@ pub async fn delete_tokenized_data(
     };
     let payload = serde_json::to_string(&payload_to_be_encrypted)
         .map_err(|_x| errors::ApiErrorResponse::InternalServerError)?;
-    let encrypted_payload = services::encrypt_jwe(&state.conf.jwekey, &payload)
+
+    let (public_key, private_key) = get_locker_jwe_keys(&state.conf.jwekey)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Error getting Encrypt JWE response")?;
+        .attach_printable("Error getting Encryption key")?;
+    let encrypted_payload =
+        services::encrypt_jwe(&state.conf.jwekey, payload.as_bytes(), public_key)
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Error getting Encrypt JWE response")?;
     let create_tokenize_request = api::TokenizePayloadEncrypted {
         payload: encrypted_payload,
-        key_id: services::get_key_id(&state.conf.jwekey).to_string(),
+        key_id: get_key_id(&state.conf.jwekey).to_string(),
         version: Some("0".to_string()),
     };
     let request = payment_methods::mk_crud_locker_request(
@@ -533,13 +617,20 @@ pub async fn delete_tokenized_data(
                 .parse_struct("TokenizePayloadEncrypted")
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Decoding Failed for TokenizePayloadEncrypted")?;
-            let decrypted_payload =
-                services::decrypt_jwe(&state.conf.jwekey, &resp.payload, &resp.key_id)
-                    .await
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable(
-                        "DeleteTokenizedApi: Decrypt Jwe failed for TokenizePayloadEncrypted",
-                    )?;
+            let alg = jwe::RSA_OAEP_256;
+            let decrypted_payload = services::decrypt_jwe(
+                &state.conf.jwekey,
+                &resp.payload,
+                get_key_id(&state.conf.jwekey),
+                &resp.key_id,
+                private_key,
+                alg,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable(
+                "DeleteTokenizedApi: Decrypt Jwe failed for TokenizePayloadEncrypted",
+            )?;
             let delete_response = decrypted_payload
                 .parse_struct("Delete")
                 .change_context(errors::ApiErrorResponse::InternalServerError)

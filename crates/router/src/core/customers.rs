@@ -141,8 +141,13 @@ pub async fn delete_customer(
         Ok(customer_payment_methods) => {
             for pm in customer_payment_methods.into_iter() {
                 if pm.payment_method == enums::PaymentMethod::Card {
-                    cards::delete_card(state, &merchant_account.merchant_id, &pm.payment_method_id)
-                        .await?;
+                    cards::delete_card_from_locker(
+                        state,
+                        &req.customer_id,
+                        &merchant_account.merchant_id,
+                        &pm.payment_method_id,
+                    )
+                    .await?;
                 }
                 db.delete_payment_method_by_merchant_id_payment_method_id(
                     &merchant_account.merchant_id,
