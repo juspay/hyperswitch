@@ -2,7 +2,6 @@ use common_utils::pii;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
-use serde_with::skip_serializing_none;
 
 #[derive(Debug, Default, Serialize)]
 pub struct GlobalpayPaymentsRequest {
@@ -191,7 +190,6 @@ pub struct Order {
     pub reference: Option<String>,
 }
 #[skip_serializing_none]
-
 #[skip_serializing_none]
 #[derive(Debug, Default, Serialize, Deserialize)]
 
@@ -358,8 +356,6 @@ pub struct Card {
 pub struct DigitalWallet {
     /// Identifies who provides the digital wallet for the Payer.
     pub provider: Option<DigitalWalletProvider>,
-    /// A token that represents, or is the payment method, stored with  the digital wallet.    
-    pub payment_token: Option<serde_json::Value>,
     /// A token that represents, or is the payment method, stored with  the digital wallet.    
     pub payment_token: Option<serde_json::Value>,
 }
@@ -577,7 +573,6 @@ pub enum TypeElement {
 /// A string used to identify the payment method provider being used to execute this
 /// transaction.
 #[derive(Debug, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
 pub enum ApmProvider {
     Giropay,

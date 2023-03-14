@@ -1,6 +1,5 @@
 use serde::{Deserialize, Serialize};
 use url::Url;
-use url::Url;
 
 use super::requests;
 
@@ -135,7 +134,6 @@ pub struct PaymentMethod {
     /// Result code from the payment method provider.
     pub result: Option<String>,
     /// Redirect url for payment method provider
-    pub redirect_url: Option<Url>,
     pub redirect_url: Option<Url>,
 }
 
@@ -291,7 +289,6 @@ pub enum FundStatus {
 /// A string used to identify the payment method provider being used to execute this
 /// transaction.
 #[derive(Debug, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
 pub enum ApmProvider {
     Giropay,
