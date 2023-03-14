@@ -11,6 +11,13 @@ use crate::{
     routes::metrics,
 };
 
+static KMS_CLIENT: tokio::sync::OnceCell<KmsClient> = tokio::sync::OnceCell::const_new();
+
+#[inline]
+pub async fn get_kms_client(config: &settings::Kms) -> &KmsClient {
+    KMS_CLIENT.get_or_init(|| KmsClient::new(config)).await
+}
+
 pub struct KmsClient {
     inner_client: Client,
     key_id: String,
