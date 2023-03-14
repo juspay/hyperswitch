@@ -329,12 +329,6 @@ pub struct WebhooksSettings {
 #[derive(Debug, Deserialize, Clone, Default)]
 #[serde(default)]
 pub struct ApiKeys {
-    #[cfg(feature = "kms")]
-    pub aws_key_id: String,
-
-    #[cfg(feature = "kms")]
-    pub aws_region: String,
-
     /// Base64-encoded (KMS encrypted) ciphertext of the key used for calculating hashes of API
     /// keys
     #[cfg(feature = "kms")]
