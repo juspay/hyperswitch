@@ -276,7 +276,9 @@ async fn payments_create_core() {
 
     let state = routes::AppState::with_storage(conf, StorageImpl::PostgresqlTest).await;
 
-    let merchant_account = services::authenticate_by_api_key(&*state.store, "MySecretApiKey")
+    let merchant_account = state
+        .store
+        .find_merchant_account_by_merchant_id("juspay_merchant")
         .await
         .unwrap();
 
@@ -426,7 +428,9 @@ async fn payments_create_core_adyen_no_redirect() {
     let merchant_id = "arunraj".to_string();
     let payment_id = "pay_mbabizu24mvu3mela5njyhpit10".to_string();
 
-    let merchant_account = services::authenticate_by_api_key(&*state.store, "321")
+    let merchant_account = state
+        .store
+        .find_merchant_account_by_merchant_id("juspay_merchant")
         .await
         .unwrap();
 
