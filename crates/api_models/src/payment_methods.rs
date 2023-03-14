@@ -545,12 +545,14 @@ pub struct TokenizePayloadRequest {
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct GetTokenizePayloadRequest {
     pub lookup_key: String,
+    pub service_name: String,
     pub get_value2: bool,
 }
 
 #[derive(Debug, serde::Serialize)]
 pub struct DeleteTokenizeByTokenRequest {
     pub lookup_key: String,
+    pub service_name: String,
 }
 
 #[derive(Debug, serde::Serialize)] // Blocked: Yet to be implemented by `basilisk`
