@@ -54,6 +54,7 @@ literally = "0.1.3"
 maud = { version = "0.24", features = ["actix-web"] }
 mimalloc = { version = "0.1", optional = true }
 mime = "0.3.16"
+moka = {version = "0.10", features = ["future"] }
 nanoid = "0.4.0"
 num_cpus = "1.15.0"
 once_cell = "1.17.1"
