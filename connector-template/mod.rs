@@ -2,6 +2,7 @@ mod transformers;
 
 use std::fmt::Debug;
 use error_stack::{ResultExt, IntoReport};
+use api_models::webhooks::ObjectReferenceId;
 
 use crate::{
     configs::settings,
@@ -414,7 +415,7 @@ impl api::IncomingWebhook for {{project-name | downcase | pascal_case}} {
     fn get_webhook_object_reference_id(
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<PaymentIdType, errors::ConnectorError> {
+    ) -> CustomResult<ObjectReferenceId, errors::ConnectorError> {
         Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
     }
 
