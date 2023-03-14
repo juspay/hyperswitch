@@ -616,7 +616,7 @@ pub async fn get_connector_default(
             connector_name,
             api::GetToken::Connector,
         )?;
-        Ok(api::ConnectorCallType::Single(connector_data))
+        Ok(api::ConnectorCallType::Single(vec![connector_data]))
     } else {
         Ok(api::ConnectorCallType::Routing)
     }

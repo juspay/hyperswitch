@@ -139,7 +139,7 @@ where
 
     if let Some(connector_details) = connector {
         payment_data = match connector_details {
-            api::NextConnectorCallType::Single(mut connectors) => {
+            api::ConnectorCallType::Single(mut connectors) => {
                 connectors.reverse();
 
                 let connector = connectors
@@ -168,7 +168,7 @@ where
                 )
                 .await?
             }
-            api::NextConnectorCallType::Multiple(connectors) => {
+            api::ConnectorCallType::Multiple(connectors) => {
                 call_multiple_connectors_service(
                     state,
                     &merchant_account,
@@ -178,6 +178,11 @@ where
                     &customer,
                 )
                 .await?
+            }
+            api::ConnectorCallType::Routing => {
+                Err(errors::ApiErrorResponse::InternalServerError)
+                    .into_report()
+                    .attach_printable("Routing logic not run properly")?
             }
         };
         vault::Vault::delete_locker_payment_method_by_lookup_key(state, &payment_data.token).await
@@ -660,15 +665,23 @@ pub async fn route_connector<F>(
     merchant_account: &storage::MerchantAccount,
     payment_data: &mut PaymentData<F>,
     connector_call_type: api::ConnectorCallType,
-) -> RouterResult<api::NextConnectorCallType>
+) -> RouterResult<api::ConnectorCallType>
 where
     F: Send + Clone,
 {
     match connector_call_type {
         api::ConnectorCallType::Single(connector) => {
-            payment_data.payment_attempt.connector = Some(connector.connector_name.to_string());
+            payment_data.payment_attempt.connector = Some(
+                connector
+                    .first()
+                    .ok_or(errors::ApiErrorResponse::InternalServerError)
+                    .into_report()
+                    .attach_printable("No connector through straight through")?
+                    .connector_name
+                    .to_string(),
+            );
 
-            Ok(api::NextConnectorCallType::Single(vec![connector]))
+            Ok(api::ConnectorCallType::Single(connector))
         }
 
         api::ConnectorCallType::Routing => {
@@ -693,11 +706,11 @@ where
 
             payment_data.payment_attempt.connector = Some(connector_name);
 
-            Ok(api::NextConnectorCallType::Single(vec![connector_data]))
+            Ok(api::ConnectorCallType::Single(vec![connector_data]))
         }
 
         api::ConnectorCallType::Multiple(connectors) => {
-            Ok(api::NextConnectorCallType::Multiple(connectors))
+            Ok(api::ConnectorCallType::Multiple(connectors))
         }
     }
 }

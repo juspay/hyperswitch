@@ -127,11 +127,6 @@ pub struct ConnectorData {
 pub enum ConnectorCallType {
     Routing,
     Multiple(Vec<ConnectorData>),
-    Single(ConnectorData),
-}
-
-pub enum NextConnectorCallType {
-    Multiple(Vec<ConnectorData>),
     Single(Vec<ConnectorData>),
 }
 
