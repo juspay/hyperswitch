@@ -189,10 +189,6 @@ pub struct EphemeralConfig {
 #[derive(Debug, Deserialize, Clone, Default)]
 #[serde(default)]
 pub struct Jwekey {
-    #[cfg(feature = "kms")]
-    pub aws_key_id: String,
-    #[cfg(feature = "kms")]
-    pub aws_region: String,
     pub locker_key_identifier1: String,
     pub locker_key_identifier2: String,
     pub locker_encryption_key1: String,
@@ -421,7 +417,6 @@ impl Settings {
             .transpose()?;
         #[cfg(feature = "kv_store")]
         self.drainer.validate()?;
-        self.jwekey.validate()?;
         self.api_keys.validate()?;
         #[cfg(feature = "kms")]
         self.kms.validate()?;

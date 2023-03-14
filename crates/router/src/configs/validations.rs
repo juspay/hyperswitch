@@ -41,26 +41,6 @@ impl super::settings::Locker {
     }
 }
 
-impl super::settings::Jwekey {
-    pub fn validate(&self) -> Result<(), ApplicationError> {
-        #[cfg(feature = "kms")]
-        common_utils::fp_utils::when(self.aws_key_id.is_default_or_empty(), || {
-            Err(ApplicationError::InvalidConfigurationValueError(
-                "AWS key ID must not be empty when KMS feature is enabled".into(),
-            ))
-        })?;
-
-        #[cfg(feature = "kms")]
-        common_utils::fp_utils::when(self.aws_region.is_default_or_empty(), || {
-            Err(ApplicationError::InvalidConfigurationValueError(
-                "AWS region must not be empty when KMS feature is enabled".into(),
-            ))
-        })?;
-
-        Ok(())
-    }
-}
-
 impl super::settings::Server {
     pub fn validate(&self) -> Result<(), ApplicationError> {
         common_utils::fp_utils::when(self.host.is_default_or_empty(), || {
