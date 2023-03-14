@@ -725,7 +725,9 @@ impl api::IncomingWebhook for Adyen {
         let notif = get_webhook_object_from_body(request.body)
             .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
 
-        Ok(ObjectReferenceId::PaymentId(api_models::payments::PaymentIdType::ConnectorTransactionId(notif.psp_reference)))
+        Ok(ObjectReferenceId::PaymentId(
+            api_models::payments::PaymentIdType::ConnectorTransactionId(notif.psp_reference),
+        ))
     }
 
     fn get_webhook_event_type(

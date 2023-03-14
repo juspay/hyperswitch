@@ -46,7 +46,7 @@ pub enum RefundIdType {
     ConnectorRefundId(String),
 }
 
-pub enum ObjectReferenceId{
+pub enum ObjectReferenceId {
     PaymentId(payments::PaymentIdType),
     RefundId(RefundIdType),
 }

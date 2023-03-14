@@ -4,7 +4,7 @@ use std::fmt::Debug;
 
 use api_models::webhooks::ObjectReferenceId;
 use base64::Engine;
-use common_utils::ext_traits::ByteSliceExt;
+use common_utils::{crypto, ext_traits::ByteSliceExt};
 use error_stack::{IntoReport, ResultExt};
 use transformers as trustpay;
 
@@ -596,8 +596,16 @@ impl api::IncomingWebhook for Trustpay {
             .parse_struct("TrustpayWebhookResponse")
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
         match details.payment_information.credit_debit_indicator {
-            trustpay::CreditDebitIndicator::CRDT => Ok(ObjectReferenceId::PaymentId(api_models::payments::PaymentIdType::PaymentIntentId(details.payment_information.references.merchant_reference))),
-            _ => Ok(ObjectReferenceId::RefundId(api_models::webhooks::RefundIdType::RefundId(details.payment_information.references.merchant_reference))),
+            trustpay::CreditDebitIndicator::Crdt => Ok(ObjectReferenceId::PaymentId(
+                api_models::payments::PaymentIdType::PaymentIntentId(
+                    details.payment_information.references.merchant_reference,
+                ),
+            )),
+            _ => Ok(ObjectReferenceId::RefundId(
+                api_models::webhooks::RefundIdType::RefundId(
+                    details.payment_information.references.merchant_reference,
+                ),
+            )),
         }
     }
 
@@ -609,12 +617,25 @@ impl api::IncomingWebhook for Trustpay {
             .body
             .parse_struct("TrustpayWebhookResponse")
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
-        match (response.payment_information.credit_debit_indicator, response.payment_information.status) {
-            (trustpay::CreditDebitIndicator::CRDT, trustpay::WebhookStatus::Paid) => Ok(api_models::webhooks::IncomingWebhookEvent::PaymentIntentSuccess),
-            (trustpay::CreditDebitIndicator::CRDT, trustpay::WebhookStatus::Rejected) => Ok(api_models::webhooks::IncomingWebhookEvent::PaymentIntentFailure),
-            (trustpay::CreditDebitIndicator::DBIT, trustpay::WebhookStatus::Paid) => Ok(api_models::webhooks::IncomingWebhookEvent::RefundSuccess),
-            (trustpay::CreditDebitIndicator::DBIT, trustpay::WebhookStatus::Refunded) => Ok(api_models::webhooks::IncomingWebhookEvent::RefundSuccess),
-            (trustpay::CreditDebitIndicator::DBIT, trustpay::WebhookStatus::Rejected) => Ok(api_models::webhooks::IncomingWebhookEvent::RefundFailure),
+        match (
+            response.payment_information.credit_debit_indicator,
+            response.payment_information.status,
+        ) {
+            (trustpay::CreditDebitIndicator::Crdt, trustpay::WebhookStatus::Paid) => {
+                Ok(api_models::webhooks::IncomingWebhookEvent::PaymentIntentSuccess)
+            }
+            (trustpay::CreditDebitIndicator::Crdt, trustpay::WebhookStatus::Rejected) => {
+                Ok(api_models::webhooks::IncomingWebhookEvent::PaymentIntentFailure)
+            }
+            (trustpay::CreditDebitIndicator::Dbit, trustpay::WebhookStatus::Paid) => {
+                Ok(api_models::webhooks::IncomingWebhookEvent::RefundSuccess)
+            }
+            (trustpay::CreditDebitIndicator::Dbit, trustpay::WebhookStatus::Refunded) => {
+                Ok(api_models::webhooks::IncomingWebhookEvent::RefundSuccess)
+            }
+            (trustpay::CreditDebitIndicator::Dbit, trustpay::WebhookStatus::Rejected) => {
+                Ok(api_models::webhooks::IncomingWebhookEvent::RefundFailure)
+            }
             _ => Err(errors::ConnectorError::WebhookEventTypeNotFound).into_report()?,
         }
     }
@@ -623,14 +644,67 @@ impl api::IncomingWebhook for Trustpay {
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<serde_json::Value, errors::ConnectorError> {
+        let details: trustpay::TrustpayWebhookResponse = request
+            .body
+            .parse_struct("TrustpayWebhookResponse")
+            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+        let res_json = serde_json::to_value(details.payment_information)
+            .into_report()
+            .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
+        Ok(res_json)
+    }
+
+    fn get_webhook_source_verification_algorithm(
+        &self,
+        _request: &api::IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<Box<dyn crypto::VerifySignature + Send>, errors::ConnectorError> {
+        Ok(Box::new(crypto::HmacSha256))
+    }
+
+    fn get_webhook_source_verification_signature(
+        &self,
+        request: &api::IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let response: trustpay::TrustpayWebhookResponse = request
             .body
             .parse_struct("TrustpayWebhookResponse")
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
-        let res_json = serde_json::to_value(response.payment_information)
+        hex::decode(response.signature)
             .into_report()
-            .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
-        Ok(res_json)
+            .change_context(errors::ConnectorError::WebhookSignatureNotFound)
+    }
+
+    fn get_webhook_source_verification_message(
+        &self,
+        request: &api::IncomingWebhookRequestDetails<'_>,
+        _merchant_id: &str,
+        _secret: &[u8],
+    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
+        let trustpay_response: trustpay::TrustpayWebhookResponse = request
+            .body
+            .parse_struct("TrustpayWebhookResponse")
+            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+        let response: serde_json::Value = request
+            .body
+            .parse_struct("Webhook Value")
+            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+        let mut values = trustpay::collect_values(&response, &trustpay_response.signature);
+        values.sort();
+        let payload = values.join("/");
+        Ok(payload.into_bytes())
+    }
+
+    async fn get_webhook_source_verification_merchant_secret(
+        &self,
+        db: &dyn crate::db::StorageInterface,
+        merchant_id: &str,
+    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
+        let key = format!("whsec_verification_{}_{}", self.id(), merchant_id);
+        let secret = db
+            .get_key(&key)
+            .await
+            .change_context(errors::ConnectorError::WebhookVerificationSecretNotFound)?;
+        Ok(secret)
     }
 }
 

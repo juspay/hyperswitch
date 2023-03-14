@@ -768,8 +768,12 @@ impl api::IncomingWebhook for Rapyd {
             .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
 
         Ok(match webhook.data {
-            transformers::WebhookData::PaymentData(payment_data) => ObjectReferenceId::PaymentId(api_models::payments::PaymentIdType::ConnectorTransactionId(payment_data.id)),
-            transformers::WebhookData::RefundData(refund_data) => ObjectReferenceId::RefundId(api_models::webhooks::RefundIdType::ConnectorRefundId(refund_data.id)),
+            transformers::WebhookData::PaymentData(payment_data) => ObjectReferenceId::PaymentId(
+                api_models::payments::PaymentIdType::ConnectorTransactionId(payment_data.id),
+            ),
+            transformers::WebhookData::RefundData(refund_data) => ObjectReferenceId::RefundId(
+                api_models::webhooks::RefundIdType::ConnectorRefundId(refund_data.id),
+            ),
         })
     }
 

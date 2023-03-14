@@ -502,7 +502,9 @@ impl api::IncomingWebhook for Shift4 {
             .parse_struct("Shift4WebhookObjectId")
             .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
 
-        Ok(ObjectReferenceId::PaymentId(api_models::payments::PaymentIdType::ConnectorTransactionId(details.data.id)))
+        Ok(ObjectReferenceId::PaymentId(
+            api_models::payments::PaymentIdType::ConnectorTransactionId(details.data.id),
+        ))
     }
 
     fn get_webhook_event_type(

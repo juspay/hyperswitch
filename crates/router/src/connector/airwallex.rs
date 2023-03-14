@@ -875,7 +875,9 @@ impl api::IncomingWebhook for Airwallex {
             .parse_struct("airwallexWebhookData")
             .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
 
-        Ok(ObjectReferenceId::PaymentId(api_models::payments::PaymentIdType::ConnectorTransactionId(details.source_id)))
+        Ok(ObjectReferenceId::PaymentId(
+            api_models::payments::PaymentIdType::ConnectorTransactionId(details.source_id),
+        ))
     }
 
     fn get_webhook_event_type(

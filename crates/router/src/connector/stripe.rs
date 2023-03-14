@@ -939,7 +939,9 @@ impl api::IncomingWebhook for Stripe {
             .parse_struct("StripeWebhookObjectId")
             .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
 
-        Ok(ObjectReferenceId::PaymentId(api_models::payments::PaymentIdType::ConnectorTransactionId(details.data.object.id)))
+        Ok(ObjectReferenceId::PaymentId(
+            api_models::payments::PaymentIdType::ConnectorTransactionId(details.data.object.id),
+        ))
     }
 
     fn get_webhook_event_type(

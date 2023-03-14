@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use api_models::{payments::BankRedirectData};
+use api_models::payments::BankRedirectData;
 use common_utils::{errors::CustomResult, pii::Email};
 use error_stack::ResultExt;
 use masking::Secret;
@@ -682,12 +682,12 @@ fn handle_bank_redirects_sync_response(
 pub fn handle_webhook_response(
     payment_information: WebhookPaymentInformation,
 ) -> CustomResult<
-(
-    enums::AttemptStatus,
-    Option<types::ErrorResponse>,
-    types::PaymentsResponseData,
-),
-errors::ConnectorError,
+    (
+        enums::AttemptStatus,
+        Option<types::ErrorResponse>,
+        types::PaymentsResponseData,
+    ),
+    errors::ConnectorError,
 > {
     let status = enums::AttemptStatus::try_from(payment_information.status)?;
     let payment_response_data = types::PaymentsResponseData::TransactionResponse {
@@ -723,9 +723,7 @@ pub fn get_trustpay_response(
         TrustpayPaymentsResponse::BankRedirectError(response) => {
             handle_bank_redirects_error_response(*response, status_code)
         }
-        TrustpayPaymentsResponse::WebhookResponse(response) => {
-            handle_webhook_response(*response)
-        }
+        TrustpayPaymentsResponse::WebhookResponse(response) => handle_webhook_response(*response),
     }
 }
 
@@ -824,15 +822,17 @@ pub enum TrustpayRefundRequest {
 impl<F> TryFrom<&types::RefundsRouterData<F>> for TrustpayRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
+        let amount = format!(
+            "{:.2}",
+            utils::to_currency_base_unit(item.request.amount, item.request.currency)?
+                .parse::<f64>()
+                .ok()
+                .ok_or_else(|| errors::ConnectorError::RequestEncodingFailed)?
+        );
         match item.payment_method {
             storage_models::enums::PaymentMethod::BankRedirect => {
                 let auth = TrustpayAuthType::try_from(&item.connector_auth_type)
                     .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-                let amount =
-                    utils::to_currency_base_unit(item.request.amount, item.request.currency)?
-                        .parse::<f64>()
-                        .ok()
-                        .ok_or_else(|| errors::ConnectorError::RequestEncodingFailed)?;
                 Ok(Self::BankRedirectRefund(Box::new(
                     TrustpayRefundRequestBankRedirect {
                         merchant_identification: MerchantIdentification {
@@ -840,7 +840,7 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for TrustpayRefundRequest {
                         },
                         payment_information: BankPaymentInformation {
                             amount: Amount {
-                                amount: format!("{:.2}", amount),
+                                amount,
                                 currency: item.request.currency.to_string(),
                             },
                             references: References {
@@ -852,7 +852,7 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for TrustpayRefundRequest {
             }
             _ => Ok(Self::CardsRefund(Box::new(TrustpayRefundRequestCards {
                 instance_id: item.request.connector_transaction_id.clone(),
-                amount: utils::to_currency_base_unit(item.request.amount, item.request.currency)?,
+                amount,
                 currency: item.request.currency.to_string(),
                 reference: item.request.refund_id.clone(),
             }))),
@@ -881,7 +881,7 @@ pub struct BankRedirectRefundResponse {
 #[serde(untagged)]
 pub enum RefundResponse {
     CardsRefund(Box<CardsRefundResponse>),
-    WebhookRefundResponse(Box<WebhookPaymentInformation>),
+    WebhookRefund(Box<WebhookPaymentInformation>),
     BankRedirectRefund(Box<BankRedirectRefundResponse>),
     BankRedirectRefundSyncResponse(Box<SyncResponseBankRedirect>),
     BankRedirectError(Box<ErrorResponseBankRedirect>),
@@ -1005,9 +1005,7 @@ impl<F> TryFrom<types::RefundsResponseRouterData<F, RefundResponse>>
             RefundResponse::CardsRefund(response) => {
                 handle_cards_refund_response(*response, item.http_code)?
             }
-            RefundResponse::WebhookRefundResponse(response) => {
-                handle_webhooks_refund_response(*response)?
-            }
+            RefundResponse::WebhookRefund(response) => handle_webhooks_refund_response(*response)?,
             RefundResponse::BankRedirectRefund(response) => {
                 handle_bank_redirects_refund_response(*response, item.http_code)
             }
@@ -1102,6 +1100,32 @@ pub struct Errors {
     pub description: String,
 }
 
+pub fn collect_values(value: &serde_json::Value, signature: &String) -> Vec<String> {
+    match value {
+        serde_json::Value::Null => vec!["null".to_owned()],
+        serde_json::Value::Bool(b) => vec![b.to_string()],
+        serde_json::Value::Number(n) => match n.as_f64() {
+            Some(f) => vec![format!("{:.2}", f)],
+            None => vec![n.to_string()],
+        },
+        serde_json::Value::String(s) => {
+            if signature == s {
+                vec![]
+            } else {
+                vec![s.clone()]
+            }
+        }
+        serde_json::Value::Array(arr) => arr
+            .iter()
+            .flat_map(|v| collect_values(v, signature))
+            .collect(),
+        serde_json::Value::Object(obj) => obj
+            .values()
+            .flat_map(|v| collect_values(v, signature))
+            .collect(),
+    }
+}
+
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
 pub struct TrustpayErrorResponse {
     pub status: i64,
@@ -1110,13 +1134,14 @@ pub struct TrustpayErrorResponse {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "UPPERCASE")]
 pub enum CreditDebitIndicator {
-    CRDT,
-    DBIT
+    Crdt,
+    Dbit,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub enum WebhookStatus{
+pub enum WebhookStatus {
     Paid,
     Rejected,
     Refunded,

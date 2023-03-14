@@ -2,12 +2,12 @@ mod transformers;
 
 use std::fmt::Debug;
 
+use api_models::webhooks::ObjectReferenceId;
 use base64::Engine;
 use common_utils::crypto;
 use error_stack::{IntoReport, ResultExt};
 use transformers as bluesnap;
 
-use api_models::webhooks::ObjectReferenceId;
 use super::utils::RefundsRequestData;
 use crate::{
     configs::settings,
@@ -708,7 +708,11 @@ impl api::IncomingWebhook for Bluesnap {
             serde_urlencoded::from_bytes(request.body)
                 .into_report()
                 .change_context(errors::ConnectorError::WebhookSignatureNotFound)?;
-        Ok(ObjectReferenceId::PaymentId(api_models::payments::PaymentIdType::ConnectorTransactionId(webhook_body.reference_number)))
+        Ok(ObjectReferenceId::PaymentId(
+            api_models::payments::PaymentIdType::ConnectorTransactionId(
+                webhook_body.reference_number,
+            ),
+        ))
     }
 
     fn get_webhook_event_type(

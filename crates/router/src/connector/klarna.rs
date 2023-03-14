@@ -1,8 +1,7 @@
 mod transformers;
 use std::fmt::Debug;
 
-use api_models::webhooks::ObjectReferenceId;
-use api_models::payments as api_payments;
+use api_models::{payments as api_payments, webhooks::ObjectReferenceId};
 use error_stack::{IntoReport, ResultExt};
 use transformers as klarna;
 
