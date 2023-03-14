@@ -126,6 +126,9 @@ base_url = "https://sandbox.dlocal.com/"
 [connectors.bambora]
 base_url = "https://api.na.bambora.com"
 
+[connectors.paypal]
+base_url = "https://www.sandbox.paypal.com/"
+
 [connectors.supported]
 wallets = ["klarna", "braintree", "applepay"]
 cards = [
@@ -142,6 +145,7 @@ cards = [
     "globalpay",
     "multisafepay",
     "nuvei",
+    "paypal",
     "payu",
     "shift4",
     "stripe",

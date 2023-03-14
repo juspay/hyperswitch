@@ -561,6 +561,7 @@ pub enum Connector {
     Klarna,
     Multisafepay,
     Nuvei,
+    Paypal,
     Payu,
     Rapyd,
     Shift4,
@@ -571,7 +572,10 @@ pub enum Connector {
 
 impl Connector {
     pub fn supports_access_token(&self) -> bool {
-        matches!(self, Self::Airwallex | Self::Globalpay | Self::Payu)
+        matches!(
+            self,
+            Self::Airwallex | Self::Globalpay | Self::Payu | Self::Paypal
+        )
     }
 }
 
@@ -604,6 +608,7 @@ pub enum RoutableConnectors {
     Globalpay,
     Klarna,
     Nuvei,
+    Paypal,
     Payu,
     Rapyd,
     Shift4,

@@ -212,8 +212,7 @@ async fn should_sync_manual_auth_payment() {
                 connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
                     connector_payment_id,
                 ),
-                encoded_data: None,
-                capture_method: Some(enums::CaptureMethod::Manual),
+                ..Default::default()
             }),
             None,
         )
@@ -245,8 +244,7 @@ async fn should_sync_auto_auth_payment() {
                 connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
                     connector_payment_id,
                 ),
-                encoded_data: None,
-                capture_method: Some(enums::CaptureMethod::Automatic),
+                ..Default::default()
             }),
             None,
         )

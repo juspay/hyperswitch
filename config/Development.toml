@@ -59,6 +59,7 @@ cards = [
     "globalpay",
     "multisafepay",
     "nuvei",
+    "paypal",
     "payu",
     "shift4",
     "stripe",
@@ -144,6 +145,9 @@ base_url = "https://sandbox.dlocal.com/"
 
 [connectors.bambora]
 base_url = "https://api.na.bambora.com"
+
+[connectors.paypal]
+base_url = "https://www.sandbox.paypal.com/"
 
 [scheduler]
 stream = "SCHEDULER_STREAM"

@@ -10,13 +10,14 @@ use router::{
     routes, services,
     types::{self, api, storage::enums, AccessToken, PaymentAddress, RouterData},
 };
+use serde_json::Value;
 use wiremock::{Mock, MockServer};
 
 pub trait Connector {
     fn get_data(&self) -> types::api::ConnectorData;
     fn get_auth_token(&self) -> types::ConnectorAuthType;
     fn get_name(&self) -> String;
-    fn get_connector_meta(&self) -> Option<serde_json::Value> {
+    fn get_connector_meta(&self) -> Option<Value> {
         None
     }
     /// interval in seconds to be followed when making the subsequent request whenever needed
@@ -31,7 +32,7 @@ pub struct PaymentInfo {
     pub auth_type: Option<enums::AuthenticationType>,
     pub access_token: Option<AccessToken>,
     pub router_return_url: Option<String>,
-    pub connector_meta_data: Option<serde_json::Value>,
+    pub connector_meta_data: Option<Value>,
 }
 
 #[async_trait]
@@ -538,6 +539,7 @@ impl Default for PaymentSyncType {
             ),
             encoded_data: None,
             capture_method: None,
+            connector_meta: None,
         };
         Self(data)
     }
@@ -565,6 +567,25 @@ pub fn get_connector_transaction_id(
     match response {
         Ok(types::PaymentsResponseData::TransactionResponse { resource_id, .. }) => {
             resource_id.get_connector_transaction_id().ok()
+        }
+        Ok(types::PaymentsResponseData::SessionResponse { .. }) => None,
+        Ok(types::PaymentsResponseData::SessionTokenResponse { .. }) => None,
+        Err(_) => None,
+    }
+}
+
+pub fn get_connector_metadata(
+    response: Result<types::PaymentsResponseData, types::ErrorResponse>,
+) -> Option<Value> {
+    match response {
+        Ok(types::PaymentsResponseData::TransactionResponse {
+            resource_id: _,
+            redirection_data: _,
+            mandate_reference: _,
+            connector_metadata,
+        }) => {
+            //resource_id.get_connector_transaction_id().ok()
+            connector_metadata
         }
         Ok(types::PaymentsResponseData::SessionResponse { .. }) => None,
         Ok(types::PaymentsResponseData::SessionTokenResponse { .. }) => None,

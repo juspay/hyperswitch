@@ -204,6 +204,7 @@ pub enum CardIssuer {
 pub trait CardData {
     fn get_card_expiry_year_2_digit(&self) -> Secret<String>;
     fn get_card_issuer(&self) -> Result<CardIssuer, Error>;
+    fn get_expiry_date_as_yyyymm(&self, delimiter: &str) -> String;
 }
 
 impl CardData for api::Card {
@@ -218,6 +219,14 @@ impl CardData for api::Card {
             .clone()
             .map(|card| card.split_whitespace().collect());
         get_card_issuer(card.peek().clone().as_str())
+    }
+    fn get_expiry_date_as_yyyymm(&self, delimiter: &str) -> String {
+        format!(
+            "{}{}{}",
+            self.card_exp_year.peek().clone(),
+            delimiter,
+            self.card_exp_month.peek().clone()
+        )
     }
 }
 
@@ -354,4 +363,24 @@ pub fn to_currency_base_unit(
         | storage_models::enums::Currency::OMR => Ok((f64::from(amount_u32) / 1000.0).to_string()),
         _ => Ok((f64::from(amount_u32) / 100.0).to_string()),
     }
+}
+
+pub fn to_connector_meta<T>(connector_meta: Option<serde_json::Value>) -> Result<T, Error>
+where
+    T: serde::de::DeserializeOwned,
+{
+    let json = connector_meta.ok_or_else(missing_field_err("connector_meta_data"))?;
+    parse_struct(json)
+}
+pub fn parse_struct<T>(json: serde_json::Value) -> Result<T, Error>
+where
+    T: serde::de::DeserializeOwned,
+{
+    serde_json::from_value::<T>(json.clone())
+        .into_report()
+        .change_context(errors::ConnectorError::ParsingFailed {
+            from_type: "Json",
+            to_type: std::any::type_name::<T>(),
+            data: json.to_string(),
+        })
 }
