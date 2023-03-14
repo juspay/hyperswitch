@@ -685,9 +685,7 @@ where
             Ok(api::ConnectorCallType::Single(vec![connector_data]))
         }
 
-        api::ConnectorCallType::Multiple(connectors) => {
-            Ok(api::ConnectorCallType::Multiple(connectors))
-        }
+        call_type @ api::ConnectorCallType::Multiple(_) => Ok(call_type),
     }
 }
 
