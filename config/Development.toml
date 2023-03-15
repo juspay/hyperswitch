@@ -66,9 +66,9 @@ cards = [
     "payu",
     "shift4",
     "stripe",
+    "trustpay",
     "worldline",
     "worldpay",
-    "trustpay",
 ]
 
 [refund]

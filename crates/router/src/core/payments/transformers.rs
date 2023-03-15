@@ -74,6 +74,11 @@ where
         &payment_data.payment_attempt,
         &merchant_connector_account.connector_name,
     ));
+    let complete_authorize_url = Some(helpers::create_complete_authorize_url(
+        &state.conf.server,
+        &payment_data.payment_attempt,
+        &merchant_connector_account.connector_name,
+    ));
 
     router_data = types::RouterData {
         flow: PhantomData,
@@ -87,6 +92,7 @@ where
         description: payment_data.payment_intent.description.clone(),
         return_url: payment_data.payment_intent.return_url.clone(),
         router_return_url,
+        complete_authorize_url,
         payment_method_id: payment_data.payment_attempt.payment_method_id.clone(),
         address: payment_data.address.clone(),
         auth_type: payment_data
@@ -440,6 +446,9 @@ impl<F: Clone> TryFrom<PaymentData<F>> for types::PaymentsAuthorizeData {
             email: payment_data.email,
             payment_experience: payment_data.payment_attempt.payment_experience,
             order_details,
+            session_token: None,
+            enrolled_for_3ds: false,
+            related_transaction_id: None,
             payment_method_type: payment_data.payment_attempt.payment_method_type,
         })
     }
@@ -458,6 +467,7 @@ impl<F: Clone> TryFrom<PaymentData<F>> for types::PaymentsSyncData {
             },
             encoded_data: payment_data.connector_response.encoded_data,
             capture_method: payment_data.payment_attempt.capture_method,
+            connector_meta: payment_data.payment_attempt.connector_metadata,
         })
     }
 }
@@ -544,6 +554,37 @@ impl<F: Clone> TryFrom<PaymentData<F>> for types::VerifyRequestData {
             off_session: payment_data.mandate_id.as_ref().map(|_| true),
             mandate_id: payment_data.mandate_id.clone(),
             setup_mandate_details: payment_data.setup_mandate,
+        })
+    }
+}
+
+impl<F: Clone> TryFrom<PaymentData<F>> for types::CompleteAuthorizeData {
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
+
+    fn try_from(payment_data: PaymentData<F>) -> Result<Self, Self::Error> {
+        let browser_info: Option<types::BrowserInformation> = payment_data
+            .payment_attempt
+            .browser_info
+            .map(|b| b.parse_value("BrowserInformation"))
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "browser_info",
+            })?;
+        Ok(Self {
+            setup_future_usage: payment_data.payment_intent.setup_future_usage,
+            mandate_id: payment_data.mandate_id.clone(),
+            off_session: payment_data.mandate_id.as_ref().map(|_| true),
+            setup_mandate_details: payment_data.setup_mandate.clone(),
+            confirm: payment_data.payment_attempt.confirm,
+            statement_descriptor_suffix: payment_data.payment_intent.statement_descriptor_suffix,
+            capture_method: payment_data.payment_attempt.capture_method,
+            amount: payment_data.amount.into(),
+            currency: payment_data.currency,
+            browser_info,
+            email: payment_data.email,
+            payment_method_data: payment_data.payment_method_data,
+            connector_transaction_id: payment_data.connector_response.connector_transaction_id,
+            connector_meta: payment_data.payment_attempt.connector_metadata,
         })
     }
 }

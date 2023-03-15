@@ -773,5 +773,3 @@ impl api::IncomingWebhook for Worldline {
         Ok(response)
     }
 }
-
-impl services::ConnectorRedirectResponse for Worldline {}

@@ -227,6 +227,8 @@ pub enum ConnectorError {
     RequestEncodingFailed,
     #[error("Request encoding failed : {0}")]
     RequestEncodingFailedWithReason(String),
+    #[error("Parsing failed")]
+    ParsingFailed,
     #[error("Failed to deserialize connector response")]
     ResponseDeserializationFailed,
     #[error("Failed to execute a processing step: {0:?}")]

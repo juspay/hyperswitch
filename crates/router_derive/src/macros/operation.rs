@@ -16,6 +16,7 @@ enum Derives {
     Syncdata,
     Canceldata,
     Capturedata,
+    CompleteAuthorizeData,
     VerifyData,
     Start,
     Verify,
@@ -34,6 +35,7 @@ impl From<String> for Derives {
             "canceldata" => Self::Canceldata,
             "capture" => Self::Capture,
             "capturedata" => Self::Capturedata,
+            "completeauthorizedata" => Self::CompleteAuthorizeData,
             "start" => Self::Start,
             "verify" => Self::Verify,
             "verifydata" => Self::VerifyData,
@@ -110,6 +112,9 @@ impl Conversion {
             Derives::Canceldata => syn::Ident::new("PaymentsCancelData", Span::call_site()),
             Derives::Capture => syn::Ident::new("PaymentsCaptureRequest", Span::call_site()),
             Derives::Capturedata => syn::Ident::new("PaymentsCaptureData", Span::call_site()),
+            Derives::CompleteAuthorizeData => {
+                syn::Ident::new("CompleteAuthorizeData", Span::call_site())
+            }
             Derives::Start => syn::Ident::new("PaymentsStartRequest", Span::call_site()),
             Derives::Verify => syn::Ident::new("VerifyRequest", Span::call_site()),
             Derives::VerifyData => syn::Ident::new("VerifyRequestData", Span::call_site()),
@@ -328,6 +333,7 @@ pub fn operation_derive_inner(input: DeriveInput) -> syn::Result<proc_macro::Tok
                     PaymentsCancelData,
                     PaymentsAuthorizeData,
                     PaymentsSessionData,
+                    CompleteAuthorizeData,
 
                     api::{
                         PaymentsCaptureRequest,
