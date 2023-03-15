@@ -3,9 +3,7 @@ use masking::Secret;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils::{
-        AccessTokenRequestInfo, CardData, PaymentsAuthorizeRequestData, PaymentsRequestData,
-    },
+    connector::utils::{AccessTokenRequestInfo, CardData, PaymentsAuthorizeRequestData},
     core::errors,
     pii,
     types::{self, api, storage::enums as storage_enums},
@@ -88,8 +86,8 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaypalPaymentsRequest {
                     reference_id,
                     amount,
                 }];
-                let card = item.get_card()?;
-                let expiry = Some(card.get_expiry_date_as_yyyymm("-")).map(Secret::new);
+                let card = item.request.get_card()?;
+                let expiry = Some(card.get_expiry_date_as_yyyymm("-"));
 
                 let payment_source = Some(PaymentSourceItem::Card(CardRequest {
                     billing_address: get_address_info(item.address.billing.as_ref()),
@@ -405,23 +403,26 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for PaypalRefundRequest {
 }
 
 #[allow(dead_code)]
-#[derive(Debug, Serialize, Default, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum RefundStatus {
-    #[default]
     Completed,
+    Failed,
+    Cancelled,
+    Pending,
 }
 
 impl From<RefundStatus> for storage_enums::RefundStatus {
     fn from(item: RefundStatus) -> Self {
         match item {
             RefundStatus::Completed => Self::Success,
-            //TODO: Review mapping
+            RefundStatus::Failed | RefundStatus::Cancelled => Self::Failure,
+            RefundStatus::Pending => Self::Pending,
         }
     }
 }
 
-#[derive(Default, Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct RefundResponse {
     id: String,
     status: RefundStatus,
@@ -445,7 +446,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
     }
 }
 
-#[derive(Default, Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct RefundSyncResponse {
     id: String,
     status: RefundStatus,
@@ -474,7 +475,6 @@ pub struct ErrorDetails {
     pub description: String,
 }
 
-//TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
 pub struct PaypalErrorResponse {
     pub name: String,

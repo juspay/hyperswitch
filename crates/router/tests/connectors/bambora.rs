@@ -100,7 +100,9 @@ async fn should_sync_authorized_payment() {
                 connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
                     txn_id.unwrap(),
                 ),
-                ..Default::default()
+                encoded_data: None,
+                capture_method: None,
+                connector_meta: None,
             }),
             None,
         )
@@ -210,7 +212,9 @@ async fn should_sync_auto_captured_payment() {
                 connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
                     txn_id.unwrap(),
                 ),
-                ..Default::default()
+                encoded_data: None,
+                capture_method: Some(enums::CaptureMethod::Automatic),
+                connector_meta: None,
             }),
             None,
         )

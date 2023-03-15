@@ -15,10 +15,10 @@ use crate::{
         payments,
     },
     headers,
-    services::{self, ConnectorIntegration},
+    services::{self, ConnectorIntegration, PaymentAction},
     types::{
         self,
-        api::{self, ConnectorCommon, ConnectorCommonExt},
+        api::{self, CompleteAuthorize, ConnectorCommon, ConnectorCommonExt},
         ErrorResponse, Response,
     },
     utils::{self, BytesExt},
@@ -32,6 +32,7 @@ impl api::PaymentSession for Paypal {}
 impl api::ConnectorAccessToken for Paypal {}
 impl api::PreVerify for Paypal {}
 impl api::PaymentAuthorize for Paypal {}
+impl api::PaymentsCompleteAuthorize for Paypal {}
 impl api::PaymentSync for Paypal {}
 impl api::PaymentCapture for Paypal {}
 impl api::PaymentVoid for Paypal {}
@@ -107,7 +108,7 @@ impl ConnectorCommon for Paypal {
             message: response
                 .details
                 .map(|d| d.to_string())
-                .unwrap_or(consts::NO_ERROR_MESSAGE.to_owned()),
+                .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_owned()),
             reason: None,
         })
     }
@@ -194,13 +195,11 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
             .parse_struct("Paypal PaypalAuthUpdateResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
-        types::ResponseRouterData {
+        types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
-        }
-        .try_into()
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+        })
     }
 
     fn get_error_response(
@@ -293,13 +292,11 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
             .response
             .parse_struct("Paypal PaymentsAuthorizeResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        types::ResponseRouterData {
+        types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
-        }
-        .try_into()
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+        })
     }
 
     fn get_error_response(
@@ -308,6 +305,15 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         self.build_error_response(res)
     }
+}
+
+impl
+    ConnectorIntegration<
+        CompleteAuthorize,
+        types::CompleteAuthorizeData,
+        types::PaymentsResponseData,
+    > for Paypal
+{
 }
 
 impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>
@@ -447,13 +453,11 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
             .response
             .parse_struct("Paypal PaymentsCaptureResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        types::ResponseRouterData {
+        types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
-        }
-        .try_into()
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+        })
     }
 
     fn get_error_response(
@@ -661,13 +665,11 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
             .response
             .parse_struct("paypal RefundSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        types::ResponseRouterData {
+        types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
-        }
-        .try_into()
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+        })
     }
 
     fn get_error_response(
@@ -706,6 +708,8 @@ impl services::ConnectorRedirectResponse for Paypal {
     fn get_flow_type(
         &self,
         _query_params: &str,
+        _json_payload: Option<serde_json::Value>,
+        _action: PaymentAction,
     ) -> CustomResult<payments::CallConnectorAction, errors::ConnectorError> {
         Ok(payments::CallConnectorAction::Trigger)
     }

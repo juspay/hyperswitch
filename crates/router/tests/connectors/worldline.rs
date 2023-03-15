@@ -83,6 +83,9 @@ impl WorldlineTest {
             browser_info: None,
             order_details: None,
             email: None,
+            session_token: None,
+            enrolled_for_3ds: false,
+            related_transaction_id: None,
             payment_experience: None,
             payment_method_type: None,
         })
@@ -212,6 +215,7 @@ async fn should_sync_manual_auth_payment() {
                 connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
                     connector_payment_id,
                 ),
+                capture_method: Some(enums::CaptureMethod::Manual),
                 ..Default::default()
             }),
             None,
@@ -244,6 +248,7 @@ async fn should_sync_auto_auth_payment() {
                 connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
                     connector_payment_id,
                 ),
+                capture_method: Some(enums::CaptureMethod::Automatic),
                 ..Default::default()
             }),
             None,

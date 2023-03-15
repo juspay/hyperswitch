@@ -227,18 +227,14 @@ pub enum ConnectorError {
     RequestEncodingFailed,
     #[error("Request encoding failed : {0}")]
     RequestEncodingFailedWithReason(String),
+    #[error("Parsing failed")]
+    ParsingFailed,
     #[error("Failed to deserialize connector response")]
     ResponseDeserializationFailed,
     #[error("Failed to execute a processing step: {0:?}")]
     ProcessingStepFailed(Option<bytes::Bytes>),
     #[error("The connector returned an unexpected response: {0:?}")]
     UnexpectedResponseError(bytes::Bytes),
-    #[error("Failed to parse {to_type} from {from_type} {data:?}")]
-    ParsingFailed {
-        from_type: &'static str,
-        to_type: &'static str,
-        data: String,
-    },
     #[error("Failed to parse custom routing rules from merchant account")]
     RoutingRulesParsingError,
     #[error("Failed to obtain preferred connector from merchant account")]

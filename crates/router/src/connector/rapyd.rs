@@ -12,10 +12,7 @@ use crate::{
     configs::settings,
     connector::utils as conn_utils,
     consts,
-    core::{
-        errors::{self, CustomResult},
-        payments,
-    },
+    core::errors::{self, CustomResult},
     db::StorageInterface,
     headers, services,
     types::{
@@ -804,14 +801,5 @@ impl api::IncomingWebhook for Rapyd {
                 .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
 
         Ok(res_json)
-    }
-}
-
-impl services::ConnectorRedirectResponse for Rapyd {
-    fn get_flow_type(
-        &self,
-        _query_params: &str,
-    ) -> CustomResult<payments::CallConnectorAction, errors::ConnectorError> {
-        Ok(payments::CallConnectorAction::Trigger)
     }
 }
