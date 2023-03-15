@@ -684,9 +684,13 @@ pub async fn list_payments(
     merchant: storage::MerchantAccount,
     constraints: api::PaymentListConstraints,
 ) -> RouterResponse<api::PaymentListResponse> {
+    use futures::stream::StreamExt;
+
+    use crate::types::transformers::ForeignFrom;
+
     helpers::validate_payment_list_request(&constraints)?;
     let merchant_id = &merchant.merchant_id;
-    let payment_intent =
+    let payment_intents =
         helpers::filter_by_constraints(db, &constraints, merchant_id, merchant.storage_scheme)
             .await
             .map_err(|err| {
@@ -696,10 +700,24 @@ pub async fn list_payments(
                 )
             })?;
 
-    let data: Vec<api::PaymentsResponse> = payment_intent
-        .into_iter()
-        .map(types::transformers::ForeignInto::foreign_into)
-        .collect();
+    let pi = futures::stream::iter(payment_intents)
+        .filter_map(|pi| async {
+            let pa = db
+                .find_payment_attempt_by_payment_id_merchant_id(
+                    &pi.payment_id,
+                    merchant_id,
+                    // since OLAP doesn't have KV. Force to get the data from PSQL.
+                    storage_enums::MerchantStorageScheme::PostgresOnly,
+                )
+                .await
+                .ok()?;
+            Some((pi, pa))
+        })
+        .collect::<Vec<(storage::PaymentIntent, storage::PaymentAttempt)>>()
+        .await;
+
+    let data: Vec<api::PaymentsResponse> = pi.into_iter().map(ForeignFrom::foreign_from).collect();
+
     Ok(services::ApplicationResponse::Json(
         api::PaymentListResponse {
             size: data.len(),

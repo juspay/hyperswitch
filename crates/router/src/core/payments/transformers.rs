@@ -15,7 +15,7 @@ use crate::{
     types::{
         self, api,
         storage::{self, enums},
-        transformers::ForeignInto,
+        transformers::{ForeignFrom, ForeignInto},
     },
     utils::{OptionExt, ValueExt},
 };
@@ -397,6 +397,30 @@ where
             ..Default::default()
         }),
     })
+}
+
+impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::PaymentsResponse {
+    fn foreign_from(item: (storage::PaymentIntent, storage::PaymentAttempt)) -> Self {
+        let pi = item.0;
+        let pa = item.1;
+        Self {
+            payment_id: Some(pi.payment_id),
+            merchant_id: Some(pi.merchant_id),
+            status: pi.status.foreign_into(),
+            amount: pi.amount,
+            amount_capturable: pi.amount_captured,
+            client_secret: pi.client_secret.map(|s| s.into()),
+            created: Some(pi.created_at),
+            currency: pi.currency.map(|c| c.to_string()).unwrap_or_default(),
+            description: pi.description,
+            metadata: pi.metadata,
+            customer_id: pi.customer_id,
+            connector: pa.connector,
+            payment_method: pa.payment_method.map(ForeignInto::foreign_into),
+            payment_method_type: pa.payment_method_type.map(ForeignInto::foreign_into),
+            ..Default::default()
+        }
+    }
 }
 
 impl<F: Clone> TryFrom<PaymentData<F>> for types::PaymentsAuthorizeData {
