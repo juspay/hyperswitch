@@ -162,13 +162,11 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
             .response
             .parse_struct("MolliePaymentsResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        types::ResponseRouterData {
+        types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
-        }
-        .try_into()
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+        })
     }
 
     fn get_error_response(
@@ -242,7 +240,6 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
             data: data.clone(),
             http_code: res.status_code,
         })
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
     fn get_error_response(
@@ -320,7 +317,6 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
             data: data.clone(),
             http_code: res.status_code,
         })
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
     fn get_error_response(
@@ -360,8 +356,10 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         &self,
         req: &types::RefundsRouterData<api::Execute>,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        let mollie_req = utils::Encode::<mollie::MollieRefundRequest>::convert_and_encode(req)
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let req_obj = mollie::MollieRefundRequest::try_from(req)?;
+        let mollie_req =
+            utils::Encode::<mollie::MollieRefundRequest>::encode_to_string_of_json(&req_obj)
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(mollie_req))
     }
 
@@ -390,13 +388,11 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
             .response
             .parse_struct("MollieRefundResponse")
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        types::ResponseRouterData {
+        types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
-        }
-        .try_into()
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+        })
     }
 
     fn get_error_response(
@@ -447,7 +443,6 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
                 .method(services::Method::Get)
                 .url(&types::RefundSyncType::get_url(self, req, connectors)?)
                 .headers(types::RefundSyncType::get_headers(self, req, connectors)?)
-                .body(types::RefundSyncType::get_request_body(self, req)?)
                 .build(),
         ))
     }
@@ -461,13 +456,11 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
             .response
             .parse_struct("MollieRefundSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        types::ResponseRouterData {
+        types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
-        }
-        .try_into()
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+        })
     }
 
     fn get_error_response(
