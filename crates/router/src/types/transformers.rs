@@ -445,6 +445,8 @@ impl ForeignFrom<storage_models::cards_info::CardInfo>
             card_type: item.card_type,
             card_sub_type: item.card_subtype,
             card_network: item.card_network,
+            card_issuer: item.card_issuer,
+            card_issuing_country: item.card_issuing_country,
         }
     }
 }
