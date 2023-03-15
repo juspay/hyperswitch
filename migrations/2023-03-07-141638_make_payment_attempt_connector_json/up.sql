@@ -1,4 +1,4 @@
--- Alter column type to json and conditionally set the overrideable field
+-- Alter column type to json
 -- as well as the connector.
 ALTER TABLE payment_attempt
 ALTER COLUMN connector TYPE JSONB
