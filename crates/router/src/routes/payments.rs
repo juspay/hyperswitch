@@ -4,7 +4,10 @@ use router_env::{instrument, tracing, Flow};
 
 use crate::{
     self as app,
-    core::{errors::http_not_implemented, payments},
+    core::{
+        errors::http_not_implemented,
+        payments::{self, PaymentRedirectFlow},
+    },
     services::{api, authentication as auth},
     types::api::{self as api_types, enums as api_enums, payments as payment_types},
 };
@@ -405,10 +408,11 @@ pub async fn payments_redirect_response(
     let (payment_id, merchant_id, connector) = path.into_inner();
     let param_string = req.query_string();
 
-    let payload = payment_types::PaymentsRetrieveRequest {
+    let payload = payments::PaymentsRedirectResponseData {
         resource_id: payment_types::PaymentIdType::PaymentIntentId(payment_id),
         merchant_id: Some(merchant_id.clone()),
         force_sync: true,
+        json_payload: None,
         param: Some(param_string.to_string()),
         connector: Some(connector),
     };
@@ -417,7 +421,41 @@ pub async fn payments_redirect_response(
         &req,
         payload,
         |state, merchant_account, req| {
-            payments::handle_payments_redirect_response::<api_types::PSync>(
+            payments::PaymentRedirectSync {}.handle_payments_redirect_response(
+                state,
+                merchant_account,
+                req,
+            )
+        },
+        &auth::MerchantIdAuth(merchant_id),
+    )
+    .await
+}
+
+#[instrument(skip_all)]
+pub async fn payments_complete_authorize(
+    state: web::Data<app::AppState>,
+    req: actix_web::HttpRequest,
+    json_payload: web::Form<serde_json::Value>,
+    path: web::Path<(String, String, String)>,
+) -> impl Responder {
+    let (payment_id, merchant_id, connector) = path.into_inner();
+    let param_string = req.query_string();
+
+    let payload = payments::PaymentsRedirectResponseData {
+        resource_id: payment_types::PaymentIdType::PaymentIntentId(payment_id),
+        merchant_id: Some(merchant_id.clone()),
+        param: Some(param_string.to_string()),
+        json_payload: Some(json_payload.0),
+        force_sync: false,
+        connector: Some(connector),
+    };
+    api::server_wrap(
+        state.get_ref(),
+        &req,
+        payload,
+        |state, merchant_account, req| {
+            payments::PaymentRedirectCompleteAuthorize {}.handle_payments_redirect_response(
                 state,
                 merchant_account,
                 req,

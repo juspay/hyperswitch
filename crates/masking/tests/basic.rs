@@ -1,24 +1,31 @@
 #![allow(dead_code, clippy::unwrap_used, clippy::panic_in_result_fn)]
 
-use masking as pii;
+use masking::Secret;
+#[cfg(feature = "serde")]
+use masking::SerializableSecret;
+#[cfg(feature = "alloc")]
+use masking::ZeroizableSecret;
+#[cfg(feature = "serde")]
+use serde::Serialize;
 
 #[test]
 fn basic() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    use pii::{Secret, SerializableSecret, ZeroizableSecret};
-    use serde::Serialize;
-
-    #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
+    #[cfg_attr(feature = "serde", derive(Serialize))]
+    #[derive(Clone, Debug, PartialEq, Eq)]
     pub struct AccountNumber(String);
 
+    #[cfg(feature = "alloc")]
     impl ZeroizableSecret for AccountNumber {
         fn zeroize(&mut self) {
             self.0.zeroize();
         }
     }
 
+    #[cfg(feature = "serde")]
     impl SerializableSecret for AccountNumber {}
 
-    #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
+    #[cfg_attr(feature = "serde", derive(Serialize))]
+    #[derive(Clone, Debug, PartialEq, Eq)]
     pub struct Composite {
         secret_number: Secret<AccountNumber>,
         not_secret: String,
@@ -41,14 +48,17 @@ fn basic() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     // format
 
     let got = format!("{composite:?}");
-    let exp = "Composite { secret_number: *** basic::basic::AccountNumber ***, not_secret: \"not secret\" }";
+    let exp = r#"Composite { secret_number: *** basic::basic::AccountNumber ***, not_secret: "not secret" }"#;
     assert_eq!(got, exp);
 
     // serialize
 
-    let got = serde_json::to_string(&composite).unwrap();
-    let exp = "{\"secret_number\":\"abc\",\"not_secret\":\"not secret\"}";
-    assert_eq!(got, exp);
+    #[cfg(feature = "serde")]
+    {
+        let got = serde_json::to_string(&composite).unwrap();
+        let exp = r#"{"secret_number":"abc","not_secret":"not secret"}"#;
+        assert_eq!(got, exp);
+    }
 
     // end
 
@@ -57,21 +67,21 @@ fn basic() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
 #[test]
 fn without_serialize() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    use pii::{Secret, ZeroizableSecret};
-    use serde::Serialize;
-
-    #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
+    #[cfg_attr(feature = "serde", derive(Serialize))]
+    #[derive(Clone, Debug, PartialEq, Eq)]
     pub struct AccountNumber(String);
 
+    #[cfg(feature = "alloc")]
     impl ZeroizableSecret for AccountNumber {
         fn zeroize(&mut self) {
             self.0.zeroize();
         }
     }
 
-    #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
+    #[cfg_attr(feature = "serde", derive(Serialize))]
+    #[derive(Clone, Debug, PartialEq, Eq)]
     pub struct Composite {
-        #[serde(skip)]
+        #[cfg_attr(feature = "serde", serde(skip))]
         secret_number: Secret<AccountNumber>,
         not_secret: String,
     }
@@ -88,14 +98,17 @@ fn without_serialize() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     // format
 
     let got = format!("{composite:?}");
-    let exp = "Composite { secret_number: *** basic::without_serialize::AccountNumber ***, not_secret: \"not secret\" }";
+    let exp = r#"Composite { secret_number: *** basic::without_serialize::AccountNumber ***, not_secret: "not secret" }"#;
     assert_eq!(got, exp);
 
     // serialize
 
-    let got = serde_json::to_string(&composite).unwrap();
-    let exp = "{\"not_secret\":\"not secret\"}";
-    assert_eq!(got, exp);
+    #[cfg(feature = "serde")]
+    {
+        let got = serde_json::to_string(&composite).unwrap();
+        let exp = r#"{"not_secret":"not secret"}"#;
+        assert_eq!(got, exp);
+    }
 
     // end
 
@@ -104,10 +117,8 @@ fn without_serialize() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
 #[test]
 fn for_string() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    use pii::Secret;
-    use serde::Serialize;
-
-    #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
+    #[cfg_attr(feature = "serde", derive(Serialize))]
+    #[derive(Clone, Debug, PartialEq, Eq)]
     pub struct Composite {
         secret_number: Secret<String>,
         not_secret: String,
@@ -131,14 +142,17 @@ fn for_string() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
     let got = format!("{composite:?}");
     let exp =
-        "Composite { secret_number: *** alloc::string::String ***, not_secret: \"not secret\" }";
+        r#"Composite { secret_number: *** alloc::string::String ***, not_secret: "not secret" }"#;
     assert_eq!(got, exp);
 
     // serialize
 
-    let got = serde_json::to_string(&composite).unwrap();
-    let exp = "{\"secret_number\":\"abc\",\"not_secret\":\"not secret\"}";
-    assert_eq!(got, exp);
+    #[cfg(feature = "serde")]
+    {
+        let got = serde_json::to_string(&composite).unwrap();
+        let exp = r#"{"secret_number":"abc","not_secret":"not secret"}"#;
+        assert_eq!(got, exp);
+    }
 
     // end
 
