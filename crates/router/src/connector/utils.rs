@@ -1,6 +1,10 @@
 use std::collections::HashMap;
 
-use common_utils::{ext_traits::ValueExt, pii};
+use base64::Engine;
+use common_utils::{
+    errors::ReportSwitchExt,
+    pii::{self, Email},
+};
 use error_stack::{report, IntoReport, ResultExt};
 use masking::Secret;
 use once_cell::sync::Lazy;
@@ -8,10 +12,11 @@ use regex::Regex;
 use serde::Serializer;
 
 use crate::{
+    consts,
     core::errors::{self, CustomResult},
     pii::PeekInterface,
     types::{self, api, PaymentsCancelData, ResponseId},
-    utils::OptionExt,
+    utils::{OptionExt, ValueExt},
 };
 
 pub fn missing_field_err(
@@ -52,6 +57,7 @@ pub trait RouterData {
     where
         T: serde::de::DeserializeOwned;
     fn get_return_url(&self) -> Result<String, Error>;
+    fn is_three_ds(&self) -> bool;
 }
 
 impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Response> {
@@ -116,28 +122,39 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
             .clone()
             .ok_or_else(missing_field_err("return_url"))
     }
-}
 
-pub trait PaymentsRequestData {
-    fn get_card(&self) -> Result<api::Card, Error>;
-}
-
-impl PaymentsRequestData for types::PaymentsAuthorizeRouterData {
-    fn get_card(&self) -> Result<api::Card, Error> {
-        match self.request.payment_method_data.clone() {
-            api::PaymentMethodData::Card(card) => Ok(card),
-            _ => Err(missing_field_err("card")()),
-        }
+    fn is_three_ds(&self) -> bool {
+        matches!(
+            self.auth_type,
+            storage_models::enums::AuthenticationType::ThreeDs
+        )
     }
 }
 
 pub trait PaymentsAuthorizeRequestData {
     fn is_auto_capture(&self) -> bool;
+    fn get_email(&self) -> Result<Secret<String, Email>, Error>;
+    fn get_browser_info(&self) -> Result<types::BrowserInformation, Error>;
+    fn get_card(&self) -> Result<api::Card, Error>;
 }
 
 impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
     fn is_auto_capture(&self) -> bool {
         self.capture_method == Some(storage_models::enums::CaptureMethod::Automatic)
+    }
+    fn get_email(&self) -> Result<Secret<String, Email>, Error> {
+        self.email.clone().ok_or_else(missing_field_err("email"))
+    }
+    fn get_browser_info(&self) -> Result<types::BrowserInformation, Error> {
+        self.browser_info
+            .clone()
+            .ok_or_else(missing_field_err("browser_info"))
+    }
+    fn get_card(&self) -> Result<api::Card, Error> {
+        match self.payment_method_data.clone() {
+            api::PaymentMethodData::Card(card) => Ok(card),
+            _ => Err(missing_field_err("card")()),
+        }
     }
 }
 
@@ -350,6 +367,65 @@ pub fn get_header_key_value<'a>(
         .ok_or(report!(
             errors::ConnectorError::WebhookSourceVerificationFailed
         ))?
+}
+
+pub fn to_boolean(string: String) -> bool {
+    let str = string.as_str();
+    match str {
+        "true" => true,
+        "false" => false,
+        "yes" => true,
+        "no" => false,
+        _ => false,
+    }
+}
+
+pub fn get_connector_meta(
+    connector_meta: Option<serde_json::Value>,
+) -> Result<serde_json::Value, Error> {
+    connector_meta.ok_or_else(missing_field_err("connector_meta_data"))
+}
+
+pub fn to_connector_meta<T>(connector_meta: Option<serde_json::Value>) -> Result<T, Error>
+where
+    T: serde::de::DeserializeOwned,
+{
+    let json = connector_meta.ok_or_else(missing_field_err("connector_meta_data"))?;
+    json.parse_value(std::any::type_name::<T>()).switch()
+}
+
+pub fn to_connector_meta_from_secret<T>(
+    connector_meta: Option<Secret<serde_json::Value>>,
+) -> Result<T, Error>
+where
+    T: serde::de::DeserializeOwned,
+{
+    let connector_meta_secret =
+        connector_meta.ok_or_else(missing_field_err("connector_meta_data"))?;
+    let json = connector_meta_secret.peek().clone();
+    json.parse_value(std::any::type_name::<T>()).switch()
+}
+
+impl common_utils::errors::ErrorSwitch<errors::ConnectorError> for errors::ParsingError {
+    fn switch(&self) -> errors::ConnectorError {
+        errors::ConnectorError::ParsingFailed
+    }
+}
+
+pub fn to_string<T>(data: &T) -> Result<String, Error>
+where
+    T: serde::Serialize,
+{
+    serde_json::to_string(data)
+        .into_report()
+        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+}
+
+pub fn base64_decode(data: String) -> Result<Vec<u8>, Error> {
+    consts::BASE64_ENGINE
+        .decode(data)
+        .into_report()
+        .change_context(errors::ConnectorError::ResponseDeserializationFailed)
 }
 
 pub fn to_currency_base_unit_from_optional_amount(

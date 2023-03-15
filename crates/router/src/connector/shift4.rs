@@ -10,10 +10,7 @@ use super::utils::RefundsRequestData;
 use crate::{
     configs::settings,
     consts,
-    core::{
-        errors::{self, CustomResult},
-        payments,
-    },
+    core::errors::{self, CustomResult},
     headers,
     services::{self, ConnectorIntegration},
     types::{
@@ -528,14 +525,5 @@ impl api::IncomingWebhook for Shift4 {
             .parse_struct("Shift4WebhookObjectResource")
             .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
         Ok(details.data)
-    }
-}
-
-impl services::ConnectorRedirectResponse for Shift4 {
-    fn get_flow_type(
-        &self,
-        _query_params: &str,
-    ) -> CustomResult<payments::CallConnectorAction, errors::ConnectorError> {
-        Ok(payments::CallConnectorAction::Trigger)
     }
 }
