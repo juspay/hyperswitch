@@ -131,12 +131,6 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
     }
 }
 
-pub trait PaymentsRequestData {
-}
-
-impl PaymentsRequestData for types::PaymentsAuthorizeRouterData {
-}
-
 pub trait PaymentsAuthorizeRequestData {
     fn is_auto_capture(&self) -> bool;
     fn get_wallet_token(&self) -> Result<String, Error>;
