@@ -1619,11 +1619,6 @@ impl BasiliskCardSupport {
             .clone()
             .expose_option()
             .unwrap_or_default();
-        let card_fingerprint = card
-            .card_fingerprint
-            .clone()
-            .expose_option()
-            .get_required_value("card_fingerprint")?;
         let value1 = payment_methods::mk_card_value1(
             card_number,
             card_exp_year,
@@ -1637,7 +1632,7 @@ impl BasiliskCardSupport {
         .attach_printable("Error getting Value1 for locker")?;
         let value2 = payment_methods::mk_card_value2(
             None,
-            Some(card_fingerprint),
+            None,
             None,
             Some(pm.customer_id.to_string()),
             Some(pm.payment_method_id.to_string()),
