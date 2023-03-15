@@ -3,7 +3,6 @@ mod transformers;
 use std::fmt::Debug;
 use error_stack::{ResultExt, IntoReport};
 
-
 use crate::{
     configs::settings,
     utils::{self, BytesExt},
@@ -411,7 +410,7 @@ impl api::IncomingWebhook for {{project-name | downcase | pascal_case}} {
     fn get_webhook_object_reference_id(
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<ObjectReferenceId, errors::ConnectorError> {
+    ) -> CustomResult<api::webhooks::ObjectReferenceId, errors::ConnectorError> {
         Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
     }
 
