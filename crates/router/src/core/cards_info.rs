@@ -17,7 +17,7 @@ pub async fn retrieve_card_info(
         .get_card_info(&card_iin)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable_lazy(|| format!("Failed to retrieve card information"))?
+        .attach_printable_lazy(|| "Failed to retrieve card information")?
         .ok_or(report!(errors::ApiErrorResponse::CardBinNotFound))?;
 
     Ok(ApplicationResponse::Json(
