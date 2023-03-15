@@ -10,7 +10,6 @@ use api_models::payments::Metadata;
 use common_utils::ext_traits::AsyncExt;
 use error_stack::{IntoReport, ResultExt};
 use futures::future::join_all;
-use masking::Secret;
 use router_env::{instrument, tracing};
 use time;
 
@@ -347,7 +346,7 @@ impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
             merchant_id: req.merchant_id.clone(),
             metadata: Some(Metadata {
                 order_details: None,
-                data: Secret::new("{}".into()),
+                data: masking::Secret::new("{}".into()),
                 request_extra: Some(req.json_payload.unwrap_or("{}".into())),
             }),
             ..Default::default()
@@ -594,15 +593,15 @@ where
     pub refunds: Vec<storage::Refund>,
     pub sessions_token: Vec<api::SessionToken>,
     pub card_cvc: Option<pii::Secret<String>>,
-    pub email: Option<Secret<String, pii::Email>>,
+    pub email: Option<masking::Secret<String, pii::Email>>,
 }
 
 #[derive(Debug, Default)]
 pub struct CustomerDetails {
     pub customer_id: Option<String>,
-    pub name: Option<Secret<String, masking::WithType>>,
-    pub email: Option<Secret<String, pii::Email>>,
-    pub phone: Option<Secret<String, masking::WithType>>,
+    pub name: Option<masking::Secret<String, masking::WithType>>,
+    pub email: Option<masking::Secret<String, pii::Email>>,
+    pub phone: Option<masking::Secret<String, masking::WithType>>,
     pub phone_country_code: Option<String>,
 }
 
