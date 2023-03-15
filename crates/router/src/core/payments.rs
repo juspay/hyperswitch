@@ -447,7 +447,6 @@ where
     Ok(payment_data)
 }
 
-#[derive(Clone)]
 pub enum CallConnectorAction {
     Trigger,
     Avoid,
