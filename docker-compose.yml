@@ -79,10 +79,23 @@ services:
       - POSTGRES_PASSWORD=db_pass
       - POSTGRES_DB=hyperswitch_db
 
+  migration_runner:
+    image: rust:1.65
+    command: "bash -c 'cargo install diesel_cli && diesel migration --database-url postgres://db_user:db_pass@pg:5432/hyperswitch_db run'"
+    working_dir: /app
+    networks:
+      - router_net
+    volumes:
+      - ./:/app
+
   hyperswitch-server-init:
     image: rust:1.65
     command: cargo build --bin router
     working_dir: /app
+    ports:
+      - "8080:8080"
+    networks:
+      - router_net
     volumes:
       - ./:/app
       - cargo_cache:/cargo_cache
@@ -106,15 +119,16 @@ services:
       - OTEL_EXPORTER_OTLP_ENDPOINT=https://otel-collector:4317
     labels:
       logs: "promtail"
-    depends_on:
-      hyperswitch-server-init:
-        condition: service_completed_successfully
     healthcheck:
       test: curl --fail http://localhost:8080/health || exit 1
       interval: 100s
       retries: 3
       start_period: 20s
       timeout: 10s
+
+    depends_on:
+      hyperswitch-server-init:
+        condition: service_completed_successfully
 
   hyperswitch-producer:
     image: rust:1.65
@@ -156,7 +170,7 @@ services:
       - SCHEDULER_FLOW=consumer
     depends_on:
       hyperswitch-server:
-        condition: service_healthy
+        condition: service_started
 
     labels:
       logs: "promtail"
@@ -220,6 +234,7 @@ services:
       \ redis-cli --cluster create $$HOSTS --cluster-yes
 
       \ '"
+
   redis-insight:
     image: redislabs/redisinsight:latest
     networks:
@@ -275,6 +290,6 @@ services:
     restart: unless-stopped
     depends_on:
       hyperswitch-server:
-        condition: service_healthy
+        condition: service_started
     labels:
       logs: "promtail"
