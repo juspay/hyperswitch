@@ -14,6 +14,8 @@ use common_utils::{consts, ext_traits::AsyncExt, generate_id};
 use error_stack::{report, ResultExt};
 use router_env::{instrument, tracing};
 
+#[cfg(feature = "basilisk")]
+use crate::scheduler::metrics;
 use crate::{
     configs::settings,
     core::{
@@ -1332,6 +1334,7 @@ impl BasiliskCardSupport {
             enums::PaymentMethod::Card,
         )
         .await?;
+        metrics::TOKENIZED_DATA_COUNT.add(&metrics::CONTEXT, 1, &[]);
         Ok(card)
     }
 }

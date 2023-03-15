@@ -17,7 +17,7 @@ use crate::{core::payment_methods::transformers as payment_methods, services, ut
 #[cfg(feature = "basilisk")]
 use crate::{
     db,
-    scheduler::{process_data, utils as process_tracker_utils},
+    scheduler::{metrics, process_data, utils as process_tracker_utils},
     types::storage::ProcessTrackerExt,
 };
 #[cfg(feature = "basilisk")]
@@ -360,6 +360,7 @@ impl Vault {
 
         let lookup_key = create_tokenize(state, value1, Some(value2), lookup_key).await?;
         add_delete_tokenized_data_task(&*state.store, &lookup_key, pm).await?;
+        metrics::TOKENIZED_DATA_COUNT.add(&metrics::CONTEXT, 1, &[]);
         Ok(lookup_key)
     }
 
@@ -643,12 +644,14 @@ pub async fn start_tokenize_data_workflow(
                 logger::error!("Error: Deleting Card From Locker : {}", resp);
                 retry_delete_tokenize(db, &delete_tokenize_data.pm, tokenize_tracker.to_owned())
                     .await?;
+                metrics::RETRIED_DELETE_DATA_COUNT.add(&metrics::CONTEXT, 1, &[]);
             }
         }
         Err(err) => {
             logger::error!("Err: Deleting Card From Locker : {}", err);
             retry_delete_tokenize(db, &delete_tokenize_data.pm, tokenize_tracker.to_owned())
                 .await?;
+            metrics::RETRIED_DELETE_DATA_COUNT.add(&metrics::CONTEXT, 1, &[]);
         }
     }
     Ok(())
