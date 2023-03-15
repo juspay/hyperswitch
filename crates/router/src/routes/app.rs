@@ -10,6 +10,7 @@ use super::{ephemeral_key::*, payment_methods::*, webhooks::*};
 use crate::{
     configs::settings::Settings,
     db::{MockDb, StorageImpl, StorageInterface},
+    routes::cards_info::card_bin_info,
     services::Store,
 };
 
@@ -361,5 +362,15 @@ impl ApiKeys {
                     .route(web::post().to(api_key_update))
                     .route(web::delete().to(api_key_revoke)),
             )
+    }
+}
+
+pub struct Cards;
+
+impl Cards {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/cards")
+            .app_data(web::Data::new(state))
+            .service(web::resource("/{bin}").route(web::get().to(card_bin_info)))
     }
 }

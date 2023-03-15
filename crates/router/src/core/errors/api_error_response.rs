@@ -155,6 +155,8 @@ pub enum ApiErrorResponse {
     IncorrectConnectorNameGiven,
     #[error(error_type = ErrorType::ObjectNotFound, code = "HE_04", message = "Address does not exist in our records")]
     AddressNotFound,
+    #[error(error_type = ErrorType::ObjectNotFound, code = "HE_04", message = "Card with the provided bin does not exist")]
+    CardBinNotFound,
 }
 
 #[derive(Clone)]
@@ -197,17 +199,17 @@ impl actix_web::ResponseError for ApiErrorResponse {
             Self::ExternalConnectorError { status_code, .. } => {
                 StatusCode::from_u16(*status_code).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR)
             }
-            Self::InvalidRequestUrl => StatusCode::NOT_FOUND, // 404
-            Self::InvalidHttpMethod => StatusCode::METHOD_NOT_ALLOWED, // 405
+            Self::InvalidRequestUrl | Self::CardBinNotFound => StatusCode::NOT_FOUND, // 404
+            Self::InvalidHttpMethod => StatusCode::METHOD_NOT_ALLOWED,                // 405
             Self::MissingRequiredField { .. } | Self::InvalidDataValue { .. } => {
                 StatusCode::BAD_REQUEST
             } // 400
             Self::InvalidDataFormat { .. } | Self::InvalidRequestData { .. } => {
                 StatusCode::UNPROCESSABLE_ENTITY
             } // 422
-            Self::RefundAmountExceedsPaymentAmount => StatusCode::BAD_REQUEST, // 400
-            Self::MaximumRefundCount => StatusCode::BAD_REQUEST, // 400
-            Self::PreconditionFailed { .. } => StatusCode::BAD_REQUEST, // 400
+            Self::RefundAmountExceedsPaymentAmount => StatusCode::BAD_REQUEST,        // 400
+            Self::MaximumRefundCount => StatusCode::BAD_REQUEST,                      // 400
+            Self::PreconditionFailed { .. } => StatusCode::BAD_REQUEST,               // 400
 
             Self::PaymentAuthorizationFailed { .. }
             | Self::PaymentAuthenticationFailed { .. }
@@ -427,7 +429,8 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
             }
             Self::NotSupported { message } => {
                 AER::BadRequest(ApiError::new("HE", 3, "Payment method type not supported", Some(Extra {reason: Some(message.to_owned()), ..Default::default()})))
-            }
+            },
+            Self::CardBinNotFound => AER::BadRequest(ApiError::new("HE", 3, "IIN does not exist", None))
         }
     }
 }
