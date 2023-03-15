@@ -549,7 +549,7 @@ pub struct GetTokenizePayloadRequest {
     pub get_value2: bool,
 }
 
-#[derive(Debug, serde::Serialize)]
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct DeleteTokenizeByTokenRequest {
     pub lookup_key: String,
     pub service_name: String,

@@ -20,6 +20,8 @@ use router_env::{instrument, tracing};
 use serde_json::Value;
 use storage_models::payment_method::PaymentMethodUpdate;
 
+#[cfg(feature = "basilisk")]
+use crate::scheduler::metrics;
 use crate::{
     configs::settings,
     connection,
@@ -1829,7 +1831,15 @@ impl BasiliskCardSupport {
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Wrapped value2 construction failed when saving card to locker")?;
 
-        vault::create_tokenize(state, value1, Some(value2), payment_token.to_string()).await?;
+        let lookup_key =
+            vault::create_tokenize(state, value1, Some(value2), payment_token.to_string()).await?;
+        vault::add_delete_tokenized_data_task(
+            &*state.store,
+            &lookup_key,
+            enums::PaymentMethod::Card,
+        )
+        .await?;
+        metrics::TOKENIZED_DATA_COUNT.add(&metrics::CONTEXT, 1, &[]);
         Ok(card)
     }
 }

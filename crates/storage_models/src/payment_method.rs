@@ -1,6 +1,7 @@
 use common_utils::pii;
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
-use masking::{Deserialize, Secret, Serialize};
+use masking::Secret;
+use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
 use crate::{enums as storage_enums, schema::payment_methods};
@@ -85,6 +86,12 @@ impl Default for PaymentMethodNew {
             metadata: Option::default(),
         }
     }
+}
+
+#[derive(Debug, Eq, PartialEq, Deserialize, Serialize)]
+pub struct TokenizeCoreWorkflow {
+    pub lookup_key: String,
+    pub pm: storage_enums::PaymentMethod,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
