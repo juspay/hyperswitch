@@ -240,11 +240,11 @@ where
 ///
 /// Extending functionalities of `String` for performing parsing
 ///
-pub trait StringExt<T> {
+pub trait StringExt {
     ///
     /// Convert `String` into type `<T>` (which being an `enum`)
     ///
-    fn parse_enum(self, enum_name: &str) -> CustomResult<T, errors::ParsingError>
+    fn parse_enum<T>(self, enum_name: &str) -> CustomResult<T, errors::ParsingError>
     where
         T: std::str::FromStr,
         // Requirement for converting the `Err` variant of `FromStr` to `Report<Err>`
@@ -253,13 +253,13 @@ pub trait StringExt<T> {
     ///
     /// Convert `serde_json::Value` into type `<T>` by using `serde::Deserialize`
     ///
-    fn parse_struct<'de>(&'de self, type_name: &str) -> CustomResult<T, errors::ParsingError>
+    fn parse_struct<'de, T>(&'de self, type_name: &str) -> CustomResult<T, errors::ParsingError>
     where
         T: Deserialize<'de>;
 }
 
-impl<T> StringExt<T> for String {
-    fn parse_enum(self, enum_name: &str) -> CustomResult<T, errors::ParsingError>
+impl StringExt for String {
+    fn parse_enum<T>(self, enum_name: &str) -> CustomResult<T, errors::ParsingError>
     where
         T: std::str::FromStr,
         <T as std::str::FromStr>::Err: std::error::Error + Send + Sync + 'static,
@@ -270,7 +270,7 @@ impl<T> StringExt<T> for String {
             .attach_printable_lazy(|| format!("Invalid enum variant {self:?} for enum {enum_name}"))
     }
 
-    fn parse_struct<'de>(&'de self, type_name: &str) -> CustomResult<T, errors::ParsingError>
+    fn parse_struct<'de, T>(&'de self, type_name: &str) -> CustomResult<T, errors::ParsingError>
     where
         T: Deserialize<'de>,
     {

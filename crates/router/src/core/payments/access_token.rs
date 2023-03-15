@@ -1,4 +1,4 @@
-use common_utils::ext_traits::{AsyncExt, ValueExt};
+use common_utils::ext_traits::{AsyncExt, StringExt, ValueExt};
 use error_stack::{IntoReport, ResultExt};
 use std::fmt::Debug;
 
@@ -9,7 +9,11 @@ use crate::{
     },
     db,
     routes::AppState,
-    scheduler::workflows::{AccessTokenRefresh, ProcessTrackerWorkflow},
+    scheduler::{
+        process_data::{self, ConnectorPTMapping},
+        utils as scheduler_utils,
+        workflows::{AccessTokenRefresh, ProcessTrackerWorkflow},
+    },
     services,
     types::{
         self, api as api_types,
@@ -146,7 +150,7 @@ pub async fn add_access_token<
                             .change_context(errors::ApiErrorResponse::InternalServerError)
                             .attach_printable("Redis error when setting the access token");
 
-                        let next_schedule_time = get_schedule_time(access_token.expires);
+                        let next_schedule_time = get_requeue_schedule_time(access_token.expires);
 
                         let _ = add_access_token_refresh_task(
                             store,
@@ -173,15 +177,19 @@ pub async fn add_access_token<
     }
 }
 
-fn get_schedule_time(access_token_ttl: i64) -> time::PrimitiveDateTime {
+fn get_requeue_schedule_time(access_token_ttl: i64) -> time::PrimitiveDateTime {
     // Scheduler to get a new access token 60 seconds before it expires
     // If for some reason the ttl is negative, get the time untill refresh to be 0 seconds
-    let time_untill_refresh = u64::try_from(access_token_ttl)
-        .unwrap_or(0)
-        .saturating_sub(60);
+    // The problem arises if the access_token_ttl is greater than 30 minutes in the opposite time duration
+    // as this will not be picked up the scheduler.
 
-    common_utils::date_time::now()
-        .saturating_add(time::Duration::seconds(time_untill_refresh as i64))
+    let time_untill_refresh = if access_token_ttl < 0 {
+        0
+    } else {
+        access_token_ttl
+    };
+
+    common_utils::date_time::now().saturating_add(time::Duration::seconds(time_untill_refresh))
 }
 
 async fn add_access_token_refresh_task<Flow, Response>(
@@ -294,6 +302,32 @@ fn construct_access_token_router_data(
     })
 }
 
+pub async fn get_access_token_retry_schedule_time(
+    db: &dyn db::StorageInterface,
+    connector: &str,
+    merchant_id: &str,
+    retry_count: i32,
+) -> Result<Option<time::PrimitiveDateTime>, errors::ProcessTrackerError> {
+    let pt_mapping_key = &format!("pt_mapping_refund_sync_{connector}");
+    let custom_merchant_mapping = db.find_config_by_key(pt_mapping_key).await?;
+
+    let connector_mapping = custom_merchant_mapping
+        .config
+        .parse_struct::<ConnectorPTMapping>("CustomPTMapping");
+
+    let mapping = match connector_mapping {
+        Ok(x) => x,
+        Err(err) => {
+            crate::logger::error!("Error: while getting connector mapping: {}", err);
+            process_data::ConnectorPTMapping::default()
+        }
+    };
+
+    let time_delta = scheduler_utils::get_schedule_time(mapping, merchant_id, retry_count + 1);
+
+    Ok(scheduler_utils::get_time_from_delta(time_delta))
+}
+
 #[async_trait::async_trait]
 impl ProcessTrackerWorkflow for AccessTokenRefresh {
     async fn execute_workflow<'a>(
@@ -342,11 +376,28 @@ impl ProcessTrackerWorkflow for AccessTokenRefresh {
                     .attach_printable("Redis error when setting the access token");
 
                 // Requeue the task for next scheduled time
-                let next_schedule_time = get_schedule_time(access_token.expires);
+                let next_schedule_time = get_requeue_schedule_time(access_token.expires);
                 process.requeue(store, next_schedule_time).await?;
             }
-            Err(_) => {
-                // Update the status of current task
+            Err(error_response) => {
+                // Retry the task
+                crate::logger::error!(access_token_refresh_task_error=?error_response);
+                let retry_schedule_time = get_access_token_retry_schedule_time(
+                    &*state.store,
+                    connector.connector.id(),
+                    &tracking_data.merchant_id,
+                    process.retry_count,
+                )
+                .await?;
+
+                match retry_schedule_time {
+                    Some(s_time) => process.retry(db, s_time).await,
+                    None => {
+                        process
+                            .finish_with_status(db, "RETRIES_EXCEEDED".to_string())
+                            .await
+                    }
+                }?;
             }
         }
         Ok(())
