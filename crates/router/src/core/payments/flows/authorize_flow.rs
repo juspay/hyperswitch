@@ -133,7 +133,7 @@ impl mandate::MandateBehaviour for types::PaymentsAuthorizeData {
     fn get_amount(&self) -> i64 {
         self.amount
     }
-    fn get_mandate_id(&self) -> Option<&api_models::payments::MandateIds> {
+    fn get_mandate_id(&self) -> Option<&api_models::payments::MandateInfo> {
         self.mandate_id.as_ref()
     }
     fn get_payment_method_data(&self) -> api_models::payments::PaymentMethodData {
@@ -146,7 +146,7 @@ impl mandate::MandateBehaviour for types::PaymentsAuthorizeData {
         self.setup_mandate_details.as_ref()
     }
 
-    fn set_mandate_id(&mut self, new_mandate_id: api_models::payments::MandateIds) {
+    fn set_mandate_id(&mut self, new_mandate_id: api_models::payments::MandateInfo) {
         self.mandate_id = Some(new_mandate_id);
     }
 }

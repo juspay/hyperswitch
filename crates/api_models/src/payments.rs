@@ -273,19 +273,26 @@ pub enum MandateTxnType {
 }
 
 #[derive(Default, Eq, PartialEq, Debug, serde::Deserialize, serde::Serialize, Clone)]
-pub struct MandateIds {
+pub struct MandateInfo {
     pub mandate_id: String,
     pub connector_mandate_id: Option<String>,
+    pub mandate_metadata: Option<serde_json::Value>,
 }
 
-impl MandateIds {
-    pub fn new(mandate_id: String) -> Self {
-        Self {
-            mandate_id,
-            connector_mandate_id: None,
-        }
-    }
+#[derive(Default, Eq, PartialEq, Debug, serde::Deserialize, serde::Serialize, Clone)]
+pub struct MandateConnectorReference {
+    pub connector_mandate_id: Option<String>,
+    pub mandate_metadata: Option<serde_json::Value>,
 }
+
+// impl MandateInfo {
+//     pub fn new(mandate_id: String) -> Self {
+//         Self {
+//             mandate_id,
+//             ..Default::default()
+//         }
+//     }
+// }
 
 #[derive(Default, Eq, PartialEq, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 #[serde(deny_unknown_fields)]

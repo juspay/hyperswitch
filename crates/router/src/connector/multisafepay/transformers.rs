@@ -463,11 +463,14 @@ impl<F, T>
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.data.order_id),
                 redirection_data,
-                mandate_reference: item
-                    .response
-                    .data
-                    .payment_details
-                    .and_then(|payment_details| payment_details.recurring_id),
+                mandate_reference: Some(api_models::payments::MandateConnectorReference {
+                    connector_mandate_id: item
+                        .response
+                        .data
+                        .payment_details
+                        .and_then(|payment_details| payment_details.recurring_id),
+                    ..Default::default()
+                }),
                 connector_metadata: None,
             }),
             ..item.data

@@ -108,11 +108,11 @@ impl mandate::MandateBehaviour for types::VerifyRequestData {
         self.setup_future_usage
     }
 
-    fn get_mandate_id(&self) -> Option<&api_models::payments::MandateIds> {
+    fn get_mandate_id(&self) -> Option<&api_models::payments::MandateInfo> {
         self.mandate_id.as_ref()
     }
 
-    fn set_mandate_id(&mut self, new_mandate_id: api_models::payments::MandateIds) {
+    fn set_mandate_id(&mut self, new_mandate_id: api_models::payments::MandateInfo) {
         self.mandate_id = Some(new_mandate_id);
     }
 

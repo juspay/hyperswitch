@@ -797,7 +797,7 @@ impl<F, T>
                     services::RedirectForm::from((response.url, services::Method::Get))
                 });
 
-        let mandate_reference =
+        let mandate_reference_id =
             item.response
                 .payment_method_options
                 .and_then(|payment_method_options| match payment_method_options {
@@ -806,6 +806,10 @@ impl<F, T>
                     } => mandate_options.map(|mandate_options| mandate_options.reference),
                     _ => None,
                 });
+        let mandate_reference = Some(payments::MandateConnectorReference {
+            connector_mandate_id: mandate_reference_id,
+            ..Default::default()
+        });
 
         Ok(Self {
             status: enums::AttemptStatus::from(item.response.status),
@@ -844,7 +848,7 @@ impl<F, T>
             },
         );
 
-        let mandate_reference =
+        let mandate_reference_id =
             item.response
                 .payment_method_options
                 .to_owned()
@@ -860,6 +864,10 @@ impl<F, T>
                     | StripePaymentMethodOptions::Ideal {}
                     | StripePaymentMethodOptions::Sofort {} => None,
                 });
+        let mandate_reference = Some(payments::MandateConnectorReference {
+            connector_mandate_id: mandate_reference_id,
+            ..Default::default()
+        });
 
         let error_res =
             item.response
@@ -906,7 +914,7 @@ impl<F, T>
                     services::RedirectForm::from((response.url, services::Method::Get))
                 });
 
-        let mandate_reference =
+        let mandate_reference_id =
             item.response
                 .payment_method_options
                 .and_then(|payment_method_options| match payment_method_options {
@@ -915,6 +923,10 @@ impl<F, T>
                     } => mandate_options.map(|mandate_option| mandate_option.reference),
                     _ => None,
                 });
+        let mandate_reference = Some(payments::MandateConnectorReference {
+            connector_mandate_id: mandate_reference_id,
+            ..Default::default()
+        });
 
         Ok(Self {
             status: enums::AttemptStatus::from(item.response.status),

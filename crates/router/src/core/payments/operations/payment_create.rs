@@ -155,10 +155,13 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                     .find_mandate_by_merchant_id_mandate_id(merchant_id, mandate_id)
                     .await
                     .change_context(errors::ApiErrorResponse::MandateNotFound);
-                Some(mandate.map(|mandate_obj| api_models::payments::MandateIds {
-                    mandate_id: mandate_obj.mandate_id,
-                    connector_mandate_id: mandate_obj.connector_mandate_id,
-                }))
+                Some(
+                    mandate.map(|mandate_obj| api_models::payments::MandateInfo {
+                        mandate_id: mandate_obj.mandate_id,
+                        connector_mandate_id: mandate_obj.connector_mandate_id,
+                        mandate_metadata: mandate_obj.metadata,
+                    }),
+                )
             })
             .await
             .transpose()?;

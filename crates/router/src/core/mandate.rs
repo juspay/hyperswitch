@@ -169,9 +169,10 @@ where
                 ) {
                     logger::error!("{:?}", new_mandate_data);
                     resp.request
-                        .set_mandate_id(api_models::payments::MandateIds {
+                        .set_mandate_id(api_models::payments::MandateInfo {
                             mandate_id: new_mandate_data.mandate_id.clone(),
                             connector_mandate_id: new_mandate_data.connector_mandate_id.clone(),
+                            mandate_metadata: new_mandate_data.metadata.clone(),
                         });
                     state
                         .store
@@ -202,8 +203,8 @@ where
 pub trait MandateBehaviour {
     fn get_amount(&self) -> i64;
     fn get_setup_future_usage(&self) -> Option<storage_models::enums::FutureUsage>;
-    fn get_mandate_id(&self) -> Option<&api_models::payments::MandateIds>;
-    fn set_mandate_id(&mut self, new_mandate_id: api_models::payments::MandateIds);
+    fn get_mandate_id(&self) -> Option<&api_models::payments::MandateInfo>;
+    fn set_mandate_id(&mut self, new_mandate_id: api_models::payments::MandateInfo);
     fn get_payment_method_data(&self) -> api_models::payments::PaymentMethodData;
     fn get_setup_mandate_details(&self) -> Option<&api_models::payments::MandateData>;
 }

@@ -152,6 +152,7 @@ diesel::table! {
         amount_captured -> Nullable<Int8>,
         connector -> Varchar,
         connector_mandate_id -> Nullable<Varchar>,
+        metadata -> Nullable<Json>,
     }
 }
 
@@ -194,6 +195,19 @@ diesel::table! {
         payment_methods_enabled -> Nullable<Array<Nullable<Json>>>,
         connector_type -> ConnectorType,
         metadata -> Nullable<Jsonb>,
+    }
+}
+
+diesel::table! {
+    use diesel::sql_types::*;
+    use crate::enums::diesel_exports::*;
+
+    onboarding_data (id) {
+        id -> Int4,
+        user_id -> Varchar,
+        onboarding_step -> Int4,
+        created_at -> Timestamp,
+        last_modified -> Timestamp,
     }
 }
 
@@ -362,6 +376,23 @@ diesel::table! {
     }
 }
 
+diesel::table! {
+    use diesel::sql_types::*;
+    use crate::enums::diesel_exports::*;
+
+    users (id) {
+        id -> Int4,
+        user_id -> Varchar,
+        email -> Varchar,
+        name -> Varchar,
+        password -> Varchar,
+        merchant_id -> Nullable<Varchar>,
+        is_verified -> Bool,
+        created_at -> Timestamp,
+        last_modified -> Timestamp,
+    }
+}
+
 diesel::allow_tables_to_appear_in_same_query!(
     address,
     api_keys,
@@ -373,10 +404,12 @@ diesel::allow_tables_to_appear_in_same_query!(
     mandate,
     merchant_account,
     merchant_connector_account,
+    onboarding_data,
     payment_attempt,
     payment_intent,
     payment_methods,
     process_tracker,
     refund,
     reverse_lookup,
+    users,
 );

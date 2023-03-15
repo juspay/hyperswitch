@@ -135,7 +135,7 @@ pub struct PaymentsAuthorizeData {
     pub capture_method: Option<storage_enums::CaptureMethod>,
     // Mandates
     pub setup_future_usage: Option<storage_enums::FutureUsage>,
-    pub mandate_id: Option<api_models::payments::MandateIds>,
+    pub mandate_id: Option<api_models::payments::MandateInfo>,
     pub off_session: Option<bool>,
     pub setup_mandate_details: Option<payments::MandateData>,
     pub browser_info: Option<BrowserInformation>,
@@ -174,7 +174,7 @@ pub struct CompleteAuthorizeData {
     pub capture_method: Option<storage_enums::CaptureMethod>,
     // Mandates
     pub setup_future_usage: Option<storage_enums::FutureUsage>,
-    pub mandate_id: Option<api_models::payments::MandateIds>,
+    pub mandate_id: Option<api_models::payments::MandateInfo>,
     pub off_session: Option<bool>,
     pub setup_mandate_details: Option<payments::MandateData>,
     pub payload: Option<serde_json::Value>,
@@ -214,7 +214,7 @@ pub struct VerifyRequestData {
     pub payment_method_data: payments::PaymentMethodData,
     pub confirm: bool,
     pub statement_descriptor_suffix: Option<String>,
-    pub mandate_id: Option<api_models::payments::MandateIds>,
+    pub mandate_id: Option<api_models::payments::MandateInfo>,
     pub setup_future_usage: Option<storage_enums::FutureUsage>,
     pub off_session: Option<bool>,
     pub setup_mandate_details: Option<payments::MandateData>,
@@ -243,7 +243,7 @@ pub enum PaymentsResponseData {
     TransactionResponse {
         resource_id: ResponseId,
         redirection_data: Option<services::RedirectForm>,
-        mandate_reference: Option<String>,
+        mandate_reference: Option<api_models::payments::MandateConnectorReference>,
         connector_metadata: Option<serde_json::Value>,
     },
     SessionResponse {

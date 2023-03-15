@@ -26,6 +26,7 @@ pub struct Mandate {
     pub amount_captured: Option<i64>,
     pub connector: String,
     pub connector_mandate_id: Option<String>,
+    pub metadata: Option<serde_json::Value>,
 }
 
 #[derive(
@@ -50,6 +51,7 @@ pub struct MandateNew {
     pub amount_captured: Option<i64>,
     pub connector: String,
     pub connector_mandate_id: Option<String>,
+    pub metadata: Option<serde_json::Value>,
 }
 
 #[derive(Debug)]

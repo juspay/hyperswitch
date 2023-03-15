@@ -1119,7 +1119,7 @@ pub fn generate_mandate(
     setup_mandate_details: Option<api::MandateData>,
     customer: &Option<storage::Customer>,
     payment_method_id: String,
-    connector_mandate_id: Option<String>,
+    connector_mandate_info: Option<api_models::payments::MandateConnectorReference>,
 ) -> Option<storage::MandateNew> {
     match (setup_mandate_details, customer) {
         (Some(data), Some(cus)) => {
@@ -1127,6 +1127,9 @@ pub fn generate_mandate(
 
             // The construction of the mandate new must be visible
             let mut new_mandate = storage::MandateNew::default();
+            let (connector_mandate_id, mandate_metadata) = connector_mandate_info
+                .map(|value| (value.connector_mandate_id, value.mandate_metadata))
+                .unzip();
 
             new_mandate
                 .set_mandate_id(mandate_id)
@@ -1135,7 +1138,8 @@ pub fn generate_mandate(
                 .set_payment_method_id(payment_method_id)
                 .set_connector(connector)
                 .set_mandate_status(storage_enums::MandateStatus::Active)
-                .set_connector_mandate_id(connector_mandate_id)
+                .set_connector_mandate_id(connector_mandate_id.flatten())
+                .set_metadata(mandate_metadata.flatten())
                 .set_customer_ip_address(
                     data.customer_acceptance
                         .get_ip_address()
