@@ -8,8 +8,7 @@ use url::Url;
 use crate::{
     connector::utils::{self, AddressDetailsData, RouterData},
     core::errors,
-    services,
-    types::{self},
+    services, types,
 };
 
 #[derive(Debug, Serialize)]
@@ -121,6 +120,8 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for MolliePaymentsRequest {
             description,
             redirect_url,
             cancel_url: None,
+            /* webhook_url is a mandatory field.
+            But we can't support webhook in our core hence keeping it as empty string */
             webhook_url: "".to_string(),
             locale: None,
             payment_method_data,

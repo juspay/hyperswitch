@@ -252,6 +252,7 @@ pub struct Connectors {
     pub fiserv: ConnectorParams,
     pub globalpay: ConnectorParams,
     pub klarna: ConnectorParams,
+    pub mollie: ConnectorParams,
     pub multisafepay: ConnectorParams,
     pub nuvei: ConnectorParams,
     pub payu: ConnectorParams,
@@ -264,7 +265,6 @@ pub struct Connectors {
 
     // Keep this field separate from the remaining fields
     pub supported: SupportedConnectors,
-    pub mollie: ConnectorParams,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]

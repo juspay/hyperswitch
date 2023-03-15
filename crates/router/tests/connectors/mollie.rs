@@ -1,4 +1,4 @@
-use router::types::{self};
+use router::types;
 
 use crate::{
     connector_auth,

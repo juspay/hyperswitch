@@ -421,10 +421,11 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         req: &types::RefundSyncRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let connector_refund_id = match req.request.connector_refund_id.clone() {
-            Some(connector_refund_id) => Ok(connector_refund_id),
-            None => Err(errors::ConnectorError::RequestEncodingFailed),
-        }?;
+        let connector_refund_id = req
+            .request
+            .connector_refund_id
+            .clone()
+            .ok_or(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(format!(
             "{}payments/{}/refunds/{}",
             self.base_url(connectors),
