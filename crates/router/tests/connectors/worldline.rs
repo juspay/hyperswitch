@@ -138,9 +138,9 @@ async fn should_throw_not_implemented_for_unsupported_issuer() {
     assert_eq!(
         *response.unwrap_err().current_context(),
         errors::ConnectorError::NotSupported {
-            payment_method: "Maestro".to_string(),
+            payment_method: "card".to_string(),
             connector: "worldline",
-            payment_experience: "redirect_to_url".to_string(),
+            payment_experience: "RedirectToUrl".to_string(),
         }
     )
 }
