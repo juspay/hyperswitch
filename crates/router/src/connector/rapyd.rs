@@ -1,7 +1,6 @@
 mod transformers;
 use std::fmt::Debug;
 
-use api_models::webhooks::ObjectReferenceId;
 use base64::Engine;
 use common_utils::{date_time, ext_traits::StringExt};
 use error_stack::{IntoReport, ResultExt};
@@ -13,10 +12,7 @@ use crate::{
     configs::settings,
     connector::utils as conn_utils,
     consts,
-    core::{
-        errors::{self, CustomResult},
-        payments,
-    },
+    core::errors::{self, CustomResult},
     db::StorageInterface,
     headers, services,
     types::{
@@ -761,19 +757,23 @@ impl api::IncomingWebhook for Rapyd {
     fn get_webhook_object_reference_id(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<ObjectReferenceId, errors::ConnectorError> {
+    ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
         let webhook: transformers::RapydIncomingWebhook = request
             .body
             .parse_struct("RapydIncomingWebhook")
             .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
 
         Ok(match webhook.data {
-            transformers::WebhookData::PaymentData(payment_data) => ObjectReferenceId::PaymentId(
-                api_models::payments::PaymentIdType::ConnectorTransactionId(payment_data.id),
-            ),
-            transformers::WebhookData::RefundData(refund_data) => ObjectReferenceId::RefundId(
-                api_models::webhooks::RefundIdType::ConnectorRefundId(refund_data.id),
-            ),
+            transformers::WebhookData::PaymentData(payment_data) => {
+                api_models::webhooks::ObjectReferenceId::PaymentId(
+                    api_models::payments::PaymentIdType::ConnectorTransactionId(payment_data.id),
+                )
+            }
+            transformers::WebhookData::RefundData(refund_data) => {
+                api_models::webhooks::ObjectReferenceId::RefundId(
+                    api_models::webhooks::RefundIdType::ConnectorRefundId(refund_data.id),
+                )
+            }
         })
     }
 
@@ -809,14 +809,5 @@ impl api::IncomingWebhook for Rapyd {
                 .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
 
         Ok(res_json)
-    }
-}
-
-impl services::ConnectorRedirectResponse for Rapyd {
-    fn get_flow_type(
-        &self,
-        _query_params: &str,
-    ) -> CustomResult<payments::CallConnectorAction, errors::ConnectorError> {
-        Ok(payments::CallConnectorAction::Trigger)
     }
 }

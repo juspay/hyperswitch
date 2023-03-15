@@ -2,7 +2,6 @@ mod transformers;
 
 use std::fmt::Debug;
 
-use api_models::webhooks::ObjectReferenceId;
 use common_utils::ext_traits::ValueExt;
 use error_stack::{IntoReport, ResultExt};
 
@@ -237,14 +236,12 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
 {
 }
 
-impl services::ConnectorRedirectResponse for Applepay {}
-
 #[async_trait::async_trait]
 impl api::IncomingWebhook for Applepay {
     fn get_webhook_object_reference_id(
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<ObjectReferenceId, errors::ConnectorError> {
+    ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
         Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
     }
 

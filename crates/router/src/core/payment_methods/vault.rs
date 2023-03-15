@@ -5,13 +5,14 @@ use josekit::jwe;
 use masking::PeekInterface;
 use router_env::{instrument, tracing};
 
-#[cfg(not(feature = "basilisk"))]
-use crate::types::storage;
 use crate::{
     configs::settings::Jwekey,
     core::errors::{self, CustomResult, RouterResult},
     logger, routes,
-    types::api,
+    types::{
+        api,
+        storage::{self, enums},
+    },
     utils::{self, StringExt},
 };
 #[cfg(feature = "basilisk")]
@@ -19,6 +20,12 @@ use crate::{
     core::payment_methods::transformers as payment_methods,
     services::{self, kms},
     utils::BytesExt,
+};
+#[cfg(feature = "basilisk")]
+use crate::{
+    db,
+    scheduler::{metrics, process_data, utils as process_tracker_utils},
+    types::storage::ProcessTrackerExt,
 };
 #[cfg(feature = "basilisk")]
 const VAULT_SERVICE_NAME: &str = "CARD";
@@ -257,6 +264,7 @@ impl Vault {
         token_id: Option<String>,
         payment_method: &api::PaymentMethodData,
         customer_id: Option<String>,
+        _pm: enums::PaymentMethod,
     ) -> RouterResult<String> {
         let value1 = payment_method
             .get_value1(customer_id.clone())
@@ -343,6 +351,7 @@ impl Vault {
         token_id: Option<String>,
         payment_method: &api::PaymentMethodData,
         customer_id: Option<String>,
+        pm: enums::PaymentMethod,
     ) -> RouterResult<String> {
         let value1 = payment_method
             .get_value1(customer_id.clone())
@@ -356,7 +365,10 @@ impl Vault {
 
         let lookup_key = token_id.unwrap_or_else(|| generate_id_with_default_len("token"));
 
-        create_tokenize(state, value1, Some(value2), lookup_key).await
+        let lookup_key = create_tokenize(state, value1, Some(value2), lookup_key).await?;
+        add_delete_tokenized_data_task(&*state.store, &lookup_key, pm).await?;
+        metrics::TOKENIZED_DATA_COUNT.add(&metrics::CONTEXT, 1, &[]);
+        Ok(lookup_key)
     }
 
     #[instrument(skip_all)]
@@ -642,5 +654,139 @@ pub async fn delete_tokenized_data(
         Err(err) => Err(errors::ApiErrorResponse::InternalServerError)
             .into_report()
             .attach_printable(format!("Got 4xx from the basilisk locker: {err:?}")),
+    }
+}
+
+// ********************************************** PROCESS TRACKER **********************************************
+#[cfg(feature = "basilisk")]
+pub async fn add_delete_tokenized_data_task(
+    db: &dyn db::StorageInterface,
+    lookup_key: &str,
+    pm: enums::PaymentMethod,
+) -> RouterResult<storage::ProcessTracker> {
+    let runner = "DELETE_TOKENIZE_DATA_WORKFLOW";
+    let current_time = common_utils::date_time::now();
+    let tracking_data = serde_json::to_value(storage::TokenizeCoreWorkflow {
+        lookup_key: lookup_key.to_owned(),
+        pm,
+    })
+    .into_report()
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable_lazy(|| format!("unable to convert into value {:?}", lookup_key))?;
+
+    let schedule_time = get_delete_tokenize_schedule_time(db, &pm, 0).await;
+
+    let process_tracker_entry = storage::ProcessTrackerNew {
+        id: format!("{}_{}", runner, lookup_key),
+        name: Some(String::from(runner)),
+        tag: vec![String::from("BASILISK-V3")],
+        runner: Some(String::from(runner)),
+        retry_count: 0,
+        schedule_time,
+        rule: String::new(),
+        tracking_data,
+        business_status: String::from("Pending"),
+        status: enums::ProcessTrackerStatus::New,
+        event: vec![],
+        created_at: current_time,
+        updated_at: current_time,
+    };
+    let response = db
+        .insert_process(process_tracker_entry)
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable_lazy(|| {
+            format!(
+                "Failed while inserting task in process_tracker: lookup_key: {}",
+                lookup_key
+            )
+        })?;
+    Ok(response)
+}
+
+#[cfg(feature = "basilisk")]
+pub async fn start_tokenize_data_workflow(
+    state: &routes::AppState,
+    tokenize_tracker: &storage::ProcessTracker,
+) -> Result<(), errors::ProcessTrackerError> {
+    let db = &*state.store;
+    let delete_tokenize_data = serde_json::from_value::<storage::TokenizeCoreWorkflow>(
+        tokenize_tracker.tracking_data.clone(),
+    )
+    .into_report()
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable_lazy(|| {
+        format!(
+            "unable to convert into DeleteTokenizeByTokenRequest {:?}",
+            tokenize_tracker.tracking_data
+        )
+    })?;
+
+    let delete_resp = delete_tokenized_data(state, &delete_tokenize_data.lookup_key).await;
+    match delete_resp {
+        Ok(resp) => {
+            if resp == "Ok" {
+                logger::info!("Card From locker deleted Successfully");
+                //mark task as finished
+                let id = tokenize_tracker.id.clone();
+                tokenize_tracker
+                    .clone()
+                    .finish_with_status(db, format!("COMPLETED_BY_PT_{id}"))
+                    .await?;
+            } else {
+                logger::error!("Error: Deleting Card From Locker : {}", resp);
+                retry_delete_tokenize(db, &delete_tokenize_data.pm, tokenize_tracker.to_owned())
+                    .await?;
+                metrics::RETRIED_DELETE_DATA_COUNT.add(&metrics::CONTEXT, 1, &[]);
+            }
+        }
+        Err(err) => {
+            logger::error!("Err: Deleting Card From Locker : {}", err);
+            retry_delete_tokenize(db, &delete_tokenize_data.pm, tokenize_tracker.to_owned())
+                .await?;
+            metrics::RETRIED_DELETE_DATA_COUNT.add(&metrics::CONTEXT, 1, &[]);
+        }
+    }
+    Ok(())
+}
+
+#[cfg(feature = "basilisk")]
+pub async fn get_delete_tokenize_schedule_time(
+    db: &dyn db::StorageInterface,
+    pm: &enums::PaymentMethod,
+    retry_count: i32,
+) -> Option<time::PrimitiveDateTime> {
+    let redis_mapping = db::get_and_deserialize_key(
+        db,
+        &format!("pt_mapping_delete_{pm}_tokenize_data"),
+        "PaymentMethodsPTMapping",
+    )
+    .await;
+    let mapping = match redis_mapping {
+        Ok(x) => x,
+        Err(err) => {
+            logger::info!("Redis Mapping Error: {}", err);
+            process_data::PaymentMethodsPTMapping::default()
+        }
+    };
+    let time_delta = process_tracker_utils::get_pm_schedule_time(mapping, pm, retry_count + 1);
+
+    process_tracker_utils::get_time_from_delta(time_delta)
+}
+
+#[cfg(feature = "basilisk")]
+pub async fn retry_delete_tokenize(
+    db: &dyn db::StorageInterface,
+    pm: &enums::PaymentMethod,
+    pt: storage::ProcessTracker,
+) -> Result<(), errors::ProcessTrackerError> {
+    let schedule_time = get_delete_tokenize_schedule_time(db, pm, pt.retry_count).await;
+
+    match schedule_time {
+        Some(s_time) => pt.retry(db, s_time).await,
+        None => {
+            pt.finish_with_status(db, "RETRIES_EXCEEDED".to_string())
+                .await
+        }
     }
 }

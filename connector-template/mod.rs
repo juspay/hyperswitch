@@ -2,7 +2,7 @@ mod transformers;
 
 use std::fmt::Debug;
 use error_stack::{ResultExt, IntoReport};
-use api_models::webhooks::ObjectReferenceId;
+
 
 use crate::{
     configs::settings,
@@ -63,8 +63,7 @@ impl ConnectorCommon for {{project-name | downcase | pascal_case}} {
     }
 
     fn get_auth_header(&self, auth_type:&types::ConnectorAuthType)-> CustomResult<Vec<(String,String)>,errors::ConnectorError> {
-        let auth: {{project-name | downcase}}::{{project-name | downcase | pascal_case}}AuthType = auth_type
-            .try_into()
+        let auth =  {{project-name | downcase}}::{{project-name | downcase | pascal_case}}AuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(vec![(headers::AUTHORIZATION.to_string(), auth.api_key)])
     }
@@ -147,12 +146,11 @@ impl
         res: Response,
     ) -> CustomResult<types::PaymentsAuthorizeRouterData,errors::ConnectorError> {
         let response: {{project-name | downcase}}::{{project-name | downcase | pascal_case}}PaymentsResponse = res.response.parse_struct("{{project-name | downcase | pascal_case}} PaymentsAuthorizeResponse").change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        types::ResponseRouterData {
+        types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
-        }
-        .try_into()
+        })
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
@@ -347,12 +345,11 @@ impl
         res: Response,
     ) -> CustomResult<types::RefundsRouterData<api::Execute>,errors::ConnectorError> {
         let response: {{project-name| downcase}}::RefundResponse = res.response.parse_struct("{{project-name | downcase}} RefundResponse").change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        types::ResponseRouterData {
+        types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
-        }
-        .try_into()
+        })
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
@@ -396,12 +393,11 @@ impl
         res: Response,
     ) -> CustomResult<types::RefundSyncRouterData,errors::ConnectorError,> {
         let response: {{project-name | downcase}}::RefundResponse = res.response.parse_struct("{{project-name | downcase}} RefundSyncResponse").change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        types::ResponseRouterData {
+        types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
-        }
-        .try_into()
+        })
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
@@ -438,6 +434,8 @@ impl services::ConnectorRedirectResponse for {{project-name | downcase | pascal_
     fn get_flow_type(
         &self,
         _query_params: &str,
+        _json_payload: Option<serde_json::Value>,
+        _action: services::PaymentAction
     ) -> CustomResult<payments::CallConnectorAction, errors::ConnectorError> {
         Ok(payments::CallConnectorAction::Trigger)
     }

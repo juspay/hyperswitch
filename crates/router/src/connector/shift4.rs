@@ -2,7 +2,6 @@ mod transformers;
 
 use std::fmt::Debug;
 
-use api_models::webhooks::ObjectReferenceId;
 use common_utils::ext_traits::ByteSliceExt;
 use error_stack::ResultExt;
 use transformers as shift4;
@@ -11,10 +10,7 @@ use super::utils::RefundsRequestData;
 use crate::{
     configs::settings,
     consts,
-    core::{
-        errors::{self, CustomResult},
-        payments,
-    },
+    core::errors::{self, CustomResult},
     headers,
     services::{self, ConnectorIntegration},
     types::{
@@ -496,13 +492,13 @@ impl api::IncomingWebhook for Shift4 {
     fn get_webhook_object_reference_id(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<ObjectReferenceId, errors::ConnectorError> {
+    ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
         let details: shift4::Shift4WebhookObjectId = request
             .body
             .parse_struct("Shift4WebhookObjectId")
             .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
 
-        Ok(ObjectReferenceId::PaymentId(
+        Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
             api_models::payments::PaymentIdType::ConnectorTransactionId(details.data.id),
         ))
     }
@@ -531,14 +527,5 @@ impl api::IncomingWebhook for Shift4 {
             .parse_struct("Shift4WebhookObjectResource")
             .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
         Ok(details.data)
-    }
-}
-
-impl services::ConnectorRedirectResponse for Shift4 {
-    fn get_flow_type(
-        &self,
-        _query_params: &str,
-    ) -> CustomResult<payments::CallConnectorAction, errors::ConnectorError> {
-        Ok(payments::CallConnectorAction::Trigger)
     }
 }

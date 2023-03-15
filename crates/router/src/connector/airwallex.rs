@@ -2,7 +2,6 @@ mod transformers;
 
 use std::fmt::Debug;
 
-use api_models::webhooks::ObjectReferenceId;
 use common_utils::ext_traits::ByteSliceExt;
 use error_stack::{IntoReport, ResultExt};
 use transformers as airwallex;
@@ -297,7 +296,10 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
                   + Sync
                   + 'static),
         > = Box::new(&Self);
-        let authorize_data = &types::PaymentsAuthorizeSessionTokenRouterData::from(&router_data);
+        let authorize_data = &types::PaymentsAuthorizeSessionTokenRouterData::from((
+            &router_data,
+            types::AuthorizeSessionTokenData::from(&router_data),
+        ));
         let resp = services::execute_connector_processing_step(
             app_state,
             integ,
@@ -869,13 +871,13 @@ impl api::IncomingWebhook for Airwallex {
     fn get_webhook_object_reference_id(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<ObjectReferenceId, errors::ConnectorError> {
+    ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
         let details: airwallex::AirwallexWebhookData = request
             .body
             .parse_struct("airwallexWebhookData")
             .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
 
-        Ok(ObjectReferenceId::PaymentId(
+        Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
             api_models::payments::PaymentIdType::ConnectorTransactionId(details.source_id),
         ))
     }
@@ -906,14 +908,5 @@ impl api::IncomingWebhook for Airwallex {
             .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
 
         Ok(details.data.object)
-    }
-}
-
-impl services::ConnectorRedirectResponse for Airwallex {
-    fn get_flow_type(
-        &self,
-        _query_params: &str,
-    ) -> CustomResult<payments::CallConnectorAction, errors::ConnectorError> {
-        Ok(payments::CallConnectorAction::Trigger)
     }
 }

@@ -2,7 +2,6 @@ mod transformers;
 
 use std::fmt::Debug;
 
-use api_models::webhooks::ObjectReferenceId;
 use base64::Engine;
 use common_utils::ext_traits::ByteSliceExt;
 use error_stack::{IntoReport, ResultExt};
@@ -708,9 +707,9 @@ impl api::IncomingWebhook for Worldline {
     fn get_webhook_object_reference_id(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<ObjectReferenceId, errors::ConnectorError> {
+    ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
         || -> _ {
-            Ok(ObjectReferenceId::PaymentId(
+            Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
                 api_models::payments::PaymentIdType::ConnectorTransactionId(
                     request
                         .body
@@ -778,5 +777,3 @@ impl api::IncomingWebhook for Worldline {
         Ok(response)
     }
 }
-
-impl services::ConnectorRedirectResponse for Worldline {}

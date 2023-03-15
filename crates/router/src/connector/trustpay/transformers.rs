@@ -264,7 +264,7 @@ fn get_bank_redirection_request_data(
             },
         },
         callback_urls: CallbackURLs {
-            success: format!("{}?status=SuccessOk", return_url),
+            success: format!("{return_url}?status=SuccessOk"),
             cancel: return_url.clone(),
             error: return_url,
         },
@@ -1098,32 +1098,6 @@ pub struct TrustpayRedirectResponse {
 pub struct Errors {
     pub code: i64,
     pub description: String,
-}
-
-pub fn collect_values(value: &serde_json::Value, signature: &String) -> Vec<String> {
-    match value {
-        serde_json::Value::Null => vec!["null".to_owned()],
-        serde_json::Value::Bool(b) => vec![b.to_string()],
-        serde_json::Value::Number(n) => match n.as_f64() {
-            Some(f) => vec![format!("{:.2}", f)],
-            None => vec![n.to_string()],
-        },
-        serde_json::Value::String(s) => {
-            if signature == s {
-                vec![]
-            } else {
-                vec![s.clone()]
-            }
-        }
-        serde_json::Value::Array(arr) => arr
-            .iter()
-            .flat_map(|v| collect_values(v, signature))
-            .collect(),
-        serde_json::Value::Object(obj) => obj
-            .values()
-            .flat_map(|v| collect_values(v, signature))
-            .collect(),
-    }
 }
 
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]

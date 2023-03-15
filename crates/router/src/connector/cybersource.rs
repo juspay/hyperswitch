@@ -2,7 +2,6 @@ mod transformers;
 
 use std::fmt::Debug;
 
-use api_models::webhooks::ObjectReferenceId;
 use base64::Engine;
 use error_stack::{IntoReport, ResultExt};
 use ring::{digest, hmac};
@@ -692,7 +691,7 @@ impl api::IncomingWebhook for Cybersource {
     fn get_webhook_object_reference_id(
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<ObjectReferenceId, errors::ConnectorError> {
+    ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
         Err(errors::ConnectorError::NotImplemented("cybersource".to_string()).into())
     }
 
@@ -710,5 +709,3 @@ impl api::IncomingWebhook for Cybersource {
         Err(errors::ConnectorError::NotImplemented("cybersource".to_string()).into())
     }
 }
-
-impl services::ConnectorRedirectResponse for Cybersource {}

@@ -1,7 +1,7 @@
 mod transformers;
 use std::fmt::Debug;
 
-use api_models::{payments as api_payments, webhooks::ObjectReferenceId};
+use api_models::payments as api_payments;
 use error_stack::{IntoReport, ResultExt};
 use transformers as klarna;
 
@@ -359,7 +359,7 @@ impl api::IncomingWebhook for Klarna {
     fn get_webhook_object_reference_id(
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<ObjectReferenceId, errors::ConnectorError> {
+    ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
         Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
     }
 
@@ -377,5 +377,3 @@ impl api::IncomingWebhook for Klarna {
         Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
     }
 }
-
-impl services::ConnectorRedirectResponse for Klarna {}

@@ -2,7 +2,6 @@ mod result_codes;
 mod transformers;
 use std::fmt::Debug;
 
-use api_models::webhooks::ObjectReferenceId;
 use error_stack::{IntoReport, ResultExt};
 use transformers as aci;
 
@@ -528,7 +527,7 @@ impl api::IncomingWebhook for Aci {
     fn get_webhook_object_reference_id(
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<ObjectReferenceId, errors::ConnectorError> {
+    ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
         Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
     }
 
@@ -546,5 +545,3 @@ impl api::IncomingWebhook for Aci {
         Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
     }
 }
-
-impl services::ConnectorRedirectResponse for Aci {}
