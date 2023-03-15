@@ -1,5 +1,6 @@
-use crate::{cards_info::CardInfo, query::generics, PgPooledConn, StorageResult};
 use diesel::associations::HasTable;
+
+use crate::{cards_info::CardInfo, query::generics, PgPooledConn, StorageResult};
 
 impl CardInfo {
     pub async fn find_by_iin(conn: &PgPooledConn, card_iin: &str) -> StorageResult<Option<Self>> {

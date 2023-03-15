@@ -1,5 +1,6 @@
-use crate::schema::cards_info;
 use diesel::{Identifiable, Queryable};
+
+use crate::schema::cards_info;
 
 #[derive(Clone, Debug, Queryable, Identifiable, serde::Deserialize, serde::Serialize)]
 #[diesel(table_name = cards_info)]
