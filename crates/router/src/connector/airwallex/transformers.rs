@@ -260,7 +260,7 @@ impl From<AirwallexPaymentStatus> for enums::AttemptStatus {
     }
 }
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-#[serde(rename_all="SCREAMING_SNAKE_CASE")]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum AirwallexNextActionStage {
     WaitingDeviceDataCollection,
     WaitingUserInfoInput,
