@@ -28,3 +28,5 @@ create_counter!(TASK_CONSUMED, PT_METER); // Tasks consumed by consumer
 create_counter!(TASK_PROCESSED, PT_METER); // Tasks completed processing
 create_counter!(TASK_FINISHED, PT_METER); // Tasks finished
 create_counter!(TASK_RETRIED, PT_METER); // Tasks added for retries
+create_counter!(TOKENIZED_DATA_COUNT, PT_METER); // Tokenized data added
+create_counter!(RETRIED_DELETE_DATA_COUNT, PT_METER); // Tokenized data retried

@@ -43,6 +43,8 @@ pub async fn api_key_create(
             api_keys::create_api_key(
                 &*state.store,
                 &state.conf.api_keys,
+                #[cfg(feature = "kms")]
+                &state.conf.kms,
                 payload,
                 merchant_id.clone(),
             )

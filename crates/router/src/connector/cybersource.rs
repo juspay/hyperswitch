@@ -709,5 +709,3 @@ impl api::IncomingWebhook for Cybersource {
         Err(errors::ConnectorError::NotImplemented("cybersource".to_string()).into())
     }
 }
-
-impl services::ConnectorRedirectResponse for Cybersource {}
