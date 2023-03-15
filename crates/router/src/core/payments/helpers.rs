@@ -552,34 +552,41 @@ pub(crate) async fn call_payment_method(
                         .attach_printable("Missing Customer Object")),
                     }
                 }
-                _ => {
-                    let payment_method_request = api::PaymentMethodCreate {
-                        payment_method: payment_method_type.foreign_into(),
-                        payment_method_type: None,
-                        payment_method_issuer: None,
-                        payment_method_issuer_code: None,
-                        card: None,
-                        metadata: None,
-                        customer_id: None,
-                        card_network: None,
-                    };
-                    let resp = cards::add_payment_method(
-                        state,
-                        payment_method_request,
-                        merchant_account,
-                        connector,
-                        token,
-                    )
-                    .await
-                    .attach_printable("Error on adding payment method")?;
-                    match resp {
-                        crate::services::ApplicationResponse::Json(payment_method) => {
-                            Ok(payment_method)
+                _ => match maybe_customer {
+                    Some(customer) => {
+                        let payment_method_request = api::PaymentMethodCreate {
+                            payment_method: payment_method_type.foreign_into(),
+                            payment_method_type: None,
+                            payment_method_issuer: None,
+                            payment_method_issuer_code: None,
+                            card: None,
+                            metadata: None,
+                            customer_id: Some(customer.customer_id.to_owned()),
+                            card_network: None,
+                        };
+
+                        let resp = cards::add_payment_method(
+                            state,
+                            payment_method_request,
+                            merchant_account,
+                            connector,
+                            token,
+                        )
+                        .await
+                        .attach_printable("Error on adding payment method")?;
+                        match resp {
+                            crate::services::ApplicationResponse::Json(payment_method) => {
+                                Ok(payment_method)
+                            }
+                            _ => Err(report!(errors::ApiErrorResponse::InternalServerError)
+                                .attach_printable("Error on adding payment method")),
                         }
-                        _ => Err(report!(errors::ApiErrorResponse::InternalServerError)
-                            .attach_printable("Error on adding payment method")),
                     }
-                }
+                    None => Err(report!(errors::ApiErrorResponse::MissingRequiredField {
+                        field_name: "customer"
+                    })
+                    .attach_printable("Missing Customer Object")),
+                },
             },
             None => Err(report!(errors::ApiErrorResponse::MissingRequiredField {
                 field_name: "payment_method_type"

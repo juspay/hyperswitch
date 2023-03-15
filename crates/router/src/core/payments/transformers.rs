@@ -75,6 +75,8 @@ where
         &merchant_connector_account.connector_name,
     ));
 
+    let payment_token = payment_data.payment_attempt.payment_token.to_owned();
+
     router_data = types::RouterData {
         flow: PhantomData,
         merchant_id: merchant_account.merchant_id.clone(),
@@ -101,6 +103,7 @@ where
         session_token: None,
         reference_id: None,
         store_connector_token: payment_data.store_connector_token,
+        payment_token,
     };
 
     Ok(router_data)

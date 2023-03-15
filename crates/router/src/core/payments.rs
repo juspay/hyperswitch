@@ -102,51 +102,29 @@ where
         )
         .await?;
 
+    let connector_info_after_routing = route_connector(
+        state,
+        &merchant_account,
+        &mut payment_data,
+        connector_details.to_owned(),
+    )
+    .await?;
+
     let connector = match should_call_connector(&operation, &payment_data) {
-        true => Some(
-            route_connector(
-                state,
-                &merchant_account,
-                &mut payment_data,
-                connector_details.to_owned(),
-            )
-            .await?,
-        ),
+        true => Some(connector_info_after_routing.to_owned()),
         false => None,
     };
 
-    let connector_for_tokenization = match connector_details {
+    let connector_name = match connector_info_after_routing {
         api::ConnectorCallType::Single(data) => Some(data.connector_name.to_string()),
         _ => None,
-    };
+    }
+    .get_required_value("connector")?;
 
-    let tokenization = if let Some(connector) = connector_for_tokenization.to_owned() {
-        let redis_conn = connection::redis_connection(&state.conf).await;
-        let token = payment_data.token.to_owned().get_required_value("token")?;
-        let key = format!(
-            "{}_token_{}_{}",
-            connector,
-            payment_data
-                .payment_attempt
-                .payment_method
-                .to_owned()
-                .get_required_value("payment_method")?,
-            token
-        );
-        let val = redis_conn.get_key::<String>(&key).await;
+    let tokenization_complete =
+        check_tokenization_complete(state, connector_name.to_owned(), &mut payment_data).await?;
 
-        match val {
-            Ok(token) => {
-                payment_data.payment_attempt.payment_token = Some(token);
-                true
-            }
-            Err(_) => false,
-        }
-    } else {
-        false
-    };
-
-    if !tokenization {
+    if !tokenization_complete {
         let (operation, payment_method_data) = operation
             .to_domain()?
             .make_pm_data(state, &mut payment_data, validate_result.storage_scheme)
@@ -155,11 +133,8 @@ where
         payment_data.payment_method_data = payment_method_data;
 
         if connector.is_some() {
-            let connector_name = payment_data
-                .payment_attempt
-                .connector
-                .to_owned()
-                .get_required_value("connector")?;
+            let tokenization_pm_check =
+                tokenization_call_check(state, connector_name.to_owned(), &payment_data)?;
 
             let connector_data = api::ConnectorData::get_connector_by_name(
                 &state.conf.connectors,
@@ -168,20 +143,6 @@ where
             )
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to get connector data")?;
-
-            let tokenization_connector_check = state.conf.tokenization.0.get(&connector_name);
-
-            let tokenization_pm_check = if let Some(connector_check) = tokenization_connector_check
-            {
-                connector_check.payment_method.contains(
-                    &payment_data
-                        .payment_attempt
-                        .payment_method
-                        .get_required_value("payment_method")?,
-                )
-            } else {
-                false
-            };
 
             if tokenization_pm_check {
                 let mut token_payment_data = pdc::<_, api::Token>(payment_data.clone());
@@ -198,8 +159,8 @@ where
                 .await?;
 
                 payment_data = pdc::<_, F>(token_payment_data.to_owned());
-                payment_data.payment_attempt.payment_token =
-                    token_payment_data.payment_attempt.payment_token.to_owned();
+                payment_data.token = token_payment_data.payment_attempt.payment_token.to_owned();
+                payment_data.payment_attempt.connector = Some(connector_name);
             }
         };
     };
@@ -278,6 +239,27 @@ where
         vault::Vault::delete_locker_payment_method_by_lookup_key(state, &payment_data.token).await
     }
     Ok((payment_data, req, customer))
+}
+
+pub fn tokenization_call_check<F: Clone>(
+    state: &AppState,
+    connector_name: String,
+    payment_data: &PaymentData<F>,
+) -> RouterResult<bool> {
+    let tokenization_connector_check = state.conf.tokenization.0.get(&connector_name);
+
+    let tokenization_pm_check = if let Some(connector_check) = tokenization_connector_check {
+        connector_check.payment_method.contains(
+            &payment_data
+                .payment_attempt
+                .payment_method
+                .get_required_value("payment_method")?,
+        )
+    } else {
+        false
+    };
+
+    Ok(tokenization_pm_check)
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -559,6 +541,38 @@ where
     tracing::info!(duration = format!("Duration taken: {}", call_connectors_duration.as_millis()));
 
     Ok(payment_data)
+}
+
+pub async fn check_tokenization_complete<F: Clone>(
+    state: &AppState,
+    connector_name: String,
+    payment_data: &mut PaymentData<F>,
+) -> RouterResult<bool> {
+    let tokenization_complete = if let Some(token) = payment_data.token.to_owned() {
+        let redis_conn = connection::redis_connection(&state.conf).await;
+        let key = format!(
+            "{}_token_{}_{}",
+            connector_name,
+            payment_data
+                .payment_attempt
+                .payment_method
+                .to_owned()
+                .get_required_value("payment_method")?,
+            token
+        );
+        let val = redis_conn.get_key::<String>(&key).await;
+
+        match val {
+            Ok(token) => {
+                payment_data.payment_attempt.payment_token = Some(token);
+                true
+            }
+            Err(_) => false,
+        }
+    } else {
+        false
+    };
+    Ok(tokenization_complete)
 }
 
 #[derive(Clone)]

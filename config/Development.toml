@@ -23,7 +23,7 @@ username = "replica_user"
 password = "replica_pass"
 host = "localhost"
 port = 5432
-dbname = "orca_db"
+dbname = "hyperswitch_db"
 pool_size = 5
 connection_timeout = 10
 

@@ -189,16 +189,7 @@ where
             } else if resp.request.get_setup_future_usage().is_some() {
                 let token = resp.store_connector_token.and_then(|store_token_check| {
                     if store_token_check {
-                        if let Ok(payments_response_data) = resp.response.to_owned() {
-                            match payments_response_data {
-                                types::PaymentsResponseData::TokenizationResponse { token } => {
-                                    Some(token)
-                                }
-                                _ => None,
-                            }
-                        } else {
-                            None
-                        }
+                        resp.payment_token.to_owned()
                     } else {
                         None
                     }
