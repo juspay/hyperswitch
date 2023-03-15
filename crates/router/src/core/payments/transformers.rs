@@ -14,7 +14,7 @@ use crate::{
     services::{self, RedirectForm},
     types::{
         self, api,
-        storage::{self, enums},
+        storage::{self, enums, PaymentAttemptExt},
         transformers::ForeignInto,
     },
     utils::{OptionExt, ValueExt},
@@ -270,6 +270,8 @@ where
                     })
                 }
                 let mut response: api::PaymentsResponse = Default::default();
+                let routed_through = payment_attempt.get_routed_through_connector()
+                    .change_context(errors::ApiErrorResponse::InternalServerError)?;
                 services::ApplicationResponse::Json(
                     response
                         .set_payment_id(Some(payment_attempt.payment_id))
@@ -278,7 +280,7 @@ where
                         .set_amount(payment_attempt.amount)
                         .set_amount_capturable(None)
                         .set_amount_received(payment_intent.amount_captured)
-                        .set_connector(payment_attempt.connector)
+                        .set_connector(routed_through)
                         .set_client_secret(payment_intent.client_secret.map(masking::Secret::new))
                         .set_created(Some(payment_intent.created_at))
                         .set_currency(currency)
