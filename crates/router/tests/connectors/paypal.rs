@@ -331,7 +331,7 @@ async fn should_fail_payment_for_incorrect_card_number() {
         .unwrap();
     assert_eq!(
         response.response.unwrap_err().message,
-        r#"[{"description":"UNPROCESSABLE_ENTITY","issue":"UNPROCESSABLE_ENTITY"}]"#.to_string(),
+        r#"[{"issue":"UNPROCESSABLE_ENTITY","description":"UNPROCESSABLE_ENTITY"}]"#.to_string(),
     );
 }
 
@@ -354,7 +354,7 @@ async fn should_fail_payment_for_empty_card_number() {
     let x = response.response.unwrap_err();
     assert_eq!(
         x.message,
-        r#"[{"description":"The card number is required when attempting to process payment with card.","field":"/payment_source/card/number","issue":"CARD_NUMBER_REQUIRED"}]"#,
+        r#"[{"field":"/payment_source/card/number","issue":"CARD_NUMBER_REQUIRED","description":"The card number is required when attempting to process payment with card."}]"#,
     );
 }
 
@@ -376,7 +376,7 @@ async fn should_fail_payment_for_incorrect_cvc() {
         .unwrap();
     assert_eq!(
         response.response.unwrap_err().message,
-        r#"[{"description":"The value of a field does not conform to the expected format.","field":"/payment_source/card/security_code","issue":"INVALID_PARAMETER_SYNTAX","location":"body","value":"12345"}]"#.to_string(),
+        r#"[{"field":"/payment_source/card/security_code","value":"12345","location":"body","issue":"INVALID_PARAMETER_SYNTAX","description":"The value of a field does not conform to the expected format."}]"#.to_string(),
     );
 }
 
@@ -398,7 +398,7 @@ async fn should_fail_payment_for_invalid_exp_month() {
         .unwrap();
     assert_eq!(
         response.response.unwrap_err().message,
-        r#"[{"description":"The value of a field does not conform to the expected format.","field":"/payment_source/card/expiry","issue":"INVALID_PARAMETER_SYNTAX","location":"body","value":"2025-20"}]"#,
+        r#"[{"field":"/payment_source/card/expiry","value":"2025-20","location":"body","issue":"INVALID_PARAMETER_SYNTAX","description":"The value of a field does not conform to the expected format."}]"#,
     );
 }
 
@@ -420,7 +420,7 @@ async fn should_fail_payment_for_incorrect_expiry_year() {
         .unwrap();
     assert_eq!(
         response.response.unwrap_err().message,
-        r#"[{"description":"The card is expired.","field":"/payment_source/card/expiry","issue":"CARD_EXPIRED","location":"body"}]"#.to_string(),
+        r#"[{"field":"/payment_source/card/expiry","location":"body","issue":"CARD_EXPIRED","description":"The card is expired."}]"#.to_string(),
     );
 }
 
@@ -451,7 +451,7 @@ async fn should_fail_capture_for_invalid_payment() {
         .unwrap();
     assert_eq!(
         capture_response.response.unwrap_err().message,
-        r#"[{"description":"Specified resource ID does not exist. Please check the resource ID and try again.","issue":"INVALID_RESOURCE_ID"}]"#,
+        r#"[{"issue":"INVALID_RESOURCE_ID","description":"Specified resource ID does not exist. Please check the resource ID and try again."}]"#,
     );
 }
 

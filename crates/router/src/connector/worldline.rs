@@ -3,6 +3,7 @@ mod transformers;
 use std::fmt::Debug;
 
 use base64::Engine;
+use common_utils::ext_traits::ByteSliceExt;
 use error_stack::{IntoReport, ResultExt};
 use ring::hmac;
 use storage_models::enums;
@@ -12,8 +13,10 @@ use transformers as worldline;
 use super::utils::RefundsRequestData;
 use crate::{
     configs::settings::Connectors,
+    connector::utils as conn_utils,
     consts,
     core::errors::{self, CustomResult},
+    db::StorageInterface,
     headers, logger,
     services::{self, ConnectorIntegration},
     types::{
@@ -21,7 +24,7 @@ use crate::{
         api::{self, ConnectorCommon, ConnectorCommonExt},
         ErrorResponse,
     },
-    utils::{self, BytesExt},
+    utils::{self, crypto, BytesExt, OptionExt},
 };
 
 #[derive(Debug, Clone)]
@@ -651,27 +654,123 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
     }
 }
 
+fn is_endpoint_verification(headers: &actix_web::http::header::HeaderMap) -> bool {
+    headers
+        .get("x-gcs-webhooks-endpoint-verification")
+        .is_some()
+}
+
 #[async_trait::async_trait]
 impl api::IncomingWebhook for Worldline {
-    fn get_webhook_object_reference_id(
+    fn get_webhook_source_verification_algorithm(
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<Box<dyn crypto::VerifySignature + Send>, errors::ConnectorError> {
+        Ok(Box::new(crypto::HmacSha256))
+    }
+
+    fn get_webhook_source_verification_signature(
+        &self,
+        request: &api::IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
+        let header_value = conn_utils::get_header_key_value("X-GCS-Signature", request.headers)?;
+        let signature = consts::BASE64_ENGINE
+            .decode(header_value.as_bytes())
+            .into_report()
+            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
+        Ok(signature)
+    }
+
+    fn get_webhook_source_verification_message(
+        &self,
+        request: &api::IncomingWebhookRequestDetails<'_>,
+        _merchant_id: &str,
+        _secret: &[u8],
+    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
+        Ok(request.body.to_vec())
+    }
+
+    async fn get_webhook_source_verification_merchant_secret(
+        &self,
+        db: &dyn StorageInterface,
+        merchant_id: &str,
+    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
+        let key = format!("whsec_verification_{}_{}", self.id(), merchant_id);
+        let secret = db
+            .get_key(&key)
+            .await
+            .change_context(errors::ConnectorError::WebhookVerificationSecretNotFound)?;
+
+        Ok(secret)
+    }
+
+    fn get_webhook_object_reference_id(
+        &self,
+        request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
+        || -> _ {
+            Ok(request
+                .body
+                .parse_struct::<worldline::WebhookBody>("WorldlineWebhookEvent")?
+                .payment
+                .parse_value::<worldline::Payment>("WorldlineWebhookObjectId")?
+                .id)
+        }()
+        .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)
     }
 
     fn get_webhook_event_type(
         &self,
-        _request: &api::IncomingWebhookRequestDetails<'_>,
+        request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api::IncomingWebhookEvent, errors::ConnectorError> {
-        Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
+        if is_endpoint_verification(request.headers) {
+            Ok(api::IncomingWebhookEvent::EndpointVerification)
+        } else {
+            let details: worldline::WebhookBody = request
+                .body
+                .parse_struct("WorldlineWebhookObjectId")
+                .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
+            let event = match details.event_type {
+                worldline::WebhookEvent::Paid => api::IncomingWebhookEvent::PaymentIntentSuccess,
+                worldline::WebhookEvent::Rejected | worldline::WebhookEvent::RejectedCapture => {
+                    api::IncomingWebhookEvent::PaymentIntentFailure
+                }
+            };
+            Ok(event)
+        }
     }
 
     fn get_webhook_resource_object(
         &self,
-        _request: &api::IncomingWebhookRequestDetails<'_>,
+        request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<serde_json::Value, errors::ConnectorError> {
-        Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
+        let details = request
+            .body
+            .parse_struct::<worldline::WebhookBody>("WorldlineWebhookObjectId")
+            .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?
+            .payment
+            .ok_or(errors::ConnectorError::WebhookResourceObjectNotFound)?;
+        Ok(details)
+    }
+
+    fn get_webhook_api_response(
+        &self,
+        request: &api::IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<services::api::ApplicationResponse<serde_json::Value>, errors::ConnectorError>
+    {
+        let verification_header = request.headers.get("x-gcs-webhooks-endpoint-verification");
+        let response = match verification_header {
+            None => services::api::ApplicationResponse::StatusOk,
+            Some(header_value) => {
+                let verification_signature_value = header_value
+                    .to_str()
+                    .into_report()
+                    .change_context(errors::ConnectorError::WebhookResponseEncodingFailed)?
+                    .to_string();
+                services::api::ApplicationResponse::TextPlain(verification_signature_value)
+            }
+        };
+        Ok(response)
     }
 }
 

@@ -19,6 +19,7 @@ mod payu;
 mod rapyd;
 mod shift4;
 mod stripe;
+mod trustpay;
 mod utils;
 mod worldline;
 mod worldpay;

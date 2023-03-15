@@ -42,7 +42,6 @@ pub async fn redact_cache<T, F, Fut>(
     fun: F,
 ) -> CustomResult<T, errors::StorageError>
 where
-    T: serde::Serialize + serde::de::DeserializeOwned + std::fmt::Debug,
     F: FnOnce() -> Fut + Send,
     Fut: futures::Future<Output = CustomResult<T, errors::StorageError>> + Send,
 {

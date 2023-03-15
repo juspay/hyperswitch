@@ -539,6 +539,7 @@ pub enum MandateStatus {
     strum::Display,
     strum::EnumString,
     frunk::LabelledGeneric,
+    Hash,
 )]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
@@ -568,13 +569,18 @@ pub enum Connector {
     Stripe,
     Worldline,
     Worldpay,
+    Trustpay,
 }
 
 impl Connector {
-    pub fn supports_access_token(&self) -> bool {
+    pub fn supports_access_token(&self, payment_method: PaymentMethod) -> bool {
         matches!(
-            self,
-            Self::Airwallex | Self::Globalpay | Self::Payu | Self::Paypal
+            (self, payment_method),
+            (Self::Airwallex, _)
+                | (Self::Globalpay, _)
+                | (Self::Paypal, _)
+                | (Self::Payu, _)
+                | (Self::Trustpay, PaymentMethod::BankRedirect)
         )
     }
 }
@@ -616,6 +622,7 @@ pub enum RoutableConnectors {
     Worldline,
     Worldpay,
     Multisafepay,
+    Trustpay,
 }
 
 /// Wallets which support obtaining session object
