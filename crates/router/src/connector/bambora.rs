@@ -9,10 +9,7 @@ use super::utils::RefundsRequestData;
 use crate::{
     configs::settings,
     connector::utils::{PaymentsAuthorizeRequestData, PaymentsSyncRequestData},
-    core::{
-        errors::{self, CustomResult},
-        payments,
-    },
+    core::errors::{self, CustomResult},
     headers, logger,
     services::{self, ConnectorIntegration},
     types::{
@@ -613,15 +610,6 @@ impl api::IncomingWebhook for Bambora {
         _request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<serde_json::Value, errors::ConnectorError> {
         Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
-    }
-}
-
-impl services::ConnectorRedirectResponse for Bambora {
-    fn get_flow_type(
-        &self,
-        _query_params: &str,
-    ) -> CustomResult<payments::CallConnectorAction, errors::ConnectorError> {
-        Ok(payments::CallConnectorAction::Trigger)
     }
 }
 

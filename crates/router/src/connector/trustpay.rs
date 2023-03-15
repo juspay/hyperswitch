@@ -611,6 +611,8 @@ impl services::ConnectorRedirectResponse for Trustpay {
     fn get_flow_type(
         &self,
         query_params: &str,
+        _json_payload: Option<serde_json::Value>,
+        _action: services::PaymentAction,
     ) -> CustomResult<payments::CallConnectorAction, errors::ConnectorError> {
         let query =
             serde_urlencoded::from_str::<transformers::TrustpayRedirectResponse>(query_params)

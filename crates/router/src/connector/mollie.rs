@@ -29,6 +29,7 @@ impl api::PaymentSession for Mollie {}
 impl api::ConnectorAccessToken for Mollie {}
 impl api::PreVerify for Mollie {}
 impl api::PaymentAuthorize for Mollie {}
+impl api::PaymentsCompleteAuthorize for Mollie {}
 impl api::PaymentSync for Mollie {}
 impl api::PaymentCapture for Mollie {}
 impl api::PaymentVoid for Mollie {}
@@ -176,6 +177,15 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         self.build_error_response(res)
     }
+}
+
+impl
+    ConnectorIntegration<
+        api::CompleteAuthorize,
+        types::CompleteAuthorizeData,
+        types::PaymentsResponseData,
+    > for Mollie
+{
 }
 
 impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>
@@ -496,6 +506,8 @@ impl services::ConnectorRedirectResponse for Mollie {
     fn get_flow_type(
         &self,
         _query_params: &str,
+        _json_payload: Option<serde_json::Value>,
+        _action: services::PaymentAction,
     ) -> CustomResult<payments::CallConnectorAction, errors::ConnectorError> {
         Ok(payments::CallConnectorAction::Trigger)
     }
