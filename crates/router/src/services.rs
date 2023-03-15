@@ -8,7 +8,7 @@ use std::sync::{atomic, Arc};
 
 use error_stack::{IntoReport, ResultExt};
 use futures::StreamExt;
-use redis_interface::errors as redis_errors;
+use redis_interface::{errors as redis_errors, PubsubInterface};
 
 pub use self::{api::*, encryption::*};
 use crate::{
@@ -18,8 +18,6 @@ use crate::{
     consts,
     core::errors,
 };
-
-use redis_interface::PubsubInterface;
 
 #[async_trait::async_trait]
 pub trait PubSubInterface {
