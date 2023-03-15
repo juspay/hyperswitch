@@ -315,6 +315,7 @@ pub trait AddressDetailsData {
     fn get_line2(&self) -> Result<&Secret<String>, Error>;
     fn get_zip(&self) -> Result<&Secret<String>, Error>;
     fn get_country(&self) -> Result<&String, Error>;
+    fn get_combined_address_line(&self) -> Result<Secret<String>, Error>;
 }
 
 impl AddressDetailsData for api::AddressDetails {
@@ -358,6 +359,14 @@ impl AddressDetailsData for api::AddressDetails {
         self.country
             .as_ref()
             .ok_or_else(missing_field_err("address.country"))
+    }
+
+    fn get_combined_address_line(&self) -> Result<Secret<String>, Error> {
+        Ok(Secret::new(format!(
+            "{},{}",
+            self.get_line1()?.peek(),
+            self.get_line2()?.peek()
+        )))
     }
 }
 

@@ -1,14 +1,15 @@
-use api_models::payments::AddressDetails;
-use masking::{PeekInterface, Secret};
+use api_models::payments;
+use error_stack::IntoReport;
+use masking::Secret;
 use serde::{Deserialize, Serialize};
-use storage_models::enums::CaptureMethod;
+use storage_models::enums;
 use url::Url;
 
 use crate::{
     connector::utils::{self, AddressDetailsData, RouterData},
     core::errors,
     services,
-    types::{self, storage::enums},
+    types::{self},
 };
 
 #[derive(Debug, Serialize)]
@@ -20,14 +21,12 @@ pub struct MolliePaymentsRequest {
     cancel_url: Option<String>,
     webhook_url: String,
     locale: Option<String>,
-    method: PaymentMethod,
+    #[serde(flatten)]
+    payment_method_data: PaymentMethodData,
     metadata: Option<serde_json::Value>,
     sequence_type: SequenceType,
     mandate_id: Option<String>,
-    billing_address: Option<Address>,
     card_token: Option<String>,
-    shipping_address: Option<Address>,
-    issuer: Option<Secret<String>>,
 }
 
 #[derive(Default, Debug, Serialize, Deserialize)]
@@ -37,12 +36,34 @@ pub struct Amount {
 }
 
 #[derive(Debug, Serialize)]
+#[serde(tag = "method")]
 #[serde(rename_all = "lowercase")]
-pub enum PaymentMethod {
+pub enum PaymentMethodData {
+    Applepay(Box<ApplePayMethodData>),
     Eps,
-    Ideal,
     Giropay,
+    Ideal(Box<IdealMethodData>),
+    Paypal(Box<PaypalMethodData>),
     Sofort,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ApplePayMethodData {
+    apple_pay_payment_token: String,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct IdealMethodData {
+    issuer: Option<Secret<String>>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PaypalMethodData {
+    billing_address: Option<Address>,
+    shipping_address: Option<Address>,
 }
 
 #[derive(Debug, Default, Serialize, Deserialize)]
@@ -73,40 +94,28 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for MolliePaymentsRequest {
         };
         let description = item.get_description()?;
         let redirect_url = item.get_return_url()?;
-        let method = match item.request.capture_method.unwrap_or_default() {
-            CaptureMethod::Automatic => match item.request.payment_method_data {
+        let payment_method_data = match item.request.capture_method.unwrap_or_default() {
+            enums::CaptureMethod::Automatic => match item.request.payment_method_data {
                 api_models::payments::PaymentMethodData::BankRedirect(ref redirect_data) => {
-                    let payment_method = match redirect_data {
-                        api_models::payments::BankRedirectData::Eps { .. } => PaymentMethod::Eps,
-                        api_models::payments::BankRedirectData::Giropay { .. } => {
-                            PaymentMethod::Giropay
-                        }
-                        api_models::payments::BankRedirectData::Ideal { .. } => {
-                            PaymentMethod::Ideal
-                        }
-                        api_models::payments::BankRedirectData::Sofort { .. } => {
-                            PaymentMethod::Sofort
-                        }
-                    };
-                    Ok(payment_method)
+                    get_payment_method_for_bank_redirect(item, redirect_data)
+                }
+                api_models::payments::PaymentMethodData::Wallet(ref wallet_data) => {
+                    get_payment_method_for_wallet(item, wallet_data)
                 }
                 _ => Err(errors::ConnectorError::NotImplemented(
                     "Payment Method".to_string(),
-                )),
+                ))
+                .into_report(),
             },
-            _ => {
-                let flow: String = format!(
+            _ => Err(errors::ConnectorError::FlowNotSupported {
+                flow: format!(
                     "{} capture",
                     item.request.capture_method.unwrap_or_default()
-                );
-                Err(errors::ConnectorError::FlowNotSupported {
-                    flow,
-                    connector: "Mollie".to_string(),
-                })
-            }
+                ),
+                connector: "Mollie".to_string(),
+            })
+            .into_report(),
         }?;
-        let billing_address = get_billing_details(item)?;
-        let shipping_address = get_shipping_details(item)?;
         Ok(Self {
             amount,
             description,
@@ -114,16 +123,53 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for MolliePaymentsRequest {
             cancel_url: None,
             webhook_url: "".to_string(),
             locale: None,
-            method,
+            payment_method_data,
             metadata: None,
             sequence_type: SequenceType::Oneoff,
             mandate_id: None,
-            shipping_address,
-            billing_address,
             card_token: None,
-            // To do if possible this should be from the payment request
-            issuer: None,
         })
+    }
+}
+
+fn get_payment_method_for_bank_redirect(
+    _item: &types::PaymentsAuthorizeRouterData,
+    redirect_data: &api_models::payments::BankRedirectData,
+) -> Result<PaymentMethodData, error_stack::Report<errors::ConnectorError>> {
+    let payment_method_data = match redirect_data {
+        api_models::payments::BankRedirectData::Eps { .. } => PaymentMethodData::Eps,
+        api_models::payments::BankRedirectData::Giropay { .. } => PaymentMethodData::Giropay,
+        api_models::payments::BankRedirectData::Ideal { .. } => {
+            PaymentMethodData::Ideal(Box::new(IdealMethodData {
+                // To do if possible this should be from the payment request
+                issuer: None,
+            }))
+        }
+        api_models::payments::BankRedirectData::Sofort { .. } => PaymentMethodData::Sofort,
+    };
+    Ok(payment_method_data)
+}
+
+fn get_payment_method_for_wallet(
+    item: &types::PaymentsAuthorizeRouterData,
+    wallet_data: &api_models::payments::WalletData,
+) -> Result<PaymentMethodData, error_stack::Report<errors::ConnectorError>> {
+    match wallet_data {
+        api_models::payments::WalletData::PaypalRedirect { .. } => {
+            Ok(PaymentMethodData::Paypal(Box::new(PaypalMethodData {
+                billing_address: get_billing_details(item)?,
+                shipping_address: get_shipping_details(item)?,
+            })))
+        }
+        api_models::payments::WalletData::ApplePay(applepay_wallet_data) => {
+            Ok(PaymentMethodData::Applepay(Box::new(ApplePayMethodData {
+                apple_pay_payment_token: applepay_wallet_data.payment_data.to_owned(),
+            })))
+        }
+        _ => Err(errors::ConnectorError::NotImplemented(
+            "Payment Method".to_string(),
+        ))
+        .into_report(),
     }
 }
 
@@ -150,15 +196,11 @@ fn get_billing_details(
 }
 
 fn get_address_details(
-    address: Option<&AddressDetails>,
+    address: Option<&payments::AddressDetails>,
 ) -> Result<Option<Address>, error_stack::Report<errors::ConnectorError>> {
     let address_details = match address {
         Some(address) => {
-            let street_and_number = Secret::new(format!(
-                "{},{}",
-                address.get_line1()?.peek(),
-                address.get_line2()?.peek()
-            ));
+            let street_and_number = address.get_combined_address_line()?;
             let postal_code = address.get_zip()?.to_owned();
             let city = address.get_city()?.to_owned();
             let region = None;
