@@ -270,7 +270,8 @@ where
                     })
                 }
                 let mut response: api::PaymentsResponse = Default::default();
-                let routed_through = payment_attempt.get_routed_through_connector()
+                let routed_through = payment_attempt
+                    .get_routed_through_connector()
                     .change_context(errors::ApiErrorResponse::InternalServerError)?;
                 services::ApplicationResponse::Json(
                     response

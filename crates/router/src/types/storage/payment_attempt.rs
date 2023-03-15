@@ -38,7 +38,6 @@ impl PaymentAttemptExt for PaymentAttempt {
     }
 }
 
-
 #[cfg(feature = "kv_store")]
 impl crate::utils::storage_partitioning::KvStorePartition for PaymentAttempt {}
 

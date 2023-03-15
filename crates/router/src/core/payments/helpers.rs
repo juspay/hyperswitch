@@ -612,9 +612,12 @@ pub async fn get_customer_from_details<F: Clone>(
 
 pub async fn get_connector_default(
     _state: &AppState,
-    request_connector: Option<serde_json::Value>
+    request_connector: Option<serde_json::Value>,
 ) -> CustomResult<api::ConnectorChoice, errors::ApiErrorResponse> {
-    Ok(request_connector.map_or(api::ConnectorChoice::Decide, api::ConnectorChoice::StraightThrough))
+    Ok(request_connector.map_or(
+        api::ConnectorChoice::Decide,
+        api::ConnectorChoice::StraightThrough,
+    ))
 }
 
 #[instrument(skip_all)]

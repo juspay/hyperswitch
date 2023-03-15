@@ -115,7 +115,7 @@ pub async fn trigger_refund_to_gateway(
         .attach_printable("Transaction in invalid")
     })?;
 
-    validator::validate_for_valid_refunds(payment_attempt, connector.connector_name.clone())?;
+    validator::validate_for_valid_refunds(payment_attempt, connector.connector_name)?;
 
     let mut router_data = core_utils::construct_refund_router_data(
         state,

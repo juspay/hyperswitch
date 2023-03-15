@@ -101,30 +101,25 @@ where
 
     let connector_choice = operation
         .to_domain()?
-        .get_connector(
-            &merchant_account,
-            state,
-            &req,
-        )
+        .get_connector(&merchant_account, state, &req)
         .await?;
 
     let connector = if should_call_connector(&operation, &payment_data) {
         Some(match connector_choice {
-            api::ConnectorChoice::SessionMultiple(connectors) => api::ConnectorCallType::Multiple(connectors),
+            api::ConnectorChoice::SessionMultiple(connectors) => {
+                api::ConnectorCallType::Multiple(connectors)
+            }
 
             api::ConnectorChoice::StraightThrough(straight_through) => connector_selection(
-                &state,
+                state,
                 &merchant_account,
                 &mut payment_data,
                 Some(straight_through),
             )?,
 
-            api::ConnectorChoice::Decide => connector_selection(
-                &state,
-                &merchant_account,
-                &mut payment_data,
-                None,
-            )?,
+            api::ConnectorChoice::Decide => {
+                connector_selection(state, &merchant_account, &mut payment_data, None)?
+            }
         })
     } else if let api::ConnectorChoice::StraightThrough(val) = connector_choice {
         update_straight_through_routing(&mut payment_data, val)?;
@@ -702,9 +697,7 @@ where
         .attach_printable("Invalid routing data format in payment attempt")?;
 
     let request_straight_through: Option<api::RoutingAlgorithm> = request_straight_through
-        .map(|val| {
-            val.parse_value("RoutingAlgorithm")
-        })
+        .map(|val| val.parse_value("RoutingAlgorithm"))
         .transpose()
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Invalid straight through routing rules format")?;
@@ -745,7 +738,7 @@ pub fn decide_connector(
 
     if let Some(routing_algorithm) = request_straight_through {
         let connector_name = match &routing_algorithm {
-            api::RoutingAlgorithm::Single(conn) => conn.to_string()
+            api::RoutingAlgorithm::Single(conn) => conn.to_string(),
         };
 
         let connector_data = api::ConnectorData::get_connector_by_name(
@@ -763,7 +756,7 @@ pub fn decide_connector(
 
     if let Some(ref routing_algorithm) = routing_data.algorithm {
         let connector_name = match routing_algorithm {
-            api::RoutingAlgorithm::Single(conn) => conn.to_string()
+            api::RoutingAlgorithm::Single(conn) => conn.to_string(),
         };
 
         let connector_data = api::ConnectorData::get_connector_by_name(
