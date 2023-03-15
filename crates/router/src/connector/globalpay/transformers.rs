@@ -8,7 +8,7 @@ use super::{
     response::{GlobalpayPaymentStatus, GlobalpayPaymentsResponse, GlobalpayRefreshTokenResponse},
 };
 use crate::{
-    connector::utils::{PaymentsRequestData, RouterData},
+    connector::utils::{PaymentsAuthorizeRequestData, RouterData},
     consts,
     core::errors,
     services::{self},
@@ -152,7 +152,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for GlobalpayPaymentsRequest {
                     payment_method: requests::PaymentMethod {
                         digital_wallet: Some(requests::DigitalWallet {
                             provider: Some(requests::DigitalWalletProvider::PayByGoogle),
-                            payment_token: item.get_wallet_token_as_json()?,
+                            payment_token: item.request.get_wallet_token_as_json()?,
                         }),
                         authentication: None,
                         bank_transfer: None,

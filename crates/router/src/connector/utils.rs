@@ -156,11 +156,34 @@ impl PaymentsRequestData for types::PaymentsAuthorizeRouterData {
 
 pub trait PaymentsAuthorizeRequestData {
     fn is_auto_capture(&self) -> bool;
+    fn get_wallet_token(&self) -> Result<String, Error>;
+    fn get_wallet_token_as_json<T>(&self) -> Result<T, Error>
+    where
+        T: serde::de::DeserializeOwned;
 }
 
 impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
     fn is_auto_capture(&self) -> bool {
         self.capture_method == Some(storage_models::enums::CaptureMethod::Automatic)
+    }
+    fn get_wallet_token(&self) -> Result<String, Error> {
+        match self.payment_method_data.clone() {
+            api_models::payments::PaymentMethodData::Wallet(wallet_data) => match wallet_data {
+                api_models::payments::WalletData::GooglePay(data) => {
+                    Ok(data.tokenization_data.token)
+                }
+                _ => Err(missing_field_err("google_pay")()),
+            },
+            _ => Err(missing_field_err("wallet")()),
+        }
+    }
+    fn get_wallet_token_as_json<T>(&self) -> Result<T, Error>
+    where
+        T: serde::de::DeserializeOwned,
+    {
+        serde_json::from_str::<T>(&self.get_wallet_token()?)
+            .into_report()
+            .change_context(errors::ConnectorError::InvalidWalletToken)
     }
 }
 
