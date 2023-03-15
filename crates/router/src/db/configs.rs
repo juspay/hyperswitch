@@ -2,6 +2,7 @@ use error_stack::IntoReport;
 
 use super::{cache, MockDb, Store};
 use crate::{
+    cache::CONFIG_CACHE,
     connection::pg_connection,
     core::errors::{self, CustomResult},
     types::storage,
@@ -86,8 +87,17 @@ impl ConfigInterface for Store {
         &self,
         key: &str,
     ) -> CustomResult<storage::Config, errors::StorageError> {
-        cache::get_or_populate_cache(self, key, || async { self.find_config_by_key(key).await })
-            .await
+        let val = CONFIG_CACHE.get_val::<storage::Config>(key);
+        if let Some(val) = val {
+            Ok(val)
+        } else {
+            let val = cache::get_or_populate_cache(self, key, || async {
+                self.find_config_by_key(key).await
+            })
+            .await?;
+            CONFIG_CACHE.push(key.to_string(), val.clone()).await;
+            Ok(val)
+        }
     }
 
     async fn delete_config_by_key(&self, key: &str) -> CustomResult<bool, errors::StorageError> {

@@ -1,7 +1,11 @@
 use error_stack::ResultExt;
 
 use super::Store;
-use crate::core::errors::{self, CustomResult};
+use crate::{
+    consts,
+    core::errors::{self, CustomResult},
+    services::PubSubInterface,
+};
 
 pub async fn get_or_populate_cache<T, F, Fut>(
     store: &Store,
@@ -49,7 +53,7 @@ where
     store
         .redis_conn()
         .map_err(Into::<errors::StorageError>::into)?
-        .delete_key(key)
+        .publish(consts::PUB_SUB_CHANNEL, key)
         .await
         .change_context(errors::StorageError::KVError)?;
     Ok(data)
