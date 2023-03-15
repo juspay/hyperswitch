@@ -20,30 +20,35 @@ impl PaymentAttemptNew {
 }
 
 impl PaymentAttempt {
-    #[instrument(skip(conn))]
-    pub async fn update(
-        self,
-        conn: &PgPooledConn,
-        payment_attempt: PaymentAttemptUpdate,
-    ) -> StorageResult<Self> {
-        match generics::generic_update_with_results::<<Self as HasTable>::Table, _, _, _>(
-            conn,
-            dsl::payment_id
-                .eq(self.payment_id.to_owned())
-                .and(dsl::merchant_id.eq(self.merchant_id.to_owned())),
-            PaymentAttemptUpdateInternal::from(payment_attempt),
-        )
-        .await
-        {
-            Err(error) => match error.current_context() {
-                errors::DatabaseError::NoFieldsToUpdate => Ok(self),
-                _ => Err(error),
-            },
-            Ok(mut payment_attempts) => payment_attempts
-                .pop()
-                .ok_or(error_stack::report!(errors::DatabaseError::NotFound)),
-        }
-    }
+    // #[instrument(skip(conn))]
+    // pub async fn update(
+    //     self,
+    //     conn: &PgPooledConn,
+    //     payment_attempt: PaymentAttemptUpdate,
+    // ) -> StorageResult<Self> {
+    //     match generics::generic_update_by_id::<<Self as HasTable>::Table, _, _, _>(
+    //         conn,
+    //         self.id,
+    //         PaymentAttemptUpdateInternal::from(payment_attempt),
+    //     )
+    //     .await
+    //     {
+    //         Err(error) => match error.current_context() {
+    //             errors::DatabaseError::NotFound => {
+    //                 Err(error.attach_printable("Address with the given ID doesn't exist"))
+    //             }
+    //             errors::DatabaseError::NoFieldsToUpdate => {
+    //                 generics::generic_find_by_id::<<Self as HasTable>::Table, _, _>(
+    //                     conn,
+    //                     self.id,
+    //                 )
+    //                 .await
+    //             }
+    //             _ => Err(error),
+    //         },
+    //         result => result,
+    //     }
+    // }
 
     #[instrument(skip(conn))]
     pub async fn update_with_attempt_id(

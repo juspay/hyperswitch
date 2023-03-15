@@ -301,7 +301,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
         let connector = payment_data.payment_attempt.connector.clone();
 
         payment_data.payment_attempt = db
-            .update_payment_attempt(
+            .update_payment_attempt_with_attempt_id(
                 payment_data.payment_attempt,
                 storage::PaymentAttemptUpdate::UpdateTrackers {
                     payment_token,

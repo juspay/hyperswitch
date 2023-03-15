@@ -155,7 +155,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsCancelRequest> for 
     {
         let cancellation_reason = payment_data.payment_attempt.cancellation_reason.clone();
         payment_data.payment_attempt = db
-            .update_payment_attempt(
+            .update_payment_attempt_with_attempt_id(
                 payment_data.payment_attempt,
                 storage::PaymentAttemptUpdate::VoidUpdate {
                     status: enums::AttemptStatus::VoidInitiated,

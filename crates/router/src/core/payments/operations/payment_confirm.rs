@@ -328,7 +328,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
             .attach_printable("Failed to encode additional pm data")?;
 
         payment_data.payment_attempt = db
-            .update_payment_attempt(
+            .update_payment_attempt_with_attempt_id(
                 payment_data.payment_attempt,
                 storage::PaymentAttemptUpdate::ConfirmUpdate {
                     amount: payment_data.amount.into(),

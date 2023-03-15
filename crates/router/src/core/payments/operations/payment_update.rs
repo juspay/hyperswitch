@@ -353,7 +353,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
         let payment_method_type = payment_data.payment_attempt.payment_method_type.clone();
         let payment_experience = payment_data.payment_attempt.payment_experience.clone();
         payment_data.payment_attempt = db
-            .update_payment_attempt(
+            .update_payment_attempt_with_attempt_id(
                 payment_data.payment_attempt,
                 storage::PaymentAttemptUpdate::Update {
                     amount: payment_data.amount.into(),

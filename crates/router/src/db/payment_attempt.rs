@@ -12,12 +12,12 @@ pub trait PaymentAttemptInterface {
         storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<types::PaymentAttempt, errors::StorageError>;
 
-    async fn update_payment_attempt(
-        &self,
-        this: types::PaymentAttempt,
-        payment_attempt: types::PaymentAttemptUpdate,
-        storage_scheme: enums::MerchantStorageScheme,
-    ) -> CustomResult<types::PaymentAttempt, errors::StorageError>;
+    // async fn update_payment_attempt(
+    //     &self,
+    //     this: types::PaymentAttempt,
+    //     payment_attempt: types::PaymentAttemptUpdate,
+    //     storage_scheme: enums::MerchantStorageScheme,
+    // ) -> CustomResult<types::PaymentAttempt, errors::StorageError>;
 
     async fn update_payment_attempt_with_attempt_id(
         &self,
@@ -90,18 +90,18 @@ mod storage {
                 .into_report()
         }
 
-        async fn update_payment_attempt(
-            &self,
-            this: PaymentAttempt,
-            payment_attempt: PaymentAttemptUpdate,
-            _storage_scheme: enums::MerchantStorageScheme,
-        ) -> CustomResult<PaymentAttempt, errors::StorageError> {
-            let conn = pg_connection(&self.master_pool).await?;
-            this.update(&conn, payment_attempt)
-                .await
-                .map_err(Into::into)
-                .into_report()
-        }
+        // async fn update_payment_attempt(
+        //     &self,
+        //     this: PaymentAttempt,
+        //     payment_attempt: PaymentAttemptUpdate,
+        //     _storage_scheme: enums::MerchantStorageScheme,
+        // ) -> CustomResult<PaymentAttempt, errors::StorageError> {
+        //     let conn = pg_connection(&self.master_pool).await?;
+        //     this.update(&conn, payment_attempt)
+        //         .await
+        //         .map_err(Into::into)
+        //         .into_report()
+        // }
 
         async fn update_payment_attempt_with_attempt_id(
             &self,
@@ -266,24 +266,24 @@ impl PaymentAttemptInterface for MockDb {
     }
 
     // safety: only used for testing
-    #[allow(clippy::unwrap_used)]
-    async fn update_payment_attempt(
-        &self,
-        this: types::PaymentAttempt,
-        payment_attempt: types::PaymentAttemptUpdate,
-        _storage_scheme: enums::MerchantStorageScheme,
-    ) -> CustomResult<types::PaymentAttempt, errors::StorageError> {
-        let mut payment_attempts = self.payment_attempts.lock().await;
+    // #[allow(clippy::unwrap_used)]
+    // async fn update_payment_attempt(
+    //     &self,
+    //     this: types::PaymentAttempt,
+    //     payment_attempt: types::PaymentAttemptUpdate,
+    //     _storage_scheme: enums::MerchantStorageScheme,
+    // ) -> CustomResult<types::PaymentAttempt, errors::StorageError> {
+    //     let mut payment_attempts = self.payment_attempts.lock().await;
 
-        let item = payment_attempts
-            .iter_mut()
-            .find(|item| item.id == this.id)
-            .unwrap();
+    //     let item = payment_attempts
+    //         .iter_mut()
+    //         .find(|item| item.id == this.id)
+    //         .unwrap();
 
-        *item = payment_attempt.apply_changeset(this);
+    //     *item = payment_attempt.apply_changeset(this);
 
-        Ok(item.clone())
-    }
+    //     Ok(item.clone())
+    // }
 
     async fn update_payment_attempt_with_attempt_id(
         &self,
@@ -465,82 +465,82 @@ mod storage {
             }
         }
 
-        async fn update_payment_attempt(
-            &self,
-            this: PaymentAttempt,
-            payment_attempt: PaymentAttemptUpdate,
-            storage_scheme: enums::MerchantStorageScheme,
-        ) -> CustomResult<PaymentAttempt, errors::StorageError> {
-            match storage_scheme {
-                enums::MerchantStorageScheme::PostgresOnly => {
-                    let conn = pg_connection(&self.master_pool).await?;
-                    this.update(&conn, payment_attempt)
-                        .await
-                        .map_err(Into::into)
-                        .into_report()
-                }
+        // async fn update_payment_attempt(
+        //     &self,
+        //     this: PaymentAttempt,
+        //     payment_attempt: PaymentAttemptUpdate,
+        //     storage_scheme: enums::MerchantStorageScheme,
+        // ) -> CustomResult<PaymentAttempt, errors::StorageError> {
+        //     match storage_scheme {
+        //         enums::MerchantStorageScheme::PostgresOnly => {
+        //             let conn = pg_connection(&self.master_pool).await?;
+        //             this.update(&conn, payment_attempt)
+        //                 .await
+        //                 .map_err(Into::into)
+        //                 .into_report()
+        //         }
 
-                enums::MerchantStorageScheme::RedisKv => {
-                    let key = format!("{}_{}", this.merchant_id, this.payment_id);
-                    let old_connector_transaction_id = &this.connector_transaction_id;
-                    let updated_attempt = payment_attempt.clone().apply_changeset(this.clone());
-                    // Check for database presence as well Maybe use a read replica here ?
-                    let redis_value = serde_json::to_string(&updated_attempt)
-                        .into_report()
-                        .change_context(errors::StorageError::KVError)?;
-                    let field = format!("pa_{}", updated_attempt.attempt_id);
-                    let updated_attempt = self
-                        .redis_conn()
-                        .map_err(Into::<errors::StorageError>::into)?
-                        .set_hash_fields(&key, (&field, &redis_value))
-                        .await
-                        .map(|_| updated_attempt)
-                        .change_context(errors::StorageError::KVError)?;
+        //         enums::MerchantStorageScheme::RedisKv => {
+        //             let key = format!("{}_{}", this.merchant_id, this.payment_id);
+        //             let old_connector_transaction_id = &this.connector_transaction_id;
+        //             let updated_attempt = payment_attempt.clone().apply_changeset(this.clone());
+        //             // Check for database presence as well Maybe use a read replica here ?
+        //             let redis_value = serde_json::to_string(&updated_attempt)
+        //                 .into_report()
+        //                 .change_context(errors::StorageError::KVError)?;
+        //             let field = format!("pa_{}", updated_attempt.attempt_id);
+        //             let updated_attempt = self
+        //                 .redis_conn()
+        //                 .map_err(Into::<errors::StorageError>::into)?
+        //                 .set_hash_fields(&key, (&field, &redis_value))
+        //                 .await
+        //                 .map(|_| updated_attempt)
+        //                 .change_context(errors::StorageError::KVError)?;
 
-                    let conn = pg_connection(&self.master_pool).await?;
-                    // Reverse lookup for connector_transaction_id
-                    if let (None, Some(connector_transaction_id)) = (
-                        old_connector_transaction_id,
-                        &updated_attempt.connector_transaction_id,
-                    ) {
-                        let field = format!("pa_{}", updated_attempt.attempt_id);
-                        ReverseLookupNew {
-                            lookup_id: format!(
-                                "{}_{}",
-                                &updated_attempt.merchant_id, connector_transaction_id
-                            ),
-                            pk_id: key.clone(),
-                            sk_id: field.clone(),
-                            source: "payment_attempt".to_string(),
-                        }
-                        .insert(&conn)
-                        .await
-                        .map_err(Into::<errors::StorageError>::into)
-                        .into_report()?;
-                    }
+        //             let conn = pg_connection(&self.master_pool).await?;
+        //             // Reverse lookup for connector_transaction_id
+        //             if let (None, Some(connector_transaction_id)) = (
+        //                 old_connector_transaction_id,
+        //                 &updated_attempt.connector_transaction_id,
+        //             ) {
+        //                 let field = format!("pa_{}", updated_attempt.attempt_id);
+        //                 ReverseLookupNew {
+        //                     lookup_id: format!(
+        //                         "{}_{}",
+        //                         &updated_attempt.merchant_id, connector_transaction_id
+        //                     ),
+        //                     pk_id: key.clone(),
+        //                     sk_id: field.clone(),
+        //                     source: "payment_attempt".to_string(),
+        //                 }
+        //                 .insert(&conn)
+        //                 .await
+        //                 .map_err(Into::<errors::StorageError>::into)
+        //                 .into_report()?;
+        //             }
 
-                    let redis_entry = kv::TypedSql {
-                        op: kv::DBOperation::Update {
-                            updatable: kv::Updateable::PaymentAttemptUpdate(
-                                kv::PaymentAttemptUpdateMems {
-                                    orig: this,
-                                    update_data: payment_attempt,
-                                },
-                            ),
-                        },
-                    };
-                    self.push_to_drainer_stream::<PaymentAttempt>(
-                        redis_entry,
-                        crate::utils::storage_partitioning::PartitionKey::MerchantIdPaymentId {
-                            merchant_id: &updated_attempt.merchant_id,
-                            payment_id: &updated_attempt.payment_id,
-                        },
-                    )
-                    .await?;
-                    Ok(updated_attempt)
-                }
-            }
-        }
+        //             let redis_entry = kv::TypedSql {
+        //                 op: kv::DBOperation::Update {
+        //                     updatable: kv::Updateable::PaymentAttemptUpdate(
+        //                         kv::PaymentAttemptUpdateMems {
+        //                             orig: this,
+        //                             update_data: payment_attempt,
+        //                         },
+        //                     ),
+        //                 },
+        //             };
+        //             self.push_to_drainer_stream::<PaymentAttempt>(
+        //                 redis_entry,
+        //                 crate::utils::storage_partitioning::PartitionKey::MerchantIdPaymentId {
+        //                     merchant_id: &updated_attempt.merchant_id,
+        //                     payment_id: &updated_attempt.payment_id,
+        //                 },
+        //             )
+        //             .await?;
+        //             Ok(updated_attempt)
+        //         }
+        //     }
+        // }
 
         async fn update_payment_attempt_with_attempt_id(
             &self,
