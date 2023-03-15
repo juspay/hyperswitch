@@ -11,6 +11,8 @@ use crate::{
     services, types,
 };
 
+type Error = error_stack::Report<errors::ConnectorError>;
+
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MolliePaymentsRequest {
@@ -85,7 +87,7 @@ pub struct Address {
 }
 
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for MolliePaymentsRequest {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = Error;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         let amount = Amount {
             currency: item.request.currency,
@@ -136,7 +138,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for MolliePaymentsRequest {
 fn get_payment_method_for_bank_redirect(
     _item: &types::PaymentsAuthorizeRouterData,
     redirect_data: &api_models::payments::BankRedirectData,
-) -> Result<PaymentMethodData, error_stack::Report<errors::ConnectorError>> {
+) -> Result<PaymentMethodData, Error> {
     let payment_method_data = match redirect_data {
         api_models::payments::BankRedirectData::Eps { .. } => PaymentMethodData::Eps,
         api_models::payments::BankRedirectData::Giropay { .. } => PaymentMethodData::Giropay,
@@ -154,7 +156,7 @@ fn get_payment_method_for_bank_redirect(
 fn get_payment_method_for_wallet(
     item: &types::PaymentsAuthorizeRouterData,
     wallet_data: &api_models::payments::WalletData,
-) -> Result<PaymentMethodData, error_stack::Report<errors::ConnectorError>> {
+) -> Result<PaymentMethodData, Error> {
     match wallet_data {
         api_models::payments::WalletData::PaypalRedirect { .. } => {
             Ok(PaymentMethodData::Paypal(Box::new(PaypalMethodData {
@@ -176,7 +178,7 @@ fn get_payment_method_for_wallet(
 
 fn get_shipping_details(
     item: &types::PaymentsAuthorizeRouterData,
-) -> Result<Option<Address>, error_stack::Report<errors::ConnectorError>> {
+) -> Result<Option<Address>, Error> {
     let shipping_address = item
         .address
         .shipping
@@ -187,7 +189,7 @@ fn get_shipping_details(
 
 fn get_billing_details(
     item: &types::PaymentsAuthorizeRouterData,
-) -> Result<Option<Address>, error_stack::Report<errors::ConnectorError>> {
+) -> Result<Option<Address>, Error> {
     let billing_address = item
         .address
         .billing
@@ -198,7 +200,7 @@ fn get_billing_details(
 
 fn get_address_details(
     address: Option<&payments::AddressDetails>,
-) -> Result<Option<Address>, error_stack::Report<errors::ConnectorError>> {
+) -> Result<Option<Address>, Error> {
     let address_details = match address {
         Some(address) => {
             let street_and_number = address.get_combined_address_line()?;
@@ -299,7 +301,7 @@ pub struct MollieAuthType {
 }
 
 impl TryFrom<&types::ConnectorAuthType> for MollieAuthType {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = Error;
     fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         if let types::ConnectorAuthType::HeaderKey { api_key } = auth_type {
             Ok(Self {
@@ -315,7 +317,7 @@ impl<F, T>
     TryFrom<types::ResponseRouterData<F, MolliePaymentsResponse, T, types::PaymentsResponseData>>
     for types::RouterData<F, T, types::PaymentsResponseData>
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = Error;
     fn try_from(
         item: types::ResponseRouterData<F, MolliePaymentsResponse, T, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
@@ -345,7 +347,7 @@ pub struct MollieRefundRequest {
 }
 
 impl<F> TryFrom<&types::RefundsRouterData<F>> for MollieRefundRequest {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = Error;
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
         let amount = Amount {
             currency: item.request.currency,
@@ -401,7 +403,7 @@ impl From<MollieRefundStatus> for enums::RefundStatus {
 impl<T> TryFrom<types::RefundsResponseRouterData<T, RefundResponse>>
     for types::RefundsRouterData<T>
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = Error;
     fn try_from(
         item: types::RefundsResponseRouterData<T, RefundResponse>,
     ) -> Result<Self, Self::Error> {
