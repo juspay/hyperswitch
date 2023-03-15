@@ -1,6 +1,5 @@
 pub mod api;
 pub mod authentication;
-#[cfg(feature = "basilisk")]
 pub mod encryption;
 pub mod kms;
 pub mod logger;
@@ -9,9 +8,7 @@ use std::sync::{atomic, Arc};
 
 use redis_interface::{errors::RedisError, PubSubInterface};
 
-pub use self::api::*;
-#[cfg(feature = "basilisk")]
-pub use self::encryption::*;
+pub use self::{api::*, encryption::*};
 use crate::{
     async_spawn,
     connection::{diesel_make_pg_pool, PgPool},

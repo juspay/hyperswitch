@@ -304,7 +304,10 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
                   + Sync
                   + 'static),
         > = Box::new(&Self);
-        let authorize_data = &types::PaymentsAuthorizeSessionTokenRouterData::from(&router_data);
+        let authorize_data = &types::PaymentsAuthorizeSessionTokenRouterData::from((
+            &router_data,
+            types::AuthorizeSessionTokenData::from(&router_data),
+        ));
         let resp = services::execute_connector_processing_step(
             app_state,
             integ,
@@ -911,14 +914,5 @@ impl api::IncomingWebhook for Airwallex {
             .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
 
         Ok(details.data.object)
-    }
-}
-
-impl services::ConnectorRedirectResponse for Airwallex {
-    fn get_flow_type(
-        &self,
-        _query_params: &str,
-    ) -> CustomResult<payments::CallConnectorAction, errors::ConnectorError> {
-        Ok(payments::CallConnectorAction::Trigger)
     }
 }

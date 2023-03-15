@@ -60,11 +60,12 @@ pub async fn construct_refund_router_data<'a, F>(
         description: None,
         return_url: payment_intent.return_url.clone(),
         router_return_url: None,
+        complete_authorize_url: None,
         payment_method_id: payment_attempt.payment_method_id.clone(),
         // Does refund need shipping/billing address ?
         address: PaymentAddress::default(),
         auth_type: payment_attempt.authentication_type.unwrap_or_default(),
-        connector_meta_data: None,
+        connector_meta_data: merchant_connector_account.metadata,
         amount_captured: payment_intent.amount_captured,
         request: types::RefundsData {
             refund_id: refund.refund_id.clone(),

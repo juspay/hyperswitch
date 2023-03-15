@@ -81,6 +81,12 @@ impl From<ApiKeyUpdate> for ApiKeyUpdateInternal {
 #[diesel(sql_type = diesel::sql_types::Text)]
 pub struct HashedApiKey(String);
 
+impl HashedApiKey {
+    pub fn into_inner(self) -> String {
+        self.0
+    }
+}
+
 impl From<String> for HashedApiKey {
     fn from(hashed_api_key: String) -> Self {
         Self(hashed_api_key)

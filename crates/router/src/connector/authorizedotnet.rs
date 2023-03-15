@@ -600,8 +600,6 @@ impl api::IncomingWebhook for Authorizedotnet {
     }
 }
 
-impl services::ConnectorRedirectResponse for Authorizedotnet {}
-
 #[inline]
 fn get_error_response(
     types::Response {

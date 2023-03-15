@@ -361,6 +361,7 @@ pub trait ConnectorActions: Connector {
             attempt_id: uuid::Uuid::new_v4().to_string(),
             status: enums::AttemptStatus::default(),
             router_return_url: info.clone().and_then(|a| a.router_return_url),
+            complete_authorize_url: None,
             auth_type: info
                 .clone()
                 .map_or(enums::AuthenticationType::NoThreeDs, |a| {
@@ -379,7 +380,9 @@ pub trait ConnectorActions: Connector {
                 .and_then(|a| a.address)
                 .or_else(|| Some(PaymentAddress::default()))
                 .unwrap(),
-            connector_meta_data: info.clone().and_then(|a| a.connector_meta_data),
+            connector_meta_data: info
+                .clone()
+                .and_then(|a| a.connector_meta_data.map(masking::Secret::new)),
             amount_captured: None,
             access_token: info.and_then(|a| a.access_token),
             session_token: None,
@@ -487,6 +490,9 @@ impl Default for PaymentAuthorizeType {
             browser_info: Some(BrowserInfoType::default().0),
             order_details: None,
             email: None,
+            session_token: None,
+            enrolled_for_3ds: false,
+            related_transaction_id: None,
             payment_experience: None,
             payment_method_type: None,
         };
@@ -541,6 +547,7 @@ impl Default for PaymentSyncType {
             ),
             encoded_data: None,
             capture_method: None,
+            connector_meta: None,
         };
         Self(data)
     }

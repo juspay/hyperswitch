@@ -18,9 +18,9 @@ use crate::{
 };
 
 #[inline]
-pub fn create_merchant_api_key() -> String {
+pub fn create_merchant_publishable_key() -> String {
     format!(
-        "{}_{}",
+        "pk_{}_{}",
         router_env::env::prefix_for_env(),
         Uuid::new_v4().simple()
     )
@@ -30,9 +30,7 @@ pub async fn create_merchant_account(
     db: &dyn StorageInterface,
     req: api::MerchantAccountCreate,
 ) -> RouterResponse<api::MerchantAccountResponse> {
-    let publishable_key = Some(format!("pk_{}", create_merchant_api_key()));
-
-    let api_key = Some(create_merchant_api_key().into());
+    let publishable_key = Some(create_merchant_publishable_key());
 
     let merchant_details = Some(
         utils::Encode::<api::MerchantDetails>::encode_to_value(&req.merchant_details)
@@ -61,7 +59,6 @@ pub async fn create_merchant_account(
     let merchant_account = storage::MerchantAccountNew {
         merchant_id: req.merchant_id,
         merchant_name: req.merchant_name,
-        api_key,
         merchant_details,
         return_url: req.return_url.map(|a| a.to_string()),
         webhook_details,
@@ -169,7 +166,6 @@ pub async fn merchant_account_update(
         redirect_to_merchant_with_http_post: req.redirect_to_merchant_with_http_post,
         locker_id: req.locker_id,
         metadata: req.metadata,
-        api_key: None,
         publishable_key: None,
     };
 

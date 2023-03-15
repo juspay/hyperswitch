@@ -12,13 +12,13 @@ proc-macro = true
 doctest = false
 
 [dependencies]
-darling = "0.14.3"
-proc-macro2 = "1.0.50"
+darling = "0.14.4"
+proc-macro2 = "1.0.51"
 quote = "1.0.23"
-syn = { version = "1.0.107", features = ["full", "extra-traits"] } # the full feature does not seem to encompass all the features
+syn = { version = "1.0.109", features = ["full", "extra-traits"] } # the full feature does not seem to encompass all the features
 
 [dev-dependencies]
 diesel = { version = "2.0.3", features = ["postgres"] }
-serde = { version = "1.0.152", features = ["derive"] }
-serde_json = "1.0.91"
+serde = { version = "1.0.155", features = ["derive"] }
+serde_json = "1.0.94"
 strum = { version = "0.24.1", features = ["derive"] }

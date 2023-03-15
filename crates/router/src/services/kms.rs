@@ -10,7 +10,7 @@ mod aws_kms {
     use error_stack::{report, IntoReport, ResultExt};
 
     use super::*;
-    use crate::consts;
+    use crate::{consts, logger};
 
     impl KeyHandler {
         // Fetching KMS decrypted key
@@ -38,6 +38,10 @@ mod aws_kms {
                 .ciphertext_blob(blob)
                 .send()
                 .await
+                .map_err(|error| {
+                    logger::error!(kms_sdk_error=?error, "Failed to KMS decrypt data");
+                    error
+                })
                 .into_report()
                 .change_context(errors::EncryptionError)
                 .attach_printable("Error decrypting kms encrypted data")?;
