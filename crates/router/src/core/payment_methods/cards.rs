@@ -220,10 +220,14 @@ pub async fn add_card_hs(
 ) -> errors::CustomResult<api::PaymentMethodResponse, errors::VaultError> {
     let locker = &state.conf.locker;
     let jwekey = &state.conf.jwekey;
+
+    #[cfg(feature = "kms")]
+    let kms_config = &state.conf.kms;
+
     let db = &*state.store;
     let merchant_id = &merchant_account.merchant_id;
 
-    let locker_id = merchant_account
+    let _ = merchant_account
         .locker_id
         .to_owned()
         .get_required_value("locker_id")
@@ -234,9 +238,9 @@ pub async fn add_card_hs(
         locker,
         &card,
         &customer_id,
-        &req,
-        &locker_id,
         merchant_id,
+        #[cfg(feature = "kms")]
+        kms_config,
     )
     .await?;
 
@@ -249,10 +253,15 @@ pub async fn add_card_hs(
             .get_response_inner("JweBody")
             .change_context(errors::VaultError::FetchCardFailed)?;
 
-        let decrypted_payload = payment_methods::get_decrypted_response_payload(jwekey, jwe_body)
-            .await
-            .change_context(errors::VaultError::SaveCardFailed)
-            .attach_printable("Error getting decrypted response payload")?;
+        let decrypted_payload = payment_methods::get_decrypted_response_payload(
+            jwekey,
+            jwe_body,
+            #[cfg(feature = "kms")]
+            kms_config,
+        )
+        .await
+        .change_context(errors::VaultError::SaveCardFailed)
+        .attach_printable("Error getting decrypted response payload")?;
         let stored_card_resp: payment_methods::StoreCardResp = decrypted_payload
             .parse_struct("StoreCardResp")
             .change_context(errors::VaultError::ResponseDeserializationFailed)?;
@@ -363,12 +372,18 @@ pub async fn get_card_from_hs_locker<'a>(
 ) -> errors::CustomResult<payment_methods::Card, errors::VaultError> {
     let locker = &state.conf.locker;
     let jwekey = &state.conf.jwekey;
+
+    #[cfg(feature = "kms")]
+    let kms_config = &state.conf.kms;
+
     let request = payment_methods::mk_get_card_request_hs(
         jwekey,
         locker,
         customer_id,
         merchant_id,
         card_reference,
+        #[cfg(feature = "kms")]
+        kms_config,
     )
     .await
     .change_context(errors::VaultError::FetchCardFailed)
@@ -381,10 +396,15 @@ pub async fn get_card_from_hs_locker<'a>(
         let jwe_body: services::JweBody = response
             .get_response_inner("JweBody")
             .change_context(errors::VaultError::FetchCardFailed)?;
-        let decrypted_payload = payment_methods::get_decrypted_response_payload(jwekey, jwe_body)
-            .await
-            .change_context(errors::VaultError::FetchCardFailed)
-            .attach_printable("Error getting decrypted response payload for get card")?;
+        let decrypted_payload = payment_methods::get_decrypted_response_payload(
+            jwekey,
+            jwe_body,
+            #[cfg(feature = "kms")]
+            kms_config,
+        )
+        .await
+        .change_context(errors::VaultError::FetchCardFailed)
+        .attach_printable("Error getting decrypted response payload for get card")?;
         let get_card_resp: payment_methods::RetrieveCardResp = decrypted_payload
             .parse_struct("RetrieveCardResp")
             .change_context(errors::VaultError::FetchCardFailed)?;
@@ -441,12 +461,18 @@ pub async fn delete_card_from_hs_locker<'a>(
 ) -> errors::RouterResult<payment_methods::DeleteCardResp> {
     let locker = &state.conf.locker;
     let jwekey = &state.conf.jwekey;
+
+    #[cfg(feature = "kms")]
+    let kms_config = &state.conf.kms;
+
     let request = payment_methods::mk_delete_card_request_hs(
         jwekey,
         locker,
         customer_id,
         merchant_id,
         card_reference,
+        #[cfg(feature = "kms")]
+        kms_config,
     )
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -458,10 +484,15 @@ pub async fn delete_card_from_hs_locker<'a>(
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed while executing call_connector_api for delete card");
         let jwe_body: services::JweBody = response.get_response_inner("JweBody")?;
-        let decrypted_payload = payment_methods::get_decrypted_response_payload(jwekey, jwe_body)
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Error getting decrypted response payload for delete card")?;
+        let decrypted_payload = payment_methods::get_decrypted_response_payload(
+            jwekey,
+            jwe_body,
+            #[cfg(feature = "kms")]
+            kms_config,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Error getting decrypted response payload for delete card")?;
         let delete_card_resp: payment_methods::DeleteCardResp = decrypted_payload
             .parse_struct("DeleteCardResp")
             .change_context(errors::ApiErrorResponse::InternalServerError)?;

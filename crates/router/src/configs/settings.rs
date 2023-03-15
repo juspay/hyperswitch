@@ -58,6 +58,8 @@ pub struct Settings {
     pub pm_filters: ConnectorFilters,
     pub bank_config: BankRedirectConfig,
     pub api_keys: ApiKeys,
+    #[cfg(feature = "kms")]
+    pub kms: Kms,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -187,10 +189,6 @@ pub struct EphemeralConfig {
 #[derive(Debug, Deserialize, Clone, Default)]
 #[serde(default)]
 pub struct Jwekey {
-    #[cfg(feature = "kms")]
-    pub aws_key_id: String,
-    #[cfg(feature = "kms")]
-    pub aws_region: String,
     pub locker_key_identifier1: String,
     pub locker_key_identifier2: String,
     pub locker_encryption_key1: String,
@@ -327,12 +325,6 @@ pub struct WebhooksSettings {
 #[derive(Debug, Deserialize, Clone, Default)]
 #[serde(default)]
 pub struct ApiKeys {
-    #[cfg(feature = "kms")]
-    pub aws_key_id: String,
-
-    #[cfg(feature = "kms")]
-    pub aws_region: String,
-
     /// Base64-encoded (KMS encrypted) ciphertext of the key used for calculating hashes of API
     /// keys
     #[cfg(feature = "kms")]
@@ -342,6 +334,14 @@ pub struct ApiKeys {
     /// hashes of API keys
     #[cfg(not(feature = "kms"))]
     pub hash_key: String,
+}
+
+#[cfg(feature = "kms")]
+#[derive(Debug, Deserialize, Clone, Default)]
+#[serde(default)]
+pub struct Kms {
+    pub key_id: String,
+    pub region: String,
 }
 
 impl Settings {
@@ -417,8 +417,9 @@ impl Settings {
             .transpose()?;
         #[cfg(feature = "kv_store")]
         self.drainer.validate()?;
-        self.jwekey.validate()?;
         self.api_keys.validate()?;
+        #[cfg(feature = "kms")]
+        self.kms.validate()?;
 
         Ok(())
     }
