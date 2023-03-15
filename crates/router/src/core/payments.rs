@@ -6,9 +6,11 @@ pub mod transformers;
 
 use std::{fmt::Debug, marker::PhantomData, time::Instant};
 
+use api_models::payments::Metadata;
 use common_utils::ext_traits::AsyncExt;
 use error_stack::{IntoReport, ResultExt};
 use futures::future::join_all;
+use masking::Secret;
 use router_env::{instrument, tracing};
 use time;
 
@@ -303,6 +305,11 @@ impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
         let payment_confirm_req = api::PaymentsRequest {
             payment_id: Some(req.resource_id.clone()),
             merchant_id: req.merchant_id.clone(),
+            metadata: Some(Metadata {
+                order_details: None,
+                data: Secret::new("{}".into()),
+                request_extra: Some(req.json_payload.unwrap_or("{}".into())),
+            }),
             ..Default::default()
         };
         payments_core::<api::CompleteAuthorize, api::PaymentsResponse, _, _, _>(

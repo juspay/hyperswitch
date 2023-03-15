@@ -110,7 +110,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for AirwallexPaymentsRequest {
             request_id: Uuid::new_v4().to_string(),
             payment_method,
             payment_method_options,
-            return_url: item.router_return_url.clone(),
+            return_url: item.complete_authorize_url.clone(),
         })
     }
 }
@@ -136,6 +136,46 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, AirwallexAuthUpdateResponse, T, 
                 expires,
             }),
             ..item.data
+        })
+    }
+}
+
+#[derive(Default, Debug, Serialize, Eq, PartialEq)]
+pub struct AirwallexCompleteRequest {
+    request_id: String,
+    three_ds: AirwallexThreeDsData,
+    #[serde(rename = "type")]
+    three_ds_type: AirwallexThreeDsType,
+}
+
+#[derive(Default, Debug, Serialize, Eq, PartialEq)]
+pub struct AirwallexThreeDsData {
+    acs_response: Option<serde_json::Value>,
+}
+
+#[derive(Default, Debug, Serialize, Eq, PartialEq)]
+pub enum AirwallexThreeDsType {
+    #[default]
+    #[serde(rename = "3ds_continue")]
+    ThreeDSContinue,
+}
+#[derive(Default, Debug, Serialize, Eq, PartialEq)]
+pub struct AirwallexACSData {
+    cres: Option<String>,
+    #[serde(rename = "threeDSMethodData")]
+    three_ds_method_data: Option<String>,
+}
+
+impl TryFrom<&types::PaymentsCompleteAuthorizeRouterData> for AirwallexCompleteRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &types::PaymentsCompleteAuthorizeRouterData) -> Result<Self, Self::Error> {
+        println!("aaaaaa {:?}", item.request.payload.clone());
+        Ok(Self {
+            request_id: Uuid::new_v4().to_string(),
+            three_ds: AirwallexThreeDsData {
+                acs_response: item.request.payload.clone(),
+            },
+            three_ds_type: AirwallexThreeDsType::ThreeDSContinue,
         })
     }
 }
@@ -191,6 +231,21 @@ pub enum AirwallexPaymentStatus {
     Cancelled,
 }
 
+// fn get_payment_status(response:&AirwallexPaymentsResponse) -> enums::AttemptStatus{
+//     match response.status.clone() {
+//         AirwallexPaymentStatus::Succeeded => enums::AttemptStatus::Charged,
+//             AirwallexPaymentStatus::Failed => enums::AttemptStatus::Failure,
+//             AirwallexPaymentStatus::Pending => enums::AttemptStatus::Pending,
+//             AirwallexPaymentStatus::RequiresPaymentMethod => enums::AttemptStatus::PaymentMethodAwaited,
+//             AirwallexPaymentStatus::RequiresCustomerAction => match response.next_action.unwrap_or(AirwallexNextActionStage::WaitingUserInfoInput) {
+//                     AirwallexNextActionStage::WaitingDeviceDataCollection => enums::AttemptStatus::DeviceDataCollectionPending,
+//                     AirwallexNextActionStage::WaitingUserInfoInput => enums::AttemptStatus::AuthenticationPending,
+//             },
+//             AirwallexPaymentStatus::RequiresCapture => enums::AttemptStatus::Authorized,
+//             AirwallexPaymentStatus::Cancelled => enums::AttemptStatus::Voided,
+//     }
+// }
+
 impl From<AirwallexPaymentStatus> for enums::AttemptStatus {
     fn from(item: AirwallexPaymentStatus) -> Self {
         match item {
@@ -204,14 +259,22 @@ impl From<AirwallexPaymentStatus> for enums::AttemptStatus {
         }
     }
 }
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all="SCREAMING_SNAKE_CASE")]
+pub enum AirwallexNextActionStage {
+    WaitingDeviceDataCollection,
+    WaitingUserInfoInput,
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct AirwallexRedirectFormData {
     #[serde(rename = "JWT")]
-    jwt: String,
+    jwt: Option<String>,
     #[serde(rename = "threeDSMethodData")]
-    three_ds_method_data: String,
-    token: String,
+    three_ds_method_data: Option<String>,
+    token: Option<String>,
+    provider: Option<String>,
+    version: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -219,6 +282,7 @@ pub struct AirwallexPaymentsNextAction {
     url: Url,
     method: services::Method,
     data: AirwallexRedirectFormData,
+    stage: AirwallexNextActionStage,
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -252,12 +316,30 @@ impl<F, T>
                     endpoint: response_url_data.url.to_string(),
                     method: response_url_data.method,
                     form_fields: std::collections::HashMap::from([
-                        ("JWT".to_string(), response_url_data.data.jwt),
+                        //Some form fields might be empty based on the authentication type by the connector
+                        (
+                            "JWT".to_string(),
+                            response_url_data.data.jwt.unwrap_or_default(),
+                        ),
                         (
                             "threeDSMethodData".to_string(),
-                            response_url_data.data.three_ds_method_data,
+                            response_url_data
+                                .data
+                                .three_ds_method_data
+                                .unwrap_or_default(),
                         ),
-                        ("token".to_string(), response_url_data.data.token),
+                        (
+                            "token".to_string(),
+                            response_url_data.data.token.unwrap_or_default(),
+                        ),
+                        (
+                            "provider".to_string(),
+                            response_url_data.data.provider.unwrap_or_default(),
+                        ),
+                        (
+                            "version".to_string(),
+                            response_url_data.data.version.unwrap_or_default(),
+                        ),
                     ]),
                 });
         Ok(Self {
