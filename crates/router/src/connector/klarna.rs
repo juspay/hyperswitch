@@ -377,5 +377,3 @@ impl api::IncomingWebhook for Klarna {
         Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
     }
 }
-
-impl services::ConnectorRedirectResponse for Klarna {}

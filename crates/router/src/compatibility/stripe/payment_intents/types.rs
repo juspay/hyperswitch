@@ -1,8 +1,7 @@
 use api_models::{payments, refunds};
-use common_utils::ext_traits::StringExt;
+use common_utils::{ext_traits::StringExt, pii as secret};
 use error_stack::ResultExt;
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
 
 use crate::{
     core::errors,
@@ -63,7 +62,7 @@ pub struct StripePaymentMethodData {
     pub billing_details: Option<StripeBillingDetails>,
     #[serde(flatten)]
     pub payment_method_details: Option<StripePaymentMethodDetails>, // enum
-    pub metadata: Option<Value>,
+    pub metadata: Option<secret::SecretSerdeValue>,
 }
 
 #[derive(PartialEq, Eq, Deserialize, Clone)]
@@ -277,7 +276,7 @@ pub struct StripePaymentIntentResponse {
     pub customer: Option<String>,
     pub refunds: Option<Vec<refunds::RefundResponse>>,
     pub mandate_id: Option<String>,
-    pub metadata: Option<Value>,
+    pub metadata: Option<secret::SecretSerdeValue>,
     pub charges: Charges,
     pub connector: Option<String>,
     pub description: Option<String>,

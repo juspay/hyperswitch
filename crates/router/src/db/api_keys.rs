@@ -22,9 +22,14 @@ pub trait ApiKeyInterface {
 
     async fn revoke_api_key(&self, key_id: &str) -> CustomResult<bool, errors::StorageError>;
 
-    async fn find_api_key_optional(
+    async fn find_api_key_by_key_id_optional(
         &self,
         key_id: &str,
+    ) -> CustomResult<Option<storage::ApiKey>, errors::StorageError>;
+
+    async fn find_api_key_by_hash_optional(
+        &self,
+        hashed_api_key: storage::HashedApiKey,
     ) -> CustomResult<Option<storage::ApiKey>, errors::StorageError>;
 
     async fn list_api_keys_by_merchant_id(
@@ -69,12 +74,23 @@ impl ApiKeyInterface for Store {
             .into_report()
     }
 
-    async fn find_api_key_optional(
+    async fn find_api_key_by_key_id_optional(
         &self,
         key_id: &str,
     ) -> CustomResult<Option<storage::ApiKey>, errors::StorageError> {
         let conn = pg_connection(&self.master_pool).await?;
         storage::ApiKey::find_optional_by_key_id(&conn, key_id)
+            .await
+            .map_err(Into::into)
+            .into_report()
+    }
+
+    async fn find_api_key_by_hash_optional(
+        &self,
+        hashed_api_key: storage::HashedApiKey,
+    ) -> CustomResult<Option<storage::ApiKey>, errors::StorageError> {
+        let conn = pg_connection(&self.master_pool).await?;
+        storage::ApiKey::find_optional_by_hashed_api_key(&conn, hashed_api_key)
             .await
             .map_err(Into::into)
             .into_report()
@@ -118,9 +134,17 @@ impl ApiKeyInterface for MockDb {
         Err(errors::StorageError::MockDbError)?
     }
 
-    async fn find_api_key_optional(
+    async fn find_api_key_by_key_id_optional(
         &self,
         _key_id: &str,
+    ) -> CustomResult<Option<storage::ApiKey>, errors::StorageError> {
+        // [#172]: Implement function for `MockDb`
+        Err(errors::StorageError::MockDbError)?
+    }
+
+    async fn find_api_key_by_hash_optional(
+        &self,
+        _hashed_api_key: storage::HashedApiKey,
     ) -> CustomResult<Option<storage::ApiKey>, errors::StorageError> {
         // [#172]: Implement function for `MockDb`
         Err(errors::StorageError::MockDbError)?

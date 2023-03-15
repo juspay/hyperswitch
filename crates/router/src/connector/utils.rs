@@ -1,16 +1,22 @@
 use std::collections::HashMap;
 
-use common_utils::pii;
+use base64::Engine;
+use common_utils::{
+    errors::ReportSwitchExt,
+    pii::{self, Email},
+};
 use error_stack::{report, IntoReport, ResultExt};
 use masking::Secret;
 use once_cell::sync::Lazy;
 use regex::Regex;
+use serde::Serializer;
 
 use crate::{
+    consts,
     core::errors::{self, CustomResult},
     pii::PeekInterface,
-    types::{self, api, PaymentsCancelData},
-    utils::OptionExt,
+    types::{self, api, PaymentsCancelData, ResponseId},
+    utils::{OptionExt, ValueExt},
 };
 
 pub fn missing_field_err(
@@ -45,12 +51,13 @@ pub trait RouterData {
     fn get_billing_phone(&self) -> Result<&api::PhoneDetails, Error>;
     fn get_description(&self) -> Result<String, Error>;
     fn get_billing_address(&self) -> Result<&api::AddressDetails, Error>;
-    fn get_connector_meta(&self) -> Result<serde_json::Value, Error>;
+    fn get_connector_meta(&self) -> Result<pii::SecretSerdeValue, Error>;
     fn get_session_token(&self) -> Result<String, Error>;
     fn to_connector_meta<T>(&self) -> Result<T, Error>
     where
         T: serde::de::DeserializeOwned;
     fn get_return_url(&self) -> Result<String, Error>;
+    fn is_three_ds(&self) -> bool;
 }
 
 impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Response> {
@@ -89,7 +96,7 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
             .and_then(|a| a.address.as_ref())
             .ok_or_else(missing_field_err("billing.address"))
     }
-    fn get_connector_meta(&self) -> Result<serde_json::Value, Error> {
+    fn get_connector_meta(&self) -> Result<pii::SecretSerdeValue, Error> {
         self.connector_meta_data
             .clone()
             .ok_or_else(missing_field_err("connector_meta_data"))
@@ -105,8 +112,8 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
     where
         T: serde::de::DeserializeOwned,
     {
-        serde_json::from_value::<T>(self.get_connector_meta()?)
-            .into_report()
+        self.get_connector_meta()?
+            .parse_value(std::any::type_name::<T>())
             .change_context(errors::ConnectorError::NoConnectorMetaData)
     }
 
@@ -115,44 +122,67 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
             .clone()
             .ok_or_else(missing_field_err("return_url"))
     }
-}
 
-pub trait PaymentsRequestData {
-    fn get_card(&self) -> Result<api::Card, Error>;
-}
-
-impl PaymentsRequestData for types::PaymentsAuthorizeRouterData {
-    fn get_card(&self) -> Result<api::Card, Error> {
-        match self.request.payment_method_data.clone() {
-            api::PaymentMethodData::Card(card) => Ok(card),
-            _ => Err(missing_field_err("card")()),
-        }
+    fn is_three_ds(&self) -> bool {
+        matches!(
+            self.auth_type,
+            storage_models::enums::AuthenticationType::ThreeDs
+        )
     }
 }
 
 pub trait PaymentsAuthorizeRequestData {
     fn is_auto_capture(&self) -> bool;
+    fn get_email(&self) -> Result<Secret<String, Email>, Error>;
+    fn get_browser_info(&self) -> Result<types::BrowserInformation, Error>;
+    fn get_card(&self) -> Result<api::Card, Error>;
 }
 
 impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
     fn is_auto_capture(&self) -> bool {
         self.capture_method == Some(storage_models::enums::CaptureMethod::Automatic)
     }
+    fn get_email(&self) -> Result<Secret<String, Email>, Error> {
+        self.email.clone().ok_or_else(missing_field_err("email"))
+    }
+    fn get_browser_info(&self) -> Result<types::BrowserInformation, Error> {
+        self.browser_info
+            .clone()
+            .ok_or_else(missing_field_err("browser_info"))
+    }
+    fn get_card(&self) -> Result<api::Card, Error> {
+        match self.payment_method_data.clone() {
+            api::PaymentMethodData::Card(card) => Ok(card),
+            _ => Err(missing_field_err("card")()),
+        }
+    }
 }
 
 pub trait PaymentsSyncRequestData {
     fn is_auto_capture(&self) -> bool;
+    fn get_connector_transaction_id(&self) -> CustomResult<String, errors::ValidationError>;
 }
 
 impl PaymentsSyncRequestData for types::PaymentsSyncData {
     fn is_auto_capture(&self) -> bool {
         self.capture_method == Some(storage_models::enums::CaptureMethod::Automatic)
     }
+    fn get_connector_transaction_id(&self) -> CustomResult<String, errors::ValidationError> {
+        match self.connector_transaction_id.clone() {
+            ResponseId::ConnectorTransactionId(txn_id) => Ok(txn_id),
+            _ => Err(errors::ValidationError::IncorrectValueProvided {
+                field_name: "connector_transaction_id",
+            })
+            .into_report()
+            .attach_printable("Expected connector transaction ID not found"),
+        }
+    }
 }
 
 pub trait PaymentsCancelRequestData {
     fn get_amount(&self) -> Result<i64, Error>;
     fn get_currency(&self) -> Result<storage_models::enums::Currency, Error>;
+    fn get_cancellation_reason(&self) -> Result<String, Error>;
 }
 
 impl PaymentsCancelRequestData for PaymentsCancelData {
@@ -161,6 +191,11 @@ impl PaymentsCancelRequestData for PaymentsCancelData {
     }
     fn get_currency(&self) -> Result<storage_models::enums::Currency, Error> {
         self.currency.ok_or_else(missing_field_err("currency"))
+    }
+    fn get_cancellation_reason(&self) -> Result<String, Error> {
+        self.cancellation_reason
+            .clone()
+            .ok_or_else(missing_field_err("cancellation_reason"))
     }
 }
 
@@ -204,6 +239,7 @@ pub enum CardIssuer {
 pub trait CardData {
     fn get_card_expiry_year_2_digit(&self) -> Secret<String>;
     fn get_card_issuer(&self) -> Result<CardIssuer, Error>;
+    fn get_card_expiry_month_year_2_digit_with_delimiter(&self, delimiter: String) -> String;
 }
 
 impl CardData for api::Card {
@@ -218,6 +254,15 @@ impl CardData for api::Card {
             .clone()
             .map(|card| card.split_whitespace().collect());
         get_card_issuer(card.peek().clone().as_str())
+    }
+    fn get_card_expiry_month_year_2_digit_with_delimiter(&self, delimiter: String) -> String {
+        let year = self.get_card_expiry_year_2_digit();
+        format!(
+            "{}{}{}",
+            self.card_exp_month.peek().clone(),
+            delimiter,
+            year.peek()
+        )
     }
 }
 
@@ -324,6 +369,65 @@ pub fn get_header_key_value<'a>(
         ))?
 }
 
+pub fn to_boolean(string: String) -> bool {
+    let str = string.as_str();
+    match str {
+        "true" => true,
+        "false" => false,
+        "yes" => true,
+        "no" => false,
+        _ => false,
+    }
+}
+
+pub fn get_connector_meta(
+    connector_meta: Option<serde_json::Value>,
+) -> Result<serde_json::Value, Error> {
+    connector_meta.ok_or_else(missing_field_err("connector_meta_data"))
+}
+
+pub fn to_connector_meta<T>(connector_meta: Option<serde_json::Value>) -> Result<T, Error>
+where
+    T: serde::de::DeserializeOwned,
+{
+    let json = connector_meta.ok_or_else(missing_field_err("connector_meta_data"))?;
+    json.parse_value(std::any::type_name::<T>()).switch()
+}
+
+pub fn to_connector_meta_from_secret<T>(
+    connector_meta: Option<Secret<serde_json::Value>>,
+) -> Result<T, Error>
+where
+    T: serde::de::DeserializeOwned,
+{
+    let connector_meta_secret =
+        connector_meta.ok_or_else(missing_field_err("connector_meta_data"))?;
+    let json = connector_meta_secret.peek().clone();
+    json.parse_value(std::any::type_name::<T>()).switch()
+}
+
+impl common_utils::errors::ErrorSwitch<errors::ConnectorError> for errors::ParsingError {
+    fn switch(&self) -> errors::ConnectorError {
+        errors::ConnectorError::ParsingFailed
+    }
+}
+
+pub fn to_string<T>(data: &T) -> Result<String, Error>
+where
+    T: serde::Serialize,
+{
+    serde_json::to_string(data)
+        .into_report()
+        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+}
+
+pub fn base64_decode(data: String) -> Result<Vec<u8>, Error> {
+    consts::BASE64_ENGINE
+        .decode(data)
+        .into_report()
+        .change_context(errors::ConnectorError::ResponseDeserializationFailed)
+}
+
 pub fn to_currency_base_unit_from_optional_amount(
     amount: Option<i64>,
     currency: storage_models::enums::Currency,
@@ -354,4 +458,14 @@ pub fn to_currency_base_unit(
         | storage_models::enums::Currency::OMR => Ok((f64::from(amount_u32) / 1000.0).to_string()),
         _ => Ok((f64::from(amount_u32) / 100.0).to_string()),
     }
+}
+
+pub fn str_to_f32<S>(value: &str, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    let float_value = value.parse::<f64>().map_err(|_| {
+        serde::ser::Error::custom("Invalid string, cannot be converted to float value")
+    })?;
+    serializer.serialize_f64(float_value)
 }

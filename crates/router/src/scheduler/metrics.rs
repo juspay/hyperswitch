@@ -11,6 +11,7 @@ static PT_METER: Lazy<Meter> = Lazy::new(|| global::meter("PROCESS_TRACKER"));
 pub(crate) static CONSUMER_STATS: Lazy<Histogram<f64>> =
     Lazy::new(|| PT_METER.f64_histogram("CONSUMER_OPS").init());
 
+#[macro_export]
 macro_rules! create_counter {
     ($name:ident, $meter:ident) => {
         pub(crate) static $name: Lazy<Counter<u64>> =
@@ -27,3 +28,5 @@ create_counter!(TASK_CONSUMED, PT_METER); // Tasks consumed by consumer
 create_counter!(TASK_PROCESSED, PT_METER); // Tasks completed processing
 create_counter!(TASK_FINISHED, PT_METER); // Tasks finished
 create_counter!(TASK_RETRIED, PT_METER); // Tasks added for retries
+create_counter!(TOKENIZED_DATA_COUNT, PT_METER); // Tokenized data added
+create_counter!(RETRIED_DELETE_DATA_COUNT, PT_METER); // Tokenized data retried

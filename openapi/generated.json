@@ -3303,11 +3303,6 @@
             "description": "Name of the Merchant Account",
             "example": "NewAge Retailer"
           },
-          "api_key": {
-            "type": "string",
-            "description": "API key that will be used for server side API access",
-            "example": "Ah2354543543523"
-          },
           "merchant_details": {
             "$ref": "#/components/schemas/MerchantDetails"
           },
@@ -3407,11 +3402,6 @@
             "description": "Name of the Merchant Account",
             "example": "NewAge Retailer"
           },
-          "api_key": {
-            "type": "string",
-            "description": "API key that will be used for server side API access",
-            "example": "Ah2354543543523"
-          },
           "return_url": {
             "type": "string",
             "description": "The URL to redirect after the completion of the operation",
@@ -3489,11 +3479,6 @@
             "type": "string",
             "description": "Name of the Merchant Account",
             "example": "NewAge Retailer"
-          },
-          "api_key": {
-            "type": "string",
-            "description": "API key that will be used for server side API access",
-            "example": "Ah2354543543523"
           },
           "merchant_details": {
             "$ref": "#/components/schemas/MerchantDetails"

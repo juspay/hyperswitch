@@ -162,7 +162,6 @@ diesel::table! {
     merchant_account (id) {
         id -> Int4,
         merchant_id -> Varchar,
-        api_key -> Nullable<Varchar>,
         return_url -> Nullable<Varchar>,
         enable_payment_response_hash -> Bool,
         payment_response_hash_key -> Nullable<Varchar>,

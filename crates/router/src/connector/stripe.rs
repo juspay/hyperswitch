@@ -346,7 +346,7 @@ impl
         req: &types::PaymentsAuthorizeRouterData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
         let req = stripe::PaymentIntentRequest::try_from(req)?;
-        let stripe_req = utils::Encode::<stripe::PaymentIntentRequest>::encode(&req)
+        let stripe_req = utils::Encode::<stripe::PaymentIntentRequest>::url_encode(&req)
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(stripe_req))
     }
@@ -974,6 +974,8 @@ impl services::ConnectorRedirectResponse for Stripe {
     fn get_flow_type(
         &self,
         query_params: &str,
+        _json_payload: Option<serde_json::Value>,
+        _action: services::PaymentAction,
     ) -> CustomResult<crate::core::payments::CallConnectorAction, errors::ConnectorError> {
         let query =
             serde_urlencoded::from_str::<transformers::StripeRedirectResponse>(query_params)
