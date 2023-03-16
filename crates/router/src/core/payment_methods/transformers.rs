@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 #[cfg(feature = "kms")]
 use crate::services::kms;
 use crate::{
-    configs::settings::{Jwekey, Locker},
+    configs::settings,
     core::errors::{self, CustomResult},
     headers,
     pii::{self, prelude::*, Secret},
@@ -159,35 +159,34 @@ pub fn get_dotted_jws(jws: encryption::JwsBody) -> String {
 }
 
 pub async fn get_decrypted_response_payload(
-    jwekey: &Jwekey,
+    jwekey: &settings::Jwekey,
     jwe_body: encryption::JweBody,
+    #[cfg(feature = "kms")] kms_config: &settings::Kms,
 ) -> CustomResult<String, errors::VaultError> {
     #[cfg(feature = "kms")]
-    let public_key = kms::KeyHandler::get_kms_decrypted_key(
-        &jwekey.aws_region,
-        &jwekey.aws_key_id,
-        jwekey.vault_encryption_key.to_string(),
-    )
-    .await
-    .change_context(errors::VaultError::SaveCardFailed)
-    .attach_printable("Fails to get public key of vault")?;
+    let public_key = kms::get_kms_client(kms_config)
+        .await
+        .decrypt(&jwekey.vault_encryption_key)
+        .await
+        .change_context(errors::VaultError::SaveCardFailed)
+        .attach_printable("Fails to get public key of vault")?;
+    #[cfg(feature = "kms")]
+    let private_key = kms::get_kms_client(kms_config)
+        .await
+        .decrypt(&jwekey.vault_private_key)
+        .await
+        .change_context(errors::VaultError::SaveCardFailed)
+        .attach_printable("Error getting private key for signing jws")?;
+
     #[cfg(not(feature = "kms"))]
     let public_key = jwekey.vault_encryption_key.to_owned();
-    #[cfg(feature = "kms")]
-    let private_key = kms::KeyHandler::get_kms_decrypted_key(
-        &jwekey.aws_region,
-        &jwekey.aws_key_id,
-        jwekey.vault_private_key.to_string(),
-    )
-    .await
-    .change_context(errors::VaultError::SaveCardFailed)
-    .attach_printable("Error getting private key for signing jws")?;
     #[cfg(not(feature = "kms"))]
     let private_key = jwekey.vault_private_key.to_owned();
+
     let jwt = get_dotted_jwe(jwe_body);
     let key_id = basilisk_hs_key_id();
     let alg = jwe::RSA_OAEP;
-    let jwe_decrypted = encryption::decrypt_jwe(jwekey, &jwt, key_id, key_id, private_key, alg)
+    let jwe_decrypted = encryption::decrypt_jwe(&jwt, key_id, key_id, private_key, alg)
         .await
         .change_context(errors::VaultError::SaveCardFailed)
         .attach_printable("Jwe Decryption failed for JweBody for vault")?;
@@ -203,8 +202,9 @@ pub async fn get_decrypted_response_payload(
 }
 
 pub async fn mk_basilisk_req(
-    jwekey: &Jwekey,
+    jwekey: &settings::Jwekey,
     jws: &str,
+    #[cfg(feature = "kms")] kms_config: &settings::Kms,
 ) -> CustomResult<encryption::JweBody, errors::VaultError> {
     let jws_payload: Vec<&str> = jws.split('.').collect();
 
@@ -220,19 +220,19 @@ pub async fn mk_basilisk_req(
 
     let payload = utils::Encode::<encryption::JwsBody>::encode_to_vec(&jws_body)
         .change_context(errors::VaultError::SaveCardFailed)?;
+
     #[cfg(feature = "kms")]
-    let public_key = kms::KeyHandler::get_kms_decrypted_key(
-        &jwekey.aws_region,
-        &jwekey.aws_key_id,
-        jwekey.vault_encryption_key.to_string(),
-    )
-    .await
-    .change_context(errors::VaultError::SaveCardFailed)
-    .attach_printable("Fails to get encryption key of vault")?;
+    let public_key = kms::get_kms_client(kms_config)
+        .await
+        .decrypt(&jwekey.vault_encryption_key)
+        .await
+        .change_context(errors::VaultError::SaveCardFailed)
+        .attach_printable("Fails to get encryption key of vault")?;
+
     #[cfg(not(feature = "kms"))]
     let public_key = jwekey.vault_encryption_key.to_owned();
 
-    let jwe_encrypted = encryption::encrypt_jwe(jwekey, &payload, public_key)
+    let jwe_encrypted = encryption::encrypt_jwe(&payload, public_key)
         .await
         .change_context(errors::VaultError::SaveCardFailed)
         .attach_printable("Error on jwe encrypt")?;
@@ -254,13 +254,12 @@ pub async fn mk_basilisk_req(
 }
 
 pub async fn mk_add_card_request_hs(
-    jwekey: &Jwekey,
-    locker: &Locker,
+    jwekey: &settings::Jwekey,
+    locker: &settings::Locker,
     card: &api::CardDetail,
     customer_id: &str,
-    _req: &api::PaymentMethodCreate,
-    _locker_id: &str,
     merchant_id: &str,
+    #[cfg(feature = "kms")] kms_config: &settings::Kms,
 ) -> CustomResult<services::Request, errors::VaultError> {
     let merchant_customer_id = if cfg!(feature = "sandbox") {
         format!("{customer_id}::{merchant_id}")
@@ -283,15 +282,15 @@ pub async fn mk_add_card_request_hs(
     };
     let payload = utils::Encode::<StoreCardReq<'_>>::encode_to_vec(&store_card_req)
         .change_context(errors::VaultError::RequestEncodingFailed)?;
+
     #[cfg(feature = "kms")]
-    let private_key = kms::KeyHandler::get_kms_decrypted_key(
-        &jwekey.aws_region,
-        &jwekey.aws_key_id,
-        jwekey.vault_private_key.to_string(),
-    )
-    .await
-    .change_context(errors::VaultError::SaveCardFailed)
-    .attach_printable("Error getting private key for signing jws")?;
+    let private_key = kms::get_kms_client(kms_config)
+        .await
+        .decrypt(&jwekey.vault_private_key)
+        .await
+        .change_context(errors::VaultError::SaveCardFailed)
+        .attach_printable("Error getting private key for signing jws")?;
+
     #[cfg(not(feature = "kms"))]
     let private_key = jwekey.vault_private_key.to_owned();
 
@@ -299,7 +298,13 @@ pub async fn mk_add_card_request_hs(
         .await
         .change_context(errors::VaultError::RequestEncodingFailed)?;
 
-    let jwe_payload = mk_basilisk_req(jwekey, &jws).await?;
+    let jwe_payload = mk_basilisk_req(
+        jwekey,
+        &jws,
+        #[cfg(feature = "kms")]
+        kms_config,
+    )
+    .await?;
 
     let body = utils::Encode::<encryption::JweBody>::encode_to_value(&jwe_payload)
         .change_context(errors::VaultError::RequestEncodingFailed)?;
@@ -380,7 +385,7 @@ pub fn mk_add_card_response(
 }
 
 pub fn mk_add_card_request(
-    locker: &Locker,
+    locker: &settings::Locker,
     card: &api::CardDetail,
     customer_id: &str,
     _req: &api::PaymentMethodCreate,
@@ -413,11 +418,12 @@ pub fn mk_add_card_request(
 }
 
 pub async fn mk_get_card_request_hs(
-    jwekey: &Jwekey,
-    locker: &Locker,
+    jwekey: &settings::Jwekey,
+    locker: &settings::Locker,
     customer_id: &str,
     merchant_id: &str,
     card_reference: &str,
+    #[cfg(feature = "kms")] kms_config: &settings::Kms,
 ) -> CustomResult<services::Request, errors::VaultError> {
     let merchant_customer_id = if cfg!(feature = "sandbox") {
         format!("{customer_id}::{merchant_id}")
@@ -431,15 +437,15 @@ pub async fn mk_get_card_request_hs(
     };
     let payload = utils::Encode::<CardReqBody<'_>>::encode_to_vec(&card_req_body)
         .change_context(errors::VaultError::RequestEncodingFailed)?;
+
     #[cfg(feature = "kms")]
-    let private_key = kms::KeyHandler::get_kms_decrypted_key(
-        &jwekey.aws_region,
-        &jwekey.aws_key_id,
-        jwekey.vault_private_key.to_string(),
-    )
-    .await
-    .change_context(errors::VaultError::SaveCardFailed)
-    .attach_printable("Error getting private key for signing jws")?;
+    let private_key = kms::get_kms_client(kms_config)
+        .await
+        .decrypt(&jwekey.vault_private_key)
+        .await
+        .change_context(errors::VaultError::SaveCardFailed)
+        .attach_printable("Error getting private key for signing jws")?;
+
     #[cfg(not(feature = "kms"))]
     let private_key = jwekey.vault_private_key.to_owned();
 
@@ -447,7 +453,13 @@ pub async fn mk_get_card_request_hs(
         .await
         .change_context(errors::VaultError::RequestEncodingFailed)?;
 
-    let jwe_payload = mk_basilisk_req(jwekey, &jws).await?;
+    let jwe_payload = mk_basilisk_req(
+        jwekey,
+        &jws,
+        #[cfg(feature = "kms")]
+        kms_config,
+    )
+    .await?;
 
     let body = utils::Encode::<encryption::JweBody>::encode_to_value(&jwe_payload)
         .change_context(errors::VaultError::RequestEncodingFailed)?;
@@ -460,7 +472,7 @@ pub async fn mk_get_card_request_hs(
 }
 
 pub fn mk_get_card_request<'a>(
-    locker: &Locker,
+    locker: &settings::Locker,
     locker_id: &'a str,
     card_id: &'a str,
 ) -> CustomResult<services::Request, errors::VaultError> {
@@ -498,11 +510,12 @@ pub fn mk_get_card_response(card: GetCardResponse) -> errors::RouterResult<Card>
 }
 
 pub async fn mk_delete_card_request_hs(
-    jwekey: &Jwekey,
-    locker: &Locker,
+    jwekey: &settings::Jwekey,
+    locker: &settings::Locker,
     customer_id: &str,
     merchant_id: &str,
     card_reference: &str,
+    #[cfg(feature = "kms")] kms_config: &settings::Kms,
 ) -> CustomResult<services::Request, errors::VaultError> {
     let merchant_customer_id = if cfg!(feature = "sandbox") {
         format!("{customer_id}::{merchant_id}")
@@ -516,15 +529,14 @@ pub async fn mk_delete_card_request_hs(
     };
     let payload = utils::Encode::<CardReqBody<'_>>::encode_to_vec(&card_req_body)
         .change_context(errors::VaultError::RequestEncodingFailed)?;
+
     #[cfg(feature = "kms")]
-    let private_key = kms::KeyHandler::get_kms_decrypted_key(
-        &jwekey.aws_region,
-        &jwekey.aws_key_id,
-        jwekey.vault_private_key.to_string(),
-    )
-    .await
-    .change_context(errors::VaultError::SaveCardFailed)
-    .attach_printable("Error getting private key for signing jws")?;
+    let private_key = kms::get_kms_client(kms_config)
+        .await
+        .decrypt(&jwekey.vault_private_key)
+        .await
+        .change_context(errors::VaultError::SaveCardFailed)
+        .attach_printable("Error getting private key for signing jws")?;
 
     #[cfg(not(feature = "kms"))]
     let private_key = jwekey.vault_private_key.to_owned();
@@ -533,7 +545,13 @@ pub async fn mk_delete_card_request_hs(
         .await
         .change_context(errors::VaultError::RequestEncodingFailed)?;
 
-    let jwe_payload = mk_basilisk_req(jwekey, &jws).await?;
+    let jwe_payload = mk_basilisk_req(
+        jwekey,
+        &jws,
+        #[cfg(feature = "kms")]
+        kms_config,
+    )
+    .await?;
 
     let body = utils::Encode::<encryption::JweBody>::encode_to_value(&jwe_payload)
         .change_context(errors::VaultError::RequestEncodingFailed)?;
@@ -546,7 +564,7 @@ pub async fn mk_delete_card_request_hs(
 }
 
 pub fn mk_delete_card_request<'a>(
-    locker: &Locker,
+    locker: &settings::Locker,
     merchant_id: &'a str,
     card_id: &'a str,
 ) -> CustomResult<services::Request, errors::VaultError> {
@@ -598,7 +616,7 @@ pub fn get_card_detail(
 
 //------------------------------------------------TokenizeService------------------------------------------------
 pub fn mk_crud_locker_request(
-    locker: &Locker,
+    locker: &settings::Locker,
     path: &str,
     req: api::TokenizePayloadEncrypted,
 ) -> CustomResult<services::Request, errors::VaultError> {
