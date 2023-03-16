@@ -252,6 +252,7 @@ pub struct Connectors {
     pub fiserv: ConnectorParams,
     pub globalpay: ConnectorParams,
     pub klarna: ConnectorParams,
+    pub mollie: ConnectorParams,
     pub multisafepay: ConnectorParams,
     pub nuvei: ConnectorParams,
     pub payu: ConnectorParams,
