@@ -168,7 +168,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Co
         let additional_data_from_connector = request
             .metadata
             .clone()
-            .and_then(|secret_metadata| secret_metadata.request_extra);
+            .and_then(|secret_metadata| secret_metadata.payload);
         connector_response.encoded_data =
             additional_data_from_connector.map(|data| data.to_string());
 
