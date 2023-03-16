@@ -284,6 +284,41 @@ pub struct AirwallexPaymentsResponse {
     next_action: Option<AirwallexPaymentsNextAction>,
 }
 
+fn get_redirection_form(
+    response_url_data: AirwallexPaymentsNextAction,
+) -> Option<services::RedirectForm> {
+    Some(services::RedirectForm {
+        endpoint: response_url_data.url.to_string(),
+        method: response_url_data.method,
+        form_fields: std::collections::HashMap::from([
+            //Some form fields might be empty based on the authentication type by the connector
+            (
+                "JWT".to_string(),
+                response_url_data.data.jwt.unwrap_or_default(),
+            ),
+            (
+                "threeDSMethodData".to_string(),
+                response_url_data
+                    .data
+                    .three_ds_method_data
+                    .unwrap_or_default(),
+            ),
+            (
+                "token".to_string(),
+                response_url_data.data.token.unwrap_or_default(),
+            ),
+            (
+                "provider".to_string(),
+                response_url_data.data.provider.unwrap_or_default(),
+            ),
+            (
+                "version".to_string(),
+                response_url_data.data.version.unwrap_or_default(),
+            ),
+        ]),
+    })
+}
+
 impl<F, T>
     TryFrom<types::ResponseRouterData<F, AirwallexPaymentsResponse, T, types::PaymentsResponseData>>
     for types::RouterData<F, T, types::PaymentsResponseData>
@@ -297,63 +332,48 @@ impl<F, T>
             types::PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
-        let redirection_data = item
-            .response
-            .next_action
-            .clone()
-            .map(|response_url_data| -> Result<_, errors::ConnectorError> {
-                common_utils::fp_utils::when(
-                    matches!(
-                        (response_url_data.stage, item.data.status),
-                        (
-                            AirwallexNextActionStage::WaitingDeviceDataCollection,
-                            enums::AttemptStatus::DeviceDataCollectionPending
-                        ) | (
-                            AirwallexNextActionStage::WaitingUserInfoInput,
-                            enums::AttemptStatus::AuthenticationPending
-                        )
+        let (status, redirection_data) = item.response.next_action.clone().map_or(
+            // If no next action is there, map the status and set redirection form as None
+            (get_payment_status(&item.response), None),
+            |response_url_data| {
+                // If the connector sends a customer action response that is already under
+                // process from our end it can cause an infinite loop to break this this check
+                // is added and fail the payment
+                if matches!(
+                    (
+                        response_url_data.stage.clone(),
+                        item.data.status,
+                        item.response.status.clone(),
                     ),
-                    || {
-                        Err(errors::ConnectorError::InvalidConnectorResponse {
-                            field_name: "3DS step already completed, failing the payment",
-                        })
-                    },
-                )?;
-
-                Ok(services::RedirectForm {
-                    endpoint: response_url_data.url.to_string(),
-                    method: response_url_data.method,
-                    form_fields: std::collections::HashMap::from([
-                        //Some form fields might be empty based on the authentication type by the connector
-                        (
-                            "JWT".to_string(),
-                            response_url_data.data.jwt.unwrap_or_default(),
-                        ),
-                        (
-                            "threeDSMethodData".to_string(),
-                            response_url_data
-                                .data
-                                .three_ds_method_data
-                                .unwrap_or_default(),
-                        ),
-                        (
-                            "token".to_string(),
-                            response_url_data.data.token.unwrap_or_default(),
-                        ),
-                        (
-                            "provider".to_string(),
-                            response_url_data.data.provider.unwrap_or_default(),
-                        ),
-                        (
-                            "version".to_string(),
-                            response_url_data.data.version.unwrap_or_default(),
-                        ),
-                    ]),
-                })
-            })
-            .transpose()?;
+                    // If the connector sends waiting for DDC and our status is already DDC Pending
+                    // that means we initiated the call to collect the data and now we expect a different response
+                    (
+                        AirwallexNextActionStage::WaitingDeviceDataCollection,
+                        enums::AttemptStatus::DeviceDataCollectionPending,
+                        _
+                    )
+                    // If the connector sends waiting for Customer Action and our status is already Authenticaition Pending
+                    // that means we initiated the call to authenticate and now we do not expect a requires_customer action
+                    // it will start a loop
+                    | (
+                        _,
+                        enums::AttemptStatus::AuthenticationPending,
+                        AirwallexPaymentStatus::RequiresCustomerAction,
+                    )
+                ) {
+                    // Fail the payment for above conditions
+                    (enums::AttemptStatus::AuthenticationFailed, None)
+                } else {
+                    (
+                        //Build the redirect form and update the payment status
+                        get_payment_status(&item.response),
+                        get_redirection_form(response_url_data),
+                    )
+                }
+            },
+        );
         Ok(Self {
-            status: get_payment_status(&item.response),
+            status,
             reference_id: Some(item.response.id.clone()),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
