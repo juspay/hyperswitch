@@ -169,7 +169,6 @@ pub async fn merchant_account_update(
         redirect_to_merchant_with_http_post: req.redirect_to_merchant_with_http_post,
         locker_id: req.locker_id,
         metadata: req.metadata,
-        api_key: None,
         publishable_key: None,
     };
 

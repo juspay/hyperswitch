@@ -79,10 +79,6 @@ pub struct MerchantAccountUpdate {
     #[schema(example = "NewAge Retailer")]
     pub merchant_name: Option<String>,
 
-    /// API key that will be used for server side API access
-    #[schema(value_type = Option<String>, example = "Ah2354543543523")]
-    pub api_key: Option<StrongSecret<String>>,
-
     /// Merchant related details
     pub merchant_details: Option<MerchantDetails>,
 

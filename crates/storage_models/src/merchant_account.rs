@@ -60,7 +60,6 @@ pub struct MerchantAccountNew {
 pub enum MerchantAccountUpdate {
     Update {
         merchant_name: Option<String>,
-        api_key: Option<StrongSecret<String>>,
         merchant_details: Option<serde_json::Value>,
         return_url: Option<String>,
         webhook_details: Option<serde_json::Value>,
@@ -83,7 +82,6 @@ pub enum MerchantAccountUpdate {
 #[diesel(table_name = merchant_account)]
 pub struct MerchantAccountUpdateInternal {
     merchant_name: Option<String>,
-    api_key: Option<StrongSecret<String>>,
     merchant_details: Option<serde_json::Value>,
     return_url: Option<String>,
     webhook_details: Option<serde_json::Value>,
@@ -104,7 +102,6 @@ impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
         match merchant_account_update {
             MerchantAccountUpdate::Update {
                 merchant_name,
-                api_key,
                 merchant_details,
                 return_url,
                 webhook_details,
@@ -119,7 +116,6 @@ impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
                 metadata,
             } => Self {
                 merchant_name,
-                api_key,
                 merchant_details,
                 return_url,
                 webhook_details,
