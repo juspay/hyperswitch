@@ -224,6 +224,7 @@ where
                 Some(request) => {
                     logger::debug!(connector_request=?request);
                     let response = call_connector_api(state, request).await;
+                    println!("rrrrrr {:?}", response);
                     logger::debug!(connector_response=?response);
                     match response {
                         Ok(body) => {
