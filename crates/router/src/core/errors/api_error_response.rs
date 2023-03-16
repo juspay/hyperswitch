@@ -83,7 +83,8 @@ pub enum ApiErrorResponse {
     GenericUnauthorized { message: String },
     #[error(error_type = ErrorType::InvalidRequestError, code = "IR_19", message = "{message}")]
     NotSupported { message: String },
-
+    #[error(error_type = ErrorType::InvalidRequestError, code = "IR_20", message = "{flow} flow not supported by the {connector} connector")]
+    FlowNotSupported { flow: String, connector: String },
     #[error(error_type = ErrorType::ConnectorError, code = "CE_00", message = "{code}: {message}", ignore = "status_code")]
     ExternalConnectorError {
         code: String,
@@ -244,6 +245,7 @@ impl actix_web::ResponseError for ApiErrorResponse {
             | Self::ConfigNotFound
             | Self::AddressNotFound
             | Self::NotSupported { .. }
+            | Self::FlowNotSupported { .. }
             | Self::ApiKeyNotFound => StatusCode::BAD_REQUEST, // 400
             Self::DuplicateMerchantAccount
             | Self::DuplicateMerchantConnectorAccount
@@ -434,7 +436,10 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
                 AER::BadRequest(ApiError::new("HE", 3, "Payment method type not supported", Some(Extra {reason: Some(message.to_owned()), ..Default::default()})))
             },
             Self::InvalidCardIin => AER::BadRequest(ApiError::new("HE", 3, "The provided card IIN does not exist", None)),
-            Self::InvalidCardIinLength  => AER::BadRequest(ApiError::new("HE", 3, "The provoded card iin length is invalid, please provide an iin with 6 digits", None))
+            Self::InvalidCardIinLength  => AER::BadRequest(ApiError::new("HE", 3, "The provoded card iin length is invalid, please provide an iin with 6 digits", None)),
+            Self::FlowNotSupported { flow, connector } => {
+                AER::BadRequest(ApiError::new("IR", 20, format!("{flow} flow not supported"), Some(Extra {connector: Some(connector.to_owned()), ..Default::default()})))
+            }
         }
     }
 }
