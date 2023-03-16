@@ -1,5 +1,6 @@
 pub mod validator;
 
+use common_utils::ext_traits::AsyncExt;
 use error_stack::{report, IntoReport, ResultExt};
 use router_env::{instrument, tracing};
 
@@ -221,6 +222,21 @@ pub async fn refund_retrieve_core(
 
     merchant_id = &merchant_account.merchant_id;
 
+    request
+        .merchant_connector_details
+        .to_owned()
+        .async_map(|mcd| async {
+            payments::helpers::insert_merchant_connector_creds_to_config(
+                db,
+                merchant_id.as_str(),
+                refund_id.as_str(),
+                mcd,
+            )
+            .await
+        })
+        .await
+        .transpose()?;
+
     refund = db
         .find_refund_by_merchant_id_refund_id(
             merchant_id,
@@ -410,6 +426,20 @@ pub async fn validate_and_create_refund(
     // If Refund Id not passed in request Generate one.
 
     refund_id = core_utils::get_or_generate_id("refund_id", &req.refund_id, "ref")?;
+
+    req.merchant_connector_details
+        .to_owned()
+        .async_map(|mcd| async {
+            payments::helpers::insert_merchant_connector_creds_to_config(
+                db,
+                merchant_account.merchant_id.as_str(),
+                refund_id.as_str(),
+                mcd,
+            )
+            .await
+        })
+        .await
+        .transpose()?;
 
     let predicate = req
         .merchant_id
@@ -678,7 +708,10 @@ pub async fn sync_refund_with_gateway_workflow(
     let response = refund_retrieve_core(
         state,
         merchant_account,
-        refund_core.refund_internal_reference_id,
+        refunds::RefundsRetrieveRequest {
+            refund_id: refund_core.refund_internal_reference_id,
+            merchant_connector_details: None,
+        },
     )
     .await?;
     let terminal_status = vec![

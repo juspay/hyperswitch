@@ -1257,7 +1257,7 @@ pub async fn insert_merchant_connector_creds_to_config(
     merchant_connector_details: String,
 ) -> RouterResult<()> {
     db.insert_config(storage::ConfigNew {
-        key: format!("{}_{}", merchant_id, payment_id),
+        key: format!("mcd_{}_{}", merchant_id, payment_id),
         config: merchant_connector_details.to_owned(),
     })
     .await
@@ -1300,7 +1300,7 @@ pub async fn get_merchant_connector_account(
         Err(err) => {
             if err.current_context().is_db_not_found() {
                 let mca_config = db
-                    .find_config_by_key(format!("{merchant_id}_{payment_id}").as_str())
+                    .find_config_by_key(format!("mcd_{merchant_id}_{payment_id}").as_str())
                     .await
                     .map_err(|error| {
                         error.to_not_found_response(

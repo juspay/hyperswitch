@@ -137,15 +137,22 @@ async fn refunds_incoming_webhook_flow<W: api::OutgoingWebhookType>(
                 )
             })?
     } else {
-        refunds::refund_retrieve_core(&state, merchant_account.clone(), refund_id.to_owned())
-            .await
-            .change_context(errors::WebhooksFlowError::RefundsCoreFailed)
-            .attach_printable_lazy(|| {
-                format!(
-                    "Failed while updating refund: refund_id: {}",
-                    refund_id.to_owned()
-                )
-            })?
+        refunds::refund_retrieve_core(
+            &state,
+            merchant_account.clone(),
+            api_models::refunds::RefundsRetrieveRequest {
+                refund_id: refund_id.to_owned(),
+                merchant_connector_details: None,
+            },
+        )
+        .await
+        .change_context(errors::WebhooksFlowError::RefundsCoreFailed)
+        .attach_printable_lazy(|| {
+            format!(
+                "Failed while updating refund: refund_id: {}",
+                refund_id.to_owned()
+            )
+        })?
     };
     let event_type: enums::EventType = updated_refund
         .refund_status

@@ -42,29 +42,6 @@ where
         payment_data.payment_intent.payment_id.as_str(),
     )
     .await?;
-    // payment_data.merchant_connector_account_cached {
-    //     storage_models::merchant_connector_account::MerchantConnectorAccount {
-    //         id: 1,
-    //         merchant_id: merchant_account.merchant_id.to_string(),
-    //         connector_name: connector_id.to_string(),
-    //         connector_account_details: mcd.connector_account_details.peek().clone(),
-    //         test_mode: None,
-    //         disabled: None,
-    //         merchant_connector_id: "abc".to_string(),
-    //         payment_methods_enabled: None,
-    //         connector_type: storage_models::enums::ConnectorType::FizOperations,
-    //         metadata: mcd.metadata.clone(),
-    //     }
-    // } else {
-    // db.find_merchant_connector_account_by_merchant_id_connector(
-    //     &merchant_account.merchant_id,
-    //     connector_id,
-    // )
-    // .await
-    // .map_err(|error| {
-    //     error.to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound)
-    // })?
-    // };
 
     let auth_type: types::ConnectorAuthType = merchant_connector_account
         .get_connector_account_details()

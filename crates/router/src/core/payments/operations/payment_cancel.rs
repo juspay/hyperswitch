@@ -99,7 +99,20 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsCancelRequest> 
 
         payment_attempt.cancellation_reason = request.cancellation_reason.clone();
 
-        
+        request
+            .merchant_connector_details
+            .to_owned()
+            .async_map(|mcd| async {
+                helpers::insert_merchant_connector_creds_to_config(
+                    db,
+                    merchant_account.merchant_id.as_str(),
+                    payment_intent.payment_id.as_str(),
+                    mcd,
+                )
+                .await
+            })
+            .await
+            .transpose()?;
 
         match payment_intent.status {
             status if status != enums::IntentStatus::RequiresCapture => {
