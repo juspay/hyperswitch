@@ -133,7 +133,7 @@ where
         payment_data.payment_method_data = payment_method_data;
 
         if connector.is_some() {
-            let tokenization_pm_check =
+            let tokenization_pm_and_token_store_check =
                 tokenization_call_check(state, connector_name.to_owned(), &payment_data)?;
 
             let connector_data = api::ConnectorData::get_connector_by_name(
@@ -144,7 +144,8 @@ where
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to get connector data")?;
 
-            if tokenization_pm_check {
+            if tokenization_pm_and_token_store_check.0 {
+                payment_data.store_connector_token = Some(tokenization_pm_and_token_store_check.1);
                 let mut token_payment_data = pdc::<_, api::Token>(payment_data.clone());
                 token_payment_data = call_connector_service::<api::Token, _, _>(
                     state,
@@ -249,18 +250,20 @@ pub fn tokenization_call_check<F: Clone>(
     state: &AppState,
     connector_name: String,
     payment_data: &PaymentData<F>,
-) -> RouterResult<bool> {
+) -> RouterResult<(bool, bool)> {
     let tokenization_connector_check = state.conf.tokenization.0.get(&connector_name);
 
     let tokenization_pm_check = if let Some(connector_check) = tokenization_connector_check {
-        connector_check.payment_method.contains(
+        let pm_check = connector_check.payment_method.contains(
             &payment_data
                 .payment_attempt
                 .payment_method
                 .get_required_value("payment_method")?,
-        )
+        );
+        let token_store_check = connector_check.long_lived_token;
+        (pm_check, token_store_check)
     } else {
-        false
+        (false, false)
     };
 
     Ok(tokenization_pm_check)
