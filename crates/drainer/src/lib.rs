@@ -12,7 +12,7 @@ pub use env as logger;
 use error_stack::{IntoReport, ResultExt};
 use storage_models::kv;
 
-use crate::{connection::pg_connection, services::Store};
+use crate::{connection::pg_connection_read, services::Store};
 
 pub async fn start_drainer(
     store: Arc<Store>,
@@ -141,7 +141,7 @@ async fn drainer(
             Err(_err) => continue, // TODO: handle error
         };
 
-        let conn = pg_connection(&store.master_pool).await;
+        let conn = pg_connection_read(&store.master_pool).await;
         let insert_op = "insert";
         let update_op = "update";
         let payment_intent = "payment_intent";

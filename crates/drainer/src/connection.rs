@@ -29,7 +29,7 @@ pub async fn diesel_make_pg_pool(database: &Database, _test_transaction: bool) -
 }
 
 #[allow(clippy::expect_used)]
-pub async fn pg_connection(
+pub async fn pg_connection_read(
     pool: &PgPool,
 ) -> PooledConnection<'_, async_bb8_diesel::ConnectionManager<PgConnection>> {
     pool.get()

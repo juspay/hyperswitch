@@ -56,7 +56,7 @@ pub async fn diesel_make_pg_pool(database: &Database, test_transaction: bool) ->
         .expect("Failed to create PostgreSQL connection pool")
 }
 
-pub async fn pg_connection(
+pub async fn pg_connection_read(
     store: &crate::services::Store,
 ) -> errors::CustomResult<
     PooledConnection<'_, async_bb8_diesel::ConnectionManager<PgConnection>>,
@@ -75,6 +75,21 @@ pub async fn pg_connection(
         all(feature = "olap", feature = "oltp"),
         all(not(feature = "olap"), not(feature = "oltp"))
     ))]
+    let pool = &store.master_pool;
+
+    pool.get()
+        .await
+        .into_report()
+        .change_context(errors::StorageError::DatabaseConnectionError)
+}
+
+pub async fn pg_connection_write(
+    store: &crate::services::Store,
+) -> errors::CustomResult<
+    PooledConnection<'_, async_bb8_diesel::ConnectionManager<PgConnection>>,
+    errors::StorageError,
+> {
+    // Since all writes should happen to master DB only choose master DB.
     let pool = &store.master_pool;
 
     pool.get()
