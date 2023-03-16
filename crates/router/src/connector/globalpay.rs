@@ -20,7 +20,7 @@ use crate::{
     services::{self, ConnectorIntegration},
     types::{
         self,
-        api::{self, ConnectorCommon, ConnectorCommonExt},
+        api::{self, ConnectorCommon, ConnectorCommonExt, PaymentsCompleteAuthorize},
         ErrorResponse,
     },
     utils::{self, BytesExt, OptionExt},
@@ -93,6 +93,92 @@ impl ConnectorCommon for Globalpay {
             reason: None,
         })
     }
+}
+
+impl PaymentsCompleteAuthorize for Globalpay {}
+
+
+impl
+    ConnectorIntegration<
+        api::CompleteAuthorize,
+        types::CompleteAuthorizeData,
+        types::PaymentsResponseData,
+    >  for Globalpay
+{
+    fn get_headers(
+        &self,
+        req: &types::PaymentsCompleteAuthorizeRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(
+        &self,
+        req: &types::PaymentsCompleteAuthorizeRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(format!(
+            "{}transactions/{}/confirmation",
+            self.base_url(connectors),
+            req.request.connector_transaction_id
+            .clone()
+            .ok_or(errors::ConnectorError::MissingConnectorTransactionID)?
+        ))
+    }
+
+    fn get_request_body(
+        &self,
+        _req: &types::PaymentsCompleteAuthorizeRouterData,
+    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+        Ok(Some(format!("{}","{}".to_string())))
+    }
+
+    fn build_request(
+        &self,
+        req: &types::PaymentsCompleteAuthorizeRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        Ok(Some(
+            services::RequestBuilder::new()
+                .method(services::Method::Post)
+                .url(&types::PaymentsComeplteAuthorizeType::get_url(self, req, connectors)?)
+                .headers(types::PaymentsComeplteAuthorizeType::get_headers(self, req, connectors)?)
+                .body(types::PaymentsComeplteAuthorizeType::get_request_body(self, req)?)
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        data: &types::PaymentsCompleteAuthorizeRouterData,
+        res: types::Response,
+    ) -> CustomResult<types::PaymentsCompleteAuthorizeRouterData, errors::ConnectorError> {
+        let response: GlobalpayPaymentsResponse = res
+            .response
+            .parse_struct("Globalpay PaymentsResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        types::ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        }
+        .try_into()
+        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+    }
+
+    fn get_error_response(
+        &self,
+        res: types::Response,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res)
+    }
+
 }
 
 impl api::ConnectorAccessToken for Globalpay {}

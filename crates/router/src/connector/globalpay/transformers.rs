@@ -116,7 +116,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for GlobalpayPaymentsRequest {
                         storage_mode: None,
                     },
                     notifications: Some(requests::Notifications {
-                        return_url: item.router_return_url.clone(),
+                        return_url: item.complete_authorize_url.clone(),
                         challenge_return_url: None,
                         decoupled_challenge_return_url: None,
                         status_url: None,
