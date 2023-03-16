@@ -511,7 +511,6 @@ impl
             &req_obj,
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        println!("reqqqqqq {:?}", req);
         Ok(Some(req))
     }
     fn build_request(
