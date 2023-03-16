@@ -22,7 +22,7 @@ use self::{
 };
 use crate::{
     core::{
-        errors::{self, RouterResponse, RouterResult},
+        errors::{self, CustomResult, RouterResponse, RouterResult},
         payment_methods::vault,
     },
     db::StorageInterface,
@@ -122,7 +122,9 @@ where
             }
         })
     } else if let api::ConnectorChoice::StraightThrough(val) = connector_choice {
-        update_straight_through_routing(&mut payment_data, val)?;
+        update_straight_through_routing(&mut payment_data, val)
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to update straight through routing algorithm")?;
         None
     } else {
         None
@@ -746,7 +748,7 @@ pub async fn add_process_sync_task(
 pub fn update_straight_through_routing<F>(
     payment_data: &mut PaymentData<F>,
     request_straight_through: serde_json::Value,
-) -> RouterResult<()>
+) -> CustomResult<(), errors::ParsingError>
 where
     F: Send + Clone,
 {
@@ -756,18 +758,15 @@ where
         .clone()
         .unwrap_or_else(|| serde_json::json!({}))
         .parse_value("RoutingData")
-        .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Invalid routing data format in payment attempt")?;
 
     let request_straight_through: api::RoutingAlgorithm = request_straight_through
         .parse_value("RoutingAlgorithm")
-        .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Invalid straight through routing rules format")?;
 
     routing_data.algorithm = Some(request_straight_through);
 
     let encoded_routing_data = Encode::<storage::RoutingData>::encode_to_value(&routing_data)
-        .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Unable to serialize routing data to serde value")?;
 
     payment_data.payment_attempt.connector = Some(encoded_routing_data);
