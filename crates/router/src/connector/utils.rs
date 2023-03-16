@@ -502,4 +502,3 @@ where
     })?;
     serializer.serialize_f64(float_value)
 }
-
