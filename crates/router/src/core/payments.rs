@@ -350,9 +350,9 @@ impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
                         "did not receive redirect to url when status is requires customer action",
                     )?;
                 Ok(api::RedirectionResponse {
-                    return_url: startpay_url,
+                    return_url: String::new(),
                     params: vec![],
-                    return_url_with_query_params: String::new(),
+                    return_url_with_query_params: startpay_url,
                     http_method: "GET".to_string(),
                     headers: vec![],
                 })
@@ -360,7 +360,7 @@ impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
             // If the status is terminal status, then redirect to merchant return url to provide status
             api_models::enums::IntentStatus::Succeeded
             | api_models::enums::IntentStatus::Failed
-            | api_models::enums::IntentStatus::Cancelled => helpers::get_handle_response_url(
+            | api_models::enums::IntentStatus::Cancelled | api_models::enums::IntentStatus::RequiresCapture=> helpers::get_handle_response_url(
                 payment_id,
                 &merchant_account,
                 payments_response,
