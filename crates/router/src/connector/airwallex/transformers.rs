@@ -159,6 +159,12 @@ pub enum AirwallexThreeDsType {
     #[serde(rename = "3ds_continue")]
     ThreeDSContinue,
 }
+#[derive(Default, Debug, Serialize, Eq, PartialEq)]
+pub struct AirwallexACSData {
+    cres: Option<String>,
+    #[serde(rename = "threeDSMethodData")]
+    three_ds_method_data: Option<String>,
+}
 
 impl TryFrom<&types::PaymentsCompleteAuthorizeRouterData> for AirwallexCompleteRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
