@@ -135,7 +135,7 @@ impl
         &self,
         _req: &types::PaymentsCompleteAuthorizeRouterData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        Ok(Some(format!("{}","{}".to_string())))
+        Ok(Some("{}".to_string()))
     }
 
     fn build_request(
