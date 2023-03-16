@@ -111,10 +111,6 @@ outgoing_enabled = true
 validity = 1
 
 [api_keys]
-# Key ID for the KMS managed key used to decrypt the API key hashing key
-aws_key_id = ""
-# The AWS region for the KMS managed key used to decrypt the API key hashing key
-aws_region = ""
 # Base64-encoded (KMS encrypted) ciphertext of the API key hashing key
 kms_encrypted_hash_key = ""
 # Hex-encoded 32-byte long (64 characters long when hex-encoded) key used for calculating hashes of API keys
@@ -190,10 +186,15 @@ max_read_count = 100           # Specifies the maximum number of entries that wo
 shutdown_interval = 1000       # Specifies how much time to wait, while waiting for threads to complete execution (in milliseconds)
 loop_interval = 500            # Specifies how much time to wait after checking all the possible streams in completed (in milliseconds)
 
-# Filteration logic for list payment method, allowing use to limit payment methods based on the requirement country and currency
+# Filtration logic for list payment method, allowing use to limit payment methods based on the requirement country and currency
 [pm_filters.stripe]
 #           ^--- This can be any connector (can be multiple)
 paypal = { currency = "USD,INR", country = "US" }
 # ^                       ^------- comma-separated values
 # ^------------------------------- any valid payment method type (can be multiple) (for cards this should be card_network)
 # If either currency or country isn't provided then, all possible values are accepted
+
+# KMS configuration. Only applicable when the `kms` feature flag is enabled.
+[kms]
+key_id = "" # The AWS key ID used by the KMS SDK for decrypting data.
+region = "" # The AWS region used by the KMS SDK for decrypting data.

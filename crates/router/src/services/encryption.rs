@@ -7,7 +7,6 @@ use ring::{aead::*, error::Unspecified};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    configs::settings::Jwekey,
     core::errors::{self, CustomResult},
     utils,
 };
@@ -119,7 +118,6 @@ pub fn decrypt(mut data: Vec<u8>, key: &[u8]) -> CustomResult<String, errors::En
 }
 
 pub async fn encrypt_jwe(
-    _keys: &Jwekey,
     payload: &[u8],
     public_key: String,
 ) -> CustomResult<String, errors::EncryptionError> {
@@ -133,15 +131,14 @@ pub async fn encrypt_jwe(
         .into_report()
         .change_context(errors::EncryptionError)
         .attach_printable("Error getting JweEncryptor")?;
-    let jwt = jwe::serialize_compact(payload, &src_header, &encrypter)
+
+    jwe::serialize_compact(payload, &src_header, &encrypter)
         .into_report()
         .change_context(errors::EncryptionError)
-        .attach_printable("Error getting jwt string")?;
-    Ok(jwt)
+        .attach_printable("Error getting jwt string")
 }
 
 pub async fn decrypt_jwe(
-    _keys: &Jwekey,
     jwt: &str,
     key_id: &str,
     resp_key_id: &str,
@@ -162,11 +159,11 @@ pub async fn decrypt_jwe(
         Err(report!(errors::EncryptionError).attach_printable("Missing ciphertext blob"))
             .attach_printable("key_id mismatch, Error authenticating response")
     })?;
-    let resp = String::from_utf8(dst_payload)
+
+    String::from_utf8(dst_payload)
         .into_report()
         .change_context(errors::EncryptionError)
-        .attach_printable("Could not convert to UTF-8")?;
-    Ok(resp)
+        .attach_printable("Could not decode JWE payload from UTF-8")
 }
 
 pub async fn jws_sign_payload(
@@ -240,7 +237,6 @@ mod tests {
     async fn test_jwe() {
         let conf = settings::Settings::new().unwrap();
         let jwt = encrypt_jwe(
-            &conf.jwekey,
             "request_payload".as_bytes(),
             conf.jwekey.locker_encryption_key1.to_owned(),
         )
@@ -248,7 +244,6 @@ mod tests {
         .unwrap();
         let alg = jwe::RSA_OAEP_256;
         let payload = decrypt_jwe(
-            &conf.jwekey,
             &jwt,
             &conf.jwekey.locker_key_identifier1,
             &conf.jwekey.locker_key_identifier1,

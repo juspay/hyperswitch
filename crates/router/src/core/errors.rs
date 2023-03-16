@@ -314,6 +314,18 @@ pub enum VaultError {
 }
 
 #[derive(Debug, thiserror::Error)]
+pub enum KmsError {
+    #[error("Failed to base64 decode input data")]
+    Base64DecodingFailed,
+    #[error("Failed to KMS decrypt input data")]
+    DecryptionFailed,
+    #[error("Missing plaintext KMS decryption output")]
+    MissingPlaintextDecryptionOutput,
+    #[error("Failed to UTF-8 decode decryption output")]
+    Utf8DecodingFailed,
+}
+
+#[derive(Debug, thiserror::Error)]
 pub enum ProcessTrackerError {
     #[error("An unexpected flow was specified")]
     UnexpectedFlow,
