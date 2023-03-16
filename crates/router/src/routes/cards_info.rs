@@ -15,26 +15,25 @@ use crate::{
     path = "/cards/{bin}",
     params(("bin" = String, Path, description = "The first 6 or 9 digits of card")),
     responses(
-        (status = 200, description = "Card bin data found", body = CardInfoResponse),
-        (status = 404, description = "Card bin data not found")
+        (status = 200, description = "Card iin data found", body = CardInfoResponse),
+        (status = 404, description = "Card iin data not found")
     ),
     operation_id = "Retrieve card information",
-    security(("api_key" = []), ("publishable_key" = []))
 )]
 #[instrument(skip_all, fields(flow = ?Flow::CardsInfo))]
-pub async fn card_bin_info(
+pub async fn card_iin_info(
     state: web::Data<AppState>,
     req: HttpRequest,
     path: web::Path<String>,
 ) -> impl Responder {
-    let card_bin = path.into_inner();
+    let card_iin = path.into_inner();
 
     api::server_wrap(
         state.get_ref(),
         &req,
-        card_bin,
-        |state, _, card_bin| async {
-            cards_info::retrieve_card_info(&*state.store, card_bin).await
+        card_iin,
+        |state, _, card_iin| async {
+            cards_info::retrieve_card_info(&*state.store, card_iin).await
         },
         &auth::NoAuth,
     )

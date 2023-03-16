@@ -12,7 +12,7 @@ use crate::{
 pub trait CardsInfoInterface {
     async fn get_card_info(
         &self,
-        _card_bin: &str,
+        _card_iin: &str,
     ) -> CustomResult<Option<CardInfo>, errors::StorageError>;
 }
 
@@ -34,7 +34,7 @@ impl CardsInfoInterface for Store {
 impl CardsInfoInterface for MockDb {
     async fn get_card_info(
         &self,
-        _card_bin: &str,
+        _card_iin: &str,
     ) -> CustomResult<Option<CardInfo>, errors::StorageError> {
         Err(errors::StorageError::MockDbError)?
     }

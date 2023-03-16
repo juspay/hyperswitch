@@ -10,7 +10,7 @@ use super::{ephemeral_key::*, payment_methods::*, webhooks::*};
 use crate::{
     configs::settings::Settings,
     db::{MockDb, StorageImpl, StorageInterface},
-    routes::cards_info::card_bin_info,
+    routes::cards_info::card_iin_info,
     services::Store,
 };
 
@@ -376,6 +376,6 @@ impl Cards {
     pub fn server(state: AppState) -> Scope {
         web::scope("/cards")
             .app_data(web::Data::new(state))
-            .service(web::resource("/{bin}").route(web::get().to(card_bin_info)))
+            .service(web::resource("/{bin}").route(web::get().to(card_iin_info)))
     }
 }
