@@ -19,8 +19,7 @@ use crate::{
     configs::settings,
     connector::utils as conn_utils,
     core::{
-        errors::{self, CustomResult},
-        payments,
+        errors::{self, CustomResult}
     },
     headers,
     services::{self, ConnectorIntegration},

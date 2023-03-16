@@ -474,6 +474,8 @@ impl<F1, F2, T1, T2> From<(&&mut RouterData<F1, T1, PaymentsResponseData>, T2)>
             payment_id: data.payment_id.clone(),
             session_token: data.session_token.clone(),
             reference_id: data.reference_id.clone(),
+            webhook_url: data.webhook_url.clone(),
+            complete_authorize_url: data.complete_authorize_url.clone(),
         }
     }
 }
