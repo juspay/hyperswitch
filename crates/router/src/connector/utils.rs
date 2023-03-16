@@ -51,6 +51,7 @@ pub trait RouterData {
     fn get_billing_phone(&self) -> Result<&api::PhoneDetails, Error>;
     fn get_description(&self) -> Result<String, Error>;
     fn get_billing_address(&self) -> Result<&api::AddressDetails, Error>;
+    fn get_shipping_address(&self) -> Result<&api::AddressDetails, Error>;
     fn get_connector_meta(&self) -> Result<pii::SecretSerdeValue, Error>;
     fn get_session_token(&self) -> Result<String, Error>;
     fn to_connector_meta<T>(&self) -> Result<T, Error>
@@ -128,6 +129,14 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
             self.auth_type,
             storage_models::enums::AuthenticationType::ThreeDs
         )
+    }
+
+    fn get_shipping_address(&self) -> Result<&api::AddressDetails, Error> {
+        self.address
+            .shipping
+            .as_ref()
+            .and_then(|a| a.address.as_ref())
+            .ok_or_else(missing_field_err("shipping.address"))
     }
 }
 
@@ -306,6 +315,7 @@ pub trait AddressDetailsData {
     fn get_line2(&self) -> Result<&Secret<String>, Error>;
     fn get_zip(&self) -> Result<&Secret<String>, Error>;
     fn get_country(&self) -> Result<&String, Error>;
+    fn get_combined_address_line(&self) -> Result<Secret<String>, Error>;
 }
 
 impl AddressDetailsData for api::AddressDetails {
@@ -349,6 +359,14 @@ impl AddressDetailsData for api::AddressDetails {
         self.country
             .as_ref()
             .ok_or_else(missing_field_err("address.country"))
+    }
+
+    fn get_combined_address_line(&self) -> Result<Secret<String>, Error> {
+        Ok(Secret::new(format!(
+            "{},{}",
+            self.get_line1()?.peek(),
+            self.get_line2()?.peek()
+        )))
     }
 }
 
@@ -448,16 +466,16 @@ pub fn to_currency_base_unit(
     let amount_u32 = u32::try_from(amount)
         .into_report()
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-    match currency {
-        storage_models::enums::Currency::JPY | storage_models::enums::Currency::KRW => {
-            Ok(amount.to_string())
-        }
+    let amount_f64 = f64::from(amount_u32);
+    let amount = match currency {
+        storage_models::enums::Currency::JPY | storage_models::enums::Currency::KRW => amount_f64,
         storage_models::enums::Currency::BHD
         | storage_models::enums::Currency::JOD
         | storage_models::enums::Currency::KWD
-        | storage_models::enums::Currency::OMR => Ok((f64::from(amount_u32) / 1000.0).to_string()),
-        _ => Ok((f64::from(amount_u32) / 100.0).to_string()),
-    }
+        | storage_models::enums::Currency::OMR => amount_f64 / 1000.00,
+        _ => amount_f64 / 100.00,
+    };
+    Ok(format!("{:.2}", amount))
 }
 
 pub fn str_to_f32<S>(value: &str, serializer: S) -> Result<S::Ok, S::Error>
