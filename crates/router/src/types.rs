@@ -104,6 +104,7 @@ pub struct RouterData<Flow, Request, Response> {
     pub description: Option<String>,
     pub return_url: Option<String>,
     pub router_return_url: Option<String>,
+    pub webhook_url: Option<String>,
     pub complete_authorize_url: Option<String>,
     pub address: PaymentAddress,
     pub auth_type: storage_enums::AuthenticationType,
@@ -463,7 +464,6 @@ impl<F1, F2, T1, T2> From<(&&mut RouterData<F1, T1, PaymentsResponseData>, T2)>
             description: data.description.clone(),
             return_url: data.return_url.clone(),
             router_return_url: data.router_return_url.clone(),
-            complete_authorize_url: data.complete_authorize_url.clone(),
             address: data.address.clone(),
             auth_type: data.auth_type,
             connector_meta_data: data.connector_meta_data.clone(),
@@ -474,6 +474,8 @@ impl<F1, F2, T1, T2> From<(&&mut RouterData<F1, T1, PaymentsResponseData>, T2)>
             payment_id: data.payment_id.clone(),
             session_token: data.session_token.clone(),
             reference_id: data.reference_id.clone(),
+            webhook_url: data.webhook_url.clone(),
+            complete_authorize_url: data.complete_authorize_url.clone(),
         }
     }
 }
