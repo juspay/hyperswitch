@@ -103,9 +103,13 @@ base_url = "https://sandbox.dlocal.com/"
 [connectors.bambora]
 base_url = "https://api.na.bambora.com"
 
+[connectors.coinbase]
+base_url = "https://api.commerce.coinbase.com"
+
 [connectors.supported]
 wallets = ["klarna", "braintree", "applepay"]
 cards = [
+	"coinbase",
     "aci",
     "adyen",
     "airwallex",

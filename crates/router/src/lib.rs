@@ -43,6 +43,7 @@ static ALLOC: mimalloc::MiMalloc = mimalloc::MiMalloc;
 /// Header Constants
 pub mod headers {
     pub const X_API_KEY: &str = "X-API-KEY";
+    pub const X_CC_API_KEY: &str = "X-CC-Api-Key";
     pub const CONTENT_TYPE: &str = "Content-Type";
     pub const X_ROUTER: &str = "X-router";
     pub const AUTHORIZATION: &str = "Authorization";
@@ -53,6 +54,7 @@ pub mod headers {
     pub const X_LOGIN: &str = "X-Login";
     pub const X_TRANS_KEY: &str = "X-Trans-Key";
     pub const X_VERSION: &str = "X-Version";
+    pub const X_CC_VERSION: &str = "X-CC-Version";
     pub const X_DATE: &str = "X-Date";
 }
 

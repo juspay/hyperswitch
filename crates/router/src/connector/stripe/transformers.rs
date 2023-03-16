@@ -1297,6 +1297,7 @@ impl
                 }))
             }
             api::PaymentMethodData::Wallet(_) => Ok(Self::Wallet),
+            _ => Err(errors::ConnectorError::NotImplemented("Stripe".to_string()).into()),
         }
     }
 }

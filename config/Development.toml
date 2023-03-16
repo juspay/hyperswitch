@@ -3,7 +3,7 @@ enabled = false
 
 [log.console]
 enabled = true
-level = "DEBUG"
+level = "WARN"
 log_format = "default"
 
 [log.telemetry]
@@ -45,6 +45,7 @@ locker_decryption_key2 = ""
 [connectors.supported]
 wallets = ["klarna", "braintree", "applepay"]
 cards = [
+	"coinbase",
     "aci",
     "adyen",
     "airwallex",
@@ -141,6 +142,9 @@ base_url = "https://sandbox.dlocal.com/"
 
 [connectors.bambora]
 base_url = "https://api.na.bambora.com"
+
+[connectors.coinbase]
+base_url = "https://api.commerce.coinbase.com"
 
 [scheduler]
 stream = "SCHEDULER_STREAM"

@@ -431,6 +431,7 @@ pub enum PaymentMethod {
     PayLater,
     Wallet,
     BankRedirect,
+    Crypto,
 }
 
 #[derive(
@@ -553,6 +554,7 @@ pub enum Connector {
     Cybersource,
     #[default]
     Dummy,
+    Coinbase,
     Bambora,
     Dlocal,
     Fiserv,
@@ -589,6 +591,7 @@ impl Connector {
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum RoutableConnectors {
+    Coinbase,
     Aci,
     Adyen,
     Airwallex,

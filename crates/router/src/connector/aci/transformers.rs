@@ -111,6 +111,10 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for AciPaymentsRequest {
             api::PaymentMethodData::PayLater(_) => PaymentDetails::Klarna,
             api::PaymentMethodData::Wallet(_) => PaymentDetails::Wallet,
             api::PaymentMethodData::BankRedirect(_) => PaymentDetails::BankRedirect,
+            _ => Err(errors::ConnectorError::NotSupported {
+                payment_method: format!("{:?}", item.payment_method),
+                connector: "Aci",
+            })?,
         };
 
         let auth = AciAuthType::try_from(&item.connector_auth_type)?;
