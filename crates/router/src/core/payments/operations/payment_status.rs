@@ -274,7 +274,6 @@ async fn get_tracker_for_sync<
             refunds,
             sessions_token: vec![],
             card_cvc: None,
-            merchant_connector_account: request.merchant_connector_details.clone(),
         },
         None,
     ))

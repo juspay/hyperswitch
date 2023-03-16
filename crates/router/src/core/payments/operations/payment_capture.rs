@@ -1,6 +1,7 @@
 use std::marker::PhantomData;
 
 use async_trait::async_trait;
+use common_utils::ext_traits::AsyncExt;
 use error_stack::ResultExt;
 use router_env::{instrument, tracing};
 
@@ -116,6 +117,21 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentData<F>, api::PaymentsCaptu
         )
         .await?;
 
+        request
+            .merchant_connector_details
+            .to_owned()
+            .async_map(|mcd| async {
+                helpers::insert_merchant_connector_creds_to_config(
+                    db,
+                    merchant_account.merchant_id.as_str(),
+                    payment_intent.payment_id.as_str(),
+                    mcd,
+                )
+                .await
+            })
+            .await
+            .transpose()?;
+
         Ok((
             Box::new(self),
             payments::PaymentData {
@@ -139,7 +155,6 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentData<F>, api::PaymentsCaptu
                 connector_response,
                 sessions_token: vec![],
                 card_cvc: None,
-                merchant_connector_account: None,
             },
             None,
         ))

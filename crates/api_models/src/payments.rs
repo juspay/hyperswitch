@@ -6,7 +6,7 @@ use router_derive::Setter;
 use time::PrimitiveDateTime;
 use utoipa::ToSchema;
 
-use crate::{admin, enums as api_enums, refunds};
+use crate::{enums as api_enums, refunds};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum PaymentOp {
@@ -194,7 +194,7 @@ pub struct PaymentsRequest {
     #[schema(value_type = Option<PaymentMethodType>, example = "google_pay")]
     pub payment_method_type: Option<api_enums::PaymentMethodType>,
 
-    /// Merchant connector details type type
+    /// Merchant connector details type type. Base64 Encode this type and send as a string.
     #[schema(value_type = Option<MerchantConnectorDetails>, example = r#"{
         "connector_account_details": {
             "auth_type": "HeaderKey",
@@ -205,7 +205,7 @@ pub struct PaymentsRequest {
             "user_defined_field_2": "sample_2", 
         },
     }"#)]
-    pub merchant_connector_details: Option<admin::MerchantConnectorDetails>,
+    pub merchant_connector_details: Option<String>,
 }
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, Copy, PartialEq, Eq)]
@@ -257,6 +257,7 @@ pub struct VerifyRequest {
     pub setup_future_usage: Option<api_enums::FutureUsage>,
     pub off_session: Option<bool>,
     pub client_secret: Option<String>,
+    pub merchant_connector_details: Option<String>,
 }
 
 impl From<PaymentsRequest> for VerifyRequest {
@@ -275,6 +276,7 @@ impl From<PaymentsRequest> for VerifyRequest {
             mandate_data: item.mandate_data,
             setup_future_usage: item.setup_future_usage,
             off_session: item.off_session,
+            merchant_connector_details: item.merchant_connector_details,
         }
     }
 }
@@ -742,6 +744,18 @@ pub struct PaymentsCaptureRequest {
     pub statement_descriptor_suffix: Option<String>,
     /// Concatenated with the statement descriptor suffix that’s set on the account to form the complete statement descriptor.
     pub statement_descriptor_prefix: Option<String>,
+    /// Merchant connector details type type. Base64 Encode this type and send as a string.
+    #[schema(value_type = Option<MerchantConnectorDetails>, example = r#"{
+        "connector_account_details": {
+            "auth_type": "HeaderKey",
+            "api_key":"sk_test_xxxxxexamplexxxxxx12345"
+        },
+        "metadata": {
+            "user_defined_field_1": "sample_1",
+            "user_defined_field_2": "sample_2", 
+        },
+    }"#)]
+    pub merchant_connector_details: Option<String>,
 }
 
 #[derive(Default, Clone, Debug, Eq, PartialEq, serde::Serialize)]
@@ -1165,7 +1179,7 @@ pub struct PaymentsRetrieveRequest {
     pub param: Option<String>,
     /// The name of the connector
     pub connector: Option<String>,
-    /// Merchant connector details type type
+    /// Merchant connector details type type. Base64 Encode this type and send as a string.
     #[schema(value_type = Option<MerchantConnectorDetails>, example = r#"{
         "connector_account_details": {
             "auth_type": "HeaderKey",
@@ -1176,7 +1190,7 @@ pub struct PaymentsRetrieveRequest {
             "user_defined_field_2": "sample_2", 
         },
     }"#)]
-    pub merchant_connector_details: Option<admin::MerchantConnectorDetails>,
+    pub merchant_connector_details: Option<String>,
 }
 
 #[derive(Debug, Default, Eq, PartialEq, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
@@ -1208,6 +1222,18 @@ pub struct PaymentsSessionRequest {
     /// The list of the supported wallets
     #[schema(value_type = Vec<SupportedWallets>)]
     pub wallets: Vec<api_enums::SupportedWallets>,
+    /// Merchant connector details type type. Base64 Encode this type and send as a string.
+    #[schema(value_type = Option<MerchantConnectorDetails>, example = r#"{
+        "connector_account_details": {
+            "auth_type": "HeaderKey",
+            "api_key":"sk_test_xxxxxexamplexxxxxx12345"
+        },
+        "metadata": {
+            "user_defined_field_1": "sample_1",
+            "user_defined_field_2": "sample_2", 
+        },
+    }"#)]
+    pub merchant_connector_details: Option<String>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -1395,6 +1421,29 @@ pub struct PaymentRetrieveBody {
     /// Decider to enable or disable the connector call for retrieve request
     pub force_sync: Option<bool>,
 }
+
+#[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+pub struct PaymentRetrieveBodyWithCredentials {
+    /// The identifier for payment.
+    pub payment_id: String,
+    /// The identifier for the Merchant Account.
+    pub merchant_id: Option<String>,
+    /// Decider to enable or disable the connector call for retrieve request
+    pub force_sync: Option<bool>,
+    /// Merchant connector details type type. Base64 Encode this type and send as a string.
+    #[schema(value_type = Option<MerchantConnectorDetails>, example = r#"{
+        "connector_account_details": {
+            "auth_type": "HeaderKey",
+            "api_key":"sk_test_xxxxxexamplexxxxxx12345"
+        },
+        "metadata": {
+            "user_defined_field_1": "sample_1",
+            "user_defined_field_2": "sample_2", 
+        },
+    }"#)]
+    pub merchant_connector_details: Option<String>,
+}
+
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 pub struct PaymentsCancelRequest {
     /// The identifier for the payment
@@ -1402,6 +1451,18 @@ pub struct PaymentsCancelRequest {
     pub payment_id: String,
     /// The reason for the payment cancel
     pub cancellation_reason: Option<String>,
+    /// Merchant connector details type type. Base64 Encode this type and send as a string.
+    #[schema(value_type = Option<MerchantConnectorDetails>, example = r#"{
+        "connector_account_details": {
+            "auth_type": "HeaderKey",
+            "api_key":"sk_test_xxxxxexamplexxxxxx12345"
+        },
+        "metadata": {
+            "user_defined_field_1": "sample_1",
+            "user_defined_field_2": "sample_2", 
+        },
+    }"#)]
+    pub merchant_connector_details: Option<String>,
 }
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, ToSchema)]

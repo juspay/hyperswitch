@@ -114,9 +114,9 @@ impl From<Shipping> for payments::Address {
     }
 }
 
-#[derive(PartialEq, Eq, Deserialize, Clone)]
+#[derive(Deserialize, Clone)]
 pub struct StripePaymentIntentRequest {
-    pub payment_id: Option<String>,
+    pub id: Option<String>,
     pub amount: Option<i64>, //amount in cents, hence passed as integer
     pub connector: Option<Vec<api_enums::Connector>>,
     pub currency: Option<String>,
@@ -137,15 +137,14 @@ pub struct StripePaymentIntentRequest {
     pub metadata: Option<api_models::payments::Metadata>,
     pub client_secret: Option<pii::Secret<String>>,
     pub payment_method_options: Option<StripePaymentMethodOptions>,
+    pub merchant_connector_details: Option<String>,
 }
 
 impl TryFrom<StripePaymentIntentRequest> for payments::PaymentsRequest {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
     fn try_from(item: StripePaymentIntentRequest) -> errors::RouterResult<Self> {
         Ok(Self {
-            payment_id: item
-                .payment_id
-                .map(payments::PaymentIdType::PaymentIntentId),
+            payment_id: item.id.map(payments::PaymentIdType::PaymentIntentId),
             amount: item.amount.map(|amount| amount.into()),
             connector: item.connector,
             currency: item
@@ -196,6 +195,7 @@ impl TryFrom<StripePaymentIntentRequest> for payments::PaymentsRequest {
 
                 request_three_d_secure.foreign_into()
             }),
+            merchant_connector_details: item.merchant_connector_details,
             ..Self::default()
         })
     }
@@ -288,7 +288,6 @@ pub struct StripePaymentIntentResponse {
     pub mandate_data: Option<payments::MandateData>,
     pub setup_future_usage: Option<api_models::enums::FutureUsage>,
     pub off_session: Option<bool>,
-
     pub authentication_type: Option<api_models::enums::AuthenticationType>,
     pub next_action: Option<StripeNextAction>,
     pub cancellation_reason: Option<String>,

@@ -160,6 +160,61 @@ pub async fn payments_retrieve(
     .await
 }
 
+/// Payments - Retrieve with gateway credentials
+///
+/// To retrieve the properties of a Payment. This may be used to get the status of a previously initiated payment or next action for an ongoing payment
+#[utoipa::path(
+    get,
+    path = "/sync",
+    request_body=PaymentRetrieveBodyWithCredentials,
+    responses(
+        (status = 200, description = "Gets the payment with final status", body = PaymentsResponse),
+        (status = 404, description = "No payment found")
+    ),
+    tag = "Payments",
+    operation_id = "Retrieve a Payment",
+    security(("api_key" = []))
+)]
+#[instrument(skip(state), fields(flow = ?Flow::PaymentsRetrieve))]
+// #[get("/{payment_id}")]
+pub async fn payments_retrieve_with_gateway_creds(
+    state: web::Data<app::AppState>,
+    req: actix_web::HttpRequest,
+    json_payload: web::Json<payment_types::PaymentRetrieveBodyWithCredentials>,
+) -> impl Responder {
+    let payload = payment_types::PaymentsRetrieveRequest {
+        resource_id: payment_types::PaymentIdType::PaymentIntentId(
+            json_payload.payment_id.to_string(),
+        ),
+        merchant_id: json_payload.merchant_id.clone(),
+        force_sync: json_payload.force_sync.unwrap_or(false),
+        merchant_connector_details: json_payload.merchant_connector_details.clone(),
+        ..Default::default()
+    };
+    let (auth_type, _auth_flow) = match auth::get_auth_type_and_flow(req.headers()) {
+        Ok(auth) => auth,
+        Err(err) => return api::log_and_return_error_response(report!(err)),
+    };
+
+    api::server_wrap(
+        state.get_ref(),
+        &req,
+        payload,
+        |state, merchant_account, req| {
+            payments::payments_core::<api_types::PSync, payment_types::PaymentsResponse, _, _, _>(
+                state,
+                merchant_account,
+                payments::PaymentStatus,
+                req,
+                api::AuthFlow::Merchant,
+                payments::CallConnectorAction::Trigger,
+            )
+        },
+        &*auth_type,
+    )
+    .await
+}
+
 /// Payments - Update
 ///
 /// To update the properties of a PaymentIntent object. This may include attaching a payment method, or attaching customer object or metadata fields after the Payment is created

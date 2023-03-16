@@ -1,9 +1,13 @@
 use std::borrow::Cow;
 
-use common_utils::{ext_traits::AsyncExt, fp_utils};
+use base64::Engine;
+use common_utils::{
+    ext_traits::{AsyncExt, ByteSliceExt},
+    fp_utils,
+};
 // TODO : Evaluate all the helper functions ()
 use error_stack::{report, IntoReport, ResultExt};
-use masking::ExposeOptionInterface;
+use masking::{ExposeOptionInterface, PeekInterface};
 use router_env::{instrument, tracing};
 use uuid::Uuid;
 
@@ -344,7 +348,7 @@ pub fn create_startpay_url(
 pub fn create_redirect_url(
     server: &Server,
     payment_attempt: &storage::PaymentAttempt,
-    connector_name: &String,
+    connector_name: &str,
 ) -> String {
     format!(
         "{}/payments/{}/{}/response/{}",
@@ -1243,5 +1247,86 @@ mod tests {
         let req_cs = Some("1".to_string());
         let pi_cs = Some("2".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), pi_cs.as_ref()).is_err())
+    }
+}
+
+pub async fn insert_merchant_connector_creds_to_config(
+    db: &dyn StorageInterface,
+    merchant_id: &str,
+    payment_id: &str,
+    merchant_connector_details: String,
+) -> RouterResult<()> {
+    db.insert_config(storage::ConfigNew {
+        key: format!("{}_{}", merchant_id, payment_id),
+        config: merchant_connector_details.to_owned(),
+    })
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed to insert connector_creds to config")?;
+    Ok(())
+}
+
+pub enum MerchantConnectorAccountType {
+    DbVal(storage::MerchantConnectorAccount),
+    CacheVal(api_models::admin::MerchantConnectorDetails),
+}
+
+impl MerchantConnectorAccountType {
+    pub fn get_metadata(&self) -> Option<masking::Secret<serde_json::Value>> {
+        match self {
+            Self::DbVal(val) => val.metadata.to_owned(),
+            Self::CacheVal(val) => val.metadata.to_owned(),
+        }
+    }
+    pub fn get_connector_account_details(&self) -> serde_json::Value {
+        match self {
+            Self::DbVal(val) => val.connector_account_details.to_owned(),
+            Self::CacheVal(val) => val.connector_account_details.peek().to_owned(),
+        }
+    }
+}
+
+pub async fn get_merchant_connector_account(
+    db: &dyn StorageInterface,
+    merchant_id: &str,
+    connector_id: &str,
+    payment_id: &str,
+) -> RouterResult<MerchantConnectorAccountType> {
+    match db
+        .find_merchant_connector_account_by_merchant_id_connector(merchant_id, connector_id)
+        .await
+    {
+        Ok(mcd_from_db) => Ok(MerchantConnectorAccountType::DbVal(mcd_from_db)),
+        Err(err) => {
+            if err.current_context().is_db_not_found() {
+                let mca_config = db
+                    .find_config_by_key(format!("{merchant_id}_{payment_id}").as_str())
+                    .await
+                    .map_err(|error| {
+                        error.to_not_found_response(
+                            errors::ApiErrorResponse::MerchantConnectorAccountNotFound,
+                        )
+                    })?;
+
+                let cached_mca = consts::BASE64_ENGINE
+                    .decode(mca_config.config.as_bytes())
+                    .into_report()
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable(
+                        "Failed to decode merchant_connector_details sent in request and then put in cache",
+                    )?
+                    .parse_struct("MerchantConnectorDetails")
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable(
+                        "Failed to parse merchant_connector_details sent in request and then put in cache",
+                    )?;
+
+                Ok(MerchantConnectorAccountType::CacheVal(cached_mca))
+            } else {
+                Err(err
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to fetch Merchant connector account from DB"))
+            }
+        }
     }
 }

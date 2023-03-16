@@ -6,7 +6,6 @@ pub mod transformers;
 
 use std::{fmt::Debug, marker::PhantomData, time::Instant};
 
-use api_models::admin;
 use common_utils::ext_traits::AsyncExt;
 use error_stack::{IntoReport, ResultExt};
 use futures::future::join_all;
@@ -515,7 +514,6 @@ where
     pub sessions_token: Vec<api::SessionToken>,
     pub card_cvc: Option<pii::Secret<String>>,
     pub email: Option<masking::Secret<String, pii::Email>>,
-    pub merchant_connector_account: Option<admin::MerchantConnectorDetails>,
 }
 
 #[derive(Debug, Default)]

@@ -210,6 +210,21 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             .payment_experience
             .map(|experience| experience.foreign_into());
 
+        request
+            .merchant_connector_details
+            .to_owned()
+            .async_map(|mcd| async {
+                helpers::insert_merchant_connector_creds_to_config(
+                    db,
+                    merchant_account.merchant_id.as_str(),
+                    payment_intent.payment_id.as_str(),
+                    mcd,
+                )
+                .await
+            })
+            .await
+            .transpose()?;
+
         Ok((
             next_operation,
             PaymentData {
@@ -233,7 +248,6 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 connector_response,
                 sessions_token: vec![],
                 card_cvc: request.card_cvc.clone(),
-                merchant_connector_account: request.merchant_connector_details.clone(),
             },
             Some(CustomerDetails {
                 customer_id: request.customer_id.clone(),

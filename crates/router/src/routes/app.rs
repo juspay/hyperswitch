@@ -91,6 +91,10 @@ impl Payments {
                         .route(web::post().to(payments_connector_session)),
                 )
                 .service(
+                    web::resource("/sync")
+                        .route(web::post().to(payments_retrieve_with_gateway_creds)),
+                )
+                .service(
                     web::resource("/{payment_id}")
                         .route(web::get().to(payments_retrieve))
                         .route(web::post().to(payments_update)),

@@ -43,6 +43,19 @@ pub struct RefundRequest {
     /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
     #[schema(value_type  = Option<Object>, example = r#"{ "city": "NY", "unit": "245" }"#)]
     pub metadata: Option<pii::SecretSerdeValue>,
+
+    /// Merchant connector details type type. Base64 Encode this type and send as a string.
+    #[schema(value_type = Option<MerchantConnectorDetails>, example = r#"{
+        "connector_account_details": {
+            "auth_type": "HeaderKey",
+            "api_key":"sk_test_xxxxxexamplexxxxxx12345"
+        },
+        "metadata": {
+            "user_defined_field_1": "sample_1",
+            "user_defined_field_2": "sample_2", 
+        },
+    }"#)]
+    pub merchant_connector_details: Option<String>,
 }
 
 #[derive(Default, Debug, ToSchema, Clone, Deserialize)]
