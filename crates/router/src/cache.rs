@@ -4,8 +4,14 @@ use dyn_clone::DynClone;
 use moka::future::Cache as MokaCache;
 use once_cell::sync::Lazy;
 
+/// Time to live 30 mins
+const CACHE_TTL: u64 = 30 * 60;
+
+/// Time to idle 10 mins
+const CACHE_TTI: u64 = 10 * 60;
+
 /// Config Cache with time_to_live as 30 mins and time_to_idle as 10 mins.
-pub static CONFIG_CACHE: Lazy<Cache> = Lazy::new(|| Cache::new(30 * 60, 10 * 60));
+pub static CONFIG_CACHE: Lazy<Cache> = Lazy::new(|| Cache::new(CACHE_TTL, CACHE_TTI));
 
 /// Trait which defines the behaviour of types that's gonna be stored in Cache
 pub trait Cacheable: Any + Send + Sync + DynClone {
