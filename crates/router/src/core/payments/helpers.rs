@@ -941,17 +941,16 @@ pub fn get_handle_response_url(
     response: api::PaymentsResponse,
     connector: String,
 ) -> RouterResult<api::RedirectionResponse> {
-    let next_action_url = response
-        .next_action
-        .as_ref()
-        .and_then(|action| action.redirect_to_url.as_ref());
-    let final_return_url = next_action_url.or(response.return_url.as_ref());
+    let payments_return_url = response.return_url.as_ref();
 
     let redirection_response = make_pg_redirect_response(payment_id, &response, connector);
 
-    let return_url =
-        make_merchant_url_with_response(merchant_account, redirection_response, final_return_url)
-            .attach_printable("Failed to make merchant url with response")?;
+    let return_url = make_merchant_url_with_response(
+        merchant_account,
+        redirection_response,
+        payments_return_url,
+    )
+    .attach_printable("Failed to make merchant url with response")?;
 
     make_url_with_signature(&return_url, merchant_account)
 }
