@@ -47,7 +47,10 @@ pub async fn refund_retrieve(
     req: HttpRequest,
     path: web::Path<String>,
 ) -> HttpResponse {
-    let refund_id = path.into_inner();
+    let refund_request = refund_types::RefundsRetrieveRequest {
+        refund_id: path.into_inner(),
+        merchant_connector_details: None,
+    };
     wrap::compatibility_api_wrap::<
         _,
         _,
@@ -60,12 +63,12 @@ pub async fn refund_retrieve(
     >(
         state.get_ref(),
         &req,
-        refund_id,
-        |state, merchant_account, refund_id| {
+        refund_request,
+        |state, merchant_account, refund_request| {
             refunds::refund_response_wrapper(
                 state,
                 merchant_account,
-                refund_id,
+                refund_request,
                 refunds::refund_retrieve_core,
             )
         },

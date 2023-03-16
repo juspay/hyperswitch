@@ -40,12 +40,12 @@ pub async fn refunds_create(
     .await
 }
 
-/// Refunds - Retrieve
+/// Refunds - Retrieve (GET)
 ///
 /// To retrieve the properties of a Refund. This may be used to get the status of a previously initiated payment or next action for an ongoing payment
 #[utoipa::path(
     get,
-    path = "/refunds/{refund_id}",
+    path = "/refunds",
     params(
         ("refund_id" = String, Path, description = "The identifier for refund")
     ),
@@ -64,14 +64,50 @@ pub async fn refunds_retrieve(
     req: HttpRequest,
     path: web::Path<String>,
 ) -> HttpResponse {
-    let refund_id = path.into_inner();
+    let refund_request = refunds::RefundsRetrieveRequest {
+        refund_id: path.into_inner(),
+        merchant_connector_details: None,
+    };
 
     api::server_wrap(
         state.get_ref(),
         &req,
-        refund_id,
-        |state, merchant_account, refund_id| {
-            refund_response_wrapper(state, merchant_account, refund_id, refund_retrieve_core)
+        refund_request,
+        |state, merchant_account, refund_request| {
+            refund_response_wrapper(state, merchant_account, refund_request, refund_retrieve_core)
+        },
+        &auth::ApiKeyAuth,
+    )
+    .await
+}
+
+/// Refunds - Retrieve (POST)
+///
+/// To retrieve the properties of a Refund. This may be used to get the status of a previously initiated payment or next action for an ongoing payment
+#[utoipa::path(
+    get,
+    path = "/refunds/sync",
+    responses(
+        (status = 200, description = "Refund retrieved", body = RefundResponse),
+        (status = 404, description = "Refund does not exist in our records")
+    ),
+    tag = "Refunds",
+    operation_id = "Retrieve a Refund",
+    security(("api_key" = []))
+)]
+#[instrument(skip_all, fields(flow = ?Flow::RefundsRetrieve))]
+// #[get("/{id}")]
+pub async fn refunds_retrieve_with_body(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    json_payload: web::Json<refunds::RefundsRetrieveRequest>,
+) -> HttpResponse {
+    api::server_wrap(
+        state.get_ref(),
+        &req,
+        json_payload.into_inner(),
+        |state, merchant_account, req| {
+            refund_response_wrapper(state, merchant_account, req, refund_retrieve_core)
         },
         &auth::ApiKeyAuth,
     )

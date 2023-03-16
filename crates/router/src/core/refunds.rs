@@ -193,19 +193,19 @@ pub async fn trigger_refund_to_gateway(
 
 // ********************************************** REFUND SYNC **********************************************
 
-pub async fn refund_response_wrapper<'a, F, Fut, T>(
+pub async fn refund_response_wrapper<'a, F, Fut, T, Req>(
     state: &'a AppState,
     merchant_account: storage::MerchantAccount,
-    refund_id: String,
+    request: Req,
     f: F,
 ) -> RouterResponse<refunds::RefundResponse>
 where
-    F: Fn(&'a AppState, storage::MerchantAccount, String) -> Fut,
+    F: Fn(&'a AppState, storage::MerchantAccount, Req) -> Fut,
     Fut: futures::Future<Output = RouterResult<T>>,
     T: ForeignInto<refunds::RefundResponse>,
 {
     Ok(services::ApplicationResponse::Json(
-        f(state, merchant_account, refund_id).await?.foreign_into(),
+        f(state, merchant_account, request).await?.foreign_into(),
     ))
 }
 
@@ -213,8 +213,9 @@ where
 pub async fn refund_retrieve_core(
     state: &AppState,
     merchant_account: storage::MerchantAccount,
-    refund_id: String,
+    request: refunds::RefundsRetrieveRequest,
 ) -> RouterResult<storage::Refund> {
+    let refund_id = request.refund_id;
     let db = &*state.store;
     let (merchant_id, payment_intent, payment_attempt, refund, response);
 

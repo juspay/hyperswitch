@@ -59,6 +59,30 @@ pub struct RefundRequest {
 }
 
 #[derive(Default, Debug, ToSchema, Clone, Deserialize)]
+pub struct RefundsRetrieveRequest {
+    /// Unique Identifier for the Refund. This is to ensure idempotency for multiple partial refund initiated against the same payment. If the identifiers is not defined by the merchant, this filed shall be auto generated and provide in the API response. It is recommended to generate uuid(v4) as the refund_id.
+    #[schema(
+        max_length = 30,
+        min_length = 30,
+        example = "ref_mbabizu24mvu3mela5njyhpit4"
+    )]
+    pub refund_id: String,
+
+    /// Merchant connector details type type. Base64 Encode this type and send as a string.
+    #[schema(value_type = Option<MerchantConnectorDetails>, example = r#"{
+        "connector_account_details": {
+            "auth_type": "HeaderKey",
+            "api_key":"sk_test_xxxxxexamplexxxxxx12345"
+        },
+        "metadata": {
+            "user_defined_field_1": "sample_1",
+            "user_defined_field_2": "sample_2", 
+        },
+    }"#)]
+    pub merchant_connector_details: Option<String>,
+}
+
+#[derive(Default, Debug, ToSchema, Clone, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct RefundUpdateRequest {
     /// An arbitrary string attached to the object. Often useful for displaying to users and your customer support executive
