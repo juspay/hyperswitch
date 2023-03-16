@@ -155,8 +155,10 @@ pub enum ApiErrorResponse {
     IncorrectConnectorNameGiven,
     #[error(error_type = ErrorType::ObjectNotFound, code = "HE_04", message = "Address does not exist in our records")]
     AddressNotFound,
-    #[error(error_type = ErrorType::ObjectNotFound, code = "HE_04", message = "Card with the provided bin does not exist")]
-    InvalidCardIIN,
+    #[error(error_type = ErrorType::InvalidRequestError, code = "HE_04", message = "Card with the provided iin does not exist")]
+    InvalidCardIin,
+    #[error(error_type = ErrorType::InvalidRequestError, code = "HE_04", message = "The provoded card iin length is invalid, please provide an iin with 6 digits")]
+    InvalidCardIinLength,
 }
 
 #[derive(Clone)]
@@ -203,7 +205,8 @@ impl actix_web::ResponseError for ApiErrorResponse {
             Self::InvalidHttpMethod => StatusCode::METHOD_NOT_ALLOWED, // 405
             Self::MissingRequiredField { .. }
             | Self::InvalidDataValue { .. }
-            | Self::InvalidCardIIN => StatusCode::BAD_REQUEST, // 400
+            | Self::InvalidCardIin
+            | Self::InvalidCardIinLength => StatusCode::BAD_REQUEST, // 400
             Self::InvalidDataFormat { .. } | Self::InvalidRequestData { .. } => {
                 StatusCode::UNPROCESSABLE_ENTITY
             } // 422
@@ -430,7 +433,8 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
             Self::NotSupported { message } => {
                 AER::BadRequest(ApiError::new("HE", 3, "Payment method type not supported", Some(Extra {reason: Some(message.to_owned()), ..Default::default()})))
             },
-            Self::InvalidCardIIN => AER::BadRequest(ApiError::new("HE", 3, "The provided card IIN does not exist", None))
+            Self::InvalidCardIin => AER::BadRequest(ApiError::new("HE", 3, "The provided card IIN does not exist", None)),
+            Self::InvalidCardIinLength  => AER::BadRequest(ApiError::new("HE", 3, "The provoded card iin length is invalid, please provide an iin with 6 digits", None))
         }
     }
 }

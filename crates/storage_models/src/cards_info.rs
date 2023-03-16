@@ -3,8 +3,7 @@ use diesel::{Identifiable, Queryable};
 use crate::schema::cards_info;
 
 #[derive(Clone, Debug, Queryable, Identifiable, serde::Deserialize, serde::Serialize)]
-#[diesel(table_name = cards_info)]
-#[diesel(primary_key(card_iin))]
+#[diesel(table_name = cards_info, primary_key(card_iin))]
 pub struct CardInfo {
     pub card_iin: String,
     pub card_issuer: Option<String>,

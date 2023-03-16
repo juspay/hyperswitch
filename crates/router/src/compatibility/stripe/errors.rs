@@ -348,7 +348,8 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
             | errors::ApiErrorResponse::InvalidEphemeralKey => Self::Unauthorized,
             errors::ApiErrorResponse::InvalidRequestUrl
             | errors::ApiErrorResponse::InvalidHttpMethod
-            | errors::ApiErrorResponse::InvalidCardIIN => Self::InvalidRequestUrl,
+            | errors::ApiErrorResponse::InvalidCardIin
+            | errors::ApiErrorResponse::InvalidCardIinLength => Self::InvalidRequestUrl,
             errors::ApiErrorResponse::MissingRequiredField { field_name } => {
                 Self::ParameterMissing {
                     field_name,
