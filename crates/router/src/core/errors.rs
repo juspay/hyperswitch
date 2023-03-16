@@ -263,6 +263,8 @@ pub enum ConnectorError {
         connector: &'static str,
         payment_experience: String,
     },
+    #[error("{flow} flow not supported by {connector} connector")]
+    FlowNotSupported { flow: String, connector: String },
     #[error("Missing connector transaction ID")]
     MissingConnectorTransactionID,
     #[error("Missing connector refund ID")]
@@ -283,6 +285,8 @@ pub enum ConnectorError {
     WebhookEventTypeNotFound,
     #[error("Incoming webhook event resource object not found")]
     WebhookResourceObjectNotFound,
+    #[error("Could not respond to the incoming webhook event")]
+    WebhookResponseEncodingFailed,
     #[error("Invalid Date/time format")]
     InvalidDateFormat,
     #[error("Invalid Data format")]
@@ -311,6 +315,18 @@ pub enum VaultError {
     MissingRequiredField { field_name: &'static str },
     #[error("The card vault returned an unexpected response: {0:?}")]
     UnexpectedResponseError(bytes::Bytes),
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum KmsError {
+    #[error("Failed to base64 decode input data")]
+    Base64DecodingFailed,
+    #[error("Failed to KMS decrypt input data")]
+    DecryptionFailed,
+    #[error("Missing plaintext KMS decryption output")]
+    MissingPlaintextDecryptionOutput,
+    #[error("Failed to UTF-8 decode decryption output")]
+    Utf8DecodingFailed,
 }
 
 #[derive(Debug, thiserror::Error)]
