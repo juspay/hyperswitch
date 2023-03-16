@@ -77,7 +77,7 @@ impl ConfigInterface for Store {
         key: &str,
         config_update: storage::ConfigUpdate,
     ) -> CustomResult<storage::Config, errors::StorageError> {
-        cache::redact_cache(self, key, || async {
+        cache::publish_and_redact(self, key, || async {
             self.update_config_by_key(key, config_update).await
         })
         .await

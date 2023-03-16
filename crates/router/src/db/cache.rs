@@ -1,3 +1,4 @@
+use common_utils::ext_traits::AsyncExt;
 use error_stack::ResultExt;
 
 use super::Store;
@@ -63,6 +64,27 @@ where
 }
 
 pub async fn redact_cache<T, F, Fut>(
+    store: &Store,
+    key: &str,
+    fun: F,
+    in_memory: Option<&cache::Cache>,
+) -> CustomResult<T, errors::StorageError>
+where
+    F: FnOnce() -> Fut + Send,
+    Fut: futures::Future<Output = CustomResult<T, errors::StorageError>> + Send,
+{
+    let data = fun().await?;
+    in_memory.async_map(|cache| cache.invalidate(key)).await;
+    store
+        .redis_conn()
+        .map_err(Into::<errors::StorageError>::into)?
+        .delete_key(key)
+        .await
+        .change_context(errors::StorageError::KVError)?;
+    Ok(data)
+}
+
+pub async fn publish_and_redact<T, F, Fut>(
     store: &Store,
     key: &str,
     fun: F,
