@@ -75,7 +75,7 @@ impl MerchantAccountInterface for Store {
 
         #[cfg(feature = "accounts_cache")]
         {
-            super::cache::get_or_populate_cache(self, merchant_id, fetch_func).await
+            super::cache::get_or_populate_redis(self, merchant_id, fetch_func).await
         }
     }
 
