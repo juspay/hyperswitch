@@ -19,7 +19,6 @@ use crate::{enums as storage_enums, schema::merchant_account};
 pub struct MerchantAccount {
     pub id: i32,
     pub merchant_id: String,
-    pub api_key: Option<StrongSecret<String>>,
     pub return_url: Option<String>,
     pub enable_payment_response_hash: bool,
     pub payment_response_hash_key: Option<String>,
@@ -34,6 +33,7 @@ pub struct MerchantAccount {
     pub locker_id: Option<String>,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub routing_algorithm: Option<serde_json::Value>,
+    pub api_key: Option<StrongSecret<String>>,
 }
 
 #[derive(Clone, Debug, Default, Insertable, router_derive::DebugAsDisplay)]
@@ -41,7 +41,6 @@ pub struct MerchantAccount {
 pub struct MerchantAccountNew {
     pub merchant_id: String,
     pub merchant_name: Option<String>,
-    pub api_key: Option<StrongSecret<String>>,
     pub merchant_details: Option<serde_json::Value>,
     pub return_url: Option<String>,
     pub webhook_details: Option<serde_json::Value>,
@@ -54,6 +53,7 @@ pub struct MerchantAccountNew {
     pub locker_id: Option<String>,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub routing_algorithm: Option<serde_json::Value>,
+    pub api_key: Option<StrongSecret<String>>,
 }
 
 #[derive(Debug)]
