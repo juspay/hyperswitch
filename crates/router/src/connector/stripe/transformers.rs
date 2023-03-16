@@ -1280,7 +1280,6 @@ impl<F, T>
     fn try_from(
         item: types::ResponseRouterData<F, StripeTokenResponse, T, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
-        println!("strokennnnn {:?}", item.response.id);
         Ok(Self {
             response: Ok(types::PaymentsResponseData::TokenizationResponse {
                 token: item.response.id,

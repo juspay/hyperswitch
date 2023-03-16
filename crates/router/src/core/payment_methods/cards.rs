@@ -358,16 +358,19 @@ pub async fn add_card_hs(
 
                 let mut vec_value: Vec<Value> = Vec::new();
                 if let Some(pm_metadata) = pm.metadata.to_owned() {
-                    let pm_metadata_value = pm_metadata.expose();
-                    let pm_metadata_vec = pm_metadata_value.as_array();
-                    if let Some(data) = pm_metadata_vec {
-                        for val in data {
-                            vec_value.push(val.to_owned());
+                    let mut pm_metadata_value = pm_metadata.expose();
+                    let vec_metadata_value = pm_metadata_value.as_array_mut().map(|array| {
+                        array.push(metadata_value.to_owned());
+                        array
+                    });
+
+                    vec_value = match vec_metadata_value {
+                        Some(val) => (*val.clone()).to_vec(),
+                        None => {
+                            vec_value.push(metadata_value);
+                            vec_value
                         }
-                        vec_value.push(metadata_value);
-                    } else {
-                        vec_value.push(metadata_value);
-                    }
+                    };
                 } else {
                     vec_value.push(metadata_value);
                 }
@@ -490,16 +493,19 @@ pub async fn add_card(
 
                 let mut vec_value: Vec<Value> = Vec::new();
                 if let Some(pm_metadata) = pm.metadata.to_owned() {
-                    let pm_metadata_val = pm_metadata.expose();
-                    let pm_metadata_vec = pm_metadata_val.as_array();
-                    if let Some(data) = pm_metadata_vec {
-                        for val in data {
-                            vec_value.push(val.to_owned());
+                    let mut pm_metadata_value = pm_metadata.expose();
+                    let vec_metadata_value = pm_metadata_value.as_array_mut().map(|array| {
+                        array.push(metadata_value.to_owned());
+                        array
+                    });
+
+                    vec_value = match vec_metadata_value {
+                        Some(val) => (*val.clone()).to_vec(),
+                        None => {
+                            vec_value.push(metadata_value);
+                            vec_value
                         }
-                        vec_value.push(metadata_value);
-                    } else {
-                        vec_value.push(metadata_value);
-                    }
+                    };
                 } else {
                     vec_value.push(metadata_value);
                 }
