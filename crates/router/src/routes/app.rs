@@ -56,7 +56,6 @@ impl AppState {
         }
     }
 
-    #[allow(unused_variables)]
     pub async fn new(conf: Settings) -> Self {
         Self::with_storage(conf, StorageImpl::Postgresql).await
     }

@@ -4,17 +4,17 @@ host = "0.0.0.0"
 request_body_limit = 16_384 # Post request body is limited to 16k.
 
 [log.file]
-enabled = false             # Whether you want to store log in log files.
-path = "logs"               # Where to store log files.
-level = "DEBUG"             # What gets into log files.
+enabled = false # Whether you want to store log in log files.
+path = "logs"   # Where to store log files.
+level = "DEBUG" # What gets into log files.
 # rotation = "60"           # mins # current framework doesn't support configuring rotation. set to hourly rotation.
 
 [log.console]
-enabled = true              # Whether you want to see log in your terminal.
-level = "DEBUG"             # What you see in your terminal.
+enabled = true  # Whether you want to see log in your terminal.
+level = "DEBUG" # What you see in your terminal.
 
 [log.telemetry]
-enabled = false             # Whether tracing/telemetry is enabled.
+enabled = false # Whether tracing/telemetry is enabled.
 
 [master_database]
 username = "db_user"

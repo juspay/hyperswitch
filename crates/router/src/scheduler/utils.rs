@@ -17,7 +17,10 @@ use crate::{
     logger,
     routes::AppState,
     scheduler::{ProcessTrackerBatch, SchedulerFlow},
-    types::storage::{self, enums::ProcessTrackerStatus},
+    types::storage::{
+        self,
+        enums::{self, ProcessTrackerStatus},
+    },
     utils::{OptionExt, StringExt},
 };
 
@@ -300,6 +303,26 @@ pub fn get_schedule_time(
     retry_count: i32,
 ) -> Option<i32> {
     let mapping = match mapping.custom_merchant_mapping.get(merchant_name) {
+        Some(map) => map.clone(),
+        None => mapping.default_mapping,
+    };
+
+    if retry_count == 0 {
+        Some(mapping.start_after)
+    } else {
+        get_delay(
+            retry_count,
+            mapping.count.iter().zip(mapping.frequency.iter()),
+        )
+    }
+}
+
+pub fn get_pm_schedule_time(
+    mapping: process_data::PaymentMethodsPTMapping,
+    pm: &enums::PaymentMethod,
+    retry_count: i32,
+) -> Option<i32> {
+    let mapping = match mapping.custom_pm_mapping.get(pm) {
         Some(map) => map.clone(),
         None => mapping.default_mapping,
     };
