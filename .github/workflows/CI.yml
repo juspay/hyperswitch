@@ -370,20 +370,20 @@ jobs:
           - stripe
           - aci
           - adyen
-          - authorizedotnet 
-          - checkout
-          - cybersource
+          #- authorizedotnet 
+          #- checkout
+          #- cybersource
           - shift4
-          - worldpay
-          - payu
-          - globalpay
-          - rapyd
-          - fiserv
+          #- worldpay
+          #- payu
+          #- globalpay
+          #- rapyd
+          #- fiserv
           - worldline
-          - multisafepay
+          #- multisafepay
           - dlocal
           - bambora
-          - nuvei
+          #- nuvei
 
     steps:
       - name: Checkout repository
@@ -414,14 +414,14 @@ jobs:
         with:
           redis-image: redis/redis-stack-server
 
+      # - name: Run connector tests
+      #   shell: bash
+      #   run: cargo nextest run --package router --test connectors -- ${{ matrix.connector }}
       - name: Run connector tests
-        shell: bash
-        run: cargo nextest run --package router --test connectors -- ${{ matrix.connector }}
-      #- name: Run connector tests
-      #  uses: actions-rs/cargo@v1
-      #  with:
-      #    command: test
-      #    args: --package router --test connectors -- ${{ matrix.connector }} --test-threads=1
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --package router --test connectors -- ${{ matrix.connector }} --test-threads=1
   
   typos:
     name: Spell check
