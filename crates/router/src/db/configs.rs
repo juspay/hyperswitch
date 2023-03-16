@@ -91,7 +91,7 @@ impl ConfigInterface for Store {
             self,
             key,
             || async { self.find_config_by_key(key).await },
-            &*CONFIG_CACHE,
+            &CONFIG_CACHE,
         )
         .await
     }
