@@ -1178,7 +1178,7 @@ pub(crate) fn authenticate_client_secret(
             Err(errors::ApiErrorResponse::ClientSecretInvalid)
         }),
         // If there is no client in payment intent, then it has expired
-        (Some(_), None) => Err(errors::ApiErrorResponse::ClientSecretInvalid),
+        (Some(_), None) => Err(errors::ApiErrorResponse::ClientSecretExpired),
         _ => Ok(()),
     }
 }
