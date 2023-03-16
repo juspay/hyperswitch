@@ -55,7 +55,6 @@ impl AppState {
         }
     }
 
-    #[allow(unused_variables)]
     pub async fn new(conf: Settings) -> Self {
         Self::with_storage(conf, StorageImpl::Postgresql).await
     }
@@ -111,6 +110,11 @@ impl Payments {
                 .service(
                     web::resource("/{payment_id}/{merchant_id}/response/{connector}")
                         .route(web::get().to(payments_redirect_response)),
+                )
+                .service(
+                    web::resource("/{payment_id}/{merchant_id}/complete/{connector}")
+                        // .route(web::get().to(payments_redirect_response))
+                        .route(web::post().to(payments_complete_authorize)),
                 );
         }
         route

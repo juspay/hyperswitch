@@ -11,10 +11,7 @@ use self::transformers as adyen;
 use crate::{
     configs::settings,
     consts,
-    core::{
-        errors::{self, CustomResult},
-        payments,
-    },
+    core::errors::{self, CustomResult},
     db::StorageInterface,
     headers, logger, services,
     types::{
@@ -36,8 +33,7 @@ impl ConnectorCommon for Adyen {
         &self,
         auth_type: &types::ConnectorAuthType,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        let auth: adyen::AdyenAuthType = auth_type
-            .try_into()
+        let auth = adyen::AdyenAuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(vec![(headers::X_API_KEY.to_string(), auth.api_key)])
     }
@@ -760,14 +756,5 @@ impl api::IncomingWebhook for Adyen {
         Ok(services::api::ApplicationResponse::TextPlain(
             "[accepted]".to_string(),
         ))
-    }
-}
-
-impl services::ConnectorRedirectResponse for Adyen {
-    fn get_flow_type(
-        &self,
-        _query_params: &str,
-    ) -> CustomResult<payments::CallConnectorAction, errors::ConnectorError> {
-        Ok(payments::CallConnectorAction::Trigger)
     }
 }

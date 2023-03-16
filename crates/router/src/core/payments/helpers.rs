@@ -5,6 +5,7 @@ use common_utils::{ext_traits::AsyncExt, fp_utils};
 use error_stack::{report, IntoReport, ResultExt};
 use masking::ExposeOptionInterface;
 use router_env::{instrument, tracing};
+use storage_models::enums;
 use uuid::Uuid;
 
 use super::{
@@ -351,14 +352,23 @@ pub fn create_redirect_url(
         server.base_url, payment_attempt.payment_id, payment_attempt.merchant_id, connector_name
     )
 }
-pub fn create_webhook_url(
-    server: &Server,
+
+pub fn create_webhook_url(server: &Server,
     payment_attempt: &storage::PaymentAttempt,
     connector_name: &String,
 ) -> String {
     format!(
-        "{}/webhooks/{}/{}",
-        server.base_url, payment_attempt.merchant_id, connector_name
+    "{}/webhooks/{}/{}",
+    server.base_url, payment_attempt.merchant_id, connector_name
+)
+}
+pub fn create_complete_authorize_url(server: &Server,
+    payment_attempt: &storage::PaymentAttempt,
+    connector_name: &String,
+) -> String {
+    format!(
+    "{}/payments/{}/{}/complete/{}",
+        server.base_url, payment_attempt.payment_id, payment_attempt.merchant_id, connector_name
     )
 }
 fn validate_recurring_mandate(req: api::MandateValidationFields) -> RouterResult<()> {
@@ -735,6 +745,7 @@ pub async fn make_pm_data<'a, F: Clone, R>(
                             Some(token),
                             &updated_pm,
                             payment_data.payment_intent.customer_id.to_owned(),
+                            enums::PaymentMethod::Card,
                         )
                         .await?;
                         Some(updated_pm)
@@ -756,6 +767,7 @@ pub async fn make_pm_data<'a, F: Clone, R>(
                                 Some(token),
                                 &updated_pm,
                                 payment_data.payment_intent.customer_id.to_owned(),
+                                enums::PaymentMethod::Wallet,
                             )
                             .await?;
                             Some(updated_pm)
@@ -778,6 +790,7 @@ pub async fn make_pm_data<'a, F: Clone, R>(
                 None,
                 pm,
                 payment_data.payment_intent.customer_id.to_owned(),
+                enums::PaymentMethod::Card,
             )
             .await?;
             payment_data.token = Some(token);
@@ -791,6 +804,7 @@ pub async fn make_pm_data<'a, F: Clone, R>(
                 None,
                 pm,
                 payment_data.payment_intent.customer_id.to_owned(),
+                enums::PaymentMethod::Wallet,
             )
             .await?;
             payment_data.token = Some(token);

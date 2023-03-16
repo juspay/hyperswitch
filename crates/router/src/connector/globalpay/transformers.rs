@@ -8,7 +8,7 @@ use super::{
     response::{GlobalpayPaymentStatus, GlobalpayPaymentsResponse, GlobalpayRefreshTokenResponse},
 };
 use crate::{
-    connector::utils::{PaymentsRequestData, RouterData},
+    connector::utils::{self, PaymentsAuthorizeRequestData, RouterData},
     consts,
     core::errors,
     services::{self},
@@ -23,7 +23,8 @@ pub struct GlobalPayMeta {
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for GlobalpayPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
-        let metadata: GlobalPayMeta = item.to_connector_meta()?;
+        let metadata: GlobalPayMeta =
+            utils::to_connector_meta_from_secret(item.connector_meta_data.clone())?;
         let account_name = metadata.account_name;
 
         match item.request.payment_method_data.clone() {
@@ -158,7 +159,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for GlobalpayPaymentsRequest {
                     payment_method: requests::PaymentMethod {
                         digital_wallet: Some(requests::DigitalWallet {
                             provider: Some(requests::DigitalWalletProvider::PayByGoogle),
-                            payment_token: item.get_wallet_token_as_json()?,
+                            payment_token: item.request.get_wallet_token_as_json()?,
                         }),
                         authentication: None,
                         bank_transfer: None,

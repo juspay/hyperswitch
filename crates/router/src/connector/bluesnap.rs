@@ -11,10 +11,7 @@ use super::utils::RefundsRequestData;
 use crate::{
     configs::settings,
     consts,
-    core::{
-        errors::{self, CustomResult},
-        payments,
-    },
+    core::errors::{self, CustomResult},
     db::StorageInterface,
     headers, logger,
     services::{self, ConnectorIntegration},
@@ -739,14 +736,5 @@ impl api::IncomingWebhook for Bluesnap {
                 .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
 
         Ok(res_json)
-    }
-}
-
-impl services::ConnectorRedirectResponse for Bluesnap {
-    fn get_flow_type(
-        &self,
-        _query_params: &str,
-    ) -> CustomResult<payments::CallConnectorAction, errors::ConnectorError> {
-        Ok(payments::CallConnectorAction::Trigger)
     }
 }

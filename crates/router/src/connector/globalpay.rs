@@ -774,12 +774,3 @@ impl api::IncomingWebhook for Globalpay {
         Ok(res_json)
     }
 }
-
-impl services::ConnectorRedirectResponse for Globalpay {
-    fn get_flow_type(
-        &self,
-        _query_params: &str,
-    ) -> CustomResult<payments::CallConnectorAction, errors::ConnectorError> {
-        Ok(payments::CallConnectorAction::Trigger)
-    }
-}
