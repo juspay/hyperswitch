@@ -97,13 +97,12 @@ impl ConnectorCommon for Globalpay {
 
 impl PaymentsCompleteAuthorize for Globalpay {}
 
-
 impl
     ConnectorIntegration<
         api::CompleteAuthorize,
         types::CompleteAuthorizeData,
         types::PaymentsResponseData,
-    >  for Globalpay
+    > for Globalpay
 {
     fn get_headers(
         &self,
@@ -125,9 +124,10 @@ impl
         Ok(format!(
             "{}transactions/{}/confirmation",
             self.base_url(connectors),
-            req.request.connector_transaction_id
-            .clone()
-            .ok_or(errors::ConnectorError::MissingConnectorTransactionID)?
+            req.request
+                .connector_transaction_id
+                .clone()
+                .ok_or(errors::ConnectorError::MissingConnectorTransactionID)?
         ))
     }
 
@@ -146,9 +146,15 @@ impl
         Ok(Some(
             services::RequestBuilder::new()
                 .method(services::Method::Post)
-                .url(&types::PaymentsComeplteAuthorizeType::get_url(self, req, connectors)?)
-                .headers(types::PaymentsComeplteAuthorizeType::get_headers(self, req, connectors)?)
-                .body(types::PaymentsComeplteAuthorizeType::get_request_body(self, req)?)
+                .url(&types::PaymentsComeplteAuthorizeType::get_url(
+                    self, req, connectors,
+                )?)
+                .headers(types::PaymentsComeplteAuthorizeType::get_headers(
+                    self, req, connectors,
+                )?)
+                .body(types::PaymentsComeplteAuthorizeType::get_request_body(
+                    self, req,
+                )?)
                 .build(),
         ))
     }
@@ -178,7 +184,6 @@ impl
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         self.build_error_response(res)
     }
-
 }
 
 impl api::ConnectorAccessToken for Globalpay {}
