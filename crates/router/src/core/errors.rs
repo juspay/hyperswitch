@@ -153,8 +153,13 @@ impl From<ConfigError> for ApplicationError {
 }
 
 fn error_response<T: Display>(err: &T) -> actix_web::HttpResponse {
+    use actix_web::http::header;
+
+    use crate::consts;
+
     actix_web::HttpResponse::BadRequest()
-        .append_header(("Via", "Juspay_Router"))
+        .append_header((header::STRICT_TRANSPORT_SECURITY, consts::HSTS_HEADER_VALUE))
+        .append_header((header::VIA, "Juspay_Router"))
         .content_type("application/json")
         .body(format!(r#"{{ "error": {{ "message": "{err}" }} }}"#))
 }
@@ -222,6 +227,8 @@ pub enum ConnectorError {
     RequestEncodingFailed,
     #[error("Request encoding failed : {0}")]
     RequestEncodingFailedWithReason(String),
+    #[error("Parsing failed")]
+    ParsingFailed,
     #[error("Failed to deserialize connector response")]
     ResponseDeserializationFailed,
     #[error("Failed to execute a processing step: {0:?}")]
@@ -256,6 +263,8 @@ pub enum ConnectorError {
         connector: &'static str,
         payment_experience: String,
     },
+    #[error("{flow} flow not supported by {connector} connector")]
+    FlowNotSupported { flow: String, connector: String },
     #[error("Missing connector transaction ID")]
     MissingConnectorTransactionID,
     #[error("Missing connector refund ID")]
@@ -276,6 +285,8 @@ pub enum ConnectorError {
     WebhookEventTypeNotFound,
     #[error("Incoming webhook event resource object not found")]
     WebhookResourceObjectNotFound,
+    #[error("Could not respond to the incoming webhook event")]
+    WebhookResponseEncodingFailed,
     #[error("Invalid Date/time format")]
     InvalidDateFormat,
     #[error("Invalid Data format")]
@@ -302,6 +313,18 @@ pub enum VaultError {
     MissingRequiredField { field_name: &'static str },
     #[error("The card vault returned an unexpected response: {0:?}")]
     UnexpectedResponseError(bytes::Bytes),
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum KmsError {
+    #[error("Failed to base64 decode input data")]
+    Base64DecodingFailed,
+    #[error("Failed to KMS decrypt input data")]
+    DecryptionFailed,
+    #[error("Missing plaintext KMS decryption output")]
+    MissingPlaintextDecryptionOutput,
+    #[error("Failed to UTF-8 decode decryption output")]
+    Utf8DecodingFailed,
 }
 
 #[derive(Debug, thiserror::Error)]

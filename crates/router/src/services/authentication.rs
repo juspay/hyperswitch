@@ -55,9 +55,12 @@ where
         let api_key = api_keys::PlaintextApiKey::from(api_key);
         let hash_key = {
             let config = state.conf();
-            api_keys::HASH_KEY
-                .get_or_try_init(|| api_keys::get_hash_key(&config.api_keys))
-                .await?
+            api_keys::get_hash_key(
+                &config.api_keys,
+                #[cfg(feature = "kms")]
+                &config.kms,
+            )
+            .await?
         };
         let hashed_api_key = api_key.keyed_hash(hash_key.peek());
 

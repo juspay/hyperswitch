@@ -57,8 +57,11 @@ pub mod error_parser {
         fn error_response(&self) -> actix_web::HttpResponse<actix_web::body::BoxBody> {
             use actix_web::http::header;
 
+            use crate::consts;
+
             actix_web::HttpResponseBuilder::new(StatusCode::BAD_REQUEST)
                 .insert_header((header::CONTENT_TYPE, mime::APPLICATION_JSON))
+                .insert_header((header::STRICT_TRANSPORT_SECURITY, consts::HSTS_HEADER_VALUE))
                 .insert_header((header::VIA, "Juspay_Router"))
                 .body(self.to_string())
         }

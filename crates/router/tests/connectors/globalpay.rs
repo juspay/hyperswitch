@@ -1,9 +1,5 @@
 use masking::Secret;
-use router::types::{
-    self,
-    api::{self},
-    storage::enums,
-};
+use router::types::{self, api, storage::enums};
 use serde_json::json;
 
 use crate::{
@@ -109,8 +105,7 @@ async fn should_sync_payment() {
                 connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
                     txn_id.unwrap(),
                 ),
-                encoded_data: None,
-                capture_method: None,
+                ..Default::default()
             }),
             get_default_payment_info(),
         )

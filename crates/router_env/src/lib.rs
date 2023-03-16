@@ -9,6 +9,7 @@
 
 pub mod env;
 pub mod logger;
+pub mod metrics;
 /// `cargo` build instructions generation for obtaining information about the application
 /// environment.
 #[cfg(feature = "vergen")]

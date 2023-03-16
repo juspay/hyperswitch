@@ -83,6 +83,9 @@ impl AdyenTest {
             email: None,
             payment_experience: None,
             payment_method_type: None,
+            session_token: None,
+            enrolled_for_3ds: false,
+            related_transaction_id: None,
         })
     }
 }
