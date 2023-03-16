@@ -18,9 +18,7 @@ use self::{
 use crate::{
     configs::settings,
     connector::utils as conn_utils,
-    core::{
-        errors::{self, CustomResult}
-    },
+    core::errors::{self, CustomResult},
     headers,
     services::{self, ConnectorIntegration},
     types::{

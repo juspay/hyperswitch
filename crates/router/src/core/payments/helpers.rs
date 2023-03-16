@@ -353,21 +353,23 @@ pub fn create_redirect_url(
     )
 }
 
-pub fn create_webhook_url(server: &Server,
+pub fn create_webhook_url(
+    server: &Server,
     payment_attempt: &storage::PaymentAttempt,
     connector_name: &String,
 ) -> String {
     format!(
-    "{}/webhooks/{}/{}",
-    server.base_url, payment_attempt.merchant_id, connector_name
-)
+        "{}/webhooks/{}/{}",
+        server.base_url, payment_attempt.merchant_id, connector_name
+    )
 }
-pub fn create_complete_authorize_url(server: &Server,
+pub fn create_complete_authorize_url(
+    server: &Server,
     payment_attempt: &storage::PaymentAttempt,
     connector_name: &String,
 ) -> String {
     format!(
-    "{}/payments/{}/{}/complete/{}",
+        "{}/payments/{}/{}/complete/{}",
         server.base_url, payment_attempt.payment_id, payment_attempt.merchant_id, connector_name
     )
 }
