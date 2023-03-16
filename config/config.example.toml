@@ -155,16 +155,16 @@ trustpay.base_url_bank_redirects = "https://aapi.trustpay.eu/"
 [connectors.supported]
 wallets = ["klarna", "braintree", "applepay"]
 cards = [
-	"paypal",
-    "stripe",
     "adyen",
     "authorizedotnet",
-    "checkout",
     "braintree",
+    "checkout",
     "cybersource",
-    "shift4",
-    "worldpay",
     "globalpay",
+    "paypal",
+    "shift4",
+    "stripe",
+    "worldpay",
 ]
 
 # Scheduler settings provides a point to modify the behaviour of scheduler flow.

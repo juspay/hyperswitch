@@ -3,7 +3,9 @@ use masking::Secret;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils::{AccessTokenRequestInfo, CardData, PaymentsAuthorizeRequestData},
+    connector::utils::{
+        AccessTokenRequestInfo, AddressDetailsData, CardData, PaymentsAuthorizeRequestData,
+    },
     core::errors,
     pii,
     types::{self, api, storage::enums as storage_enums},
@@ -57,14 +59,20 @@ pub struct PaypalPaymentsRequest {
     payment_source: Option<PaymentSourceItem>,
 }
 
-fn get_address_info(address: Option<&api_models::payments::Address>) -> Option<Address> {
-    address.and_then(|add| {
-        add.address.as_ref().map(|a| Address {
-            country_code: a.country.clone().unwrap_or_default(),
-            address_line_1: a.line1.clone(),
-            postal_code: a.zip.clone(),
-        })
-    })
+fn get_address_info(
+    address: Option<&api_models::payments::Address>,
+) -> Result<Option<Address>, error_stack::Report<errors::ConnectorError>> {
+    match address {
+        Some(add) => match &add.address {
+            Some(a) => Ok(Some(Address {
+                country_code: a.get_country()?.to_owned(),
+                address_line_1: a.line1.clone(),
+                postal_code: a.zip.clone(),
+            })),
+            _ => Ok(None),
+        },
+        _ => Ok(None),
+    }
 }
 
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaypalPaymentsRequest {
@@ -90,7 +98,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaypalPaymentsRequest {
                 let expiry = Some(card.get_expiry_date_as_yyyymm("-"));
 
                 let payment_source = Some(PaymentSourceItem::Card(CardRequest {
-                    billing_address: get_address_info(item.address.billing.as_ref()),
+                    billing_address: get_address_info(item.address.billing.as_ref())?,
                     expiry,
                     name: (ccard.card_holder_name.clone()),
                     number: Some(ccard.card_number.clone()),
