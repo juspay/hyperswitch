@@ -380,7 +380,12 @@ impl PaymentRedirectFlow for PaymentRedirectSync {
             param: req.param,
             force_sync: req.force_sync,
             connector: req.connector,
-            merchant_connector_details: None,
+            merchant_connector_details: req.creds_identifier.map(|creds_id| {
+                api::MerchantConnectorDetailsWrap {
+                    creds_identifier: creds_id,
+                    encoded_data: None,
+                }
+            }),
         };
         payments_core::<api::PSync, api::PaymentsResponse, _, _, _>(
             state,

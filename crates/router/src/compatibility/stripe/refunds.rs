@@ -2,12 +2,12 @@ pub mod types;
 
 use actix_web::{get, post, web, HttpRequest, HttpResponse};
 use router_env::{instrument, tracing};
-
+use error_stack::report;
 use crate::{
     compatibility::{stripe::errors, wrap},
     core::refunds,
     routes,
-    services::authentication as auth,
+    services::{api,authentication as auth},
     types::api::refunds as refund_types,
 };
 
@@ -15,10 +15,18 @@ use crate::{
 #[post("")]
 pub async fn refund_create(
     state: web::Data<routes::AppState>,
+    qs_config: web::Data<serde_qs::Config>,
     req: HttpRequest,
-    form_payload: web::Form<types::StripeCreateRefundRequest>,
+    form_payload: web::Bytes,
 ) -> HttpResponse {
-    let payload = form_payload.into_inner();
+    let payload: types::StripeCreateRefundRequest = match qs_config
+        .deserialize_bytes(&form_payload)
+        .map_err(|err| report!(errors::StripeErrorCode::from(err)))
+    {
+        Ok(p) => p,
+        Err(err) => return api::log_and_return_error_response(err),
+    };
+
     let create_refund_req: refund_types::RefundRequest = payload.into();
 
     wrap::compatibility_api_wrap::<
