@@ -11,8 +11,8 @@ enabled = false
 
 # TODO: Update database credentials before running application
 [master_database]
-username = "db_user"
-password = "db_pass"
+username = "sakilmostak"
+password = "asdQWE45$$"
 host = "localhost"
 port = 5432
 dbname = "hyperswitch_db"
@@ -20,8 +20,8 @@ pool_size = 5
 connection_timeout = 10
 
 [replica_database]
-username = "replica_user"
-password = "replica_pass"
+username = "sakilmostak"
+password = "asdQWE45$$"
 host = "localhost"
 port = 5432
 dbname = "hyperswitch_db"
