@@ -27,6 +27,7 @@ Check the Table Of Contents to jump to the relevant section.
   - [Run the application](#run-the-application)
 - [Try out our APIs](#try-out-our-apis)
   - [Set up your merchant account](#set-up-your-merchant-account)
+  - [Create an API key](#create-an-api-key)
   - [Set up a payment connector account](#set-up-a-payment-connector-account)
   - [Create a Payment](#create-a-payment)
   - [Create a Refund](#create-a-refund)
@@ -75,7 +76,7 @@ Check the Table Of Contents to jump to the relevant section.
 
 ## Set up a Rust environment and other dependencies
 
-If you are using `nix`, please skip the setup dependencies step and jump to 
+If you are using `nix`, please skip the setup dependencies step and jump to
 [Set up the database](#set-up-the-database).
 
 ### Set up dependencies on Ubuntu-based systems
@@ -385,16 +386,16 @@ Once you're done with configuring the application, proceed with
    Click on the "Send" button to create a merchant account.
    You should obtain a response containing most of the data included in the
    request, along with some additional fields.
-   Store the merchant ID, API key and publishable key returned in the response
-   securely.
+   Store the merchant ID and publishable key returned in the response.
 
-6. Open the ["Variables" tab][variables] in the
-   [Postman collection][postman-collection] and add the following variables:
+### Create an API key
 
-   1. Add the API key you obtained in the previous step under the "current value"
-      column for the `api_key` variable.
-   2. Add the merchant ID you obtained in the previous step under the "current
-      value" column for the `merchant_id` variable.
+1. Open the ["API Key - Create"][api-key-create] request, switch to the "Body"
+   tab and update any request parameters as required.
+   Click on the "Send" button to create an API key.
+   You should obtain a response containing the data included in the request,
+   along with the plaintext API key.
+   Store the API key returned in the response securely.
 
 ### Set up a payment connector account
 
@@ -465,6 +466,7 @@ To explore more of our APIs, please check the remaining folders in the
 [variables]: https://www.postman.com/hyperswitch/workspace/hyperswitch/collection/25176183-e36f8e3d-078c-4067-a273-f456b6b724ed?tab=variables
 [quick-start]: https://www.postman.com/hyperswitch/workspace/hyperswitch/folder/25176183-0103918c-6611-459b-9faf-354dee8e4437
 [merchant-account-create]: https://www.postman.com/hyperswitch/workspace/hyperswitch/request/25176183-00124712-4dff-43d8-afb2-b99cdac1511d
+[api-key-create]: https://www.postman.com/hyperswitch/workspace/hyperswitch/request/25176183-b03615f6-c623-421e-be3f-52acf07b58d3
 [payment-connector-create]: https://www.postman.com/hyperswitch/workspace/hyperswitch/request/25176183-f9509d03-bb1b-4d86-bb63-1658da7f1be5
 [payments-create]: https://www.postman.com/hyperswitch/workspace/hyperswitch/request/25176183-9b4ad6a8-fbdd-4919-8505-c75c83bdf9d6
 [payments-retrieve]: https://www.postman.com/hyperswitch/workspace/hyperswitch/request/25176183-11995c9b-8a34-4afd-a6ce-e8645693929b
