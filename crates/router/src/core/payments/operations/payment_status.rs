@@ -247,19 +247,14 @@ async fn get_tracker_for_sync<
     let contains_encoded_data = connector_response.encoded_data.is_some();
 
     let creds_identifier = request
-    .merchant_connector_details
-    .as_ref()
-    .map(|mcd| mcd.creds_identifier.to_owned());
+        .merchant_connector_details
+        .as_ref()
+        .map(|mcd| mcd.creds_identifier.to_owned());
     request
         .merchant_connector_details
         .to_owned()
         .async_map(|mcd| async {
-            helpers::insert_merchant_connector_creds_to_config(
-                db,
-                merchant_id,
-                mcd,
-            )
-            .await
+            helpers::insert_merchant_connector_creds_to_config(db, merchant_id, mcd).await
         })
         .await
         .transpose()?;

@@ -28,7 +28,7 @@ use crate::{
     scheduler::{metrics, workflows::payment_sync},
     services,
     types::{
-        api::{self, enums as api_enums, CustomerAcceptanceExt, MandateValidationFieldsExt, admin},
+        api::{self, admin, enums as api_enums, CustomerAcceptanceExt, MandateValidationFieldsExt},
         storage::{self, enums as storage_enums, ephemeral_key},
         transformers::ForeignInto,
     },
@@ -1272,7 +1272,10 @@ pub async fn insert_merchant_connector_creds_to_config(
     merchant_connector_details: admin::MerchantConnectorDetailsWrap,
 ) -> RouterResult<()> {
     db.insert_config(storage::ConfigNew {
-        key: format!("mcd_{}_{}", merchant_id, merchant_connector_details.creds_identifier),
+        key: format!(
+            "mcd_{}_{}",
+            merchant_id, merchant_connector_details.creds_identifier
+        ),
         config: merchant_connector_details.encoded_data,
     })
     .await

@@ -136,9 +136,9 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsSessionRequest>
         };
 
         let creds_identifier = request
-        .merchant_connector_details
-        .as_ref()
-        .map(|mcd| mcd.creds_identifier.to_owned());
+            .merchant_connector_details
+            .as_ref()
+            .map(|mcd| mcd.creds_identifier.to_owned());
         request
             .merchant_connector_details
             .to_owned()

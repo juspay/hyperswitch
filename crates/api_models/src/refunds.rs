@@ -2,8 +2,8 @@ use common_utils::{custom_serde, pii};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 use utoipa::ToSchema;
-use crate::admin;
-use crate::enums;
+
+use crate::{admin, enums};
 
 #[derive(Default, Debug, ToSchema, Clone, Deserialize)]
 #[serde(deny_unknown_fields)]

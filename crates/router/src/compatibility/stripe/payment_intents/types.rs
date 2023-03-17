@@ -7,8 +7,7 @@ use crate::{
     core::errors,
     pii::{self, PeekInterface},
     types::{
-        api::enums as api_enums,
-        api::admin,
+        api::{admin, enums as api_enums},
         transformers::{ForeignFrom, ForeignInto},
     },
 };
