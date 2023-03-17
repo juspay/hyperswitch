@@ -1,13 +1,16 @@
 #! /usr/bin/env bash
 function find_prev_connector() {
     self=scripts/add_connector.sh
+    git checkout $self
     cp $self $self.tmp
+    # add new connector to existing list and sort it
     connectors=(aci adyen airwallex applepay authorizedotnet bambora bluesnap braintree checkout cybersource dlocal fiserv globalpay klarna mollie multisafepay nuvei payu rapyd shift4 stripe trustpay worldline worldpay "$1")
     IFS=$'\n' sorted=($(sort <<<"${connectors[*]}")); unset IFS
     res=`echo ${sorted[@]}`
     sed -i'' -e "s/^    connectors=.*/    connectors=($res \"\$1\")/" $self.tmp
     for i in "${!sorted[@]}"; do
     if [ "${sorted[$i]}" = "$1" ] && [ $i != "0" ]; then
+        # find and return the connector name where this new connector should be added next to it 
         eval "$2='${sorted[i-1]}'"
         mv $self.tmp $self
         rm $self.tmp-e
@@ -16,7 +19,7 @@ function find_prev_connector() {
     done
     mv $self.tmp $self
     rm $self.tmp-e
-    #if the current connector needs to be added in first place, add it after Aci, this needs to be covered in code review
+    # if the new connector needs to be added in first place, add it after Aci, sorted order needs to be covered in code review
     eval "$2='aci'" 
 }
 pg=$1;
