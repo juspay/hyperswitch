@@ -1,5 +1,5 @@
 use common_utils::pii;
-use masking::Secret;
+use masking::{Secret, StrongSecret};
 use serde::{Deserialize, Serialize};
 use url;
 use utoipa::ToSchema;
@@ -17,6 +17,10 @@ pub struct MerchantAccountCreate {
     /// Name of the Merchant Account
     #[schema(example = "NewAge Retailer")]
     pub merchant_name: Option<String>,
+
+    /// API key that will be used for server side API access
+    #[schema(value_type = Option<String>, example = "Ah2354543543523")]
+    pub api_key: Option<StrongSecret<String>>,
 
     /// Merchant related details
     pub merchant_details: Option<MerchantDetails>,
@@ -130,6 +134,10 @@ pub struct MerchantAccountResponse {
     /// Name of the Merchant Account
     #[schema(example = "NewAge Retailer")]
     pub merchant_name: Option<String>,
+
+    /// API key that will be used for server side API access
+    #[schema(value_type = Option<String>, example = "Ah2354543543523")]
+    pub api_key: Option<StrongSecret<String>>,
 
     /// The URL to redirect after the completion of the operation
     #[schema(max_length = 255, example = "https://www.example.com/success")]
