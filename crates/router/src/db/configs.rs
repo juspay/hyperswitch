@@ -53,7 +53,7 @@ impl ConfigInterface for Store {
         &self,
         key: &str,
     ) -> CustomResult<storage::Config, errors::StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
+        let conn = connection::pg_connection_write(self).await?;
         storage::Config::find_by_key(&conn, key)
             .await
             .map_err(Into::into)
