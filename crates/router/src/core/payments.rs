@@ -379,6 +379,7 @@ impl PaymentRedirectFlow for PaymentRedirectSync {
             param: req.param,
             force_sync: req.force_sync,
             connector: req.connector,
+            merchant_connector_details: None
         };
         payments_core::<api::PSync, api::PaymentsResponse, _, _, _>(
             state,

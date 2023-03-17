@@ -75,7 +75,7 @@ where
     let complete_authorize_url = Some(helpers::create_complete_authorize_url(
         &state.conf.server,
         &payment_data.payment_attempt,
-        &merchant_connector_account.connector_name,
+        &connector_id.to_owned(),
     ));
 
     router_data = types::RouterData {

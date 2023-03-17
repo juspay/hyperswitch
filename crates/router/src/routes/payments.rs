@@ -469,7 +469,6 @@ pub async fn payments_redirect_response(
         json_payload: None,
         param: Some(param_string.to_string()),
         connector: Some(connector),
-        ..Default::default()
     };
     api::server_wrap(
         state.get_ref(),
