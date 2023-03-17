@@ -4,7 +4,7 @@ mod transformers;
 
 use std::fmt::Debug;
 
-use common_utils::ext_traits::ByteSliceExt;
+use ::common_utils::{errors::ReportSwitchExt, ext_traits::ByteSliceExt};
 use error_stack::{IntoReport, ResultExt};
 use serde_json::Value;
 
@@ -170,14 +170,13 @@ impl
         let response: GlobalpayPaymentsResponse = res
             .response
             .parse_struct("Globalpay PaymentsResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+            .switch()?;
 
-        types::ResponseRouterData {
+        types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
-        }
-        .try_into()
+        })
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
@@ -830,7 +829,7 @@ impl api::IncomingWebhook for Globalpay {
         let details: response::GlobalpayWebhookObjectId = request
             .body
             .parse_struct("GlobalpayWebhookObjectId")
-            .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
+            .switch()?;
         Ok(details.id)
     }
 
@@ -841,7 +840,7 @@ impl api::IncomingWebhook for Globalpay {
         let details: response::GlobalpayWebhookObjectEventType = request
             .body
             .parse_struct("GlobalpayWebhookObjectEventType")
-            .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
+            .switch()?;
         Ok(match details.status.as_str() {
             "DECLINED" => api::IncomingWebhookEvent::PaymentIntentFailure,
             "CAPTURED" => api::IncomingWebhookEvent::PaymentIntentSuccess,

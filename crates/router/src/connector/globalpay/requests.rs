@@ -1,7 +1,6 @@
 use common_utils::pii;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
-use serde_with::skip_serializing_none;
 
 #[derive(Debug, Default, Serialize)]
 pub struct GlobalpayPaymentsRequest {
@@ -189,20 +188,27 @@ pub struct Order {
     /// Merchant defined field common to all transactions that are part of the same order.
     pub reference: Option<String>,
 }
-#[skip_serializing_none]
-#[derive(Debug, Default, Serialize, Deserialize)]
 
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum PaymentMethodType {
+    Card(Card),
+    Apm(Apm),
+    BankTransfer(BankTransfer),
+    DigitalWallet(DigitalWallet),
+}
+
+impl Default for PaymentMethodType {
+    fn default() -> Self {
+        Self::Card(Card::default())
+    }
+}
+
+#[derive(Debug, Serialize, Default, Deserialize)]
 pub struct PaymentMethod {
-    pub apm: Option<Apm>,
-
+    #[serde(flatten)]
+    pub payment_method_type: PaymentMethodType,
     pub authentication: Option<Authentication>,
-
-    pub bank_transfer: Option<BankTransfer>,
-
-    pub card: Option<Card>,
-
-    pub digital_wallet: Option<DigitalWallet>,
-
     pub encryption: Option<Encryption>,
     /// Indicates how the payment method information was obtained by the Merchant for this
     /// transaction.
