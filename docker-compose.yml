@@ -96,8 +96,6 @@ services:
     image: rust:1.65
     command: cargo build --bin router
     working_dir: /app
-    ports:
-      - "8080:8080"
     networks:
       - router_net
     volumes:
