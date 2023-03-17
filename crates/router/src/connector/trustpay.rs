@@ -603,11 +603,21 @@ impl api::IncomingWebhook for Trustpay {
                     ),
                 ))
             }
-            _ => Ok(api_models::webhooks::ObjectReferenceId::RefundId(
-                api_models::webhooks::RefundIdType::RefundId(
-                    details.payment_information.references.merchant_reference,
-                ),
-            )),
+            trustpay::CreditDebitIndicator::Dbit => {
+                if details.payment_information.status == trustpay::WebhookStatus::Chargebacked {
+                    Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
+                        api_models::payments::PaymentIdType::PaymentIntentId(
+                            details.payment_information.references.merchant_reference,
+                        ),
+                    ))
+                } else {
+                    Ok(api_models::webhooks::ObjectReferenceId::RefundId(
+                        api_models::webhooks::RefundIdType::RefundId(
+                            details.payment_information.references.merchant_reference,
+                        ),
+                    ))
+                }
+            }
         }
     }
 
@@ -650,9 +660,10 @@ impl api::IncomingWebhook for Trustpay {
             .body
             .parse_struct("TrustpayWebhookResponse")
             .switch()?;
-        let res_json = serde_json::to_value(details.payment_information)
-            .into_report()
-            .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
+        let res_json = utils::Encode::<trustpay::WebhookPaymentInformation>::encode_to_value(
+            &details.payment_information,
+        )
+        .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
         Ok(res_json)
     }
 

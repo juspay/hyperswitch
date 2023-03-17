@@ -916,7 +916,10 @@ fn handle_webhooks_refund_response(
 {
     let refund_status = storage_models::enums::RefundStatus::try_from(response.status)?;
     let refund_response_data = types::RefundsResponseData {
-        connector_refund_id: "".to_string(),
+        connector_refund_id: response
+            .references
+            .payment_request_id
+            .ok_or(errors::ConnectorError::MissingConnectorRefundID)?,
         refund_status,
     };
     Ok((None, refund_response_data))
@@ -1120,7 +1123,7 @@ pub enum WebhookStatus {
     Rejected,
     Refunded,
     // TODO (Handle Chargebacks)
-    // Chargebacked,
+    Chargebacked,
 }
 
 impl TryFrom<WebhookStatus> for enums::AttemptStatus {
@@ -1141,15 +1144,23 @@ impl TryFrom<WebhookStatus> for storage_models::enums::RefundStatus {
             WebhookStatus::Paid => Ok(Self::Success),
             WebhookStatus::Refunded => Ok(Self::Success),
             WebhookStatus::Rejected => Ok(Self::Failure),
+            _ => Err(errors::ConnectorError::WebhookEventTypeNotFound),
         }
     }
+}
+
+#[derive(Default, Debug, Serialize, Deserialize, Eq, PartialEq, Clone)]
+#[serde(rename_all = "PascalCase")]
+pub struct WebhookReferences {
+    pub merchant_reference: String,
+    pub payment_request_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "PascalCase")]
 pub struct WebhookPaymentInformation {
     pub credit_debit_indicator: CreditDebitIndicator,
-    pub references: References,
+    pub references: WebhookReferences,
     pub status: WebhookStatus,
 }
 
