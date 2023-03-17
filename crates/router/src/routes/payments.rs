@@ -457,9 +457,9 @@ pub async fn payments_connector_session(
 pub async fn payments_redirect_response(
     state: web::Data<app::AppState>,
     req: actix_web::HttpRequest,
-    path: web::Path<(String, String, String)>,
+    path: web::Path<(String, String, String, String)>,
 ) -> impl Responder {
-    let (payment_id, merchant_id, connector) = path.into_inner();
+    let (payment_id, merchant_id, connector, creds_identifier) = path.into_inner();
     let param_string = req.query_string();
 
     let payload = payments::PaymentsRedirectResponseData {
@@ -469,6 +469,11 @@ pub async fn payments_redirect_response(
         json_payload: None,
         param: Some(param_string.to_string()),
         connector: Some(connector),
+        creds_identifier: if creds_identifier == "null" {
+            None
+        } else {
+            Some(creds_identifier)
+        },
     };
     api::server_wrap(
         state.get_ref(),
@@ -503,6 +508,7 @@ pub async fn payments_complete_authorize(
         json_payload: Some(json_payload.0),
         force_sync: false,
         connector: Some(connector),
+        creds_identifier: None,
     };
     api::server_wrap(
         state.get_ref(),

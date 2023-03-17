@@ -259,6 +259,7 @@ pub struct PaymentsRedirectResponseData {
     pub json_payload: Option<serde_json::Value>,
     pub resource_id: api::PaymentIdType,
     pub force_sync: bool,
+    pub creds_identifier: Option<String>,
 }
 
 #[async_trait::async_trait]

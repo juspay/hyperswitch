@@ -454,19 +454,6 @@ pub async fn validate_and_create_refund(
 
     refund_id = core_utils::get_or_generate_id("refund_id", &req.refund_id, "ref")?;
 
-    req.merchant_connector_details
-        .to_owned()
-        .async_map(|mcd| async {
-            payments::helpers::insert_merchant_connector_creds_to_config(
-                db,
-                merchant_account.merchant_id.as_str(),
-                mcd,
-            )
-            .await
-        })
-        .await
-        .transpose()?;
-
     let predicate = req
         .merchant_id
         .as_ref()

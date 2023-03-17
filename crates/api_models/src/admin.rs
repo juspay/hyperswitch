@@ -421,7 +421,7 @@ pub struct MerchantConnectorDetailsWrap {
             "user_defined_field_2": "sample_2", 
         },
     }"#)]
-    pub encoded_data: String,
+    pub encoded_data: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
