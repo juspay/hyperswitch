@@ -2,7 +2,7 @@
 function find_prev_connector() {
     self=scripts/add_connector.sh
     cp $self $self.tmp
-    connectors=(aci adyen airwallex applepay authorizedotnet bambora bluesnap braintree checkout cybersource dlocal fiserv forte forte forte forte forte forte forte forte forte forte forte forte forte forte globalpay klarna mollie multisafepay nuvei payu rapyd shift4 stripe trustpay utils worldline worldpay "$1")
+    connectors=(aci adyen airwallex applepay authorizedotnet bambora bluesnap braintree checkout cybersource dlocal fiserv globalpay klarna mollie multisafepay nuvei payu rapyd shift4 stripe trustpay worldline worldpay "$1")
     IFS=$'\n' sorted=($(sort <<<"${connectors[*]}")); unset IFS
     res=`echo ${sorted[@]}`
     sed -i'' -e "s/^    connectors=.*/    connectors=($res \"\$1\")/" $self.tmp
@@ -16,7 +16,8 @@ function find_prev_connector() {
     done
     mv $self.tmp $self
     rm $self.tmp-e
-    eval "$2='aci'"
+    #if the current connector needs to be added in first place, add it after Aci, this needs to be covered in code review
+    eval "$2='aci'" 
 }
 pg=$1;
 base_url=$2;
