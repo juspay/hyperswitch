@@ -505,6 +505,7 @@ impl Default for PaymentCaptureType {
             currency: enums::Currency::USD,
             connector_transaction_id: "".to_string(),
             amount: 100,
+            connector_meta: None,
         })
     }
 }
@@ -589,10 +590,7 @@ pub fn get_connector_metadata(
             redirection_data: _,
             mandate_reference: _,
             connector_metadata,
-        }) => {
-            //resource_id.get_connector_transaction_id().ok()
-            connector_metadata
-        }
+        }) => connector_metadata,
         Ok(types::PaymentsResponseData::SessionResponse { .. }) => None,
         Ok(types::PaymentsResponseData::SessionTokenResponse { .. }) => None,
         Err(_) => None,

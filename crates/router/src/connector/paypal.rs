@@ -128,11 +128,7 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
         _req: &types::RefreshTokenRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!(
-            "{}{}",
-            self.base_url(connectors),
-            "v1/oauth2/token"
-        ))
+        Ok(format!("{}v1/oauth2/token", self.base_url(connectors)))
     }
     fn get_content_type(&self) -> &'static str {
         "application/x-www-form-urlencoded"
@@ -245,11 +241,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         _req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!(
-            "{}{}",
-            self.base_url(connectors),
-            "v2/checkout/orders"
-        ))
+        Ok(format!("{}v2/checkout/orders", self.base_url(connectors),))
     }
 
     fn get_request_body(
@@ -336,14 +328,16 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         req: &types::PaymentsSyncRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let connector_payment_id: PaypalMeta =
-            super::utils::to_connector_meta(req.request.connector_meta.clone())?;
+        let id = req
+            .request
+            .connector_transaction_id
+            .get_connector_transaction_id()
+            .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
 
         Ok(format!(
-            "{}{}{}",
+            "{}v2/checkout/orders/{}",
             self.base_url(connectors),
-            "v2/checkout/orders/",
-            connector_payment_id.order_id
+            id
         ))
     }
 
@@ -375,7 +369,6 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
             data: data.clone(),
             http_code: res.status_code,
         })
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
     fn get_error_response(
@@ -406,12 +399,12 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         req: &types::PaymentsCaptureRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
+        let connector_payment_id: PaypalMeta =
+            super::utils::to_connector_meta(req.request.connector_meta.clone())?;
         Ok(format!(
-            "{}{}{}{}",
+            "{}v2/payments/authorizations/{}/capture",
             self.base_url(connectors),
-            "v2/payments/authorizations/",
-            req.request.connector_transaction_id,
-            "/capture"
+            connector_payment_id.txn_id
         ))
     }
 
@@ -488,12 +481,12 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
         req: &types::PaymentsCancelRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
+        let connector_payment_id: PaypalMeta =
+            super::utils::to_connector_meta(req.request.connector_meta.clone())?;
         Ok(format!(
-            "{}{}{}{}",
+            "{}v2/payments/authorizations/{}/void",
             self.base_url(connectors),
-            "v2/payments/authorizations/",
-            req.request.connector_transaction_id,
-            "/void"
+            connector_payment_id.txn_id,
         ))
     }
 
@@ -525,7 +518,6 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
             data: data.clone(),
             http_code: res.status_code,
         })
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
     fn get_error_response(
         &self,
@@ -553,13 +545,12 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         req: &types::RefundsRouterData<api::Execute>,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let id = req.request.connector_transaction_id.clone();
+        let connector_payment_id: PaypalMeta =
+            super::utils::to_connector_meta(req.request.connector_metadata.clone())?;
         Ok(format!(
-            "{}{}{}{}",
+            "{}v2/payments/captures/{}/refund",
             self.base_url(connectors),
-            "v2/payments/captures/",
-            id,
-            "/refund"
+            connector_payment_id.txn_id,
         ))
     }
 
@@ -605,7 +596,6 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
             data: data.clone(),
             http_code: res.status_code,
         })
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
     fn get_error_response(
@@ -635,9 +625,8 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!(
-            "{}{}{}",
+            "{}v2/payments/refunds/{}",
             self.base_url(connectors),
-            "v2/payments/refunds/",
             req.request.get_connector_refund_id()?
         ))
     }

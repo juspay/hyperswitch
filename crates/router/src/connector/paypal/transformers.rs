@@ -60,25 +60,24 @@ pub struct PaypalPaymentsRequest {
 }
 
 fn get_address_info(
-    address: Option<&api_models::payments::Address>,
+    payment_address: Option<&api_models::payments::Address>,
 ) -> Result<Option<Address>, error_stack::Report<errors::ConnectorError>> {
-    match address {
-        Some(add) => match &add.address {
-            Some(a) => Ok(Some(Address {
-                country_code: a.get_country()?.to_owned(),
-                address_line_1: a.line1.clone(),
-                postal_code: a.zip.clone(),
-            })),
-            _ => Ok(None),
-        },
-        _ => Ok(None),
-    }
+    let address = payment_address.and_then(|payment_address| payment_address.address.as_ref());
+    let address = match address {
+        Some(address) => Some(Address {
+            country_code: address.get_country()?.to_owned(),
+            address_line_1: address.line1.clone(),
+            postal_code: address.zip.clone(),
+        }),
+        None => None,
+    };
+    Ok(address)
 }
 
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaypalPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
-        match item.request.payment_method_data.clone() {
+        match item.request.payment_method_data {
             api_models::payments::PaymentMethodData::Card(ref ccard) => {
                 let intent = match item.request.is_auto_capture() {
                     true => PaypalPaymentIntent::Capture,
@@ -100,7 +99,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaypalPaymentsRequest {
                 let payment_source = Some(PaymentSourceItem::Card(CardRequest {
                     billing_address: get_address_info(item.address.billing.as_ref())?,
                     expiry,
-                    name: (ccard.card_holder_name.clone()),
+                    name: ccard.card_holder_name.clone(),
                     number: Some(ccard.card_number.clone()),
                     security_code: Some(ccard.card_cvc.clone()),
                 }));
@@ -111,7 +110,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaypalPaymentsRequest {
                     payment_source,
                 })
             }
-            _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
+            _ => Err(errors::ConnectorError::NotImplemented("Payment Method".to_string()).into()),
         }
     }
 }
@@ -184,7 +183,7 @@ pub enum PaypalPaymentStatus {
     Created,
 }
 
-fn get_payment_status(
+fn get_authorize_payment_status(
     status: PaypalPaymentStatus,
     intent: PaypalPaymentIntent,
 ) -> storage_enums::AttemptStatus {
@@ -232,7 +231,7 @@ pub struct PaypalPaymentsResponse {
 
 #[derive(Debug, Serialize, Default, Deserialize)]
 pub struct PaypalMeta {
-    pub order_id: String,
+    pub txn_id: String,
 }
 
 fn get_auth_or_capt(
@@ -281,16 +280,13 @@ impl<F, T>
 
         let id = get_auth_or_capt(item.response.intent.clone(), purchase_units)?;
         Ok(Self {
-            status: get_payment_status(item.response.status, item.response.intent),
+            status: get_authorize_payment_status(item.response.status, item.response.intent),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(id),
+                resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
                 redirection_data: None,
                 mandate_reference: None,
                 connector_metadata: Some(
-                    serde_json::to_value(PaypalMeta {
-                        order_id: item.response.id,
-                    })
-                    .unwrap_or_default(),
+                    serde_json::to_value(PaypalMeta { txn_id: id }).unwrap_or_default(),
                 ),
             }),
             ..item.data
@@ -343,10 +339,17 @@ impl TryFrom<types::PaymentsCaptureResponseRouterData<PaymentCaptureResponse>>
         Ok(Self {
             status,
             response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
+                resource_id: types::ResponseId::ConnectorTransactionId(
+                    item.data.request.connector_transaction_id.clone(),
+                ),
                 redirection_data: None,
                 mandate_reference: None,
-                connector_metadata: None,
+                connector_metadata: Some(
+                    serde_json::to_value(PaypalMeta {
+                        txn_id: item.response.id,
+                    })
+                    .unwrap_or_default(),
+                ),
             }),
             amount_captured,
             ..item.data

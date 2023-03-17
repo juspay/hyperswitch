@@ -153,6 +153,7 @@ pub struct PaymentsCaptureData {
     pub currency: storage_enums::Currency,
     pub connector_transaction_id: String,
     pub amount: i64,
+    pub connector_meta: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Clone)]
@@ -197,6 +198,7 @@ pub struct PaymentsCancelData {
     pub currency: Option<storage_enums::Currency>,
     pub connector_transaction_id: String,
     pub cancellation_reason: Option<String>,
+    pub connector_meta: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Clone)]

@@ -281,9 +281,13 @@ impl CardData for api::Card {
         ))
     }
     fn get_expiry_date_as_yyyymm(&self, delimiter: &str) -> Secret<String> {
+        let mut x = self.card_exp_year.peek().clone();
+        if x.len() == 2 {
+            x = format!("20{}", x);
+        }
         Secret::new(format!(
             "{}{}{}",
-            self.card_exp_year.peek().clone(),
+            x,
             delimiter,
             self.card_exp_month.peek().clone()
         ))
