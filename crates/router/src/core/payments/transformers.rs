@@ -71,7 +71,7 @@ where
         &state.conf.server,
         &payment_data.payment_attempt,
         connector_id,
-        payment_data.creds_identifier.as_ref().map(|a| a.as_str()),
+        payment_data.creds_identifier.as_deref(),
     ));
     let complete_authorize_url = Some(helpers::create_complete_authorize_url(
         &state.conf.server,
