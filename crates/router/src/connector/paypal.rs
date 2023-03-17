@@ -2,6 +2,7 @@ mod transformers;
 use std::fmt::Debug;
 
 use base64::Engine;
+use common_utils::errors::ReportSwitchExt;
 use error_stack::{IntoReport, ResultExt};
 use transformers as paypal;
 
@@ -53,7 +54,7 @@ where
             .access_token
             .clone()
             .ok_or(errors::ConnectorError::FailedToObtainAuthType)?;
-        let key = &req.payment_id;
+        let key = &req.attempt_id;
 
         Ok(vec![
             (
@@ -97,10 +98,8 @@ impl ConnectorCommon for Paypal {
         &self,
         res: Response,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let response: paypal::PaypalErrorResponse = res
-            .response
-            .parse_struct("Paypal ErrorResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        let response: paypal::PaypalErrorResponse =
+            res.response.parse_struct("Paypal ErrorResponse").switch()?;
 
         Ok(ErrorResponse {
             status_code: res.status_code,
@@ -189,7 +188,7 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
         let response: paypal::PaypalAuthUpdateResponse = res
             .response
             .parse_struct("Paypal PaypalAuthUpdateResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+            .switch()?;
 
         types::RouterData::try_from(types::ResponseRouterData {
             response,
@@ -283,7 +282,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         let response: paypal::PaypalPaymentsResponse = res
             .response
             .parse_struct("Paypal PaymentsAuthorizeResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+            .switch()?;
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -363,7 +362,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         let response: paypal::PaypalPaymentsResponse = res
             .response
             .parse_struct("paypal PaymentsSyncResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+            .switch()?;
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -445,7 +444,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         let response: paypal::PaymentCaptureResponse = res
             .response
             .parse_struct("Paypal PaymentsCaptureResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+            .switch()?;
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -587,10 +586,10 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         data: &types::RefundsRouterData<api::Execute>,
         res: Response,
     ) -> CustomResult<types::RefundsRouterData<api::Execute>, errors::ConnectorError> {
-        let response: paypal::RefundResponse =
-            res.response
-                .parse_struct("paypal RefundResponse")
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let response: paypal::RefundResponse = res
+            .response
+            .parse_struct("paypal RefundResponse")
+            .switch()?;
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -653,7 +652,7 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         let response: paypal::RefundSyncResponse = res
             .response
             .parse_struct("paypal RefundSyncResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+            .switch()?;
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
