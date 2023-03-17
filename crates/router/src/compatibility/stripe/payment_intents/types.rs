@@ -131,7 +131,6 @@ pub struct StripePaymentIntentRequest {
     pub return_url: Option<url::Url>,
     pub setup_future_usage: Option<api_enums::FutureUsage>,
     pub shipping: Option<Shipping>,
-    pub billing_details: Option<StripeBillingDetails>,
     pub statement_descriptor: Option<String>,
     pub statement_descriptor_suffix: Option<String>,
     pub metadata: Option<api_models::payments::Metadata>,
@@ -160,10 +159,6 @@ impl TryFrom<StripePaymentIntentRequest> for payments::PaymentsRequest {
             confirm: item.confirm,
             customer_id: item.customer,
             email: item.receipt_email,
-            name: item
-                .billing_details
-                .as_ref()
-                .and_then(|b| b.name.as_ref().map(|x| masking::Secret::new(x.to_owned()))),
             phone: item.shipping.as_ref().and_then(|s| s.phone.clone()),
             description: item.description,
             return_url: item.return_url,
@@ -181,9 +176,8 @@ impl TryFrom<StripePaymentIntentRequest> for payments::PaymentsRequest {
                 .as_ref()
                 .map(|s| payments::Address::from(s.to_owned())),
             billing: item
-                .billing_details
-                .as_ref()
-                .map(|b| payments::Address::from(b.to_owned())),
+                .payment_method_data
+                .and_then(|pmd| pmd.billing_details.map(payments::Address::from)),
             statement_descriptor_name: item.statement_descriptor,
             statement_descriptor_suffix: item.statement_descriptor_suffix,
             metadata: item.metadata,
