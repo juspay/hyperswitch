@@ -1350,6 +1350,6 @@ pub async fn get_merchant_connector_account(
             .find_merchant_connector_account_by_merchant_id_connector(merchant_id, connector_id)
             .await
             .map(MerchantConnectorAccountType::DbVal)
-            .change_context(errors::ApiErrorResponse::MerchantAccountNotFound),
+            .change_context(errors::ApiErrorResponse::MerchantConnectorAccountNotFound),
     }
 }

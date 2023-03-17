@@ -3,15 +3,16 @@ use std::{convert::From, default::Default};
 use common_utils::pii;
 use serde::{Deserialize, Serialize};
 
-use crate::types::api::refunds;
+use crate::types::api::{refunds, admin};
 
-#[derive(Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct StripeCreateRefundRequest {
     pub refund_id: Option<String>,
     pub amount: Option<i64>,
     pub payment_intent: String,
     pub reason: Option<String>,
     pub metadata: Option<pii::SecretSerdeValue>,
+    pub merchant_connector_details: Option<admin::MerchantConnectorDetailsWrap>,
 }
 
 #[derive(Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
@@ -48,6 +49,7 @@ impl From<StripeCreateRefundRequest> for refunds::RefundRequest {
             reason: req.reason,
             refund_type: Some(refunds::RefundType::Instant),
             metadata: req.metadata,
+            merchant_connector_details: req.merchant_connector_details,
             ..Default::default()
         }
     }
