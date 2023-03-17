@@ -4,7 +4,9 @@ use super::{cache, MockDb, Store};
 use crate::{
     cache::CONFIG_CACHE,
     connection::pg_connection,
+    consts,
     core::errors::{self, CustomResult},
+    services::PubSubInterface,
     types::storage,
 };
 
@@ -98,10 +100,18 @@ impl ConfigInterface for Store {
 
     async fn delete_config_by_key(&self, key: &str) -> CustomResult<bool, errors::StorageError> {
         let conn = pg_connection(&self.master_pool).await?;
-        storage::Config::delete_by_key(&conn, key)
+        let deleted = storage::Config::delete_by_key(&conn, key)
             .await
             .map_err(Into::into)
-            .into_report()
+            .into_report()?;
+
+        self.redis_conn()
+            .map_err(Into::<errors::StorageError>::into)?
+            .publish(consts::PUB_SUB_CHANNEL, key)
+            .await
+            .map_err(Into::<errors::StorageError>::into)?;
+
+        Ok(deleted)
     }
 }
 
