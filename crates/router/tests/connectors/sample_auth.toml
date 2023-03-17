@@ -62,6 +62,9 @@ api_secret = "secret"
 api_key = "api_key"
 key1= "key1"
 
+[nmi]
+api_key = "NMI API Key"
+
 [nuvei]
 api_key = "api_key"
 key1 = "key1"

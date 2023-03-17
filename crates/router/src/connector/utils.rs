@@ -632,3 +632,26 @@ pub fn collect_and_sort_values_by_removing_signature(
     values.sort();
     values
 }
+
+static DENOMINATION: Lazy<HashMap<storage_models::enums::Currency, i32>> = Lazy::new(|| {
+    let mut map = HashMap::new();
+    map.insert(storage_models::enums::Currency::INR, 100);
+    map.insert(storage_models::enums::Currency::USD, 100);
+    map
+});
+
+pub fn convert_to_higher_denomination(
+    amount: i64,
+    currency: storage_models::enums::Currency,
+) -> Result<f64, error_stack::Report<errors::ConnectorError>> {
+    let factor = match DENOMINATION.get(&currency) {
+        Some(factor) => Ok(factor),
+        None => Err(errors::ConnectorError::NotImplemented(
+            "Payment Currency".to_string(),
+        )),
+    }?;
+    let amount_u32 = u32::try_from(amount)
+        .into_report()
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+    Ok(f64::from(amount_u32) / f64::from(*factor))
+}

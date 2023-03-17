@@ -102,6 +102,7 @@ default_imp_for_complete_authorize!(
     connector::Klarna,
     connector::Multisafepay,
     connector::Nexinets,
+    connector::Nmi,
     connector::Opennode,
     connector::Payeezy,
     connector::Payu,

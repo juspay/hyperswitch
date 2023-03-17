@@ -299,6 +299,7 @@ pub struct Connectors {
     pub mollie: ConnectorParams,
     pub multisafepay: ConnectorParams,
     pub nexinets: ConnectorParams,
+    pub nmi: ConnectorParams,
     pub nuvei: ConnectorParams,
     pub opennode: ConnectorParams,
     pub payeezy: ConnectorParams,
