@@ -137,4 +137,13 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
     {
         Ok(services::api::ApplicationResponse::StatusOk)
     }
+
+    fn get_dispute_details(
+        &self,
+        _request: &IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<api_models::disputes::DisputePayload, errors::ConnectorError> {
+        Ok(api_models::disputes::DisputePayload {
+            ..Default::default()
+        })
+    }
 }

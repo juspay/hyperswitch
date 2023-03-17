@@ -3,6 +3,7 @@ pub mod api_keys;
 pub mod configs;
 pub mod connector_response;
 pub mod customers;
+pub mod dispute;
 pub mod events;
 pub mod generics;
 pub mod locker_mock_up;

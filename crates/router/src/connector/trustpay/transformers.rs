@@ -1114,13 +1114,12 @@ pub enum CreditDebitIndicator {
     Dbit,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(strum::Display, Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum WebhookStatus {
     Paid,
     Rejected,
     Refunded,
-    // TODO (Handle Chargebacks)
-    // Chargebacked,
+    Chargebacked,
 }
 
 impl TryFrom<WebhookStatus> for enums::AttemptStatus {
@@ -1141,16 +1140,33 @@ impl TryFrom<WebhookStatus> for storage_models::enums::RefundStatus {
             WebhookStatus::Paid => Ok(Self::Success),
             WebhookStatus::Refunded => Ok(Self::Success),
             WebhookStatus::Rejected => Ok(Self::Failure),
+            _ => Err(errors::ConnectorError::WebhookEventTypeNotFound),
         }
     }
+}
+
+#[derive(Default, Debug, Serialize, Deserialize, Eq, PartialEq, Clone)]
+#[serde(rename_all = "PascalCase")]
+pub struct WebhookReferences {
+    pub merchant_reference: String,
+    pub payment_id: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "PascalCase")]
+pub struct WebhookAmount {
+    pub amount: f64,
+    pub currency: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "PascalCase")]
 pub struct WebhookPaymentInformation {
     pub credit_debit_indicator: CreditDebitIndicator,
-    pub references: References,
+    pub references: WebhookReferences,
     pub status: WebhookStatus,
+    pub amount: WebhookAmount,
+    pub status_reason_information: Option<StatusReasonInformation>,
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
