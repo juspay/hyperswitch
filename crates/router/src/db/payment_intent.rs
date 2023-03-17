@@ -135,7 +135,7 @@ mod storage {
         ) -> CustomResult<PaymentIntent, errors::StorageError> {
             match storage_scheme {
                 enums::MerchantStorageScheme::PostgresOnly => {
-                    let conn = connection::pg_connection_read(self).await?;
+                    let conn = connection::pg_connection_write(self).await?;
                     this.update(&conn, payment_intent)
                         .await
                         .map_err(Into::into)

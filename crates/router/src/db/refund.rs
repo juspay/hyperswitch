@@ -20,14 +20,7 @@ pub trait RefundInterface {
         payment_id: &str,
         merchant_id: &str,
         storage_scheme: enums::MerchantStorageScheme,
-    ) -> CustomResult<Vec<storage_types::Refund>, errors::StorageError>;
-
-    // async fn find_refund_by_payment_id_merchant_id_refund_id(
-    //     &self,
-    //     payment_id: &str,
-    //     merchant_id: &str,
-    //     refund_id: &str,
-    // ) -> CustomResult<Refund, errors::StorageError>;
+    ) -> CustomResult<Vec<storage_types::Refund>, errors::StorageError>; 
 
     async fn find_refund_by_merchant_id_refund_id(
         &self,
@@ -174,18 +167,7 @@ mod storage {
             .await
             .map_err(Into::into)
             .into_report()
-        }
-
-        // async fn find_refund_by_payment_id_merchant_id_refund_id(
-        //     &self,
-        //     payment_id: &str,
-        //     merchant_id: &str,
-        //     refund_id: &str,
-        // ) -> CustomResult<Refund, errors::StorageError> {
-        //     let conn = pg_connection_read(self).await;
-        //     Refund::find_by_payment_id_merchant_id_refund_id(&conn, payment_id, merchant_id, refund_id)
-        //         .await
-        // }
+        } 
 
         async fn find_refund_by_payment_id_merchant_id(
             &self,
@@ -560,18 +542,7 @@ mod storage {
                     .await
                 }
             }
-        }
-
-        // async fn find_refund_by_payment_id_merchant_id_refund_id(
-        //     &self,
-        //     payment_id: &str,
-        //     merchant_id: &str,
-        //     refund_id: &str,
-        // ) -> CustomResult<Refund, errors::StorageError> {
-        //     let conn = pg_connection_read(self).await;
-        //     Refund::find_by_payment_id_merchant_id_refund_id(&conn, payment_id, merchant_id, refund_id)
-        //         .await
-        // }
+        } 
 
         async fn find_refund_by_payment_id_merchant_id(
             &self,
