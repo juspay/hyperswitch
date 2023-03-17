@@ -1271,17 +1271,27 @@ pub async fn insert_merchant_connector_creds_to_config(
     merchant_id: &str,
     merchant_connector_details: admin::MerchantConnectorDetailsWrap,
 ) -> RouterResult<()> {
-    db.insert_config(storage::ConfigNew {
-        key: format!(
-            "mcd_{}_{}",
-            merchant_id, merchant_connector_details.creds_identifier
-        ),
-        config: merchant_connector_details.encoded_data,
-    })
-    .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("Failed to insert connector_creds to config")?;
-    Ok(())
+    match db
+        .insert_config(storage::ConfigNew {
+            key: format!(
+                "mcd_{merchant_id}_{}",
+                merchant_connector_details.creds_identifier
+            ),
+            config: merchant_connector_details.encoded_data,
+        })
+        .await
+    {
+        Ok(_) => Ok(()),
+        Err(err) => {
+            if err.current_context().is_db_unique_violation() {
+                Ok(())
+            } else {
+                Err(err
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to insert connector_creds to config"))
+            }
+        }
+    }
 }
 
 pub enum MerchantConnectorAccountType {
@@ -1308,43 +1318,38 @@ pub async fn get_merchant_connector_account(
     db: &dyn StorageInterface,
     merchant_id: &str,
     connector_id: &str,
-    creds_identifier: &str,
+    creds_identifier: Option<String>,
 ) -> RouterResult<MerchantConnectorAccountType> {
-    match db
-        .find_merchant_connector_account_by_merchant_id_connector(merchant_id, connector_id)
-        .await
-    {
-        Ok(mcd_from_db) => Ok(MerchantConnectorAccountType::DbVal(mcd_from_db)),
-        Err(err) => {
-            if err.current_context().is_db_not_found() {
-                let mca_config = db
-                    .find_config_by_key(format!("mcd_{merchant_id}_{creds_identifier}").as_str())
-                    .await
-                    .map_err(|error| {
-                        error.to_not_found_response(
-                            errors::ApiErrorResponse::MerchantConnectorAccountNotFound,
-                        )
-                    })?;
+    match creds_identifier {
+        Some(creds_identifier) => {
+            let mca_config = db
+                .find_config_by_key(format!("mcd_{merchant_id}_{creds_identifier}").as_str())
+                .await
+                .map_err(|error| {
+                    error.to_not_found_response(
+                        errors::ApiErrorResponse::MerchantConnectorAccountNotFound,
+                    )
+                })?;
 
-                let cached_mca = consts::BASE64_ENGINE
-                    .decode(mca_config.config.as_bytes())
-                    .into_report()
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable(
-                        "Failed to decode merchant_connector_details sent in request and then put in cache",
-                    )?
-                    .parse_struct("MerchantConnectorDetails")
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable(
-                        "Failed to parse merchant_connector_details sent in request and then put in cache",
-                    )?;
+            let cached_mca = consts::BASE64_ENGINE
+            .decode(mca_config.config.as_bytes())
+            .into_report()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable(
+                "Failed to decode merchant_connector_details sent in request and then put in cache",
+            )?
+            .parse_struct("MerchantConnectorDetails")
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable(
+                "Failed to parse merchant_connector_details sent in request and then put in cache",
+            )?;
 
-                Ok(MerchantConnectorAccountType::CacheVal(cached_mca))
-            } else {
-                Err(err
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Failed to fetch Merchant connector account from DB"))
-            }
+            Ok(MerchantConnectorAccountType::CacheVal(cached_mca))
         }
+        None => db
+            .find_merchant_connector_account_by_merchant_id_connector(merchant_id, connector_id)
+            .await
+            .map(MerchantConnectorAccountType::DbVal)
+            .change_context(errors::ApiErrorResponse::MerchantAccountNotFound),
     }
 }

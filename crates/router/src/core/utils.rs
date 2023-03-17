@@ -25,13 +25,14 @@ pub async fn construct_refund_router_data<'a, F>(
     payment_intent: &'a storage::PaymentIntent,
     payment_attempt: &storage::PaymentAttempt,
     refund: &'a storage::Refund,
+    creds_identifier: Option<String>,
 ) -> RouterResult<types::RefundsRouterData<F>> {
     let db = &*state.store;
     let merchant_connector_account = super::payments::helpers::get_merchant_connector_account(
         db,
         merchant_account.merchant_id.as_str(),
         connector_id,
-        payment_intent.payment_id.as_str(),
+        creds_identifier,
     )
     .await?;
 

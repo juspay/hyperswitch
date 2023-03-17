@@ -39,7 +39,7 @@ where
         db,
         merchant_account.merchant_id.as_str(),
         connector_id,
-        payment_data.payment_intent.payment_id.as_str(),
+        payment_data.creds_identifier.to_owned(),
     )
     .await?;
 
