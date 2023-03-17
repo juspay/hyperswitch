@@ -71,7 +71,7 @@ pub struct PaymentsRequest {
 
     /// This allows the merchant to manually select a connector with which the payment can go through
     #[schema(value_type = Option<Vec<Connector>>, max_length = 255, example = json!(["stripe", "adyen"]))]
-    pub eligible_connectors: Option<Vec<api_enums::Connector>>,
+    pub connector: Option<Vec<api_enums::Connector>>,
 
     /// The currency of the payment request can be specified here
     #[schema(value_type = Option<Currency>, example = "USD")]

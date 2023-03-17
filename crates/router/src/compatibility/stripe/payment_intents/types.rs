@@ -116,7 +116,7 @@ impl From<Shipping> for payments::Address {
 #[derive(PartialEq, Eq, Deserialize, Clone)]
 pub struct StripePaymentIntentRequest {
     pub amount: Option<i64>, //amount in cents, hence passed as integer
-    pub eligible_connectors: Option<Vec<api_enums::Connector>>,
+    pub connector: Option<Vec<api_enums::Connector>>,
     pub currency: Option<String>,
     #[serde(rename = "amount_to_capture")]
     pub amount_capturable: Option<i64>,
@@ -142,7 +142,7 @@ impl TryFrom<StripePaymentIntentRequest> for payments::PaymentsRequest {
     fn try_from(item: StripePaymentIntentRequest) -> errors::RouterResult<Self> {
         Ok(Self {
             amount: item.amount.map(|amount| amount.into()),
-            eligible_connectors: item.eligible_connectors,
+            connector: item.connector,
             currency: item
                 .currency
                 .as_ref()
