@@ -2,7 +2,7 @@ use common_utils::{custom_serde, pii};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 use utoipa::ToSchema;
-
+use crate::admin;
 use crate::enums;
 
 #[derive(Default, Debug, ToSchema, Clone, Deserialize)]
@@ -44,18 +44,8 @@ pub struct RefundRequest {
     #[schema(value_type  = Option<Object>, example = r#"{ "city": "NY", "unit": "245" }"#)]
     pub metadata: Option<pii::SecretSerdeValue>,
 
-    /// Merchant connector details type type. Base64 Encode this type and send as a string.
-    #[schema(value_type = Option<MerchantConnectorDetails>, example = r#"{
-        "connector_account_details": {
-            "auth_type": "HeaderKey",
-            "api_key":"sk_test_xxxxxexamplexxxxxx12345"
-        },
-        "metadata": {
-            "user_defined_field_1": "sample_1",
-            "user_defined_field_2": "sample_2", 
-        },
-    }"#)]
-    pub merchant_connector_details: Option<String>,
+    /// Merchant connector details used to make payments.
+    pub merchant_connector_details: Option<admin::MerchantConnectorDetailsWrap>,
 }
 
 #[derive(Default, Debug, ToSchema, Clone, Deserialize)]
@@ -68,18 +58,8 @@ pub struct RefundsRetrieveRequest {
     )]
     pub refund_id: String,
 
-    /// Merchant connector details type type. Base64 Encode this type and send as a string.
-    #[schema(value_type = Option<MerchantConnectorDetails>, example = r#"{
-        "connector_account_details": {
-            "auth_type": "HeaderKey",
-            "api_key":"sk_test_xxxxxexamplexxxxxx12345"
-        },
-        "metadata": {
-            "user_defined_field_1": "sample_1",
-            "user_defined_field_2": "sample_2", 
-        },
-    }"#)]
-    pub merchant_connector_details: Option<String>,
+    /// Merchant connector details used to make payments.
+    pub merchant_connector_details: Option<admin::MerchantConnectorDetailsWrap>,
 }
 
 #[derive(Default, Debug, ToSchema, Clone, Deserialize)]

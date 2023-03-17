@@ -589,6 +589,7 @@ where
     pub sessions_token: Vec<api::SessionToken>,
     pub card_cvc: Option<pii::Secret<String>>,
     pub email: Option<masking::Secret<String, pii::Email>>,
+    pub creds_identifier: Option<String>,
 }
 
 #[derive(Debug, Default)]

@@ -1,6 +1,9 @@
 [log.file]
 enabled = false
 
+[server]
+port = 8199
+
 [log.console]
 enabled = true
 level = "DEBUG"
@@ -15,7 +18,7 @@ username = "db_user"
 password = "db_pass"
 host = "localhost"
 port = 5432
-dbname = "hyperswitch_db"
+dbname = "hyperswitch_db_es_f"
 pool_size = 5
 connection_timeout = 10
 

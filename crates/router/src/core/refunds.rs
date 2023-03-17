@@ -229,7 +229,6 @@ pub async fn refund_retrieve_core(
             payments::helpers::insert_merchant_connector_creds_to_config(
                 db,
                 merchant_id.as_str(),
-                refund_id.as_str(),
                 mcd,
             )
             .await
@@ -433,7 +432,6 @@ pub async fn validate_and_create_refund(
             payments::helpers::insert_merchant_connector_creds_to_config(
                 db,
                 merchant_account.merchant_id.as_str(),
-                refund_id.as_str(),
                 mcd,
             )
             .await

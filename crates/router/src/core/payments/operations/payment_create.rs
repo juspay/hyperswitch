@@ -169,6 +169,10 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             self,
         );
 
+        let creds_identifier = request
+            .merchant_connector_details
+            .as_ref()
+            .map(|mcd| mcd.creds_identifier.to_owned());
         request
             .merchant_connector_details
             .to_owned()
@@ -176,7 +180,6 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 helpers::insert_merchant_connector_creds_to_config(
                     db,
                     merchant_account.merchant_id.as_str(),
-                    payment_intent.payment_id.as_str(),
                     mcd,
                 )
                 .await
@@ -207,6 +210,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 connector_response,
                 sessions_token: vec![],
                 card_cvc: request.card_cvc.clone(),
+                creds_identifier,
             },
             Some(CustomerDetails {
                 customer_id: request.customer_id.clone(),

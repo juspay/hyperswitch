@@ -28,7 +28,7 @@ use crate::{
     scheduler::{metrics, workflows::payment_sync},
     services,
     types::{
-        api::{self, enums as api_enums, CustomerAcceptanceExt, MandateValidationFieldsExt},
+        api::{self, enums as api_enums, CustomerAcceptanceExt, MandateValidationFieldsExt, admin},
         storage::{self, enums as storage_enums, ephemeral_key},
         transformers::ForeignInto,
     },
@@ -1269,12 +1269,11 @@ mod tests {
 pub async fn insert_merchant_connector_creds_to_config(
     db: &dyn StorageInterface,
     merchant_id: &str,
-    payment_id: &str,
-    merchant_connector_details: String,
+    merchant_connector_details: admin::MerchantConnectorDetailsWrap,
 ) -> RouterResult<()> {
     db.insert_config(storage::ConfigNew {
-        key: format!("mcd_{}_{}", merchant_id, payment_id),
-        config: merchant_connector_details.to_owned(),
+        key: format!("mcd_{}_{}", merchant_id, merchant_connector_details.creds_identifier),
+        config: merchant_connector_details.encoded_data,
     })
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -1306,7 +1305,7 @@ pub async fn get_merchant_connector_account(
     db: &dyn StorageInterface,
     merchant_id: &str,
     connector_id: &str,
-    payment_id: &str,
+    creds_identifier: &str,
 ) -> RouterResult<MerchantConnectorAccountType> {
     match db
         .find_merchant_connector_account_by_merchant_id_connector(merchant_id, connector_id)
@@ -1316,7 +1315,7 @@ pub async fn get_merchant_connector_account(
         Err(err) => {
             if err.current_context().is_db_not_found() {
                 let mca_config = db
-                    .find_config_by_key(format!("mcd_{merchant_id}_{payment_id}").as_str())
+                    .find_config_by_key(format!("mcd_{merchant_id}_{creds_identifier}").as_str())
                     .await
                     .map_err(|error| {
                         error.to_not_found_response(

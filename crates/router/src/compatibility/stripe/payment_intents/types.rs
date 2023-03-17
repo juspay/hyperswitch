@@ -8,6 +8,7 @@ use crate::{
     pii::{self, PeekInterface},
     types::{
         api::enums as api_enums,
+        api::admin,
         transformers::{ForeignFrom, ForeignInto},
     },
 };
@@ -136,7 +137,7 @@ pub struct StripePaymentIntentRequest {
     pub metadata: Option<api_models::payments::Metadata>,
     pub client_secret: Option<pii::Secret<String>>,
     pub payment_method_options: Option<StripePaymentMethodOptions>,
-    pub merchant_connector_details: Option<String>,
+    pub merchant_connector_details: Option<admin::MerchantConnectorDetailsWrap>,
 }
 
 impl TryFrom<StripePaymentIntentRequest> for payments::PaymentsRequest {
