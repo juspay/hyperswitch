@@ -1,9 +1,10 @@
-use api_models::{payments, refunds};
+use api_models::payments;
 use common_utils::{ext_traits::StringExt, pii as secret};
 use error_stack::ResultExt;
 use serde::{Deserialize, Serialize};
 
 use crate::{
+    compatibility::stripe::refunds::types as stripe_refunds,
     core::errors,
     pii::{self, PeekInterface},
     types::{
@@ -273,7 +274,7 @@ pub struct StripePaymentIntentResponse {
     pub client_secret: Option<masking::Secret<String>>,
     pub created: Option<i64>,
     pub customer: Option<String>,
-    pub refunds: Option<Vec<refunds::RefundResponse>>,
+    pub refunds: Option<Vec<stripe_refunds::StripeRefundResponse>>,
     pub mandate_id: Option<String>,
     pub metadata: Option<secret::SecretSerdeValue>,
     pub charges: Charges,
@@ -317,7 +318,9 @@ impl From<payments::PaymentsResponse> for StripePaymentIntentResponse {
             currency: resp.currency.to_lowercase(),
             customer: resp.customer_id,
             description: resp.description,
-            refunds: resp.refunds,
+            refunds: resp
+                .refunds
+                .map(|a| a.into_iter().map(Into::into).collect()),
             mandate_id: resp.mandate_id,
             mandate_data: resp.mandate_data,
             setup_future_usage: resp.setup_future_usage,
