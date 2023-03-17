@@ -1,5 +1,6 @@
 pub mod payment_cancel;
 pub mod payment_capture;
+pub mod payment_complete_authorize;
 pub mod payment_confirm;
 pub mod payment_create;
 pub mod payment_method_validate;

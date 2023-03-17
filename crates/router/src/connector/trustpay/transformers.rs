@@ -264,7 +264,7 @@ fn get_bank_redirection_request_data(
             },
         },
         callback_urls: CallbackURLs {
-            success: format!("{}?status=SuccessOk", return_url),
+            success: format!("{return_url}?status=SuccessOk"),
             cancel: return_url.clone(),
             error: return_url,
         },
@@ -816,7 +816,7 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for TrustpayRefundRequest {
                         },
                         payment_information: BankPaymentInformation {
                             amount: Amount {
-                                amount: format!("{:.2}", amount),
+                                amount: format!("{amount:.2}"),
                                 currency: item.request.currency.to_string(),
                             },
                             references: References {
