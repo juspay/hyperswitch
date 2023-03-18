@@ -63,6 +63,7 @@ cards = [
     "cybersource",
     "dlocal",
     "fiserv",
+    "forte",
     "globalpay",
     "mollie",
     "multisafepay",
