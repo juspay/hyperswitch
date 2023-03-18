@@ -27,21 +27,23 @@ pub struct ForteCard {
     pub card_verification_value: Secret<String>
 }
 
-impl TryFrom<&types::PaymentsAuthorizeRouterData> for FortePaymentsRequest  {
+impl TryFrom<&types::PaymentsAuthorizeRouterData> for ForteAutomaticPayment  {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self,Self::Error> {
         match item.request.payment_method_data.clone() {
             api::PaymentMethodData::Card(req_card) => {
                 let card = ForteCard {
-                    name: req_card.card_holder_name,
-                    number: req_card.card_number,
-                    expiry_month: req_card.card_exp_month,
-                    expiry_year: req_card.card_exp_year,
-                    cvc: req_card.card_cvc,
-                    complete: item.request.is_auto_capture(),
+                    card_type: req_card.card_network,
+                    name_on_card: req_card.card_holder_name,
+                    account_number: req_card.card_number,
+                    expire_month: req_card.card_exp_month,
+                    expire_year: req_card.card_exp_year,
+                    card_verification_value: req_card.card_cvc,
                 };
                 Ok(Self {
-                    amount: item.request.amount,
+                    action,
+                    billing_address,
+                    authorization_amount: item.request.amount,
                     card,
                 })
             }
