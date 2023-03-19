@@ -1,8 +1,6 @@
-use error_stack::IntoReport;
 use serde::{Deserialize, Serialize};
 use masking::Secret;
-use crate::{connector::utils::PaymentsAuthorizeRequestData,core::errors,types::{self,api, storage::enums}};
-use crate::types::api::enums::CardNetwork;
+use crate::{core::errors,types::{self,api, storage::enums}, types::api::enums::CardNetwork};
 
 //TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -57,8 +55,8 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for FortePaymentsRequest  {
 //TODO: Fill the struct with respective fields
 // Auth Struct
 pub struct ForteAuthType {
-    pub(super) api_key: String,
-    pub(super) api_secret: String
+     pub api_key: String,
+     pub api_secret: String
 }
 
 impl TryFrom<&types::ConnectorAuthType> for ForteAuthType  {
