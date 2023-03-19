@@ -1,25 +1,27 @@
+use error_stack::IntoReport;
 use serde::{Deserialize, Serialize};
 use masking::Secret;
 use crate::{connector::utils::PaymentsAuthorizeRequestData,core::errors,types::{self,api, storage::enums}};
+use crate::types::api::enums::CardNetwork;
 
 //TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
-pub struct ForteAutomaticPayment {
+pub struct FortePaymentsRequest {
     pub action: String,
-    pub authorization_amount: i64,
+    pub authorization_amount: String,
     pub billing_address: BillingAddress,
     pub card: ForteCard
 }
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
 pub struct BillingAddress {
-    pub first_name: Secret<String>,
-    pub last_name: Secret<String>
+    pub first_name: String,
+    pub last_name: String
 }
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
 pub struct ForteCard {
-    pub card_type: Secret<String>,
+    pub card_type: Option<CardNetwork>,
     pub name_on_card: Secret<String>,
     pub account_number: Secret<String, common_utils::pii::CardNumber>,
     pub expire_month: Secret<String>,
@@ -27,7 +29,7 @@ pub struct ForteCard {
     pub card_verification_value: Secret<String>
 }
 
-impl TryFrom<&types::PaymentsAuthorizeRouterData> for ForteAutomaticPayment  {
+impl TryFrom<&types::PaymentsAuthorizeRouterData> for FortePaymentsRequest  {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self,Self::Error> {
         match item.request.payment_method_data.clone() {
@@ -41,9 +43,9 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for ForteAutomaticPayment  {
                     card_verification_value: req_card.card_cvc,
                 };
                 Ok(Self {
-                    action,
-                    billing_address,
-                    authorization_amount: item.request.amount,
+                    action: "sale".to_string(),
+                    billing_address:BillingAddress { first_name: "Kritik".to_string().into(), last_name: "Modi".to_string().into() },
+                    authorization_amount: item.request.amount.to_string(),
                     card,
                 })
             }
