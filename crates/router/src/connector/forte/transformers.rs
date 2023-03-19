@@ -101,12 +101,10 @@ pub struct FortePaymentsResponse {
     pub location_id: String,
     pub action: String,
     pub authorization_amount: f64,
-    pub authorization_code: String,
     pub entered_by: String,
     pub billing_address: BillingAddress,
     pub card: ForteCard,
     pub response: ForteResponseStruct,
-    pub links: ForteResponseLinks
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
