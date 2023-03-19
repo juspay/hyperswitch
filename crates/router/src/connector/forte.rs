@@ -133,7 +133,7 @@ impl
         let org_id = "org_438449";
         let loc_id = "loc_316577";
         Ok(format!(
-            "{}/organizations/{org_id}/locations/{loc_id}/transactions",
+            "{}/organizations/{org_id}/locations/{loc_id}/transactions/authorize",
             api::ConnectorCommon::base_url(self, _connectors)
         ))
     }
