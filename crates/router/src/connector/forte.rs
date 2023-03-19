@@ -202,7 +202,12 @@ impl
         _req: &types::PaymentsSyncRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        let org_id = "org_438449";
+        let loc_id = "loc_316577";
+        Ok(format!(
+            "{}/organizations/{org_id}/locations/{loc_id}/transactions",
+            api::ConnectorCommon::base_url(self, _connectors)
+        ))
     }
 
     fn build_request(
