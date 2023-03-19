@@ -130,7 +130,12 @@ impl
     }
 
     fn get_url(&self, _req: &types::PaymentsAuthorizeRouterData, _connectors: &settings::Connectors,) -> CustomResult<String,errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        let org_id = "org_438449";
+        let loc_id = "loc_316577";
+        Ok(format!(
+            "{}/organizations/{org_id}/locations/{loc_id}/transactions",
+            api::ConnectorCommon::base_url(self, _connectors)
+        ))
     }
     
     fn get_request_body(&self, req: &types::PaymentsAuthorizeRouterData) -> CustomResult<Option<String>,errors::ConnectorError> {
@@ -268,12 +273,7 @@ impl
         _req: &types::PaymentsCaptureRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let org_id = "org_438449";
-        let loc_id = "loc_316577";
-        Ok(format!(
-            "{}/organizations/{org_id}/locations/{loc_id}/transactions",
-            api::ConnectorCommon::base_url(self, _connectors)
-        ))
+        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
     }
 
     fn get_request_body(
