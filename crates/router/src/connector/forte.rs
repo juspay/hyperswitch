@@ -207,7 +207,13 @@ impl
         _req: &types::PaymentsSyncRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        let transaction_id = _req.request.connector_transaction_id.get_connector_transaction_id().change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
+        let org_id = "org_438449";
+        let loc_id = "loc_316577";
+        Ok(format!(
+            "{}/organizations/{org_id}/locations/{loc_id}/transactions/{transaction_id}",
+            api::ConnectorCommon::base_url(self, _connectors)
+        ))
     }
 
     fn build_request(
