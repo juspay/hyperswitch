@@ -7,8 +7,8 @@ use crate::types::api::enums::CardNetwork;
 //TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct FortePaymentsRequest {
-    pub action: String,
     pub authorization_amount: f64,
+    pub subtotal_amount: f64,
     pub billing_address: BillingAddress,
     pub card: ForteCard
 }
@@ -43,9 +43,9 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for FortePaymentsRequest  {
                     card_verification_value: req_card.card_cvc,
                 };
                 Ok(Self {
-                    action: "sale".to_string(),
-                    billing_address:BillingAddress { first_name: "Kritik".to_string().into(), last_name: "Modi".to_string().into() },
                     authorization_amount: item.request.amount as f64,
+                    subtotal_amount: item.request.amount as f64,
+                    billing_address:BillingAddress { first_name: "Kritik".to_string().into(), last_name: "Modi".to_string().into() },
                     card,
                 })
             }
