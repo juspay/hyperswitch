@@ -73,6 +73,7 @@ cards = [
     "trustpay",
     "worldline",
     "worldpay",
+    "forte",
 ]
 
 [refund]
@@ -114,7 +115,7 @@ worldline.base_url = "https://eu.sandbox.api-ingenico.com/"
 worldpay.base_url = "https://try.access.worldpay.com/"
 trustpay.base_url = "https://test-tpgw.trustpay.eu/"
 trustpay.base_url_bank_redirects = "https://aapi.trustpay.eu/"
-
+forte.base_url = "https://sandbox.forte.net/api/v3/"
 [scheduler]
 stream = "SCHEDULER_STREAM"
 

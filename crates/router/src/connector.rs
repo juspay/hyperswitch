@@ -22,7 +22,7 @@ pub mod trustpay;
 pub mod utils;
 pub mod worldline;
 pub mod worldpay;
-
+pub mod forte;
 pub mod mollie;
 
 pub use self::{
@@ -31,5 +31,5 @@ pub use self::{
     checkout::Checkout, cybersource::Cybersource, dlocal::Dlocal, fiserv::Fiserv,
     globalpay::Globalpay, klarna::Klarna, mollie::Mollie, multisafepay::Multisafepay, nuvei::Nuvei,
     payu::Payu, rapyd::Rapyd, shift4::Shift4, stripe::Stripe, trustpay::Trustpay,
-    worldline::Worldline, worldpay::Worldpay,
+    worldline::Worldline, worldpay::Worldpay,forte::Forte,
 };

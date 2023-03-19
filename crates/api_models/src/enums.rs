@@ -555,6 +555,7 @@ pub enum Connector {
     Cybersource,
     #[default]
     Dummy,
+    forte,
     Bambora,
     Dlocal,
     Fiserv,

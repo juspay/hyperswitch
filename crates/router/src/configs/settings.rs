@@ -262,7 +262,7 @@ pub struct Connectors {
     pub worldline: ConnectorParams,
     pub worldpay: ConnectorParams,
     pub trustpay: ConnectorParamsWithMoreUrls,
-
+    pub forte: ConnectorParams,
     // Keep this field separate from the remaining fields
     pub supported: SupportedConnectors,
 }
