@@ -5,21 +5,21 @@ use crate::{connector::utils::PaymentsAuthorizeRequestData,core::errors,types::{
 use crate::types::api::enums::CardNetwork;
 
 //TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Serialize, Eq, PartialEq)]
+#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct FortePaymentsRequest {
     pub action: String,
-    pub authorization_amount: String,
+    pub authorization_amount: f64,
     pub billing_address: BillingAddress,
     pub card: ForteCard
 }
 
-#[derive(Default, Debug, Serialize, Eq, PartialEq)]
+#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct BillingAddress {
     pub first_name: String,
     pub last_name: String
 }
 
-#[derive(Default, Debug, Serialize, Eq, PartialEq)]
+#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ForteCard {
     pub card_type: Option<CardNetwork>,
     pub name_on_card: Secret<String>,
@@ -45,7 +45,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for FortePaymentsRequest  {
                 Ok(Self {
                     action: "sale".to_string(),
                     billing_address:BillingAddress { first_name: "Kritik".to_string().into(), last_name: "Modi".to_string().into() },
-                    authorization_amount: item.request.amount.to_string(),
+                    authorization_amount: item.request.amount as f64,
                     card,
                 })
             }
@@ -58,7 +58,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for FortePaymentsRequest  {
 // Auth Struct
 pub struct ForteAuthType {
     pub(super) api_key: String,
-    pub(super) key1: String
+    pub(super) api_secret: String
 }
 
 impl TryFrom<&types::ConnectorAuthType> for ForteAuthType  {
@@ -67,7 +67,7 @@ impl TryFrom<&types::ConnectorAuthType> for ForteAuthType  {
         match auth_type {
             types::ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
                 api_key: api_key.to_string(),
-                key1: key1.to_string()
+                api_secret: key1.to_string()
             }),
             _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
         }
@@ -97,17 +97,44 @@ impl From<FortePaymentStatus> for enums::AttemptStatus {
 //TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct FortePaymentsResponse {
-    status: FortePaymentStatus,
-    id: String,
+    pub transaction_id: String,
+    pub location_id: String,
+    pub action: String,
+    pub authorization_amount: f64,
+    pub authorization_code: String,
+    pub entered_by: String,
+    pub billing_address: BillingAddress,
+    pub card: ForteCard,
+    pub response: ForteResponseStruct,
+    pub links: ForteResponseLinks
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ForteResponseStruct {
+    pub environment: String,
+    pub response_type: String,
+    pub response_code: String,
+    pub response_desc: String,
+    pub authorization_code: String,
+    pub avs_result: String,
+    pub cvv_result: String
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ForteResponseLinks {
+    pub disputes: String,
+    pub settlements: String,
+    #[serde(rename = "self")]
+    pub _self: String
 }
 
 impl<F,T> TryFrom<types::ResponseRouterData<F, FortePaymentsResponse, T, types::PaymentsResponseData>> for types::RouterData<F, T, types::PaymentsResponseData> {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: types::ResponseRouterData<F, FortePaymentsResponse, T, types::PaymentsResponseData>) -> Result<Self,Self::Error> {
         Ok(Self {
-            status: enums::AttemptStatus::from(item.response.status),
+            status: enums::AttemptStatus::Authorized,
             response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
+                resource_id: types::ResponseId::ConnectorTransactionId(item.response.transaction_id),
                 redirection_data: None,
                 mandate_reference: None,
                 connector_metadata: None,
