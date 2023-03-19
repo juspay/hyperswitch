@@ -48,8 +48,8 @@ where
             headers::CONTENT_TYPE.to_string(),
             types::PaymentsAuthorizeType::get_content_type(self).to_string(),
         )];
-        let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
-        header.append(&mut api_key);
+        let mut api_access = self.get_auth_header(&req.connector_auth_type)?;
+        header.append(&mut api_access);
         Ok(header)
     }
 }
@@ -70,7 +70,7 @@ impl ConnectorCommon for Forte {
     fn get_auth_header(&self, auth_type:&types::ConnectorAuthType)-> CustomResult<Vec<(String,String)>,errors::ConnectorError> {
         let auth =  forte::ForteAuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-        Ok(vec![(headers::AUTHORIZATION.to_string(), auth.api_key)])
+        Ok(vec![(headers::API_KEY.to_string(), auth.api_key),(headers::X_MERCHANT_ID.to_string(), auth.api_id)])
     }
 
     fn build_error_response(
@@ -130,7 +130,11 @@ impl
     }
 
     fn get_url(&self, _req: &types::PaymentsAuthorizeRouterData, _connectors: &settings::Connectors,) -> CustomResult<String,errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        Ok(format!(
+            "{}{}",
+            self.base_url(_connectors),
+            "/organizations", 
+        ))
     }
     
     fn get_request_body(&self, req: &types::PaymentsAuthorizeRouterData) -> CustomResult<Option<String>,errors::ConnectorError> {

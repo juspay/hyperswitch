@@ -2,21 +2,20 @@ use serde::{Deserialize, Serialize};
 use masking::Secret;
 use crate::{connector::utils::PaymentsAuthorizeRequestData,core::errors,types::{self,api, storage::enums}};
 
-//TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
 pub struct FortePaymentsRequest {
-    amount: i64,
+    authorization_amount: i64,
     card: ForteCard
 }
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
 pub struct ForteCard {
-    name: Secret<String>,
-    number: Secret<String, common_utils::pii::CardNumber>,
-    expiry_month: Secret<String>,
-    expiry_year: Secret<String>,
-    cvc: Secret<String>,
-    complete: bool,
+    card_type: Option<api_models::enums::CardNetwork>,
+    name_on_card: Secret<String>,
+    account_number: Secret<String, common_utils::pii::CardNumber>,
+    expire_month: Secret<String>,
+    expire_year: Secret<String>,
+    card_verification_value: Secret<String>,
 }
 
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for FortePaymentsRequest  {
@@ -25,15 +24,15 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for FortePaymentsRequest  {
         match item.request.payment_method_data.clone() {
             api::PaymentMethodData::Card(req_card) => {
                 let card = ForteCard {
-                    name: req_card.card_holder_name,
-                    number: req_card.card_number,
-                    expiry_month: req_card.card_exp_month,
-                    expiry_year: req_card.card_exp_year,
-                    cvc: req_card.card_cvc,
-                    complete: item.request.is_auto_capture(),
+                    card_type: req_card.card_network,
+                    name_on_card: req_card.card_holder_name,
+                    account_number: req_card.card_number,
+                    expire_month: req_card.card_exp_month,
+                    expire_year: req_card.card_exp_year,
+                    card_verification_value: req_card.card_cvc,
                 };
                 Ok(Self {
-                    amount: item.request.amount,
+                    authorization_amount: item.request.amount,
                     card,
                 })
             }
@@ -42,40 +41,46 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for FortePaymentsRequest  {
     }
 }
 
-//TODO: Fill the struct with respective fields
-// Auth Struct
+
 pub struct ForteAuthType {
-    pub(super) api_key: String
+    pub(super) api_key: String,
+    pub(super) api_id: String,
 }
 
 impl TryFrom<&types::ConnectorAuthType> for ForteAuthType  {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
-            types::ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
+            types::ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
                 api_key: api_key.to_string(),
+                api_id: key1.to_string()
             }),
             _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
         }
     }
 }
-// PaymentsResponse
-//TODO: Append the remaining status flags
+
+
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
-#[serde(rename_all = "lowercase")]
 pub enum FortePaymentStatus {
-    Succeeded,
+    Authorized,
+    Complete,
     Failed,
+    Voided,
+    Declined,
     #[default]
-    Processing,
+    Settling,
 }
 
 impl From<FortePaymentStatus> for enums::AttemptStatus {
     fn from(item: FortePaymentStatus) -> Self {
         match item {
-            FortePaymentStatus::Succeeded => Self::Charged,
+            FortePaymentStatus::Voided => Self::Voided,
+            FortePaymentStatus::Authorized => Self::Authorized,
+            FortePaymentStatus::Complete => Self::Charged,
             FortePaymentStatus::Failed => Self::Failure,
-            FortePaymentStatus::Processing => Self::Authorizing,
+            FortePaymentStatus::Declined => Self::RouterDeclined,
+            FortePaymentStatus::Settling => Self::Authorizing,
         }
     }
 }
@@ -84,7 +89,9 @@ impl From<FortePaymentStatus> for enums::AttemptStatus {
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct FortePaymentsResponse {
     status: FortePaymentStatus,
-    id: String,
+    response_type: String,
+    response_code: String,
+    authorization_code: String,
 }
 
 impl<F,T> TryFrom<types::ResponseRouterData<F, FortePaymentsResponse, T, types::PaymentsResponseData>> for types::RouterData<F, T, types::PaymentsResponseData> {
@@ -93,7 +100,7 @@ impl<F,T> TryFrom<types::ResponseRouterData<F, FortePaymentsResponse, T, types::
         Ok(Self {
             status: enums::AttemptStatus::from(item.response.status),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
+                resource_id: types::ResponseId::ConnectorTransactionId(item.response.authorization_code),
                 redirection_data: None,
                 mandate_reference: None,
                 connector_metadata: None,
