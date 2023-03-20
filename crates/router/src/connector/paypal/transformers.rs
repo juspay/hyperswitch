@@ -20,7 +20,7 @@ pub enum PaypalPaymentIntent {
 
 #[derive(Default, Debug, Clone, Serialize, Eq, PartialEq, Deserialize)]
 pub struct OrderAmount {
-    currency_code: String,
+    currency_code: storage_enums::Currency,
     value: String,
 }
 
@@ -84,7 +84,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaypalPaymentsRequest {
                     false => PaypalPaymentIntent::Authorize,
                 };
                 let amount = OrderAmount {
-                    currency_code: item.request.currency.to_string().to_uppercase(),
+                    currency_code: item.request.currency,
                     value: item.request.amount.to_string(),
                 };
                 let reference_id = item.attempt_id.clone();
@@ -304,7 +304,7 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for PaypalPaymentsCaptureRequest
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsCaptureRouterData) -> Result<Self, Self::Error> {
         let amount = OrderAmount {
-            currency_code: item.request.currency.to_string().to_uppercase(),
+            currency_code: item.request.currency,
             value: item.request.amount.to_string(),
         };
         Ok(Self {
@@ -406,8 +406,8 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for PaypalRefundRequest {
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
         Ok(Self {
             amount: OrderAmount {
-                currency_code: (item.request.currency.to_string()),
-                value: (item.request.refund_amount.to_string()),
+                currency_code:item.request.currency,
+                value: item.request.refund_amount.to_string(),
             },
         })
     }

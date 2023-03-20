@@ -147,7 +147,7 @@ pub struct PaymentsAuthorizeData {
     pub payment_method_type: Option<storage_enums::PaymentMethodType>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct PaymentsCaptureData {
     pub amount_to_capture: Option<i64>,
     pub currency: storage_enums::Currency,

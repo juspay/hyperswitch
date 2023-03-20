@@ -665,7 +665,7 @@ impl api::IncomingWebhook for Fiserv {
     fn get_webhook_object_reference_id(
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<String, errors::ConnectorError> {
+    ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
         Err(errors::ConnectorError::NotImplemented("fiserv".to_string()).into())
     }
 
