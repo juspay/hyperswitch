@@ -825,12 +825,14 @@ impl api::IncomingWebhook for Globalpay {
     fn get_webhook_object_reference_id(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<String, errors::ConnectorError> {
+    ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
         let details: response::GlobalpayWebhookObjectId = request
             .body
             .parse_struct("GlobalpayWebhookObjectId")
             .switch()?;
-        Ok(details.id)
+        Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
+            api_models::payments::PaymentIdType::ConnectorTransactionId(details.id),
+        ))
     }
 
     fn get_webhook_event_type(

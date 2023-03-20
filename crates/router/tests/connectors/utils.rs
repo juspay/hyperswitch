@@ -505,6 +505,7 @@ impl Default for PaymentCaptureType {
             currency: enums::Currency::USD,
             connector_transaction_id: "".to_string(),
             amount: 100,
+            ..Default::default()
         })
     }
 }
