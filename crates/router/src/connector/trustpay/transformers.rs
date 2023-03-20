@@ -916,7 +916,10 @@ fn handle_webhooks_refund_response(
 {
     let refund_status = storage_models::enums::RefundStatus::try_from(response.status)?;
     let refund_response_data = types::RefundsResponseData {
-        connector_refund_id: "".to_string(),
+        connector_refund_id: response
+            .references
+            .payment_request_id
+            .ok_or(errors::ConnectorError::MissingConnectorRefundID)?,
         refund_status,
     };
     Ok((None, refund_response_data))
@@ -1150,6 +1153,7 @@ impl TryFrom<WebhookStatus> for storage_models::enums::RefundStatus {
 pub struct WebhookReferences {
     pub merchant_reference: String,
     pub payment_id: String,
+    pub payment_request_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
