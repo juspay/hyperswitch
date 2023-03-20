@@ -124,10 +124,11 @@ impl
     }
 
     fn get_url(&self, _req: &types::PaymentsAuthorizeRouterData, _connectors: &settings::Connectors,) -> CustomResult<String,errors::ConnectorError> {
+        let base_url = "https://sandbox.forte.net/api/v3";
         let org_id = "org_438449";
         let loc_id = "loc_316577";
         Ok(format!(
-            "https://sandbox.forte.net/api/v3/organizations/{org_id}/locations/{loc_id}/transactions/authorize"
+            "{base_url}/organizations/{org_id}/locations/{loc_id}/transactions/authorize"
         ))
     }
     
@@ -201,11 +202,12 @@ impl
         _connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         //let transaction_id = _req.request.connector_transaction_id.get_connector_transaction_id().change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
+        let base_url = "https://sandbox.forte.net/api/v3";
         let transaction_id = "trn_4c05888f-4e01-4b57-b923-697a62699db6";
         let org_id = "org_438449";
         let loc_id = "loc_316577";
         Ok(format!(
-            "https://sandbox.forte.net/api/v3/organizations/organizations/{org_id}/locations/{loc_id}/transactions/{transaction_id}"
+            "{base_url}/organizations/{org_id}/locations/{loc_id}/transactions/{transaction_id}"
         ))
     }
 
