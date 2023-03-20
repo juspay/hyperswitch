@@ -1,9 +1,9 @@
 use serde::{Deserialize, Serialize};
-use masking::Secret;
-use crate::{core::errors,types::{self,api, storage::enums}, types::api::enums::CardNetwork};
+use crate::{core::errors, types::{self, api, storage::enums}};
+use masking::PeekInterface;
 
 //TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct FortePaymentsRequest {
     pub authorization_amount: f64,
     pub subtotal_amount: f64,
@@ -11,45 +11,47 @@ pub struct FortePaymentsRequest {
     pub card: ForteCard
 }
 
-#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct BillingAddress {
     pub first_name: String,
     pub last_name: String
 }
 
-#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ForteCard {
-    pub card_type: Option<CardNetwork>,
-    pub name_on_card: Secret<String>,
-    pub account_number: Secret<String, common_utils::pii::CardNumber>,
-    pub expire_month: Secret<String>,
-    pub expire_year: Secret<String>,
-    pub card_verification_value: Secret<String>
+    pub card_type: String,
+    pub name_on_card: String,
+    pub account_number: String,
+    pub expire_month: String,
+    pub expire_year: String,
+    pub card_verification_value: String
 }
 
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for FortePaymentsRequest  {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self,Self::Error> {
-        match item.request.payment_method_data.clone() {
-            api::PaymentMethodData::Card(req_card) => {
-                let card = ForteCard {
-                    card_type: req_card.card_network,
-                    name_on_card: req_card.card_holder_name,
-                    account_number: req_card.card_number,
-                    expire_month: req_card.card_exp_month,
-                    expire_year: req_card.card_exp_year,
-                    card_verification_value: req_card.card_cvc,
-                };
-                Ok(Self {
+        match item.request.payment_method_data {
+            api::PaymentMethodData::Card(ref req_card) => {
+                let request = FortePaymentsRequest{
+                    billing_address : BillingAddress { first_name: req_card.card_holder_name.peek().clone(), last_name: req_card.card_holder_name.peek().clone() },
+                    card: ForteCard {
+                        card_type: String::from("visa"),
+                        name_on_card: req_card.card_holder_name.peek().clone(),
+                        account_number: req_card.card_number.peek().clone(),
+                        expire_month: req_card.card_exp_month.peek().clone(),
+                        expire_year: req_card.card_exp_year.peek().clone(),
+                        card_verification_value: req_card.card_cvc.peek().clone(),
+                    },
                     authorization_amount: item.request.amount as f64,
                     subtotal_amount: item.request.amount as f64,
-                    billing_address:BillingAddress { first_name: "Kritik".to_string().into(), last_name: "Modi".to_string().into() },
-                    card,
-                })
+                };
+                Ok(request)
             }
-            _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
-        }    
+            _ => Err(
+                errors::ConnectorError::NotImplemented("Payment Method".to_string()).into(),
+            ),
     }
+}
 }
 
 //TODO: Fill the struct with respective fields
@@ -71,6 +73,7 @@ impl TryFrom<&types::ConnectorAuthType> for ForteAuthType  {
         }
     }
 }
+
 // PaymentsResponse
 //TODO: Append the remaining status flags
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
@@ -92,8 +95,8 @@ impl From<FortePaymentStatus> for enums::AttemptStatus {
     }
 }
 
-//TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+//Res Types Start
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct FortePaymentsResponse {
     pub transaction_id: String,
     pub location_id: String,
@@ -103,6 +106,7 @@ pub struct FortePaymentsResponse {
     pub billing_address: BillingAddress,
     pub card: ForteCard,
     pub response: ForteResponseStruct,
+    pub links: ForteLinks
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -117,7 +121,7 @@ pub struct ForteResponseStruct {
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct ForteResponseLinks {
+pub struct ForteLinks {
     pub disputes: String,
     pub settlements: String,
     #[serde(rename = "self")]
@@ -125,10 +129,11 @@ pub struct ForteResponseLinks {
 }
 
 impl<F,T> TryFrom<types::ResponseRouterData<F, FortePaymentsResponse, T, types::PaymentsResponseData>> for types::RouterData<F, T, types::PaymentsResponseData> {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<errors::ParsingError>;
     fn try_from(item: types::ResponseRouterData<F, FortePaymentsResponse, T, types::PaymentsResponseData>) -> Result<Self,Self::Error> {
+        let status_string = String::from(item.response.response.response_desc);
         Ok(Self {
-            status: enums::AttemptStatus::Authorized,
+            status: if status_string == "APPROVAL" {  enums::AttemptStatus::Authorized} else { enums::AttemptStatus::Pending },
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.transaction_id),
                 redirection_data: None,
@@ -219,9 +224,4 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>> for t
 
 //TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
-pub struct ForteErrorResponse {
-    pub status_code: u16,
-    pub code: String,
-    pub message: String,
-    pub reason: Option<String>,
-}
+pub struct ForteErrorResponse {}
