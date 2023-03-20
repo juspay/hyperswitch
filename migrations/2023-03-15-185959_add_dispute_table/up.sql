@@ -1,6 +1,6 @@
 CREATE TYPE "DisputeStage" AS ENUM ('pre_dispute', 'dispute', 'pre_arbitration');
 
-CREATE TYPE "DisputeStatus" AS ENUM ('disput_opened', 'dispute_expired', 'dispute_accepted', 'dispute_cancelled', 'dispute_challenged', 'dispute_won', 'dispute_lost');
+CREATE TYPE "DisputeStatus" AS ENUM ('dispute_opened', 'dispute_expired', 'dispute_accepted', 'dispute_cancelled', 'dispute_challenged', 'dispute_won', 'dispute_lost');
 
 CREATE TABLE dispute (
     id SERIAL PRIMARY KEY,
