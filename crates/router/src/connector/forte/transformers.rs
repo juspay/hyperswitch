@@ -200,7 +200,7 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for ForteCapturePaymentRequest {
         Ok(Self {
             action:String::from("capture"),
             transaction_id: item.request.connector_transaction_id.clone(),
-            authorization_code: String::from("XXXXXX")
+            authorization_code: String::from("xxxxxx")
         })
     }
 }
@@ -242,8 +242,8 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for ForteCapturePaymentRequest {
 //     fn try_from(_item: &types::PaymentsCancelRouterData) -> Result<Self, Self::Error> {
 //         Ok(Self {
 //             action:String::from("void"),
-//             authorization_code: String::from("XXXXXX"),
-//             entered_by:String::from("XXXXXX"),
+//             authorization_code: String::from("xxxxxx"),
+//             entered_by:String::from("xxxxxx"),
 //         })
 //     }
 // }
