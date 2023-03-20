@@ -31,5 +31,5 @@ pub struct DisputeResponse {
     pub challenge_required_by: Option<String>,
     pub created_at: Option<String>,
     pub updated_at: Option<String>,
-    pub recieved_at: String,
+    pub received_at: String,
 }

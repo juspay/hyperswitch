@@ -521,7 +521,7 @@ impl ForeignTryFrom<storage::Dispute> for api_models::disputes::DisputeResponse 
             challenge_required_by: dispute.challenge_required_by,
             created_at: dispute.dispute_created_at,
             updated_at: dispute.updated_at,
-            recieved_at: dispute.created_at.to_string(),
+            received_at: dispute.created_at.to_string(),
         })
     }
 }
