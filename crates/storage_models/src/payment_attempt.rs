@@ -24,11 +24,15 @@ pub struct PaymentAttempt {
     pub payment_method: Option<storage_enums::PaymentMethod>,
     pub connector_transaction_id: Option<String>,
     pub capture_method: Option<storage_enums::CaptureMethod>,
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub capture_on: Option<PrimitiveDateTime>,
     pub confirm: bool,
     pub authentication_type: Option<storage_enums::AuthenticationType>,
+    #[serde(with = "common_utils::custom_serde::iso8601")]
     pub created_at: PrimitiveDateTime,
+    #[serde(with = "common_utils::custom_serde::iso8601")]
     pub modified_at: PrimitiveDateTime,
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub last_synced: Option<PrimitiveDateTime>,
     pub cancellation_reason: Option<String>,
     pub amount_to_capture: Option<i64>,
@@ -64,11 +68,15 @@ pub struct PaymentAttemptNew {
     pub payment_method: Option<storage_enums::PaymentMethod>,
     pub connector_transaction_id: Option<String>,
     pub capture_method: Option<storage_enums::CaptureMethod>,
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub capture_on: Option<PrimitiveDateTime>,
     pub confirm: bool,
     pub authentication_type: Option<storage_enums::AuthenticationType>,
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub created_at: Option<PrimitiveDateTime>,
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub modified_at: Option<PrimitiveDateTime>,
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub last_synced: Option<PrimitiveDateTime>,
     pub cancellation_reason: Option<String>,
     pub amount_to_capture: Option<i64>,

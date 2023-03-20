@@ -85,7 +85,7 @@ services:
 
   migration_runner:
     image: rust:1.65
-    command: "bash -c 'cargo install diesel_cli && diesel migration --database-url postgres://db_user:db_pass@pg:5432/hyperswitch_db run'"
+    command: "bash -c 'cargo install diesel_cli --no-default-features --features \"postgres\" && diesel migration --database-url postgres://db_user:db_pass@pg:5432/hyperswitch_db run'"
     working_dir: /app
     networks:
       - router_net
@@ -96,8 +96,6 @@ services:
     image: rust:1.65
     command: cargo build --bin router
     working_dir: /app
-    ports:
-      - "8080:8080"
     networks:
       - router_net
     volumes:
