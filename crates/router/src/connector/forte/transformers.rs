@@ -164,6 +164,38 @@ impl<F,T> TryFrom<types::ResponseRouterData<F, FortePaymentsResponse, T, types::
 }
 
 //TODO: Fill the struct with respective fields
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct ForteCapturePaymentRequest {
+    pub action: String,
+    pub transaction_id: String,
+    pub authorization_code: String
+}
+
+//TODO: Fill the struct with respective fields
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct ForteCapturePaymentResponse {
+    pub transaction_id: String,
+    pub location_id: String,
+    pub original_transaction_id: String,
+    pub action: String,
+    pub authorization_code: String,
+    pub entered_by: String,
+    pub response: CaptureResponseStruct
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct CaptureResponseStruct {
+    pub environment: String,
+    pub response_type: String,
+    pub response_code: String,
+    pub response_desc: String,
+    pub authorization_code: String
+}
+
+//TODO: Fill the struct with respective fields
 // REFUND :
 // Type definition for RefundRequest
 #[derive(Default, Debug, Serialize)]
