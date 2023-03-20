@@ -20,6 +20,7 @@ mod rapyd;
 mod shift4;
 mod stripe;
 mod trustpay;
+mod forte;
 mod utils;
 mod worldline;
 mod worldpay;
