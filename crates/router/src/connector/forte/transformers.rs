@@ -151,7 +151,7 @@ impl<F,T> TryFrom<types::ResponseRouterData<F, FortePaymentsResponse, T, types::
     fn try_from(item: types::ResponseRouterData<F, FortePaymentsResponse, T, types::PaymentsResponseData>) -> Result<Self,Self::Error> {
         let status_string = String::from(item.response.response.response_desc);
         Ok(Self {
-            status: if status_string == "APPROVAL" {  enums::AttemptStatus::Pending} else { enums::AttemptStatus::Authorized },
+            status: if status_string == "TEST APPROVAL" { enums::AttemptStatus::Authorized } else { enums::AttemptStatus::Pending },
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.transaction_id),
                 redirection_data: None,
