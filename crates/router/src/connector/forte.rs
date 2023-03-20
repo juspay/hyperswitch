@@ -267,7 +267,12 @@ impl
         _req: &types::PaymentsCaptureRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        let base_url = "https://sandbox.forte.net/api/v3";
+        let org_id = "org_438449";
+        let loc_id = "loc_316577";
+        Ok(format!(
+            "{base_url}/organizations/{org_id}/locations/{loc_id}/transactions"
+        ))
     }
 
     fn get_request_body(
