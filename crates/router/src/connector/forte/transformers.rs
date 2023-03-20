@@ -120,8 +120,8 @@ pub struct ForteCardResponse {
     pub name_on_card: String,
     pub last_4_account_number: String,
     pub masked_account_number: String,
-    pub expire_month: String,
-    pub expire_year: String,
+    pub expire_month: i32,
+    pub expire_year: i32,
     pub card_type: String
 }
 
