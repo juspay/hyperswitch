@@ -406,7 +406,7 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for PaypalRefundRequest {
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
         Ok(Self {
             amount: OrderAmount {
-                currency_code:item.request.currency,
+                currency_code: item.request.currency,
                 value: item.request.refund_amount.to_string(),
             },
         })
