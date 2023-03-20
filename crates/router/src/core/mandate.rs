@@ -174,8 +174,8 @@ where
                     payment_method_id,
                     mandate_reference,
                 ) {
-                    logger::error!("{:?}", new_mandate_data);
                     let connector = new_mandate_data.connector.clone();
+                    logger::debug!("{:?}", new_mandate_data);
                     resp.request
                         .set_mandate_id(api_models::payments::MandateIds {
                             mandate_id: new_mandate_data.mandate_id.clone(),
