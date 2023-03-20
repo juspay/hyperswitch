@@ -2,7 +2,7 @@ use error_stack::IntoReport;
 
 use super::{MockDb, Store};
 use crate::{
-    connection::pg_connection,
+    connection,
     core::errors::{self, CustomResult},
     types::storage,
 };
@@ -33,7 +33,7 @@ impl DisputeInterface for Store {
         &self,
         dispute: storage::DisputeNew,
     ) -> CustomResult<storage::Dispute, errors::StorageError> {
-        let conn = pg_connection(&self.master_pool).await?;
+        let conn = connection::pg_connection_write(self).await?;
         dispute
             .insert(&conn)
             .await
@@ -46,7 +46,7 @@ impl DisputeInterface for Store {
         payment_id: &str,
         connector_dispute_id: &str,
     ) -> CustomResult<Option<storage::Dispute>, errors::StorageError> {
-        let conn = pg_connection(&self.master_pool).await?;
+        let conn = connection::pg_connection_read(self).await?;
         storage::Dispute::find_by_payment_id_connector_dispute_id(
             &conn,
             payment_id,
@@ -62,7 +62,7 @@ impl DisputeInterface for Store {
         this: storage::Dispute,
         dispute: storage::DisputeUpdate,
     ) -> CustomResult<storage::Dispute, errors::StorageError> {
-        let conn = pg_connection(&self.master_pool).await?;
+        let conn = connection::pg_connection_write(self).await?;
         this.update(&conn, dispute)
             .await
             .map_err(Into::into)
