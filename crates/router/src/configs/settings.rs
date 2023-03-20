@@ -239,7 +239,7 @@ pub struct SupportedConnectors {
 #[serde(default)]
 pub struct Connectors {
     pub aci: ConnectorParams,
-	pub Forte: ConnectorParams,
+	pub forte: ConnectorParams,
     pub adyen: ConnectorParams,
     pub airwallex: ConnectorParams,
     pub applepay: ConnectorParams,

@@ -53,7 +53,7 @@ vault_private_key = ""
 wallets = ["klarna", "braintree", "applepay"]
 cards = [
     "aci",
-    "Forte",
+    "forte",
     "adyen",
     "airwallex",
     "authorizedotnet",
