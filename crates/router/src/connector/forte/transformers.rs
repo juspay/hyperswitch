@@ -206,36 +206,47 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for ForteCapturePaymentRequest {
 }
 
 //TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub struct ForteVoidPaymentRequest {
-    pub action: String,
-    pub authorization_code: String,
-    pub entered_by: String
-}
+// #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+// #[serde(rename_all = "snake_case")]
+// pub struct ForteVoidPaymentRequest {
+//     pub action: String,
+//     pub authorization_code: String,
+//     pub entered_by: String
+// }
 
-//TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub struct ForteVoidPaymentResponse {
-    pub transaction_id: String,
-    pub location_id: String,
-    pub action: String,
-    pub authorization_code: String,
-    pub entered_by: String,
-    pub response: VoidResponseStruct,
-    pub links: ForteLinks
-}
+// //TODO: Fill the struct with respective fields
+// #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+// #[serde(rename_all = "snake_case")]
+// pub struct ForteVoidPaymentResponse {
+//     pub transaction_id: String,
+//     pub location_id: String,
+//     pub action: String,
+//     pub authorization_code: String,
+//     pub entered_by: String,
+//     pub response: VoidResponseStruct,
+//     pub links: ForteLinks
+// }
 
-#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub struct VoidResponseStruct {
-    pub environment: String,
-    pub response_type: String,
-    pub response_code: String,
-    pub response_desc: String,
-    pub authorization_code: String
-}
+// #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+// #[serde(rename_all = "snake_case")]
+// pub struct VoidResponseStruct {
+//     pub environment: String,
+//     pub response_type: String,
+//     pub response_code: String,
+//     pub response_desc: String,
+//     pub authorization_code: String
+// }
+
+// impl TryFrom<&types::PaymentsCancelRouterData> for ForteVoidPaymentRequest {
+//     type Error = error_stack::Report<errors::ConnectorError>;
+//     fn try_from(_item: &types::PaymentsCancelRouterData) -> Result<Self, Self::Error> {
+//         Ok(Self {
+//             action:String::from("void"),
+//             authorization_code: String::from("XXXXXX"),
+//             entered_by:String::from("XXXXXX"),
+//         })
+//     }
+// }
 
 //TODO: Fill the struct with respective fields
 // REFUND :
