@@ -195,6 +195,34 @@ pub struct CaptureResponseStruct {
     pub authorization_code: String
 }
 
+impl TryFrom<&types::PaymentsCaptureRouterData> for ForteCapturePaymentRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &types::PaymentsCaptureRouterData) -> Result<Self, Self::Error> {
+        Ok(Self {
+            action:String::from("capture"),
+            transaction_id: item.request.connector_transaction_id.clone(),
+            authorization_code: String::from("XXXXXX")
+        })
+    }
+}
+
+impl<F,T> TryFrom<types::ResponseRouterData<F, ForteCapturePaymentResponse, T, types::PaymentsResponseData>> for types::RouterData<F, T, types::PaymentsResponseData> {
+    type Error = error_stack::Report<errors::ParsingError>;
+    fn try_from(item: types::ResponseRouterData<F, ForteCapturePaymentResponse, T, types::PaymentsResponseData>) -> Result<Self,Self::Error> {
+        let status_string = String::from(item.response.response.response_desc);
+        Ok(Self {
+            status: if status_string == "APPROVED" {  enums::AttemptStatus::Charged} else { enums::AttemptStatus::CaptureFailed },
+            response: Ok(types::PaymentsResponseData::TransactionResponse {
+                resource_id: types::ResponseId::ConnectorTransactionId(item.response.transaction_id),
+                redirection_data: None,
+                mandate_reference: None,
+                connector_metadata: None,
+            }),
+            ..item.data
+        })
+    }
+}
+
 //TODO: Fill the struct with respective fields
 // REFUND :
 // Type definition for RefundRequest
