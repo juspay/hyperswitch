@@ -259,6 +259,7 @@ pub struct PaymentsRedirectResponseData {
     pub json_payload: Option<serde_json::Value>,
     pub resource_id: api::PaymentIdType,
     pub force_sync: bool,
+    pub creds_identifier: Option<String>,
 }
 
 #[async_trait::async_trait]
@@ -379,6 +380,12 @@ impl PaymentRedirectFlow for PaymentRedirectSync {
             param: req.param,
             force_sync: req.force_sync,
             connector: req.connector,
+            merchant_connector_details: req.creds_identifier.map(|creds_id| {
+                api::MerchantConnectorDetailsWrap {
+                    creds_identifier: creds_id,
+                    encoded_data: None,
+                }
+            }),
         };
         payments_core::<api::PSync, api::PaymentsResponse, _, _, _>(
             state,
@@ -588,6 +595,7 @@ where
     pub sessions_token: Vec<api::SessionToken>,
     pub card_cvc: Option<pii::Secret<String>>,
     pub email: Option<masking::Secret<String, pii::Email>>,
+    pub creds_identifier: Option<String>,
 }
 
 #[derive(Debug, Default)]
@@ -734,10 +742,8 @@ pub async fn add_process_sync_task(
     let tracking_data = api::PaymentsRetrieveRequest {
         force_sync: true,
         merchant_id: Some(payment_attempt.merchant_id.clone()),
-
         resource_id: api::PaymentIdType::PaymentAttemptId(payment_attempt.attempt_id.clone()),
-        param: None,
-        connector: None,
+        ..Default::default()
     };
     let runner = "PAYMENTS_SYNC_WORKFLOW";
     let task = "PAYMENTS_SYNC";

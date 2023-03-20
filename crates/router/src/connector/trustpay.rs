@@ -529,7 +529,7 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
             .request
             .connector_refund_id
             .to_owned()
-            .ok_or_else(|| errors::ConnectorError::MissingConnectorRefundID)?;
+            .ok_or(errors::ConnectorError::MissingConnectorRefundID)?;
         match req.payment_method {
             storage_models::enums::PaymentMethod::BankRedirect => Ok(format!(
                 "{}{}/{}",

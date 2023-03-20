@@ -297,7 +297,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for TrustpayPaymentsRequest {
             utils::to_currency_base_unit(item.request.amount, item.request.currency)?
                 .parse::<f64>()
                 .ok()
-                .ok_or_else(|| errors::ConnectorError::RequestEncodingFailed)?
+                .ok_or(errors::ConnectorError::RequestEncodingFailed)?
         );
         let auth = TrustpayAuthType::try_from(&item.connector_auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
@@ -555,9 +555,7 @@ fn handle_cards_response(
         response.payment_status.as_str(),
         response.redirect_url.clone(),
     )?;
-    let form_fields = response
-        .redirect_params
-        .unwrap_or(std::collections::HashMap::new());
+    let form_fields = response.redirect_params.unwrap_or_default();
     let redirection_data = response.redirect_url.map(|url| services::RedirectForm {
         endpoint: url.to_string(),
         method: services::Method::Post,
@@ -566,7 +564,7 @@ fn handle_cards_response(
     let error = if msg.is_some() {
         Some(types::ErrorResponse {
             code: response.payment_status,
-            message: msg.unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
+            message: msg.unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
             reason: None,
             status_code,
         })
@@ -625,7 +623,7 @@ fn handle_bank_redirects_error_response(
         message: response
             .payment_result_info
             .additional_info
-            .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
+            .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
         reason: None,
         status_code,
     });
@@ -660,7 +658,7 @@ fn handle_bank_redirects_sync_response(
             message: reason_info
                 .reason
                 .reject_reason
-                .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
+                .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
             reason: None,
             status_code,
         })
@@ -764,7 +762,7 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, TrustpayAuthUpdateResponse, T, t
                         .response
                         .result_info
                         .additional_info
-                        .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
+                        .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
                     reason: None,
                     status_code: item.http_code,
                 }),
@@ -808,7 +806,7 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for TrustpayRefundRequest {
                     utils::to_currency_base_unit(item.request.amount, item.request.currency)?
                         .parse::<f64>()
                         .ok()
-                        .ok_or_else(|| errors::ConnectorError::RequestEncodingFailed)?;
+                        .ok_or(errors::ConnectorError::RequestEncodingFailed)?;
                 Ok(Self::BankRedirectRefund(Box::new(
                     TrustpayRefundRequestBankRedirect {
                         merchant_identification: MerchantIdentification {
@@ -871,7 +869,7 @@ fn handle_cards_refund_response(
     let error = if msg.is_some() {
         Some(types::ErrorResponse {
             code: response.payment_status,
-            message: msg.unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
+            message: msg.unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
             reason: None,
             status_code,
         })
@@ -922,7 +920,7 @@ fn handle_bank_redirects_refund_sync_response(
             message: reason_info
                 .reason
                 .reject_reason
-                .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
+                .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
             reason: None,
             status_code,
         })
@@ -945,7 +943,7 @@ fn handle_bank_redirects_refund_sync_error_response(
         message: response
             .payment_result_info
             .additional_info
-            .unwrap_or(consts::NO_ERROR_MESSAGE.to_owned()),
+            .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_owned()),
         reason: None,
         status_code,
     });
