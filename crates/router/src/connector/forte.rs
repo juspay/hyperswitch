@@ -1,11 +1,13 @@
 mod transformers;
 
 use std::fmt::Debug;
+use base64::Engine;
 use common_utils::errors::ReportSwitchExt;
 use error_stack::{ResultExt, IntoReport};
 
 use crate::{
     configs::settings,
+    consts,
     utils::{self, BytesExt},
     core::{
         errors::{self, CustomResult},
@@ -70,25 +72,13 @@ impl ConnectorCommon for Forte {
     fn get_auth_header(&self, auth_type:&types::ConnectorAuthType)-> CustomResult<Vec<(String,String)>,errors::ConnectorError> {
         let auth =  forte::ForteAuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-        Ok(vec![(headers::AUTHORIZATION.to_string(), auth.api_key)])
+        let api_key=auth.api_key;
+        let api_secret=auth.api_secret;
+        let concat_key=format!("{api_key}:{api_secret}");
+        let final_key = consts::BASE64_ENGINE.encode(concat_key);
+        Ok(vec![(headers::AUTHORIZATION.to_string(), format!("Basic {final_key}"))])
     }
 
-    fn build_error_response(
-        &self,
-        res: Response,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let response: forte::ForteErrorResponse = res
-            .response
-            .parse_struct("ForteErrorResponse")
-            .switch()?;
-
-        Ok(ErrorResponse {
-            status_code: res.status_code,
-            code: response.code,
-            message: response.message,
-            reason: response.reason,
-        })
-    }
 }
 
 impl
@@ -133,8 +123,7 @@ impl
         let org_id = "org_438449";
         let loc_id = "loc_316577";
         Ok(format!(
-            "{}/organizations/{org_id}/locations/{loc_id}/transactions/authorize",
-            api::ConnectorCommon::base_url(self, _connectors)
+            "https://sandbox.forte.net/api/v3/organizations/{org_id}/locations/{loc_id}/transactions/authorize"
         ))
     }
     
@@ -207,12 +196,12 @@ impl
         _req: &types::PaymentsSyncRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let transaction_id = _req.request.connector_transaction_id.get_connector_transaction_id().change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
+        //let transaction_id = _req.request.connector_transaction_id.get_connector_transaction_id().change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
+        let transaction_id = "trn_4c05888f-4e01-4b57-b923-697a62699db6";
         let org_id = "org_438449";
         let loc_id = "loc_316577";
         Ok(format!(
-            "{}/organizations/{org_id}/locations/{loc_id}/transactions/{transaction_id}",
-            api::ConnectorCommon::base_url(self, _connectors)
+            "https://sandbox.forte.net/api/v3/organizations/organizations/{org_id}/locations/{loc_id}/transactions/{transaction_id}"
         ))
     }
 
