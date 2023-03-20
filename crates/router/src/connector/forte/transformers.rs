@@ -4,21 +4,24 @@ use masking::PeekInterface;
 
 //TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub struct FortePaymentsRequest {
     pub authorization_amount: f64,
     pub subtotal_amount: f64,
     pub billing_address: BillingAddress,
-    pub card: ForteCard
+    pub card: ForteCardRequest
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub struct BillingAddress {
     pub first_name: String,
     pub last_name: String
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct ForteCard {
+#[serde(rename_all = "snake_case")]
+pub struct ForteCardRequest {
     pub card_type: String,
     pub name_on_card: String,
     pub account_number: String,
@@ -34,13 +37,13 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for FortePaymentsRequest  {
             api::PaymentMethodData::Card(ref req_card) => {
                 let request = FortePaymentsRequest{
                     billing_address : BillingAddress { first_name: req_card.card_holder_name.peek().clone(), last_name: req_card.card_holder_name.peek().clone() },
-                    card: ForteCard {
+                    card: ForteCardRequest {
                         card_type: String::from("visa"),
                         name_on_card: req_card.card_holder_name.peek().clone(),
                         account_number: req_card.card_number.peek().clone(),
                         expire_month: req_card.card_exp_month.peek().clone(),
-                        expire_year: req_card.card_exp_year.peek().clone(),
-                        card_verification_value: req_card.card_cvc.peek().clone(),
+                        expire_year: req_card.card_exp_year.peek().clone().to_string(),
+                        card_verification_value: req_card.card_cvc.peek().clone().to_string(),
                     },
                     authorization_amount: item.request.amount as f64,
                     subtotal_amount: item.request.amount as f64,
@@ -77,7 +80,7 @@ impl TryFrom<&types::ConnectorAuthType> for ForteAuthType  {
 // PaymentsResponse
 //TODO: Append the remaining status flags
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
-#[serde(rename_all = "lowercase")]
+#[serde(rename_all = "snake_case")]
 pub enum FortePaymentStatus {
     Succeeded,
     Failed,
@@ -97,19 +100,33 @@ impl From<FortePaymentStatus> for enums::AttemptStatus {
 
 //Res Types Start
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub struct FortePaymentsResponse {
     pub transaction_id: String,
     pub location_id: String,
     pub action: String,
     pub authorization_amount: f64,
+    pub authorization_code: String,
     pub entered_by: String,
     pub billing_address: BillingAddress,
-    pub card: ForteCard,
+    pub card: ForteCardResponse,
     pub response: ForteResponseStruct,
     pub links: ForteLinks
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct ForteCardResponse {
+    pub name_on_card: String,
+    pub last_4_account_number: String,
+    pub masked_account_number: String,
+    pub expire_month: String,
+    pub expire_year: String,
+    pub card_type: String
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub struct ForteResponseStruct {
     pub environment: String,
     pub response_type: String,
@@ -121,10 +138,11 @@ pub struct ForteResponseStruct {
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub struct ForteLinks {
     pub disputes: String,
     pub settlements: String,
-    #[serde(rename = "self")]
+     #[serde(rename = "self")]
     pub _self: String
 }
 
