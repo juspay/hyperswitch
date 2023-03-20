@@ -1,7 +1,7 @@
 pub use api_models::webhooks::{
     IncomingWebhookDetails, IncomingWebhookEvent, IncomingWebhookRequestDetails,
-    MerchantWebhookConfig, ObjectReferenceId, OutgoingWebhook, OutgoingWebhookContent,
-    OutgoingWebhookType, WebhookFlow,
+    MerchantWebhookConfig, OutgoingWebhook, OutgoingWebhookContent, OutgoingWebhookType,
+    WebhookFlow,
 };
 use error_stack::ResultExt;
 
@@ -118,7 +118,7 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
     fn get_webhook_object_reference_id(
         &self,
         _request: &IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<ObjectReferenceId, errors::ConnectorError>;
+    ) -> CustomResult<String, errors::ConnectorError>;
 
     fn get_webhook_event_type(
         &self,

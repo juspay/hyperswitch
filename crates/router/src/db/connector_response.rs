@@ -2,7 +2,7 @@ use error_stack::IntoReport;
 
 use super::{MockDb, Store};
 use crate::{
-    connection,
+    connection::pg_connection,
     core::errors::{self, CustomResult},
     types::storage::{self, enums},
 };
@@ -38,7 +38,7 @@ impl ConnectorResponseInterface for Store {
         connector_response: storage::ConnectorResponseNew,
         _storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<storage::ConnectorResponse, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
+        let conn = pg_connection(&self.master_pool).await?;
         connector_response
             .insert(&conn)
             .await
@@ -53,7 +53,7 @@ impl ConnectorResponseInterface for Store {
         attempt_id: &str,
         _storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<storage::ConnectorResponse, errors::StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
+        let conn = pg_connection(&self.master_pool).await?;
         storage::ConnectorResponse::find_by_payment_id_merchant_id_attempt_id(
             &conn,
             payment_id,
@@ -71,7 +71,7 @@ impl ConnectorResponseInterface for Store {
         connector_response_update: storage::ConnectorResponseUpdate,
         _storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<storage::ConnectorResponse, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
+        let conn = pg_connection(&self.master_pool).await?;
         this.update(&conn, connector_response_update)
             .await
             .map_err(Into::into)

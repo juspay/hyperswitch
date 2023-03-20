@@ -4,7 +4,7 @@ use masking::ExposeInterface;
 
 use super::{MockDb, Store};
 use crate::{
-    connection,
+    connection::pg_connection,
     core::errors::{self, CustomResult},
     services::logger,
     types::{self, storage},
@@ -141,7 +141,7 @@ impl MerchantConnectorAccountInterface for Store {
         merchant_id: &str,
         connector: &str,
     ) -> CustomResult<storage::MerchantConnectorAccount, errors::StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
+        let conn = pg_connection(&self.master_pool).await?;
         storage::MerchantConnectorAccount::find_by_merchant_id_connector(
             &conn,
             merchant_id,
@@ -158,7 +158,7 @@ impl MerchantConnectorAccountInterface for Store {
         merchant_connector_id: &str,
     ) -> CustomResult<storage::MerchantConnectorAccount, errors::StorageError> {
         let find_call = || async {
-            let conn = connection::pg_connection_read(self).await?;
+            let conn = pg_connection(&self.master_pool).await?;
             storage::MerchantConnectorAccount::find_by_merchant_id_merchant_connector_id(
                 &conn,
                 merchant_id,
@@ -183,7 +183,7 @@ impl MerchantConnectorAccountInterface for Store {
         &self,
         t: storage::MerchantConnectorAccountNew,
     ) -> CustomResult<storage::MerchantConnectorAccount, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
+        let conn = pg_connection(&self.master_pool).await?;
         t.insert(&conn).await.map_err(Into::into).into_report()
     }
 
@@ -192,7 +192,7 @@ impl MerchantConnectorAccountInterface for Store {
         merchant_id: &str,
         get_disabled: bool,
     ) -> CustomResult<Vec<storage::MerchantConnectorAccount>, errors::StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
+        let conn = pg_connection(&self.master_pool).await?;
         storage::MerchantConnectorAccount::find_by_merchant_id(&conn, merchant_id, get_disabled)
             .await
             .map_err(Into::into)
@@ -206,7 +206,7 @@ impl MerchantConnectorAccountInterface for Store {
     ) -> CustomResult<storage::MerchantConnectorAccount, errors::StorageError> {
         let _merchant_connector_id = this.merchant_connector_id.clone();
         let update_call = || async {
-            let conn = connection::pg_connection_write(self).await?;
+            let conn = pg_connection(&self.master_pool).await?;
             this.update(&conn, merchant_connector_account)
                 .await
                 .map_err(Into::into)
@@ -229,7 +229,7 @@ impl MerchantConnectorAccountInterface for Store {
         merchant_id: &str,
         merchant_connector_id: &str,
     ) -> CustomResult<bool, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
+        let conn = pg_connection(&self.master_pool).await?;
         storage::MerchantConnectorAccount::delete_by_merchant_id_merchant_connector_id(
             &conn,
             merchant_id,

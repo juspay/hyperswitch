@@ -3,11 +3,9 @@ mod transformers;
 use std::fmt::Debug;
 
 use base64::Engine;
-use common_utils::{crypto, errors::ReportSwitchExt, ext_traits::ByteSliceExt};
 use error_stack::{IntoReport, ResultExt};
 use transformers as trustpay;
 
-use super::utils::collect_and_sort_values_by_removing_signature;
 use crate::{
     configs::settings,
     consts,
@@ -589,132 +587,23 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
 impl api::IncomingWebhook for Trustpay {
     fn get_webhook_object_reference_id(
         &self,
-        request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
-        let details: trustpay::TrustpayWebhookResponse = request
-            .body
-            .parse_struct("TrustpayWebhookResponse")
-            .switch()?;
-        match details.payment_information.credit_debit_indicator {
-            trustpay::CreditDebitIndicator::Crdt => {
-                Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
-                    api_models::payments::PaymentIdType::PaymentIntentId(
-                        details.payment_information.references.merchant_reference,
-                    ),
-                ))
-            }
-            trustpay::CreditDebitIndicator::Dbit => {
-                if details.payment_information.status == trustpay::WebhookStatus::Chargebacked {
-                    Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
-                        api_models::payments::PaymentIdType::PaymentIntentId(
-                            details.payment_information.references.merchant_reference,
-                        ),
-                    ))
-                } else {
-                    Ok(api_models::webhooks::ObjectReferenceId::RefundId(
-                        api_models::webhooks::RefundIdType::RefundId(
-                            details.payment_information.references.merchant_reference,
-                        ),
-                    ))
-                }
-            }
-        }
+        _request: &api::IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
     }
 
     fn get_webhook_event_type(
         &self,
-        request: &api::IncomingWebhookRequestDetails<'_>,
+        _request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api::IncomingWebhookEvent, errors::ConnectorError> {
-        let response: trustpay::TrustpayWebhookResponse = request
-            .body
-            .parse_struct("TrustpayWebhookResponse")
-            .switch()?;
-        match (
-            response.payment_information.credit_debit_indicator,
-            response.payment_information.status,
-        ) {
-            (trustpay::CreditDebitIndicator::Crdt, trustpay::WebhookStatus::Paid) => {
-                Ok(api_models::webhooks::IncomingWebhookEvent::PaymentIntentSuccess)
-            }
-            (trustpay::CreditDebitIndicator::Crdt, trustpay::WebhookStatus::Rejected) => {
-                Ok(api_models::webhooks::IncomingWebhookEvent::PaymentIntentFailure)
-            }
-            (trustpay::CreditDebitIndicator::Dbit, trustpay::WebhookStatus::Paid) => {
-                Ok(api_models::webhooks::IncomingWebhookEvent::RefundSuccess)
-            }
-            (trustpay::CreditDebitIndicator::Dbit, trustpay::WebhookStatus::Refunded) => {
-                Ok(api_models::webhooks::IncomingWebhookEvent::RefundSuccess)
-            }
-            (trustpay::CreditDebitIndicator::Dbit, trustpay::WebhookStatus::Rejected) => {
-                Ok(api_models::webhooks::IncomingWebhookEvent::RefundFailure)
-            }
-            _ => Err(errors::ConnectorError::WebhookEventTypeNotFound).into_report()?,
-        }
+        Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
     }
 
     fn get_webhook_resource_object(
         &self,
-        request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<serde_json::Value, errors::ConnectorError> {
-        let details: trustpay::TrustpayWebhookResponse = request
-            .body
-            .parse_struct("TrustpayWebhookResponse")
-            .switch()?;
-        let res_json = utils::Encode::<trustpay::WebhookPaymentInformation>::encode_to_value(
-            &details.payment_information,
-        )
-        .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
-        Ok(res_json)
-    }
-
-    fn get_webhook_source_verification_algorithm(
-        &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<Box<dyn crypto::VerifySignature + Send>, errors::ConnectorError> {
-        Ok(Box::new(crypto::HmacSha256))
-    }
-
-    fn get_webhook_source_verification_signature(
-        &self,
-        request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
-        let response: trustpay::TrustpayWebhookResponse = request
-            .body
-            .parse_struct("TrustpayWebhookResponse")
-            .switch()?;
-        hex::decode(response.signature)
-            .into_report()
-            .change_context(errors::ConnectorError::WebhookSignatureNotFound)
-    }
-
-    fn get_webhook_source_verification_message(
-        &self,
-        request: &api::IncomingWebhookRequestDetails<'_>,
-        _merchant_id: &str,
-        _secret: &[u8],
-    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
-        let trustpay_response: trustpay::TrustpayWebhookResponse = request
-            .body
-            .parse_struct("TrustpayWebhookResponse")
-            .switch()?;
-        let response: serde_json::Value = request.body.parse_struct("Webhook Value").switch()?;
-        let values =
-            collect_and_sort_values_by_removing_signature(&response, &trustpay_response.signature);
-        let payload = values.join("/");
-        Ok(payload.into_bytes())
-    }
-
-    async fn get_webhook_source_verification_merchant_secret(
-        &self,
-        db: &dyn crate::db::StorageInterface,
-        merchant_id: &str,
-    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
-        let key = format!("whsec_verification_{}_{}", self.id(), merchant_id);
-        let secret = db
-            .get_key(&key)
-            .await
-            .change_context(errors::ConnectorError::WebhookVerificationSecretNotFound)?;
-        Ok(secret)
+    ) -> CustomResult<serde_json::Value, errors::ConnectorError> {
+        Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
     }
 }
 

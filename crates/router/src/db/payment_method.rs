@@ -2,7 +2,7 @@ use error_stack::IntoReport;
 
 use super::{MockDb, Store};
 use crate::{
-    connection,
+    connection::pg_connection,
     core::errors::{self, CustomResult},
     types::storage,
 };
@@ -38,7 +38,7 @@ impl PaymentMethodInterface for Store {
         &self,
         payment_method_id: &str,
     ) -> CustomResult<storage::PaymentMethod, errors::StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
+        let conn = pg_connection(&self.master_pool).await?;
         storage::PaymentMethod::find_by_payment_method_id(&conn, payment_method_id)
             .await
             .map_err(Into::into)
@@ -49,7 +49,7 @@ impl PaymentMethodInterface for Store {
         &self,
         m: storage::PaymentMethodNew,
     ) -> CustomResult<storage::PaymentMethod, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
+        let conn = pg_connection(&self.master_pool).await?;
         m.insert(&conn).await.map_err(Into::into).into_report()
     }
 
@@ -58,7 +58,7 @@ impl PaymentMethodInterface for Store {
         customer_id: &str,
         merchant_id: &str,
     ) -> CustomResult<Vec<storage::PaymentMethod>, errors::StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
+        let conn = pg_connection(&self.master_pool).await?;
         storage::PaymentMethod::find_by_customer_id_merchant_id(&conn, customer_id, merchant_id)
             .await
             .map_err(Into::into)
@@ -70,7 +70,7 @@ impl PaymentMethodInterface for Store {
         merchant_id: &str,
         payment_method_id: &str,
     ) -> CustomResult<storage::PaymentMethod, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
+        let conn = pg_connection(&self.master_pool).await?;
         storage::PaymentMethod::delete_by_merchant_id_payment_method_id(
             &conn,
             merchant_id,

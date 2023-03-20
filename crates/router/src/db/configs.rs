@@ -2,7 +2,7 @@ use error_stack::IntoReport;
 
 use super::{cache, MockDb, Store};
 use crate::{
-    connection,
+    connection::pg_connection,
     core::errors::{self, CustomResult},
     types::storage,
 };
@@ -45,7 +45,7 @@ impl ConfigInterface for Store {
         &self,
         config: storage::ConfigNew,
     ) -> CustomResult<storage::Config, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
+        let conn = pg_connection(&self.master_pool).await?;
         config.insert(&conn).await.map_err(Into::into).into_report()
     }
 
@@ -53,7 +53,7 @@ impl ConfigInterface for Store {
         &self,
         key: &str,
     ) -> CustomResult<storage::Config, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
+        let conn = pg_connection(&self.master_pool).await?;
         storage::Config::find_by_key(&conn, key)
             .await
             .map_err(Into::into)
@@ -65,7 +65,7 @@ impl ConfigInterface for Store {
         key: &str,
         config_update: storage::ConfigUpdate,
     ) -> CustomResult<storage::Config, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
+        let conn = pg_connection(&self.master_pool).await?;
         storage::Config::update_by_key(&conn, key, config_update)
             .await
             .map_err(Into::into)
@@ -91,7 +91,7 @@ impl ConfigInterface for Store {
     }
 
     async fn delete_config_by_key(&self, key: &str) -> CustomResult<bool, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
+        let conn = pg_connection(&self.master_pool).await?;
         storage::Config::delete_by_key(&conn, key)
             .await
             .map_err(Into::into)

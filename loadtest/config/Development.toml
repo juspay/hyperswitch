@@ -81,6 +81,9 @@ worldpay.base_url = "https://try.access.worldpay.com/"
 trustpay.base_url = "https://test-tpgw.trustpay.eu/"
 trustpay.base_url_bank_redirects = "https://aapi.trustpay.eu/"
 
+[connectors.mollie]
+base_url = "https://api.mollie.com/v2/"
+
 [connectors.supported]
 wallets = ["klarna", "braintree", "applepay"]
 cards = [
@@ -95,6 +98,7 @@ cards = [
     "cybersource",
     "dlocal",
     "fiserv",
+    "forte",
     "globalpay",
     "mollie",
     "multisafepay",

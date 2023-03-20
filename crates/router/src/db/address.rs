@@ -2,7 +2,7 @@ use error_stack::IntoReport;
 
 use super::{MockDb, Store};
 use crate::{
-    connection,
+    connection::pg_connection,
     core::errors::{self, CustomResult},
     types::storage,
 };
@@ -39,7 +39,7 @@ impl AddressInterface for Store {
         &self,
         address_id: &str,
     ) -> CustomResult<storage::Address, errors::StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
+        let conn = pg_connection(&self.master_pool).await?;
         storage::Address::find_by_address_id(&conn, address_id)
             .await
             .map_err(Into::into)
@@ -51,7 +51,7 @@ impl AddressInterface for Store {
         address_id: String,
         address: storage::AddressUpdate,
     ) -> CustomResult<storage::Address, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
+        let conn = pg_connection(&self.master_pool).await?;
         storage::Address::update_by_address_id(&conn, address_id, address)
             .await
             .map_err(Into::into)
@@ -62,7 +62,7 @@ impl AddressInterface for Store {
         &self,
         address: storage::AddressNew,
     ) -> CustomResult<storage::Address, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
+        let conn = pg_connection(&self.master_pool).await?;
         address
             .insert(&conn)
             .await
@@ -76,7 +76,7 @@ impl AddressInterface for Store {
         merchant_id: &str,
         address: storage::AddressUpdate,
     ) -> CustomResult<Vec<storage::Address>, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
+        let conn = pg_connection(&self.master_pool).await?;
         storage::Address::update_by_merchant_id_customer_id(
             &conn,
             customer_id,

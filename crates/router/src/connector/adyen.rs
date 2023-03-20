@@ -716,21 +716,11 @@ impl api::IncomingWebhook for Adyen {
     fn get_webhook_object_reference_id(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
+    ) -> CustomResult<String, errors::ConnectorError> {
         let notif = get_webhook_object_from_body(request.body)
             .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
-        match notif.event_code {
-            adyen::WebhookEventCode::Authorisation => {
-                Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
-                    api_models::payments::PaymentIdType::ConnectorTransactionId(
-                        notif.psp_reference,
-                    ),
-                ))
-            }
-            _ => Ok(api_models::webhooks::ObjectReferenceId::RefundId(
-                api_models::webhooks::RefundIdType::ConnectorRefundId(notif.psp_reference),
-            )),
-        }
+
+        Ok(notif.psp_reference)
     }
 
     fn get_webhook_event_type(

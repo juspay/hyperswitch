@@ -361,7 +361,7 @@ async fn payments_create_core() {
 
 //     let state = routes::AppState {
 //         flow_name: String::from("default"),
-//         pg_conn: connection::pg_connection_read(&conf),
+//         pg_conn: connection::pg_connection(&conf),
 //         redis_conn: connection::redis_connection(&conf).await,
 //     };
 

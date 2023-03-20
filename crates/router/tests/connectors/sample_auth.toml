@@ -68,4 +68,4 @@ key1 = "key1"
 api_secret = "secret"
 
 [mollie]
-api_key = "API Key"
+api_key = "API Key"\n\n[forte]\napi_key="API Key"

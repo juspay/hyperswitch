@@ -147,13 +147,12 @@ pub struct PaymentsAuthorizeData {
     pub payment_method_type: Option<storage_enums::PaymentMethodType>,
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct PaymentsCaptureData {
     pub amount_to_capture: Option<i64>,
     pub currency: storage_enums::Currency,
     pub connector_transaction_id: String,
     pub amount: i64,
-    pub connector_meta: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Clone)]
@@ -198,7 +197,6 @@ pub struct PaymentsCancelData {
     pub currency: Option<storage_enums::Currency>,
     pub connector_transaction_id: String,
     pub cancellation_reason: Option<String>,
-    pub connector_meta: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Clone)]

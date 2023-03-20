@@ -515,7 +515,6 @@ pub enum TrustpayPaymentsResponse {
     BankRedirectPayments(Box<PaymentsResponseBankRedirect>),
     BankRedirectSync(Box<SyncResponseBankRedirect>),
     BankRedirectError(Box<ErrorResponseBankRedirect>),
-    WebhookResponse(Box<WebhookPaymentInformation>),
 }
 
 impl<F, T>
@@ -679,26 +678,6 @@ fn handle_bank_redirects_sync_response(
     Ok((status, error, payment_response_data))
 }
 
-pub fn handle_webhook_response(
-    payment_information: WebhookPaymentInformation,
-) -> CustomResult<
-    (
-        enums::AttemptStatus,
-        Option<types::ErrorResponse>,
-        types::PaymentsResponseData,
-    ),
-    errors::ConnectorError,
-> {
-    let status = enums::AttemptStatus::try_from(payment_information.status)?;
-    let payment_response_data = types::PaymentsResponseData::TransactionResponse {
-        resource_id: types::ResponseId::NoResponseId,
-        redirection_data: None,
-        mandate_reference: None,
-        connector_metadata: None,
-    };
-    Ok((status, None, payment_response_data))
-}
-
 pub fn get_trustpay_response(
     response: TrustpayPaymentsResponse,
     status_code: u16,
@@ -723,7 +702,6 @@ pub fn get_trustpay_response(
         TrustpayPaymentsResponse::BankRedirectError(response) => {
             handle_bank_redirects_error_response(*response, status_code)
         }
-        TrustpayPaymentsResponse::WebhookResponse(response) => handle_webhook_response(*response),
     }
 }
 
@@ -822,17 +800,15 @@ pub enum TrustpayRefundRequest {
 impl<F> TryFrom<&types::RefundsRouterData<F>> for TrustpayRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
-        let amount = format!(
-            "{:.2}",
-            utils::to_currency_base_unit(item.request.amount, item.request.currency)?
-                .parse::<f64>()
-                .ok()
-                .ok_or_else(|| errors::ConnectorError::RequestEncodingFailed)?
-        );
         match item.payment_method {
             storage_models::enums::PaymentMethod::BankRedirect => {
                 let auth = TrustpayAuthType::try_from(&item.connector_auth_type)
                     .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+                let amount =
+                    utils::to_currency_base_unit(item.request.amount, item.request.currency)?
+                        .parse::<f64>()
+                        .ok()
+                        .ok_or_else(|| errors::ConnectorError::RequestEncodingFailed)?;
                 Ok(Self::BankRedirectRefund(Box::new(
                     TrustpayRefundRequestBankRedirect {
                         merchant_identification: MerchantIdentification {
@@ -840,11 +816,11 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for TrustpayRefundRequest {
                         },
                         payment_information: BankPaymentInformation {
                             amount: Amount {
-                                amount,
+                                amount: format!("{amount:.2}"),
                                 currency: item.request.currency.to_string(),
                             },
                             references: References {
-                                merchant_reference: item.request.refund_id.clone(),
+                                merchant_reference: format!("{}_{}", item.payment_id, "1"),
                             },
                         },
                     },
@@ -852,9 +828,9 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for TrustpayRefundRequest {
             }
             _ => Ok(Self::CardsRefund(Box::new(TrustpayRefundRequestCards {
                 instance_id: item.request.connector_transaction_id.clone(),
-                amount,
+                amount: utils::to_currency_base_unit(item.request.amount, item.request.currency)?,
                 currency: item.request.currency.to_string(),
-                reference: item.request.refund_id.clone(),
+                reference: item.payment_id.clone(),
             }))),
         }
     }
@@ -881,7 +857,6 @@ pub struct BankRedirectRefundResponse {
 #[serde(untagged)]
 pub enum RefundResponse {
     CardsRefund(Box<CardsRefundResponse>),
-    WebhookRefund(Box<WebhookPaymentInformation>),
     BankRedirectRefund(Box<BankRedirectRefundResponse>),
     BankRedirectRefundSyncResponse(Box<SyncResponseBankRedirect>),
     BankRedirectError(Box<ErrorResponseBankRedirect>),
@@ -908,21 +883,6 @@ fn handle_cards_refund_response(
         refund_status,
     };
     Ok((error, refund_response_data))
-}
-
-fn handle_webhooks_refund_response(
-    response: WebhookPaymentInformation,
-) -> CustomResult<(Option<types::ErrorResponse>, types::RefundsResponseData), errors::ConnectorError>
-{
-    let refund_status = storage_models::enums::RefundStatus::try_from(response.status)?;
-    let refund_response_data = types::RefundsResponseData {
-        connector_refund_id: response
-            .references
-            .payment_request_id
-            .ok_or(errors::ConnectorError::MissingConnectorRefundID)?,
-        refund_status,
-    };
-    Ok((None, refund_response_data))
 }
 
 fn handle_bank_redirects_refund_response(
@@ -1008,7 +968,6 @@ impl<F> TryFrom<types::RefundsResponseRouterData<F, RefundResponse>>
             RefundResponse::CardsRefund(response) => {
                 handle_cards_refund_response(*response, item.http_code)?
             }
-            RefundResponse::WebhookRefund(response) => handle_webhooks_refund_response(*response)?,
             RefundResponse::BankRedirectRefund(response) => {
                 handle_bank_redirects_refund_response(*response, item.http_code)
             }
@@ -1108,65 +1067,4 @@ pub struct TrustpayErrorResponse {
     pub status: i64,
     pub description: Option<String>,
     pub errors: Vec<Errors>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-#[serde(rename_all = "UPPERCASE")]
-pub enum CreditDebitIndicator {
-    Crdt,
-    Dbit,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub enum WebhookStatus {
-    Paid,
-    Rejected,
-    Refunded,
-    // TODO (Handle Chargebacks)
-    Chargebacked,
-}
-
-impl TryFrom<WebhookStatus> for enums::AttemptStatus {
-    type Error = errors::ConnectorError;
-    fn try_from(item: WebhookStatus) -> Result<Self, Self::Error> {
-        match item {
-            WebhookStatus::Paid => Ok(Self::Charged),
-            WebhookStatus::Rejected => Ok(Self::AuthorizationFailed),
-            _ => Err(errors::ConnectorError::WebhookEventTypeNotFound),
-        }
-    }
-}
-
-impl TryFrom<WebhookStatus> for storage_models::enums::RefundStatus {
-    type Error = errors::ConnectorError;
-    fn try_from(item: WebhookStatus) -> Result<Self, Self::Error> {
-        match item {
-            WebhookStatus::Paid => Ok(Self::Success),
-            WebhookStatus::Refunded => Ok(Self::Success),
-            WebhookStatus::Rejected => Ok(Self::Failure),
-            _ => Err(errors::ConnectorError::WebhookEventTypeNotFound),
-        }
-    }
-}
-
-#[derive(Default, Debug, Serialize, Deserialize, Eq, PartialEq, Clone)]
-#[serde(rename_all = "PascalCase")]
-pub struct WebhookReferences {
-    pub merchant_reference: String,
-    pub payment_request_id: Option<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-#[serde(rename_all = "PascalCase")]
-pub struct WebhookPaymentInformation {
-    pub credit_debit_indicator: CreditDebitIndicator,
-    pub references: WebhookReferences,
-    pub status: WebhookStatus,
-}
-
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
-#[serde(rename_all = "PascalCase")]
-pub struct TrustpayWebhookResponse {
-    pub payment_information: WebhookPaymentInformation,
-    pub signature: String,
 }

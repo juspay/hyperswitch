@@ -56,42 +56,12 @@ pub async fn diesel_make_pg_pool(database: &Database, test_transaction: bool) ->
         .expect("Failed to create PostgreSQL connection pool")
 }
 
-pub async fn pg_connection_read(
-    store: &crate::services::Store,
+pub async fn pg_connection(
+    pool: &PgPool,
 ) -> errors::CustomResult<
     PooledConnection<'_, async_bb8_diesel::ConnectionManager<PgConnection>>,
     errors::StorageError,
 > {
-    // If only OLAP is enabled get replica pool.
-    #[cfg(all(feature = "olap", not(feature = "oltp")))]
-    let pool = &store.replica_pool;
-
-    // If either one of these are true we need to get master pool.
-    //  1. Only OLTP is enabled.
-    //  2. Both OLAP and OLTP is enabled.
-    //  3. Both OLAP and OLTP is disabled.
-    #[cfg(any(
-        all(not(feature = "olap"), feature = "oltp"),
-        all(feature = "olap", feature = "oltp"),
-        all(not(feature = "olap"), not(feature = "oltp"))
-    ))]
-    let pool = &store.master_pool;
-
-    pool.get()
-        .await
-        .into_report()
-        .change_context(errors::StorageError::DatabaseConnectionError)
-}
-
-pub async fn pg_connection_write(
-    store: &crate::services::Store,
-) -> errors::CustomResult<
-    PooledConnection<'_, async_bb8_diesel::ConnectionManager<PgConnection>>,
-    errors::StorageError,
-> {
-    // Since all writes should happen to master DB only choose master DB.
-    let pool = &store.master_pool;
-
     pool.get()
         .await
         .into_report()

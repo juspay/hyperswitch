@@ -932,15 +932,13 @@ impl api::IncomingWebhook for Stripe {
     fn get_webhook_object_reference_id(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
+    ) -> CustomResult<String, errors::ConnectorError> {
         let details: stripe::StripeWebhookObjectId = request
             .body
             .parse_struct("StripeWebhookObjectId")
             .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
 
-        Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
-            api_models::payments::PaymentIdType::ConnectorTransactionId(details.data.object.id),
-        ))
+        Ok(details.data.object.id)
     }
 
     fn get_webhook_event_type(

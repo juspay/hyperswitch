@@ -250,6 +250,7 @@ pub struct Connectors {
     pub cybersource: ConnectorParams,
     pub dlocal: ConnectorParams,
     pub fiserv: ConnectorParams,
+	pub forte: ConnectorParamsWithMoreUrls,
     pub globalpay: ConnectorParams,
     pub klarna: ConnectorParams,
     pub mollie: ConnectorParams,

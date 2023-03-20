@@ -19,24 +19,24 @@ use crate::{
 };
 
 
-use transformers as {{project-name | downcase}};
+use transformers as forte;
 
 #[derive(Debug, Clone)]
-pub struct {{project-name | downcase | pascal_case}};
+pub struct Forte;
 
-impl api::Payment for {{project-name | downcase | pascal_case}} {}
-impl api::PaymentSession for {{project-name | downcase | pascal_case}} {}
-impl api::ConnectorAccessToken for {{project-name | downcase | pascal_case}} {}
-impl api::PreVerify for {{project-name | downcase | pascal_case}} {}
-impl api::PaymentAuthorize for {{project-name | downcase | pascal_case}} {}
-impl api::PaymentSync for {{project-name | downcase | pascal_case}} {}
-impl api::PaymentCapture for {{project-name | downcase | pascal_case}} {}
-impl api::PaymentVoid for {{project-name | downcase | pascal_case}} {}
-impl api::Refund for {{project-name | downcase | pascal_case}} {}
-impl api::RefundExecute for {{project-name | downcase | pascal_case}} {}
-impl api::RefundSync for {{project-name | downcase | pascal_case}} {}
+impl api::Payment for Forte {}
+impl api::PaymentSession for Forte {}
+impl api::ConnectorAccessToken for Forte {}
+impl api::PreVerify for Forte {}
+impl api::PaymentAuthorize for Forte {}
+impl api::PaymentSync for Forte {}
+impl api::PaymentCapture for Forte {}
+impl api::PaymentVoid for Forte {}
+impl api::Refund for Forte {}
+impl api::RefundExecute for Forte {}
+impl api::RefundSync for Forte {}
 
-impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for {{project-name | downcase | pascal_case}} 
+impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Forte 
 where
     Self: ConnectorIntegration<Flow, Request, Response>,{
     fn build_headers(
@@ -48,15 +48,16 @@ where
             headers::CONTENT_TYPE.to_string(),
             types::PaymentsAuthorizeType::get_content_type(self).to_string(),
         )];
-        let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
-        header.append(&mut api_key);
+        let mut api_access = self.get_auth_header(&req.connector_auth_type)?;
+        header.append(&mut api_access);
+        header.append(&mut vec![(String::from("X-Forte-Auth-Organization-Id"),String::from("org_438431"))]);
         Ok(header)
     }
 }
 
-impl ConnectorCommon for {{project-name | downcase | pascal_case}} {
+impl ConnectorCommon for Forte {
     fn id(&self) -> &'static str {
-        "{{project-name | downcase}}"
+        "forte"
     }
 
     fn common_get_content_type(&self) -> &'static str {
@@ -64,22 +65,22 @@ impl ConnectorCommon for {{project-name | downcase | pascal_case}} {
     }
 
     fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
-        connectors.{{project-name}}.base_url.as_ref()
+        connectors.forte.base_url.as_ref()
     }
 
     fn get_auth_header(&self, auth_type:&types::ConnectorAuthType)-> CustomResult<Vec<(String,String)>,errors::ConnectorError> {
-        let auth =  {{project-name | downcase}}::{{project-name | downcase | pascal_case}}AuthType::try_from(auth_type)
+        let auth =  forte::ForteAuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-        Ok(vec![(headers::AUTHORIZATION.to_string(), auth.api_key)])
+        Ok(vec![(headers::API_KEY.to_string(), auth.api_key),(headers::X_MERCHANT_ID.to_string(), auth.api_id)])
     }
 
     fn build_error_response(
         &self,
         res: Response,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let response: {{project-name | downcase}}::{{project-name | downcase | pascal_case}}ErrorResponse = res
+        let response: forte::ForteErrorResponse = res
             .response
-            .parse_struct("{{project-name | downcase | pascal_case}}ErrorResponse")
+            .parse_struct("ForteErrorResponse")
             .switch()?;
 
         Ok(ErrorResponse {
@@ -96,13 +97,12 @@ impl
         api::Session,
         types::PaymentsSessionData,
         types::PaymentsResponseData,
-    > for {{project-name | downcase | pascal_case}}
+    > for Forte
 {
-    //TODO: implement sessions flow
 }
 
 impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, types::AccessToken>
-    for {{project-name | downcase | pascal_case}}
+    for Forte
 {
 }
 
@@ -111,7 +111,7 @@ impl
         api::Verify,
         types::VerifyRequestData,
         types::PaymentsResponseData,
-    > for {{project-name | downcase | pascal_case}}
+    > for Forte
 {
 }
 
@@ -120,7 +120,7 @@ impl
         api::Authorize,
         types::PaymentsAuthorizeData,
         types::PaymentsResponseData,
-    > for {{project-name | downcase | pascal_case}} {
+    > for Forte {
     fn get_headers(&self, req: &types::PaymentsAuthorizeRouterData, connectors: &settings::Connectors,) -> CustomResult<Vec<(String, String)>,errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
@@ -130,17 +130,17 @@ impl
     }
 
     fn get_url(&self, _req: &types::PaymentsAuthorizeRouterData, _connectors: &settings::Connectors,) -> CustomResult<String,errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        Ok(format!("{}{}", self.base_url(_connectors),"organizations/transactions/authorize"))
     }
     
     fn get_request_body(&self, req: &types::PaymentsAuthorizeRouterData) -> CustomResult<Option<String>,errors::ConnectorError> {
-        let req_obj = {{project-name | downcase}}::{{project-name | downcase | pascal_case}}PaymentsRequest::try_from(req)?;
-        let {{project-name | downcase}}_req =
-            utils::Encode::<{{project-name | downcase}}::{{project-name | downcase | pascal_case}}PaymentsRequest>::encode_to_string_of_json(
+        let req_obj = forte::FortePaymentsRequest::try_from(req)?;
+        let forte_req =
+            utils::Encode::<forte::FortePaymentsRequest>::encode_to_string_of_json(
                 &req_obj,
             )
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some({{project-name | downcase}}_req))
+        Ok(Some(forte_req))
     }
 
     fn build_request(
@@ -167,7 +167,7 @@ impl
         data: &types::PaymentsAuthorizeRouterData,
         res: Response,
     ) -> CustomResult<types::PaymentsAuthorizeRouterData,errors::ConnectorError> {
-        let response: {{project-name | downcase}}::{{project-name | downcase | pascal_case}}PaymentsResponse = res.response.parse_struct("{{project-name | downcase | pascal_case}} PaymentsAuthorizeResponse").switch()?;
+        let response: forte::FortePaymentsResponse = res.response.parse_struct("Forte PaymentsAuthorizeResponse").switch()?;
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -183,7 +183,7 @@ impl
 
 impl
     ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>
-    for {{project-name | downcase | pascal_case}}
+    for Forte
 {
     fn get_headers(
         &self,
@@ -202,7 +202,7 @@ impl
         _req: &types::PaymentsSyncRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        Ok(format!("{}{}", self.base_url(_connectors), "/organizations/locations/transactions"))
     }
 
     fn build_request(
@@ -224,9 +224,9 @@ impl
         data: &types::PaymentsSyncRouterData,
         res: Response,
     ) -> CustomResult<types::PaymentsSyncRouterData, errors::ConnectorError> {
-        let response: {{project-name | downcase}}:: {{project-name | downcase | pascal_case}}PaymentsResponse = res
+        let response: forte:: FortePaymentsResponse = res
             .response
-            .parse_struct("{{project-name | downcase}} PaymentsSyncResponse")
+            .parse_struct("forte PaymentsSyncResponse")
             .switch()?;
         types::RouterData::try_from(types::ResponseRouterData {
             response,
@@ -249,7 +249,7 @@ impl
         api::Capture,
         types::PaymentsCaptureData,
         types::PaymentsResponseData,
-    > for {{project-name | downcase | pascal_case}}
+    > for Forte
 {
     fn get_headers(
         &self,
@@ -268,7 +268,7 @@ impl
         _req: &types::PaymentsCaptureRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        Ok(format!("{}{}", self.base_url(_connectors), "/organizations/locations/transactions"))
     }
 
     fn get_request_body(
@@ -299,9 +299,9 @@ impl
         data: &types::PaymentsCaptureRouterData,
         res: Response,
     ) -> CustomResult<types::PaymentsCaptureRouterData, errors::ConnectorError> {
-        let response: {{project-name | downcase }}::{{project-name | downcase | pascal_case}}PaymentsResponse = res
+        let response: forte::FortePaymentsResponse = res
             .response
-            .parse_struct("{{project-name | downcase | pascal_case}} PaymentsCaptureResponse")
+            .parse_struct("Forte PaymentsCaptureResponse")
             .switch()?;
         types::RouterData::try_from(types::ResponseRouterData {
             response,
@@ -324,7 +324,7 @@ impl
         api::Void,
         types::PaymentsCancelData,
         types::PaymentsResponseData,
-    > for {{project-name | downcase | pascal_case}}
+    > for Forte
 {}
 
 impl
@@ -332,7 +332,7 @@ impl
         api::Execute,
         types::RefundsData,
         types::RefundsResponseData,
-    > for {{project-name | downcase | pascal_case}} {
+    > for Forte {
     fn get_headers(&self, req: &types::RefundsRouterData<api::Execute>, connectors: &settings::Connectors,) -> CustomResult<Vec<(String,String)>,errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
@@ -342,17 +342,17 @@ impl
     }
 
     fn get_url(&self, _req: &types::RefundsRouterData<api::Execute>, _connectors: &settings::Connectors,) -> CustomResult<String,errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        Ok(format!("{}{}", self.base_url(_connectors), "/organizations/locations/transactions"))
     }
 
     fn get_request_body(&self, req: &types::RefundsRouterData<api::Execute>) -> CustomResult<Option<String>,errors::ConnectorError> {
-        let req_obj = {{project-name | downcase}}::{{project-name | downcase | pascal_case}}RefundRequest::try_from(req)?;
-        let {{project-name | downcase}}_req =
-            utils::Encode::<{{project-name | downcase}}::{{project-name | downcase | pascal_case}}RefundRequest>::encode_to_string_of_json(
+        let req_obj = forte::ForteRefundRequest::try_from(req)?;
+        let forte_req =
+            utils::Encode::<forte::ForteRefundRequest>::encode_to_string_of_json(
                 &req_obj,
             )
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some({{project-name | downcase}}_req))
+        Ok(Some(forte_req))
     }
 
     fn build_request(&self, req: &types::RefundsRouterData<api::Execute>, connectors: &settings::Connectors,) -> CustomResult<Option<services::Request>,errors::ConnectorError> {
@@ -370,7 +370,7 @@ impl
         data: &types::RefundsRouterData<api::Execute>,
         res: Response,
     ) -> CustomResult<types::RefundsRouterData<api::Execute>,errors::ConnectorError> {
-        let response: {{project-name| downcase}}::RefundResponse = res.response.parse_struct("{{project-name | downcase}} RefundResponse").switch()?;
+        let response: forte::RefundResponse = res.response.parse_struct("forte RefundResponse").switch()?;
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -385,7 +385,7 @@ impl
 }
 
 impl
-    ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponseData> for {{project-name | downcase | pascal_case}} {
+    ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponseData> for Forte {
     fn get_headers(&self, req: &types::RefundSyncRouterData,connectors: &settings::Connectors,) -> CustomResult<Vec<(String, String)>,errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
@@ -395,7 +395,7 @@ impl
     }
 
     fn get_url(&self, _req: &types::RefundSyncRouterData,_connectors: &settings::Connectors,) -> CustomResult<String,errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        Ok(format!("{}{}", self.base_url(_connectors), "/organizations/locations/transactions"))
     }
 
     fn build_request(
@@ -418,7 +418,7 @@ impl
         data: &types::RefundSyncRouterData,
         res: Response,
     ) -> CustomResult<types::RefundSyncRouterData,errors::ConnectorError,> {
-        let response: {{project-name | downcase}}::RefundResponse = res.response.parse_struct("{{project-name | downcase}} RefundSyncResponse").switch()?;
+        let response: forte::RefundResponse = res.response.parse_struct("forte RefundSyncResponse").switch()?;
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -433,7 +433,7 @@ impl
 }
 
 #[async_trait::async_trait]
-impl api::IncomingWebhook for {{project-name | downcase | pascal_case}} {
+impl api::IncomingWebhook for Forte {
     fn get_webhook_object_reference_id(
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,

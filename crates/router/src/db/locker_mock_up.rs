@@ -2,7 +2,7 @@ use error_stack::IntoReport;
 
 use super::{MockDb, Store};
 use crate::{
-    connection,
+    connection::pg_connection,
     core::errors::{self, CustomResult},
     types::storage,
 };
@@ -31,7 +31,7 @@ impl LockerMockUpInterface for Store {
         &self,
         card_id: &str,
     ) -> CustomResult<storage::LockerMockUp, errors::StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
+        let conn = pg_connection(&self.master_pool).await?;
         storage::LockerMockUp::find_by_card_id(&conn, card_id)
             .await
             .map_err(Into::into)
@@ -42,7 +42,7 @@ impl LockerMockUpInterface for Store {
         &self,
         new: storage::LockerMockUpNew,
     ) -> CustomResult<storage::LockerMockUp, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
+        let conn = pg_connection(&self.master_pool).await?;
         new.insert(&conn).await.map_err(Into::into).into_report()
     }
 
@@ -50,7 +50,7 @@ impl LockerMockUpInterface for Store {
         &self,
         card_id: &str,
     ) -> CustomResult<storage::LockerMockUp, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
+        let conn = pg_connection(&self.master_pool).await?;
         storage::LockerMockUp::delete_by_card_id(&conn, card_id)
             .await
             .map_err(Into::into)
