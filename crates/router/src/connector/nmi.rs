@@ -5,6 +5,7 @@ use std::fmt::Debug;
 use error_stack::{IntoReport, ResultExt};
 use transformers as nmi;
 
+use self::transformers::NmiCaptureRequest;
 use crate::{
     configs::settings,
     connector::nmi::transformers::{get_attempt_status, get_refund_status},
@@ -22,8 +23,6 @@ use crate::{
     utils,
 };
 
-use self::transformers::NmiCaptureRequest;
-
 #[derive(Clone, Debug)]
 pub struct Nmi;
 
@@ -39,8 +38,6 @@ impl api::Refund for Nmi {}
 impl api::RefundExecute for Nmi {}
 impl api::RefundSync for Nmi {}
 
-
-
 impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Nmi
 where
     Self: ConnectorIntegration<Flow, Request, Response>,
@@ -52,7 +49,7 @@ where
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
         Ok(vec![(
             "Content-Type".to_string(),
-            "application/json".to_string(),
+            "application/x-www-form-urlencoded".to_string(),
         )])
     }
 }
@@ -175,7 +172,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         _req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!("{}api/transact.php", self.base_url(connectors),))
+        Ok(format!("{}api/transact.php", self.base_url(connectors)))
     }
 
     fn get_request_body(
@@ -613,7 +610,7 @@ impl api::IncomingWebhook for Nmi {
     fn get_webhook_object_reference_id(
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<String, errors::ConnectorError> {
+    ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
         Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
     }
 

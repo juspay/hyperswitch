@@ -5,12 +5,12 @@ use regex::Regex;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    core::errors,
     connector::utils,
+    core::errors,
     types::{self, api, storage::enums, ConnectorAuthType},
 };
 
-#[derive(Debug, Deserialize , Serialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum TransactionType {
     Auth,
@@ -20,7 +20,7 @@ pub enum TransactionType {
     Sale,
     Update,
     Validate,
-    Void
+    Void,
 }
 
 // Auth Struct
@@ -41,17 +41,16 @@ impl TryFrom<&ConnectorAuthType> for NmiAuthType {
     }
 }
 
-
 #[derive(Debug, Serialize)]
 pub struct NmiPaymentsRequest {
     #[serde(rename = "type")]
+    transaction_type: TransactionType,
     amount: f64,
-    ccexp: Secret<String>,
     ccnumber: Secret<String, pii::CardNumber>,
     currency: enums::Currency,
+    ccexp: Secret<String>,
     cvv: Secret<String>,
     security_key: String,
-    transaction_type: TransactionType
 }
 
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for NmiPaymentsRequest {
@@ -186,8 +185,7 @@ impl
             types::PaymentsCaptureData,
             types::PaymentsResponseData,
         >,
-    >
-    for types::RouterData<api::Capture, types::PaymentsCaptureData, types::PaymentsResponseData>
+    > for types::RouterData<api::Capture, types::PaymentsCaptureData, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -485,9 +483,7 @@ pub struct NmiRefundRequest {
 
 impl<F> TryFrom<&types::RefundsRouterData<F>> for NmiRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: &types::RefundsRouterData<F>
-    ) -> Result<Self, Self::Error> {
+    fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
         let security_key: NmiAuthType = (&item.connector_auth_type).try_into()?;
         let security_key = security_key.api_key;
 
@@ -497,7 +493,8 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for NmiRefundRequest {
             transactionid: item.request.connector_transaction_id.clone(),
             amount: utils::convert_to_higher_denomination(
                 item.request.refund_amount,
-                item.request.currency)?,
+                item.request.currency,
+            )?,
         })
     }
 }
