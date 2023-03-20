@@ -20,7 +20,6 @@ use crate::{
     }
 };
 
-
 use transformers as forte;
 
 #[derive(Debug, Clone)]
