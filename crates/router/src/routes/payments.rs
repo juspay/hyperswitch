@@ -179,7 +179,7 @@ pub async fn payments_retrieve(
     security(("api_key" = []))
 )]
 #[instrument(skip(state), fields(flow = ?Flow::PaymentsRetrieve))]
-// #[get("/{payment_id}")]
+// #[get("/sync")]
 pub async fn payments_retrieve_with_gateway_creds(
     state: web::Data<app::AppState>,
     req: actix_web::HttpRequest,
@@ -457,6 +457,58 @@ pub async fn payments_connector_session(
 pub async fn payments_redirect_response(
     state: web::Data<app::AppState>,
     req: actix_web::HttpRequest,
+    path: web::Path<(String, String, String)>,
+) -> impl Responder {
+    let (payment_id, merchant_id, connector) = path.into_inner();
+    let param_string = req.query_string();
+
+    let payload = payments::PaymentsRedirectResponseData {
+        resource_id: payment_types::PaymentIdType::PaymentIntentId(payment_id),
+        merchant_id: Some(merchant_id.clone()),
+        force_sync: true,
+        json_payload: None,
+        param: Some(param_string.to_string()),
+        connector: Some(connector),
+        creds_identifier: None,
+    };
+    api::server_wrap(
+        state.get_ref(),
+        &req,
+        payload,
+        |state, merchant_account, req| {
+            payments::PaymentRedirectSync {}.handle_payments_redirect_response(
+                state,
+                merchant_account,
+                req,
+            )
+        },
+        &auth::MerchantIdAuth(merchant_id),
+    )
+    .await
+}
+
+// /// Payments - Redirect response with creds_identifier
+// ///
+// /// To get the payment response for redirect flows
+// #[utoipa::path(
+//     post,
+//     path = "/payments/{payment_id}/{merchant_id}/response/{connector}/{cred_identifier}",
+//     params(
+//         ("payment_id" = String, Path, description = "The identifier for payment"),
+//         ("merchant_id" = String, Path, description = "The identifier for merchant"),
+//         ("connector" = String, Path, description = "The name of the connector")
+//     ),
+//     responses(
+//         (status = 302, description = "Received payment redirect response"),
+//         (status = 400, description = "Missing mandatory fields")
+//     ),
+//     tag = "Payments",
+//     operation_id = "Get Redirect Response for a Payment"
+// )]
+#[instrument(skip_all)]
+pub async fn payments_redirect_response_with_creds_identifier(
+    state: web::Data<app::AppState>,
+    req: actix_web::HttpRequest,
     path: web::Path<(String, String, String, String)>,
 ) -> impl Responder {
     let (payment_id, merchant_id, connector, creds_identifier) = path.into_inner();
@@ -469,11 +521,7 @@ pub async fn payments_redirect_response(
         json_payload: None,
         param: Some(param_string.to_string()),
         connector: Some(connector),
-        creds_identifier: if creds_identifier == "null" {
-            None
-        } else {
-            Some(creds_identifier)
-        },
+        creds_identifier: Some(creds_identifier),
     };
     api::server_wrap(
         state.get_ref(),

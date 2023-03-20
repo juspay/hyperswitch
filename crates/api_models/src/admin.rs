@@ -408,7 +408,7 @@ pub struct ToggleKVRequest {
 
 #[derive(Debug, Clone, Default, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct MerchantConnectorDetailsWrap {
-    /// Creds Identifier is to uniquely identify the credentials. Do not send any sensitive info in this field.
+    /// Creds Identifier is to uniquely identify the credentials. Do not send any sensitive info in this field. And do not send the string "null".
     pub creds_identifier: String,
     /// Merchant connector details type type. Base64 Encode the credentials and send it in  this type and send as a string.
     #[schema(value_type = Option<MerchantConnectorDetails>, example = r#"{
@@ -421,7 +421,7 @@ pub struct MerchantConnectorDetailsWrap {
             "user_defined_field_2": "sample_2", 
         },
     }"#)]
-    pub encoded_data: Option<String>,
+    pub encoded_data: Option<Secret<String>>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]

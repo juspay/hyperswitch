@@ -45,7 +45,7 @@ pub async fn refunds_create(
 /// To retrieve the properties of a Refund. This may be used to get the status of a previously initiated payment or next action for an ongoing payment
 #[utoipa::path(
     get,
-    path = "/refunds",
+    path = "/refunds/{refund_id}",
     params(
         ("refund_id" = String, Path, description = "The identifier for refund")
     ),
@@ -101,7 +101,7 @@ pub async fn refunds_retrieve(
     security(("api_key" = []))
 )]
 #[instrument(skip_all, fields(flow = ?Flow::RefundsRetrieve))]
-// #[get("/{id}")]
+// #[post("/sync")]
 pub async fn refunds_retrieve_with_body(
     state: web::Data<AppState>,
     req: HttpRequest,

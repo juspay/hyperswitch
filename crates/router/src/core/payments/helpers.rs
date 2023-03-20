@@ -352,14 +352,11 @@ pub fn create_redirect_url(
     connector_name: &str,
     creds_identifier: Option<&str>,
 ) -> String {
+    let creds_identifier_path = creds_identifier.map_or_else(String::new, |cd| format!("/{}", cd));
     format!(
-        "{}/payments/{}/{}/response/{}/{}",
-        server.base_url,
-        payment_attempt.payment_id,
-        payment_attempt.merchant_id,
-        connector_name,
-        creds_identifier.unwrap_or("null")
-    )
+        "{}/payments/{}/{}/response/{}",
+        server.base_url, payment_attempt.payment_id, payment_attempt.merchant_id, connector_name,
+    ) + &creds_identifier_path
 }
 pub fn create_complete_authorize_url(
     server: &Server,
@@ -1271,6 +1268,7 @@ mod tests {
     }
 }
 
+// This function will be removed after moving this functionality to server_wrap and using cache instead of config
 pub async fn insert_merchant_connector_creds_to_config(
     db: &dyn StorageInterface,
     merchant_id: &str,
@@ -1283,7 +1281,7 @@ pub async fn insert_merchant_connector_creds_to_config(
                     "mcd_{merchant_id}_{}",
                     merchant_connector_details.creds_identifier
                 ),
-                config: encoded_data,
+                config: encoded_data.peek().to_owned(),
             })
             .await
         {
@@ -1301,28 +1299,6 @@ pub async fn insert_merchant_connector_creds_to_config(
     } else {
         Ok(())
     }
-
-    // match db
-    //     .insert_config(storage::ConfigNew {
-    //         key: format!(
-    //             "mcd_{merchant_id}_{}",
-    //             merchant_connector_details.creds_identifier
-    //         ),
-    //         config: merchant_connector_details.encoded_data,
-    //     })
-    //     .await
-    // {
-    //     Ok(_) => Ok(()),
-    //     Err(err) => {
-    //         if err.current_context().is_db_unique_violation() {
-    //             Ok(())
-    //         } else {
-    //             Err(err
-    //                 .change_context(errors::ApiErrorResponse::InternalServerError)
-    //                 .attach_printable("Failed to insert connector_creds to config"))
-    //         }
-    //     }
-    // }
 }
 
 pub enum MerchantConnectorAccountType {

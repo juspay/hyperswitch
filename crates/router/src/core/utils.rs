@@ -3,7 +3,7 @@ use std::marker::PhantomData;
 use error_stack::ResultExt;
 use router_env::{instrument, tracing};
 
-use super::payments::PaymentAddress;
+use super::payments::{helpers, PaymentAddress};
 use crate::{
     consts,
     core::errors::{self, RouterResult},
@@ -28,7 +28,7 @@ pub async fn construct_refund_router_data<'a, F>(
     creds_identifier: Option<String>,
 ) -> RouterResult<types::RefundsRouterData<F>> {
     let db = &*state.store;
-    let merchant_connector_account = super::payments::helpers::get_merchant_connector_account(
+    let merchant_connector_account = helpers::get_merchant_connector_account(
         db,
         merchant_account.merchant_id.as_str(),
         connector_id,
