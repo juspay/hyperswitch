@@ -191,8 +191,7 @@ pub struct CaptureResponseStruct {
     pub environment: String,
     pub response_type: String,
     pub response_code: String,
-    pub response_desc: String,
-    pub authorization_code: String
+    pub response_desc: String
 }
 
 impl TryFrom<&types::PaymentsCaptureRouterData> for ForteCapturePaymentRequest {
@@ -206,22 +205,22 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for ForteCapturePaymentRequest {
     }
 }
 
-impl<F,T> TryFrom<types::ResponseRouterData<F, ForteCapturePaymentResponse, T, types::PaymentsResponseData>> for types::RouterData<F, T, types::PaymentsResponseData> {
-    type Error = error_stack::Report<errors::ParsingError>;
-    fn try_from(item: types::ResponseRouterData<F, ForteCapturePaymentResponse, T, types::PaymentsResponseData>) -> Result<Self,Self::Error> {
-        let status_string = String::from(item.response.response.response_desc);
-        Ok(Self {
-            status: if status_string == "APPROVED" {  enums::AttemptStatus::Charged} else { enums::AttemptStatus::CaptureFailed },
-            response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(item.response.transaction_id),
-                redirection_data: None,
-                mandate_reference: None,
-                connector_metadata: None,
-            }),
-            ..item.data
-        })
-    }
-}
+// impl<F,T> TryFrom<types::ResponseRouterData<F, ForteCapturePaymentResponse, T, types::PaymentsResponseData>> for types::RouterData<F, T, types::PaymentsResponseData> {
+//     type Error = error_stack::Report<errors::ParsingError>;
+//     fn try_from(item: types::ResponseRouterData<F, ForteCapturePaymentResponse, T, types::PaymentsResponseData>) -> Result<Self,Self::Error> {
+//         let status_string = String::from(item.response.response.response_desc);
+//         Ok(Self {
+//             status: if status_string == "APPROVED" {  enums::AttemptStatus::Charged} else { enums::AttemptStatus::CaptureFailed },
+//             response: Ok(types::PaymentsResponseData::TransactionResponse {
+//                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.transaction_id),
+//                 redirection_data: None,
+//                 mandate_reference: None,
+//                 connector_metadata: None,
+//             }),
+//             ..item.data
+//         })
+//     }
+// }
 
 //TODO: Fill the struct with respective fields
 // REFUND :

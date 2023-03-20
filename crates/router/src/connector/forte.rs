@@ -279,9 +279,9 @@ impl
         &self,
         _req: &types::PaymentsCaptureRouterData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        let req_obj = forte::FortePaymentsRequest::try_from(req)?;
+        let req_obj = forte::ForteCapturePaymentRequest::try_from(_req)?;
         let forte_req =
-            utils::Encode::<forte::FortePaymentsRequest>::encode_to_string_of_json(
+            utils::Encode::<forte::ForteCapturePaymentRequest>::encode_to_string_of_json(
                 &req_obj,
             )
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
