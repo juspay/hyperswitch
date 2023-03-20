@@ -8,7 +8,7 @@ use crate::{
         errors::{self, RouterResult},
         payments,
     },
-    routes::AppState,
+    routes::{AppState, metrics},
     services,
     types::{self, api as api_types, storage, transformers::ForeignInto},
 };
@@ -180,6 +180,6 @@ pub async fn refresh_connector_auth(
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Could not refresh access token")?;
-
+    metrics::ACCESS_TOKEN_CREATION.add(&metrics::CONTEXT, 1, &[metrics::request::add_attributes("connector", connector.connector_name.to_string())]);
     Ok(access_token_router_data.response)
 }

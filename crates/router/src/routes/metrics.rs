@@ -24,7 +24,7 @@ counter_metric!(PAYMENT_CANCEL_COUNT, GLOBAL_METER);
 counter_metric!(SUCCESSFUL_CANCEL, GLOBAL_METER);
 
 counter_metric!(MANDATE_COUNT, GLOBAL_METER);
-counter_metric!(SUCCESSFUL_MANDATE_COUNT, GLOBAL_METER);
+counter_metric!(SUBSEQUENT_MANDATE_PAYMENT, GLOBAL_METER);
 
 counter_metric!(RETRY_COUNT, GLOBAL_METER);
 
@@ -44,9 +44,9 @@ counter_metric!(API_KEY_REVOKED, GLOBAL_METER);
 
 // Flow Specific Metrics
 
-counter_metric!(ACCESS_TOKEN_REGENERATED, GLOBAL_METER);
+counter_metric!(ACCESS_TOKEN_CREATION, GLOBAL_METER);
 histogram_metric!(CONNECTOR_REQUEST_TIME, GLOBAL_METER);
-counter_metric!(SESSION_TOKEN_REGENERATION, GLOBAL_METER);
+counter_metric!(SESSION_TOKEN_CREATED, GLOBAL_METER);
 
 counter_metric!(CONNECTOR_CALL_COUNT, GLOBAL_METER); // Attributes needed
 
@@ -64,7 +64,9 @@ counter_metric!(UNIMPLEMENTED_FLOW, GLOBAL_METER);
 // Serivce Level
 counter_metric!(CARD_LOCKER_FAILURES, GLOBAL_METER);
 counter_metric!(TEMP_LOCKER_FAILURES, GLOBAL_METER);
-histogram_metric!(CARD_STORAGE_TIME, GLOBAL_METER);
+histogram_metric!(CARD_ADD_TIME, GLOBAL_METER);
+histogram_metric!(CARD_GET_TIME, GLOBAL_METER);
+histogram_metric!(CARD_DELETE_TIME, GLOBAL_METER);
 
 pub mod request;
 pub mod utils;

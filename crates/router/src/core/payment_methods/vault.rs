@@ -5,6 +5,9 @@ use josekit::jwe;
 use masking::PeekInterface;
 use router_env::{instrument, tracing};
 
+#[cfg(feature = "basilisk")]
+use crate::routes::metrics;
+
 use crate::{
     configs::settings,
     core::errors::{self, CustomResult, RouterResult},
@@ -437,6 +440,7 @@ pub async fn create_tokenize(
     value2: Option<String>,
     lookup_key: String,
 ) -> RouterResult<String> {
+    metrics::CREATED_TOKENIZED_CARD.add(&metrics::CONTEXT, 1, &[]);
     let payload_to_be_encrypted = api::TokenizePayloadRequest {
         value1,
         value2: value2.unwrap_or_default(),
@@ -499,9 +503,12 @@ pub async fn create_tokenize(
                 )?;
             Ok(get_response.lookup_key)
         }
-        Err(err) => Err(errors::ApiErrorResponse::InternalServerError)
-            .into_report()
-            .attach_printable(format!("Got 4xx from the basilisk locker: {err:?}")),
+        Err(err) => {
+            metrics::TEMP_LOCKER_FAILURES.add(&metrics::CONTEXT, 1, &[]);
+            Err(errors::ApiErrorResponse::InternalServerError)
+                .into_report()
+                .attach_printable(format!("Got 4xx from the basilisk locker: {err:?}"))
+        }
     }
 }
 
@@ -511,6 +518,7 @@ pub async fn get_tokenized_data(
     lookup_key: &str,
     should_get_value2: bool,
 ) -> RouterResult<api::TokenizePayloadRequest> {
+    metrics::GET_TOKENIZED_CARD.add(&metrics::CONTEXT, 1, &[]);
     let payload_to_be_encrypted = api::GetTokenizePayloadRequest {
         lookup_key: lookup_key.to_string(),
         get_value2: should_get_value2,
@@ -566,9 +574,12 @@ pub async fn get_tokenized_data(
                 .attach_printable("Error getting TokenizePayloadRequest from tokenize response")?;
             Ok(get_response)
         }
-        Err(err) => Err(errors::ApiErrorResponse::InternalServerError)
-            .into_report()
-            .attach_printable(format!("Got 4xx from the basilisk locker: {err:?}")),
+        Err(err) => {
+            metrics::TEMP_LOCKER_FAILURES.add(&metrics::CONTEXT, 1, &[]);
+            Err(errors::ApiErrorResponse::InternalServerError)
+                .into_report()
+                .attach_printable(format!("Got 4xx from the basilisk locker: {err:?}"))
+        }
     }
 }
 
@@ -577,6 +588,7 @@ pub async fn delete_tokenized_data(
     state: &routes::AppState,
     lookup_key: &str,
 ) -> RouterResult<String> {
+    metrics::DELETED_TOKENIZED_CARD.add(&metrics::CONTEXT, 1, &[]);
     let payload_to_be_encrypted = api::DeleteTokenizeByTokenRequest {
         lookup_key: lookup_key.to_string(),
         service_name: VAULT_SERVICE_NAME.to_string(),
@@ -635,9 +647,12 @@ pub async fn delete_tokenized_data(
                 )?;
             Ok(delete_response)
         }
-        Err(err) => Err(errors::ApiErrorResponse::InternalServerError)
-            .into_report()
-            .attach_printable(format!("Got 4xx from the basilisk locker: {err:?}")),
+        Err(err) => {
+            metrics::TEMP_LOCKER_FAILURES.add(&metrics::CONTEXT, 1, &[]);
+            Err(errors::ApiErrorResponse::InternalServerError)
+                .into_report()
+                .attach_printable(format!("Got 4xx from the basilisk locker: {err:?}"))
+        }
     }
 }
 
