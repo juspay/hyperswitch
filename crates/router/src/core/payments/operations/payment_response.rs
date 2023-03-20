@@ -324,7 +324,7 @@ async fn payment_response_update_tracker<F: Clone, T>(
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Could not parse the connector response")?;
 
-                if &router_data.status == &enums::AttemptStatus::Charged {
+                if router_data.status == enums::AttemptStatus::Charged {
                     metrics::SUCCESSFUL_PAYMENT.add(&metrics::CONTEXT, 1, &[]);
                 }
 

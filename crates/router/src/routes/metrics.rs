@@ -9,7 +9,7 @@ counter_metric!(KV_MISS, GLOBAL_METER); // No. of KV misses
 counter_metric!(AWS_KMS_FAILURES, GLOBAL_METER); // No. of AWS KMS API failures
 
 // API Level Metrics
-counter_metric!(REQUESTS_RECIEVED, GLOBAL_METER);
+counter_metric!(REQUESTS_RECEIVED, GLOBAL_METER);
 counter_metric!(FAILED_REQUEST, GLOBAL_METER);
 histogram_metric!(REQUEST_TIME, GLOBAL_METER);
 
@@ -61,7 +61,7 @@ counter_metric!(REQUEST_TIMEOUT_COUNT, GLOBAL_METER);
 counter_metric!(REQUEST_BUILD_FAILURE, GLOBAL_METER);
 counter_metric!(UNIMPLEMENTED_FLOW, GLOBAL_METER);
 
-// Serivce Level
+// Service Level
 counter_metric!(CARD_LOCKER_FAILURES, GLOBAL_METER);
 counter_metric!(TEMP_LOCKER_FAILURES, GLOBAL_METER);
 histogram_metric!(CARD_ADD_TIME, GLOBAL_METER);

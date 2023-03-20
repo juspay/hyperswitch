@@ -1,4 +1,3 @@
-use crate::routes::metrics;
 use std::borrow::Cow;
 
 use common_utils::{ext_traits::AsyncExt, fp_utils};
@@ -21,7 +20,7 @@ use crate::{
         payment_methods::{cards, vault},
     },
     db::StorageInterface,
-    routes::AppState,
+    routes::{metrics, AppState},
     scheduler::{metrics as scheduler_metrics, workflows::payment_sync},
     services,
     types::{

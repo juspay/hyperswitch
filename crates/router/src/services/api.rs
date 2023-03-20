@@ -109,7 +109,10 @@ pub trait ConnectorIntegration<T, Req, Resp>: ConnectorIntegrationAny<T, Req, Re
         metrics::UNIMPLEMENTED_FLOW.add(
             &metrics::CONTEXT,
             1,
-            &[metrics::request::add_attributes("connector", req.connector.clone())],
+            &[metrics::request::add_attributes(
+                "connector",
+                req.connector.clone(),
+            )],
         );
         Ok(None)
     }
@@ -191,13 +194,11 @@ where
                     metrics::request::add_attributes("connector", req.connector.to_string()),
                     metrics::request::add_attributes(
                         "flow",
-                        format!(
-                            "{}",
-                            std::any::type_name::<T>()
-                                .split("::")
-                                .last()
-                                .unwrap_or_default()
-                        ),
+                        std::any::type_name::<T>()
+                            .split("::")
+                            .last()
+                            .unwrap_or_default()
+                            .to_string(),
                     ),
                 ],
             );

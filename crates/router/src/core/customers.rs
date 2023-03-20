@@ -10,7 +10,7 @@ use crate::{
     },
     db::StorageInterface,
     pii::PeekInterface,
-    routes::{AppState, metrics},
+    routes::{metrics, AppState},
     services,
     types::{
         api::customers::{self, CustomerRequestExt},

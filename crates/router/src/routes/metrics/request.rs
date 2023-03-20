@@ -5,7 +5,7 @@ where
     F: futures::Future<Output = R>,
 {
     let key = "request_type";
-    super::REQUESTS_RECIEVED.add(&super::CONTEXT, 1, &[add_attributes(key, flow.to_string())]);
+    super::REQUESTS_RECEIVED.add(&super::CONTEXT, 1, &[add_attributes(key, flow.to_string())]);
     let (result, time) = metric_utils::time_future(future).await;
     super::REQUEST_TIME.record(
         &super::CONTEXT,

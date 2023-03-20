@@ -175,7 +175,7 @@ pub async fn trigger_refund_to_gateway(
             refund_error_code: Some(err.code),
         },
         Ok(response) => {
-            if &response.refund_status == &storage_models::enums::RefundStatus::Success {
+            if response.refund_status == storage_models::enums::RefundStatus::Success {
                 metrics::SUCCESSFUL_REFUND.add(
                     &metrics::CONTEXT,
                     1,
