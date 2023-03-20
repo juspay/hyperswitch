@@ -511,7 +511,7 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
         let response: paypal::PaypalPaymentsCancelResponse = res
             .response
             .parse_struct("PaymentCancelResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+            .switch()?;
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
