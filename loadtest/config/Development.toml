@@ -88,6 +88,7 @@ base_url = "https://api.mollie.com/v2/"
 wallets = ["klarna", "braintree", "applepay"]
 cards = [
     "aci",
+    "Forte",
     "adyen",
     "airwallex",
     "authorizedotnet",

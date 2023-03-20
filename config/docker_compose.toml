@@ -99,6 +99,7 @@ trustpay.base_url_bank_redirects = "https://aapi.trustpay.eu/"
 wallets = ["klarna", "braintree", "applepay"]
 cards = [
     "aci",
+    "Forte",
     "adyen",
     "airwallex",
     "authorizedotnet",

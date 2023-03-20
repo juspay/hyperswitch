@@ -1,4 +1,5 @@
 pub mod aci;
+pub mod forte;
 pub mod adyen;
 pub mod airwallex;
 pub mod applepay;
@@ -31,5 +32,5 @@ pub use self::{
     checkout::Checkout, cybersource::Cybersource, dlocal::Dlocal, fiserv::Fiserv,
     globalpay::Globalpay, klarna::Klarna, mollie::Mollie, multisafepay::Multisafepay, nuvei::Nuvei,
     payu::Payu, rapyd::Rapyd, shift4::Shift4, stripe::Stripe, trustpay::Trustpay,
-    worldline::Worldline, worldpay::Worldpay,
+    worldline::Worldline, worldpay::Worldpay, forte::Forte,
 };

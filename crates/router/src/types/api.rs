@@ -161,6 +161,7 @@ impl ConnectorData {
     ) -> CustomResult<BoxedConnector, errors::ApiErrorResponse> {
         match connector_name {
             "aci" => Ok(Box::new(&connector::Aci)),
+			"Forte" => Ok(Box::new(&connector::Forte)),
             "adyen" => Ok(Box::new(&connector::Adyen)),
             "airwallex" => Ok(Box::new(&connector::Airwallex)),
             "applepay" => Ok(Box::new(&connector::Applepay)),
@@ -184,6 +185,7 @@ impl ConnectorData {
             "worldpay" => Ok(Box::new(&connector::Worldpay)),
             "multisafepay" => Ok(Box::new(&connector::Multisafepay)),
             "trustpay" => Ok(Box::new(&connector::Trustpay)),
+            "forte" => Ok(Box::new(&connector::Forte)),
             _ => Err(report!(errors::ConnectorError::InvalidConnectorName)
                 .attach_printable(format!("invalid connector name: {connector_name}")))
             .change_context(errors::ApiErrorResponse::InternalServerError),
