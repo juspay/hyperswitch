@@ -3,6 +3,7 @@ use serde::Deserialize;
 
 #[derive(Debug, Deserialize, Clone)]
 pub(crate) struct ConnectorAuthentication {
+	pub opennode: Option<HeaderKey>,
 	pub coinbase: Option<HeaderKey>,
     pub aci: Option<BodyKey>,
     pub adyen: Option<BodyKey>,

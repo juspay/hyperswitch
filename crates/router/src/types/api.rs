@@ -183,6 +183,7 @@ impl ConnectorData {
             "worldpay" => Ok(Box::new(&connector::Worldpay)),
             "multisafepay" => Ok(Box::new(&connector::Multisafepay)),
             "coinbase" => Ok(Box::new(&connector::Coinbase)),
+			"opennode" => Ok(Box::new(&connector::Opennode)),
 			_ => Err(report!(errors::ConnectorError::InvalidConnectorName)
                 .attach_printable(format!("invalid connector name: {connector_name}")))
             .change_context(errors::ApiErrorResponse::InternalServerError),

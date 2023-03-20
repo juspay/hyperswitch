@@ -45,6 +45,7 @@ locker_decryption_key2 = ""
 [connectors.supported]
 wallets = ["klarna", "braintree", "applepay"]
 cards = [
+	"opennode",
 	"coinbase",
     "aci",
     "adyen",
@@ -145,6 +146,9 @@ base_url = "https://api.na.bambora.com"
 
 [connectors.coinbase]
 base_url = "https://api.commerce.coinbase.com"
+
+[connectors.opennode]
+base_url = "https://dev-api.opennode.com/v1"
 
 [scheduler]
 stream = "SCHEDULER_STREAM"

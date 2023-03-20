@@ -24,6 +24,8 @@ pub mod worldpay;
 
 pub mod coinbase;
 
+pub mod opennode;
+
 pub use self::{
     aci::Aci, adyen::Adyen, airwallex::Airwallex, applepay::Applepay,
     authorizedotnet::Authorizedotnet, bambora::Bambora, bluesnap::Bluesnap, braintree::Braintree,
@@ -31,4 +33,5 @@ pub use self::{
     globalpay::Globalpay, klarna::Klarna, multisafepay::Multisafepay, nuvei::Nuvei, payu::Payu,
     rapyd::Rapyd, shift4::Shift4, stripe::Stripe, worldline::Worldline, worldpay::Worldpay,
 coinbase::Coinbase,
+opennode::Opennode,
 };

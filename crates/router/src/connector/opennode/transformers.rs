@@ -7,31 +7,19 @@ use crate::{
 };
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Default, Eq, PartialEq, Serialize)]
-pub struct LocalPrice {
-    pub amount: String,
-    pub currency: String,
-}
-
-#[derive(Debug, Default, Eq, PartialEq, Serialize)]
-pub struct Metadata {
-    pub customer_id: String,
-    pub customer_name: String,
-}
-
 //TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
-pub struct CoinbasePaymentsRequest {
-    pub name: String,
-    pub description: String,
-    pub pricing_type: String,
-    pub local_price: LocalPrice,
-    pub metadata: Metadata,
-    pub redirect_url: String,
-    pub cancel_url: String,
+pub struct OpennodePaymentsRequest {
+    amount: i64,
+    currency: String,
+    description: String,
+    ttl: i64,
+    auto_settle: bool,
+    success_url: String,
+    callback_url: String,
 }
 
-impl TryFrom<&types::PaymentsAuthorizeRouterData> for CoinbasePaymentsRequest {
+impl TryFrom<&types::PaymentsAuthorizeRouterData> for OpennodePaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(_item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         get_crypto_specific_payment_data(_item)
@@ -44,11 +32,11 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for CoinbasePaymentsRequest {
 
 //TODO: Fill the struct with respective fields
 // Auth Struct
-pub struct CoinbaseAuthType {
+pub struct OpennodeAuthType {
     pub(super) api_key: String,
 }
 
-impl TryFrom<&types::ConnectorAuthType> for CoinbaseAuthType {
+impl TryFrom<&types::ConnectorAuthType> for OpennodeAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(_auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         if let types::ConnectorAuthType::HeaderKey { api_key } = _auth_type {
@@ -65,70 +53,55 @@ impl TryFrom<&types::ConnectorAuthType> for CoinbaseAuthType {
 //TODO: Append the remaining status flags
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
-pub enum CoinbasePaymentStatus {
-    #[serde(rename = "NEW")]
-    New,
-    Pending,
+pub enum OpennodePaymentStatus {
     Succeeded,
     Failed,
     #[default]
     Processing,
 }
 
-impl From<CoinbasePaymentStatus> for enums::AttemptStatus {
-    fn from(item: CoinbasePaymentStatus) -> Self {
+impl From<OpennodePaymentStatus> for enums::AttemptStatus {
+    fn from(item: OpennodePaymentStatus) -> Self {
         match item {
-            CoinbasePaymentStatus::New => Self::Charged,
-            CoinbasePaymentStatus::Pending => Self::Authorizing,
-            CoinbasePaymentStatus::Succeeded => Self::Charged,
-            CoinbasePaymentStatus::Failed => Self::Failure,
-            CoinbasePaymentStatus::Processing => Self::Authorizing,
-            _ => Self::Authorizing,
+            OpennodePaymentStatus::Succeeded => Self::Charged,
+            OpennodePaymentStatus::Failed => Self::Failure,
+            OpennodePaymentStatus::Processing => Self::Authorizing,
         }
     }
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct Timeline {
-    status: CoinbasePaymentStatus,
-    time: String,
-}
-
-#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct CoinbasePaymentResponseData {
+pub struct OpennodePaymentsResponseData {
     id: String,
-    hosted_url: String,
-    timeline: Vec<Timeline>,
+    hosted_checkout_url: String,
+    status: String,
 }
 
 //TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct CoinbasePaymentsResponse {
-    // status: CoinbasePaymentStatus,
-    // id: String,
-    data: CoinbasePaymentResponseData,
+pub struct OpennodePaymentsResponse {
+    data: OpennodePaymentsResponseData,
 }
 
 impl<F, T>
-    TryFrom<types::ResponseRouterData<F, CoinbasePaymentsResponse, T, types::PaymentsResponseData>>
+    TryFrom<types::ResponseRouterData<F, OpennodePaymentsResponse, T, types::PaymentsResponseData>>
     for types::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         item: types::ResponseRouterData<
             F,
-            CoinbasePaymentsResponse,
+            OpennodePaymentsResponse,
             T,
             types::PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
         let form_fields = HashMap::new();
         let redirection_data = services::RedirectForm {
-            endpoint: item.response.data.hosted_url.to_string(),
+            endpoint: item.response.data.hosted_checkout_url.to_string(),
             method: services::Method::Get,
             form_fields,
         };
-
         println!("## Redirection_data: {:?}", redirection_data);
         Ok(Self {
             // my_status,
@@ -148,9 +121,9 @@ impl<F, T>
 // REFUND :
 // Type definition for RefundRequest
 #[derive(Default, Debug, Serialize)]
-pub struct CoinbaseRefundRequest {}
+pub struct OpennodeRefundRequest {}
 
-impl<F> TryFrom<&types::RefundsRouterData<F>> for CoinbaseRefundRequest {
+impl<F> TryFrom<&types::RefundsRouterData<F>> for OpennodeRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(_item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
         Err(errors::ConnectorError::NotImplemented("try_from RefundsRouterData".to_string()).into())
@@ -213,46 +186,26 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
 
 //TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
-pub struct CoinbaseErrorResponse {}
+pub struct OpennodeErrorResponse {}
 
 fn get_crypto_specific_payment_data<'a>(
     item: &types::PaymentsAuthorizeRouterData,
-) -> Result<CoinbasePaymentsRequest, error_stack::Report<errors::ConnectorError>> {
-    let name = "John".to_string();
+) -> Result<OpennodePaymentsRequest, error_stack::Report<errors::ConnectorError>> {
+    let amount = item.request.amount;
+    let currency = item.request.currency.to_string();
     let description = item.description.as_ref().unwrap().to_string();
-    let pricing_type = match item.request.payment_method_data {
-        api::PaymentMethodData::Crypto(ref crypto_data) => match crypto_data {
-            api_models::payments::CryptoData::Coinbase { pricing_type } => pricing_type.into(),
-            _ => "fixed_type".to_string(),
-        },
-        _ => "fixed_type".to_string(),
-    };
-    let local_price = get_local_price(item);
-    let metadata = get_metadata(item);
-    let redirect_url = item.return_url.as_ref().unwrap().to_string();
-    let cancel_url = item.return_url.as_ref().unwrap().to_string();
+    let ttl = 10i64;
+    let auto_settle = true;
+    let success_url = item.return_url.as_ref().unwrap().to_string();
+    let callback_url = item.return_url.as_ref().unwrap().to_string();
 
-    Ok(CoinbasePaymentsRequest {
-        name,
+    Ok(OpennodePaymentsRequest {
+        amount,
+        currency,
         description,
-        pricing_type,
-        local_price,
-        metadata,
-        redirect_url,
-        cancel_url,
+        ttl,
+        auto_settle,
+        success_url,
+        callback_url,
     })
-}
-
-fn get_local_price(item: &types::PaymentsAuthorizeRouterData) -> LocalPrice {
-    LocalPrice {
-        amount: format!("{:?}", item.request.amount),
-        currency: item.request.currency.to_string(),
-    }
-}
-
-fn get_metadata(item: &types::PaymentsAuthorizeRouterData) -> Metadata {
-    Metadata {
-        customer_id: "112".to_string(),
-        customer_name: "John".to_string(),
-    }
 }

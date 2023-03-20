@@ -19,6 +19,7 @@ mod rapyd;
 mod shift4;
 mod stripe;
 mod coinbase;
+mod opennode;
 mod utils;
 mod worldline;
 mod worldpay;

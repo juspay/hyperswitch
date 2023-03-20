@@ -554,6 +554,7 @@ pub enum Connector {
     Cybersource,
     #[default]
     Dummy,
+	Opennode,
     Coinbase,
     Bambora,
     Dlocal,
@@ -591,6 +592,7 @@ impl Connector {
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum RoutableConnectors {
+	Opennode,
     Coinbase,
     Aci,
     Adyen,
