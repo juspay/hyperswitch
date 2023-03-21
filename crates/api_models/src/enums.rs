@@ -432,6 +432,7 @@ pub enum PaymentMethod {
     PayLater,
     Wallet,
     BankRedirect,
+    Crypto
 }
 
 #[derive(
@@ -552,6 +553,7 @@ pub enum Connector {
     Bluesnap,
     Braintree,
     Checkout,
+    Coinbase,
     Cybersource,
     #[default]
     Dummy,
@@ -607,6 +609,7 @@ pub enum RoutableConnectors {
     Bluesnap,
     Braintree,
     Checkout,
+    Coinbase,
     Cybersource,
     Dlocal,
     Fiserv,
