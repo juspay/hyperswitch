@@ -18,7 +18,7 @@ use crate::{
     types::{
         self,
         api::{self, refunds},
-        storage::{self, enums, ProcessTrackerExt},
+        storage::{self, enums, PaymentAttemptExt, ProcessTrackerExt},
         transformers::{ForeignFrom, ForeignInto},
     },
     utils::{self, OptionExt},
@@ -113,24 +113,25 @@ pub async fn trigger_refund_to_gateway(
     payment_intent: &storage::PaymentIntent,
     creds_identifier: Option<String>,
 ) -> RouterResult<storage::Refund> {
-    let connector = payment_attempt
-        .connector
-        .clone()
-        .ok_or(errors::ApiErrorResponse::InternalServerError)?;
-    let connector_id = connector.to_string();
+    let routed_through = payment_attempt
+        .get_routed_through_connector()
+        .change_context(errors::ApiErrorResponse::InternalServerError)?
+        .ok_or(errors::ApiErrorResponse::InternalServerError)
+        .into_report()
+        .attach_printable("Failed to retrieve connector from payment attempt")?;
 
     metrics::REFUND_COUNT.add(
         &metrics::CONTEXT,
         1,
         &[metrics::request::add_attributes(
             "connector",
-            connector.to_string(),
+            routed_through.clone(),
         )],
     );
 
     let connector: api::ConnectorData = api::ConnectorData::get_connector_by_name(
         &state.conf.connectors,
-        &connector_id,
+        &routed_through,
         api::GetToken::Connector,
     )
     .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -143,11 +144,11 @@ pub async fn trigger_refund_to_gateway(
         .attach_printable("Transaction in invalid")
     })?;
 
-    validator::validate_for_valid_refunds(payment_attempt)?;
+    validator::validate_for_valid_refunds(payment_attempt, connector.connector_name)?;
 
     let mut router_data = core_utils::construct_refund_router_data(
         state,
-        &connector_id,
+        &routed_through,
         merchant_account,
         (payment_attempt.amount, currency),
         payment_intent,
@@ -544,10 +545,12 @@ pub async fn validate_and_create_refund(
             )
             .change_context(errors::ApiErrorResponse::MaximumRefundCount)?;
 
-            let connector = payment_attempt.connector.clone().ok_or_else(|| {
-                report!(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("connector not populated in payment attempt.")
-            })?;
+            let connector = payment_attempt
+                .get_routed_through_connector()
+                .change_context(errors::ApiErrorResponse::InternalServerError)?
+                .ok_or(errors::ApiErrorResponse::InternalServerError)
+                .into_report()
+                .attach_printable("No connector populated in payment attempt")?;
 
             refund_create_req = storage::RefundNew::default()
                 .set_refund_id(refund_id.to_string())
