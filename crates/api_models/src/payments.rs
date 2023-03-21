@@ -6,7 +6,7 @@ use router_derive::Setter;
 use time::PrimitiveDateTime;
 use utoipa::ToSchema;
 
-use crate::{enums as api_enums, refunds};
+use crate::{admin, enums as api_enums, refunds};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum PaymentOp {
@@ -200,6 +200,9 @@ pub struct PaymentsRequest {
     /// Payment Method Type
     #[schema(value_type = Option<PaymentMethodType>, example = "google_pay")]
     pub payment_method_type: Option<api_enums::PaymentMethodType>,
+
+    /// Merchant connector details used to make payments.
+    pub merchant_connector_details: Option<admin::MerchantConnectorDetailsWrap>,
 }
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, Copy, PartialEq, Eq)]
@@ -251,6 +254,7 @@ pub struct VerifyRequest {
     pub setup_future_usage: Option<api_enums::FutureUsage>,
     pub off_session: Option<bool>,
     pub client_secret: Option<String>,
+    pub merchant_connector_details: Option<admin::MerchantConnectorDetailsWrap>,
 }
 
 impl From<PaymentsRequest> for VerifyRequest {
@@ -269,6 +273,7 @@ impl From<PaymentsRequest> for VerifyRequest {
             mandate_data: item.mandate_data,
             setup_future_usage: item.setup_future_usage,
             off_session: item.off_session,
+            merchant_connector_details: item.merchant_connector_details,
         }
     }
 }
@@ -632,19 +637,6 @@ impl Default for PaymentIdType {
     }
 }
 
-//#[derive(Debug, serde::Deserialize, serde::Serialize)]
-//#[serde(untagged)]
-//pub enum enums::CaptureMethod {
-//Automatic,
-//Manual,
-//}
-
-//impl Default for enums::CaptureMethod {
-//fn default() -> Self {
-//enums::CaptureMethod::Manual
-//}
-//}
-
 #[derive(
     Default,
     Clone,
@@ -749,6 +741,8 @@ pub struct PaymentsCaptureRequest {
     pub statement_descriptor_suffix: Option<String>,
     /// Concatenated with the statement descriptor suffix that’s set on the account to form the complete statement descriptor.
     pub statement_descriptor_prefix: Option<String>,
+    /// Merchant connector details used to make payments.
+    pub merchant_connector_details: Option<admin::MerchantConnectorDetailsWrap>,
 }
 
 #[derive(Default, Clone, Debug, Eq, PartialEq, serde::Serialize)]
@@ -1172,6 +1166,8 @@ pub struct PaymentsRetrieveRequest {
     pub param: Option<String>,
     /// The name of the connector
     pub connector: Option<String>,
+    /// Merchant connector details used to make payments.
+    pub merchant_connector_details: Option<admin::MerchantConnectorDetailsWrap>,
 }
 
 #[derive(Debug, Default, Eq, PartialEq, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
@@ -1203,6 +1199,8 @@ pub struct PaymentsSessionRequest {
     /// The list of the supported wallets
     #[schema(value_type = Vec<SupportedWallets>)]
     pub wallets: Vec<api_enums::SupportedWallets>,
+    /// Merchant connector details used to make payments.
+    pub merchant_connector_details: Option<admin::MerchantConnectorDetailsWrap>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -1390,6 +1388,19 @@ pub struct PaymentRetrieveBody {
     /// Decider to enable or disable the connector call for retrieve request
     pub force_sync: Option<bool>,
 }
+
+#[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+pub struct PaymentRetrieveBodyWithCredentials {
+    /// The identifier for payment.
+    pub payment_id: String,
+    /// The identifier for the Merchant Account.
+    pub merchant_id: Option<String>,
+    /// Decider to enable or disable the connector call for retrieve request
+    pub force_sync: Option<bool>,
+    /// Merchant connector details used to make payments.
+    pub merchant_connector_details: Option<admin::MerchantConnectorDetailsWrap>,
+}
+
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 pub struct PaymentsCancelRequest {
     /// The identifier for the payment
@@ -1397,6 +1408,8 @@ pub struct PaymentsCancelRequest {
     pub payment_id: String,
     /// The reason for the payment cancel
     pub cancellation_reason: Option<String>,
+    /// Merchant connector details used to make payments.
+    pub merchant_connector_details: Option<admin::MerchantConnectorDetailsWrap>,
 }
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, ToSchema)]

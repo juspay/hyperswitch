@@ -2,7 +2,7 @@ use std::{collections::HashSet, marker::PhantomData};
 
 use api_models::admin::PaymentMethodsEnabled;
 use async_trait::async_trait;
-use common_utils::ext_traits::ValueExt;
+use common_utils::ext_traits::{AsyncExt, ValueExt};
 use error_stack::ResultExt;
 use router_derive::PaymentOperation;
 use router_env::{instrument, tracing};
@@ -135,6 +135,24 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsSessionRequest>
             phone_country_code: None,
         };
 
+        let creds_identifier = request
+            .merchant_connector_details
+            .as_ref()
+            .map(|mcd| mcd.creds_identifier.to_owned());
+        request
+            .merchant_connector_details
+            .to_owned()
+            .async_map(|mcd| async {
+                helpers::insert_merchant_connector_creds_to_config(
+                    db,
+                    merchant_account.merchant_id.as_str(),
+                    mcd,
+                )
+                .await
+            })
+            .await
+            .transpose()?;
+
         Ok((
             Box::new(self),
             PaymentData {
@@ -158,6 +176,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsSessionRequest>
                 sessions_token: vec![],
                 connector_response,
                 card_cvc: None,
+                creds_identifier,
             },
             Some(customer_details),
         ))

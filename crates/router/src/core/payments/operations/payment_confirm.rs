@@ -1,7 +1,7 @@
 use std::marker::PhantomData;
 
 use async_trait::async_trait;
-use common_utils::ext_traits::Encode;
+use common_utils::ext_traits::{AsyncExt, Encode};
 use error_stack::ResultExt;
 use router_derive::PaymentOperation;
 use router_env::{instrument, tracing};
@@ -173,6 +173,24 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         payment_intent.billing_address_id = billing_address.clone().map(|i| i.address_id);
         payment_intent.return_url = request.return_url.as_ref().map(|a| a.to_string());
 
+        let creds_identifier = request
+            .merchant_connector_details
+            .as_ref()
+            .map(|mcd| mcd.creds_identifier.to_owned());
+        request
+            .merchant_connector_details
+            .to_owned()
+            .async_map(|mcd| async {
+                helpers::insert_merchant_connector_creds_to_config(
+                    db,
+                    merchant_account.merchant_id.as_str(),
+                    mcd,
+                )
+                .await
+            })
+            .await
+            .transpose()?;
+
         Ok((
             Box::new(self),
             PaymentData {
@@ -196,6 +214,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 refunds: vec![],
                 sessions_token: vec![],
                 card_cvc: request.card_cvc.clone(),
+                creds_identifier,
             },
             Some(CustomerDetails {
                 customer_id: request.customer_id.clone(),
