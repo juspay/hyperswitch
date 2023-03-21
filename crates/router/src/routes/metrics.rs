@@ -1,15 +1,9 @@
-use once_cell::sync::Lazy;
-use router_env::opentelemetry::{
-    global,
-    metrics::{Counter, Meter},
-    Context,
-};
+use router_env::{counter_metric, global_meter, metrics_context};
 
-pub static CONTEXT: Lazy<Context> = Lazy::new(Context::current);
-static GLOBAL_METER: Lazy<Meter> = Lazy::new(|| global::meter("ROUTER_API"));
+metrics_context!(CONTEXT);
+global_meter!(GLOBAL_METER, "ROUTER_API");
 
-pub(crate) static HEALTH_METRIC: Lazy<Counter<u64>> =
-    Lazy::new(|| GLOBAL_METER.u64_counter("HEALTH_API").init());
-
-pub(crate) static KV_MISS: Lazy<Counter<u64>> =
-    Lazy::new(|| GLOBAL_METER.u64_counter("KV_MISS").init());
+counter_metric!(HEALTH_METRIC, GLOBAL_METER); // No. of health API hits
+counter_metric!(KV_MISS, GLOBAL_METER); // No. of KV misses
+#[cfg(feature = "kms")]
+counter_metric!(AWS_KMS_FAILURES, GLOBAL_METER); // No. of AWS KMS API failures

@@ -61,15 +61,18 @@ impl AdyenTest {
         Some(types::PaymentsAuthorizeData {
             amount: 3500,
             currency: enums::Currency::USD,
-            payment_method_data: types::api::PaymentMethod::Card(types::api::Card {
+            payment_method_data: types::api::PaymentMethodData::Card(types::api::Card {
                 card_number: Secret::new(card_number.to_string()),
                 card_exp_month: Secret::new(card_exp_month.to_string()),
                 card_exp_year: Secret::new(card_exp_year.to_string()),
                 card_holder_name: Secret::new("John Doe".to_string()),
                 card_cvc: Secret::new(card_cvc.to_string()),
+                card_issuer: None,
+                card_network: None,
             }),
             confirm: true,
             statement_descriptor_suffix: None,
+            statement_descriptor: None,
             setup_future_usage: None,
             mandate_id: None,
             off_session: None,
@@ -78,6 +81,11 @@ impl AdyenTest {
             browser_info: None,
             order_details: None,
             email: None,
+            payment_experience: None,
+            payment_method_type: None,
+            session_token: None,
+            enrolled_for_3ds: false,
+            related_transaction_id: None,
         })
     }
 }
@@ -160,6 +168,8 @@ async fn should_void_authorized_payment() {
                 enums::CaptureMethod::Manual,
             ),
             Some(types::PaymentsCancelData {
+                amount: None,
+                currency: None,
                 connector_transaction_id: String::from(""),
                 cancellation_reason: Some("requested_by_customer".to_string()),
             }),
@@ -328,7 +338,7 @@ async fn should_fail_payment_for_incorrect_card_number() {
     let response = CONNECTOR
         .make_payment(
             Some(types::PaymentsAuthorizeData {
-                payment_method_data: types::api::PaymentMethod::Card(api::Card {
+                payment_method_data: types::api::PaymentMethodData::Card(api::Card {
                     card_number: Secret::new("1234567891011".to_string()),
                     ..utils::CCardType::default().0
                 }),
@@ -350,7 +360,7 @@ async fn should_fail_payment_for_empty_card_number() {
     let response = CONNECTOR
         .make_payment(
             Some(types::PaymentsAuthorizeData {
-                payment_method_data: types::api::PaymentMethod::Card(api::Card {
+                payment_method_data: types::api::PaymentMethodData::Card(api::Card {
                     card_number: Secret::new(String::from("")),
                     ..utils::CCardType::default().0
                 }),
@@ -370,7 +380,7 @@ async fn should_fail_payment_for_incorrect_cvc() {
     let response = CONNECTOR
         .make_payment(
             Some(types::PaymentsAuthorizeData {
-                payment_method_data: types::api::PaymentMethod::Card(api::Card {
+                payment_method_data: types::api::PaymentMethodData::Card(api::Card {
                     card_cvc: Secret::new("12345".to_string()),
                     ..utils::CCardType::default().0
                 }),
@@ -392,7 +402,7 @@ async fn should_fail_payment_for_invalid_exp_month() {
     let response = CONNECTOR
         .make_payment(
             Some(types::PaymentsAuthorizeData {
-                payment_method_data: types::api::PaymentMethod::Card(api::Card {
+                payment_method_data: types::api::PaymentMethodData::Card(api::Card {
                     card_exp_month: Secret::new("20".to_string()),
                     ..utils::CCardType::default().0
                 }),
@@ -414,7 +424,7 @@ async fn should_fail_payment_for_incorrect_expiry_year() {
     let response = CONNECTOR
         .make_payment(
             Some(types::PaymentsAuthorizeData {
-                payment_method_data: types::api::PaymentMethod::Card(api::Card {
+                payment_method_data: types::api::PaymentMethodData::Card(api::Card {
                     card_exp_year: Secret::new("2000".to_string()),
                     ..utils::CCardType::default().0
                 }),

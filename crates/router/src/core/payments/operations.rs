@@ -1,5 +1,6 @@
 pub mod payment_cancel;
 pub mod payment_capture;
+pub mod payment_complete_authorize;
 pub mod payment_confirm;
 pub mod payment_create;
 pub mod payment_method_validate;
@@ -110,7 +111,7 @@ pub trait Domain<F: Clone, R>: Send + Sync {
         state: &'a AppState,
         payment_data: &mut PaymentData<F>,
         storage_scheme: enums::MerchantStorageScheme,
-    ) -> RouterResult<(BoxedOperation<'a, F, R>, Option<api::PaymentMethod>)>;
+    ) -> RouterResult<(BoxedOperation<'a, F, R>, Option<api::PaymentMethodData>)>;
 
     async fn add_task_to_process_tracker<'a>(
         &'a self,
@@ -183,6 +184,7 @@ where
                 db,
                 payment_data.payment_intent.customer_id.clone(),
                 merchant_id,
+                payment_data,
             )
             .await?,
         ))
@@ -206,7 +208,7 @@ where
         _storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsRetrieveRequest>,
-        Option<api::PaymentMethod>,
+        Option<api::PaymentMethodData>,
     )> {
         helpers::make_pm_data(Box::new(self), state, payment_data).await
     }
@@ -238,6 +240,7 @@ where
                 db,
                 payment_data.payment_intent.customer_id.clone(),
                 merchant_id,
+                payment_data,
             )
             .await?,
         ))
@@ -250,7 +253,7 @@ where
         _storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsCaptureRequest>,
-        Option<api::PaymentMethod>,
+        Option<api::PaymentMethodData>,
     )> {
         Ok((Box::new(self), None))
     }
@@ -292,6 +295,7 @@ where
                 db,
                 payment_data.payment_intent.customer_id.clone(),
                 merchant_id,
+                payment_data,
             )
             .await?,
         ))
@@ -305,7 +309,7 @@ where
         _storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsCancelRequest>,
-        Option<api::PaymentMethod>,
+        Option<api::PaymentMethodData>,
     )> {
         Ok((Box::new(self), None))
     }

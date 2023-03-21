@@ -1,7 +1,6 @@
 name: Release branch manually
 
-on:
-  workflow_dispatch
+on: workflow_dispatch
 
 jobs:
   build:
@@ -9,33 +8,49 @@ jobs:
 
     steps:
       - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
 
-      - name: Build router Docker image
-        run: docker build . --file Dockerfile --tag juspaydotin/orca:${{ github.sha }} --build-arg BINARY=router
+      - name: Login to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKERHUB_USER }}
+          password: ${{ secrets.DOCKERHUB_PASSWD }}
 
-      - name: Build consumer Docker image
-        run: docker build . --file Dockerfile --tag juspaydotin/orca-consumer:${{ github.sha }} --build-arg BINARY=scheduler --build-arg SCHEDULER_FLOW=Consumer
+      - name: Build and push router Docker image
+        uses: docker/build-push-action@v4
+        with:
+          build-args: |
+            BINARY=router
+          context: .
+          push: true
+          tags: juspaydotin/orca:${{ github.sha }}
 
-      - name: Build producer Docker image
-        run: docker build . --file Dockerfile --tag juspaydotin/orca-producer:${{ github.sha }} --build-arg BINARY=scheduler --build-arg SCHEDULER_FLOW=Producer
+      - name: Build and push consumer Docker image
+        uses: docker/build-push-action@v4
+        with:
+          build-args: |
+            BINARY=scheduler
+            SCHEDULER_FLOW=Consumer
+          context: .
+          push: true
+          tags: juspaydotin/orca-consumer:${{ github.sha }}
 
-      - name: Build drainer Docker image
-        run: docker build . --file Dockerfile --tag juspaydotin/orca:drainer-${{ github.sha }} --build-arg BINARY=drainer
+      - name: Build and push producer Docker image
+        uses: docker/build-push-action@v4
+        with:
+          build-args: |
+            BINARY=scheduler
+            SCHEDULER_FLOW=Producer
+          context: .
+          push: true
+          tags: juspaydotin/orca-producer:${{ github.sha }}
 
-      - name: Docker Login      
-        env:
-          DOCKER_USER: ${{secrets.DOCKERHUB_USER}}
-          DOCKER_TOKEN: ${{secrets.DOCKERHUB_PASSWD}}
-        run: docker login -u $DOCKER_USER -p $DOCKER_TOKEN
-
-      - name: Push router Docker image
-        run: docker push juspaydotin/orca:${{ github.sha }}
-
-      - name: Push consumer Docker image
-        run: docker push juspaydotin/orca-consumer:${{ github.sha }}
-
-      - name: Push producer Docker image
-        run: docker push juspaydotin/orca-producer:${{ github.sha }}
-
-      - name: Push drainer Docker image
-        run: docker push juspaydotin/orca:drainer-${{ github.sha }}
+      - name: Build and push drainer Docker image
+        uses: docker/build-push-action@v4
+        with:
+          build-args: |
+            BINARY=drainer
+          context: .
+          push: true
+          tags: juspaydotin/orca:drainer-${{ github.sha }}

@@ -86,7 +86,7 @@ pub mod iso8601 {
     }
 }
 
-/// https://github.com/serde-rs/serde/issues/994#issuecomment-316895860
+/// <https://github.com/serde-rs/serde/issues/994#issuecomment-316895860>
 
 pub mod json_string {
     use serde::de::{self, Deserialize, DeserializeOwned, Deserializer};

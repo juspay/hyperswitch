@@ -1,8 +1,8 @@
 use std::{convert::From, default::Default};
 
+use api_models::refunds;
+use common_utils::pii;
 use serde::{Deserialize, Serialize};
-
-use crate::{core::errors, types::api::refunds};
 
 #[derive(Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
 pub struct StripeCreateRefundRequest {
@@ -13,7 +13,7 @@ pub struct StripeCreateRefundRequest {
 
 #[derive(Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
 pub struct StripeUpdateRefundRequest {
-    pub metadata: Option<serde_json::Value>,
+    pub metadata: Option<pii::SecretSerdeValue>,
 }
 
 #[derive(Clone, Serialize, PartialEq, Eq)]
@@ -24,7 +24,7 @@ pub struct StripeCreateRefundResponse {
     pub payment_intent: String,
     pub status: StripeRefundStatus,
     pub created: Option<i64>,
-    pub metadata: serde_json::Value,
+    pub metadata: pii::SecretSerdeValue,
 }
 
 #[derive(Clone, Serialize, Deserialize, Eq, PartialEq)]
@@ -68,17 +68,18 @@ impl From<refunds::RefundStatus> for StripeRefundStatus {
     }
 }
 
-impl TryFrom<refunds::RefundResponse> for StripeCreateRefundResponse {
-    type Error = error_stack::Report<errors::ApiErrorResponse>;
-    fn try_from(res: refunds::RefundResponse) -> Result<Self, Self::Error> {
-        Ok(Self {
+impl From<refunds::RefundResponse> for StripeCreateRefundResponse {
+    fn from(res: refunds::RefundResponse) -> Self {
+        Self {
             id: res.refund_id,
             amount: res.amount,
             currency: res.currency.to_ascii_lowercase(),
             payment_intent: res.payment_id,
             status: res.status.into(),
             created: res.created_at.map(|t| t.assume_utc().unix_timestamp()),
-            metadata: res.metadata.unwrap_or(serde_json::json!({})),
-        })
+            metadata: res
+                .metadata
+                .unwrap_or_else(|| masking::Secret::new(serde_json::json!({}))),
+        }
     }
 }

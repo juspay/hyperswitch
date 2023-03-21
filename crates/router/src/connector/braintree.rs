@@ -8,11 +8,8 @@ use self::transformers as braintree;
 use crate::{
     configs::settings,
     consts,
-    core::{
-        errors::{self, CustomResult},
-        payments,
-    },
-    headers, logger, services,
+    core::errors::{self, CustomResult},
+    headers, services,
     types::{
         self,
         api::{self, ConnectorCommon},
@@ -39,7 +36,7 @@ impl ConnectorCommon for Braintree {
         let auth: braintree::BraintreeAuthType = auth_type
             .try_into()
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-        Ok(vec![(headers::AUTHORIZATION.to_string(), auth.api_key)])
+        Ok(vec![(headers::AUTHORIZATION.to_string(), auth.auth_header)])
     }
 }
 
@@ -103,7 +100,7 @@ impl
         Ok(format!(
             "{}/merchants/{}/client_token",
             self.base_url(connectors),
-            auth_type.merchant_account,
+            auth_type.merchant_id,
         ))
     }
 
@@ -123,7 +120,6 @@ impl
                 .build(),
         );
 
-        logger::debug!(braintree_session_request=?request);
         Ok(request)
     }
 
@@ -152,7 +148,6 @@ impl
             utils::Encode::<braintree::BraintreeSessionRequest>::convert_and_encode(req)
                 .change_context(errors::ConnectorError::RequestEncodingFailed)?;
 
-        logger::debug!(?braintree_session_request);
         Ok(Some(braintree_session_request))
     }
 
@@ -161,7 +156,6 @@ impl
         data: &types::PaymentsSessionRouterData,
         res: types::Response,
     ) -> CustomResult<types::PaymentsSessionRouterData, errors::ConnectorError> {
-        logger::debug!(payment_session_response_braintree=?res);
         let response: braintree::BraintreeSessionTokenResponse = res
             .response
             .parse_struct("braintree SessionTokenResponse")
@@ -241,7 +235,7 @@ impl
         Ok(format!(
             "{}/merchants/{}/transactions/{}",
             self.base_url(connectors),
-            auth_type.merchant_account,
+            auth_type.merchant_id,
             connector_payment_id
         ))
     }
@@ -290,7 +284,6 @@ impl
         data: &types::PaymentsSyncRouterData,
         res: types::Response,
     ) -> CustomResult<types::PaymentsSyncRouterData, errors::ConnectorError> {
-        logger::debug!(payment_sync_response_braintree=?res);
         let response: braintree::BraintreePaymentsResponse = res
             .response
             .parse_struct("Braintree PaymentsResponse")
@@ -341,7 +334,7 @@ impl
         Ok(format!(
             "{}merchants/{}/transactions",
             self.base_url(connectors),
-            auth_type.merchant_account
+            auth_type.merchant_id
         ))
     }
 
@@ -379,7 +372,6 @@ impl
         data: &types::PaymentsAuthorizeRouterData,
         res: types::Response,
     ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
-        logger::debug!(braintreepayments_create_response=?res);
         let response: braintree::BraintreePaymentsResponse = res
             .response
             .parse_struct("Braintree PaymentsResponse")
@@ -397,8 +389,6 @@ impl
         &self,
         res: types::Response,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
-        logger::debug!(braintreepayments_create_response=?res);
-
         let response: braintree::ErrorResponse = res
             .response
             .parse_struct("Braintree ErrorResponse")
@@ -452,7 +442,7 @@ impl
         Ok(format!(
             "{}merchants/{}/transactions/{}/void",
             self.base_url(connectors),
-            auth_type.merchant_account,
+            auth_type.merchant_id,
             req.request.connector_transaction_id
         ))
     }
@@ -501,7 +491,6 @@ impl
         data: &types::PaymentsCancelRouterData,
         res: types::Response,
     ) -> CustomResult<types::PaymentsCancelRouterData, errors::ConnectorError> {
-        logger::debug!(payment_sync_response=?res);
         let response: braintree::BraintreePaymentsResponse = res
             .response
             .parse_struct("Braintree PaymentsVoidResponse")
@@ -556,7 +545,7 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
         Ok(format!(
             "{}merchants/{}/transactions/{}",
             self.base_url(connectors),
-            auth_type.merchant_account,
+            auth_type.merchant_id,
             connector_payment_id
         ))
     }
@@ -592,7 +581,6 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
         data: &types::RefundsRouterData<api::Execute>,
         res: types::Response,
     ) -> CustomResult<types::RefundsRouterData<api::Execute>, errors::ConnectorError> {
-        logger::debug!(target: "router::connector::braintree", response=?res);
         let response: braintree::RefundResponse = res
             .response
             .parse_struct("Braintree RefundResponse")
@@ -668,7 +656,6 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
         types::RouterData<api::RSync, types::RefundsData, types::RefundsResponseData>,
         errors::ConnectorError,
     > {
-        logger::debug!(target: "router::connector::braintree", response=?res);
         let response: braintree::RefundResponse = res
             .response
             .parse_struct("Braintree RefundResponse")
@@ -687,31 +674,22 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
 impl api::IncomingWebhook for Braintree {
     fn get_webhook_object_reference_id(
         &self,
-        _body: &[u8],
+        _request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<String, errors::ConnectorError> {
         Err(errors::ConnectorError::NotImplemented("braintree".to_string()).into())
     }
 
     fn get_webhook_event_type(
         &self,
-        _body: &[u8],
+        _request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api::IncomingWebhookEvent, errors::ConnectorError> {
         Err(errors::ConnectorError::NotImplemented("braintree".to_string()).into())
     }
 
     fn get_webhook_resource_object(
         &self,
-        _body: &[u8],
+        _request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<serde_json::Value, errors::ConnectorError> {
         Err(errors::ConnectorError::NotImplemented("braintree".to_string()).into())
-    }
-}
-
-impl services::ConnectorRedirectResponse for Braintree {
-    fn get_flow_type(
-        &self,
-        _query_params: &str,
-    ) -> CustomResult<payments::CallConnectorAction, errors::ConnectorError> {
-        Ok(payments::CallConnectorAction::Trigger)
     }
 }

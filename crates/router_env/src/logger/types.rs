@@ -62,16 +62,16 @@ pub enum Flow {
     MerchantsAccountUpdate,
     /// Merchants account delete flow.
     MerchantsAccountDelete,
-    /// Payment connectors create flow.
-    PaymentConnectorsCreate,
-    /// Payment connectors retrieve flow.
-    PaymentConnectorsRetrieve,
-    /// Payment connectors update flow.
-    PaymentConnectorsUpdate,
-    /// Payment connectors delete flow.
-    PaymentConnectorsDelete,
-    /// Payment connectors list flow.
-    PaymentConnectorsList,
+    /// Merchant Connectors create flow.
+    MerchantConnectorsCreate,
+    /// Merchant Connectors retrieve flow.
+    MerchantConnectorsRetrieve,
+    /// Merchant Connectors update flow.
+    MerchantConnectorsUpdate,
+    /// Merchant Connectors delete flow.
+    MerchantConnectorsDelete,
+    /// Merchant Connectors list flow.
+    MerchantConnectorsList,
     /// ConfigKey create flow.
     ConfigKeyCreate,
     /// ConfigKey fetch flow.

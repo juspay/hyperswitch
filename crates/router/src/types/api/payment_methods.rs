@@ -1,12 +1,12 @@
 use std::collections::HashMap;
 
 pub use api_models::payment_methods::{
-    CardDetail, CardDetailFromLocker, CreatePaymentMethod, CustomerPaymentMethod,
-    DeletePaymentMethodResponse, DeleteTokenizeByDateRequest, DeleteTokenizeByTokenRequest,
-    GetTokenizePayloadRequest, GetTokenizePayloadResponse, ListCustomerPaymentMethodsResponse,
-    ListPaymentMethod, ListPaymentMethodRequest, ListPaymentMethodResponse, PaymentMethodId,
-    PaymentMethodResponse, TokenizePayloadEncrypted, TokenizePayloadRequest, TokenizedCardValue1,
-    TokenizedCardValue2, TokenizedWalletValue1, TokenizedWalletValue2, UpdatePaymentMethod,
+    CardDetail, CardDetailFromLocker, CustomerPaymentMethod, CustomerPaymentMethodsListResponse,
+    DeleteTokenizeByDateRequest, DeleteTokenizeByTokenRequest, GetTokenizePayloadRequest,
+    GetTokenizePayloadResponse, PaymentMethodCreate, PaymentMethodDeleteResponse, PaymentMethodId,
+    PaymentMethodList, PaymentMethodListRequest, PaymentMethodListResponse, PaymentMethodResponse,
+    PaymentMethodUpdate, TokenizePayloadEncrypted, TokenizePayloadRequest, TokenizedCardValue1,
+    TokenizedCardValue2, TokenizedWalletValue1, TokenizedWalletValue2,
 };
 use error_stack::report;
 use literally::hmap;
@@ -20,23 +20,15 @@ use crate::{
 /// Static collection that contains valid Payment Method Type and Payment Method SubType
 /// tuples. Used for validation.
 static PAYMENT_METHOD_TYPE_SET: Lazy<
-    HashMap<api_enums::PaymentMethodType, Vec<api_enums::PaymentMethodSubType>>,
+    HashMap<api_enums::PaymentMethod, Vec<api_enums::PaymentMethodType>>,
 > = Lazy::new(|| {
-    use api_enums::{PaymentMethodSubType as ST, PaymentMethodType as T};
+    use api_enums::{PaymentMethod as T, PaymentMethodType as ST};
 
     hmap! {
         T::Card => vec![
             ST::Credit,
             ST::Debit
         ],
-        T::BankTransfer => vec![],
-        T::Netbanking => vec![],
-        T::Upi => vec![
-            ST::UpiIntent,
-            ST::UpiCollect
-        ],
-        T::OpenBanking => vec![],
-        T::ConsumerFinance => vec![],
         T::Wallet => vec![]
     }
 });
@@ -44,36 +36,24 @@ static PAYMENT_METHOD_TYPE_SET: Lazy<
 /// Static collection that contains valid Payment Method Issuer and Payment Method Issuer
 /// Type tuples. Used for validation.
 static PAYMENT_METHOD_ISSUER_SET: Lazy<
-    HashMap<api_enums::PaymentMethodType, Vec<api_enums::PaymentMethodIssuerCode>>,
+    HashMap<api_enums::PaymentMethod, Vec<api_enums::PaymentMethodIssuerCode>>,
 > = Lazy::new(|| {
-    use api_enums::{PaymentMethodIssuerCode as IC, PaymentMethodType as T};
+    use api_enums::{PaymentMethod as T, PaymentMethodIssuerCode as IC};
 
     hmap! {
         T::Card => vec![
             IC::JpHdfc,
             IC::JpIcici,
         ],
-        T::Upi => vec![
-            IC::JpGooglepay,
-            IC::JpPhonepay
-        ],
-        T::Netbanking => vec![
-            IC::JpSofort,
-            IC::JpGiropay
-        ],
         T::Wallet => vec![
             IC::JpApplepay,
             IC::JpGooglepay,
             IC::JpWechat
         ],
-        T::BankTransfer => vec![
-            IC::JpSepa,
-            IC::JpBacs
-        ]
     }
 });
 
-pub(crate) trait CreatePaymentMethodExt {
+pub(crate) trait PaymentMethodCreateExt {
     fn validate(&self) -> RouterResult<()>;
     fn check_subtype_mapping<T, U>(
         dict: &HashMap<T, Vec<U>>,
@@ -85,7 +65,7 @@ pub(crate) trait CreatePaymentMethodExt {
         U: PartialEq;
 }
 
-impl CreatePaymentMethodExt for CreatePaymentMethod {
+impl PaymentMethodCreateExt for PaymentMethodCreate {
     fn validate(&self) -> RouterResult<()> {
         let pm_subtype_map = Lazy::get(&PAYMENT_METHOD_TYPE_SET)
             .unwrap_or_else(|| Lazy::force(&PAYMENT_METHOD_TYPE_SET));

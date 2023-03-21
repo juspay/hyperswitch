@@ -1,12 +1,13 @@
 use api_models::payments;
-use error_stack::ResultExt;
+use base64::Engine;
+use masking::Secret;
 use serde::{Deserialize, Serialize};
 
 use crate::{
+    connector::utils,
+    consts,
     core::errors,
-    pii::PeekInterface,
     types::{self, api, storage::enums},
-    utils::OptionExt,
 };
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
@@ -77,10 +78,10 @@ pub struct Card {
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct CardDetails {
-    number: String,
-    expiration_month: String,
-    expiration_year: String,
-    cvv: String,
+    number: Secret<String, common_utils::pii::CardNumber>,
+    expiration_month: Secret<String>,
+    expiration_year: Secret<String>,
+    cvv: Secret<String>,
 }
 
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for BraintreePaymentsRequest {
@@ -91,30 +92,30 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BraintreePaymentsRequest {
             Some(enums::CaptureMethod::Automatic) | None
         );
 
-        let amount = item.request.amount.to_string();
+        let amount = utils::to_currency_base_unit(item.request.amount, item.request.currency)?;
         let device_data = DeviceData {};
         let options = PaymentOptions {
             submit_for_settlement,
         };
         let kind = "sale".to_string();
 
-        let payment_method_data_type = match item.request.payment_method_data {
-            api::PaymentMethod::Card(ref ccard) => Ok(PaymentMethodType::CreditCard(Card {
+        let payment_method_data_type = match item.request.payment_method_data.clone() {
+            api::PaymentMethodData::Card(ccard) => Ok(PaymentMethodType::CreditCard(Card {
                 credit_card: CardDetails {
-                    number: ccard.card_number.peek().clone(),
-                    expiration_month: ccard.card_exp_month.peek().clone(),
-                    expiration_year: ccard.card_exp_year.peek().clone(),
-                    cvv: ccard.card_cvc.peek().clone(),
+                    number: ccard.card_number,
+                    expiration_month: ccard.card_exp_month,
+                    expiration_year: ccard.card_exp_year,
+                    cvv: ccard.card_cvc,
                 },
             })),
-            api::PaymentMethod::Wallet(ref wallet_data) => {
+            api::PaymentMethodData::Wallet(ref wallet_data) => {
                 Ok(PaymentMethodType::PaymentMethodNonce(Nonce {
-                    payment_method_nonce: wallet_data
-                        .token
-                        .to_owned()
-                        .get_required_value("token")
-                        .change_context(errors::ConnectorError::RequestEncodingFailed)
-                        .attach_printable("No token passed")?,
+                    payment_method_nonce: match wallet_data {
+                        api_models::payments::WalletData::PaypalSdk(wallet_data) => {
+                            Ok(wallet_data.token.to_owned())
+                        }
+                        _ => Err(errors::ConnectorError::InvalidWallet),
+                    }?,
                 }))
             }
             _ => Err(errors::ConnectorError::NotImplemented(format!(
@@ -136,17 +137,24 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BraintreePaymentsRequest {
 }
 
 pub struct BraintreeAuthType {
-    pub(super) api_key: String,
-    pub(super) merchant_account: String,
+    pub(super) auth_header: String,
+    pub(super) merchant_id: String,
 }
 
 impl TryFrom<&types::ConnectorAuthType> for BraintreeAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
-        if let types::ConnectorAuthType::BodyKey { api_key, key1 } = item {
+        if let types::ConnectorAuthType::SignatureKey {
+            api_key: public_key,
+            key1: merchant_id,
+            api_secret: private_key,
+        } = item
+        {
+            let auth_key = format!("{public_key}:{private_key}");
+            let auth_header = format!("Basic {}", consts::BASE64_ENGINE.encode(auth_key));
             Ok(Self {
-                api_key: api_key.to_string(),
-                merchant_account: key1.to_string(),
+                auth_header,
+                merchant_id: merchant_id.to_owned(),
             })
         } else {
             Err(errors::ConnectorError::FailedToObtainAuthType)?
@@ -211,7 +219,6 @@ impl<F, T>
                     item.response.transaction.id,
                 ),
                 redirection_data: None,
-                redirect: false,
                 mandate_reference: None,
                 connector_metadata: None,
             }),

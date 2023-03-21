@@ -46,7 +46,7 @@ impl
 #[async_trait]
 impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAuthorizeRouterData {
     async fn decide_flows<'a>(
-        self,
+        mut self,
         state: &AppState,
         connector: &api::ConnectorData,
         customer: &Option<storage::Customer>,
@@ -81,7 +81,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
 
 impl types::PaymentsAuthorizeRouterData {
     pub async fn decide_flow<'a, 'b>(
-        &'b self,
+        &'b mut self,
         state: &'a AppState,
         connector: &api::ConnectorData,
         maybe_customer: &Option<storage::Customer>,
@@ -97,6 +97,11 @@ impl types::PaymentsAuthorizeRouterData {
                     types::PaymentsAuthorizeData,
                     types::PaymentsResponseData,
                 > = connector.connector.get_connector_integration();
+                connector_integration
+                    .execute_pretasks(self, state)
+                    .await
+                    .map_err(|error| error.to_payment_failed_response())?;
+                self.decide_authentication_type();
                 let resp = services::execute_connector_processing_step(
                     state,
                     connector_integration,
@@ -114,6 +119,14 @@ impl types::PaymentsAuthorizeRouterData {
             _ => Ok(self.clone()),
         }
     }
+
+    fn decide_authentication_type(&mut self) {
+        if self.auth_type == storage_models::enums::AuthenticationType::ThreeDs
+            && !self.request.enrolled_for_3ds
+        {
+            self.auth_type = storage_models::enums::AuthenticationType::NoThreeDs
+        }
+    }
 }
 
 impl mandate::MandateBehaviour for types::PaymentsAuthorizeData {
@@ -123,7 +136,7 @@ impl mandate::MandateBehaviour for types::PaymentsAuthorizeData {
     fn get_mandate_id(&self) -> Option<&api_models::payments::MandateIds> {
         self.mandate_id.as_ref()
     }
-    fn get_payment_method_data(&self) -> api_models::payments::PaymentMethod {
+    fn get_payment_method_data(&self) -> api_models::payments::PaymentMethodData {
         self.payment_method_data.clone()
     }
     fn get_setup_future_usage(&self) -> Option<storage_models::enums::FutureUsage> {

@@ -22,7 +22,7 @@ use crate::{
 #[derive(Debug, Clone, Copy, router_derive::PaymentOperation)]
 #[operation(
     ops = "post_tracker",
-    flow = "syncdata,authorizedata,canceldata,capturedata,verifydata,sessiondata"
+    flow = "syncdata,authorizedata,canceldata,capturedata,completeauthorizedata,verifydata,sessiondata"
 )]
 pub struct PaymentResponse;
 
@@ -68,6 +68,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthorizeData
                     message: error_response.message,
                     connector,
                     status_code: error_response.status_code,
+                    reason: error_response.reason,
                 })
             })
         })?;
@@ -126,6 +127,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSessionData>
                 message: error_response.message,
                 code: error_response.code,
                 status_code: error_response.status_code,
+                reason: error_response.reason,
                 connector,
             }
         })?;
@@ -166,6 +168,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCaptureData>
                 message: error_response.message,
                 code: error_response.code,
                 status_code: error_response.status_code,
+                reason: error_response.reason,
                 connector,
             }
         })?;
@@ -205,6 +208,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCancelData> f
                 message: error_response.message,
                 code: error_response.code,
                 status_code: error_response.status_code,
+                reason: error_response.reason,
                 connector,
             }
         })?;
@@ -249,11 +253,32 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::VerifyRequestData> fo
                 message: error_response.message,
                 code: error_response.code,
                 status_code: error_response.status_code,
+                reason: error_response.reason,
                 connector,
             }
         })?;
 
         Ok(payment_data)
+    }
+}
+
+#[async_trait]
+impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData>
+    for PaymentResponse
+{
+    async fn update_tracker<'b>(
+        &'b self,
+        db: &dyn StorageInterface,
+        payment_id: &api::PaymentIdType,
+        payment_data: PaymentData<F>,
+        response: types::RouterData<F, types::CompleteAuthorizeData, types::PaymentsResponseData>,
+        storage_scheme: enums::MerchantStorageScheme,
+    ) -> RouterResult<PaymentData<F>>
+    where
+        F: 'b + Send,
+    {
+        payment_response_update_tracker(db, payment_id, payment_data, response, storage_scheme)
+            .await
     }
 }
 
@@ -280,7 +305,6 @@ async fn payment_response_update_tracker<F: Clone, T>(
             types::PaymentsResponseData::TransactionResponse {
                 resource_id,
                 redirection_data,
-                redirect,
                 connector_metadata,
                 ..
             } => {
@@ -305,7 +329,6 @@ async fn payment_response_update_tracker<F: Clone, T>(
                     connector_transaction_id: connector_transaction_id.clone(),
                     authentication_type: None,
                     payment_method_id: Some(router_data.payment_method_id),
-                    redirect: Some(redirect),
                     mandate_id: payment_data
                         .mandate_id
                         .clone()
@@ -327,6 +350,7 @@ async fn payment_response_update_tracker<F: Clone, T>(
             }
 
             types::PaymentsResponseData::SessionResponse { .. } => (None, None),
+            types::PaymentsResponseData::SessionTokenResponse { .. } => (None, None),
         },
     };
 
@@ -358,6 +382,13 @@ async fn payment_response_update_tracker<F: Clone, T>(
         None => payment_data.connector_response,
     };
 
+    let amount_captured = router_data.amount_captured.or_else(|| {
+        if router_data.status == enums::AttemptStatus::Charged {
+            Some(payment_data.payment_intent.amount)
+        } else {
+            None
+        }
+    });
     let payment_intent_update = match router_data.response {
         Err(_) => storage::PaymentIntentUpdate::PGStatusUpdate {
             status: enums::IntentStatus::Failed,
@@ -365,7 +396,7 @@ async fn payment_response_update_tracker<F: Clone, T>(
         Ok(_) => storage::PaymentIntentUpdate::ResponseUpdate {
             status: router_data.status.foreign_into(),
             return_url: router_data.return_url.clone(),
-            amount_captured: router_data.amount_captured,
+            amount_captured,
         },
     };
 

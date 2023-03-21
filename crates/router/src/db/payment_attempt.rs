@@ -227,8 +227,6 @@ impl PaymentAttemptInterface for MockDb {
             tax_amount: payment_attempt.tax_amount,
             payment_method_id: payment_attempt.payment_method_id,
             payment_method: payment_attempt.payment_method,
-            payment_flow: payment_attempt.payment_flow,
-            redirect: payment_attempt.redirect,
             connector_transaction_id: payment_attempt.connector_transaction_id,
             capture_method: payment_attempt.capture_method,
             capture_on: payment_attempt.capture_on,
@@ -244,6 +242,9 @@ impl PaymentAttemptInterface for MockDb {
             payment_token: None,
             error_code: payment_attempt.error_code,
             connector_metadata: None,
+            payment_experience: payment_attempt.payment_experience,
+            payment_method_type: payment_attempt.payment_method_type,
+            payment_method_data: payment_attempt.payment_method_data,
         };
         payment_attempts.push(payment_attempt.clone());
         Ok(payment_attempt)
@@ -366,8 +367,6 @@ mod storage {
                         tax_amount: payment_attempt.tax_amount,
                         payment_method_id: payment_attempt.payment_method_id.clone(),
                         payment_method: payment_attempt.payment_method,
-                        payment_flow: payment_attempt.payment_flow,
-                        redirect: payment_attempt.redirect,
                         connector_transaction_id: payment_attempt.connector_transaction_id.clone(),
                         capture_method: payment_attempt.capture_method,
                         capture_on: payment_attempt.capture_on,
@@ -383,6 +382,9 @@ mod storage {
                         payment_token: payment_attempt.payment_token.clone(),
                         error_code: payment_attempt.error_code.clone(),
                         connector_metadata: payment_attempt.connector_metadata.clone(),
+                        payment_experience: payment_attempt.payment_experience.clone(),
+                        payment_method_type: payment_attempt.payment_method_type.clone(),
+                        payment_method_data: payment_attempt.payment_method_data.clone(),
                     };
 
                     let field = format!("pa_{}", created_attempt.attempt_id);
@@ -533,11 +535,7 @@ mod storage {
                 enums::MerchantStorageScheme::RedisKv => {
                     // [#439]: get the attempt_id from payment_intent
                     let key = format!("{merchant_id}_{payment_id}");
-                    let lookup = self
-                        .get_lookup_by_lookup_id(&key)
-                        .await
-                        .map_err(Into::<errors::StorageError>::into)
-                        .into_report()?;
+                    let lookup = self.get_lookup_by_lookup_id(&key).await?;
 
                     db_utils::try_redis_get_else_try_database_get(
                         self.redis_conn()
@@ -578,11 +576,7 @@ mod storage {
                 enums::MerchantStorageScheme::RedisKv => {
                     // We assume that PaymentAttempt <=> PaymentIntent is a one-to-one relation for now
                     let lookup_id = format!("{merchant_id}_{connector_transaction_id}");
-                    let lookup = self
-                        .get_lookup_by_lookup_id(&lookup_id)
-                        .await
-                        .map_err(Into::<errors::StorageError>::into)
-                        .into_report()?;
+                    let lookup = self.get_lookup_by_lookup_id(&lookup_id).await?;
                     let key = &lookup.pk_id;
 
                     db_utils::try_redis_get_else_try_database_get(
@@ -639,11 +633,7 @@ mod storage {
 
                 enums::MerchantStorageScheme::RedisKv => {
                     let lookup_id = format!("{merchant_id}_{connector_txn_id}");
-                    let lookup = self
-                        .get_lookup_by_lookup_id(&lookup_id)
-                        .await
-                        .map_err(Into::<errors::StorageError>::into)
-                        .into_report()?;
+                    let lookup = self.get_lookup_by_lookup_id(&lookup_id).await?;
 
                     let key = &lookup.pk_id;
                     db_utils::try_redis_get_else_try_database_get(
@@ -675,11 +665,7 @@ mod storage {
 
                 enums::MerchantStorageScheme::RedisKv => {
                     let lookup_id = format!("{merchant_id}_{attempt_id}");
-                    let lookup = self
-                        .get_lookup_by_lookup_id(&lookup_id)
-                        .await
-                        .map_err(Into::<errors::StorageError>::into)
-                        .into_report()?;
+                    let lookup = self.get_lookup_by_lookup_id(&lookup_id).await?;
                     let key = &lookup.pk_id;
                     db_utils::try_redis_get_else_try_database_get(
                         self.redis_conn()

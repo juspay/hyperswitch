@@ -1,10 +1,14 @@
-use std::path::PathBuf;
+use std::{
+    collections::{HashMap, HashSet},
+    path::PathBuf,
+    str::FromStr,
+};
 
 use common_utils::ext_traits::ConfigExt;
 use config::{Environment, File};
 use redis_interface::RedisSettings;
 pub use router_env::config::{Log, LogConsole, LogFile, LogTelemetry};
-use serde::Deserialize;
+use serde::{Deserialize, Deserializer};
 
 use crate::{
     core::errors::{ApplicationError, ApplicationResult},
@@ -51,6 +55,98 @@ pub struct Settings {
     pub drainer: DrainerSettings,
     pub jwekey: Jwekey,
     pub webhooks: WebhooksSettings,
+    pub pm_filters: ConnectorFilters,
+    pub bank_config: BankRedirectConfig,
+    pub api_keys: ApiKeys,
+    #[cfg(feature = "kms")]
+    pub kms: Kms,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct BankRedirectConfig(
+    pub HashMap<api_models::enums::PaymentMethodType, ConnectorBankNames>,
+);
+#[derive(Debug, Deserialize, Clone)]
+pub struct ConnectorBankNames(pub HashMap<String, BanksVector>);
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct BanksVector {
+    #[serde(deserialize_with = "bank_vec_deser")]
+    pub banks: HashSet<api_models::enums::BankNames>,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+#[serde(transparent)]
+pub struct ConnectorFilters(pub HashMap<String, PaymentMethodFilters>);
+
+#[derive(Debug, Deserialize, Clone, Default)]
+#[serde(transparent)]
+pub struct PaymentMethodFilters(pub HashMap<PaymentMethodFilterKey, CurrencyCountryFilter>);
+
+#[derive(Debug, Deserialize, Clone, PartialEq, Eq, Hash)]
+#[serde(untagged)]
+pub enum PaymentMethodFilterKey {
+    PaymentMethodType(api_models::enums::PaymentMethodType),
+    CardNetwork(api_models::enums::CardNetwork),
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+#[serde(default)]
+pub struct CurrencyCountryFilter {
+    #[serde(deserialize_with = "currency_set_deser")]
+    pub currency: Option<HashSet<api_models::enums::Currency>>,
+    #[serde(deserialize_with = "string_set_deser")]
+    pub country: Option<HashSet<String>>,
+}
+
+fn string_set_deser<'a, D>(deserializer: D) -> Result<Option<HashSet<String>>, D::Error>
+where
+    D: Deserializer<'a>,
+{
+    let value = <Option<String>>::deserialize(deserializer)?;
+    Ok(value.and_then(|inner| {
+        let list = inner
+            .trim()
+            .split(',')
+            .map(|value| value.to_string())
+            .collect::<HashSet<_>>();
+        match list.len() {
+            0 => None,
+            _ => Some(list),
+        }
+    }))
+}
+
+fn currency_set_deser<'a, D>(
+    deserializer: D,
+) -> Result<Option<HashSet<api_models::enums::Currency>>, D::Error>
+where
+    D: Deserializer<'a>,
+{
+    let value = <Option<String>>::deserialize(deserializer)?;
+    Ok(value.and_then(|inner| {
+        let list = inner
+            .trim()
+            .split(',')
+            .flat_map(api_models::enums::Currency::from_str)
+            .collect::<HashSet<_>>();
+        match list.len() {
+            0 => None,
+            _ => Some(list),
+        }
+    }))
+}
+
+fn bank_vec_deser<'a, D>(deserializer: D) -> Result<HashSet<api_models::enums::BankNames>, D::Error>
+where
+    D: Deserializer<'a>,
+{
+    let value = <String>::deserialize(deserializer)?;
+    Ok(value
+        .trim()
+        .split(',')
+        .flat_map(api_models::enums::BankNames::from_str)
+        .collect())
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -66,6 +162,15 @@ pub struct Locker {
     pub host: String,
     pub mock_locker: bool,
     pub basilisk_host: String,
+    pub locker_setup: LockerSetup,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum LockerSetup {
+    #[default]
+    LegacyLocker,
+    BasiliskLocker,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -84,16 +189,14 @@ pub struct EphemeralConfig {
 #[derive(Debug, Deserialize, Clone, Default)]
 #[serde(default)]
 pub struct Jwekey {
-    #[cfg(feature = "kms")]
-    pub aws_key_id: String,
-    #[cfg(feature = "kms")]
-    pub aws_region: String,
     pub locker_key_identifier1: String,
     pub locker_key_identifier2: String,
     pub locker_encryption_key1: String,
     pub locker_encryption_key2: String,
     pub locker_decryption_key1: String,
     pub locker_decryption_key2: String,
+    pub vault_encryption_key: String,
+    pub vault_private_key: String,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -137,20 +240,28 @@ pub struct SupportedConnectors {
 pub struct Connectors {
     pub aci: ConnectorParams,
     pub adyen: ConnectorParams,
+    pub airwallex: ConnectorParams,
     pub applepay: ConnectorParams,
     pub authorizedotnet: ConnectorParams,
+    pub bambora: ConnectorParams,
+    pub bluesnap: ConnectorParams,
     pub braintree: ConnectorParams,
     pub checkout: ConnectorParams,
     pub cybersource: ConnectorParams,
+    pub dlocal: ConnectorParams,
     pub fiserv: ConnectorParams,
     pub globalpay: ConnectorParams,
     pub klarna: ConnectorParams,
+    pub mollie: ConnectorParams,
+    pub multisafepay: ConnectorParams,
+    pub nuvei: ConnectorParams,
     pub payu: ConnectorParams,
     pub rapyd: ConnectorParams,
     pub shift4: ConnectorParams,
     pub stripe: ConnectorParams,
     pub worldline: ConnectorParams,
     pub worldpay: ConnectorParams,
+    pub trustpay: ConnectorParamsWithMoreUrls,
 
     // Keep this field separate from the remaining fields
     pub supported: SupportedConnectors,
@@ -160,6 +271,13 @@ pub struct Connectors {
 #[serde(default)]
 pub struct ConnectorParams {
     pub base_url: String,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+#[serde(default)]
+pub struct ConnectorParamsWithMoreUrls {
+    pub base_url: String,
+    pub base_url_bank_redirects: String,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -203,6 +321,28 @@ pub struct DrainerSettings {
 #[serde(default)]
 pub struct WebhooksSettings {
     pub outgoing_enabled: bool,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+#[serde(default)]
+pub struct ApiKeys {
+    /// Base64-encoded (KMS encrypted) ciphertext of the key used for calculating hashes of API
+    /// keys
+    #[cfg(feature = "kms")]
+    pub kms_encrypted_hash_key: String,
+
+    /// Hex-encoded 32-byte long (64 characters long when hex-encoded) key used for calculating
+    /// hashes of API keys
+    #[cfg(not(feature = "kms"))]
+    pub hash_key: String,
+}
+
+#[cfg(feature = "kms")]
+#[derive(Debug, Deserialize, Clone, Default)]
+#[serde(default)]
+pub struct Kms {
+    pub key_id: String,
+    pub region: String,
 }
 
 impl Settings {
@@ -278,7 +418,9 @@ impl Settings {
             .transpose()?;
         #[cfg(feature = "kv_store")]
         self.drainer.validate()?;
-        self.jwekey.validate()?;
+        self.api_keys.validate()?;
+        #[cfg(feature = "kms")]
+        self.kms.validate()?;
 
         Ok(())
     }

@@ -81,13 +81,17 @@ pub enum ApiErrorResponse {
         message = "{message}",
     )]
     GenericUnauthorized { message: String },
-
+    #[error(error_type = ErrorType::InvalidRequestError, code = "IR_19", message = "{message}")]
+    NotSupported { message: String },
+    #[error(error_type = ErrorType::InvalidRequestError, code = "IR_20", message = "{flow} flow not supported by the {connector} connector")]
+    FlowNotSupported { flow: String, connector: String },
     #[error(error_type = ErrorType::ConnectorError, code = "CE_00", message = "{code}: {message}", ignore = "status_code")]
     ExternalConnectorError {
         code: String,
         message: String,
         connector: String,
         status_code: u16,
+        reason: Option<String>,
     },
     #[error(error_type = ErrorType::ProcessingError, code = "CE_01", message = "Payment failed during authorization with connector. Retry payment")]
     PaymentAuthorizationFailed { data: Option<serde_json::Value> },
@@ -235,6 +239,8 @@ impl actix_web::ResponseError for ApiErrorResponse {
             | Self::ResourceIdNotFound
             | Self::ConfigNotFound
             | Self::AddressNotFound
+            | Self::NotSupported { .. }
+            | Self::FlowNotSupported { .. }
             | Self::ApiKeyNotFound => StatusCode::BAD_REQUEST, // 400
             Self::DuplicateMerchantAccount
             | Self::DuplicateMerchantConnectorAccount
@@ -249,8 +255,11 @@ impl actix_web::ResponseError for ApiErrorResponse {
     fn error_response(&self) -> actix_web::HttpResponse {
         use actix_web::http::header;
 
+        use crate::consts;
+
         actix_web::HttpResponseBuilder::new(self.status_code())
             .insert_header((header::CONTENT_TYPE, mime::APPLICATION_JSON))
+            .insert_header((header::STRICT_TRANSPORT_SECURITY, consts::HSTS_HEADER_VALUE))
             .insert_header((header::VIA, "Juspay_Router"))
             .body(self.to_string())
     }
@@ -340,8 +349,9 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
                 code,
                 message,
                 connector,
+                reason,
                 status_code,
-            } => AER::ConnectorError(ApiError::new("CE", 0, format!("{code}: {message}"), Some(Extra {connector: Some(connector.clone()), ..Default::default()})), StatusCode::from_u16(*status_code).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR)),
+            } => AER::ConnectorError(ApiError::new("CE", 0, format!("{code}: {message}"), Some(Extra {connector: Some(connector.clone()), reason: reason.clone(), ..Default::default()})), StatusCode::from_u16(*status_code).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR)),
             Self::PaymentAuthorizationFailed { data } => {
                 AER::BadRequest(ApiError::new("CE", 1, "Payment failed during authorization with connector. Retry payment", Some(Extra { data: data.clone(), ..Default::default()})))
             }
@@ -416,6 +426,12 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
             },
             Self::ApiKeyNotFound => {
                 AER::NotFound(ApiError::new("HE", 2, "API Key does not exist in our records", None))
+            }
+            Self::NotSupported { message } => {
+                AER::BadRequest(ApiError::new("HE", 3, "Payment method type not supported", Some(Extra {reason: Some(message.to_owned()), ..Default::default()})))
+            }
+            Self::FlowNotSupported { flow, connector } => {
+                AER::BadRequest(ApiError::new("IR", 20, format!("{flow} flow not supported"), Some(Extra {connector: Some(connector.to_owned()), ..Default::default()})))
             }
         }
     }

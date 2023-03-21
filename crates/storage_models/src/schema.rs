@@ -34,7 +34,6 @@ diesel::table! {
         merchant_id -> Varchar,
         name -> Varchar,
         description -> Nullable<Varchar>,
-        hash_key -> Varchar,
         hashed_api_key -> Varchar,
         prefix -> Varchar,
         created_at -> Timestamp,
@@ -163,7 +162,6 @@ diesel::table! {
     merchant_account (id) {
         id -> Int4,
         merchant_id -> Varchar,
-        api_key -> Nullable<Varchar>,
         return_url -> Nullable<Varchar>,
         enable_payment_response_hash -> Bool,
         payment_response_hash_key -> Nullable<Varchar>,
@@ -178,6 +176,7 @@ diesel::table! {
         locker_id -> Nullable<Varchar>,
         metadata -> Nullable<Jsonb>,
         routing_algorithm -> Nullable<Json>,
+        api_key -> Nullable<Varchar>,
     }
 }
 
@@ -218,9 +217,7 @@ diesel::table! {
         surcharge_amount -> Nullable<Int8>,
         tax_amount -> Nullable<Int8>,
         payment_method_id -> Nullable<Varchar>,
-        payment_method -> Nullable<PaymentMethodType>,
-        payment_flow -> Nullable<PaymentFlow>,
-        redirect -> Nullable<Bool>,
+        payment_method -> Nullable<Varchar>,
         connector_transaction_id -> Nullable<Varchar>,
         capture_method -> Nullable<CaptureMethod>,
         capture_on -> Nullable<Timestamp>,
@@ -236,6 +233,9 @@ diesel::table! {
         error_code -> Nullable<Varchar>,
         payment_token -> Nullable<Varchar>,
         connector_metadata -> Nullable<Jsonb>,
+        payment_experience -> Nullable<Varchar>,
+        payment_method_type -> Nullable<Varchar>,
+        payment_method_data -> Nullable<Jsonb>,
     }
 }
 
@@ -290,8 +290,8 @@ diesel::table! {
         direct_debit_token -> Nullable<Varchar>,
         created_at -> Timestamp,
         last_modified -> Timestamp,
-        payment_method -> PaymentMethodType,
-        payment_method_type -> Nullable<PaymentMethodSubType>,
+        payment_method -> Varchar,
+        payment_method_type -> Nullable<Varchar>,
         payment_method_issuer -> Nullable<Varchar>,
         payment_method_issuer_code -> Nullable<PaymentMethodIssuerCode>,
         metadata -> Nullable<Json>,
