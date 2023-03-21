@@ -20,6 +20,7 @@ Check the Table Of Contents to jump to the relevant section.
 - [Set up hyperswitch using Docker Compose](#set-up-hyperswitch-using-docker-compose)
 - [Set up a Rust environment and other dependencies](#set-up-a-rust-environment-and-other-dependencies)
   - [Set up dependencies on Ubuntu-based systems](#set-up-dependencies-on-ubuntu-based-systems)
+  - [Set up dependencies on Windows (Ubuntu on WSL2)](#set-up-dependencies-on-windows-ubuntu-on-wsl2)
   - [Set up dependencies on Windows](#set-up-dependencies-on-windows)
   - [Set up dependencies on MacOS](#set-up-dependencies-on-macos)
   - [Set up the database](#set-up-the-database)
@@ -136,10 +137,10 @@ for your distribution and follow along.
    cargo install diesel_cli --no-default-features --features "postgres"
    ```
 
-5. Make sure your system has OpenSSL installed:
+5. Make sure your system has the `pkg-config` package and OpenSSL installed:
 
    ```shell
-   sudo apt install libssl-dev
+   sudo apt install pkg-config libssl-dev
    ```
 
 Once you're done with setting up the dependencies, proceed with
@@ -147,6 +148,97 @@ Once you're done with setting up the dependencies, proceed with
 
 [postgresql-install]: https://www.postgresql.org/download/
 [redis-install]: https://redis.io/docs/getting-started/installation/
+
+### Set up dependencies on Windows (Ubuntu on WSL2)
+
+This section of the guide provides instructions to install dependencies on
+Ubuntu on WSL2.
+If you prefer running another Linux distribution, install the corresponding
+packages for your distribution and follow along.
+
+1. Install Ubuntu on WSL:
+
+   ```shell
+   wsl --install -d Ubuntu
+   ```
+
+   Refer to the [official installation docs][wsl-install] for more information.
+   Launch the WSL instance and set up your username and password.
+   The following steps assume that you are running the commands within the WSL
+   shell environment.
+
+2. Install the stable Rust toolchain using `rustup`:
+
+   ```shell
+   curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+   ```
+
+   When prompted, proceed with the `default` profile, which installs the stable
+   toolchain.
+
+   Optionally, verify that the Rust compiler and `cargo` are successfully
+   installed:
+
+   ```shell
+   rustc --version
+   ```
+
+   _Be careful when running shell scripts downloaded from the Internet.
+   We only suggest running this script as there seems to be no `rustup` package
+   available in the Ubuntu package repository._
+
+3. Install PostgreSQL and start the `postgresql` service:
+
+   ```shell
+   sudo apt update
+   sudo apt install postgresql postgresql-contrib libpq-dev
+   sudo service postgresql start
+   ```
+
+   For more information, refer to the docs for
+   [installing PostgreSQL on WSL][postgresql-install-wsl].
+   If you're running any other distribution than Ubuntu, you can follow the
+   installation instructions on the
+   [PostgreSQL documentation website][postgresql-install] to set up PostgreSQL
+   on your system.
+
+4. Install Redis and start the `redis-server` service:
+
+   ```shell
+   sudo apt install redis-server
+   sudo service redis-server start
+   ```
+
+   For more information, refer to the docs for
+   [installing Redis on WSL][redis-install-wsl].
+   If you're running a distribution other than Ubuntu, you can follow the
+   installation instructions on the [Redis website][redis-install] to set up
+   Redis on your system.
+
+5. Make sure your system has the packages necessary for compiling Rust code:
+
+   ```shell
+   sudo apt install build-essential
+   ```
+
+6. Install `diesel_cli` using `cargo`:
+
+   ```shell
+   cargo install diesel_cli --no-default-features --features "postgres"
+   ```
+
+7. Make sure your system has the `pkg-config` package and OpenSSL installed:
+
+   ```shell
+   sudo apt install pkg-config libssl-dev
+   ```
+
+Once you're done with setting up the dependencies, proceed with
+[setting up the database](#set-up-the-database).
+
+[wsl-install]: https://learn.microsoft.com/en-us/windows/wsl/install
+[postgresql-install-wsl]: https://learn.microsoft.com/en-us/windows/wsl/tutorials/wsl-database#install-postgresql
+[redis-install-wsl]: https://learn.microsoft.com/en-us/windows/wsl/tutorials/wsl-database#install-redis
 
 ### Set up dependencies on Windows
 
@@ -177,11 +269,10 @@ You can opt to use your favorite package manager instead.
    winget install openssl
    ```
 
+Once you're done with setting up the dependencies, proceed with
+[setting up the database](#set-up-the-database).
+
 [winget]: https://github.com/microsoft/winget-cli
-
-Once you're done with setting up the database, proceed with
-[configuring the application](#configure-the-application).
-
 [postgresql-install-windows]: https://www.postgresql.org/download/windows/
 [redis-install-windows]: https://redis.io/docs/getting-started/installation/install-redis-on-windows
 
@@ -268,7 +359,7 @@ Once you're done with setting up the dependencies, proceed with
    export DB_NAME="hyperswitch_db"
    ```
 
-   On Ubuntu-based systems:
+   On Ubuntu-based systems (also applicable for Ubuntu on WSL2):
 
    ```shell
    sudo -u postgres psql -e -c \
