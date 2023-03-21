@@ -7,6 +7,7 @@ mod authorizedotnet;
 mod bambora;
 mod bluesnap;
 mod checkout;
+mod coinbase;
 mod connector_auth;
 mod cybersource;
 mod dlocal;

@@ -69,3 +69,6 @@ api_secret = "secret"
 
 [mollie]
 api_key = "API Key"
+
+[coinbase]
+api_key="API Key"
