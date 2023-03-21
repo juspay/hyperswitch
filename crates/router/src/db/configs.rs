@@ -78,23 +78,15 @@ impl ConfigInterface for Store {
         key: &str,
         config_update: storage::ConfigUpdate,
     ) -> CustomResult<storage::Config, errors::StorageError> {
-        cache::publish_and_redact(self, key, || async {
-            self.update_config_by_key(key, config_update).await
-        })
-        .await
+        cache::publish_and_redact(self, key, || self.update_config_by_key(key, config_update)).await
     }
 
     async fn find_config_by_key_cached(
         &self,
         key: &str,
     ) -> CustomResult<storage::Config, errors::StorageError> {
-        cache::get_or_populate_in_memory(
-            self,
-            key,
-            || async { self.find_config_by_key(key).await },
-            &CONFIG_CACHE,
-        )
-        .await
+        cache::get_or_populate_in_memory(self, key, || self.find_config_by_key(key), &CONFIG_CACHE)
+            .await
     }
 
     async fn delete_config_by_key(&self, key: &str) -> CustomResult<bool, errors::StorageError> {
