@@ -7,7 +7,7 @@ use super::{flows::Feature, PaymentAddress, PaymentData};
 use crate::{
     configs::settings::Server,
     core::{
-        errors::{self, RouterResponse, RouterResult, StorageErrorExt},
+        errors::{self, RouterResponse, RouterResult},
         payments::{self, helpers},
     },
     routes::AppState,
@@ -35,18 +35,16 @@ where
 {
     let (merchant_connector_account, payment_method, router_data);
     let db = &*state.store;
-    merchant_connector_account = db
-        .find_merchant_connector_account_by_merchant_id_connector(
-            &merchant_account.merchant_id,
-            connector_id,
-        )
-        .await
-        .map_err(|error| {
-            error.to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound)
-        })?;
+    merchant_connector_account = helpers::get_merchant_connector_account(
+        db,
+        merchant_account.merchant_id.as_str(),
+        connector_id,
+        payment_data.creds_identifier.to_owned(),
+    )
+    .await?;
 
     let auth_type: types::ConnectorAuthType = merchant_connector_account
-        .connector_account_details
+        .get_connector_account_details()
         .parse_value("ConnectorAuthType")
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed while parsing value for ConnectorAuthType")?;
@@ -72,18 +70,19 @@ where
     let router_return_url = Some(helpers::create_redirect_url(
         &state.conf.server,
         &payment_data.payment_attempt,
-        &merchant_connector_account.connector_name,
+        connector_id,
+        payment_data.creds_identifier.as_deref(),
     ));
     let complete_authorize_url = Some(helpers::create_complete_authorize_url(
         &state.conf.server,
         &payment_data.payment_attempt,
-        &merchant_connector_account.connector_name,
+        &connector_id.to_owned(),
     ));
 
     router_data = types::RouterData {
         flow: PhantomData,
         merchant_id: merchant_account.merchant_id.clone(),
-        connector: merchant_connector_account.connector_name,
+        connector: connector_id.to_owned(),
         payment_id: payment_data.payment_attempt.payment_id.clone(),
         attempt_id: payment_data.payment_attempt.attempt_id.clone(),
         status: payment_data.payment_attempt.status,
@@ -99,7 +98,7 @@ where
             .payment_attempt
             .authentication_type
             .unwrap_or_default(),
-        connector_meta_data: merchant_connector_account.metadata,
+        connector_meta_data: merchant_connector_account.get_metadata(),
         request: T::try_from(payment_data.clone())?,
         response: response.map_or_else(|| Err(types::ErrorResponse::default()), Ok),
         amount_captured: payment_data.payment_intent.amount_captured,

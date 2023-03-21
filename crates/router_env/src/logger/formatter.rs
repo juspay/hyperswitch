@@ -126,7 +126,9 @@ where
     hostname: String,
     env: String,
     service: String,
+    #[cfg(feature = "vergen")]
     version: String,
+    #[cfg(feature = "vergen")]
     build: String,
     default_fields: HashMap<String, Value>,
 }
@@ -159,7 +161,9 @@ where
         let pid = std::process::id();
         let hostname = gethostname::gethostname().to_string_lossy().into_owned();
         let service = service.to_string();
+        #[cfg(feature = "vergen")]
         let version = crate::version!().to_string();
+        #[cfg(feature = "vergen")]
         let build = crate::build!().to_string();
         let env = crate::env::which().to_string();
 
@@ -169,7 +173,9 @@ where
             hostname,
             env,
             service,
+            #[cfg(feature = "vergen")]
             version,
+            #[cfg(feature = "vergen")]
             build,
             default_fields,
         }
@@ -195,7 +201,9 @@ where
         map_serializer.serialize_entry(HOSTNAME, &self.hostname)?;
         map_serializer.serialize_entry(PID, &self.pid)?;
         map_serializer.serialize_entry(ENV, &self.env)?;
+        #[cfg(feature = "vergen")]
         map_serializer.serialize_entry(VERSION, &self.version)?;
+        #[cfg(feature = "vergen")]
         map_serializer.serialize_entry(BUILD, &self.build)?;
         map_serializer.serialize_entry(LEVEL, &format!("{}", metadata.level()))?;
         map_serializer.serialize_entry(TARGET, metadata.target())?;

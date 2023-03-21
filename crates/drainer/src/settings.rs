@@ -10,7 +10,7 @@ use serde::Deserialize;
 use crate::errors;
 
 #[derive(clap::Parser, Default)]
-#[command(version = router_env::version!())]
+#[cfg_attr(feature = "vergen", command(version = router_env::version!()))]
 pub struct CmdLineConf {
     /// Config file.
     /// Application will look for "config/config.toml" if this option isn't specified.
