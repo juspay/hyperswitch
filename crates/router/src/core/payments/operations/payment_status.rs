@@ -306,7 +306,7 @@ pub async fn get_payment_intent_payment_attempt(
                     .find_payment_intent_by_payment_id_merchant_id(id, merchant_id, storage_scheme)
                     .await?;
                 pa = db
-                    .find_payment_attempt_by_merchant_id_attempt_id(
+                    .find_payment_attempt_by_attempt_id_merchant_id(
                         merchant_id,
                         pi.attempt_id.as_str(),
                         storage_scheme,
@@ -331,7 +331,7 @@ pub async fn get_payment_intent_payment_attempt(
             }
             api_models::payments::PaymentIdType::PaymentAttemptId(ref id) => {
                 pa = db
-                    .find_payment_attempt_by_merchant_id_attempt_id(merchant_id, id, storage_scheme)
+                    .find_payment_attempt_by_attempt_id_merchant_id(merchant_id, id, storage_scheme)
                     .await?;
                 pi = db
                     .find_payment_intent_by_payment_id_merchant_id(

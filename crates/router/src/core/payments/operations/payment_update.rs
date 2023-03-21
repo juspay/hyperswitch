@@ -95,7 +95,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             })?;
 
         payment_attempt = db
-            .find_payment_attempt_by_merchant_id_attempt_id(
+            .find_payment_attempt_by_attempt_id_merchant_id(
                 merchant_id,
                 payment_intent.attempt_id.as_str(),
                 storage_scheme,

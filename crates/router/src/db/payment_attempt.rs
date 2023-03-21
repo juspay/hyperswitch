@@ -34,7 +34,7 @@ pub trait PaymentAttemptInterface {
         storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<types::PaymentAttempt, errors::StorageError>;
 
-    async fn find_payment_attempt_by_merchant_id_attempt_id(
+    async fn find_payment_attempt_by_attempt_id_merchant_id(
         &self,
         merchant_id: &str,
         attempt_id: &str,
@@ -153,7 +153,7 @@ mod storage {
 
 #[async_trait::async_trait]
 impl PaymentAttemptInterface for MockDb {
-    async fn find_payment_attempt_by_merchant_id_attempt_id(
+    async fn find_payment_attempt_by_attempt_id_merchant_id(
         &self,
         _merchant_id: &str,
         _attempt_id: &str,
@@ -540,7 +540,7 @@ mod storage {
             }
         }
 
-        async fn find_payment_attempt_by_merchant_id_attempt_id(
+        async fn find_payment_attempt_by_attempt_id_merchant_id(
             &self,
             merchant_id: &str,
             attempt_id: &str,
