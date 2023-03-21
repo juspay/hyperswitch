@@ -125,7 +125,7 @@ impl ConnectorCommon for Fiserv {
                         code: first_error
                             .code
                             .to_owned()
-                            .unwrap_or(consts::NO_ERROR_CODE.to_string()),
+                            .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
                         message: first_error.message.to_owned(),
                         reason: first_error.field.to_owned(),
                         status_code: res.status_code,

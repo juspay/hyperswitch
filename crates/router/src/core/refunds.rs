@@ -1,5 +1,6 @@
 pub mod validator;
 
+use common_utils::ext_traits::AsyncExt;
 use error_stack::{report, IntoReport, ResultExt};
 use router_env::{instrument, tracing};
 
@@ -73,6 +74,23 @@ pub async fn refund_create_core(
         },
     )?;
 
+    let creds_identifier = req
+        .merchant_connector_details
+        .as_ref()
+        .map(|mcd| mcd.creds_identifier.to_owned());
+    req.merchant_connector_details
+        .to_owned()
+        .async_map(|mcd| async {
+            payments::helpers::insert_merchant_connector_creds_to_config(
+                db,
+                merchant_id.as_str(),
+                mcd,
+            )
+            .await
+        })
+        .await
+        .transpose()?;
+
     validate_and_create_refund(
         state,
         &merchant_account,
@@ -80,6 +98,7 @@ pub async fn refund_create_core(
         &payment_intent,
         amount,
         req,
+        creds_identifier,
     )
     .await
     .map(services::ApplicationResponse::Json)
@@ -92,6 +111,7 @@ pub async fn trigger_refund_to_gateway(
     merchant_account: &storage::merchant_account::MerchantAccount,
     payment_attempt: &storage::PaymentAttempt,
     payment_intent: &storage::PaymentIntent,
+    creds_identifier: Option<String>,
 ) -> RouterResult<storage::Refund> {
     let connector = payment_attempt
         .connector
@@ -133,6 +153,7 @@ pub async fn trigger_refund_to_gateway(
         payment_intent,
         payment_attempt,
         refund,
+        creds_identifier,
     )
     .await?;
 
@@ -215,19 +236,19 @@ pub async fn trigger_refund_to_gateway(
 
 // ********************************************** REFUND SYNC **********************************************
 
-pub async fn refund_response_wrapper<'a, F, Fut, T>(
+pub async fn refund_response_wrapper<'a, F, Fut, T, Req>(
     state: &'a AppState,
     merchant_account: storage::MerchantAccount,
-    refund_id: String,
+    request: Req,
     f: F,
 ) -> RouterResponse<refunds::RefundResponse>
 where
-    F: Fn(&'a AppState, storage::MerchantAccount, String) -> Fut,
+    F: Fn(&'a AppState, storage::MerchantAccount, Req) -> Fut,
     Fut: futures::Future<Output = RouterResult<T>>,
     T: ForeignInto<refunds::RefundResponse>,
 {
     Ok(services::ApplicationResponse::Json(
-        f(state, merchant_account, refund_id).await?.foreign_into(),
+        f(state, merchant_account, request).await?.foreign_into(),
     ))
 }
 
@@ -235,8 +256,9 @@ where
 pub async fn refund_retrieve_core(
     state: &AppState,
     merchant_account: storage::MerchantAccount,
-    refund_id: String,
+    request: refunds::RefundsRetrieveRequest,
 ) -> RouterResult<storage::Refund> {
+    let refund_id = request.refund_id;
     let db = &*state.store;
     let (merchant_id, payment_intent, payment_attempt, refund, response);
 
@@ -271,12 +293,31 @@ pub async fn refund_retrieve_core(
         .await
         .map_err(|error| error.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound))?;
 
+    let creds_identifier = request
+        .merchant_connector_details
+        .as_ref()
+        .map(|mcd| mcd.creds_identifier.to_owned());
+    request
+        .merchant_connector_details
+        .to_owned()
+        .async_map(|mcd| async {
+            payments::helpers::insert_merchant_connector_creds_to_config(
+                db,
+                merchant_id.as_str(),
+                mcd,
+            )
+            .await
+        })
+        .await
+        .transpose()?;
+
     response = sync_refund_with_gateway(
         state,
         &merchant_account,
         &payment_attempt,
         &payment_intent,
         &refund,
+        creds_identifier,
     )
     .await?;
 
@@ -290,6 +331,7 @@ pub async fn sync_refund_with_gateway(
     payment_attempt: &storage::PaymentAttempt,
     payment_intent: &storage::PaymentIntent,
     refund: &storage::Refund,
+    creds_identifier: Option<String>,
 ) -> RouterResult<storage::Refund> {
     let connector_id = refund.connector.to_string();
     let connector: api::ConnectorData = api::ConnectorData::get_connector_by_name(
@@ -310,6 +352,7 @@ pub async fn sync_refund_with_gateway(
         payment_intent,
         payment_attempt,
         refund,
+        creds_identifier,
     )
     .await?;
 
@@ -421,6 +464,7 @@ pub async fn validate_and_create_refund(
     payment_intent: &storage::PaymentIntent,
     refund_amount: i64,
     req: refunds::RefundRequest,
+    creds_identifier: Option<String>,
 ) -> RouterResult<refunds::RefundResponse> {
     let db = &*state.store;
     let (refund_id, all_refunds, currency, refund_create_req, refund);
@@ -539,6 +583,7 @@ pub async fn validate_and_create_refund(
                 merchant_account,
                 payment_attempt,
                 payment_intent,
+                creds_identifier,
             )
             .await?
         }
@@ -611,6 +656,7 @@ pub async fn schedule_refund_execution(
     merchant_account: &storage::merchant_account::MerchantAccount,
     payment_attempt: &storage::PaymentAttempt,
     payment_intent: &storage::PaymentIntent,
+    creds_identifier: Option<String>,
 ) -> RouterResult<storage::Refund> {
     // refunds::RefundResponse> {
     let db = &*state.store;
@@ -644,6 +690,7 @@ pub async fn schedule_refund_execution(
                                 merchant_account,
                                 payment_attempt,
                                 payment_intent,
+                                creds_identifier,
                             )
                             .await
                         }
@@ -699,7 +746,10 @@ pub async fn sync_refund_with_gateway_workflow(
     let response = refund_retrieve_core(
         state,
         merchant_account,
-        refund_core.refund_internal_reference_id,
+        refunds::RefundsRetrieveRequest {
+            refund_id: refund_core.refund_internal_reference_id,
+            merchant_connector_details: None,
+        },
     )
     .await?;
     let terminal_status = vec![
@@ -812,6 +862,7 @@ pub async fn trigger_refund_execute_workflow(
                 &merchant_account,
                 &payment_attempt,
                 &payment_intent,
+                None,
             )
             .await?;
             add_refund_sync_task(db, &updated_refund, "REFUND_WORKFLOW_ROUTER").await?;
