@@ -193,6 +193,7 @@ diesel::table! {
         locker_id -> Nullable<Varchar>,
         metadata -> Nullable<Jsonb>,
         routing_algorithm -> Nullable<Json>,
+        api_key -> Nullable<Varchar>,
     }
 }
 
