@@ -19,6 +19,7 @@ use crate::{
         (status = 404, description = "Card iin data not found")
     ),
     operation_id = "Retrieve card information",
+    security(("api_key" = []), ("publishable_key" = []))
 )]
 #[instrument(skip_all, fields(flow = ?Flow::CardsInfo))]
 pub async fn card_iin_info(
@@ -41,6 +42,7 @@ pub async fn card_iin_info(
     };
 
     api::server_wrap(
+        Flow::CardsInfo,
         state.as_ref(),
         &req,
         payload,

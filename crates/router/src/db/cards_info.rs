@@ -1,7 +1,7 @@
 use error_stack::IntoReport;
 
 use crate::{
-    connection::pg_connection,
+    connection,
     core::errors::{self, CustomResult},
     db::MockDb,
     services::Store,
@@ -22,7 +22,7 @@ impl CardsInfoInterface for Store {
         &self,
         card_iin: &str,
     ) -> CustomResult<Option<CardInfo>, errors::StorageError> {
-        let conn = pg_connection(&self.master_pool).await?;
+        let conn = connection::pg_connection_read(self).await?;
         CardInfo::find_by_iin(&conn, card_iin)
             .await
             .map_err(Into::into)
