@@ -113,16 +113,16 @@ impl Payments {
                 )
                 .service(
                     web::resource(
-                        "/{payment_id}/{merchant_id}/response/{connector}/{creds_identifier}",
+                        "/{payment_id}/{merchant_id}/redirect/response/{connector}/{creds_identifier}",
                     )
                     .route(web::get().to(payments_redirect_response_with_creds_identifier)),
                 )
                 .service(
-                    web::resource("/{payment_id}/{merchant_id}/response/{connector}")
+                    web::resource("/{payment_id}/{merchant_id}/redirect/response/{connector}")
                         .route(web::get().to(payments_redirect_response)),
                 )
                 .service(
-                    web::resource("/{payment_id}/{merchant_id}/complete/{connector}")
+                    web::resource("/{payment_id}/{merchant_id}/redirect/complete/{connector}")
                         .route(web::post().to(payments_complete_authorize)),
                 );
         }
