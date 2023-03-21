@@ -49,6 +49,8 @@ pub enum ApiErrorResponse {
     InvalidDataValue { field_name: &'static str },
     #[error(error_type = ErrorType::InvalidRequestError, code = "IR_08", message = "Client secret was not provided")]
     ClientSecretNotGiven,
+    #[error(error_type = ErrorType::InvalidRequestError, code = "IR_08", message = "Client secret has expired")]
+    ClientSecretExpired,
     #[error(error_type = ErrorType::InvalidRequestError, code = "IR_09", message = "The client_secret provided does not match the client_secret associated with the Payment")]
     ClientSecretInvalid,
     #[error(error_type = ErrorType::InvalidRequestError, code = "IR_10", message = "Customer has active mandate/subsciption")]
@@ -233,6 +235,7 @@ impl actix_web::ResponseError for ApiErrorResponse {
             | Self::MerchantConnectorAccountNotFound
             | Self::MandateNotFound
             | Self::ClientSecretNotGiven
+            | Self::ClientSecretExpired
             | Self::ClientSecretInvalid
             | Self::SuccessfulPaymentNotFound
             | Self::IncorrectConnectorNameGiven
@@ -316,7 +319,7 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
             Self::ClientSecretNotGiven => AER::BadRequest(ApiError::new(
                 "IR",
                 8,
-                "Client secret was not provided", None
+                "client_secret was not provided", None
             )),
             Self::ClientSecretInvalid => {
                 AER::BadRequest(ApiError::new("IR", 9, "The client_secret provided does not match the client_secret associated with the Payment", None))
@@ -344,7 +347,12 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
             Self::InvalidJwtToken => AER::Unauthorized(ApiError::new("IR", 17, "Access forbidden, invalid JWT token was used", None)),
             Self::GenericUnauthorized { message } => {
                 AER::Unauthorized(ApiError::new("IR", 18, message.to_string(), None))
-            }
+            },
+            Self::ClientSecretExpired => AER::BadRequest(ApiError::new(
+                "IR",
+                19,
+                "The provided client_secret has expired", None
+            )),
             Self::ExternalConnectorError {
                 code,
                 message,
