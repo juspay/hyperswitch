@@ -670,12 +670,12 @@ pub async fn add_delete_tokenized_data_task(
     })
     .into_report()
     .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable_lazy(|| format!("unable to convert into value {:?}", lookup_key))?;
+    .attach_printable_lazy(|| format!("unable to convert into value {lookup_key:?}"))?;
 
     let schedule_time = get_delete_tokenize_schedule_time(db, &pm, 0).await;
 
     let process_tracker_entry = storage::ProcessTrackerNew {
-        id: format!("{}_{}", runner, lookup_key),
+        id: format!("{runner}_{lookup_key}"),
         name: Some(String::from(runner)),
         tag: vec![String::from("BASILISK-V3")],
         runner: Some(String::from(runner)),
@@ -694,10 +694,7 @@ pub async fn add_delete_tokenized_data_task(
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable_lazy(|| {
-            format!(
-                "Failed while inserting task in process_tracker: lookup_key: {}",
-                lookup_key
-            )
+            format!("Failed while inserting task in process_tracker: lookup_key: {lookup_key}")
         })?;
     Ok(response)
 }
