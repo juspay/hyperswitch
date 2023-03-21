@@ -252,7 +252,6 @@ impl PaymentAttemptInterface for MockDb {
         // [#172]: Implement function for `MockDb`
         Err(errors::StorageError::MockDbError)?
     }
-
 }
 
 #[cfg(feature = "kv_store")]
