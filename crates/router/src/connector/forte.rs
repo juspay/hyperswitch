@@ -1,6 +1,7 @@
 mod transformers;
 
 use std::fmt::Debug;
+use api_models::webhooks::ObjectReferenceId;
 use common_utils::errors::ReportSwitchExt;
 use error_stack::{ResultExt, IntoReport};
 
@@ -48,8 +49,11 @@ where
             headers::CONTENT_TYPE.to_string(),
             types::PaymentsAuthorizeType::get_content_type(self).to_string(),
         )];
-        let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
-        header.append(&mut api_key);
+        let mut api_access = self.get_auth_header(&req.connector_auth_type)?;
+        //Api-Key
+        header.append(&mut api_access);
+        //X-Force-Auth
+        header.append(&mut vec![(String::from("X-Forte-Auth-Organization-Id"),String::from("org_438431"))]);
         Ok(header)
     }
 }
@@ -70,7 +74,7 @@ impl ConnectorCommon for Forte {
     fn get_auth_header(&self, auth_type:&types::ConnectorAuthType)-> CustomResult<Vec<(String,String)>,errors::ConnectorError> {
         let auth =  forte::ForteAuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-        Ok(vec![(headers::AUTHORIZATION.to_string(), auth.api_key)])
+        Ok(vec![(headers::API_KEY.to_string(), auth.api_key),(headers::X_MERCHANT_ID.to_string(), auth.api_id)])
     }
 
     fn build_error_response(
@@ -91,46 +95,34 @@ impl ConnectorCommon for Forte {
     }
 }
 
-impl
-    ConnectorIntegration<
-        api::Session,
-        types::PaymentsSessionData,
-        types::PaymentsResponseData,
-    > for Forte
-{
-    //TODO: implement sessions flow
-}
+impl ConnectorIntegration<api::Session,types::PaymentsSessionData,types::PaymentsResponseData,> for Forte{}
 
-impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, types::AccessToken>
-    for Forte
-{
-}
+impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, types::AccessToken> for Forte{}
 
-impl
-    ConnectorIntegration<
-        api::Verify,
-        types::VerifyRequestData,
-        types::PaymentsResponseData,
-    > for Forte
-{
-}
+impl ConnectorIntegration<api::Verify,types::VerifyRequestData,types::PaymentsResponseData,> for Forte{}
 
+//Payment_Auth_Flow
 impl
     ConnectorIntegration<
         api::Authorize,
         types::PaymentsAuthorizeData,
         types::PaymentsResponseData,
     > for Forte {
-    fn get_headers(&self, req: &types::PaymentsAuthorizeRouterData, connectors: &settings::Connectors,) -> CustomResult<Vec<(String, String)>,errors::ConnectorError> {
-        self.build_headers(req, connectors)
-    }
+    fn get_headers(&self,
+         req: &types::PaymentsAuthorizeRouterData, 
+         connectors: &settings::Connectors,) -> CustomResult<Vec<(String, String)>,errors::ConnectorError> {
+            self.build_headers(req, connectors)
+        }
 
     fn get_content_type(&self) -> &'static str {
         self.common_get_content_type()
     }
 
     fn get_url(&self, _req: &types::PaymentsAuthorizeRouterData, _connectors: &settings::Connectors,) -> CustomResult<String,errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        Ok(format!(
+            "{}/organizations/org_438481/locations/loc_316610/transactions",
+            self.base_url(_connectors)
+        ))
     }
     
     fn get_request_body(&self, req: &types::PaymentsAuthorizeRouterData) -> CustomResult<Option<String>,errors::ConnectorError> {
@@ -202,7 +194,15 @@ impl
         _req: &types::PaymentsSyncRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        let connector_payment_id = _req
+            .request
+            .connector_transaction_id
+            .get_connector_transaction_id()
+            .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
+        Ok(format!(
+            "{}/organizations/org_438481/locations/loc_316610/transactions/trn_{}",
+            self.base_url(_connectors),connector_payment_id
+        ))
     }
 
     fn build_request(
@@ -224,9 +224,9 @@ impl
         data: &types::PaymentsSyncRouterData,
         res: Response,
     ) -> CustomResult<types::PaymentsSyncRouterData, errors::ConnectorError> {
-        let response: forte:: FortePaymentsResponse = res
+        let response: forte:: FortePaymentsResponse= res
             .response
-            .parse_struct("forte PaymentsSyncResponse")
+            .parse_struct("Forte PaymensSyncResponse")
             .switch()?;
         types::RouterData::try_from(types::ResponseRouterData {
             response,
@@ -268,7 +268,10 @@ impl
         _req: &types::PaymentsCaptureRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        Ok(format!(
+            "{}/organizations/org_438418/locations/loc_316610/transactions/authorize",
+            self.base_url(_connectors)
+        ))
     }
 
     fn get_request_body(
@@ -342,7 +345,10 @@ impl
     }
 
     fn get_url(&self, _req: &types::RefundsRouterData<api::Execute>, _connectors: &settings::Connectors,) -> CustomResult<String,errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        Ok(format!(
+            "{}/organizations/org_436915/locations/loc_314204/transactions/authorize",
+            self.base_url(_connectors)
+        ))
     }
 
     fn get_request_body(&self, req: &types::RefundsRouterData<api::Execute>) -> CustomResult<Option<String>,errors::ConnectorError> {
@@ -395,7 +401,10 @@ impl
     }
 
     fn get_url(&self, _req: &types::RefundSyncRouterData,_connectors: &settings::Connectors,) -> CustomResult<String,errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        Ok(format!(
+            "{}/organizations/org_438418/locations/loc_316610/transactions",
+            self.base_url(_connectors)
+        ))
     }
 
     fn build_request(
@@ -437,7 +446,7 @@ impl api::IncomingWebhook for Forte {
     fn get_webhook_object_reference_id(
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<api::webhooks::ObjectReferenceId, errors::ConnectorError> {
+    ) -> CustomResult<ObjectReferenceId, errors::ConnectorError> {
         Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
     }
 
