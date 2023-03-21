@@ -32,10 +32,12 @@ pub async fn api_key_create(
     path: web::Path<String>,
     json_payload: web::Json<api_types::CreateApiKeyRequest>,
 ) -> impl Responder {
+    let flow = Flow::ApiKeyCreate;
     let payload = json_payload.into_inner();
     let merchant_id = path.into_inner();
 
     api::server_wrap(
+        flow,
         state.get_ref(),
         &req,
         payload,
@@ -79,9 +81,11 @@ pub async fn api_key_retrieve(
     req: HttpRequest,
     path: web::Path<(String, String)>,
 ) -> impl Responder {
+    let flow = Flow::ApiKeyRetrieve;
     let (_merchant_id, key_id) = path.into_inner();
 
     api::server_wrap(
+        flow,
         state.get_ref(),
         &req,
         &key_id,
@@ -117,10 +121,12 @@ pub async fn api_key_update(
     path: web::Path<(String, String)>,
     json_payload: web::Json<api_types::UpdateApiKeyRequest>,
 ) -> impl Responder {
+    let flow = Flow::ApiKeyUpdate;
     let (_merchant_id, key_id) = path.into_inner();
     let payload = json_payload.into_inner();
 
     api::server_wrap(
+        flow,
         state.get_ref(),
         &req,
         (&key_id, payload),
@@ -155,9 +161,11 @@ pub async fn api_key_revoke(
     req: HttpRequest,
     path: web::Path<(String, String)>,
 ) -> impl Responder {
+    let flow = Flow::ApiKeyRevoke;
     let (_merchant_id, key_id) = path.into_inner();
 
     api::server_wrap(
+        flow,
         state.get_ref(),
         &req,
         &key_id,
@@ -192,12 +200,14 @@ pub async fn api_key_list(
     path: web::Path<String>,
     query: web::Query<api_types::ListApiKeyConstraints>,
 ) -> impl Responder {
+    let flow = Flow::ApiKeyList;
     let list_api_key_constraints = query.into_inner();
     let limit = list_api_key_constraints.limit;
     let offset = list_api_key_constraints.skip;
     let merchant_id = path.into_inner();
 
     api::server_wrap(
+        flow,
         state.get_ref(),
         &req,
         (limit, offset, merchant_id),
