@@ -520,7 +520,7 @@ async fn should_fail_payment_for_incorrect_card_number() {
         .unwrap();
     assert_eq!(
         response.response.unwrap_err().message,
-        "description - UNPROCESSABLE_ENTITY ; ",
+        "description - UNPROCESSABLE_ENTITY",
     );
 }
 
@@ -543,7 +543,7 @@ async fn should_fail_payment_for_empty_card_number() {
     let x = response.response.unwrap_err();
     assert_eq!(
         x.message,
-        "description - The card number is required when attempting to process payment with card. ; ",
+        "description - The card number is required when attempting to process payment with card., field - number;",
     );
 }
 
@@ -565,7 +565,7 @@ async fn should_fail_payment_for_incorrect_cvc() {
         .unwrap();
     assert_eq!(
         response.response.unwrap_err().message,
-        "description - The value of a field does not conform to the expected format., value - 12345 ; ",
+        "description - The value of a field does not conform to the expected format., value - 12345, field - security_code;",
     );
 }
 
@@ -587,7 +587,7 @@ async fn should_fail_payment_for_invalid_exp_month() {
         .unwrap();
     assert_eq!(
         response.response.unwrap_err().message,
-        "description - The value of a field does not conform to the expected format., value - 2025-20 ; ",
+        "description - The value of a field does not conform to the expected format., value - 2025-20, field - expiry;",
     );
 }
 
@@ -609,7 +609,7 @@ async fn should_fail_payment_for_incorrect_expiry_year() {
         .unwrap();
     assert_eq!(
         response.response.unwrap_err().message,
-        "description - The card is expired. ; ",
+        "description - The card is expired., field - expiry;",
     );
 }
 

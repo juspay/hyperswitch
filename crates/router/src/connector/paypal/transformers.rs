@@ -508,6 +508,7 @@ pub struct OrderErrorDetails {
     pub issue: String,
     pub description: String,
     pub value: Option<String>,
+    pub field: Option<String>,
 }
 
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
