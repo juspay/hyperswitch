@@ -10,6 +10,7 @@ use crate::{
     consts,
     core::errors::{self, RouterResponse, StorageErrorExt},
     db::StorageInterface,
+    routes::metrics,
     services::ApplicationResponse,
     types::{api, storage, transformers::ForeignInto},
     utils,
@@ -147,6 +148,8 @@ pub async fn create_api_key(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to insert new API key")?;
 
+    metrics::API_KEY_CREATED.add(&metrics::CONTEXT, 1, &[]);
+
     Ok(ApplicationResponse::Json(
         (api_key, plaintext_api_key).foreign_into(),
     ))
@@ -190,6 +193,8 @@ pub async fn revoke_api_key(
         .revoke_api_key(key_id)
         .await
         .map_err(|err| err.to_not_found_response(errors::ApiErrorResponse::ApiKeyNotFound))?;
+
+    metrics::API_KEY_REVOKED.add(&metrics::CONTEXT, 1, &[]);
 
     Ok(ApplicationResponse::Json(api::RevokeApiKeyResponse {
         key_id: key_id.to_owned(),

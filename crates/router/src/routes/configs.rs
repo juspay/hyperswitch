@@ -14,9 +14,11 @@ pub async fn config_key_retrieve(
     req: HttpRequest,
     path: web::Path<String>,
 ) -> impl Responder {
+    let flow = Flow::ConfigKeyFetch;
     let key = path.into_inner();
 
     api::server_wrap(
+        flow,
         state.get_ref(),
         &req,
         &key,
@@ -33,11 +35,13 @@ pub async fn config_key_update(
     path: web::Path<String>,
     json_payload: web::Json<api_types::ConfigUpdate>,
 ) -> impl Responder {
+    let flow = Flow::ConfigKeyUpdate;
     let mut payload = json_payload.into_inner();
     let key = path.into_inner();
     payload.key = key;
 
     api::server_wrap(
+        flow,
         state.get_ref(),
         &req,
         &payload,
