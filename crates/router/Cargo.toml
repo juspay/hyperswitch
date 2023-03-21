@@ -21,6 +21,7 @@ production = []
 kv_store = []
 accounts_cache = []
 openapi = ["olap", "oltp"]
+vergen = [ "router_env/vergen" ]
 
 
 [dependencies]
@@ -39,7 +40,7 @@ bytes = "1.4.0"
 clap = { version = "4.1.8", default-features = false, features = ["std", "derive", "help", "usage"] }
 config = { version = "0.13.3", features = ["toml"] }
 crc32fast = "1.3.2"
-diesel = { version = "2.0.3", features = ["postgres", "serde_json", "time", "64-column-tables"] }
+diesel = { version = "2.0.3", features = ["postgres"] }
 dyn-clone = "1.0.11"
 encoding_rs = "0.8.32"
 error-stack = "0.3.1"
@@ -89,7 +90,7 @@ router_env = { version = "0.1.0", path = "../router_env", features = ["log_extra
 storage_models = { version = "0.1.0", path = "../storage_models", features = ["kv_store"] }
 
 [build-dependencies]
-router_env = { version = "0.1.0", path = "../router_env", default-features = false, features = ["vergen"] }
+router_env = { version = "0.1.0", path = "../router_env", default-features = false } 
 
 [dev-dependencies]
 actix-http = "3.3.1"
