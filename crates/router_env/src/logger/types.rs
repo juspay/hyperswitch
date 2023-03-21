@@ -138,6 +138,8 @@ pub enum Flow {
     PayoutsCancel,
     /// Payouts accounts flow.
     PayoutsAccounts,
+    /// Payments Redirect flow.
+    PaymentsRedirect,
     /// Refunds create flow.
     RefundsCreate,
     /// Refunds retrieve flow.

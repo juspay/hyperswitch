@@ -5,6 +5,8 @@ use josekit::jwe;
 use masking::PeekInterface;
 use router_env::{instrument, tracing};
 
+#[cfg(feature = "basilisk")]
+use crate::routes::metrics;
 use crate::{
     configs::settings,
     core::errors::{self, CustomResult, RouterResult},
@@ -24,7 +26,7 @@ use crate::{
 #[cfg(feature = "basilisk")]
 use crate::{
     db,
-    scheduler::{metrics, process_data, utils as process_tracker_utils},
+    scheduler::{metrics as scheduler_metrics, process_data, utils as process_tracker_utils},
     types::storage::ProcessTrackerExt,
 };
 #[cfg(feature = "basilisk")]
@@ -367,7 +369,7 @@ impl Vault {
 
         let lookup_key = create_tokenize(state, value1, Some(value2), lookup_key).await?;
         add_delete_tokenized_data_task(&*state.store, &lookup_key, pm).await?;
-        metrics::TOKENIZED_DATA_COUNT.add(&metrics::CONTEXT, 1, &[]);
+        scheduler_metrics::TOKENIZED_DATA_COUNT.add(&metrics::CONTEXT, 1, &[]);
         Ok(lookup_key)
     }
 
@@ -437,6 +439,7 @@ pub async fn create_tokenize(
     value2: Option<String>,
     lookup_key: String,
 ) -> RouterResult<String> {
+    metrics::CREATED_TOKENIZED_CARD.add(&metrics::CONTEXT, 1, &[]);
     let payload_to_be_encrypted = api::TokenizePayloadRequest {
         value1,
         value2: value2.unwrap_or_default(),
@@ -499,9 +502,12 @@ pub async fn create_tokenize(
                 )?;
             Ok(get_response.lookup_key)
         }
-        Err(err) => Err(errors::ApiErrorResponse::InternalServerError)
-            .into_report()
-            .attach_printable(format!("Got 4xx from the basilisk locker: {err:?}")),
+        Err(err) => {
+            metrics::TEMP_LOCKER_FAILURES.add(&metrics::CONTEXT, 1, &[]);
+            Err(errors::ApiErrorResponse::InternalServerError)
+                .into_report()
+                .attach_printable(format!("Got 4xx from the basilisk locker: {err:?}"))
+        }
     }
 }
 
@@ -511,6 +517,7 @@ pub async fn get_tokenized_data(
     lookup_key: &str,
     should_get_value2: bool,
 ) -> RouterResult<api::TokenizePayloadRequest> {
+    metrics::GET_TOKENIZED_CARD.add(&metrics::CONTEXT, 1, &[]);
     let payload_to_be_encrypted = api::GetTokenizePayloadRequest {
         lookup_key: lookup_key.to_string(),
         get_value2: should_get_value2,
@@ -566,9 +573,12 @@ pub async fn get_tokenized_data(
                 .attach_printable("Error getting TokenizePayloadRequest from tokenize response")?;
             Ok(get_response)
         }
-        Err(err) => Err(errors::ApiErrorResponse::InternalServerError)
-            .into_report()
-            .attach_printable(format!("Got 4xx from the basilisk locker: {err:?}")),
+        Err(err) => {
+            metrics::TEMP_LOCKER_FAILURES.add(&metrics::CONTEXT, 1, &[]);
+            Err(errors::ApiErrorResponse::InternalServerError)
+                .into_report()
+                .attach_printable(format!("Got 4xx from the basilisk locker: {err:?}"))
+        }
     }
 }
 
@@ -577,6 +587,7 @@ pub async fn delete_tokenized_data(
     state: &routes::AppState,
     lookup_key: &str,
 ) -> RouterResult<String> {
+    metrics::DELETED_TOKENIZED_CARD.add(&metrics::CONTEXT, 1, &[]);
     let payload_to_be_encrypted = api::DeleteTokenizeByTokenRequest {
         lookup_key: lookup_key.to_string(),
         service_name: VAULT_SERVICE_NAME.to_string(),
@@ -635,9 +646,12 @@ pub async fn delete_tokenized_data(
                 )?;
             Ok(delete_response)
         }
-        Err(err) => Err(errors::ApiErrorResponse::InternalServerError)
-            .into_report()
-            .attach_printable(format!("Got 4xx from the basilisk locker: {err:?}")),
+        Err(err) => {
+            metrics::TEMP_LOCKER_FAILURES.add(&metrics::CONTEXT, 1, &[]);
+            Err(errors::ApiErrorResponse::InternalServerError)
+                .into_report()
+                .attach_printable(format!("Got 4xx from the basilisk locker: {err:?}"))
+        }
     }
 }
 
@@ -721,14 +735,14 @@ pub async fn start_tokenize_data_workflow(
                 logger::error!("Error: Deleting Card From Locker : {}", resp);
                 retry_delete_tokenize(db, &delete_tokenize_data.pm, tokenize_tracker.to_owned())
                     .await?;
-                metrics::RETRIED_DELETE_DATA_COUNT.add(&metrics::CONTEXT, 1, &[]);
+                scheduler_metrics::RETRIED_DELETE_DATA_COUNT.add(&metrics::CONTEXT, 1, &[]);
             }
         }
         Err(err) => {
             logger::error!("Err: Deleting Card From Locker : {}", err);
             retry_delete_tokenize(db, &delete_tokenize_data.pm, tokenize_tracker.to_owned())
                 .await?;
-            metrics::RETRIED_DELETE_DATA_COUNT.add(&metrics::CONTEXT, 1, &[]);
+            scheduler_metrics::RETRIED_DELETE_DATA_COUNT.add(&metrics::CONTEXT, 1, &[]);
         }
     }
     Ok(())

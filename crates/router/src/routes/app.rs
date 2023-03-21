@@ -90,6 +90,10 @@ impl Payments {
                         .route(web::post().to(payments_connector_session)),
                 )
                 .service(
+                    web::resource("/sync")
+                        .route(web::post().to(payments_retrieve_with_gateway_creds)),
+                )
+                .service(
                     web::resource("/{payment_id}")
                         .route(web::get().to(payments_retrieve))
                         .route(web::post().to(payments_update)),
@@ -108,12 +112,17 @@ impl Payments {
                         .route(web::get().to(payments_start)),
                 )
                 .service(
+                    web::resource(
+                        "/{payment_id}/{merchant_id}/response/{connector}/{creds_identifier}",
+                    )
+                    .route(web::get().to(payments_redirect_response_with_creds_identifier)),
+                )
+                .service(
                     web::resource("/{payment_id}/{merchant_id}/response/{connector}")
                         .route(web::get().to(payments_redirect_response)),
                 )
                 .service(
                     web::resource("/{payment_id}/{merchant_id}/complete/{connector}")
-                        // .route(web::get().to(payments_redirect_response))
                         .route(web::post().to(payments_complete_authorize)),
                 );
         }
@@ -170,6 +179,7 @@ impl Refunds {
         {
             route = route
                 .service(web::resource("").route(web::post().to(refunds_create)))
+                .service(web::resource("/sync").route(web::post().to(refunds_retrieve_with_body)))
                 .service(
                     web::resource("/{id}")
                         .route(web::get().to(refunds_retrieve))

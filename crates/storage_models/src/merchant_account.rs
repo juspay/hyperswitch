@@ -1,5 +1,6 @@
 use common_utils::pii;
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
+use masking::StrongSecret;
 
 use crate::{enums as storage_enums, schema::merchant_account};
 
@@ -32,6 +33,7 @@ pub struct MerchantAccount {
     pub locker_id: Option<String>,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub routing_algorithm: Option<serde_json::Value>,
+    pub api_key: Option<StrongSecret<String>>,
 }
 
 #[derive(Clone, Debug, Default, Insertable, router_derive::DebugAsDisplay)]
@@ -51,6 +53,7 @@ pub struct MerchantAccountNew {
     pub locker_id: Option<String>,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub routing_algorithm: Option<serde_json::Value>,
+    pub api_key: Option<StrongSecret<String>>,
 }
 
 #[derive(Debug)]
