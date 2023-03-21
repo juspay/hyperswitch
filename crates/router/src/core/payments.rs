@@ -18,7 +18,7 @@ pub use self::operations::{
 };
 use self::{
     flows::{ConstructFlowSpecificData, Feature},
-    operations::{BoxedOperation, Operation},
+    operations::{payment_complete_authorize, BoxedOperation, Operation},
 };
 use crate::{
     core::{
@@ -193,7 +193,11 @@ where
                 .await?
             }
         };
-        vault::Vault::delete_locker_payment_method_by_lookup_key(state, &payment_data.token).await
+        if payment_data.payment_intent.status != storage_enums::IntentStatus::RequiresCustomerAction
+        {
+            vault::Vault::delete_locker_payment_method_by_lookup_key(state, &payment_data.token)
+                .await
+        }
     }
     Ok((payment_data, req, customer))
 }
@@ -247,80 +251,156 @@ fn is_start_pay<Op: Debug>(operation: &Op) -> bool {
     format!("{operation:?}").eq("PaymentStart")
 }
 
-#[allow(clippy::too_many_arguments)]
-pub async fn handle_payments_redirect_response<'a, F>(
-    state: &AppState,
-    merchant_account: storage::MerchantAccount,
-    req: api::PaymentsRetrieveRequest,
-) -> RouterResponse<api::RedirectionResponse>
-where
-    F: Send + Clone + 'a,
-{
-    let connector = req.connector.clone().get_required_value("connector")?;
+#[derive(Clone, Debug)]
+pub struct PaymentsRedirectResponseData {
+    pub connector: Option<String>,
+    pub param: Option<String>,
+    pub merchant_id: Option<String>,
+    pub json_payload: Option<serde_json::Value>,
+    pub resource_id: api::PaymentIdType,
+    pub force_sync: bool,
+    pub creds_identifier: Option<String>,
+}
 
-    let query_params = req.param.clone().get_required_value("param")?;
+#[async_trait::async_trait]
+pub trait PaymentRedirectFlow: Sync {
+    async fn call_payment_flow(
+        &self,
+        state: &AppState,
+        merchant_account: storage::MerchantAccount,
+        req: PaymentsRedirectResponseData,
+        connector_action: CallConnectorAction,
+    ) -> RouterResponse<api::PaymentsResponse>;
 
-    let resource_id = api::PaymentIdTypeExt::get_payment_intent_id(&req.resource_id)
-        .change_context(errors::ApiErrorResponse::MissingRequiredField {
-            field_name: "payment_id",
-        })?;
+    fn get_payment_action(&self) -> services::PaymentAction;
 
-    let connector_data = api::ConnectorData::get_connector_by_name(
-        &state.conf.connectors,
-        &connector,
-        api::GetToken::Connector,
-    )?;
+    #[allow(clippy::too_many_arguments)]
+    async fn handle_payments_redirect_response(
+        &self,
+        state: &AppState,
+        merchant_account: storage::MerchantAccount,
+        req: PaymentsRedirectResponseData,
+    ) -> RouterResponse<api::RedirectionResponse> {
+        let connector = req.connector.clone().get_required_value("connector")?;
 
-    let flow_type = connector_data
-        .connector
-        .get_flow_type(&query_params)
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to decide the response flow")?;
+        let query_params = req.param.clone().get_required_value("param")?;
 
-    let response = payments_response_for_redirection_flows(
-        state,
-        merchant_account.clone(),
-        req.clone(),
-        flow_type,
-    )
-    .await;
+        let resource_id = api::PaymentIdTypeExt::get_payment_intent_id(&req.resource_id)
+            .change_context(errors::ApiErrorResponse::MissingRequiredField {
+                field_name: "payment_id",
+            })?;
 
-    let payments_response =
-        match response.change_context(errors::ApiErrorResponse::NotImplemented {
-            message: errors::api_error_response::NotImplementedMessage::Default,
-        })? {
+        let connector_data = api::ConnectorData::get_connector_by_name(
+            &state.conf.connectors,
+            &connector,
+            api::GetToken::Connector,
+        )?;
+
+        let flow_type = connector_data
+            .connector
+            .get_flow_type(
+                &query_params,
+                req.json_payload.clone(),
+                self.get_payment_action(),
+            )
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to decide the response flow")?;
+
+        let response = self
+            .call_payment_flow(state, merchant_account.clone(), req.clone(), flow_type)
+            .await;
+
+        let payments_response = match response? {
             services::ApplicationResponse::Json(response) => Ok(response),
             _ => Err(errors::ApiErrorResponse::InternalServerError)
                 .into_report()
                 .attach_printable("Failed to get the response in json"),
         }?;
 
-    let result = helpers::get_handle_response_url(
-        resource_id,
-        &merchant_account,
-        payments_response,
-        connector,
-    )
-    .attach_printable("No redirection response")?;
+        let result = helpers::get_handle_response_url(
+            resource_id,
+            &merchant_account,
+            payments_response,
+            connector,
+        )
+        .attach_printable("No redirection response")?;
 
-    Ok(services::ApplicationResponse::JsonForRedirection(result))
+        Ok(services::ApplicationResponse::JsonForRedirection(result))
+    }
 }
 
-pub async fn payments_response_for_redirection_flows<'a>(
-    state: &AppState,
-    merchant_account: storage::MerchantAccount,
-    req: api::PaymentsRetrieveRequest,
-    flow_type: CallConnectorAction,
-) -> RouterResponse<api::PaymentsResponse> {
-    payments_core::<api::PSync, api::PaymentsResponse, _, _, _>(
-        state,
-        merchant_account,
-        PaymentStatus,
-        req,
-        services::api::AuthFlow::Merchant,
-        flow_type,
-    )
-    .await
+#[derive(Clone, Debug)]
+pub struct PaymentRedirectCompleteAuthorize;
+
+#[async_trait::async_trait]
+impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
+    async fn call_payment_flow(
+        &self,
+        state: &AppState,
+        merchant_account: storage::MerchantAccount,
+        req: PaymentsRedirectResponseData,
+        connector_action: CallConnectorAction,
+    ) -> RouterResponse<api::PaymentsResponse> {
+        let payment_confirm_req = api::PaymentsRequest {
+            payment_id: Some(req.resource_id.clone()),
+            merchant_id: req.merchant_id.clone(),
+            ..Default::default()
+        };
+        payments_core::<api::CompleteAuthorize, api::PaymentsResponse, _, _, _>(
+            state,
+            merchant_account,
+            payment_complete_authorize::CompleteAuthorize,
+            payment_confirm_req,
+            services::api::AuthFlow::Merchant,
+            connector_action,
+        )
+        .await
+    }
+
+    fn get_payment_action(&self) -> services::PaymentAction {
+        services::PaymentAction::CompleteAuthorize
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct PaymentRedirectSync;
+
+#[async_trait::async_trait]
+impl PaymentRedirectFlow for PaymentRedirectSync {
+    async fn call_payment_flow(
+        &self,
+        state: &AppState,
+        merchant_account: storage::MerchantAccount,
+        req: PaymentsRedirectResponseData,
+        connector_action: CallConnectorAction,
+    ) -> RouterResponse<api::PaymentsResponse> {
+        let payment_sync_req = api::PaymentsRetrieveRequest {
+            resource_id: req.resource_id,
+            merchant_id: req.merchant_id,
+            param: req.param,
+            force_sync: req.force_sync,
+            connector: req.connector,
+            merchant_connector_details: req.creds_identifier.map(|creds_id| {
+                api::MerchantConnectorDetailsWrap {
+                    creds_identifier: creds_id,
+                    encoded_data: None,
+                }
+            }),
+        };
+        payments_core::<api::PSync, api::PaymentsResponse, _, _, _>(
+            state,
+            merchant_account,
+            PaymentStatus,
+            payment_sync_req,
+            services::api::AuthFlow::Merchant,
+            connector_action,
+        )
+        .await
+    }
+
+    fn get_payment_action(&self) -> services::PaymentAction {
+        services::PaymentAction::PSync
+    }
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -479,6 +559,7 @@ where
     Ok(payment_data)
 }
 
+#[derive(Clone, Debug)]
 pub enum CallConnectorAction {
     Trigger,
     Avoid,
@@ -514,6 +595,7 @@ where
     pub sessions_token: Vec<api::SessionToken>,
     pub card_cvc: Option<pii::Secret<String>>,
     pub email: Option<masking::Secret<String, pii::Email>>,
+    pub creds_identifier: Option<String>,
 }
 
 #[derive(Debug, Default)]
@@ -598,6 +680,7 @@ pub fn should_call_connector<Op: Debug, F: Clone>(
                 storage_enums::IntentStatus::RequiresCapture
             )
         }
+        "CompleteAuthorize" => true,
         "PaymentSession" => true,
         _ => false,
     }
@@ -609,9 +692,13 @@ pub async fn list_payments(
     merchant: storage::MerchantAccount,
     constraints: api::PaymentListConstraints,
 ) -> RouterResponse<api::PaymentListResponse> {
+    use futures::stream::StreamExt;
+
+    use crate::types::transformers::ForeignFrom;
+
     helpers::validate_payment_list_request(&constraints)?;
     let merchant_id = &merchant.merchant_id;
-    let payment_intent =
+    let payment_intents =
         helpers::filter_by_constraints(db, &constraints, merchant_id, merchant.storage_scheme)
             .await
             .map_err(|err| {
@@ -621,10 +708,24 @@ pub async fn list_payments(
                 )
             })?;
 
-    let data: Vec<api::PaymentsResponse> = payment_intent
-        .into_iter()
-        .map(types::transformers::ForeignInto::foreign_into)
-        .collect();
+    let pi = futures::stream::iter(payment_intents)
+        .filter_map(|pi| async {
+            let pa = db
+                .find_payment_attempt_by_payment_id_merchant_id(
+                    &pi.payment_id,
+                    merchant_id,
+                    // since OLAP doesn't have KV. Force to get the data from PSQL.
+                    storage_enums::MerchantStorageScheme::PostgresOnly,
+                )
+                .await
+                .ok()?;
+            Some((pi, pa))
+        })
+        .collect::<Vec<(storage::PaymentIntent, storage::PaymentAttempt)>>()
+        .await;
+
+    let data: Vec<api::PaymentsResponse> = pi.into_iter().map(ForeignFrom::foreign_from).collect();
+
     Ok(services::ApplicationResponse::Json(
         api::PaymentListResponse {
             size: data.len(),
@@ -641,10 +742,8 @@ pub async fn add_process_sync_task(
     let tracking_data = api::PaymentsRetrieveRequest {
         force_sync: true,
         merchant_id: Some(payment_attempt.merchant_id.clone()),
-
         resource_id: api::PaymentIdType::PaymentAttemptId(payment_attempt.attempt_id.clone()),
-        param: None,
-        connector: None,
+        ..Default::default()
     };
     let runner = "PAYMENTS_SYNC_WORKFLOW";
     let task = "PAYMENTS_SYNC";

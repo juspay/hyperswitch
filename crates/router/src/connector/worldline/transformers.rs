@@ -297,6 +297,7 @@ pub enum PaymentStatus {
     CaptureRequested,
     #[default]
     Processing,
+    Created,
 }
 
 impl ForeignFrom<(PaymentStatus, enums::CaptureMethod)> for enums::AttemptStatus {
@@ -307,7 +308,8 @@ impl ForeignFrom<(PaymentStatus, enums::CaptureMethod)> for enums::AttemptStatus
             | PaymentStatus::Paid
             | PaymentStatus::ChargebackNotification => Self::Charged,
             PaymentStatus::Cancelled => Self::Voided,
-            PaymentStatus::Rejected | PaymentStatus::RejectedCapture => Self::Failure,
+            PaymentStatus::Rejected => Self::Failure,
+            PaymentStatus::RejectedCapture => Self::CaptureFailed,
             PaymentStatus::CaptureRequested => {
                 if capture_method == enums::CaptureMethod::Automatic {
                     Self::Pending
@@ -316,6 +318,7 @@ impl ForeignFrom<(PaymentStatus, enums::CaptureMethod)> for enums::AttemptStatus
                 }
             }
             PaymentStatus::PendingApproval => Self::Authorized,
+            PaymentStatus::Created => Self::Started,
             _ => Self::Pending,
         }
     }
@@ -326,8 +329,8 @@ impl ForeignFrom<(PaymentStatus, enums::CaptureMethod)> for enums::AttemptStatus
 /// To keep this try_from logic generic in case of AUTHORIZE, SYNC and CAPTURE flows capture_method will be set from RouterData request.
 #[derive(Default, Debug, Clone, Deserialize, PartialEq)]
 pub struct Payment {
-    id: String,
-    status: PaymentStatus,
+    pub id: String,
+    pub status: PaymentStatus,
     #[serde(skip_deserializing)]
     pub capture_method: enums::CaptureMethod,
 }
@@ -485,4 +488,29 @@ pub struct Error {
 pub struct ErrorResponse {
     pub error_id: Option<String>,
     pub errors: Vec<Error>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WebhookBody {
+    pub api_version: Option<String>,
+    pub id: String,
+    pub created: String,
+    pub merchant_id: String,
+    #[serde(rename = "type")]
+    pub event_type: WebhookEvent,
+    pub payment: Option<serde_json::Value>,
+    pub refund: Option<serde_json::Value>,
+    pub payout: Option<serde_json::Value>,
+    pub token: Option<serde_json::Value>,
+}
+
+#[derive(Debug, Deserialize)]
+pub enum WebhookEvent {
+    #[serde(rename = "payment.rejected")]
+    Rejected,
+    #[serde(rename = "payment.rejected_capture")]
+    RejectedCapture,
+    #[serde(rename = "payment.paid")]
+    Paid,
 }

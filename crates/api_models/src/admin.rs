@@ -1,5 +1,5 @@
 use common_utils::pii;
-use masking::Secret;
+use masking::{Secret, StrongSecret};
 use serde::{Deserialize, Serialize};
 use url;
 use utoipa::ToSchema;
@@ -17,6 +17,10 @@ pub struct MerchantAccountCreate {
     /// Name of the Merchant Account
     #[schema(example = "NewAge Retailer")]
     pub merchant_name: Option<String>,
+
+    /// API key that will be used for server side API access
+    #[schema(value_type = Option<String>, example = "Ah2354543543523")]
+    pub api_key: Option<StrongSecret<String>>,
 
     /// Merchant related details
     pub merchant_details: Option<MerchantDetails>,
@@ -130,6 +134,10 @@ pub struct MerchantAccountResponse {
     /// Name of the Merchant Account
     #[schema(example = "NewAge Retailer")]
     pub merchant_name: Option<String>,
+
+    /// API key that will be used for server side API access
+    #[schema(value_type = Option<String>, example = "Ah2354543543523")]
+    pub api_key: Option<StrongSecret<String>>,
 
     /// The URL to redirect after the completion of the operation
     #[schema(max_length = 255, example = "https://www.example.com/success")]
@@ -404,4 +412,32 @@ pub struct ToggleKVRequest {
     /// Status of KV for the specific merchant
     #[schema(example = true)]
     pub kv_enabled: bool,
+}
+
+#[derive(Debug, Clone, Default, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct MerchantConnectorDetailsWrap {
+    /// Creds Identifier is to uniquely identify the credentials. Do not send any sensitive info in this field. And do not send the string "null".
+    pub creds_identifier: String,
+    /// Merchant connector details type type. Base64 Encode the credentials and send it in  this type and send as a string.
+    #[schema(value_type = Option<MerchantConnectorDetails>, example = r#"{
+        "connector_account_details": {
+            "auth_type": "HeaderKey",
+            "api_key":"sk_test_xxxxxexamplexxxxxx12345"
+        },
+        "metadata": {
+            "user_defined_field_1": "sample_1",
+            "user_defined_field_2": "sample_2", 
+        },
+    }"#)]
+    pub encoded_data: Option<Secret<String>>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
+pub struct MerchantConnectorDetails {
+    /// Account details of the Connector. You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Useful for storing additional, structured information on an object.
+    #[schema(value_type = Option<Object>,example = json!({ "auth_type": "HeaderKey","api_key": "Basic MyVerySecretApiKey" }))]
+    pub connector_account_details: pii::SecretSerdeValue,
+    /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
+    #[schema(value_type = Option<Object>,max_length = 255,example = json!({ "city": "NY", "unit": "245" }))]
+    pub metadata: Option<pii::SecretSerdeValue>,
 }

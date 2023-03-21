@@ -654,6 +654,7 @@ pub enum MandateStatus {
     strum::Display,
     strum::EnumString,
     frunk::LabelledGeneric,
+    Hash,
 )]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
@@ -674,6 +675,7 @@ pub enum Connector {
     Fiserv,
     Globalpay,
     Klarna,
+    Mollie,
     Multisafepay,
     Nuvei,
     Payu,
@@ -682,11 +684,18 @@ pub enum Connector {
     Stripe,
     Worldline,
     Worldpay,
+    Trustpay,
 }
 
 impl Connector {
-    pub fn supports_access_token(&self) -> bool {
-        matches!(self, Self::Airwallex | Self::Globalpay | Self::Payu)
+    pub fn supports_access_token(&self, payment_method: PaymentMethod) -> bool {
+        matches!(
+            (self, payment_method),
+            (Self::Airwallex, _)
+                | (Self::Globalpay, _)
+                | (Self::Payu, _)
+                | (Self::Trustpay, PaymentMethod::BankRedirect)
+        )
     }
 }
 
@@ -718,14 +727,16 @@ pub enum RoutableConnectors {
     Fiserv,
     Globalpay,
     Klarna,
+    Mollie,
+    Multisafepay,
     Nuvei,
     Payu,
     Rapyd,
     Shift4,
     Stripe,
+    Trustpay,
     Worldline,
     Worldpay,
-    Multisafepay,
 }
 
 /// Wallets which support obtaining session object
