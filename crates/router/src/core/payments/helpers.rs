@@ -20,8 +20,8 @@ use crate::{
         payment_methods::{cards, vault},
     },
     db::StorageInterface,
-    routes::AppState,
-    scheduler::{metrics, workflows::payment_sync},
+    routes::{metrics, AppState},
+    scheduler::{metrics as scheduler_metrics, workflows::payment_sync},
     services,
     types::{
         api::{self, enums as api_enums, CustomerAcceptanceExt, MandateValidationFieldsExt},
@@ -488,7 +488,7 @@ where
 
         match schedule_time {
             Some(stime) => {
-                metrics::TASKS_ADDED_COUNT.add(&metrics::CONTEXT, 1, &[]); // Metrics
+                scheduler_metrics::TASKS_ADDED_COUNT.add(&metrics::CONTEXT, 1, &[]); // Metrics
                 super::add_process_sync_task(&*state.store, payment_attempt, stime)
                     .await
                     .into_report()
@@ -661,6 +661,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R>(
                         ..storage::CustomerNew::default()
                     };
 
+                    metrics::CUSTOMER_CREATED.add(&metrics::CONTEXT, 1, &[]);
                     db.insert_customer(new_customer).await
                 }
             })

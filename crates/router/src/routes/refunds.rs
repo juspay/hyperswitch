@@ -30,7 +30,9 @@ pub async fn refunds_create(
     req: HttpRequest,
     json_payload: web::Json<refunds::RefundRequest>,
 ) -> HttpResponse {
+    let flow = Flow::RefundsCreate;
     api::server_wrap(
+        flow,
         state.get_ref(),
         &req,
         json_payload.into_inner(),
@@ -64,9 +66,11 @@ pub async fn refunds_retrieve(
     req: HttpRequest,
     path: web::Path<String>,
 ) -> HttpResponse {
+    let flow = Flow::RefundsRetrieve;
     let refund_id = path.into_inner();
 
     api::server_wrap(
+        flow,
         state.get_ref(),
         &req,
         refund_id,
@@ -104,8 +108,10 @@ pub async fn refunds_update(
     json_payload: web::Json<refunds::RefundUpdateRequest>,
     path: web::Path<String>,
 ) -> HttpResponse {
+    let flow = Flow::RefundsUpdate;
     let refund_id = path.into_inner();
     api::server_wrap(
+        flow,
         state.get_ref(),
         &req,
         json_payload.into_inner(),
@@ -148,7 +154,9 @@ pub async fn refunds_list(
     req: HttpRequest,
     payload: web::Query<api_models::refunds::RefundListRequest>,
 ) -> HttpResponse {
+    let flow = Flow::RefundsList;
     api::server_wrap(
+        flow,
         state.get_ref(),
         &req,
         payload.into_inner(),

@@ -496,7 +496,7 @@ pub fn collect_values_by_removing_signature(
         serde_json::Value::Null => vec!["null".to_owned()],
         serde_json::Value::Bool(b) => vec![b.to_string()],
         serde_json::Value::Number(n) => match n.as_f64() {
-            Some(f) => vec![format!("{:.2}", f)],
+            Some(f) => vec![format!("{f:.2}")],
             None => vec![n.to_string()],
         },
         serde_json::Value::String(s) => {

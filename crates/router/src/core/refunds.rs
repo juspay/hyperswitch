@@ -11,7 +11,7 @@ use crate::{
         utils as core_utils,
     },
     db, logger,
-    routes::AppState,
+    routes::{metrics, AppState},
     scheduler::{process_data, utils as process_tracker_utils, workflows::payment_sync},
     services,
     types::{
@@ -100,6 +100,15 @@ pub async fn trigger_refund_to_gateway(
         .into_report()
         .attach_printable("Failed to retrieve connector from payment attempt")?;
 
+    metrics::REFUND_COUNT.add(
+        &metrics::CONTEXT,
+        1,
+        &[metrics::request::add_attributes(
+            "connector",
+            routed_through.clone(),
+        )],
+    );
+
     let connector: api::ConnectorData = api::ConnectorData::get_connector_by_name(
         &state.conf.connectors,
         &routed_through,
@@ -166,13 +175,25 @@ pub async fn trigger_refund_to_gateway(
             refund_error_message: Some(err.message),
             refund_error_code: Some(err.code),
         },
-        Ok(response) => storage::RefundUpdate::Update {
-            connector_refund_id: response.connector_refund_id,
-            refund_status: response.refund_status,
-            sent_to_gateway: true,
-            refund_error_message: None,
-            refund_arn: "".to_string(),
-        },
+        Ok(response) => {
+            if response.refund_status == storage_models::enums::RefundStatus::Success {
+                metrics::SUCCESSFUL_REFUND.add(
+                    &metrics::CONTEXT,
+                    1,
+                    &[metrics::request::add_attributes(
+                        "connector",
+                        connector.connector_name.to_string(),
+                    )],
+                )
+            }
+            storage::RefundUpdate::Update {
+                connector_refund_id: response.connector_refund_id,
+                refund_status: response.refund_status,
+                sent_to_gateway: true,
+                refund_error_message: None,
+                refund_arn: "".to_string(),
+            }
+        }
     };
 
     let response = state
