@@ -10,6 +10,7 @@ pub mod checkout;
 pub mod cybersource;
 pub mod dlocal;
 pub mod fiserv;
+pub mod forte;
 pub mod globalpay;
 pub mod klarna;
 pub mod multisafepay;
