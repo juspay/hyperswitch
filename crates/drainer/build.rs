@@ -1,3 +1,4 @@
 fn main() {
-    // router_env::vergen::generate_cargo_instructions();
+    #[cfg(feature = "vergen")]
+    router_env::vergen::generate_cargo_instructions();
 }

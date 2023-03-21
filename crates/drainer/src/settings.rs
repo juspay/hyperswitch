@@ -18,7 +18,7 @@ pub struct CmdLineConf {
     pub config_path: Option<PathBuf>,
 }
 
-#[cfg(feature = "vegen")]
+#[cfg(feature = "vergen")]
 #[derive(clap::Parser, Default)]
 #[command(version = router_env::version!())]
 pub struct CmdLineConf {
