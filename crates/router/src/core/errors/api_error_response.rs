@@ -351,7 +351,7 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
             Self::ClientSecretExpired => AER::BadRequest(ApiError::new(
                 "IR",
                 19,
-                "The provided client secret has expired", None
+                "The provided client_secret has expired", None
             )),
             Self::ExternalConnectorError {
                 code,
