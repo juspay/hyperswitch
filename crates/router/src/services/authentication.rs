@@ -253,6 +253,12 @@ impl ClientSecretFetch for PaymentMethodListRequest {
     }
 }
 
+impl ClientSecretFetch for api_models::cards_info::CardsInfoRequest {
+    fn get_client_secret(&self) -> Option<&String> {
+        self.client_secret.as_ref()
+    }
+}
+
 pub fn jwt_auth_or<'a, T, A: AppStateInfo>(
     default_auth: &'a dyn AuthenticateAndFetch<T, A>,
     headers: &HeaderMap,

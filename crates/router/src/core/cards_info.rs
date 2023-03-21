@@ -3,23 +3,40 @@ use error_stack::{report, ResultExt};
 use router_env::{instrument, tracing};
 
 use crate::{
-    core::errors::{self, RouterResponse},
-    db::StorageInterface,
+    core::{
+        errors::{self, RouterResponse},
+        payments::helpers,
+    },
+    routes,
     services::ApplicationResponse,
-    types::transformers::ForeignFrom,
+    types::{storage, transformers::ForeignFrom},
 };
+
+fn verify_iin_length(card_iin: &str) -> Result<(), errors::ApiErrorResponse> {
+    when(!card_iin.len() == 6, || {
+        Err(errors::ApiErrorResponse::InvalidCardIinLength)
+    })
+}
 
 #[instrument(skip_all)]
 pub async fn retrieve_card_info(
-    store: &dyn StorageInterface,
-    card_iin: String,
+    state: &routes::AppState,
+    merchant_account: storage::MerchantAccount,
+    request: api_models::cards_info::CardsInfoRequest,
 ) -> RouterResponse<api_models::cards_info::CardInfoResponse> {
-    when(card_iin.len() != 6, || {
-        Err(errors::ApiErrorResponse::InvalidCardIinLength)
-    })?;
+    let db = &*state.store;
 
-    let card_info = store
-        .get_card_info(&card_iin)
+    verify_iin_length(&request.card_iin)?;
+    helpers::verify_client_secret(
+        db,
+        merchant_account.storage_scheme,
+        request.client_secret,
+        &merchant_account.merchant_id,
+    )
+    .await?;
+
+    let card_info = db
+        .get_card_info(&request.card_iin)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to retrieve card information")?

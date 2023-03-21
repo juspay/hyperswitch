@@ -4,6 +4,7 @@ use router_env::{instrument, tracing, Flow};
 use super::app::AppState;
 use crate::{
     core::cards_info,
+    routes,
     services::{api, authentication as auth},
 };
 
@@ -25,17 +26,27 @@ pub async fn card_iin_info(
     state: web::Data<AppState>,
     req: HttpRequest,
     path: web::Path<String>,
+    payload: web::Query<api_models::cards_info::CardsInfoRequestParams>,
 ) -> impl Responder {
     let card_iin = path.into_inner();
+    let request_params = payload.into_inner();
+
+    let payload = api_models::cards_info::CardsInfoRequest {
+        client_secret: request_params.client_secret,
+        card_iin,
+    };
+
+    let (auth, _) = match auth::check_client_secret_and_get_auth(req.headers(), &payload) {
+        Ok((auth, _auth_flow)) => (auth, _auth_flow),
+        Err(e) => return api::log_and_return_error_response(e),
+    };
 
     api::server_wrap(
-        state.get_ref(),
+        state.as_ref(),
         &req,
-        card_iin,
-        |state, _, card_iin| async {
-            cards_info::retrieve_card_info(&*state.store, card_iin).await
-        },
-        &auth::NoAuth,
+        payload,
+        cards_info::retrieve_card_info,
+        &*auth,
     )
     .await
 }

@@ -2,6 +2,18 @@ use std::fmt::Debug;
 
 use utoipa::ToSchema;
 
+#[derive(serde::Deserialize, ToSchema)]
+pub struct CardsInfoRequestParams {
+    #[schema(example = "pay_OSERgeV9qAy7tlK7aKpc_secret_TuDUoh11Msxh12sXn3Yp")]
+    pub client_secret: Option<String>,
+}
+
+#[derive(serde::Deserialize, Debug)]
+pub struct CardsInfoRequest {
+    pub client_secret: Option<String>,
+    pub card_iin: String,
+}
+
 #[derive(serde::Serialize, Debug, ToSchema)]
 pub struct CardInfoResponse {
     #[schema(example = "374431")]
