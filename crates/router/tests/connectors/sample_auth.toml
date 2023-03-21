@@ -68,4 +68,9 @@ key1 = "key1"
 api_secret = "secret"
 
 [mollie]
-api_key = "API Key"
+api_key = "API Key"\n\n[forte]\napi_key="API Key"
+
+[forte]
+api_key = "4b9701db55c1cdfe10fc528bfcced117"
+api_secret = "fad998d445453c9736b5f7d48bf1c88b"
+
