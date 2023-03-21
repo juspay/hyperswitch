@@ -1,12 +1,5 @@
 use std::collections::HashMap;
 
-use api_models::payments::BankRedirectData;
-use common_utils::{errors::CustomResult, pii::Email};
-use error_stack::ResultExt;
-use masking::Secret;
-use reqwest::Url;
-use serde::{Deserialize, Serialize};
-
 use crate::{
     connector::utils::{self, AddressDetailsData, CardData, RouterData},
     consts,
@@ -15,6 +8,13 @@ use crate::{
     services,
     types::{self, api, storage::enums, BrowserInformation},
 };
+use api_models::payments::BankRedirectData;
+use common_utils::{errors::CustomResult, pii::Email};
+use error_stack::IntoReport;
+use error_stack::ResultExt;
+use masking::Secret;
+use reqwest::Url;
+use serde::{Deserialize, Serialize};
 
 pub struct TrustpayAuthType {
     pub(super) api_key: String,
@@ -824,8 +824,8 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for TrustpayRefundRequest {
             "{:.2}",
             utils::to_currency_base_unit(item.request.amount, item.request.currency)?
                 .parse::<f64>()
-                .ok()
-                .ok_or_else(|| errors::ConnectorError::RequestEncodingFailed)?
+                .into_report()
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?
         );
         match item.payment_method {
             storage_models::enums::PaymentMethod::BankRedirect => {
