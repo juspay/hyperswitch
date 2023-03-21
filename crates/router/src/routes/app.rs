@@ -123,7 +123,6 @@ impl Payments {
                 )
                 .service(
                     web::resource("/{payment_id}/{merchant_id}/complete/{connector}")
-                        // .route(web::get().to(payments_redirect_response))
                         .route(web::post().to(payments_complete_authorize)),
                 );
         }
