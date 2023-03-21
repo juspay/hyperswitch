@@ -4,7 +4,7 @@ use std::fmt::Debug;
 
 use ::common_utils::{
     errors::ReportSwitchExt,
-    ext_traits::{BytesExt, StringExt, ValueExt},
+    ext_traits::{BytesExt, ValueExt},
 };
 use error_stack::{IntoReport, ResultExt};
 use transformers as nuvei;
@@ -24,7 +24,7 @@ use crate::{
         storage::enums,
         ErrorResponse, Response,
     },
-    utils::{self as common_utils},
+    utils::{self as common_utils, ByteSliceExt},
 };
 
 #[derive(Debug, Clone)]
@@ -851,10 +851,10 @@ impl services::ConnectorRedirectResponse for Nuvei {
                 if let Some(payload) = json_payload {
                     let redirect_response: nuvei::NuveiRedirectionResponse =
                         payload.parse_value("NuveiRedirectionResponse").switch()?;
-                    let acs_response: nuvei::NuveiACSResponse = redirect_response
-                        .cres
-                        .parse_struct("NuveiACSResponse")
-                        .switch()?;
+                    let acs_response: nuvei::NuveiACSResponse =
+                        utils::base64_decode(redirect_response.cres)?.as_slice()
+                            .parse_struct("NuveiACSResponse")
+                            .switch()?;
                     match acs_response.trans_status {
                         None | Some(nuvei::LiabilityShift::Failed) => {
                             Ok(payments::CallConnectorAction::StatusUpdate(

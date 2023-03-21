@@ -348,7 +348,7 @@ pub fn create_redirect_url(
     connector_name: &String,
 ) -> String {
     format!(
-        "{}/payments/{}/{}/response/{}",
+        "{}/payments/{}/{}/redirect/response/{}",
         server.base_url, payment_attempt.payment_id, payment_attempt.merchant_id, connector_name
     )
 }
@@ -358,7 +358,7 @@ pub fn create_complete_authorize_url(
     connector_name: &String,
 ) -> String {
     format!(
-        "{}/payments/{}/{}/complete/{}",
+        "{}/payments/{}/{}/redirect/complete/{}",
         server.base_url, payment_attempt.payment_id, payment_attempt.merchant_id, connector_name
     )
 }

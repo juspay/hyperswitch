@@ -108,11 +108,11 @@ impl Payments {
                         .route(web::get().to(payments_start)),
                 )
                 .service(
-                    web::resource("/{payment_id}/{merchant_id}/response/{connector}")
+                    web::resource("/{payment_id}/{merchant_id}/redirect/response/{connector}")
                         .route(web::get().to(payments_redirect_response)),
                 )
                 .service(
-                    web::resource("/{payment_id}/{merchant_id}/complete/{connector}")
+                    web::resource("/{payment_id}/{merchant_id}/redirect/complete/{connector}")
                         // .route(web::get().to(payments_redirect_response))
                         .route(web::post().to(payments_complete_authorize)),
                 );
