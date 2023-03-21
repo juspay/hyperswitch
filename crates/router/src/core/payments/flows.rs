@@ -72,6 +72,7 @@ macro_rules! default_imp_for_complete_authorize{
 }
 
 default_imp_for_complete_authorize!(
+	connector::Forte,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -114,6 +115,7 @@ macro_rules! default_imp_for_connector_redirect_response{
 }
 
 default_imp_for_connector_redirect_response!(
+	connector::Forte,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,

@@ -555,6 +555,7 @@ pub enum Connector {
     Cybersource,
     #[default]
     Dummy,
+	Forte,
     Bambora,
     Dlocal,
     Fiserv,
@@ -599,6 +600,7 @@ impl Connector {
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum RoutableConnectors {
+	Forte,
     Aci,
     Adyen,
     Airwallex,
