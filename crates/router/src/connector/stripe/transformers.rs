@@ -228,7 +228,7 @@ pub struct StripeApplePay {
 #[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct ApplepayPayment {
     #[serde(rename = "payment_method_data[card][token]")]
-    pub payment_method: String,
+    pub token: String,
     #[serde(rename = "payment_method_data[type]")]
     pub payment_method_types: StripePaymentMethodType,
 }
@@ -678,10 +678,10 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
             }
         };
 
-        payment_data = match item.request.payment_method_data.to_owned() {
+        payment_data = match item.request.payment_method_data {
             payments::PaymentMethodData::Wallet(payments::WalletData::ApplePay(_)) => Some(
                 StripePaymentMethodData::Wallet(StripeWallet::ApplepayPayment(ApplepayPayment {
-                    payment_method: item
+                    token: item
                         .payment_token
                         .to_owned()
                         .get_required_value("payment_token")

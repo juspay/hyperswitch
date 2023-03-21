@@ -12,13 +12,13 @@ use api_models::{
 };
 use common_utils::{
     consts,
-    ext_traits::{AsyncExt, BytesExt, StringExt},
+    ext_traits::{AsyncExt, BytesExt, StringExt, ValueExt},
     generate_id,
 };
 use error_stack::{report, IntoReport, ResultExt};
 use router_env::{instrument, tracing};
 use serde_json::Value;
-use storage_models::payment_method::PaymentMethodUpdate;
+use storage_models::payment_method;
 
 #[cfg(feature = "basilisk")]
 use crate::scheduler::metrics;
@@ -340,50 +340,7 @@ pub async fn add_card_hs(
         .await
     {
         Ok(pm) => {
-            if let Some(token) = token.to_owned() {
-                let metadata = payment_methods::PaymentMethodMetadata {
-                    connector: connector
-                        .ok_or(errors::VaultError::MissingRequiredField {
-                            field_name: "connector",
-                        })?
-                        .connector_name
-                        .to_string(),
-                    token,
-                };
-                let metadata_value =
-                    utils::Encode::<payment_methods::PaymentMethodMetadata>::encode_to_value(
-                        &metadata,
-                    )
-                    .change_context(errors::VaultError::RequestEncodingFailed)?;
-
-                let mut vec_value: Vec<Value> = Vec::new();
-                if let Some(pm_metadata) = pm.metadata.to_owned() {
-                    let mut pm_metadata_value = pm_metadata.expose();
-                    let vec_metadata_value = pm_metadata_value.as_array_mut().map(|array| {
-                        array.push(metadata_value.to_owned());
-                        array
-                    });
-
-                    vec_value = match vec_metadata_value {
-                        Some(val) => (*val.clone()).to_vec(),
-                        None => {
-                            vec_value.push(metadata_value);
-                            vec_value
-                        }
-                    };
-                } else {
-                    vec_value.push(metadata_value);
-                }
-
-                let pm_update = PaymentMethodUpdate::MetadataUpdate {
-                    metadata: Some(Value::Array(vec_value)),
-                };
-
-                let _updated_pm = db
-                    .update_payment_method(pm, pm_update)
-                    .await
-                    .change_context(errors::VaultError::UpdateInPMDTableFailed)?;
-            };
+            update_payment_method(db, connector, token, pm).await?;
         }
         Err(err) => {
             if err.current_context().is_db_not_found() {
@@ -403,18 +360,6 @@ pub async fn add_card_hs(
             }
         }
     };
-
-    create_payment_method(
-        db,
-        &req,
-        &customer_id,
-        &store_card_payload.card_reference,
-        merchant_id,
-        connector,
-        token,
-    )
-    .await
-    .change_context(errors::VaultError::PaymentMethodCreationFailed)?;
 
     let payment_method_resp = payment_methods::mk_add_card_response_hs(
         card,
@@ -475,50 +420,7 @@ pub async fn add_card(
 
     match db.find_payment_method(&response.card_id).await {
         Ok(pm) => {
-            if let Some(token) = token.to_owned() {
-                let metadata = payment_methods::PaymentMethodMetadata {
-                    connector: connector
-                        .ok_or(errors::VaultError::MissingRequiredField {
-                            field_name: "connector",
-                        })?
-                        .connector_name
-                        .to_string(),
-                    token,
-                };
-                let metadata_value =
-                    utils::Encode::<payment_methods::PaymentMethodMetadata>::encode_to_value(
-                        &metadata,
-                    )
-                    .change_context(errors::VaultError::RequestEncodingFailed)?;
-
-                let mut vec_value: Vec<Value> = Vec::new();
-                if let Some(pm_metadata) = pm.metadata.to_owned() {
-                    let mut pm_metadata_value = pm_metadata.expose();
-                    let vec_metadata_value = pm_metadata_value.as_array_mut().map(|array| {
-                        array.push(metadata_value.to_owned());
-                        array
-                    });
-
-                    vec_value = match vec_metadata_value {
-                        Some(val) => (*val.clone()).to_vec(),
-                        None => {
-                            vec_value.push(metadata_value);
-                            vec_value
-                        }
-                    };
-                } else {
-                    vec_value.push(metadata_value);
-                }
-
-                let pm_update = PaymentMethodUpdate::MetadataUpdate {
-                    metadata: Some(Value::Array(vec_value)),
-                };
-
-                let _updated_pm = db
-                    .update_payment_method(pm, pm_update)
-                    .await
-                    .change_context(errors::VaultError::UpdateInPMDTableFailed)?;
-            };
+            update_payment_method(db, connector, token.to_owned(), pm).await?;
         }
         Err(err) => {
             if err.current_context().is_db_not_found() {
@@ -541,6 +443,57 @@ pub async fn add_card(
     let payment_method_resp =
         payment_methods::mk_add_card_response(card, response, req, merchant_id, connector, token);
     Ok(payment_method_resp)
+}
+
+pub async fn update_payment_method(
+    db: &dyn db::StorageInterface,
+    connector: Option<&api::ConnectorData>,
+    token: Option<String>,
+    pm: payment_method::PaymentMethod,
+) -> errors::CustomResult<(), errors::VaultError> {
+    if let Some(token) = token.to_owned() {
+        let metadata = payment_methods::PaymentMethodMetadata {
+            connector: connector
+                .ok_or(errors::VaultError::MissingRequiredField {
+                    field_name: "connector",
+                })?
+                .connector_name
+                .to_string(),
+            token,
+        };
+        let metadata_value =
+            utils::Encode::<payment_methods::PaymentMethodMetadata>::encode_to_value(&metadata)
+                .change_context(errors::VaultError::RequestEncodingFailed)?;
+
+        let mut vec_value: Vec<Value> = Vec::new();
+        if let Some(pm_metadata) = pm.metadata.to_owned() {
+            let mut pm_metadata_value = pm_metadata.expose();
+            let vec_metadata_value = pm_metadata_value.as_array_mut().map(|array| {
+                array.push(metadata_value.to_owned());
+                array
+            });
+
+            vec_value = match vec_metadata_value {
+                Some(val) => val.clone(),
+                None => {
+                    vec_value.push(metadata_value);
+                    vec_value
+                }
+            };
+        } else {
+            vec_value.push(metadata_value);
+        }
+
+        let pm_update = payment_method::PaymentMethodUpdate::MetadataUpdate {
+            metadata: Some(Value::Array(vec_value)),
+        };
+
+        db.update_payment_method(pm, pm_update)
+            .await
+            .change_context(errors::VaultError::UpdateInPMDTableFailed)?;
+    };
+
+    Ok(())
 }
 
 #[instrument(skip_all)]
@@ -1638,17 +1591,13 @@ pub async fn list_customer_payment_method(
 
         if let Some(metadata) = pma.metadata {
             let redis_conn = connection::redis_connection(&state.conf).await;
-            let connector_token_data = utils::Encode::<Value>::encode_to_string_of_json(&metadata)
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Encoding to string of json failed")?;
 
-            let pm_metadata_vec: Vec<payment_methods::PaymentMethodMetadata> =
-                serde_json::from_str(connector_token_data.as_str())
-                    .into_report()
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable(
-                        "Failed to deserialize metadata to PaymmentmethodMetadata struct",
-                    )?;
+            let pm_metadata_vec: Vec<payment_methods::PaymentMethodMetadata> = metadata
+                .parse_value("PaymentMethodMetadata")
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable(
+                    "Failed to deserialize metadata to PaymmentmethodMetadata struct",
+                )?;
 
             for pm_metadata in pm_metadata_vec {
                 let key = format!(

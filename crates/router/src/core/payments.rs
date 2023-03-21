@@ -618,7 +618,7 @@ where
 
             if tokenization_pm_and_token_store_check.0 {
                 payment_data.store_connector_token = Some(tokenization_pm_and_token_store_check.1);
-                let token_pd = pdc::<_, api::Token>(payment_data);
+                let token_pd = payment_data_conversion::<_, api::Token>(payment_data);
                 let token_payment_data = call_connector_service::<api::Token, _, _>(
                     state,
                     merchant_account,
@@ -631,7 +631,7 @@ where
                 )
                 .await?;
 
-                payment_data = pdc::<_, F>(token_payment_data);
+                payment_data = payment_data_conversion::<_, F>(token_payment_data);
                 payment_data.token = payment_data.payment_attempt.payment_token.to_owned();
                 payment_data.payment_attempt.connector = Some(connector_name);
             }
@@ -953,7 +953,7 @@ where
     }
 }
 
-pub fn pdc<F: Clone, R: Clone>(p: PaymentData<F>) -> PaymentData<R> {
+pub fn payment_data_conversion<F: Clone, R: Clone>(p: PaymentData<F>) -> PaymentData<R> {
     let PaymentData { .. } = p;
     PaymentData {
         flow: PhantomData,

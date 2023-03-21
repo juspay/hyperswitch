@@ -123,7 +123,8 @@ impl
         &self,
         req: &types::TokenizationRouterData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        let stripe_req = utils::Encode::<stripe::TokenRequest>::convert_and_url_encode(req)
+        let connector_request = stripe::TokenRequest::try_from(req)?;
+        let stripe_req = utils::Encode::<stripe::TokenRequest>::url_encode(&connector_request)
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
 
         Ok(Some(stripe_req))

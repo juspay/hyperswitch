@@ -8,7 +8,7 @@ use common_utils::ext_traits::ConfigExt;
 use config::{Environment, File};
 use redis_interface::RedisSettings;
 pub use router_env::config::{Log, LogConsole, LogFile, LogTelemetry};
-use serde::{Deserialize, Deserializer};
+use serde::{de::Error, Deserialize, Deserializer};
 
 use crate::{
     core::errors::{ApplicationError, ApplicationResult},
@@ -81,11 +81,12 @@ where
     D: Deserializer<'a>,
 {
     let value = <String>::deserialize(deserializer)?;
-    Ok(value
+    value
         .trim()
         .split(',')
-        .flat_map(storage_models::enums::PaymentMethod::from_str)
-        .collect())
+        .map(storage_models::enums::PaymentMethod::from_str)
+        .collect::<Result<_, _>>()
+        .map_err(D::Error::custom)
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -449,5 +450,23 @@ impl Settings {
         self.kms.validate()?;
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod payment_method_deserialization_test {
+    #![allow(clippy::unwrap_used)]
+    use serde::de::{
+        value::{Error as ValueError, StrDeserializer},
+        IntoDeserializer,
+    };
+
+    use super::*;
+
+    #[test]
+    fn test_pm_deserializer() {
+        let deserializer: StrDeserializer<'_, ValueError> = "wallet,card".into_deserializer();
+        let test_pm = pm_deser(deserializer);
+        assert!(test_pm.is_ok())
     }
 }
