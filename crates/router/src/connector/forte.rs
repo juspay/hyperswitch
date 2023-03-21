@@ -50,7 +50,7 @@ where
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         let mut header = vec![api_key,
         (headers::CONTENT_TYPE.to_string(), self.common_get_content_type().to_string())
-        ("X-Forte-Auth-Organization-Id", ORG_ID)
+        ("X-Forte-Auth-Organization-Id", format!("org_{}", ORG_ID))
         ];
         Ok(header)
     }
