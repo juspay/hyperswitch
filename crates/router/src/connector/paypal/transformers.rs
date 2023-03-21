@@ -176,11 +176,13 @@ impl TryFrom<&types::ConnectorAuthType> for PaypalAuthType {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-#[serde(rename_all = "UPPERCASE")]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum PaypalPaymentStatus {
     Completed,
     Voided,
     Created,
+    Saved,
+    PayerActionRequired,
 }
 
 fn get_authorize_payment_status(
@@ -196,7 +198,10 @@ fn get_authorize_payment_status(
             }
         }
         PaypalPaymentStatus::Voided => storage_enums::AttemptStatus::Failure,
-        PaypalPaymentStatus::Created => storage_enums::AttemptStatus::Pending,
+        PaypalPaymentStatus::Created | PaypalPaymentStatus::Saved => {
+            storage_enums::AttemptStatus::Pending
+        }
+        PaypalPaymentStatus::PayerActionRequired => storage_enums::AttemptStatus::Authorizing,
     }
 }
 
@@ -314,10 +319,20 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for PaypalPaymentsCaptureRequest
     }
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum PaypalCaptureStatus {
+    Completed,
+    Declined,
+    Refunded,
+    Failed,
+    Pending,
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct PaymentCaptureResponse {
     id: String,
-    status: PaypalPaymentStatus,
+    status: PaypalCaptureStatus,
     amount: Option<OrderAmount>,
     final_capture: bool,
 }
@@ -329,12 +344,13 @@ impl TryFrom<types::PaymentsCaptureResponseRouterData<PaymentCaptureResponse>>
     fn try_from(
         item: types::PaymentsCaptureResponseRouterData<PaymentCaptureResponse>,
     ) -> Result<Self, Self::Error> {
-        let (status, amount_captured) = match item.response.status {
-            PaypalPaymentStatus::Completed => (
-                storage_enums::AttemptStatus::Charged,
-                item.data.request.amount_to_capture,
-            ),
-            _ => (storage_enums::AttemptStatus::Pending, None),
+        let amount_captured = item.data.request.amount_to_capture;
+        let status = match item.response.status {
+            PaypalCaptureStatus::Completed => storage_enums::AttemptStatus::Charged,
+            PaypalCaptureStatus::Declined => storage_enums::AttemptStatus::Failure,
+            PaypalCaptureStatus::Failed => storage_enums::AttemptStatus::CaptureFailed,
+            PaypalCaptureStatus::Refunded => storage_enums::AttemptStatus::AutoRefunded,
+            PaypalCaptureStatus::Pending => storage_enums::AttemptStatus::Pending,
         };
         Ok(Self {
             status,
@@ -357,11 +373,18 @@ impl TryFrom<types::PaymentsCaptureResponseRouterData<PaymentCaptureResponse>>
     }
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum PaypalCancelStatus {
+    Voided,
+    Pending,
+}
+
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct PaypalPaymentsCancelResponse {
     id: String,
-    status: PaypalPaymentStatus,
+    status: PaypalCancelStatus,
     amount: Option<OrderAmount>,
 }
 
@@ -380,7 +403,7 @@ impl<F, T>
         >,
     ) -> Result<Self, Self::Error> {
         let status = match item.response.status {
-            PaypalPaymentStatus::Voided => storage_enums::AttemptStatus::Voided,
+            PaypalCancelStatus::Voided => storage_enums::AttemptStatus::Voided,
             _ => storage_enums::AttemptStatus::Pending,
         };
         Ok(Self {
@@ -480,7 +503,22 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundSyncResponse>>
     }
 }
 
+#[derive(Default, Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct OrderErrorDetails {
+    pub issue: String,
+    pub description: String,
+    pub value: Option<String>,
+}
+
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
+pub struct PaypalOrderErrorResponse {
+    pub name: String,
+    pub message: String,
+    pub debug_id: Option<String>,
+    pub details: Option<Vec<OrderErrorDetails>>,
+}
+
+#[derive(Default, Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct ErrorDetails {
     pub issue: String,
     pub description: String,
@@ -491,7 +529,7 @@ pub struct PaypalErrorResponse {
     pub name: String,
     pub message: String,
     pub debug_id: Option<String>,
-    pub details: Option<serde_json::Value>,
+    pub details: Option<Vec<ErrorDetails>>,
 }
 
 #[derive(Deserialize, Debug)]

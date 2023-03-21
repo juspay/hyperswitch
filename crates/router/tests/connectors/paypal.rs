@@ -1,9 +1,7 @@
 use masking::Secret;
 use regex::Regex;
 use router::types::{self, api, storage::enums, AccessToken, ConnectorAuthType};
-use serde_json::json;
 
-// use storage_models::schema::payment_attempt::connector_metadata;
 use crate::{
     connector_auth,
     utils::{self, Connector, ConnectorActions},
@@ -522,7 +520,7 @@ async fn should_fail_payment_for_incorrect_card_number() {
         .unwrap();
     assert_eq!(
         response.response.unwrap_err().message,
-        r#"[{"issue":"UNPROCESSABLE_ENTITY","description":"UNPROCESSABLE_ENTITY"}]"#.to_string(),
+        "description - UNPROCESSABLE_ENTITY ; ",
     );
 }
 
@@ -545,7 +543,7 @@ async fn should_fail_payment_for_empty_card_number() {
     let x = response.response.unwrap_err();
     assert_eq!(
         x.message,
-        r#"[{"field":"/payment_source/card/number","issue":"CARD_NUMBER_REQUIRED","description":"The card number is required when attempting to process payment with card."}]"#,
+        "description - The card number is required when attempting to process payment with card. ; ",
     );
 }
 
@@ -567,7 +565,7 @@ async fn should_fail_payment_for_incorrect_cvc() {
         .unwrap();
     assert_eq!(
         response.response.unwrap_err().message,
-        r#"[{"field":"/payment_source/card/security_code","value":"12345","location":"body","issue":"INVALID_PARAMETER_SYNTAX","description":"The value of a field does not conform to the expected format."}]"#.to_string(),
+        "description - The value of a field does not conform to the expected format., value - 12345 ; ",
     );
 }
 
@@ -589,7 +587,7 @@ async fn should_fail_payment_for_invalid_exp_month() {
         .unwrap();
     assert_eq!(
         response.response.unwrap_err().message,
-        r#"[{"field":"/payment_source/card/expiry","value":"2025-20","location":"body","issue":"INVALID_PARAMETER_SYNTAX","description":"The value of a field does not conform to the expected format."}]"#,
+        "description - The value of a field does not conform to the expected format., value - 2025-20 ; ",
     );
 }
 
@@ -611,7 +609,7 @@ async fn should_fail_payment_for_incorrect_expiry_year() {
         .unwrap();
     assert_eq!(
         response.response.unwrap_err().message,
-        r#"[{"field":"/payment_source/card/expiry","location":"body","issue":"CARD_EXPIRED","description":"The card is expired."}]"#.to_string(),
+        "description - The card is expired. ; ",
     );
 }
 
@@ -652,14 +650,13 @@ async fn should_fail_void_payment_for_auto_capture() {
         )
         .await
         .expect("Void payment response");
-    let re = Regex::new(r#"[{"description":"Specified resource ID does not exist. Please check the resource ID and try again.","field":"authorization_id","issue":"INVALID_RESOURCE_ID","location":"path","value":".*"}]"#).unwrap();
-    assert!(re.is_match(&void_response.response.unwrap_err().message));
+    assert_eq!(void_response.response.unwrap_err().message, "description - Specified resource ID does not exist. Please check the resource ID and try again. ; ");
 }
 
 // Captures a payment using invalid connector payment id.
 #[actix_web::test]
 async fn should_fail_capture_for_invalid_payment() {
-    let connector_meta = Some(json!({
+    let connector_meta = Some(serde_json::json!({
         "txn_id": "56YH8TZ",
     }));
     let capture_response = CONNECTOR
@@ -675,7 +672,7 @@ async fn should_fail_capture_for_invalid_payment() {
         .unwrap();
     assert_eq!(
         capture_response.response.unwrap_err().message,
-        r#"[{"issue":"INVALID_RESOURCE_ID","description":"Specified resource ID does not exist. Please check the resource ID and try again."}]"#,
+        "description - Specified resource ID does not exist. Please check the resource ID and try again. ; ",
     );
 }
 

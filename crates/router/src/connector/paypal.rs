@@ -101,13 +101,23 @@ impl ConnectorCommon for Paypal {
         let response: paypal::PaypalErrorResponse =
             res.response.parse_struct("Paypal ErrorResponse").switch()?;
 
+        let message = match response.details {
+            Some(mes) => {
+                let mut des = "".to_owned();
+                for item in mes.iter() {
+                    let x = item.clone().description;
+                    let st = format!("description - {} ; ", x);
+                    des.push_str(&st);
+                }
+                des
+            }
+            None => consts::NO_ERROR_MESSAGE.to_string(),
+        };
+
         Ok(ErrorResponse {
             status_code: res.status_code,
             code: response.name,
-            message: response
-                .details
-                .map(|d| d.to_string())
-                .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_owned()),
+            message,
             reason: None,
         })
     }
@@ -294,7 +304,33 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         &self,
         res: Response,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res)
+        let response: paypal::PaypalOrderErrorResponse =
+            res.response.parse_struct("Paypal ErrorResponse").switch()?;
+
+        let message = match response.details {
+            Some(mes) => {
+                let mut des = "".to_owned();
+                for item in mes.iter() {
+                    let x = item.clone().description;
+                    if item.value.is_some() {
+                        let val = item.value.clone().unwrap_or_default();
+                        let st = format!("description - {}, value - {} ; ", x, val);
+                        des.push_str(&st);
+                    } else {
+                        let s = format!("description - {} ; ", x);
+                        des.push_str(&s);
+                    }
+                }
+                des
+            }
+            None => consts::NO_ERROR_MESSAGE.to_string(),
+        };
+        Ok(ErrorResponse {
+            status_code: res.status_code,
+            code: response.name,
+            message,
+            reason: None,
+        })
     }
 }
 
@@ -374,7 +410,33 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         &self,
         res: Response,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res)
+        let response: paypal::PaypalOrderErrorResponse =
+            res.response.parse_struct("Paypal ErrorResponse").switch()?;
+
+        let message = match response.details {
+            Some(mes) => {
+                let mut des = "".to_owned();
+                for item in mes.iter() {
+                    let x = item.clone().description;
+                    if item.value.is_some() {
+                        let val = item.value.clone().unwrap_or_default();
+                        let st = format!("description - {}, value - {} ; ", x, val);
+                        des.push_str(&st);
+                    } else {
+                        let s = format!("description - {} ; ", x);
+                        des.push_str(&s);
+                    }
+                }
+                des
+            }
+            None => consts::NO_ERROR_MESSAGE.to_string(),
+        };
+        Ok(ErrorResponse {
+            status_code: res.status_code,
+            code: response.name,
+            message,
+            reason: None,
+        })
     }
 }
 
