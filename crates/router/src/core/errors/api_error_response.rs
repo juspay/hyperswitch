@@ -158,7 +158,7 @@ pub enum ApiErrorResponse {
     AddressNotFound,
     #[error(error_type = ErrorType::InvalidRequestError, code = "HE_04", message = "Card with the provided iin does not exist")]
     InvalidCardIin,
-    #[error(error_type = ErrorType::InvalidRequestError, code = "HE_04", message = "The provoded card iin length is invalid, please provide an iin with 6 digits")]
+    #[error(error_type = ErrorType::InvalidRequestError, code = "HE_04", message = "The provoded card iin length is invalid, please provide an iin with 6 or 8 digits")]
     InvalidCardIinLength,
 }
 

@@ -13,7 +13,8 @@ use crate::{
 };
 
 fn verify_iin_length(card_iin: &str) -> Result<(), errors::ApiErrorResponse> {
-    when(!card_iin.len() == 6, || {
+    let is_bin_length_in_range = card_iin.len() == 6 || card_iin.len() == 8;
+    when(!is_bin_length_in_range, || {
         Err(errors::ApiErrorResponse::InvalidCardIinLength)
     })
 }
