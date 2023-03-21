@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - release
     # paths:
     #   - ".github/workflows/**"
     #   - "crates/**"
@@ -18,7 +19,7 @@ on:
     #   - "examples/**"
     #   - "Cargo.lock"
     #   - "Cargo.toml"
-
+    
   merge_group:
     types:
       - checks_requested

@@ -1945,6 +1945,28 @@
           }
         }
       },
+      "AmountInfo": {
+        "type": "object",
+        "required": [
+          "label",
+          "type",
+          "amount"
+        ],
+        "properties": {
+          "label": {
+            "type": "string",
+            "description": "The label must be the name of the merchant."
+          },
+          "type": {
+            "type": "string",
+            "description": "A value that indicates whether the line item(Ex: total, tax, discount, or grand total) is final or pending."
+          },
+          "amount": {
+            "type": "string",
+            "description": "The total amount for the payment"
+          }
+        }
+      },
       "ApiKeyExpiration": {
         "oneOf": [
           {

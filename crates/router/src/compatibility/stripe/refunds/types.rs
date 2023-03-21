@@ -1,9 +1,8 @@
 use std::{convert::From, default::Default};
 
+use api_models::refunds;
 use common_utils::pii;
 use serde::{Deserialize, Serialize};
-
-use crate::types::api::refunds;
 
 #[derive(Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
 pub struct StripeCreateRefundRequest {
