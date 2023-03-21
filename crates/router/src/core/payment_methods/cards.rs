@@ -21,7 +21,7 @@ use serde_json::Value;
 use storage_models::payment_method;
 
 #[cfg(feature = "basilisk")]
-use crate::scheduler::metrics;
+use crate::scheduler::metrics as scheduler_metrics;
 use crate::{
     configs::settings,
     connection,
@@ -35,7 +35,8 @@ use crate::{
     },
     db, logger,
     pii::prelude::*,
-    routes, services,
+    routes::{self, metrics},
+    services,
     types::{
         api::{self, PaymentMethodCreateExt},
         storage::{self, enums},
@@ -198,32 +199,43 @@ pub async fn add_card_to_locker(
     connector: Option<&api::ConnectorData>,
     token: Option<String>,
 ) -> errors::CustomResult<api::PaymentMethodResponse, errors::VaultError> {
-    match state.conf.locker.locker_setup {
-        settings::LockerSetup::BasiliskLocker => {
-            add_card_hs(
-                state,
-                req,
-                card,
-                customer_id,
-                merchant_account,
-                connector,
-                token,
-            )
-            .await
-        }
-        settings::LockerSetup::LegacyLocker => {
-            add_card(
-                state,
-                req,
-                card,
-                customer_id,
-                merchant_account,
-                connector,
-                token,
-            )
-            .await
-        }
-    }
+    metrics::STORED_TO_LOCKER.add(&metrics::CONTEXT, 1, &[]);
+    metrics::request::record_card_operation_time(
+        async {
+            match state.conf.locker.locker_setup {
+                settings::LockerSetup::BasiliskLocker => {
+                    add_card_hs(
+                        state,
+                        req,
+                        card,
+                        customer_id,
+                        merchant_account,
+                        connector,
+                        token,
+                    )
+                    .await
+                }
+                settings::LockerSetup::LegacyLocker => {
+                    add_card(
+                        state,
+                        req,
+                        card,
+                        customer_id,
+                        merchant_account,
+                        connector,
+                        token,
+                    )
+                    .await
+                }
+            }
+            .map_err(|error| {
+                metrics::CARD_LOCKER_FAILURES.add(&metrics::CONTEXT, 1, &[]);
+                error
+            })
+        },
+        &metrics::CARD_ADD_TIME,
+    )
+    .await
 }
 
 pub async fn get_card_from_locker(
@@ -233,22 +245,34 @@ pub async fn get_card_from_locker(
     card_reference: &str,
     locker_id: Option<String>,
 ) -> errors::RouterResult<payment_methods::Card> {
-    match state.conf.locker.locker_setup {
-        settings::LockerSetup::LegacyLocker => {
-            get_card_from_legacy_locker(
-                state,
-                &locker_id.get_required_value("locker_id")?,
-                card_reference,
-            )
-            .await
-        }
-        settings::LockerSetup::BasiliskLocker => {
-            get_card_from_hs_locker(state, customer_id, merchant_id, card_reference)
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed while getting card from basilisk_hs")
-        }
-    }
+    metrics::GET_FROM_LOCKER.add(&metrics::CONTEXT, 1, &[]);
+
+    metrics::request::record_card_operation_time(
+        async {
+            match state.conf.locker.locker_setup {
+                settings::LockerSetup::LegacyLocker => {
+                    get_card_from_legacy_locker(
+                        state,
+                        &locker_id.get_required_value("locker_id")?,
+                        card_reference,
+                    )
+                    .await
+                }
+                settings::LockerSetup::BasiliskLocker => {
+                    get_card_from_hs_locker(state, customer_id, merchant_id, card_reference)
+                        .await
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Failed while getting card from basilisk_hs")
+                }
+            }
+            .map_err(|error| {
+                metrics::CARD_LOCKER_FAILURES.add(&metrics::CONTEXT, 1, &[]);
+                error
+            })
+        },
+        &metrics::CARD_GET_TIME,
+    )
+    .await
 }
 
 pub async fn delete_card_from_locker(
@@ -257,14 +281,27 @@ pub async fn delete_card_from_locker(
     merchant_id: &str,
     card_reference: &str,
 ) -> errors::RouterResult<payment_methods::DeleteCardResp> {
-    match state.conf.locker.locker_setup {
-        settings::LockerSetup::LegacyLocker => {
-            delete_card(state, merchant_id, card_reference).await
-        }
-        settings::LockerSetup::BasiliskLocker => {
-            delete_card_from_hs_locker(state, customer_id, merchant_id, card_reference).await
-        }
-    }
+    metrics::DELETE_FROM_LOCKER.add(&metrics::CONTEXT, 1, &[]);
+
+    metrics::request::record_card_operation_time(
+        async {
+            match state.conf.locker.locker_setup {
+                settings::LockerSetup::LegacyLocker => {
+                    delete_card(state, merchant_id, card_reference).await
+                }
+                settings::LockerSetup::BasiliskLocker => {
+                    delete_card_from_hs_locker(state, customer_id, merchant_id, card_reference)
+                        .await
+                }
+            }
+            .map_err(|error| {
+                metrics::CARD_LOCKER_FAILURES.add(&metrics::CONTEXT, 1, &[]);
+                error
+            })
+        },
+        &metrics::CARD_DELETE_TIME,
+    )
+    .await
 }
 
 #[instrument(skip_all)]
@@ -1820,7 +1857,7 @@ impl BasiliskCardSupport {
             enums::PaymentMethod::Card,
         )
         .await?;
-        metrics::TOKENIZED_DATA_COUNT.add(&metrics::CONTEXT, 1, &[]);
+        scheduler_metrics::TOKENIZED_DATA_COUNT.add(&metrics::CONTEXT, 1, &[]);
         Ok(card)
     }
 }

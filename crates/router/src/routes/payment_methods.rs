@@ -29,7 +29,9 @@ pub async fn create_payment_method_api(
     req: HttpRequest,
     json_payload: web::Json<payment_methods::PaymentMethodCreate>,
 ) -> HttpResponse {
+    let flow = Flow::PaymentMethodsCreate;
     api::server_wrap(
+        flow,
         state.get_ref(),
         &req,
         json_payload.into_inner(),
@@ -71,6 +73,7 @@ pub async fn list_payment_method_api(
     req: HttpRequest,
     json_payload: web::Query<payment_methods::PaymentMethodListRequest>,
 ) -> HttpResponse {
+    let flow = Flow::PaymentMethodsList;
     let payload = json_payload.into_inner();
 
     let (auth, _) = match auth::check_client_secret_and_get_auth(req.headers(), &payload) {
@@ -79,6 +82,7 @@ pub async fn list_payment_method_api(
     };
 
     api::server_wrap(
+        flow,
         state.get_ref(),
         &req,
         payload,
@@ -119,6 +123,7 @@ pub async fn list_customer_payment_method_api(
     req: HttpRequest,
     json_payload: web::Query<payment_methods::PaymentMethodListRequest>,
 ) -> HttpResponse {
+    let flow = Flow::CustomerPaymentMethodsList;
     let customer_id = customer_id.into_inner().0;
 
     let auth_type = match auth::is_ephemeral_auth(req.headers(), &*state.store, &customer_id).await
@@ -128,6 +133,7 @@ pub async fn list_customer_payment_method_api(
     };
 
     api::server_wrap(
+        flow,
         state.get_ref(),
         &req,
         json_payload.into_inner(),
@@ -162,12 +168,14 @@ pub async fn payment_method_retrieve_api(
     req: HttpRequest,
     path: web::Path<String>,
 ) -> HttpResponse {
+    let flow = Flow::PaymentMethodsRetrieve;
     let payload = web::Json(PaymentMethodId {
         payment_method_id: path.into_inner(),
     })
     .into_inner();
 
     api::server_wrap(
+        flow,
         state.get_ref(),
         &req,
         payload,
@@ -202,9 +210,11 @@ pub async fn payment_method_update_api(
     path: web::Path<String>,
     json_payload: web::Json<payment_methods::PaymentMethodUpdate>,
 ) -> HttpResponse {
+    let flow = Flow::PaymentMethodsUpdate;
     let payment_method_id = path.into_inner();
 
     api::server_wrap(
+        flow,
         state.get_ref(),
         &req,
         json_payload.into_inner(),
@@ -244,10 +254,12 @@ pub async fn payment_method_delete_api(
     req: HttpRequest,
     payment_method_id: web::Path<(String,)>,
 ) -> HttpResponse {
+    let flow = Flow::PaymentMethodsDelete;
     let pm = PaymentMethodId {
         payment_method_id: payment_method_id.into_inner().0,
     };
     api::server_wrap(
+        flow,
         state.get_ref(),
         &req,
         pm,

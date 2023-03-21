@@ -6,7 +6,7 @@ use super::payments::helpers;
 use crate::{
     core::errors::{self, RouterResponse, StorageErrorExt},
     db::StorageInterface,
-    routes::AppState,
+    routes::{metrics, AppState},
     services,
     types::{
         self,
@@ -136,7 +136,14 @@ where
                     .await
                     .change_context(errors::ApiErrorResponse::MandateNotFound),
             }?;
-
+            metrics::SUBSEQUENT_MANDATE_PAYMENT.add(
+                &metrics::CONTEXT,
+                1,
+                &[metrics::request::add_attributes(
+                    "connector",
+                    mandate.connector,
+                )],
+            );
             resp.payment_method_id = Some(mandate.payment_method_id);
         }
         None => {
@@ -170,7 +177,8 @@ where
                     payment_method_id,
                     mandate_reference,
                 ) {
-                    logger::error!("{:?}", new_mandate_data);
+                    let connector = new_mandate_data.connector.clone();
+                    logger::debug!("{:?}", new_mandate_data);
                     resp.request
                         .set_mandate_id(api_models::payments::MandateIds {
                             mandate_id: new_mandate_data.mandate_id.clone(),
@@ -185,6 +193,11 @@ where
                                 errors::ApiErrorResponse::DuplicateRefundRequest,
                             )
                         })?;
+                    metrics::MANDATE_COUNT.add(
+                        &metrics::CONTEXT,
+                        1,
+                        &[metrics::request::add_attributes("connector", connector)],
+                    );
                 };
             } else if resp.request.get_setup_future_usage().is_some() {
                 let token = resp.store_connector_token.and_then(|store_token_check| {

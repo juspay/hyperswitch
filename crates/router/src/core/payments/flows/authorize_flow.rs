@@ -7,8 +7,7 @@ use crate::{
         mandate,
         payments::{self, access_token, transformers, PaymentData},
     },
-    routes::AppState,
-    scheduler::metrics,
+    routes::{metrics, AppState},
     services,
     types::{self, api, storage},
 };
