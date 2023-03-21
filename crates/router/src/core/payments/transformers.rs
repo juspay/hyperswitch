@@ -78,11 +78,10 @@ where
         &payment_data.payment_attempt,
         &connector_id.to_owned(),
     ));
-
     let webhook_url = Some(helpers::create_webhook_url(
         &state.conf.server,
         &payment_data.payment_attempt,
-        &merchant_connector_account.connector_name,
+        &connector_id.to_owned(),
     ));
 
     router_data = types::RouterData {
