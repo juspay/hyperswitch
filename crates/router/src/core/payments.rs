@@ -99,36 +99,14 @@ where
 
     payment_data.payment_method_data = payment_method_data;
 
-    let connector_choice = operation
-        .to_domain()?
-        .get_connector(&merchant_account, state, &req)
-        .await?;
-
-    let connector = if should_call_connector(&operation, &payment_data) {
-        Some(match connector_choice {
-            api::ConnectorChoice::SessionMultiple(connectors) => {
-                api::ConnectorCallType::Multiple(connectors)
-            }
-
-            api::ConnectorChoice::StraightThrough(straight_through) => connector_selection(
-                state,
-                &merchant_account,
-                &mut payment_data,
-                Some(straight_through),
-            )?,
-
-            api::ConnectorChoice::Decide => {
-                connector_selection(state, &merchant_account, &mut payment_data, None)?
-            }
-        })
-    } else if let api::ConnectorChoice::StraightThrough(val) = connector_choice {
-        update_straight_through_routing(&mut payment_data, val)
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to update straight through routing algorithm")?;
-        None
-    } else {
-        None
-    };
+    let connector = get_connector_choice(
+        &operation,
+        state,
+        &req,
+        &merchant_account,
+        &mut payment_data,
+    )
+    .await?;
 
     let (operation, mut payment_data) = operation
         .to_update_tracker()?
@@ -772,6 +750,50 @@ where
     payment_data.payment_attempt.connector = Some(encoded_routing_data);
 
     Ok(())
+}
+
+pub async fn get_connector_choice<F, Req>(
+    operation: &BoxedOperation<'_, F, Req>,
+    state: &AppState,
+    req: &Req,
+    merchant_account: &storage::MerchantAccount,
+    payment_data: &mut PaymentData<F>,
+) -> RouterResult<Option<api::ConnectorCallType>>
+where
+    F: Send + Clone,
+{
+    let connector_choice = operation
+        .to_domain()?
+        .get_connector(merchant_account, state, req)
+        .await?;
+
+    let connector = if should_call_connector(operation, payment_data) {
+        Some(match connector_choice {
+            api::ConnectorChoice::SessionMultiple(connectors) => {
+                api::ConnectorCallType::Multiple(connectors)
+            }
+
+            api::ConnectorChoice::StraightThrough(straight_through) => connector_selection(
+                state,
+                merchant_account,
+                payment_data,
+                Some(straight_through),
+            )?,
+
+            api::ConnectorChoice::Decide => {
+                connector_selection(state, merchant_account, payment_data, None)?
+            }
+        })
+    } else if let api::ConnectorChoice::StraightThrough(val) = connector_choice {
+        update_straight_through_routing(payment_data, val)
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to update straight through routing algorithm")?;
+        None
+    } else {
+        None
+    };
+
+    Ok(connector)
 }
 
 pub fn connector_selection<F>(
