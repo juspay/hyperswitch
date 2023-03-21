@@ -1,10 +1,9 @@
-use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods, Table};
-use error_stack::IntoReport;
+use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods};
 use router_env::{instrument, tracing};
 
 use super::generics;
 use crate::{
-    enums, errors,
+    errors,
     payment_attempt::{
         PaymentAttempt, PaymentAttemptNew, PaymentAttemptUpdate, PaymentAttemptUpdateInternal,
     },
@@ -49,21 +48,6 @@ impl PaymentAttempt {
     }
 
     #[instrument(skip(conn))]
-    pub async fn find_by_payment_id_merchant_id(
-        conn: &PgPooledConn,
-        payment_id: &str,
-        merchant_id: &str,
-    ) -> StorageResult<Self> {
-        generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
-            conn,
-            dsl::merchant_id
-                .eq(merchant_id.to_owned())
-                .and(dsl::payment_id.eq(payment_id.to_owned())),
-        )
-        .await
-    }
-
-    #[instrument(skip(conn))]
     pub async fn find_optional_by_payment_id_merchant_id(
         conn: &PgPooledConn,
         payment_id: &str,
@@ -93,38 +77,6 @@ impl PaymentAttempt {
                 .and(dsl::merchant_id.eq(merchant_id.to_owned())),
         )
         .await
-    }
-
-    pub async fn find_last_successful_attempt_by_payment_id_merchant_id(
-        conn: &PgPooledConn,
-        payment_id: &str,
-        merchant_id: &str,
-    ) -> StorageResult<Self> {
-        // perform ordering on the application level instead of database level
-        generics::generic_filter::<
-            <Self as HasTable>::Table,
-            _,
-            <<Self as HasTable>::Table as Table>::PrimaryKey,
-            Self,
-        >(
-            conn,
-            dsl::payment_id
-                .eq(payment_id.to_owned())
-                .and(dsl::merchant_id.eq(merchant_id.to_owned()))
-                .and(dsl::status.eq(enums::AttemptStatus::Charged)),
-            None,
-            None,
-            None,
-        )
-        .await?
-        .into_iter()
-        .fold(
-            Err(errors::DatabaseError::NotFound).into_report(),
-            |acc, cur| match acc {
-                Ok(value) if value.created_at > cur.created_at => Ok(value),
-                _ => Ok(cur),
-            },
-        )
     }
 
     #[instrument(skip(conn))]
