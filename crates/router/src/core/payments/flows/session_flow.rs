@@ -8,7 +8,8 @@ use crate::{
         errors::{self, ConnectorErrorExt, RouterResult},
         payments::{self, access_token, transformers, PaymentData},
     },
-    routes, services,
+    routes::{self, metrics},
+    services,
     types::{self, api, storage},
     utils::OptionExt,
 };
@@ -44,6 +45,14 @@ impl Feature<api::Session, types::PaymentsSessionData> for types::PaymentsSessio
         call_connector_action: payments::CallConnectorAction,
         _merchant_account: &storage::MerchantAccount,
     ) -> RouterResult<Self> {
+        metrics::SESSION_TOKEN_CREATED.add(
+            &metrics::CONTEXT,
+            1,
+            &[metrics::request::add_attributes(
+                "connector",
+                connector.connector_name.to_string(),
+            )],
+        );
         self.decide_flow(
             state,
             connector,
