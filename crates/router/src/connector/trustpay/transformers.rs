@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use api_models::payments::BankRedirectData;
 use common_utils::{errors::CustomResult, pii::Email};
-use error_stack::ResultExt;
+use error_stack::{IntoReport, ResultExt};
 use masking::Secret;
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
@@ -824,8 +824,8 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for TrustpayRefundRequest {
             "{:.2}",
             utils::to_currency_base_unit(item.request.amount, item.request.currency)?
                 .parse::<f64>()
-                .ok()
-                .ok_or(errors::ConnectorError::RequestEncodingFailed)?
+                .into_report()
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?
         );
         match item.payment_method {
             storage_models::enums::PaymentMethod::BankRedirect => {

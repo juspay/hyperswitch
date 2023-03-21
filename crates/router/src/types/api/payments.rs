@@ -3,11 +3,11 @@ pub use api_models::payments::{
     CustomerAcceptance, MandateData, MandateTxnType, MandateType, MandateValidationFields,
     NextAction, NextActionType, OnlineMandate, PayLaterData, PaymentIdType, PaymentListConstraints,
     PaymentListResponse, PaymentMethodData, PaymentMethodDataResponse, PaymentOp,
-    PaymentRetrieveBody, PaymentsCancelRequest, PaymentsCaptureRequest, PaymentsRedirectRequest,
-    PaymentsRedirectionResponse, PaymentsRequest, PaymentsResponse, PaymentsResponseForm,
-    PaymentsRetrieveRequest, PaymentsSessionRequest, PaymentsSessionResponse, PaymentsStartRequest,
-    PgRedirectResponse, PhoneDetails, RedirectionResponse, SessionToken, UrlDetails, VerifyRequest,
-    VerifyResponse, WalletData,
+    PaymentRetrieveBody, PaymentRetrieveBodyWithCredentials, PaymentsCancelRequest,
+    PaymentsCaptureRequest, PaymentsRedirectRequest, PaymentsRedirectionResponse, PaymentsRequest,
+    PaymentsResponse, PaymentsResponseForm, PaymentsRetrieveRequest, PaymentsSessionRequest,
+    PaymentsSessionResponse, PaymentsStartRequest, PgRedirectResponse, PhoneDetails,
+    RedirectionResponse, SessionToken, UrlDetails, VerifyRequest, VerifyResponse, WalletData,
 };
 use error_stack::{IntoReport, ResultExt};
 use masking::PeekInterface;

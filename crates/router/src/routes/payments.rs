@@ -141,14 +141,69 @@ pub async fn payments_retrieve(
         resource_id: payment_types::PaymentIdType::PaymentIntentId(path.to_string()),
         merchant_id: json_payload.merchant_id.clone(),
         force_sync: json_payload.force_sync.unwrap_or(false),
-        param: None,
-        connector: None,
+        ..Default::default()
     };
     let (auth_type, _auth_flow) = match auth::get_auth_type_and_flow(req.headers()) {
         Ok(auth) => auth,
         Err(err) => return api::log_and_return_error_response(report!(err)),
     };
 
+    api::server_wrap(
+        flow,
+        state.get_ref(),
+        &req,
+        payload,
+        |state, merchant_account, req| {
+            payments::payments_core::<api_types::PSync, payment_types::PaymentsResponse, _, _, _>(
+                state,
+                merchant_account,
+                payments::PaymentStatus,
+                req,
+                api::AuthFlow::Merchant,
+                payments::CallConnectorAction::Trigger,
+            )
+        },
+        &*auth_type,
+    )
+    .await
+}
+
+/// Payments - Retrieve with gateway credentials
+///
+/// To retrieve the properties of a Payment. This may be used to get the status of a previously initiated payment or next action for an ongoing payment
+#[utoipa::path(
+    post,
+    path = "/sync",
+    request_body=PaymentRetrieveBodyWithCredentials,
+    responses(
+        (status = 200, description = "Gets the payment with final status", body = PaymentsResponse),
+        (status = 404, description = "No payment found")
+    ),
+    tag = "Payments",
+    operation_id = "Retrieve a Payment",
+    security(("api_key" = []))
+)]
+#[instrument(skip(state), fields(flow = ?Flow::PaymentsRetrieve))]
+// #[post("/sync")]
+pub async fn payments_retrieve_with_gateway_creds(
+    state: web::Data<app::AppState>,
+    req: actix_web::HttpRequest,
+    json_payload: web::Json<payment_types::PaymentRetrieveBodyWithCredentials>,
+) -> impl Responder {
+    let (auth_type, _auth_flow) = match auth::get_auth_type_and_flow(req.headers()) {
+        Ok(auth) => auth,
+        Err(err) => return api::log_and_return_error_response(report!(err)),
+    };
+    let payload = payment_types::PaymentsRetrieveRequest {
+        resource_id: payment_types::PaymentIdType::PaymentIntentId(
+            json_payload.payment_id.to_string(),
+        ),
+        merchant_id: json_payload.merchant_id.clone(),
+        force_sync: json_payload.force_sync.unwrap_or(false),
+        merchant_connector_details: json_payload.merchant_connector_details.clone(),
+        ..Default::default()
+    };
+    let flow = Flow::PaymentsRetrieve;
     api::server_wrap(
         flow,
         state.get_ref(),
@@ -429,7 +484,62 @@ pub async fn payments_redirect_response(
         json_payload: None,
         param: Some(param_string.to_string()),
         connector: Some(connector),
+        creds_identifier: None,
     };
+    api::server_wrap(
+        flow,
+        state.get_ref(),
+        &req,
+        payload,
+        |state, merchant_account, req| {
+            payments::PaymentRedirectSync {}.handle_payments_redirect_response(
+                state,
+                merchant_account,
+                req,
+            )
+        },
+        &auth::MerchantIdAuth(merchant_id),
+    )
+    .await
+}
+
+// /// Payments - Redirect response with creds_identifier
+// ///
+// /// To get the payment response for redirect flows
+// #[utoipa::path(
+//     post,
+//     path = "/payments/{payment_id}/{merchant_id}/response/{connector}/{cred_identifier}",
+//     params(
+//         ("payment_id" = String, Path, description = "The identifier for payment"),
+//         ("merchant_id" = String, Path, description = "The identifier for merchant"),
+//         ("connector" = String, Path, description = "The name of the connector")
+//     ),
+//     responses(
+//         (status = 302, description = "Received payment redirect response"),
+//         (status = 400, description = "Missing mandatory fields")
+//     ),
+//     tag = "Payments",
+//     operation_id = "Get Redirect Response for a Payment"
+// )]
+#[instrument(skip_all)]
+pub async fn payments_redirect_response_with_creds_identifier(
+    state: web::Data<app::AppState>,
+    req: actix_web::HttpRequest,
+    path: web::Path<(String, String, String, String)>,
+) -> impl Responder {
+    let (payment_id, merchant_id, connector, creds_identifier) = path.into_inner();
+    let param_string = req.query_string();
+
+    let payload = payments::PaymentsRedirectResponseData {
+        resource_id: payment_types::PaymentIdType::PaymentIntentId(payment_id),
+        merchant_id: Some(merchant_id.clone()),
+        force_sync: true,
+        json_payload: None,
+        param: Some(param_string.to_string()),
+        connector: Some(connector),
+        creds_identifier: Some(creds_identifier),
+    };
+    let flow = Flow::PaymentsRedirect;
     api::server_wrap(
         flow,
         state.get_ref(),
@@ -465,6 +575,7 @@ pub async fn payments_complete_authorize(
         json_payload: Some(json_payload.0),
         force_sync: false,
         connector: Some(connector),
+        creds_identifier: None,
     };
     api::server_wrap(
         flow,
