@@ -319,7 +319,7 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
             Self::ClientSecretNotGiven => AER::BadRequest(ApiError::new(
                 "IR",
                 8,
-                "Client secret was not provided", None
+                "client_secret was not provided", None
             )),
             Self::ClientSecretInvalid => {
                 AER::BadRequest(ApiError::new("IR", 9, "The client_secret provided does not match the client_secret associated with the Payment", None))
