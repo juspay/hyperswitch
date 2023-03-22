@@ -506,7 +506,6 @@ pub enum BankRedirectData {
     },
 }
 
-
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct SofortBilling {
     /// The country associated with the billing
@@ -1127,7 +1126,7 @@ impl From<PaymentMethodData> for PaymentMethodDataResponse {
             PaymentMethodData::Wallet(wallet_data) => Self::Wallet(wallet_data),
             PaymentMethodData::BankRedirect(bank_redirect_data) => {
                 Self::BankRedirect(bank_redirect_data)
-            },
+            }
             PaymentMethodData::Crypto => Self::Crypto,
         }
     }
