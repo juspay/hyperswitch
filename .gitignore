@@ -249,8 +249,8 @@ logs/
 **/*.log
 **/*.log.*
 monitoring/*.tmp/
-config/Sandbox.toml
-config/Production.toml
+config/sandbox.toml
+config/production.toml
 !loadtest/.env
 loadtest/*.tmp/
 

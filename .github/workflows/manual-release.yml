@@ -6,11 +6,11 @@ on:
       environment:
         description: "Environment to create image for"
         required: true
-        default: "Sandbox"
+        default: "sandbox"
         type: choice
         options:
-          - Sandbox
-          - Production
+          - sandbox
+          - production
 
 jobs:
   build:

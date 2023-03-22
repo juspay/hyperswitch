@@ -400,16 +400,16 @@ The application configuration files are present under the
 
 The configuration file read varies with the environment:
 
-- Development: [`config/Development.toml`][config-development]
-- Sandbox: `config/Sandbox.toml`
-- Production: `config/Production.toml`
+- Development: [`config/development.toml`][config-development]
+- Sandbox: `config/sandbox.toml`
+- Production: `config/production.toml`
 
 Refer to [`config.example.toml`][config-example] for all the available
 configuration options.
-Refer to [`Development.toml`][config-development] for the recommended defaults for
+Refer to [`development.toml`][config-development] for the recommended defaults for
 local development.
 
-Ensure to update the [`Development.toml`][config-development] file if you opted
+Ensure to update the [`development.toml`][config-development] file if you opted
 to use different database credentials as compared to the sample ones included in
 this guide.
 
@@ -417,7 +417,7 @@ Once you're done with configuring the application, proceed with
 [running the application](#run-the-application).
 
 [config-directory]: /config
-[config-development]: /config/Development.toml
+[config-development]: /config/development.toml
 [config-example]: /config/config.example.toml
 [config-docker-compose]: /config/docker_compose.toml
 
@@ -463,7 +463,7 @@ Once you're done with configuring the application, proceed with
       [`config/docker_compose.toml`][config-docker-compose], search for
       `admin_api_key` to find the admin API key.
    2. If you set up the dependencies locally, you can find the configuration
-      file at [`config/Development.toml`][config-development], search for
+      file at [`config/development.toml`][config-development], search for
       `admin_api_key` to find the admin API key
 
 4. Open the ["Quick Start" folder][quick-start] in the collection.

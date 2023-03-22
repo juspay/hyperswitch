@@ -5,18 +5,21 @@
 use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
-use strum::{Display, EnumString};
 
 /// Parent dir where Cargo.toml is stored
 pub const CARGO_MANIFEST_DIR: &str = "CARGO_MANIFEST_DIR";
-/// Env variable that sets Development/Production env
+/// Env variable that sets development/production env
 pub const RUN_ENV: &str = "RUN_ENV";
 
 ///
 /// Current environment.
 ///
 
-#[derive(Debug, Default, Deserialize, Serialize, Clone, Copy, Display, EnumString)]
+#[derive(
+    Debug, Default, Deserialize, Serialize, Clone, Copy, strum::Display, strum::EnumString,
+)]
+#[serde(rename_all = "lowercase")]
+#[strum(serialize_all = "lowercase")]
 pub enum Env {
     /// Development environment.
     #[default]
@@ -27,7 +30,7 @@ pub enum Env {
     Production,
 }
 
-/// Name of current environment. Either "Development", "Sandbox" or "Production".
+/// Name of current environment. Either "development", "sandbox" or "production".
 pub fn which() -> Env {
     #[cfg(debug_assertions)]
     let default_env = Env::Development;

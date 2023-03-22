@@ -1,6 +1,6 @@
 FROM rust:1.65 as builder
 
-ARG RUN_ENV=Sandbox
+ARG RUN_ENV=sandbox
 
 RUN apt-get update \
     && apt-get install -y libpq-dev libssl-dev
@@ -30,9 +30,7 @@ ENV RUSTUP_MAX_RETRIES=10
 ENV RUST_BACKTRACE="short"
 
 COPY . .
-
-# Use bash variable substitution to convert environment name to lowercase
-RUN bash -c 'cargo build --release --features ${RUN_ENV@L}'
+RUN cargo build --release --features ${RUN_ENV}
 
 
 
@@ -43,7 +41,7 @@ ARG CONFIG_DIR=/local/config
 ARG BIN_DIR=/local/bin
 
 # RUN_ENV decides the corresponding config file to be used
-ARG RUN_ENV=Sandbox
+ARG RUN_ENV=sandbox
 
 # args for deciding the executable to export. three binaries:
 # 1. BINARY=router - for main application
