@@ -1,6 +1,8 @@
 use common_utils::generate_id_with_default_len;
 use error_stack::{IntoReport, ResultExt};
 #[cfg(feature = "basilisk")]
+use external_services::kms;
+#[cfg(feature = "basilisk")]
 use josekit::jwe;
 use masking::PeekInterface;
 use router_env::{instrument, tracing};
@@ -18,11 +20,7 @@ use crate::{
     utils::{self, StringExt},
 };
 #[cfg(feature = "basilisk")]
-use crate::{
-    core::payment_methods::transformers as payment_methods,
-    services::{self, kms},
-    utils::BytesExt,
-};
+use crate::{core::payment_methods::transformers as payment_methods, services, utils::BytesExt};
 #[cfg(feature = "basilisk")]
 use crate::{
     db,
@@ -407,7 +405,7 @@ pub fn get_key_id(keys: &settings::Jwekey) -> &str {
 #[cfg(feature = "basilisk")]
 async fn get_locker_jwe_keys(
     keys: &settings::Jwekey,
-    kms_config: &settings::Kms,
+    kms_config: &kms::KmsConfig,
 ) -> CustomResult<(String, String), errors::EncryptionError> {
     let key_id = get_key_id(keys);
     let (encryption_key, decryption_key) = if key_id == keys.locker_key_identifier1 {
