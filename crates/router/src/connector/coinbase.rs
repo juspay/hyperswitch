@@ -2,21 +2,25 @@ mod transformers;
 
 use std::fmt::Debug;
 
-use common_utils::errors::ReportSwitchExt;
+use base64::Engine;
+use common_utils::{crypto, errors::ReportSwitchExt, ext_traits::ByteSliceExt};
 use error_stack::{IntoReport, ResultExt};
 use transformers as coinbase;
 
+use self::coinbase::CoinbaseWebhookDetails;
+use super::utils;
 use crate::{
     configs::settings,
+    consts,
     core::errors::{self, CustomResult},
-    headers,
+    db, headers,
     services::{self, ConnectorIntegration},
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
         ErrorResponse, Response,
     },
-    utils::{self, BytesExt},
+    utils::{BytesExt, Encode},
 };
 
 #[derive(Debug, Clone)]
@@ -141,7 +145,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
         let req_obj = coinbase::CoinbasePaymentsRequest::try_from(req)?;
         let coinbase_req =
-            utils::Encode::<coinbase::CoinbasePaymentsRequest>::encode_to_string_of_json(&req_obj)
+            Encode::<coinbase::CoinbasePaymentsRequest>::encode_to_string_of_json(&req_obj)
                 .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(coinbase_req))
     }
@@ -366,7 +370,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
         let req_obj = coinbase::CoinbaseRefundRequest::try_from(req)?;
         let coinbase_req =
-            utils::Encode::<coinbase::CoinbaseRefundRequest>::encode_to_string_of_json(&req_obj)
+            Encode::<coinbase::CoinbaseRefundRequest>::encode_to_string_of_json(&req_obj)
                 .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(coinbase_req))
     }
@@ -475,24 +479,93 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
 
 #[async_trait::async_trait]
 impl api::IncomingWebhook for Coinbase {
-    fn get_webhook_object_reference_id(
+    fn get_webhook_source_verification_algorithm(
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<Box<dyn crypto::VerifySignature + Send>, errors::ConnectorError> {
+        Ok(Box::new(crypto::HmacSha256))
+    }
+
+    fn get_webhook_source_verification_signature(
+        &self,
+        request: &api::IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
+        let base64_signature =
+            utils::get_header_key_value("X-CC-Webhook-Signature", request.headers)?;
+
+        let signature = consts::BASE64_ENGINE
+            .decode(base64_signature.as_bytes())
+            .into_report()
+            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
+
+        Ok(signature)
+    }
+
+    fn get_webhook_source_verification_message(
+        &self,
+        request: &api::IncomingWebhookRequestDetails<'_>,
+        _merchant_id: &str,
+        _secret: &[u8],
+    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
+        let message = std::str::from_utf8(request.body)
+            .into_report()
+            .change_context(errors::ConnectorError::ParsingFailed)?;
+        Ok(message.to_string().into_bytes())
+    }
+
+    async fn get_webhook_source_verification_merchant_secret(
+        &self,
+        db: &dyn db::StorageInterface,
+        merchant_id: &str,
+    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
+        let key = format!("whsec_verification_{}_{}", self.id(), merchant_id);
+        let secret = db
+            .get_key(&key)
+            .await
+            .change_context(errors::ConnectorError::WebhookVerificationSecretNotFound)?;
+
+        Ok(secret)
+    }
+
+    fn get_webhook_object_reference_id(
+        &self,
+        request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
+        let notif: CoinbaseWebhookDetails = request
+            .body
+            .parse_struct("CoinbaseWebhookDetails")
+            .switch()?;
+        Ok(notif.event.data.id)
     }
 
     fn get_webhook_event_type(
         &self,
-        _request: &api::IncomingWebhookRequestDetails<'_>,
+        request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api::IncomingWebhookEvent, errors::ConnectorError> {
-        Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
+        let notif: CoinbaseWebhookDetails = request
+            .body
+            .parse_struct("CoinbaseWebhookDetails")
+            .switch()?;
+        match notif.event.event_type {
+            coinbase::WebhookEventType::ChargeConfirmed
+            | coinbase::WebhookEventType::ChargeResolved => {
+                Ok(api::IncomingWebhookEvent::PaymentIntentSuccess)
+            }
+            coinbase::WebhookEventType::ChargeFailed => {
+                Ok(api::IncomingWebhookEvent::PaymentIntentFailure)
+            }
+            _ => Err(errors::ConnectorError::WebhookEventTypeNotFound.into()),
+        }
     }
 
     fn get_webhook_resource_object(
         &self,
-        _request: &api::IncomingWebhookRequestDetails<'_>,
+        request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<serde_json::Value, errors::ConnectorError> {
-        Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
+        let notif: CoinbaseWebhookDetails = request
+            .body
+            .parse_struct("CoinbaseWebhookDetails")
+            .switch()?;
+        Encode::<CoinbaseWebhookDetails>::encode_to_value(&notif.event).switch()
     }
 }
