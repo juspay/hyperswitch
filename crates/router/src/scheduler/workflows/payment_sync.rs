@@ -9,7 +9,7 @@ use crate::{
     scheduler::{consumer, process_data, utils},
     types::{
         api,
-        storage::{self, enums, ProcessTrackerExt},
+        storage::{self, enums, PaymentAttemptExt, ProcessTrackerExt},
     },
     utils::{OptionExt, ValueExt},
 };
@@ -64,9 +64,10 @@ impl ProcessTrackerWorkflow for PaymentsSyncWorkflow {
             _ => {
                 let connector = payment_data
                     .payment_attempt
-                    .connector
-                    .clone()
+                    .get_routed_through_connector()
+                    .map_err(errors::ProcessTrackerError::EParsingError)?
                     .ok_or(errors::ProcessTrackerError::MissingRequiredField)?;
+
                 retry_sync_task(
                     db,
                     connector,

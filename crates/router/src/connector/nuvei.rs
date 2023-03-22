@@ -876,10 +876,10 @@ impl api::IncomingWebhook for Nuvei {
     fn get_webhook_object_reference_id(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<String, errors::ConnectorError> {
+    ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
         let body: nuvei::NuveiWebhookDetails =
             utils::convert_query_params_to_struct(request.query_params.clone())?;
-        Ok(body.ppp_transaction_id)
+        Ok(api_models::webhooks::ObjectReferenceId::PaymentId(types::api::PaymentIdType::ConnectorTransactionId(body.ppp_transaction_id)))
     }
 
     fn get_webhook_event_type(
