@@ -295,6 +295,7 @@ pub async fn webhooks_core<W: api::OutgoingWebhookType>(
     let mut request_details = api::IncomingWebhookRequestDetails {
         method: req.method().clone(),
         headers: req.headers(),
+        query_params: Some(req.query_string().to_string()),
         body: &body,
     };
 
