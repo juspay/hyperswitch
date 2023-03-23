@@ -14,6 +14,8 @@
 * **router:**
   *  add support for stateful straight through routing (#752) (568bf01a)
   *  adding metrics for tracking behavior throughout the `router` crate  (#768) (d302b286)
+* **router_env:**
+  *  making metric flow as a trait for extensibility (#797) (df699e2b)
 * **core:**  accept gateway credentials in the request body in payments and refunds (#766) (cb188f92)
 * **connector:**
   *  Add support to provide connector_payment_meta for capture and void request (#770) (6c008ae6)
