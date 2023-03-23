@@ -522,7 +522,7 @@ where
     fields(request_method, request_url_path)
 )]
 pub async fn server_wrap<'a, 'b, A, T, U, Q, F, Fut, E>(
-    flow: router_env::Flow,
+    flow: impl router_env::types::FlowMetric,
     state: &'b A,
     request: &'a HttpRequest,
     payload: T,

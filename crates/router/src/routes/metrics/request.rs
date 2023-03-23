@@ -1,6 +1,9 @@
 use super::utils as metric_utils;
 
-pub async fn record_request_time_metric<F, R>(future: F, flow: router_env::Flow) -> R
+pub async fn record_request_time_metric<F, R>(
+    future: F,
+    flow: impl router_env::types::FlowMetric,
+) -> R
 where
     F: futures::Future<Output = R>,
 {
