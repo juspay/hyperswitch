@@ -471,9 +471,14 @@ where
     Op: std::fmt::Debug,
 {
     if check_if_operation_confirm(operation) {
-        let connector_name = payment_attempt
+        let routed_through: storage::RoutedThroughData = payment_attempt
             .connector
             .clone()
+            .parse_value("RoutedThroughData")
+            .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
+        let connector_name = routed_through
+            .routed_through
             .ok_or(errors::ApiErrorResponse::InternalServerError)?;
 
         let schedule_time = payment_sync::get_sync_process_schedule_time(
@@ -624,20 +629,13 @@ pub async fn get_customer_from_details<F: Clone>(
 }
 
 pub async fn get_connector_default(
-    state: &AppState,
-    request_connector: Option<&String>,
-) -> CustomResult<api::ConnectorCallType, errors::ApiErrorResponse> {
-    let connectors = &state.conf.connectors;
-    if let Some(connector_name) = request_connector {
-        let connector_data = api::ConnectorData::get_connector_by_name(
-            connectors,
-            connector_name,
-            api::GetToken::Connector,
-        )?;
-        Ok(api::ConnectorCallType::Single(connector_data))
-    } else {
-        Ok(api::ConnectorCallType::Routing)
-    }
+    _state: &AppState,
+    request_connector: Option<serde_json::Value>,
+) -> CustomResult<api::ConnectorChoice, errors::ApiErrorResponse> {
+    Ok(request_connector.map_or(
+        api::ConnectorChoice::Decide,
+        api::ConnectorChoice::StraightThrough,
+    ))
 }
 
 #[instrument(skip_all)]
@@ -1181,9 +1179,11 @@ pub(crate) fn authenticate_client_secret(
     payment_intent_client_secret: Option<&String>,
 ) -> Result<(), errors::ApiErrorResponse> {
     match (request_client_secret, payment_intent_client_secret) {
-        (Some(req_cs), Some(pi_cs)) => utils::when(req_cs.ne(pi_cs), || {
+        (Some(req_cs), Some(pi_cs)) if req_cs != pi_cs => {
             Err(errors::ApiErrorResponse::ClientSecretInvalid)
-        }),
+        }
+        // If there is no client in payment intent, then it has expired
+        (Some(_), None) => Err(errors::ApiErrorResponse::ClientSecretExpired),
         _ => Ok(()),
     }
 }
