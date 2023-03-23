@@ -12,10 +12,11 @@ pub mod payments;
 pub mod payouts;
 pub mod refunds;
 pub mod webhooks;
+pub mod disputes;
 
 pub use self::app::{
     ApiKeys, AppState, Configs, Customers, EphemeralKey, Health, Mandates, MerchantAccount,
-    MerchantConnectorAccount, PaymentMethods, Payments, Payouts, Refunds, Webhooks,
+    MerchantConnectorAccount, PaymentMethods, Payments, Payouts, Refunds, Webhooks, Disputes,
 };
 #[cfg(feature = "stripe")]
 pub use super::compatibility::stripe::StripeApis;

@@ -156,6 +156,8 @@ pub enum ApiErrorResponse {
     IncorrectConnectorNameGiven,
     #[error(error_type = ErrorType::ObjectNotFound, code = "HE_04", message = "Address does not exist in our records")]
     AddressNotFound,
+    #[error(error_type = ErrorType::ObjectNotFound, code = "HE_04", message = "Dispute does not exist in our records")]
+    DisputeNotFound {dispute_id: String},
 }
 
 #[derive(Clone)]
@@ -245,7 +247,8 @@ impl actix_web::ResponseError for ApiErrorResponse {
             Self::DuplicateMerchantAccount
             | Self::DuplicateMerchantConnectorAccount
             | Self::DuplicatePaymentMethod
-            | Self::DuplicateMandate => StatusCode::BAD_REQUEST, // 400
+            | Self::DuplicateMandate
+            | Self::DisputeNotFound {..} => StatusCode::BAD_REQUEST, // 400
             Self::ReturnUrlUnavailable => StatusCode::SERVICE_UNAVAILABLE, // 503
             Self::PaymentNotSucceeded => StatusCode::BAD_REQUEST,          // 400
             Self::NotImplemented { .. } => StatusCode::NOT_IMPLEMENTED,    // 501
@@ -432,6 +435,9 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
             }
             Self::FlowNotSupported { flow, connector } => {
                 AER::BadRequest(ApiError::new("IR", 20, format!("{flow} flow not supported"), Some(Extra {connector: Some(connector.to_owned()), ..Default::default()})))
+            }
+            Self::DisputeNotFound { .. } => {
+                AER::NotFound(ApiError::new("HE", 2, "Dispute does not exist in our records", None))
             }
         }
     }

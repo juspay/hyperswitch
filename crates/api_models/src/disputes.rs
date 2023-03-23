@@ -1,4 +1,5 @@
 use masking::{Deserialize, Serialize};
+use utoipa::ToSchema;
 
 use crate::enums::{DisputeStage, DisputeStatus};
 
@@ -16,7 +17,7 @@ pub struct DisputePayload {
     pub updated_at: Option<String>,
 }
 
-#[derive(Default, Clone, Debug, Serialize)]
+#[derive(Default, Clone, Debug, Serialize, ToSchema)]
 pub struct DisputeResponse {
     pub dispute_id: String,
     pub payment_id: String,
@@ -32,4 +33,12 @@ pub struct DisputeResponse {
     pub created_at: Option<String>,
     pub updated_at: Option<String>,
     pub received_at: String,
+}
+
+#[derive(Clone, Debug, Deserialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub struct DisputeListConstraints {
+    /// limit on the number of objects to return
+    #[schema(default = 10)]
+    pub limit: Option<i64>,
 }

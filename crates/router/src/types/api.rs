@@ -8,6 +8,7 @@ pub mod payment_methods;
 pub mod payments;
 pub mod refunds;
 pub mod webhooks;
+pub mod disputes;
 
 use std::{fmt::Debug, str::FromStr};
 
@@ -15,7 +16,7 @@ use error_stack::{report, IntoReport, ResultExt};
 
 pub use self::{
     admin::*, api_keys::*, configs::*, customers::*, payment_methods::*, payments::*, refunds::*,
-    webhooks::*,
+    webhooks::*, disputes::*,
 };
 use super::ErrorResponse;
 use crate::{
