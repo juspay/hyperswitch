@@ -53,7 +53,6 @@ pub trait RouterData {
     fn get_billing_address(&self) -> Result<&api::AddressDetails, Error>;
     fn get_shipping_address(&self) -> Result<&api::AddressDetails, Error>;
     fn get_connector_meta(&self) -> Result<pii::SecretSerdeValue, Error>;
-    fn get_session_token(&self) -> Result<String, Error>;
     fn to_connector_meta<T>(&self) -> Result<T, Error>
     where
         T: serde::de::DeserializeOwned;
@@ -103,12 +102,6 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
             .ok_or_else(missing_field_err("connector_meta_data"))
     }
 
-    fn get_session_token(&self) -> Result<String, Error> {
-        self.session_token
-            .clone()
-            .ok_or_else(missing_field_err("session_token"))
-    }
-
     fn to_connector_meta<T>(&self) -> Result<T, Error>
     where
         T: serde::de::DeserializeOwned,
@@ -145,6 +138,7 @@ pub trait PaymentsAuthorizeRequestData {
     fn get_email(&self) -> Result<Secret<String, Email>, Error>;
     fn get_browser_info(&self) -> Result<types::BrowserInformation, Error>;
     fn get_card(&self) -> Result<api::Card, Error>;
+    fn get_session_token(&self) -> Result<String, Error>;
 }
 
 impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
@@ -164,6 +158,12 @@ impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
             api::PaymentMethodData::Card(card) => Ok(card),
             _ => Err(missing_field_err("card")()),
         }
+    }
+
+    fn get_session_token(&self) -> Result<String, Error> {
+        self.session_token
+            .clone()
+            .ok_or_else(missing_field_err("session_token"))
     }
 }
 

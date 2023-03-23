@@ -110,7 +110,6 @@ pub struct RouterData<Flow, Request, Response> {
     pub connector_meta_data: Option<pii::SecretSerdeValue>,
     pub amount_captured: Option<i64>,
     pub access_token: Option<AccessToken>,
-    pub session_token: Option<String>,
     pub reference_id: Option<String>,
 
     /// Contains flow-specific data required to construct a request and send it to the connector.
@@ -235,6 +234,11 @@ pub struct AddAccessTokenResult {
 pub struct AccessToken {
     pub token: String,
     pub expires: i64,
+}
+
+#[derive(Debug, Clone)]
+pub struct SessionTokenResult {
+    pub session_token: String,
 }
 
 #[derive(Debug, Clone)]
@@ -434,8 +438,8 @@ impl Default for ErrorResponse {
     }
 }
 
-impl From<&&mut PaymentsAuthorizeRouterData> for AuthorizeSessionTokenData {
-    fn from(data: &&mut PaymentsAuthorizeRouterData) -> Self {
+impl From<&PaymentsAuthorizeRouterData> for AuthorizeSessionTokenData {
+    fn from(data: &PaymentsAuthorizeRouterData) -> Self {
         Self {
             amount_to_capture: data.amount_captured,
             currency: data.request.currency,
@@ -472,7 +476,6 @@ impl<F1, F2, T1, T2> From<(&&mut RouterData<F1, T1, PaymentsResponseData>, T2)>
             response: data.response.clone(),
             payment_method_id: data.payment_method_id.clone(),
             payment_id: data.payment_id.clone(),
-            session_token: data.session_token.clone(),
             reference_id: data.reference_id.clone(),
         }
     }

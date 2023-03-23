@@ -446,27 +446,6 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         router_data: &mut types::PaymentsAuthorizeRouterData,
         app_state: &crate::routes::AppState,
     ) -> CustomResult<(), errors::ConnectorError> {
-        let integ: Box<
-            &(dyn ConnectorIntegration<
-                api::AuthorizeSessionToken,
-                types::AuthorizeSessionTokenData,
-                types::PaymentsResponseData,
-            > + Send
-                  + Sync
-                  + 'static),
-        > = Box::new(&Self);
-        let authorize_data = &types::PaymentsAuthorizeSessionTokenRouterData::from((
-            &router_data,
-            types::AuthorizeSessionTokenData::from(&router_data),
-        ));
-        let resp = services::execute_connector_processing_step(
-            app_state,
-            integ,
-            authorize_data,
-            payments::CallConnectorAction::Trigger,
-        )
-        .await?;
-        router_data.session_token = resp.session_token;
         let (enrolled_for_3ds, related_transaction_id) = match router_data.auth_type {
             storage_models::enums::AuthenticationType::ThreeDs => {
                 let integ: Box<
@@ -505,7 +484,11 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         &self,
         req: &types::PaymentsAuthorizeRouterData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        let req_obj = nuvei::NuveiPaymentsRequest::try_from((req, req.get_session_token()?))?;
+        let req_obj = req.request.session_token.as_ref().ok_or(
+            errors::ConnectorError::MissingRequiredField {
+                field_name: "session_token",
+            },
+        )?;
         let req =
             common_utils::Encode::<nuvei::NuveiPaymentsRequest>::encode_to_string_of_json(&req_obj)
                 .change_context(errors::ConnectorError::RequestEncodingFailed)?;
@@ -671,7 +654,11 @@ impl ConnectorIntegration<InitPayment, types::PaymentsAuthorizeData, types::Paym
         &self,
         req: &types::PaymentsInitRouterData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        let req_obj = nuvei::NuveiPaymentsRequest::try_from((req, req.get_session_token()?))?;
+        let req_obj = req.request.session_token.as_ref().ok_or(
+            errors::ConnectorError::MissingRequiredField {
+                field_name: "session_token",
+            },
+        )?;
         let req =
             common_utils::Encode::<nuvei::NuveiSessionRequest>::encode_to_string_of_json(&req_obj)
                 .change_context(errors::ConnectorError::RequestEncodingFailed)?;

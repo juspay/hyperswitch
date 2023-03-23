@@ -44,6 +44,7 @@ impl Feature<api::PSync, types::PaymentsSyncData>
         customer: &Option<storage::Customer>,
         call_connector_action: payments::CallConnectorAction,
         _merchant_account: &storage::MerchantAccount,
+        _session_token: Option<types::SessionTokenResult>,
     ) -> RouterResult<Self> {
         self.decide_flow(
             state,

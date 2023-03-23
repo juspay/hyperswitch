@@ -2,6 +2,7 @@ pub mod access_token;
 pub mod flows;
 pub mod helpers;
 pub mod operations;
+pub mod session_token;
 pub mod transformers;
 
 use std::{fmt::Debug, marker::PhantomData, time::Instant};
@@ -46,7 +47,8 @@ pub async fn payments_operation_core<F, Req, Op, FData>(
     call_connector_action: CallConnectorAction,
 ) -> RouterResult<(PaymentData<F>, Req, Option<storage::Customer>)>
 where
-    F: Send + Clone,
+    F: Send + Sync + Clone,
+    FData: Send + Sync + Clone,
     Op: Operation<F, Req> + Send + Sync,
 
     // To create connector flow specific interface data
@@ -212,8 +214,8 @@ pub async fn payments_core<F, Res, Req, Op, FData>(
     call_connector_action: CallConnectorAction,
 ) -> RouterResponse<Res>
 where
-    F: Send + Clone,
-    FData: Send,
+    F: Send + Sync + Clone,
+    FData: Send + Sync + Clone,
     Op: Operation<F, Req> + Send + Sync + Clone,
     Req: Debug,
     Res: transformers::ToResponse<Req, PaymentData<F>, Op>,
@@ -410,7 +412,8 @@ pub async fn call_connector_service<F, Op, Req>(
 ) -> RouterResult<PaymentData<F>>
 where
     Op: Debug + Sync,
-    F: Send + Clone,
+    F: Send + Sync + Clone,
+    Req: Sync + Clone,
 
     // To create connector flow specific interface data
     PaymentData<F>: ConstructFlowSpecificData<F, Req, types::PaymentsResponseData>,
@@ -440,6 +443,8 @@ where
         &call_connector_action,
     );
 
+    let session_token = router_data.get_session_token(state, &connector).await?;
+
     let router_data_res = if !(add_access_token_result.connector_supports_access_token
         && router_data.access_token.is_none())
     {
@@ -450,6 +455,7 @@ where
                 customer,
                 call_connector_action,
                 merchant_account,
+                session_token,
             )
             .await
     } else {
@@ -517,6 +523,7 @@ where
             customer,
             CallConnectorAction::Trigger,
             merchant_account,
+            None,
         );
 
         join_handlers.push(res);

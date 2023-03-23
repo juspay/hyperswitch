@@ -166,6 +166,11 @@ pub trait Payment:
     + PaymentVoid
     + PreVerify
     + PaymentSession
+    + api::ConnectorIntegration<
+        AuthorizeSessionToken,
+        types::AuthorizeSessionTokenData,
+        types::PaymentsResponseData,
+    >
 {
 }
 

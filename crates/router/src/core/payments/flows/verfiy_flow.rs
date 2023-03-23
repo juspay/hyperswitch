@@ -41,6 +41,7 @@ impl Feature<api::Verify, types::VerifyRequestData> for types::VerifyRouterData 
         customer: &Option<storage::Customer>,
         call_connector_action: payments::CallConnectorAction,
         merchant_account: &storage::MerchantAccount,
+        _session_token: Option<types::SessionTokenResult>,
     ) -> RouterResult<Self> {
         self.decide_flow(
             state,

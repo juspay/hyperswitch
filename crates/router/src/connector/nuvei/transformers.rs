@@ -339,7 +339,6 @@ impl<F, T>
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             status: enums::AttemptStatus::Pending,
-            session_token: Some(item.response.session_token.clone()),
             response: Ok(types::PaymentsResponseData::SessionTokenResponse {
                 session_token: item.response.session_token,
             }),
