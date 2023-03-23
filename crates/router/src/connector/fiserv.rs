@@ -12,10 +12,7 @@ use uuid::Uuid;
 use crate::{
     configs::settings,
     consts,
-    core::{
-        errors::{self, CustomResult},
-        payments,
-    },
+    core::errors::{self, CustomResult},
     headers, logger,
     services::{self, api::ConnectorIntegration},
     types::{
@@ -668,7 +665,7 @@ impl api::IncomingWebhook for Fiserv {
     fn get_webhook_object_reference_id(
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<String, errors::ConnectorError> {
+    ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
         Err(errors::ConnectorError::NotImplemented("fiserv".to_string()).into())
     }
 
@@ -684,14 +681,5 @@ impl api::IncomingWebhook for Fiserv {
         _request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<serde_json::Value, errors::ConnectorError> {
         Err(errors::ConnectorError::NotImplemented("fiserv".to_string()).into())
-    }
-}
-
-impl services::ConnectorRedirectResponse for Fiserv {
-    fn get_flow_type(
-        &self,
-        _query_params: &str,
-    ) -> CustomResult<payments::CallConnectorAction, errors::ConnectorError> {
-        Ok(payments::CallConnectorAction::Trigger)
     }
 }

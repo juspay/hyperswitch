@@ -28,12 +28,16 @@ dbname = "hyperswitch_db"
 pool_size = 5
 connection_timeout = 10
 
+[secrets]
+admin_api_key = "test_admin"
+
 [proxy]
 
 [locker]
 host = ""
 mock_locker = true
 basilisk_host = ""
+locker_setup = "legacy_locker"
 
 [jwekey]
 locker_key_identifier1 = ""
@@ -42,6 +46,8 @@ locker_encryption_key1 = ""
 locker_encryption_key2 = ""
 locker_decryption_key1 = ""
 locker_decryption_key2 = ""
+vault_encryption_key = ""
+vault_private_key = ""
 
 [connectors.supported]
 wallets = ["klarna", "braintree", "applepay"]
@@ -58,11 +64,13 @@ cards = [
     "dlocal",
     "fiserv",
     "globalpay",
+    "mollie",
     "multisafepay",
     "nuvei",
     "payu",
     "shift4",
     "stripe",
+    "trustpay",
     "worldline",
     "worldpay",
 ]
@@ -95,6 +103,7 @@ dlocal.base_url = "https://sandbox.dlocal.com/"
 fiserv.base_url = "https://cert.api.fiservapps.com/"
 globalpay.base_url = "https://apis.sandbox.globalpay.com/ucp/"
 klarna.base_url = "https://api-na.playground.klarna.com/"
+mollie.base_url = "https://api.mollie.com/v2/"
 multisafepay.base_url = "https://testapi.multisafepay.com/"
 nuvei.base_url = "https://ppp-test.nuvei.com/"
 payu.base_url = "https://secure.snd.payu.com/"
@@ -103,6 +112,8 @@ shift4.base_url = "https://api.shift4.com/"
 stripe.base_url = "https://api.stripe.com/"
 worldline.base_url = "https://eu.sandbox.api-ingenico.com/"
 worldpay.base_url = "https://try.access.worldpay.com/"
+trustpay.base_url = "https://test-tpgw.trustpay.eu/"
+trustpay.base_url_bank_redirects = "https://aapi.trustpay.eu/"
 
 [scheduler]
 stream = "SCHEDULER_STREAM"

@@ -7,7 +7,7 @@ use serde_json::json;
 
 use crate::{
     connector_auth,
-    utils::{self, ConnectorActions, PaymentInfo},
+    utils::{self, ConnectorActions},
 };
 
 #[derive(Clone, Copy)]
@@ -101,15 +101,12 @@ async fn should_sync_authorized_payment() {
                 connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
                     txn_id.unwrap(),
                 ),
-                encoded_data: None,
-                capture_method: None,
-            }),
-            Some(PaymentInfo {
-                connector_meta_data: Some(json!({
+                connector_meta: Some(json!({
                     "session_token": authorize_response.session_token.unwrap()
                 })),
                 ..Default::default()
             }),
+            None,
         )
         .await
         .expect("PSync response");
@@ -196,15 +193,12 @@ async fn should_sync_auto_captured_payment() {
                 connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
                     txn_id.unwrap(),
                 ),
-                encoded_data: None,
-                capture_method: None,
-            }),
-            Some(PaymentInfo {
-                connector_meta_data: Some(json!({
+                connector_meta: Some(json!({
                     "session_token": authorize_response.session_token.unwrap()
                 })),
                 ..Default::default()
             }),
+            None,
         )
         .await
         .unwrap();

@@ -7,8 +7,7 @@ use crate::{
         mandate,
         payments::{self, access_token, transformers, PaymentData},
     },
-    routes::AppState,
-    scheduler::metrics,
+    routes::{metrics, AppState},
     services,
     types::{self, api, storage},
 };
@@ -101,6 +100,7 @@ impl types::PaymentsAuthorizeRouterData {
                     .execute_pretasks(self, state)
                     .await
                     .map_err(|error| error.to_payment_failed_response())?;
+                self.decide_authentication_type();
                 let resp = services::execute_connector_processing_step(
                     state,
                     connector_integration,
@@ -116,6 +116,14 @@ impl types::PaymentsAuthorizeRouterData {
                 )
             }
             _ => Ok(self.clone()),
+        }
+    }
+
+    fn decide_authentication_type(&mut self) {
+        if self.auth_type == storage_models::enums::AuthenticationType::ThreeDs
+            && !self.request.enrolled_for_3ds
+        {
+            self.auth_type = storage_models::enums::AuthenticationType::NoThreeDs
         }
     }
 }

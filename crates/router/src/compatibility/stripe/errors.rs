@@ -406,7 +406,8 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
             errors::ApiErrorResponse::CustomerNotFound => Self::CustomerNotFound,
             errors::ApiErrorResponse::PaymentNotFound => Self::PaymentNotFound,
             errors::ApiErrorResponse::PaymentMethodNotFound => Self::PaymentMethodNotFound,
-            errors::ApiErrorResponse::ClientSecretNotGiven => Self::ClientSecretNotFound,
+            errors::ApiErrorResponse::ClientSecretNotGiven
+            | errors::ApiErrorResponse::ClientSecretExpired => Self::ClientSecretNotFound,
             errors::ApiErrorResponse::MerchantAccountNotFound => Self::MerchantAccountNotFound,
             errors::ApiErrorResponse::ResourceIdNotFound => Self::ResourceIdNotFound,
             errors::ApiErrorResponse::MerchantConnectorAccountNotFound => {
@@ -442,6 +443,7 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
             errors::ApiErrorResponse::SuccessfulPaymentNotFound => Self::SuccessfulPaymentNotFound,
             errors::ApiErrorResponse::AddressNotFound => Self::AddressNotFound,
             errors::ApiErrorResponse::NotImplemented { .. } => Self::Unauthorized,
+            errors::ApiErrorResponse::FlowNotSupported { .. } => Self::InternalServerError,
             errors::ApiErrorResponse::PaymentUnexpectedState {
                 current_flow,
                 field_name,

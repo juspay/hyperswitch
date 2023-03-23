@@ -48,7 +48,7 @@ mod storage {
 
     use super::PaymentAttemptInterface;
     use crate::{
-        connection::pg_connection,
+        connection,
         core::errors::{self, CustomResult},
         services::Store,
         types::storage::{enums, payment_attempt::*},
@@ -61,7 +61,7 @@ mod storage {
             payment_attempt: PaymentAttemptNew,
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<PaymentAttempt, errors::StorageError> {
-            let conn = pg_connection(&self.master_pool).await?;
+            let conn = connection::pg_connection_write(self).await?;
             payment_attempt
                 .insert(&conn)
                 .await
@@ -89,7 +89,7 @@ mod storage {
             merchant_id: &str,
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<PaymentAttempt, errors::StorageError> {
-            let conn = pg_connection(&self.master_pool).await?;
+            let conn = connection::pg_connection_read(self).await?;
             PaymentAttempt::find_by_connector_transaction_id_payment_id_merchant_id(
                 &conn,
                 connector_transaction_id,
@@ -107,7 +107,7 @@ mod storage {
             merchant_id: &str,
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<PaymentAttempt, errors::StorageError> {
-            let conn = pg_connection(&self.master_pool).await?;
+            let conn = connection::pg_connection_read(self).await?;
             PaymentAttempt::find_last_successful_attempt_by_payment_id_merchant_id(
                 &conn,
                 payment_id,
@@ -124,7 +124,7 @@ mod storage {
             connector_txn_id: &str,
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<PaymentAttempt, errors::StorageError> {
-            let conn = pg_connection(&self.master_pool).await?;
+            let conn = connection::pg_connection_read(self).await?;
             PaymentAttempt::find_by_merchant_id_connector_txn_id(
                 &conn,
                 merchant_id,
@@ -141,7 +141,7 @@ mod storage {
             attempt_id: &str,
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<PaymentAttempt, errors::StorageError> {
-            let conn = pg_connection(&self.master_pool).await?;
+            let conn = connection::pg_connection_read(self).await?;
 
             PaymentAttempt::find_by_merchant_id_attempt_id(&conn, merchant_id, attempt_id)
                 .await
@@ -263,7 +263,7 @@ mod storage {
 
     use super::PaymentAttemptInterface;
     use crate::{
-        connection::pg_connection,
+        connection,
         core::errors::{self, CustomResult},
         db::reverse_lookup::ReverseLookupInterface,
         services::Store,
@@ -280,7 +280,7 @@ mod storage {
         ) -> CustomResult<PaymentAttempt, errors::StorageError> {
             match storage_scheme {
                 enums::MerchantStorageScheme::PostgresOnly => {
-                    let conn = pg_connection(&self.master_pool).await?;
+                    let conn = connection::pg_connection_write(self).await?;
                     payment_attempt
                         .insert(&conn)
                         .await
@@ -343,7 +343,7 @@ mod storage {
                         })
                         .into_report(),
                         Ok(HsetnxReply::KeySet) => {
-                            let conn = pg_connection(&self.master_pool).await?;
+                            let conn = connection::pg_connection_write(self).await?;
 
                             //Reverse lookup for attempt_id
                             ReverseLookupNew {
@@ -391,7 +391,7 @@ mod storage {
         ) -> CustomResult<PaymentAttempt, errors::StorageError> {
             match storage_scheme {
                 enums::MerchantStorageScheme::PostgresOnly => {
-                    let conn = pg_connection(&self.master_pool).await?;
+                    let conn = connection::pg_connection_write(self).await?;
                     this.update_with_attempt_id(&conn, payment_attempt)
                         .await
                         .map_err(Into::into)
@@ -474,7 +474,7 @@ mod storage {
             storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<PaymentAttempt, errors::StorageError> {
             let database_call = || async {
-                let conn = pg_connection(&self.master_pool).await?;
+                let conn = connection::pg_connection_read(self).await?;
                 PaymentAttempt::find_by_connector_transaction_id_payment_id_merchant_id(
                     &conn,
                     connector_transaction_id,
@@ -511,7 +511,7 @@ mod storage {
             storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<PaymentAttempt, errors::StorageError> {
             let database_call = || async {
-                let conn = pg_connection(&self.master_pool).await?;
+                let conn = connection::pg_connection_read(self).await?;
                 PaymentAttempt::find_by_merchant_id_connector_txn_id(
                     &conn,
                     merchant_id,
@@ -547,7 +547,7 @@ mod storage {
             storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<PaymentAttempt, errors::StorageError> {
             let database_call = || async {
-                let conn = pg_connection(&self.master_pool).await?;
+                let conn = connection::pg_connection_read(self).await?;
                 PaymentAttempt::find_by_merchant_id_attempt_id(&conn, merchant_id, attempt_id)
                     .await
                     .map_err(Into::into)
@@ -580,7 +580,7 @@ mod storage {
         updated_attempt_attempt_id: &str,
         connector_transaction_id: &str,
     ) -> CustomResult<ReverseLookup, errors::StorageError> {
-        let conn = pg_connection(&store.master_pool).await?;
+        let conn = connection::pg_connection_write(store).await?;
         let field = format!("pa_{}", updated_attempt_attempt_id);
         ReverseLookupNew {
             lookup_id: format!("{}_{}", merchant_id, connector_transaction_id),
