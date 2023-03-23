@@ -8,7 +8,7 @@ use crate::{
     },
     core::errors,
     pii,
-    types::{self, api, storage::enums as storage_enums},
+    types::{self, api, storage::enums as storage_enums, transformers::ForeignFrom},
 };
 
 #[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
@@ -177,7 +177,7 @@ impl TryFrom<&types::ConnectorAuthType> for PaypalAuthType {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-pub enum PaypalPaymentStatus {
+pub enum PaypalOrderStatus {
     Completed,
     Voided,
     Created,
@@ -185,23 +185,20 @@ pub enum PaypalPaymentStatus {
     PayerActionRequired,
 }
 
-fn get_authorize_payment_status(
-    status: PaypalPaymentStatus,
-    intent: PaypalPaymentIntent,
-) -> storage_enums::AttemptStatus {
-    match status {
-        PaypalPaymentStatus::Completed => {
-            if intent == PaypalPaymentIntent::Authorize {
-                storage_enums::AttemptStatus::Authorized
-            } else {
-                storage_enums::AttemptStatus::Charged
+impl ForeignFrom<(PaypalOrderStatus, PaypalPaymentIntent)> for storage_enums::AttemptStatus {
+    fn foreign_from(item: (PaypalOrderStatus, PaypalPaymentIntent)) -> Self {
+        match item.0 {
+            PaypalOrderStatus::Completed => {
+                if item.1 == PaypalPaymentIntent::Authorize {
+                    Self::Authorized
+                } else {
+                    Self::Charged
+                }
             }
+            PaypalOrderStatus::Voided => Self::Failure,
+            PaypalOrderStatus::Created | PaypalOrderStatus::Saved => Self::Pending,
+            PaypalOrderStatus::PayerActionRequired => Self::Authorizing,
         }
-        PaypalPaymentStatus::Voided => storage_enums::AttemptStatus::Failure,
-        PaypalPaymentStatus::Created | PaypalPaymentStatus::Saved => {
-            storage_enums::AttemptStatus::Pending
-        }
-        PaypalPaymentStatus::PayerActionRequired => storage_enums::AttemptStatus::Authorizing,
     }
 }
 
@@ -211,7 +208,7 @@ pub struct PaymentsCollectionItem {
     expiration_time: Option<String>,
     id: String,
     final_capture: Option<bool>,
-    status: PaypalPaymentStatus,
+    status: PaypalOrderStatus,
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
@@ -230,7 +227,7 @@ pub struct PurchaseUnitItem {
 pub struct PaypalPaymentsResponse {
     id: String,
     intent: PaypalPaymentIntent,
-    status: PaypalPaymentStatus,
+    status: PaypalOrderStatus,
     purchase_units: Vec<PurchaseUnitItem>,
 }
 
@@ -285,7 +282,10 @@ impl<F, T>
 
         let id = get_auth_or_capt(item.response.intent.clone(), purchase_units)?;
         Ok(Self {
-            status: get_authorize_payment_status(item.response.status, item.response.intent),
+            status: storage_enums::AttemptStatus::foreign_from((
+                item.response.status,
+                item.response.intent,
+            )),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
                 redirection_data: None,
@@ -321,7 +321,7 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for PaypalPaymentsCaptureRequest
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-pub enum PaypalCaptureStatus {
+pub enum PaypalPaymentStatus {
     Completed,
     Declined,
     Refunded,
@@ -332,9 +332,21 @@ pub enum PaypalCaptureStatus {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct PaymentCaptureResponse {
     id: String,
-    status: PaypalCaptureStatus,
+    status: PaypalPaymentStatus,
     amount: Option<OrderAmount>,
     final_capture: bool,
+}
+
+impl From<PaypalPaymentStatus> for storage_enums::AttemptStatus {
+    fn from(item: PaypalPaymentStatus) -> Self {
+        match item {
+            PaypalPaymentStatus::Completed => Self::Charged,
+            PaypalPaymentStatus::Declined => Self::Failure,
+            PaypalPaymentStatus::Failed => Self::CaptureFailed,
+            PaypalPaymentStatus::Refunded => Self::AutoRefunded,
+            PaypalPaymentStatus::Pending => Self::Pending,
+        }
+    }
 }
 
 impl TryFrom<types::PaymentsCaptureResponseRouterData<PaymentCaptureResponse>>
@@ -345,13 +357,7 @@ impl TryFrom<types::PaymentsCaptureResponseRouterData<PaymentCaptureResponse>>
         item: types::PaymentsCaptureResponseRouterData<PaymentCaptureResponse>,
     ) -> Result<Self, Self::Error> {
         let amount_captured = item.data.request.amount_to_capture;
-        let status = match item.response.status {
-            PaypalCaptureStatus::Completed => storage_enums::AttemptStatus::Charged,
-            PaypalCaptureStatus::Declined => storage_enums::AttemptStatus::Failure,
-            PaypalCaptureStatus::Failed => storage_enums::AttemptStatus::CaptureFailed,
-            PaypalCaptureStatus::Refunded => storage_enums::AttemptStatus::AutoRefunded,
-            PaypalCaptureStatus::Pending => storage_enums::AttemptStatus::Pending,
-        };
+        let status = storage_enums::AttemptStatus::from(item.response.status);
         Ok(Self {
             status,
             response: Ok(types::PaymentsResponseData::TransactionResponse {
@@ -377,7 +383,6 @@ impl TryFrom<types::PaymentsCaptureResponseRouterData<PaymentCaptureResponse>>
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum PaypalCancelStatus {
     Voided,
-    Pending,
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
@@ -404,7 +409,6 @@ impl<F, T>
     ) -> Result<Self, Self::Error> {
         let status = match item.response.status {
             PaypalCancelStatus::Voided => storage_enums::AttemptStatus::Voided,
-            _ => storage_enums::AttemptStatus::Pending,
         };
         Ok(Self {
             status,
@@ -526,7 +530,7 @@ pub struct ErrorDetails {
 }
 
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
-pub struct PaypalErrorResponse {
+pub struct PaypalPaymentErrorResponse {
     pub name: String,
     pub message: String,
     pub debug_id: Option<String>,

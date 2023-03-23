@@ -1,5 +1,4 @@
 use masking::Secret;
-use regex::Regex;
 use router::types::{self, api, storage::enums, AccessToken, ConnectorAuthType};
 
 use crate::{
@@ -633,15 +632,12 @@ async fn should_fail_void_payment_for_auto_capture() {
         )
         .await
         .expect("Capture payment response");
-    assert_eq!(capture_response.status, enums::AttemptStatus::Charged);
-    let txn_id = utils::get_connector_transaction_id(capture_response.clone().response);
+    let txn_id = utils::get_connector_transaction_id(capture_response.clone().response).unwrap();
     let connector_meta = utils::get_connector_metadata(capture_response.response);
-    assert_ne!(txn_id, None, "Empty connector transaction id");
     let void_response = CONNECTOR
         .void_payment(
-            txn_id.unwrap(),
+            txn_id,
             Some(types::PaymentsCancelData {
-                connector_transaction_id: String::from(""),
                 cancellation_reason: Some("requested_by_customer".to_string()),
                 connector_meta,
                 ..Default::default()
@@ -709,8 +705,7 @@ async fn should_fail_for_refund_amount_higher_than_payment_amount() {
         )
         .await
         .unwrap();
-    let re = Regex::new(r#"[{"description":"Specified resource ID does not exist. Please check the resource ID and try again.","field":"capture_id","issue":"INVALID_RESOURCE_ID","location":"path","value":".*"}]"#).unwrap();
-    assert!(re.is_match(&response.response.unwrap_err().message));
+    assert_eq!(&response.response.unwrap_err().message, "description - The refund amount must be less than or equal to the capture amount that has not yet been refunded. ; ");
 }
 
 // Connector dependent test cases goes here

@@ -41,6 +41,54 @@ impl api::Refund for Paypal {}
 impl api::RefundExecute for Paypal {}
 impl api::RefundSync for Paypal {}
 
+impl Paypal {
+    pub fn get_order_error_response(
+        &self,
+        res: Response,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        let response: paypal::PaypalOrderErrorResponse =
+            res.response.parse_struct("Paypal ErrorResponse").switch()?;
+
+        let message = match response.details {
+            Some(mes) => {
+                let mut des = "".to_owned();
+                for item in mes.iter() {
+                    let mut description = format!("description - {}", item.to_owned().description);
+
+                    if item.value.is_some() {
+                        description.push_str(
+                            format!(", value - {}", item.value.to_owned().unwrap_or_default())
+                                .as_str(),
+                        );
+                    }
+
+                    if item.field.is_some() {
+                        let field = item
+                            .field
+                            .clone()
+                            .unwrap_or_default()
+                            .split('/')
+                            .last()
+                            .unwrap_or_default()
+                            .to_owned();
+
+                        description.push_str(format!(", field - {};", field).as_str());
+                    }
+                    des.push_str(description.as_str())
+                }
+                des
+            }
+            None => consts::NO_ERROR_MESSAGE.to_string(),
+        };
+        Ok(ErrorResponse {
+            status_code: res.status_code,
+            code: response.name,
+            message,
+            reason: None,
+        })
+    }
+}
+
 impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Paypal
 where
     Self: ConnectorIntegration<Flow, Request, Response>,
@@ -98,7 +146,7 @@ impl ConnectorCommon for Paypal {
         &self,
         res: Response,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let response: paypal::PaypalErrorResponse =
+        let response: paypal::PaypalPaymentErrorResponse =
             res.response.parse_struct("Paypal ErrorResponse").switch()?;
 
         let message = match response.details {
@@ -304,41 +352,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         &self,
         res: Response,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let response: paypal::PaypalOrderErrorResponse =
-            res.response.parse_struct("Paypal ErrorResponse").switch()?;
-
-        let message = match response.details {
-            Some(mes) => {
-                let mut des = "".to_owned();
-                for item in mes.iter() {
-                    let mut description = format!("description - {}", item.to_owned().description);
-
-                    if item.value.is_some() {
-                        description.push_str(
-                            format!(", value - {}", item.value.to_owned().unwrap_or_default())
-                                .as_str(),
-                        );
-                    }
-
-                    if item.field.is_some() {
-                        let mut field = item.field.clone().unwrap_or_default();
-                        let start_index = field.rfind('/').unwrap_or_default() + 1;
-                        field = field[start_index..].to_owned();
-
-                        description.push_str(format!(", field - {};", field).as_str());
-                    }
-                    des.push_str(description.as_str())
-                }
-                des
-            }
-            None => consts::NO_ERROR_MESSAGE.to_string(),
-        };
-        Ok(ErrorResponse {
-            status_code: res.status_code,
-            code: response.name,
-            message,
-            reason: None,
-        })
+        self.get_order_error_response(res)
     }
 }
 
@@ -418,33 +432,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         &self,
         res: Response,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let response: paypal::PaypalOrderErrorResponse =
-            res.response.parse_struct("Paypal ErrorResponse").switch()?;
-
-        let message = match response.details {
-            Some(mes) => {
-                let mut des = "".to_owned();
-                for item in mes.iter() {
-                    let x = item.clone().description;
-                    if item.value.is_some() {
-                        let val = item.value.clone().unwrap_or_default();
-                        let st = format!("description - {}, value - {} ; ", x, val);
-                        des.push_str(&st);
-                    } else {
-                        let s = format!("description - {} ; ", x);
-                        des.push_str(&s);
-                    }
-                }
-                des
-            }
-            None => consts::NO_ERROR_MESSAGE.to_string(),
-        };
-        Ok(ErrorResponse {
-            status_code: res.status_code,
-            code: response.name,
-            message,
-            reason: None,
-        })
+        self.get_order_error_response(res)
     }
 }
 
