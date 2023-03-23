@@ -68,9 +68,9 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsStartRequest> f
         )?;
 
         payment_attempt = db
-            .find_payment_attempt_by_merchant_id_attempt_id(
-                merchant_id,
+            .find_payment_attempt_by_attempt_id_merchant_id(
                 payment_intent.attempt_id.as_str(),
+                merchant_id,
                 storage_scheme,
             )
             .await
@@ -143,6 +143,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsStartRequest> f
                 refunds: vec![],
                 sessions_token: vec![],
                 card_cvc: None,
+                creds_identifier: None,
             },
             Some(customer_details),
         ))
@@ -239,7 +240,7 @@ where
         _storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsStartRequest>,
-        Option<api::PaymentMethod>,
+        Option<api::PaymentMethodData>,
     )> {
         helpers::make_pm_data(Box::new(self), state, payment_data).await
     }
@@ -249,8 +250,7 @@ where
         _merchant_account: &storage::MerchantAccount,
         state: &AppState,
         _request: &api::PaymentsStartRequest,
-        previously_used_connector: Option<&String>,
-    ) -> CustomResult<api::ConnectorCallType, errors::ApiErrorResponse> {
-        helpers::get_connector_default(state, previously_used_connector).await
+    ) -> CustomResult<api::ConnectorChoice, errors::ApiErrorResponse> {
+        helpers::get_connector_default(state, None).await
     }
 }

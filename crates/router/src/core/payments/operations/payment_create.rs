@@ -23,6 +23,7 @@ use crate::{
         storage::{
             self,
             enums::{self, IntentStatus},
+            PaymentAttemptExt,
         },
         transformers::ForeignInto,
     },
@@ -107,7 +108,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                     payment_method_type,
                     request,
                     browser_info,
-                ),
+                )?,
                 storage_scheme,
             )
             .await
@@ -138,7 +139,8 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             })?;
         connector_response = db
             .insert_connector_response(
-                Self::make_connector_response(&payment_attempt),
+                Self::make_connector_response(&payment_attempt)
+                    .change_context(errors::ApiErrorResponse::InternalServerError)?,
                 storage_scheme,
             )
             .await
@@ -170,6 +172,24 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             self,
         );
 
+        let creds_identifier = request
+            .merchant_connector_details
+            .as_ref()
+            .map(|mcd| mcd.creds_identifier.to_owned());
+        request
+            .merchant_connector_details
+            .to_owned()
+            .async_map(|mcd| async {
+                helpers::insert_merchant_connector_creds_to_config(
+                    db,
+                    merchant_account.merchant_id.as_str(),
+                    mcd,
+                )
+                .await
+            })
+            .await
+            .transpose()?;
+
         Ok((
             operation,
             PaymentData {
@@ -193,6 +213,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 connector_response,
                 sessions_token: vec![],
                 card_cvc: request.card_cvc.clone(),
+                creds_identifier,
             },
             Some(CustomerDetails {
                 customer_id: request.customer_id.clone(),
@@ -239,7 +260,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentCreate {
         _storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsRequest>,
-        Option<api::PaymentMethod>,
+        Option<api::PaymentMethodData>,
     )> {
         helpers::make_pm_data(Box::new(self), state, payment_data).await
     }
@@ -258,10 +279,8 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentCreate {
         _merchant_account: &storage::MerchantAccount,
         state: &AppState,
         request: &api::PaymentsRequest,
-        _previously_used_connector: Option<&String>,
-    ) -> CustomResult<api::ConnectorCallType, errors::ApiErrorResponse> {
-        let request_connector = request.connector.map(|connector| connector.to_string());
-        helpers::get_connector_default(state, request_connector.as_ref()).await
+    ) -> CustomResult<api::ConnectorChoice, errors::ApiErrorResponse> {
+        helpers::get_connector_default(state, request.routing.clone()).await
     }
 }
 
@@ -298,7 +317,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
         let connector = payment_data.payment_attempt.connector.clone();
 
         payment_data.payment_attempt = db
-            .update_payment_attempt(
+            .update_payment_attempt_with_attempt_id(
                 payment_data.payment_attempt,
                 storage::PaymentAttemptUpdate::UpdateTrackers {
                     payment_token,
@@ -380,6 +399,7 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest> for PaymentCreate
             helpers::validate_pm_or_token_given(
                 &request.payment_method,
                 &request.payment_method_data,
+                &request.payment_method_type,
                 &mandate_type,
                 &request.payment_token,
             )?;
@@ -410,21 +430,32 @@ impl PaymentCreate {
         payment_id: &str,
         merchant_id: &str,
         money: (api::Amount, enums::Currency),
-        payment_method: Option<enums::PaymentMethodType>,
+        payment_method: Option<enums::PaymentMethod>,
         request: &api::PaymentsRequest,
         browser_info: Option<serde_json::Value>,
-    ) -> storage::PaymentAttemptNew {
+    ) -> RouterResult<storage::PaymentAttemptNew> {
         let created_at @ modified_at @ last_synced = Some(common_utils::date_time::now());
         let status =
             helpers::payment_attempt_status_fsm(&request.payment_method_data, request.confirm);
         let (amount, currency) = (money.0, Some(money.1));
-        storage::PaymentAttemptNew {
+
+        let additional_pm_data = request
+            .payment_method_data
+            .as_ref()
+            .map(api_models::payments::AdditionalPaymentData::from)
+            .as_ref()
+            .map(Encode::<api_models::payments::AdditionalPaymentData>::encode_to_value)
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to encode additional pm data")?;
+
+        Ok(storage::PaymentAttemptNew {
             payment_id: payment_id.to_string(),
             merchant_id: merchant_id.to_string(),
-            attempt_id: Uuid::new_v4().to_string(),
+            attempt_id: Uuid::new_v4().simple().to_string(),
             status,
-            amount: amount.into(),
             currency,
+            amount: amount.into(),
             payment_method,
             capture_method: request.capture_method.map(ForeignInto::foreign_into),
             capture_on: request.capture_on,
@@ -434,8 +465,11 @@ impl PaymentCreate {
             last_synced,
             authentication_type: request.authentication_type.map(ForeignInto::foreign_into),
             browser_info,
+            payment_experience: request.payment_experience.map(ForeignInto::foreign_into),
+            payment_method_type: request.payment_method_type.map(ForeignInto::foreign_into),
+            payment_method_data: additional_pm_data,
             ..storage::PaymentAttemptNew::default()
-        }
+        })
     }
 
     #[instrument(skip_all)]
@@ -474,12 +508,12 @@ impl PaymentCreate {
             client_secret: Some(client_secret),
             setup_future_usage: request.setup_future_usage.map(ForeignInto::foreign_into),
             off_session: request.off_session,
-            return_url: request.return_url.clone(),
+            return_url: request.return_url.as_ref().map(|a| a.to_string()),
             shipping_address_id,
             billing_address_id,
             statement_descriptor_name: request.statement_descriptor_name.clone(),
             statement_descriptor_suffix: request.statement_descriptor_suffix.clone(),
-            metadata,
+            metadata: metadata.map(masking::Secret::new),
             attempt_id,
             ..storage::PaymentIntentNew::default()
         })
@@ -488,18 +522,18 @@ impl PaymentCreate {
     #[instrument(skip_all)]
     pub fn make_connector_response(
         payment_attempt: &storage::PaymentAttempt,
-    ) -> storage::ConnectorResponseNew {
-        storage::ConnectorResponseNew {
+    ) -> CustomResult<storage::ConnectorResponseNew, errors::ParsingError> {
+        Ok(storage::ConnectorResponseNew {
             payment_id: payment_attempt.payment_id.clone(),
             merchant_id: payment_attempt.merchant_id.clone(),
             attempt_id: payment_attempt.attempt_id.clone(),
             created_at: payment_attempt.created_at,
             modified_at: payment_attempt.modified_at,
-            connector_name: payment_attempt.connector.clone(),
+            connector_name: payment_attempt.get_routed_through_connector()?,
             connector_transaction_id: None,
             authentication_data: None,
             encoded_data: None,
-        }
+        })
     }
 }
 

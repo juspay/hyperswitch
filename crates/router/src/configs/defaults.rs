@@ -20,6 +20,7 @@ impl Default for super::settings::Database {
             port: 5432,
             dbname: String::new(),
             pool_size: 5,
+            connection_timeout: 10,
         }
     }
 }
@@ -39,6 +40,7 @@ impl Default for super::settings::Locker {
             host: "localhost".into(),
             mock_locker: true,
             basilisk_host: "localhost".into(),
+            locker_setup: super::settings::LockerSetup::LegacyLocker,
         }
     }
 }
@@ -116,6 +118,8 @@ impl Default for super::settings::DrainerSettings {
             stream_name: "DRAINER_STREAM".into(),
             num_partitions: 64,
             max_read_count: 100,
+            shutdown_interval: 1000,
+            loop_interval: 500,
         }
     }
 }

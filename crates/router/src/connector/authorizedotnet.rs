@@ -572,27 +572,25 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
 impl api::IncomingWebhook for Authorizedotnet {
     fn get_webhook_object_reference_id(
         &self,
-        _body: &[u8],
-    ) -> CustomResult<String, errors::ConnectorError> {
+        _request: &api::IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
         Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
     }
 
     fn get_webhook_event_type(
         &self,
-        _body: &[u8],
+        _request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api::IncomingWebhookEvent, errors::ConnectorError> {
         Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
     }
 
     fn get_webhook_resource_object(
         &self,
-        _body: &[u8],
+        _request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<serde_json::Value, errors::ConnectorError> {
         Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
     }
 }
-
-impl services::ConnectorRedirectResponse for Authorizedotnet {}
 
 #[inline]
 fn get_error_response(

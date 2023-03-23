@@ -1,7 +1,7 @@
 use std::marker::PhantomData;
 
 use async_trait::async_trait;
-use common_utils::ext_traits::AsyncExt;
+use common_utils::ext_traits::{AsyncExt, Encode};
 use error_stack::ResultExt;
 use router_derive::PaymentOperation;
 use router_env::{instrument, tracing};
@@ -58,6 +58,11 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 error.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
             })?;
 
+        payment_intent.setup_future_usage = request
+            .setup_future_usage
+            .map(ForeignInto::foreign_into)
+            .or(payment_intent.setup_future_usage);
+
         helpers::validate_payment_status_against_not_allowed_statuses(
             &payment_intent.status,
             &[
@@ -90,9 +95,9 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             })?;
 
         payment_attempt = db
-            .find_payment_attempt_by_merchant_id_attempt_id(
-                merchant_id,
+            .find_payment_attempt_by_attempt_id_merchant_id(
                 payment_intent.attempt_id.as_str(),
+                merchant_id,
                 storage_scheme,
             )
             .await
@@ -142,7 +147,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
 
         payment_intent.shipping_address_id = shipping_address.clone().map(|x| x.address_id);
         payment_intent.billing_address_id = billing_address.clone().map(|x| x.address_id);
-        payment_intent.return_url = request.return_url.clone();
+        payment_intent.return_url = request.return_url.as_ref().map(|a| a.to_string());
 
         let token = token.or_else(|| payment_attempt.payment_token.clone());
 
@@ -150,6 +155,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             helpers::validate_pm_or_token_given(
                 &request.payment_method,
                 &request.payment_method_data,
+                &request.payment_method_type,
                 &mandate_type,
                 &token,
             )?;
@@ -202,6 +208,33 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             None => storage_enums::IntentStatus::RequiresPaymentMethod,
         };
 
+        payment_attempt.payment_method_type = request
+            .payment_method_type
+            .map(|pmt| pmt.foreign_into())
+            .or(payment_attempt.payment_method_type);
+
+        payment_attempt.payment_experience = request
+            .payment_experience
+            .map(|experience| experience.foreign_into());
+
+        let creds_identifier = request
+            .merchant_connector_details
+            .as_ref()
+            .map(|mcd| mcd.creds_identifier.to_owned());
+        request
+            .merchant_connector_details
+            .to_owned()
+            .async_map(|mcd| async {
+                helpers::insert_merchant_connector_creds_to_config(
+                    db,
+                    merchant_account.merchant_id.as_str(),
+                    mcd,
+                )
+                .await
+            })
+            .await
+            .transpose()?;
+
         Ok((
             next_operation,
             PaymentData {
@@ -225,6 +258,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 connector_response,
                 sessions_token: vec![],
                 card_cvc: request.card_cvc.clone(),
+                creds_identifier,
             },
             Some(CustomerDetails {
                 customer_id: request.customer_id.clone(),
@@ -271,7 +305,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentUpdate {
         _storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsRequest>,
-        Option<api::PaymentMethod>,
+        Option<api::PaymentMethodData>,
     )> {
         helpers::make_pm_data(Box::new(self), state, payment_data).await
     }
@@ -289,10 +323,9 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentUpdate {
         &'a self,
         _merchant_account: &storage::MerchantAccount,
         state: &AppState,
-        _request: &api::PaymentsRequest,
-        previously_used_connector: Option<&String>,
-    ) -> CustomResult<api::ConnectorCallType, errors::ApiErrorResponse> {
-        helpers::get_connector_default(state, previously_used_connector).await
+        request: &api::PaymentsRequest,
+    ) -> CustomResult<api::ConnectorChoice, errors::ApiErrorResponse> {
+        helpers::get_connector_default(state, request.routing.clone()).await
     }
 }
 
@@ -325,8 +358,20 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
             }
         };
 
+        let additional_pm_data = payment_data
+            .payment_method_data
+            .as_ref()
+            .map(api_models::payments::AdditionalPaymentData::from)
+            .as_ref()
+            .map(Encode::<api_models::payments::AdditionalPaymentData>::encode_to_value)
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to encode additional pm data")?;
+
+        let payment_method_type = payment_data.payment_attempt.payment_method_type.clone();
+        let payment_experience = payment_data.payment_attempt.payment_experience.clone();
         payment_data.payment_attempt = db
-            .update_payment_attempt(
+            .update_payment_attempt_with_attempt_id(
                 payment_data.payment_attempt,
                 storage::PaymentAttemptUpdate::Update {
                     amount: payment_data.amount.into(),
@@ -334,6 +379,10 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
                     status: get_attempt_status(),
                     authentication_type: None,
                     payment_method,
+                    payment_token: payment_data.token.clone(),
+                    payment_method_data: additional_pm_data,
+                    payment_experience,
+                    payment_method_type,
                 },
                 storage_scheme,
             )
@@ -363,6 +412,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
         );
 
         let return_url = payment_data.payment_intent.return_url.clone();
+        let setup_future_usage = payment_data.payment_intent.setup_future_usage;
 
         payment_data.payment_intent = db
             .update_payment_intent(
@@ -370,6 +420,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
                 storage::PaymentIntentUpdate::Update {
                     amount: payment_data.amount.into(),
                     currency: payment_data.currency,
+                    setup_future_usage,
                     status: intent_status,
                     customer_id,
                     shipping_address_id: shipping_address,

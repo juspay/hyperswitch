@@ -1,5 +1,6 @@
 pub mod validator;
 
+use common_utils::ext_traits::AsyncExt;
 use error_stack::{report, IntoReport, ResultExt};
 use router_env::{instrument, tracing};
 
@@ -11,14 +12,14 @@ use crate::{
         utils as core_utils,
     },
     db, logger,
-    routes::AppState,
+    routes::{metrics, AppState},
     scheduler::{process_data, utils as process_tracker_utils, workflows::payment_sync},
     services,
     types::{
         self,
         api::{self, refunds},
-        storage::{self, enums, ProcessTrackerExt},
-        transformers::{Foreign, ForeignInto},
+        storage::{self, enums, PaymentAttemptExt, ProcessTrackerExt},
+        transformers::{ForeignFrom, ForeignInto},
     },
     utils::{self, OptionExt},
 };
@@ -36,26 +37,6 @@ pub async fn refund_create_core(
 
     merchant_id = &merchant_account.merchant_id;
 
-    payment_attempt = db
-        .find_payment_attempt_last_successful_attempt_by_payment_id_merchant_id(
-            &req.payment_id,
-            merchant_id,
-            merchant_account.storage_scheme,
-        )
-        .await
-        .change_context(errors::ApiErrorResponse::SuccessfulPaymentNotFound)?;
-
-    // Amount is not passed in request refer from payment attempt.
-    amount = req.amount.unwrap_or(payment_attempt.amount); // [#298]: Need to that capture amount
-                                                           //[#299]: Can we change the flow based on some workflow idea
-    utils::when(amount <= 0, || {
-        Err(report!(errors::ApiErrorResponse::InvalidDataFormat {
-            field_name: "amount".to_string(),
-            expected_format: "positive integer".to_string()
-        })
-        .attach_printable("amount less than zero"))
-    })?;
-
     payment_intent = db
         .find_payment_intent_by_payment_id_merchant_id(
             &req.payment_id,
@@ -65,6 +46,36 @@ pub async fn refund_create_core(
         .await
         .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
 
+    if payment_intent.status != enums::IntentStatus::Succeeded {
+        return Err(errors::ApiErrorResponse::SuccessfulPaymentNotFound).into_report();
+    }
+
+    // Amount is not passed in request refer from payment attempt.
+    amount = req.amount.unwrap_or(
+        payment_intent
+            .amount_captured
+            .ok_or(errors::ApiErrorResponse::InternalServerError)
+            .into_report()
+            .attach_printable("amount captured is none in a successful payment")?,
+    ); // [#298]: Need to that capture amount
+       //[#299]: Can we change the flow based on some workflow idea
+    utils::when(amount <= 0, || {
+        Err(report!(errors::ApiErrorResponse::InvalidDataFormat {
+            field_name: "amount".to_string(),
+            expected_format: "positive integer".to_string()
+        })
+        .attach_printable("amount less than zero"))
+    })?;
+
+    payment_attempt = db
+        .find_payment_attempt_by_attempt_id_merchant_id(
+            &payment_intent.attempt_id,
+            merchant_id,
+            merchant_account.storage_scheme,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::SuccessfulPaymentNotFound)?;
+
     utils::when(
         payment_intent.status != enums::IntentStatus::Succeeded,
         || {
@@ -73,6 +84,23 @@ pub async fn refund_create_core(
         },
     )?;
 
+    let creds_identifier = req
+        .merchant_connector_details
+        .as_ref()
+        .map(|mcd| mcd.creds_identifier.to_owned());
+    req.merchant_connector_details
+        .to_owned()
+        .async_map(|mcd| async {
+            payments::helpers::insert_merchant_connector_creds_to_config(
+                db,
+                merchant_id.as_str(),
+                mcd,
+            )
+            .await
+        })
+        .await
+        .transpose()?;
+
     validate_and_create_refund(
         state,
         &merchant_account,
@@ -80,6 +108,7 @@ pub async fn refund_create_core(
         &payment_intent,
         amount,
         req,
+        creds_identifier,
     )
     .await
     .map(services::ApplicationResponse::Json)
@@ -92,15 +121,27 @@ pub async fn trigger_refund_to_gateway(
     merchant_account: &storage::merchant_account::MerchantAccount,
     payment_attempt: &storage::PaymentAttempt,
     payment_intent: &storage::PaymentIntent,
+    creds_identifier: Option<String>,
 ) -> RouterResult<storage::Refund> {
-    let connector = payment_attempt
-        .connector
-        .clone()
-        .ok_or(errors::ApiErrorResponse::InternalServerError)?;
-    let connector_id = connector.to_string();
+    let routed_through = payment_attempt
+        .get_routed_through_connector()
+        .change_context(errors::ApiErrorResponse::InternalServerError)?
+        .ok_or(errors::ApiErrorResponse::InternalServerError)
+        .into_report()
+        .attach_printable("Failed to retrieve connector from payment attempt")?;
+
+    metrics::REFUND_COUNT.add(
+        &metrics::CONTEXT,
+        1,
+        &[metrics::request::add_attributes(
+            "connector",
+            routed_through.clone(),
+        )],
+    );
+
     let connector: api::ConnectorData = api::ConnectorData::get_connector_by_name(
         &state.conf.connectors,
-        &connector_id,
+        &routed_through,
         api::GetToken::Connector,
     )
     .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -113,16 +154,17 @@ pub async fn trigger_refund_to_gateway(
         .attach_printable("Transaction in invalid")
     })?;
 
-    validator::validate_for_valid_refunds(payment_attempt)?;
+    validator::validate_for_valid_refunds(payment_attempt, connector.connector_name)?;
 
     let mut router_data = core_utils::construct_refund_router_data(
         state,
-        &connector_id,
+        &routed_through,
         merchant_account,
         (payment_attempt.amount, currency),
         payment_intent,
         payment_attempt,
         refund,
+        creds_identifier,
     )
     .await?;
 
@@ -131,10 +173,11 @@ pub async fn trigger_refund_to_gateway(
 
     logger::debug!(refund_router_data=?router_data);
 
-    match add_access_token_result.access_token_result {
-        Ok(access_token) => router_data.access_token = access_token,
-        Err(connector_error) => router_data.response = Err(connector_error),
-    }
+    access_token::update_router_data_with_access_token_result(
+        &add_access_token_result,
+        &mut router_data,
+        &payments::CallConnectorAction::Trigger,
+    );
 
     let router_data_res = if !(add_access_token_result.connector_supports_access_token
         && router_data.access_token.is_none())
@@ -163,13 +206,25 @@ pub async fn trigger_refund_to_gateway(
             refund_error_message: Some(err.message),
             refund_error_code: Some(err.code),
         },
-        Ok(response) => storage::RefundUpdate::Update {
-            connector_refund_id: response.connector_refund_id,
-            refund_status: response.refund_status,
-            sent_to_gateway: true,
-            refund_error_message: None,
-            refund_arn: "".to_string(),
-        },
+        Ok(response) => {
+            if response.refund_status == storage_models::enums::RefundStatus::Success {
+                metrics::SUCCESSFUL_REFUND.add(
+                    &metrics::CONTEXT,
+                    1,
+                    &[metrics::request::add_attributes(
+                        "connector",
+                        connector.connector_name.to_string(),
+                    )],
+                )
+            }
+            storage::RefundUpdate::Update {
+                connector_refund_id: response.connector_refund_id,
+                refund_status: response.refund_status,
+                sent_to_gateway: true,
+                refund_error_message: None,
+                refund_arn: "".to_string(),
+            }
+        }
     };
 
     let response = state
@@ -192,19 +247,19 @@ pub async fn trigger_refund_to_gateway(
 
 // ********************************************** REFUND SYNC **********************************************
 
-pub async fn refund_response_wrapper<'a, F, Fut, T>(
+pub async fn refund_response_wrapper<'a, F, Fut, T, Req>(
     state: &'a AppState,
     merchant_account: storage::MerchantAccount,
-    refund_id: String,
+    request: Req,
     f: F,
 ) -> RouterResponse<refunds::RefundResponse>
 where
-    F: Fn(&'a AppState, storage::MerchantAccount, String) -> Fut,
+    F: Fn(&'a AppState, storage::MerchantAccount, Req) -> Fut,
     Fut: futures::Future<Output = RouterResult<T>>,
     T: ForeignInto<refunds::RefundResponse>,
 {
     Ok(services::ApplicationResponse::Json(
-        f(state, merchant_account, refund_id).await?.foreign_into(),
+        f(state, merchant_account, request).await?.foreign_into(),
     ))
 }
 
@@ -212,8 +267,9 @@ where
 pub async fn refund_retrieve_core(
     state: &AppState,
     merchant_account: storage::MerchantAccount,
-    refund_id: String,
+    request: refunds::RefundsRetrieveRequest,
 ) -> RouterResult<storage::Refund> {
+    let refund_id = request.refund_id;
     let db = &*state.store;
     let (merchant_id, payment_intent, payment_attempt, refund, response);
 
@@ -248,12 +304,31 @@ pub async fn refund_retrieve_core(
         .await
         .map_err(|error| error.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound))?;
 
+    let creds_identifier = request
+        .merchant_connector_details
+        .as_ref()
+        .map(|mcd| mcd.creds_identifier.to_owned());
+    request
+        .merchant_connector_details
+        .to_owned()
+        .async_map(|mcd| async {
+            payments::helpers::insert_merchant_connector_creds_to_config(
+                db,
+                merchant_id.as_str(),
+                mcd,
+            )
+            .await
+        })
+        .await
+        .transpose()?;
+
     response = sync_refund_with_gateway(
         state,
         &merchant_account,
         &payment_attempt,
         &payment_intent,
         &refund,
+        creds_identifier,
     )
     .await?;
 
@@ -267,6 +342,7 @@ pub async fn sync_refund_with_gateway(
     payment_attempt: &storage::PaymentAttempt,
     payment_intent: &storage::PaymentIntent,
     refund: &storage::Refund,
+    creds_identifier: Option<String>,
 ) -> RouterResult<storage::Refund> {
     let connector_id = refund.connector.to_string();
     let connector: api::ConnectorData = api::ConnectorData::get_connector_by_name(
@@ -287,6 +363,7 @@ pub async fn sync_refund_with_gateway(
         payment_intent,
         payment_attempt,
         refund,
+        creds_identifier,
     )
     .await?;
 
@@ -295,12 +372,11 @@ pub async fn sync_refund_with_gateway(
 
     logger::debug!(refund_retrieve_router_data=?router_data);
 
-    if add_access_token_result.connector_supports_access_token {
-        match add_access_token_result.access_token_result {
-            Ok(access_token) => router_data.access_token = access_token,
-            Err(connector_error) => router_data.response = Err(connector_error),
-        }
-    }
+    access_token::update_router_data_with_access_token_result(
+        &add_access_token_result,
+        &mut router_data,
+        &payments::CallConnectorAction::Trigger,
+    );
 
     let router_data_res = if !(add_access_token_result.connector_supports_access_token
         && router_data.access_token.is_none())
@@ -399,6 +475,7 @@ pub async fn validate_and_create_refund(
     payment_intent: &storage::PaymentIntent,
     refund_amount: i64,
     req: refunds::RefundRequest,
+    creds_identifier: Option<String>,
 ) -> RouterResult<refunds::RefundResponse> {
     let db = &*state.store;
     let (refund_id, all_refunds, currency, refund_create_req, refund);
@@ -478,10 +555,12 @@ pub async fn validate_and_create_refund(
             )
             .change_context(errors::ApiErrorResponse::MaximumRefundCount)?;
 
-            let connector = payment_attempt.connector.clone().ok_or_else(|| {
-                report!(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("connector not populated in payment attempt.")
-            })?;
+            let connector = payment_attempt
+                .get_routed_through_connector()
+                .change_context(errors::ApiErrorResponse::InternalServerError)?
+                .ok_or(errors::ApiErrorResponse::InternalServerError)
+                .into_report()
+                .attach_printable("No connector populated in payment attempt")?;
 
             refund_create_req = storage::RefundNew::default()
                 .set_refund_id(refund_id.to_string())
@@ -491,7 +570,7 @@ pub async fn validate_and_create_refund(
                 .set_merchant_id(merchant_account.merchant_id.clone())
                 .set_connector_transaction_id(connecter_transaction_id.to_string())
                 .set_connector(connector)
-                .set_refund_type(enums::RefundType::RegularRefund)
+                .set_refund_type(req.refund_type.unwrap_or_default().foreign_into())
                 .set_total_amount(payment_attempt.amount)
                 .set_refund_amount(refund_amount)
                 .set_currency(currency)
@@ -517,6 +596,7 @@ pub async fn validate_and_create_refund(
                 merchant_account,
                 payment_attempt,
                 payment_intent,
+                creds_identifier,
             )
             .await?
         }
@@ -560,10 +640,10 @@ pub async fn refund_list(
     ))
 }
 
-impl From<Foreign<storage::Refund>> for Foreign<api::RefundResponse> {
-    fn from(refund: Foreign<storage::Refund>) -> Self {
-        let refund = refund.0;
-        api::RefundResponse {
+impl ForeignFrom<storage::Refund> for api::RefundResponse {
+    fn foreign_from(refund: storage::Refund) -> Self {
+        let refund = refund;
+        Self {
             payment_id: refund.payment_id,
             refund_id: refund.refund_id,
             amount: refund.refund_amount,
@@ -576,7 +656,6 @@ impl From<Foreign<storage::Refund>> for Foreign<api::RefundResponse> {
             created_at: Some(refund.created_at),
             updated_at: Some(refund.updated_at),
         }
-        .into()
     }
 }
 
@@ -590,6 +669,7 @@ pub async fn schedule_refund_execution(
     merchant_account: &storage::merchant_account::MerchantAccount,
     payment_attempt: &storage::PaymentAttempt,
     payment_intent: &storage::PaymentIntent,
+    creds_identifier: Option<String>,
 ) -> RouterResult<storage::Refund> {
     // refunds::RefundResponse> {
     let db = &*state.store;
@@ -623,6 +703,7 @@ pub async fn schedule_refund_execution(
                                 merchant_account,
                                 payment_attempt,
                                 payment_intent,
+                                creds_identifier,
                             )
                             .await
                         }
@@ -678,7 +759,10 @@ pub async fn sync_refund_with_gateway_workflow(
     let response = refund_retrieve_core(
         state,
         merchant_account,
-        refund_core.refund_internal_reference_id,
+        refunds::RefundsRetrieveRequest {
+            refund_id: refund_core.refund_internal_reference_id,
+            merchant_connector_details: None,
+        },
     )
     .await?;
     let terminal_status = vec![
@@ -791,6 +875,7 @@ pub async fn trigger_refund_execute_workflow(
                 &merchant_account,
                 &payment_attempt,
                 &payment_intent,
+                None,
             )
             .await?;
             add_refund_sync_task(db, &updated_refund, "REFUND_WORKFLOW_ROUTER").await?;

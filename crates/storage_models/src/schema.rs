@@ -29,6 +29,23 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
+    api_keys (key_id) {
+        key_id -> Varchar,
+        merchant_id -> Varchar,
+        name -> Varchar,
+        description -> Nullable<Varchar>,
+        hashed_api_key -> Varchar,
+        prefix -> Varchar,
+        created_at -> Timestamp,
+        expires_at -> Nullable<Timestamp>,
+        last_used -> Nullable<Timestamp>,
+    }
+}
+
+diesel::table! {
+    use diesel::sql_types::*;
+    use crate::enums::diesel_exports::*;
+
     configs (key) {
         id -> Int4,
         key -> Varchar,
@@ -145,7 +162,6 @@ diesel::table! {
     merchant_account (id) {
         id -> Int4,
         merchant_id -> Varchar,
-        api_key -> Nullable<Varchar>,
         return_url -> Nullable<Varchar>,
         enable_payment_response_hash -> Bool,
         payment_response_hash_key -> Nullable<Varchar>,
@@ -160,6 +176,7 @@ diesel::table! {
         locker_id -> Nullable<Varchar>,
         metadata -> Nullable<Jsonb>,
         routing_algorithm -> Nullable<Json>,
+        api_key -> Nullable<Varchar>,
     }
 }
 
@@ -174,7 +191,7 @@ diesel::table! {
         connector_account_details -> Json,
         test_mode -> Nullable<Bool>,
         disabled -> Nullable<Bool>,
-        merchant_connector_id -> Int4,
+        merchant_connector_id -> Varchar,
         payment_methods_enabled -> Nullable<Array<Nullable<Json>>>,
         connector_type -> ConnectorType,
         metadata -> Nullable<Jsonb>,
@@ -194,15 +211,13 @@ diesel::table! {
         amount -> Int8,
         currency -> Nullable<Currency>,
         save_to_locker -> Nullable<Bool>,
-        connector -> Nullable<Varchar>,
+        connector -> Nullable<Jsonb>,
         error_message -> Nullable<Text>,
         offer_amount -> Nullable<Int8>,
         surcharge_amount -> Nullable<Int8>,
         tax_amount -> Nullable<Int8>,
         payment_method_id -> Nullable<Varchar>,
-        payment_method -> Nullable<PaymentMethodType>,
-        payment_flow -> Nullable<PaymentFlow>,
-        redirect -> Nullable<Bool>,
+        payment_method -> Nullable<Varchar>,
         connector_transaction_id -> Nullable<Varchar>,
         capture_method -> Nullable<CaptureMethod>,
         capture_on -> Nullable<Timestamp>,
@@ -218,6 +233,9 @@ diesel::table! {
         error_code -> Nullable<Varchar>,
         payment_token -> Nullable<Varchar>,
         connector_metadata -> Nullable<Jsonb>,
+        payment_experience -> Nullable<Varchar>,
+        payment_method_type -> Nullable<Varchar>,
+        payment_method_data -> Nullable<Jsonb>,
     }
 }
 
@@ -273,8 +291,8 @@ diesel::table! {
         direct_debit_token -> Nullable<Varchar>,
         created_at -> Timestamp,
         last_modified -> Timestamp,
-        payment_method -> PaymentMethodType,
-        payment_method_type -> Nullable<PaymentMethodSubType>,
+        payment_method -> Varchar,
+        payment_method_type -> Nullable<Varchar>,
         payment_method_issuer -> Nullable<Varchar>,
         payment_method_issuer_code -> Nullable<PaymentMethodIssuerCode>,
         metadata -> Nullable<Json>,
@@ -348,6 +366,7 @@ diesel::table! {
 
 diesel::allow_tables_to_appear_in_same_query!(
     address,
+    api_keys,
     configs,
     connector_response,
     customers,

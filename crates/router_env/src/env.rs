@@ -37,6 +37,16 @@ pub fn which() -> Env {
     std::env::var(RUN_ENV).map_or_else(|_| default_env, |v| v.parse().unwrap_or(default_env))
 }
 
+/// Three letter (lowercase) prefix corresponding to the current environment.
+/// Either `dev`, `snd` or `prd`.
+pub fn prefix_for_env() -> &'static str {
+    match which() {
+        Env::Development => "dev",
+        Env::Sandbox => "snd",
+        Env::Production => "prd",
+    }
+}
+
 ///
 /// Base path to look for config and logs directories.
 /// Application expects to find `./config/` and `./logs/` relative this directories.
@@ -81,6 +91,7 @@ pub fn workspace_path() -> PathBuf {
 /// - Timestamp of the latest git commit.
 ///
 /// Example: `0.1.0-abcd012-2038-01-19T03:14:08Z`.
+#[cfg(feature = "vergen")]
 #[macro_export]
 macro_rules! version {
     () => {
@@ -107,6 +118,7 @@ macro_rules! version {
 /// Example: `0.1.0-f5f383e-2022-09-04T11:39:37Z-1.63.0-x86_64-unknown-linux-gnu`
 ///
 
+#[cfg(feature = "vergen")]
 #[macro_export]
 macro_rules! build {
     () => {
@@ -131,7 +143,7 @@ macro_rules! build {
 ///
 /// Example: `f5f383ee7e36214d60ce3c6353b57db03ff0ceb1`.
 ///
-
+#[cfg(feature = "vergen")]
 #[macro_export]
 macro_rules! commit {
     () => {

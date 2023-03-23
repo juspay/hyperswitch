@@ -50,7 +50,7 @@ macro_rules! impl_error_type {
 
 #[derive(Debug, thiserror::Error)]
 pub enum StorageError {
-    #[error("DatabaseError: {0}")]
+    #[error("DatabaseError: {0:?}")]
     DatabaseError(error_stack::Report<storage_errors::DatabaseError>),
     #[error("ValueNotFound: {0}")]
     ValueNotFound(String),
@@ -59,6 +59,8 @@ pub enum StorageError {
         entity: &'static str,
         key: Option<String>,
     },
+    #[error("Timed out while trying to connect to the database")]
+    DatabaseConnectionError,
     #[error("KV error")]
     KVError,
     #[error("Serialization failure")]
@@ -69,6 +71,14 @@ pub enum StorageError {
     CustomerRedacted,
     #[error("Deserialization failure")]
     DeserializationFailed,
+    #[error("RedisError: {0:?}")]
+    RedisError(error_stack::Report<RedisError>),
+}
+
+impl From<error_stack::Report<RedisError>> for StorageError {
+    fn from(err: error_stack::Report<RedisError>) -> Self {
+        Self::RedisError(err)
+    }
 }
 
 impl From<error_stack::Report<storage_errors::DatabaseError>> for StorageError {
@@ -143,8 +153,13 @@ impl From<ConfigError> for ApplicationError {
 }
 
 fn error_response<T: Display>(err: &T) -> actix_web::HttpResponse {
+    use actix_web::http::header;
+
+    use crate::consts;
+
     actix_web::HttpResponse::BadRequest()
-        .append_header(("Via", "Juspay_Router"))
+        .append_header((header::STRICT_TRANSPORT_SECURITY, consts::HSTS_HEADER_VALUE))
+        .append_header((header::VIA, "Juspay_Router"))
         .content_type("application/json")
         .body(format!(r#"{{ "error": {{ "message": "{err}" }} }}"#))
 }
@@ -212,6 +227,8 @@ pub enum ConnectorError {
     RequestEncodingFailed,
     #[error("Request encoding failed : {0}")]
     RequestEncodingFailedWithReason(String),
+    #[error("Parsing failed")]
+    ParsingFailed,
     #[error("Failed to deserialize connector response")]
     ResponseDeserializationFailed,
     #[error("Failed to execute a processing step: {0:?}")]
@@ -224,6 +241,8 @@ pub enum ConnectorError {
     FailedToObtainPreferredConnector,
     #[error("An invalid connector name was provided")]
     InvalidConnectorName,
+    #[error("An invalid Wallet was used")]
+    InvalidWallet,
     #[error("Failed to handle connector response")]
     ResponseHandlingFailed,
     #[error("Missing required field: {field_name}")]
@@ -238,6 +257,14 @@ pub enum ConnectorError {
     FailedToObtainCertificateKey,
     #[error("This step has not been implemented for: {0}")]
     NotImplemented(String),
+    #[error("{payment_method} is not supported by {connector}")]
+    NotSupported {
+        payment_method: String,
+        connector: &'static str,
+        payment_experience: String,
+    },
+    #[error("{flow} flow not supported by {connector} connector")]
+    FlowNotSupported { flow: String, connector: String },
     #[error("Missing connector transaction ID")]
     MissingConnectorTransactionID,
     #[error("Missing connector refund ID")]
@@ -258,8 +285,14 @@ pub enum ConnectorError {
     WebhookEventTypeNotFound,
     #[error("Incoming webhook event resource object not found")]
     WebhookResourceObjectNotFound,
+    #[error("Could not respond to the incoming webhook event")]
+    WebhookResponseEncodingFailed,
     #[error("Invalid Date/time format")]
     InvalidDateFormat,
+    #[error("Invalid Data format")]
+    InvalidDataFormat { field_name: &'static str },
+    #[error("Payment Method data / Payment Method Type / Payment Experience Mismatch ")]
+    MismatchedPaymentData,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -280,6 +313,18 @@ pub enum VaultError {
     MissingRequiredField { field_name: &'static str },
     #[error("The card vault returned an unexpected response: {0:?}")]
     UnexpectedResponseError(bytes::Bytes),
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum KmsError {
+    #[error("Failed to base64 decode input data")]
+    Base64DecodingFailed,
+    #[error("Failed to KMS decrypt input data")]
+    DecryptionFailed,
+    #[error("Missing plaintext KMS decryption output")]
+    MissingPlaintextDecryptionOutput,
+    #[error("Failed to UTF-8 decode decryption output")]
+    Utf8DecodingFailed,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -381,6 +426,8 @@ pub enum WebhooksFlowError {
     MerchantWebhookURLNotConfigured,
     #[error("Payments core flow failed")]
     PaymentsCoreFailed,
+    #[error("Refunds core flow failed")]
+    RefundsCoreFailed,
     #[error("Webhook event creation failed")]
     WebhookEventCreationFailed,
     #[error("Unable to fork webhooks flow for outgoing webhooks")]
@@ -389,4 +436,6 @@ pub enum WebhooksFlowError {
     CallToMerchantFailed,
     #[error("Webhook not received by merchant")]
     NotReceivedByMerchant,
+    #[error("Resource not found")]
+    ResourceNotFound,
 }

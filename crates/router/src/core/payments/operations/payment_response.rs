@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use common_utils::fp_utils;
 use error_stack::ResultExt;
 use router_derive;
 
@@ -9,6 +10,7 @@ use crate::{
         payments::PaymentData,
     },
     db::StorageInterface,
+    routes::metrics,
     services::RedirectForm,
     types::{
         self, api,
@@ -21,7 +23,7 @@ use crate::{
 #[derive(Debug, Clone, Copy, router_derive::PaymentOperation)]
 #[operation(
     ops = "post_tracker",
-    flow = "syncdata,authorizedata,canceldata,capturedata,verifydata,sessiondata"
+    flow = "syncdata,authorizedata,canceldata,capturedata,completeauthorizedata,verifydata,sessiondata"
 )]
 pub struct PaymentResponse;
 
@@ -48,8 +50,31 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthorizeData
             .mandate_id
             .or_else(|| router_data.request.mandate_id.clone());
 
-        payment_response_update_tracker(db, payment_id, payment_data, router_data, storage_scheme)
-            .await
+        let router_response = router_data.response.clone();
+        let connector = router_data.connector.clone();
+
+        payment_data = payment_response_update_tracker(
+            db,
+            payment_id,
+            payment_data,
+            router_data,
+            storage_scheme,
+        )
+        .await?;
+
+        router_response.map(|_| ()).or_else(|error_response| {
+            fp_utils::when(!(200..300).contains(&error_response.status_code), || {
+                Err(errors::ApiErrorResponse::ExternalConnectorError {
+                    code: error_response.code,
+                    message: error_response.message,
+                    connector,
+                    status_code: error_response.status_code,
+                    reason: error_response.reason,
+                })
+            })
+        })?;
+
+        Ok(payment_data)
     }
 }
 
@@ -60,13 +85,13 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
         db: &dyn StorageInterface,
         payment_id: &api::PaymentIdType,
         payment_data: PaymentData<F>,
-        response: types::RouterData<F, types::PaymentsSyncData, types::PaymentsResponseData>,
+        router_data: types::RouterData<F, types::PaymentsSyncData, types::PaymentsResponseData>,
         storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<PaymentData<F>>
     where
         F: 'b + Send,
     {
-        payment_response_update_tracker(db, payment_id, payment_data, response, storage_scheme)
+        payment_response_update_tracker(db, payment_id, payment_data, router_data, storage_scheme)
             .await
     }
 }
@@ -79,15 +104,36 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSessionData>
         &'b self,
         db: &dyn StorageInterface,
         payment_id: &api::PaymentIdType,
-        payment_data: PaymentData<F>,
-        response: types::RouterData<F, types::PaymentsSessionData, types::PaymentsResponseData>,
+        mut payment_data: PaymentData<F>,
+        router_data: types::RouterData<F, types::PaymentsSessionData, types::PaymentsResponseData>,
         storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<PaymentData<F>>
     where
         F: 'b + Send,
     {
-        payment_response_update_tracker(db, payment_id, payment_data, response, storage_scheme)
-            .await
+        let router_response = router_data.response.clone();
+        let connector = router_data.connector.clone();
+
+        payment_data = payment_response_update_tracker(
+            db,
+            payment_id,
+            payment_data,
+            router_data,
+            storage_scheme,
+        )
+        .await?;
+
+        router_response.map_err(|error_response| {
+            errors::ApiErrorResponse::ExternalConnectorError {
+                message: error_response.message,
+                code: error_response.code,
+                status_code: error_response.status_code,
+                reason: error_response.reason,
+                connector,
+            }
+        })?;
+
+        Ok(payment_data)
     }
 }
 
@@ -99,15 +145,36 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCaptureData>
         &'b self,
         db: &dyn StorageInterface,
         payment_id: &api::PaymentIdType,
-        payment_data: PaymentData<F>,
-        response: types::RouterData<F, types::PaymentsCaptureData, types::PaymentsResponseData>,
+        mut payment_data: PaymentData<F>,
+        router_data: types::RouterData<F, types::PaymentsCaptureData, types::PaymentsResponseData>,
         storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<PaymentData<F>>
     where
         F: 'b + Send,
     {
-        payment_response_update_tracker(db, payment_id, payment_data, response, storage_scheme)
-            .await
+        let router_response = router_data.response.clone();
+        let connector = router_data.connector.clone();
+
+        payment_data = payment_response_update_tracker(
+            db,
+            payment_id,
+            payment_data,
+            router_data,
+            storage_scheme,
+        )
+        .await?;
+
+        router_response.map_err(|error_response| {
+            errors::ApiErrorResponse::ExternalConnectorError {
+                message: error_response.message,
+                code: error_response.code,
+                status_code: error_response.status_code,
+                reason: error_response.reason,
+                connector,
+            }
+        })?;
+
+        Ok(payment_data)
     }
 }
 
@@ -117,16 +184,37 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCancelData> f
         &'b self,
         db: &dyn StorageInterface,
         payment_id: &api::PaymentIdType,
-        payment_data: PaymentData<F>,
-        response: types::RouterData<F, types::PaymentsCancelData, types::PaymentsResponseData>,
+        mut payment_data: PaymentData<F>,
+        router_data: types::RouterData<F, types::PaymentsCancelData, types::PaymentsResponseData>,
 
         storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<PaymentData<F>>
     where
         F: 'b + Send,
     {
-        payment_response_update_tracker(db, payment_id, payment_data, response, storage_scheme)
-            .await
+        let router_response = router_data.response.clone();
+        let connector = router_data.connector.clone();
+
+        payment_data = payment_response_update_tracker(
+            db,
+            payment_id,
+            payment_data,
+            router_data,
+            storage_scheme,
+        )
+        .await?;
+
+        router_response.map_err(|error_response| {
+            errors::ApiErrorResponse::ExternalConnectorError {
+                message: error_response.message,
+                code: error_response.code,
+                status_code: error_response.status_code,
+                reason: error_response.reason,
+                connector,
+            }
+        })?;
+
+        Ok(payment_data)
     }
 }
 
@@ -149,7 +237,48 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::VerifyRequestData> fo
             // .map(api_models::payments::MandateIds::new)
         });
 
-        payment_response_update_tracker(db, payment_id, payment_data, router_data, storage_scheme)
+        let router_response = router_data.response.clone();
+        let connector = router_data.connector.clone();
+
+        payment_data = payment_response_update_tracker(
+            db,
+            payment_id,
+            payment_data,
+            router_data,
+            storage_scheme,
+        )
+        .await?;
+
+        router_response.map_err(|error_response| {
+            errors::ApiErrorResponse::ExternalConnectorError {
+                message: error_response.message,
+                code: error_response.code,
+                status_code: error_response.status_code,
+                reason: error_response.reason,
+                connector,
+            }
+        })?;
+
+        Ok(payment_data)
+    }
+}
+
+#[async_trait]
+impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData>
+    for PaymentResponse
+{
+    async fn update_tracker<'b>(
+        &'b self,
+        db: &dyn StorageInterface,
+        payment_id: &api::PaymentIdType,
+        payment_data: PaymentData<F>,
+        response: types::RouterData<F, types::CompleteAuthorizeData, types::PaymentsResponseData>,
+        storage_scheme: enums::MerchantStorageScheme,
+    ) -> RouterResult<PaymentData<F>>
+    where
+        F: 'b + Send,
+    {
+        payment_response_update_tracker(db, payment_id, payment_data, response, storage_scheme)
             .await
     }
 }
@@ -161,11 +290,10 @@ async fn payment_response_update_tracker<F: Clone, T>(
     router_data: types::RouterData<F, T, types::PaymentsResponseData>,
     storage_scheme: enums::MerchantStorageScheme,
 ) -> RouterResult<PaymentData<F>> {
-    let connector = router_data.connector.clone();
     let (payment_attempt_update, connector_response_update) = match router_data.response.clone() {
         Err(err) => (
             Some(storage::PaymentAttemptUpdate::ErrorUpdate {
-                connector: Some(router_data.connector.clone()),
+                connector: None,
                 status: storage::enums::AttemptStatus::Failure,
                 error_message: Some(err.message),
                 error_code: Some(err.code),
@@ -178,7 +306,6 @@ async fn payment_response_update_tracker<F: Clone, T>(
             types::PaymentsResponseData::TransactionResponse {
                 resource_id,
                 redirection_data,
-                redirect,
                 connector_metadata,
                 ..
             } => {
@@ -189,7 +316,7 @@ async fn payment_response_update_tracker<F: Clone, T>(
                 };
 
                 let encoded_data = payment_data.connector_response.encoded_data.clone();
-                let connector_name = payment_data.payment_attempt.connector.clone();
+                let connector_name = router_data.connector.clone();
 
                 let authentication_data = redirection_data
                     .map(|data| utils::Encode::<RedirectForm>::encode_to_value(&data))
@@ -197,13 +324,16 @@ async fn payment_response_update_tracker<F: Clone, T>(
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Could not parse the connector response")?;
 
+                if router_data.status == enums::AttemptStatus::Charged {
+                    metrics::SUCCESSFUL_PAYMENT.add(&metrics::CONTEXT, 1, &[]);
+                }
+
                 let payment_attempt_update = storage::PaymentAttemptUpdate::ResponseUpdate {
                     status: router_data.status,
-                    connector: Some(router_data.connector),
+                    connector: None,
                     connector_transaction_id: connector_transaction_id.clone(),
                     authentication_type: None,
                     payment_method_id: Some(router_data.payment_method_id),
-                    redirect: Some(redirect),
                     mandate_id: payment_data
                         .mandate_id
                         .clone()
@@ -215,7 +345,7 @@ async fn payment_response_update_tracker<F: Clone, T>(
                     connector_transaction_id,
                     authentication_data,
                     encoded_data,
-                    connector_name,
+                    connector_name: Some(connector_name),
                 };
 
                 (
@@ -225,12 +355,13 @@ async fn payment_response_update_tracker<F: Clone, T>(
             }
 
             types::PaymentsResponseData::SessionResponse { .. } => (None, None),
+            types::PaymentsResponseData::SessionTokenResponse { .. } => (None, None),
         },
     };
 
     payment_data.payment_attempt = match payment_attempt_update {
         Some(payment_attempt_update) => db
-            .update_payment_attempt(
+            .update_payment_attempt_with_attempt_id(
                 payment_data.payment_attempt,
                 payment_attempt_update,
                 storage_scheme,
@@ -256,14 +387,21 @@ async fn payment_response_update_tracker<F: Clone, T>(
         None => payment_data.connector_response,
     };
 
+    let amount_captured = router_data.amount_captured.or_else(|| {
+        if router_data.status == enums::AttemptStatus::Charged {
+            Some(payment_data.payment_intent.amount)
+        } else {
+            None
+        }
+    });
     let payment_intent_update = match router_data.response {
         Err(_) => storage::PaymentIntentUpdate::PGStatusUpdate {
             status: enums::IntentStatus::Failed,
         },
         Ok(_) => storage::PaymentIntentUpdate::ResponseUpdate {
             status: router_data.status.foreign_into(),
-            return_url: router_data.return_url,
-            amount_captured: router_data.amount_captured,
+            return_url: router_data.return_url.clone(),
+            amount_captured,
         },
     };
 
@@ -275,15 +413,6 @@ async fn payment_response_update_tracker<F: Clone, T>(
         )
         .await
         .map_err(|error| error.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound))?;
-
-    router_data.response.map_err(|error_response| {
-        errors::ApiErrorResponse::ExternalConnectorError {
-            message: error_response.message,
-            code: error_response.code,
-            status_code: error_response.status_code,
-            connector,
-        }
-    })?;
 
     Ok(payment_data)
 }

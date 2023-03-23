@@ -1,5 +1,4 @@
-use common_utils::ext_traits::StringExt;
-use error_stack::{report, ResultExt};
+use error_stack::{report, IntoReport};
 use router_env::{instrument, tracing};
 use time::PrimitiveDateTime;
 
@@ -141,32 +140,40 @@ pub fn validate_refund_list(limit: Option<i64>) -> CustomResult<i64, errors::Api
 
 pub fn validate_for_valid_refunds(
     payment_attempt: &storage_models::payment_attempt::PaymentAttempt,
+    connector: api_models::enums::Connector,
 ) -> RouterResult<()> {
-    let connector: api_models::enums::Connector = payment_attempt
-        .connector
-        .clone()
-        .get_required_value("connector")?
-        .parse_enum("connector")
-        .change_context(errors::ApiErrorResponse::IncorrectConnectorNameGiven)?;
     let payment_method = payment_attempt
         .payment_method
+        .as_ref()
         .get_required_value("payment_method")?;
-    utils::when(
-        matches!(
-            (connector, payment_method),
-            (
-                api_models::enums::Connector::Braintree,
-                storage_models::enums::PaymentMethodType::Paypal
-            ) | (
-                api_models::enums::Connector::Klarna,
-                storage_models::enums::PaymentMethodType::Klarna
+
+    match payment_method {
+        storage_models::enums::PaymentMethod::PayLater
+        | storage_models::enums::PaymentMethod::Wallet => {
+            let payment_method_type = payment_attempt
+                .payment_method_type
+                .clone()
+                .get_required_value("payment_method_type")?;
+
+            utils::when(
+                matches!(
+                    (connector, payment_method_type),
+                    (
+                        api_models::enums::Connector::Braintree,
+                        storage_models::enums::PaymentMethodType::Paypal,
+                    ) | (
+                        api_models::enums::Connector::Klarna,
+                        storage_models::enums::PaymentMethodType::Klarna
+                    )
+                ),
+                || {
+                    Err(errors::ApiErrorResponse::RefundNotPossible {
+                        connector: connector.to_string(),
+                    })
+                },
             )
-        ),
-        || {
-            Err(errors::ApiErrorResponse::RefundNotPossible {
-                connector: connector.to_string(),
-            })
-        },
-    )?;
-    Ok(())
+            .into_report()
+        }
+        _ => Ok(()),
+    }
 }

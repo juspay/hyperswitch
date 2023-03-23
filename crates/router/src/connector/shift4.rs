@@ -10,11 +10,8 @@ use super::utils::RefundsRequestData;
 use crate::{
     configs::settings,
     consts,
-    core::{
-        errors::{self, CustomResult},
-        payments,
-    },
-    headers, logger,
+    core::errors::{self, CustomResult},
+    headers,
     services::{self, ConnectorIntegration},
     types::{
         self,
@@ -176,7 +173,6 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         data: &types::PaymentsSyncRouterData,
         res: types::Response,
     ) -> CustomResult<types::PaymentsSyncRouterData, errors::ConnectorError> {
-        logger::debug!(payment_sync_response=?res);
         let response: shift4::Shift4PaymentsResponse = res
             .response
             .parse_struct("shift4 PaymentsResponse")
@@ -232,7 +228,6 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
             .response
             .parse_struct("Shift4PaymentsResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        logger::debug!(shift4payments_create_response=?response);
         types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -332,7 +327,6 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
             .response
             .parse_struct("Shift4PaymentsResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        logger::debug!(shift4payments_create_response=?response);
         types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -405,7 +399,6 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         data: &types::RefundsRouterData<api::Execute>,
         res: types::Response,
     ) -> CustomResult<types::RefundsRouterData<api::Execute>, errors::ConnectorError> {
-        logger::debug!(target: "router::connector::shift4", response=?res);
         let response: shift4::RefundResponse = res
             .response
             .parse_struct("RefundResponse")
@@ -473,7 +466,6 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         data: &types::RefundSyncRouterData,
         res: types::Response,
     ) -> CustomResult<types::RefundSyncRouterData, errors::ConnectorError> {
-        logger::debug!(target: "router::connector::shift4", response=?res);
         let response: shift4::RefundResponse =
             res.response
                 .parse_struct("shift4 RefundResponse")
@@ -499,20 +491,24 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
 impl api::IncomingWebhook for Shift4 {
     fn get_webhook_object_reference_id(
         &self,
-        body: &[u8],
-    ) -> CustomResult<String, errors::ConnectorError> {
-        let details: shift4::Shift4WebhookObjectId = body
+        request: &api::IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
+        let details: shift4::Shift4WebhookObjectId = request
+            .body
             .parse_struct("Shift4WebhookObjectId")
             .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
 
-        Ok(details.data.id)
+        Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
+            api_models::payments::PaymentIdType::ConnectorTransactionId(details.data.id),
+        ))
     }
 
     fn get_webhook_event_type(
         &self,
-        body: &[u8],
+        request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api::IncomingWebhookEvent, errors::ConnectorError> {
-        let details: shift4::Shift4WebhookObjectEventType = body
+        let details: shift4::Shift4WebhookObjectEventType = request
+            .body
             .parse_struct("Shift4WebhookObjectEventType")
             .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
         Ok(match details.event_type {
@@ -524,20 +520,12 @@ impl api::IncomingWebhook for Shift4 {
 
     fn get_webhook_resource_object(
         &self,
-        body: &[u8],
+        request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<serde_json::Value, errors::ConnectorError> {
-        let details: shift4::Shift4WebhookObjectResource = body
+        let details: shift4::Shift4WebhookObjectResource = request
+            .body
             .parse_struct("Shift4WebhookObjectResource")
             .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
         Ok(details.data)
-    }
-}
-
-impl services::ConnectorRedirectResponse for Shift4 {
-    fn get_flow_type(
-        &self,
-        _query_params: &str,
-    ) -> CustomResult<payments::CallConnectorAction, errors::ConnectorError> {
-        Ok(payments::CallConnectorAction::Trigger)
     }
 }

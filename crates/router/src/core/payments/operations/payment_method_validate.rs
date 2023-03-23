@@ -1,7 +1,7 @@
 use std::marker::PhantomData;
 
 use async_trait::async_trait;
-use common_utils::{date_time, errors::CustomResult};
+use common_utils::{date_time, errors::CustomResult, ext_traits::AsyncExt};
 use error_stack::ResultExt;
 use router_derive::PaymentOperation;
 use router_env::{instrument, tracing};
@@ -74,7 +74,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::VerifyRequest> for Paym
         PaymentData<F>,
         Option<payments::CustomerDetails>,
     )> {
-        let db = &state.store;
+        let db = &*state.store;
 
         let merchant_id = &merchant_account.merchant_id;
         let storage_scheme = merchant_account.storage_scheme;
@@ -124,7 +124,8 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::VerifyRequest> for Paym
 
         connector_response = match db
             .insert_connector_response(
-                PaymentCreate::make_connector_response(&payment_attempt),
+                PaymentCreate::make_connector_response(&payment_attempt)
+                    .change_context(errors::ApiErrorResponse::InternalServerError)?,
                 storage_scheme,
             )
             .await
@@ -134,6 +135,24 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::VerifyRequest> for Paym
                 Err(err.change_context(errors::ApiErrorResponse::VerificationFailed { data: None }))
             }
         }?;
+
+        let creds_identifier = request
+            .merchant_connector_details
+            .as_ref()
+            .map(|mcd| mcd.creds_identifier.to_owned());
+        request
+            .merchant_connector_details
+            .to_owned()
+            .async_map(|mcd| async {
+                helpers::insert_merchant_connector_creds_to_config(
+                    db,
+                    merchant_account.merchant_id.as_str(),
+                    mcd,
+                )
+                .await
+            })
+            .await
+            .transpose()?;
 
         Ok((
             Box::new(self),
@@ -156,6 +175,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::VerifyRequest> for Paym
                 refunds: vec![],
                 sessions_token: vec![],
                 card_cvc: None,
+                creds_identifier,
             },
             Some(payments::CustomerDetails {
                 customer_id: request.customer_id.clone(),
@@ -249,7 +269,7 @@ where
         _storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::VerifyRequest>,
-        Option<api::PaymentMethod>,
+        Option<api::PaymentMethodData>,
     )> {
         helpers::make_pm_data(Box::new(self), state, payment_data).await
     }
@@ -259,9 +279,8 @@ where
         _merchant_account: &storage::MerchantAccount,
         state: &AppState,
         _request: &api::VerifyRequest,
-        previously_used_connector: Option<&String>,
-    ) -> CustomResult<api::ConnectorCallType, errors::ApiErrorResponse> {
-        helpers::get_connector_default(state, previously_used_connector).await
+    ) -> CustomResult<api::ConnectorChoice, errors::ApiErrorResponse> {
+        helpers::get_connector_default(state, None).await
     }
 }
 
@@ -270,7 +289,7 @@ impl PaymentMethodValidate {
     fn make_payment_attempt(
         payment_id: &str,
         merchant_id: &str,
-        payment_method: Option<api_enums::PaymentMethodType>,
+        payment_method: Option<api_enums::PaymentMethod>,
         _request: &api::VerifyRequest,
     ) -> storage::PaymentAttemptNew {
         let created_at @ modified_at @ last_synced = Some(date_time::now());
@@ -279,7 +298,7 @@ impl PaymentMethodValidate {
         storage::PaymentAttemptNew {
             payment_id: payment_id.to_string(),
             merchant_id: merchant_id.to_string(),
-            attempt_id: Uuid::new_v4().to_string(),
+            attempt_id: Uuid::new_v4().simple().to_string(),
             status,
             // Amount & Currency will be zero in this case
             amount: 0,

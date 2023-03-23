@@ -1,3 +1,4 @@
+use common_utils::pii;
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
@@ -17,14 +18,17 @@ pub struct PaymentIntent {
     pub customer_id: Option<String>,
     pub description: Option<String>,
     pub return_url: Option<String>,
-    pub metadata: Option<serde_json::Value>,
+    pub metadata: Option<pii::SecretSerdeValue>,
     pub connector_id: Option<String>,
     pub shipping_address_id: Option<String>,
     pub billing_address_id: Option<String>,
     pub statement_descriptor_name: Option<String>,
     pub statement_descriptor_suffix: Option<String>,
+    #[serde(with = "common_utils::custom_serde::iso8601")]
     pub created_at: PrimitiveDateTime,
+    #[serde(with = "common_utils::custom_serde::iso8601")]
     pub modified_at: PrimitiveDateTime,
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub last_synced: Option<PrimitiveDateTime>,
     pub setup_future_usage: Option<storage_enums::FutureUsage>,
     pub off_session: Option<bool>,
@@ -54,14 +58,17 @@ pub struct PaymentIntentNew {
     pub customer_id: Option<String>,
     pub description: Option<String>,
     pub return_url: Option<String>,
-    pub metadata: Option<serde_json::Value>,
+    pub metadata: Option<pii::SecretSerdeValue>,
     pub connector_id: Option<String>,
     pub shipping_address_id: Option<String>,
     pub billing_address_id: Option<String>,
     pub statement_descriptor_name: Option<String>,
     pub statement_descriptor_suffix: Option<String>,
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub created_at: Option<PrimitiveDateTime>,
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub modified_at: Option<PrimitiveDateTime>,
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub last_synced: Option<PrimitiveDateTime>,
     pub client_secret: Option<String>,
     pub setup_future_usage: Option<storage_enums::FutureUsage>,
@@ -77,7 +84,7 @@ pub enum PaymentIntentUpdate {
         return_url: Option<String>,
     },
     MetadataUpdate {
-        metadata: serde_json::Value,
+        metadata: pii::SecretSerdeValue,
     },
     ReturnUrlUpdate {
         return_url: Option<String>,
@@ -97,6 +104,7 @@ pub enum PaymentIntentUpdate {
     Update {
         amount: i64,
         currency: storage_enums::Currency,
+        setup_future_usage: Option<storage_enums::FutureUsage>,
         status: storage_enums::IntentStatus,
         customer_id: Option<String>,
         shipping_address_id: Option<String>,
@@ -120,12 +128,12 @@ pub struct PaymentIntentUpdateInternal {
     pub return_url: Option<String>,
     pub setup_future_usage: Option<storage_enums::FutureUsage>,
     pub off_session: Option<bool>,
-    pub metadata: Option<serde_json::Value>,
+    pub metadata: Option<pii::SecretSerdeValue>,
     pub client_secret: Option<Option<String>>,
     pub billing_address_id: Option<String>,
     pub shipping_address_id: Option<String>,
     pub modified_at: Option<PrimitiveDateTime>,
-    pub attempt_id: String,
+    pub attempt_id: Option<String>,
 }
 
 impl PaymentIntentUpdate {
@@ -164,6 +172,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
             PaymentIntentUpdate::Update {
                 amount,
                 currency,
+                setup_future_usage,
                 status,
                 customer_id,
                 shipping_address_id,
@@ -173,6 +182,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 amount: Some(amount),
                 currency: Some(currency),
                 status: Some(status),
+                setup_future_usage,
                 customer_id,
                 client_secret: make_client_secret_null_if_success(Some(status)),
                 shipping_address_id,
@@ -238,7 +248,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 ..Default::default()
             },
             PaymentIntentUpdate::PaymentAttemptUpdate { attempt_id } => Self {
-                attempt_id,
+                attempt_id: Some(attempt_id),
                 ..Default::default()
             },
         }

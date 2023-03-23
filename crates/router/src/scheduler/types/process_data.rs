@@ -2,8 +2,7 @@ use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 
-use crate::types::storage::process_tracker::ProcessTracker;
-
+use crate::types::storage::{enums, process_tracker::ProcessTracker};
 #[derive(Debug, Clone)]
 pub struct ProcessData {
     db_name: String,
@@ -32,6 +31,28 @@ impl Default for ConnectorPTMapping {
             custom_merchant_mapping: HashMap::new(),
             default_mapping: RetryMapping {
                 start_after: 60,
+                frequency: vec![300],
+                count: vec![5],
+            },
+            max_retries_count: 5,
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PaymentMethodsPTMapping {
+    pub default_mapping: RetryMapping,
+    pub custom_pm_mapping: HashMap<enums::PaymentMethod, RetryMapping>,
+    pub max_retries_count: i32,
+}
+
+impl Default for PaymentMethodsPTMapping {
+    fn default() -> Self {
+        Self {
+            custom_pm_mapping: HashMap::new(),
+            default_mapping: RetryMapping {
+                start_after: 900,
                 frequency: vec![300],
                 count: vec![5],
             },

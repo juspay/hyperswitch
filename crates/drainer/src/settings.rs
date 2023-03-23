@@ -10,7 +10,7 @@ use serde::Deserialize;
 use crate::errors;
 
 #[derive(clap::Parser, Default)]
-#[command(version = router_env::version!())]
+#[cfg_attr(feature = "vergen", command(version = router_env::version!()))]
 pub struct CmdLineConf {
     /// Config file.
     /// Application will look for "config/config.toml" if this option isn't specified.
@@ -44,6 +44,8 @@ pub struct DrainerSettings {
     pub stream_name: String,
     pub num_partitions: u8,
     pub max_read_count: u64,
+    pub shutdown_interval: u32, // in milliseconds
+    pub loop_interval: u32,     // in milliseconds
 }
 
 impl Default for Database {
@@ -65,6 +67,8 @@ impl Default for DrainerSettings {
             stream_name: "DRAINER_STREAM".into(),
             num_partitions: 64,
             max_read_count: 100,
+            shutdown_interval: 1000, // in milliseconds
+            loop_interval: 500,      // in milliseconds
         }
     }
 }
