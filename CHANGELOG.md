@@ -21,6 +21,7 @@
 
 ## Bug Fixes
 
+*  process delete response from basilisk-v3 as plaintext instead of JWE (#791) (699ca4f)
 * **storage:**  add serialization for primitivedatetime for diesel structs (#764) (f27732a6)
 
 ## Refactors
