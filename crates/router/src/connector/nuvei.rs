@@ -9,7 +9,7 @@ use ::common_utils::{
 use error_stack::{IntoReport, ResultExt};
 use transformers as nuvei;
 
-use super::utils::{self, to_boolean, RouterData};
+use super::utils::{self, to_boolean};
 use crate::{
     configs::settings,
     core::{

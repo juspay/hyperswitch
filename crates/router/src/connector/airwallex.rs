@@ -9,10 +9,7 @@ use transformers as airwallex;
 use super::utils::{AccessTokenRequestInfo, RefundsRequestData};
 use crate::{
     configs::settings,
-    core::{
-        errors::{self, CustomResult},
-        payments,
-    },
+    core::errors::{self, CustomResult},
     db::StorageInterface,
     headers, logger, routes,
     services::{self, ConnectorIntegration},
@@ -284,9 +281,12 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
 {
     async fn execute_pretasks(
         &self,
-        router_data: &mut types::PaymentsAuthorizeRouterData,
-        app_state: &routes::AppState,
+        _router_data: &mut types::PaymentsAuthorizeRouterData,
+        _app_state: &routes::AppState,
     ) -> CustomResult<(), errors::ConnectorError> {
+        /* For Airwallex we don't have session-token flow the implementation needs
+        to be chanegd to init-payment
+
         let integ: Box<
             &(dyn ConnectorIntegration<
                 api::AuthorizeSessionToken,
@@ -308,6 +308,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         )
         .await?;
         router_data.reference_id = resp.reference_id;
+        */
         Ok(())
     }
 
