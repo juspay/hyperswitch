@@ -9,7 +9,8 @@ use transformers as nmi;
 use self::transformers::NmiCaptureRequest;
 use crate::{
     configs::settings,
-    connector::nmi::transformers::{get_refund_status},
+    connector::nmi::transformers::get_refund_status,
+    consts,
     core::{
         errors::{self, CustomResult},
         payments,
@@ -69,7 +70,7 @@ impl ConnectorCommon for Nmi {
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         let response: nmi::StandardResponse = res
             .response
-            .parse_struct("NmiErrorResponse")
+            .parse_struct("Nmi ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         Ok(ErrorResponse {
             message: response.responsetext,

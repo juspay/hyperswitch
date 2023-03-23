@@ -1,6 +1,6 @@
 use common_utils::{errors::CustomResult, pii};
 use error_stack::{IntoReport, ResultExt};
-use masking::{Secret};
+use masking::Secret;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 
@@ -97,14 +97,12 @@ fn select_authorize_payment_method(
                 card, 
                 "".to_string());
             let expiry_date: Secret<String> = Secret::new(secret_value);
-            let transaction_type = match item.request.capture_method {
-                Some(storage_models::enums::CaptureMethod::Automatic) => TransactionType::Sale,
-                Some(storage_models::enums::CaptureMethod::Manual) => TransactionType::Auth,
-                _ => Err(errors::ConnectorError::NotImplemented(
-                    "Capture Method".to_string(),
-                ))?,
-            };
+            let transaction_type = TransactionType::Validate;
             let security_key: NmiAuthType = (&item.connector_auth_type).try_into()?;
+            println!("AMOUNT -----> {}", utils::convert_to_higher_denomination(
+                item.request.amount,
+                item.request.currency,
+            )?);
             Ok(NMIPaymentMethod::Card(NMICard {
                 transaction_type,
                 security_key: security_key.api_key,
