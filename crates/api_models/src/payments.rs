@@ -428,7 +428,7 @@ pub enum PaymentMethodData {
     Wallet(WalletData),
     PayLater(PayLaterData),
     BankRedirect(BankRedirectData),
-    Crypto,
+    Crypto(CryptoData),
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
@@ -467,7 +467,7 @@ impl From<&PaymentMethodData> for AdditionalPaymentData {
             },
             PaymentMethodData::Wallet(_) => Self::Wallet {},
             PaymentMethodData::PayLater(_) => Self::PayLater {},
-            PaymentMethodData::Crypto => Self::Crypto {},
+            PaymentMethodData::Crypto(_) => Self::Crypto {},
         }
     }
 }
@@ -505,6 +505,10 @@ pub enum BankRedirectData {
         preferred_language: String,
     },
 }
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub struct CryptoData {}
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct SofortBilling {
@@ -610,7 +614,7 @@ pub enum PaymentMethodDataResponse {
     PayLater(PayLaterData),
     Paypal,
     BankRedirect(BankRedirectData),
-    Crypto,
+    Crypto(CryptoData),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -1127,7 +1131,7 @@ impl From<PaymentMethodData> for PaymentMethodDataResponse {
             PaymentMethodData::BankRedirect(bank_redirect_data) => {
                 Self::BankRedirect(bank_redirect_data)
             }
-            PaymentMethodData::Crypto => Self::Crypto,
+            PaymentMethodData::Crypto(crpto_data) => Self::Crypto(crpto_data),
         }
     }
 }

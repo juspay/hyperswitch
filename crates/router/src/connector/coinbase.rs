@@ -2,7 +2,6 @@ mod transformers;
 
 use std::fmt::Debug;
 
-use base64::Engine;
 use common_utils::{crypto, errors::ReportSwitchExt, ext_traits::ByteSliceExt};
 use error_stack::{IntoReport, ResultExt};
 use transformers as coinbase;
@@ -11,7 +10,6 @@ use self::coinbase::CoinbaseWebhookDetails;
 use super::utils;
 use crate::{
     configs::settings,
-    consts,
     core::errors::{self, CustomResult},
     db, headers,
     services::{self, ConnectorIntegration},
@@ -492,13 +490,9 @@ impl api::IncomingWebhook for Coinbase {
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let base64_signature =
             utils::get_header_key_value("X-CC-Webhook-Signature", request.headers)?;
-
-        let signature = consts::BASE64_ENGINE
-            .decode(base64_signature.as_bytes())
+        hex::decode(base64_signature)
             .into_report()
-            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
-
-        Ok(signature)
+            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)
     }
 
     fn get_webhook_source_verification_message(
@@ -547,11 +541,10 @@ impl api::IncomingWebhook for Coinbase {
             .parse_struct("CoinbaseWebhookDetails")
             .switch()?;
         match notif.event.event_type {
-            coinbase::WebhookEventType::ChargeConfirmed
-            | coinbase::WebhookEventType::ChargeResolved => {
+            coinbase::WebhookEventType::Confirmed | coinbase::WebhookEventType::Resolved => {
                 Ok(api::IncomingWebhookEvent::PaymentIntentSuccess)
             }
-            coinbase::WebhookEventType::ChargeFailed => {
+            coinbase::WebhookEventType::Failed => {
                 Ok(api::IncomingWebhookEvent::PaymentIntentFailure)
             }
             _ => Err(errors::ConnectorError::WebhookEventTypeNotFound.into()),

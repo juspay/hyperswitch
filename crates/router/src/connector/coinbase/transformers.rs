@@ -22,7 +22,6 @@ pub struct Metadata {
     pub customer_name: String,
 }
 
-//TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
 pub struct CoinbasePaymentsRequest {
     pub name: Secret<String>,
@@ -38,14 +37,9 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for CoinbasePaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(_item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         get_crypto_specific_payment_data(_item)
-        // Err(errors::ConnectorError::NotImplemented(
-        //     "try_from PaymentsAuthorizeRouterData".to_string(),
-        // )
-        // .into())
     }
 }
 
-//TODO: Fill the struct with respective fields
 // Auth Struct
 pub struct CoinbaseAuthType {
     pub(super) api_key: String,
@@ -65,7 +59,6 @@ impl TryFrom<&types::ConnectorAuthType> for CoinbaseAuthType {
     }
 }
 // PaymentsResponse
-//TODO: Append the remaining status flags
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum CoinbasePaymentStatus {
@@ -93,8 +86,9 @@ pub enum CoinbasePaymentStatus {
 impl From<CoinbasePaymentStatus> for enums::AttemptStatus {
     fn from(item: CoinbasePaymentStatus) -> Self {
         match item {
-            CoinbasePaymentStatus::New => Self::Charged,
-            CoinbasePaymentStatus::Pending => Self::Authorizing,
+            CoinbasePaymentStatus::Completed | CoinbasePaymentStatus::Resolved => Self::Charged,
+            CoinbasePaymentStatus::Expired | CoinbasePaymentStatus::Unresolved => Self::Failure,
+            CoinbasePaymentStatus::New => Self::AuthenticationPending,
             _ => Self::Pending,
         }
     }
@@ -107,15 +101,7 @@ pub struct Timeline {
     pub payment: Option<TimelinePayment>,
 }
 
-#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct CoinbasePaymentResponseData {
-    id: String,
-    hosted_url: String,
-    timeline: Vec<Timeline>,
-}
-
-//TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Default, Debug, Serialize, Deserialize)]
 pub struct CoinbasePaymentsResponse {
     // status: CoinbasePaymentStatus,
     // id: String,
@@ -141,11 +127,16 @@ impl<F, T>
             method: services::Method::Get,
             form_fields,
         };
-        // let len = item.response.data.timeline.clone().len();
-        // let my_status = item.response.data.timeline[len - 1].status;
+        let attempt_status = item
+            .response
+            .data
+            .timeline
+            .last()
+            .ok_or_else(|| errors::ConnectorError::ResponseHandlingFailed)?
+            .status
+            .clone();
         Ok(Self {
-            // my_status,
-            status: enums::AttemptStatus::AuthenticationPending,
+            status: enums::AttemptStatus::from(attempt_status),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.data.id),
                 redirection_data: Some(redirection_data),
@@ -157,7 +148,6 @@ impl<F, T>
     }
 }
 
-//TODO: Fill the struct with respective fields
 // REFUND :
 // Type definition for RefundRequest
 #[derive(Default, Debug, Serialize)]
@@ -187,12 +177,10 @@ impl From<RefundStatus> for enums::RefundStatus {
             RefundStatus::Succeeded => Self::Success,
             RefundStatus::Failed => Self::Failure,
             RefundStatus::Processing => Self::Pending,
-            //TODO: Review mapping
         }
     }
 }
 
-//TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct RefundResponse {}
 
@@ -251,8 +239,8 @@ fn get_crypto_specific_payment_data(
     let pricing_type = connector_meta.pricing_type;
     let local_price = get_local_price(item);
     let metadata = get_metadata(item);
-    let redirect_url = item.return_url.as_ref().unwrap().to_string();
-    let cancel_url = item.return_url.as_ref().unwrap().to_string();
+    let redirect_url = item.get_return_url()?;
+    let cancel_url = item.get_return_url()?;
 
     Ok(CoinbasePaymentsRequest {
         name,
@@ -290,7 +278,7 @@ pub struct CoinbaseWebhookDetails {
 pub struct Event {
     pub api_version: String,
     pub created_at: String,
-    pub data: Data,
+    pub data: CoinbasePaymentResponseData,
     pub id: String,
     pub resource: String,
     #[serde(rename = "type")]
@@ -300,19 +288,19 @@ pub struct Event {
 #[derive(Debug, Serialize, Deserialize)]
 pub enum WebhookEventType {
     #[serde(rename = "charge:confirmed")]
-    ChargeConfirmed,
+    Confirmed,
     #[serde(rename = "charge:created")]
-    ChargeCreated,
+    Created,
     #[serde(rename = "charge:pending")]
-    ChargePending,
+    Pending,
     #[serde(rename = "charge:failed")]
-    ChargeFailed,
+    Failed,
     #[serde(rename = "charge:resolved")]
-    ChargeResolved,
+    Resolved,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct Data {
+#[derive(Debug, Default, Serialize, Deserialize)]
+pub struct CoinbasePaymentResponseData {
     pub id: String,
     pub code: String,
     pub name: String,
@@ -324,7 +312,6 @@ pub struct Data {
     pub payments: Vec<PaymentElement>,
     pub resource: String,
     pub timeline: Vec<Timeline>,
-    pub addresses: Addresses,
     pub pwcb_only: bool,
     pub cancel_url: String,
     pub created_at: String,
@@ -332,98 +319,19 @@ pub struct Data {
     pub hosted_url: String,
     pub brand_color: String,
     pub description: String,
-    pub confirmed_at: String,
+    pub confirmed_at: Option<String>,
     pub fees_settled: bool,
     pub pricing_type: String,
     pub redirect_url: String,
     pub support_email: String,
     pub brand_logo_url: String,
-    pub exchange_rates: ExchangeRates,
     pub offchain_eligible: bool,
     pub organization_name: String,
     pub payment_threshold: PaymentThreshold,
-    pub local_exchange_rates: LocalExchangeRates,
     pub coinbase_managed_merchant: bool,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct Addresses {
-    pub dai: String,
-    pub usdc: String,
-    pub pusdc: String,
-    pub pweth: String,
-    pub tether: String,
-    pub apecoin: String,
-    pub bitcoin: String,
-    pub polygon: String,
-    pub dogecoin: String,
-    pub ethereum: String,
-    pub litecoin: String,
-    pub shibainu: String,
-    pub bitcoincash: String,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct ExchangeRates {
-    #[serde(rename = "APE-USD")]
-    pub ape_usd: String,
-    #[serde(rename = "BCH-USD")]
-    pub bch_usd: String,
-    #[serde(rename = "BTC-USD")]
-    pub btc_usd: String,
-    #[serde(rename = "DAI-USD")]
-    pub dai_usd: String,
-    #[serde(rename = "ETH-USD")]
-    pub eth_usd: String,
-    #[serde(rename = "LTC-USD")]
-    pub ltc_usd: String,
-    #[serde(rename = "DOGE-USD")]
-    pub doge_usd: String,
-    #[serde(rename = "SHIB-USD")]
-    pub shib_usd: String,
-    #[serde(rename = "USDC-USD")]
-    pub usdc_usd: String,
-    #[serde(rename = "USDT-USD")]
-    pub usdt_usd: String,
-    #[serde(rename = "PUSDC-USD")]
-    pub pusdc_usd: String,
-    #[serde(rename = "PWETH-USD")]
-    pub pweth_usd: String,
-    #[serde(rename = "PMATIC-USD")]
-    pub pmatic_usd: String,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct LocalExchangeRates {
-    #[serde(rename = "APE-INR")]
-    pub ape_inr: String,
-    #[serde(rename = "BCH-INR")]
-    pub bch_inr: String,
-    #[serde(rename = "BTC-INR")]
-    pub btc_inr: String,
-    #[serde(rename = "DAI-INR")]
-    pub dai_inr: String,
-    #[serde(rename = "ETH-INR")]
-    pub eth_inr: String,
-    #[serde(rename = "LTC-INR")]
-    pub ltc_inr: String,
-    #[serde(rename = "DOGE-INR")]
-    pub doge_inr: String,
-    #[serde(rename = "SHIB-INR")]
-    pub shib_inr: String,
-    #[serde(rename = "USDC-INR")]
-    pub usdc_inr: String,
-    #[serde(rename = "USDT-INR")]
-    pub usdt_inr: String,
-    #[serde(rename = "PUSDC-INR")]
-    pub pusdc_inr: String,
-    #[serde(rename = "PWETH-INR")]
-    pub pweth_inr: String,
-    #[serde(rename = "PMATIC-INR")]
-    pub pmatic_inr: String,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Default, Deserialize)]
 pub struct PaymentThreshold {
     pub overpayment_absolute_threshold: OverpaymentAbsoluteThreshold,
     pub overpayment_relative_threshold: String,
@@ -431,7 +339,7 @@ pub struct PaymentThreshold {
     pub underpayment_relative_threshold: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Default, Deserialize, PartialEq, Eq)]
 pub struct OverpaymentAbsoluteThreshold {
     pub amount: String,
     pub currency: String,
