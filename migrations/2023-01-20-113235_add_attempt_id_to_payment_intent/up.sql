@@ -7,3 +7,5 @@ CREATE UNIQUE INDEX payment_attempt_attempt_id_merchant_id_index ON payment_atte
 
 -- Because payment_attempt table can have rows with same payment_id and merchant_id, this index is dropped.
 DROP index payment_attempt_payment_id_merchant_id_index;
+
+CREATE INDEX payment_attempt_payment_id_merchant_id_index ON payment_attempt (payment_id, merchant_id);

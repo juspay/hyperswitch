@@ -36,8 +36,8 @@ pub trait PaymentAttemptInterface {
 
     async fn find_payment_attempt_by_attempt_id_merchant_id(
         &self,
-        merchant_id: &str,
         attempt_id: &str,
+        merchant_id: &str,
         storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<types::PaymentAttempt, errors::StorageError>;
 }
@@ -155,8 +155,8 @@ mod storage {
 impl PaymentAttemptInterface for MockDb {
     async fn find_payment_attempt_by_attempt_id_merchant_id(
         &self,
-        _merchant_id: &str,
         _attempt_id: &str,
+        _merchant_id: &str,
         _storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<types::PaymentAttempt, errors::StorageError> {
         // [#172]: Implement function for `MockDb`
@@ -542,8 +542,8 @@ mod storage {
 
         async fn find_payment_attempt_by_attempt_id_merchant_id(
             &self,
-            merchant_id: &str,
             attempt_id: &str,
+            merchant_id: &str,
             storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<PaymentAttempt, errors::StorageError> {
             let database_call = || async {

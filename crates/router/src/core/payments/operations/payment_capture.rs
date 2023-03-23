@@ -64,8 +64,8 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentData<F>, api::PaymentsCaptu
 
         payment_attempt = db
             .find_payment_attempt_by_attempt_id_merchant_id(
-                merchant_id,
                 payment_intent.attempt_id.as_str(),
+                merchant_id,
                 storage_scheme,
             )
             .await

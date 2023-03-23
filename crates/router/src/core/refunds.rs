@@ -69,7 +69,7 @@ pub async fn refund_create_core(
 
     payment_attempt = db
         .find_payment_attempt_by_attempt_id_merchant_id(
-            &req.payment_id,
+            &payment_intent.attempt_id,
             merchant_id,
             merchant_account.storage_scheme,
         )
