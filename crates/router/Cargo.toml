@@ -11,7 +11,7 @@ build = "src/build.rs"
 
 [features]
 default = ["kv_store", "stripe", "oltp", "olap", "accounts_cache"]
-kms = ["aws-config", "aws-sdk-kms"]
+kms = ["external_services/kms"]
 basilisk = ["kms"]
 stripe = ["dep:serde_qs"]
 sandbox = ["kms", "stripe", "basilisk"]
@@ -31,8 +31,6 @@ actix-rt = "2.8.0"
 actix-web = "4.3.1"
 async-bb8-diesel = { git = "https://github.com/juspay/async-bb8-diesel", rev = "9a71d142726dbc33f41c1fd935ddaa79841c7be5" }
 async-trait = "0.1.66"
-aws-config = { version = "0.54.1", optional = true }
-aws-sdk-kms = { version = "0.24.0", optional = true }
 base64 = "0.21.0"
 bb8 = "0.8"
 blake3 = "1.3.3"
@@ -83,6 +81,7 @@ uuid = { version = "1.3.0", features = ["serde", "v4"] }
 # First party crates
 api_models = { version = "0.1.0", path = "../api_models" }
 common_utils = { version = "0.1.0", path = "../common_utils" }
+external_services = { version = "0.1.0", path = "../external_services" }
 masking = { version = "0.1.0", path = "../masking" }
 redis_interface = { version = "0.1.0", path = "../redis_interface" }
 router_derive = { version = "0.1.0", path = "../router_derive" }

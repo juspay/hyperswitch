@@ -1,10 +1,10 @@
 use common_utils::ext_traits::StringExt;
 use error_stack::ResultExt;
+#[cfg(feature = "kms")]
+use external_services::kms;
 use josekit::jwe;
 use serde::{Deserialize, Serialize};
 
-#[cfg(feature = "kms")]
-use crate::services::kms;
 use crate::{
     configs::settings,
     core::errors::{self, CustomResult},
@@ -149,7 +149,7 @@ pub fn get_dotted_jws(jws: encryption::JwsBody) -> String {
 pub async fn get_decrypted_response_payload(
     jwekey: &settings::Jwekey,
     jwe_body: encryption::JweBody,
-    #[cfg(feature = "kms")] kms_config: &settings::Kms,
+    #[cfg(feature = "kms")] kms_config: &kms::KmsConfig,
 ) -> CustomResult<String, errors::VaultError> {
     #[cfg(feature = "kms")]
     let public_key = kms::get_kms_client(kms_config)
@@ -192,7 +192,7 @@ pub async fn get_decrypted_response_payload(
 pub async fn mk_basilisk_req(
     jwekey: &settings::Jwekey,
     jws: &str,
-    #[cfg(feature = "kms")] kms_config: &settings::Kms,
+    #[cfg(feature = "kms")] kms_config: &kms::KmsConfig,
 ) -> CustomResult<encryption::JweBody, errors::VaultError> {
     let jws_payload: Vec<&str> = jws.split('.').collect();
 
@@ -247,7 +247,7 @@ pub async fn mk_add_card_request_hs(
     card: &api::CardDetail,
     customer_id: &str,
     merchant_id: &str,
-    #[cfg(feature = "kms")] kms_config: &settings::Kms,
+    #[cfg(feature = "kms")] kms_config: &kms::KmsConfig,
 ) -> CustomResult<services::Request, errors::VaultError> {
     let merchant_customer_id = if cfg!(feature = "sandbox") {
         format!("{customer_id}::{merchant_id}")
@@ -409,7 +409,7 @@ pub async fn mk_get_card_request_hs(
     customer_id: &str,
     merchant_id: &str,
     card_reference: &str,
-    #[cfg(feature = "kms")] kms_config: &settings::Kms,
+    #[cfg(feature = "kms")] kms_config: &kms::KmsConfig,
 ) -> CustomResult<services::Request, errors::VaultError> {
     let merchant_customer_id = if cfg!(feature = "sandbox") {
         format!("{customer_id}::{merchant_id}")
@@ -501,7 +501,7 @@ pub async fn mk_delete_card_request_hs(
     customer_id: &str,
     merchant_id: &str,
     card_reference: &str,
-    #[cfg(feature = "kms")] kms_config: &settings::Kms,
+    #[cfg(feature = "kms")] kms_config: &kms::KmsConfig,
 ) -> CustomResult<services::Request, errors::VaultError> {
     let merchant_customer_id = if cfg!(feature = "sandbox") {
         format!("{customer_id}::{merchant_id}")
