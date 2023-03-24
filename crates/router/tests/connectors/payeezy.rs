@@ -129,7 +129,7 @@ async fn should_capture_authorized_payment() {
         utils::get_connector_transaction_id(response.response.clone()).unwrap_or_default();
     let connector_meta = utils::get_connector_meta(response.response);
     let capture_data = types::PaymentsCaptureData {
-        connector_meta: connector_meta,
+        connector_meta,
         ..utils::PaymentCaptureType::default().0
     };
     let capture_response = PayeezyTest {}
@@ -151,7 +151,7 @@ async fn should_partially_capture_authorized_payment() {
         utils::get_connector_transaction_id(response.response.clone()).unwrap_or_default();
     let connector_meta = utils::get_connector_meta(response.response);
     let capture_data = types::PaymentsCaptureData {
-        connector_meta: connector_meta,
+        connector_meta,
         amount_to_capture: Some(50),
         ..utils::PaymentCaptureType::default().0
     };
@@ -208,7 +208,7 @@ async fn should_void_authorized_payment() {
         .void_payment(
             connector_payment_id,
             Some(types::PaymentsCancelData {
-                connector_meta: connector_meta,
+                connector_meta,
                 amount: Some(100),
                 currency: Some(storage_models::enums::Currency::USD),
                 ..utils::PaymentCancelType::default().0
@@ -677,7 +677,7 @@ async fn should_fail_void_payment_for_auto_capture() {
             Some(types::PaymentsCancelData {
                 connector_transaction_id: String::from(""),
                 cancellation_reason: Some("requested_by_customer".to_string()),
-                connector_meta: connector_meta,
+                connector_meta,
                 ..Default::default()
             }),
             PayeezyTest::get_payment_info(),
@@ -701,7 +701,7 @@ async fn should_fail_capture_for_invalid_payment() {
     let connector_payment_id = "123455678".to_string();
     let connector_meta = utils::get_connector_meta(response.response);
     let capture_data = types::PaymentsCaptureData {
-        connector_meta: connector_meta,
+        connector_meta,
         amount_to_capture: Some(50),
         ..utils::PaymentCaptureType::default().0
     };
