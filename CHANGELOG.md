@@ -1,3 +1,35 @@
+# 0.5.1 (2023-03-21)
+
+## Documentation Changes
+
+* **try_local_system:**
+  *  add Ubuntu on WSL2 setup instructions (#767) (1d2166cf)
+  *  add API key creation step (#765) (4b268068)
+
+## New Features
+
+* **pm_list:**  handle client secret check (#759) (82344fc4)
+*  add in-memory cache support for config table (#751) (abedaae4)
+*  compile time optimization (#775) (5b5557b7)
+* **router:**
+  *  add support for stateful straight through routing (#752) (568bf01a)
+  *  adding metrics for tracking behavior throughout the `router` crate  (#768) (d302b286)
+* **router_env:**
+  *  making metric flow as a trait for extensibility (#797) (df699e2b)
+* **core:**  accept gateway credentials in the request body in payments and refunds (#766) (cb188f92)
+* **connector:**
+  *  Add support to provide connector_payment_meta for capture and void request (#770) (6c008ae6)
+  *  [Trustpay] add webhooks (payment and refund events) (#746) (853dfa16)
+
+## Bug Fixes
+
+*  process delete response from basilisk-v3 as plaintext instead of JWE (#791) (699ca4f)
+* **storage:**  add serialization for primitivedatetime for diesel structs (#764) (f27732a6)
+
+## Refactors
+
+*  get connection pool based on olap/oltp features (#743) (a392fb16)
+
 # 0.5.0 (2023-03-21)
 
 ## Build System / Dependencies

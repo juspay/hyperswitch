@@ -10,18 +10,18 @@ license = "Apache-2.0"
 build = "src/build.rs"
 
 [features]
-default = ["kv_store", "stripe", "oltp", "olap","accounts_cache"]
+default = ["kv_store", "stripe", "oltp", "olap", "accounts_cache"]
 kms = ["aws-config", "aws-sdk-kms"]
 basilisk = ["kms"]
 stripe = ["dep:serde_qs"]
 sandbox = ["kms", "stripe", "basilisk"]
+production = ["kms", "stripe", "basilisk"]
 olap = []
 oltp = []
-production = []
 kv_store = []
 accounts_cache = []
 openapi = ["olap", "oltp"]
-vergen = [ "router_env/vergen" ]
+vergen = ["router_env/vergen"]
 
 
 [dependencies]
@@ -55,7 +55,7 @@ literally = "0.1.3"
 maud = { version = "0.24", features = ["actix-web"] }
 mimalloc = { version = "0.1", optional = true }
 mime = "0.3.16"
-moka = {version = "0.10", features = ["future"] }
+moka = { version = "0.10", features = ["future"] }
 nanoid = "0.4.0"
 num_cpus = "1.15.0"
 once_cell = "1.17.1"
@@ -90,7 +90,7 @@ router_env = { version = "0.1.0", path = "../router_env", features = ["log_extra
 storage_models = { version = "0.1.0", path = "../storage_models", features = ["kv_store"] }
 
 [build-dependencies]
-router_env = { version = "0.1.0", path = "../router_env", default-features = false } 
+router_env = { version = "0.1.0", path = "../router_env", default-features = false }
 
 [dev-dependencies]
 actix-http = "3.3.1"
