@@ -510,6 +510,7 @@ impl ForeignTryFrom<storage::Dispute> for api_models::disputes::DisputeResponse 
         Ok(Self {
             dispute_id: dispute.dispute_id,
             payment_id: dispute.payment_id,
+            attempt_id: dispute.attempt_id,
             amount: dispute.amount,
             currency: dispute.currency,
             dispute_stage: dispute.dispute_stage.foreign_into(),

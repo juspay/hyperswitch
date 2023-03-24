@@ -219,7 +219,7 @@ fn get_card_request_data(
         cvv: ccard.card_cvc.clone(),
         expiry_date: ccard.get_card_expiry_month_year_2_digit_with_delimiter("/".to_owned()),
         cardholder: ccard.card_holder_name.clone(),
-        reference: item.payment_id.clone(),
+        reference: item.attempt_id.clone(),
         redirect_url: return_url,
         billing_city: params.billing_city,
         billing_country: params.billing_country,
@@ -260,7 +260,7 @@ fn get_bank_redirection_request_data(
                 currency: item.request.currency.to_string(),
             },
             references: References {
-                merchant_reference: item.payment_id.clone(),
+                merchant_reference: item.attempt_id.clone(),
             },
         },
         callback_urls: CallbackURLs {

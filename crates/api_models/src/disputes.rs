@@ -20,6 +20,7 @@ pub struct DisputePayload {
 pub struct DisputeResponse {
     pub dispute_id: String,
     pub payment_id: String,
+    pub attempt_id: String,
     pub amount: String,
     pub currency: String,
     pub dispute_stage: DisputeStage,

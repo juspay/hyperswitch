@@ -1,5 +1,7 @@
 use std::marker::PhantomData;
 
+use api_models::enums::{DisputeStage, DisputeStatus};
+use common_utils::errors::CustomResult;
 use error_stack::ResultExt;
 use router_env::{instrument, tracing};
 
@@ -146,4 +148,50 @@ mod tests {
         let generated_id = generate_id(consts::ID_LENGTH, "ref");
         assert_eq!(generated_id.len(), consts::ID_LENGTH + 4)
     }
+}
+
+pub fn validate_dispute_stage_and_dispute_status(
+    prev_dispute_stage: DisputeStage,
+    prev_dispute_status: DisputeStatus,
+    dispute_stage: DisputeStage,
+    dispute_status: DisputeStatus,
+) -> CustomResult<(), crate::errors::WebhooksFlowError> {
+    let dispute_stage_validation = match prev_dispute_stage {
+        DisputeStage::PreDispute => true,
+        DisputeStage::Dispute => !matches!(dispute_stage, DisputeStage::PreDispute),
+        DisputeStage::PreArbitration => matches!(dispute_stage, DisputeStage::PreArbitration),
+    };
+    let dispute_status_validation = if dispute_stage == prev_dispute_stage {
+        match prev_dispute_status {
+            DisputeStatus::DisputeOpened => true,
+            DisputeStatus::DisputeExpired => {
+                matches!(dispute_status, DisputeStatus::DisputeExpired)
+            }
+            DisputeStatus::DisputeAccepted => {
+                matches!(dispute_status, DisputeStatus::DisputeAccepted)
+            }
+            DisputeStatus::DisputeCancelled => {
+                matches!(dispute_status, DisputeStatus::DisputeCancelled)
+            }
+            DisputeStatus::DisputeChallenged => matches!(
+                dispute_status,
+                DisputeStatus::DisputeChallenged
+                    | DisputeStatus::DisputeWon
+                    | DisputeStatus::DisputeLost
+            ),
+            DisputeStatus::DisputeWon => matches!(dispute_status, DisputeStatus::DisputeWon),
+            DisputeStatus::DisputeLost => matches!(dispute_status, DisputeStatus::DisputeLost),
+        }
+    } else {
+        true
+    };
+    if !(dispute_stage_validation && dispute_status_validation) {
+        super::metrics::INCOMING_DISPUTE_WEBHOOK_VALIDATION_FAILURE_METRIC.add(
+            &super::metrics::CONTEXT,
+            1,
+            &[],
+        );
+        Err(crate::errors::WebhooksFlowError::DisputeWebhookValidationFailed)?
+    }
+    Ok(())
 }

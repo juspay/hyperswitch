@@ -101,6 +101,7 @@ diesel::table! {
         dispute_stage -> DisputeStage,
         dispute_status -> DisputeStatus,
         payment_id -> Varchar,
+        attempt_id -> Varchar,
         merchant_id -> Varchar,
         connector_status -> Varchar,
         connector_dispute_id -> Varchar,

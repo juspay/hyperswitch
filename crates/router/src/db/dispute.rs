@@ -14,9 +14,9 @@ pub trait DisputeInterface {
         dispute: storage::DisputeNew,
     ) -> CustomResult<storage::Dispute, errors::StorageError>;
 
-    async fn find_by_payment_id_connector_dispute_id(
+    async fn find_by_attempt_id_connector_dispute_id(
         &self,
-        payment_id: &str,
+        attempt_id: &str,
         connector_dispute_id: &str,
     ) -> CustomResult<Option<storage::Dispute>, errors::StorageError>;
 
@@ -41,15 +41,15 @@ impl DisputeInterface for Store {
             .into_report()
     }
 
-    async fn find_by_payment_id_connector_dispute_id(
+    async fn find_by_attempt_id_connector_dispute_id(
         &self,
-        payment_id: &str,
+        attempt_id: &str,
         connector_dispute_id: &str,
     ) -> CustomResult<Option<storage::Dispute>, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
-        storage::Dispute::find_by_payment_id_connector_dispute_id(
+        storage::Dispute::find_by_attempt_id_connector_dispute_id(
             &conn,
-            payment_id,
+            attempt_id,
             connector_dispute_id,
         )
         .await
@@ -79,9 +79,9 @@ impl DisputeInterface for MockDb {
         // TODO: Implement function for `MockDb`
         Err(errors::StorageError::MockDbError)?
     }
-    async fn find_by_payment_id_connector_dispute_id(
+    async fn find_by_attempt_id_connector_dispute_id(
         &self,
-        _payment_id: &str,
+        _attempt_id: &str,
         _connector_dispute_id: &str,
     ) -> CustomResult<Option<storage::Dispute>, errors::StorageError> {
         // TODO: Implement function for `MockDb`

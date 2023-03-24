@@ -18,15 +18,15 @@ impl DisputeNew {
 
 impl Dispute {
     #[instrument(skip(conn))]
-    pub async fn find_by_payment_id_connector_dispute_id(
+    pub async fn find_by_attempt_id_connector_dispute_id(
         conn: &PgPooledConn,
-        payment_id: &str,
+        attempt_id: &str,
         connector_dispute_id: &str,
     ) -> StorageResult<Option<Self>> {
         generics::generic_find_one_optional::<<Self as HasTable>::Table, _, _>(
             conn,
-            dsl::payment_id
-                .eq(payment_id.to_owned())
+            dsl::attempt_id
+                .eq(attempt_id.to_owned())
                 .and(dsl::connector_dispute_id.eq(connector_dispute_id.to_owned())),
         )
         .await

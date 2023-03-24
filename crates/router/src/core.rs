@@ -4,6 +4,7 @@ pub mod configs;
 pub mod customers;
 pub mod errors;
 pub mod mandate;
+pub mod metrics;
 pub mod payment_methods;
 pub mod payments;
 pub mod refunds;
