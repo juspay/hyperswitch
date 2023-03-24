@@ -126,7 +126,8 @@ mod tests {
 
     #[test]
     fn validate_id_length_constraint() {
-        let payment_id = "abcdefghijlkmnopqrstuvwzyzabcdefghijknlmnop".to_string(); //length = 43
+        let payment_id =
+            "abcdefghijlkmnopqrstuvwzyzabcdefghijknlmnopsjkdnfjsknfkjsdnfspoig".to_string(); //length = 65
 
         let result = validate_id(payment_id, "payment_id");
         assert!(result.is_err());
@@ -134,7 +135,7 @@ mod tests {
 
     #[test]
     fn validate_id_proper_response() {
-        let payment_id = "abcdefghijlkmnopqrst".to_string();
+        let payment_id = "abcdefghijlkmnopqrstjhbjhjhkhbhgcxdfxvmhb".to_string();
 
         let result = validate_id(payment_id.clone(), "payment_id");
         assert!(result.is_ok());
