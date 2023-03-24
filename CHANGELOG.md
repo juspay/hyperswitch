@@ -1,3 +1,21 @@
+# 0.5.2 (2023-03-24)
+
+## Chores
+
+*  prepare for building production Docker images (#794) (6ddc30eb)
+
+## Bug Fixes
+
+* **connector:**  [Airwallex] Change Session Token to Init Payment (#798) (a3c00339)
+
+## Other Changes
+
+* **router:**  change MAX_ID_LENGTH to 64 (#792) (346bd954)
+
+## Refactors
+
+*  extract kms module to `external_services` crate (#793) (029e3894)
+
 # 0.5.1 (2023-03-21)
 
 ## Documentation Changes
