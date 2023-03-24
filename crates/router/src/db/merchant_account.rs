@@ -75,7 +75,7 @@ impl MerchantAccountInterface for Store {
 
         #[cfg(feature = "accounts_cache")]
         {
-            super::cache::get_or_populate_cache(self, merchant_id, fetch_func).await
+            super::cache::get_or_populate_redis(self, merchant_id, fetch_func).await
         }
     }
 
@@ -100,7 +100,7 @@ impl MerchantAccountInterface for Store {
 
         #[cfg(feature = "accounts_cache")]
         {
-            super::cache::redact_cache(self, &_merchant_id, update_func).await
+            super::cache::redact_cache(self, &_merchant_id, update_func, None).await
         }
     }
 
@@ -128,7 +128,7 @@ impl MerchantAccountInterface for Store {
 
         #[cfg(feature = "accounts_cache")]
         {
-            super::cache::redact_cache(self, merchant_id, update_func).await
+            super::cache::redact_cache(self, merchant_id, update_func, None).await
         }
     }
 
@@ -162,7 +162,7 @@ impl MerchantAccountInterface for Store {
 
         #[cfg(feature = "accounts_cache")]
         {
-            super::cache::redact_cache(self, merchant_id, delete_func).await
+            super::cache::redact_cache(self, merchant_id, delete_func, None).await
         }
     }
 }

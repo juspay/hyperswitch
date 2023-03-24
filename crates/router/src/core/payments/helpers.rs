@@ -1,9 +1,13 @@
 use std::borrow::Cow;
 
-use common_utils::{ext_traits::AsyncExt, fp_utils};
+use base64::Engine;
+use common_utils::{
+    ext_traits::{AsyncExt, ByteSliceExt},
+    fp_utils,
+};
 // TODO : Evaluate all the helper functions ()
 use error_stack::{report, IntoReport, ResultExt};
-use masking::ExposeOptionInterface;
+use masking::{ExposeOptionInterface, PeekInterface};
 use router_env::{instrument, tracing};
 use storage_models::enums;
 use uuid::Uuid;
@@ -20,11 +24,11 @@ use crate::{
         payment_methods::{cards, vault},
     },
     db::StorageInterface,
-    routes::AppState,
-    scheduler::{metrics, workflows::payment_sync},
+    routes::{metrics, AppState},
+    scheduler::{metrics as scheduler_metrics, workflows::payment_sync},
     services,
     types::{
-        api::{self, enums as api_enums, CustomerAcceptanceExt, MandateValidationFieldsExt},
+        api::{self, admin, enums as api_enums, CustomerAcceptanceExt, MandateValidationFieldsExt},
         storage::{self, enums as storage_enums, ephemeral_key},
         transformers::ForeignInto,
     },
@@ -345,12 +349,14 @@ pub fn create_startpay_url(
 pub fn create_redirect_url(
     server: &Server,
     payment_attempt: &storage::PaymentAttempt,
-    connector_name: &String,
+    connector_name: &str,
+    creds_identifier: Option<&str>,
 ) -> String {
+    let creds_identifier_path = creds_identifier.map_or_else(String::new, |cd| format!("/{}", cd));
     format!(
         "{}/payments/{}/{}/response/{}",
-        server.base_url, payment_attempt.payment_id, payment_attempt.merchant_id, connector_name
-    )
+        server.base_url, payment_attempt.payment_id, payment_attempt.merchant_id, connector_name,
+    ) + &creds_identifier_path
 }
 pub fn create_complete_authorize_url(
     server: &Server,
@@ -465,9 +471,14 @@ where
     Op: std::fmt::Debug,
 {
     if check_if_operation_confirm(operation) {
-        let connector_name = payment_attempt
+        let routed_through: storage::RoutedThroughData = payment_attempt
             .connector
             .clone()
+            .parse_value("RoutedThroughData")
+            .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
+        let connector_name = routed_through
+            .routed_through
             .ok_or(errors::ApiErrorResponse::InternalServerError)?;
 
         let schedule_time = payment_sync::get_sync_process_schedule_time(
@@ -483,7 +494,7 @@ where
 
         match schedule_time {
             Some(stime) => {
-                metrics::TASKS_ADDED_COUNT.add(&metrics::CONTEXT, 1, &[]); // Metrics
+                scheduler_metrics::TASKS_ADDED_COUNT.add(&metrics::CONTEXT, 1, &[]); // Metrics
                 super::add_process_sync_task(&*state.store, payment_attempt, stime)
                     .await
                     .into_report()
@@ -618,20 +629,13 @@ pub async fn get_customer_from_details<F: Clone>(
 }
 
 pub async fn get_connector_default(
-    state: &AppState,
-    request_connector: Option<&String>,
-) -> CustomResult<api::ConnectorCallType, errors::ApiErrorResponse> {
-    let connectors = &state.conf.connectors;
-    if let Some(connector_name) = request_connector {
-        let connector_data = api::ConnectorData::get_connector_by_name(
-            connectors,
-            connector_name,
-            api::GetToken::Connector,
-        )?;
-        Ok(api::ConnectorCallType::Single(connector_data))
-    } else {
-        Ok(api::ConnectorCallType::Routing)
-    }
+    _state: &AppState,
+    request_connector: Option<serde_json::Value>,
+) -> CustomResult<api::ConnectorChoice, errors::ApiErrorResponse> {
+    Ok(request_connector.map_or(
+        api::ConnectorChoice::Decide,
+        api::ConnectorChoice::StraightThrough,
+    ))
 }
 
 #[instrument(skip_all)]
@@ -663,6 +667,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R>(
                         ..storage::CustomerNew::default()
                     };
 
+                    metrics::CUSTOMER_CREATED.add(&metrics::CONTEXT, 1, &[]);
                     db.insert_customer(new_customer).await
                 }
             })
@@ -1174,9 +1179,11 @@ pub(crate) fn authenticate_client_secret(
     payment_intent_client_secret: Option<&String>,
 ) -> Result<(), errors::ApiErrorResponse> {
     match (request_client_secret, payment_intent_client_secret) {
-        (Some(req_cs), Some(pi_cs)) => utils::when(req_cs.ne(pi_cs), || {
+        (Some(req_cs), Some(pi_cs)) if req_cs != pi_cs => {
             Err(errors::ApiErrorResponse::ClientSecretInvalid)
-        }),
+        }
+        // If there is no client in payment intent, then it has expired
+        (Some(_), None) => Err(errors::ApiErrorResponse::ClientSecretExpired),
         _ => Ok(()),
     }
 }
@@ -1259,5 +1266,98 @@ mod tests {
         let req_cs = Some("1".to_string());
         let pi_cs = Some("2".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), pi_cs.as_ref()).is_err())
+    }
+}
+
+// This function will be removed after moving this functionality to server_wrap and using cache instead of config
+pub async fn insert_merchant_connector_creds_to_config(
+    db: &dyn StorageInterface,
+    merchant_id: &str,
+    merchant_connector_details: admin::MerchantConnectorDetailsWrap,
+) -> RouterResult<()> {
+    if let Some(encoded_data) = merchant_connector_details.encoded_data {
+        match db
+            .insert_config(storage::ConfigNew {
+                key: format!(
+                    "mcd_{merchant_id}_{}",
+                    merchant_connector_details.creds_identifier
+                ),
+                config: encoded_data.peek().to_owned(),
+            })
+            .await
+        {
+            Ok(_) => Ok(()),
+            Err(err) => {
+                if err.current_context().is_db_unique_violation() {
+                    Ok(())
+                } else {
+                    Err(err
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Failed to insert connector_creds to config"))
+                }
+            }
+        }
+    } else {
+        Ok(())
+    }
+}
+
+pub enum MerchantConnectorAccountType {
+    DbVal(storage::MerchantConnectorAccount),
+    CacheVal(api_models::admin::MerchantConnectorDetails),
+}
+
+impl MerchantConnectorAccountType {
+    pub fn get_metadata(&self) -> Option<masking::Secret<serde_json::Value>> {
+        match self {
+            Self::DbVal(val) => val.metadata.to_owned(),
+            Self::CacheVal(val) => val.metadata.to_owned(),
+        }
+    }
+    pub fn get_connector_account_details(&self) -> serde_json::Value {
+        match self {
+            Self::DbVal(val) => val.connector_account_details.to_owned(),
+            Self::CacheVal(val) => val.connector_account_details.peek().to_owned(),
+        }
+    }
+}
+
+pub async fn get_merchant_connector_account(
+    db: &dyn StorageInterface,
+    merchant_id: &str,
+    connector_id: &str,
+    creds_identifier: Option<String>,
+) -> RouterResult<MerchantConnectorAccountType> {
+    match creds_identifier {
+        Some(creds_identifier) => {
+            let mca_config = db
+                .find_config_by_key(format!("mcd_{merchant_id}_{creds_identifier}").as_str())
+                .await
+                .map_err(|error| {
+                    error.to_not_found_response(
+                        errors::ApiErrorResponse::MerchantConnectorAccountNotFound,
+                    )
+                })?;
+
+            let cached_mca = consts::BASE64_ENGINE
+            .decode(mca_config.config.as_bytes())
+            .into_report()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable(
+                "Failed to decode merchant_connector_details sent in request and then put in cache",
+            )?
+            .parse_struct("MerchantConnectorDetails")
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable(
+                "Failed to parse merchant_connector_details sent in request and then put in cache",
+            )?;
+
+            Ok(MerchantConnectorAccountType::CacheVal(cached_mca))
+        }
+        None => db
+            .find_merchant_connector_account_by_merchant_id_connector(merchant_id, connector_id)
+            .await
+            .map(MerchantConnectorAccountType::DbVal)
+            .change_context(errors::ApiErrorResponse::MerchantConnectorAccountNotFound),
     }
 }

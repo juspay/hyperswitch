@@ -124,8 +124,13 @@ pub struct ConnectorData {
     pub get_token: GetToken,
 }
 
+pub enum ConnectorChoice {
+    SessionMultiple(Vec<ConnectorData>),
+    StraightThrough(serde_json::Value),
+    Decide,
+}
+
 pub enum ConnectorCallType {
-    Routing,
     Multiple(Vec<ConnectorData>),
     Single(ConnectorData),
 }

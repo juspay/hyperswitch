@@ -25,7 +25,8 @@ use std::sync::{atomic, Arc};
 
 use common_utils::errors::CustomResult;
 use error_stack::{IntoReport, ResultExt};
-use fred::interfaces::{ClientLike, PubsubInterface};
+use fred::interfaces::ClientLike;
+pub use fred::interfaces::PubsubInterface;
 use futures::StreamExt;
 use router_env::logger;
 
@@ -35,8 +36,8 @@ pub struct RedisConnectionPool {
     pub pool: fred::pool::RedisPool,
     config: RedisConfig,
     join_handles: Vec<fred::types::ConnectHandle>,
-    subscriber: RedisClient,
-    publisher: RedisClient,
+    pub subscriber: RedisClient,
+    pub publisher: RedisClient,
     pub is_redis_available: Arc<atomic::AtomicBool>,
 }
 
@@ -150,44 +151,6 @@ impl RedisConnectionPool {
                 futures::future::ready(())
             })
             .await;
-    }
-}
-
-#[async_trait::async_trait]
-pub trait PubSubInterface {
-    async fn subscribe(&self, channel: &str) -> CustomResult<usize, errors::RedisError>;
-    async fn publish(&self, channel: &str, key: &str) -> CustomResult<usize, errors::RedisError>;
-    async fn on_message(&self) -> CustomResult<(), errors::RedisError>;
-}
-
-#[async_trait::async_trait]
-impl PubSubInterface for RedisConnectionPool {
-    #[inline]
-    async fn subscribe(&self, channel: &str) -> CustomResult<usize, errors::RedisError> {
-        self.subscriber
-            .subscribe(channel)
-            .await
-            .into_report()
-            .change_context(errors::RedisError::SubscribeError)
-    }
-    #[inline]
-    async fn publish(&self, channel: &str, key: &str) -> CustomResult<usize, errors::RedisError> {
-        self.publisher
-            .publish(channel, key)
-            .await
-            .into_report()
-            .change_context(errors::RedisError::SubscribeError)
-    }
-    #[inline]
-    async fn on_message(&self) -> CustomResult<(), errors::RedisError> {
-        let mut message = self.subscriber.on_message();
-        while let Some((_, key)) = message.next().await {
-            let key = key
-                .as_string()
-                .ok_or::<errors::RedisError>(errors::RedisError::DeleteFailed)?;
-            self.delete_key(&key).await?;
-        }
-        Ok(())
     }
 }
 
