@@ -6,6 +6,8 @@ use std::{
 
 use common_utils::ext_traits::ConfigExt;
 use config::{Environment, File};
+#[cfg(feature = "kms")]
+use external_services::kms;
 use redis_interface::RedisSettings;
 pub use router_env::config::{Log, LogConsole, LogFile, LogTelemetry};
 use serde::{Deserialize, Deserializer};
@@ -59,7 +61,7 @@ pub struct Settings {
     pub bank_config: BankRedirectConfig,
     pub api_keys: ApiKeys,
     #[cfg(feature = "kms")]
-    pub kms: Kms,
+    pub kms: kms::KmsConfig,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -337,14 +339,6 @@ pub struct ApiKeys {
     pub hash_key: String,
 }
 
-#[cfg(feature = "kms")]
-#[derive(Debug, Deserialize, Clone, Default)]
-#[serde(default)]
-pub struct Kms {
-    pub key_id: String,
-    pub region: String,
-}
-
 impl Settings {
     pub fn new() -> ApplicationResult<Self> {
         Self::with_config_path(None)
@@ -420,7 +414,9 @@ impl Settings {
         self.drainer.validate()?;
         self.api_keys.validate()?;
         #[cfg(feature = "kms")]
-        self.kms.validate()?;
+        self.kms
+            .validate()
+            .map_err(|error| ApplicationError::InvalidConfigurationValueError(error.into()))?;
 
         Ok(())
     }
