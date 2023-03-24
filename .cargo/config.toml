@@ -21,3 +21,6 @@ rustflags = [
 
 [alias]
 gen-pg = "generate --path ../../../../connector-template -n"
+
+[registries.crates-io]
+protocol = 'sparse'

@@ -5,6 +5,9 @@ pub mod encryption;
 pub mod kms;
 pub mod logger;
 
+#[cfg(feature = "profiling")]
+pub mod profiler;
+
 use std::sync::{atomic, Arc};
 
 use error_stack::{IntoReport, ResultExt};

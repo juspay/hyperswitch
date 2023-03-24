@@ -9,6 +9,25 @@ async fn main() -> ApplicationResult<()> {
     // get commandline config before initializing config
     let cmd_line = <CmdLineConf as clap::Parser>::parse();
 
+    println!("setting up profiling");
+    #[cfg(feature = "profiling")]
+    {
+        use config::ConfigError;
+        use router::services::profiler;
+
+        profiler::PROFILER_GUARD.get_or_try_init(|| {
+            pprof::ProfilerGuardBuilder::default()
+                .frequency(10000)
+                .blocklist(&["libc", "libgcc", "pthread", "vdso"])
+                .build()
+                .map_err(|_| {
+                    ApplicationError::ConfigurationError(ConfigError::Message(
+                        "Profiler error".into(),
+                    ))
+                })
+        })?;
+    }
+    println!("setting up profiling .. complete");
     #[cfg(feature = "openapi")]
     {
         use router::configs::settings::Subcommand;

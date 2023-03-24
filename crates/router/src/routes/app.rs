@@ -64,9 +64,17 @@ pub struct Health;
 
 impl Health {
     pub fn server(state: AppState) -> Scope {
-        web::scope("")
+        #[cfg(not(feature = "profiling"))]
+        let scope = web::scope("")
+            .app_data(web::Data::new(state))
+            .service(web::resource("/health").route(web::get().to(health)));
+        #[cfg(feature = "profiling")]
+        let scope = web::scope("")
             .app_data(web::Data::new(state))
             .service(web::resource("/health").route(web::get().to(health)))
+            .service(web::resource("/profiling").route(web::get().to(profiler_out)));
+
+        scope
     }
 }
 
