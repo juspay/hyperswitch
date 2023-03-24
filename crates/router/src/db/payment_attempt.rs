@@ -223,6 +223,7 @@ impl PaymentAttemptInterface for MockDb {
         Ok(payment_attempt)
     }
 
+    // safety: only used for testing
     #[allow(clippy::unwrap_used)]
     async fn update_payment_attempt_with_attempt_id(
         &self,
