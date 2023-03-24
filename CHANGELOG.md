@@ -1,3 +1,71 @@
+# 0.5.0 (2023-03-21)
+
+## Build System / Dependencies
+
+* **deps:**  update deps (#734) (16bc886c)
+
+## Chores
+
+* **merchant_account:**  remove `api_key` field (#713) (230fcdd4)
+* **config:**  move connector base URLs under the `[connectors]` table (#723) (df8c8b5a)
+*  address Rust 1.68 clippy lints (#728) (1ffabb40)
+
+## Continuous Integration
+
+* **release:**  specify `fetch-depth` for code checkout and use official Docker GitHub actions (#722) (c451368f)
+
+## Documentation Changes
+
+*  Update naming conventions and added examples (#709) (98415193)
+* **openapi:**  document path parameters for API keys endpoints (#702) (9062dc80)
+
+## New Features
+
+* **connector:**
+  *  [Mollie]: add authorize, void, refund, psync, rsync support for mollie connector (#740) (168fa32)
+  *  [worldline] add webhook support for connector (#721) (13a8ce8e)
+  *  [Trustpay] add authorize (cards 3ds, no3ds and bank redirects), refund, psync, rsync (#717) (e102cae7)
+  *  [Fiserv] add Refunds, Cancel and Wallets flow along with Unit Tests (#593) (cd1c5409)
+  *  Add support for complete authorize payment after 3DS redirection (#741) (ec2b1b18)
+*  removing unnecessary logs from console (#753) (1021d1ae)
+*  Time based deletion of temp card (#729) (db3d3164)
+*  populate fields from payment attempt in payment list (#736) (b5b3d57c)
+*  add generic in-memory cache interface (#737) (7f5e5d86)
+*  Add HSTS headers to response (#725) (7ed665ec)
+*  cache reverse lookup fetches on redis (#719) (1a27faca)
+* **compatibility:**  add webhook support for stripe compatibility (#710) (79160504)
+
+## Bug Fixes
+
+* **docker-compose:**  remove port for hyperswitch-server-init in docker-compose.yml (#763) (20b93276)
+*  fixing docker compose setup & adding redisinsight (#748) (5c9bec9f)
+* **kms:**  log KMS SDK errors using the `Debug` impl (#720) (468aa87f)
+* **errors:**
+  *  Replace PaymentMethod with PaymentModethodData in test.rs (#716) (763ee094)
+  *  use `Debug` impl instead of `Display` for error types wrapping `error_stack::Report` (#714) (45484752)
+
+## Other Changes
+
+*  card_fingerprint not sent by basilisk_hs (#754) (5ae2f63f)
+
+## Refactors
+
+* **merchant_account:**  add back `api_key` field for backward compatibility (#761) (661dd48a)
+* **connector:**  update add_connector script (#762) (78794ed6)
+* **metrics:**  use macros for constructing counter and histogram metrics (#755) (58106d91)
+* **kms:**  share a KMS client for all KMS operations (#744) (a3ff2e8d)
+*  Basilisk hs integration (#704) (585618e5)
+*  Add service_name to get and delete request (#738) (8b7ae9c3)
+*  Add secret to metadata (#706) (d36afbed)
+* **client:**
+  *  simplify HTTP client construction (#731) (1756d1c4)
+  *  remove dependence on `ROUTER_HTTP_PROXY` and `ROUTER_HTTPS_PROXY` env vars (#730) (c085e460)
+* **authentication:**  authenticate merchant by API keys from API keys table (#712) (afd08d42)
+* **api_keys:**  use a KMS encrypted API key hashing key and remove key ID prefix from plaintext API keys (#639) (3a3b33ac)
+
+## Tests
+
+* **masking:**  add suitable feature gates for basic tests (#745) (4859b6e4)
 # 0.3.0 (2023-03-05)
 
 ## Chores

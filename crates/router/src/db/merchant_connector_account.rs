@@ -175,7 +175,7 @@ impl MerchantConnectorAccountInterface for Store {
 
         #[cfg(feature = "accounts_cache")]
         {
-            super::cache::get_or_populate_cache(self, merchant_connector_id, find_call).await
+            super::cache::get_or_populate_redis(self, merchant_connector_id, find_call).await
         }
     }
 
@@ -215,7 +215,7 @@ impl MerchantConnectorAccountInterface for Store {
 
         #[cfg(feature = "accounts_cache")]
         {
-            super::cache::redact_cache(self, &_merchant_connector_id, update_call).await
+            super::cache::redact_cache(self, &_merchant_connector_id, update_call, None).await
         }
 
         #[cfg(not(feature = "accounts_cache"))]

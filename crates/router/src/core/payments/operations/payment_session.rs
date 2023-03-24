@@ -294,8 +294,7 @@ where
         merchant_account: &storage::MerchantAccount,
         state: &AppState,
         request: &api::PaymentsSessionRequest,
-        _previously_used_connector: Option<&String>,
-    ) -> RouterResult<api::ConnectorCallType> {
+    ) -> RouterResult<api::ConnectorChoice> {
         let connectors = &state.conf.connectors;
         let db = &state.store;
 
@@ -435,6 +434,6 @@ where
             connectors_data
         };
 
-        Ok(api::ConnectorCallType::Multiple(connectors_data))
+        Ok(api::ConnectorChoice::SessionMultiple(connectors_data))
     }
 }
