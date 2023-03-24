@@ -45,10 +45,10 @@ ARG RUN_ENV=sandbox
 
 # args for deciding the executable to export. three binaries:
 # 1. BINARY=router - for main application
-# 2. BINARY=scheduler, SCHEDULER_FLOW=Consumer - part of process tracker
-# 3. BINARY=scheduler, SCHEDULER_FLOW=Producer - part of process tracker
+# 2. BINARY=scheduler, SCHEDULER_FLOW=consumer - part of process tracker
+# 3. BINARY=scheduler, SCHEDULER_FLOW=producer - part of process tracker
 ARG BINARY=router
-ARG SCHEDULER_FLOW=Consumer
+ARG SCHEDULER_FLOW=consumer
 
 RUN apt-get update \
     && apt-get install -y ca-certificates tzdata libpq-dev curl procps

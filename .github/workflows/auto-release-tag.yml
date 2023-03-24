@@ -34,7 +34,7 @@ jobs:
         with:
           build-args: |
             BINARY=scheduler
-            SCHEDULER_FLOW=Consumer
+            SCHEDULER_FLOW=consumer
           context: .
           push: true
           tags: juspaydotin/orca-consumer:${{ github.ref_name }}
@@ -44,7 +44,7 @@ jobs:
         with:
           build-args: |
             BINARY=scheduler
-            SCHEDULER_FLOW=Producer
+            SCHEDULER_FLOW=producer
           context: .
           push: true
           tags: juspaydotin/orca-producer:${{ github.ref_name }}
