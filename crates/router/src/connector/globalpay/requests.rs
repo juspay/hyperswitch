@@ -191,14 +191,14 @@ pub struct Order {
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
-pub enum PaymentMethodType {
+pub enum PaymentMethodData {
     Card(Card),
     Apm(Apm),
     BankTransfer(BankTransfer),
     DigitalWallet(DigitalWallet),
 }
 
-impl Default for PaymentMethodType {
+impl Default for PaymentMethodData {
     fn default() -> Self {
         Self::Card(Card::default())
     }
@@ -207,7 +207,7 @@ impl Default for PaymentMethodType {
 #[derive(Debug, Serialize, Default, Deserialize)]
 pub struct PaymentMethod {
     #[serde(flatten)]
-    pub payment_method_type: PaymentMethodType,
+    pub payment_method_data: PaymentMethodData,
     pub authentication: Option<Authentication>,
     pub encryption: Option<Encryption>,
     /// Indicates how the payment method information was obtained by the Merchant for this

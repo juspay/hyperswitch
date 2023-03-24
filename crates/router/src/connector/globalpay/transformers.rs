@@ -8,7 +8,7 @@ use super::{
     response::{GlobalpayPaymentStatus, GlobalpayPaymentsResponse, GlobalpayRefreshTokenResponse},
 };
 use crate::{
-    connector::utils::{self, PaymentsAuthorizeRequestData, RouterData},
+    connector::utils::{self, RouterData, WalletData},
     consts,
     core::errors,
     services::{self},
@@ -26,9 +26,9 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for GlobalpayPaymentsRequest {
         let metadata: GlobalPayMeta =
             utils::to_connector_meta_from_secret(item.connector_meta_data.clone())?;
         let account_name = metadata.account_name;
-        let payment_method_type = match item.request.payment_method_data.clone() {
+        let payment_method_data = match item.request.payment_method_data.clone() {
             api::PaymentMethodData::Card(ccard) => {
-                requests::PaymentMethodType::Card(requests::Card {
+                requests::PaymentMethodData::Card(requests::Card {
                     number: ccard.card_number,
                     expiry_month: ccard.card_exp_month,
                     expiry_year: ccard.card_exp_year,
@@ -48,14 +48,14 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for GlobalpayPaymentsRequest {
             }
             api::PaymentMethodData::Wallet(wallet_data) => match wallet_data {
                 api_models::payments::WalletData::PaypalRedirect(_) => {
-                    requests::PaymentMethodType::Apm(requests::Apm {
+                    requests::PaymentMethodData::Apm(requests::Apm {
                         provider: Some(requests::ApmProvider::Paypal),
                     })
                 }
                 api_models::payments::WalletData::GooglePay(_) => {
-                    requests::PaymentMethodType::DigitalWallet(requests::DigitalWallet {
+                    requests::PaymentMethodData::DigitalWallet(requests::DigitalWallet {
                         provider: Some(requests::DigitalWalletProvider::PayByGoogle),
-                        payment_token: item.request.get_wallet_token_as_json()?,
+                        payment_token: wallet_data.get_wallet_token_as_json()?,
                     })
                 }
                 _ => Err(errors::ConnectorError::NotImplemented(
@@ -74,7 +74,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for GlobalpayPaymentsRequest {
             country: item.get_billing_country()?,
             capture_mode: Some(requests::CaptureMode::from(item.request.capture_method)),
             payment_method: requests::PaymentMethod {
-                payment_method_type,
+                payment_method_data,
                 authentication: None,
                 encryption: None,
                 entry_mode: Default::default(),

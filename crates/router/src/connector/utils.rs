@@ -142,10 +142,6 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
 
 pub trait PaymentsAuthorizeRequestData {
     fn is_auto_capture(&self) -> bool;
-    fn get_wallet_token(&self) -> Result<String, Error>;
-    fn get_wallet_token_as_json<T>(&self) -> Result<T, Error>
-    where
-        T: serde::de::DeserializeOwned;
     fn get_email(&self) -> Result<Secret<String, Email>, Error>;
     fn get_browser_info(&self) -> Result<types::BrowserInformation, Error>;
     fn get_card(&self) -> Result<api::Card, Error>;
@@ -154,25 +150,6 @@ pub trait PaymentsAuthorizeRequestData {
 impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
     fn is_auto_capture(&self) -> bool {
         self.capture_method == Some(storage_models::enums::CaptureMethod::Automatic)
-    }
-    fn get_wallet_token(&self) -> Result<String, Error> {
-        match self.payment_method_data.clone() {
-            api_models::payments::PaymentMethodData::Wallet(wallet_data) => match wallet_data {
-                api_models::payments::WalletData::GooglePay(data) => {
-                    Ok(data.tokenization_data.token)
-                }
-                _ => Err(missing_field_err("google_pay")()),
-            },
-            _ => Err(missing_field_err("wallet")()),
-        }
-    }
-    fn get_wallet_token_as_json<T>(&self) -> Result<T, Error>
-    where
-        T: serde::de::DeserializeOwned,
-    {
-        serde_json::from_str::<T>(&self.get_wallet_token()?)
-            .into_report()
-            .change_context(errors::ConnectorError::InvalidWalletToken)
     }
     fn get_email(&self) -> Result<Secret<String, Email>, Error> {
         self.email.clone().ok_or_else(missing_field_err("email"))
@@ -312,6 +289,32 @@ fn get_card_issuer(card_number: &str) -> Result<CardIssuer, Error> {
         errors::ConnectorError::NotImplemented("Card Type".into()),
     ))
 }
+pub trait WalletData {
+    fn get_wallet_token(&self) -> Result<String, Error>;
+    fn get_wallet_token_as_json<T>(&self) -> Result<T, Error>
+    where
+        T: serde::de::DeserializeOwned;
+}
+
+impl WalletData for api::WalletData {
+    fn get_wallet_token(&self) -> Result<String, Error> {
+        match self {
+            Self::GooglePay(data) => Ok(data.tokenization_data.token.clone()),
+            Self::ApplePay(data) => Ok(data.payment_data.clone()),
+            Self::PaypalSdk(data) => Ok(data.token.clone()),
+            _ => Err(errors::ConnectorError::InvalidWallet.into()),
+        }
+    }
+    fn get_wallet_token_as_json<T>(&self) -> Result<T, Error>
+    where
+        T: serde::de::DeserializeOwned,
+    {
+        serde_json::from_str::<T>(&self.get_wallet_token()?)
+            .into_report()
+            .change_context(errors::ConnectorError::InvalidWalletToken)
+    }
+}
+
 pub trait PhoneDetailsData {
     fn get_number(&self) -> Result<Secret<String>, Error>;
     fn get_country_code(&self) -> Result<String, Error>;
