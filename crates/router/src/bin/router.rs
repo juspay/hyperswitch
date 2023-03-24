@@ -17,7 +17,7 @@ async fn main() -> ApplicationResult<()> {
 
         profiler::PROFILER_GUARD.get_or_try_init(|| {
             pprof::ProfilerGuardBuilder::default()
-                .frequency(10000)
+                .frequency(10)
                 .blocklist(&["libc", "libgcc", "pthread", "vdso"])
                 .build()
                 .map_err(|_| {

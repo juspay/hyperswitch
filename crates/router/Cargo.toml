@@ -22,7 +22,7 @@ kv_store = []
 accounts_cache = []
 openapi = ["olap", "oltp"]
 vergen = [ "router_env/vergen" ]
-profiling = ["dep:pprof"]
+profiling = ["default", "dep:pprof"]
 
 
 [dependencies]
