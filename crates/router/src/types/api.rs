@@ -181,6 +181,7 @@ impl ConnectorData {
             "klarna" => Ok(Box::new(&connector::Klarna)),
             "mollie" => Ok(Box::new(&connector::Mollie)),
             "nuvei" => Ok(Box::new(&connector::Nuvei)),
+            "payeezy" => Ok(Box::new(&connector::Payeezy)),
             "payu" => Ok(Box::new(&connector::Payu)),
             "rapyd" => Ok(Box::new(&connector::Rapyd)),
             "shift4" => Ok(Box::new(&connector::Shift4)),

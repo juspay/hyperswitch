@@ -579,3 +579,19 @@ pub fn get_connector_transaction_id(
         Err(_) => None,
     }
 }
+
+pub fn get_connector_meta(
+    response: Result<types::PaymentsResponseData, types::ErrorResponse>,
+) -> Option<serde_json::Value> {
+    match response {
+        Ok(types::PaymentsResponseData::TransactionResponse {
+            resource_id: _,
+            redirection_data: _,
+            mandate_reference: _,
+            connector_metadata,
+        }) => connector_metadata,
+        Ok(types::PaymentsResponseData::SessionResponse { .. }) => None,
+        Ok(types::PaymentsResponseData::SessionTokenResponse { .. }) => None,
+        Err(_) => None,
+    }
+}
