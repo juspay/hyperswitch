@@ -651,11 +651,6 @@ impl From<Condition> for enums::RefundStatus {
     }
 }
 
-#[derive(Debug, Deserialize)]
-pub struct NmiErrorResponse {
-    pub error_code: String,
-}
-
 // This function is a temporary fix for future that will looked upon.
 pub fn get_query_info(
     query_response: String,

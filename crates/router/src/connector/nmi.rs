@@ -144,9 +144,9 @@ impl ConnectorIntegration<api::Verify, types::VerifyRequestData, types::Payments
             .into_report()
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         types::RouterData::try_from(types::ResponseRouterData {
-            response: response.clone(),
+            response,
             data: data.clone(),
-            http_code: response.response_code,
+            http_code: res.status_code,
         })
     }
 
@@ -215,9 +215,9 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
             .into_report()
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         types::RouterData::try_from(types::ResponseRouterData {
-            response: response.clone(),
+            response,
             data: data.clone(),
-            http_code: response.response_code,
+            http_code: res.status_code,
         })
     }
 
@@ -348,9 +348,9 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
             .into_report()
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         types::RouterData::try_from(types::ResponseRouterData {
-            response: response.clone(),
+            response,
             data: data.clone(),
-            http_code: response.response_code,
+            http_code: res.status_code,
         })
     }
 
@@ -415,9 +415,9 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
             .into_report()
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         types::RouterData::try_from(types::ResponseRouterData {
-            response: response.clone(),
+            response,
             data: data.clone(),
-            http_code: response.response_code,
+            http_code: res.status_code,
         })
     }
 
@@ -482,9 +482,9 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
             .into_report()
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         types::RouterData::try_from(types::ResponseRouterData {
-            response: response.clone(),
+            response,
             data: data.clone(),
-            http_code: response.response_code,
+            http_code: res.status_code,
         })
     }
 
