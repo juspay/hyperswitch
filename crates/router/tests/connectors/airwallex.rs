@@ -124,8 +124,7 @@ async fn should_sync_authorized_payment() {
                 connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
                     txn_id.unwrap(),
                 ),
-                encoded_data: None,
-                capture_method: None,
+                ..Default::default()
             }),
             get_default_payment_info(),
         )
@@ -142,10 +141,9 @@ async fn should_void_authorized_payment() {
         .authorize_and_void_payment(
             payment_method_details(),
             Some(types::PaymentsCancelData {
-                amount: None,
-                currency: None,
                 connector_transaction_id: String::from(""),
                 cancellation_reason: Some("requested_by_customer".to_string()),
+                ..Default::default()
             }),
             get_default_payment_info(),
         )
@@ -255,8 +253,7 @@ async fn should_sync_auto_captured_payment() {
                 connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
                     txn_id.unwrap(),
                 ),
-                encoded_data: None,
-                capture_method: None,
+                ..Default::default()
             }),
             get_default_payment_info(),
         )

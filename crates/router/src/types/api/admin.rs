@@ -1,8 +1,9 @@
 pub use api_models::admin::{
     MerchantAccountCreate, MerchantAccountDeleteResponse, MerchantAccountResponse,
-    MerchantAccountUpdate, MerchantConnector, MerchantConnectorDeleteResponse, MerchantConnectorId,
-    MerchantDetails, MerchantId, PaymentMethodsEnabled, RoutingAlgorithm, ToggleKVRequest,
-    ToggleKVResponse, WebhookDetails,
+    MerchantAccountUpdate, MerchantConnector, MerchantConnectorDeleteResponse,
+    MerchantConnectorDetails, MerchantConnectorDetailsWrap, MerchantConnectorId, MerchantDetails,
+    MerchantId, PaymentMethodsEnabled, RoutingAlgorithm, ToggleKVRequest, ToggleKVResponse,
+    WebhookDetails,
 };
 
 use crate::types::{storage, transformers::ForeignFrom};
@@ -13,6 +14,7 @@ impl ForeignFrom<storage::MerchantAccount> for MerchantAccountResponse {
         Self {
             merchant_id: item.merchant_id,
             merchant_name: item.merchant_name,
+            api_key: item.api_key,
             return_url: item.return_url,
             enable_payment_response_hash: item.enable_payment_response_hash,
             payment_response_hash_key: item.payment_response_hash_key,

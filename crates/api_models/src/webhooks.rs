@@ -41,8 +41,18 @@ pub struct IncomingWebhookRequestDetails<'a> {
 
 pub type MerchantWebhookConfig = std::collections::HashSet<IncomingWebhookEvent>;
 
+pub enum RefundIdType {
+    RefundId(String),
+    ConnectorRefundId(String),
+}
+
+pub enum ObjectReferenceId {
+    PaymentId(payments::PaymentIdType),
+    RefundId(RefundIdType),
+}
+
 pub struct IncomingWebhookDetails {
-    pub object_reference_id: String,
+    pub object_reference_id: ObjectReferenceId,
     pub resource_object: Vec<u8>,
 }
 

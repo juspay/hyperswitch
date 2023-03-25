@@ -102,6 +102,7 @@ async fn should_sync_authorized_payment() {
                 ),
                 encoded_data: None,
                 capture_method: None,
+                connector_meta: None,
             }),
             None,
         )
@@ -213,6 +214,7 @@ async fn should_sync_auto_captured_payment() {
                 ),
                 encoded_data: None,
                 capture_method: Some(enums::CaptureMethod::Automatic),
+                connector_meta: None,
             }),
             None,
         )

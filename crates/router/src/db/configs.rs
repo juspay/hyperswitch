@@ -2,8 +2,10 @@ use error_stack::IntoReport;
 
 use super::{cache, MockDb, Store};
 use crate::{
-    connection::pg_connection,
+    cache::CONFIG_CACHE,
+    connection, consts,
     core::errors::{self, CustomResult},
+    services::PubSubInterface,
     types::storage,
 };
 
@@ -45,7 +47,7 @@ impl ConfigInterface for Store {
         &self,
         config: storage::ConfigNew,
     ) -> CustomResult<storage::Config, errors::StorageError> {
-        let conn = pg_connection(&self.master_pool).await?;
+        let conn = connection::pg_connection_write(self).await?;
         config.insert(&conn).await.map_err(Into::into).into_report()
     }
 
@@ -53,7 +55,7 @@ impl ConfigInterface for Store {
         &self,
         key: &str,
     ) -> CustomResult<storage::Config, errors::StorageError> {
-        let conn = pg_connection(&self.master_pool).await?;
+        let conn = connection::pg_connection_write(self).await?;
         storage::Config::find_by_key(&conn, key)
             .await
             .map_err(Into::into)
@@ -65,7 +67,7 @@ impl ConfigInterface for Store {
         key: &str,
         config_update: storage::ConfigUpdate,
     ) -> CustomResult<storage::Config, errors::StorageError> {
-        let conn = pg_connection(&self.master_pool).await?;
+        let conn = connection::pg_connection_write(self).await?;
         storage::Config::update_by_key(&conn, key, config_update)
             .await
             .map_err(Into::into)
@@ -76,26 +78,31 @@ impl ConfigInterface for Store {
         key: &str,
         config_update: storage::ConfigUpdate,
     ) -> CustomResult<storage::Config, errors::StorageError> {
-        cache::redact_cache(self, key, || async {
-            self.update_config_by_key(key, config_update).await
-        })
-        .await
+        cache::publish_and_redact(self, key, || self.update_config_by_key(key, config_update)).await
     }
 
     async fn find_config_by_key_cached(
         &self,
         key: &str,
     ) -> CustomResult<storage::Config, errors::StorageError> {
-        cache::get_or_populate_cache(self, key, || async { self.find_config_by_key(key).await })
+        cache::get_or_populate_in_memory(self, key, || self.find_config_by_key(key), &CONFIG_CACHE)
             .await
     }
 
     async fn delete_config_by_key(&self, key: &str) -> CustomResult<bool, errors::StorageError> {
-        let conn = pg_connection(&self.master_pool).await?;
-        storage::Config::delete_by_key(&conn, key)
+        let conn = connection::pg_connection_write(self).await?;
+        let deleted = storage::Config::delete_by_key(&conn, key)
             .await
             .map_err(Into::into)
-            .into_report()
+            .into_report()?;
+
+        self.redis_conn()
+            .map_err(Into::<errors::StorageError>::into)?
+            .publish(consts::PUB_SUB_CHANNEL, key)
+            .await
+            .map_err(Into::<errors::StorageError>::into)?;
+
+        Ok(deleted)
     }
 }
 

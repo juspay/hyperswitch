@@ -8,7 +8,7 @@ use crate::{
         errors::{self, RouterResult},
         payments,
     },
-    routes::AppState,
+    routes::{metrics, AppState},
     services,
     types::{self, api as api_types, storage, transformers::ForeignInto},
 };
@@ -38,6 +38,7 @@ pub fn router_data_type_conversion<F1, F2, Req1, Req2, Res1, Res2>(
         connector_meta_data: router_data.connector_meta_data,
         description: router_data.description,
         router_return_url: router_data.router_return_url,
+        complete_authorize_url: router_data.complete_authorize_url,
         payment_id: router_data.payment_id,
         payment_method: router_data.payment_method,
         payment_method_id: router_data.payment_method_id,
@@ -179,6 +180,13 @@ pub async fn refresh_connector_auth(
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Could not refresh access token")?;
-
+    metrics::ACCESS_TOKEN_CREATION.add(
+        &metrics::CONTEXT,
+        1,
+        &[metrics::request::add_attributes(
+            "connector",
+            connector.connector_name.to_string(),
+        )],
+    );
     Ok(access_token_router_data.response)
 }
