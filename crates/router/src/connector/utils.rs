@@ -638,6 +638,9 @@ pub fn convert_to_higher_denomination(
     currency: storage_models::enums::Currency,
 ) -> Result<f64, error_stack::Report<errors::ConnectorError>> {
     let amount = to_currency_base_unit(amount, currency)?;
-    let amount_f64: f64 = amount.parse().into_report().change_context(errors::ConnectorError::RequestEncodingFailed)?;
+    let amount_f64: f64 = amount
+        .parse()
+        .into_report()
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
     Ok(amount_f64)
 }

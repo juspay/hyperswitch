@@ -9,8 +9,7 @@ use transformers as nmi;
 use self::transformers::NmiCaptureRequest;
 use crate::{
     configs::settings,
-    connector::nmi::transformers::get_refund_status,
-    consts,
+    connector::nmi::transformers::{get_query_info, get_refund_status},
     core::{
         errors::{self, CustomResult},
         payments,
@@ -75,7 +74,6 @@ impl ConnectorCommon for Nmi {
         Ok(ErrorResponse {
             message: response.responsetext,
             status_code: response.response_code.to_owned(),
-
             ..Default::default()
         })
     }
@@ -115,7 +113,8 @@ impl ConnectorIntegration<api::Verify, types::VerifyRequestData, types::Payments
         req: &types::VerifyRouterData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
         let connector_req = nmi::NmiPaymentsRequest::try_from(req)?;
-        let nmi_req = utils::Encode::<nmi::NmiPaymentsRequest>::url_encode(&connector_req).change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let nmi_req = utils::Encode::<nmi::NmiPaymentsRequest>::url_encode(&connector_req)
+            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(nmi_req))
     }
 
@@ -145,9 +144,9 @@ impl ConnectorIntegration<api::Verify, types::VerifyRequestData, types::Payments
             .into_report()
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         types::RouterData::try_from(types::ResponseRouterData {
-            response: response.clone(),
+            response,
             data: data.clone(),
-            http_code: response.response_code,
+            http_code: res.status_code,
         })
     }
 
@@ -216,9 +215,9 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
             .into_report()
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         types::RouterData::try_from(types::ResponseRouterData {
-            response: response.clone(),
+            response,
             data: data.clone(),
-            http_code: response.response_code,
+            http_code: res.status_code,
         })
     }
 
@@ -276,17 +275,16 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
 
     fn handle_response(
         &self,
-        data: &types::RouterData<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>,
+        data: &types::PaymentsSyncRouterData,
         res: types::Response,
     ) -> CustomResult<types::PaymentsSyncRouterData, errors::ConnectorError> {
-        let response: nmi::QueryResponse = res
-            .response
-            .parse_struct("QueryResponse")
+        let query_response = String::from_utf8(res.response.to_vec())
+            .into_report()
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         types::RouterData::try_from(types::ResponseRouterData {
-            response,
+            response: query_response,
             data: data.clone(),
-            http_code: res.status_code
+            http_code: res.status_code,
         })
     }
 
@@ -353,9 +351,9 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
             .into_report()
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         types::RouterData::try_from(types::ResponseRouterData {
-            response: response.clone(),
+            response,
             data: data.clone(),
-            http_code: response.response_code,
+            http_code: res.status_code,
         })
     }
 
@@ -420,9 +418,9 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
             .into_report()
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         types::RouterData::try_from(types::ResponseRouterData {
-            response: response.clone(),
+            response,
             data: data.clone(),
-            http_code: response.response_code,
+            http_code: res.status_code,
         })
     }
 
@@ -487,9 +485,9 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
             .into_report()
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         types::RouterData::try_from(types::ResponseRouterData {
-            response: response.clone(),
+            response,
             data: data.clone(),
-            http_code: response.response_code,
+            http_code: res.status_code,
         })
     }
 
@@ -551,11 +549,11 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         let query_response = String::from_utf8(res.response.to_vec())
             .into_report()
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        let (transaction_id, condition) = transformers::get_query_info(query_response)?;
-        let refund_status = get_refund_status(condition)?;
+        let response = get_query_info(query_response)?;
+        let refund_status = get_refund_status(response.condition)?;
         Ok(types::RefundSyncRouterData {
             response: Ok(types::RefundsResponseData {
-                connector_refund_id: transaction_id,
+                connector_refund_id: response.transaction_id,
                 refund_status,
             }),
             ..data.clone()
