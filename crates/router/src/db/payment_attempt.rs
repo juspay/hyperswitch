@@ -71,11 +71,11 @@ mod storage {
 
         async fn update_payment_attempt_with_attempt_id(
             &self,
-            this: types::PaymentAttempt,
-            payment_attempt: types::PaymentAttemptUpdate,
-            storage_scheme: enums::MerchantStorageScheme,
-        ) -> CustomResult<types::PaymentAttempt, errors::StorageError> {
-            let conn = pg_connection(&self.master_pool).await?;
+            this: PaymentAttempt,
+            payment_attempt: PaymentAttemptUpdate,
+            _storage_scheme: enums::MerchantStorageScheme,
+        ) -> CustomResult<PaymentAttempt, errors::StorageError> {
+            let conn = connection::pg_connection_write(&self).await?;
             this.update_with_attempt_id(&conn, payment_attempt)
                 .await
                 .map_err(Into::into)
@@ -101,23 +101,6 @@ mod storage {
             .into_report()
         }
 
-        async fn find_payment_attempt_last_successful_attempt_by_payment_id_merchant_id(
-            &self,
-            payment_id: &str,
-            merchant_id: &str,
-            _storage_scheme: enums::MerchantStorageScheme,
-        ) -> CustomResult<PaymentAttempt, errors::StorageError> {
-            let conn = connection::pg_connection_read(self).await?;
-            PaymentAttempt::find_last_successful_attempt_by_payment_id_merchant_id(
-                &conn,
-                payment_id,
-                merchant_id,
-            )
-            .await
-            .map_err(Into::into)
-            .into_report()
-        }
-
         async fn find_payment_attempt_by_merchant_id_connector_txn_id(
             &self,
             merchant_id: &str,
@@ -135,7 +118,7 @@ mod storage {
             .into_report()
         }
 
-        async fn find_payment_attempt_by_merchant_id_attempt_id(
+        async fn find_payment_attempt_by_attempt_id_merchant_id(
             &self,
             merchant_id: &str,
             attempt_id: &str,
