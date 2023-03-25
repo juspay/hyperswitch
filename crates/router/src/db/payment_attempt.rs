@@ -292,7 +292,7 @@ mod storage {
                 enums::MerchantStorageScheme::RedisKv => {
                     let key = format!(
                         "{}_{}",
-                        payment_attempt.merchant_id, payment_attempt.payment_id
+                        payment_attempt.merchant_id, payment_attempt.attempt_id
                     );
 
                     let created_attempt = PaymentAttempt {
@@ -350,9 +350,7 @@ mod storage {
                             ReverseLookupNew {
                                 lookup_id: format!(
                                     "{}_{}",
-                                    &created_attempt.merchant_id,
-                                    // [#439]: Change this to `attempt_id`
-                                    &created_attempt.attempt_id,
+                                    &created_attempt.merchant_id, &created_attempt.attempt_id,
                                 ),
                                 pk_id: key,
                                 sk_id: field,

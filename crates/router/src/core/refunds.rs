@@ -46,9 +46,13 @@ pub async fn refund_create_core(
         .await
         .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
 
-    if payment_intent.status != enums::IntentStatus::Succeeded {
-        return Err(errors::ApiErrorResponse::SuccessfulPaymentNotFound).into_report();
-    }
+    utils::when(
+        payment_intent.status != enums::IntentStatus::Succeeded,
+        || {
+            Err(report!(errors::ApiErrorResponse::PaymentNotSucceeded)
+                .attach_printable("unable to refund for a unsuccessful payment intent"))
+        },
+    )?;
 
     // Amount is not passed in request refer from payment attempt.
     amount = req.amount.unwrap_or(
@@ -57,8 +61,8 @@ pub async fn refund_create_core(
             .ok_or(errors::ApiErrorResponse::InternalServerError)
             .into_report()
             .attach_printable("amount captured is none in a successful payment")?,
-    ); // [#298]: Need to that capture amount
-       //[#299]: Can we change the flow based on some workflow idea
+    );
+    //[#299]: Can we change the flow based on some workflow idea
     utils::when(amount <= 0, || {
         Err(report!(errors::ApiErrorResponse::InvalidDataFormat {
             field_name: "amount".to_string(),
@@ -75,14 +79,6 @@ pub async fn refund_create_core(
         )
         .await
         .change_context(errors::ApiErrorResponse::SuccessfulPaymentNotFound)?;
-
-    utils::when(
-        payment_intent.status != enums::IntentStatus::Succeeded,
-        || {
-            Err(report!(errors::ApiErrorResponse::PaymentNotSucceeded)
-                .attach_printable("unable to refund for a unsuccessful payment intent"))
-        },
-    )?;
 
     let creds_identifier = req
         .merchant_connector_details
