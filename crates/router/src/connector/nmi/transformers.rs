@@ -490,14 +490,21 @@ pub struct QueryResponse {
     pub nm_response: NMResponse,
 }
 
-impl TryFrom<types::PaymentsSyncResponseRouterData<String>> for types::PaymentsSyncRouterData {
+impl TryFrom<types::PaymentsSyncResponseRouterData<types::Response>>
+    for types::PaymentsSyncRouterData
+{
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: types::PaymentsSyncResponseRouterData<String>) -> Result<Self, Self::Error> {
-        let response = get_query_info(item.response)?;
+    fn try_from(
+        item: types::PaymentsSyncResponseRouterData<types::Response>,
+    ) -> Result<Self, Self::Error> {
+        let query_response = String::from_utf8(item.response.response.to_vec())
+            .into_report()
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        let response = get_query_info(query_response)?;
         Ok(Self {
-            status: enums::AttemptStatus::from(response.condition),
+            status: get_attempt_status(response.1, item.data.request.capture_method)?,
             response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(response.transaction_id),
+                resource_id: types::ResponseId::ConnectorTransactionId(response.0),
                 redirection_data: None,
                 mandate_reference: None,
                 connector_metadata: None,
@@ -650,21 +657,23 @@ pub struct NmiErrorResponse {
 }
 
 // This function is a temporary fix for future that will looked upon.
-pub fn get_query_info(query_response: String) -> Result<Transaction, errors::ConnectorError> {
+pub fn get_query_info(
+    query_response: String,
+) -> Result<(String, Condition), errors::ConnectorError> {
     let transaction_id_regex = Regex::new("<transaction_id>(.*)</transaction_id>")
         .map_err(|_| errors::ConnectorError::ResponseHandlingFailed)?;
     let mut transaction_id = None;
     for tid in transaction_id_regex.captures_iter(&query_response) {
         transaction_id = Some(tid[1].to_string());
     }
-
     let condition_rejex = Regex::new("<condition>(.*)</condition>")
         .map_err(|_| errors::ConnectorError::ResponseHandlingFailed)?;
+
     let mut condition: Option<Condition> = Some(Condition::InProgress);
     for cid in condition_rejex.captures_iter(&query_response) {
         condition = match &cid[1] {
             "abandoned" => Some(Condition::Abandoned),
-            "cancelled" => Some(Condition::Cancelled),
+            "canceled" => Some(Condition::Cancelled),
             "pending" => Some(Condition::Pending),
             "in_progress" => Some(Condition::InProgress),
             "pendingsettlement" => Some(Condition::Pendingsettlement),
@@ -674,20 +683,32 @@ pub fn get_query_info(query_response: String) -> Result<Transaction, errors::Con
             _ => None,
         };
     }
-
     let transaction_id = match transaction_id {
         Some(value) => Ok(value),
         None => Err(errors::ConnectorError::ResponseHandlingFailed),
     }?;
-
     let condition = match condition {
         Some(value) => Ok(value),
         None => Err(errors::ConnectorError::ResponseHandlingFailed),
     }?;
-    Ok(Transaction {
-        transaction_id,
-        condition,
-    })
+    Ok((transaction_id, condition))
+}
+
+pub fn get_attempt_status(
+    value: Condition,
+    capturemethod: Option<enums::CaptureMethod>,
+) -> Result<enums::AttemptStatus, errors::ConnectorError> {
+    match value {
+        Condition::Abandoned => Ok(enums::AttemptStatus::AuthorizationFailed),
+        Condition::Cancelled => Ok(enums::AttemptStatus::Voided),
+        Condition::Pending => match capturemethod.unwrap_or_default() {
+            storage_models::enums::CaptureMethod::Manual => Ok(enums::AttemptStatus::Authorized),
+            _ => Ok(enums::AttemptStatus::Pending),
+        },
+        Condition::InProgress => Ok(enums::AttemptStatus::Pending),
+        Condition::Pendingsettlement | Condition::Complete => Ok(enums::AttemptStatus::Charged),
+        Condition::Failed | Condition::Unknown => Ok(enums::AttemptStatus::Failure),
+    }
 }
 
 pub fn get_refund_status(value: Condition) -> Result<enums::RefundStatus, errors::ConnectorError> {

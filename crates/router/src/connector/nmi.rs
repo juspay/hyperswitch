@@ -69,7 +69,7 @@ impl ConnectorCommon for Nmi {
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         let response: nmi::StandardResponse = res
             .response
-            .parse_struct("Nmi ErrorResponse")
+            .parse_struct("StandardResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         Ok(ErrorResponse {
             message: response.responsetext,
@@ -144,9 +144,9 @@ impl ConnectorIntegration<api::Verify, types::VerifyRequestData, types::Payments
             .into_report()
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         types::RouterData::try_from(types::ResponseRouterData {
-            response,
+            response: response.clone(),
             data: data.clone(),
-            http_code: res.status_code,
+            http_code: response.response_code,
         })
     }
 
@@ -215,9 +215,9 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
             .into_report()
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         types::RouterData::try_from(types::ResponseRouterData {
-            response,
+            response: response.clone(),
             data: data.clone(),
-            http_code: res.status_code,
+            http_code: response.response_code,
         })
     }
 
@@ -278,11 +278,8 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         data: &types::PaymentsSyncRouterData,
         res: types::Response,
     ) -> CustomResult<types::PaymentsSyncRouterData, errors::ConnectorError> {
-        let query_response = String::from_utf8(res.response.to_vec())
-            .into_report()
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         types::RouterData::try_from(types::ResponseRouterData {
-            response: query_response,
+            response: res.clone(),
             data: data.clone(),
             http_code: res.status_code,
         })
@@ -351,9 +348,9 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
             .into_report()
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         types::RouterData::try_from(types::ResponseRouterData {
-            response,
+            response: response.clone(),
             data: data.clone(),
-            http_code: res.status_code,
+            http_code: response.response_code,
         })
     }
 
@@ -418,9 +415,9 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
             .into_report()
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         types::RouterData::try_from(types::ResponseRouterData {
-            response,
+            response: response.clone(),
             data: data.clone(),
-            http_code: res.status_code,
+            http_code: response.response_code,
         })
     }
 
@@ -485,9 +482,9 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
             .into_report()
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         types::RouterData::try_from(types::ResponseRouterData {
-            response,
+            response: response.clone(),
             data: data.clone(),
-            http_code: res.status_code,
+            http_code: response.response_code,
         })
     }
 
@@ -550,10 +547,10 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
             .into_report()
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         let response = get_query_info(query_response)?;
-        let refund_status = get_refund_status(response.condition)?;
+        let refund_status = get_refund_status(response.1)?;
         Ok(types::RefundSyncRouterData {
             response: Ok(types::RefundsResponseData {
-                connector_refund_id: response.transaction_id,
+                connector_refund_id: response.0,
                 refund_status,
             }),
             ..data.clone()
