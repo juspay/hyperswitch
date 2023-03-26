@@ -1,4 +1,4 @@
-FROM rust:1.65 as builder
+FROM rust:latest as builder
 
 ARG RUN_ENV=Sandbox
 
