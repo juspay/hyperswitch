@@ -128,6 +128,14 @@ pub enum PaymentAttemptUpdate {
         mandate_id: Option<String>,
         connector_metadata: Option<serde_json::Value>,
     },
+    UnresolvedResponseUpdate {
+        status: storage_enums::AttemptStatus,
+        connector: Option<String>,
+        connector_transaction_id: Option<String>,
+        payment_method_id: Option<Option<String>>,
+        error_code: Option<String>,
+        error_message: Option<String>
+    },
     StatusUpdate {
         status: storage_enums::AttemptStatus,
     },
@@ -300,6 +308,23 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
             } => Self {
                 payment_token,
                 connector,
+                ..Default::default()
+            },
+            PaymentAttemptUpdate::UnresolvedResponseUpdate {
+                status,
+                connector,
+                connector_transaction_id,
+                payment_method_id,
+                error_code,
+                error_message,
+            } => Self {
+                status: Some(status),
+                connector,
+                connector_transaction_id,
+                payment_method_id,
+                modified_at: Some(common_utils::date_time::now()),
+                error_code,
+                error_message,
                 ..Default::default()
             },
         }

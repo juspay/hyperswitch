@@ -545,7 +545,7 @@ impl api::IncomingWebhook for Coinbase {
                 Ok(api::IncomingWebhookEvent::PaymentIntentSuccess)
             }
             coinbase::WebhookEventType::Failed => {
-                Ok(api::IncomingWebhookEvent::PaymentIntentFailure)
+                Ok(api::IncomingWebhookEvent::PaymentActionRequired)
             }
             _ => Err(errors::ConnectorError::WebhookEventTypeNotFound.into()),
         }

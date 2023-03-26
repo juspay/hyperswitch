@@ -47,6 +47,7 @@ pub enum AttemptStatus {
     VoidFailed,
     AutoRefunded,
     PartialCharged,
+    Unresolved,
     #[default]
     Pending,
     Failure,
@@ -311,6 +312,7 @@ pub enum EventObjectType {
 #[strum(serialize_all = "snake_case")]
 pub enum EventType {
     PaymentSucceeded,
+    ActionRequired,
     RefundSucceeded,
     RefundFailed,
 }
@@ -337,6 +339,7 @@ pub enum IntentStatus {
     Cancelled,
     Processing,
     RequiresCustomerAction,
+    RequiresMerchantAction,
     RequiresPaymentMethod,
     #[default]
     RequiresConfirmation,
