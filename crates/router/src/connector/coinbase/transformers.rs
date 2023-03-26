@@ -60,26 +60,18 @@ impl TryFrom<&types::ConnectorAuthType> for CoinbaseAuthType {
 }
 // PaymentsResponse
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
-#[serde(rename_all = "lowercase")]
+#[serde(rename_all = "UPPERCASE")]
 pub enum CoinbasePaymentStatus {
-    #[serde(rename = "NEW")]
     New,
     #[default]
-    #[serde(rename = "PENDING")]
     Pending,
-    #[serde(rename = "COMPLETED")]
     Completed,
-    #[serde(rename = "EXPIRED")]
     Expired,
-    #[serde(rename = "UNRESOLVED")]
     Unresolved,
-    #[serde(rename = "RESOLVED")]
     Resolved,
-    #[serde(rename = "CANCELLED")]
     Cancelled,
     #[serde(rename = "PENDING REFUND")]
     PendingRefund,
-    #[serde(rename = "REFUNDED")]
     Refunded,
 }
 
@@ -87,9 +79,28 @@ impl From<CoinbasePaymentStatus> for enums::AttemptStatus {
     fn from(item: CoinbasePaymentStatus) -> Self {
         match item {
             CoinbasePaymentStatus::Completed | CoinbasePaymentStatus::Resolved => Self::Charged,
-            CoinbasePaymentStatus::Expired | CoinbasePaymentStatus::Unresolved => Self::Failure,
+            CoinbasePaymentStatus::Expired => Self::Failure,
             CoinbasePaymentStatus::New => Self::AuthenticationPending,
+            CoinbasePaymentStatus::Unresolved => Self::Unresolved,
             _ => Self::Pending,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "UPPERCASE")]
+pub enum UnResolvedContext {
+    Underpaid,
+    Overpaid,
+    Delayed,
+}
+
+impl From<UnResolvedContext> for String {
+    fn from(context: UnResolvedContext) -> Self {
+        match context {
+            UnResolvedContext::Underpaid => "UNDERPAID".to_string(),
+            UnResolvedContext::Overpaid => "OVERPAID".to_string(),
+            UnResolvedContext::Delayed => "DELAYED".to_string(),
         }
     }
 }
@@ -97,6 +108,7 @@ impl From<CoinbasePaymentStatus> for enums::AttemptStatus {
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Timeline {
     status: CoinbasePaymentStatus,
+    context: Option<UnResolvedContext>,
     time: String,
     pub payment: Option<TimelinePayment>,
 }
@@ -127,22 +139,36 @@ impl<F, T>
             method: services::Method::Get,
             form_fields,
         };
-        let attempt_status = item
+        let timeline = item
             .response
             .data
             .timeline
             .last()
             .ok_or_else(|| errors::ConnectorError::ResponseHandlingFailed)?
-            .status
             .clone();
-        Ok(Self {
-            status: enums::AttemptStatus::from(attempt_status),
-            response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(item.response.data.id),
+        let connector_id = types::ResponseId::ConnectorTransactionId(item.response.data.id);
+        let attempt_status = timeline.status.clone();
+        let response_data = timeline.context.map_or(
+            Ok(types::PaymentsResponseData::TransactionResponse {
+                resource_id: connector_id.clone(),
                 redirection_data: Some(redirection_data),
                 mandate_reference: None,
                 connector_metadata: None,
             }),
+            |context| {
+                Ok(types::PaymentsResponseData::TransactionUnresolvedResponse{
+                resource_id: connector_id,
+                reason: Some(api::enums::UnresolvedResponseReason {
+                    code: String::from(context),
+                message: "Please check the transaction in coinbase dashboard and resolve manually"
+                    .to_string(),
+                })
+            })
+            },
+        );
+        Ok(Self {
+            status: enums::AttemptStatus::from(attempt_status),
+            response: response_data,
             ..item.data
         })
     }

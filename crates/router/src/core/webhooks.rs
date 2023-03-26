@@ -38,6 +38,8 @@ async fn payments_incoming_webhook_flow<W: api::OutgoingWebhookType>(
         payments::CallConnectorAction::Trigger
     };
 
+    logger::info!(webhook_flow=?consume_or_trigger_flow);
+
     let payments_response = payments::payments_core::<api::PSync, api::PaymentsResponse, _, _, _>(
         &state,
         merchant_account.clone(),
@@ -336,6 +338,8 @@ pub async fn webhooks_core<W: api::OutgoingWebhookType>(
             &event_type,
         )
         .await;
+
+        logger::info!(process_webhook=?process_webhook_further);
 
         if process_webhook_further {
             let object_ref_id = connector

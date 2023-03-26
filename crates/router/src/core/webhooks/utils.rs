@@ -4,7 +4,7 @@ use crate::{
 };
 
 fn default_webhook_config() -> api::MerchantWebhookConfig {
-    std::collections::HashSet::from([api::IncomingWebhookEvent::PaymentIntentSuccess])
+    std::collections::HashSet::from([api::IncomingWebhookEvent::PaymentIntentSuccess, api::IncomingWebhookEvent::PaymentActionRequired])
 }
 
 pub async fn lookup_webhook_event(

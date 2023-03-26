@@ -348,7 +348,26 @@ async fn payment_response_update_tracker<F: Clone, T>(
                     Some(connector_response_update),
                 )
             }
-
+            types::PaymentsResponseData::TransactionUnresolvedResponse {
+                resource_id,
+                reason,
+            } => {
+                let connector_transaction_id = match resource_id {
+                    types::ResponseId::NoResponseId => None,
+                    types::ResponseId::ConnectorTransactionId(id)
+                    | types::ResponseId::EncodedData(id) => Some(id),
+                };
+                (
+                Some(storage::PaymentAttemptUpdate::UnresolvedResponseUpdate {
+                    status: router_data.status,
+                    connector: Some(router_data.connector),
+                    connector_transaction_id: connector_transaction_id.clone(),
+                    payment_method_id: Some(router_data.payment_method_id),
+                    error_code: reason.clone().map(|cd| cd.code),
+                    error_message: reason.map(|cd| cd.message),
+                }),
+                None,
+            )},
             types::PaymentsResponseData::SessionResponse { .. } => (None, None),
             types::PaymentsResponseData::SessionTokenResponse { .. } => (None, None),
         },
