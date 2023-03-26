@@ -82,8 +82,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3.1.0
-      
-      - name: 'Fetch base branch'
+
+      - name: "Fetch base branch"
         run: git fetch origin $GITHUB_BASE_REF --depth 1
 
       - name: Install mold linker
@@ -229,8 +229,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3.1.0
-      
-      - name: 'Fetch base branch'
+
+      - name: "Fetch base branch"
         run: git fetch origin $GITHUB_BASE_REF --depth 1
 
       - name: Install mold linker
@@ -356,8 +356,6 @@ jobs:
       - name: Cargo hack storage_models
         if: env.storage_models_changes_exist == 'true'
         run: cargo hack check --each-feature --no-dev-deps -p storage_models
-
-
 
       # - name: Run tests
       #   shell: bash
