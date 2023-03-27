@@ -4,7 +4,7 @@ use super::{MockDb, Store};
 use crate::{
     connection,
     core::errors::{self, CustomResult},
-    types::storage,
+    types::storage::{self, DisputeDbExt},
 };
 
 #[async_trait::async_trait]
@@ -29,7 +29,7 @@ pub trait DisputeInterface {
     async fn find_disputes_by_merchant_id(
         &self,
         merchant_id: &str,
-        limit: Option<i64>,
+        dispute_constraints: api_models::disputes::DisputeListConstraints,
     ) -> CustomResult<Vec<storage::Dispute>, errors::StorageError>;
 
     async fn update_dispute(
@@ -88,13 +88,13 @@ impl DisputeInterface for Store {
     async fn find_disputes_by_merchant_id(
         &self,
         merchant_id: &str,
-        limit: Option<i64>,
+        dispute_constraints: api_models::disputes::DisputeListConstraints,
     ) -> CustomResult<Vec<storage::Dispute>, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
-        storage::Dispute::find_by_merchant_id(
+        storage::Dispute::filter_by_constraints(
             &conn,
             merchant_id,
-            limit,
+            dispute_constraints,
         )
         .await
         .map_err(Into::into)
@@ -144,7 +144,7 @@ impl DisputeInterface for MockDb {
     async fn find_disputes_by_merchant_id(
         &self,
         _merchant_id: &str,
-        _limit: Option<i64>,
+        _dispute_constraints: api_models::disputes::DisputeListConstraints,
     ) -> CustomResult<Vec<storage::Dispute>, errors::StorageError> {
         // TODO: Implement function for `MockDb`
         Err(errors::StorageError::MockDbError)?

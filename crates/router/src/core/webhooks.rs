@@ -230,6 +230,7 @@ async fn get_updated_dispute_object(
     merchant_id: &str,
     payment_id: &str,
     event_type: api_models::webhooks::IncomingWebhookEvent,
+    connector_name: &str,
 ) -> CustomResult<storage_models::dispute::Dispute, errors::WebhooksFlowError> {
     let db = &*state.store;
     match option_dispute {
@@ -246,6 +247,7 @@ async fn get_updated_dispute_object(
                     .change_context(errors::WebhooksFlowError::DisputeCoreFailed)?,
                 payment_id: payment_id.to_owned(),
                 merchant_id: merchant_id.to_owned(),
+                connector: connector_name.to_owned(),
                 connector_status: dispute_details.connector_status,
                 connector_dispute_id: dispute_details.connector_dispute_id,
                 connector_reason: dispute_details.connector_reason,
@@ -290,6 +292,7 @@ async fn disputes_incoming_webhook_flow<W: api::OutgoingWebhookType>(
     connector: &(dyn api::Connector + Sync),
     request_details: &IncomingWebhookRequestDetails<'_>,
     event_type: api_models::webhooks::IncomingWebhookEvent,
+    connector_name: &str,
 ) -> CustomResult<(), errors::WebhooksFlowError> {
     if source_verified {
         let db = &*state.store;
@@ -316,6 +319,7 @@ async fn disputes_incoming_webhook_flow<W: api::OutgoingWebhookType>(
             &merchant_account.merchant_id,
             &payment_attempt.payment_id,
             event_type.clone(),
+            connector_name,
         )
         .await?;
         let disputes_response = Box::new(
@@ -568,6 +572,7 @@ pub async fn webhooks_core<W: api::OutgoingWebhookType>(
                     *connector,
                     &request_details,
                     event_type,
+                    connector_name,
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)

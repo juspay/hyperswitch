@@ -32,7 +32,7 @@ pub async fn retrieve_disputes_list(
 ) -> RouterResponse<Vec<api_models::disputes::DisputeResponse>> {
     let disputes = state
         .store
-        .find_disputes_by_merchant_id(&merchant_account.merchant_id, constraints.limit)
+        .find_disputes_by_merchant_id(&merchant_account.merchant_id, constraints)
         .await
         .map_err(|error| error.to_not_found_response(errors::ApiErrorResponse::InternalServerError))?;
     let mut disputes_list : Vec<api_models::disputes::DisputeResponse> = vec![];
