@@ -1,5 +1,5 @@
 use api_models::payments;
-use common_utils::{ext_traits::StringExt, pii as secret};
+use common_utils::{date_time, ext_traits::StringExt, pii as secret};
 use error_stack::ResultExt;
 use serde::{Deserialize, Serialize};
 
@@ -310,7 +310,8 @@ pub struct LastPaymentError {
     decline_code: Option<String>,
     message: String,
     param: Option<String>,
-    payment_method: Option<api_models::enums::PaymentMethod>,
+    payment_method: StripePaymentMethod,
+    #[serde(rename = "type")]
     error_type: String,
 }
 
@@ -339,7 +340,7 @@ impl From<payments::PaymentsResponse> for StripePaymentIntentResponse {
             capture_on: resp.capture_on,
             capture_method: resp.capture_method,
             payment_method: resp.payment_method,
-            payment_method_data: resp.payment_method_data,
+            payment_method_data: resp.payment_method_data.clone(),
             payment_token: resp.payment_token,
             shipping: resp.shipping,
             billing: resp.billing,
@@ -361,11 +362,31 @@ impl From<payments::PaymentsResponse> for StripePaymentIntentResponse {
                     .error_message
                     .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
                 param: None,
-                payment_method: resp.payment_method,
+                payment_method: StripePaymentMethod {
+                    payment_method_id: "place_holder_id".to_string(),
+                    object: "payment_method",
+                    card: None,
+                    created: u64::try_from(date_time::now().assume_utc().unix_timestamp())
+                        .unwrap_or_default(),
+                    method_type: "card".to_string(),
+                    live_mode: false,
+                },
                 error_type: code,
             }),
         }
     }
+}
+
+#[derive(Default, Eq, PartialEq, Serialize)]
+pub struct StripePaymentMethod {
+    #[serde(rename = "id")]
+    payment_method_id: String,
+    object: &'static str,
+    card: Option<StripeCard>,
+    created: u64,
+    #[serde(rename = "type")]
+    method_type: String,
+    live_mode: bool,
 }
 
 #[derive(Default, Eq, PartialEq, Serialize)]
