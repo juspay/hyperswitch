@@ -1402,12 +1402,8 @@ fn filter_payment_currency_based(
 ) -> bool {
     payment_intent.currency.map_or(true, |currency| {
         pm.accepted_currencies.as_ref().map_or(true, |ac| match ac {
-            admin::AcceptedCurrencies::EnableOnly(acc) => {
-                acc.contains(&currency.foreign_into())
-            }
-            admin::AcceptedCurrencies::DisableOnly(den) => {
-                !den.contains(&currency.foreign_into())
-            }
+            admin::AcceptedCurrencies::EnableOnly(acc) => acc.contains(&currency.foreign_into()),
+            admin::AcceptedCurrencies::DisableOnly(den) => !den.contains(&currency.foreign_into()),
             admin::AcceptedCurrencies::AllAccepted => true,
         })
     })
