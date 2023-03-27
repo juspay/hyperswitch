@@ -266,6 +266,7 @@ pub enum Currency {
 pub enum EventType {
     PaymentSucceeded,
     ActionRequired,
+    Unsupported,
     RefundSucceeded,
     RefundFailed,
 }

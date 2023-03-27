@@ -313,6 +313,7 @@ pub enum EventObjectType {
 pub enum EventType {
     PaymentSucceeded,
     ActionRequired,
+    Unsupported,
     RefundSucceeded,
     RefundFailed,
 }
