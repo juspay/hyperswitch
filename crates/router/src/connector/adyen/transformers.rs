@@ -495,7 +495,7 @@ fn get_address_info(address: Option<&api_models::payments::Address>) -> Option<A
     address.and_then(|add| {
         add.address.as_ref().map(|a| Address {
             city: a.city.clone(),
-            country: a.country.clone(),
+            country: a.country,
             house_number_or_name: a.line1.clone(),
             postal_code: a.zip.clone(),
             state_or_province: a.state.clone(),
@@ -548,12 +548,10 @@ fn get_shopper_name(item: &types::PaymentsAuthorizeRouterData) -> Option<Shopper
 }
 
 fn get_country_code(item: &types::PaymentsAuthorizeRouterData) -> Option<api_enums::Country> {
-    item.address.billing.as_ref().and_then(|billing| {
-        billing
-            .address
-            .as_ref()
-            .and_then(|address| address.country.clone())
-    })
+    item.address
+        .billing
+        .as_ref()
+        .and_then(|billing| billing.address.as_ref().and_then(|address| address.country))
 }
 
 fn get_payment_method_data<'a>(

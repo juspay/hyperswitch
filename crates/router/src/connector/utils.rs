@@ -74,7 +74,7 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
             .billing
             .as_ref()
             .and_then(|a| a.address.as_ref())
-            .and_then(|ad| ad.country.clone())
+            .and_then(|ad| ad.country)
             .ok_or_else(missing_field_err("billing.address.country"))
     }
 

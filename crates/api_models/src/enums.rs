@@ -261,6 +261,7 @@ pub enum Currency {
     strum::EnumString,
     frunk::LabelledGeneric,
     ToSchema,
+    Copy,
 )]
 pub enum Country {
     AL,
