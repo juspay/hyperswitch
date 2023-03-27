@@ -273,7 +273,7 @@ impl<'a> ForeignFrom<&'a api_types::Address> for storage::AddressUpdate {
             country: address
                 .address
                 .as_ref()
-                .and_then(|a| a.country.clone().map(ForeignFrom::foreign_from)),
+                .and_then(|a| a.country.map(ForeignFrom::foreign_from)),
             line1: address.address.as_ref().and_then(|a| a.line1.clone()),
             line2: address.address.as_ref().and_then(|a| a.line2.clone()),
             line3: address.address.as_ref().and_then(|a| a.line3.clone()),
