@@ -152,7 +152,7 @@ mod tests {
     }
 }
 
-// Dispute Stage can move linearly from PreDispute -> Dispute -> PreArbitraion
+// Dispute Stage can move linearly from PreDispute -> Dispute -> PreArbitration
 pub fn validate_dispute_stage(
     prev_dispute_stage: &DisputeStage,
     dispute_stage: &DisputeStage,
@@ -164,7 +164,7 @@ pub fn validate_dispute_stage(
     }
 }
 
-//Dispute status can go from Opened -> (Expired | Accepted | Cancelled | Challeneged -> (Won | Lost))
+//Dispute status can go from Opened -> (Expired | Accepted | Cancelled | Challenged -> (Won | Lost))
 pub fn validate_dispute_status(
     prev_dispute_status: DisputeStatus,
     dispute_status: DisputeStatus,
