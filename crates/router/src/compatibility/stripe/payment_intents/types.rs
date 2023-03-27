@@ -295,12 +295,22 @@ pub struct StripePaymentIntentResponse {
     pub payment_token: Option<String>,
     pub email: Option<masking::Secret<String, common_utils::pii::Email>>,
     pub phone: Option<masking::Secret<String>>,
-    pub error_code: Option<String>,
-    pub error_message: Option<String>,
     pub statement_descriptor_suffix: Option<String>,
     pub statement_descriptor_name: Option<String>,
     pub capture_method: Option<api_models::enums::CaptureMethod>,
     pub name: Option<masking::Secret<String>>,
+    pub last_payment_error: Option<LastPaymentError>,
+}
+
+#[derive(Default, Eq, PartialEq, Serialize)]
+pub struct LastPaymentError {
+    charge: Option<String>,
+    code: Option<String>,
+    decline_code: Option<String>,
+    message: String,
+    param: Option<String>,
+    payment_method: Option<api_models::enums::PaymentMethod>,
+    error_type: String,
 }
 
 impl From<payments::PaymentsResponse> for StripePaymentIntentResponse {
@@ -340,10 +350,19 @@ impl From<payments::PaymentsResponse> for StripePaymentIntentResponse {
             statement_descriptor_suffix: resp.statement_descriptor_suffix,
             next_action: into_stripe_next_action(resp.next_action, resp.return_url),
             cancellation_reason: resp.cancellation_reason,
-            error_code: resp.error_code,
-            error_message: resp.error_message,
             metadata: resp.metadata,
             charges: Charges::new(),
+            last_payment_error: resp.error_code.map(|code| LastPaymentError {
+                charge: None,
+                code: Some(code.to_owned()),
+                decline_code: None,
+                message: resp
+                    .error_message
+                    .unwrap_or_else(|| "Error message is null".to_string()),
+                param: None,
+                payment_method: resp.payment_method,
+                error_type: code,
+            }),
         }
     }
 }
