@@ -34,6 +34,7 @@ pub struct MerchantAccount {
     pub metadata: Option<pii::SecretSerdeValue>,
     pub routing_algorithm: Option<serde_json::Value>,
     pub api_key: Option<StrongSecret<String>>,
+    pub primary_business_details: serde_json::Value,
 }
 
 #[derive(Clone, Debug, Default, Insertable, router_derive::DebugAsDisplay)]
@@ -54,6 +55,7 @@ pub struct MerchantAccountNew {
     pub metadata: Option<pii::SecretSerdeValue>,
     pub routing_algorithm: Option<serde_json::Value>,
     pub api_key: Option<StrongSecret<String>>,
+    pub primary_business_details: serde_json::Value,
 }
 
 #[derive(Debug)]

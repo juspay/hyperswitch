@@ -177,6 +177,7 @@ diesel::table! {
         metadata -> Nullable<Jsonb>,
         routing_algorithm -> Nullable<Json>,
         api_key -> Nullable<Varchar>,
+        primary_business_details -> Json,
     }
 }
 
@@ -195,6 +196,10 @@ diesel::table! {
         payment_methods_enabled -> Nullable<Array<Nullable<Json>>>,
         connector_type -> ConnectorType,
         metadata -> Nullable<Jsonb>,
+        connector_label -> Varchar,
+        business_country -> Varchar,
+        business_label -> Varchar,
+        business_sub_label -> Nullable<Varchar>,
     }
 }
 
@@ -266,6 +271,8 @@ diesel::table! {
         setup_future_usage -> Nullable<FutureUsage>,
         off_session -> Nullable<Bool>,
         client_secret -> Nullable<Varchar>,
+        business_country -> Nullable<Varchar>,
+        business_label -> Nullable<Varchar>,
     }
 }
 
