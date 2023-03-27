@@ -34,7 +34,7 @@ pub struct MerchantAccount {
     pub locker_id: Option<String>,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub routing_algorithm: Option<serde_json::Value>,
-    pub primary_business_details: Option<serde_json::Value>,
+    pub primary_business_details: serde_json::Value,
 }
 
 #[derive(Clone, Debug, Default, Insertable, router_derive::DebugAsDisplay)]
@@ -55,7 +55,7 @@ pub struct MerchantAccountNew {
     pub locker_id: Option<String>,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub routing_algorithm: Option<serde_json::Value>,
-    pub primary_business_details: Option<serde_json::Value>,
+    pub primary_business_details: serde_json::Value,
 }
 
 #[derive(Debug)]

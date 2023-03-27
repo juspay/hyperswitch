@@ -193,6 +193,14 @@ pub struct PaymentsRequest {
     /// Payment Method Type
     #[schema(value_type = Option<PaymentMethodType>, example = "google_pay")]
     pub payment_method_type: Option<api_enums::PaymentMethodType>,
+
+    /// Business country of the merchant for this payment
+    #[schema(example = "US")]
+    pub business_country: Option<String>,
+
+    /// Business label of the merchant for this payment
+    #[schema(example = "food")]
+    pub business_label: Option<String>,
 }
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, Copy, PartialEq, Eq)]

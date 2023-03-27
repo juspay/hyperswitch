@@ -69,7 +69,7 @@ pub struct MerchantAccountCreate {
 
     ///Default business details for connector routing
     #[schema(value_type = Option<PrimaryBusinessDetails>)]
-    pub primary_business_details: Option<serde_json::Value>,
+    pub primary_business_details: PrimaryBusinessDetails,
 }
 
 #[derive(Clone, Debug, Deserialize, ToSchema)]
@@ -197,10 +197,9 @@ pub struct MerchantAccountResponse {
     /// An identifier for the vault used to store payment method information.
     #[schema(example = "locker_abc123")]
     pub locker_id: Option<String>,
-
     ///Default business details for connector routing
     #[schema(value_type = Option<PrimaryBusinessDetails>)]
-    pub primary_business_details: Option<serde_json::Value>,
+    pub primary_business_details: serde_json::Value,
 }
 
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
@@ -254,8 +253,8 @@ pub enum RoutingAlgorithm {
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct PrimaryBusinessDetails {
-    country: String,
-    business: String,
+    pub country: String,
+    pub business: String,
 }
 
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
@@ -321,15 +320,19 @@ pub struct MerchantConnector {
     /// Name of the Connector
     #[schema(example = "stripe")]
     pub connector_name: String,
-    /// Connector label for specific country and Business
+    // /// Connector label for specific country and Business
+    #[serde(skip_deserializing)]
     #[schema(example = "stripe_US_travel")]
     pub connector_label: String,
     /// Country through which payment should be processed
     #[schema(example = "US")]
-    pub business_country: String,
+    pub business_country: Option<String>,
     ///Business Type of the merchant
     #[schema(example = "travel")]
-    pub business_label: String,
+    pub business_label: Option<String>,
+    /// Business Sub label of the merchant
+    #[schema(example = "chase")]
+    pub business_sub_label: Option<String>,
     /// Unique ID of the connector
     #[schema(example = "mca_5apGeP94tMts6rg3U3kR")]
     pub merchant_connector_id: Option<String>,
