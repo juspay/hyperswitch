@@ -21,6 +21,7 @@ mod rapyd;
 mod shift4;
 mod stripe;
 mod trustpay;
+mod opennode;
 mod utils;
 mod worldline;
 mod worldpay;

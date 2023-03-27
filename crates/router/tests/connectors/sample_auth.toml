@@ -72,3 +72,4 @@ api_key = "API Key"
 
 [coinbase]
 api_key="API Key"
+\n\n[opennode]\napi_key="API Key"
