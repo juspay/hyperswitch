@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use base64::Engine;
 use common_utils::{
     errors::ReportSwitchExt,
+    ext_traits::ByteSliceExt,
     pii::{self, Email},
 };
 use error_stack::{report, IntoReport, ResultExt};
@@ -16,7 +17,7 @@ use crate::{
     core::errors::{self, CustomResult},
     pii::PeekInterface,
     types::{self, api, PaymentsCancelData, ResponseId},
-    utils::{OptionExt, ValueExt},
+    utils::{Encode, OptionExt, ValueExt},
 };
 
 pub fn missing_field_err(
@@ -486,4 +487,19 @@ where
         serde::ser::Error::custom("Invalid string, cannot be converted to float value")
     })?;
     serializer.serialize_f64(float_value)
+}
+
+pub fn convert_query_params_to_struct<T>(
+    query_params: &[u8],
+) -> Result<T, error_stack::Report<errors::ConnectorError>>
+where
+    T: serde::de::DeserializeOwned,
+{
+    let qp: HashMap<String, String> = url::form_urlencoded::parse(query_params)
+        .into_owned()
+        .collect();
+    let json = Encode::<HashMap<String, String>>::encode_to_string_of_json(&qp).switch()?;
+    json.as_bytes()
+        .parse_struct(std::any::type_name::<T>())
+        .switch()
 }

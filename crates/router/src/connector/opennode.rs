@@ -1,15 +1,13 @@
 mod transformers;
 
-use std::fmt::Debug;
-
 use common_utils::{crypto, errors::ReportSwitchExt, ext_traits::ByteSliceExt};
 use error_stack::{IntoReport, ResultExt};
-use transformers as coinbase;
+use std::fmt::Debug;
 
-use self::coinbase::CoinbaseWebhookDetails;
-use super::utils;
+use self::opennode::OpennodeWebhookDetails;
 use crate::{
     configs::settings,
+    connector::utils,
     core::errors::{self, CustomResult},
     db, headers,
     services::{self, ConnectorIntegration},
@@ -21,22 +19,24 @@ use crate::{
     utils::{BytesExt, Encode},
 };
 
+use transformers as opennode;
+
 #[derive(Debug, Clone)]
-pub struct Coinbase;
+pub struct Opennode;
 
-impl api::Payment for Coinbase {}
-impl api::PaymentSession for Coinbase {}
-impl api::ConnectorAccessToken for Coinbase {}
-impl api::PreVerify for Coinbase {}
-impl api::PaymentAuthorize for Coinbase {}
-impl api::PaymentSync for Coinbase {}
-impl api::PaymentCapture for Coinbase {}
-impl api::PaymentVoid for Coinbase {}
-impl api::Refund for Coinbase {}
-impl api::RefundExecute for Coinbase {}
-impl api::RefundSync for Coinbase {}
+impl api::Payment for Opennode {}
+impl api::PaymentSession for Opennode {}
+impl api::ConnectorAccessToken for Opennode {}
+impl api::PreVerify for Opennode {}
+impl api::PaymentAuthorize for Opennode {}
+impl api::PaymentSync for Opennode {}
+impl api::PaymentCapture for Opennode {}
+impl api::PaymentVoid for Opennode {}
+impl api::Refund for Opennode {}
+impl api::RefundExecute for Opennode {}
+impl api::RefundSync for Opennode {}
 
-impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Coinbase
+impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Opennode
 where
     Self: ConnectorIntegration<Flow, Request, Response>,
 {
@@ -50,7 +50,10 @@ where
                 headers::CONTENT_TYPE.to_string(),
                 self.common_get_content_type().to_string(),
             ),
-            (headers::X_CC_VERSION.to_string(), "2018-03-22".to_string()),
+            (
+                headers::ACCEPT.to_string(),
+                self.common_get_content_type().to_string(),
+            ),
         ];
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         header.append(&mut api_key);
@@ -58,9 +61,9 @@ where
     }
 }
 
-impl ConnectorCommon for Coinbase {
+impl ConnectorCommon for Opennode {
     fn id(&self) -> &'static str {
-        "coinbase"
+        "opennode"
     }
 
     fn common_get_content_type(&self) -> &'static str {
@@ -68,25 +71,25 @@ impl ConnectorCommon for Coinbase {
     }
 
     fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
-        connectors.coinbase.base_url.as_ref()
+        connectors.opennode.base_url.as_ref()
     }
 
     fn get_auth_header(
         &self,
         auth_type: &types::ConnectorAuthType,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        let auth: coinbase::CoinbaseAuthType = coinbase::CoinbaseAuthType::try_from(auth_type)
+        let auth = opennode::OpennodeAuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-        Ok(vec![(headers::X_CC_API_KEY.to_string(), auth.api_key)])
+        Ok(vec![(headers::AUTHORIZATION.to_string(), auth.api_key)])
     }
 
     fn build_error_response(
         &self,
         res: Response,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let response: coinbase::CoinbaseErrorResponse = res
+        let response: opennode::OpennodeErrorResponse = res
             .response
-            .parse_struct("CoinbaseErrorResponse")
+            .parse_struct("OpennodeErrorResponse")
             .switch()?;
 
         Ok(ErrorResponse {
@@ -99,23 +102,23 @@ impl ConnectorCommon for Coinbase {
 }
 
 impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::PaymentsResponseData>
-    for Coinbase
+    for Opennode
 {
     //TODO: implement sessions flow
 }
 
 impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, types::AccessToken>
-    for Coinbase
+    for Opennode
 {
 }
 
 impl ConnectorIntegration<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>
-    for Coinbase
+    for Opennode
 {
 }
 
 impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::PaymentsResponseData>
-    for Coinbase
+    for Opennode
 {
     fn get_headers(
         &self,
@@ -134,18 +137,18 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         _req: &types::PaymentsAuthorizeRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!("{}/charges", self.base_url(_connectors)))
+        Ok(format!("{}/v1/charges", self.base_url(_connectors)))
     }
 
     fn get_request_body(
         &self,
         req: &types::PaymentsAuthorizeRouterData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        let req_obj = coinbase::CoinbasePaymentsRequest::try_from(req)?;
-        let coinbase_req =
-            Encode::<coinbase::CoinbasePaymentsRequest>::encode_to_string_of_json(&req_obj)
+        let req_obj = opennode::OpennodePaymentsRequest::try_from(req)?;
+        let opennode_req =
+            Encode::<opennode::OpennodePaymentsRequest>::encode_to_string_of_json(&req_obj)
                 .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(coinbase_req))
+        Ok(Some(opennode_req))
     }
 
     fn build_request(
@@ -172,9 +175,9 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         data: &types::PaymentsAuthorizeRouterData,
         res: Response,
     ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
-        let response: coinbase::CoinbasePaymentsResponse = res
+        let response: opennode::OpennodePaymentsResponse = res
             .response
-            .parse_struct("Coinbase PaymentsAuthorizeResponse")
+            .parse_struct("Opennode PaymentsAuthorizeResponse")
             .switch()?;
         types::RouterData::try_from(types::ResponseRouterData {
             response,
@@ -193,7 +196,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
 }
 
 impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>
-    for Coinbase
+    for Opennode
 {
     fn get_headers(
         &self,
@@ -218,7 +221,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
             .get_connector_transaction_id()
             .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
         Ok(format!(
-            "{}/charges/{}",
+            "{}/v2/charge/{}",
             self.base_url(_connectors),
             connector_id
         ))
@@ -243,9 +246,9 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         data: &types::PaymentsSyncRouterData,
         res: Response,
     ) -> CustomResult<types::PaymentsSyncRouterData, errors::ConnectorError> {
-        let response: coinbase::CoinbasePaymentsResponse = res
+        let response: opennode::OpennodePaymentsResponse = res
             .response
-            .parse_struct("coinbase PaymentsSyncResponse")
+            .parse_struct("opennode PaymentsSyncResponse")
             .switch()?;
         types::RouterData::try_from(types::ResponseRouterData {
             response,
@@ -264,7 +267,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
 }
 
 impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::PaymentsResponseData>
-    for Coinbase
+    for Opennode
 {
     fn get_headers(
         &self,
@@ -314,9 +317,9 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         data: &types::PaymentsCaptureRouterData,
         res: Response,
     ) -> CustomResult<types::PaymentsCaptureRouterData, errors::ConnectorError> {
-        let response: coinbase::CoinbasePaymentsResponse = res
+        let response: opennode::OpennodePaymentsResponse = res
             .response
-            .parse_struct("Coinbase PaymentsCaptureResponse")
+            .parse_struct("Opennode PaymentsCaptureResponse")
             .switch()?;
         types::RouterData::try_from(types::ResponseRouterData {
             response,
@@ -335,12 +338,12 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
 }
 
 impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsResponseData>
-    for Coinbase
+    for Opennode
 {
 }
 
 impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsResponseData>
-    for Coinbase
+    for Opennode
 {
     fn get_headers(
         &self,
@@ -366,11 +369,11 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         &self,
         req: &types::RefundsRouterData<api::Execute>,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        let req_obj = coinbase::CoinbaseRefundRequest::try_from(req)?;
-        let coinbase_req =
-            Encode::<coinbase::CoinbaseRefundRequest>::encode_to_string_of_json(&req_obj)
+        let req_obj = opennode::OpennodeRefundRequest::try_from(req)?;
+        let opennode_req =
+            Encode::<opennode::OpennodeRefundRequest>::encode_to_string_of_json(&req_obj)
                 .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(coinbase_req))
+        Ok(Some(opennode_req))
     }
 
     fn build_request(
@@ -394,9 +397,9 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         data: &types::RefundsRouterData<api::Execute>,
         res: Response,
     ) -> CustomResult<types::RefundsRouterData<api::Execute>, errors::ConnectorError> {
-        let response: coinbase::RefundResponse = res
+        let response: opennode::RefundResponse = res
             .response
-            .parse_struct("coinbase RefundResponse")
+            .parse_struct("opennode RefundResponse")
             .switch()?;
         types::RouterData::try_from(types::ResponseRouterData {
             response,
@@ -414,7 +417,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
     }
 }
 
-impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponseData> for Coinbase {
+impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponseData> for Opennode {
     fn get_headers(
         &self,
         req: &types::RefundSyncRouterData,
@@ -455,9 +458,9 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         data: &types::RefundSyncRouterData,
         res: Response,
     ) -> CustomResult<types::RefundSyncRouterData, errors::ConnectorError> {
-        let response: coinbase::RefundResponse = res
+        let response: opennode::RefundResponse = res
             .response
-            .parse_struct("coinbase RefundSyncResponse")
+            .parse_struct("opennode RefundSyncResponse")
             .switch()?;
         types::RouterData::try_from(types::ResponseRouterData {
             response,
@@ -476,7 +479,7 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
 }
 
 #[async_trait::async_trait]
-impl api::IncomingWebhook for Coinbase {
+impl api::IncomingWebhook for Opennode {
     fn get_webhook_source_verification_algorithm(
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
@@ -488,8 +491,9 @@ impl api::IncomingWebhook for Coinbase {
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
-        let base64_signature =
-            utils::get_header_key_value("X-CC-Webhook-Signature", request.headers)?;
+        let notif: OpennodeWebhookDetails =
+            utils::convert_query_params_to_struct(request.body).unwrap();
+        let base64_signature = notif.hashed_order;
         hex::decode(base64_signature)
             .into_report()
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)
@@ -523,46 +527,40 @@ impl api::IncomingWebhook for Coinbase {
 
     fn get_webhook_object_reference_id(
         &self,
-        request: &api::IncomingWebhookRequestDetails<'_>,
+        _request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let notif: CoinbaseWebhookDetails = request
-            .body
-            .parse_struct("CoinbaseWebhookDetails")
-            .switch()?;
-        Ok(notif.event.data.id)
+        let notif: OpennodeWebhookDetails =
+            utils::convert_query_params_to_struct(_request.body).unwrap();
+        Ok(notif.id)
     }
 
     fn get_webhook_event_type(
         &self,
-        request: &api::IncomingWebhookRequestDetails<'_>,
+        _request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api::IncomingWebhookEvent, errors::ConnectorError> {
-        println!("## body=> {:?}", request.body);
-        let notif: CoinbaseWebhookDetails = request
-            .body
-            .parse_struct("CoinbaseWebhookDetails")
-            .switch()?;
-        match notif.event.event_type {
-            coinbase::WebhookEventType::Confirmed | coinbase::WebhookEventType::Resolved => {
+        println!("## body=> {:?}", _request.body);
+        let notif: OpennodeWebhookDetails =
+            utils::convert_query_params_to_struct(_request.body).unwrap();
+
+        println!("## notif=> {:?}", notif);
+        match notif.status {
+            opennode::OpennodePaymentStatus::Paid => {
                 Ok(api::IncomingWebhookEvent::PaymentIntentSuccess)
             }
-            coinbase::WebhookEventType::Failed => {
-                Ok(api::IncomingWebhookEvent::PaymentActionRequired)
+            opennode::OpennodePaymentStatus::Underpaid
+            | opennode::OpennodePaymentStatus::Expired => {
+                Ok(api::IncomingWebhookEvent::PaymentIntentFailure)
             }
-            coinbase::WebhookEventType::Pending => {
-                Ok(api::IncomingWebhookEvent::PaymentIntentProcessing)
-            }
-            _ => Ok(api::IncomingWebhookEvent::EventNotSupported),
+            _ => Err(errors::ConnectorError::WebhookEventTypeNotFound.into()),
         }
     }
 
     fn get_webhook_resource_object(
         &self,
-        request: &api::IncomingWebhookRequestDetails<'_>,
+        _request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<serde_json::Value, errors::ConnectorError> {
-        let notif: CoinbaseWebhookDetails = request
-            .body
-            .parse_struct("CoinbaseWebhookDetails")
-            .switch()?;
-        Encode::<CoinbaseWebhookDetails>::encode_to_value(&notif.event).switch()
+        let notif: OpennodeWebhookDetails =
+            utils::convert_query_params_to_struct(_request.body).unwrap();
+        Encode::<OpennodeWebhookDetails>::encode_to_value(&notif.status).switch()
     }
 }
