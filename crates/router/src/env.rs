@@ -20,6 +20,7 @@ pub mod logger {
                 "actix_server",
                 "api_models",
                 "common_utils",
+                "external_services",
                 "masking",
                 "redis_interface",
                 "router_derive",
