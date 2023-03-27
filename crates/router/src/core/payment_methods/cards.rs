@@ -1238,21 +1238,21 @@ fn filter_pm_country_based(
     match (accepted_countries, req_country_list) {
         (None, None) => (None, None, true),
         (None, Some(ref r)) => (
-            Some(admin::AcceptedCountries::SpecificAccepted(r.to_vec())),
+            Some(admin::AcceptedCountries::EnableOnly(r.to_vec())),
             Some(r.to_vec()),
             true,
         ),
         (Some(l), None) => (Some(l.to_owned()), None, true),
         (Some(l), Some(ref r)) => {
             let updated = match l {
-                admin::AcceptedCountries::SpecificAccepted(acc) => {
+                admin::AcceptedCountries::EnableOnly(acc) => {
                     filter_accepted_enum_based(&Some(acc.clone()), &Some(r.to_owned()))
-                        .map(admin::AcceptedCountries::SpecificAccepted)
+                        .map(admin::AcceptedCountries::EnableOnly)
                 }
 
-                admin::AcceptedCountries::SpecificDenied(den) => {
+                admin::AcceptedCountries::DisableOnly(den) => {
                     filter_disabled_enum_based(&Some(den.clone()), &Some(r.to_owned()))
-                        .map(admin::AcceptedCountries::SpecificDenied)
+                        .map(admin::AcceptedCountries::DisableOnly)
                 }
 
                 admin::AcceptedCountries::AllAccepted => {
@@ -1276,21 +1276,21 @@ fn filter_pm_currencies_based(
     match (accepted_currency, req_currency_list) {
         (None, None) => (None, None, true),
         (None, Some(ref r)) => (
-            Some(admin::AcceptedCurrencies::SpecificAccepted(r.to_vec())),
+            Some(admin::AcceptedCurrencies::EnableOnly(r.to_vec())),
             Some(r.to_vec()),
             true,
         ),
         (Some(l), None) => (Some(l.to_owned()), None, true),
         (Some(l), Some(ref r)) => {
             let updated = match l {
-                admin::AcceptedCurrencies::SpecificAccepted(acc) => {
+                admin::AcceptedCurrencies::EnableOnly(acc) => {
                     filter_accepted_enum_based(&Some(acc.clone()), &Some(r.to_owned()))
-                        .map(admin::AcceptedCurrencies::SpecificAccepted)
+                        .map(admin::AcceptedCurrencies::EnableOnly)
                 }
 
-                admin::AcceptedCurrencies::SpecificDenied(den) => {
+                admin::AcceptedCurrencies::DisableOnly(den) => {
                     filter_disabled_enum_based(&Some(den.clone()), &Some(r.to_owned()))
-                        .map(admin::AcceptedCurrencies::SpecificDenied)
+                        .map(admin::AcceptedCurrencies::DisableOnly)
                 }
 
                 admin::AcceptedCurrencies::AllAccepted => {
@@ -1388,8 +1388,8 @@ async fn filter_payment_country_based(
     Ok(address.map_or(true, |address| {
         address.country.as_ref().map_or(true, |country| {
             pm.accepted_countries.as_ref().map_or(true, |ac| match ac {
-                admin::AcceptedCountries::SpecificAccepted(acc) => acc.contains(country),
-                admin::AcceptedCountries::SpecificDenied(den) => !den.contains(country),
+                admin::AcceptedCountries::EnableOnly(acc) => acc.contains(country),
+                admin::AcceptedCountries::DisableOnly(den) => !den.contains(country),
                 admin::AcceptedCountries::AllAccepted => true,
             })
         })
@@ -1402,10 +1402,10 @@ fn filter_payment_currency_based(
 ) -> bool {
     payment_intent.currency.map_or(true, |currency| {
         pm.accepted_currencies.as_ref().map_or(true, |ac| match ac {
-            admin::AcceptedCurrencies::SpecificAccepted(acc) => {
+            admin::AcceptedCurrencies::EnableOnly(acc) => {
                 acc.contains(&currency.foreign_into())
             }
-            admin::AcceptedCurrencies::SpecificDenied(den) => {
+            admin::AcceptedCurrencies::DisableOnly(den) => {
                 !den.contains(&currency.foreign_into())
             }
             admin::AcceptedCurrencies::AllAccepted => true,

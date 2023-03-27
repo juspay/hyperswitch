@@ -368,8 +368,8 @@ pub struct PaymentMethodsEnabled {
     rename_all = "snake_case"
 )]
 pub enum AcceptedCurrencies {
-    SpecificAccepted(Vec<api_enums::Currency>),
-    SpecificDenied(Vec<api_enums::Currency>),
+    EnableOnly(Vec<api_enums::Currency>),
+    DisableOnly(Vec<api_enums::Currency>),
     AllAccepted,
 }
 
@@ -381,8 +381,8 @@ pub enum AcceptedCurrencies {
     rename_all = "snake_case"
 )]
 pub enum AcceptedCountries {
-    SpecificAccepted(Vec<String>),
-    SpecificDenied(Vec<String>),
+    EnableOnly(Vec<String>),
+    DisableOnly(Vec<String>),
     AllAccepted,
 }
 
