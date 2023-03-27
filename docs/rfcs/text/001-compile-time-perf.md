@@ -34,8 +34,8 @@ Below mentioned are some of the PR's that were intended to improve the performan
 
     This is an example that was mentioned in the Proposal section that illustrated the performance boost from a relatively small change. Prior to this change diesel contributed a whopping *59.17s* to the compile time, though there are crates compiling alongside diesel, for the longest of time only diesel was compiling even after all the dependencies were compiled.
 
-    ![pre-opt](./assets/perf-before.png)
+    ![pre-opt](../assets/rfc-001-perf-before.png)
     After removing a redundant feature flag used for diesel in various crates, the performance boost was visibly significant, the compile time taken by diesel was a measly *4.8s*. This provided a *37.65%* improvement in the overall compile time.
 
-    ![post-opt](./assets/perf-after.png)
+    ![post-opt](../assets/rfc-001-perf-after.png)
     Note: these benchmarks were performed on an M1 pro chip with a ~250 Mbps connection.
