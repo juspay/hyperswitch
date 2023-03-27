@@ -878,11 +878,9 @@ impl<F, T>
                     _ => Ok(types::PaymentsResponseData::TransactionResponse {
                         resource_id: response
                             .transaction_id
-                            .map_or(response.order_id, Some)
-                            .map_or_else(
-                                || types::ResponseId::NoResponseId,
-                                types::ResponseId::ConnectorTransactionId,
-                            ),
+                            .map_or(response.order_id, Some) // For paypal there will be no transaction_id, only order_id will be present
+                            .map(types::ResponseId::ConnectorTransactionId)
+                            .ok_or_else(|| errors::ConnectorError::MissingConnectorTransactionID)?,
                         redirection_data,
                         mandate_reference: None,
                         // we don't need to save session token for capture, void flow so ignoring if it is not present
@@ -1038,15 +1036,35 @@ pub struct NuveiWebhookDetails {
     #[serde(rename = "responseTimeStamp")]
     pub response_time_stamp: String,
     #[serde(rename = "Status")]
-    pub status: NuveiTransactionStatus,
+    pub status: NuveiWebhookStatus,
     #[serde(rename = "transactionType")]
     pub transaction_type: Option<NuveiTransactionType>,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "UPPERCASE")]
+pub enum NuveiWebhookStatus {
+    Approved,
+    Declined,
+    #[default]
+    Pending,
+    Update,
+}
+
+impl From<NuveiWebhookStatus> for NuveiTransactionStatus {
+    fn from(status: NuveiWebhookStatus) -> Self {
+        match status {
+            NuveiWebhookStatus::Approved => Self::Approved,
+            NuveiWebhookStatus::Declined => Self::Declined,
+            _ => Self::Processing,
+        }
+    }
 }
 
 impl From<NuveiWebhookDetails> for NuveiPaymentsResponse {
     fn from(item: NuveiWebhookDetails) -> Self {
         Self {
-            transaction_status: Some(item.status),
+            transaction_status: Some(NuveiTransactionStatus::from(item.status)),
             transaction_id: item.transaction_id,
             transaction_type: item.transaction_type,
             ..Default::default()

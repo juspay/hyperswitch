@@ -3,7 +3,6 @@ use std::collections::HashMap;
 use base64::Engine;
 use common_utils::{
     errors::ReportSwitchExt,
-    ext_traits::ByteSliceExt,
     pii::{self, Email},
 };
 use error_stack::{report, IntoReport, ResultExt};
@@ -17,7 +16,7 @@ use crate::{
     core::errors::{self, CustomResult},
     pii::PeekInterface,
     types::{self, api, PaymentsCancelData, ResponseId},
-    utils::{Encode, OptionExt, ValueExt},
+    utils::{OptionExt, ValueExt},
 };
 
 pub fn missing_field_err(
@@ -525,29 +524,4 @@ pub fn collect_and_sort_values_by_removing_signature(
     let mut values = collect_values_by_removing_signature(value, signature);
     values.sort();
     values
-}
-
-pub fn convert_query_params_to_struct<T>(
-    query_params: Option<String>,
-) -> Result<T, error_stack::Report<errors::ConnectorError>>
-where
-    T: serde::de::DeserializeOwned,
-{
-    query_params
-        .map(|query_str| {
-            let qp: HashMap<String, String> = url::form_urlencoded::parse(query_str.as_bytes())
-                .into_owned()
-                .collect();
-            let json = Encode::<HashMap<String, String>>::encode_to_string_of_json(&qp).switch()?;
-            json.as_bytes()
-                .parse_struct(std::any::type_name::<T>())
-                .switch()
-        })
-        .transpose()?
-        .ok_or_else(|| {
-            errors::ConnectorError::MissingRequiredField {
-                field_name: "query_params",
-            }
-            .into()
-        })
 }
