@@ -1,9 +1,9 @@
-FROM rust:latest as builder
+FROM rust:slim as builder
 
 ARG RUN_ENV=Sandbox
 
 RUN apt-get update \
-    && apt-get install -y libpq-dev libssl-dev
+    && apt-get install -y libpq-dev libssl-dev pkg-config
 
 # Copying codebase from current dir to /router dir
 # and creating a fresh build
