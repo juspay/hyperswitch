@@ -784,10 +784,10 @@ impl api::IncomingWebhook for Adyen {
     fn get_dispute_details(
         &self,
         request: &api_models::webhooks::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<api_models::disputes::DisputePayload, errors::ConnectorError> {
+    ) -> CustomResult<api::disputes::DisputePayload, errors::ConnectorError> {
         let notif = get_webhook_object_from_body(request.body)
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
-        Ok(api_models::disputes::DisputePayload {
+        Ok(api::disputes::DisputePayload {
             amount: notif.amount.value.to_string(),
             currency: notif.amount.currency,
             dispute_stage: api_models::enums::DisputeStage::from(notif.event_code.clone()),

@@ -203,14 +203,6 @@ async fn get_payment_attempt_from_object_reference_id(
 ) -> CustomResult<storage_models::payment_attempt::PaymentAttempt, errors::WebhooksFlowError> {
     let db = &*state.store;
     match object_reference_id {
-        api::ObjectReferenceId::PaymentId(api::PaymentIdType::PaymentIntentId(ref id)) => db
-            .find_payment_attempt_by_payment_id_merchant_id(
-                id,
-                &merchant_account.merchant_id,
-                merchant_account.storage_scheme,
-            )
-            .await
-            .change_context(errors::WebhooksFlowError::ResourceNotFound),
         api::ObjectReferenceId::PaymentId(api::PaymentIdType::ConnectorTransactionId(ref id)) => db
             .find_payment_attempt_by_merchant_id_connector_txn_id(
                 &merchant_account.merchant_id,
@@ -234,7 +226,7 @@ async fn get_payment_attempt_from_object_reference_id(
 async fn get_or_update_dispute_object(
     state: AppState,
     option_dispute: Option<storage_models::dispute::Dispute>,
-    dispute_details: api_models::disputes::DisputePayload,
+    dispute_details: api::disputes::DisputePayload,
     merchant_id: &str,
     payment_id: &str,
     attempt_id: &str,
@@ -323,8 +315,9 @@ async fn disputes_incoming_webhook_flow<W: api::OutgoingWebhookType>(
         )
         .await?;
         let option_dispute = db
-            .find_by_attempt_id_connector_dispute_id(
-                &payment_attempt.attempt_id,
+            .find_by_merchant_id_payment_id_connector_dispute_id(
+                &merchant_account.merchant_id,
+                &payment_attempt.payment_id,
                 &dispute_details.connector_dispute_id,
             )
             .await

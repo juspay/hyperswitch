@@ -723,14 +723,14 @@ impl api::IncomingWebhook for Trustpay {
     fn get_dispute_details(
         &self,
         request: &api_models::webhooks::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<api_models::disputes::DisputePayload, errors::ConnectorError> {
+    ) -> CustomResult<api::disputes::DisputePayload, errors::ConnectorError> {
         let trustpay_response: trustpay::TrustpayWebhookResponse = request
             .body
             .parse_struct("TrustpayWebhookResponse")
             .switch()?;
         let payment_info = trustpay_response.payment_information;
         let reason = payment_info.status_reason_information.unwrap_or_default();
-        Ok(api_models::disputes::DisputePayload {
+        Ok(api::disputes::DisputePayload {
             amount: payment_info.amount.amount.to_string(),
             currency: payment_info.amount.currency,
             dispute_stage: api_models::enums::DisputeStage::Dispute,

@@ -152,38 +152,54 @@ mod tests {
     }
 }
 
+// Dispute Stage can move linearly from PreDispute -> Dispute -> PreArbitraion
+pub fn validate_dispute_stage(
+    prev_dispute_stage: &DisputeStage,
+    dispute_stage: &DisputeStage,
+) -> bool {
+    match prev_dispute_stage {
+        DisputeStage::PreDispute => true,
+        DisputeStage::Dispute => !matches!(dispute_stage, DisputeStage::PreDispute),
+        DisputeStage::PreArbitration => matches!(dispute_stage, DisputeStage::PreArbitration),
+    }
+}
+
+//Dispute status can go from Opened -> (Expired | Accepted | Cancelled | Challeneged -> (Won | Lost))
+pub fn validate_dispute_status(
+    prev_dispute_status: DisputeStatus,
+    dispute_status: DisputeStatus,
+) -> bool {
+    match prev_dispute_status {
+        DisputeStatus::DisputeOpened => true,
+        DisputeStatus::DisputeExpired => {
+            matches!(dispute_status, DisputeStatus::DisputeExpired)
+        }
+        DisputeStatus::DisputeAccepted => {
+            matches!(dispute_status, DisputeStatus::DisputeAccepted)
+        }
+        DisputeStatus::DisputeCancelled => {
+            matches!(dispute_status, DisputeStatus::DisputeCancelled)
+        }
+        DisputeStatus::DisputeChallenged => matches!(
+            dispute_status,
+            DisputeStatus::DisputeChallenged
+                | DisputeStatus::DisputeWon
+                | DisputeStatus::DisputeLost
+        ),
+        DisputeStatus::DisputeWon => matches!(dispute_status, DisputeStatus::DisputeWon),
+        DisputeStatus::DisputeLost => matches!(dispute_status, DisputeStatus::DisputeLost),
+    }
+}
+
 pub fn validate_dispute_stage_and_dispute_status(
     prev_dispute_stage: DisputeStage,
     prev_dispute_status: DisputeStatus,
     dispute_stage: DisputeStage,
     dispute_status: DisputeStatus,
-) -> CustomResult<(), crate::errors::WebhooksFlowError> {
-    let dispute_stage_validation = match prev_dispute_stage {
-        DisputeStage::PreDispute => true,
-        DisputeStage::Dispute => !matches!(dispute_stage, DisputeStage::PreDispute),
-        DisputeStage::PreArbitration => matches!(dispute_stage, DisputeStage::PreArbitration),
-    };
+) -> CustomResult<(), errors::WebhooksFlowError> {
+    let dispute_stage_validation = validate_dispute_stage(&prev_dispute_stage, &dispute_stage);
     let dispute_status_validation = if dispute_stage == prev_dispute_stage {
-        match prev_dispute_status {
-            DisputeStatus::DisputeOpened => true,
-            DisputeStatus::DisputeExpired => {
-                matches!(dispute_status, DisputeStatus::DisputeExpired)
-            }
-            DisputeStatus::DisputeAccepted => {
-                matches!(dispute_status, DisputeStatus::DisputeAccepted)
-            }
-            DisputeStatus::DisputeCancelled => {
-                matches!(dispute_status, DisputeStatus::DisputeCancelled)
-            }
-            DisputeStatus::DisputeChallenged => matches!(
-                dispute_status,
-                DisputeStatus::DisputeChallenged
-                    | DisputeStatus::DisputeWon
-                    | DisputeStatus::DisputeLost
-            ),
-            DisputeStatus::DisputeWon => matches!(dispute_status, DisputeStatus::DisputeWon),
-            DisputeStatus::DisputeLost => matches!(dispute_status, DisputeStatus::DisputeLost),
-        }
+        validate_dispute_status(prev_dispute_status, dispute_status)
     } else {
         true
     };
@@ -193,7 +209,7 @@ pub fn validate_dispute_stage_and_dispute_status(
             1,
             &[],
         );
-        Err(crate::errors::WebhooksFlowError::DisputeWebhookValidationFailed)?
+        Err(errors::WebhooksFlowError::DisputeWebhookValidationFailed)?
     }
     Ok(())
 }

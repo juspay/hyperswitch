@@ -141,9 +141,7 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
     fn get_dispute_details(
         &self,
         _request: &IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<api_models::disputes::DisputePayload, errors::ConnectorError> {
-        Ok(api_models::disputes::DisputePayload {
-            ..Default::default()
-        })
+    ) -> CustomResult<super::disputes::DisputePayload, errors::ConnectorError> {
+        Err(errors::ConnectorError::NotImplemented("get_dispute_details method".to_string()).into())
     }
 }

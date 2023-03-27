@@ -446,6 +446,6 @@ pub enum WebhooksFlowError {
     WebhookEventObjectCreationFailed,
     #[error("Not implemented")]
     NotImplemented,
-    #[error("Dispute webhook status validaion failed")]
+    #[error("Dispute webhook status validation failed")]
     DisputeWebhookValidationFailed,
 }
