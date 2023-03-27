@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     compatibility::stripe::refunds::types as stripe_refunds,
+    consts,
     core::errors,
     pii::{self, PeekInterface},
     types::{
@@ -358,7 +359,7 @@ impl From<payments::PaymentsResponse> for StripePaymentIntentResponse {
                 decline_code: None,
                 message: resp
                     .error_message
-                    .unwrap_or_else(|| "Error message is null".to_string()),
+                    .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
                 param: None,
                 payment_method: resp.payment_method,
                 error_type: code,
