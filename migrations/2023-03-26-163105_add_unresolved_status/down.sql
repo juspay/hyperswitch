@@ -14,7 +14,7 @@ AND enumtypid = (
   SELECT oid FROM pg_type WHERE typname = 'EventType'
 );
 DELETE FROM pg_enum
-WHERE enumlabel = 'unsupported'
+WHERE enumlabel = 'payment_processing'
 AND enumtypid = (
   SELECT oid FROM pg_type WHERE typname = 'EventType'
 );

@@ -387,10 +387,10 @@ pub struct PaymentElement {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Block {
-    pub hash: String,
-    pub height: i64,
-    pub confirmations: i64,
-    pub confirmations_required: i64,
+    pub hash: Option<String>,
+    pub height: Option<i64>,
+    pub confirmations: Option<i64>,
+    pub confirmations_required: Option<i64>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
