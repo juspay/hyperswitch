@@ -134,7 +134,7 @@ pub enum PaymentAttemptUpdate {
         connector_transaction_id: Option<String>,
         payment_method_id: Option<Option<String>>,
         error_code: Option<String>,
-        error_message: Option<String>
+        error_message: Option<String>,
     },
     StatusUpdate {
         status: storage_enums::AttemptStatus,
