@@ -71,6 +71,7 @@ globalpay.base_url = "https://apis.sandbox.globalpay.com/ucp/"
 klarna.base_url = "https://api-na.playground.klarna.com/"
 mollie.base_url = "https://api.mollie.com/v2/"
 multisafepay.base_url = "https://testapi.multisafepay.com/"
+netseasy.base_url = "https://test.api.dibspayment.eu/"
 nuvei.base_url = "https://ppp-test.nuvei.com/"
 payu.base_url = "https://secure.snd.payu.com/"
 rapyd.base_url = "https://sandboxapi.rapyd.net"
@@ -98,6 +99,7 @@ cards = [
     "globalpay",
     "mollie",
     "multisafepay",
+    "netseasy",
     "nuvei",
     "payu",
     "shift4",
