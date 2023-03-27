@@ -475,7 +475,7 @@ pub fn to_currency_base_unit(
         | storage_models::enums::Currency::OMR => amount_f64 / 1000.00,
         _ => amount_f64 / 100.00,
     };
-    Ok(format!("{:.2}", amount))
+    Ok(format!("{amount:.2}"))
 }
 
 pub fn str_to_f32<S>(value: &str, serializer: S) -> Result<S::Ok, S::Error>
@@ -496,7 +496,7 @@ pub fn collect_values_by_removing_signature(
         serde_json::Value::Null => vec!["null".to_owned()],
         serde_json::Value::Bool(b) => vec![b.to_string()],
         serde_json::Value::Number(n) => match n.as_f64() {
-            Some(f) => vec![format!("{:.2}", f)],
+            Some(f) => vec![format!("{f:.2}")],
             None => vec![n.to_string()],
         },
         serde_json::Value::String(s) => {

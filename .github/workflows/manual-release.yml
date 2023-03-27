@@ -1,6 +1,16 @@
 name: Release branch manually
 
-on: workflow_dispatch
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Environment to create image for"
+        required: true
+        default: "Sandbox"
+        type: choice
+        options:
+          - Sandbox
+          - Production
 
 jobs:
   build:
@@ -21,6 +31,7 @@ jobs:
         uses: docker/build-push-action@v4
         with:
           build-args: |
+            RUN_ENV=${{ inputs.environment }}
             BINARY=router
           context: .
           push: true
@@ -30,6 +41,7 @@ jobs:
         uses: docker/build-push-action@v4
         with:
           build-args: |
+            RUN_ENV=${{ inputs.environment }}
             BINARY=scheduler
             SCHEDULER_FLOW=Consumer
           context: .
@@ -40,6 +52,7 @@ jobs:
         uses: docker/build-push-action@v4
         with:
           build-args: |
+            RUN_ENV=${{ inputs.environment }}
             BINARY=scheduler
             SCHEDULER_FLOW=Producer
           context: .
@@ -50,6 +63,7 @@ jobs:
         uses: docker/build-push-action@v4
         with:
           build-args: |
+            RUN_ENV=${{ inputs.environment }}
             BINARY=drainer
           context: .
           push: true

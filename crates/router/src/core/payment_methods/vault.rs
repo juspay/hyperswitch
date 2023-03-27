@@ -1,6 +1,8 @@
 use common_utils::generate_id_with_default_len;
 use error_stack::{IntoReport, ResultExt};
 #[cfg(feature = "basilisk")]
+use external_services::kms;
+#[cfg(feature = "basilisk")]
 use josekit::jwe;
 use masking::PeekInterface;
 use router_env::{instrument, tracing};
@@ -18,11 +20,7 @@ use crate::{
     utils::{self, StringExt},
 };
 #[cfg(feature = "basilisk")]
-use crate::{
-    core::payment_methods::transformers as payment_methods,
-    services::{self, kms},
-    utils::BytesExt,
-};
+use crate::{core::payment_methods::transformers as payment_methods, services, utils::BytesExt};
 #[cfg(feature = "basilisk")]
 use crate::{
     db,
@@ -407,7 +405,7 @@ pub fn get_key_id(keys: &settings::Jwekey) -> &str {
 #[cfg(feature = "basilisk")]
 async fn get_locker_jwe_keys(
     keys: &settings::Jwekey,
-    kms_config: &settings::Kms,
+    kms_config: &kms::KmsConfig,
 ) -> CustomResult<(String, String), errors::EncryptionError> {
     let key_id = get_key_id(keys);
     let (encryption_key, decryption_key) = if key_id == keys.locker_key_identifier1 {
@@ -595,7 +593,7 @@ pub async fn delete_tokenized_data(
     let payload = serde_json::to_string(&payload_to_be_encrypted)
         .map_err(|_x| errors::ApiErrorResponse::InternalServerError)?;
 
-    let (public_key, private_key) = get_locker_jwe_keys(&state.conf.jwekey, &state.conf.kms)
+    let (public_key, _private_key) = get_locker_jwe_keys(&state.conf.jwekey, &state.conf.kms)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Error getting Encryption key")?;
@@ -620,31 +618,11 @@ pub async fn delete_tokenized_data(
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
     match response {
         Ok(r) => {
-            let resp: api::TokenizePayloadEncrypted = r
-                .response
-                .parse_struct("TokenizePayloadEncrypted")
+            let delete_response = std::str::from_utf8(&r.response)
+                .into_report()
                 .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Decoding Failed for TokenizePayloadEncrypted")?;
-            let alg = jwe::RSA_OAEP_256;
-            let decrypted_payload = services::decrypt_jwe(
-                &resp.payload,
-                get_key_id(&state.conf.jwekey),
-                &resp.key_id,
-                private_key,
-                alg,
-            )
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable(
-                "DeleteTokenizedApi: Decrypt Jwe failed for TokenizePayloadEncrypted",
-            )?;
-            let delete_response = decrypted_payload
-                .parse_struct("Delete")
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable(
-                    "Error getting TokenizePayloadEncrypted from tokenize response",
-                )?;
-            Ok(delete_response)
+                .attach_printable("Decoding Failed for basilisk delete response")?;
+            Ok(delete_response.to_string())
         }
         Err(err) => {
             metrics::TEMP_LOCKER_FAILURES.add(&metrics::CONTEXT, 1, &[]);
@@ -670,12 +648,12 @@ pub async fn add_delete_tokenized_data_task(
     })
     .into_report()
     .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable_lazy(|| format!("unable to convert into value {:?}", lookup_key))?;
+    .attach_printable_lazy(|| format!("unable to convert into value {lookup_key:?}"))?;
 
     let schedule_time = get_delete_tokenize_schedule_time(db, &pm, 0).await;
 
     let process_tracker_entry = storage::ProcessTrackerNew {
-        id: format!("{}_{}", runner, lookup_key),
+        id: format!("{runner}_{lookup_key}"),
         name: Some(String::from(runner)),
         tag: vec![String::from("BASILISK-V3")],
         runner: Some(String::from(runner)),
@@ -694,10 +672,7 @@ pub async fn add_delete_tokenized_data_task(
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable_lazy(|| {
-            format!(
-                "Failed while inserting task in process_tracker: lookup_key: {}",
-                lookup_key
-            )
+            format!("Failed while inserting task in process_tracker: lookup_key: {lookup_key}")
         })?;
     Ok(response)
 }

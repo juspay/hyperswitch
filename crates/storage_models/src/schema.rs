@@ -211,7 +211,7 @@ diesel::table! {
         amount -> Int8,
         currency -> Nullable<Currency>,
         save_to_locker -> Nullable<Bool>,
-        connector -> Nullable<Varchar>,
+        connector -> Nullable<Jsonb>,
         error_message -> Nullable<Text>,
         offer_amount -> Nullable<Int8>,
         surcharge_amount -> Nullable<Int8>,
