@@ -312,8 +312,8 @@ pub enum EventObjectType {
 #[strum(serialize_all = "snake_case")]
 pub enum EventType {
     PaymentSucceeded,
+    PaymentProcessing,
     ActionRequired,
-    Unsupported,
     RefundSucceeded,
     RefundFailed,
 }
