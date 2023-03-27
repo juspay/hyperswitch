@@ -184,22 +184,3 @@ impl super::settings::ApiKeys {
         })
     }
 }
-
-#[cfg(feature = "kms")]
-impl super::settings::Kms {
-    pub fn validate(&self) -> Result<(), ApplicationError> {
-        use common_utils::fp_utils::when;
-
-        when(self.key_id.is_default_or_empty(), || {
-            Err(ApplicationError::InvalidConfigurationValueError(
-                "KMS AWS key ID must not be empty".into(),
-            ))
-        })?;
-
-        when(self.region.is_default_or_empty(), || {
-            Err(ApplicationError::InvalidConfigurationValueError(
-                "KMS AWS region must not be empty".into(),
-            ))
-        })
-    }
-}

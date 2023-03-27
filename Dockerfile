@@ -1,4 +1,7 @@
 FROM rust:1.65 as builder
+
+ARG RUN_ENV=Sandbox
+
 RUN apt-get update \
     && apt-get install -y libpq-dev libssl-dev
 
@@ -27,7 +30,9 @@ ENV RUSTUP_MAX_RETRIES=10
 ENV RUST_BACKTRACE="short"
 
 COPY . .
-RUN cargo build --release --features sandbox
+
+# Use bash variable substitution to convert environment name to lowercase
+RUN bash -c 'cargo build --release --features ${RUN_ENV@L}'
 
 
 
