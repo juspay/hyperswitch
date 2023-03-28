@@ -19,6 +19,9 @@ on:
     #   - "Cargo.lock"
     #   - "Cargo.toml"
 
+  schedule:
+    - cron: "0 0 * * *"
+  
   merge_group:
     types:
       - checks_requested
@@ -394,11 +397,6 @@ jobs:
         with:
           toolchain: stable
 
-      - name: Install cargo-nextest
-        uses: baptiste0928/cargo-install@v1.3.0
-        with:
-          crate: cargo-nextest
-
       - uses: Swatinem/rust-cache@v2.2.0
 
       - name: Decrypt connector auth file
@@ -414,9 +412,6 @@ jobs:
         with:
           redis-image: redis/redis-stack-server
 
-      # - name: Run connector tests
-      #   shell: bash
-      #   run: cargo nextest run --package router --test connectors -- ${{ matrix.connector }}
       - name: Run connector tests
         uses: actions-rs/cargo@v1
         with:
