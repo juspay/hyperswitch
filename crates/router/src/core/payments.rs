@@ -4,7 +4,7 @@ pub mod helpers;
 pub mod operations;
 pub mod transformers;
 
-use std::{fmt::Debug, marker::PhantomData, time::Instant, vec::IntoIter};
+use std::{fmt::Debug, marker::PhantomData, time::Instant};
 
 use error_stack::{IntoReport, ResultExt};
 use futures::future::join_all;
@@ -908,15 +908,4 @@ pub fn decide_connector(
     routing_data.routed_through = Some(connector_name);
 
     Ok(api::ConnectorCallType::Single(connector_data))
-}
-
-#[inline]
-pub fn get_connector_data(
-    connectors: &mut IntoIter<api::ConnectorData>,
-) -> RouterResult<api::ConnectorData> {
-    connectors
-        .next()
-        .ok_or(errors::ApiErrorResponse::InternalServerError)
-        .into_report()
-        .attach_printable("Failed to get connector from iterator of connectors")
 }
