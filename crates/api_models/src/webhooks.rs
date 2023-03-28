@@ -37,12 +37,24 @@ pub struct IncomingWebhookRequestDetails<'a> {
     pub method: actix_web::http::Method,
     pub headers: &'a actix_web::http::header::HeaderMap,
     pub body: &'a [u8],
+    pub query_params: String,
+    pub query_params_json: &'a [u8],
 }
 
 pub type MerchantWebhookConfig = std::collections::HashSet<IncomingWebhookEvent>;
 
+pub enum RefundIdType {
+    RefundId(String),
+    ConnectorRefundId(String),
+}
+
+pub enum ObjectReferenceId {
+    PaymentId(payments::PaymentIdType),
+    RefundId(RefundIdType),
+}
+
 pub struct IncomingWebhookDetails {
-    pub object_reference_id: String,
+    pub object_reference_id: ObjectReferenceId,
     pub resource_object: Vec<u8>,
 }
 

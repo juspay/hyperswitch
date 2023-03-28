@@ -707,14 +707,18 @@ impl api::IncomingWebhook for Worldline {
     fn get_webhook_object_reference_id(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<String, errors::ConnectorError> {
+    ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
         || -> _ {
-            Ok(request
-                .body
-                .parse_struct::<worldline::WebhookBody>("WorldlineWebhookEvent")?
-                .payment
-                .parse_value::<worldline::Payment>("WorldlineWebhookObjectId")?
-                .id)
+            Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
+                api_models::payments::PaymentIdType::ConnectorTransactionId(
+                    request
+                        .body
+                        .parse_struct::<worldline::WebhookBody>("WorldlineWebhookEvent")?
+                        .payment
+                        .parse_value::<worldline::Payment>("WorldlineWebhookObjectId")?
+                        .id,
+                ),
+            ))
         }()
         .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)
     }

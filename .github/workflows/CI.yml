@@ -50,6 +50,8 @@ env:
   RUSTUP_MAX_RETRIES: 10
   # Don't emit giant backtraces in the CI logs.
   RUST_BACKTRACE: short
+  # Use cargo's sparse index protocol
+  CARGO_REGISTRIES_CRATES_IO_PROTOCOL: sparse
 
 jobs:
   formatting:
@@ -83,8 +85,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3.1.0
-      
-      - name: 'Fetch base branch'
+
+      - name: "Fetch base branch"
         run: git fetch origin $GITHUB_BASE_REF --depth 1
 
       - name: Install mold linker
@@ -230,8 +232,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3.1.0
-      
-      - name: 'Fetch base branch'
+
+      - name: "Fetch base branch"
         run: git fetch origin $GITHUB_BASE_REF --depth 1
 
       - name: Install mold linker

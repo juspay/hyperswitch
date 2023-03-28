@@ -2,7 +2,7 @@ use error_stack::IntoReport;
 
 use super::{cache, MockDb, Store};
 use crate::{
-    connection::pg_connection,
+    connection,
     errors::{self, CustomResult},
     types::storage::reverse_lookup::{ReverseLookup, ReverseLookupNew},
 };
@@ -25,7 +25,7 @@ impl ReverseLookupInterface for Store {
         &self,
         new: ReverseLookupNew,
     ) -> CustomResult<ReverseLookup, errors::StorageError> {
-        let conn = pg_connection(&self.master_pool).await?;
+        let conn = connection::pg_connection_write(self).await?;
         new.insert(&conn).await.map_err(Into::into).into_report()
     }
 
@@ -34,13 +34,13 @@ impl ReverseLookupInterface for Store {
         id: &str,
     ) -> CustomResult<ReverseLookup, errors::StorageError> {
         let database_call = || async {
-            let conn = pg_connection(&self.master_pool).await?;
+            let conn = connection::pg_connection_read(self).await?;
             ReverseLookup::find_by_lookup_id(id, &conn)
                 .await
                 .map_err(Into::into)
                 .into_report()
         };
-        cache::get_or_populate_cache(self, id, database_call).await
+        cache::get_or_populate_redis(self, id, database_call).await
     }
 }
 
