@@ -338,7 +338,7 @@ pub fn create_startpay_url(
     payment_intent: &storage::PaymentIntent,
 ) -> String {
     format!(
-        "{}/payments/start/{}/{}/{}",
+        "{}/payments/redirect/{}/{}/{}",
         server.base_url,
         payment_intent.payment_id,
         payment_intent.merchant_id,
