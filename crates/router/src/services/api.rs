@@ -448,19 +448,6 @@ pub struct ApplicationRedirectResponse {
     pub url: String,
 }
 
-impl From<&storage::PaymentAttempt> for ApplicationRedirectResponse {
-    fn from(payment_attempt: &storage::PaymentAttempt) -> Self {
-        Self {
-            url: format!(
-                "/payments/redirect/{}/{}/{}",
-                &payment_attempt.payment_id,
-                &payment_attempt.merchant_id,
-                &payment_attempt.attempt_id
-            ),
-        }
-    }
-}
-
 #[derive(Debug, Eq, PartialEq, Clone, serde::Serialize, serde::Deserialize)]
 pub struct RedirectForm {
     pub endpoint: String,
