@@ -381,7 +381,7 @@ pub struct AcceptedCountries {
     pub accept_type: String,
     /// List of countries of the provided type
     #[schema(value_type = Option<Vec<Country>>, example = json!(["FR", "DE","IN"]))]
-    pub list: Option<Vec<common_enums::CountryCode>>,
+    pub list: Option<Vec<api_enums::CountryCode>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]

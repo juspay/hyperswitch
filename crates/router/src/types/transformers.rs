@@ -253,27 +253,12 @@ impl ForeignFrom<storage_enums::Currency> for api_enums::Currency {
     }
 }
 
-impl ForeignFrom<storage_enums::CountryCode> for api_enums::CountryCode {
-    fn foreign_from(country: storage_enums::CountryCode) -> Self {
-        frunk::labelled_convert_from(country)
-    }
-}
-
-impl ForeignFrom<api_enums::CountryCode> for storage_enums::CountryCode {
-    fn foreign_from(country: api_enums::CountryCode) -> Self {
-        frunk::labelled_convert_from(country)
-    }
-}
-
 impl<'a> ForeignFrom<&'a api_types::Address> for storage::AddressUpdate {
     fn foreign_from(address: &api_types::Address) -> Self {
         let address = address;
         Self::Update {
             city: address.address.as_ref().and_then(|a| a.city.clone()),
-            country: address
-                .address
-                .as_ref()
-                .and_then(|a| a.country.map(ForeignFrom::foreign_from)),
+            country: address.address.as_ref().and_then(|a| a.country),
             line1: address.address.as_ref().and_then(|a| a.line1.clone()),
             line2: address.address.as_ref().and_then(|a| a.line2.clone()),
             line3: address.address.as_ref().and_then(|a| a.line3.clone()),
@@ -312,7 +297,7 @@ impl<'a> ForeignFrom<&'a storage::Address> for api_types::Address {
         Self {
             address: Some(api_types::AddressDetails {
                 city: address.city.clone(),
-                country: address.country.map(ForeignFrom::foreign_from),
+                country: address.country,
                 line1: address.line1.clone(),
                 line2: address.line2.clone(),
                 line3: address.line3.clone(),
@@ -377,7 +362,7 @@ impl ForeignFrom<api_models::payments::AddressDetails> for storage_models::addre
         let address = item;
         Self {
             city: address.city,
-            country: address.country.map(ForeignFrom::foreign_from),
+            country: address.country,
             line1: address.line1,
             line2: address.line2,
             line3: address.line3,

@@ -415,7 +415,7 @@ pub enum PayLaterData {
         billing_email: Secret<String, pii::Email>,
         // The billing country code
         #[schema(value_type = Country)]
-        billing_country: common_enums::CountryCode,
+        billing_country: api_enums::CountryCode,
     },
     /// For Klarna Sdk as PayLater Option
     KlarnaSdk {
@@ -509,7 +509,7 @@ pub enum BankRedirectData {
     Sofort {
         /// The country for bank payment
         #[schema(value_type = Country, example = "US")]
-        country: common_enums::CountryCode,
+        country: api_enums::CountryCode,
 
         /// The preferred language
         #[schema(example = "en")]
@@ -678,7 +678,7 @@ pub struct AddressDetails {
 
     /// The two-letter ISO country code for the address
     #[schema(value_type = Option<Country>, max_length = 2, min_length = 2, example = "US")]
-    pub country: Option<common_enums::CountryCode>,
+    pub country: Option<api_enums::CountryCode>,
 
     /// The first line of the address
     #[schema(value_type = Option<String>, max_length = 200, example = "123, King Street")]
@@ -1245,7 +1245,7 @@ pub struct GpayAllowedPaymentMethods {
 pub struct GpayTransactionInfo {
     /// The country code
     #[schema(value_type = Country)]
-    pub country_code: common_enums::CountryCode,
+    pub country_code: api_enums::CountryCode,
     /// The currency code
     pub currency_code: String,
     /// The total price status (ex: 'FINAL')
@@ -1352,7 +1352,7 @@ pub struct ApplePaySessionResponse {
 pub struct ApplePayPaymentRequest {
     /// The code for country
     #[schema(value_type = Country)]
-    pub country_code: common_enums::CountryCode,
+    pub country_code: api_enums::CountryCode,
     /// The code for currency
     pub currency_code: String,
     /// Represents the total for the payment.

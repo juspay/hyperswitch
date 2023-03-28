@@ -12,6 +12,7 @@ use router_derive;
     strum::Display,
     strum::EnumString,
     utoipa::ToSchema,
+    Copy
 )]
 #[router_derive::diesel_enum(storage_type = "pg_enum")]
 #[rustfmt::skip]

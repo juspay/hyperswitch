@@ -40,7 +40,7 @@ pub async fn create_customer(
             .change_context(errors::ApiErrorResponse::AddressNotFound)?;
         db.insert_address(storage::AddressNew {
             city: customer_address.city,
-            country: customer_address.country.map(ForeignFrom::foreign_from),
+            country: customer_address.country,
             line1: customer_address.line1,
             line2: customer_address.line2,
             line3: customer_address.line3,
@@ -250,7 +250,7 @@ pub async fn update_customer(
             .change_context(errors::ApiErrorResponse::AddressNotFound)?;
         let update_address = storage::AddressUpdate::Update {
             city: customer_address.city,
-            country: customer_address.country.map(ForeignFrom::foreign_from),
+            country: customer_address.country,
             line1: customer_address.line1,
             line2: customer_address.line2,
             line3: customer_address.line3,

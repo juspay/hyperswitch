@@ -1120,7 +1120,7 @@ async fn filter_payment_methods(
                         &connector,
                         &payment_method_object.payment_method_type,
                         &mut payment_method_object.card_networks,
-                        &address.and_then(|inner| inner.country.map(ForeignFrom::foreign_from)),
+                        &address.and_then(|inner| inner.country),
                         payment_attempt
                             .and_then(|value| value.currency)
                             .map(|value| value.foreign_into()),
@@ -1391,14 +1391,12 @@ async fn filter_payment_country_based(
         address.country.as_ref().map_or(true, |country| {
             pm.accepted_countries.as_ref().map_or(true, |ac| {
                 if ac.accept_type == "enable_only" {
-                    ac.list.as_ref().map_or(false, |enable_countries| {
-                        enable_countries
-                            .contains(&api_enums::CountryCode::foreign_from(country.to_owned()))
-                    })
+                    ac.list
+                        .as_ref()
+                        .map_or(false, |enable_countries| enable_countries.contains(country))
                 } else {
                     ac.list.as_ref().map_or(true, |disable_countries| {
-                        !disable_countries
-                            .contains(&api_enums::CountryCode::foreign_from(country.to_owned()))
+                        !disable_countries.contains(country)
                     })
                 }
             })
