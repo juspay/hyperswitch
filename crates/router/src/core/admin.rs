@@ -262,8 +262,6 @@ async fn validate_merchant_id<S: Into<String>>(
         })
 }
 
-// Merchant Connector API -  Every merchant and connector can have an instance of (merchant <> connector)
-//                          with unique merchant_connector_id for Create Operation
 fn get_business_details(
     merchant_connector: &api::MerchantConnector,
     merchant_account: MerchantAccount,
@@ -379,6 +377,9 @@ pub async fn create_payment_connector(
 
     response.merchant_connector_id = Some(mca.merchant_connector_id);
     response.connector_label = connector_label;
+    response.business_country = Some(mca.business_country);
+    response.business_label = Some(mca.business_label);
+
     Ok(service_api::ApplicationResponse::Json(response))
 }
 
