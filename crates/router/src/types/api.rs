@@ -132,7 +132,7 @@ pub enum ConnectorChoice {
 
 pub enum ConnectorCallType {
     Multiple(Vec<ConnectorData>),
-    Single(Vec<ConnectorData>),
+    Single(ConnectorData),
 }
 
 impl ConnectorCallType {

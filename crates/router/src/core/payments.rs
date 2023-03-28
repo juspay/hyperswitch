@@ -125,13 +125,11 @@ where
             .await?;
 
         payment_data = match connector_details {
-            api::ConnectorCallType::Single(connectors) => {
-                let mut connectors = connectors.into_iter();
-
+            api::ConnectorCallType::Single(connector) => {
                 let router_data = call_connector_service(
                     state,
                     &merchant_account,
-                    get_connector_data(&mut connectors)?,
+                    connector,
                     &operation,
                     &payment_data,
                     &customer,
@@ -850,7 +848,7 @@ pub fn decide_connector(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Invalid connector name received in 'routed_through'")?;
 
-        return Ok(api::ConnectorCallType::Single(vec![connector_data]));
+        return Ok(api::ConnectorCallType::Single(connector_data));
     }
 
     if let Some(routing_algorithm) = request_straight_through {
@@ -868,7 +866,7 @@ pub fn decide_connector(
 
         routing_data.routed_through = Some(connector_name);
         routing_data.algorithm = Some(routing_algorithm);
-        return Ok(api::ConnectorCallType::Single(vec![connector_data]));
+        return Ok(api::ConnectorCallType::Single(connector_data));
     }
 
     if let Some(ref routing_algorithm) = routing_data.algorithm {
@@ -885,7 +883,7 @@ pub fn decide_connector(
         .attach_printable("Invalid connector name received in routing algorithm")?;
 
         routing_data.routed_through = Some(connector_name);
-        return Ok(api::ConnectorCallType::Single(vec![connector_data]));
+        return Ok(api::ConnectorCallType::Single(connector_data));
     }
 
     let routing_algorithm: api::RoutingAlgorithm = merchant_account
@@ -909,7 +907,7 @@ pub fn decide_connector(
 
     routing_data.routed_through = Some(connector_name);
 
-    Ok(api::ConnectorCallType::Single(vec![connector_data]))
+    Ok(api::ConnectorCallType::Single(connector_data))
 }
 
 #[inline]
