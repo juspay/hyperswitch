@@ -20,7 +20,7 @@ on:
     #   - "Cargo.toml"
 
   schedule:
-    - cron: "5 * * * *"
+    - cron: '5 * * * *'
   
   merge_group:
     types:
@@ -387,7 +387,7 @@ jobs:
           - worldline
           #- multisafepay
           - dlocal
-          - bambora
+          #- bambora
           #- nuvei
 
     steps:
