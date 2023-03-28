@@ -16,7 +16,6 @@ pub struct OpennodePaymentsRequest {
     amount: i64,
     currency: String,
     description: String,
-    ttl: i64,
     auto_settle: bool,
     success_url: String,
     callback_url: String,
@@ -51,18 +50,12 @@ impl TryFrom<&types::ConnectorAuthType> for OpennodeAuthType {
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum OpennodePaymentStatus {
-    #[serde(rename = "unpaid")]
     Unpaid,
-    #[serde(rename = "paid")]
     Paid,
-    #[serde(rename = "expired")]
     Expired,
     #[default]
-    #[serde(rename = "processing")]
     Processing,
-    #[serde(rename = "underpaid")]
     Underpaid,
-    #[serde(rename = "refunded")]
     Refunded,
 }
 
@@ -72,6 +65,7 @@ impl From<OpennodePaymentStatus> for enums::AttemptStatus {
             OpennodePaymentStatus::Unpaid => Self::AuthenticationPending,
             OpennodePaymentStatus::Paid => Self::Charged,
             OpennodePaymentStatus::Expired => Self::Failure,
+            OpennodePaymentStatus::Underpaid => Self::Unresolved,
             _ => Self::Pending,
         }
     }
@@ -109,15 +103,29 @@ impl<F, T>
             method: services::Method::Get,
             form_fields,
         };
+        let connector_id = types::ResponseId::ConnectorTransactionId(item.response.data.id);
         let attempt_status = item.response.data.status;
-        Ok(Self {
-            status: enums::AttemptStatus::from(attempt_status),
-            response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(item.response.data.id),
+        let response_data = if attempt_status != OpennodePaymentStatus::Underpaid {
+            Ok(types::PaymentsResponseData::TransactionResponse {
+                resource_id: connector_id,
                 redirection_data: Some(redirection_data),
                 mandate_reference: None,
                 connector_metadata: None,
-            }),
+            })
+        } else {
+            Ok(types::PaymentsResponseData::TransactionUnresolvedResponse {
+                resource_id: connector_id,
+                reason: Some(api::enums::UnresolvedResponseReason {
+                    code: "UNDERPAID".to_string(),
+                    message:
+                        "Please check the transaction in opennode dashboard and resolve manually"
+                            .to_string(),
+                }),
+            })
+        };
+        Ok(Self {
+            status: enums::AttemptStatus::from(attempt_status),
+            response: response_data,
             ..item.data
         })
     }
@@ -145,8 +153,7 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for OpennodeRefundRequest {
 #[allow(dead_code)]
 #[derive(Debug, Serialize, Default, Deserialize, Clone)]
 pub enum RefundStatus {
-    Succeeded,
-    Failed,
+    Refunded,
     #[default]
     Processing,
 }
@@ -154,10 +161,8 @@ pub enum RefundStatus {
 impl From<RefundStatus> for enums::RefundStatus {
     fn from(item: RefundStatus) -> Self {
         match item {
-            RefundStatus::Succeeded => Self::Success,
-            RefundStatus::Failed => Self::Failure,
+            RefundStatus::Refunded => Self::Success,
             RefundStatus::Processing => Self::Pending,
-            //TODO: Review mapping
         }
     }
 }
@@ -218,16 +223,14 @@ fn get_crypto_specific_payment_data<'a>(
     let amount = item.request.amount;
     let currency = item.request.currency.to_string();
     let description = item.description.as_ref().unwrap().to_string();
-    let ttl = 10i64;
     let auto_settle = true;
     let success_url = item.return_url.as_ref().unwrap().to_string();
-    let callback_url = "https://enqomrzd84n3c.x.pipedream.net/".to_string();
+    let callback_url = item.webhook_url.as_ref().unwrap().to_string();
 
     Ok(OpennodePaymentsRequest {
         amount,
         currency,
         description,
-        ttl,
         auto_settle,
         success_url,
         callback_url,

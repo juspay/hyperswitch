@@ -448,7 +448,6 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
                 .method(services::Method::Get)
                 .url(&types::RefundSyncType::get_url(self, req, connectors)?)
                 .headers(types::RefundSyncType::get_headers(self, req, connectors)?)
-                .body(types::RefundSyncType::get_request_body(self, req)?)
                 .build(),
         ))
     }
@@ -538,20 +537,24 @@ impl api::IncomingWebhook for Opennode {
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api::IncomingWebhookEvent, errors::ConnectorError> {
-        println!("## body=> {:?}", _request.body);
         let notif: OpennodeWebhookDetails =
             utils::convert_query_params_to_struct(_request.body).unwrap();
 
-        println!("## notif=> {:?}", notif);
         match notif.status {
             opennode::OpennodePaymentStatus::Paid => {
                 Ok(api::IncomingWebhookEvent::PaymentIntentSuccess)
             }
             opennode::OpennodePaymentStatus::Underpaid
             | opennode::OpennodePaymentStatus::Expired => {
-                Ok(api::IncomingWebhookEvent::PaymentIntentFailure)
+                Ok(api::IncomingWebhookEvent::PaymentActionRequired)
             }
-            _ => Err(errors::ConnectorError::WebhookEventTypeNotFound.into()),
+            opennode::OpennodePaymentStatus::Processing => {
+                Ok(api::IncomingWebhookEvent::PaymentIntentProcessing)
+            }
+            opennode::OpennodePaymentStatus::Refunded => {
+                Ok(api::IncomingWebhookEvent::RefundSuccess)
+            }
+            _ => Ok(api::IncomingWebhookEvent::EventNotSupported),
         }
     }
 

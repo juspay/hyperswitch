@@ -363,6 +363,17 @@ pub fn create_complete_authorize_url(
     )
 }
 
+pub fn create_webhook_url(
+    server: &Server,
+    payment_attempt: &storage::PaymentAttempt,
+    connector_name: &String,
+) -> String {
+    format!(
+        "{}/webhooks/{}/{}",
+        server.base_url, payment_attempt.merchant_id, connector_name
+    )
+}
+
 fn validate_recurring_mandate(req: api::MandateValidationFields) -> RouterResult<()> {
     req.mandate_id.check_value_present("mandate_id")?;
 
