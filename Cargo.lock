@@ -1619,6 +1619,22 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0206175f82b8d6bf6652ff7d71a1e27fd2e4efde587fd368662814d6ec1d9ce0"
 
 [[package]]
+name = "external_services"
+version = "0.1.0"
+dependencies = [
+ "aws-config",
+ "aws-sdk-kms",
+ "base64 0.21.0",
+ "common_utils",
+ "error-stack",
+ "once_cell",
+ "router_env",
+ "serde",
+ "thiserror",
+ "tokio",
+]
+
+[[package]]
 name = "fake"
 version = "2.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3433,8 +3449,6 @@ dependencies = [
  "async-bb8-diesel",
  "async-trait",
  "awc",
- "aws-config",
- "aws-sdk-kms",
  "base64 0.21.0",
  "bb8",
  "blake3",
@@ -3448,6 +3462,7 @@ dependencies = [
  "dyn-clone",
  "encoding_rs",
  "error-stack",
+ "external_services",
  "frunk",
  "frunk_core",
  "futures",
