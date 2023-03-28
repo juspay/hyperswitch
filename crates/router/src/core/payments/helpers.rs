@@ -1244,8 +1244,7 @@ pub(crate) async fn verify_client_secret(
                 .await
                 .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
 
-            authenticate_client_secret(Some(&cs), payment_intent.client_secret.as_ref())
-                .map_err(errors::ApiErrorResponse::from)?;
+            authenticate_client_secret(Some(&cs), payment_intent.client_secret.as_ref())?;
             Ok(payment_intent)
         })
         .await
