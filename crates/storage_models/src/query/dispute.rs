@@ -43,9 +43,7 @@ impl Dispute {
             _,
         >(
             conn,
-            dsl::dispute_id
-                .eq(self.dispute_id.to_owned())
-                .and(dsl::merchant_id.eq(self.merchant_id.to_owned())),
+            dsl::dispute_id.eq(self.dispute_id.to_owned()),
             DisputeUpdateInternal::from(dispute),
         )
         .await

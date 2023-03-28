@@ -203,13 +203,15 @@ pub fn validate_dispute_stage_and_dispute_status(
     } else {
         true
     };
-    if !(dispute_stage_validation && dispute_status_validation) {
-        super::metrics::INCOMING_DISPUTE_WEBHOOK_VALIDATION_FAILURE_METRIC.add(
-            &super::metrics::CONTEXT,
-            1,
-            &[],
-        );
-        Err(errors::WebhooksFlowError::DisputeWebhookValidationFailed)?
-    }
-    Ok(())
+    common_utils::fp_utils::when(
+        !(dispute_stage_validation && dispute_status_validation),
+        || {
+            super::metrics::INCOMING_DISPUTE_WEBHOOK_VALIDATION_FAILURE_METRIC.add(
+                &super::metrics::CONTEXT,
+                1,
+                &[],
+            );
+            Err(errors::WebhooksFlowError::DisputeWebhookValidationFailed)?
+        },
+    )
 }
