@@ -34,7 +34,7 @@ use crate::{
     types::{
         api::{self, PaymentMethodCreateExt},
         storage::{self, enums},
-        transformers::{ForeignFrom, ForeignInto},
+        transformers::ForeignInto,
     },
     utils::{self, ConnectorResponseExt, OptionExt},
 };

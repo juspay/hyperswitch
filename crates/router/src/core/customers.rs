@@ -15,7 +15,6 @@ use crate::{
     types::{
         api::customers::{self, CustomerRequestExt},
         storage::{self, enums},
-        transformers::ForeignFrom,
     },
 };
 
