@@ -381,7 +381,7 @@ pub struct AcceptedCountries {
     pub accept_type: String,
     /// List of countries of the provided type
     #[schema(value_type = Option<Vec<Country>>, example = json!(["FR", "DE","IN"]))]
-    pub list: Option<Vec<api_enums::Country>>,
+    pub list: Option<Vec<api_enums::CountryCode>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
@@ -426,7 +426,7 @@ pub struct MerchantConnectorDetailsWrap {
         },
         "metadata": {
             "user_defined_field_1": "sample_1",
-            "user_defined_field_2": "sample_2", 
+            "user_defined_field_2": "sample_2",
         },
     }"#)]
     pub encoded_data: Option<Secret<String>>,

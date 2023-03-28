@@ -8,7 +8,7 @@ diesel::table! {
         id -> Int4,
         address_id -> Varchar,
         city -> Nullable<Varchar>,
-        country -> Nullable<Varchar>,
+        country -> Nullable<CountryCode>,
         line1 -> Nullable<Varchar>,
         line2 -> Nullable<Varchar>,
         line3 -> Nullable<Varchar>,

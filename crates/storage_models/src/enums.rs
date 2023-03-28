@@ -2,8 +2,9 @@
 pub mod diesel_exports {
     pub use super::{
         DbAttemptStatus as AttemptStatus, DbAuthenticationType as AuthenticationType,
-        DbCaptureMethod as CaptureMethod, DbConnectorType as ConnectorType, DbCurrency as Currency,
-        DbEventClass as EventClass, DbEventObjectType as EventObjectType, DbEventType as EventType,
+        DbCaptureMethod as CaptureMethod, DbConnectorType as ConnectorType,
+        DbCountryCode as CountryCode, DbCurrency as Currency, DbEventClass as EventClass,
+        DbEventObjectType as EventObjectType, DbEventType as EventType,
         DbFutureUsage as FutureUsage, DbIntentStatus as IntentStatus,
         DbMandateStatus as MandateStatus, DbMandateType as MandateType,
         DbMerchantStorageScheme as MerchantStorageScheme,
@@ -258,7 +259,6 @@ pub enum Currency {
 
 #[derive(
     Clone,
-    Copy,
     Debug,
     Eq,
     Default,
@@ -270,9 +270,9 @@ pub enum Currency {
     strum::EnumString,
     frunk::LabelledGeneric,
 )]
-#[router_derive::diesel_enum(storage_type = "text")]
+#[router_derive::diesel_enum(storage_type = "pg_enum")]
 #[rustfmt::skip]
-pub enum Country {
+pub enum CountryCode {
     AF, AX, AL, DZ, AS, AD, AO, AI, AQ, AG, AR, AM, AW, AU, AT,
     AZ, BS, BH, BD, BB, BY, BE, BZ, BJ, BM, BT, BO, BQ, BA, BW,
     BV, BR, IO, BN, BG, BF, BI, KH, CM, CA, CV, KY, CF, TD, CL,

@@ -259,11 +259,9 @@ pub enum Currency {
     serde::Serialize,
     strum::Display,
     strum::EnumString,
-    frunk::LabelledGeneric,
     ToSchema,
-    Copy,
 )]
-pub enum Country {
+pub enum CountryCode {
     AF,
     AX,
     AL,

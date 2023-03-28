@@ -253,14 +253,14 @@ impl ForeignFrom<storage_enums::Currency> for api_enums::Currency {
     }
 }
 
-impl ForeignFrom<storage_enums::Country> for api_enums::Country {
-    fn foreign_from(country: storage_enums::Country) -> Self {
+impl ForeignFrom<storage_enums::CountryCode> for api_enums::CountryCode {
+    fn foreign_from(country: storage_enums::CountryCode) -> Self {
         frunk::labelled_convert_from(country)
     }
 }
 
-impl ForeignFrom<api_enums::Country> for storage_enums::Country {
-    fn foreign_from(country: api_enums::Country) -> Self {
+impl ForeignFrom<api_enums::CountryCode> for storage_enums::CountryCode {
+    fn foreign_from(country: api_enums::CountryCode) -> Self {
         frunk::labelled_convert_from(country)
     }
 }

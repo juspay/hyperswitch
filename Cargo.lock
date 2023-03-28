@@ -1140,6 +1140,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "common_enums"
+version = "0.1.0"
+dependencies = [
+ "router_derive",
+ "serde",
+ "strum",
+ "utoipa",
+]
+
+[[package]]
 name = "common_utils"
 version = "0.1.0"
 dependencies = [

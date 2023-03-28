@@ -1149,7 +1149,7 @@ fn filter_pm_based_on_config<'a>(
     connector: &'a str,
     payment_method_type: &'a api_enums::PaymentMethodType,
     card_network: &mut Option<Vec<api_enums::CardNetwork>>,
-    country: &Option<api_enums::Country>,
+    country: &Option<api_enums::CountryCode>,
     currency: Option<api_enums::Currency>,
 ) -> bool {
     config
@@ -1171,7 +1171,7 @@ fn filter_pm_based_on_config<'a>(
 }
 
 fn card_network_filter(
-    country: &Option<api_enums::Country>,
+    country: &Option<api_enums::CountryCode>,
     currency: Option<api_enums::Currency>,
     card_network: &mut Option<Vec<api_enums::CardNetwork>>,
     payment_method_filters: &settings::PaymentMethodFilters,
@@ -1195,7 +1195,7 @@ fn card_network_filter(
 
 fn global_country_currency_filter(
     item: &settings::CurrencyCountryFilter,
-    country: &Option<api_enums::Country>,
+    country: &Option<api_enums::CountryCode>,
     currency: Option<api_enums::Currency>,
 ) -> bool {
     let country_condition = item
@@ -1233,10 +1233,10 @@ fn filter_pm_card_network_based(
 }
 fn filter_pm_country_based(
     accepted_countries: &Option<admin::AcceptedCountries>,
-    req_country_list: &Option<Vec<api_enums::Country>>,
+    req_country_list: &Option<Vec<api_enums::CountryCode>>,
 ) -> (
     Option<admin::AcceptedCountries>,
-    Option<Vec<api_enums::Country>>,
+    Option<Vec<api_enums::CountryCode>>,
     bool,
 ) {
     match (accepted_countries, req_country_list) {
@@ -1393,12 +1393,12 @@ async fn filter_payment_country_based(
                 if ac.accept_type == "enable_only" {
                     ac.list.as_ref().map_or(false, |enable_countries| {
                         enable_countries
-                            .contains(&api_enums::Country::foreign_from(country.to_owned()))
+                            .contains(&api_enums::CountryCode::foreign_from(country.to_owned()))
                     })
                 } else {
                     ac.list.as_ref().map_or(true, |disable_countries| {
                         !disable_countries
-                            .contains(&api_enums::Country::foreign_from(country.to_owned()))
+                            .contains(&api_enums::CountryCode::foreign_from(country.to_owned()))
                     })
                 }
             })
