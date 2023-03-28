@@ -111,15 +111,10 @@ fn get_card_payment_request(
 
 fn get_bank_redirect_request(
     item: &types::PaymentsAuthorizeRouterData,
-    redirect_data: &api_models::payments::BankRedirectData,
+    redirect_data: &payments::BankRedirectData,
 ) -> Result<Shift4PaymentsRequest, Error> {
     let submit_for_settlement = submit_for_settlement(item);
-    let method_type = match redirect_data {
-        api_models::payments::BankRedirectData::Eps { .. } => PaymentMethodType::Eps,
-        api_models::payments::BankRedirectData::Giropay { .. } => PaymentMethodType::Giropay,
-        api_models::payments::BankRedirectData::Ideal { .. } => PaymentMethodType::Ideal,
-        api_models::payments::BankRedirectData::Sofort { .. } => PaymentMethodType::Sofort,
-    };
+    let method_type = PaymentMethodType::from(redirect_data);
     let billing = get_billing(item)?;
     let payment_method = Some(PaymentMethod {
         method_type,
@@ -135,6 +130,17 @@ fn get_bank_redirect_request(
         payment_method,
         flow: Some(flow),
     })
+}
+
+impl From<&payments::BankRedirectData> for PaymentMethodType {
+    fn from(value: &payments::BankRedirectData) -> Self {
+        match value {
+            payments::BankRedirectData::Eps { .. } => Self::Eps,
+            payments::BankRedirectData::Giropay { .. } => Self::Giropay,
+            payments::BankRedirectData::Ideal { .. } => Self::Ideal,
+            payments::BankRedirectData::Sofort { .. } => Self::Sofort,
+        }
+    }
 }
 
 fn get_flow(item: &types::PaymentsAuthorizeRouterData) -> Flow {
@@ -206,9 +212,7 @@ pub enum Shift4PaymentStatus {
 
 impl ForeignFrom<(bool, Option<&NextAction>, Shift4PaymentStatus)> for enums::AttemptStatus {
     fn foreign_from(item: (bool, Option<&NextAction>, Shift4PaymentStatus)) -> Self {
-        let captured = item.0;
-        let next_action = item.1;
-        let payment_status = item.2;
+        let (captured, next_action, payment_status) = item;
         match payment_status {
             Shift4PaymentStatus::Successful => {
                 if captured {
