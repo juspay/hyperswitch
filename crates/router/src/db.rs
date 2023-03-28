@@ -1,6 +1,7 @@
 pub mod address;
 pub mod api_keys;
 pub mod cache;
+pub mod cards_info;
 pub mod configs;
 pub mod connector_response;
 pub mod customers;
@@ -57,6 +58,7 @@ pub trait StorageInterface:
     + queue::QueueInterface
     + refund::RefundInterface
     + reverse_lookup::ReverseLookupInterface
+    + cards_info::CardsInfoInterface
     + 'static
 {
     async fn close(&mut self) {}
