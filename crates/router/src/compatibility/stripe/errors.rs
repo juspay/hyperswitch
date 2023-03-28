@@ -347,7 +347,9 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
             | errors::ApiErrorResponse::GenericUnauthorized { .. }
             | errors::ApiErrorResponse::InvalidEphemeralKey => Self::Unauthorized,
             errors::ApiErrorResponse::InvalidRequestUrl
-            | errors::ApiErrorResponse::InvalidHttpMethod => Self::InvalidRequestUrl,
+            | errors::ApiErrorResponse::InvalidHttpMethod
+            | errors::ApiErrorResponse::InvalidCardIin
+            | errors::ApiErrorResponse::InvalidCardIinLength => Self::InvalidRequestUrl,
             errors::ApiErrorResponse::MissingRequiredField { field_name } => {
                 Self::ParameterMissing {
                     field_name,
