@@ -190,7 +190,7 @@ pub async fn merchant_account_update(
         primary_business_details: req
             .primary_business_details
             .as_ref()
-            .map(utils::Encode::<api::PrimaryBusinessDetails>::encode_to_value)
+            .map(utils::Encode::<PrimaryBusinessDetails>::encode_to_value)
             .transpose()
             .change_context(errors::ApiErrorResponse::InternalServerError)?,
     };
@@ -266,7 +266,7 @@ async fn validate_merchant_id<S: Into<String>>(
 //                          with unique merchant_connector_id for Create Operation
 fn get_business_details(
     merchant_connector: &api::MerchantConnector,
-    merchant_account: storage::MerchantAccount,
+    merchant_account: MerchantAccount,
 ) -> Result<PrimaryBusinessDetails, error_stack::Report<errors::ApiErrorResponse>> {
     match merchant_connector
         .business_country
