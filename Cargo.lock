@@ -326,6 +326,7 @@ name = "api_models"
 version = "0.1.0"
 dependencies = [
  "actix-web",
+ "common_enums",
  "common_utils",
  "error-stack",
  "frunk",
@@ -339,7 +340,7 @@ dependencies = [
  "strum",
  "time",
  "url",
- "utoipa",
+ "utoipa 3.1.0",
 ]
 
 [[package]]
@@ -1143,10 +1144,11 @@ dependencies = [
 name = "common_enums"
 version = "0.1.0"
 dependencies = [
+ "diesel",
  "router_derive",
  "serde",
  "strum",
- "utoipa",
+ "utoipa 3.1.2",
 ]
 
 [[package]]
@@ -3512,7 +3514,7 @@ dependencies = [
  "tokio",
  "toml 0.7.3",
  "url",
- "utoipa",
+ "utoipa 3.1.0",
  "utoipa-swagger-ui",
  "uuid",
  "wiremock",
@@ -4653,7 +4655,18 @@ dependencies = [
  "indexmap",
  "serde",
  "serde_json",
- "utoipa-gen",
+ "utoipa-gen 3.1.0",
+]
+
+[[package]]
+name = "utoipa"
+version = "3.1.2"
+source = "git+https://github.com/juhaku/utoipa?rev=2deda0a8f67dafcb2d19687f4c862f83d2e01d68#2deda0a8f67dafcb2d19687f4c862f83d2e01d68"
+dependencies = [
+ "indexmap",
+ "serde",
+ "serde_json",
+ "utoipa-gen 3.1.2",
 ]
 
 [[package]]
@@ -4661,6 +4674,17 @@ name = "utoipa-gen"
 version = "3.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a1d050a2b5851b1d1aaa976854af782491298052e29fdfe47ca37872e2b3aa99"
+dependencies = [
+ "proc-macro-error",
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
+name = "utoipa-gen"
+version = "3.1.2"
+source = "git+https://github.com/juhaku/utoipa?rev=2deda0a8f67dafcb2d19687f4c862f83d2e01d68#2deda0a8f67dafcb2d19687f4c862f83d2e01d68"
 dependencies = [
  "proc-macro-error",
  "proc-macro2",
@@ -4680,7 +4704,7 @@ dependencies = [
  "rust-embed",
  "serde",
  "serde_json",
- "utoipa",
+ "utoipa 3.1.0",
  "zip",
 ]
 
