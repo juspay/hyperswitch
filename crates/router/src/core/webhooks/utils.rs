@@ -9,6 +9,7 @@ fn default_webhook_config() -> api::MerchantWebhookConfig {
         api::IncomingWebhookEvent::PaymentIntentFailure,
         api::IncomingWebhookEvent::PaymentIntentProcessing,
         api::IncomingWebhookEvent::PaymentActionRequired,
+        api::IncomingWebhookEvent::RefundSuccess,
     ])
 }
 
