@@ -333,7 +333,7 @@ pub async fn webhooks_core<W: api::OutgoingWebhookType>(
         method: req.method().clone(),
         headers: req.headers(),
         query_params: req.query_string().to_string(),
-        query_params_json_str: json,
+        query_params_json: json.as_bytes(),
         body: &body,
     };
 

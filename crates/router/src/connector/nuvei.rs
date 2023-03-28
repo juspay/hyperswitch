@@ -855,8 +855,7 @@ impl api::IncomingWebhook for Nuvei {
         secret: &[u8],
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let body: nuvei::NuveiWebhookDetails = request
-            .query_params_json_str
-            .as_bytes()
+            .query_params_json
             .parse_struct("NuveiWebhookDetails")
             .switch()?;
         let secret_str = std::str::from_utf8(secret)
@@ -880,10 +879,9 @@ impl api::IncomingWebhook for Nuvei {
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
-        let body: nuvei::NuveiWebhookDetails = request
-            .query_params_json_str
-            .as_bytes()
-            .parse_struct("NuveiWebhookDetails")
+        let body: nuvei::NuveiWebhookTransactionId = request
+            .query_params_json
+            .parse_struct("NuveiWebhookTransactionId")
             .switch()?;
         Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
             types::api::PaymentIdType::ConnectorTransactionId(body.ppp_transaction_id),
@@ -894,10 +892,9 @@ impl api::IncomingWebhook for Nuvei {
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api::IncomingWebhookEvent, errors::ConnectorError> {
-        let body: nuvei::NuveiWebhookDetails = request
-            .query_params_json_str
-            .as_bytes()
-            .parse_struct("NuveiWebhookDetails")
+        let body: nuvei::NuveiWebhookDataStatus = request
+            .query_params_json
+            .parse_struct("NuveiWebhookDataStatus")
             .switch()?;
         match body.status {
             nuvei::NuveiWebhookStatus::Approved => {
@@ -915,8 +912,7 @@ impl api::IncomingWebhook for Nuvei {
         request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<serde_json::Value, errors::ConnectorError> {
         let body: nuvei::NuveiWebhookDetails = request
-            .query_params_json_str
-            .as_bytes()
+            .query_params_json
             .parse_struct("NuveiWebhookDetails")
             .switch()?;
         let payment_response = nuvei::NuveiPaymentsResponse::from(body);

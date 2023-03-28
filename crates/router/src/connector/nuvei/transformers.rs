@@ -1041,6 +1041,18 @@ pub struct NuveiWebhookDetails {
     pub transaction_type: Option<NuveiTransactionType>,
 }
 
+#[derive(Debug, Default, Serialize, Deserialize)]
+pub struct NuveiWebhookTransactionId {
+    #[serde(rename = "ppp_TransactionID")]
+    pub ppp_transaction_id: String,
+}
+
+#[derive(Debug, Default, Serialize, Deserialize)]
+pub struct NuveiWebhookDataStatus {
+    #[serde(rename = "Status")]
+    pub status: NuveiWebhookStatus,
+}
+
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum NuveiWebhookStatus {
