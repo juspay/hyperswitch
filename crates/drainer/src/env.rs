@@ -18,6 +18,7 @@ pub mod logger {
             vec![
                 "drainer",
                 "common_utils",
+                "external_services",
                 "redis_interface",
                 "router_env",
                 "storage_models",

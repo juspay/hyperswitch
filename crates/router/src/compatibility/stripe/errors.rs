@@ -408,7 +408,8 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
             errors::ApiErrorResponse::CustomerNotFound => Self::CustomerNotFound,
             errors::ApiErrorResponse::PaymentNotFound => Self::PaymentNotFound,
             errors::ApiErrorResponse::PaymentMethodNotFound => Self::PaymentMethodNotFound,
-            errors::ApiErrorResponse::ClientSecretNotGiven => Self::ClientSecretNotFound,
+            errors::ApiErrorResponse::ClientSecretNotGiven
+            | errors::ApiErrorResponse::ClientSecretExpired => Self::ClientSecretNotFound,
             errors::ApiErrorResponse::MerchantAccountNotFound => Self::MerchantAccountNotFound,
             errors::ApiErrorResponse::ResourceIdNotFound => Self::ResourceIdNotFound,
             errors::ApiErrorResponse::MerchantConnectorAccountNotFound => {

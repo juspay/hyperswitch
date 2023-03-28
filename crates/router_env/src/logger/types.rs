@@ -166,6 +166,12 @@ pub enum Flow {
     CardsInfo,
 }
 
+///
+/// Trait for providing generic behaviour to flow metric
+///
+pub trait FlowMetric: ToString + std::fmt::Debug {}
+impl FlowMetric for Flow {}
+
 /// Category of log event.
 #[derive(Debug)]
 pub enum Category {
