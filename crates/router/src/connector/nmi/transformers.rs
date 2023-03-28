@@ -253,16 +253,30 @@ impl
             Response::Approved => enums::AttemptStatus::CaptureInitiated,
             Response::Declined | Response::Error => enums::AttemptStatus::CaptureFailed,
         };
-        Ok(Self {
-            status,
-            response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(item.response.transactionid),
-                redirection_data: None,
-                mandate_reference: None,
-                connector_metadata: None,
+        match status {
+            enums::AttemptStatus::CaptureFailed => Ok(Self {
+                status,
+                response: Err(types::ErrorResponse {
+                    code: item.response.response_code,
+                    message: item.response.responsetext,
+                    reason: None,
+                    status_code: item.http_code,
+                }),
+                ..item.data
             }),
-            ..item.data
-        })
+            _ => Ok(Self {
+                status,
+                response: Ok(types::PaymentsResponseData::TransactionResponse {
+                    resource_id: types::ResponseId::ConnectorTransactionId(
+                        item.response.transactionid,
+                    ),
+                    redirection_data: None,
+                    mandate_reference: None,
+                    connector_metadata: None,
+                }),
+                ..item.data
+            }),
+        }
     }
 }
 
@@ -288,7 +302,7 @@ impl TryFrom<&types::PaymentsCancelRouterData> for NmiCancelRequest {
     }
 }
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq)]
 pub enum Response {
     #[serde(alias = "1")]
     Approved,
@@ -307,7 +321,7 @@ pub struct StandardResponse {
     pub avsresponse: Option<String>,
     pub cvvresponse: Option<String>,
     pub orderid: String,
-    pub response_code: u16,
+    pub response_code: String,
 }
 
 impl<T>
@@ -324,20 +338,34 @@ impl<T>
             types::PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
-        let status: enums::AttemptStatus = match item.response.response {
+        let status = match item.response.response {
             Response::Approved => enums::AttemptStatus::Charged,
             Response::Declined | Response::Error => enums::AttemptStatus::Failure,
         };
-        Ok(Self {
-            status,
-            response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(item.response.transactionid),
-                redirection_data: None,
-                mandate_reference: None,
-                connector_metadata: None,
+        match status {
+            enums::AttemptStatus::Failure => Ok(Self {
+                status,
+                response: Err(types::ErrorResponse {
+                    code: item.response.response_code,
+                    message: item.response.responsetext,
+                    reason: None,
+                    status_code: item.http_code,
+                }),
+                ..item.data
             }),
-            ..item.data
-        })
+            _ => Ok(Self {
+                status,
+                response: Ok(types::PaymentsResponseData::TransactionResponse {
+                    resource_id: types::ResponseId::ConnectorTransactionId(
+                        item.response.transactionid,
+                    ),
+                    redirection_data: None,
+                    mandate_reference: None,
+                    connector_metadata: None,
+                }),
+                ..item.data
+            }),
+        }
     }
 }
 
@@ -409,25 +437,42 @@ impl
             types::PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
-        let status: enums::AttemptStatus = match item.response.response {
-            Response::Approved => match item.data.request.capture_method.unwrap_or_default() {
-                storage_models::enums::CaptureMethod::Automatic => {
+        let status = match item.response.response {
+            Response::Approved => {
+                if let Some(storage_models::enums::CaptureMethod::Automatic) =
+                    item.data.request.capture_method
+                {
                     enums::AttemptStatus::CaptureInitiated
+                } else {
+                    enums::AttemptStatus::Authorizing
                 }
-                _ => enums::AttemptStatus::Authorized,
-            },
+            }
             Response::Declined | Response::Error => enums::AttemptStatus::Failure,
         };
-        Ok(Self {
-            status,
-            response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(item.response.transactionid),
-                redirection_data: None,
-                mandate_reference: None,
-                connector_metadata: None,
+        match status {
+            enums::AttemptStatus::Failure => Ok(Self {
+                status,
+                response: Err(types::ErrorResponse {
+                    code: item.response.response_code,
+                    message: item.response.responsetext,
+                    reason: None,
+                    status_code: item.http_code,
+                }),
+                ..item.data
             }),
-            ..item.data
-        })
+            _ => Ok(Self {
+                status,
+                response: Ok(types::PaymentsResponseData::TransactionResponse {
+                    resource_id: types::ResponseId::ConnectorTransactionId(
+                        item.response.transactionid,
+                    ),
+                    redirection_data: None,
+                    mandate_reference: None,
+                    connector_metadata: None,
+                }),
+                ..item.data
+            }),
+        }
     }
 }
 
@@ -444,20 +489,34 @@ impl<T>
             types::PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
-        let status: enums::AttemptStatus = match item.response.response {
+        let status = match item.response.response {
             Response::Approved => enums::AttemptStatus::VoidInitiated,
             Response::Declined | Response::Error => enums::AttemptStatus::VoidFailed,
         };
-        Ok(Self {
-            status,
-            response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(item.response.transactionid),
-                redirection_data: None,
-                mandate_reference: None,
-                connector_metadata: None,
+        match status {
+            enums::AttemptStatus::VoidFailed => Ok(Self {
+                status,
+                response: Err(types::ErrorResponse {
+                    code: item.response.response_code,
+                    message: item.response.responsetext,
+                    reason: None,
+                    status_code: item.http_code,
+                }),
+                ..item.data
             }),
-            ..item.data
-        })
+            _ => Ok(Self {
+                status,
+                response: Ok(types::PaymentsResponseData::TransactionResponse {
+                    resource_id: types::ResponseId::ConnectorTransactionId(
+                        item.response.transactionid,
+                    ),
+                    redirection_data: None,
+                    mandate_reference: None,
+                    connector_metadata: None,
+                }),
+                ..item.data
+            }),
+        }
     }
 }
 

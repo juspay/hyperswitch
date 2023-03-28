@@ -73,7 +73,8 @@ impl ConnectorCommon for Nmi {
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         Ok(ErrorResponse {
             message: response.responsetext,
-            status_code: response.response_code.to_owned(),
+            status_code: res.status_code,
+            reason: None,
             ..Default::default()
         })
     }
