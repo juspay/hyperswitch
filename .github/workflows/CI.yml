@@ -20,7 +20,7 @@ on:
     #   - "Cargo.toml"
 
   schedule:
-    - cron: "0 0 * * *"
+    - cron: "5 * * * *"
   
   merge_group:
     types:
