@@ -452,7 +452,7 @@ impl From<&storage::PaymentAttempt> for ApplicationRedirectResponse {
     fn from(payment_attempt: &storage::PaymentAttempt) -> Self {
         Self {
             url: format!(
-                "/payments/start/{}/{}/{}",
+                "/payments/redirect/{}/{}/{}",
                 &payment_attempt.payment_id,
                 &payment_attempt.merchant_id,
                 &payment_attempt.attempt_id

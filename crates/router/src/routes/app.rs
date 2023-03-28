@@ -108,7 +108,7 @@ impl Payments {
                     web::resource("/{payment_id}/capture").route(web::post().to(payments_capture)),
                 )
                 .service(
-                    web::resource("/start/{payment_id}/{merchant_id}/{attempt_id}")
+                    web::resource("/redirect/{payment_id}/{merchant_id}/{attempt_id}")
                         .route(web::get().to(payments_start)),
                 )
                 .service(

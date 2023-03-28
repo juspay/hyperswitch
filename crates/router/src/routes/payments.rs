@@ -60,12 +60,12 @@ pub async fn payments_create(
     .await
 }
 
-// /// Payments - Start
+// /// Payments - Redirect
 // ///
-// /// The entry point for a payment which involves the redirection flow. This redirects the user to the authentication page
+// /// For a payment which involves the redirection flow. This redirects the user to the authentication page
 // #[utoipa::path(
 //     get,
-//     path = "/payments/start/{payment_id}/{merchant_id}/{attempt_id}",
+//     path = "/payments/redirect/{payment_id}/{merchant_id}/{attempt_id}",
 //     params(
 //         ("payment_id" = String, Path, description = "The identifier for payment"),
 //         ("merchant_id" = String, Path, description = "The identifier for merchant"),
