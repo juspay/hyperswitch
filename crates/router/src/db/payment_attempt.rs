@@ -275,7 +275,7 @@ mod storage {
                 enums::MerchantStorageScheme::RedisKv => {
                     let key = format!(
                         "{}_{}",
-                        payment_attempt.merchant_id, payment_attempt.attempt_id
+                        payment_attempt.merchant_id, payment_attempt.payment_id
                     );
 
                     let created_attempt = PaymentAttempt {
