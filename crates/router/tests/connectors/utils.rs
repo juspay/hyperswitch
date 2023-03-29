@@ -35,6 +35,8 @@ pub struct PaymentInfo {
 
 #[async_trait]
 pub trait ConnectorActions: Connector {
+    /// For initiating payments when `CaptureMethod` is set to `Manual`
+    /// This doesn't complete the transaction, `PaymentsCapture` needs to be done manually
     async fn authorize_payment(
         &self,
         payment_data: Option<types::PaymentsAuthorizeData>,
@@ -56,6 +58,8 @@ pub trait ConnectorActions: Connector {
         call_connector(request, integration).await
     }
 
+    /// For initiating payments when `CaptureMethod` is set to `Automatic`
+    /// This does complete the transaction without user intervention to Capture the payment
     async fn make_payment(
         &self,
         payment_data: Option<types::PaymentsAuthorizeData>,

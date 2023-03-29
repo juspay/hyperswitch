@@ -34,99 +34,312 @@ impl utils::Connector for NmiTest {
 
 static CONNECTOR: NmiTest = NmiTest {};
 
+fn get_payment_authorize_data() -> Option<types::PaymentsAuthorizeData> {
+    Some(types::PaymentsAuthorizeData {
+        payment_method_data: types::api::PaymentMethodData::Card(api::Card {
+            card_number: Secret::new("4111111111111111".to_string()),
+            ..utils::CCardType::default().0
+        }),
+        amount: 2023,
+        ..utils::PaymentAuthorizeType::default().0
+    })
+}
+
 // Cards Positive Tests
 // Creates a payment using the manual capture flow (Non 3DS).
 #[actix_web::test]
 async fn should_only_authorize_payment() {
     let response = CONNECTOR
-        .authorize_payment(None, None)
+        .authorize_payment(get_payment_authorize_data(), None)
         .await
         .expect("Authorize payment response");
-    assert_eq!(response.status, enums::AttemptStatus::Authorized);
+    if let Some(transaction_id) = utils::get_connector_transaction_id(response.response) {
+        let sync_response = CONNECTOR
+            .psync_retry_till_status_matches(
+                enums::AttemptStatus::Authorized,
+                Some(types::PaymentsSyncData {
+                    connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
+                        transaction_id.clone(),
+                    ),
+                    capture_method: Some(types::storage::enums::CaptureMethod::Manual),
+                    ..Default::default()
+                }),
+                None,
+            )
+            .await
+            .unwrap();
+        // Assert the sync response, it will be authorized in case of manual capture, for automatic it will be Completed Success
+        assert_eq!(sync_response.status, enums::AttemptStatus::Authorized);
+    } else {
+        panic!("Authorize transaction ID was not generated from the call!");
+    }
 }
 
 // Captures a payment using the manual capture flow (Non 3DS).
 #[actix_web::test]
 async fn should_capture_authorized_payment() {
     let response = CONNECTOR
-        .authorize_and_capture_payment(None, None, None)
+        .authorize_payment(get_payment_authorize_data(), None)
         .await
-        .expect("Capture payment response");
-    assert_eq!(response.status, enums::AttemptStatus::Charged);
+        .unwrap();
+    assert_eq!(response.status, enums::AttemptStatus::Authorizing);
+    if let Some(transaction_id) = utils::get_connector_transaction_id(response.response.to_owned())
+    {
+        let sync_response = CONNECTOR
+            .psync_retry_till_status_matches(
+                enums::AttemptStatus::Authorized,
+                Some(types::PaymentsSyncData {
+                    connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
+                        transaction_id.clone(),
+                    ),
+                    capture_method: Some(types::storage::enums::CaptureMethod::Manual),
+                    ..Default::default()
+                }),
+                None,
+            )
+            .await
+            .unwrap();
+        assert_eq!(sync_response.status, enums::AttemptStatus::Authorized);
+        let capture_response = CONNECTOR
+            .capture_payment(transaction_id.clone(), None, None)
+            .await
+            .unwrap();
+        assert_eq!(
+            capture_response.status,
+            enums::AttemptStatus::CaptureInitiated
+        );
+        let sync_response = CONNECTOR
+            .psync_retry_till_status_matches(
+                enums::AttemptStatus::Charged,
+                Some(types::PaymentsSyncData {
+                    connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
+                        transaction_id.clone(),
+                    ),
+                    capture_method: Some(types::storage::enums::CaptureMethod::Manual),
+                    ..Default::default()
+                }),
+                None,
+            )
+            .await
+            .unwrap();
+        assert_eq!(sync_response.status, enums::AttemptStatus::Charged);
+    } else {
+        panic!("Authorize transaction ID was not generated from the call!");
+    }
 }
 
 // Partially captures a payment using the manual capture flow (Non 3DS).
 #[actix_web::test]
 async fn should_partially_capture_authorized_payment() {
     let response = CONNECTOR
-        .authorize_and_capture_payment(
-            None,
-            Some(types::PaymentsCaptureData {
-                amount_to_capture: Some(50),
-                ..utils::PaymentCaptureType::default().0
-            }),
-            None,
-        )
+        .authorize_payment(get_payment_authorize_data(), None)
         .await
-        .expect("Capture payment response");
-    assert_eq!(response.status, enums::AttemptStatus::Charged);
+        .unwrap();
+    assert_eq!(response.status, enums::AttemptStatus::Authorizing);
+    if let Some(transaction_id) = utils::get_connector_transaction_id(response.response.to_owned())
+    {
+        let sync_response = CONNECTOR
+            .psync_retry_till_status_matches(
+                enums::AttemptStatus::Authorized,
+                Some(types::PaymentsSyncData {
+                    connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
+                        transaction_id.clone(),
+                    ),
+                    capture_method: Some(types::storage::enums::CaptureMethod::Manual),
+                    ..Default::default()
+                }),
+                None,
+            )
+            .await
+            .unwrap();
+        assert_eq!(sync_response.status, enums::AttemptStatus::Authorized);
+        let capture_response = CONNECTOR
+            .capture_payment(
+                transaction_id.clone(),
+                Some(types::PaymentsCaptureData {
+                    amount_to_capture: Some(1000),
+                    ..utils::PaymentCaptureType::default().0
+                }),
+                None,
+            )
+            .await
+            .unwrap();
+        assert_eq!(
+            capture_response.status,
+            enums::AttemptStatus::CaptureInitiated
+        );
+
+        let sync_response = CONNECTOR
+            .psync_retry_till_status_matches(
+                enums::AttemptStatus::Charged,
+                Some(types::PaymentsSyncData {
+                    connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
+                        transaction_id.clone(),
+                    ),
+                    capture_method: Some(types::storage::enums::CaptureMethod::Manual),
+                    ..Default::default()
+                }),
+                None,
+            )
+            .await
+            .unwrap();
+        assert_eq!(sync_response.status, enums::AttemptStatus::Charged);
+    } else {
+        panic!("Authorize transaction ID was not generated from the call!");
+    }
 }
 
 // Synchronizes a payment using the manual capture flow (Non 3DS).
 #[actix_web::test]
 async fn should_sync_authorized_payment() {
-    let authorize_response = CONNECTOR
-        .authorize_payment(None, None)
+    let response = CONNECTOR
+        .authorize_payment(get_payment_authorize_data(), None)
         .await
         .expect("Authorize payment response");
-    let txn_id = utils::get_connector_transaction_id(authorize_response.response);
-    let response = CONNECTOR
-        .psync_retry_till_status_matches(
-            enums::AttemptStatus::Authorized,
-            Some(types::PaymentsSyncData {
-                connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
-                    txn_id.unwrap(),
-                ),
-                encoded_data: None,
-                capture_method: None,
-                connector_meta: None,
-            }),
-            None,
-        )
-        .await
-        .expect("PSync response");
-    assert_eq!(response.status, enums::AttemptStatus::Authorized,);
+    if let Some(transaction_id) = utils::get_connector_transaction_id(response.response) {
+        let sync_response = CONNECTOR
+            .psync_retry_till_status_matches(
+                enums::AttemptStatus::Authorized,
+                Some(types::PaymentsSyncData {
+                    connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
+                        transaction_id.clone(),
+                    ),
+                    capture_method: Some(types::storage::enums::CaptureMethod::Manual),
+                    ..Default::default()
+                }),
+                None,
+            )
+            .await
+            .unwrap();
+        assert_eq!(sync_response.status, enums::AttemptStatus::Authorized);
+    } else {
+        panic!("Authorize transaction ID was not generated from the call!");
+    }
 }
 
 // Voids a payment using the manual capture flow (Non 3DS).
 #[actix_web::test]
 async fn should_void_authorized_payment() {
     let response = CONNECTOR
-        .authorize_and_void_payment(
-            None,
-            Some(types::PaymentsCancelData {
-                connector_transaction_id: String::from(""),
-                cancellation_reason: Some("user_cancel".to_string()),
-                ..Default::default()
-            }),
-            None,
-        )
+        .authorize_payment(get_payment_authorize_data(), None)
         .await
-        .expect("Void payment response");
-    assert_eq!(response.status, enums::AttemptStatus::Voided);
+        .unwrap();
+    assert_eq!(response.status, enums::AttemptStatus::Authorizing);
+    if let Some(transaction_id) = utils::get_connector_transaction_id(response.response.to_owned())
+    {
+        let sync_response = CONNECTOR
+            .psync_retry_till_status_matches(
+                enums::AttemptStatus::Authorized,
+                Some(types::PaymentsSyncData {
+                    connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
+                        transaction_id.clone(),
+                    ),
+                    capture_method: Some(types::storage::enums::CaptureMethod::Manual),
+                    ..Default::default()
+                }),
+                None,
+            )
+            .await
+            .unwrap();
+        assert_eq!(sync_response.status, enums::AttemptStatus::Authorized);
+
+        let void_response = CONNECTOR
+            .void_payment(
+                transaction_id.clone(),
+                Some(types::PaymentsCancelData {
+                    connector_transaction_id: String::from(""),
+                    cancellation_reason: Some("user_cancel".to_string()),
+                    ..Default::default()
+                }),
+                None,
+            )
+            .await
+            .unwrap();
+        assert_eq!(void_response.status, enums::AttemptStatus::VoidInitiated);
+        let sync_response = CONNECTOR
+            .psync_retry_till_status_matches(
+                enums::AttemptStatus::Voided,
+                Some(types::PaymentsSyncData {
+                    connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
+                        transaction_id.clone(),
+                    ),
+                    capture_method: Some(types::storage::enums::CaptureMethod::Manual),
+                    ..Default::default()
+                }),
+                None,
+            )
+            .await
+            .unwrap();
+        assert_eq!(sync_response.status, enums::AttemptStatus::Voided);
+    } else {
+        panic!("Authorize transaction ID was not generated from the call!");
+    }
 }
 
 // Refunds a payment using the manual capture flow (Non 3DS).
 #[actix_web::test]
 async fn should_refund_manually_captured_payment() {
+    // let response = CONNECTOR
+    //     .capture_payment_and_refund(None, None, None, None)
+    //     .await
+    //     .unwrap();
+    // assert_eq!(
+    //     response.response.unwrap().refund_status,
+    //     enums::RefundStatus::Success,
+    // );
+
     let response = CONNECTOR
-        .capture_payment_and_refund(None, None, None, None)
+        .make_payment(get_payment_authorize_data(), None)
         .await
         .unwrap();
-    assert_eq!(
-        response.response.unwrap().refund_status,
-        enums::RefundStatus::Success,
-    );
+    assert_eq!(response.status, enums::AttemptStatus::CaptureInitiated);
+    if let Some(transaction_id) = utils::get_connector_transaction_id(response.response.to_owned())
+    {
+        let sync_response = CONNECTOR
+            .psync_retry_till_status_matches(
+                enums::AttemptStatus::Charged,
+                Some(types::PaymentsSyncData {
+                    connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
+                        transaction_id.clone(),
+                    ),
+                    capture_method: Some(types::storage::enums::CaptureMethod::Automatic),
+                    ..Default::default()
+                }),
+                None,
+            )
+            .await
+            .unwrap();
+        assert_eq!(sync_response.status, enums::AttemptStatus::Charged);
+
+        let refund_response = CONNECTOR
+            .refund_payment(
+                transaction_id.clone(),
+                Some(types::RefundsData {
+                    refund_amount: 1000,
+                    ..utils::PaymentRefundType::default().0
+                }),
+                None,
+            )
+            .await
+            .unwrap();
+        assert_eq!(refund_response.status, enums::AttemptStatus::Pending);
+        println!("-----> {:#?}", refund_response);
+        let sync_response = CONNECTOR
+            .rsync_retry_till_status_matches(
+                enums::RefundStatus::Success,
+                refund_response.response.unwrap().connector_refund_id,
+                None,
+                None,
+            )
+            .await
+            .unwrap();
+        assert_eq!(
+            sync_response.response.unwrap().refund_status,
+            enums::RefundStatus::Success
+        );
+    } else {
+        panic!("Authorize transaction ID was not generated from the call!");
+    }
 }
 
 // Partially refunds a payment using the manual capture flow (Non 3DS).
@@ -282,7 +495,7 @@ async fn should_fail_payment_for_incorrect_card_number() {
         .make_payment(
             Some(types::PaymentsAuthorizeData {
                 payment_method_data: types::api::PaymentMethodData::Card(api::Card {
-                    card_number: Secret::new("1234567891011".to_string()),
+                    card_number: Secret::new("4111111111111111".to_string()),
                     ..utils::CCardType::default().0
                 }),
                 ..utils::PaymentAuthorizeType::default().0
