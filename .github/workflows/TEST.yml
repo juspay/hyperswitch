@@ -71,7 +71,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2.2.0
 
       - name: Decrypt connector auth file
-        run: ./decrypt_connector_auth.sh
+        run: ./scripts/decrypt_connector_auth.sh
         env:
           CONNECTOR_AUTH_PASSPHRASE: ${{ secrets.CONNECTOR_AUTH_PASSPHRASE }}
 
