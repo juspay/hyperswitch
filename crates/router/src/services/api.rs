@@ -690,16 +690,16 @@ pub fn build_redirection_form(form: &RedirectForm) -> maud::Markup {
             method,
             form_fields,
         } => maud::html! {
-            (maud::DOCTYPE)
-            html {
-                meta name="viewport" content="width=device-width, initial-scale=1";
-                head {
-                    style {
-                        r##"
+        (maud::DOCTYPE)
+        html {
+            meta name="viewport" content="width=device-width, initial-scale=1";
+            head {
+                style {
+                    r##"
 
                     "##
-                    }
-                    (PreEscaped(r##"
+                }
+                (PreEscaped(r##"
                 <style>
                     #loader1 {
                         width: 500px,
@@ -711,15 +711,15 @@ pub fn build_redirection_form(form: &RedirectForm) -> maud::Markup {
                     }
                 </style>
                 "##))
-                }
+            }
 
-                body style="background-color: #ffffff; padding: 20px; font-family: Arial, Helvetica, Sans-Serif;" {
+            body style="background-color: #ffffff; padding: 20px; font-family: Arial, Helvetica, Sans-Serif;" {
 
-                    div id="loader1" class="lottie" style="height: 150px; display: block; position: relative; margin-left: auto; margin-right: auto;" { "" }
+                div id="loader1" class="lottie" style="height: 150px; display: block; position: relative; margin-left: auto; margin-right: auto;" { "" }
 
-                    (PreEscaped(r#"<script src="https://cdnjs.cloudflare.com/ajax/libs/bodymovin/5.7.4/lottie.min.js"></script>"#))
+                (PreEscaped(r#"<script src="https://cdnjs.cloudflare.com/ajax/libs/bodymovin/5.7.4/lottie.min.js"></script>"#))
 
-                    (PreEscaped(r#"
+                (PreEscaped(r#"
                 <script>
                 var anime = bodymovin.loadAnimation({
                     container: document.getElementById('loader1'),
@@ -733,16 +733,16 @@ pub fn build_redirection_form(form: &RedirectForm) -> maud::Markup {
                 "#))
 
 
-                    h3 style="text-align: center;" { "Please wait while we process your payment..." }
+                h3 style="text-align: center;" { "Please wait while we process your payment..." }
                     form action=(PreEscaped(endpoint)) method=(method.to_string()) #payment_form {
                         @for (field, value) in form_fields {
-                            input type="hidden" name=(field) value=(value);
-                        }
+                        input type="hidden" name=(field) value=(value);
                     }
-
-                    (PreEscaped(r#"<script type="text/javascript"> var frm = document.getElementById("payment_form"); window.setTimeout(function () { frm.submit(); }, 300); </script>"#))
                 }
+
+                (PreEscaped(r#"<script type="text/javascript"> var frm = document.getElementById("payment_form"); window.setTimeout(function () { frm.submit(); }, 300); </script>"#))
             }
+        }
         },
         RedirectForm::Html { html_data } => PreEscaped(html_data.to_string()),
     }
