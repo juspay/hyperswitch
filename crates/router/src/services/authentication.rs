@@ -33,6 +33,22 @@ where
 #[derive(Debug)]
 pub struct ApiKeyAuth;
 
+pub struct NoAuth;
+
+#[async_trait]
+impl<A> AuthenticateAndFetch<(), A> for NoAuth
+where
+    A: AppStateInfo + Sync,
+{
+    async fn authenticate_and_fetch(
+        &self,
+        _request_headers: &HeaderMap,
+        _state: &A,
+    ) -> RouterResult<()> {
+        Ok(())
+    }
+}
+
 #[async_trait]
 impl<A> AuthenticateAndFetch<storage::MerchantAccount, A> for ApiKeyAuth
 where
@@ -238,6 +254,12 @@ impl ClientSecretFetch for PaymentsRequest {
 }
 
 impl ClientSecretFetch for PaymentMethodListRequest {
+    fn get_client_secret(&self) -> Option<&String> {
+        self.client_secret.as_ref()
+    }
+}
+
+impl ClientSecretFetch for api_models::cards_info::CardsInfoRequest {
     fn get_client_secret(&self) -> Option<&String> {
         self.client_secret.as_ref()
     }

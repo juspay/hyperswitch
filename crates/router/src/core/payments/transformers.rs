@@ -434,10 +434,10 @@ where
 impl<F: Clone> TryFrom<PaymentAdditionalData<F>> for types::PaymentsAuthorizeData {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
 
-    fn try_from(additonal_data: PaymentAdditionalData<F>) -> Result<Self, Self::Error> {
-        let payment_data = additonal_data.payment_data;
-        let base_url = &additonal_data.base_url;
-        let connector_name = &additonal_data.connector_name;
+    fn try_from(additional_data: PaymentAdditionalData<F>) -> Result<Self, Self::Error> {
+        let payment_data = additional_data.payment_data;
+        let base_url = &additional_data.base_url;
+        let connector_name = &additional_data.connector_name;
         let attempt = &payment_data.payment_attempt;
         let browser_info: Option<types::BrowserInformation> = attempt
             .browser_info
@@ -512,8 +512,8 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<F>> for types::PaymentsAuthorizeDat
 impl<F: Clone> TryFrom<PaymentAdditionalData<F>> for types::PaymentsSyncData {
     type Error = errors::ApiErrorResponse;
 
-    fn try_from(additonal_data: PaymentAdditionalData<F>) -> Result<Self, Self::Error> {
-        let payment_data = additonal_data.payment_data;
+    fn try_from(additional_data: PaymentAdditionalData<F>) -> Result<Self, Self::Error> {
+        let payment_data = additional_data.payment_data;
         Ok(Self {
             connector_transaction_id: match payment_data.payment_attempt.connector_transaction_id {
                 Some(connector_txn_id) => {
@@ -531,8 +531,8 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<F>> for types::PaymentsSyncData {
 impl<F: Clone> TryFrom<PaymentAdditionalData<F>> for types::PaymentsCaptureData {
     type Error = errors::ApiErrorResponse;
 
-    fn try_from(additonal_data: PaymentAdditionalData<F>) -> Result<Self, Self::Error> {
-        let payment_data = additonal_data.payment_data;
+    fn try_from(additional_data: PaymentAdditionalData<F>) -> Result<Self, Self::Error> {
+        let payment_data = additional_data.payment_data;
         Ok(Self {
             amount_to_capture: payment_data.payment_attempt.amount_to_capture,
             currency: payment_data.currency,
@@ -549,8 +549,8 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<F>> for types::PaymentsCaptureData 
 impl<F: Clone> TryFrom<PaymentAdditionalData<F>> for types::PaymentsCancelData {
     type Error = errors::ApiErrorResponse;
 
-    fn try_from(additonal_data: PaymentAdditionalData<F>) -> Result<Self, Self::Error> {
-        let payment_data = additonal_data.payment_data;
+    fn try_from(additional_data: PaymentAdditionalData<F>) -> Result<Self, Self::Error> {
+        let payment_data = additional_data.payment_data;
         Ok(Self {
             amount: Some(payment_data.amount.into()),
             currency: Some(payment_data.currency),
@@ -569,8 +569,8 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<F>> for types::PaymentsCancelData {
 impl<F: Clone> TryFrom<PaymentAdditionalData<F>> for types::PaymentsSessionData {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
 
-    fn try_from(additonal_data: PaymentAdditionalData<F>) -> Result<Self, Self::Error> {
-        let payment_data = additonal_data.payment_data;
+    fn try_from(additional_data: PaymentAdditionalData<F>) -> Result<Self, Self::Error> {
+        let payment_data = additional_data.payment_data;
         let parsed_metadata: Option<api_models::payments::Metadata> = payment_data
             .payment_intent
             .metadata
@@ -603,8 +603,8 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<F>> for types::PaymentsSessionData 
 impl<F: Clone> TryFrom<PaymentAdditionalData<F>> for types::VerifyRequestData {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
 
-    fn try_from(additonal_data: PaymentAdditionalData<F>) -> Result<Self, Self::Error> {
-        let payment_data = additonal_data.payment_data;
+    fn try_from(additional_data: PaymentAdditionalData<F>) -> Result<Self, Self::Error> {
+        let payment_data = additional_data.payment_data;
         Ok(Self {
             currency: payment_data.currency,
             confirm: true,
@@ -623,8 +623,8 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<F>> for types::VerifyRequestData {
 impl<F: Clone> TryFrom<PaymentAdditionalData<F>> for types::CompleteAuthorizeData {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
 
-    fn try_from(additonal_data: PaymentAdditionalData<F>) -> Result<Self, Self::Error> {
-        let payment_data = additonal_data.payment_data;
+    fn try_from(additional_data: PaymentAdditionalData<F>) -> Result<Self, Self::Error> {
+        let payment_data = additional_data.payment_data;
         let browser_info: Option<types::BrowserInformation> = payment_data
             .payment_attempt
             .browser_info
