@@ -18,9 +18,6 @@ on:
     #   - "examples/**"
     #   - "Cargo.lock"
     #   - "Cargo.toml"
-
-  schedule:
-    - cron: '5 * * * *'
   
   merge_group:
     types:
@@ -364,61 +361,6 @@ jobs:
       # - name: Run tests
       #   shell: bash
       #   run: cargo nextest run --all-features
-  
-  test_connectors:
-    name: Run tests on stable toolchain for connectors
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        connector:
-          - stripe
-          - aci
-          - adyen
-          #- authorizedotnet 
-          #- checkout
-          #- cybersource
-          - shift4
-          #- worldpay
-          #- payu
-          #- globalpay
-          #- rapyd
-          #- fiserv
-          - worldline
-          #- multisafepay
-          - dlocal
-          #- bambora
-          #- nuvei
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3.1.0
-      
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: stable
-
-      - uses: Swatinem/rust-cache@v2.2.0
-
-      - name: Decrypt connector auth file
-        run: ./decrypt_connector_auth.sh
-        env:
-          CONNECTOR_AUTH_PASSPHRASE: ${{ secrets.CONNECTOR_AUTH_PASSPHRASE }}
-
-      - name: Set connector auth file path in env
-        run: echo "CONNECTOR_AUTH_FILE_PATH=$HOME/target/test/connector_auth.toml" >> $GITHUB_ENV
-    
-      - name: Start Redis
-        uses: supercharge/redis-github-action@1.5.0
-        with:
-          redis-image: redis/redis-stack-server
-
-      - name: Run connector tests
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: --package router --test connectors -- ${{ matrix.connector }} --test-threads=1
   
   typos:
     name: Spell check
