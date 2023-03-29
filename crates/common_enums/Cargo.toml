@@ -8,7 +8,7 @@ edition = "2021"
 [dependencies]
 serde  = { version = "1.0.155", features = [ "derive" ] }
 strum  = { version = "0.24.1", features = [ "derive" ] }
-utoipa = { git = "https://github.com/juhaku/utoipa", features = [ "preserve_order" ], rev = "2deda0a8f67dafcb2d19687f4c862f83d2e01d68" }
+utoipa = { version = "3.2.0", features = ["preserve_order"] }
 diesel = { version = "2.0.3", features = ["postgres"] }
 
 # First party crates
