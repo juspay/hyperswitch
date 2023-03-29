@@ -628,6 +628,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
             metadata_txn_id,
             metadata_txn_uuid,
             return_url: item
+                .request
                 .router_return_url
                 .clone()
                 .unwrap_or_else(|| "https://juspay.in/".to_string()),

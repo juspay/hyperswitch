@@ -57,7 +57,6 @@ pub trait RouterData {
     fn to_connector_meta<T>(&self) -> Result<T, Error>
     where
         T: serde::de::DeserializeOwned;
-    fn get_return_url(&self) -> Result<String, Error>;
     fn is_three_ds(&self) -> bool;
 }
 
@@ -118,12 +117,6 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
             .change_context(errors::ConnectorError::NoConnectorMetaData)
     }
 
-    fn get_return_url(&self) -> Result<String, Error> {
-        self.router_return_url
-            .clone()
-            .ok_or_else(missing_field_err("return_url"))
-    }
-
     fn is_three_ds(&self) -> bool {
         matches!(
             self.auth_type,
@@ -145,6 +138,7 @@ pub trait PaymentsAuthorizeRequestData {
     fn get_email(&self) -> Result<Secret<String, Email>, Error>;
     fn get_browser_info(&self) -> Result<types::BrowserInformation, Error>;
     fn get_card(&self) -> Result<api::Card, Error>;
+    fn get_return_url(&self) -> Result<String, Error>;
 }
 
 impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
@@ -164,6 +158,11 @@ impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
             api::PaymentMethodData::Card(card) => Ok(card),
             _ => Err(missing_field_err("card")()),
         }
+    }
+    fn get_return_url(&self) -> Result<String, Error> {
+        self.router_return_url
+            .clone()
+            .ok_or_else(missing_field_err("return_url"))
     }
 }
 

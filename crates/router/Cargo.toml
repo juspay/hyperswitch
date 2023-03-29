@@ -48,7 +48,6 @@ futures = "0.3.27"
 hex = "0.4.3"
 http = "0.2.9"
 josekit = "0.8.2"
-json = "0.12.4"
 jsonwebtoken = "8.2.0"
 literally = "0.1.3"
 maud = { version = "0.24", features = ["actix-web"] }

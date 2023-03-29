@@ -456,7 +456,6 @@ pub fn get_payment_info() -> PaymentInfo {
         }),
         auth_type: None,
         access_token: None,
-        router_return_url: None,
         connector_meta_data: None,
     }
 }

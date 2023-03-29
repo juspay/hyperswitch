@@ -19,7 +19,7 @@ use crate::{
     configs::settings,
     connector::utils as conn_utils,
     core::errors::{self, CustomResult},
-    headers,
+    db, headers,
     services::{self, ConnectorIntegration},
     types::{
         self,
@@ -782,7 +782,7 @@ impl api::IncomingWebhook for Globalpay {
 
     async fn get_webhook_source_verification_merchant_secret(
         &self,
-        db: &dyn crate::db::StorageInterface,
+        db: &dyn db::StorageInterface,
         merchant_id: &str,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let key = format!("whsec_verification_{}_{}", self.id(), merchant_id);
@@ -807,14 +807,10 @@ impl api::IncomingWebhook for Globalpay {
         _merchant_id: &str,
         secret: &[u8],
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
-        let payload = std::str::from_utf8(request.body)
-            .into_report()
-            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?
-            .to_owned();
-        let json_payload = json::parse(&payload)
+        let payload: Value = request.body.parse_struct("GlobalpayWebhookBody").switch()?;
+        let mut payload_str = serde_json::to_string(&payload)
             .into_report()
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
-        let mut payload_str = json::stringify(json_payload);
         let sec = std::str::from_utf8(secret)
             .into_report()
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
@@ -843,10 +839,13 @@ impl api::IncomingWebhook for Globalpay {
             .body
             .parse_struct("GlobalpayWebhookObjectEventType")
             .switch()?;
-        Ok(match details.status.as_str() {
-            "DECLINED" => api::IncomingWebhookEvent::PaymentIntentFailure,
-            "CAPTURED" => api::IncomingWebhookEvent::PaymentIntentSuccess,
-            _ => Err(errors::ConnectorError::WebhookEventTypeNotFound).into_report()?,
+        Ok(match details.status {
+            response::GlobalpayWebhookStatus::Declined => {
+                api::IncomingWebhookEvent::PaymentIntentFailure
+            }
+            response::GlobalpayWebhookStatus::Captured => {
+                api::IncomingWebhookEvent::PaymentIntentSuccess
+            }
         })
     }
 

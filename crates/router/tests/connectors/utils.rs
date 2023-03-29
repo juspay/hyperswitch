@@ -30,7 +30,6 @@ pub struct PaymentInfo {
     pub address: Option<PaymentAddress>,
     pub auth_type: Option<enums::AuthenticationType>,
     pub access_token: Option<AccessToken>,
-    pub router_return_url: Option<String>,
     pub connector_meta_data: Option<serde_json::Value>,
 }
 
@@ -360,8 +359,6 @@ pub trait ConnectorActions: Connector {
             payment_id: uuid::Uuid::new_v4().to_string(),
             attempt_id: uuid::Uuid::new_v4().to_string(),
             status: enums::AttemptStatus::default(),
-            router_return_url: info.clone().and_then(|a| a.router_return_url),
-            complete_authorize_url: None,
             auth_type: info
                 .clone()
                 .map_or(enums::AuthenticationType::NoThreeDs, |a| {
@@ -387,7 +384,6 @@ pub trait ConnectorActions: Connector {
             access_token: info.and_then(|a| a.access_token),
             session_token: None,
             reference_id: None,
-            webhook_url: None,
         }
     }
 
@@ -493,6 +489,9 @@ impl Default for PaymentAuthorizeType {
             related_transaction_id: None,
             payment_experience: None,
             payment_method_type: None,
+            router_return_url: None,
+            complete_authorize_url: None,
+            webhook_url: None,
         };
         Self(data)
     }

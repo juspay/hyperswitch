@@ -2303,12 +2303,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "json"
-version = "0.12.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "078e285eafdfb6c4b434e0d31e8cfcb5115b651496faca5749b88fafd4f23bfd"
-
-[[package]]
 name = "json5"
 version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3475,7 +3469,6 @@ dependencies = [
  "hex",
  "http",
  "josekit",
- "json",
  "jsonwebtoken",
  "literally",
  "masking",

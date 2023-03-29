@@ -412,7 +412,7 @@ pub struct GlobalpayWebhookObjectDataId {
 
 #[derive(Debug, Deserialize)]
 pub struct GlobalpayWebhookObjectEventType {
-    pub status: String,
+    pub status: GlobalpayWebhookStatus,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -420,4 +420,11 @@ pub struct GlobalpayPaymentsWebhookResponse {
     pub id: String,
     pub account_id: Option<String>,
     pub account_name: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum GlobalpayWebhookStatus {
+    Declined,
+    Captured,
 }
