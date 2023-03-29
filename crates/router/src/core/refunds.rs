@@ -72,8 +72,8 @@ pub async fn refund_create_core(
     })?;
 
     payment_attempt = db
-        .find_payment_attempt_by_attempt_id_merchant_id(
-            &payment_intent.attempt_id,
+        .find_payment_attempt_last_successful_attempt_by_payment_id_merchant_id(
+            &req.payment_id,
             merchant_id,
             merchant_account.storage_scheme,
         )
