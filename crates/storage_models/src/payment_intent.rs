@@ -24,8 +24,11 @@ pub struct PaymentIntent {
     pub billing_address_id: Option<String>,
     pub statement_descriptor_name: Option<String>,
     pub statement_descriptor_suffix: Option<String>,
+    #[serde(with = "common_utils::custom_serde::iso8601")]
     pub created_at: PrimitiveDateTime,
+    #[serde(with = "common_utils::custom_serde::iso8601")]
     pub modified_at: PrimitiveDateTime,
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub last_synced: Option<PrimitiveDateTime>,
     pub setup_future_usage: Option<storage_enums::FutureUsage>,
     pub off_session: Option<bool>,
@@ -60,8 +63,11 @@ pub struct PaymentIntentNew {
     pub billing_address_id: Option<String>,
     pub statement_descriptor_name: Option<String>,
     pub statement_descriptor_suffix: Option<String>,
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub created_at: Option<PrimitiveDateTime>,
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub modified_at: Option<PrimitiveDateTime>,
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub last_synced: Option<PrimitiveDateTime>,
     pub client_secret: Option<String>,
     pub setup_future_usage: Option<storage_enums::FutureUsage>,

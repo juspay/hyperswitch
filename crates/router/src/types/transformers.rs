@@ -435,3 +435,18 @@ impl ForeignFrom<storage_enums::AttemptStatus> for api_enums::AttemptStatus {
         frunk::labelled_convert_from(status)
     }
 }
+
+impl ForeignFrom<storage_models::cards_info::CardInfo>
+    for api_models::cards_info::CardInfoResponse
+{
+    fn foreign_from(item: storage_models::cards_info::CardInfo) -> Self {
+        Self {
+            card_iin: item.card_iin,
+            card_type: item.card_type,
+            card_sub_type: item.card_subtype,
+            card_network: item.card_network,
+            card_issuer: item.card_issuer,
+            card_issuing_country: item.card_issuing_country,
+        }
+    }
+}

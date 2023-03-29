@@ -347,7 +347,9 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
             | errors::ApiErrorResponse::GenericUnauthorized { .. }
             | errors::ApiErrorResponse::InvalidEphemeralKey => Self::Unauthorized,
             errors::ApiErrorResponse::InvalidRequestUrl
-            | errors::ApiErrorResponse::InvalidHttpMethod => Self::InvalidRequestUrl,
+            | errors::ApiErrorResponse::InvalidHttpMethod
+            | errors::ApiErrorResponse::InvalidCardIin
+            | errors::ApiErrorResponse::InvalidCardIinLength => Self::InvalidRequestUrl,
             errors::ApiErrorResponse::MissingRequiredField { field_name } => {
                 Self::ParameterMissing {
                     field_name,
@@ -406,7 +408,8 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
             errors::ApiErrorResponse::CustomerNotFound => Self::CustomerNotFound,
             errors::ApiErrorResponse::PaymentNotFound => Self::PaymentNotFound,
             errors::ApiErrorResponse::PaymentMethodNotFound => Self::PaymentMethodNotFound,
-            errors::ApiErrorResponse::ClientSecretNotGiven => Self::ClientSecretNotFound,
+            errors::ApiErrorResponse::ClientSecretNotGiven
+            | errors::ApiErrorResponse::ClientSecretExpired => Self::ClientSecretNotFound,
             errors::ApiErrorResponse::MerchantAccountNotFound => Self::MerchantAccountNotFound,
             errors::ApiErrorResponse::ResourceIdNotFound => Self::ResourceIdNotFound,
             errors::ApiErrorResponse::MerchantConnectorAccountNotFound => {
@@ -442,6 +445,7 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
             errors::ApiErrorResponse::SuccessfulPaymentNotFound => Self::SuccessfulPaymentNotFound,
             errors::ApiErrorResponse::AddressNotFound => Self::AddressNotFound,
             errors::ApiErrorResponse::NotImplemented { .. } => Self::Unauthorized,
+            errors::ApiErrorResponse::FlowNotSupported { .. } => Self::InternalServerError,
             errors::ApiErrorResponse::PaymentUnexpectedState {
                 current_flow,
                 field_name,
@@ -518,8 +522,11 @@ impl actix_web::ResponseError for StripeErrorCode {
     fn error_response(&self) -> actix_web::HttpResponse {
         use actix_web::http::header;
 
+        use crate::consts;
+
         actix_web::HttpResponseBuilder::new(self.status_code())
             .insert_header((header::CONTENT_TYPE, mime::APPLICATION_JSON))
+            .insert_header((header::STRICT_TRANSPORT_SECURITY, consts::HSTS_HEADER_VALUE))
             .insert_header((header::VIA, "Juspay_Router"))
             .body(self.to_string())
     }

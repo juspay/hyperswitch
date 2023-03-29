@@ -6,6 +6,7 @@ use strum::EnumString;
 use crate::{core::errors, routes::AppState, scheduler::consumer, types::storage};
 pub mod payment_sync;
 pub mod refund_router;
+pub mod tokenized_data;
 
 macro_rules! runners {
     ($($body:tt),*) => {
@@ -44,7 +45,8 @@ macro_rules! as_item {
 
 runners! {
     PaymentsSyncWorkflow,
-    RefundWorkflowRouter
+    RefundWorkflowRouter,
+    DeleteTokenizeDataWorkflow
 }
 
 #[async_trait]

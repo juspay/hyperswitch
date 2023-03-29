@@ -81,15 +81,6 @@ impl MerchantAccount {
         .await
     }
 
-    #[instrument(skip(conn))]
-    pub async fn find_by_api_key(conn: &PgPooledConn, api_key: &str) -> StorageResult<Self> {
-        generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
-            conn,
-            dsl::api_key.eq(api_key.to_owned()),
-        )
-        .await
-    }
-
     #[instrument(skip_all)]
     pub async fn find_by_publishable_key(
         conn: &PgPooledConn,

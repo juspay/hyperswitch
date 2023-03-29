@@ -15,7 +15,7 @@ pub struct PaymentAttempt {
     pub amount: i64,
     pub currency: Option<storage_enums::Currency>,
     pub save_to_locker: Option<bool>,
-    pub connector: Option<String>,
+    pub connector: Option<serde_json::Value>,
     pub error_message: Option<String>,
     pub offer_amount: Option<i64>,
     pub surcharge_amount: Option<i64>,
@@ -24,11 +24,15 @@ pub struct PaymentAttempt {
     pub payment_method: Option<storage_enums::PaymentMethod>,
     pub connector_transaction_id: Option<String>,
     pub capture_method: Option<storage_enums::CaptureMethod>,
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub capture_on: Option<PrimitiveDateTime>,
     pub confirm: bool,
     pub authentication_type: Option<storage_enums::AuthenticationType>,
+    #[serde(with = "common_utils::custom_serde::iso8601")]
     pub created_at: PrimitiveDateTime,
+    #[serde(with = "common_utils::custom_serde::iso8601")]
     pub modified_at: PrimitiveDateTime,
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub last_synced: Option<PrimitiveDateTime>,
     pub cancellation_reason: Option<String>,
     pub amount_to_capture: Option<i64>,
@@ -55,7 +59,7 @@ pub struct PaymentAttemptNew {
     pub currency: Option<storage_enums::Currency>,
     // pub auto_capture: Option<bool>,
     pub save_to_locker: Option<bool>,
-    pub connector: Option<String>,
+    pub connector: Option<serde_json::Value>,
     pub error_message: Option<String>,
     pub offer_amount: Option<i64>,
     pub surcharge_amount: Option<i64>,
@@ -64,11 +68,15 @@ pub struct PaymentAttemptNew {
     pub payment_method: Option<storage_enums::PaymentMethod>,
     pub connector_transaction_id: Option<String>,
     pub capture_method: Option<storage_enums::CaptureMethod>,
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub capture_on: Option<PrimitiveDateTime>,
     pub confirm: bool,
     pub authentication_type: Option<storage_enums::AuthenticationType>,
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub created_at: Option<PrimitiveDateTime>,
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub modified_at: Option<PrimitiveDateTime>,
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub last_synced: Option<PrimitiveDateTime>,
     pub cancellation_reason: Option<String>,
     pub amount_to_capture: Option<i64>,
@@ -97,7 +105,7 @@ pub enum PaymentAttemptUpdate {
     },
     UpdateTrackers {
         payment_token: Option<String>,
-        connector: Option<String>,
+        connector: Option<serde_json::Value>,
     },
     AuthenticationTypeUpdate {
         authentication_type: storage_enums::AuthenticationType,
@@ -109,7 +117,7 @@ pub enum PaymentAttemptUpdate {
         authentication_type: Option<storage_enums::AuthenticationType>,
         payment_method: Option<storage_enums::PaymentMethod>,
         browser_info: Option<serde_json::Value>,
-        connector: Option<String>,
+        connector: Option<serde_json::Value>,
         payment_token: Option<String>,
         payment_method_data: Option<serde_json::Value>,
         payment_method_type: Option<storage_enums::PaymentMethodType>,
@@ -121,7 +129,7 @@ pub enum PaymentAttemptUpdate {
     },
     ResponseUpdate {
         status: storage_enums::AttemptStatus,
-        connector: Option<String>,
+        connector: Option<serde_json::Value>,
         connector_transaction_id: Option<String>,
         authentication_type: Option<storage_enums::AuthenticationType>,
         payment_method_id: Option<Option<String>>,
@@ -132,7 +140,7 @@ pub enum PaymentAttemptUpdate {
         status: storage_enums::AttemptStatus,
     },
     ErrorUpdate {
-        connector: Option<String>,
+        connector: Option<serde_json::Value>,
         status: storage_enums::AttemptStatus,
         error_code: Option<String>,
         error_message: Option<String>,
@@ -146,7 +154,7 @@ pub struct PaymentAttemptUpdateInternal {
     currency: Option<storage_enums::Currency>,
     status: Option<storage_enums::AttemptStatus>,
     connector_transaction_id: Option<String>,
-    connector: Option<String>,
+    connector: Option<serde_json::Value>,
     authentication_type: Option<storage_enums::AuthenticationType>,
     payment_method: Option<storage_enums::PaymentMethod>,
     error_message: Option<String>,

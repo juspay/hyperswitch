@@ -11,10 +11,7 @@ use self::transformers as adyen;
 use crate::{
     configs::settings,
     consts,
-    core::{
-        errors::{self, CustomResult},
-        payments,
-    },
+    core::errors::{self, CustomResult},
     db::StorageInterface,
     headers, logger, services,
     types::{
@@ -36,8 +33,7 @@ impl ConnectorCommon for Adyen {
         &self,
         auth_type: &types::ConnectorAuthType,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        let auth: adyen::AdyenAuthType = auth_type
-            .try_into()
+        let auth = adyen::AdyenAuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(vec![(headers::X_API_KEY.to_string(), auth.api_key)])
     }
@@ -720,11 +716,21 @@ impl api::IncomingWebhook for Adyen {
     fn get_webhook_object_reference_id(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<String, errors::ConnectorError> {
+    ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
         let notif = get_webhook_object_from_body(request.body)
             .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
-
-        Ok(notif.psp_reference)
+        match notif.event_code {
+            adyen::WebhookEventCode::Authorisation => {
+                Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
+                    api_models::payments::PaymentIdType::ConnectorTransactionId(
+                        notif.psp_reference,
+                    ),
+                ))
+            }
+            _ => Ok(api_models::webhooks::ObjectReferenceId::RefundId(
+                api_models::webhooks::RefundIdType::ConnectorRefundId(notif.psp_reference),
+            )),
+        }
     }
 
     fn get_webhook_event_type(
@@ -760,14 +766,5 @@ impl api::IncomingWebhook for Adyen {
         Ok(services::api::ApplicationResponse::TextPlain(
             "[accepted]".to_string(),
         ))
-    }
-}
-
-impl services::ConnectorRedirectResponse for Adyen {
-    fn get_flow_type(
-        &self,
-        _query_params: &str,
-    ) -> CustomResult<payments::CallConnectorAction, errors::ConnectorError> {
-        Ok(payments::CallConnectorAction::Trigger)
     }
 }
