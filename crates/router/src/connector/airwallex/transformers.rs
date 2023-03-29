@@ -248,7 +248,7 @@ impl<F, T>
         let redirection_data =
             item.response
                 .next_action
-                .map(|response_url_data| services::RedirectForm {
+                .map(|response_url_data| services::RedirectForm::Form {
                     endpoint: response_url_data.url.to_string(),
                     method: response_url_data.method,
                     form_fields: std::collections::HashMap::from([
