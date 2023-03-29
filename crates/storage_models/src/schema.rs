@@ -46,6 +46,23 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
+    cards_info (card_iin) {
+        card_iin -> Varchar,
+        card_issuer -> Nullable<Text>,
+        card_network -> Nullable<Text>,
+        card_type -> Nullable<Text>,
+        card_subtype -> Nullable<Text>,
+        card_issuing_country -> Nullable<Text>,
+        bank_code_id -> Nullable<Varchar>,
+        bank_code -> Nullable<Varchar>,
+        country_code -> Nullable<Varchar>,
+    }
+}
+
+diesel::table! {
+    use diesel::sql_types::*;
+    use crate::enums::diesel_exports::*;
+
     configs (key) {
         id -> Int4,
         key -> Varchar,
@@ -366,6 +383,7 @@ diesel::table! {
 diesel::allow_tables_to_appear_in_same_query!(
     address,
     api_keys,
+    cards_info,
     configs,
     connector_response,
     customers,

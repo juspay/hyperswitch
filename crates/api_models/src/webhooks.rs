@@ -37,6 +37,8 @@ pub struct IncomingWebhookRequestDetails<'a> {
     pub method: actix_web::http::Method,
     pub headers: &'a actix_web::http::header::HeaderMap,
     pub body: &'a [u8],
+    pub query_params: String,
+    pub query_params_json: &'a [u8],
 }
 
 pub type MerchantWebhookConfig = std::collections::HashSet<IncomingWebhookEvent>;

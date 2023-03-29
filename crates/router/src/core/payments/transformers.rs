@@ -477,7 +477,7 @@ impl<F: Clone> TryFrom<PaymentData<F>> for types::PaymentsAuthorizeData {
             payment_experience: payment_data.payment_attempt.payment_experience,
             order_details,
             session_token: None,
-            enrolled_for_3ds: false,
+            enrolled_for_3ds: true,
             related_transaction_id: None,
             payment_method_type: payment_data.payment_attempt.payment_method_type,
         })

@@ -138,6 +138,7 @@ pub enum ConnectorType {
     serde::Serialize,
     strum::Display,
     strum::EnumString,
+    strum::EnumIter,
     ToSchema,
     frunk::LabelledGeneric,
 )]
