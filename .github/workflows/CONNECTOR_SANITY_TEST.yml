@@ -2,9 +2,11 @@ name: CONNECTOR_SANITY_TEST
 
 on:
   push:
+    branches:
+      - main
 
   schedule:
-    - cron: '* * * * *'
+    - cron: '5 0 * * *'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
