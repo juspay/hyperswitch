@@ -98,7 +98,7 @@ impl ConnectorAccessToken for MockDb {
 
 #[async_trait::async_trait]
 pub trait MerchantConnectorAccountInterface {
-    async fn find_merchant_connector_account_by_merchant_id_connector(
+    async fn find_merchant_connector_account_by_merchant_id_connector_label(
         &self,
         merchant_id: &str,
         connector: &str,
@@ -136,16 +136,16 @@ pub trait MerchantConnectorAccountInterface {
 
 #[async_trait::async_trait]
 impl MerchantConnectorAccountInterface for Store {
-    async fn find_merchant_connector_account_by_merchant_id_connector(
+    async fn find_merchant_connector_account_by_merchant_id_connector_label(
         &self,
         merchant_id: &str,
-        connector: &str,
+        connector_label: &str,
     ) -> CustomResult<storage::MerchantConnectorAccount, errors::StorageError> {
         let conn = pg_connection(&self.master_pool).await?;
         storage::MerchantConnectorAccount::find_by_merchant_id_connector(
             &conn,
             merchant_id,
-            connector,
+            connector_label,
         )
         .await
         .map_err(Into::into)
@@ -245,7 +245,7 @@ impl MerchantConnectorAccountInterface for Store {
 impl MerchantConnectorAccountInterface for MockDb {
     // safety: only used for testing
     #[allow(clippy::unwrap_used)]
-    async fn find_merchant_connector_account_by_merchant_id_connector(
+    async fn find_merchant_connector_account_by_merchant_id_connector_label(
         &self,
         merchant_id: &str,
         connector: &str,

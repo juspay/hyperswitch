@@ -1,6 +1,9 @@
 use std::borrow::Cow;
 
-use common_utils::{ext_traits::AsyncExt, fp_utils};
+use common_utils::{
+    ext_traits::{AsyncExt, ValueExt},
+    fp_utils,
+};
 // TODO : Evaluate all the helper functions ()
 use error_stack::{report, IntoReport, ResultExt};
 use masking::ExposeOptionInterface;
@@ -23,7 +26,10 @@ use crate::{
     scheduler::{metrics, workflows::payment_sync},
     services,
     types::{
-        api::{self, enums as api_enums, CustomerAcceptanceExt, MandateValidationFieldsExt},
+        api::{
+            self, admin::PrimaryBusinessDetails, enums as api_enums, CustomerAcceptanceExt,
+            MandateValidationFieldsExt,
+        },
         storage::{self, enums as storage_enums, ephemeral_key},
         transformers::ForeignInto,
     },
@@ -1227,6 +1233,57 @@ pub(crate) async fn verify_client_secret(
         })
         .await
         .transpose()
+}
+
+/// Create the connector label
+/// {connector_name}_{country}_{business_label}
+/// Do lazy parsing of primary business details
+/// If both country and label are passed, no need to parse business details from merchant_account
+/// If any one is missing, get it from merchant_account
+pub fn create_connector_label(
+    business_country: Option<&String>,
+    business_label: Option<&String>,
+    business_sub_label: Option<&String>,
+    connector_name: &str,
+    merchant_account: &storage_models::merchant_account::MerchantAccount,
+) -> Result<(String, PrimaryBusinessDetails), error_stack::Report<errors::ApiErrorResponse>> {
+    let (business_country, business_label) = match business_country.zip(business_label) {
+        Some((business_country, business_label)) => {
+            (business_country.to_owned(), business_label.to_owned())
+        }
+        None => {
+            // Parse the primary business details from merchant account
+            let primary_business_details: PrimaryBusinessDetails = merchant_account
+                .primary_business_details
+                .clone()
+                .parse_value("PrimaryBusinessDetails")
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("failed to parse primary business details")?;
+
+            (
+                business_country
+                    .map(ToString::to_string)
+                    .unwrap_or(primary_business_details.country),
+                business_label
+                    .map(ToString::to_string)
+                    .to_owned()
+                    .unwrap_or(primary_business_details.business),
+            )
+        }
+    };
+
+    let primary_business_detail = PrimaryBusinessDetails {
+        country: business_country.to_owned(),
+        business: business_label.to_owned(),
+    };
+
+    let mut connector_label = format!("{}_{}_{}", connector_name, business_country, business_label);
+
+    if let Some(sub_label) = business_sub_label {
+        connector_label.push_str(&format!("_{sub_label}"));
+    }
+
+    Ok((connector_label, primary_business_detail))
 }
 
 #[inline]

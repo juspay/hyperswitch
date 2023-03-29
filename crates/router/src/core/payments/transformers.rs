@@ -34,11 +34,19 @@ where
     error_stack::Report<errors::ApiErrorResponse>: From<<T as TryFrom<PaymentData<F>>>::Error>,
 {
     let (merchant_connector_account, payment_method, router_data);
+    let (connector_label, _business_details) = helpers::create_connector_label(
+        payment_data.payment_intent.business_country.as_ref(),
+        payment_data.payment_intent.business_label.as_ref(),
+        None, //FIXME: take this value from connector
+        connector_id,
+        merchant_account,
+    )?;
+
     let db = &*state.store;
     merchant_connector_account = db
-        .find_merchant_connector_account_by_merchant_id_connector(
+        .find_merchant_connector_account_by_merchant_id_connector_label(
             &merchant_account.merchant_id,
-            connector_id,
+            &connector_label,
         )
         .await
         .map_err(|error| {

@@ -6,7 +6,10 @@ use uuid::Uuid;
 
 use crate::{
     consts,
-    core::errors::{self, RouterResponse, RouterResult, StorageErrorExt},
+    core::{
+        errors::{self, RouterResponse, RouterResult, StorageErrorExt},
+        payments::helpers,
+    },
     db::StorageInterface,
     pii::Secret,
     services::api as service_api,
@@ -262,50 +265,6 @@ async fn validate_merchant_id<S: Into<String>>(
         })
 }
 
-fn get_business_details(
-    merchant_connector: &api::MerchantConnector,
-    merchant_account: MerchantAccount,
-) -> Result<PrimaryBusinessDetails, error_stack::Report<errors::ApiErrorResponse>> {
-    match merchant_connector
-        .business_country
-        .as_ref()
-        .zip(merchant_connector.business_label.as_ref())
-    {
-        Some((business_country, business_label)) => Ok(PrimaryBusinessDetails {
-            country: business_country.clone(),
-            business: business_label.clone(),
-        }),
-        None => {
-            // Parse the primary business details from merchant account
-            merchant_account
-                .primary_business_details
-                .clone()
-                .parse_value("PrimaryBusinessDetails")
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("failed to parse primary business details")
-        }
-    }
-}
-
-/// Create the connector label
-/// {connector_name}_{country}_{business_label}
-pub fn create_connector_label(
-    connector_name: &String,
-    business_details: &PrimaryBusinessDetails,
-    business_sub_label: Option<&String>,
-) -> Result<String, error_stack::Report<errors::ApiErrorResponse>> {
-    let mut connector_label = format!(
-        "{}_{}_{}",
-        connector_name, business_details.country, business_details.business
-    );
-
-    if let Some(sub_label) = business_sub_label {
-        connector_label.push_str(&format!("_{sub_label}"));
-    }
-
-    Ok(connector_label)
-}
-
 pub async fn create_payment_connector(
     store: &dyn StorageInterface,
     req: api::MerchantConnector,
@@ -318,11 +277,12 @@ pub async fn create_payment_connector(
             error.to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
         })?;
 
-    let business_details = get_business_details(&req, merchant_account)?;
-    let connector_label = create_connector_label(
-        &req.connector_name,
-        &business_details,
+    let (connector_label, business_details) = helpers::create_connector_label(
+        req.business_country.as_ref(),
+        req.business_label.as_ref(),
         req.business_sub_label.as_ref(),
+        &req.connector_name,
+        &merchant_account,
     )?;
 
     let mut vec = Vec::new();
@@ -453,21 +413,22 @@ pub async fn update_payment_connector(
 
     // Update connector label only if
     // any of the `country`, `business_label` or `business_sub_label` fields are changed
-    let connector_label = req
+    let connector_label_update = req
         .business_country
         .as_ref()
         .or(req.business_label.as_ref())
         .or(req.business_sub_label.as_ref())
         .map(|_| {
-            get_business_details(&req, merchant_account).and_then(|business_details| {
-                create_connector_label(
-                    &req.connector_name,
-                    &business_details,
-                    req.business_sub_label.as_ref(),
-                )
-            })
+            helpers::create_connector_label(
+                req.business_country.as_ref(),
+                req.business_label.as_ref(),
+                req.business_sub_label.as_ref(),
+                &req.connector_name,
+                &merchant_account,
+            )
         })
-        .transpose()?;
+        .transpose()?
+        .map(|(connector_label, _)| connector_label);
 
     let mca = db
         .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
@@ -498,7 +459,7 @@ pub async fn update_payment_connector(
         test_mode: req.test_mode,
         disabled: req.disabled,
         metadata: req.metadata,
-        connector_label: connector_label,
+        connector_label: connector_label_update,
         business_country: req.business_country,
         business_label: req.business_label,
         business_sub_label: req.business_sub_label,

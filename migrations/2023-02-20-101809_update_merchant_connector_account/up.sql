@@ -1,7 +1,7 @@
 ALTER TABLE merchant_connector_account
 ADD COLUMN connector_label VARCHAR(255),
-ADD COLUMN business_country VARCHAR(64),
-ADD COLUMN business_label VARCHAR(255);
+ADD COLUMN business_country VARCHAR(64) DEFAULT 'US',
+ADD COLUMN business_label VARCHAR(255) DEFAULT 'default';
 
 -- To backfill, use `US` as default country and `default` as the business_label
 UPDATE merchant_connector_account AS m

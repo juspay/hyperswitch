@@ -28,7 +28,7 @@ pub async fn construct_refund_router_data<'a, F>(
 ) -> RouterResult<types::RefundsRouterData<F>> {
     let db = &*state.store;
     let merchant_connector_account = db
-        .find_merchant_connector_account_by_merchant_id_connector(
+        .find_merchant_connector_account_by_merchant_id_connector_label(
             &merchant_account.merchant_id,
             connector_id,
         )
