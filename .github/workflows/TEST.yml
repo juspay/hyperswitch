@@ -71,13 +71,13 @@ jobs:
       - uses: Swatinem/rust-cache@v2.2.0
 
       - name: Decrypt connector auth file
-        run: ./scripts/decrypt_connector_auth.sh
+        run: $HOME/scripts/decrypt_connector_auth.sh
         env:
           CONNECTOR_AUTH_PASSPHRASE: ${{ secrets.CONNECTOR_AUTH_PASSPHRASE }}
 
       - name: Set connector auth file path in env
         run: echo "CONNECTOR_AUTH_FILE_PATH=$HOME/target/test/connector_auth.toml" >> $GITHUB_ENV
-    
+
       - name: Start Redis
         uses: supercharge/redis-github-action@1.5.0
         with:
