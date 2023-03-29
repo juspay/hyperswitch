@@ -1527,6 +1527,7 @@ dependencies = [
  "config",
  "diesel",
  "error-stack",
+ "external_services",
  "once_cell",
  "redis_interface",
  "router_env",
