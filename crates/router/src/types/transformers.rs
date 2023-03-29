@@ -177,6 +177,22 @@ impl ForeignTryFrom<storage_enums::RefundStatus> for storage_enums::EventType {
     }
 }
 
+impl ForeignTryFrom<storage_enums::DisputeStatus> for storage_enums::EventType {
+    type Error = errors::ValidationError;
+
+    fn foreign_try_from(value: storage_enums::DisputeStatus) -> Result<Self, Self::Error> {
+        match value {
+            storage_enums::DisputeStatus::DisputeOpened => Ok(Self::DisputeOpened),
+            storage_enums::DisputeStatus::DisputeExpired => Ok(Self::DisputeExpired),
+            storage_enums::DisputeStatus::DisputeAccepted => Ok(Self::DisputeAccepted),
+            storage_enums::DisputeStatus::DisputeCancelled => Ok(Self::DisputeCancelled),
+            storage_enums::DisputeStatus::DisputeChallenged => Ok(Self::DisputeChallenged),
+            storage_enums::DisputeStatus::DisputeWon => Ok(Self::DisputeWon),
+            storage_enums::DisputeStatus::DisputeLost => Ok(Self::DisputeLost),
+        }
+    }
+}
+
 impl ForeignTryFrom<api_models::webhooks::IncomingWebhookEvent> for storage_enums::RefundStatus {
     type Error = errors::ValidationError;
 
@@ -433,6 +449,81 @@ impl ForeignFrom<api_models::api_keys::UpdateApiKeyRequest>
 impl ForeignFrom<storage_enums::AttemptStatus> for api_enums::AttemptStatus {
     fn foreign_from(status: storage_enums::AttemptStatus) -> Self {
         frunk::labelled_convert_from(status)
+    }
+}
+
+impl ForeignFrom<api_enums::DisputeStage> for storage_enums::DisputeStage {
+    fn foreign_from(status: api_enums::DisputeStage) -> Self {
+        frunk::labelled_convert_from(status)
+    }
+}
+
+impl ForeignFrom<api_enums::DisputeStatus> for storage_enums::DisputeStatus {
+    fn foreign_from(status: api_enums::DisputeStatus) -> Self {
+        frunk::labelled_convert_from(status)
+    }
+}
+
+impl ForeignFrom<storage_enums::DisputeStage> for api_enums::DisputeStage {
+    fn foreign_from(status: storage_enums::DisputeStage) -> Self {
+        frunk::labelled_convert_from(status)
+    }
+}
+
+impl ForeignFrom<storage_enums::DisputeStatus> for api_enums::DisputeStatus {
+    fn foreign_from(status: storage_enums::DisputeStatus) -> Self {
+        frunk::labelled_convert_from(status)
+    }
+}
+
+impl ForeignTryFrom<api_models::webhooks::IncomingWebhookEvent> for storage_enums::DisputeStatus {
+    type Error = errors::ValidationError;
+
+    fn foreign_try_from(
+        value: api_models::webhooks::IncomingWebhookEvent,
+    ) -> Result<Self, Self::Error> {
+        match value {
+            api_models::webhooks::IncomingWebhookEvent::DisputeOpened => Ok(Self::DisputeOpened),
+            api_models::webhooks::IncomingWebhookEvent::DisputeExpired => Ok(Self::DisputeExpired),
+            api_models::webhooks::IncomingWebhookEvent::DisputeAccepted => {
+                Ok(Self::DisputeAccepted)
+            }
+            api_models::webhooks::IncomingWebhookEvent::DisputeCancelled => {
+                Ok(Self::DisputeCancelled)
+            }
+            api_models::webhooks::IncomingWebhookEvent::DisputeChallenged => {
+                Ok(Self::DisputeChallenged)
+            }
+            api_models::webhooks::IncomingWebhookEvent::DisputeWon => Ok(Self::DisputeWon),
+            api_models::webhooks::IncomingWebhookEvent::DisputeLost => Ok(Self::DisputeLost),
+            _ => Err(errors::ValidationError::IncorrectValueProvided {
+                field_name: "incoming_webhook_event",
+            }),
+        }
+    }
+}
+
+impl ForeignTryFrom<storage::Dispute> for api_models::disputes::DisputeResponse {
+    type Error = errors::ValidationError;
+
+    fn foreign_try_from(dispute: storage::Dispute) -> Result<Self, Self::Error> {
+        Ok(Self {
+            dispute_id: dispute.dispute_id,
+            payment_id: dispute.payment_id,
+            attempt_id: dispute.attempt_id,
+            amount: dispute.amount,
+            currency: dispute.currency,
+            dispute_stage: dispute.dispute_stage.foreign_into(),
+            dispute_status: dispute.dispute_status.foreign_into(),
+            connector_status: dispute.connector_status,
+            connector_dispute_id: dispute.connector_dispute_id,
+            connector_reason: dispute.connector_reason,
+            connector_reason_code: dispute.connector_reason_code,
+            challenge_required_by: dispute.challenge_required_by,
+            created_at: dispute.dispute_created_at,
+            updated_at: dispute.updated_at,
+            received_at: dispute.created_at.to_string(),
+        })
     }
 }
 
