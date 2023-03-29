@@ -1,9 +1,11 @@
-name: CONNECTOR_SANITY_TEST
+name: CONNECTOR SANITY TEST
 
 on:
   push:
     branches:
       - main
+
+  pull_request:
 
   schedule:
     - cron: '5 0 * * *'
@@ -39,6 +41,23 @@ jobs:
   test_connectors:
     name: Run tests on stable toolchain for connectors
     runs-on: ubuntu-latest
+    
+    # Service containers to run with `runner-job`
+    services:
+      # Label used to access the service container
+      redis:
+        # Docker Hub image
+        image: redis
+        # Set health checks to wait until redis has started
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          # Maps port 6379 on service container to the host
+          - 6379:6379
+
     strategy:
       fail-fast: false
       matrix:
@@ -79,11 +98,6 @@ jobs:
 
       - name: Set connector auth file path in env
         run: echo "CONNECTOR_AUTH_FILE_PATH=$HOME/target/test/connector_auth.toml" >> $GITHUB_ENV
-
-      - name: Start Redis
-        uses: supercharge/redis-github-action@1.5.0
-        with:
-          redis-image: redis/redis-stack-server
 
       - name: Run connector tests
         uses: actions-rs/cargo@v1
