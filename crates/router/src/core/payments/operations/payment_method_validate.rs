@@ -119,8 +119,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::VerifyRequest> for Paym
 
         connector_response = match db
             .insert_connector_response(
-                PaymentCreate::make_connector_response(&payment_attempt)
-                    .change_context(errors::ApiErrorResponse::InternalServerError)?,
+                PaymentCreate::make_connector_response(&payment_attempt),
                 storage_scheme,
             )
             .await
@@ -274,8 +273,9 @@ where
         _merchant_account: &storage::MerchantAccount,
         state: &AppState,
         _request: &api::VerifyRequest,
-    ) -> CustomResult<api::ConnectorChoice, errors::ApiErrorResponse> {
-        helpers::get_connector_default(state, None).await
+        previously_used_connector: Option<&String>,
+    ) -> CustomResult<api::ConnectorCallType, errors::ApiErrorResponse> {
+        helpers::get_connector_default(state, previously_used_connector).await
     }
 }
 

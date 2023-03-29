@@ -14,8 +14,8 @@ use crate::{
     services::{self, RedirectForm},
     types::{
         self, api,
-        storage::{self, enums, PaymentAttemptExt},
-        transformers::{ForeignInto, ForeignTryFrom},
+        storage::{self, enums},
+        transformers::{ForeignFrom, ForeignInto},
     },
     utils::{OptionExt, ValueExt},
 };
@@ -275,9 +275,6 @@ where
                     })
                 }
                 let mut response: api::PaymentsResponse = Default::default();
-                let routed_through = payment_attempt
-                    .get_routed_through_connector()
-                    .change_context(errors::ApiErrorResponse::InternalServerError)?;
                 services::ApplicationResponse::Json(
                     response
                         .set_payment_id(Some(payment_attempt.payment_id))
@@ -286,7 +283,7 @@ where
                         .set_amount(payment_attempt.amount)
                         .set_amount_capturable(None)
                         .set_amount_received(payment_intent.amount_captured)
-                        .set_connector(routed_through)
+                        .set_connector(payment_attempt.connector)
                         .set_client_secret(payment_intent.client_secret.map(masking::Secret::new))
                         .set_created(Some(payment_intent.created_at))
                         .set_currency(currency)
@@ -401,15 +398,11 @@ where
     })
 }
 
-impl ForeignTryFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::PaymentsResponse {
-    type Error = error_stack::Report<errors::ParsingError>;
-
-    fn foreign_try_from(
-        item: (storage::PaymentIntent, storage::PaymentAttempt),
-    ) -> Result<Self, Self::Error> {
+impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::PaymentsResponse {
+    fn foreign_from(item: (storage::PaymentIntent, storage::PaymentAttempt)) -> Self {
         let pi = item.0;
         let pa = item.1;
-        Ok(Self {
+        Self {
             payment_id: Some(pi.payment_id),
             merchant_id: Some(pi.merchant_id),
             status: pi.status.foreign_into(),
@@ -421,11 +414,11 @@ impl ForeignTryFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::
             description: pi.description,
             metadata: pi.metadata,
             customer_id: pi.customer_id,
-            connector: pa.get_routed_through_connector()?,
+            connector: pa.connector,
             payment_method: pa.payment_method.map(ForeignInto::foreign_into),
             payment_method_type: pa.payment_method_type.map(ForeignInto::foreign_into),
             ..Default::default()
-        })
+        }
     }
 }
 

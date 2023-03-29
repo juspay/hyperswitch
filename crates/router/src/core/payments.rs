@@ -22,7 +22,7 @@ use self::{
 };
 use crate::{
     core::{
-        errors::{self, CustomResult, RouterResponse, RouterResult},
+        errors::{self, RouterResponse, RouterResult},
         payment_methods::vault,
     },
     db::StorageInterface,
@@ -34,7 +34,7 @@ use crate::{
         self, api,
         storage::{self, enums as storage_enums},
     },
-    utils::{Encode, OptionExt, ValueExt},
+    utils::OptionExt,
 };
 
 #[instrument(skip_all)]
@@ -99,14 +99,28 @@ where
 
     payment_data.payment_method_data = payment_method_data;
 
-    let connector = get_connector_choice(
-        &operation,
-        state,
-        &req,
-        &merchant_account,
-        &mut payment_data,
-    )
-    .await?;
+    let connector_details = operation
+        .to_domain()?
+        .get_connector(
+            &merchant_account,
+            state,
+            &req,
+            payment_data.payment_attempt.connector.as_ref(),
+        )
+        .await?;
+
+    let connector = match should_call_connector(&operation, &payment_data) {
+        true => Some(
+            route_connector(
+                state,
+                &merchant_account,
+                &mut payment_data,
+                connector_details,
+            )
+            .await?,
+        ),
+        false => None,
+    };
 
     let (operation, mut payment_data) = operation
         .to_update_tracker()?
@@ -119,12 +133,12 @@ where
         )
         .await?;
 
-    if let Some(connector_details) = connector {
-        operation
-            .to_domain()?
-            .add_task_to_process_tracker(state, &payment_data.payment_attempt)
-            .await?;
+    operation
+        .to_domain()?
+        .add_task_to_process_tracker(state, &payment_data.payment_attempt)
+        .await?;
 
+    if let Some(connector_details) = connector {
         payment_data = match connector_details {
             api::ConnectorCallType::Single(connector) => {
                 call_connector_service(
@@ -139,7 +153,6 @@ where
                 )
                 .await?
             }
-
             api::ConnectorCallType::Multiple(connectors) => {
                 call_multiple_connectors_service(
                     state,
@@ -148,6 +161,34 @@ where
                     &operation,
                     payment_data,
                     &customer,
+                )
+                .await?
+            }
+            api::ConnectorCallType::Routing => {
+                let connector = payment_data
+                    .payment_attempt
+                    .connector
+                    .clone()
+                    .get_required_value("connector")
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("No connector selected for routing")?;
+
+                let connector_data = api::ConnectorData::get_connector_by_name(
+                    &state.conf.connectors,
+                    &connector,
+                    api::GetToken::Connector,
+                )
+                .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
+                call_connector_service(
+                    state,
+                    &merchant_account,
+                    &validate_result.payment_id,
+                    connector_data,
+                    &operation,
+                    payment_data,
+                    &customer,
+                    call_connector_action,
                 )
                 .await?
             }
@@ -653,7 +694,7 @@ pub async fn list_payments(
 ) -> RouterResponse<api::PaymentListResponse> {
     use futures::stream::StreamExt;
 
-    use crate::types::transformers::ForeignTryFrom;
+    use crate::types::transformers::ForeignFrom;
 
     helpers::validate_payment_list_request(&constraints)?;
     let merchant_id = &merchant.merchant_id;
@@ -683,11 +724,7 @@ pub async fn list_payments(
         .collect::<Vec<(storage::PaymentIntent, storage::PaymentAttempt)>>()
         .await;
 
-    let data: Vec<api::PaymentsResponse> = pi
-        .into_iter()
-        .map(ForeignTryFrom::foreign_try_from)
-        .collect::<Result<_, _>>()
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+    let data: Vec<api::PaymentsResponse> = pi.into_iter().map(ForeignFrom::foreign_from).collect();
 
     Ok(services::ApplicationResponse::Json(
         api::PaymentListResponse {
@@ -729,192 +766,47 @@ pub async fn add_process_sync_task(
     Ok(())
 }
 
-pub fn update_straight_through_routing<F>(
-    payment_data: &mut PaymentData<F>,
-    request_straight_through: serde_json::Value,
-) -> CustomResult<(), errors::ParsingError>
-where
-    F: Send + Clone,
-{
-    let mut routing_data: storage::RoutingData = payment_data
-        .payment_attempt
-        .connector
-        .clone()
-        .unwrap_or_else(|| serde_json::json!({}))
-        .parse_value("RoutingData")
-        .attach_printable("Invalid routing data format in payment attempt")?;
-
-    let request_straight_through: api::RoutingAlgorithm = request_straight_through
-        .parse_value("RoutingAlgorithm")
-        .attach_printable("Invalid straight through routing rules format")?;
-
-    routing_data.algorithm = Some(request_straight_through);
-
-    let encoded_routing_data = Encode::<storage::RoutingData>::encode_to_value(&routing_data)
-        .attach_printable("Unable to serialize routing data to serde value")?;
-
-    payment_data.payment_attempt.connector = Some(encoded_routing_data);
-
-    Ok(())
-}
-
-pub async fn get_connector_choice<F, Req>(
-    operation: &BoxedOperation<'_, F, Req>,
-    state: &AppState,
-    req: &Req,
-    merchant_account: &storage::MerchantAccount,
-    payment_data: &mut PaymentData<F>,
-) -> RouterResult<Option<api::ConnectorCallType>>
-where
-    F: Send + Clone,
-{
-    let connector_choice = operation
-        .to_domain()?
-        .get_connector(merchant_account, state, req)
-        .await?;
-
-    let connector = if should_call_connector(operation, payment_data) {
-        Some(match connector_choice {
-            api::ConnectorChoice::SessionMultiple(connectors) => {
-                api::ConnectorCallType::Multiple(connectors)
-            }
-
-            api::ConnectorChoice::StraightThrough(straight_through) => connector_selection(
-                state,
-                merchant_account,
-                payment_data,
-                Some(straight_through),
-            )?,
-
-            api::ConnectorChoice::Decide => {
-                connector_selection(state, merchant_account, payment_data, None)?
-            }
-        })
-    } else if let api::ConnectorChoice::StraightThrough(val) = connector_choice {
-        update_straight_through_routing(payment_data, val)
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to update straight through routing algorithm")?;
-        None
-    } else {
-        None
-    };
-
-    Ok(connector)
-}
-
-pub fn connector_selection<F>(
+pub async fn route_connector<F>(
     state: &AppState,
     merchant_account: &storage::MerchantAccount,
     payment_data: &mut PaymentData<F>,
-    request_straight_through: Option<serde_json::Value>,
+    connector_call_type: api::ConnectorCallType,
 ) -> RouterResult<api::ConnectorCallType>
 where
     F: Send + Clone,
 {
-    let mut routing_data: storage::RoutingData = payment_data
-        .payment_attempt
-        .connector
-        .clone()
-        .unwrap_or_else(|| serde_json::json!({}))
-        .parse_value("RoutingData")
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Invalid routing data format in payment attempt")?;
+    match connector_call_type {
+        api::ConnectorCallType::Single(connector) => {
+            payment_data.payment_attempt.connector = Some(connector.connector_name.to_string());
 
-    let request_straight_through: Option<api::RoutingAlgorithm> = request_straight_through
-        .map(|val| val.parse_value("RoutingAlgorithm"))
-        .transpose()
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Invalid straight through routing rules format")?;
+            Ok(api::ConnectorCallType::Single(connector))
+        }
 
-    let decided_connector = decide_connector(
-        state,
-        merchant_account,
-        request_straight_through,
-        &mut routing_data,
-    )?;
+        api::ConnectorCallType::Routing => {
+            let routing_algorithm: api::RoutingAlgorithm = merchant_account
+                .routing_algorithm
+                .clone()
+                .parse_value("RoutingAlgorithm")
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Could not decode merchant routing rules")?;
 
-    let encoded_routing_data = Encode::<storage::RoutingData>::encode_to_value(&routing_data)
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Unable to serialize routing data to serde value")?;
+            let connector_name = match routing_algorithm {
+                api::RoutingAlgorithm::Single(conn) => conn.to_string(),
+            };
 
-    payment_data.payment_attempt.connector = Some(encoded_routing_data);
+            let connector_data = api::ConnectorData::get_connector_by_name(
+                &state.conf.connectors,
+                &connector_name,
+                api::GetToken::Connector,
+            )
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Routing algorithm gave invalid connector")?;
 
-    Ok(decided_connector)
-}
+            payment_data.payment_attempt.connector = Some(connector_name);
 
-pub fn decide_connector(
-    state: &AppState,
-    merchant_account: &storage::MerchantAccount,
-    request_straight_through: Option<api::RoutingAlgorithm>,
-    routing_data: &mut storage::RoutingData,
-) -> RouterResult<api::ConnectorCallType> {
-    if let Some(ref connector_name) = routing_data.routed_through {
-        let connector_data = api::ConnectorData::get_connector_by_name(
-            &state.conf.connectors,
-            connector_name,
-            api::GetToken::Connector,
-        )
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Invalid connector name received in 'routed_through'")?;
+            Ok(api::ConnectorCallType::Single(connector_data))
+        }
 
-        return Ok(api::ConnectorCallType::Single(connector_data));
+        call_type @ api::ConnectorCallType::Multiple(_) => Ok(call_type),
     }
-
-    if let Some(routing_algorithm) = request_straight_through {
-        let connector_name = match &routing_algorithm {
-            api::RoutingAlgorithm::Single(conn) => conn.to_string(),
-        };
-
-        let connector_data = api::ConnectorData::get_connector_by_name(
-            &state.conf.connectors,
-            &connector_name,
-            api::GetToken::Connector,
-        )
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Invalid connector name received in routing algorithm")?;
-
-        routing_data.routed_through = Some(connector_name);
-        routing_data.algorithm = Some(routing_algorithm);
-        return Ok(api::ConnectorCallType::Single(connector_data));
-    }
-
-    if let Some(ref routing_algorithm) = routing_data.algorithm {
-        let connector_name = match routing_algorithm {
-            api::RoutingAlgorithm::Single(conn) => conn.to_string(),
-        };
-
-        let connector_data = api::ConnectorData::get_connector_by_name(
-            &state.conf.connectors,
-            &connector_name,
-            api::GetToken::Connector,
-        )
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Invalid connector name received in routing algorithm")?;
-
-        routing_data.routed_through = Some(connector_name);
-        return Ok(api::ConnectorCallType::Single(connector_data));
-    }
-
-    let routing_algorithm: api::RoutingAlgorithm = merchant_account
-        .routing_algorithm
-        .clone()
-        .parse_value("RoutingAlgorithm")
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Unable to deserialize merchant routing algorithm")?;
-
-    let connector_name = match routing_algorithm {
-        api::RoutingAlgorithm::Single(conn) => conn.to_string(),
-    };
-
-    let connector_data = api::ConnectorData::get_connector_by_name(
-        &state.conf.connectors,
-        &connector_name,
-        api::GetToken::Connector,
-    )
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("Routing algorithm gave invalid connector")?;
-
-    routing_data.routed_through = Some(connector_name);
-
-    Ok(api::ConnectorCallType::Single(connector_data))
 }
