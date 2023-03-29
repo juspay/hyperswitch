@@ -10,17 +10,18 @@ license = "Apache-2.0"
 build = "src/build.rs"
 
 [features]
-default = ["kv_store", "stripe", "oltp", "olap","accounts_cache"]
-kms = ["aws-config", "aws-sdk-kms"]
+default = ["kv_store", "stripe", "oltp", "olap", "accounts_cache"]
+kms = ["external_services/kms"]
 basilisk = ["kms"]
 stripe = ["dep:serde_qs"]
 sandbox = ["kms", "stripe", "basilisk"]
+production = ["kms", "stripe", "basilisk"]
 olap = []
 oltp = []
-production = []
 kv_store = []
 accounts_cache = []
 openapi = ["olap", "oltp"]
+vergen = ["router_env/vergen"]
 
 
 [dependencies]
@@ -30,8 +31,6 @@ actix-rt = "2.8.0"
 actix-web = "4.3.1"
 async-bb8-diesel = { git = "https://github.com/juspay/async-bb8-diesel", rev = "9a71d142726dbc33f41c1fd935ddaa79841c7be5" }
 async-trait = "0.1.66"
-aws-config = { version = "0.54.1", optional = true }
-aws-sdk-kms = { version = "0.24.0", optional = true }
 base64 = "0.21.0"
 bb8 = "0.8"
 blake3 = "1.3.3"
@@ -39,7 +38,7 @@ bytes = "1.4.0"
 clap = { version = "4.1.8", default-features = false, features = ["std", "derive", "help", "usage"] }
 config = { version = "0.13.3", features = ["toml"] }
 crc32fast = "1.3.2"
-diesel = { version = "2.0.3", features = ["postgres", "serde_json", "time", "64-column-tables"] }
+diesel = { version = "2.0.3", features = ["postgres"] }
 dyn-clone = "1.0.11"
 encoding_rs = "0.8.32"
 error-stack = "0.3.1"
@@ -54,7 +53,7 @@ literally = "0.1.3"
 maud = { version = "0.24", features = ["actix-web"] }
 mimalloc = { version = "0.1", optional = true }
 mime = "0.3.16"
-moka = {version = "0.10", features = ["future"] }
+moka = { version = "0.10", features = ["future"] }
 nanoid = "0.4.0"
 num_cpus = "1.15.0"
 once_cell = "1.17.1"
@@ -82,6 +81,7 @@ uuid = { version = "1.3.0", features = ["serde", "v4"] }
 # First party crates
 api_models = { version = "0.1.0", path = "../api_models" }
 common_utils = { version = "0.1.0", path = "../common_utils" }
+external_services = { version = "0.1.0", path = "../external_services" }
 masking = { version = "0.1.0", path = "../masking" }
 redis_interface = { version = "0.1.0", path = "../redis_interface" }
 router_derive = { version = "0.1.0", path = "../router_derive" }
@@ -89,7 +89,7 @@ router_env = { version = "0.1.0", path = "../router_env", features = ["log_extra
 storage_models = { version = "0.1.0", path = "../storage_models", features = ["kv_store"] }
 
 [build-dependencies]
-router_env = { version = "0.1.0", path = "../router_env", default-features = false, features = ["vergen"] }
+router_env = { version = "0.1.0", path = "../router_env", default-features = false }
 
 [dev-dependencies]
 actix-http = "3.3.1"

@@ -20,11 +20,9 @@ pub struct AirwallexIntentRequest {
     //ID created in merchant's order system that corresponds to this PaymentIntent.
     merchant_order_id: String,
 }
-impl TryFrom<&types::PaymentsAuthorizeSessionTokenRouterData> for AirwallexIntentRequest {
+impl TryFrom<&types::PaymentsInitRouterData> for AirwallexIntentRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: &types::PaymentsAuthorizeSessionTokenRouterData,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(item: &types::PaymentsInitRouterData) -> Result<Self, Self::Error> {
         Ok(Self {
             request_id: Uuid::new_v4().to_string(),
             amount: utils::to_currency_base_unit(item.request.amount, item.request.currency)?,
@@ -390,6 +388,5 @@ pub struct AirwallexWebhookObjectResource {
 pub struct AirwallexErrorResponse {
     pub code: String,
     pub message: String,
-    pub details: Option<Vec<String>>,
     pub source: Option<String>,
 }

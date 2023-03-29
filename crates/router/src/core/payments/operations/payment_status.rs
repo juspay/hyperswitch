@@ -1,6 +1,7 @@
 use std::marker::PhantomData;
 
 use async_trait::async_trait;
+use common_utils::ext_traits::AsyncExt;
 use error_stack::ResultExt;
 use router_derive::PaymentOperation;
 use router_env::{instrument, tracing};
@@ -100,10 +101,9 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentStatus {
         &'a self,
         _merchant_account: &storage::MerchantAccount,
         state: &AppState,
-        _request: &api::PaymentsRequest,
-        previously_used_connector: Option<&String>,
-    ) -> CustomResult<api::ConnectorCallType, errors::ApiErrorResponse> {
-        helpers::get_connector_default(state, previously_used_connector).await
+        request: &api::PaymentsRequest,
+    ) -> CustomResult<api::ConnectorChoice, errors::ApiErrorResponse> {
+        helpers::get_connector_default(state, request.routing.clone()).await
     }
 }
 
@@ -245,6 +245,18 @@ async fn get_tracker_for_sync<
 
     let contains_encoded_data = connector_response.encoded_data.is_some();
 
+    let creds_identifier = request
+        .merchant_connector_details
+        .as_ref()
+        .map(|mcd| mcd.creds_identifier.to_owned());
+    request
+        .merchant_connector_details
+        .to_owned()
+        .async_map(|mcd| async {
+            helpers::insert_merchant_connector_creds_to_config(db, merchant_id, mcd).await
+        })
+        .await
+        .transpose()?;
     Ok((
         Box::new(operation),
         PaymentData {
@@ -274,6 +286,7 @@ async fn get_tracker_for_sync<
             refunds,
             sessions_token: vec![],
             card_cvc: None,
+            creds_identifier,
         },
         None,
     ))

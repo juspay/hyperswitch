@@ -7,8 +7,7 @@ use crate::{
         mandate,
         payments::{self, access_token, session_token, transformers, PaymentData},
     },
-    routes::AppState,
-    scheduler::metrics,
+    routes::{metrics, AppState},
     services,
     types::{self, api, storage},
 };
@@ -92,6 +91,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
 }
 
 impl types::PaymentsAuthorizeRouterData {
+    #[allow(clippy::too_many_arguments)]
     pub async fn decide_flow<'a, 'b>(
         &'b mut self,
         state: &'a AppState,

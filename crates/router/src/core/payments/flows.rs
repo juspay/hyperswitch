@@ -165,6 +165,7 @@ macro_rules! default_imp_for_session_token{
 default_imp_for_session_token!(
     connector::Aci,
     connector::Adyen,
+    connector::Airwallex,
     connector::Applepay,
     connector::Authorizedotnet,
     connector::Bambora,

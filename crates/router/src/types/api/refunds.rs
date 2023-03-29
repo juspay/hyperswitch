@@ -1,5 +1,6 @@
 pub use api_models::refunds::{
     RefundRequest, RefundResponse, RefundStatus, RefundType, RefundUpdateRequest,
+    RefundsRetrieveRequest,
 };
 
 use super::ConnectorCommon;

@@ -475,7 +475,7 @@ pub fn to_currency_base_unit(
         | storage_models::enums::Currency::OMR => amount_f64 / 1000.00,
         _ => amount_f64 / 100.00,
     };
-    Ok(format!("{:.2}", amount))
+    Ok(format!("{amount:.2}"))
 }
 
 pub fn str_to_f32<S>(value: &str, serializer: S) -> Result<S::Ok, S::Error>
@@ -486,4 +486,42 @@ where
         serde::ser::Error::custom("Invalid string, cannot be converted to float value")
     })?;
     serializer.serialize_f64(float_value)
+}
+
+pub fn collect_values_by_removing_signature(
+    value: &serde_json::Value,
+    signature: &String,
+) -> Vec<String> {
+    match value {
+        serde_json::Value::Null => vec!["null".to_owned()],
+        serde_json::Value::Bool(b) => vec![b.to_string()],
+        serde_json::Value::Number(n) => match n.as_f64() {
+            Some(f) => vec![format!("{f:.2}")],
+            None => vec![n.to_string()],
+        },
+        serde_json::Value::String(s) => {
+            if signature == s {
+                vec![]
+            } else {
+                vec![s.clone()]
+            }
+        }
+        serde_json::Value::Array(arr) => arr
+            .iter()
+            .flat_map(|v| collect_values_by_removing_signature(v, signature))
+            .collect(),
+        serde_json::Value::Object(obj) => obj
+            .values()
+            .flat_map(|v| collect_values_by_removing_signature(v, signature))
+            .collect(),
+    }
+}
+
+pub fn collect_and_sort_values_by_removing_signature(
+    value: &serde_json::Value,
+    signature: &String,
+) -> Vec<String> {
+    let mut values = collect_values_by_removing_signature(value, signature);
+    values.sort();
+    values
 }

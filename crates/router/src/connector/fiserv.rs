@@ -125,7 +125,7 @@ impl ConnectorCommon for Fiserv {
                         code: first_error
                             .code
                             .to_owned()
-                            .unwrap_or(consts::NO_ERROR_CODE.to_string()),
+                            .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
                         message: first_error.message.to_owned(),
                         reason: first_error.field.to_owned(),
                         status_code: res.status_code,
@@ -665,7 +665,7 @@ impl api::IncomingWebhook for Fiserv {
     fn get_webhook_object_reference_id(
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<String, errors::ConnectorError> {
+    ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
         Err(errors::ConnectorError::NotImplemented("fiserv".to_string()).into())
     }
 

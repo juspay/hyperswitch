@@ -5,7 +5,11 @@ use error_stack::Report;
 use masking::Secret;
 use router::{
     configs::settings::Settings,
-    core::{errors, errors::ConnectorError, payments},
+    core::{
+        errors,
+        errors::ConnectorError,
+        payments::{self, flows::Feature},
+    },
     db::StorageImpl,
     routes, services,
     types::{self, api, storage::enums, AccessToken, PaymentAddress, RouterData},
@@ -41,7 +45,8 @@ pub trait ConnectorActions: Connector {
         payment_data: Option<types::PaymentsAuthorizeData>,
         payment_info: Option<PaymentInfo>,
     ) -> Result<types::PaymentsAuthorizeRouterData, Report<ConnectorError>> {
-        let integration = self.get_data().connector.get_connector_integration();
+        let connector = self.get_data();
+        let integration = connector.connector.get_connector_integration();
         let mut request = self.generate_data(
             types::PaymentsAuthorizeData {
                 confirm: true,
@@ -53,6 +58,11 @@ pub trait ConnectorActions: Connector {
         let state =
             routes::AppState::with_storage(Settings::new().unwrap(), StorageImpl::PostgresqlTest)
                 .await;
+        let session_token = request
+            .get_session_token(&state, &connector)
+            .await
+            .expect("Session token call failed");
+        request.request.session_token = session_token.map(|s| s.session_token);
         integration.execute_pretasks(&mut request, &state).await?;
         call_connector(request, integration).await
     }
@@ -62,7 +72,8 @@ pub trait ConnectorActions: Connector {
         payment_data: Option<types::PaymentsAuthorizeData>,
         payment_info: Option<PaymentInfo>,
     ) -> Result<types::PaymentsAuthorizeRouterData, Report<ConnectorError>> {
-        let integration = self.get_data().connector.get_connector_integration();
+        let connector = self.get_data();
+        let integration = connector.connector.get_connector_integration();
         let mut request = self.generate_data(
             types::PaymentsAuthorizeData {
                 confirm: true,
@@ -74,6 +85,11 @@ pub trait ConnectorActions: Connector {
         let state =
             routes::AppState::with_storage(Settings::new().unwrap(), StorageImpl::PostgresqlTest)
                 .await;
+        let session_token = request
+            .get_session_token(&state, &connector)
+            .await
+            .expect("Session token call failed");
+        request.request.session_token = session_token.map(|s| s.session_token);
         integration.execute_pretasks(&mut request, &state).await?;
         call_connector(request, integration).await
     }
@@ -385,7 +401,6 @@ pub trait ConnectorActions: Connector {
                 .and_then(|a| a.connector_meta_data.map(masking::Secret::new)),
             amount_captured: None,
             access_token: info.and_then(|a| a.access_token),
-            session_token: None,
             reference_id: None,
         }
     }
@@ -504,6 +519,7 @@ impl Default for PaymentCaptureType {
             currency: enums::Currency::USD,
             connector_transaction_id: "".to_string(),
             amount: 100,
+            ..Default::default()
         })
     }
 }

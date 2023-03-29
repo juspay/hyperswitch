@@ -192,6 +192,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Co
                 refunds: vec![],
                 sessions_token: vec![],
                 card_cvc: request.card_cvc.clone(),
+                creds_identifier: None,
             },
             Some(CustomerDetails {
                 customer_id: request.customer_id.clone(),
@@ -264,19 +265,10 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for CompleteAuthorize {
         _merchant_account: &storage::MerchantAccount,
         state: &AppState,
         request: &api::PaymentsRequest,
-        previously_used_connector: Option<&String>,
-    ) -> CustomResult<api::ConnectorCallType, errors::ApiErrorResponse> {
+    ) -> CustomResult<api::ConnectorChoice, errors::ApiErrorResponse> {
         // Use a new connector in the confirm call or use the same one which was passed when
         // creating the payment or if none is passed then use the routing algorithm
-        let request_connector = request
-            .connector
-            .as_ref()
-            .and_then(|connector| connector.first().map(|c| c.to_string()));
-        helpers::get_connector_default(
-            state,
-            request_connector.as_ref().or(previously_used_connector),
-        )
-        .await
+        helpers::get_connector_default(state, request.routing.clone()).await
     }
 }
 
