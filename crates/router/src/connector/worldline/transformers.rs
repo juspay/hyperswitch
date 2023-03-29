@@ -7,9 +7,10 @@ use crate::{
     connector::utils::{self, CardData},
     core::errors,
     types::{
-        self, api,
+        self,
+        api::{self, enums as api_enums},
         storage::enums,
-        transformers::{self, ForeignFrom},
+        transformers::ForeignFrom,
     },
 };
 
@@ -127,9 +128,11 @@ impl TryFrom<utils::CardIssuer> for Gateway {
             utils::CardIssuer::AmericanExpress => Ok(Self::Amex),
             utils::CardIssuer::Master => Ok(Self::MasterCard),
             utils::CardIssuer::Discover => Ok(Self::Discover),
+            utils::CardIssuer::Visa => Ok(Self::Visa),
             _ => Err(errors::ConnectorError::NotSupported {
-                payment_method: format!("{issuer}"),
+                payment_method: api_enums::PaymentMethod::Card.to_string(),
                 connector: "worldline",
+                payment_experience: api_enums::PaymentExperience::RedirectToUrl.to_string(),
             }
             .into()),
         }
@@ -149,7 +152,10 @@ fn make_card_request(
     );
     let expiry_date: Secret<String> = Secret::new(secret_value);
     let card = Card {
-        card_number: ccard.card_number.clone(),
+        card_number: ccard
+            .card_number
+            .clone()
+            .map(|card| card.split_whitespace().collect()),
         cardholder_name: ccard.card_holder_name.clone(),
         cvv: ccard.card_cvc.clone(),
         expiry_date,
@@ -291,32 +297,30 @@ pub enum PaymentStatus {
     CaptureRequested,
     #[default]
     Processing,
+    Created,
 }
 
-impl From<transformers::Foreign<(PaymentStatus, enums::CaptureMethod)>>
-    for transformers::Foreign<enums::AttemptStatus>
-{
-    fn from(item: transformers::Foreign<(PaymentStatus, enums::CaptureMethod)>) -> Self {
-        let (status, capture_method) = item.0;
+impl ForeignFrom<(PaymentStatus, enums::CaptureMethod)> for enums::AttemptStatus {
+    fn foreign_from(item: (PaymentStatus, enums::CaptureMethod)) -> Self {
+        let (status, capture_method) = item;
         match status {
             PaymentStatus::Captured
             | PaymentStatus::Paid
-            | PaymentStatus::ChargebackNotification => enums::AttemptStatus::Charged,
-            PaymentStatus::Cancelled => enums::AttemptStatus::Voided,
-            PaymentStatus::Rejected | PaymentStatus::RejectedCapture => {
-                enums::AttemptStatus::Failure
-            }
+            | PaymentStatus::ChargebackNotification => Self::Charged,
+            PaymentStatus::Cancelled => Self::Voided,
+            PaymentStatus::Rejected => Self::Failure,
+            PaymentStatus::RejectedCapture => Self::CaptureFailed,
             PaymentStatus::CaptureRequested => {
                 if capture_method == enums::CaptureMethod::Automatic {
-                    enums::AttemptStatus::Pending
+                    Self::Pending
                 } else {
-                    enums::AttemptStatus::CaptureInitiated
+                    Self::CaptureInitiated
                 }
             }
-            PaymentStatus::PendingApproval => enums::AttemptStatus::Authorized,
-            _ => enums::AttemptStatus::Pending,
+            PaymentStatus::PendingApproval => Self::Authorized,
+            PaymentStatus::Created => Self::Started,
+            _ => Self::Pending,
         }
-        .into()
     }
 }
 
@@ -325,8 +329,8 @@ impl From<transformers::Foreign<(PaymentStatus, enums::CaptureMethod)>>
 /// To keep this try_from logic generic in case of AUTHORIZE, SYNC and CAPTURE flows capture_method will be set from RouterData request.
 #[derive(Default, Debug, Clone, Deserialize, PartialEq)]
 pub struct Payment {
-    id: String,
-    status: PaymentStatus,
+    pub id: String,
+    pub status: PaymentStatus,
     #[serde(skip_deserializing)]
     pub capture_method: enums::CaptureMethod,
 }
@@ -484,4 +488,29 @@ pub struct Error {
 pub struct ErrorResponse {
     pub error_id: Option<String>,
     pub errors: Vec<Error>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WebhookBody {
+    pub api_version: Option<String>,
+    pub id: String,
+    pub created: String,
+    pub merchant_id: String,
+    #[serde(rename = "type")]
+    pub event_type: WebhookEvent,
+    pub payment: Option<serde_json::Value>,
+    pub refund: Option<serde_json::Value>,
+    pub payout: Option<serde_json::Value>,
+    pub token: Option<serde_json::Value>,
+}
+
+#[derive(Debug, Deserialize)]
+pub enum WebhookEvent {
+    #[serde(rename = "payment.rejected")]
+    Rejected,
+    #[serde(rename = "payment.rejected_capture")]
+    RejectedCapture,
+    #[serde(rename = "payment.paid")]
+    Paid,
 }

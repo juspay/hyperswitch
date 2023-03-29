@@ -34,12 +34,28 @@ diesel::table! {
         merchant_id -> Varchar,
         name -> Varchar,
         description -> Nullable<Varchar>,
-        hash_key -> Varchar,
         hashed_api_key -> Varchar,
         prefix -> Varchar,
         created_at -> Timestamp,
         expires_at -> Nullable<Timestamp>,
         last_used -> Nullable<Timestamp>,
+    }
+}
+
+diesel::table! {
+    use diesel::sql_types::*;
+    use crate::enums::diesel_exports::*;
+
+    cards_info (card_iin) {
+        card_iin -> Varchar,
+        card_issuer -> Nullable<Text>,
+        card_network -> Nullable<Text>,
+        card_type -> Nullable<Text>,
+        card_subtype -> Nullable<Text>,
+        card_issuing_country -> Nullable<Text>,
+        bank_code_id -> Nullable<Varchar>,
+        bank_code -> Nullable<Varchar>,
+        country_code -> Nullable<Varchar>,
     }
 }
 
@@ -163,7 +179,6 @@ diesel::table! {
     merchant_account (id) {
         id -> Int4,
         merchant_id -> Varchar,
-        api_key -> Nullable<Varchar>,
         return_url -> Nullable<Varchar>,
         enable_payment_response_hash -> Bool,
         payment_response_hash_key -> Nullable<Varchar>,
@@ -178,6 +193,7 @@ diesel::table! {
         locker_id -> Nullable<Varchar>,
         metadata -> Nullable<Jsonb>,
         routing_algorithm -> Nullable<Json>,
+        api_key -> Nullable<Varchar>,
     }
 }
 
@@ -212,7 +228,7 @@ diesel::table! {
         amount -> Int8,
         currency -> Nullable<Currency>,
         save_to_locker -> Nullable<Bool>,
-        connector -> Nullable<Varchar>,
+        connector -> Nullable<Jsonb>,
         error_message -> Nullable<Text>,
         offer_amount -> Nullable<Int8>,
         surcharge_amount -> Nullable<Int8>,
@@ -367,6 +383,7 @@ diesel::table! {
 diesel::allow_tables_to_appear_in_same_query!(
     address,
     api_keys,
+    cards_info,
     configs,
     connector_response,
     customers,

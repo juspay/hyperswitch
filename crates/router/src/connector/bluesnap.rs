@@ -11,10 +11,7 @@ use super::utils::RefundsRequestData;
 use crate::{
     configs::settings,
     consts,
-    core::{
-        errors::{self, CustomResult},
-        payments,
-    },
+    core::errors::{self, CustomResult},
     db::StorageInterface,
     headers, logger,
     services::{self, ConnectorIntegration},
@@ -80,25 +77,33 @@ impl ConnectorCommon for Bluesnap {
         res: Response,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         logger::debug!(bluesnap_error_response=?res);
-        let response: bluesnap::BluesnapErrorResponse = res
+        let response: bluesnap::BluesnapErrors = res
             .response
             .parse_struct("BluesnapErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
-        let response_error_message = response.message.first().map_or(
-            ErrorResponse {
+        let response_error_message = match response {
+            bluesnap::BluesnapErrors::PaymentError(error_res) => error_res.message.first().map_or(
+                ErrorResponse {
+                    status_code: res.status_code,
+                    code: consts::NO_ERROR_CODE.to_string(),
+                    message: consts::NO_ERROR_MESSAGE.to_string(),
+                    reason: None,
+                },
+                |error_response| ErrorResponse {
+                    status_code: res.status_code,
+                    code: error_response.code.clone(),
+                    message: error_response.description.clone(),
+                    reason: None,
+                },
+            ),
+            bluesnap::BluesnapErrors::AuthError(error_res) => ErrorResponse {
                 status_code: res.status_code,
-                code: consts::NO_ERROR_CODE.to_string(),
-                message: consts::NO_ERROR_MESSAGE.to_string(),
+                code: error_res.error_code.clone(),
+                message: error_res.error_description,
                 reason: None,
             },
-            |error_response| ErrorResponse {
-                status_code: res.status_code,
-                code: error_response.code.clone(),
-                message: error_response.description.clone(),
-                reason: None,
-            },
-        );
+        };
         Ok(response_error_message)
     }
 }
@@ -694,12 +699,16 @@ impl api::IncomingWebhook for Bluesnap {
     fn get_webhook_object_reference_id(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<String, errors::ConnectorError> {
+    ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
         let webhook_body: bluesnap::BluesnapWebhookBody =
             serde_urlencoded::from_bytes(request.body)
                 .into_report()
                 .change_context(errors::ConnectorError::WebhookSignatureNotFound)?;
-        Ok(webhook_body.reference_number)
+        Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
+            api_models::payments::PaymentIdType::ConnectorTransactionId(
+                webhook_body.reference_number,
+            ),
+        ))
     }
 
     fn get_webhook_event_type(
@@ -731,14 +740,5 @@ impl api::IncomingWebhook for Bluesnap {
                 .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
 
         Ok(res_json)
-    }
-}
-
-impl services::ConnectorRedirectResponse for Bluesnap {
-    fn get_flow_type(
-        &self,
-        _query_params: &str,
-    ) -> CustomResult<payments::CallConnectorAction, errors::ConnectorError> {
-        Ok(payments::CallConnectorAction::Trigger)
     }
 }

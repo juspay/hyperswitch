@@ -226,8 +226,9 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
         req: &types::RefreshTokenRouterData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
         let req_obj = intuit::IntuitAuthUpdateRequest::try_from(req)?;
-        let intuit_req = utils::Encode::<intuit::IntuitAuthUpdateRequest>::encode(&req_obj)
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let intuit_req =
+            utils::Encode::<intuit::IntuitAuthUpdateRequest>::encode_to_string_of_json(&req_obj)
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
 
         logger::debug!(intuit_access_token_request=?intuit_req);
         Ok(Some(intuit_req))
@@ -684,7 +685,7 @@ impl api::IncomingWebhook for Intuit {
     fn get_webhook_object_reference_id(
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<String, errors::ConnectorError> {
+    ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
         Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
     }
 
@@ -707,6 +708,8 @@ impl services::ConnectorRedirectResponse for Intuit {
     fn get_flow_type(
         &self,
         _query_params: &str,
+        _json_payload: Option<serde_json::Value>,
+        _action: services::PaymentAction,
     ) -> CustomResult<payments::CallConnectorAction, errors::ConnectorError> {
         Ok(payments::CallConnectorAction::Trigger)
     }

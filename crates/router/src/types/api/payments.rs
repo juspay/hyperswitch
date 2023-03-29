@@ -3,11 +3,11 @@ pub use api_models::payments::{
     CustomerAcceptance, MandateData, MandateTxnType, MandateType, MandateValidationFields,
     NextAction, NextActionType, OnlineMandate, PayLaterData, PaymentIdType, PaymentListConstraints,
     PaymentListResponse, PaymentMethodData, PaymentMethodDataResponse, PaymentOp,
-    PaymentRetrieveBody, PaymentsCancelRequest, PaymentsCaptureRequest, PaymentsRedirectRequest,
-    PaymentsRedirectionResponse, PaymentsRequest, PaymentsResponse, PaymentsResponseForm,
-    PaymentsRetrieveRequest, PaymentsSessionRequest, PaymentsSessionResponse, PaymentsStartRequest,
-    PgRedirectResponse, PhoneDetails, RedirectionResponse, SessionToken, UrlDetails, VerifyRequest,
-    VerifyResponse, WalletData,
+    PaymentRetrieveBody, PaymentRetrieveBodyWithCredentials, PaymentsCancelRequest,
+    PaymentsCaptureRequest, PaymentsRedirectRequest, PaymentsRedirectionResponse, PaymentsRequest,
+    PaymentsResponse, PaymentsResponseForm, PaymentsRetrieveRequest, PaymentsSessionRequest,
+    PaymentsSessionResponse, PaymentsStartRequest, PgRedirectResponse, PhoneDetails,
+    RedirectionResponse, SessionToken, UrlDetails, VerifyRequest, VerifyResponse, WalletData,
 };
 use error_stack::{IntoReport, ResultExt};
 use masking::PeekInterface;
@@ -16,10 +16,7 @@ use time::PrimitiveDateTime;
 use crate::{
     core::errors,
     services::api,
-    types::{
-        self, api as api_types, storage,
-        transformers::{Foreign, ForeignInto},
-    },
+    types::{self, api as api_types},
 };
 
 pub(crate) trait PaymentsRequestExt {
@@ -67,6 +64,11 @@ pub struct Authorize;
 
 #[derive(Debug, Clone)]
 pub struct AuthorizeSessionToken;
+
+#[derive(Debug, Clone)]
+pub struct CompleteAuthorize;
+#[derive(Debug, Clone)]
+pub struct InitPayment;
 #[derive(Debug, Clone)]
 pub struct Capture;
 
@@ -114,27 +116,6 @@ impl MandateValidationFieldsExt for MandateValidationFields {
     }
 }
 
-impl From<Foreign<storage::PaymentIntent>> for Foreign<PaymentsResponse> {
-    fn from(item: Foreign<storage::PaymentIntent>) -> Self {
-        let item = item.0;
-        PaymentsResponse {
-            payment_id: Some(item.payment_id),
-            merchant_id: Some(item.merchant_id),
-            status: item.status.foreign_into(),
-            amount: item.amount,
-            amount_capturable: item.amount_captured,
-            client_secret: item.client_secret.map(|s| s.into()),
-            created: Some(item.created_at),
-            currency: item.currency.map(|c| c.to_string()).unwrap_or_default(),
-            description: item.description,
-            metadata: item.metadata,
-            customer_id: item.customer_id,
-            ..Default::default()
-        }
-        .into()
-    }
-}
-
 // Extract only the last 4 digits of card
 
 pub trait PaymentAuthorize:
@@ -167,9 +148,19 @@ pub trait PreVerify:
 {
 }
 
+pub trait PaymentsCompleteAuthorize:
+    api::ConnectorIntegration<
+    CompleteAuthorize,
+    types::CompleteAuthorizeData,
+    types::PaymentsResponseData,
+>
+{
+}
+
 pub trait Payment:
     api_types::ConnectorCommon
     + PaymentAuthorize
+    + PaymentsCompleteAuthorize
     + PaymentSync
     + PaymentCapture
     + PaymentVoid

@@ -2,8 +2,8 @@
 enabled = false
 
 [log.console]
-enabled    = true
-level      = "DEBUG"
+enabled = true
+level = "DEBUG"
 log_format = "default"
 
 [log.telemetry]
@@ -11,28 +11,33 @@ enabled = false
 
 # TODO: Update database credentials before running application
 [master_database]
-username  = "db_user"
-password  = "db_pass"
-host      = "localhost"
-port      = 5432
-dbname    = "hyperswitch_db"
+username = "db_user"
+password = "db_pass"
+host = "localhost"
+port = 5432
+dbname = "hyperswitch_db"
 pool_size = 5
+connection_timeout = 10
 
 [replica_database]
-username           = "replica_user"
-password           = "replica_pass"
-host               = "localhost"
-port               = 5432
-dbname             = "hyperswitch_db"
-pool_size          = 5
+username = "replica_user"
+password = "replica_pass"
+host = "localhost"
+port = 5432
+dbname = "hyperswitch_db"
+pool_size = 5
 connection_timeout = 10
+
+[secrets]
+admin_api_key = "test_admin"
 
 [proxy]
 
 [locker]
-host          = ""
-mock_locker   = true
+host = ""
+mock_locker = true
 basilisk_host = ""
+locker_setup = "legacy_locker"
 
 [jwekey]
 locker_key_identifier1 = ""
@@ -41,9 +46,11 @@ locker_encryption_key1 = ""
 locker_encryption_key2 = ""
 locker_decryption_key1 = ""
 locker_decryption_key2 = ""
+vault_encryption_key = ""
+vault_private_key = ""
 
 [connectors.supported]
-wallets = [ "klarna", "braintree", "applepay" ]
+wallets = ["klarna", "braintree", "applepay"]
 cards = [
     "aci",
     "adyen",
@@ -58,18 +65,20 @@ cards = [
     "fiserv",
     "globalpay",
     "intuit",
+    "mollie",
     "multisafepay",
     "nuvei",
     "payu",
     "shift4",
     "stripe",
+    "trustpay",
     "worldline",
     "worldpay",
 ]
 
 [refund]
 max_attempts = 10
-max_age      = 365
+max_age = 365
 
 [webhooks]
 outgoing_enabled = true
@@ -77,108 +86,74 @@ outgoing_enabled = true
 [eph_key]
 validity = 1
 
-[connectors.aci]
-base_url = "https://eu-test.oppwa.com/"
+[api_keys]
+hash_key = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
 
-[connectors.adyen]
-base_url = "https://checkout-test.adyen.com/"
-
-[connectors.authorizedotnet]
-base_url = "https://apitest.authorize.net/xml/v1/request.api"
-
-[connectors.checkout]
-base_url = "https://api.sandbox.checkout.com/"
-
-[connectors.stripe]
-base_url = "https://api.stripe.com/"
-
-[connectors.braintree]
-base_url = "https://api.sandbox.braintreegateway.com/"
-
-[connectors.klarna]
-base_url = "https://api-na.playground.klarna.com/"
-
-[connectors.applepay]
-base_url = "https://apple-pay-gateway.apple.com/"
-
-[connectors.cybersource]
-base_url = "https://apitest.cybersource.com/"
-
-[connectors.shift4]
-base_url = "https://api.shift4.com/"
-
-[connectors.rapyd]
-base_url = "https://sandboxapi.rapyd.net"
-
-[connectors.fiserv]
-base_url = "https://cert.api.fiservapps.com/"
-
-[connectors.worldpay]
-base_url = "https://try.access.worldpay.com/"
-
-[connectors.payu]
-base_url = "https://secure.snd.payu.com/"
-
-[connectors.globalpay]
-base_url = "https://apis.sandbox.globalpay.com/ucp/"
-
-[connectors.worldline]
-base_url = "https://eu.sandbox.api-ingenico.com/"
-
-[connectors.intuit]
-base_url = "https://sandbox.api.intuit.com"
-
-[connectors.bluesnap]
-base_url = "https://sandbox.bluesnap.com/"
-
-[connectors.nuvei]
-base_url = "https://ppp-test.nuvei.com/"
-
-[connectors.airwallex]
-base_url = "https://api-demo.airwallex.com/"
-
-[connectors.multisafepay]
-base_url = "https://testapi.multisafepay.com/"
-
-[connectors.dlocal]
-base_url = "https://sandbox.dlocal.com/"
-
-[connectors.bambora]
-base_url = "https://api.na.bambora.com"
+[connectors]
+aci.base_url = "https://eu-test.oppwa.com/"
+adyen.base_url = "https://checkout-test.adyen.com/"
+airwallex.base_url = "https://api-demo.airwallex.com/"
+applepay.base_url = "https://apple-pay-gateway.apple.com/"
+authorizedotnet.base_url = "https://apitest.authorize.net/xml/v1/request.api"
+bambora.base_url = "https://api.na.bambora.com"
+bluesnap.base_url = "https://sandbox.bluesnap.com/"
+braintree.base_url = "https://api.sandbox.braintreegateway.com/"
+checkout.base_url = "https://api.sandbox.checkout.com/"
+cybersource.base_url = "https://apitest.cybersource.com/"
+dlocal.base_url = "https://sandbox.dlocal.com/"
+fiserv.base_url = "https://cert.api.fiservapps.com/"
+globalpay.base_url = "https://apis.sandbox.globalpay.com/ucp/"
+intuit.base_url = "https://sandbox.api.intuit.com"
+klarna.base_url = "https://api-na.playground.klarna.com/"
+mollie.base_url = "https://api.mollie.com/v2/"
+multisafepay.base_url = "https://testapi.multisafepay.com/"
+nuvei.base_url = "https://ppp-test.nuvei.com/"
+payu.base_url = "https://secure.snd.payu.com/"
+rapyd.base_url = "https://sandboxapi.rapyd.net"
+shift4.base_url = "https://api.shift4.com/"
+stripe.base_url = "https://api.stripe.com/"
+trustpay.base_url = "https://test-tpgw.trustpay.eu/"
+trustpay.base_url_bank_redirects = "https://aapi.trustpay.eu/"
+worldline.base_url = "https://eu.sandbox.api-ingenico.com/"
+worldpay.base_url = "https://try.access.worldpay.com/"
 
 [scheduler]
 stream = "SCHEDULER_STREAM"
 
 [scheduler.consumer]
-disabled       = false
+disabled = false
 consumer_group = "SCHEDULER_GROUP"
 
 [bank_config.eps]
-stripe = { banks = "arzte_und_apotheker_bank,austrian_anadi_bank_ag,bank_austriabankhaus_carl_spangler,bankhaus_schelhammer_und_schattera_ag,bawag_psk_ag,bks_bank_ag,brull_kallmus_bank_ag,btv_vier_lander_bank" }
-adyen  = { banks = "austrian_anadi_bank_ag,bank_austriabankhaus_carl_spangler,bankhaus_schelhammer_und_schattera_ag,bawag_psk_ag,bks_bank_ag,brull_kallmus_bank_ag,btv_vier_lander_bank" }
+stripe = { banks = "arzte_und_apotheker_bank,austrian_anadi_bank_ag,bank_austria,bankhaus_carl_spangler,bankhaus_schelhammer_und_schattera_ag,bawag_psk_ag,bks_bank_ag,brull_kallmus_bank_ag,btv_vier_lander_bank,capital_bank_grawe_gruppe_ag,dolomitenbank,easybank_ag,erste_bank_und_sparkassen,hypo_alpeadriabank_international_ag,hypo_noe_lb_fur_niederosterreich_u_wien,hypo_oberosterreich_salzburg_steiermark,hypo_tirol_bank_ag,hypo_vorarlberg_bank_ag,hypo_bank_burgenland_aktiengesellschaft,marchfelder_bank,oberbank_ag,raiffeisen_bankengruppe_osterreich,schoellerbank_ag,sparda_bank_wien,volksbank_gruppe,volkskreditbank_ag,vr_bank_braunau" }
+adyen = { banks = "bank_austria,bawag_psk_ag,dolomitenbank,easybank_ag,erste_bank_und_sparkassen,hypo_tirol_bank_ag,posojilnica_bank_e_gen,raiffeisen_bankengruppe_osterreich,schoellerbank_ag,sparda_bank_wien,volksbank_gruppe,volkskreditbank_ag" }
+
+[bank_config.ideal]
+stripe = { banks = "abn_amro,asn_bank,bunq,handelsbanken,ing,knab,moneyou,rabobank,regiobank,revolut,sns_bank,triodos_bank,van_lanschot" }
+adyen = { banks = "abn_amro,asn_bank,bunq,handelsbanken,ing,knab,moneyou,rabobank,regiobank,revolut,sns_bank,triodos_bank,van_lanschot" }
 
 [pm_filters.stripe]
-google_pay        = { country = "AL,DZ,AS,AO,AG,AR,AU,AT,AZ,BH,BY,BE,BR,BG,CA,CL,CO,HR,CZ,DK,DO,EG,EE,FI,FR,DE,GR,HK,HU,IN,ID,IE,IL,IT,JP,JO,KZ,KE,KW,LV,LB,LT,LU,MY,MX,NL,NZ,NO,OM,PK,PA,PE,PH,PL,PT,QA,RO,RU,SA,SG,SK,ZA,ES,LK,SE,CH,TW,TH,TR,UA,AE,GB,US,UY,VN" }
-apple_pay         = { country = "AU,CN,HK,JP,MO,MY,NZ,SG,TW,AM,AT,AZ,BY,BE,BG,HR,CY,CZ,DK,EE,FO,FI,FR,GE,DE,GR,GL,GG,HU,IS,IE,IM,IT,KZ,JE,LV,LI,LT,LU,MT,MD,MC,ME,NL,NO,PL,PT,RO,SM,RS,SK,SI,ES,SE,CH,UA,GB,AR,CO,CR,BR,MX,PE,BH,IL,JO,KW,PS,QA,SA,AE,CA,UM,US" }
-klarna            = { country = "AT,BE,DK,FI,FR,DE,IE,IT,NL,NO,ES,SE,GB,US", currency = "EUR,USD,GBP,DKK,SEK,NOK" }
-affirm            = { country = "US", currency = "USD" }
+google_pay = { country = "AL,DZ,AS,AO,AG,AR,AU,AT,AZ,BH,BY,BE,BR,BG,CA,CL,CO,HR,CZ,DK,DO,EG,EE,FI,FR,DE,GR,HK,HU,IN,ID,IE,IL,IT,JP,JO,KZ,KE,KW,LV,LB,LT,LU,MY,MX,NL,NZ,NO,OM,PK,PA,PE,PH,PL,PT,QA,RO,RU,SA,SG,SK,ZA,ES,LK,SE,CH,TW,TH,TR,UA,AE,GB,US,UY,VN" }
+apple_pay = { country = "AU,CN,HK,JP,MO,MY,NZ,SG,TW,AM,AT,AZ,BY,BE,BG,HR,CY,CZ,DK,EE,FO,FI,FR,GE,DE,GR,GL,GG,HU,IS,IE,IM,IT,KZ,JE,LV,LI,LT,LU,MT,MD,MC,ME,NL,NO,PL,PT,RO,SM,RS,SK,SI,ES,SE,CH,UA,GB,AR,CO,CR,BR,MX,PE,BH,IL,JO,KW,PS,QA,SA,AE,CA,UM,US" }
+klarna = { country = "AT,BE,DK,FI,FR,DE,IE,IT,NL,NO,ES,SE,GB,US", currency = "EUR,USD,GBP,DKK,SEK,NOK" }
+affirm = { country = "US", currency = "USD" }
 afterpay_clearpay = { country = "US,CA,GB,AU,NZ,FR,ES", currency = "USD,CAD,GBP,AUD,NZD,EUR" }
-giropay           = { country = "DE", currency = "EUR" }
-eps               = { country = "AT", currency = "EUR" }
-sofort            = { country = "AT,BE,DE,IT,NL,ES", currency = "EUR" }
-ideal             = { country = "NL", currency = "EUR" }
+giropay = { country = "DE", currency = "EUR" }
+eps = { country = "AT", currency = "EUR" }
+sofort = { country = "AT,BE,DE,IT,NL,ES", currency = "EUR" }
+ideal = { country = "NL", currency = "EUR" }
 
 [pm_filters.adyen]
-google_pay        = { country = "AL,DZ,AS,AO,AG,AR,AU,AT,AZ,BH,BY,BE,BR,BG,CA,CL,CO,HR,CZ,DK,DO,EG,EE,FI,FR,DE,GR,HK,HU,IN,ID,IE,IL,IT,JP,JO,KZ,KE,KW,LV,LB,LT,LU,MY,MX,NL,NZ,NO,OM,PK,PA,PE,PH,PL,PT,QA,RO,RU,SA,SG,SK,ZA,ES,LK,SE,CH,TW,TH,TR,UA,AE,GB,US,UY,VN" }
-apple_pay         = { country = "AU,CN,HK,JP,MO,MY,NZ,SG,TW,AM,AT,AZ,BY,BE,BG,HR,CY,CZ,DK,EE,FO,FI,FR,GE,DE,GR,GL,GG,HU,IS,IE,IM,IT,KZ,JE,LV,LI,LT,LU,MT,MD,MC,ME,NL,NO,PL,PT,RO,SM,RS,SK,SI,ES,SE,CH,UA,GB,AR,CO,CR,BR,MX,PE,BH,IL,JO,KW,PS,QA,SA,AE,CA,UM,US", currency = "AUD,CHF,CAD,EUR,GBP,HKD,SGD,USD" }
-paypal            = { currency = "AUD,BRL,CAD,CZK,DKK,EUR,HKD,HUF,INR,JPY,MYR,MXN,NZD,NOK,PHP,PLN,RUB,GBP,SGD,SEK,CHF,THB,USD" }
-klarna            = { country = "AT,BE,DK,FI,FR,DE,IE,IT,NL,NO,ES,SE,GB,US,CA", currency = "USD,GBP,EUR,CHF,DKK,SEK,NOK,AUD,PLN,CAD" }
-affirm            = { country = "US", currency = "USD" }
+google_pay = { country = "AL,DZ,AS,AO,AG,AR,AU,AT,AZ,BH,BY,BE,BR,BG,CA,CL,CO,HR,CZ,DK,DO,EG,EE,FI,FR,DE,GR,HK,HU,IN,ID,IE,IL,IT,JP,JO,KZ,KE,KW,LV,LB,LT,LU,MY,MX,NL,NZ,NO,OM,PK,PA,PE,PH,PL,PT,QA,RO,RU,SA,SG,SK,ZA,ES,LK,SE,CH,TW,TH,TR,UA,AE,GB,US,UY,VN" }
+apple_pay = { country = "AU,CN,HK,JP,MO,MY,NZ,SG,TW,AM,AT,AZ,BY,BE,BG,HR,CY,CZ,DK,EE,FO,FI,FR,GE,DE,GR,GL,GG,HU,IS,IE,IM,IT,KZ,JE,LV,LI,LT,LU,MT,MD,MC,ME,NL,NO,PL,PT,RO,SM,RS,SK,SI,ES,SE,CH,UA,GB,AR,CO,CR,BR,MX,PE,BH,IL,JO,KW,PS,QA,SA,AE,CA,UM,US", currency = "AUD,CHF,CAD,EUR,GBP,HKD,SGD,USD" }
+paypal = { currency = "AUD,BRL,CAD,CZK,DKK,EUR,HKD,HUF,INR,JPY,MYR,MXN,NZD,NOK,PHP,PLN,RUB,GBP,SGD,SEK,CHF,THB,USD" }
+klarna = { country = "AT,BE,DK,FI,FR,DE,IE,IT,NL,NO,ES,SE,GB,US,CA", currency = "USD,GBP,EUR,CHF,DKK,SEK,NOK,AUD,PLN,CAD" }
+affirm = { country = "US", currency = "USD" }
 afterpay_clearpay = { country = "US,CA,GB,AU,NZ,FR,ES", currency = "GBP" }
-giropay           = { country = "DE", currency = "EUR" }
-eps               = { country = "AT", currency = "EUR" }
-sofort            = { country = "ES,GB,SE,AT,NL,DE,CH,BE,FR,FI,IT,PL", currency = "EUR" }
-ideal             = { country = "NL", currency = "EUR" }
+giropay = { country = "DE", currency = "EUR" }
+eps = { country = "AT", currency = "EUR" }
+sofort = { country = "ES,GB,SE,AT,NL,DE,CH,BE,FR,FI,IT,PL", currency = "EUR" }
+ideal = { country = "NL", currency = "EUR" }
 
 [pm_filters.braintree]
 paypal = { currency = "AUD,BRL,CAD,CNY,CZK,DKK,EUR,HKD,HUF,ILS,JPY,MYR,MXN,TWD,NZD,NOK,PHP,PLN,GBP,RUB,SGD,SEK,CHF,THB,USD" }
@@ -188,8 +163,8 @@ klarna = { country = "AU,AT,BE,CA,CZ,DK,FI,FR,DE,GR,IE,IT,NL,NZ,NO,PL,PT,ES,SE,C
 
 [pm_filters.authorizedotnet]
 google_pay = { currency = "CHF,DKK,EUR,GBP,NOK,PLN,SEK,USD,AUD,NZD,CAD" }
-paypal     = { currency = "CHF,DKK,EUR,GBP,NOK,PLN,SEK,USD,AUD,NZD,CAD" }
+paypal = { currency = "CHF,DKK,EUR,GBP,NOK,PLN,SEK,USD,AUD,NZD,CAD" }
 
 [pm_filters.worldpay]
 google_pay = { country = "AL,DZ,AS,AO,AG,AR,AU,AT,AZ,BH,BY,BE,BR,BG,CA,CL,CO,HR,CZ,DK,DO,EG,EE,FI,FR,DE,GR,HK,HU,IN,ID,IE,IL,IT,JP,JO,KZ,KE,KW,LV,LB,LT,LU,MY,MX,NL,NZ,NO,OM,PK,PA,PE,PH,PL,PT,QA,RO,RU,SA,SG,SK,ZA,ES,LK,SE,CH,TW,TH,TR,UA,AE,GB,US,UY,VN" }
-apple_pay  = { country = "AU,CN,HK,JP,MO,MY,NZ,SG,TW,AM,AT,AZ,BY,BE,BG,HR,CY,CZ,DK,EE,FO,FI,FR,GE,DE,GR,GL,GG,HU,IS,IE,IM,IT,KZ,JE,LV,LI,LT,LU,MT,MD,MC,ME,NL,NO,PL,PT,RO,SM,RS,SK,SI,ES,SE,CH,UA,GB,AR,CO,CR,BR,MX,PE,BH,IL,JO,KW,PS,QA,SA,AE,CA,UM,US" }
+apple_pay = { country = "AU,CN,HK,JP,MO,MY,NZ,SG,TW,AM,AT,AZ,BY,BE,BG,HR,CY,CZ,DK,EE,FO,FI,FR,GE,DE,GR,GL,GG,HU,IS,IE,IM,IT,KZ,JE,LV,LI,LT,LU,MT,MD,MC,ME,NL,NO,PL,PT,RO,SM,RS,SK,SI,ES,SE,CH,UA,GB,AR,CO,CR,BR,MX,PE,BH,IL,JO,KW,PS,QA,SA,AE,CA,UM,US" }

@@ -14,8 +14,8 @@ request_body_limit = 16_384
 # Proxy server configuration for connecting to payment gateways.
 # Don't define the fields if a Proxy isn't needed. Empty strings will cause failure.
 [proxy]
-# http_url = "http proxy url"
-# https_url = "https proxy url"
+# http_url = "http proxy url"   # Proxy all HTTP traffic via this proxy
+# https_url = "https proxy url" # Proxy all HTTPS traffic via this proxy
 
 # Main SQL data store credentials
 [master_database]
@@ -82,9 +82,10 @@ jwt_secret = "secret"        # JWT secret used for user authentication
 # PCI Compliant storage entity which stores payment method information
 # like card details
 [locker]
-host = ""          # Locker host
-mock_locker = true # Emulate a locker locally using Postgres
-basilisk_host = "" #Basilisk host
+host = ""                      # Locker host
+mock_locker = true             # Emulate a locker locally using Postgres
+basilisk_host = ""             # Basilisk host
+locker_setup = "legacy_locker" # With locker to use while in the deployed environment (eg. legacy_locker, basilisk_locker)
 
 [jwekey] # 4 priv/pub key pair
 locker_key_identifier1 = "" # key identifier for key rotation , should be same as basilisk
@@ -93,6 +94,8 @@ locker_encryption_key1 = "" # public key 1 in pem format, corresponding private 
 locker_encryption_key2 = "" # public key 2 in pem format, corresponding private key in basilisk
 locker_decryption_key1 = "" # private key 1 in pem format, corresponding public key in basilisk
 locker_decryption_key2 = "" # private key 2 in pem format, corresponding public key in basilisk
+vault_encryption_key = ""   # public key in pem format, corresponding private key in basilisk-hs
+vault_private_key = ""      # private key in pem format, corresponding public key in basilisk-hs
 
 
 # Refund configuration
@@ -107,74 +110,45 @@ outgoing_enabled = true
 [eph_key]
 validity = 1
 
+[api_keys]
+# Base64-encoded (KMS encrypted) ciphertext of the API key hashing key
+kms_encrypted_hash_key = ""
+# Hex-encoded 32-byte long (64 characters long when hex-encoded) key used for calculating hashes of API keys
+hash_key = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+
 # Connector configuration, provided attributes will be used to fulfill API requests.
 # Examples provided here are sandbox/test base urls, can be replaced by live or mock
 # base urls based on your need.
 # Note: These are not optional attributes. hyperswitch request can fail due to invalid/empty values.
-[connectors.aci]
-base_url = "https://eu-test.oppwa.com/"
-
-[connectors.adyen]
-base_url = "https://checkout-test.adyen.com/"
-
-[connectors.authorizedotnet]
-base_url = "https://apitest.authorize.net/xml/v1/request.api"
-
-[connectors.checkout]
-base_url = "https://api.sandbox.checkout.com/"
-
-[connectors.stripe]
-base_url = "https://api.stripe.com/"
-
-[connectors.braintree]
-base_url = "https://api.sandbox.braintreegateway.com/"
-
-[connectors.klarna]
-base_url = "https://api-na.playground.klarna.com/"
-
-[connectors.applepay]
-base_url = "https://apple-pay-gateway.apple.com/"
-
-[connectors.cybersource]
-base_url = "https://apitest.cybersource.com/"
-
-[connectors.shift4]
-base_url = "https://api.shift4.com/"
-
-[connectors.rapyd]
-base_url = "https://sandboxapi.rapyd.net"
-
-[connectors.fiserv]
-base_url = "https://cert.api.fiservapps.com/"
-
-[connectors.worldpay]
-base_url = "https://try.access.worldpay.com/"
-
-[connectors.globalpay]
-base_url = "https://apis.sandbox.globalpay.com/ucp/"
-
-[connectors.bluesnap]
-base_url = "https://sandbox.bluesnap.com/"
-
-[connectors.nuvei]
-base_url = "https://ppp-test.nuvei.com/"
-
-[connectors.airwallex]
-base_url = "https://api-demo.airwallex.com/"
-
-[connectors.multisafepay]
-base_url = "https://testapi.multisafepay.com/"
-
-[connectors.dlocal]
-base_url = "https://sandbox.dlocal.com/"
+[connectors]
+aci.base_url = "https://eu-test.oppwa.com/"
+adyen.base_url = "https://checkout-test.adyen.com/"
+airwallex.base_url = "https://api-demo.airwallex.com/"
+applepay.base_url = "https://apple-pay-gateway.apple.com/"
+authorizedotnet.base_url = "https://apitest.authorize.net/xml/v1/request.api"
+bambora.base_url = "https://api.na.bambora.com"
+bluesnap.base_url = "https://sandbox.bluesnap.com/"
+braintree.base_url = "https://api.sandbox.braintreegateway.com/"
+checkout.base_url = "https://api.sandbox.checkout.com/"
+cybersource.base_url = "https://apitest.cybersource.com/"
+dlocal.base_url = "https://sandbox.dlocal.com/"
+fiserv.base_url = "https://cert.api.fiservapps.com/"
+globalpay.base_url = "https://apis.sandbox.globalpay.com/ucp/"
+intuit.base_url = "https://sandbox.api.intuit.com"
+klarna.base_url = "https://api-na.playground.klarna.com/"
+mollie.base_url = "https://api.mollie.com/v2/"
+multisafepay.base_url = "https://testapi.multisafepay.com/"
+nuvei.base_url = "https://ppp-test.nuvei.com/"
+payu.base_url = "https://secure.snd.payu.com/"
+rapyd.base_url = "https://sandboxapi.rapyd.net"
+shift4.base_url = "https://api.shift4.com/"
+stripe.base_url = "https://api.stripe.com/"
+trustpay.base_url = "https://test-tpgw.trustpay.eu/"
+trustpay.base_url_bank_redirects = "https://aapi.trustpay.eu/"
+worldline.base_url = "https://eu.sandbox.api-ingenico.com/"
+worldpay.base_url = "https://try.access.worldpay.com/"
 
 # This data is used to call respective connectors for wallets and cards
-[connectors.intuit]
-base_url = "https://sandbox.api.intuit.com"
-
-[connectors.bambora]
-base_url = "https://api.na.bambora.com"
-
 [connectors.supported]
 wallets = ["klarna", "braintree", "applepay"]
 cards = [
@@ -184,6 +158,7 @@ cards = [
     "checkout",
     "braintree",
     "cybersource",
+    "mollie",
     "shift4",
     "worldpay",
     "globalpay",
@@ -214,10 +189,15 @@ max_read_count = 100           # Specifies the maximum number of entries that wo
 shutdown_interval = 1000       # Specifies how much time to wait, while waiting for threads to complete execution (in milliseconds)
 loop_interval = 500            # Specifies how much time to wait after checking all the possible streams in completed (in milliseconds)
 
-# Filteration logic for list payment method, allowing use to limit payment methods based on the requirement country and currency
+# Filtration logic for list payment method, allowing use to limit payment methods based on the requirement country and currency
 [pm_filters.stripe]
 #           ^--- This can be any connector (can be multiple)
 paypal = { currency = "USD,INR", country = "US" }
 # ^                       ^------- comma-separated values
-# ^------------------------------- any valid payment method type (can be multiple)
+# ^------------------------------- any valid payment method type (can be multiple) (for cards this should be card_network)
 # If either currency or country isn't provided then, all possible values are accepted
+
+# KMS configuration. Only applicable when the `kms` feature flag is enabled.
+[kms]
+key_id = "" # The AWS key ID used by the KMS SDK for decrypting data.
+region = "" # The AWS region used by the KMS SDK for decrypting data.

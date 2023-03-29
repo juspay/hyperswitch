@@ -3,7 +3,7 @@ use std::marker::PhantomData;
 use error_stack::ResultExt;
 use router_env::{instrument, tracing};
 
-use super::payments::PaymentAddress;
+use super::payments::{helpers, PaymentAddress};
 use crate::{
     consts,
     core::errors::{self, RouterResult},
@@ -25,18 +25,19 @@ pub async fn construct_refund_router_data<'a, F>(
     payment_intent: &'a storage::PaymentIntent,
     payment_attempt: &storage::PaymentAttempt,
     refund: &'a storage::Refund,
+    creds_identifier: Option<String>,
 ) -> RouterResult<types::RefundsRouterData<F>> {
     let db = &*state.store;
-    let merchant_connector_account = db
-        .find_merchant_connector_account_by_merchant_id_connector(
-            &merchant_account.merchant_id,
-            connector_id,
-        )
-        .await
-        .change_context(errors::ApiErrorResponse::MerchantAccountNotFound)?;
+    let merchant_connector_account = helpers::get_merchant_connector_account(
+        db,
+        merchant_account.merchant_id.as_str(),
+        connector_id,
+        creds_identifier,
+    )
+    .await?;
 
     let auth_type: types::ConnectorAuthType = merchant_connector_account
-        .connector_account_details
+        .get_connector_account_details()
         .parse_value("ConnectorAuthType")
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
@@ -51,7 +52,7 @@ pub async fn construct_refund_router_data<'a, F>(
     let router_data = types::RouterData {
         flow: PhantomData,
         merchant_id: merchant_account.merchant_id.clone(),
-        connector: merchant_connector_account.connector_name,
+        connector: connector_id.to_string(),
         payment_id: payment_attempt.payment_id.clone(),
         attempt_id: payment_attempt.attempt_id.clone(),
         status,
@@ -60,11 +61,12 @@ pub async fn construct_refund_router_data<'a, F>(
         description: None,
         return_url: payment_intent.return_url.clone(),
         router_return_url: None,
+        complete_authorize_url: None,
         payment_method_id: payment_attempt.payment_method_id.clone(),
         // Does refund need shipping/billing address ?
         address: PaymentAddress::default(),
         auth_type: payment_attempt.authentication_type.unwrap_or_default(),
-        connector_meta_data: None,
+        connector_meta_data: merchant_connector_account.get_metadata(),
         amount_captured: payment_intent.amount_captured,
         request: types::RefundsData {
             refund_id: refund.refund_id.clone(),
@@ -124,7 +126,8 @@ mod tests {
 
     #[test]
     fn validate_id_length_constraint() {
-        let payment_id = "abcdefghijlkmnopqrstuvwzyzabcdefghijknlmnop".to_string(); //length = 43
+        let payment_id =
+            "abcdefghijlkmnopqrstuvwzyzabcdefghijknlmnopsjkdnfjsknfkjsdnfspoig".to_string(); //length = 65
 
         let result = validate_id(payment_id, "payment_id");
         assert!(result.is_err());
@@ -132,7 +135,7 @@ mod tests {
 
     #[test]
     fn validate_id_proper_response() {
-        let payment_id = "abcdefghijlkmnopqrst".to_string();
+        let payment_id = "abcdefghijlkmnopqrstjhbjhjhkhbhgcxdfxvmhb".to_string();
 
         let result = validate_id(payment_id.clone(), "payment_id");
         assert!(result.is_ok());

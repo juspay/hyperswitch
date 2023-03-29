@@ -1,5 +1,6 @@
 pub mod payment_cancel;
 pub mod payment_capture;
+pub mod payment_complete_authorize;
 pub mod payment_confirm;
 pub mod payment_create;
 pub mod payment_method_validate;
@@ -125,8 +126,7 @@ pub trait Domain<F: Clone, R>: Send + Sync {
         merchant_account: &storage::MerchantAccount,
         state: &AppState,
         request: &R,
-        previously_used_connector: Option<&String>,
-    ) -> CustomResult<api::ConnectorCallType, errors::ApiErrorResponse>;
+    ) -> CustomResult<api::ConnectorChoice, errors::ApiErrorResponse>;
 }
 
 #[async_trait]
@@ -183,6 +183,7 @@ where
                 db,
                 payment_data.payment_intent.customer_id.clone(),
                 merchant_id,
+                payment_data,
             )
             .await?,
         ))
@@ -193,9 +194,8 @@ where
         _merchant_account: &storage::MerchantAccount,
         state: &AppState,
         _request: &api::PaymentsRetrieveRequest,
-        previously_used_connector: Option<&String>,
-    ) -> CustomResult<api::ConnectorCallType, errors::ApiErrorResponse> {
-        helpers::get_connector_default(state, previously_used_connector).await
+    ) -> CustomResult<api::ConnectorChoice, errors::ApiErrorResponse> {
+        helpers::get_connector_default(state, None).await
     }
 
     #[instrument(skip_all)]
@@ -238,6 +238,7 @@ where
                 db,
                 payment_data.payment_intent.customer_id.clone(),
                 merchant_id,
+                payment_data,
             )
             .await?,
         ))
@@ -260,9 +261,8 @@ where
         _merchant_account: &storage::MerchantAccount,
         state: &AppState,
         _request: &api::PaymentsCaptureRequest,
-        previously_used_connector: Option<&String>,
-    ) -> CustomResult<api::ConnectorCallType, errors::ApiErrorResponse> {
-        helpers::get_connector_default(state, previously_used_connector).await
+    ) -> CustomResult<api::ConnectorChoice, errors::ApiErrorResponse> {
+        helpers::get_connector_default(state, None).await
     }
 }
 
@@ -292,6 +292,7 @@ where
                 db,
                 payment_data.payment_intent.customer_id.clone(),
                 merchant_id,
+                payment_data,
             )
             .await?,
         ))
@@ -315,8 +316,7 @@ where
         _merchant_account: &storage::MerchantAccount,
         state: &AppState,
         _request: &api::PaymentsCancelRequest,
-        previously_used_connector: Option<&String>,
-    ) -> CustomResult<api::ConnectorCallType, errors::ApiErrorResponse> {
-        helpers::get_connector_default(state, previously_used_connector).await
+    ) -> CustomResult<api::ConnectorChoice, errors::ApiErrorResponse> {
+        helpers::get_connector_default(state, None).await
     }
 }

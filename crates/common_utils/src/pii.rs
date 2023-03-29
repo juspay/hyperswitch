@@ -6,6 +6,9 @@ use masking::{Strategy, WithType};
 
 use crate::validation::validate_email;
 
+/// Type alias for serde_json value which has Secret Information
+pub type SecretSerdeValue = masking::Secret<serde_json::Value>;
+
 /// Card number
 #[derive(Debug)]
 pub struct CardNumber;

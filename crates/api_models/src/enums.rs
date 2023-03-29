@@ -137,6 +137,7 @@ pub enum ConnectorType {
     serde::Serialize,
     strum::Display,
     strum::EnumString,
+    strum::EnumIter,
     ToSchema,
     frunk::LabelledGeneric,
 )]
@@ -144,6 +145,7 @@ pub enum Currency {
     AED,
     ALL,
     AMD,
+    ANG,
     ARS,
     AUD,
     AWG,
@@ -263,6 +265,8 @@ pub enum Currency {
 #[strum(serialize_all = "snake_case")]
 pub enum EventType {
     PaymentSucceeded,
+    RefundSucceeded,
+    RefundFailed,
 }
 
 #[derive(
@@ -353,6 +357,7 @@ pub enum PaymentMethodIssuerCode {
     Debug,
     serde::Serialize,
     serde::Deserialize,
+    strum::Display,
     ToSchema,
     Default,
     frunk::LabelledGeneric,
@@ -535,6 +540,7 @@ pub enum MandateStatus {
     strum::Display,
     strum::EnumString,
     frunk::LabelledGeneric,
+    Hash,
 )]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
@@ -556,6 +562,7 @@ pub enum Connector {
     Globalpay,
     Intuit,
     Klarna,
+    Mollie,
     Multisafepay,
     Nuvei,
     Payu,
@@ -564,13 +571,18 @@ pub enum Connector {
     Stripe,
     Worldline,
     Worldpay,
+    Trustpay,
 }
 
 impl Connector {
-    pub fn supports_access_token(&self) -> bool {
+    pub fn supports_access_token(&self, payment_method: PaymentMethod) -> bool {
         matches!(
-            self,
-            Self::Airwallex | Self::Globalpay | Self::Intuit | Self::Payu
+            (self, payment_method),
+            (Self::Airwallex, _)
+                | (Self::Globalpay, _)
+                | (Self::Intuit, _)
+                | (Self::Payu, _)
+                | (Self::Trustpay, PaymentMethod::BankRedirect)
         )
     }
 }
@@ -604,12 +616,14 @@ pub enum RoutableConnectors {
     Globalpay,
     Intuit,
     Klarna,
+    Mollie,
     Multisafepay,
     Nuvei,
     Payu,
     Rapyd,
     Shift4,
     Stripe,
+    Trustpay,
     Worldline,
     Worldpay,
 }
@@ -624,6 +638,7 @@ pub enum SupportedWallets {
     Gpay,
 }
 
+/// Name of banks supported by Hyperswitch
 #[derive(
     Clone,
     Copy,
@@ -709,6 +724,7 @@ pub enum BankNames {
     strum::Display,
     strum::EnumString,
     frunk::LabelledGeneric,
+    ToSchema,
 )]
 pub enum CardNetwork {
     Visa,

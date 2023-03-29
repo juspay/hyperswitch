@@ -74,6 +74,7 @@ impl WorldlineTest {
             }),
             confirm: true,
             statement_descriptor_suffix: None,
+            statement_descriptor: None,
             setup_future_usage: None,
             mandate_id: None,
             off_session: None,
@@ -82,6 +83,9 @@ impl WorldlineTest {
             browser_info: None,
             order_details: None,
             email: None,
+            session_token: None,
+            enrolled_for_3ds: false,
+            related_transaction_id: None,
             payment_experience: None,
             payment_method_type: None,
         })
@@ -91,14 +95,14 @@ impl WorldlineTest {
 #[actix_web::test]
 async fn should_requires_manual_authorization() {
     let authorize_data = WorldlineTest::get_payment_authorize_data(
-        "4012000033330026",
+        "5424 1802 7979 1732",
         "10",
         "25",
         "123",
         enums::CaptureMethod::Manual,
     );
     let response = WorldlineTest {}
-        .make_payment(authorize_data, WorldlineTest::get_payment_info())
+        .authorize_payment(authorize_data, WorldlineTest::get_payment_info())
         .await;
     assert_eq!(response.unwrap().status, enums::AttemptStatus::Authorized);
 }
@@ -133,14 +137,18 @@ async fn should_throw_not_implemented_for_unsupported_issuer() {
         .await;
     assert_eq!(
         *response.unwrap_err().current_context(),
-        errors::ConnectorError::NotImplemented(String::from("Payment Method"))
+        errors::ConnectorError::NotSupported {
+            payment_method: "Maestro".to_string(),
+            connector: "worldline",
+            payment_experience: "redirect_to_url".to_string(),
+        }
     )
 }
 
 #[actix_web::test]
 async fn should_throw_missing_required_field_for_country() {
     let authorize_data = WorldlineTest::get_payment_authorize_data(
-        "4012000033330026",
+        "4012 0000 3333 0026",
         "10",
         "2025",
         "123",
@@ -188,14 +196,14 @@ async fn should_fail_payment_for_invalid_cvc() {
 async fn should_sync_manual_auth_payment() {
     let connector = WorldlineTest {};
     let authorize_data = WorldlineTest::get_payment_authorize_data(
-        "4012000033330026",
+        "4012 0000 3333 0026",
         "10",
         "2025",
         "123",
         enums::CaptureMethod::Manual,
     );
     let response = connector
-        .make_payment(authorize_data, WorldlineTest::get_payment_info())
+        .authorize_payment(authorize_data, WorldlineTest::get_payment_info())
         .await
         .unwrap();
     assert_eq!(response.status, enums::AttemptStatus::Authorized);
@@ -207,8 +215,8 @@ async fn should_sync_manual_auth_payment() {
                 connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
                     connector_payment_id,
                 ),
-                encoded_data: None,
                 capture_method: Some(enums::CaptureMethod::Manual),
+                ..Default::default()
             }),
             None,
         )
@@ -240,8 +248,8 @@ async fn should_sync_auto_auth_payment() {
                 connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
                     connector_payment_id,
                 ),
-                encoded_data: None,
                 capture_method: Some(enums::CaptureMethod::Automatic),
+                ..Default::default()
             }),
             None,
         )
@@ -254,14 +262,14 @@ async fn should_sync_auto_auth_payment() {
 async fn should_capture_authorized_payment() {
     let connector = WorldlineTest {};
     let authorize_data = WorldlineTest::get_payment_authorize_data(
-        "4012000033330026",
+        "4012 0000 3333 0026",
         "10",
         "2025",
         "123",
         enums::CaptureMethod::Manual,
     );
     let response = connector
-        .make_payment(authorize_data, WorldlineTest::get_payment_info())
+        .authorize_payment(authorize_data, WorldlineTest::get_payment_info())
         .await
         .unwrap();
     assert_eq!(response.status, enums::AttemptStatus::Authorized);
@@ -293,14 +301,14 @@ async fn should_fail_capture_payment() {
 async fn should_cancel_unauthorized_payment() {
     let connector = WorldlineTest {};
     let authorize_data = WorldlineTest::get_payment_authorize_data(
-        "4012000033330026",
+        "4012 0000 3333 0026",
         "10",
         "25",
         "123",
         enums::CaptureMethod::Manual,
     );
     let response = connector
-        .make_payment(authorize_data, WorldlineTest::get_payment_info())
+        .authorize_payment(authorize_data, WorldlineTest::get_payment_info())
         .await
         .unwrap();
     assert_eq!(response.status, enums::AttemptStatus::Authorized);
@@ -353,14 +361,14 @@ async fn should_fail_cancel_with_invalid_payment_id() {
 async fn should_fail_refund_with_invalid_payment_status() {
     let connector = WorldlineTest {};
     let authorize_data = WorldlineTest::get_payment_authorize_data(
-        "4012000033330026",
+        "4012 0000 3333 0026",
         "10",
         "25",
         "123",
         enums::CaptureMethod::Manual,
     );
     let response = connector
-        .make_payment(authorize_data, WorldlineTest::get_payment_info())
+        .authorize_payment(authorize_data, WorldlineTest::get_payment_info())
         .await
         .unwrap();
     assert_eq!(response.status, enums::AttemptStatus::Authorized);

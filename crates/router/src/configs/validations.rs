@@ -41,26 +41,6 @@ impl super::settings::Locker {
     }
 }
 
-impl super::settings::Jwekey {
-    pub fn validate(&self) -> Result<(), ApplicationError> {
-        #[cfg(feature = "kms")]
-        common_utils::fp_utils::when(self.aws_key_id.is_default_or_empty(), || {
-            Err(ApplicationError::InvalidConfigurationValueError(
-                "AWS key ID must not be empty when KMS feature is enabled".into(),
-            ))
-        })?;
-
-        #[cfg(feature = "kms")]
-        common_utils::fp_utils::when(self.aws_region.is_default_or_empty(), || {
-            Err(ApplicationError::InvalidConfigurationValueError(
-                "AWS region must not be empty when KMS feature is enabled".into(),
-            ))
-        })?;
-
-        Ok(())
-    }
-}
-
 impl super::settings::Server {
     pub fn validate(&self) -> Result<(), ApplicationError> {
         common_utils::fp_utils::when(self.host.is_default_or_empty(), || {
@@ -180,6 +160,26 @@ impl super::settings::DrainerSettings {
         common_utils::fp_utils::when(self.stream_name.is_default_or_empty(), || {
             Err(ApplicationError::InvalidConfigurationValueError(
                 "drainer stream name must not be empty".into(),
+            ))
+        })
+    }
+}
+
+impl super::settings::ApiKeys {
+    pub fn validate(&self) -> Result<(), ApplicationError> {
+        use common_utils::fp_utils::when;
+
+        #[cfg(feature = "kms")]
+        return when(self.kms_encrypted_hash_key.is_default_or_empty(), || {
+            Err(ApplicationError::InvalidConfigurationValueError(
+                "API key hashing key must not be empty when KMS feature is enabled".into(),
+            ))
+        });
+
+        #[cfg(not(feature = "kms"))]
+        when(self.hash_key.is_empty(), || {
+            Err(ApplicationError::InvalidConfigurationValueError(
+                "API key hashing key must not be empty".into(),
             ))
         })
     }

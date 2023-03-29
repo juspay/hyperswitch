@@ -3,6 +3,7 @@ pub mod customers;
 pub mod payment_intents;
 pub mod refunds;
 pub mod setup_intents;
+pub mod webhooks;
 use actix_web::{web, Scope};
 pub mod errors;
 
@@ -18,6 +19,7 @@ impl StripeApis {
             .service(app::SetupIntents::server(state.clone()))
             .service(app::PaymentIntents::server(state.clone()))
             .service(app::Refunds::server(state.clone()))
-            .service(app::Customers::server(state))
+            .service(app::Customers::server(state.clone()))
+            .service(app::Webhooks::server(state))
     }
 }

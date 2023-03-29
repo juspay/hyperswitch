@@ -8,59 +8,59 @@ use crate::{
     core::errors::{self, CustomResult},
 };
 
-const HTTP_PROXY: &str = "ROUTER_HTTP_PROXY";
-const HTTPS_PROXY: &str = "ROUTER_HTTPS_PROXY";
+static NON_PROXIED_CLIENT: OnceCell<reqwest::Client> = OnceCell::new();
+static PROXIED_CLIENT: OnceCell<reqwest::Client> = OnceCell::new();
 
-static PLAIN_CLIENT: OnceCell<reqwest::Client> = OnceCell::new();
-static HTTPS_PROXY_CLIENT: OnceCell<reqwest::Client> = OnceCell::new();
-static HTTP_PROXY_CLIENT: OnceCell<reqwest::Client> = OnceCell::new();
+fn get_client_builder(
+    proxy_config: &Proxy,
+    should_bypass_proxy: bool,
+) -> CustomResult<reqwest::ClientBuilder, errors::ApiClientError> {
+    let mut client_builder = reqwest::Client::builder().redirect(reqwest::redirect::Policy::none());
 
-enum ProxyType {
-    Http,
-    Https,
-}
-
-impl ProxyType {
-    fn get_proxy_url(&self, proxy: &Proxy) -> Option<String> {
-        use std::env::var;
-
-        match self {
-            Self::Http => var(HTTP_PROXY)
-                .or_else(|_| proxy.http_url.clone().ok_or(()))
-                .ok(),
-            Self::Https => var(HTTPS_PROXY)
-                .or_else(|_| proxy.https_url.clone().ok_or(()))
-                .ok(),
-        }
+    if should_bypass_proxy {
+        return Ok(client_builder);
     }
-}
 
-fn create_base_client(
-    proxy: Option<(ProxyType, String)>,
-) -> CustomResult<reqwest::Client, errors::ApiClientError> {
-    Ok(match proxy {
-        None => &PLAIN_CLIENT,
-        Some((ProxyType::Http, _)) => &HTTP_PROXY_CLIENT,
-        Some((ProxyType::Https, _)) => &HTTPS_PROXY_CLIENT,
+    // Proxy all HTTPS traffic through the configured HTTPS proxy
+    if let Some(url) = proxy_config.https_url.as_ref() {
+        client_builder = client_builder.proxy(
+            reqwest::Proxy::https(url)
+                .into_report()
+                .change_context(errors::ApiClientError::InvalidProxyConfiguration)
+                .attach_printable("HTTPS proxy configuration error")?,
+        );
     }
-    .get_or_try_init(|| {
-        let mut cb = reqwest::Client::builder().redirect(reqwest::redirect::Policy::none());
-        cb = match proxy {
-            None => cb,
-            Some((proxy_type, url)) => cb.proxy(
-                match proxy_type {
-                    ProxyType::Http => reqwest::Proxy::http(url),
-                    ProxyType::Https => reqwest::Proxy::https(url),
-                }
+
+    // Proxy all HTTP traffic through the configured HTTP proxy
+    if let Some(url) = proxy_config.http_url.as_ref() {
+        client_builder = client_builder.proxy(
+            reqwest::Proxy::http(url)
                 .into_report()
                 .change_context(errors::ApiClientError::InvalidProxyConfiguration)
                 .attach_printable("HTTP proxy configuration error")?,
-            ),
-        };
-        cb.build()
+        );
+    }
+
+    Ok(client_builder)
+}
+
+fn get_base_client(
+    proxy_config: &Proxy,
+    should_bypass_proxy: bool,
+) -> CustomResult<reqwest::Client, errors::ApiClientError> {
+    Ok(if should_bypass_proxy
+        || (proxy_config.http_url.is_none() && proxy_config.https_url.is_none())
+    {
+        &NON_PROXIED_CLIENT
+    } else {
+        &PROXIED_CLIENT
+    }
+    .get_or_try_init(|| {
+        get_client_builder(proxy_config, should_bypass_proxy)?
+            .build()
             .into_report()
             .change_context(errors::ApiClientError::ClientConstructionFailed)
-            .attach_printable("Error with client library")
+            .attach_printable("Failed to construct base client")
     })?
     .clone())
 }
@@ -68,54 +68,19 @@ fn create_base_client(
 // We may need to use outbound proxy to connect to external world.
 // Precedence will be the environment variables, followed by the config.
 pub(super) fn create_client(
-    proxy: &Proxy,
+    proxy_config: &Proxy,
     should_bypass_proxy: bool,
     client_certificate: Option<String>,
     client_certificate_key: Option<String>,
 ) -> CustomResult<reqwest::Client, errors::ApiClientError> {
-    if client_certificate.is_none() && client_certificate_key.is_none() {
-        return match should_bypass_proxy {
-            true => create_base_client(None),
-            false => create_base_client(
-                ProxyType::Https
-                    .get_proxy_url(proxy)
-                    .map(|url| (ProxyType::Https, url))
-                    .or_else(|| {
-                        ProxyType::Http
-                            .get_proxy_url(proxy)
-                            .map(|url| (ProxyType::Http, url))
-                    }),
-            ),
-        };
-    }
-    let mut client_builder = reqwest::Client::builder().redirect(reqwest::redirect::Policy::none());
-
-    if !should_bypass_proxy {
-        if let Some(url) = ProxyType::Http.get_proxy_url(proxy) {
-            client_builder = client_builder.proxy(
-                reqwest::Proxy::http(url)
-                    .into_report()
-                    .change_context(errors::ApiClientError::InvalidProxyConfiguration)
-                    .attach_printable_lazy(|| "HTTP proxy configuration error")?,
-            );
-        }
-        if let Some(url) = ProxyType::Https.get_proxy_url(proxy) {
-            client_builder = client_builder.proxy(
-                reqwest::Proxy::https(url)
-                    .into_report()
-                    .change_context(errors::ApiClientError::InvalidProxyConfiguration)
-                    .attach_printable_lazy(|| "HTTPS proxy configuration error")?,
-            );
-        }
-    }
-
-    client_builder = match (client_certificate, client_certificate_key) {
+    match (client_certificate, client_certificate_key) {
         (Some(encoded_cert), Some(encoded_cert_key)) => {
+            let client_builder = get_client_builder(proxy_config, should_bypass_proxy)?;
+
             let decoded_cert = consts::BASE64_ENGINE
                 .decode(encoded_cert)
                 .into_report()
                 .change_context(errors::ApiClientError::CertificateDecodeFailed)?;
-
             let decoded_cert_key = consts::BASE64_ENGINE
                 .decode(encoded_cert_key)
                 .into_report()
@@ -124,11 +89,9 @@ pub(super) fn create_client(
             let certificate = String::from_utf8(decoded_cert)
                 .into_report()
                 .change_context(errors::ApiClientError::CertificateDecodeFailed)?;
-
             let certificate_key = String::from_utf8(decoded_cert_key)
                 .into_report()
                 .change_context(errors::ApiClientError::CertificateDecodeFailed)?;
-
             let identity = reqwest::Identity::from_pkcs8_pem(
                 certificate.as_bytes(),
                 certificate_key.as_bytes(),
@@ -136,22 +99,24 @@ pub(super) fn create_client(
             .into_report()
             .change_context(errors::ApiClientError::CertificateDecodeFailed)?;
 
-            client_builder.identity(identity)
+            client_builder
+                .identity(identity)
+                .build()
+                .into_report()
+                .change_context(errors::ApiClientError::ClientConstructionFailed)
+                .attach_printable("Failed to construct client with certificate and certificate key")
         }
-        _ => client_builder,
-    };
-
-    client_builder
-        .build()
-        .into_report()
-        .change_context(errors::ApiClientError::ClientConstructionFailed)
-        .attach_printable_lazy(|| "Error with client library")
+        _ => get_base_client(proxy_config, should_bypass_proxy),
+    }
 }
 
 pub(super) fn proxy_bypass_urls(locker: &Locker) -> Vec<String> {
     let locker_host = locker.host.to_owned();
     let basilisk_host = locker.basilisk_host.to_owned();
     vec![
+        format!("{locker_host}/cards/add"),
+        format!("{locker_host}/cards/retrieve"),
+        format!("{locker_host}/cards/delete"),
         format!("{locker_host}/card/addCard"),
         format!("{locker_host}/card/getCard"),
         format!("{locker_host}/card/deleteCard"),

@@ -152,6 +152,7 @@ pub enum Currency {
     AED,
     ALL,
     AMD,
+    ANG,
     ARS,
     AUD,
     AWG,
@@ -271,6 +272,7 @@ pub enum Currency {
 #[strum(serialize_all = "snake_case")]
 pub enum EventClass {
     Payments,
+    Refunds,
 }
 
 #[derive(
@@ -289,6 +291,7 @@ pub enum EventClass {
 #[strum(serialize_all = "snake_case")]
 pub enum EventObjectType {
     PaymentDetails,
+    RefundDetails,
 }
 
 #[derive(
@@ -308,6 +311,8 @@ pub enum EventObjectType {
 #[strum(serialize_all = "snake_case")]
 pub enum EventType {
     PaymentSucceeded,
+    RefundSucceeded,
+    RefundFailed,
 }
 
 #[derive(

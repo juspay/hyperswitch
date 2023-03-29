@@ -8,28 +8,30 @@ use crate::{
     types::api::payment_methods::{self, PaymentMethodId},
 };
 
-// PaymentMethods - Create
-
+/// PaymentMethods - Create
 ///
 /// To create a payment method against a customer object. In case of cards, this API could be used only by PCI compliant merchants
 #[utoipa::path(
     post,
     path = "/payment_methods",
-    request_body = CreatePaymentMethod,
+    request_body = PaymentMethodCreate,
     responses(
         (status = 200, description = "Payment Method Created", body = PaymentMethodResponse),
         (status = 400, description = "Invalid Data")
     ),
     tag = "Payment Methods",
-    operation_id = "Create a Payment Method"
+    operation_id = "Create a Payment Method",
+    security(("api_key" = []))
 )]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentMethodsCreate))]
 pub async fn create_payment_method_api(
     state: web::Data<AppState>,
     req: HttpRequest,
-    json_payload: web::Json<payment_methods::CreatePaymentMethod>,
+    json_payload: web::Json<payment_methods::PaymentMethodCreate>,
 ) -> HttpResponse {
+    let flow = Flow::PaymentMethodsCreate;
     api::server_wrap(
+        flow,
         state.get_ref(),
         &req,
         json_payload.into_inner(),
@@ -41,8 +43,7 @@ pub async fn create_payment_method_api(
     .await
 }
 
-// List payment methods for a Merchant
-
+/// List payment methods for a Merchant
 ///
 /// To filter and list the applicable payment methods for a particular Merchant ID
 #[utoipa::path(
@@ -58,19 +59,21 @@ pub async fn create_payment_method_api(
         ("installment_payment_enabled" = bool, Query, description = "Indicates whether the payment method is eligible for installment payments"),
     ),
     responses(
-        (status = 200, description = "Payment Methods retrieved", body = ListPaymentMethodResponse),
+        (status = 200, description = "Payment Methods retrieved", body = PaymentMethodListResponse),
         (status = 400, description = "Invalid Data"),
         (status = 404, description = "Payment Methods does not exist in records")
     ),
     tag = "Payment Methods",
-    operation_id = "List all Payment Methods for a Merchant"
+    operation_id = "List all Payment Methods for a Merchant",
+    security(("api_key" = []), ("publishable_key" = []))
 )]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentMethodsList))]
 pub async fn list_payment_method_api(
     state: web::Data<AppState>,
     req: HttpRequest,
-    json_payload: web::Query<payment_methods::ListPaymentMethodRequest>,
+    json_payload: web::Query<payment_methods::PaymentMethodListRequest>,
 ) -> HttpResponse {
+    let flow = Flow::PaymentMethodsList;
     let payload = json_payload.into_inner();
 
     let (auth, _) = match auth::check_client_secret_and_get_auth(req.headers(), &payload) {
@@ -79,6 +82,7 @@ pub async fn list_payment_method_api(
     };
 
     api::server_wrap(
+        flow,
         state.get_ref(),
         &req,
         payload,
@@ -88,8 +92,7 @@ pub async fn list_payment_method_api(
     .await
 }
 
-// List payment methods for a Customer
-
+/// List payment methods for a Customer
 ///
 /// To filter and list the applicable payment methods for a particular Customer ID
 #[utoipa::path(
@@ -105,20 +108,22 @@ pub async fn list_payment_method_api(
         ("installment_payment_enabled" = bool, Query, description = "Indicates whether the payment method is eligible for installment payments"),
     ),
     responses(
-        (status = 200, description = "Payment Methods retrieved", body = ListCustomerPaymentMethodsResponse),
+        (status = 200, description = "Payment Methods retrieved", body = CustomerPaymentMethodsListResponse),
         (status = 400, description = "Invalid Data"),
         (status = 404, description = "Payment Methods does not exist in records")
     ),
     tag = "Payment Methods",
-    operation_id = "List all Payment Methods for a Customer"
+    operation_id = "List all Payment Methods for a Customer",
+    security(("api_key" = []), ("ephemeral_key" = []))
 )]
 #[instrument(skip_all, fields(flow = ?Flow::CustomerPaymentMethodsList))]
 pub async fn list_customer_payment_method_api(
     state: web::Data<AppState>,
     customer_id: web::Path<(String,)>,
     req: HttpRequest,
-    json_payload: web::Query<payment_methods::ListPaymentMethodRequest>,
+    json_payload: web::Query<payment_methods::PaymentMethodListRequest>,
 ) -> HttpResponse {
+    let flow = Flow::CustomerPaymentMethodsList;
     let customer_id = customer_id.into_inner().0;
 
     let auth_type = match auth::is_ephemeral_auth(req.headers(), &*state.store, &customer_id).await
@@ -128,6 +133,7 @@ pub async fn list_customer_payment_method_api(
     };
 
     api::server_wrap(
+        flow,
         state.get_ref(),
         &req,
         json_payload.into_inner(),
@@ -139,8 +145,7 @@ pub async fn list_customer_payment_method_api(
     .await
 }
 
-// Payment Method - Retrieve
-
+/// Payment Method - Retrieve
 ///
 /// To retrieve a payment method
 #[utoipa::path(
@@ -154,7 +159,8 @@ pub async fn list_customer_payment_method_api(
         (status = 404, description = "Payment Method does not exist in records")
     ),
     tag = "Payment Methods",
-    operation_id = "Retrieve a Payment method"
+    operation_id = "Retrieve a Payment method",
+    security(("api_key" = []))
 )]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentMethodsRetrieve))]
 pub async fn payment_method_retrieve_api(
@@ -162,12 +168,14 @@ pub async fn payment_method_retrieve_api(
     req: HttpRequest,
     path: web::Path<String>,
 ) -> HttpResponse {
+    let flow = Flow::PaymentMethodsRetrieve;
     let payload = web::Json(PaymentMethodId {
         payment_method_id: path.into_inner(),
     })
     .into_inner();
 
     api::server_wrap(
+        flow,
         state.get_ref(),
         &req,
         payload,
@@ -177,8 +185,7 @@ pub async fn payment_method_retrieve_api(
     .await
 }
 
-// Payment Method - Update
-
+/// Payment Method - Update
 ///
 /// To update an existing payment method attached to a customer object. This API is useful for use cases such as updating the card number for expired cards to prevent discontinuity in recurring payments
 #[utoipa::path(
@@ -187,24 +194,27 @@ pub async fn payment_method_retrieve_api(
     params (
         ("method_id" = String, Path, description = "The unique identifier for the Payment Method"),
     ),
-    request_body = UpdatePaymentMethod,
+    request_body = PaymentMethodUpdate,
     responses(
         (status = 200, description = "Payment Method updated", body = PaymentMethodResponse),
         (status = 404, description = "Payment Method does not exist in records")
     ),
     tag = "Payment Methods",
-    operation_id = "Update a Payment method"
+    operation_id = "Update a Payment method",
+    security(("api_key" = []))
 )]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentMethodsUpdate))]
 pub async fn payment_method_update_api(
     state: web::Data<AppState>,
     req: HttpRequest,
     path: web::Path<String>,
-    json_payload: web::Json<payment_methods::UpdatePaymentMethod>,
+    json_payload: web::Json<payment_methods::PaymentMethodUpdate>,
 ) -> HttpResponse {
+    let flow = Flow::PaymentMethodsUpdate;
     let payment_method_id = path.into_inner();
 
     api::server_wrap(
+        flow,
         state.get_ref(),
         &req,
         json_payload.into_inner(),
@@ -221,8 +231,7 @@ pub async fn payment_method_update_api(
     .await
 }
 
-// Payment Method - Delete
-
+/// Payment Method - Delete
 ///
 /// Delete payment method
 #[utoipa::path(
@@ -232,11 +241,12 @@ pub async fn payment_method_update_api(
         ("method_id" = String, Path, description = "The unique identifier for the Payment Method"),
     ),
     responses(
-        (status = 200, description = "Payment Method deleted", body = DeletePaymentMethodResponse),
+        (status = 200, description = "Payment Method deleted", body = PaymentMethodDeleteResponse),
         (status = 404, description = "Payment Method does not exist in records")
     ),
     tag = "Payment Methods",
-    operation_id = "Delete a Payment method"
+    operation_id = "Delete a Payment method",
+    security(("api_key" = []))
 )]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentMethodsDelete))]
 pub async fn payment_method_delete_api(
@@ -244,10 +254,12 @@ pub async fn payment_method_delete_api(
     req: HttpRequest,
     payment_method_id: web::Path<(String,)>,
 ) -> HttpResponse {
+    let flow = Flow::PaymentMethodsDelete;
     let pm = PaymentMethodId {
         payment_method_id: payment_method_id.into_inner().0,
     };
     api::server_wrap(
+        flow,
         state.get_ref(),
         &req,
         pm,
@@ -260,14 +272,14 @@ pub async fn payment_method_delete_api(
 #[cfg(test)]
 mod tests {
     #![allow(clippy::unwrap_used)]
-    use api_models::payment_methods::ListPaymentMethodRequest;
+    use api_models::payment_methods::PaymentMethodListRequest;
 
     use super::*;
 
     #[test]
     fn test_custom_list_deserialization() {
         let dummy_data = "amount=120&recurring_enabled=true&installment_payment_enabled=true";
-        let de_query: web::Query<ListPaymentMethodRequest> =
+        let de_query: web::Query<PaymentMethodListRequest> =
             web::Query::from_query(dummy_data).unwrap();
         let de_struct = de_query.into_inner();
         assert_eq!(de_struct.installment_payment_enabled, Some(true))
@@ -276,7 +288,7 @@ mod tests {
     #[test]
     fn test_custom_list_deserialization_multi_amount() {
         let dummy_data = "amount=120&recurring_enabled=true&amount=1000";
-        let de_query: Result<web::Query<ListPaymentMethodRequest>, _> =
+        let de_query: Result<web::Query<PaymentMethodListRequest>, _> =
             web::Query::from_query(dummy_data);
         assert!(de_query.is_err())
     }

@@ -9,7 +9,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use actix_web::{body, HttpRequest, HttpResponse, Responder};
+use actix_web::{body, http::header, HttpRequest, HttpResponse, Responder};
 use common_utils::errors::ReportSwitchExt;
 use error_stack::{report, IntoReport, Report, ResultExt};
 use masking::ExposeOptionInterface;
@@ -20,20 +20,15 @@ use self::request::{ContentType, HeaderExt, RequestBuilderExt};
 pub use self::request::{Method, Request, RequestBuilder};
 use crate::{
     configs::settings::Connectors,
+    consts,
     core::{
-        errors::{self, CustomResult, RouterResult},
+        errors::{self, CustomResult},
         payments,
     },
-    db::StorageInterface,
     logger,
-    routes::{app::AppStateInfo, AppState},
+    routes::{app::AppStateInfo, metrics, AppState},
     services::authentication as auth,
-    types::{
-        self,
-        api::{self},
-        storage::{self},
-        ErrorResponse,
-    },
+    types::{self, api, storage, ErrorResponse},
 };
 
 pub type BoxedConnectorIntegration<'a, T, Req, Resp> =
@@ -108,9 +103,17 @@ pub trait ConnectorIntegration<T, Req, Resp>: ConnectorIntegrationAny<T, Req, Re
 
     fn build_request(
         &self,
-        _req: &types::RouterData<T, Req, Resp>,
+        req: &types::RouterData<T, Req, Resp>,
         _connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        metrics::UNIMPLEMENTED_FLOW.add(
+            &metrics::CONTEXT,
+            1,
+            &[metrics::request::add_attributes(
+                "connector",
+                req.connector.clone(),
+            )],
+        );
         Ok(None)
     }
 
@@ -184,7 +187,40 @@ where
             Ok(router_data)
         }
         payments::CallConnectorAction::Trigger => {
-            match connector_integration.build_request(req, &state.conf.connectors)? {
+            metrics::CONNECTOR_CALL_COUNT.add(
+                &metrics::CONTEXT,
+                1,
+                &[
+                    metrics::request::add_attributes("connector", req.connector.to_string()),
+                    metrics::request::add_attributes(
+                        "flow",
+                        std::any::type_name::<T>()
+                            .split("::")
+                            .last()
+                            .unwrap_or_default()
+                            .to_string(),
+                    ),
+                ],
+            );
+            match connector_integration
+                .build_request(req, &state.conf.connectors)
+                .map_err(|error| {
+                    if matches!(
+                        error.current_context(),
+                        &errors::ConnectorError::RequestEncodingFailed
+                            | &errors::ConnectorError::RequestEncodingFailedWithReason(_)
+                    ) {
+                        metrics::RESPONSE_DESERIALIZATION_FAILURE.add(
+                            &metrics::CONTEXT,
+                            1,
+                            &[metrics::request::add_attributes(
+                                "connector",
+                                req.connector.to_string(),
+                            )],
+                        )
+                    }
+                    error
+                })? {
                 Some(request) => {
                     logger::debug!(connector_request=?request);
                     let response = call_connector_api(state, request).await;
@@ -192,8 +228,32 @@ where
                     match response {
                         Ok(body) => {
                             let response = match body {
-                                Ok(body) => connector_integration.handle_response(req, body)?,
+                                Ok(body) => connector_integration
+                                    .handle_response(req, body)
+                                    .map_err(|error| {
+                                        if error.current_context()
+                                        == &errors::ConnectorError::ResponseDeserializationFailed
+                                    {
+                                        metrics::RESPONSE_DESERIALIZATION_FAILURE.add(
+                                            &metrics::CONTEXT,
+                                            1,
+                                            &[metrics::request::add_attributes(
+                                                "connector",
+                                                req.connector.to_string(),
+                                            )],
+                                        )
+                                    }
+                                        error
+                                    })?,
                                 Err(body) => {
+                                    metrics::CONNECTOR_ERROR_RESPONSE_COUNT.add(
+                                        &metrics::CONTEXT,
+                                        1,
+                                        &[metrics::request::add_attributes(
+                                            "connector",
+                                            req.connector.clone(),
+                                        )],
+                                    );
                                     let error = connector_integration.get_error_response(body)?;
                                     router_data.response = Err(error);
 
@@ -282,7 +342,10 @@ async fn send_request(
     .send()
     .await
     .map_err(|error| match error {
-        error if error.is_timeout() => errors::ApiClientError::RequestTimeoutReceived,
+        error if error.is_timeout() => {
+            metrics::REQUEST_BUILD_FAILURE.add(&metrics::CONTEXT, 1, &[]);
+            errors::ApiClientError::RequestTimeoutReceived
+        }
         _ => errors::ApiClientError::RequestNotSent(error.to_string()),
     })
     .into_report()
@@ -315,14 +378,22 @@ async fn handle_response(
                 }
 
                 status_code @ 500..=599 => {
-                    let error = match status_code {
-                        500 => errors::ApiClientError::InternalServerErrorReceived,
-                        502 => errors::ApiClientError::BadGatewayReceived,
-                        503 => errors::ApiClientError::ServiceUnavailableReceived,
-                        504 => errors::ApiClientError::GatewayTimeoutReceived,
-                        _ => errors::ApiClientError::UnexpectedServerResponse,
-                    };
-                    Err(Report::new(error).attach_printable("Server error response received"))
+                    let bytes = response.bytes().await.map_err(|error| {
+                        report!(error)
+                            .change_context(errors::ApiClientError::ResponseDecodingFailed)
+                            .attach_printable("Client error response received")
+                    })?;
+                    // let error = match status_code {
+                    //     500 => errors::ApiClientError::InternalServerErrorReceived,
+                    //     502 => errors::ApiClientError::BadGatewayReceived,
+                    //     503 => errors::ApiClientError::ServiceUnavailableReceived,
+                    //     504 => errors::ApiClientError::GatewayTimeoutReceived,
+                    //     _ => errors::ApiClientError::UnexpectedServerResponse,
+                    // };
+                    Ok(Err(types::Response {
+                        response: bytes,
+                        status_code,
+                    }))
                 }
 
                 status_code @ 400..=499 => {
@@ -364,6 +435,12 @@ pub enum ApplicationResponse<R> {
     TextPlain(String),
     JsonForRedirection(api::RedirectionResponse),
     Form(RedirectForm),
+}
+
+#[derive(Debug, Eq, PartialEq)]
+pub enum PaymentAction {
+    PSync,
+    CompleteAuthorize,
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
@@ -445,6 +522,7 @@ where
     fields(request_method, request_url_path)
 )]
 pub async fn server_wrap<'a, 'b, A, T, U, Q, F, Fut, E>(
+    flow: impl router_env::types::FlowMetric,
     state: &'b A,
     request: &'a HttpRequest,
     payload: T,
@@ -467,8 +545,12 @@ where
 
     let start_instant = Instant::now();
     logger::info!(tag = ?Tag::BeginRequest);
-
-    let res = match server_wrap_util(state, request, payload, func, api_auth).await {
+    let res = match metrics::request::record_request_time_metric(
+        server_wrap_util(state, request, payload, func, api_auth),
+        flow,
+    )
+    .await
+    {
         Ok(ApplicationResponse::Json(response)) => match serde_json::to_string(&response) {
             Ok(res) => http_response_json(res),
             Err(_) => http_response_err(
@@ -520,33 +602,27 @@ where
     HttpResponse::from_error(error.current_context().clone())
 }
 
-pub async fn authenticate_by_api_key(
-    store: &dyn StorageInterface,
-    api_key: &str,
-) -> RouterResult<storage::MerchantAccount> {
-    store
-        .find_merchant_account_by_api_key(api_key)
-        .await
-        .change_context(errors::ApiErrorResponse::Unauthorized)
-        .attach_printable("Merchant not authenticated")
-}
-
 pub fn http_response_json<T: body::MessageBody + 'static>(response: T) -> HttpResponse {
     HttpResponse::Ok()
         .content_type("application/json")
-        .append_header(("Via", "Juspay_router"))
+        .append_header((header::VIA, "Juspay_router"))
+        .append_header((header::STRICT_TRANSPORT_SECURITY, consts::HSTS_HEADER_VALUE))
         .body(response)
 }
 
 pub fn http_response_plaintext<T: body::MessageBody + 'static>(res: T) -> HttpResponse {
     HttpResponse::Ok()
         .content_type("text/plain")
-        .append_header(("Via", "Juspay_router"))
+        .append_header((header::VIA, "Juspay_router"))
+        .append_header((header::STRICT_TRANSPORT_SECURITY, consts::HSTS_HEADER_VALUE))
         .body(res)
 }
 
 pub fn http_response_ok() -> HttpResponse {
-    HttpResponse::Ok().finish()
+    HttpResponse::Ok()
+        .append_header((header::VIA, "Juspay_router"))
+        .append_header((header::STRICT_TRANSPORT_SECURITY, consts::HSTS_HEADER_VALUE))
+        .finish()
 }
 
 pub fn http_redirect_response<T: body::MessageBody + 'static>(
@@ -555,11 +631,12 @@ pub fn http_redirect_response<T: body::MessageBody + 'static>(
 ) -> HttpResponse {
     HttpResponse::Ok()
         .content_type("application/json")
-        .append_header(("Via", "Juspay_router"))
+        .append_header((header::VIA, "Juspay_router"))
         .append_header((
             "Location",
             redirection_response.return_url_with_query_params,
         ))
+        .append_header((header::STRICT_TRANSPORT_SECURITY, consts::HSTS_HEADER_VALUE))
         .status(http::StatusCode::FOUND)
         .body(response)
 }
@@ -567,7 +644,8 @@ pub fn http_redirect_response<T: body::MessageBody + 'static>(
 pub fn http_response_err<T: body::MessageBody + 'static>(response: T) -> HttpResponse {
     HttpResponse::BadRequest()
         .content_type("application/json")
-        .append_header(("Via", "Juspay_router"))
+        .append_header((header::VIA, "Juspay_router"))
+        .append_header((header::STRICT_TRANSPORT_SECURITY, consts::HSTS_HEADER_VALUE))
         .body(response)
 }
 
@@ -575,6 +653,8 @@ pub trait ConnectorRedirectResponse {
     fn get_flow_type(
         &self,
         _query_params: &str,
+        _json_payload: Option<serde_json::Value>,
+        _action: PaymentAction,
     ) -> CustomResult<payments::CallConnectorAction, errors::ConnectorError> {
         Ok(payments::CallConnectorAction::Avoid)
     }
@@ -590,7 +670,7 @@ impl Authenticate for api_models::payments::PaymentsRequest {
     }
 }
 
-impl Authenticate for api_models::payment_methods::ListPaymentMethodRequest {
+impl Authenticate for api_models::payment_methods::PaymentMethodListRequest {
     fn get_client_secret(&self) -> Option<&String> {
         self.client_secret.as_ref()
     }
