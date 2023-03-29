@@ -182,9 +182,7 @@ where
             match connector_integration.build_request(req, &state.conf.connectors)? {
                 Some(request) => {
                     logger::debug!(connector_request=?request);
-                    println!("##Req =>{:?}", request);
                     let response = call_connector_api(state, request).await;
-                    println!("##Res =>{:?}", response);
                     logger::debug!(connector_response=?response);
                     match response {
                         Ok(body) => {

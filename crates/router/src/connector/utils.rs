@@ -59,6 +59,7 @@ pub trait RouterData {
     where
         T: serde::de::DeserializeOwned;
     fn get_return_url(&self) -> Result<String, Error>;
+    fn get_webhook_url(&self) -> Result<String, Error>;
     fn is_three_ds(&self) -> bool;
 }
 
@@ -123,6 +124,12 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
         self.router_return_url
             .clone()
             .ok_or_else(missing_field_err("return_url"))
+    }
+
+    fn get_webhook_url(&self) -> Result<String, Error> {
+        self.webhook_url
+            .clone()
+            .ok_or_else(missing_field_err("webhook_url"))
     }
 
     fn is_three_ds(&self) -> bool {

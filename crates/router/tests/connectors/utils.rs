@@ -362,6 +362,7 @@ pub trait ConnectorActions: Connector {
             status: enums::AttemptStatus::default(),
             router_return_url: info.clone().and_then(|a| a.router_return_url),
             complete_authorize_url: None,
+            webhook_url: None,
             auth_type: info
                 .clone()
                 .map_or(enums::AuthenticationType::NoThreeDs, |a| {

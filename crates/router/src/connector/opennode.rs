@@ -1,8 +1,10 @@
 mod transformers;
 
-use common_utils::{crypto, errors::ReportSwitchExt, ext_traits::ByteSliceExt};
-use error_stack::{IntoReport, ResultExt};
 use std::fmt::Debug;
+
+use common_utils::{crypto, errors::ReportSwitchExt};
+use error_stack::{IntoReport, ResultExt};
+use transformers as opennode;
 
 use self::opennode::OpennodeWebhookDetails;
 use crate::{
@@ -18,8 +20,6 @@ use crate::{
     },
     utils::{BytesExt, Encode},
 };
-
-use transformers as opennode;
 
 #[derive(Debug, Clone)]
 pub struct Opennode;
@@ -490,8 +490,8 @@ impl api::IncomingWebhook for Opennode {
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
-        let notif: OpennodeWebhookDetails =
-            utils::convert_query_params_to_struct(request.body).unwrap();
+        let notif: OpennodeWebhookDetails = utils::convert_query_params_to_struct(request.body)
+            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
         let base64_signature = notif.hashed_order;
         hex::decode(base64_signature)
             .into_report()
@@ -526,19 +526,19 @@ impl api::IncomingWebhook for Opennode {
 
     fn get_webhook_object_reference_id(
         &self,
-        _request: &api::IncomingWebhookRequestDetails<'_>,
+        request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let notif: OpennodeWebhookDetails =
-            utils::convert_query_params_to_struct(_request.body).unwrap();
+        let notif: OpennodeWebhookDetails = utils::convert_query_params_to_struct(request.body)
+            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
         Ok(notif.id)
     }
 
     fn get_webhook_event_type(
         &self,
-        _request: &api::IncomingWebhookRequestDetails<'_>,
+        request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api::IncomingWebhookEvent, errors::ConnectorError> {
-        let notif: OpennodeWebhookDetails =
-            utils::convert_query_params_to_struct(_request.body).unwrap();
+        let notif: OpennodeWebhookDetails = utils::convert_query_params_to_struct(request.body)
+            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
 
         match notif.status {
             opennode::OpennodePaymentStatus::Paid => {
@@ -560,10 +560,10 @@ impl api::IncomingWebhook for Opennode {
 
     fn get_webhook_resource_object(
         &self,
-        _request: &api::IncomingWebhookRequestDetails<'_>,
+        request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<serde_json::Value, errors::ConnectorError> {
-        let notif: OpennodeWebhookDetails =
-            utils::convert_query_params_to_struct(_request.body).unwrap();
+        let notif: OpennodeWebhookDetails = utils::convert_query_params_to_struct(request.body)
+            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
         Encode::<OpennodeWebhookDetails>::encode_to_value(&notif.status).switch()
     }
 }
