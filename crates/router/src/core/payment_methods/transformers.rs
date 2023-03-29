@@ -87,7 +87,7 @@ pub struct AddCardRequest<'a> {
     pub nickname: Option<String>,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AddCardResponse {
     pub card_id: String,
@@ -127,15 +127,14 @@ pub struct DeleteCardResponse {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-pub struct ListOfPmMetadata {
-    #[serde(flatten)]
-    list_of_metadata: Vec<PaymentMethodMetadata>,
+pub struct PaymentMethodTokenization {
+    pub connector: String,
+    pub token: String,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct PaymentMethodMetadata {
-    pub connector: String,
-    pub token: String,
+    pub payment_method_tokenization: Vec<PaymentMethodTokenization>,
 }
 
 pub fn basilisk_hs_key_id() -> &'static str {
@@ -354,8 +353,6 @@ pub fn mk_add_card_response(
     response: AddCardResponse,
     req: api::PaymentMethodCreate,
     merchant_id: &str,
-    _connector: Option<&api::ConnectorData>,
-    _token: Option<String>,
 ) -> api::PaymentMethodResponse {
     let mut card_number = card.card_number.peek().to_owned();
     let card = api::CardDetailFromLocker {

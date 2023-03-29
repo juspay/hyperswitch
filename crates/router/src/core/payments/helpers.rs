@@ -518,14 +518,10 @@ where
 
 #[instrument(skip_all)]
 pub(crate) async fn call_payment_method(
-    state: &AppState,
-    merchant_account: &storage::MerchantAccount,
     payment_method: Option<&api::PaymentMethodData>,
     payment_method_type: Option<storage_enums::PaymentMethod>,
     maybe_customer: &Option<storage::Customer>,
-    connector: Option<&api::ConnectorData>,
-    token: Option<String>,
-) -> RouterResult<api::PaymentMethodResponse> {
+) -> RouterResult<api::PaymentMethodCreate> {
     match payment_method {
         Some(pm_data) => match payment_method_type {
             Some(payment_method_type) => match pm_data {
@@ -552,22 +548,7 @@ pub(crate) async fn call_payment_method(
                                     .as_ref()
                                     .map(|card_network| card_network.to_string()),
                             };
-                            let resp = cards::add_payment_method(
-                                state,
-                                payment_method_request,
-                                merchant_account,
-                                connector,
-                                token,
-                            )
-                            .await
-                            .attach_printable("Error on adding payment method")?;
-                            match resp {
-                                crate::services::ApplicationResponse::Json(payment_method) => {
-                                    Ok(payment_method)
-                                }
-                                _ => Err(report!(errors::ApiErrorResponse::InternalServerError)
-                                    .attach_printable("Error on adding payment method")),
-                            }
+                            Ok(payment_method_request)
                         }
                         None => Err(report!(errors::ApiErrorResponse::MissingRequiredField {
                             field_name: "customer"
@@ -587,23 +568,7 @@ pub(crate) async fn call_payment_method(
                             customer_id: Some(customer.customer_id.to_owned()),
                             card_network: None,
                         };
-
-                        let resp = cards::add_payment_method(
-                            state,
-                            payment_method_request,
-                            merchant_account,
-                            connector,
-                            token,
-                        )
-                        .await
-                        .attach_printable("Error on adding payment method")?;
-                        match resp {
-                            crate::services::ApplicationResponse::Json(payment_method) => {
-                                Ok(payment_method)
-                            }
-                            _ => Err(report!(errors::ApiErrorResponse::InternalServerError)
-                                .attach_printable("Error on adding payment method")),
-                        }
+                        Ok(payment_method_request)
                     }
                     None => Err(report!(errors::ApiErrorResponse::MissingRequiredField {
                         field_name: "customer"
@@ -715,7 +680,6 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R>(
     ))
 }
 
-#[allow(clippy::too_many_arguments)]
 pub async fn make_pm_data<'a, F: Clone, R>(
     operation: BoxedOperation<'a, F, R>,
     state: &'a AppState,
@@ -723,13 +687,34 @@ pub async fn make_pm_data<'a, F: Clone, R>(
 ) -> RouterResult<(BoxedOperation<'a, F, R>, Option<api::PaymentMethodData>)> {
     let request = &payment_data.payment_method_data;
     let token = payment_data.token.clone();
+    let hyperswitch_token = if let Some(token) = token {
+        let redis_conn = crate::connection::redis_connection(&state.conf).await;
+        let key = format!(
+            "pm_token_{}_{}_hyperswitch",
+            token,
+            payment_data
+                .payment_attempt
+                .payment_method
+                .to_owned()
+                .get_required_value("payment_method")?,
+        );
+        let val = redis_conn.get_key::<String>(&key).await;
+        match val {
+            Ok(token) => Some(token),
+            Err(_) => None,
+        }
+    } else {
+        None
+    };
+
     let card_cvc = payment_data.card_cvc.clone();
 
     // TODO: Handle case where payment method and token both are present in request properly.
-    let payment_method = match (request, token) {
-        (_, Some(token)) => {
+    let payment_method = match (request, hyperswitch_token) {
+        (_, Some(hyperswitch_token)) => {
             let (pm, supplementary_data) = vault::Vault::get_payment_method_data_from_locker(
-                state, &token,
+                state,
+                &hyperswitch_token,
             )
             .await
             .attach_printable(
@@ -755,7 +740,7 @@ pub async fn make_pm_data<'a, F: Clone, R>(
                         let updated_pm = api::PaymentMethodData::Card(updated_card);
                         vault::Vault::store_payment_method_data_in_locker(
                             state,
-                            Some(token),
+                            Some(hyperswitch_token),
                             &updated_pm,
                             payment_data.payment_intent.customer_id.to_owned(),
                             enums::PaymentMethod::Card,
@@ -777,7 +762,7 @@ pub async fn make_pm_data<'a, F: Clone, R>(
                             let updated_pm = api::PaymentMethodData::Wallet(wallet_data);
                             vault::Vault::store_payment_method_data_in_locker(
                                 state,
-                                Some(token),
+                                Some(hyperswitch_token),
                                 &updated_pm,
                                 payment_data.payment_intent.customer_id.to_owned(),
                                 enums::PaymentMethod::Wallet,

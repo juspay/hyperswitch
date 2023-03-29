@@ -397,16 +397,10 @@ async fn payment_response_update_tracker<F: Clone, T>(
             types::PaymentsResponseData::SessionResponse { .. } => (None, None),
             types::PaymentsResponseData::SessionTokenResponse { .. } => (None, None),
             types::PaymentsResponseData::TokenizationResponse { token } => {
-                let payment_attempt_update = storage::PaymentAttemptUpdate::ResponseUpdate {
-                    status: router_data.status,
-                    connector: None,
-                    connector_transaction_id: None,
-                    authentication_type: None,
-                    payment_method_id: None,
-                    mandate_id: None,
-                    connector_metadata: None,
-                    payment_token: Some(token),
-                };
+                let payment_attempt_update =
+                    storage::PaymentAttemptUpdate::PaymentMethodTokenUpdate {
+                        payment_token: Some(token),
+                    };
                 (Some(payment_attempt_update), None)
             }
         },

@@ -72,8 +72,12 @@ impl api::Payment for Nuvei {}
 
 impl api::PaymentToken for Nuvei {}
 
-impl ConnectorIntegration<api::Token, types::TokenizationData, types::PaymentsResponseData>
-    for Nuvei
+impl
+    ConnectorIntegration<
+        api::PaymentMethodToken,
+        types::TokenizationData,
+        types::PaymentsResponseData,
+    > for Nuvei
 {
     // Not Implemented (R)
 }

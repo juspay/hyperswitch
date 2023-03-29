@@ -57,8 +57,11 @@ impl api::ConnectorAccessToken for Klarna {}
 impl api::PaymentToken for Klarna {}
 
 impl
-    services::ConnectorIntegration<api::Token, types::TokenizationData, types::PaymentsResponseData>
-    for Klarna
+    services::ConnectorIntegration<
+        api::PaymentMethodToken,
+        types::TokenizationData,
+        types::PaymentsResponseData,
+    > for Klarna
 {
     // Not Implemented (R)
 }

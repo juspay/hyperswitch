@@ -65,7 +65,6 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
         access_token: None,
         session_token: None,
         reference_id: None,
-        store_connector_token: None,
         payment_token: None,
     }
 }
@@ -107,7 +106,6 @@ fn construct_refund_router_data<F>() -> types::RefundsRouterData<F> {
         access_token: None,
         session_token: None,
         reference_id: None,
-        store_connector_token: None,
         payment_token: None,
     }
 }

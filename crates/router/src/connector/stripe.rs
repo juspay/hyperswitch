@@ -87,8 +87,11 @@ impl
 impl api::PaymentToken for Stripe {}
 
 impl
-    services::ConnectorIntegration<api::Token, types::TokenizationData, types::PaymentsResponseData>
-    for Stripe
+    services::ConnectorIntegration<
+        api::PaymentMethodToken,
+        types::TokenizationData,
+        types::PaymentsResponseData,
+    > for Stripe
 {
     fn get_headers(
         &self,

@@ -99,15 +99,19 @@ impl PaymentMethod {
         .await
     }
 
-    #[instrument(skip(conn))]
     pub async fn update(
         self,
         conn: &PgPooledConn,
         payment_method: payment_method::PaymentMethodUpdate,
     ) -> StorageResult<Self> {
-        match generics::generic_update_by_id::<<Self as HasTable>::Table, _, _, _>(
+        match generics::generic_update_with_unique_predicate_get_result::<
+            <Self as HasTable>::Table,
+            _,
+            _,
+            _,
+        >(
             conn,
-            self.id,
+            dsl::payment_method_id.eq(self.payment_method_id.to_owned()),
             payment_method::PaymentMethodUpdateInternal::from(payment_method),
         )
         .await

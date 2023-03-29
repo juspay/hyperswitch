@@ -152,8 +152,12 @@ impl api::Payment for Fiserv {}
 
 impl api::PaymentToken for Fiserv {}
 
-impl ConnectorIntegration<api::Token, types::TokenizationData, types::PaymentsResponseData>
-    for Fiserv
+impl
+    ConnectorIntegration<
+        api::PaymentMethodToken,
+        types::TokenizationData,
+        types::PaymentsResponseData,
+    > for Fiserv
 {
     // Not Implemented (R)
 }

@@ -54,8 +54,11 @@ impl api::ConnectorAccessToken for Aci {}
 impl api::PaymentToken for Aci {}
 
 impl
-    services::ConnectorIntegration<api::Token, types::TokenizationData, types::PaymentsResponseData>
-    for Aci
+    services::ConnectorIntegration<
+        api::PaymentMethodToken,
+        types::TokenizationData,
+        types::PaymentsResponseData,
+    > for Aci
 {
     // Not Implemented (R)
 }

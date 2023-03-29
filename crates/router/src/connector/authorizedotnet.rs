@@ -46,8 +46,11 @@ impl api::ConnectorAccessToken for Authorizedotnet {}
 impl api::PaymentToken for Authorizedotnet {}
 
 impl
-    services::ConnectorIntegration<api::Token, types::TokenizationData, types::PaymentsResponseData>
-    for Authorizedotnet
+    services::ConnectorIntegration<
+        api::PaymentMethodToken,
+        types::TokenizationData,
+        types::PaymentsResponseData,
+    > for Authorizedotnet
 {
     // Not Implemented (R)
 }

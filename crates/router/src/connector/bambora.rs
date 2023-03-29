@@ -87,8 +87,12 @@ impl api::Payment for Bambora {}
 
 impl api::PaymentToken for Bambora {}
 
-impl ConnectorIntegration<api::Token, types::TokenizationData, types::PaymentsResponseData>
-    for Bambora
+impl
+    ConnectorIntegration<
+        api::PaymentMethodToken,
+        types::TokenizationData,
+        types::PaymentsResponseData,
+    > for Bambora
 {
     // Not Implemented (R)
 }

@@ -100,8 +100,12 @@ impl ConnectorIntegration<api::Verify, types::VerifyRequestData, types::Payments
 
 impl api::PaymentToken for Payu {}
 
-impl ConnectorIntegration<api::Token, types::TokenizationData, types::PaymentsResponseData>
-    for Payu
+impl
+    ConnectorIntegration<
+        api::PaymentMethodToken,
+        types::TokenizationData,
+        types::PaymentsResponseData,
+    > for Payu
 {
     // Not Implemented (R)
 }

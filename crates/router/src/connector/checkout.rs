@@ -64,8 +64,11 @@ impl api::ConnectorAccessToken for Checkout {}
 impl api::PaymentToken for Checkout {}
 
 impl
-    services::ConnectorIntegration<api::Token, types::TokenizationData, types::PaymentsResponseData>
-    for Checkout
+    services::ConnectorIntegration<
+        api::PaymentMethodToken,
+        types::TokenizationData,
+        types::PaymentsResponseData,
+    > for Checkout
 {
     // Not Implemented (R)
 }

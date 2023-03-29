@@ -41,8 +41,11 @@ impl api::ConnectorAccessToken for Applepay {}
 impl api::PaymentToken for Applepay {}
 
 impl
-    services::ConnectorIntegration<api::Token, types::TokenizationData, types::PaymentsResponseData>
-    for Applepay
+    services::ConnectorIntegration<
+        api::PaymentMethodToken,
+        types::TokenizationData,
+        types::PaymentsResponseData,
+    > for Applepay
 {
     // Not Implemented (R)
 }

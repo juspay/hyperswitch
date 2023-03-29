@@ -96,8 +96,12 @@ impl api::Payment for Shift4 {}
 
 impl api::PaymentToken for Shift4 {}
 
-impl ConnectorIntegration<api::Token, types::TokenizationData, types::PaymentsResponseData>
-    for Shift4
+impl
+    ConnectorIntegration<
+        api::PaymentMethodToken,
+        types::TokenizationData,
+        types::PaymentsResponseData,
+    > for Shift4
 {
     // Not Implemented (R)
 }

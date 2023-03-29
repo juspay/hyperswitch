@@ -78,8 +78,12 @@ impl api::Payment for Multisafepay {}
 
 impl api::PaymentToken for Multisafepay {}
 
-impl ConnectorIntegration<api::Token, types::TokenizationData, types::PaymentsResponseData>
-    for Multisafepay
+impl
+    ConnectorIntegration<
+        api::PaymentMethodToken,
+        types::TokenizationData,
+        types::PaymentsResponseData,
+    > for Multisafepay
 {
     // Not Implemented (R)
 }

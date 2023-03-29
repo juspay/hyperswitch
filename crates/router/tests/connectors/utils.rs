@@ -387,7 +387,6 @@ pub trait ConnectorActions: Connector {
             access_token: info.and_then(|a| a.access_token),
             session_token: None,
             reference_id: None,
-            store_connector_token: None,
             payment_token: None,
         }
     }

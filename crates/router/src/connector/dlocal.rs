@@ -113,8 +113,12 @@ impl ConnectorCommon for Dlocal {
     }
 }
 
-impl ConnectorIntegration<api::Token, types::TokenizationData, types::PaymentsResponseData>
-    for Dlocal
+impl
+    ConnectorIntegration<
+        api::PaymentMethodToken,
+        types::TokenizationData,
+        types::PaymentsResponseData,
+    > for Dlocal
 {
     // Not Implemented (R)
 }

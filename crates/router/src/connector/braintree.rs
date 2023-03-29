@@ -172,8 +172,11 @@ impl
 impl api::PaymentToken for Braintree {}
 
 impl
-    services::ConnectorIntegration<api::Token, types::TokenizationData, types::PaymentsResponseData>
-    for Braintree
+    services::ConnectorIntegration<
+        api::PaymentMethodToken,
+        types::TokenizationData,
+        types::PaymentsResponseData,
+    > for Braintree
 {
     // Not Implemented (R)
 }

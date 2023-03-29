@@ -32,6 +32,7 @@ pub struct PaymentMethod {
     pub payment_method_issuer: Option<String>,
     pub payment_method_issuer_code: Option<storage_enums::PaymentMethodIssuerCode>,
     pub metadata: Option<pii::SecretSerdeValue>,
+    pub locker_payment_method_id: Option<String>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Insertable, Queryable, router_derive::DebugAsDisplay)]
@@ -57,6 +58,7 @@ pub struct PaymentMethodNew {
     pub created_at: PrimitiveDateTime,
     pub last_modified: PrimitiveDateTime,
     pub metadata: Option<pii::SecretSerdeValue>,
+    pub locker_payment_method_id: Option<String>,
 }
 
 impl Default for PaymentMethodNew {
@@ -84,6 +86,7 @@ impl Default for PaymentMethodNew {
             created_at: now,
             last_modified: now,
             metadata: Option::default(),
+            locker_payment_method_id: Option::default(),
         }
     }
 }

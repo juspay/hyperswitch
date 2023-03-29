@@ -48,7 +48,6 @@ pub fn router_data_type_conversion<F1, F2, Req1, Req2, Res1, Res2>(
         access_token: router_data.access_token,
         session_token: router_data.session_token,
         reference_id: None,
-        store_connector_token: router_data.store_connector_token,
         payment_token: router_data.payment_token,
     }
 }

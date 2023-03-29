@@ -112,8 +112,12 @@ impl api::Payment for Bluesnap {}
 
 impl api::PaymentToken for Bluesnap {}
 
-impl ConnectorIntegration<api::Token, types::TokenizationData, types::PaymentsResponseData>
-    for Bluesnap
+impl
+    ConnectorIntegration<
+        api::PaymentMethodToken,
+        types::TokenizationData,
+        types::PaymentsResponseData,
+    > for Bluesnap
 {
     // Not Implemented (R)
 }

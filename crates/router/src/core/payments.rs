@@ -106,10 +106,10 @@ where
         &operation,
         connector.to_owned(),
         payment_data,
-        validate_result.to_owned(),
+        &validate_result,
         &merchant_account,
-        customer.to_owned(),
-        call_connector_action.to_owned(),
+        &customer,
+        &call_connector_action,
         &req,
     )
     .await?;
@@ -524,132 +524,151 @@ where
     Ok(payment_data)
 }
 
+/// Checks the operation, if it is confirm , then get the connector
+/// If connector, then start to execute the tokenization flow and have the updated payment_data
+/// Else, return the same payment_data with no change
 #[allow(clippy::too_many_arguments)]
 pub async fn connector_tokenization_call<F, Req>(
     state: &AppState,
     operation: &BoxedOperation<'_, F, Req>,
     connector_details: Option<api::ConnectorCallType>,
     mut payment_data: PaymentData<F>,
-    validate_result: operations::ValidateResult<'_>,
+    validate_result: &operations::ValidateResult<'_>,
     merchant_account: &storage::MerchantAccount,
-    customer: Option<storage_models::customers::Customer>,
-    call_connector_action: CallConnectorAction,
-    _req: &Req,
+    customer: &Option<storage_models::customers::Customer>,
+    call_connector_action: &CallConnectorAction,
+    req: &Req,
 ) -> RouterResult<PaymentData<F>>
 where
     F: Send + Clone,
 {
-    let tokenization_connector = match should_call_connector_for_tokenization(&operation) {
-        true => connector_details.and_then(|connector_call_type| match connector_call_type {
+    let connector = if is_operation_confirm(&operation) {
+        connector_details.and_then(|connector_call_type| match connector_call_type {
             api::ConnectorCallType::Single(data) => Some(data.connector_name.to_string()),
             _ => None,
-        }),
-        false => None,
+        })
+    } else {
+        None
     };
 
-    let tokenization_complete = match tokenization_connector {
-        Some(ref tokenization_connector) => {
-            check_tokenization_complete(state, tokenization_connector.clone(), &mut payment_data)
-                .await?
+    let payment_data = match connector {
+        Some(ref connector) => {
+            get_connector_payment_method_token(
+                state,
+                operation,
+                connector.to_owned(),
+                &mut payment_data,
+                validate_result,
+                merchant_account,
+                customer,
+                call_connector_action,
+                req,
+            )
+            .await?
         }
-        None => false,
+        None => payment_data,
+    };
+
+    Ok(payment_data)
+}
+
+/// checks whether the connector requires tokenization
+/// checks the tokenization is necessary for the payment method
+/// If the above checks are satisfied, the tokenization completeness is checked
+/// If tokenization is complete, then the next flow continues
+/// If the tokenization is not performed, then the tokenization call is made and token will be added into the payment_data
+#[allow(clippy::too_many_arguments)]
+pub async fn get_connector_payment_method_token<F: Clone, Req>(
+    state: &AppState,
+    operation: &BoxedOperation<'_, F, Req>,
+    connector_name: String,
+    mut payment_data: &mut PaymentData<F>,
+    validate_result: &operations::ValidateResult<'_>,
+    merchant_account: &storage::MerchantAccount,
+    customer: &Option<storage_models::customers::Customer>,
+    call_connector_action: &CallConnectorAction,
+    _req: &Req,
+) -> RouterResult<PaymentData<F>> {
+    let tokenization_connector_check = state.conf.tokenization.0.get(&connector_name);
+
+    let tokenization_connector_pm_check =
+        if let Some(connector_check) = tokenization_connector_check {
+            connector_check.payment_method.contains(
+                &payment_data
+                    .payment_attempt
+                    .payment_method
+                    .get_required_value("payment_method")?,
+            )
+        } else {
+            false
+        };
+
+    let tokenization_complete = if tokenization_connector_pm_check {
+        if let Some(token) = payment_data.token.to_owned() {
+            let redis_conn = connection::redis_connection(&state.conf).await;
+            let key = format!(
+                "pm_token_{}_{}_{}",
+                token,
+                payment_data
+                    .payment_attempt
+                    .payment_method
+                    .to_owned()
+                    .get_required_value("payment_method")?,
+                connector_name,
+            );
+            let val = redis_conn.get_key::<String>(&key).await;
+
+            match val {
+                Ok(redis_val) => {
+                    let val: Vec<&str> = redis_val.split("_pmid_").collect();
+                    payment_data.token = Some(val[0].to_string());
+                    payment_data.payment_attempt.payment_method_id = Some(val[1].to_string());
+                    true
+                }
+                Err(_) => false,
+            }
+        } else {
+            false
+        }
+    } else {
+        false
     };
 
     if !tokenization_complete {
         let (operation, payment_method_data) = operation
             .to_domain()?
-            .make_pm_data(state, &mut payment_data, validate_result.storage_scheme)
+            .make_pm_data(state, payment_data, validate_result.storage_scheme)
             .await?;
 
         payment_data.payment_method_data = payment_method_data;
 
-        if let Some(connector) = tokenization_connector {
-            let tokenization_pm_and_token_store_check =
-                tokenization_call_check(state, connector.to_owned(), &payment_data)?;
+        let connector_data = api::ConnectorData::get_connector_by_name(
+            &state.conf.connectors,
+            &connector_name,
+            api::GetToken::Connector,
+        )
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to get connector data")?;
 
-            let connector_data = api::ConnectorData::get_connector_by_name(
-                &state.conf.connectors,
-                &connector,
-                api::GetToken::Connector,
+        if tokenization_connector_pm_check {
+            let token_pd =
+                payment_data_conversion::<_, api::PaymentMethodToken>(payment_data.to_owned());
+            let token_payment_data = call_connector_service::<api::PaymentMethodToken, _, _>(
+                state,
+                merchant_account,
+                &validate_result.payment_id,
+                connector_data,
+                &operation,
+                token_pd,
+                customer,
+                call_connector_action.to_owned(),
             )
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to get connector data")?;
-
-            if tokenization_pm_and_token_store_check.0 {
-                payment_data.store_connector_token = Some(tokenization_pm_and_token_store_check.1);
-                let token_pd = payment_data_conversion::<_, api::Token>(payment_data.to_owned());
-                let token_payment_data = call_connector_service::<api::Token, _, _>(
-                    state,
-                    merchant_account,
-                    &validate_result.payment_id,
-                    connector_data,
-                    &operation,
-                    token_pd,
-                    &customer,
-                    call_connector_action.to_owned(),
-                )
-                .await?;
-                let payment_data_converted = payment_data_conversion::<_, F>(token_payment_data);
-                payment_data.token = payment_data_converted.payment_attempt.payment_token;
-            }
-        };
-    };
-    Ok(payment_data)
-}
-
-pub fn tokenization_call_check<F: Clone>(
-    state: &AppState,
-    connector_name: String,
-    payment_data: &PaymentData<F>,
-) -> RouterResult<(bool, bool)> {
-    let tokenization_connector_check = state.conf.tokenization.0.get(&connector_name);
-
-    let tokenization_pm_check = if let Some(connector_check) = tokenization_connector_check {
-        let pm_check = connector_check.payment_method.contains(
-            &payment_data
-                .payment_attempt
-                .payment_method
-                .get_required_value("payment_method")?,
-        );
-        let token_store_check = connector_check.long_lived_token;
-        (pm_check, token_store_check)
-    } else {
-        (false, false)
-    };
-
-    Ok(tokenization_pm_check)
-}
-
-pub async fn check_tokenization_complete<F: Clone>(
-    state: &AppState,
-    connector_name: String,
-    payment_data: &mut PaymentData<F>,
-) -> RouterResult<bool> {
-    let tokenization_complete = if let Some(token) = payment_data.token.to_owned() {
-        let redis_conn = connection::redis_connection(&state.conf).await;
-        let key = format!(
-            "{}_token_{}_{}",
-            connector_name,
-            payment_data
-                .payment_attempt
-                .payment_method
-                .to_owned()
-                .get_required_value("payment_method")?,
-            token
-        );
-        let val = redis_conn.get_key::<String>(&key).await;
-
-        match val {
-            Ok(token) => {
-                payment_data.payment_attempt.payment_token = Some(token);
-                true
-            }
-            Err(_) => false,
+            .await?;
+            let payment_data_converted = payment_data_conversion::<_, F>(token_payment_data);
+            payment_data.token = payment_data_converted.payment_attempt.payment_token;
         }
-    } else {
-        false
-    };
-    Ok(tokenization_complete)
+    }
+    Ok(payment_data.to_owned())
 }
 
 #[derive(Clone)]
@@ -780,7 +799,7 @@ pub fn should_call_connector<Op: Debug, F: Clone>(
     }
 }
 
-pub fn should_call_connector_for_tokenization<Op: Debug>(operation: &Op) -> bool {
+pub fn is_operation_confirm<Op: Debug>(operation: &Op) -> bool {
     matches!(format!("{operation:?}").as_str(), "PaymentConfirm")
 }
 

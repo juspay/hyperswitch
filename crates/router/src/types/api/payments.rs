@@ -81,7 +81,7 @@ pub struct Void;
 pub struct Session;
 
 #[derive(Debug, Clone)]
-pub struct Token;
+pub struct PaymentMethodToken;
 
 #[derive(Debug, Clone)]
 pub struct Verify;
@@ -161,7 +161,7 @@ pub trait PaymentsCompleteAuthorize:
 }
 
 pub trait PaymentToken:
-    api::ConnectorIntegration<Token, types::TokenizationData, types::PaymentsResponseData>
+    api::ConnectorIntegration<PaymentMethodToken, types::TokenizationData, types::PaymentsResponseData>
 {
 }
 

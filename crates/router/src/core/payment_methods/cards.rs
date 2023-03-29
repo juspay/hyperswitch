@@ -17,7 +17,6 @@ use common_utils::{
 };
 use error_stack::{report, IntoReport, ResultExt};
 use router_env::{instrument, tracing};
-use serde_json::Value;
 use storage_models::payment_method;
 
 #[cfg(feature = "basilisk")]
@@ -52,24 +51,27 @@ pub async fn create_payment_method(
     customer_id: &str,
     payment_method_id: &str,
     merchant_id: &str,
-    connector: Option<&api::ConnectorData>,
-    token: Option<String>,
+    connector_token: Option<(&api::ConnectorData, String)>,
+    locker_pm_id: Option<String>,
 ) -> errors::CustomResult<storage::PaymentMethod, errors::StorageError> {
-    let pm_metadata = token
-        .map(|token| -> errors::CustomResult<_, errors::StorageError> {
-            let metadata = payment_methods::PaymentMethodMetadata {
-                connector: connector
-                    .ok_or(errors::StorageError::ValueNotFound("connector".to_string()))?
-                    .connector_name
-                    .to_string(),
-                token,
-            };
-            let metadata_value =
-                utils::Encode::<payment_methods::PaymentMethodMetadata>::encode_to_value(&metadata)
+    let pm_metadata = connector_token
+        .map(
+            |connector_and_token| -> errors::CustomResult<_, errors::StorageError> {
+                let metadata = payment_methods::PaymentMethodMetadata {
+                    payment_method_tokenization: vec![payment_methods::PaymentMethodTokenization {
+                        connector: connector_and_token.0.connector_name.to_string(),
+                        token: connector_and_token.1,
+                    }],
+                };
+                let metadata_value =
+                    utils::Encode::<payment_methods::PaymentMethodMetadata>::encode_to_value(
+                        &metadata,
+                    )
                     .change_context(errors::StorageError::SerializationFailed)?;
-            let vec_value: Vec<Value> = vec![metadata_value];
-            Ok(Value::Array(vec_value))
-        })
+                let vec_value: Vec<serde_json::Value> = vec![metadata_value];
+                Ok(serde_json::Value::Array(vec_value))
+            },
+        )
         .transpose()?;
 
     let response = db
@@ -82,6 +84,7 @@ pub async fn create_payment_method(
             payment_method_issuer: req.payment_method_issuer.clone(),
             scheme: req.card_network.clone(),
             metadata: pm_metadata.map(masking::Secret::new),
+            locker_payment_method_id: locker_pm_id,
             ..storage::PaymentMethodNew::default()
         })
         .await?;
@@ -94,48 +97,25 @@ pub async fn add_payment_method(
     state: &routes::AppState,
     req: api::PaymentMethodCreate,
     merchant_account: &storage::MerchantAccount,
-    connector: Option<&api::ConnectorData>,
-    token: Option<String>,
 ) -> errors::RouterResponse<api::PaymentMethodResponse> {
     req.validate()?;
     let merchant_id = &merchant_account.merchant_id;
     let customer_id = req.customer_id.clone().get_required_value("customer_id")?;
     match req.card.clone() {
-        Some(card) => add_card_to_locker(
-            state,
-            req,
-            card,
-            customer_id,
-            merchant_account,
-            connector,
-            token,
-        )
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Add Card Failed"),
-        None => {
-            let payment_method_id = generate_id(consts::ID_LENGTH, "pm");
-            let payment_method = create_payment_method(
-                &*state.store,
-                &req,
-                &customer_id,
-                &payment_method_id,
-                merchant_id,
-                connector,
-                token,
-            )
+        Some(card) => add_card_to_locker(state, req, card, customer_id, merchant_account)
             .await
-            .map_err(|error| {
-                error.to_duplicate_response(errors::ApiErrorResponse::DuplicatePaymentMethod)
-            })?;
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Add Card Failed"),
+        None => {
+            let pm_id = generate_id(consts::ID_LENGTH, "pm");
             Ok(api::PaymentMethodResponse {
                 merchant_id: merchant_id.to_string(),
                 customer_id: Some(customer_id),
-                payment_method_id: payment_method_id.to_string(),
+                payment_method_id: pm_id,
                 payment_method: req.payment_method,
                 payment_method_type: req.payment_method_type,
                 card: None,
-                metadata: payment_method.metadata,
+                metadata: None,
                 created: Some(common_utils::date_time::now()),
                 recurring_enabled: false,           //[#219]
                 installment_payment_enabled: false, //[#219]
@@ -185,7 +165,7 @@ pub async fn update_customer_payment_method(
             .as_ref()
             .map(|card_network| card_network.to_string()),
     };
-    add_payment_method(state, new_pm, &merchant_account, None, None).await
+    add_payment_method(state, new_pm, &merchant_account).await
 }
 
 // Wrapper function to switch lockers
@@ -196,36 +176,16 @@ pub async fn add_card_to_locker(
     card: api::CardDetail,
     customer_id: String,
     merchant_account: &storage::MerchantAccount,
-    connector: Option<&api::ConnectorData>,
-    token: Option<String>,
 ) -> errors::CustomResult<api::PaymentMethodResponse, errors::VaultError> {
     metrics::STORED_TO_LOCKER.add(&metrics::CONTEXT, 1, &[]);
     metrics::request::record_card_operation_time(
         async {
             match state.conf.locker.locker_setup {
                 settings::LockerSetup::BasiliskLocker => {
-                    add_card_hs(
-                        state,
-                        req,
-                        card,
-                        customer_id,
-                        merchant_account,
-                        connector,
-                        token,
-                    )
-                    .await
+                    add_card_hs(state, req, card, customer_id, merchant_account).await
                 }
                 settings::LockerSetup::LegacyLocker => {
-                    add_card(
-                        state,
-                        req,
-                        card,
-                        customer_id,
-                        merchant_account,
-                        connector,
-                        token,
-                    )
-                    .await
+                    add_card(state, req, card, customer_id, merchant_account).await
                 }
             }
             .map_err(|error| {
@@ -311,8 +271,6 @@ pub async fn add_card_hs(
     card: api::CardDetail,
     customer_id: String,
     merchant_account: &storage::MerchantAccount,
-    connector: Option<&api::ConnectorData>,
-    token: Option<String>,
 ) -> errors::CustomResult<api::PaymentMethodResponse, errors::VaultError> {
     let locker = &state.conf.locker;
     let jwekey = &state.conf.jwekey;
@@ -372,32 +330,6 @@ pub async fn add_card_hs(
         .get_required_value("StoreCardRespPayload")
         .change_context(errors::VaultError::SaveCardFailed)?;
 
-    match db
-        .find_payment_method(&store_card_payload.card_reference)
-        .await
-    {
-        Ok(pm) => {
-            update_payment_method(db, connector, token, pm).await?;
-        }
-        Err(err) => {
-            if err.current_context().is_db_not_found() {
-                create_payment_method(
-                    db,
-                    &req,
-                    &customer_id,
-                    &store_card_payload.card_reference,
-                    merchant_id,
-                    connector,
-                    token.to_owned(),
-                )
-                .await
-                .change_context(errors::VaultError::PaymentMethodCreationFailed)?;
-            } else {
-                Err(errors::VaultError::PaymentMethodCreationFailed)?;
-            }
-        }
-    };
-
     let payment_method_resp = payment_methods::mk_add_card_response_hs(
         card,
         store_card_payload.card_reference,
@@ -414,8 +346,6 @@ pub async fn add_card(
     card: api::CardDetail,
     customer_id: String,
     merchant_account: &storage::MerchantAccount,
-    connector: Option<&api::ConnectorData>,
-    token: Option<String>,
 ) -> errors::CustomResult<api::PaymentMethodResponse, errors::VaultError> {
     let locker = &state.conf.locker;
     let db = &*state.store;
@@ -455,74 +385,37 @@ pub async fn add_card(
         mock_add_card(db, &card_id, &card, None, None, Some(&customer_id)).await?
     };
 
-    match db.find_payment_method(&response.card_id).await {
-        Ok(pm) => {
-            update_payment_method(db, connector, token.to_owned(), pm).await?;
-        }
-        Err(err) => {
-            if err.current_context().is_db_not_found() {
-                create_payment_method(
-                    db,
-                    &req,
-                    &customer_id,
-                    &response.card_id,
-                    merchant_id,
-                    connector,
-                    token.to_owned(),
-                )
-                .await
-                .change_context(errors::VaultError::PaymentMethodCreationFailed)?;
-            } else {
-                Err(errors::VaultError::PaymentMethodCreationFailed)?;
-            }
-        }
-    }
     let payment_method_resp =
-        payment_methods::mk_add_card_response(card, response, req, merchant_id, connector, token);
+        payment_methods::mk_add_card_response(card, response, req, merchant_id);
     Ok(payment_method_resp)
 }
 
 pub async fn update_payment_method(
     db: &dyn db::StorageInterface,
-    connector: Option<&api::ConnectorData>,
-    token: Option<String>,
+    connector_token: Option<(&api::ConnectorData, String)>,
     pm: payment_method::PaymentMethod,
 ) -> errors::CustomResult<(), errors::VaultError> {
-    if let Some(token) = token.to_owned() {
+    if let Some(connector_and_token) = connector_token {
         let metadata = payment_methods::PaymentMethodMetadata {
-            connector: connector
-                .ok_or(errors::VaultError::MissingRequiredField {
-                    field_name: "connector",
-                })?
-                .connector_name
-                .to_string(),
-            token,
+            payment_method_tokenization: vec![payment_methods::PaymentMethodTokenization {
+                connector: connector_and_token.0.connector_name.to_string(),
+                token: connector_and_token.1,
+            }],
         };
         let metadata_value =
             utils::Encode::<payment_methods::PaymentMethodMetadata>::encode_to_value(&metadata)
                 .change_context(errors::VaultError::RequestEncodingFailed)?;
-
-        let mut vec_value: Vec<Value> = Vec::new();
+        let mut vec_value: Vec<serde_json::Value> = Vec::new();
         if let Some(pm_metadata) = pm.metadata.to_owned() {
             let mut pm_metadata_value = pm_metadata.expose();
-            let vec_metadata_value = pm_metadata_value.as_array_mut().map(|array| {
-                array.push(metadata_value.to_owned());
-                array
-            });
-
-            vec_value = match vec_metadata_value {
-                Some(val) => val.clone(),
-                None => {
-                    vec_value.push(metadata_value);
-                    vec_value
-                }
-            };
-        } else {
-            vec_value.push(metadata_value);
-        }
+            if let Some(array) = pm_metadata_value.as_array_mut() {
+                vec_value.append(array)
+            }
+        };
+        vec_value.push(metadata_value);
 
         let pm_update = payment_method::PaymentMethodUpdate::MetadataUpdate {
-            metadata: Some(Value::Array(vec_value)),
+            metadata: Some(serde_json::Value::Array(vec_value)),
         };
 
         db.update_payment_method(pm, pm_update)
@@ -1187,7 +1080,7 @@ pub async fn list_payment_methods(
 
 #[allow(clippy::too_many_arguments)]
 async fn filter_payment_methods(
-    payment_methods: Vec<Value>,
+    payment_methods: Vec<serde_json::Value>,
     req: &mut api::PaymentMethodListRequest,
     resp: &mut Vec<ResponsePaymentMethodIntermediate>,
     payment_intent: Option<&storage::PaymentIntent>,
@@ -1596,20 +1489,21 @@ pub async fn list_customer_payment_method(
         ));
     }
     let mut customer_pms = Vec::new();
+    let parent_payment_method_token = generate_id(consts::ID_LENGTH, "token");
     for pm in resp.into_iter() {
-        let payment_token = generate_id(consts::ID_LENGTH, "token");
+        let hyperswitch_token = generate_id(consts::ID_LENGTH, "token");
         let card = if pm.payment_method == enums::PaymentMethod::Card {
             let locker_id = merchant_account
                 .locker_id
                 .to_owned()
                 .get_required_value("locker_id")?;
-            Some(get_lookup_key_from_locker(state, &payment_token, &pm, &locker_id).await?)
+            Some(get_lookup_key_from_locker(state, &hyperswitch_token, &pm, &locker_id).await?)
         } else {
             None
         };
         //Need validation for enabled payment method ,querying MCA
         let pma = api::CustomerPaymentMethod {
-            payment_token: payment_token.to_string(),
+            payment_token: parent_payment_method_token.to_owned(),
             customer_id: pm.customer_id,
             payment_method: pm.payment_method.foreign_into(),
             payment_method_type: pm.payment_method_type.map(ForeignInto::foreign_into),
@@ -1626,23 +1520,39 @@ pub async fn list_customer_payment_method(
         };
         customer_pms.push(pma.to_owned());
 
-        if let Some(metadata) = pma.metadata {
-            let redis_conn = connection::redis_connection(&state.conf).await;
+        let redis_conn = connection::redis_connection(&state.conf).await;
+        let key_for_hyperswitch_token = format!(
+            "pm_token_{}_{}_hyperswitch",
+            parent_payment_method_token, pma.payment_method
+        );
+        let pm_id = pm.payment_method_id;
+        redis_conn
+            .set_key_with_expiry(&key_for_hyperswitch_token, hyperswitch_token, 900)
+            .await
+            .map_err(|error| {
+                logger::error!(access_token_kv_error=?error);
+                errors::StorageError::KVError
+            })
+            .into_report()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to add data in redis")?;
 
-            let pm_metadata_vec: Vec<payment_methods::PaymentMethodMetadata> = metadata
+        if let Some(metadata) = pma.metadata {
+            let pm_metadata_vec: payment_methods::PaymentMethodMetadata = metadata
                 .parse_value("PaymentMethodMetadata")
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable(
                     "Failed to deserialize metadata to PaymmentmethodMetadata struct",
                 )?;
 
-            for pm_metadata in pm_metadata_vec {
+            for pm_metadata in pm_metadata_vec.payment_method_tokenization {
                 let key = format!(
-                    "{}_token_{}_hyperswitch_{}",
-                    pm_metadata.connector, pma.payment_method, payment_token
+                    "pm_token_{}_{}_{}",
+                    parent_payment_method_token, pma.payment_method, pm_metadata.connector
                 );
+                let value = format!("{}_pmid_{}", pm_metadata.token, pm_id);
                 redis_conn
-                    .set_key_with_expiry(&key, pm_metadata.token, 900)
+                    .set_key_with_expiry(&key, value, 900)
                     .await
                     .map_err(|error| {
                         logger::error!(access_token_kv_error=?error);
@@ -1672,7 +1582,10 @@ pub async fn get_lookup_key_from_locker(
         state,
         &pm.customer_id,
         &pm.merchant_id,
-        pm.payment_method_id.as_str(),
+        pm.locker_payment_method_id
+            .clone()
+            .get_required_value("locker_pm_id")?
+            .as_str(),
         Some(locker_id.to_string()),
     )
     .await

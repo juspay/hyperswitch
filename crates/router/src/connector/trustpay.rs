@@ -114,8 +114,12 @@ impl api::Payment for Trustpay {}
 
 impl api::PaymentToken for Trustpay {}
 
-impl ConnectorIntegration<api::Token, types::TokenizationData, types::PaymentsResponseData>
-    for Trustpay
+impl
+    ConnectorIntegration<
+        api::PaymentMethodToken,
+        types::TokenizationData,
+        types::PaymentsResponseData,
+    > for Trustpay
 {
     // Not Implemented (R)
 }

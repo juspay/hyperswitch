@@ -107,7 +107,6 @@ where
         access_token: None,
         session_token: None,
         reference_id: None,
-        store_connector_token: payment_data.store_connector_token,
         payment_token,
     };
 

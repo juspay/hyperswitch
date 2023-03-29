@@ -53,8 +53,11 @@ impl api::ConnectorAccessToken for Adyen {}
 impl api::PaymentToken for Adyen {}
 
 impl
-    services::ConnectorIntegration<api::Token, types::TokenizationData, types::PaymentsResponseData>
-    for Adyen
+    services::ConnectorIntegration<
+        api::PaymentMethodToken,
+        types::TokenizationData,
+        types::PaymentsResponseData,
+    > for Adyen
 {
     // Not Implemented (R)
 }

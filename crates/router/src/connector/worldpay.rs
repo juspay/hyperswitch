@@ -95,8 +95,12 @@ impl ConnectorIntegration<api::Verify, types::VerifyRequestData, types::Payments
 
 impl api::PaymentToken for Worldpay {}
 
-impl ConnectorIntegration<api::Token, types::TokenizationData, types::PaymentsResponseData>
-    for Worldpay
+impl
+    ConnectorIntegration<
+        api::PaymentMethodToken,
+        types::TokenizationData,
+        types::PaymentsResponseData,
+    > for Worldpay
 {
     // Not Implemented (R)
 }

@@ -11,8 +11,12 @@ use crate::{
 };
 
 #[async_trait]
-impl ConstructFlowSpecificData<api::Token, types::TokenizationData, types::PaymentsResponseData>
-    for PaymentData<api::Token>
+impl
+    ConstructFlowSpecificData<
+        api::PaymentMethodToken,
+        types::TokenizationData,
+        types::PaymentsResponseData,
+    > for PaymentData<api::PaymentMethodToken>
 {
     async fn construct_router_data<'a>(
         &self,
@@ -20,18 +24,16 @@ impl ConstructFlowSpecificData<api::Token, types::TokenizationData, types::Payme
         connector_id: &str,
         merchant_account: &storage::MerchantAccount,
     ) -> RouterResult<types::TokenizationRouterData> {
-        transformers::construct_payment_router_data::<api::Token, types::TokenizationData>(
-            state,
-            self.clone(),
-            connector_id,
-            merchant_account,
-        )
+        transformers::construct_payment_router_data::<
+            api::PaymentMethodToken,
+            types::TokenizationData,
+        >(state, self.clone(), connector_id, merchant_account)
         .await
     }
 }
 
 #[async_trait]
-impl Feature<api::Token, types::TokenizationData> for types::TokenizationRouterData {
+impl Feature<api::PaymentMethodToken, types::TokenizationData> for types::TokenizationRouterData {
     async fn decide_flows<'a>(
         self,
         state: &routes::AppState,
@@ -73,7 +75,7 @@ impl types::TokenizationRouterData {
     ) -> RouterResult<Self> {
         let connector_integration: services::BoxedConnectorIntegration<
             '_,
-            api::Token,
+            api::PaymentMethodToken,
             types::TokenizationData,
             types::PaymentsResponseData,
         > = connector.connector.get_connector_integration();
