@@ -10,6 +10,7 @@ use super::{ephemeral_key::*, payment_methods::*, webhooks::*};
 use crate::{
     configs::settings::Settings,
     db::{MockDb, StorageImpl, StorageInterface},
+    routes::cards_info::card_iin_info,
     services::Store,
 };
 
@@ -55,7 +56,6 @@ impl AppState {
         }
     }
 
-    #[allow(unused_variables)]
     pub async fn new(conf: Settings) -> Self {
         Self::with_storage(conf, StorageImpl::Postgresql).await
     }
@@ -91,6 +91,10 @@ impl Payments {
                         .route(web::post().to(payments_connector_session)),
                 )
                 .service(
+                    web::resource("/sync")
+                        .route(web::post().to(payments_retrieve_with_gateway_creds)),
+                )
+                .service(
                     web::resource("/{payment_id}")
                         .route(web::get().to(payments_retrieve))
                         .route(web::post().to(payments_update)),
@@ -109,8 +113,18 @@ impl Payments {
                         .route(web::get().to(payments_start)),
                 )
                 .service(
+                    web::resource(
+                        "/{payment_id}/{merchant_id}/response/{connector}/{creds_identifier}",
+                    )
+                    .route(web::get().to(payments_redirect_response_with_creds_identifier)),
+                )
+                .service(
                     web::resource("/{payment_id}/{merchant_id}/response/{connector}")
                         .route(web::get().to(payments_redirect_response)),
+                )
+                .service(
+                    web::resource("/{payment_id}/{merchant_id}/complete/{connector}")
+                        .route(web::post().to(payments_complete_authorize)),
                 );
         }
         route
@@ -166,6 +180,7 @@ impl Refunds {
         {
             route = route
                 .service(web::resource("").route(web::post().to(refunds_create)))
+                .service(web::resource("/sync").route(web::post().to(refunds_retrieve_with_body)))
                 .service(
                     web::resource("/{id}")
                         .route(web::get().to(refunds_retrieve))
@@ -361,5 +376,15 @@ impl ApiKeys {
                     .route(web::post().to(api_key_update))
                     .route(web::delete().to(api_key_revoke)),
             )
+    }
+}
+
+pub struct Cards;
+
+impl Cards {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/cards")
+            .app_data(web::Data::new(state))
+            .service(web::resource("/{bin}").route(web::get().to(card_iin_info)))
     }
 }

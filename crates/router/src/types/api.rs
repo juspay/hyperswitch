@@ -124,8 +124,13 @@ pub struct ConnectorData {
     pub get_token: GetToken,
 }
 
+pub enum ConnectorChoice {
+    SessionMultiple(Vec<ConnectorData>),
+    StraightThrough(serde_json::Value),
+    Decide,
+}
+
 pub enum ConnectorCallType {
-    Routing,
     Multiple(Vec<ConnectorData>),
     Single(ConnectorData),
 }
@@ -174,6 +179,7 @@ impl ConnectorData {
             "fiserv" => Ok(Box::new(&connector::Fiserv)),
             "globalpay" => Ok(Box::new(&connector::Globalpay)),
             "klarna" => Ok(Box::new(&connector::Klarna)),
+            "mollie" => Ok(Box::new(&connector::Mollie)),
             "nuvei" => Ok(Box::new(&connector::Nuvei)),
             "payu" => Ok(Box::new(&connector::Payu)),
             "rapyd" => Ok(Box::new(&connector::Rapyd)),
@@ -182,6 +188,7 @@ impl ConnectorData {
             "worldline" => Ok(Box::new(&connector::Worldline)),
             "worldpay" => Ok(Box::new(&connector::Worldpay)),
             "multisafepay" => Ok(Box::new(&connector::Multisafepay)),
+            "trustpay" => Ok(Box::new(&connector::Trustpay)),
             _ => Err(report!(errors::ConnectorError::InvalidConnectorName)
                 .attach_printable(format!("invalid connector name: {connector_name}")))
             .change_context(errors::ApiErrorResponse::InternalServerError),

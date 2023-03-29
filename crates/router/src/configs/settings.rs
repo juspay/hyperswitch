@@ -6,6 +6,8 @@ use std::{
 
 use common_utils::ext_traits::ConfigExt;
 use config::{Environment, File};
+#[cfg(feature = "kms")]
+use external_services::kms;
 use redis_interface::RedisSettings;
 pub use router_env::config::{Log, LogConsole, LogFile, LogTelemetry};
 use serde::{Deserialize, Deserializer};
@@ -16,7 +18,7 @@ use crate::{
 };
 
 #[derive(clap::Parser, Default)]
-#[command(version = router_env::version!())]
+#[cfg_attr(feature = "vergen", command(version = router_env::version!()))]
 pub struct CmdLineConf {
     /// Config file.
     /// Application will look for "config/config.toml" if this option isn't specified.
@@ -58,6 +60,8 @@ pub struct Settings {
     pub pm_filters: ConnectorFilters,
     pub bank_config: BankRedirectConfig,
     pub api_keys: ApiKeys,
+    #[cfg(feature = "kms")]
+    pub kms: kms::KmsConfig,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -160,6 +164,15 @@ pub struct Locker {
     pub host: String,
     pub mock_locker: bool,
     pub basilisk_host: String,
+    pub locker_setup: LockerSetup,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum LockerSetup {
+    #[default]
+    LegacyLocker,
+    BasiliskLocker,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -178,16 +191,14 @@ pub struct EphemeralConfig {
 #[derive(Debug, Deserialize, Clone, Default)]
 #[serde(default)]
 pub struct Jwekey {
-    #[cfg(feature = "kms")]
-    pub aws_key_id: String,
-    #[cfg(feature = "kms")]
-    pub aws_region: String,
     pub locker_key_identifier1: String,
     pub locker_key_identifier2: String,
     pub locker_encryption_key1: String,
     pub locker_encryption_key2: String,
     pub locker_decryption_key1: String,
     pub locker_decryption_key2: String,
+    pub vault_encryption_key: String,
+    pub vault_private_key: String,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -243,6 +254,7 @@ pub struct Connectors {
     pub fiserv: ConnectorParams,
     pub globalpay: ConnectorParams,
     pub klarna: ConnectorParams,
+    pub mollie: ConnectorParams,
     pub multisafepay: ConnectorParams,
     pub nuvei: ConnectorParams,
     pub payu: ConnectorParams,
@@ -251,6 +263,7 @@ pub struct Connectors {
     pub stripe: ConnectorParams,
     pub worldline: ConnectorParams,
     pub worldpay: ConnectorParams,
+    pub trustpay: ConnectorParamsWithMoreUrls,
 
     // Keep this field separate from the remaining fields
     pub supported: SupportedConnectors,
@@ -260,6 +273,13 @@ pub struct Connectors {
 #[serde(default)]
 pub struct ConnectorParams {
     pub base_url: String,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+#[serde(default)]
+pub struct ConnectorParamsWithMoreUrls {
+    pub base_url: String,
+    pub base_url_bank_redirects: String,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -308,12 +328,6 @@ pub struct WebhooksSettings {
 #[derive(Debug, Deserialize, Clone, Default)]
 #[serde(default)]
 pub struct ApiKeys {
-    #[cfg(feature = "kms")]
-    pub aws_key_id: String,
-
-    #[cfg(feature = "kms")]
-    pub aws_region: String,
-
     /// Base64-encoded (KMS encrypted) ciphertext of the key used for calculating hashes of API
     /// keys
     #[cfg(feature = "kms")]
@@ -398,8 +412,11 @@ impl Settings {
             .transpose()?;
         #[cfg(feature = "kv_store")]
         self.drainer.validate()?;
-        self.jwekey.validate()?;
         self.api_keys.validate()?;
+        #[cfg(feature = "kms")]
+        self.kms
+            .validate()
+            .map_err(|error| ApplicationError::InvalidConfigurationValueError(error.into()))?;
 
         Ok(())
     }
