@@ -841,18 +841,28 @@ impl<F, T>
     fn try_from(
         item: types::ResponseRouterData<F, NuveiPaymentsResponse, T, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
-        let redirection_data = item
-            .response
-            .payment_option
-            .as_ref()
-            .and_then(|o| o.card.clone())
-            .and_then(|card| card.three_d)
-            .and_then(|three_ds| three_ds.acs_url.zip(three_ds.c_req))
-            .map(|(base_url, creq)| services::RedirectForm {
-                endpoint: base_url,
-                method: services::Method::Post,
-                form_fields: std::collections::HashMap::from([("creq".to_string(), creq)]),
-            });
+        let redirection_data = match item.data.payment_method {
+            storage_models::enums::PaymentMethod::Wallet => item
+                .response
+                .payment_option
+                .as_ref()
+                .and_then(|po| po.redirect_url.clone())
+                .map(|base_url| services::RedirectForm::from((base_url, services::Method::Get))),
+            _ => item
+                .response
+                .payment_option
+                .as_ref()
+                .and_then(|o| o.card.clone())
+                .and_then(|card| card.three_d)
+                .and_then(|three_ds| three_ds.acs_url.zip(three_ds.c_req))
+                .map(|(base_url, creq)| services::RedirectForm::Form {
+                    endpoint: base_url,
+                    method: services::Method::Post,
+                    form_fields: std::collections::HashMap::from([("creq".to_string(), creq)]),
+                }),
+        };
+
+        let response = item.response;
         Ok(Self {
             status: get_payment_status(&item.response),
             response: match item.response.status {

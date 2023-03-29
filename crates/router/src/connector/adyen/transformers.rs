@@ -932,7 +932,7 @@ pub fn get_redirection_response(
         )
     });
 
-    let redirection_data = services::RedirectForm {
+    let redirection_data = services::RedirectForm::Form {
         endpoint: response.action.url.to_string(),
         method: response.action.method,
         form_fields,
