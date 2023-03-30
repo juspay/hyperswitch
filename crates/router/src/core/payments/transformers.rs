@@ -28,10 +28,11 @@ pub async fn construct_payment_router_data<'a, F, T>(
     merchant_account: &storage::MerchantAccount,
 ) -> RouterResult<types::RouterData<F, T, types::PaymentsResponseData>>
 where
-    T: TryFrom<PaymentData<F>>,
+    T: TryFrom<PaymentAdditionalData<F>>,
     types::RouterData<F, T, types::PaymentsResponseData>: Feature<F, T>,
     F: Clone,
-    error_stack::Report<errors::ApiErrorResponse>: From<<T as TryFrom<PaymentData<F>>>::Error>,
+    error_stack::Report<errors::ApiErrorResponse>:
+        From<<T as TryFrom<PaymentAdditionalData<F>>>::Error>,
 {
     let (merchant_connector_account, payment_method, router_data);
     let db = &*state.store;
@@ -67,17 +68,11 @@ where
             connector_metadata: None,
         });
 
-    let router_return_url = Some(helpers::create_redirect_url(
-        &state.conf.server,
-        &payment_data.payment_attempt,
-        connector_id,
-        payment_data.creds_identifier.as_deref(),
-    ));
-    let complete_authorize_url = Some(helpers::create_complete_authorize_url(
-        &state.conf.server,
-        &payment_data.payment_attempt,
-        &connector_id.to_owned(),
-    ));
+    let additional_data = PaymentAdditionalData {
+        router_base_url: state.conf.server.base_url.clone(),
+        connector_name: connector_id.to_string(),
+        payment_data: payment_data.clone(),
+    };
 
     router_data = types::RouterData {
         flow: PhantomData,
@@ -90,8 +85,6 @@ where
         connector_auth_type: auth_type,
         description: payment_data.payment_intent.description.clone(),
         return_url: payment_data.payment_intent.return_url.clone(),
-        router_return_url,
-        complete_authorize_url,
         payment_method_id: payment_data.payment_attempt.payment_method_id.clone(),
         address: payment_data.address.clone(),
         auth_type: payment_data
@@ -99,7 +92,7 @@ where
             .authentication_type
             .unwrap_or_default(),
         connector_meta_data: merchant_connector_account.get_metadata(),
-        request: T::try_from(payment_data.clone())?,
+        request: T::try_from(additional_data)?,
         response: response.map_or_else(|| Err(types::ErrorResponse::default()), Ok),
         amount_captured: payment_data.payment_intent.amount_captured,
         access_token: None,
@@ -429,13 +422,26 @@ impl ForeignTryFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::
     }
 }
 
-impl<F: Clone> TryFrom<PaymentData<F>> for types::PaymentsAuthorizeData {
+#[derive(Clone)]
+pub struct PaymentAdditionalData<F>
+where
+    F: Clone,
+{
+    router_base_url: String,
+    connector_name: String,
+    payment_data: PaymentData<F>,
+}
+impl<F: Clone> TryFrom<PaymentAdditionalData<F>> for types::PaymentsAuthorizeData {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
 
-    fn try_from(payment_data: PaymentData<F>) -> Result<Self, Self::Error> {
-        let browser_info: Option<types::BrowserInformation> = payment_data
-            .payment_attempt
+    fn try_from(additional_data: PaymentAdditionalData<F>) -> Result<Self, Self::Error> {
+        let payment_data = additional_data.payment_data;
+        let router_base_url = &additional_data.router_base_url;
+        let connector_name = &additional_data.connector_name;
+        let attempt = &payment_data.payment_attempt;
+        let browser_info: Option<types::BrowserInformation> = attempt
             .browser_info
+            .clone()
             .map(|b| b.parse_value("BrowserInformation"))
             .transpose()
             .change_context(errors::ApiErrorResponse::InvalidDataValue {
@@ -457,6 +463,22 @@ impl<F: Clone> TryFrom<PaymentData<F>> for types::PaymentsAuthorizeData {
             .unwrap_or_default();
 
         let order_details = parsed_metadata.and_then(|data| data.order_details);
+        let complete_authorize_url = Some(helpers::create_complete_authorize_url(
+            router_base_url,
+            attempt,
+            connector_name,
+        ));
+        let webhook_url = Some(helpers::create_webhook_url(
+            router_base_url,
+            attempt,
+            connector_name,
+        ));
+        let router_return_url = Some(helpers::create_redirect_url(
+            router_base_url,
+            attempt,
+            connector_name,
+            payment_data.creds_identifier.as_deref(),
+        ));
 
         Ok(Self {
             payment_method_data: payment_data
@@ -480,14 +502,18 @@ impl<F: Clone> TryFrom<PaymentData<F>> for types::PaymentsAuthorizeData {
             enrolled_for_3ds: true,
             related_transaction_id: None,
             payment_method_type: payment_data.payment_attempt.payment_method_type,
+            router_return_url,
+            webhook_url,
+            complete_authorize_url,
         })
     }
 }
 
-impl<F: Clone> TryFrom<PaymentData<F>> for types::PaymentsSyncData {
+impl<F: Clone> TryFrom<PaymentAdditionalData<F>> for types::PaymentsSyncData {
     type Error = errors::ApiErrorResponse;
 
-    fn try_from(payment_data: PaymentData<F>) -> Result<Self, Self::Error> {
+    fn try_from(additional_data: PaymentAdditionalData<F>) -> Result<Self, Self::Error> {
+        let payment_data = additional_data.payment_data;
         Ok(Self {
             connector_transaction_id: match payment_data.payment_attempt.connector_transaction_id {
                 Some(connector_txn_id) => {
@@ -502,10 +528,11 @@ impl<F: Clone> TryFrom<PaymentData<F>> for types::PaymentsSyncData {
     }
 }
 
-impl<F: Clone> TryFrom<PaymentData<F>> for types::PaymentsCaptureData {
+impl<F: Clone> TryFrom<PaymentAdditionalData<F>> for types::PaymentsCaptureData {
     type Error = errors::ApiErrorResponse;
 
-    fn try_from(payment_data: PaymentData<F>) -> Result<Self, Self::Error> {
+    fn try_from(additional_data: PaymentAdditionalData<F>) -> Result<Self, Self::Error> {
+        let payment_data = additional_data.payment_data;
         Ok(Self {
             amount_to_capture: payment_data.payment_attempt.amount_to_capture,
             currency: payment_data.currency,
@@ -519,10 +546,11 @@ impl<F: Clone> TryFrom<PaymentData<F>> for types::PaymentsCaptureData {
     }
 }
 
-impl<F: Clone> TryFrom<PaymentData<F>> for types::PaymentsCancelData {
+impl<F: Clone> TryFrom<PaymentAdditionalData<F>> for types::PaymentsCancelData {
     type Error = errors::ApiErrorResponse;
 
-    fn try_from(payment_data: PaymentData<F>) -> Result<Self, Self::Error> {
+    fn try_from(additional_data: PaymentAdditionalData<F>) -> Result<Self, Self::Error> {
+        let payment_data = additional_data.payment_data;
         Ok(Self {
             amount: Some(payment_data.amount.into()),
             currency: Some(payment_data.currency),
@@ -538,10 +566,11 @@ impl<F: Clone> TryFrom<PaymentData<F>> for types::PaymentsCancelData {
     }
 }
 
-impl<F: Clone> TryFrom<PaymentData<F>> for types::PaymentsSessionData {
+impl<F: Clone> TryFrom<PaymentAdditionalData<F>> for types::PaymentsSessionData {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
 
-    fn try_from(payment_data: PaymentData<F>) -> Result<Self, Self::Error> {
+    fn try_from(additional_data: PaymentAdditionalData<F>) -> Result<Self, Self::Error> {
+        let payment_data = additional_data.payment_data;
         let parsed_metadata: Option<api_models::payments::Metadata> = payment_data
             .payment_intent
             .metadata
@@ -569,10 +598,11 @@ impl<F: Clone> TryFrom<PaymentData<F>> for types::PaymentsSessionData {
     }
 }
 
-impl<F: Clone> TryFrom<PaymentData<F>> for types::VerifyRequestData {
+impl<F: Clone> TryFrom<PaymentAdditionalData<F>> for types::VerifyRequestData {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
 
-    fn try_from(payment_data: PaymentData<F>) -> Result<Self, Self::Error> {
+    fn try_from(additional_data: PaymentAdditionalData<F>) -> Result<Self, Self::Error> {
+        let payment_data = additional_data.payment_data;
         Ok(Self {
             currency: payment_data.currency,
             confirm: true,
@@ -588,10 +618,11 @@ impl<F: Clone> TryFrom<PaymentData<F>> for types::VerifyRequestData {
     }
 }
 
-impl<F: Clone> TryFrom<PaymentData<F>> for types::CompleteAuthorizeData {
+impl<F: Clone> TryFrom<PaymentAdditionalData<F>> for types::CompleteAuthorizeData {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
 
-    fn try_from(payment_data: PaymentData<F>) -> Result<Self, Self::Error> {
+    fn try_from(additional_data: PaymentAdditionalData<F>) -> Result<Self, Self::Error> {
+        let payment_data = additional_data.payment_data;
         let browser_info: Option<types::BrowserInformation> = payment_data
             .payment_attempt
             .browser_info

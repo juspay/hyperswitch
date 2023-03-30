@@ -8,7 +8,9 @@ use reqwest::Url;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils::{self, AddressDetailsData, CardData, RouterData},
+    connector::utils::{
+        self, AddressDetailsData, CardData, PaymentsAuthorizeRequestData, RouterData,
+    },
     consts,
     core::errors,
     pii::{self},
@@ -308,14 +310,14 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for TrustpayPaymentsRequest {
                 params,
                 amount,
                 ccard,
-                item.get_return_url()?,
+                item.request.get_return_url()?,
             )),
             api::PaymentMethodData::BankRedirect(ref bank_redirection_data) => {
                 Ok(get_bank_redirection_request_data(
                     item,
                     bank_redirection_data,
                     amount,
-                    item.get_return_url()?,
+                    item.request.get_return_url()?,
                     auth,
                 ))
             }

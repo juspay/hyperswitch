@@ -230,7 +230,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for MultisafepayPaymentsReques
         let description = item.get_description()?;
         let payment_options = PaymentOptions {
             notification_url: None,
-            redirect_url: item.router_return_url.clone(),
+            redirect_url: item.request.router_return_url.clone(),
             cancel_url: None,
             close_window: None,
             notification_method: None,

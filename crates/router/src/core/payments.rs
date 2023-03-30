@@ -400,15 +400,13 @@ where
         .add_access_token(state, &connector, merchant_account)
         .await?;
 
-    access_token::update_router_data_with_access_token_result(
+    let should_continue_payment = access_token::update_router_data_with_access_token_result(
         &add_access_token_result,
         &mut router_data,
         &call_connector_action,
     );
 
-    let router_data_res = if !(add_access_token_result.connector_supports_access_token
-        && router_data.access_token.is_none())
-    {
+    let router_data_res = if should_continue_payment {
         router_data
             .decide_flows(
                 state,

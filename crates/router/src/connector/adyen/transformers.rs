@@ -4,7 +4,7 @@ use reqwest::Url;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils::RouterData,
+    connector::utils::PaymentsAuthorizeRequestData,
     consts,
     core::errors,
     pii::{self, Email, Secret},
@@ -657,7 +657,7 @@ fn get_card_specific_payment_data<'a>(
     let recurring_processing_model = get_recurring_processing_model(item);
     let browser_info = get_browser_info(item);
     let additional_data = get_additional_data(item);
-    let return_url = item.get_return_url()?;
+    let return_url = item.request.get_return_url()?;
     let payment_method = get_payment_method_data(item)?;
     Ok(AdyenPaymentRequest {
         amount,
@@ -710,7 +710,7 @@ fn get_bank_redirect_specific_payment_data<'a>(
     let recurring_processing_model = get_recurring_processing_model(item);
     let browser_info = get_browser_info(item);
     let additional_data = get_additional_data(item);
-    let return_url = item.get_return_url()?;
+    let return_url = item.request.get_return_url()?;
     let payment_method = get_payment_method_data(item)?;
     let (shopper_locale, country) = get_sofort_extra_details(item);
 
@@ -745,7 +745,7 @@ fn get_wallet_specific_payment_data<'a>(
     let payment_method = get_payment_method_data(item)?;
     let shopper_interaction = AdyenShopperInteraction::from(item);
     let recurring_processing_model = get_recurring_processing_model(item);
-    let return_url = item.get_return_url()?;
+    let return_url = item.request.get_return_url()?;
     Ok(AdyenPaymentRequest {
         amount,
         merchant_account: auth_type.merchant_account,
@@ -777,7 +777,7 @@ fn get_paylater_specific_payment_data<'a>(
     let payment_method = get_payment_method_data(item)?;
     let shopper_interaction = AdyenShopperInteraction::from(item);
     let recurring_processing_model = get_recurring_processing_model(item);
-    let return_url = item.get_return_url()?;
+    let return_url = item.request.get_return_url()?;
     let shopper_name = get_shopper_name(item);
     let shopper_email = item.request.email.clone();
     let billing_address = get_address_info(item.address.billing.as_ref());

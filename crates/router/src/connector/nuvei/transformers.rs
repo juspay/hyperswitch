@@ -478,7 +478,7 @@ fn get_card_info<F>(
                 time_zone: browser_info.time_zone,
                 user_agent: browser_info.user_agent,
             }),
-            notification_url: item.complete_authorize_url.clone(),
+            notification_url: item.request.complete_authorize_url.clone(),
             merchant_url: item.return_url.clone(),
             platform_type: Some(PlatformType::Browser),
             method_completion_ind: Some(MethodCompletion::Unavailable),

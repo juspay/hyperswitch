@@ -145,7 +145,7 @@ impl From<&payments::BankRedirectData> for PaymentMethodType {
 
 fn get_flow(item: &types::PaymentsAuthorizeRouterData) -> Flow {
     Flow {
-        return_url: item.router_return_url.clone(),
+        return_url: item.request.router_return_url.clone(),
     }
 }
 
