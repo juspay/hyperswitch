@@ -46,6 +46,23 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
+    cards_info (card_iin) {
+        card_iin -> Varchar,
+        card_issuer -> Nullable<Text>,
+        card_network -> Nullable<Text>,
+        card_type -> Nullable<Text>,
+        card_subtype -> Nullable<Text>,
+        card_issuing_country -> Nullable<Text>,
+        bank_code_id -> Nullable<Varchar>,
+        bank_code -> Nullable<Varchar>,
+        country_code -> Nullable<Varchar>,
+    }
+}
+
+diesel::table! {
+    use diesel::sql_types::*;
+    use crate::enums::diesel_exports::*;
+
     configs (key) {
         id -> Int4,
         key -> Varchar,
@@ -86,6 +103,32 @@ diesel::table! {
         description -> Nullable<Varchar>,
         created_at -> Timestamp,
         metadata -> Nullable<Json>,
+    }
+}
+
+diesel::table! {
+    use diesel::sql_types::*;
+    use crate::enums::diesel_exports::*;
+
+    dispute (id) {
+        id -> Int4,
+        dispute_id -> Varchar,
+        amount -> Varchar,
+        currency -> Varchar,
+        dispute_stage -> DisputeStage,
+        dispute_status -> DisputeStatus,
+        payment_id -> Varchar,
+        attempt_id -> Varchar,
+        merchant_id -> Varchar,
+        connector_status -> Varchar,
+        connector_dispute_id -> Varchar,
+        connector_reason -> Nullable<Varchar>,
+        connector_reason_code -> Nullable<Varchar>,
+        challenge_required_by -> Nullable<Varchar>,
+        dispute_created_at -> Nullable<Varchar>,
+        updated_at -> Nullable<Varchar>,
+        created_at -> Timestamp,
+        modified_at -> Timestamp,
     }
 }
 
@@ -367,9 +410,11 @@ diesel::table! {
 diesel::allow_tables_to_appear_in_same_query!(
     address,
     api_keys,
+    cards_info,
     configs,
     connector_response,
     customers,
+    dispute,
     events,
     locker_mock_up,
     mandate,

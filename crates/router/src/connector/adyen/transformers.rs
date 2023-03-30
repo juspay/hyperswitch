@@ -1,4 +1,4 @@
-use api_models::webhooks::IncomingWebhookEvent;
+use api_models::{enums::DisputeStage, webhooks::IncomingWebhookEvent};
 use masking::PeekInterface;
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
@@ -13,6 +13,7 @@ use crate::{
         self,
         api::{self, enums as api_enums},
         storage::enums as storage_enums,
+        transformers::ForeignFrom,
     },
 };
 
@@ -1149,9 +1150,21 @@ pub struct ErrorResponse {
 // }
 
 #[derive(Debug, Deserialize)]
+pub enum DisputeStatus {
+    Undefended,
+    Pending,
+    Lost,
+    Accepted,
+    Won,
+}
+
+#[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AdyenAdditionalDataWH {
     pub hmac_signature: String,
+    pub dispute_status: Option<DisputeStatus>,
+    pub chargeback_reason_code: Option<String>,
+    pub defense_period_ends_at: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -1160,7 +1173,7 @@ pub struct AdyenAmountWH {
     pub currency: String,
 }
 
-#[derive(Debug, Deserialize, strum::Display)]
+#[derive(Clone, Debug, Deserialize, strum::Display)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 #[strum(serialize_all = "SCREAMING_SNAKE_CASE")]
 pub enum WebhookEventCode {
@@ -1168,15 +1181,73 @@ pub enum WebhookEventCode {
     Refund,
     CancelOrRefund,
     RefundFailed,
+    NotificationOfChargeback,
+    Chargeback,
+    ChargebackReversed,
+    SecondChargeback,
+    PrearbitrationWon,
+    PrearbitrationLost,
 }
 
-impl From<WebhookEventCode> for IncomingWebhookEvent {
+pub fn is_transaction_event(event_code: &WebhookEventCode) -> bool {
+    matches!(event_code, WebhookEventCode::Authorisation)
+}
+
+pub fn is_refund_event(event_code: &WebhookEventCode) -> bool {
+    matches!(
+        event_code,
+        WebhookEventCode::Refund
+            | WebhookEventCode::CancelOrRefund
+            | WebhookEventCode::RefundFailed
+    )
+}
+
+pub fn is_chargeback_event(event_code: &WebhookEventCode) -> bool {
+    matches!(
+        event_code,
+        WebhookEventCode::NotificationOfChargeback
+            | WebhookEventCode::Chargeback
+            | WebhookEventCode::ChargebackReversed
+            | WebhookEventCode::SecondChargeback
+            | WebhookEventCode::PrearbitrationWon
+            | WebhookEventCode::PrearbitrationLost
+    )
+}
+
+impl ForeignFrom<(WebhookEventCode, Option<DisputeStatus>)> for IncomingWebhookEvent {
+    fn foreign_from((code, status): (WebhookEventCode, Option<DisputeStatus>)) -> Self {
+        match (code, status) {
+            (WebhookEventCode::Authorisation, _) => Self::PaymentIntentSuccess,
+            (WebhookEventCode::Refund, _) => Self::RefundSuccess,
+            (WebhookEventCode::CancelOrRefund, _) => Self::RefundSuccess,
+            (WebhookEventCode::RefundFailed, _) => Self::RefundFailure,
+            (WebhookEventCode::NotificationOfChargeback, _) => Self::DisputeOpened,
+            (WebhookEventCode::Chargeback, None) => Self::DisputeLost,
+            (WebhookEventCode::Chargeback, Some(DisputeStatus::Won)) => Self::DisputeWon,
+            (WebhookEventCode::Chargeback, Some(DisputeStatus::Lost)) => Self::DisputeLost,
+            (WebhookEventCode::Chargeback, Some(_)) => Self::DisputeOpened,
+            (WebhookEventCode::ChargebackReversed, Some(DisputeStatus::Pending)) => {
+                Self::DisputeChallenged
+            }
+            (WebhookEventCode::ChargebackReversed, _) => Self::DisputeWon,
+            (WebhookEventCode::SecondChargeback, _) => Self::DisputeLost,
+            (WebhookEventCode::PrearbitrationWon, Some(DisputeStatus::Pending)) => {
+                Self::DisputeOpened
+            }
+            (WebhookEventCode::PrearbitrationWon, _) => Self::DisputeWon,
+            (WebhookEventCode::PrearbitrationLost, _) => Self::DisputeLost,
+        }
+    }
+}
+
+impl From<WebhookEventCode> for DisputeStage {
     fn from(code: WebhookEventCode) -> Self {
         match code {
-            WebhookEventCode::Authorisation => Self::PaymentIntentSuccess,
-            WebhookEventCode::Refund => Self::RefundSuccess,
-            WebhookEventCode::CancelOrRefund => Self::RefundSuccess,
-            WebhookEventCode::RefundFailed => Self::RefundFailure,
+            WebhookEventCode::NotificationOfChargeback => Self::PreDispute,
+            WebhookEventCode::SecondChargeback => Self::PreArbitration,
+            WebhookEventCode::PrearbitrationWon => Self::PreArbitration,
+            WebhookEventCode::PrearbitrationLost => Self::PreArbitration,
+            _ => Self::Dispute,
         }
     }
 }
@@ -1192,6 +1263,8 @@ pub struct AdyenNotificationRequestItemWH {
     pub merchant_account_code: String,
     pub merchant_reference: String,
     pub success: String,
+    pub reason: Option<String>,
+    pub event_date: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
