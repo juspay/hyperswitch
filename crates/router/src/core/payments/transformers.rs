@@ -34,10 +34,10 @@ where
     error_stack::Report<errors::ApiErrorResponse>: From<<T as TryFrom<PaymentData<F>>>::Error>,
 {
     let (merchant_connector_account, payment_method, router_data);
-    let (connector_label, _business_details) = helpers::create_connector_label(
+    let (connector_label, _business_details) = helpers::get_connector_label_and_business_details(
         payment_data.payment_intent.business_country.as_ref(),
         payment_data.payment_intent.business_label.as_ref(),
-        None, //FIXME: take this value from connector
+        None,
         connector_id,
         merchant_account,
     )?;

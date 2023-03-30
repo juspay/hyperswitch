@@ -303,7 +303,7 @@ pub async fn create_payment_connector(
             error.to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
         })?;
 
-    let (connector_label, business_details) = helpers::create_connector_label(
+    let (connector_label, business_details) = helpers::get_connector_label_and_business_details(
         req.business_country.as_ref(),
         req.business_label.as_ref(),
         req.business_sub_label.as_ref(),
@@ -445,7 +445,7 @@ pub async fn update_payment_connector(
         .or(req.business_label.as_ref())
         .or(req.business_sub_label.as_ref())
         .map(|_| {
-            helpers::create_connector_label(
+            helpers::get_connector_label_and_business_details(
                 req.business_country.as_ref(),
                 req.business_label.as_ref(),
                 req.business_sub_label.as_ref(),
