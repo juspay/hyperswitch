@@ -17,12 +17,24 @@ pub mod date_time {
     use std::num::NonZeroU8;
 
     use time::{
-        format_description::well_known::iso8601::{Config, EncodedConfig, Iso8601, TimePrecision},
+        format_description::{
+            well_known::iso8601::{Config, EncodedConfig, Iso8601, TimePrecision},
+            FormatItem,
+        },
         Instant, OffsetDateTime, PrimitiveDateTime,
     };
     /// Struct to represent milliseconds in time sensitive data fields
     #[derive(Debug)]
     pub struct Milliseconds(i32);
+
+    /// Enum to represent date formats
+    #[derive(Debug)]
+    pub enum DateFormat {
+        /// Format the date in 20191105081132 format
+        YYYYMMDDHHmmss,
+        /// Format the date in 20191105 format
+        YYYYMMDD,
+    }
 
     /// Create a new [`PrimitiveDateTime`] with the current date and time in UTC.
     pub fn now() -> PrimitiveDateTime {
@@ -49,10 +61,13 @@ pub mod date_time {
         (result, start.elapsed().as_seconds_f64() * 1000f64)
     }
 
-    /// Return the current date and time in UTC with the format YYYYMMDDHHmmss Eg: 20191105081132
-    pub fn date_as_yyyymmddhhmmss() -> Result<String, time::error::Format> {
-        let format = time::macros::format_description!("[year repr:full][month padding:zero repr:numerical][day padding:zero][hour padding:zero repr:24][minute padding:zero][second padding:zero]");
-        now().format(&format)
+    /// Return the given date and time in UTC with the given format Eg: format: YYYYMMDDHHmmss Eg: 20191105081132
+    pub fn format_date(
+        date: PrimitiveDateTime,
+        format: DateFormat,
+    ) -> Result<String, time::error::Format> {
+        let format = <&[FormatItem<'_>]>::from(format);
+        date.format(&format)
     }
 
     /// Return the current date and time in UTC with the format [year]-[month]-[day]T[hour]:[minute]:[second].mmmZ Eg: 2023-02-15T13:33:18.898Z
@@ -63,6 +78,15 @@ pub mod date_time {
             })
             .encode();
         now().assume_utc().format(&Iso8601::<ISO_CONFIG>)
+    }
+
+    impl From<DateFormat> for &[FormatItem<'_>] {
+        fn from(format: DateFormat) -> Self {
+            match format {
+                DateFormat::YYYYMMDDHHmmss => time::macros::format_description!("[year repr:full][month padding:zero repr:numerical][day padding:zero][hour padding:zero repr:24][minute padding:zero][second padding:zero]"),
+                DateFormat::YYYYMMDD => time::macros::format_description!("[year repr:full][month padding:zero repr:numerical][day padding:zero]"),
+            }
+        }
     }
 }
 

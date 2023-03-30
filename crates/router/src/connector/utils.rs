@@ -1,7 +1,9 @@
 use std::collections::HashMap;
 
+use api_models::payments::MandateAmountData;
 use base64::Engine;
 use common_utils::{
+    date_time,
     errors::ReportSwitchExt,
     pii::{self, Email},
 };
@@ -145,6 +147,7 @@ pub trait PaymentsAuthorizeRequestData {
     fn get_email(&self) -> Result<Secret<String, Email>, Error>;
     fn get_browser_info(&self) -> Result<types::BrowserInformation, Error>;
     fn get_card(&self) -> Result<api::Card, Error>;
+    fn connector_mandate_id(&self) -> Option<String>;
 }
 
 impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
@@ -164,6 +167,11 @@ impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
             api::PaymentMethodData::Card(card) => Ok(card),
             _ => Err(missing_field_err("card")()),
         }
+    }
+    fn connector_mandate_id(&self) -> Option<String> {
+        self.mandate_id
+            .as_ref()
+            .and_then(|mandate_ids| mandate_ids.connector_mandate_id.clone())
     }
 }
 
@@ -367,6 +375,27 @@ impl AddressDetailsData for api::AddressDetails {
             self.get_line1()?.peek(),
             self.get_line2()?.peek()
         )))
+    }
+}
+
+pub trait MandateData {
+    fn get_end_date(&self, format: date_time::DateFormat) -> Result<String, Error>;
+    fn get_meta_data(&self) -> Result<serde_json::Value, Error>;
+}
+
+impl MandateData for MandateAmountData {
+    fn get_end_date(&self, format: date_time::DateFormat) -> Result<String, Error> {
+        let date = self.end_date.ok_or_else(missing_field_err(
+            "mandate_data.mandate_type.{multi_use|single_use}.end_date",
+        ))?;
+        date_time::format_date(date, format)
+            .into_report()
+            .change_context(errors::ConnectorError::DateFormattingFailed)
+    }
+    fn get_meta_data(&self) -> Result<serde_json::Value, Error> {
+        self.meta_data.clone().ok_or_else(missing_field_err(
+            "mandate_data.mandate_type.{multi_use|single_use}.meta_data",
+        ))
     }
 }
 
