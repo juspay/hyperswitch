@@ -61,23 +61,35 @@ impl super::settings::Database {
             ))
         })?;
 
+        when(self.dbname.is_default_or_empty(), || {
+            Err(ApplicationError::InvalidConfigurationValueError(
+                "database name must not be empty".into(),
+            ))
+        })?;
+
         when(self.username.is_default_or_empty(), || {
             Err(ApplicationError::InvalidConfigurationValueError(
                 "database user username must not be empty".into(),
             ))
         })?;
 
-        when(self.password.is_default_or_empty(), || {
-            Err(ApplicationError::InvalidConfigurationValueError(
-                "database user password must not be empty".into(),
-            ))
-        })?;
+        #[cfg(not(feature = "kms"))]
+        {
+            when(self.password.is_default_or_empty(), || {
+                Err(ApplicationError::InvalidConfigurationValueError(
+                    "database user password must not be empty".into(),
+                ))
+            })
+        }
 
-        when(self.dbname.is_default_or_empty(), || {
-            Err(ApplicationError::InvalidConfigurationValueError(
-                "database name must not be empty".into(),
-            ))
-        })
+        #[cfg(feature = "kms")]
+        {
+            when(self.kms_encrypted_password.is_default_or_empty(), || {
+                Err(ApplicationError::InvalidConfigurationValueError(
+                    "database KMS encrypted password must not be empty".into(),
+                ))
+            })
+        }
     }
 }
 

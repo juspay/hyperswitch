@@ -219,7 +219,7 @@ fn get_card_request_data(
         cvv: ccard.card_cvc.clone(),
         expiry_date: ccard.get_card_expiry_month_year_2_digit_with_delimiter("/".to_owned()),
         cardholder: ccard.card_holder_name.clone(),
-        reference: item.payment_id.clone(),
+        reference: item.attempt_id.clone(),
         redirect_url: return_url,
         billing_city: params.billing_city,
         billing_country: params.billing_country,
@@ -260,7 +260,7 @@ fn get_bank_redirection_request_data(
                 currency: item.request.currency.to_string(),
             },
             references: References {
-                merchant_reference: item.payment_id.clone(),
+                merchant_reference: item.attempt_id.clone(),
             },
         },
         callback_urls: CallbackURLs {
@@ -1115,12 +1115,11 @@ pub enum CreditDebitIndicator {
     Dbit,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(strum::Display, Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum WebhookStatus {
     Paid,
     Rejected,
     Refunded,
-    // TODO (Handle Chargebacks)
     Chargebacked,
 }
 
@@ -1151,7 +1150,15 @@ impl TryFrom<WebhookStatus> for storage_models::enums::RefundStatus {
 #[serde(rename_all = "PascalCase")]
 pub struct WebhookReferences {
     pub merchant_reference: String,
+    pub payment_id: String,
     pub payment_request_id: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "PascalCase")]
+pub struct WebhookAmount {
+    pub amount: f64,
+    pub currency: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -1160,6 +1167,8 @@ pub struct WebhookPaymentInformation {
     pub credit_debit_indicator: CreditDebitIndicator,
     pub references: WebhookReferences,
     pub status: WebhookStatus,
+    pub amount: WebhookAmount,
+    pub status_reason_information: Option<StatusReasonInformation>,
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]

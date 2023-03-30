@@ -2,6 +2,8 @@ use async_bb8_diesel::{AsyncConnection, ConnectionError};
 use bb8::{CustomizeConnection, PooledConnection};
 use diesel::PgConnection;
 use error_stack::{IntoReport, ResultExt};
+#[cfg(feature = "kms")]
+use external_services::kms;
 
 use crate::{configs::settings::Database, errors};
 
@@ -37,10 +39,24 @@ pub async fn redis_connection(
 }
 
 #[allow(clippy::expect_used)]
-pub async fn diesel_make_pg_pool(database: &Database, test_transaction: bool) -> PgPool {
+pub async fn diesel_make_pg_pool(
+    database: &Database,
+    test_transaction: bool,
+    #[cfg(feature = "kms")] kms_config: &kms::KmsConfig,
+) -> PgPool {
+    #[cfg(feature = "kms")]
+    let password = kms::get_kms_client(kms_config)
+        .await
+        .decrypt(&database.kms_encrypted_password)
+        .await
+        .expect("Failed to KMS decrypt database password");
+
+    #[cfg(not(feature = "kms"))]
+    let password = &database.password;
+
     let database_url = format!(
         "postgres://{}:{}@{}:{}/{}",
-        database.username, database.password, database.host, database.port, database.dbname
+        database.username, password, database.host, database.port, database.dbname
     );
     let manager = async_bb8_diesel::ConnectionManager::<PgConnection>::new(database_url);
     let mut pool = bb8::Pool::builder()
