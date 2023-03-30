@@ -47,7 +47,6 @@ fn get_access_token() -> Option<AccessToken> {
 fn get_default_payment_info() -> Option<utils::PaymentInfo> {
     Some(utils::PaymentInfo {
         access_token: get_access_token(),
-        router_return_url: Some("https://google.com".to_string()),
         ..Default::default()
     })
 }
@@ -63,6 +62,7 @@ fn payment_method_details() -> Option<types::PaymentsAuthorizeData> {
             card_network: None,
         }),
         capture_method: Some(storage_models::enums::CaptureMethod::Manual),
+        router_return_url: Some("https://google.com".to_string()),
         ..utils::PaymentAuthorizeType::default().0
     })
 }
