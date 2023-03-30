@@ -140,7 +140,7 @@ pub enum AlternativePaymentMethodType {
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct BillingAddress {
     pub email: Secret<String, Email>,
-    pub country: String,
+    pub country: api_models::enums::CountryCode,
 }
 
 #[serde_with::skip_serializing_none]
@@ -491,30 +491,31 @@ fn get_card_info<F>(
             ..Default::default()
         });
     }
-    let (is_rebilling, additional_params, user_token_id) = match item.request.setup_mandate_details.clone() {
-        Some(mandate_data) => {
-            let details = match mandate_data.mandate_type {
-                api_models::payments::MandateType::SingleUse(details) => details,
-                api_models::payments::MandateType::MultiUse(details) => {
-                    details.ok_or(errors::ConnectorError::MissingRequiredField {
-                        field_name: "mandate_data.mandate_type.multi_use",
-                    })?
-                }
-            };
-            let mandate_meta: NuveiMandateMeta =
-                utils::to_connector_meta(Some(details.get_meta_data()?))?;
-            (
-                Some("0".to_string()),
-                Some(V2AdditionalParams {
-                    rebill_expiry: Some(details.get_end_date(date_time::DateFormat::YYYYMMDD)?),
-                    rebill_frequency: Some(mandate_meta.frequency),
-                    challenge_window_size: None,
-                }),
-                Some(item.request.get_email()?)
-            )
-        }
-        _ => (None, None, None),
-    };
+    let (is_rebilling, additional_params, user_token_id) =
+        match item.request.setup_mandate_details.clone() {
+            Some(mandate_data) => {
+                let details = match mandate_data.mandate_type {
+                    api_models::payments::MandateType::SingleUse(details) => details,
+                    api_models::payments::MandateType::MultiUse(details) => {
+                        details.ok_or(errors::ConnectorError::MissingRequiredField {
+                            field_name: "mandate_data.mandate_type.multi_use",
+                        })?
+                    }
+                };
+                let mandate_meta: NuveiMandateMeta =
+                    utils::to_connector_meta(Some(details.get_meta_data()?))?;
+                (
+                    Some("0".to_string()),
+                    Some(V2AdditionalParams {
+                        rebill_expiry: Some(details.get_end_date(date_time::DateFormat::YYYYMMDD)?),
+                        rebill_frequency: Some(mandate_meta.frequency),
+                        challenge_window_size: None,
+                    }),
+                    Some(item.request.get_email()?),
+                )
+            }
+            _ => (None, None, None),
+        };
     let three_d = if item.is_three_ds() {
         Some(ThreeD {
             browser_details: Some(BrowserDetails {
@@ -530,7 +531,7 @@ fn get_card_info<F>(
                 user_agent: browser_info.user_agent,
             }),
             v2_additional_params: additional_params,
-            notification_url: item.complete_authorize_url.clone(),
+            notification_url: item.request.complete_authorize_url.clone(),
             merchant_url: item.return_url.clone(),
             platform_type: Some(PlatformType::Browser),
             method_completion_ind: Some(MethodCompletion::Unavailable),
@@ -930,7 +931,7 @@ impl<F, T>
                             .transaction_id
                             .map_or(response.order_id, Some) // For paypal there will be no transaction_id, only order_id will be present
                             .map(types::ResponseId::ConnectorTransactionId)
-                            .ok_or_else(|| errors::ConnectorError::MissingConnectorTransactionID)?,
+                            .ok_or(errors::ConnectorError::MissingConnectorTransactionID)?,
                         redirection_data,
                         mandate_reference: response
                             .payment_option

@@ -191,26 +191,10 @@ async fn get_tracker_for_sync<
 )> {
     let (payment_intent, payment_attempt, currency, amount);
 
-    payment_attempt = match payment_id {
-        api::PaymentIdType::PaymentIntentId(ref id) => {
-            db.find_payment_attempt_by_payment_id_merchant_id(id, merchant_id, storage_scheme)
-        }
-        api::PaymentIdType::ConnectorTransactionId(ref id) => {
-            db.find_payment_attempt_by_merchant_id_connector_txn_id(merchant_id, id, storage_scheme)
-        }
-        api::PaymentIdType::PaymentAttemptId(ref id) => {
-            db.find_payment_attempt_by_merchant_id_attempt_id(merchant_id, id, storage_scheme)
-        }
-    }
-    .await
-    .map_err(|error| error.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound))?;
+    (payment_intent, payment_attempt) =
+        get_payment_intent_payment_attempt(db, payment_id, merchant_id, storage_scheme).await?;
 
     let payment_id_str = payment_attempt.payment_id.clone();
-
-    payment_intent = db
-        .find_payment_intent_by_payment_id_merchant_id(&payment_id_str, merchant_id, storage_scheme)
-        .await
-        .map_err(|error| error.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound))?;
 
     let mut connector_response = db
         .find_connector_response_by_payment_id_merchant_id_attempt_id(
@@ -318,4 +302,64 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRetrieveRequest> for Payme
             },
         ))
     }
+}
+
+#[inline]
+pub async fn get_payment_intent_payment_attempt(
+    db: &dyn StorageInterface,
+    payment_id: &api::PaymentIdType,
+    merchant_id: &str,
+    storage_scheme: enums::MerchantStorageScheme,
+) -> RouterResult<(storage::PaymentIntent, storage::PaymentAttempt)> {
+    (|| async {
+        let (pi, pa);
+        match payment_id {
+            api_models::payments::PaymentIdType::PaymentIntentId(ref id) => {
+                pi = db
+                    .find_payment_intent_by_payment_id_merchant_id(id, merchant_id, storage_scheme)
+                    .await?;
+                pa = db
+                    .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
+                        pi.payment_id.as_str(),
+                        merchant_id,
+                        pi.active_attempt_id.as_str(),
+                        storage_scheme,
+                    )
+                    .await?;
+            }
+            api_models::payments::PaymentIdType::ConnectorTransactionId(ref id) => {
+                pa = db
+                    .find_payment_attempt_by_merchant_id_connector_txn_id(
+                        merchant_id,
+                        id,
+                        storage_scheme,
+                    )
+                    .await?;
+                pi = db
+                    .find_payment_intent_by_payment_id_merchant_id(
+                        pa.payment_id.as_str(),
+                        merchant_id,
+                        storage_scheme,
+                    )
+                    .await?;
+            }
+            api_models::payments::PaymentIdType::PaymentAttemptId(ref id) => {
+                pa = db
+                    .find_payment_attempt_by_attempt_id_merchant_id(id, merchant_id, storage_scheme)
+                    .await?;
+                pi = db
+                    .find_payment_intent_by_payment_id_merchant_id(
+                        pa.payment_id.as_str(),
+                        merchant_id,
+                        storage_scheme,
+                    )
+                    .await?;
+            }
+        }
+        Ok((pi, pa))
+    })()
+    .await
+    .map_err(|error: error_stack::Report<errors::StorageError>| {
+        error.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
+    })
 }

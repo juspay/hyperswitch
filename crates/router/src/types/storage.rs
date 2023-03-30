@@ -4,6 +4,7 @@ pub mod cards_info;
 pub mod configs;
 pub mod connector_response;
 pub mod customers;
+pub mod dispute;
 pub mod enums;
 pub mod ephemeral_key;
 pub mod events;
@@ -25,7 +26,7 @@ pub mod kv;
 
 pub use self::{
     address::*, api_keys::*, cards_info::*, configs::*, connector_response::*, customers::*,
-    events::*, locker_mock_up::*, mandate::*, merchant_account::*, merchant_connector_account::*,
-    payment_attempt::*, payment_intent::*, payment_method::*, process_tracker::*, refund::*,
-    reverse_lookup::*,
+    dispute::*, events::*, locker_mock_up::*, mandate::*, merchant_account::*,
+    merchant_connector_account::*, payment_attempt::*, payment_intent::*, payment_method::*,
+    process_tracker::*, refund::*, reverse_lookup::*,
 };

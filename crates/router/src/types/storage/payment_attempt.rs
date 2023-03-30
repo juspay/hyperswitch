@@ -95,6 +95,7 @@ mod tests {
 
         let current_time = common_utils::date_time::now();
         let payment_id = Uuid::new_v4().to_string();
+        let attempt_id = Uuid::new_v4().to_string();
         let merchant_id = Uuid::new_v4().to_string();
         let connector = types::Connector::Dummy.to_string();
 
@@ -106,6 +107,7 @@ mod tests {
             })),
             created_at: current_time.into(),
             modified_at: current_time.into(),
+            attempt_id: attempt_id.clone(),
             ..PaymentAttemptNew::default()
         };
         state
@@ -116,9 +118,10 @@ mod tests {
 
         let response = state
             .store
-            .find_payment_attempt_by_payment_id_merchant_id(
+            .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
                 &payment_id,
                 &merchant_id,
+                &attempt_id,
                 enums::MerchantStorageScheme::PostgresOnly,
             )
             .await
@@ -150,6 +153,7 @@ mod tests {
             modified_at: current_time.into(),
             // Adding a mandate_id
             mandate_id: Some("man_121212".to_string()),
+            attempt_id: uuid.clone(),
             ..PaymentAttemptNew::default()
         };
         state
@@ -160,9 +164,10 @@ mod tests {
 
         let response = state
             .store
-            .find_payment_attempt_by_payment_id_merchant_id(
+            .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
                 &uuid,
                 "1",
+                &uuid,
                 enums::MerchantStorageScheme::PostgresOnly,
             )
             .await
