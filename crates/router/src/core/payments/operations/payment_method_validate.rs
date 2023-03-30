@@ -317,7 +317,7 @@ impl PaymentMethodValidate {
         payment_id: &str,
         merchant_id: &str,
         request: &api::VerifyRequest,
-        attempt_id: String,
+        active_attempt_id: String,
     ) -> storage::PaymentIntentNew {
         let created_at @ modified_at @ last_synced = Some(date_time::now());
         let status = helpers::payment_intent_status_fsm(&request.payment_method_data, Some(true));
@@ -337,7 +337,7 @@ impl PaymentMethodValidate {
             client_secret: Some(client_secret),
             setup_future_usage: request.setup_future_usage.map(ForeignInto::foreign_into),
             off_session: request.off_session,
-            attempt_id,
+            active_attempt_id,
             ..Default::default()
         }
     }

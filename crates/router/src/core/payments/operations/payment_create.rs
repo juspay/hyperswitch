@@ -480,7 +480,7 @@ impl PaymentCreate {
         request: &api::PaymentsRequest,
         shipping_address_id: Option<String>,
         billing_address_id: Option<String>,
-        attempt_id: String,
+        active_attempt_id: String,
     ) -> RouterResult<storage::PaymentIntentNew> {
         let created_at @ modified_at @ last_synced = Some(common_utils::date_time::now());
         let status =
@@ -514,7 +514,7 @@ impl PaymentCreate {
             statement_descriptor_name: request.statement_descriptor_name.clone(),
             statement_descriptor_suffix: request.statement_descriptor_suffix.clone(),
             metadata: metadata.map(masking::Secret::new),
-            attempt_id,
+            active_attempt_id,
             ..storage::PaymentIntentNew::default()
         })
     }
