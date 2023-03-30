@@ -129,7 +129,7 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for requests::GlobalpayCaptureRe
     }
 }
 
-impl TryFrom<&types::PaymentsCancelRouterData> for requests::GlboalpayCancelRequest {
+impl TryFrom<&types::PaymentsCancelRouterData> for requests::GlobalpayCancelRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(value: &types::PaymentsCancelRouterData) -> Result<Self, Self::Error> {
         Ok(Self {

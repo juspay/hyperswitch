@@ -827,6 +827,6 @@ pub struct GlobalpayCaptureRequest {
 }
 
 #[derive(Default, Debug, Serialize)]
-pub struct GlboalpayCancelRequest {
+pub struct GlobalpayCancelRequest {
     pub amount: Option<String>,
 }

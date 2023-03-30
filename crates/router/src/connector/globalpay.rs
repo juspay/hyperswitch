@@ -338,7 +338,7 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
         &self,
         req: &types::PaymentsCancelRouterData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        let req_obj = requests::GlboalpayCancelRequest::try_from(req)?;
+        let req_obj = requests::GlobalpayCancelRequest::try_from(req)?;
         let globalpay_req =
             utils::Encode::<GlobalpayPaymentsRequest>::encode_to_string_of_json(&req_obj)
                 .change_context(errors::ConnectorError::RequestEncodingFailed)?;
