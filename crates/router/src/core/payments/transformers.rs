@@ -69,7 +69,7 @@ where
         });
 
     let additional_data = PaymentAdditionalData {
-        base_url: state.conf.server.base_url.clone(),
+        router_base_url: state.conf.server.base_url.clone(),
         connector_name: connector_id.to_string(),
         payment_data: payment_data.clone(),
     };
@@ -427,7 +427,7 @@ pub struct PaymentAdditionalData<F>
 where
     F: Clone,
 {
-    base_url: String,
+    router_base_url: String,
     connector_name: String,
     payment_data: PaymentData<F>,
 }
@@ -436,7 +436,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<F>> for types::PaymentsAuthorizeDat
 
     fn try_from(additional_data: PaymentAdditionalData<F>) -> Result<Self, Self::Error> {
         let payment_data = additional_data.payment_data;
-        let base_url = &additional_data.base_url;
+        let router_base_url = &additional_data.router_base_url;
         let connector_name = &additional_data.connector_name;
         let attempt = &payment_data.payment_attempt;
         let browser_info: Option<types::BrowserInformation> = attempt
@@ -464,17 +464,17 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<F>> for types::PaymentsAuthorizeDat
 
         let order_details = parsed_metadata.and_then(|data| data.order_details);
         let complete_authorize_url = Some(helpers::create_complete_authorize_url(
-            base_url,
+            router_base_url,
             attempt,
             connector_name,
         ));
         let webhook_url = Some(helpers::create_webhook_url(
-            base_url,
+            router_base_url,
             attempt,
             connector_name,
         ));
         let router_return_url = Some(helpers::create_redirect_url(
-            base_url,
+            router_base_url,
             attempt,
             connector_name,
             payment_data.creds_identifier.as_deref(),

@@ -161,18 +161,6 @@ pub struct Apm {
     /// method's platform to facilitate the creation of a transaction.
     pub session_token: Option<String>,
     pub payment_description: Option<String>,
-
-    pub account_number: Option<String>,
-
-    pub bank_address: Option<String>,
-
-    pub bank_identifier_code: Option<String>,
-
-    pub bank_name: Option<String>,
-
-    pub confirmed_accountholder: Option<String>,
-
-    pub iban: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

@@ -2,7 +2,7 @@ use common_utils::pii;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Default, Serialize)]
+#[derive(Debug, Serialize)]
 pub struct GlobalpayPaymentsRequest {
     /// A meaningful label for the merchant account set by Global Payments.
     pub account_name: String,
@@ -198,13 +198,7 @@ pub enum PaymentMethodData {
     DigitalWallet(DigitalWallet),
 }
 
-impl Default for PaymentMethodData {
-    fn default() -> Self {
-        Self::Card(Card::default())
-    }
-}
-
-#[derive(Debug, Serialize, Default, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct PaymentMethod {
     #[serde(flatten)]
     pub payment_method_data: PaymentMethodData,
@@ -825,4 +819,14 @@ pub enum Sequence {
 #[derive(Default, Debug, Serialize)]
 pub struct GlobalpayRefundRequest {
     pub amount: String,
+}
+
+#[derive(Default, Debug, Serialize)]
+pub struct GlobalpayCaptureRequest {
+    pub amount: Option<String>,
+}
+
+#[derive(Default, Debug, Serialize)]
+pub struct GlboalpayCancelRequest {
+    pub amount: Option<String>,
 }

@@ -117,7 +117,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for GlobalpayPaymentsRequest {
     }
 }
 
-impl TryFrom<&types::PaymentsCaptureRouterData> for GlobalpayPaymentsRequest {
+impl TryFrom<&types::PaymentsCaptureRouterData> for requests::GlobalpayCaptureRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(value: &types::PaymentsCaptureRouterData) -> Result<Self, Self::Error> {
         Ok(Self {
@@ -125,15 +125,16 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for GlobalpayPaymentsRequest {
                 .request
                 .amount_to_capture
                 .map(|amount| amount.to_string()),
-            ..Default::default()
         })
     }
 }
 
-impl TryFrom<&types::PaymentsCancelRouterData> for GlobalpayPaymentsRequest {
+impl TryFrom<&types::PaymentsCancelRouterData> for requests::GlboalpayCancelRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(_value: &types::PaymentsCancelRouterData) -> Result<Self, Self::Error> {
-        Ok(Self::default())
+    fn try_from(value: &types::PaymentsCancelRouterData) -> Result<Self, Self::Error> {
+        Ok(Self {
+            amount: value.request.amount.map(|amount| amount.to_string()),
+        })
     }
 }
 

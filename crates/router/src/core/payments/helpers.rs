@@ -347,7 +347,7 @@ pub fn create_startpay_url(
 }
 
 pub fn create_redirect_url(
-    base_url: &String,
+    router_base_url: &String,
     payment_attempt: &storage::PaymentAttempt,
     connector_name: &String,
     creds_identifier: Option<&str>,
@@ -355,28 +355,28 @@ pub fn create_redirect_url(
     let creds_identifier_path = creds_identifier.map_or_else(String::new, |cd| format!("/{}", cd));
     format!(
         "{}/payments/{}/{}/response/{}",
-        base_url, payment_attempt.payment_id, payment_attempt.merchant_id, connector_name,
+        router_base_url, payment_attempt.payment_id, payment_attempt.merchant_id, connector_name,
     ) + &creds_identifier_path
 }
 
 pub fn create_webhook_url(
-    base_url: &String,
+    router_base_url: &String,
     payment_attempt: &storage::PaymentAttempt,
     connector_name: &String,
 ) -> String {
     format!(
         "{}/webhooks/{}/{}",
-        base_url, payment_attempt.merchant_id, connector_name
+        router_base_url, payment_attempt.merchant_id, connector_name
     )
 }
 pub fn create_complete_authorize_url(
-    base_url: &String,
+    router_base_url: &String,
     payment_attempt: &storage::PaymentAttempt,
     connector_name: &String,
 ) -> String {
     format!(
         "{}/payments/{}/{}/complete/{}",
-        base_url, payment_attempt.payment_id, payment_attempt.merchant_id, connector_name
+        router_base_url, payment_attempt.payment_id, payment_attempt.merchant_id, connector_name
     )
 }
 fn validate_recurring_mandate(req: api::MandateValidationFields) -> RouterResult<()> {
