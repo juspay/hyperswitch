@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use url::form_urlencoded;
 
 use base64::Engine;
 use common_utils::{
@@ -11,6 +10,7 @@ use masking::Secret;
 use once_cell::sync::Lazy;
 use regex::Regex;
 use serde::Serializer;
+use url::form_urlencoded;
 
 use crate::{
     consts,
@@ -539,7 +539,7 @@ pub fn decode_html(encoded: &str) -> String {
         .map(|(k, v)| format!("{}={}", k, v))
         .collect::<Vec<String>>()
         .join("")
-        .replace("+", " ")
+        .replace('+', " ")
         .replace("%3D", "=")
         .replace("%3A", ":")
         .replace("%2F", "/")

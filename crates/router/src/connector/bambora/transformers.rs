@@ -1,12 +1,10 @@
-use actix::fut::ok;
 use base64::Engine;
 use error_stack::{IntoReport, ResultExt};
 use masking::Secret;
-use regex::Regex;
 use serde::{Deserialize, Deserializer, Serialize};
 
 use crate::{
-    connector::utils::{PaymentsAuthorizeRequestData, self},
+    connector::utils::{self, PaymentsAuthorizeRequestData},
     consts,
     core::errors,
     services,
@@ -85,7 +83,6 @@ fn get_browser_info(item: &types::PaymentsAuthorizeRouterData) -> Option<Bambora
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for BamboraPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
-        println!("sssss {:?}", item);
         match item.request.payment_method_data.clone() {
             api::PaymentMethodData::Card(req_card) => {
                 let three_ds = match item.auth_type {
@@ -106,11 +103,12 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BamboraPaymentsRequest {
                     three_d_secure: three_ds,
                     complete: item.request.is_auto_capture(),
                 };
+                let browser_info = item.request.get_browser_info()?;
                 Ok(Self {
                     amount: item.request.amount,
                     payment_method: PaymentMethod::Card,
                     card: bambora_card,
-                    customer_ip: item.request.browser_info.as_ref().unwrap().ip_address,
+                    customer_ip: browser_info.ip_address,
                     term_url: item.complete_authorize_url.clone(),
                 })
             }
@@ -198,14 +196,22 @@ impl<F, T>
 
             BamboraResponse::ThreeDsResponse(response) => {
                 let url_decoded = utils::decode_html(&response.contents);
-                let redirection_data = Some(services::RedirectForm::Html { html_data: url_decoded } );
+                let redirection_data = Some(services::RedirectForm::Html {
+                    html_data: url_decoded,
+                });
                 Ok(Self {
                     status: enums::AttemptStatus::AuthenticationPending,
                     response: Ok(types::PaymentsResponseData::TransactionResponse {
                         resource_id: types::ResponseId::NoResponseId,
                         redirection_data,
                         mandate_reference: None,
-                        connector_metadata: None,
+                        connector_metadata: Some(
+                            serde_json::to_value(BamboraMeta {
+                                three_d_session_data: response.three_d_session_data,
+                            })
+                            .into_report()
+                            .change_context(errors::ConnectorError::ResponseHandlingFailed)?,
+                        ),
                     }),
                     ..item.data
                 })
@@ -236,7 +242,7 @@ where
 #[derive(Debug, Clone, Deserialize)]
 #[serde(untagged)]
 pub enum BamboraResponse {
-    NormalTranaction(BamboraPaymentsResponse),
+    NormalTranaction(Box<BamboraPaymentsResponse>),
     ThreeDsResponse(Bambora3DsResponse),
 }
 
@@ -275,6 +281,22 @@ pub struct Bambora3DsResponse {
     #[serde(rename = "3d_session_data")]
     three_d_session_data: String,
     contents: String,
+}
+
+#[derive(Debug, Serialize, Default, Deserialize)]
+pub struct BamboraMeta {
+    pub three_d_session_data: String,
+}
+
+#[derive(Default, Debug, Serialize, Eq, PartialEq)]
+pub struct BamboraThreedsContinueRequest {
+    pub(crate) payment_method: String,
+    pub(crate) card_response: CardResponse,
+}
+
+#[derive(Default, Debug, Serialize, Eq, PartialEq)]
+pub struct CardResponse {
+    pub(crate) cres: String,
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
