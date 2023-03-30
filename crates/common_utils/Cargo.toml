@@ -14,6 +14,9 @@ signals = [
     "dep:tokio",
     "dep:router_env"
 ]
+logs = [
+    "dep:router_env"
+]
 
 [dependencies]
 async-trait = "0.1.66"
