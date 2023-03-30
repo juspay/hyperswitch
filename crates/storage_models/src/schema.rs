@@ -110,6 +110,32 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
+    dispute (id) {
+        id -> Int4,
+        dispute_id -> Varchar,
+        amount -> Varchar,
+        currency -> Varchar,
+        dispute_stage -> DisputeStage,
+        dispute_status -> DisputeStatus,
+        payment_id -> Varchar,
+        attempt_id -> Varchar,
+        merchant_id -> Varchar,
+        connector_status -> Varchar,
+        connector_dispute_id -> Varchar,
+        connector_reason -> Nullable<Varchar>,
+        connector_reason_code -> Nullable<Varchar>,
+        challenge_required_by -> Nullable<Varchar>,
+        dispute_created_at -> Nullable<Varchar>,
+        updated_at -> Nullable<Varchar>,
+        created_at -> Timestamp,
+        modified_at -> Timestamp,
+    }
+}
+
+diesel::table! {
+    use diesel::sql_types::*;
+    use crate::enums::diesel_exports::*;
+
     events (id) {
         id -> Int4,
         event_id -> Varchar,
@@ -387,6 +413,7 @@ diesel::allow_tables_to_appear_in_same_query!(
     configs,
     connector_response,
     customers,
+    dispute,
     events,
     locker_mock_up,
     mandate,

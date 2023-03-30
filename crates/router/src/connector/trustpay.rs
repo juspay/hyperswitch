@@ -598,7 +598,7 @@ impl api::IncomingWebhook for Trustpay {
         match details.payment_information.credit_debit_indicator {
             trustpay::CreditDebitIndicator::Crdt => {
                 Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
-                    api_models::payments::PaymentIdType::PaymentIntentId(
+                    api_models::payments::PaymentIdType::PaymentAttemptId(
                         details.payment_information.references.merchant_reference,
                     ),
                 ))
@@ -606,7 +606,7 @@ impl api::IncomingWebhook for Trustpay {
             trustpay::CreditDebitIndicator::Dbit => {
                 if details.payment_information.status == trustpay::WebhookStatus::Chargebacked {
                     Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
-                        api_models::payments::PaymentIdType::PaymentIntentId(
+                        api_models::payments::PaymentIdType::PaymentAttemptId(
                             details.payment_information.references.merchant_reference,
                         ),
                     ))
@@ -647,6 +647,9 @@ impl api::IncomingWebhook for Trustpay {
             }
             (trustpay::CreditDebitIndicator::Dbit, trustpay::WebhookStatus::Rejected) => {
                 Ok(api_models::webhooks::IncomingWebhookEvent::RefundFailure)
+            }
+            (trustpay::CreditDebitIndicator::Dbit, trustpay::WebhookStatus::Chargebacked) => {
+                Ok(api_models::webhooks::IncomingWebhookEvent::DisputeLost)
             }
             _ => Err(errors::ConnectorError::WebhookEventTypeNotFound).into_report()?,
         }
@@ -715,6 +718,30 @@ impl api::IncomingWebhook for Trustpay {
             .await
             .change_context(errors::ConnectorError::WebhookVerificationSecretNotFound)?;
         Ok(secret)
+    }
+
+    fn get_dispute_details(
+        &self,
+        request: &api_models::webhooks::IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<api::disputes::DisputePayload, errors::ConnectorError> {
+        let trustpay_response: trustpay::TrustpayWebhookResponse = request
+            .body
+            .parse_struct("TrustpayWebhookResponse")
+            .switch()?;
+        let payment_info = trustpay_response.payment_information;
+        let reason = payment_info.status_reason_information.unwrap_or_default();
+        Ok(api::disputes::DisputePayload {
+            amount: payment_info.amount.amount.to_string(),
+            currency: payment_info.amount.currency,
+            dispute_stage: api_models::enums::DisputeStage::Dispute,
+            connector_dispute_id: payment_info.references.payment_id,
+            connector_reason: reason.reason.reject_reason,
+            connector_reason_code: Some(reason.reason.code),
+            challenge_required_by: None,
+            connector_status: payment_info.status.to_string(),
+            created_at: None,
+            updated_at: None,
+        })
     }
 }
 

@@ -2,6 +2,7 @@ mod transformers;
 
 use std::fmt::Debug;
 
+use api_models::webhooks::IncomingWebhookEvent;
 use base64::Engine;
 use error_stack::{IntoReport, ResultExt};
 use router_env::{instrument, tracing};
@@ -17,6 +18,7 @@ use crate::{
     types::{
         self,
         api::{self, ConnectorCommon},
+        transformers::ForeignFrom,
     },
     utils::{self, crypto, ByteSliceExt, BytesExt, OptionExt},
 };
@@ -719,27 +721,38 @@ impl api::IncomingWebhook for Adyen {
     ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
         let notif = get_webhook_object_from_body(request.body)
             .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
-        match notif.event_code {
-            adyen::WebhookEventCode::Authorisation => {
-                Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
-                    api_models::payments::PaymentIdType::ConnectorTransactionId(
-                        notif.psp_reference,
-                    ),
-                ))
-            }
-            _ => Ok(api_models::webhooks::ObjectReferenceId::RefundId(
-                api_models::webhooks::RefundIdType::ConnectorRefundId(notif.psp_reference),
-            )),
+        if adyen::is_transaction_event(&notif.event_code) {
+            return Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
+                api_models::payments::PaymentIdType::ConnectorTransactionId(notif.psp_reference),
+            ));
         }
+        if adyen::is_refund_event(&notif.event_code) {
+            return Ok(api_models::webhooks::ObjectReferenceId::RefundId(
+                api_models::webhooks::RefundIdType::ConnectorRefundId(notif.psp_reference),
+            ));
+        }
+        if adyen::is_chargeback_event(&notif.event_code) {
+            return Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
+                api_models::payments::PaymentIdType::ConnectorTransactionId(
+                    notif
+                        .original_reference
+                        .ok_or(errors::ConnectorError::WebhookReferenceIdNotFound)?,
+                ),
+            ));
+        }
+        Err(errors::ConnectorError::WebhookReferenceIdNotFound).into_report()
     }
 
     fn get_webhook_event_type(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<api::IncomingWebhookEvent, errors::ConnectorError> {
+    ) -> CustomResult<IncomingWebhookEvent, errors::ConnectorError> {
         let notif = get_webhook_object_from_body(request.body)
             .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
-        Ok(notif.event_code.into())
+        Ok(IncomingWebhookEvent::foreign_from((
+            notif.event_code,
+            notif.additional_data.dispute_status,
+        )))
     }
 
     fn get_webhook_resource_object(
@@ -766,5 +779,25 @@ impl api::IncomingWebhook for Adyen {
         Ok(services::api::ApplicationResponse::TextPlain(
             "[accepted]".to_string(),
         ))
+    }
+
+    fn get_dispute_details(
+        &self,
+        request: &api_models::webhooks::IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<api::disputes::DisputePayload, errors::ConnectorError> {
+        let notif = get_webhook_object_from_body(request.body)
+            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+        Ok(api::disputes::DisputePayload {
+            amount: notif.amount.value.to_string(),
+            currency: notif.amount.currency,
+            dispute_stage: api_models::enums::DisputeStage::from(notif.event_code.clone()),
+            connector_dispute_id: notif.psp_reference,
+            connector_reason: notif.reason,
+            connector_reason_code: notif.additional_data.chargeback_reason_code,
+            challenge_required_by: notif.additional_data.defense_period_ends_at,
+            connector_status: notif.event_code.to_string(),
+            created_at: notif.event_date.clone(),
+            updated_at: notif.event_date,
+        })
     }
 }

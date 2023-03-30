@@ -1127,7 +1127,7 @@ impl TryFrom<&types::PaymentsCancelRouterData> for CancelRequest {
             Some(c) => Some(
                 CancellationReason::from_str(c)
                     .into_report()
-                    .change_context(errors::ConnectorError::ResponseDeserializationFailed)?,
+                    .change_context(errors::ConnectorError::RequestEncodingFailed)?,
             ),
             None => None,
         };
