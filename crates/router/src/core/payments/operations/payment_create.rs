@@ -505,7 +505,7 @@ impl PaymentCreate {
             .business_country
             .clone()
             .zip(request.business_label.clone())
-            .unwrap_or_else(move || {
+            .unwrap_or({
                 (
                     primary_business_details.country,
                     primary_business_details.business,
