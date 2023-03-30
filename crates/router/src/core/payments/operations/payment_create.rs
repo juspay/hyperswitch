@@ -127,6 +127,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                     request,
                     shipping_address.clone().map(|x| x.address_id),
                     billing_address.clone().map(|x| x.address_id),
+                    payment_attempt.attempt_id.to_owned(),
                 )?,
                 storage_scheme,
             )
@@ -316,7 +317,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
         let connector = payment_data.payment_attempt.connector.clone();
 
         payment_data.payment_attempt = db
-            .update_payment_attempt(
+            .update_payment_attempt_with_attempt_id(
                 payment_data.payment_attempt,
                 storage::PaymentAttemptUpdate::UpdateTrackers {
                     payment_token,
@@ -479,6 +480,7 @@ impl PaymentCreate {
         request: &api::PaymentsRequest,
         shipping_address_id: Option<String>,
         billing_address_id: Option<String>,
+        active_attempt_id: String,
     ) -> RouterResult<storage::PaymentIntentNew> {
         let created_at @ modified_at @ last_synced = Some(common_utils::date_time::now());
         let status =
@@ -512,6 +514,7 @@ impl PaymentCreate {
             statement_descriptor_name: request.statement_descriptor_name.clone(),
             statement_descriptor_suffix: request.statement_descriptor_suffix.clone(),
             metadata: metadata.map(masking::Secret::new),
+            active_attempt_id,
             ..storage::PaymentIntentNew::default()
         })
     }

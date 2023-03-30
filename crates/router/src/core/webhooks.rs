@@ -214,9 +214,9 @@ async fn get_payment_attempt_from_object_reference_id(
             .await
             .change_context(errors::WebhooksFlowError::ResourceNotFound),
         api::ObjectReferenceId::PaymentId(api::PaymentIdType::PaymentAttemptId(ref id)) => db
-            .find_payment_attempt_by_merchant_id_attempt_id(
-                &merchant_account.merchant_id,
+            .find_payment_attempt_by_attempt_id_merchant_id(
                 id,
+                &merchant_account.merchant_id,
                 merchant_account.storage_scheme,
             )
             .await
