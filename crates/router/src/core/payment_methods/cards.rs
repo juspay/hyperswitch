@@ -52,24 +52,29 @@ pub async fn create_payment_method(
     payment_method_id: &str,
     merchant_id: &str,
     connector_token: Option<(&api::ConnectorData, String)>,
-    locker_pm_id: Option<String>,
 ) -> errors::CustomResult<storage::PaymentMethod, errors::StorageError> {
     let pm_metadata = connector_token
         .map(
             |connector_and_token| -> errors::CustomResult<_, errors::StorageError> {
+                let mut pm_tokenization = HashMap::new();
+                pm_tokenization.insert(
+                    connector_and_token.0.connector_name.to_string(),
+                    connector_and_token.1,
+                );
                 let metadata = payment_methods::PaymentMethodMetadata {
-                    payment_method_tokenization: vec![payment_methods::PaymentMethodTokenization {
-                        connector: connector_and_token.0.connector_name.to_string(),
-                        token: connector_and_token.1,
-                    }],
+                    payment_method_tokenization: pm_tokenization,
                 };
                 let metadata_value =
                     utils::Encode::<payment_methods::PaymentMethodMetadata>::encode_to_value(
                         &metadata,
                     )
                     .change_context(errors::StorageError::SerializationFailed)?;
-                let vec_value: Vec<serde_json::Value> = vec![metadata_value];
-                Ok(serde_json::Value::Array(vec_value))
+                let mut metadata_map = serde_json::Map::new();
+                metadata_map.insert(
+                    connector_and_token.0.connector_name.to_string(),
+                    metadata_value,
+                );
+                Ok(serde_json::Value::Object(metadata_map))
             },
         )
         .transpose()?;
@@ -84,7 +89,6 @@ pub async fn create_payment_method(
             payment_method_issuer: req.payment_method_issuer.clone(),
             scheme: req.card_network.clone(),
             metadata: pm_metadata.map(masking::Secret::new),
-            locker_payment_method_id: locker_pm_id,
             ..storage::PaymentMethodNew::default()
         })
         .await?;
@@ -101,14 +105,14 @@ pub async fn add_payment_method(
     req.validate()?;
     let merchant_id = &merchant_account.merchant_id;
     let customer_id = req.customer_id.clone().get_required_value("customer_id")?;
-    match req.card.clone() {
+    let response = match req.card.clone() {
         Some(card) => add_card_to_locker(state, req, card, customer_id, merchant_account)
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Add Card Failed"),
         None => {
             let pm_id = generate_id(consts::ID_LENGTH, "pm");
-            Ok(api::PaymentMethodResponse {
+            let payment_method_response = api::PaymentMethodResponse {
                 merchant_id: merchant_id.to_string(),
                 customer_id: Some(customer_id),
                 payment_method_id: pm_id,
@@ -120,10 +124,28 @@ pub async fn add_payment_method(
                 recurring_enabled: false,           //[#219]
                 installment_payment_enabled: false, //[#219]
                 payment_experience: Some(vec![api_models::enums::PaymentExperience::RedirectToUrl]), //[#219]
-            })
+            };
+            Ok((payment_method_response, false))
         }
-    }
-    .map(services::ApplicationResponse::Json)
+    };
+
+    // Adding duplicate check in redis as we can't return that because of api contract issues
+    let pm_response = response?;
+    let payment_method_response = pm_response.0;
+    let duplication = pm_response.1;
+    let redis_conn = connection::redis_connection(&state.conf).await;
+    redis_conn
+        .set_key_with_expiry("pm_duplicate_check", duplication, 900)
+        .await
+        .map_err(|error| {
+            logger::error!(access_token_kv_error=?error);
+            errors::StorageError::KVError
+        })
+        .into_report()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to add data in redis")?;
+
+    Ok(payment_method_response).map(services::ApplicationResponse::Json)
 }
 
 #[instrument(skip_all)]
@@ -176,7 +198,7 @@ pub async fn add_card_to_locker(
     card: api::CardDetail,
     customer_id: String,
     merchant_account: &storage::MerchantAccount,
-) -> errors::CustomResult<api::PaymentMethodResponse, errors::VaultError> {
+) -> errors::CustomResult<(api::PaymentMethodResponse, bool), errors::VaultError> {
     metrics::STORED_TO_LOCKER.add(&metrics::CONTEXT, 1, &[]);
     metrics::request::record_card_operation_time(
         async {
@@ -271,7 +293,7 @@ pub async fn add_card_hs(
     card: api::CardDetail,
     customer_id: String,
     merchant_account: &storage::MerchantAccount,
-) -> errors::CustomResult<api::PaymentMethodResponse, errors::VaultError> {
+) -> errors::CustomResult<(api::PaymentMethodResponse, bool), errors::VaultError> {
     let locker = &state.conf.locker;
     let jwekey = &state.conf.jwekey;
 
@@ -336,7 +358,8 @@ pub async fn add_card_hs(
         req,
         merchant_id,
     );
-    Ok(payment_method_resp)
+    //TODO: For now sending duplicate as false as it is default, it can be changed accordingly after duplication check is introduced
+    Ok((payment_method_resp, false))
 }
 
 // Legacy Locker Function
@@ -346,7 +369,7 @@ pub async fn add_card(
     card: api::CardDetail,
     customer_id: String,
     merchant_account: &storage::MerchantAccount,
-) -> errors::CustomResult<api::PaymentMethodResponse, errors::VaultError> {
+) -> errors::CustomResult<(api::PaymentMethodResponse, bool), errors::VaultError> {
     let locker = &state.conf.locker;
     let db = &*state.store;
     let merchant_id = &merchant_account.merchant_id;
@@ -385,9 +408,11 @@ pub async fn add_card(
         mock_add_card(db, &card_id, &card, None, None, Some(&customer_id)).await?
     };
 
+    let duplicate_check = response.duplicate.unwrap_or(false);
+
     let payment_method_resp =
         payment_methods::mk_add_card_response(card, response, req, merchant_id);
-    Ok(payment_method_resp)
+    Ok((payment_method_resp, duplicate_check))
 }
 
 pub async fn update_payment_method(
@@ -396,33 +421,45 @@ pub async fn update_payment_method(
     pm: payment_method::PaymentMethod,
 ) -> errors::CustomResult<(), errors::VaultError> {
     if let Some(connector_and_token) = connector_token {
-        let metadata = payment_methods::PaymentMethodMetadata {
-            payment_method_tokenization: vec![payment_methods::PaymentMethodTokenization {
-                connector: connector_and_token.0.connector_name.to_string(),
-                token: connector_and_token.1,
-            }],
+        let mut tokenization_map = HashMap::new();
+        tokenization_map.insert(
+            connector_and_token.0.connector_name.to_string(),
+            connector_and_token.1,
+        );
+
+        let pm_metadata = payment_methods::PaymentMethodMetadata {
+            payment_method_tokenization: tokenization_map,
         };
         let metadata_value =
-            utils::Encode::<payment_methods::PaymentMethodMetadata>::encode_to_value(&metadata)
+            utils::Encode::<payment_methods::PaymentMethodMetadata>::encode_to_value(&pm_metadata)
                 .change_context(errors::VaultError::RequestEncodingFailed)?;
-        let mut vec_value: Vec<serde_json::Value> = Vec::new();
-        if let Some(pm_metadata) = pm.metadata.to_owned() {
-            let mut pm_metadata_value = pm_metadata.expose();
-            if let Some(array) = pm_metadata_value.as_array_mut() {
-                vec_value.append(array)
-            }
-        };
-        vec_value.push(metadata_value);
+
+        let metadata = pm
+            .metadata
+            .to_owned()
+            .and_then(|data| {
+                let mut value_exposed = data.expose();
+                value_exposed.as_object_mut().and_then(|val| {
+                    val.insert(
+                        connector_and_token.0.connector_name.to_string(),
+                        metadata_value,
+                    )
+                })
+            })
+            .get_required_value("metadata")
+            .change_context(errors::VaultError::RequestEncodingFailed)?;
+
+        let mut map = serde_json::Map::new();
+        map.insert(connector_and_token.0.connector_name.to_string(), metadata);
 
         let pm_update = payment_method::PaymentMethodUpdate::MetadataUpdate {
-            metadata: Some(serde_json::Value::Array(vec_value)),
+            metadata: Some(serde_json::Value::Object(map)),
         };
 
         db.update_payment_method(pm, pm_update)
             .await
             .change_context(errors::VaultError::UpdateInPMDTableFailed)?;
     };
-
     Ok(())
 }
 
@@ -1264,28 +1301,29 @@ fn filter_pm_country_based(
     match (accepted_countries, req_country_list) {
         (None, None) => (None, None, true),
         (None, Some(ref r)) => (
-            Some(admin::AcceptedCountries {
-                accept_type: "enable_only".to_owned(),
-                list: Some(r.to_vec()),
-            }),
+            Some(admin::AcceptedCountries::EnableOnly(r.to_vec())),
             Some(r.to_vec()),
             true,
         ),
         (Some(l), None) => (Some(l.to_owned()), None, true),
         (Some(l), Some(ref r)) => {
-            let list = if l.accept_type == "enable_only" {
-                filter_accepted_enum_based(&l.list, &Some(r.to_owned()))
-            } else {
-                filter_disabled_enum_based(&l.list, &Some(r.to_owned()))
+            let updated = match l {
+                admin::AcceptedCountries::EnableOnly(acc) => {
+                    filter_accepted_enum_based(&Some(acc.clone()), &Some(r.to_owned()))
+                        .map(admin::AcceptedCountries::EnableOnly)
+                }
+
+                admin::AcceptedCountries::DisableOnly(den) => {
+                    filter_disabled_enum_based(&Some(den.clone()), &Some(r.to_owned()))
+                        .map(admin::AcceptedCountries::DisableOnly)
+                }
+
+                admin::AcceptedCountries::AllAccepted => {
+                    Some(admin::AcceptedCountries::AllAccepted)
+                }
             };
-            (
-                Some(admin::AcceptedCountries {
-                    accept_type: l.accept_type.to_owned(),
-                    list,
-                }),
-                Some(r.to_vec()),
-                true,
-            )
+
+            (updated, Some(r.to_vec()), true)
         }
     }
 }
@@ -1301,28 +1339,29 @@ fn filter_pm_currencies_based(
     match (accepted_currency, req_currency_list) {
         (None, None) => (None, None, true),
         (None, Some(ref r)) => (
-            Some(admin::AcceptedCurrencies {
-                accept_type: "enable_only".to_owned(),
-                list: Some(r.to_vec()),
-            }),
+            Some(admin::AcceptedCurrencies::EnableOnly(r.to_vec())),
             Some(r.to_vec()),
             true,
         ),
         (Some(l), None) => (Some(l.to_owned()), None, true),
         (Some(l), Some(ref r)) => {
-            let list = if l.accept_type == "enable_only" {
-                filter_accepted_enum_based(&l.list, &Some(r.to_owned()))
-            } else {
-                filter_disabled_enum_based(&l.list, &Some(r.to_owned()))
+            let updated = match l {
+                admin::AcceptedCurrencies::EnableOnly(acc) => {
+                    filter_accepted_enum_based(&Some(acc.clone()), &Some(r.to_owned()))
+                        .map(admin::AcceptedCurrencies::EnableOnly)
+                }
+
+                admin::AcceptedCurrencies::DisableOnly(den) => {
+                    filter_disabled_enum_based(&Some(den.clone()), &Some(r.to_owned()))
+                        .map(admin::AcceptedCurrencies::DisableOnly)
+                }
+
+                admin::AcceptedCurrencies::AllAccepted => {
+                    Some(admin::AcceptedCurrencies::AllAccepted)
+                }
             };
-            (
-                Some(admin::AcceptedCurrencies {
-                    accept_type: l.accept_type.to_owned(),
-                    list,
-                }),
-                Some(r.to_vec()),
-                true,
-            )
+
+            (updated, Some(r.to_vec()), true)
         }
     }
 }
@@ -1411,16 +1450,10 @@ async fn filter_payment_country_based(
 ) -> errors::CustomResult<bool, errors::ApiErrorResponse> {
     Ok(address.map_or(true, |address| {
         address.country.as_ref().map_or(true, |country| {
-            pm.accepted_countries.as_ref().map_or(true, |ac| {
-                if ac.accept_type == "enable_only" {
-                    ac.list
-                        .as_ref()
-                        .map_or(false, |enable_countries| enable_countries.contains(country))
-                } else {
-                    ac.list.as_ref().map_or(true, |disable_countries| {
-                        !disable_countries.contains(country)
-                    })
-                }
+            pm.accepted_countries.as_ref().map_or(true, |ac| match ac {
+                admin::AcceptedCountries::EnableOnly(acc) => acc.contains(country),
+                admin::AcceptedCountries::DisableOnly(den) => !den.contains(country),
+                admin::AcceptedCountries::AllAccepted => true,
             })
         })
     }))
@@ -1431,16 +1464,10 @@ fn filter_payment_currency_based(
     pm: &RequestPaymentMethodTypes,
 ) -> bool {
     payment_intent.currency.map_or(true, |currency| {
-        pm.accepted_currencies.as_ref().map_or(true, |ac| {
-            if ac.accept_type == "enable_only" {
-                ac.list.as_ref().map_or(false, |enable_currencies| {
-                    enable_currencies.contains(&currency.foreign_into())
-                })
-            } else {
-                ac.list.as_ref().map_or(true, |disable_currencies| {
-                    !disable_currencies.contains(&currency.foreign_into())
-                })
-            }
+        pm.accepted_currencies.as_ref().map_or(true, |ac| match ac {
+            admin::AcceptedCurrencies::EnableOnly(acc) => acc.contains(&currency.foreign_into()),
+            admin::AcceptedCurrencies::DisableOnly(den) => !den.contains(&currency.foreign_into()),
+            admin::AcceptedCurrencies::AllAccepted => true,
         })
     })
 }
@@ -1525,7 +1552,6 @@ pub async fn list_customer_payment_method(
             "pm_token_{}_{}_hyperswitch",
             parent_payment_method_token, pma.payment_method
         );
-        let pm_id = pm.payment_method_id;
         redis_conn
             .set_key_with_expiry(&key_for_hyperswitch_token, hyperswitch_token, 900)
             .await
@@ -1548,11 +1574,10 @@ pub async fn list_customer_payment_method(
             for pm_metadata in pm_metadata_vec.payment_method_tokenization {
                 let key = format!(
                     "pm_token_{}_{}_{}",
-                    parent_payment_method_token, pma.payment_method, pm_metadata.connector
+                    parent_payment_method_token, pma.payment_method, pm_metadata.0
                 );
-                let value = format!("{}_pmid_{}", pm_metadata.token, pm_id);
                 redis_conn
-                    .set_key_with_expiry(&key, value, 900)
+                    .set_key_with_expiry(&key, pm_metadata.1, 900)
                     .await
                     .map_err(|error| {
                         logger::error!(access_token_kv_error=?error);
@@ -1582,10 +1607,7 @@ pub async fn get_lookup_key_from_locker(
         state,
         &pm.customer_id,
         &pm.merchant_id,
-        pm.locker_payment_method_id
-            .clone()
-            .get_required_value("locker_pm_id")?
-            .as_str(),
+        &pm.payment_method_id,
         Some(locker_id.to_string()),
     )
     .await

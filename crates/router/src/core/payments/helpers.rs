@@ -517,7 +517,7 @@ where
 }
 
 #[instrument(skip_all)]
-pub(crate) async fn call_payment_method(
+pub(crate) async fn get_payment_method_create_request(
     payment_method: Option<&api::PaymentMethodData>,
     payment_method_type: Option<storage_enums::PaymentMethod>,
     maybe_customer: &Option<storage::Customer>,
@@ -1245,8 +1245,7 @@ pub(crate) async fn verify_client_secret(
                 .await
                 .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
 
-            authenticate_client_secret(Some(&cs), payment_intent.client_secret.as_ref())
-                .map_err(errors::ApiErrorResponse::from)?;
+            authenticate_client_secret(Some(&cs), payment_intent.client_secret.as_ref())?;
             Ok(payment_intent)
         })
         .await

@@ -162,7 +162,15 @@ pub enum Flow {
     ApiKeyRevoke,
     /// API Key list flow
     ApiKeyList,
+    /// Cards Info flow
+    CardsInfo,
 }
+
+///
+/// Trait for providing generic behaviour to flow metric
+///
+pub trait FlowMetric: ToString + std::fmt::Debug {}
+impl FlowMetric for Flow {}
 
 /// Category of log event.
 #[derive(Debug)]

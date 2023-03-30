@@ -3,8 +3,9 @@ use error_stack::ResultExt;
 
 use super::{ConstructFlowSpecificData, Feature};
 use crate::{
+    connection,
     core::{
-        errors::{self, ConnectorErrorExt, RouterResult, StorageErrorExt},
+        errors::{self, ConnectorErrorExt, RouterResult},
         mandate, payment_methods,
         payments::{self, access_token, helpers, transformers, PaymentData},
     },
@@ -166,71 +167,54 @@ where
         None
     };
 
-    let payment_method_request = helpers::call_payment_method(
-        Some(&resp.request.get_payment_method_data()),
-        Some(resp.payment_method),
-        maybe_customer,
-    )
-    .await?;
-
-    let pm_id = if resp.request.get_setup_future_usage().is_some() || connector_token.is_some() {
+    let pm_id = if resp.request.get_setup_future_usage().is_some() {
+        let payment_method_create_request = helpers::get_payment_method_create_request(
+            Some(&resp.request.get_payment_method_data()),
+            Some(resp.payment_method),
+            maybe_customer,
+        )
+        .await?;
         let merchant_id = &merchant_account.merchant_id;
-        let customer_id = payment_method_request
+        let customer_id = payment_method_create_request
             .customer_id
             .clone()
             .get_required_value("customer_id")?;
 
-        let locker_pm_id = if resp.request.get_setup_future_usage().is_some() {
-            let response =
-                save_in_locker(state, merchant_account, payment_method_request.to_owned()).await?;
-            Some(response.payment_method_id)
-        } else {
-            None
-        };
+        let locker_response = save_in_locker(
+            state,
+            merchant_account,
+            payment_method_create_request.to_owned(),
+        )
+        .await?;
 
-        let pm_action = match resp.payment_method_id {
-            Some(pm_id) => {
-                if connector_token.is_some() {
-                    let pm_data = Some(db.find_payment_method(&pm_id).await.map_err(|error| {
-                        error.to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)
-                    })?);
+        let redis_conn = connection::redis_connection(&state.conf).await;
+        let val = redis_conn.get_key::<bool>("pm_duplicate_check").await;
 
-                    (Action::Update, pm_data, pm_id)
-                } else {
-                    (Action::Skip, None, pm_id)
-                }
-            }
-            None => {
-                let pm_id = common_utils::generate_id(common_utils::consts::ID_LENGTH, "pm");
-                (Action::Insert, None, pm_id)
-            }
-        };
-        match pm_action {
-            (Action::Insert, _, id) => {
-                payment_methods::cards::create_payment_method(
-                    db,
-                    &payment_method_request,
-                    &customer_id,
-                    &id,
-                    merchant_id,
-                    connector_token,
-                    locker_pm_id,
-                )
+        let is_duplicate = val.unwrap_or(false);
+
+        if is_duplicate {
+            let pm = db
+                .find_payment_method(&locker_response.payment_method_id)
+                .await
+                .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)?;
+            payment_methods::cards::update_payment_method(db, connector_token, pm)
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to add payment method in db")?;
-                Some(id)
-            }
-            (Action::Update, pm_data, id) => {
-                let pm = pm_data.get_required_value("pm_data")?;
-                payment_methods::cards::update_payment_method(db, connector_token, pm)
-                    .await
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Failed to add payment method in db")?;
-                Some(id)
-            }
-            (Action::Skip, _, id) => Some(id),
-        }
+        } else {
+            payment_methods::cards::create_payment_method(
+                db,
+                &payment_method_create_request,
+                &customer_id,
+                &locker_response.payment_method_id,
+                merchant_id,
+                connector_token,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to add payment method in db")?;
+        };
+        Some(locker_response.payment_method_id)
     } else {
         None
     };

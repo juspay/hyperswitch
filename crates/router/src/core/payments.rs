@@ -553,7 +553,7 @@ where
 
     let payment_data = match connector {
         Some(ref connector) => {
-            get_connector_payment_method_token(
+            get_tokenization_payment_data(
                 state,
                 operation,
                 connector.to_owned(),
@@ -578,7 +578,7 @@ where
 /// If tokenization is complete, then the next flow continues
 /// If the tokenization is not performed, then the tokenization call is made and token will be added into the payment_data
 #[allow(clippy::too_many_arguments)]
-pub async fn get_connector_payment_method_token<F: Clone, Req>(
+pub async fn get_tokenization_payment_data<F: Clone, Req>(
     state: &AppState,
     operation: &BoxedOperation<'_, F, Req>,
     connector_name: String,
@@ -620,9 +620,7 @@ pub async fn get_connector_payment_method_token<F: Clone, Req>(
 
             match val {
                 Ok(redis_val) => {
-                    let val: Vec<&str> = redis_val.split("_pmid_").collect();
-                    payment_data.token = Some(val[0].to_string());
-                    payment_data.payment_attempt.payment_method_id = Some(val[1].to_string());
+                    payment_data.token = Some(redis_val);
                     true
                 }
                 Err(_) => false,
