@@ -1423,15 +1423,13 @@ pub async fn get_merchant_connector_account(
 
             Ok(MerchantConnectorAccountType::CacheVal(cached_mca))
         }
-        None => {
-            // TODO: create connector label
-            db.find_merchant_connector_account_by_merchant_id_connector_label(
+        None => db
+            .find_merchant_connector_account_by_merchant_id_connector_label(
                 merchant_id,
                 connector_label,
             )
             .await
             .map(MerchantConnectorAccountType::DbVal)
-            .change_context(errors::ApiErrorResponse::MerchantConnectorAccountNotFound)
-        }
+            .change_context(errors::ApiErrorResponse::MerchantConnectorAccountNotFound),
     }
 }

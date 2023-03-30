@@ -68,7 +68,7 @@ pub struct MerchantAccountCreate {
     pub locker_id: Option<String>,
 
     ///Default business details for connector routing
-    #[schema(value_type = Option<PrimaryBusinessDetails>)]
+    #[schema(value_type = PrimaryBusinessDetails)]
     pub primary_business_details: PrimaryBusinessDetails,
 }
 
@@ -458,7 +458,7 @@ pub struct MerchantConnectorDetailsWrap {
         },
         "metadata": {
             "user_defined_field_1": "sample_1",
-            "user_defined_field_2": "sample_2", 
+            "user_defined_field_2": "sample_2",
         },
     }"#)]
     pub encoded_data: Option<Secret<String>>,

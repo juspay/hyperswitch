@@ -79,8 +79,10 @@ stripe.base_url = "https://api.stripe.com/"
 worldline.base_url = "https://eu.sandbox.api-ingenico.com/"
 worldpay.base_url = "https://try.access.worldpay.com/"
 trustpay.base_url = "https://test-tpgw.trustpay.eu/"
+trustpay.base_url_bank_redirects = "https://aapi.trustpay.eu/"
 
 [connectors.supported]
+wallets = ["klarna", "braintree", "applepay"]
 cards = [
     "aci",
     "adyen",
