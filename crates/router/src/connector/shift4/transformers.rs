@@ -172,7 +172,7 @@ fn get_address_details(address_details: Option<&payments::AddressDetails>) -> Op
         zip: address.zip.clone(),
         state: address.state.clone(),
         city: address.city.clone(),
-        country: address.country.clone(),
+        country: address.country,
     })
 }
 
