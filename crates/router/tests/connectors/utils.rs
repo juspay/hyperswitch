@@ -191,14 +191,14 @@ pub trait ConnectorActions: Connector {
     async fn refund_payment(
         &self,
         transaction_id: String,
-        payment_data: Option<types::RefundsData>,
+        refund_data: Option<types::RefundsData>,
         payment_info: Option<PaymentInfo>,
     ) -> Result<types::RefundExecuteRouterData, Report<ConnectorError>> {
         let integration = self.get_data().connector.get_connector_integration();
         let request = self.generate_data(
             types::RefundsData {
                 connector_transaction_id: transaction_id,
-                ..payment_data.unwrap_or(PaymentRefundType::default().0)
+                ..refund_data.unwrap_or(PaymentRefundType::default().0)
             },
             payment_info,
         );
