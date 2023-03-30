@@ -411,6 +411,7 @@ pub enum PaymentMethodType {
     GooglePay,
     ApplePay,
     Paypal,
+    CryptoCurrency,
 }
 
 #[derive(
