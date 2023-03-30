@@ -118,9 +118,10 @@ mod tests {
 
         let response = state
             .store
-            .find_payment_attempt_by_attempt_id_merchant_id(
-                &attempt_id,
+            .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
+                &payment_id,
                 &merchant_id,
+                &attempt_id,
                 enums::MerchantStorageScheme::PostgresOnly,
             )
             .await
@@ -163,9 +164,10 @@ mod tests {
 
         let response = state
             .store
-            .find_payment_attempt_by_attempt_id_merchant_id(
+            .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
                 &uuid,
                 "1",
+                &uuid,
                 enums::MerchantStorageScheme::PostgresOnly,
             )
             .await

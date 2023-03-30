@@ -661,9 +661,10 @@ pub async fn list_payments(
     let pi = futures::stream::iter(payment_intents)
         .filter_map(|pi| async {
             let pa = db
-                .find_payment_attempt_by_attempt_id_merchant_id(
-                    &pi.attempt_id,
+                .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
+                    &pi.payment_id,
                     merchant_id,
+                    &pi.attempt_id,
                     // since OLAP doesn't have KV. Force to get the data from PSQL.
                     storage_enums::MerchantStorageScheme::PostgresOnly,
                 )

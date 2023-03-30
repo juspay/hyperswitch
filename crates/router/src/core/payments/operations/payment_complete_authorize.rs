@@ -94,9 +94,10 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Co
             })?;
 
         payment_attempt = db
-            .find_payment_attempt_by_attempt_id_merchant_id(
-                &payment_intent.attempt_id,
+            .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
+                &payment_intent.payment_id,
                 merchant_id,
+                &payment_intent.attempt_id,
                 storage_scheme,
             )
             .await
