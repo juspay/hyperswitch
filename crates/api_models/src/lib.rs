@@ -6,6 +6,7 @@ pub mod cards_info;
 pub mod customers;
 pub mod disputes;
 pub mod enums;
+#[cfg(feature = "errors")]
 pub mod errors;
 pub mod files;
 pub mod mandates;
