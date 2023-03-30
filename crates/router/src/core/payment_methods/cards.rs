@@ -1120,7 +1120,7 @@ async fn filter_payment_methods(
                         &connector,
                         &payment_method_object.payment_method_type,
                         &mut payment_method_object.card_networks,
-                        &address.and_then(|inner| inner.country.clone()),
+                        &address.and_then(|inner| inner.country),
                         payment_attempt
                             .and_then(|value| value.currency)
                             .map(|value| value.foreign_into()),
@@ -1149,7 +1149,7 @@ fn filter_pm_based_on_config<'a>(
     connector: &'a str,
     payment_method_type: &'a api_enums::PaymentMethodType,
     card_network: &mut Option<Vec<api_enums::CardNetwork>>,
-    country: &Option<String>,
+    country: &Option<api_enums::CountryCode>,
     currency: Option<api_enums::Currency>,
 ) -> bool {
     config
@@ -1171,7 +1171,7 @@ fn filter_pm_based_on_config<'a>(
 }
 
 fn card_network_filter(
-    country: &Option<String>,
+    country: &Option<api_enums::CountryCode>,
     currency: Option<api_enums::Currency>,
     card_network: &mut Option<Vec<api_enums::CardNetwork>>,
     payment_method_filters: &settings::PaymentMethodFilters,
@@ -1195,7 +1195,7 @@ fn card_network_filter(
 
 fn global_country_currency_filter(
     item: &settings::CurrencyCountryFilter,
-    country: &Option<String>,
+    country: &Option<api_enums::CountryCode>,
     currency: Option<api_enums::Currency>,
 ) -> bool {
     let country_condition = item
@@ -1233,8 +1233,12 @@ fn filter_pm_card_network_based(
 }
 fn filter_pm_country_based(
     accepted_countries: &Option<admin::AcceptedCountries>,
-    req_country_list: &Option<Vec<String>>,
-) -> (Option<admin::AcceptedCountries>, Option<Vec<String>>, bool) {
+    req_country_list: &Option<Vec<api_enums::CountryCode>>,
+) -> (
+    Option<admin::AcceptedCountries>,
+    Option<Vec<api_enums::CountryCode>>,
+    bool,
+) {
     match (accepted_countries, req_country_list) {
         (None, None) => (None, None, true),
         (None, Some(ref r)) => (

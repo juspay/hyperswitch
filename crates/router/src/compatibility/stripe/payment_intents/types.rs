@@ -27,7 +27,9 @@ impl From<StripeBillingDetails> for payments::Address {
         Self {
             phone: Some(payments::PhoneDetails {
                 number: details.phone,
-                country_code: details.address.as_ref().and_then(|a| a.country.clone()),
+                country_code: details.address.as_ref().and_then(|address| {
+                    address.country.as_ref().map(|country| country.to_string())
+                }),
             }),
 
             address: details.address,
@@ -109,7 +111,9 @@ impl From<Shipping> for payments::Address {
         Self {
             phone: Some(payments::PhoneDetails {
                 number: details.phone,
-                country_code: details.address.as_ref().and_then(|a| a.country.clone()),
+                country_code: details.address.as_ref().and_then(|address| {
+                    address.country.as_ref().map(|country| country.to_string())
+                }),
             }),
             address: details.address,
         }

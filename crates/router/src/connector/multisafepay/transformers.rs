@@ -132,7 +132,7 @@ pub struct DeliveryObject {
     house_number: Secret<String>,
     zip_code: Secret<String>,
     city: String,
-    country: String,
+    country: api_models::enums::CountryCode,
 }
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]

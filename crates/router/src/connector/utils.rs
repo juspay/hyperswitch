@@ -47,7 +47,7 @@ impl AccessTokenRequestInfo for types::RefreshTokenRouterData {
 
 pub trait RouterData {
     fn get_billing(&self) -> Result<&api::Address, Error>;
-    fn get_billing_country(&self) -> Result<String, Error>;
+    fn get_billing_country(&self) -> Result<api_models::enums::CountryCode, Error>;
     fn get_billing_phone(&self) -> Result<&api::PhoneDetails, Error>;
     fn get_description(&self) -> Result<String, Error>;
     fn get_billing_address(&self) -> Result<&api::AddressDetails, Error>;
@@ -69,12 +69,12 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
             .ok_or_else(missing_field_err("billing"))
     }
 
-    fn get_billing_country(&self) -> Result<String, Error> {
+    fn get_billing_country(&self) -> Result<api_models::enums::CountryCode, Error> {
         self.address
             .billing
             .as_ref()
             .and_then(|a| a.address.as_ref())
-            .and_then(|ad| ad.country.clone())
+            .and_then(|ad| ad.country)
             .ok_or_else(missing_field_err("billing.address.country"))
     }
 
@@ -314,7 +314,7 @@ pub trait AddressDetailsData {
     fn get_city(&self) -> Result<&String, Error>;
     fn get_line2(&self) -> Result<&Secret<String>, Error>;
     fn get_zip(&self) -> Result<&Secret<String>, Error>;
-    fn get_country(&self) -> Result<&String, Error>;
+    fn get_country(&self) -> Result<&api_models::enums::CountryCode, Error>;
     fn get_combined_address_line(&self) -> Result<Secret<String>, Error>;
 }
 
@@ -355,7 +355,7 @@ impl AddressDetailsData for api::AddressDetails {
             .ok_or_else(missing_field_err("address.zip"))
     }
 
-    fn get_country(&self) -> Result<&String, Error> {
+    fn get_country(&self) -> Result<&api_models::enums::CountryCode, Error> {
         self.country
             .as_ref()
             .ok_or_else(missing_field_err("address.country"))

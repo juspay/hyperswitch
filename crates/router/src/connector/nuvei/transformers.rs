@@ -129,7 +129,7 @@ pub enum AlternativePaymentMethodType {
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct BillingAddress {
     pub email: Secret<String, Email>,
-    pub country: String,
+    pub country: api_models::enums::CountryCode,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]

@@ -120,7 +120,7 @@ pub struct PaymentRequestCards {
     #[serde(rename = "billing[city]")]
     pub billing_city: String,
     #[serde(rename = "billing[country]")]
-    pub billing_country: String,
+    pub billing_country: api_models::enums::CountryCode,
     #[serde(rename = "billing[street1]")]
     pub billing_street1: Secret<String>,
     #[serde(rename = "billing[postcode]")]
@@ -174,7 +174,7 @@ pub enum TrustpayPaymentsRequest {
 #[derive(Debug, Serialize, Eq, PartialEq)]
 pub struct TrustpayMandatoryParams {
     pub billing_city: String,
-    pub billing_country: String,
+    pub billing_country: api_models::enums::CountryCode,
     pub billing_street1: Secret<String>,
     pub billing_postcode: Secret<String>,
 }

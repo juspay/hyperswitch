@@ -143,6 +143,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::enums::PaymentExperience,
         api_models::enums::BankNames,
         api_models::enums::CardNetwork,
+        api_models::enums::CountryCode,
         api_models::admin::MerchantConnector,
         api_models::admin::PaymentMethodsEnabled,
         api_models::payments::AddressDetails,

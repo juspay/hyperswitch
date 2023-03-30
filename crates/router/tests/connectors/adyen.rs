@@ -39,7 +39,7 @@ impl AdyenTest {
             address: Some(PaymentAddress {
                 billing: Some(Address {
                     address: Some(AddressDetails {
-                        country: Some("US".to_string()),
+                        country: Some(api_models::enums::CountryCode::US),
                         ..Default::default()
                     }),
                     phone: None,

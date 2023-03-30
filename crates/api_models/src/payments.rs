@@ -413,7 +413,8 @@ pub enum PayLaterData {
         #[schema(value_type = String)]
         billing_email: Secret<String, pii::Email>,
         // The billing country code
-        billing_country: String,
+        #[schema(value_type = Country)]
+        billing_country: api_enums::CountryCode,
     },
     /// For Klarna Sdk as PayLater Option
     KlarnaSdk {
@@ -506,8 +507,8 @@ pub enum BankRedirectData {
     },
     Sofort {
         /// The country for bank payment
-        #[schema(example = "US")]
-        country: String,
+        #[schema(value_type = Country, example = "US")]
+        country: api_enums::CountryCode,
 
         /// The preferred language
         #[schema(example = "en")]
@@ -675,8 +676,8 @@ pub struct AddressDetails {
     pub city: Option<String>,
 
     /// The two-letter ISO country code for the address
-    #[schema(max_length = 2, min_length = 2, example = "US")]
-    pub country: Option<String>,
+    #[schema(value_type = Option<Country>, max_length = 2, min_length = 2, example = "US")]
+    pub country: Option<api_enums::CountryCode>,
 
     /// The first line of the address
     #[schema(value_type = Option<String>, max_length = 200, example = "123, King Street")]
@@ -1242,7 +1243,8 @@ pub struct GpayAllowedPaymentMethods {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct GpayTransactionInfo {
     /// The country code
-    pub country_code: String,
+    #[schema(value_type = Country)]
+    pub country_code: api_enums::CountryCode,
     /// The currency code
     pub currency_code: String,
     /// The total price status (ex: 'FINAL')
@@ -1348,7 +1350,8 @@ pub struct ApplePaySessionResponse {
 #[derive(Debug, Clone, serde::Serialize, ToSchema, serde::Deserialize)]
 pub struct ApplePayPaymentRequest {
     /// The code for country
-    pub country_code: String,
+    #[schema(value_type = Country)]
+    pub country_code: api_enums::CountryCode,
     /// The code for currency
     pub currency_code: String,
     /// Represents the total for the payment.

@@ -59,7 +59,7 @@ pub struct Address {
     zip: Option<Secret<String>>,
     state: Option<Secret<String>>,
     city: Option<String>,
-    country: Option<String>,
+    country: Option<api_models::enums::CountryCode>,
 }
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
@@ -172,7 +172,7 @@ fn get_address_details(address_details: Option<&payments::AddressDetails>) -> Op
         zip: address.zip.clone(),
         state: address.state.clone(),
         city: address.city.clone(),
-        country: address.country.clone(),
+        country: address.country,
     })
 }
 

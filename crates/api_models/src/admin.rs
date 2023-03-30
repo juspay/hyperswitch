@@ -381,8 +381,8 @@ pub enum AcceptedCurrencies {
     rename_all = "snake_case"
 )]
 pub enum AcceptedCountries {
-    EnableOnly(Vec<String>),
-    DisableOnly(Vec<String>),
+    EnableOnly(Vec<api_enums::CountryCode>),
+    DisableOnly(Vec<api_enums::CountryCode>),
     AllAccepted,
 }
 
@@ -428,7 +428,7 @@ pub struct MerchantConnectorDetailsWrap {
         },
         "metadata": {
             "user_defined_field_1": "sample_1",
-            "user_defined_field_2": "sample_2", 
+            "user_defined_field_2": "sample_2",
         },
     }"#)]
     pub encoded_data: Option<Secret<String>>,

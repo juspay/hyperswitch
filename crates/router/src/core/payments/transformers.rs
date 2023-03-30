@@ -561,11 +561,9 @@ impl<F: Clone> TryFrom<PaymentData<F>> for types::PaymentsSessionData {
         Ok(Self {
             amount: payment_data.amount.into(),
             currency: payment_data.currency,
-            country: payment_data
-                .address
-                .billing
-                .and_then(|billing_address| billing_address.address.map(|address| address.country))
-                .flatten(),
+            country: payment_data.address.billing.and_then(|billing_address| {
+                billing_address.address.and_then(|address| address.country)
+            }),
             order_details,
         })
     }

@@ -2,9 +2,10 @@
 pub mod diesel_exports {
     pub use super::{
         DbAttemptStatus as AttemptStatus, DbAuthenticationType as AuthenticationType,
-        DbCaptureMethod as CaptureMethod, DbConnectorType as ConnectorType, DbCurrency as Currency,
-        DbDisputeStage as DisputeStage, DbDisputeStatus as DisputeStatus,
-        DbEventClass as EventClass, DbEventObjectType as EventObjectType, DbEventType as EventType,
+        DbCaptureMethod as CaptureMethod, DbConnectorType as ConnectorType,
+        DbCountryCode as CountryCode, DbCurrency as Currency, DbDisputeStage as DisputeStage,
+        DbDisputeStatus as DisputeStatus, DbEventClass as EventClass,
+        DbEventObjectType as EventObjectType, DbEventType as EventType,
         DbFutureUsage as FutureUsage, DbIntentStatus as IntentStatus,
         DbMandateStatus as MandateStatus, DbMandateType as MandateType,
         DbMerchantStorageScheme as MerchantStorageScheme,
@@ -13,6 +14,8 @@ pub mod diesel_exports {
         DbRefundType as RefundType,
     };
 }
+
+pub use common_enums::*;
 
 #[derive(
     Clone,
