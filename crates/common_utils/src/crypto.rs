@@ -268,6 +268,21 @@ impl GenerateDigest for Sha256 {
     }
 }
 
+impl VerifySignature for Sha256 {
+    fn verify_signature(
+        &self,
+        _secret: &[u8],
+        signature: &[u8],
+        msg: &[u8],
+    ) -> CustomResult<bool, errors::CryptoError> {
+        let hashed_digest = Self
+            .generate_digest(msg)
+            .change_context(errors::CryptoError::SignatureVerificationFailed)?;
+        let hashed_digest_into_bytes = hashed_digest.as_slice();
+        Ok(hashed_digest_into_bytes == signature)
+    }
+}
+
 /// Generate a random string using a cryptographically secure pseudo-random number generator
 /// (CSPRNG). Typically used for generating (readable) keys and passwords.
 #[inline]
@@ -327,6 +342,30 @@ mod crypto_tests {
         assert!(right_verified);
 
         let wrong_verified = super::HmacSha256
+            .verify_signature(secret, &wrong_signature, data)
+            .expect("Wrong signature verification result");
+
+        assert!(!wrong_verified);
+    }
+
+    #[test]
+    fn test_sha256_verify_signature() {
+        let right_signature =
+            hex::decode("123250a72f4e961f31661dbcee0fec0f4714715dc5ae1b573f908a0a5381ddba")
+                .expect("Right signature decoding");
+        let wrong_signature =
+            hex::decode("123250a72f4e961f31661dbcee0fec0f4714715dc5ae1b573f908a0a5381ddbb")
+                .expect("Wrong signature decoding");
+        let secret = "".as_bytes();
+        let data = r#"AJHFH9349JASFJHADJ9834115USD2020-11-13.13:22:34711000000021406655APPROVED12345product_id"#.as_bytes();
+
+        let right_verified = super::Sha256
+            .verify_signature(secret, &right_signature, data)
+            .expect("Right signature verification result");
+
+        assert!(right_verified);
+
+        let wrong_verified = super::Sha256
             .verify_signature(secret, &wrong_signature, data)
             .expect("Wrong signature verification result");
 
