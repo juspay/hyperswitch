@@ -783,7 +783,7 @@ impl api::IncomingWebhook for Adyen {
 
     fn get_dispute_details(
         &self,
-        request: &api_models::webhooks::IncomingWebhookRequestDetails<'_>,
+        request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api::disputes::DisputePayload, errors::ConnectorError> {
         let notif = get_webhook_object_from_body(request.body)
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;

@@ -301,7 +301,7 @@ async fn disputes_incoming_webhook_flow<W: api::OutgoingWebhookType>(
     webhook_details: api::IncomingWebhookDetails,
     source_verified: bool,
     connector: &(dyn api::Connector + Sync),
-    request_details: &api_models::webhooks::IncomingWebhookRequestDetails<'_>,
+    request_details: &api::IncomingWebhookRequestDetails<'_>,
     event_type: api_models::webhooks::IncomingWebhookEvent,
 ) -> CustomResult<(), errors::WebhooksFlowError> {
     metrics::INCOMING_DISPUTE_WEBHOOK_METRIC.add(&metrics::CONTEXT, 1, &[]);
@@ -497,7 +497,7 @@ pub async fn webhooks_core<W: api::OutgoingWebhookType>(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("There was an error in parsing the query params")?;
 
-    let mut request_details = api_models::webhooks::IncomingWebhookRequestDetails {
+    let mut request_details = api::IncomingWebhookRequestDetails {
         method: req.method().clone(),
         headers: req.headers(),
         query_params: req.query_string().to_string(),
