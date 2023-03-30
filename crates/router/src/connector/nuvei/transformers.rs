@@ -880,7 +880,7 @@ impl<F, T>
                             .transaction_id
                             .map_or(response.order_id, Some) // For paypal there will be no transaction_id, only order_id will be present
                             .map(types::ResponseId::ConnectorTransactionId)
-                            .ok_or_else(|| errors::ConnectorError::MissingConnectorTransactionID)?,
+                            .ok_or(errors::ConnectorError::MissingConnectorTransactionID)?,
                         redirection_data,
                         mandate_reference: None,
                         // we don't need to save session token for capture, void flow so ignoring if it is not present
