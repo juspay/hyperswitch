@@ -533,14 +533,18 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<F>> for types::PaymentsCaptureData 
 
     fn try_from(additional_data: PaymentAdditionalData<F>) -> Result<Self, Self::Error> {
         let payment_data = additional_data.payment_data;
+        let amount_to_capture: i64 = payment_data
+            .payment_attempt
+            .amount_to_capture
+            .map_or(payment_data.amount.into(), |capture_amount| capture_amount);
         Ok(Self {
-            amount_to_capture: payment_data.payment_attempt.amount_to_capture,
+            amount_to_capture,
             currency: payment_data.currency,
             connector_transaction_id: payment_data
                 .payment_attempt
                 .connector_transaction_id
                 .ok_or(errors::ApiErrorResponse::MerchantConnectorAccountNotFound)?,
-            amount: payment_data.amount.into(),
+            payment_amount: payment_data.amount.into(),
             connector_meta: payment_data.payment_attempt.connector_metadata,
         })
     }
