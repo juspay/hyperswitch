@@ -14,7 +14,7 @@ use crate::{
     routes::AppState,
     services::api as service_api,
     types::{
-        self, api,
+        self, api, domain,
         storage::{self, MerchantAccount},
         transformers::{ForeignInto, ForeignTryInto},
     },
@@ -310,16 +310,21 @@ pub async fn create_payment_connector(
             expected_format: "auth_type and api_key".to_string(),
         })?;
 
-    let merchant_connector_account = storage::MerchantConnectorAccountNew {
-        merchant_id: Some(merchant_id.to_string()),
-        connector_type: Some(req.connector_type.foreign_into()),
-        connector_name: Some(req.connector_name),
+    let merchant_connector_account = domain::merchant_connector_account::MerchantConnectorAccount {
+        merchant_id: merchant_id.to_string(),
+        connector_type: req.connector_type.foreign_into(),
+        connector_name: req.connector_name,
         merchant_connector_id: utils::generate_id(consts::ID_LENGTH, "mca"),
-        connector_account_details: req.connector_account_details,
+        connector_account_details: req.connector_account_details.ok_or(
+            errors::ApiErrorResponse::MissingRequiredField {
+                field_name: "connector_account_details",
+            },
+        )?,
         payment_methods_enabled,
         test_mode: req.test_mode,
         disabled: req.disabled,
         metadata: req.metadata,
+        id: None,
     };
 
     let mca = store
@@ -455,7 +460,7 @@ pub async fn update_payment_connector(
         connector_type: updated_mca.connector_type.foreign_into(),
         connector_name: updated_mca.connector_name,
         merchant_connector_id: Some(updated_mca.merchant_connector_id),
-        connector_account_details: Some(Secret::new(updated_mca.connector_account_details)),
+        connector_account_details: Some(updated_mca.connector_account_details),
         test_mode: updated_mca.test_mode,
         disabled: updated_mca.disabled,
         payment_methods_enabled: updated_pm_enabled,

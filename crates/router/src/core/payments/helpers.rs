@@ -1324,7 +1324,7 @@ pub async fn insert_merchant_connector_creds_to_config(
 }
 
 pub enum MerchantConnectorAccountType {
-    DbVal(storage::MerchantConnectorAccount),
+    DbVal(domain::merchant_connector_account::MerchantConnectorAccount),
     CacheVal(api_models::admin::MerchantConnectorDetails),
 }
 
@@ -1337,7 +1337,7 @@ impl MerchantConnectorAccountType {
     }
     pub fn get_connector_account_details(&self) -> serde_json::Value {
         match self {
-            Self::DbVal(val) => val.connector_account_details.to_owned(),
+            Self::DbVal(val) => val.connector_account_details.peek().to_owned(),
             Self::CacheVal(val) => val.connector_account_details.peek().to_owned(),
         }
     }

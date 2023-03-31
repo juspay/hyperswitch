@@ -2,13 +2,13 @@ use common_utils::{
     errors::{CustomResult, ValidationError},
     pii,
 };
-use masking::{ExposeInterface, Secret};
+use masking::{ExposeInterface, Secret, Serialize};
 use storage_models::enums;
 use time::PrimitiveDateTime;
 
 use super::behaviour;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct MerchantConnectorAccount {
     pub id: Option<i32>,
     pub merchant_id: String,

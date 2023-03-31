@@ -1,4 +1,4 @@
-use common_utils::ext_traits::{ByteSliceExt, Encode};
+use common_utils::ext_traits::{AsyncExt, ByteSliceExt, Encode};
 use error_stack::{IntoReport, ResultExt};
 use masking::ExposeInterface;
 
@@ -7,7 +7,14 @@ use crate::{
     connection,
     core::errors::{self, CustomResult},
     services::logger,
-    types::{self, storage},
+    types::{
+        self,
+        domain::{
+            self,
+            behaviour::{Conversion, ReverseConversion},
+        },
+        storage,
+    },
 };
 
 #[async_trait::async_trait]
@@ -102,30 +109,45 @@ pub trait MerchantConnectorAccountInterface {
         &self,
         merchant_id: &str,
         connector: &str,
-    ) -> CustomResult<storage::MerchantConnectorAccount, errors::StorageError>;
+    ) -> CustomResult<
+        domain::merchant_connector_account::MerchantConnectorAccount,
+        errors::StorageError,
+    >;
 
     async fn insert_merchant_connector_account(
         &self,
-        t: storage::MerchantConnectorAccountNew,
-    ) -> CustomResult<storage::MerchantConnectorAccount, errors::StorageError>;
+        t: domain::merchant_connector_account::MerchantConnectorAccount,
+    ) -> CustomResult<
+        domain::merchant_connector_account::MerchantConnectorAccount,
+        errors::StorageError,
+    >;
 
     async fn find_by_merchant_connector_account_merchant_id_merchant_connector_id(
         &self,
         merchant_id: &str,
         merchant_connector_id: &str,
-    ) -> CustomResult<storage::MerchantConnectorAccount, errors::StorageError>;
+    ) -> CustomResult<
+        domain::merchant_connector_account::MerchantConnectorAccount,
+        errors::StorageError,
+    >;
 
     async fn find_merchant_connector_account_by_merchant_id_and_disabled_list(
         &self,
         merchant_id: &str,
         get_disabled: bool,
-    ) -> CustomResult<Vec<storage::MerchantConnectorAccount>, errors::StorageError>;
+    ) -> CustomResult<
+        Vec<domain::merchant_connector_account::MerchantConnectorAccount>,
+        errors::StorageError,
+    >;
 
     async fn update_merchant_connector_account(
         &self,
-        this: storage::MerchantConnectorAccount,
+        this: domain::merchant_connector_account::MerchantConnectorAccount,
         merchant_connector_account: storage::MerchantConnectorAccountUpdate,
-    ) -> CustomResult<storage::MerchantConnectorAccount, errors::StorageError>;
+    ) -> CustomResult<
+        domain::merchant_connector_account::MerchantConnectorAccount,
+        errors::StorageError,
+    >;
 
     async fn delete_merchant_connector_account_by_merchant_id_merchant_connector_id(
         &self,
@@ -140,7 +162,10 @@ impl MerchantConnectorAccountInterface for Store {
         &self,
         merchant_id: &str,
         connector: &str,
-    ) -> CustomResult<storage::MerchantConnectorAccount, errors::StorageError> {
+    ) -> CustomResult<
+        domain::merchant_connector_account::MerchantConnectorAccount,
+        errors::StorageError,
+    > {
         let conn = connection::pg_connection_read(self).await?;
         storage::MerchantConnectorAccount::find_by_merchant_id_connector(
             &conn,
@@ -150,13 +175,22 @@ impl MerchantConnectorAccountInterface for Store {
         .await
         .map_err(Into::into)
         .into_report()
+        .async_and_then(|item| async {
+            item.convert()
+                .await
+                .change_context(errors::StorageError::DeserializationFailed)
+        })
+        .await
     }
 
     async fn find_by_merchant_connector_account_merchant_id_merchant_connector_id(
         &self,
         merchant_id: &str,
         merchant_connector_id: &str,
-    ) -> CustomResult<storage::MerchantConnectorAccount, errors::StorageError> {
+    ) -> CustomResult<
+        domain::merchant_connector_account::MerchantConnectorAccount,
+        errors::StorageError,
+    > {
         let find_call = || async {
             let conn = connection::pg_connection_read(self).await?;
             storage::MerchantConnectorAccount::find_by_merchant_id_merchant_connector_id(
@@ -167,6 +201,12 @@ impl MerchantConnectorAccountInterface for Store {
             .await
             .map_err(Into::into)
             .into_report()
+            .async_and_then(|item| async {
+                item.convert()
+                    .await
+                    .change_context(errors::StorageError::DeserializationFailed)
+            })
+            .await
         };
         #[cfg(not(feature = "accounts_cache"))]
         {
@@ -181,36 +221,78 @@ impl MerchantConnectorAccountInterface for Store {
 
     async fn insert_merchant_connector_account(
         &self,
-        t: storage::MerchantConnectorAccountNew,
-    ) -> CustomResult<storage::MerchantConnectorAccount, errors::StorageError> {
+        t: domain::merchant_connector_account::MerchantConnectorAccount,
+    ) -> CustomResult<
+        domain::merchant_connector_account::MerchantConnectorAccount,
+        errors::StorageError,
+    > {
         let conn = connection::pg_connection_write(self).await?;
-        t.insert(&conn).await.map_err(Into::into).into_report()
+        t.construct_new()
+            .await
+            .change_context(errors::StorageError::DeserializationFailed)?
+            .insert(&conn)
+            .await
+            .map_err(Into::into)
+            .into_report()
+            .async_and_then(|item| async {
+                item.convert()
+                    .await
+                    .change_context(errors::StorageError::DeserializationFailed)
+            })
+            .await
     }
 
     async fn find_merchant_connector_account_by_merchant_id_and_disabled_list(
         &self,
         merchant_id: &str,
         get_disabled: bool,
-    ) -> CustomResult<Vec<storage::MerchantConnectorAccount>, errors::StorageError> {
+    ) -> CustomResult<
+        Vec<domain::merchant_connector_account::MerchantConnectorAccount>,
+        errors::StorageError,
+    > {
         let conn = connection::pg_connection_read(self).await?;
         storage::MerchantConnectorAccount::find_by_merchant_id(&conn, merchant_id, get_disabled)
             .await
             .map_err(Into::into)
             .into_report()
+            .async_and_then(|items| async {
+                let mut output = Vec::with_capacity(items.len());
+                for item in items.into_iter() {
+                    output.push(
+                        item.convert()
+                            .await
+                            .change_context(errors::StorageError::DeserializationFailed)?,
+                    )
+                }
+                Ok(output)
+            })
+            .await
     }
 
     async fn update_merchant_connector_account(
         &self,
-        this: storage::MerchantConnectorAccount,
+        this: domain::merchant_connector_account::MerchantConnectorAccount,
         merchant_connector_account: storage::MerchantConnectorAccountUpdate,
-    ) -> CustomResult<storage::MerchantConnectorAccount, errors::StorageError> {
+    ) -> CustomResult<
+        domain::merchant_connector_account::MerchantConnectorAccount,
+        errors::StorageError,
+    > {
         let _merchant_connector_id = this.merchant_connector_id.clone();
         let update_call = || async {
             let conn = connection::pg_connection_write(self).await?;
-            this.update(&conn, merchant_connector_account)
+            Conversion::convert(this)
+                .await
+                .change_context(errors::StorageError::DeserializationFailed)?
+                .update(&conn, merchant_connector_account)
                 .await
                 .map_err(Into::into)
                 .into_report()
+                .async_and_then(|item| async {
+                    item.convert()
+                        .await
+                        .change_context(errors::StorageError::DeserializationFailed)
+                })
+                .await
         };
 
         #[cfg(feature = "accounts_cache")]
@@ -249,7 +331,10 @@ impl MerchantConnectorAccountInterface for MockDb {
         &self,
         merchant_id: &str,
         connector: &str,
-    ) -> CustomResult<storage::MerchantConnectorAccount, errors::StorageError> {
+    ) -> CustomResult<
+        domain::merchant_connector_account::MerchantConnectorAccount,
+        errors::StorageError,
+    > {
         let accounts = self.merchant_connector_accounts.lock().await;
         let account = accounts
             .iter()
@@ -258,14 +343,20 @@ impl MerchantConnectorAccountInterface for MockDb {
             })
             .cloned()
             .unwrap();
-        Ok(account)
+        account
+            .convert()
+            .await
+            .change_context(errors::StorageError::DeserializationFailed)
     }
 
     async fn find_by_merchant_connector_account_merchant_id_merchant_connector_id(
         &self,
         _merchant_id: &str,
         _merchant_connector_id: &str,
-    ) -> CustomResult<storage::MerchantConnectorAccount, errors::StorageError> {
+    ) -> CustomResult<
+        domain::merchant_connector_account::MerchantConnectorAccount,
+        errors::StorageError,
+    > {
         // [#172]: Implement function for `MockDb`
         Err(errors::StorageError::MockDbError)?
     }
@@ -273,42 +364,52 @@ impl MerchantConnectorAccountInterface for MockDb {
     #[allow(clippy::panic)]
     async fn insert_merchant_connector_account(
         &self,
-        t: storage::MerchantConnectorAccountNew,
-    ) -> CustomResult<storage::MerchantConnectorAccount, errors::StorageError> {
+        t: domain::merchant_connector_account::MerchantConnectorAccount,
+    ) -> CustomResult<
+        domain::merchant_connector_account::MerchantConnectorAccount,
+        errors::StorageError,
+    > {
         let mut accounts = self.merchant_connector_accounts.lock().await;
         let account = storage::MerchantConnectorAccount {
             #[allow(clippy::as_conversions)]
             id: accounts.len() as i32,
-            merchant_id: t.merchant_id.unwrap_or_default(),
-            connector_name: t.connector_name.unwrap_or_default(),
-            connector_account_details: t.connector_account_details.unwrap_or_default().expose(),
+            merchant_id: t.merchant_id,
+            connector_name: t.connector_name,
+            connector_account_details: t.connector_account_details.expose(),
             test_mode: t.test_mode,
             disabled: t.disabled,
             merchant_connector_id: t.merchant_connector_id,
             payment_methods_enabled: t.payment_methods_enabled,
             metadata: t.metadata,
-            connector_type: t
-                .connector_type
-                .unwrap_or(crate::types::storage::enums::ConnectorType::FinOperations),
+            connector_type: t.connector_type,
         };
         accounts.push(account.clone());
-        Ok(account)
+        account
+            .convert()
+            .await
+            .change_context(errors::StorageError::DeserializationFailed)
     }
 
     async fn find_merchant_connector_account_by_merchant_id_and_disabled_list(
         &self,
         _merchant_id: &str,
         _get_disabled: bool,
-    ) -> CustomResult<Vec<storage::MerchantConnectorAccount>, errors::StorageError> {
+    ) -> CustomResult<
+        Vec<domain::merchant_connector_account::MerchantConnectorAccount>,
+        errors::StorageError,
+    > {
         // [#172]: Implement function for `MockDb`
         Err(errors::StorageError::MockDbError)?
     }
 
     async fn update_merchant_connector_account(
         &self,
-        _this: storage::MerchantConnectorAccount,
+        _this: domain::merchant_connector_account::MerchantConnectorAccount,
         _merchant_connector_account: storage::MerchantConnectorAccountUpdate,
-    ) -> CustomResult<storage::MerchantConnectorAccount, errors::StorageError> {
+    ) -> CustomResult<
+        domain::merchant_connector_account::MerchantConnectorAccount,
+        errors::StorageError,
+    > {
         // [#172]: Implement function for `MockDb`
         Err(errors::StorageError::MockDbError)?
     }
