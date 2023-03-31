@@ -3,7 +3,6 @@ mod transformers;
 use std::fmt::Debug;
 
 use base64::Engine;
-use common_utils::errors::ReportSwitchExt;
 use error_stack::{IntoReport, ResultExt};
 use rand::distributions::DistString;
 use ring::hmac;
@@ -13,7 +12,7 @@ use crate::{
     configs::settings,
     consts,
     core::errors::{self, CustomResult},
-    headers, logger,
+    headers,
     services::{self, ConnectorIntegration},
     types::{
         self,
@@ -40,7 +39,8 @@ where
         let request_payload = option_request_payload.map_or("{}".to_string(), |s| s);
         let timestamp = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
-            .unwrap_or_default()
+            .ok()
+            .ok_or(errors::ConnectorError::RequestEncodingFailed)?
             .as_millis()
             .to_string();
         let nonce = rand::distributions::Alphanumeric.sample_string(&mut rand::thread_rng(), 19);
@@ -55,7 +55,7 @@ where
         Ok(vec![
             (
                 headers::CONTENT_TYPE.to_string(),
-                types::PaymentsSyncType::get_content_type(self).to_string(),
+                Self.get_content_type().to_string(),
             ),
             (headers::APIKEY.to_string(), auth.api_key),
             (headers::TOKEN.to_string(), auth.merchant_token),
@@ -83,11 +83,10 @@ impl ConnectorCommon for Payeezy {
         &self,
         res: Response,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        logger::debug!(payeezy_error_response=?res);
         let response: payeezy::PayeezyErrorResponse = res
             .response
             .parse_struct("payeezy ErrorResponse")
-            .switch()?;
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
         let error_messages: Vec<String> = response
             .error
@@ -180,8 +179,7 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
         let response: payeezy::PayeezyPaymentsResponse = res
             .response
             .parse_struct("Payeezy PaymentsResponse")
-            .switch()?;
-        logger::debug!(payeezypayments_create_response=?response);
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -211,53 +209,49 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
 {
     fn get_headers(
         &self,
-        req: &types::PaymentsSyncRouterData,
-        connectors: &settings::Connectors,
+        _req: &types::PaymentsSyncRouterData,
+        _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        self.build_headers(req, connectors)
-    }
-
-    fn get_content_type(&self) -> &'static str {
-        self.common_get_content_type()
+        Err(errors::ConnectorError::FlowNotSupported {
+            flow: "Psync".to_owned(),
+            connector: "payeezy".to_owned(),
+        }
+        .into())
     }
 
     fn build_request(
         &self,
-        req: &types::PaymentsSyncRouterData,
-        connectors: &settings::Connectors,
+        _req: &types::PaymentsSyncRouterData,
+        _connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        Ok(Some(
-            services::RequestBuilder::new()
-                .method(services::Method::Get)
-                .url(&types::PaymentsSyncType::get_url(self, req, connectors)?)
-                .headers(types::PaymentsSyncType::get_headers(self, req, connectors)?)
-                .build(),
-        ))
+        Err(errors::ConnectorError::FlowNotSupported {
+            flow: "Psync".to_owned(),
+            connector: "payeezy".to_owned(),
+        }
+        .into())
     }
 
     fn get_error_response(
         &self,
-        res: Response,
+        _res: Response,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res)
+        Err(errors::ConnectorError::FlowNotSupported {
+            flow: "Psync".to_owned(),
+            connector: "payeezy".to_owned(),
+        }
+        .into())
     }
 
     fn handle_response(
         &self,
-        data: &types::PaymentsSyncRouterData,
-        res: Response,
+        _data: &types::PaymentsSyncRouterData,
+        _res: Response,
     ) -> CustomResult<types::PaymentsSyncRouterData, errors::ConnectorError> {
-        logger::debug!(payment_sync_response=?res);
-        let response: payeezy::PayeezyPaymentsResponse = res
-            .response
-            .parse_struct("payeezy PaymentsResponse")
-            .switch()?;
-        types::RouterData::try_from(types::ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        })
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+        Err(errors::ConnectorError::FlowNotSupported {
+            flow: "Psync".to_owned(),
+            connector: "payeezy".to_owned(),
+        }
+        .into())
     }
 }
 
@@ -329,8 +323,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         let response: payeezy::PayeezyPaymentsResponse = res
             .response
             .parse_struct("Payeezy PaymentsResponse")
-            .switch()?;
-        logger::debug!(payeezypayments_create_response=?response);
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -421,9 +414,10 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         data: &types::PaymentsAuthorizeRouterData,
         res: Response,
     ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
-        let response: payeezy::PayeezyPaymentsResponse =
-            res.response.parse_struct("payeezy Response").switch()?;
-        logger::debug!(payeezypayments_create_response=?response);
+        let response: payeezy::PayeezyPaymentsResponse = res
+            .response
+            .parse_struct("payeezy Response")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -503,11 +497,10 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         data: &types::RefundsRouterData<api::Execute>,
         res: Response,
     ) -> CustomResult<types::RefundsRouterData<api::Execute>, errors::ConnectorError> {
-        logger::debug!(target: "router::connector::payeezy", response=?res);
         let response: payeezy::RefundResponse = res
             .response
             .parse_struct("payeezy RefundResponse")
-            .switch()?;
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         types::RefundsRouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -527,36 +520,37 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
 impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponseData> for Payeezy {
     fn get_headers(
         &self,
-        req: &types::RefundSyncRouterData,
-        connectors: &settings::Connectors,
+        _req: &types::RefundSyncRouterData,
+        _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        self.build_headers(req, connectors)
-    }
-
-    fn get_content_type(&self) -> &'static str {
-        self.common_get_content_type()
+        Err(errors::ConnectorError::FlowNotSupported {
+            flow: "Rsync".to_owned(),
+            connector: "payeezy".to_owned(),
+        }
+        .into())
     }
 
     fn build_request(
         &self,
-        req: &types::RefundSyncRouterData,
-        connectors: &settings::Connectors,
+        _req: &types::RefundSyncRouterData,
+        _connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        Ok(Some(
-            services::RequestBuilder::new()
-                .method(services::Method::Get)
-                .url(&types::RefundSyncType::get_url(self, req, connectors)?)
-                .headers(types::RefundSyncType::get_headers(self, req, connectors)?)
-                .body(types::RefundSyncType::get_request_body(self, req)?)
-                .build(),
-        ))
+        Err(errors::ConnectorError::FlowNotSupported {
+            flow: "Rsync".to_owned(),
+            connector: "payeezy".to_owned(),
+        }
+        .into())
     }
 
     fn get_error_response(
         &self,
-        res: Response,
+        _res: Response,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res)
+        Err(errors::ConnectorError::FlowNotSupported {
+            flow: "Rsync".to_owned(),
+            connector: "payeezy".to_owned(),
+        }
+        .into())
     }
 }
 

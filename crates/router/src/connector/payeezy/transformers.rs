@@ -1,4 +1,4 @@
-use common_utils::ext_traits::{Encode, ValueExt};
+use common_utils::ext_traits::Encode;
 use error_stack::ResultExt;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
@@ -7,11 +7,10 @@ use crate::{
     connector::utils::{self, CardData},
     core::errors,
     pii::{self},
-    types::{self, api, storage::enums},
-    utils::OptionExt,
+    types::{self, api, storage::enums, transformers::ForeignFrom},
 };
 
-#[derive(Eq, PartialEq, Serialize, Clone, Debug)]
+#[derive(Serialize, Debug)]
 pub struct PayeezyCard {
     #[serde(rename = "type")]
     pub card_type: PayeezyCardType,
@@ -21,7 +20,7 @@ pub struct PayeezyCard {
     pub cvv: Secret<String>,
 }
 
-#[derive(Serialize, Clone, Debug, Eq, PartialEq, Hash)]
+#[derive(Serialize, Debug)]
 pub enum PayeezyCardType {
     #[serde(rename = "American Express")]
     AmericanExpress,
@@ -48,20 +47,19 @@ impl TryFrom<utils::CardIssuer> for PayeezyCardType {
     }
 }
 
-#[derive(Serialize, Eq, PartialEq, Clone, Debug)]
+#[derive(Serialize, Debug)]
 #[serde(untagged)]
 pub enum PayeezyPaymentMethod {
     PayeezyCard(PayeezyCard),
 }
 
-#[derive(Default, Debug, Serialize, Eq, PartialEq, Clone)]
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "snake_case")]
 pub enum PayeezyPaymentMethodType {
-    #[default]
-    #[serde(rename = "credit_card")]
-    Card,
+    CreditCard,
 }
 
-#[derive(Serialize, Eq, PartialEq, Clone, Debug)]
+#[derive(Serialize, Debug)]
 pub struct PayeezyPaymentsRequest {
     pub merchant_ref: String,
     pub transaction_type: PayeezyTransactionType,
@@ -72,7 +70,7 @@ pub struct PayeezyPaymentsRequest {
     pub stored_credentials: Option<StoredCredentials>,
 }
 
-#[derive(Serialize, Eq, PartialEq, Clone, Debug)]
+#[derive(Serialize, Debug)]
 pub struct StoredCredentials {
     pub sequence: Sequence,
     pub initiator: Initiator,
@@ -80,14 +78,14 @@ pub struct StoredCredentials {
     pub cardbrand_original_transaction_id: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum Sequence {
     First,
     Subsequent,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum Initiator {
     Merchant,
@@ -107,52 +105,12 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PayeezyPaymentsRequest {
 fn get_card_specific_payment_data(
     item: &types::PaymentsAuthorizeRouterData,
 ) -> Result<PayeezyPaymentsRequest, error_stack::Report<errors::ConnectorError>> {
-    let merchant_ref = format!("{}_{}_{}", item.merchant_id, item.payment_id, "1");
-    let method = PayeezyPaymentMethodType::Card;
+    let merchant_ref = item.attempt_id.to_string();
+    let method = PayeezyPaymentMethodType::CreditCard;
     let amount = item.request.amount;
     let currency_code = item.request.currency.to_string();
     let credit_card = get_payment_method_data(item)?;
-
-    let mandate = item
-        .request
-        .mandate_id
-        .clone()
-        .and_then(|mandate_ids| mandate_ids.connector_mandate_id);
-
-    let off_session = item
-        .request
-        .off_session
-        .and_then(|value| mandate.as_ref().map(|_| value));
-
-    let (transaction_type, stored_credentials) = match &item.request.setup_mandate_details {
-        Some(_setup_mandate_details) => (
-            PayeezyTransactionType::Recurring,
-            Some(StoredCredentials {
-                sequence: Sequence::First,
-                initiator: Initiator::Merchant,
-                is_scheduled: true,
-                cardbrand_original_transaction_id: None,
-            }),
-        ),
-        _ => match off_session {
-            Some(true) => (
-                PayeezyTransactionType::Recurring,
-                Some(StoredCredentials {
-                    sequence: Sequence::Subsequent,
-                    initiator: Initiator::CardHolder,
-                    is_scheduled: true,
-                    cardbrand_original_transaction_id: mandate,
-                }),
-            ),
-            _ => match item.request.capture_method {
-                Some(storage_models::enums::CaptureMethod::Manual) => {
-                    (PayeezyTransactionType::Authorize, None)
-                }
-                _ => (PayeezyTransactionType::Purchase, None),
-            },
-        },
-    };
-
+    let (transaction_type, stored_credentials) = get_transaction_type_and_stored_creds(item)?;
     Ok(PayeezyPaymentsRequest {
         merchant_ref,
         transaction_type,
@@ -162,6 +120,61 @@ fn get_card_specific_payment_data(
         credit_card,
         stored_credentials,
     })
+}
+fn get_transaction_type_and_stored_creds(
+    item: &types::PaymentsAuthorizeRouterData,
+) -> Result<
+    (PayeezyTransactionType, Option<StoredCredentials>),
+    error_stack::Report<errors::ConnectorError>,
+> {
+    let connector_mandate_id = item
+        .request
+        .mandate_id
+        .as_ref()
+        .and_then(|mandate_ids| mandate_ids.connector_mandate_id.clone());
+    let (transaction_type, stored_credentials) =
+        if is_mandate_payment(item, connector_mandate_id.as_ref()) {
+            // Mandate payment
+            (
+                PayeezyTransactionType::Recurring,
+                Some(StoredCredentials {
+                    // connector_mandate_id is not present then it is a First payment, else it is a Subsequent mandate payment
+                    sequence: match connector_mandate_id.is_some() {
+                        true => Sequence::Subsequent,
+                        false => Sequence::First,
+                    },
+                    // off_session true denotes the customer not present during the checkout process. In other cases customer present at the checkout.
+                    initiator: match item.request.off_session {
+                        Some(true) => Initiator::Merchant,
+                        _ => Initiator::CardHolder,
+                    },
+                    is_scheduled: true,
+                    // In case of first mandate payment connector_mandate_id would be None, otherwise holds some value
+                    cardbrand_original_transaction_id: connector_mandate_id,
+                }),
+            )
+        } else {
+            match item.request.capture_method {
+                Some(storage_models::enums::CaptureMethod::Manual) => {
+                    Ok((PayeezyTransactionType::Authorize, None))
+                }
+                Some(storage_models::enums::CaptureMethod::Automatic) => {
+                    Ok((PayeezyTransactionType::Purchase, None))
+                }
+                _ => Err(errors::ConnectorError::FlowNotSupported {
+                    flow: item.request.capture_method.unwrap_or_default().to_string(),
+                    connector: "Payeezy".to_string(),
+                }),
+            }?
+        };
+    Ok((transaction_type, stored_credentials))
+}
+
+fn is_mandate_payment(
+    item: &types::PaymentsAuthorizeRouterData,
+    connector_mandate_id: Option<&String>,
+) -> bool {
+    item.request.setup_mandate_details.is_some() || connector_mandate_id.is_some()
 }
 
 fn get_payment_method_data(
@@ -174,7 +187,7 @@ fn get_payment_method_data(
                 card_type,
                 cardholder_name: card.card_holder_name.clone(),
                 card_number: card.card_number.clone(),
-                exp_date: card.get_card_expiry_as_mmyy(),
+                exp_date: card.get_card_expiry_month_year_2_digit_with_delimiter("".to_string()),
                 cvv: card.card_cvc.clone(),
             };
             Ok(PayeezyPaymentMethod::PayeezyCard(payeezy_card))
@@ -211,7 +224,7 @@ impl TryFrom<&types::ConnectorAuthType> for PayeezyAuthType {
 }
 // PaymentsResponse
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Default, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum PayeezyPaymentStatus {
     Approved,
@@ -221,30 +234,30 @@ pub enum PayeezyPaymentStatus {
     NotProcessed,
 }
 
-#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Deserialize)]
 pub struct PayeezyPaymentsResponse {
-    correlation_id: String,
-    transaction_status: PayeezyPaymentStatus,
-    validation_status: String,
-    transaction_type: PayeezyTransactionType,
-    transaction_id: String,
-    transaction_tag: Option<String>,
-    method: Option<String>,
-    amount: String,
-    currency: String,
-    bank_resp_code: String,
-    bank_message: String,
-    gateway_resp_code: String,
-    gateway_message: String,
-    stored_credentials: Option<PaymentsStoredCredentials>,
+    pub correlation_id: String,
+    pub transaction_status: PayeezyPaymentStatus,
+    pub validation_status: String,
+    pub transaction_type: PayeezyTransactionType,
+    pub transaction_id: String,
+    pub transaction_tag: Option<String>,
+    pub method: Option<String>,
+    pub amount: String,
+    pub currency: String,
+    pub bank_resp_code: String,
+    pub bank_message: String,
+    pub gateway_resp_code: String,
+    pub gateway_message: String,
+    pub stored_credentials: Option<PaymentsStoredCredentials>,
 }
 
-#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Deserialize)]
 pub struct PaymentsStoredCredentials {
     cardbrand_original_transaction_id: String,
 }
 
-#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Serialize)]
 pub struct PayeezyCaptureOrVoidRequest {
     transaction_tag: String,
     transaction_type: PayeezyTransactionType,
@@ -255,20 +268,9 @@ pub struct PayeezyCaptureOrVoidRequest {
 impl TryFrom<&types::PaymentsCaptureRouterData> for PayeezyCaptureOrVoidRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsCaptureRouterData) -> Result<Self, Self::Error> {
-        let payment_details = item
-            .request
-            .connector_meta
-            .as_ref()
-            .get_required_value("connector_meta")
-            .change_context(errors::ConnectorError::MissingRequiredField {
-                field_name: "connector_meta",
-            })?
-            .clone();
-        let metadata: PayeezyPaymentsMetadata = payment_details
-            .parse_value("PayeezyPaymentsMetadata")
-            .change_context(errors::ConnectorError::MissingRequiredField {
-                field_name: "transaction_tag",
-            })?;
+        let metadata: PayeezyPaymentsMetadata =
+            utils::to_connector_meta(item.request.connector_meta.clone())
+                .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
         Ok(Self {
             transaction_type: PayeezyTransactionType::Capture,
             amount: item.request.amount.to_string(),
@@ -281,29 +283,22 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for PayeezyCaptureOrVoidRequest 
 impl TryFrom<&types::PaymentsCancelRouterData> for PayeezyCaptureOrVoidRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsCancelRouterData) -> Result<Self, Self::Error> {
-        let payment_details = item
-            .request
-            .connector_meta
-            .as_ref()
-            .get_required_value("connector_meta")
-            .change_context(errors::ConnectorError::MissingRequiredField {
-                field_name: "connector_meta",
-            })?
-            .clone();
-        let metadata: PayeezyPaymentsMetadata = payment_details
-            .parse_value("PayeezyPaymentsMetadata")
-            .change_context(errors::ConnectorError::MissingRequiredField {
-                field_name: "transaction_tag",
-            })?;
+        let metadata: PayeezyPaymentsMetadata =
+            utils::to_connector_meta(item.request.connector_meta.clone())
+                .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
         Ok(Self {
             transaction_type: PayeezyTransactionType::Void,
-            amount: item.request.amount.unwrap_or_default().to_string(),
+            amount: item
+                .request
+                .amount
+                .ok_or(errors::ConnectorError::RequestEncodingFailed)?
+                .to_string(),
             currency_code: item.request.currency.unwrap_or_default().to_string(),
             transaction_tag: metadata.transaction_tag,
         })
     }
 }
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[derive(Debug, Deserialize, Serialize, Default)]
 #[serde(rename_all = "lowercase")]
 pub enum PayeezyTransactionType {
     Authorize,
@@ -316,7 +311,7 @@ pub enum PayeezyTransactionType {
     Pending,
 }
 
-#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct PayeezyPaymentsMetadata {
     transaction_tag: String,
 }
@@ -346,27 +341,10 @@ impl<F, T>
             .response
             .stored_credentials
             .map(|credentials| credentials.cardbrand_original_transaction_id);
-
-        let status = match item.response.transaction_status {
-            PayeezyPaymentStatus::Approved => match item.response.transaction_type {
-                PayeezyTransactionType::Authorize => enums::AttemptStatus::Authorized,
-                PayeezyTransactionType::Capture => enums::AttemptStatus::Charged,
-                PayeezyTransactionType::Purchase => enums::AttemptStatus::Charged,
-                PayeezyTransactionType::Recurring => enums::AttemptStatus::Charged,
-                PayeezyTransactionType::Void => enums::AttemptStatus::Voided,
-                _ => enums::AttemptStatus::Pending,
-            },
-            PayeezyPaymentStatus::Declined | PayeezyPaymentStatus::NotProcessed => {
-                match item.response.transaction_type {
-                    PayeezyTransactionType::Authorize => enums::AttemptStatus::AuthorizationFailed,
-                    PayeezyTransactionType::Capture => enums::AttemptStatus::CaptureFailed,
-                    PayeezyTransactionType::Purchase => enums::AttemptStatus::AuthorizationFailed,
-                    PayeezyTransactionType::Recurring => enums::AttemptStatus::AuthorizationFailed,
-                    PayeezyTransactionType::Void => enums::AttemptStatus::VoidFailed,
-                    _ => enums::AttemptStatus::Pending,
-                }
-            }
-        };
+        let status = enums::AttemptStatus::foreign_from((
+            item.response.transaction_status,
+            item.response.transaction_type,
+        ));
 
         Ok(Self {
             status,
@@ -383,9 +361,32 @@ impl<F, T>
     }
 }
 
+impl ForeignFrom<(PayeezyPaymentStatus, PayeezyTransactionType)> for enums::AttemptStatus {
+    fn foreign_from((status, method): (PayeezyPaymentStatus, PayeezyTransactionType)) -> Self {
+        match status {
+            PayeezyPaymentStatus::Approved => match method {
+                PayeezyTransactionType::Authorize => Self::Authorized,
+                PayeezyTransactionType::Capture => Self::Charged,
+                PayeezyTransactionType::Purchase => Self::Charged,
+                PayeezyTransactionType::Recurring => Self::Charged,
+                PayeezyTransactionType::Void => Self::Voided,
+                _ => Self::Pending,
+            },
+            PayeezyPaymentStatus::Declined | PayeezyPaymentStatus::NotProcessed => match method {
+                PayeezyTransactionType::Authorize => Self::AuthorizationFailed,
+                PayeezyTransactionType::Capture => Self::CaptureFailed,
+                PayeezyTransactionType::Purchase => Self::AuthorizationFailed,
+                PayeezyTransactionType::Recurring => Self::AuthorizationFailed,
+                PayeezyTransactionType::Void => Self::VoidFailed,
+                _ => Self::Pending,
+            },
+        }
+    }
+}
+
 // REFUND :
 // Type definition for RefundRequest
-#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Serialize)]
 pub struct PayeezyRefundRequest {
     transaction_tag: String,
     transaction_type: PayeezyTransactionType,
@@ -396,20 +397,9 @@ pub struct PayeezyRefundRequest {
 impl<F> TryFrom<&types::RefundsRouterData<F>> for PayeezyRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
-        let payment_details = item
-            .request
-            .connector_metadata
-            .as_ref()
-            .get_required_value("connector_metadata")
-            .change_context(errors::ConnectorError::MissingRequiredField {
-                field_name: "connector_metadata",
-            })?
-            .clone();
-        let metadata: PayeezyPaymentsMetadata = payment_details
-            .parse_value("PayeezyPaymentsMetadata")
-            .change_context(errors::ConnectorError::MissingRequiredField {
-                field_name: "transaction_tag",
-            })?;
+        let metadata: PayeezyPaymentsMetadata =
+            utils::to_connector_meta(item.request.connector_metadata.clone())
+                .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
         Ok(Self {
             transaction_type: PayeezyTransactionType::Refund,
             amount: item.request.refund_amount.to_string(),
@@ -421,7 +411,7 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for PayeezyRefundRequest {
 
 // Type definition for Refund Response
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Deserialize, Default)]
 #[serde(rename_all = "lowercase")]
 pub enum RefundStatus {
     Approved,
@@ -441,21 +431,21 @@ impl From<RefundStatus> for enums::RefundStatus {
     }
 }
 
-#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Deserialize)]
 pub struct RefundResponse {
-    correlation_id: String,
-    transaction_status: RefundStatus,
-    validation_status: String,
-    transaction_type: String,
-    transaction_id: String,
-    transaction_tag: Option<String>,
-    method: Option<String>,
-    amount: String,
-    currency: String,
-    bank_resp_code: String,
-    bank_message: String,
-    gateway_resp_code: String,
-    gateway_message: String,
+    pub correlation_id: String,
+    pub transaction_status: RefundStatus,
+    pub validation_status: String,
+    pub transaction_type: String,
+    pub transaction_id: String,
+    pub transaction_tag: Option<String>,
+    pub method: Option<String>,
+    pub amount: String,
+    pub currency: String,
+    pub bank_resp_code: String,
+    pub bank_message: String,
+    pub gateway_resp_code: String,
+    pub gateway_message: String,
 }
 
 impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
@@ -475,18 +465,18 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
     }
 }
 
-#[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Deserialize)]
 pub struct Message {
     pub code: String,
     pub description: String,
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Deserialize)]
 pub struct PayeezyError {
     pub messages: Vec<Message>,
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Deserialize)]
 pub struct PayeezyErrorResponse {
     pub transaction_status: String,
     #[serde(rename = "Error")]

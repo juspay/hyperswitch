@@ -248,8 +248,10 @@ pub enum CardIssuer {
 pub trait CardData {
     fn get_card_expiry_year_2_digit(&self) -> Secret<String>;
     fn get_card_issuer(&self) -> Result<CardIssuer, Error>;
-    fn get_card_expiry_month_year_2_digit_with_delimiter(&self, delimiter: String) -> String;
-    fn get_card_expiry_as_mmyy(&self) -> Secret<String>;
+    fn get_card_expiry_month_year_2_digit_with_delimiter(
+        &self,
+        delimiter: String,
+    ) -> Secret<String>;
 }
 
 impl CardData for api::Card {
@@ -265,21 +267,17 @@ impl CardData for api::Card {
             .map(|card| card.split_whitespace().collect());
         get_card_issuer(card.peek().clone().as_str())
     }
-    fn get_card_expiry_month_year_2_digit_with_delimiter(&self, delimiter: String) -> String {
+    fn get_card_expiry_month_year_2_digit_with_delimiter(
+        &self,
+        delimiter: String,
+    ) -> Secret<String> {
         let year = self.get_card_expiry_year_2_digit();
-        format!(
+        Secret::new(format!(
             "{}{}{}",
             self.card_exp_month.peek().clone(),
             delimiter,
             year.peek()
-        )
-    }
-    fn get_card_expiry_as_mmyy(&self) -> Secret<String> {
-        let exp_year_with_2_digit = self.get_card_expiry_year_2_digit();
-        let expiry_year = exp_year_with_2_digit.peek().clone();
-        let expiry_month = self.card_exp_month.peek().clone();
-        let expiry = format!("{}{}", expiry_month, expiry_year);
-        Secret::new(expiry)
+        ))
     }
 }
 

@@ -590,8 +590,6 @@ pub fn get_connector_meta(
             mandate_reference: _,
             connector_metadata,
         }) => connector_metadata,
-        Ok(types::PaymentsResponseData::SessionResponse { .. }) => None,
-        Ok(types::PaymentsResponseData::SessionTokenResponse { .. }) => None,
-        Err(_) => None,
+        _ => None,
     }
 }
