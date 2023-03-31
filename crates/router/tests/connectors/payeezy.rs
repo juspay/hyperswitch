@@ -53,14 +53,12 @@ impl PayeezyTest {
             address: Some(types::PaymentAddress {
                 billing: Some(Address {
                     address: Some(AddressDetails {
-                        country: Some("US".to_string()),
                         ..Default::default()
                     }),
                     phone: None,
                 }),
                 ..Default::default()
             }),
-            router_return_url: Some(String::from("http://localhost:8080")),
             ..Default::default()
         })
     }
