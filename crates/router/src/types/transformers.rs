@@ -1,15 +1,13 @@
 use api_models::enums as api_enums;
-use common_utils::{ext_traits::ValueExt, generate_id};
+use common_utils::ext_traits::ValueExt;
 use error_stack::ResultExt;
 use storage_models::enums as storage_enums;
 
+use super::domain;
 use crate::{
-    consts,
     core::errors,
     types::{api as api_types, storage},
 };
-
-use super::domain;
 
 pub trait ForeignInto<T> {
     fn foreign_into(self) -> T;

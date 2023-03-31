@@ -1,8 +1,5 @@
 use async_trait::async_trait;
-use common_utils::{
-    errors::{CustomResult, ValidationError},
-    pii,
-};
+use common_utils::errors::{CustomResult, ValidationError};
 use masking::Secret;
 use storage_models::enums;
 use time::PrimitiveDateTime;

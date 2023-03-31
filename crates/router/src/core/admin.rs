@@ -10,7 +10,6 @@ use crate::{
         errors::{self, RouterResponse, RouterResult, StorageErrorExt},
     },
     db::StorageInterface,
-    pii::Secret,
     routes::AppState,
     services::api as service_api,
     types::{

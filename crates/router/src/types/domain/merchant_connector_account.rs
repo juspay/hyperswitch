@@ -2,9 +2,8 @@ use common_utils::{
     errors::{CustomResult, ValidationError},
     pii,
 };
-use masking::{ExposeInterface, Secret, Serialize};
+use masking::{ExposeInterface, Secret};
 use storage_models::enums;
-use time::PrimitiveDateTime;
 
 use super::behaviour;
 
