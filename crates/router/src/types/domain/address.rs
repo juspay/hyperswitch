@@ -8,7 +8,7 @@ use super::behaviour;
 #[derive(Clone, Debug)]
 pub struct Address {
     // #[serde(skip_serializing)]
-    pub id: i32,
+    pub id: Option<i32>,
     // #[serde(skip_serializing)]
     pub address_id: String,
     pub city: Option<String>,

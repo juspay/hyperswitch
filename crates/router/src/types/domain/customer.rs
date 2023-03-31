@@ -5,8 +5,8 @@ use time::PrimitiveDateTime;
 use super::behaviour;
 
 #[derive(Clone, Debug)]
-pub struct DCustomer {
-    pub id: i32,
+pub struct Customer {
+    pub id: Option<i32>,
     pub customer_id: String,
     pub merchant_id: String,
     pub name: Option<String>,

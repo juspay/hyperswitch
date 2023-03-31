@@ -7,7 +7,7 @@ use super::behaviour;
 
 #[derive(Clone, Debug)]
 pub struct MerchantConnectorAccount {
-    pub id: i32,
+    pub id: Option<i32>,
     pub merchant_id: String,
     pub connector_name: String,
     pub connector_account_details: serde_json::Value,

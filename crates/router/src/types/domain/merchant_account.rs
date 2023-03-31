@@ -7,7 +7,7 @@ use super::behaviour;
 
 #[derive(Clone, Debug)]
 pub struct MerchantAccount {
-    pub id: i32,
+    pub id: Option<i32>,
     pub merchant_id: String,
     pub return_url: Option<String>,
     pub enable_payment_response_hash: bool,
