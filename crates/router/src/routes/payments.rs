@@ -561,7 +561,7 @@ pub async fn payments_redirect_response_with_creds_identifier(
 pub async fn payments_complete_authorize(
     state: web::Data<app::AppState>,
     req: actix_web::HttpRequest,
-    json_payload: web::Form<serde_json::Value>,
+    json_payload: Option<web::Form<serde_json::Value>>,
     path: web::Path<(String, String, String)>,
 ) -> impl Responder {
     let flow = Flow::PaymentsRedirect;
@@ -572,7 +572,7 @@ pub async fn payments_complete_authorize(
         resource_id: payment_types::PaymentIdType::PaymentIntentId(payment_id),
         merchant_id: Some(merchant_id.clone()),
         param: Some(param_string.to_string()),
-        json_payload: Some(json_payload.0),
+        json_payload: json_payload.map(|s| s.0),
         force_sync: false,
         connector: Some(connector),
         creds_identifier: None,

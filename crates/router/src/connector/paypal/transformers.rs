@@ -4,7 +4,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     connector::utils::{
-        AccessTokenRequestInfo, AddressDetailsData, CardData, PaymentsAuthorizeRequestData,
+        to_connector_meta, AccessTokenRequestInfo, AddressDetailsData, CardData,
+        PaymentsAuthorizeRequestData,
     },
     core::errors,
     pii,
@@ -34,7 +35,7 @@ pub struct PurchaseUnitRequest {
 pub struct Address {
     address_line_1: Option<Secret<String>>,
     postal_code: Option<Secret<String>>,
-    country_code: String,
+    country_code: api_models::enums::CountryCode,
 }
 
 #[derive(Debug, Serialize)]
@@ -183,6 +184,7 @@ pub enum PaypalOrderStatus {
     Created,
     Saved,
     PayerActionRequired,
+    Approved,
 }
 
 impl ForeignFrom<(PaypalOrderStatus, PaypalPaymentIntent)> for storage_enums::AttemptStatus {
@@ -196,7 +198,9 @@ impl ForeignFrom<(PaypalOrderStatus, PaypalPaymentIntent)> for storage_enums::At
                 }
             }
             PaypalOrderStatus::Voided => Self::Failure,
-            PaypalOrderStatus::Created | PaypalOrderStatus::Saved => Self::Pending,
+            PaypalOrderStatus::Created | PaypalOrderStatus::Saved | PaypalOrderStatus::Approved => {
+                Self::Pending
+            }
             PaypalOrderStatus::PayerActionRequired => Self::Authorizing,
         }
     }
@@ -231,39 +235,40 @@ pub struct PaypalPaymentsResponse {
     purchase_units: Vec<PurchaseUnitItem>,
 }
 
-#[derive(Debug, Serialize, Default, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct PaypalMeta {
-    pub txn_id: String,
+    pub authorize_id: Option<String>,
+    pub order_id: String,
+    pub psync_flow: PaypalPaymentIntent,
 }
 
 fn get_auth_or_capt(
     intent: PaypalPaymentIntent,
     purchase_unit: &PurchaseUnitItem,
 ) -> CustomResult<String, errors::ConnectorError> {
-    match intent {
-        PaypalPaymentIntent::Capture => {
-            let binding = purchase_unit
-                .payments
-                .captures
-                .clone()
-                .ok_or(errors::ConnectorError::MissingConnectorTransactionID)?;
-            let capture = binding
-                .first()
-                .ok_or(errors::ConnectorError::MissingConnectorTransactionID)?;
-            Ok(capture.id.clone())
+    || -> _ {
+        match intent {
+            PaypalPaymentIntent::Capture => Some(
+                purchase_unit
+                    .payments
+                    .captures
+                    .clone()?
+                    .into_iter()
+                    .next()?
+                    .id,
+            ),
+            PaypalPaymentIntent::Authorize => Some(
+                purchase_unit
+                    .payments
+                    .authorizations
+                    .clone()?
+                    .into_iter()
+                    .next()?
+                    .id,
+            ),
         }
-        PaypalPaymentIntent::Authorize => {
-            let binding = purchase_unit
-                .payments
-                .authorizations
-                .clone()
-                .ok_or(errors::ConnectorError::MissingConnectorTransactionID)?;
-            let authorization = binding
-                .first()
-                .ok_or(errors::ConnectorError::MissingConnectorTransactionID)?;
-            Ok(authorization.id.clone())
-        }
-    }
+    }()
+    .ok_or(errors::ConnectorError::MissingConnectorTransactionID.into())
 }
 
 impl<F, T>
@@ -280,19 +285,41 @@ impl<F, T>
             .first()
             .ok_or(errors::ConnectorError::MissingConnectorTransactionID)?;
 
-        let id = get_auth_or_capt(item.response.intent.clone(), purchase_units)?;
+        let (connector_meta, capture_id) = match item.response.intent.clone() {
+            PaypalPaymentIntent::Capture => {
+                let id = get_auth_or_capt(item.response.intent.clone(), purchase_units)?;
+                (
+                    serde_json::json!(PaypalMeta {
+                        authorize_id: None,
+                        order_id: item.response.id,
+                        psync_flow: item.response.intent.clone()
+                    }),
+                    types::ResponseId::ConnectorTransactionId(id),
+                )
+            }
+
+            PaypalPaymentIntent::Authorize => {
+                let id = get_auth_or_capt(item.response.intent.clone(), purchase_units)?;
+                (
+                    serde_json::json!(PaypalMeta {
+                        authorize_id: Some(id),
+                        order_id: item.response.id,
+                        psync_flow: item.response.intent.clone()
+                    }),
+                    types::ResponseId::NoResponseId,
+                )
+            }
+        };
         Ok(Self {
             status: storage_enums::AttemptStatus::foreign_from((
                 item.response.status,
                 item.response.intent,
             )),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
+                resource_id: capture_id,
                 redirection_data: None,
                 mandate_reference: None,
-                connector_metadata: Some(
-                    serde_json::to_value(PaypalMeta { txn_id: id }).unwrap_or_default(),
-                ),
+                connector_metadata: Some(connector_meta),
             }),
             ..item.data
         })
@@ -324,7 +351,6 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for PaypalPaymentsCaptureRequest
 pub enum PaypalPaymentStatus {
     Completed,
     Declined,
-    Refunded,
     Failed,
     Pending,
 }
@@ -343,7 +369,6 @@ impl From<PaypalPaymentStatus> for storage_enums::AttemptStatus {
             PaypalPaymentStatus::Completed => Self::Charged,
             PaypalPaymentStatus::Declined => Self::Failure,
             PaypalPaymentStatus::Failed => Self::CaptureFailed,
-            PaypalPaymentStatus::Refunded => Self::AutoRefunded,
             PaypalPaymentStatus::Pending => Self::Pending,
         }
     }
@@ -358,20 +383,19 @@ impl TryFrom<types::PaymentsCaptureResponseRouterData<PaymentCaptureResponse>>
     ) -> Result<Self, Self::Error> {
         let amount_captured = item.data.request.amount_to_capture;
         let status = storage_enums::AttemptStatus::from(item.response.status);
+        let connector_payment_id: PaypalMeta =
+            to_connector_meta(item.data.request.connector_meta.clone())?;
         Ok(Self {
             status,
             response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(
-                    item.data.request.connector_transaction_id.clone(),
-                ),
+                resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
                 redirection_data: None,
                 mandate_reference: None,
-                connector_metadata: Some(
-                    serde_json::to_value(PaypalMeta {
-                        txn_id: item.response.id,
-                    })
-                    .unwrap_or_default(),
-                ),
+                connector_metadata: Some(serde_json::json!(PaypalMeta {
+                    authorize_id: connector_payment_id.authorize_id,
+                    order_id: item.data.request.connector_transaction_id.clone(),
+                    psync_flow: PaypalPaymentIntent::Capture
+                })),
             }),
             amount_captured,
             ..item.data

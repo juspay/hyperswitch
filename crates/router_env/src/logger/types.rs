@@ -162,6 +162,8 @@ pub enum Flow {
     ApiKeyRevoke,
     /// API Key list flow
     ApiKeyList,
+    /// Cards Info flow
+    CardsInfo,
 }
 
 ///

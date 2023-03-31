@@ -222,8 +222,10 @@ where
                     error
                 })? {
                 Some(request) => {
+                    println!("reqwt->>{:?}", request);
                     logger::debug!(connector_request=?request);
                     let response = call_connector_api(state, request).await;
+                    println!("respoo->{:?}", response);
                     logger::debug!(connector_response=?response);
                     match response {
                         Ok(body) => {

@@ -347,28 +347,38 @@ pub fn create_startpay_url(
 }
 
 pub fn create_redirect_url(
-    server: &Server,
+    router_base_url: &String,
     payment_attempt: &storage::PaymentAttempt,
-    connector_name: &str,
+    connector_name: &String,
     creds_identifier: Option<&str>,
 ) -> String {
     let creds_identifier_path = creds_identifier.map_or_else(String::new, |cd| format!("/{}", cd));
     format!(
         "{}/payments/{}/{}/response/{}",
-        server.base_url, payment_attempt.payment_id, payment_attempt.merchant_id, connector_name,
+        router_base_url, payment_attempt.payment_id, payment_attempt.merchant_id, connector_name,
     ) + &creds_identifier_path
 }
+
+pub fn create_webhook_url(
+    router_base_url: &String,
+    payment_attempt: &storage::PaymentAttempt,
+    connector_name: &String,
+) -> String {
+    format!(
+        "{}/webhooks/{}/{}",
+        router_base_url, payment_attempt.merchant_id, connector_name
+    )
+}
 pub fn create_complete_authorize_url(
-    server: &Server,
+    router_base_url: &String,
     payment_attempt: &storage::PaymentAttempt,
     connector_name: &String,
 ) -> String {
     format!(
         "{}/payments/{}/{}/complete/{}",
-        server.base_url, payment_attempt.payment_id, payment_attempt.merchant_id, connector_name
+        router_base_url, payment_attempt.payment_id, payment_attempt.merchant_id, connector_name
     )
 }
-
 fn validate_recurring_mandate(req: api::MandateValidationFields) -> RouterResult<()> {
     req.mandate_id.check_value_present("mandate_id")?;
 
@@ -1244,8 +1254,7 @@ pub(crate) async fn verify_client_secret(
                 .await
                 .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
 
-            authenticate_client_secret(Some(&cs), payment_intent.client_secret.as_ref())
-                .map_err(errors::ApiErrorResponse::from)?;
+            authenticate_client_secret(Some(&cs), payment_intent.client_secret.as_ref())?;
             Ok(payment_intent)
         })
         .await

@@ -42,7 +42,7 @@ impl WorldlineTest {
             address: Some(PaymentAddress {
                 billing: Some(Address {
                     address: Some(AddressDetails {
-                        country: Some("US".to_string()),
+                        country: Some(api_models::enums::CountryCode::US),
                         ..Default::default()
                     }),
                     phone: None,
@@ -88,6 +88,9 @@ impl WorldlineTest {
             related_transaction_id: None,
             payment_experience: None,
             payment_method_type: None,
+            router_return_url: None,
+            webhook_url: None,
+            complete_authorize_url: None,
         })
     }
 }
@@ -138,9 +141,9 @@ async fn should_throw_not_implemented_for_unsupported_issuer() {
     assert_eq!(
         *response.unwrap_err().current_context(),
         errors::ConnectorError::NotSupported {
-            payment_method: "Maestro".to_string(),
+            payment_method: "card".to_string(),
             connector: "worldline",
-            payment_experience: "redirect_to_url".to_string(),
+            payment_experience: "RedirectToUrl".to_string(),
         }
     )
 }
