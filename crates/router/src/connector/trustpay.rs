@@ -722,7 +722,7 @@ impl api::IncomingWebhook for Trustpay {
 
     fn get_dispute_details(
         &self,
-        request: &api_models::webhooks::IncomingWebhookRequestDetails<'_>,
+        request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api::disputes::DisputePayload, errors::ConnectorError> {
         let trustpay_response: trustpay::TrustpayWebhookResponse = request
             .body

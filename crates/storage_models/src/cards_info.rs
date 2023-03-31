@@ -1,4 +1,5 @@
 use diesel::{Identifiable, Queryable};
+use time::PrimitiveDateTime;
 
 use crate::schema::cards_info;
 
@@ -14,4 +15,7 @@ pub struct CardInfo {
     pub bank_code_id: Option<String>,
     pub bank_code: Option<String>,
     pub country_code: Option<String>,
+    pub date_created: PrimitiveDateTime,
+    pub last_updated: Option<PrimitiveDateTime>,
+    pub last_updated_provider: Option<String>,
 }
