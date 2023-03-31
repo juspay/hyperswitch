@@ -68,7 +68,7 @@ key1 = "key1"
 api_secret = "secret"
 
 [paypal]
-api_key = "A21AAImEZltvZ7Fi85Ti-NalOnreRT6nl91WLGALQZ18nJ96NG6SKRFqT3YVsbBzYg_ffRWUsbo_6wv5nHxWDVQ6xsL5ptQaA"
+api_key = "api_key"
 key1 = "key1"
 
 [mollie]

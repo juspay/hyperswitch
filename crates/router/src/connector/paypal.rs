@@ -46,7 +46,7 @@ impl Paypal {
         &self,
         res: Response,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        //Handled error response seperately for Orders as the end point is different for Orders - (Authorize) and Payments - (Capture, void, refund, rsync).
+        //Handled error response separately for Orders as the end point is different for Orders - (Authorize) and Payments - (Capture, void, refund, rsync).
         //Error response have different fields for Orders and Payments.
         let response: paypal::PaypalOrderErrorResponse =
             res.response.parse_struct("Paypal ErrorResponse").switch()?;
