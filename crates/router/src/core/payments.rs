@@ -7,7 +7,6 @@ pub mod transformers;
 use std::{fmt::Debug, marker::PhantomData, time::Instant};
 
 use api_models::payments::Metadata;
-use common_utils::ext_traits::AsyncExt;
 use error_stack::{IntoReport, ResultExt};
 use futures::future::join_all;
 use router_env::{instrument, tracing};
