@@ -39,8 +39,7 @@ pub enum CountryCode {
     US
 }
 
-#[derive(Clone, Copy, Debug, Serialize)]
-#[serde(rename_all = "lowercase")]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 pub enum CountryAlpha2 {
     IN,
     AU,
@@ -48,7 +47,6 @@ pub enum CountryAlpha2 {
     SA,
 }
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
 pub enum CountryAlpha3 {
     IND,
     AUS,
@@ -56,7 +54,6 @@ pub enum CountryAlpha3 {
     NEZ,
 }
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
 pub enum CountryNumeric {
     one,
     two,
@@ -65,7 +62,6 @@ pub enum CountryNumeric {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
-#[serde(rename_all = "lowercase")]
 pub enum Country {
     Australia,
     NewZealand,
@@ -116,9 +112,9 @@ impl Country {
     }
     pub const fn to_numeric(&self) -> CountryNumeric {
         match self {
-            Country::Australia => CountryNumeric::one,
-            Country::NewZealand => CountryNumeric::two,
-            Country::India => CountryNumeric::three,
+            Country::Australia => CountryNumeric::two,
+            Country::NewZealand => CountryNumeric::three,
+            Country::India => CountryNumeric::one,
             Country::SouthAfrica => CountryNumeric::four,
         }
     }
@@ -155,12 +151,13 @@ mod custom_serde {
         where
             D: serde::Deserializer<'a>,
         {
-            dbg!("called????????????????????");
+            CountryAlpha2::deserialize(deserializer).map(Country::from_alpha2)
+            /* dbg!("called????????????????????");
             let result = deserializer
                 .deserialize_str(FieldVisitor)
                 .map(Country::from_alpha2);
             dbg!(&result);
-            return result;
+            return result; */
         }
     }
 
@@ -192,9 +189,10 @@ mod custom_serde {
         where
             D: serde::Deserializer<'a>,
         {
-            return deserializer
-                .deserialize_str(FieldVisitor)
-                .map(Country::from_alpha3);
+            CountryAlpha3::deserialize(deserializer).map(Country::from_alpha3)
+            /* return deserializer
+            .deserialize_str(FieldVisitor)
+            .map(Country::from_alpha3); */
         }
     }
 
@@ -226,9 +224,10 @@ mod custom_serde {
         where
             D: serde::Deserializer<'a>,
         {
-            return deserializer
-                .deserialize_str(FieldVisitor)
-                .map(Country::from_numeric);
+            CountryNumeric::deserialize(deserializer).map(Country::from_numeric)
+            /* return deserializer
+            .deserialize_str(FieldVisitor)
+            .map(Country::from_numeric); */
         }
     }
 }
@@ -337,7 +336,7 @@ mod tests {
             country: Country::India,
         };
         let serialized_country = serde_json::to_string(&y_request).unwrap();
-        assert_eq!(serialized_country, r#"{"country":"three"}"#)
+        assert_eq!(serialized_country, r#"{"country":"one"}"#)
     }
 
     #[test]
@@ -358,7 +357,7 @@ mod tests {
     fn test_deserialize_numeric() {
         let request_str = r#"{"country":"three"}"#;
         let request = serde_json::from_str::<HyperswitchRequestNumeric>(request_str).unwrap();
-        assert_eq!(request.country, Country::India)
+        assert_eq!(request.country, Country::NewZealand)
     }
 
     #[test]
