@@ -65,7 +65,9 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for NmiPaymentsRequest {
                 "Capture Method".to_string(),
             ))?,
         };
-        let security_key: NmiAuthType = (&item.connector_auth_type).try_into()?;
+        let auth_type: NmiAuthType = (&item.connector_auth_type).try_into()?;
+        let amount =
+            utils::to_currency_base_unit_as_f64(item.request.amount, item.request.currency)?;
         match &item.request.payment_method_data {
             api::PaymentMethodData::Card(ref card) => {
                 let value = utils::CardData::get_card_expiry_month_year_2_digit_with_delimiter(
@@ -75,11 +77,8 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for NmiPaymentsRequest {
                 let expiry_date: Secret<String> = Secret::new(value);
                 Ok(Self {
                     transaction_type,
-                    security_key: security_key.api_key,
-                    amount: utils::convert_to_higher_denomination(
-                        item.request.amount,
-                        item.request.currency,
-                    )?,
+                    security_key: auth_type.api_key,
+                    amount,
                     currency: item.request.currency,
                     ccnumber: Some(card.card_number.clone()),
                     ccexp: Some(expiry_date),
@@ -91,11 +90,8 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for NmiPaymentsRequest {
             api::PaymentMethodData::Wallet(ref wallet_type) => match wallet_type {
                 api_models::payments::WalletData::GooglePay(ref gpay_data) => Ok(Self {
                     transaction_type,
-                    security_key: security_key.api_key,
-                    amount: utils::convert_to_higher_denomination(
-                        item.request.amount,
-                        item.request.currency,
-                    )?,
+                    security_key: auth_type.api_key,
+                    amount,
                     currency: item.request.currency,
                     ccnumber: None,
                     ccexp: None,
@@ -105,11 +101,8 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for NmiPaymentsRequest {
                 }),
                 api_models::payments::WalletData::ApplePay(ref apay_data) => Ok(Self {
                     transaction_type,
-                    security_key: security_key.api_key,
-                    amount: utils::convert_to_higher_denomination(
-                        item.request.amount,
-                        item.request.currency,
-                    )?,
+                    security_key: auth_type.api_key,
+                    amount,
                     currency: item.request.currency,
                     ccnumber: None,
                     ccexp: None,
@@ -222,7 +215,7 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for NmiCaptureRequest {
             transaction_type: TransactionType::Capture,
             security_key: auth.api_key,
             transactionid: item.request.connector_transaction_id.clone(),
-            amount: Some(utils::convert_to_higher_denomination(
+            amount: Some(utils::to_currency_base_unit_as_f64(
                 match item.request.amount_to_capture {
                     Some(a) => Ok(a),
                     _ => Err(errors::ConnectorError::RequestEncodingFailedWithReason(
@@ -605,7 +598,7 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for NmiRefundRequest {
             transaction_type: TransactionType::Refund,
             security_key,
             transactionid: item.request.connector_transaction_id.clone(),
-            amount: utils::convert_to_higher_denomination(
+            amount: utils::to_currency_base_unit_as_f64(
                 item.request.refund_amount,
                 item.request.currency,
             )?,

@@ -570,19 +570,28 @@ pub fn to_currency_base_unit(
     amount: i64,
     currency: storage_models::enums::Currency,
 ) -> Result<String, error_stack::Report<errors::ConnectorError>> {
+    Ok(format!(
+        "{:.2}",
+        to_currency_base_unit_as_f64(amount, currency)?
+    ))
+}
+
+pub fn to_currency_base_unit_as_f64(
+    amount: i64,
+    currency: storage_models::enums::Currency,
+) -> Result<f64, error_stack::Report<errors::ConnectorError>> {
     let amount_u32 = u32::try_from(amount)
         .into_report()
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
     let amount_f64 = f64::from(amount_u32);
-    let amount = match currency {
+    Ok(match currency {
         storage_models::enums::Currency::JPY | storage_models::enums::Currency::KRW => amount_f64,
         storage_models::enums::Currency::BHD
         | storage_models::enums::Currency::JOD
         | storage_models::enums::Currency::KWD
         | storage_models::enums::Currency::OMR => amount_f64 / 1000.00,
         _ => amount_f64 / 100.00,
-    };
-    Ok(format!("{amount:.2}"))
+    })
 }
 
 pub fn str_to_f32<S>(value: &str, serializer: S) -> Result<S::Ok, S::Error>
@@ -631,16 +640,4 @@ pub fn collect_and_sort_values_by_removing_signature(
     let mut values = collect_values_by_removing_signature(value, signature);
     values.sort();
     values
-}
-
-pub fn convert_to_higher_denomination(
-    amount: i64,
-    currency: storage_models::enums::Currency,
-) -> Result<f64, error_stack::Report<errors::ConnectorError>> {
-    let amount = to_currency_base_unit(amount, currency)?;
-    let amount_f64: f64 = amount
-        .parse()
-        .into_report()
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-    Ok(amount_f64)
 }
