@@ -356,11 +356,7 @@ jobs:
       - name: Cargo hack storage_models
         if: env.storage_models_changes_exist == 'true'
         run: cargo hack check --each-feature --no-dev-deps -p storage_models
-
-      # - name: Run tests
-      #   shell: bash
-      #   run: cargo nextest run --all-features
-
+  
   typos:
     name: Spell check
     runs-on: ubuntu-latest

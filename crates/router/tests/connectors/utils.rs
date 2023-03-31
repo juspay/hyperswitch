@@ -30,7 +30,6 @@ pub struct PaymentInfo {
     pub address: Option<PaymentAddress>,
     pub auth_type: Option<enums::AuthenticationType>,
     pub access_token: Option<AccessToken>,
-    pub router_return_url: Option<String>,
     pub connector_meta_data: Option<serde_json::Value>,
 }
 
@@ -492,6 +491,9 @@ impl Default for PaymentAuthorizeType {
             related_transaction_id: None,
             payment_experience: None,
             payment_method_type: None,
+            router_return_url: None,
+            complete_authorize_url: None,
+            webhook_url: None,
         };
         Self(data)
     }

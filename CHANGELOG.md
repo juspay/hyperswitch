@@ -1,3 +1,23 @@
+# 0.5.3 (2023-03-29)
+
+## Documentation Changes
+
+* **rfc:**  add rfc template & first RFC (#806) (01a5e0a0)
+
+## New Features
+
+*  cards info api (#749) (b15b8f7b)
+* **connector:**  [Nuvei] add webhook support (#795) (20b4372b)
+
+## Bug Fixes
+
+* **compatibility:**  add last_payment_error in stripe payment response (#803) (97b95f0e)
+
+## Refactors
+
+* **api_models:**  enhance accepted countries/currencies types (#807) (f9ef3135)
+* **services:**   make AppState impl generic using AppStateInfo (#805) (642c3f3a)
+
 # 0.5.2 (2023-03-24)
 
 ## Chores

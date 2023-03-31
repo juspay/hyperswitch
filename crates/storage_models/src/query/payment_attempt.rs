@@ -21,15 +21,20 @@ impl PaymentAttemptNew {
 
 impl PaymentAttempt {
     #[instrument(skip(conn))]
-    pub async fn update(
+    pub async fn update_with_attempt_id(
         self,
         conn: &PgPooledConn,
         payment_attempt: PaymentAttemptUpdate,
     ) -> StorageResult<Self> {
-        match generics::generic_update_with_results::<<Self as HasTable>::Table, _, _, _>(
+        match generics::generic_update_with_unique_predicate_get_result::<
+            <Self as HasTable>::Table,
+            _,
+            _,
+            _,
+        >(
             conn,
-            dsl::payment_id
-                .eq(self.payment_id.to_owned())
+            dsl::attempt_id
+                .eq(self.attempt_id.to_owned())
                 .and(dsl::merchant_id.eq(self.merchant_id.to_owned())),
             PaymentAttemptUpdateInternal::from(payment_attempt),
         )
@@ -39,25 +44,8 @@ impl PaymentAttempt {
                 errors::DatabaseError::NoFieldsToUpdate => Ok(self),
                 _ => Err(error),
             },
-            Ok(mut payment_attempts) => payment_attempts
-                .pop()
-                .ok_or(error_stack::report!(errors::DatabaseError::NotFound)),
+            result => result,
         }
-    }
-
-    #[instrument(skip(conn))]
-    pub async fn find_by_payment_id_merchant_id(
-        conn: &PgPooledConn,
-        payment_id: &str,
-        merchant_id: &str,
-    ) -> StorageResult<Self> {
-        generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
-            conn,
-            dsl::merchant_id
-                .eq(merchant_id.to_owned())
-                .and(dsl::payment_id.eq(payment_id.to_owned())),
-        )
-        .await
     }
 
     #[instrument(skip(conn))]
@@ -118,7 +106,7 @@ impl PaymentAttempt {
         .fold(
             Err(errors::DatabaseError::NotFound).into_report(),
             |acc, cur| match acc {
-                Ok(value) if value.created_at > cur.created_at => Ok(value),
+                Ok(value) if value.modified_at > cur.modified_at => Ok(value),
                 _ => Ok(cur),
             },
         )
@@ -150,6 +138,24 @@ impl PaymentAttempt {
             dsl::merchant_id
                 .eq(merchant_id.to_owned())
                 .and(dsl::attempt_id.eq(attempt_id.to_owned())),
+        )
+        .await
+    }
+
+    #[instrument(skip(conn))]
+    pub async fn find_by_payment_id_merchant_id_attempt_id(
+        conn: &PgPooledConn,
+        payment_id: &str,
+        merchant_id: &str,
+        attempt_id: &str,
+    ) -> StorageResult<Self> {
+        generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
+            conn,
+            dsl::payment_id.eq(payment_id.to_owned()).and(
+                dsl::merchant_id
+                    .eq(merchant_id.to_owned())
+                    .and(dsl::attempt_id.eq(attempt_id.to_owned())),
+            ),
         )
         .await
     }
