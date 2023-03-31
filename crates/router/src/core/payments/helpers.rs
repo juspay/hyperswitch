@@ -3,7 +3,7 @@ use std::borrow::Cow;
 use base64::Engine;
 use common_utils::{
     ext_traits::{AsyncExt, ByteSliceExt},
-    fp_utils,
+    fp_utils, generate_id,
 };
 // TODO : Evaluate all the helper functions ()
 use error_stack::{report, IntoReport, ResultExt};
@@ -29,6 +29,7 @@ use crate::{
     services,
     types::{
         api::{self, admin, enums as api_enums, CustomerAcceptanceExt, MandateValidationFieldsExt},
+        domain,
         storage::{self, enums as storage_enums, ephemeral_key},
         transformers::ForeignInto,
     },
@@ -45,7 +46,7 @@ pub async fn get_address_for_payment_request(
     address_id: Option<&str>,
     merchant_id: &str,
     customer_id: &Option<String>,
-) -> CustomResult<Option<storage::Address>, errors::ApiErrorResponse> {
+) -> CustomResult<Option<domain::address::Address>, errors::ApiErrorResponse> {
     Ok(match req_address {
         Some(address) => {
             match address_id {
@@ -65,7 +66,7 @@ pub async fn get_address_for_payment_request(
 
                     let address_details = address.address.clone().unwrap_or_default();
                     Some(
-                        db.insert_address(storage::AddressNew {
+                        db.insert_address(domain::address::Address {
                             phone_number: address.phone.as_ref().and_then(|a| a.number.clone()),
                             country_code: address
                                 .phone
@@ -73,8 +74,19 @@ pub async fn get_address_for_payment_request(
                                 .and_then(|a| a.country_code.clone()),
                             customer_id: customer_id.to_string(),
                             merchant_id: merchant_id.to_string(),
-
-                            ..address_details.foreign_into()
+                            address_id: generate_id(consts::ID_LENGTH, "add"),
+                            city: address_details.city,
+                            country: address_details.country,
+                            line1: address_details.line1,
+                            line2: address_details.line2,
+                            line3: address_details.line3,
+                            id: None,
+                            state: address_details.state,
+                            created_at: common_utils::date_time::now(),
+                            first_name: address_details.first_name,
+                            last_name: address_details.last_name,
+                            modified_at: common_utils::date_time::now(),
+                            zip: address_details.zip,
                         })
                         .await
                         .map_err(|_| errors::ApiErrorResponse::InternalServerError)?,
@@ -94,7 +106,7 @@ pub async fn get_address_for_payment_request(
 pub async fn get_address_by_id(
     db: &dyn StorageInterface,
     address_id: Option<String>,
-) -> CustomResult<Option<storage::Address>, errors::ApiErrorResponse> {
+) -> CustomResult<Option<domain::address::Address>, errors::ApiErrorResponse> {
     match address_id {
         None => Ok(None),
         Some(address_id) => Ok(db.find_address(&address_id).await.ok()),

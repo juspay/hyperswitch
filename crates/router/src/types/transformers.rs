@@ -1,12 +1,15 @@
 use api_models::enums as api_enums;
-use common_utils::ext_traits::ValueExt;
+use common_utils::{ext_traits::ValueExt, generate_id};
 use error_stack::ResultExt;
 use storage_models::enums as storage_enums;
 
 use crate::{
+    consts,
     core::errors,
     types::{api as api_types, storage},
 };
+
+use super::domain;
 
 pub trait ForeignInto<T> {
     fn foreign_into(self) -> T;
@@ -307,8 +310,8 @@ impl<'a> ForeignFrom<&'a api_types::ConfigUpdate> for storage::ConfigUpdate {
     }
 }
 
-impl<'a> ForeignFrom<&'a storage::Address> for api_types::Address {
-    fn foreign_from(address: &storage::Address) -> Self {
+impl<'a> ForeignFrom<&'a domain::address::Address> for api_types::Address {
+    fn foreign_from(address: &domain::address::Address) -> Self {
         let address = address;
         Self {
             address: Some(api_types::AddressDetails {
@@ -370,24 +373,6 @@ impl ForeignFrom<storage_models::enums::PaymentMethodType>
 {
     fn foreign_from(payment_method_type: storage_models::enums::PaymentMethodType) -> Self {
         frunk::labelled_convert_from(payment_method_type)
-    }
-}
-
-impl ForeignFrom<api_models::payments::AddressDetails> for storage_models::address::AddressNew {
-    fn foreign_from(item: api_models::payments::AddressDetails) -> Self {
-        let address = item;
-        Self {
-            city: address.city,
-            country: address.country,
-            line1: address.line1,
-            line2: address.line2,
-            line3: address.line3,
-            state: address.state,
-            zip: address.zip,
-            first_name: address.first_name,
-            last_name: address.last_name,
-            ..Default::default()
-        }
     }
 }
 
