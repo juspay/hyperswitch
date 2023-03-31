@@ -88,7 +88,7 @@ where
 }
 
 /// Email address
-#[derive(Debug)]
+#[derive(serde::Serialize, serde::Deserialize, Debug)]
 pub struct Email(Secret<String>);
 
 impl FromStr for Email {
@@ -204,13 +204,15 @@ mod pii_masking_strategy_tests {
 
     #[test]
     fn test_valid_newtype_email() {
-        let email_check = Email::from_str("example@abc.com");
+        let email_check: Result<Email, crate::errors::ValidationError> =
+            Email::from_str("example@abc.com");
         assert!(email_check.is_ok());
     }
 
     #[test]
     fn test_invalid_newtype_email() {
-        let email_check = Email::from_str("example@abc@com");
+        let email_check: Result<Email, crate::errors::ValidationError> =
+            Email::from_str("example@abc@com");
         assert!(email_check.is_err());
     }
 
