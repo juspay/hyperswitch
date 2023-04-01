@@ -55,10 +55,10 @@ pub enum CountryAlpha3 {
 }
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 pub enum CountryNumeric {
-    one,
-    two,
-    three,
-    four,
+    One,
+    Two,
+    Three,
+    Four,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -104,18 +104,18 @@ impl Country {
     }
     pub const fn from_numeric(code: CountryNumeric) -> Self {
         match code {
-            CountryNumeric::one => Self::India,
-            CountryNumeric::two => Self::Australia,
-            CountryNumeric::three => Self::NewZealand,
-            CountryNumeric::four => Self::SouthAfrica,
+            CountryNumeric::One => Self::India,
+            CountryNumeric::Two => Self::Australia,
+            CountryNumeric::Three => Self::NewZealand,
+            CountryNumeric::Four => Self::SouthAfrica,
         }
     }
     pub const fn to_numeric(&self) -> CountryNumeric {
         match self {
-            Country::Australia => CountryNumeric::two,
-            Country::NewZealand => CountryNumeric::three,
-            Country::India => CountryNumeric::one,
-            Country::SouthAfrica => CountryNumeric::four,
+            Country::Australia => CountryNumeric::Two,
+            Country::NewZealand => CountryNumeric::Three,
+            Country::India => CountryNumeric::One,
+            Country::SouthAfrica => CountryNumeric::Four,
         }
     }
 }
@@ -152,12 +152,6 @@ mod custom_serde {
             D: serde::Deserializer<'a>,
         {
             CountryAlpha2::deserialize(deserializer).map(Country::from_alpha2)
-            /* dbg!("called????????????????????");
-            let result = deserializer
-                .deserialize_str(FieldVisitor)
-                .map(Country::from_alpha2);
-            dbg!(&result);
-            return result; */
         }
     }
 
@@ -190,9 +184,6 @@ mod custom_serde {
             D: serde::Deserializer<'a>,
         {
             CountryAlpha3::deserialize(deserializer).map(Country::from_alpha3)
-            /* return deserializer
-            .deserialize_str(FieldVisitor)
-            .map(Country::from_alpha3); */
         }
     }
 
@@ -225,9 +216,6 @@ mod custom_serde {
             D: serde::Deserializer<'a>,
         {
             CountryNumeric::deserialize(deserializer).map(Country::from_numeric)
-            /* return deserializer
-            .deserialize_str(FieldVisitor)
-            .map(Country::from_numeric); */
         }
     }
 }
@@ -273,44 +261,9 @@ struct HyperswitchRequestNumeric {
     pub country: Country,
 }
 
-// #[derive(PartialEq, Serialize, Deserialize, Debug)]
-// struct Test {
-//     #[serde(with = "custom_serde::alpha2_country_code")]
-//     country: Country,
-// }
-//
-// #[derive(PartialEq, Serialize, Deserialize, Debug)]
-// struct TestWithOtherName {
-//     #[serde(with = "custom_serde::alpha2_country_code")]
-//     country: Country,
-// }
-
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    /* #[test]
-    fn INIT() {
-        let test = Test {
-            country: Country::India,
-        };
-        let serialized = serde_json::to_string(&test).unwrap();
-        dbg!(&serialized);
-
-        let get_test: TestWithOtherName =
-            serde_json::from_str::<TestWithOtherName>(&serialized).unwrap();
-        dbg!(&get_test);
-        assert_eq!(test.country, get_test.country);
-    } */
-
-    /* #[test]
-    fn checking() {
-        let request = HyperswitchRequestAlpha2 {
-            country: Country::India,
-        };
-        let serialized_country = serde_json::to_string(&request).unwrap();
-        assert_eq!(serialized_country, r#"{"country":"IN"}"#);
-    } */
 
     #[test]
     fn test_serialize_alpha2() {
@@ -336,7 +289,7 @@ mod tests {
             country: Country::India,
         };
         let serialized_country = serde_json::to_string(&y_request).unwrap();
-        assert_eq!(serialized_country, r#"{"country":"one"}"#)
+        assert_eq!(serialized_country, r#"{"country":"One"}"#)
     }
 
     #[test]
@@ -355,7 +308,7 @@ mod tests {
 
     #[test]
     fn test_deserialize_numeric() {
-        let request_str = r#"{"country":"three"}"#;
+        let request_str = r#"{"country":"Three"}"#;
         let request = serde_json::from_str::<HyperswitchRequestNumeric>(request_str).unwrap();
         assert_eq!(request.country, Country::NewZealand)
     }
