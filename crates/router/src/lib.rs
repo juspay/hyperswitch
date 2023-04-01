@@ -162,7 +162,6 @@ pub fn get_application_builder(
     let json_cfg = actix_web::web::JsonConfig::default()
         .limit(request_body_limit)
         .content_type_required(true)
-        .content_type(|mime| mime == mime::APPLICATION_JSON) // FIXME: This doesn't seem to be enforced.
         .error_handler(utils::error_parser::custom_json_error_handler);
 
     actix_web::App::new()
