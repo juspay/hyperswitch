@@ -168,6 +168,7 @@ pub fn get_application_builder(
     actix_web::App::new()
         .app_data(json_cfg)
         .wrap(middleware::RequestId)
+        .wrap(middleware::default_response_headers())
         .wrap(router_env::tracing_actix_web::TracingLogger::default())
         .wrap(ErrorHandlers::new().handler(
             StatusCode::NOT_FOUND,
