@@ -167,8 +167,6 @@ pub fn get_application_builder(
 
     actix_web::App::new()
         .app_data(json_cfg)
-        .wrap(middleware::RequestId)
-        .wrap(router_env::tracing_actix_web::TracingLogger::default())
         .wrap(ErrorHandlers::new().handler(
             StatusCode::NOT_FOUND,
             errors::error_handlers::custom_error_handlers,
@@ -179,4 +177,6 @@ pub fn get_application_builder(
         ))
         .wrap(middleware::default_response_headers())
         .wrap(cors::cors())
+        .wrap(middleware::RequestId)
+        .wrap(router_env::tracing_actix_web::TracingLogger::default())
 }
