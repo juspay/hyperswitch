@@ -23,7 +23,6 @@ pub enum TransactionType {
     Void,
 }
 
-// Auth Struct
 pub struct NmiAuthType {
     pub(super) api_key: String,
 }
@@ -41,18 +40,32 @@ impl TryFrom<&ConnectorAuthType> for NmiAuthType {
     }
 }
 
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum ThreeDSCondition {
+    Verified,
+    Attempted,
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct NmiPaymentsRequest {
     #[serde(rename = "type")]
     transaction_type: TransactionType,
     amount: f64,
+    security_key: String,
+    // Card
     ccnumber: Option<Secret<String, pii::CardNumber>>,
     currency: enums::Currency,
     ccexp: Option<Secret<String>>,
     cvv: Option<Secret<String>>,
-    security_key: String,
+    // Payment method types
     applepay_payment_data: Option<String>,
     googlepay_payment_data: Option<String>,
+    // 3DS payment
+    // cardholder_auth: Option<ThreeDSCondition>,
+    // cavv: Option<String>,
+    // xid: Option<String>,
+    // three_ds_version: Option<String>,
 }
 
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for NmiPaymentsRequest {
@@ -85,10 +98,14 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for NmiPaymentsRequest {
                     cvv: Some(card.card_cvc.clone()),
                     applepay_payment_data: None,
                     googlepay_payment_data: None,
+                    // cardholder_auth: Some(),
+                    // cavv: Some(),
+                    // xid: Some(),
+                    // three_ds_version: Some("2.2.0".to_string()),
                 })
             }
             api::PaymentMethodData::Wallet(ref wallet_type) => match wallet_type {
-                api_models::payments::WalletData::GooglePay(ref gpay_data) => Ok(Self {
+                api_models::payments::WalletData::GooglePay(ref googlepay_data) => Ok(Self {
                     transaction_type,
                     security_key: auth_type.api_key,
                     amount,
@@ -97,9 +114,13 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for NmiPaymentsRequest {
                     ccexp: None,
                     cvv: None,
                     applepay_payment_data: None,
-                    googlepay_payment_data: Some(gpay_data.tokenization_data.token.to_owned()),
+                    googlepay_payment_data: Some(googlepay_data.tokenization_data.token.to_owned()),
+                    // cardholder_auth: Some(),
+                    // cavv: Some(),
+                    // xid: Some(),
+                    // three_ds_version: Some("2.2.0".to_string()),
                 }),
-                api_models::payments::WalletData::ApplePay(ref apay_data) => Ok(Self {
+                api_models::payments::WalletData::ApplePay(ref applepay_data) => Ok(Self {
                     transaction_type,
                     security_key: auth_type.api_key,
                     amount,
@@ -107,8 +128,12 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for NmiPaymentsRequest {
                     ccnumber: None,
                     ccexp: None,
                     cvv: None,
-                    applepay_payment_data: Some(apay_data.payment_data.to_owned()),
+                    applepay_payment_data: Some(applepay_data.payment_data.to_owned()),
                     googlepay_payment_data: None,
+                    // cardholder_auth: Some(),
+                    // cavv: Some(),
+                    // xid: Some(),
+                    // three_ds_version: Some("2.2.0".to_string()),
                 }),
                 _ => Err(errors::ConnectorError::NotImplemented("Wallet type".to_string()).into()),
             },
@@ -142,10 +167,14 @@ impl TryFrom<&types::VerifyRouterData> for NmiPaymentsRequest {
                     cvv: Some(card.card_cvc.clone()),
                     applepay_payment_data: None,
                     googlepay_payment_data: None,
+                    // cardholder_auth: Some(),
+                    // cavv: Some(),
+                    // xid: Some(),
+                    // three_ds_version: Some("2.2.0".to_string()),
                 })
             }
             api::PaymentMethodData::Wallet(ref wallet_type) => match wallet_type {
-                api_models::payments::WalletData::GooglePay(ref gpay_data) => Ok(Self {
+                api_models::payments::WalletData::GooglePay(ref googlepay_data) => Ok(Self {
                     transaction_type,
                     security_key: security_key.api_key,
                     amount: 0.0,
@@ -154,9 +183,13 @@ impl TryFrom<&types::VerifyRouterData> for NmiPaymentsRequest {
                     ccexp: None,
                     cvv: None,
                     applepay_payment_data: None,
-                    googlepay_payment_data: Some(gpay_data.tokenization_data.token.to_owned()),
+                    googlepay_payment_data: Some(googlepay_data.tokenization_data.token.to_owned()),
+                    // cardholder_auth: Some(),
+                    // cavv: Some(),
+                    // xid: Some(),
+                    // three_ds_version: Some("2.2.0".to_string()),
                 }),
-                api_models::payments::WalletData::ApplePay(ref apay_data) => Ok(Self {
+                api_models::payments::WalletData::ApplePay(ref applepay_data) => Ok(Self {
                     transaction_type,
                     security_key: security_key.api_key,
                     amount: 0.0,
@@ -164,8 +197,12 @@ impl TryFrom<&types::VerifyRouterData> for NmiPaymentsRequest {
                     ccnumber: None,
                     ccexp: None,
                     cvv: None,
-                    applepay_payment_data: Some(apay_data.payment_data.to_owned()),
+                    applepay_payment_data: Some(applepay_data.payment_data.to_owned()),
                     googlepay_payment_data: None,
+                    // cardholder_auth: Some(),
+                    // cavv: Some(),
+                    // xid: Some(),
+                    // three_ds_version: Some("2.2.0".to_string()),
                 }),
                 _ => Err(errors::ConnectorError::NotImplemented("Wallet type".to_string()).into()),
             },
@@ -368,19 +405,19 @@ impl<T>
 // PaymentsResponse
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
-pub enum NmiPaymentStatus {
+pub enum NmiResponseStatus {
     Succeeded,
     Failed,
     #[default]
     Processing,
 }
 
-impl From<NmiPaymentStatus> for enums::AttemptStatus {
-    fn from(item: NmiPaymentStatus) -> Self {
+impl From<NmiResponseStatus> for enums::AttemptStatus {
+    fn from(item: NmiResponseStatus) -> Self {
         match item {
-            NmiPaymentStatus::Succeeded => Self::Charged,
-            NmiPaymentStatus::Failed => Self::Failure,
-            NmiPaymentStatus::Processing => Self::Authorizing,
+            NmiResponseStatus::Succeeded => Self::Charged,
+            NmiResponseStatus::Failed => Self::Failure,
+            NmiResponseStatus::Processing => Self::Authorizing,
         }
     }
 }
@@ -388,7 +425,7 @@ impl From<NmiPaymentStatus> for enums::AttemptStatus {
 //TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct NmiPaymentsResponse {
-    status: NmiPaymentStatus,
+    status: NmiResponseStatus,
     id: String,
 }
 
@@ -514,7 +551,7 @@ impl<T>
 
 #[derive(Clone, Debug, Deserialize, PartialEq)]
 #[serde(rename_all = "snake_case")]
-pub enum Condition {
+pub enum NmiStatus {
     Abandoned,
     Cancelled,
     Pendingsettlement,
@@ -527,7 +564,8 @@ pub enum Condition {
 
 #[derive(Clone, Debug, Deserialize)]
 pub struct Transaction {
-    pub condition: Condition,
+    #[serde(rename = "condition")]
+    pub status: NmiStatus,
     pub transaction_id: String,
 }
 
@@ -565,15 +603,15 @@ impl TryFrom<types::PaymentsSyncResponseRouterData<types::Response>>
     }
 }
 
-impl From<Condition> for enums::AttemptStatus {
-    fn from(item: Condition) -> Self {
+impl From<NmiStatus> for enums::AttemptStatus {
+    fn from(item: NmiStatus) -> Self {
         match item {
-            Condition::Abandoned => Self::AuthorizationFailed,
-            Condition::Cancelled => Self::Voided,
-            Condition::Pendingsettlement | Condition::Pending => Self::Pending,
-            Condition::Complete => Self::Charged,
-            Condition::InProgress => Self::Pending,
-            Condition::Failed | Condition::Unknown => Self::Failure,
+            NmiStatus::Abandoned => Self::AuthorizationFailed,
+            NmiStatus::Cancelled => Self::Voided,
+            NmiStatus::Pendingsettlement | NmiStatus::Pending => Self::Pending,
+            NmiStatus::Complete => Self::Charged,
+            NmiStatus::InProgress => Self::Pending,
+            NmiStatus::Failed | NmiStatus::Unknown => Self::Failure,
         }
     }
 }
@@ -675,8 +713,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, QueryResponse>>
     fn try_from(
         item: types::RefundsResponseRouterData<api::RSync, QueryResponse>,
     ) -> Result<Self, Self::Error> {
-        let refund_status =
-            enums::RefundStatus::from(item.response.nm_response.transaction.condition);
+        let refund_status = enums::RefundStatus::from(item.response.nm_response.transaction.status);
         Ok(Self {
             response: Ok(types::RefundsResponseData {
                 connector_refund_id: item.response.nm_response.transaction.transaction_id,
@@ -687,17 +724,17 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, QueryResponse>>
     }
 }
 
-impl From<Condition> for enums::RefundStatus {
-    fn from(item: Condition) -> Self {
+impl From<NmiStatus> for enums::RefundStatus {
+    fn from(item: NmiStatus) -> Self {
         match item {
-            Condition::Abandoned
-            | Condition::Cancelled
-            | Condition::Failed
-            | Condition::Unknown => Self::Failure,
-            Condition::Pendingsettlement | Condition::Pending | Condition::InProgress => {
+            NmiStatus::Abandoned
+            | NmiStatus::Cancelled
+            | NmiStatus::Failed
+            | NmiStatus::Unknown => Self::Failure,
+            NmiStatus::Pendingsettlement | NmiStatus::Pending | NmiStatus::InProgress => {
                 Self::Pending
             }
-            Condition::Complete => Self::Success,
+            NmiStatus::Complete => Self::Success,
         }
     }
 }
@@ -705,7 +742,7 @@ impl From<Condition> for enums::RefundStatus {
 // This function is a temporary fix for future that will looked upon.
 pub fn get_query_info(
     query_response: String,
-) -> Result<(String, Condition), errors::ConnectorError> {
+) -> Result<(String, NmiStatus), errors::ConnectorError> {
     let transaction_id_regex = Regex::new("<transaction_id>(.*)</transaction_id>")
         .map_err(|_| errors::ConnectorError::ResponseHandlingFailed)?;
     let mut transaction_id = None;
@@ -714,17 +751,17 @@ pub fn get_query_info(
     }
     let condition_regex = Regex::new("<condition>(.*)</condition>")
         .map_err(|_| errors::ConnectorError::ResponseHandlingFailed)?;
-    let mut condition: Option<Condition> = Some(Condition::InProgress);
+    let mut nmi_status: Option<NmiStatus> = Some(NmiStatus::InProgress);
     for cid in condition_regex.captures_iter(&query_response) {
-        condition = match &cid[1] {
-            "abandoned" => Some(Condition::Abandoned),
-            "canceled" => Some(Condition::Cancelled),
-            "pending" => Some(Condition::Pending),
-            "in_progress" => Some(Condition::InProgress),
-            "pendingsettlement" => Some(Condition::Pendingsettlement),
-            "complete" => Some(Condition::Complete),
-            "failed" => Some(Condition::Failed),
-            "unknown" => Some(Condition::Unknown),
+        nmi_status = match &cid[1] {
+            "abandoned" => Some(NmiStatus::Abandoned),
+            "canceled" => Some(NmiStatus::Cancelled),
+            "pending" => Some(NmiStatus::Pending),
+            "in_progress" => Some(NmiStatus::InProgress),
+            "pendingsettlement" => Some(NmiStatus::Pendingsettlement),
+            "complete" => Some(NmiStatus::Complete),
+            "failed" => Some(NmiStatus::Failed),
+            "unknown" => Some(NmiStatus::Unknown),
             _ => None,
         };
     }
@@ -732,36 +769,36 @@ pub fn get_query_info(
         Some(value) => Ok(value),
         None => Err(errors::ConnectorError::ResponseHandlingFailed),
     }?;
-    let condition = match condition {
+    let nmi_status = match nmi_status {
         Some(value) => Ok(value),
         None => Err(errors::ConnectorError::ResponseHandlingFailed),
     }?;
-    Ok((transaction_id, condition))
+    Ok((transaction_id, nmi_status))
 }
 
 pub fn get_attempt_status(
-    value: Condition,
+    value: NmiStatus,
     capturemethod: Option<enums::CaptureMethod>,
 ) -> Result<enums::AttemptStatus, errors::ConnectorError> {
     match value {
-        Condition::Abandoned => Ok(enums::AttemptStatus::AuthorizationFailed),
-        Condition::Cancelled => Ok(enums::AttemptStatus::Voided),
-        Condition::Pending => match capturemethod.unwrap_or_default() {
+        NmiStatus::Abandoned => Ok(enums::AttemptStatus::AuthorizationFailed),
+        NmiStatus::Cancelled => Ok(enums::AttemptStatus::Voided),
+        NmiStatus::Pending => match capturemethod.unwrap_or_default() {
             storage_models::enums::CaptureMethod::Manual => Ok(enums::AttemptStatus::Authorized),
             _ => Ok(enums::AttemptStatus::Pending),
         },
-        Condition::InProgress => Ok(enums::AttemptStatus::Pending),
-        Condition::Pendingsettlement | Condition::Complete => Ok(enums::AttemptStatus::Charged),
-        Condition::Failed | Condition::Unknown => Ok(enums::AttemptStatus::Failure),
+        NmiStatus::InProgress => Ok(enums::AttemptStatus::Pending),
+        NmiStatus::Pendingsettlement | NmiStatus::Complete => Ok(enums::AttemptStatus::Charged),
+        NmiStatus::Failed | NmiStatus::Unknown => Ok(enums::AttemptStatus::Failure),
     }
 }
 
-pub fn get_refund_status(value: Condition) -> Result<enums::RefundStatus, errors::ConnectorError> {
+pub fn get_refund_status(value: NmiStatus) -> Result<enums::RefundStatus, errors::ConnectorError> {
     match value {
-        Condition::Abandoned | Condition::Cancelled | Condition::Failed | Condition::Unknown => {
+        NmiStatus::Abandoned | NmiStatus::Cancelled | NmiStatus::Failed | NmiStatus::Unknown => {
             Ok(enums::RefundStatus::Failure)
         }
-        Condition::Pending | Condition::InProgress => Ok(enums::RefundStatus::Pending),
-        Condition::Pendingsettlement | Condition::Complete => Ok(enums::RefundStatus::Success),
+        NmiStatus::Pending | NmiStatus::InProgress => Ok(enums::RefundStatus::Pending),
+        NmiStatus::Pendingsettlement | NmiStatus::Complete => Ok(enums::RefundStatus::Success),
     }
 }
