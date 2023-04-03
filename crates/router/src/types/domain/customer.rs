@@ -2,8 +2,6 @@ use common_utils::pii;
 use masking::Secret;
 use time::PrimitiveDateTime;
 
-use super::behaviour;
-
 #[derive(Clone, Debug)]
 pub struct Customer {
     pub id: Option<i32>,

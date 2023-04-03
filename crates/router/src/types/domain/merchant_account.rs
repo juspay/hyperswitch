@@ -1,9 +1,6 @@
 use common_utils::pii;
-use masking::{Secret, StrongSecret};
+use masking::StrongSecret;
 use storage_models::enums;
-use time::PrimitiveDateTime;
-
-use super::behaviour;
 
 #[derive(Clone, Debug)]
 pub struct MerchantAccount {
