@@ -10,14 +10,13 @@ use router::{
     routes, services,
     types::{self, api, storage::enums, AccessToken, PaymentAddress, RouterData},
 };
-use serde_json::Value;
 use wiremock::{Mock, MockServer};
 
 pub trait Connector {
     fn get_data(&self) -> types::api::ConnectorData;
     fn get_auth_token(&self) -> types::ConnectorAuthType;
     fn get_name(&self) -> String;
-    fn get_connector_meta(&self) -> Option<Value> {
+    fn get_connector_meta(&self) -> Option<serde_json::Value> {
         None
     }
     /// interval in seconds to be followed when making the subsequent request whenever needed
@@ -583,7 +582,7 @@ pub fn get_connector_transaction_id(
 
 pub fn get_connector_metadata(
     response: Result<types::PaymentsResponseData, types::ErrorResponse>,
-) -> Option<Value> {
+) -> Option<serde_json::Value> {
     match response {
         Ok(types::PaymentsResponseData::TransactionResponse {
             resource_id: _,

@@ -178,6 +178,7 @@ impl api::PaymentVoid for Cybersource {}
 impl api::PaymentCapture for Cybersource {}
 impl api::PreVerify for Cybersource {}
 impl api::ConnectorAccessToken for Cybersource {}
+impl api::GetConnectorRequestId for Cybersource {}
 
 impl ConnectorIntegration<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>
     for Cybersource

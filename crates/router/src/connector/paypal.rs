@@ -42,6 +42,16 @@ impl api::RefundExecute for Paypal {}
 impl api::RefundSync for Paypal {}
 
 impl Paypal {
+    pub fn get_connector_id(
+        &self,
+        connector_meta: &Option<serde_json::Value>,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        let meta: PaypalMeta = to_connector_meta(connector_meta.clone())?;
+        meta.authorize_id.ok_or_else(|| {
+            errors::ConnectorError::MissingConnectorMetaDataField("authorize_id".to_string()).into()
+        })
+    }
+
     pub fn get_order_error_response(
         &self,
         res: Response,
@@ -311,7 +321,6 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         let paypal_req =
             utils::Encode::<paypal::PaypalPaymentsRequest>::encode_to_string_of_json(&req_obj)
                 .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        println!("auth_req-->>{:?}", paypal_req);
         Ok(Some(paypal_req))
     }
 
@@ -343,7 +352,6 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
             .response
             .parse_struct("Paypal PaymentsAuthorizeResponse")
             .switch()?;
-        println!("auth_respoo-->>{:?}", response);
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -397,10 +405,10 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
             to_connector_meta(req.request.connector_meta.clone())?;
         let psync_url = match connector_payment_id.psync_flow {
             transformers::PaypalPaymentIntent::Authorize => format!(
-                "/v2/payments/authorizations/{}",
+                "v2/payments/authorizations/{}",
                 connector_payment_id.authorize_id.unwrap_or_default()
             ),
-            transformers::PaypalPaymentIntent::Capture => format!("/v2/payments/captures/{}", id),
+            transformers::PaypalPaymentIntent::Capture => format!("v2/payments/captures/{}", id),
         };
         Ok(format!("{}{}", self.base_url(connectors), psync_url,))
     }
@@ -424,7 +432,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         data: &types::PaymentsSyncRouterData,
         res: Response,
     ) -> CustomResult<types::PaymentsSyncRouterData, errors::ConnectorError> {
-        let response: paypal::PaypalPaymentsResponse = res
+        let response: paypal::PaypalPaymentsSyncResponse = res
             .response
             .parse_struct("paypal PaymentsSyncResponse")
             .switch()?;

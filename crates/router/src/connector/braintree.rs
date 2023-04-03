@@ -49,6 +49,7 @@ impl api::PaymentCapture for Braintree {}
 
 impl api::PaymentSession for Braintree {}
 impl api::ConnectorAccessToken for Braintree {}
+impl api::GetConnectorRequestId for Braintree {}
 
 impl
     services::ConnectorIntegration<

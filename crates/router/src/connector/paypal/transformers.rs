@@ -236,6 +236,13 @@ pub struct PaypalPaymentsResponse {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+pub struct PaypalPaymentsSyncResponse {
+    id: String,
+    status: PaypalPaymentStatus,
+    amount: OrderAmount,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
 pub struct PaypalMeta {
     pub authorize_id: Option<String>,
     pub order_id: String,
@@ -326,6 +333,33 @@ impl<F, T>
     }
 }
 
+impl<F, T>
+    TryFrom<
+        types::ResponseRouterData<F, PaypalPaymentsSyncResponse, T, types::PaymentsResponseData>,
+    > for types::RouterData<F, T, types::PaymentsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: types::ResponseRouterData<
+            F,
+            PaypalPaymentsSyncResponse,
+            T,
+            types::PaymentsResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            status: storage_enums::AttemptStatus::from(item.response.status),
+            response: Ok(types::PaymentsResponseData::TransactionResponse {
+                resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
+                redirection_data: None,
+                mandate_reference: None,
+                connector_metadata: None,
+            }),
+            ..item.data
+        })
+    }
+}
+
 #[derive(Debug, Serialize)]
 pub struct PaypalPaymentsCaptureRequest {
     amount: OrderAmount,
@@ -349,6 +383,7 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for PaypalPaymentsCaptureRequest
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum PaypalPaymentStatus {
+    Created,
     Completed,
     Declined,
     Failed,
@@ -366,6 +401,7 @@ pub struct PaymentCaptureResponse {
 impl From<PaypalPaymentStatus> for storage_enums::AttemptStatus {
     fn from(item: PaypalPaymentStatus) -> Self {
         match item {
+            PaypalPaymentStatus::Created => Self::Authorized,
             PaypalPaymentStatus::Completed => Self::Charged,
             PaypalPaymentStatus::Declined => Self::Failure,
             PaypalPaymentStatus::Failed => Self::CaptureFailed,

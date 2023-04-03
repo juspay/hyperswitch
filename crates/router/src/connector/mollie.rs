@@ -36,6 +36,7 @@ impl api::PaymentVoid for Mollie {}
 impl api::Refund for Mollie {}
 impl api::RefundExecute for Mollie {}
 impl api::RefundSync for Mollie {}
+impl api::GetConnectorRequestId for Mollie {}
 
 impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Mollie
 where

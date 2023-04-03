@@ -43,6 +43,7 @@ impl api::PaymentVoid for Authorizedotnet {}
 impl api::PaymentCapture for Authorizedotnet {}
 impl api::PaymentSession for Authorizedotnet {}
 impl api::ConnectorAccessToken for Authorizedotnet {}
+impl api::GetConnectorRequestId for Authorizedotnet {}
 
 impl
     services::ConnectorIntegration<

@@ -52,6 +52,7 @@ impl api::PaymentVoid for Adyen {}
 impl api::PaymentCapture for Adyen {}
 impl api::PreVerify for Adyen {}
 impl api::ConnectorAccessToken for Adyen {}
+impl api::GetConnectorRequestId for Adyen {}
 
 impl
     services::ConnectorIntegration<

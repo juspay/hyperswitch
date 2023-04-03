@@ -88,6 +88,7 @@ impl ConnectorCommon for Rapyd {
 }
 
 impl api::ConnectorAccessToken for Rapyd {}
+impl api::GetConnectorRequestId for Rapyd {}
 
 impl
     services::ConnectorIntegration<

@@ -61,6 +61,7 @@ impl api::PaymentVoid for Checkout {}
 impl api::PaymentCapture for Checkout {}
 impl api::PaymentSession for Checkout {}
 impl api::ConnectorAccessToken for Checkout {}
+impl api::GetConnectorRequestId for Checkout {}
 
 impl
     services::ConnectorIntegration<

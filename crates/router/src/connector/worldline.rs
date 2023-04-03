@@ -129,6 +129,7 @@ impl ConnectorCommon for Worldline {
 }
 
 impl api::ConnectorAccessToken for Worldline {}
+impl api::GetConnectorRequestId for Worldline {}
 
 impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, types::AccessToken>
     for Worldline

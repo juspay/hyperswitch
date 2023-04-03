@@ -94,6 +94,7 @@ impl ConnectorIntegration<api::Verify, types::VerifyRequestData, types::Payments
 }
 
 impl api::PaymentVoid for Worldpay {}
+impl api::GetConnectorRequestId for Worldpay {}
 
 impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsResponseData>
     for Worldpay

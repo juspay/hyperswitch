@@ -126,6 +126,7 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
 }
 
 impl api::ConnectorAccessToken for Trustpay {}
+impl api::GetConnectorRequestId for Trustpay {}
 
 impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, types::AccessToken>
     for Trustpay

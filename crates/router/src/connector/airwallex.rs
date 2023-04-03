@@ -96,6 +96,7 @@ impl ConnectorIntegration<api::Verify, types::VerifyRequestData, types::Payments
 }
 
 impl api::ConnectorAccessToken for Airwallex {}
+impl api::GetConnectorRequestId for Airwallex {}
 
 impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, types::AccessToken>
     for Airwallex

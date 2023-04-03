@@ -37,6 +37,7 @@ impl api::PaymentVoid for Dlocal {}
 impl api::Refund for Dlocal {}
 impl api::RefundExecute for Dlocal {}
 impl api::RefundSync for Dlocal {}
+impl api::GetConnectorRequestId for Dlocal {}
 
 impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Dlocal
 where

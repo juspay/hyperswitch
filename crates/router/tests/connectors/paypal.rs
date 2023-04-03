@@ -78,7 +78,7 @@ async fn should_capture_authorized_payment() {
         .authorize_payment(get_payment_data(), get_default_payment_info())
         .await
         .expect("Authorize payment response");
-    let txn_id = utils::get_connector_transaction_id(authorize_response.response.clone()).unwrap();
+    let txn_id = "".to_string();
     let connector_meta = utils::get_connector_metadata(authorize_response.response);
     let response = CONNECTOR
         .capture_payment(
@@ -101,7 +101,7 @@ async fn should_partially_capture_authorized_payment() {
         .authorize_payment(get_payment_data(), get_default_payment_info())
         .await
         .expect("Authorize payment response");
-    let txn_id = utils::get_connector_transaction_id(authorize_response.response.clone()).unwrap();
+    let txn_id = "".to_string();
     let connector_meta = utils::get_connector_metadata(authorize_response.response);
     let response = CONNECTOR
         .capture_payment(
@@ -125,17 +125,16 @@ async fn should_sync_authorized_payment() {
         .authorize_payment(get_payment_data(), get_default_payment_info())
         .await
         .expect("Authorize payment response");
-    let txn_id = utils::get_connector_transaction_id(authorize_response.response.clone());
+    let txn_id = "".to_string();
+    let connector_meta = utils::get_connector_metadata(authorize_response.response);
     let response = CONNECTOR
         .psync_retry_till_status_matches(
             enums::AttemptStatus::Authorized,
             Some(types::PaymentsSyncData {
-                connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
-                    txn_id.unwrap(),
-                ),
+                connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(txn_id),
                 encoded_data: None,
                 capture_method: None,
-                connector_meta: None,
+                connector_meta,
             }),
             get_default_payment_info(),
         )
@@ -151,7 +150,7 @@ async fn should_void_authorized_payment() {
         .authorize_payment(get_payment_data(), get_default_payment_info())
         .await
         .expect("Authorize payment response");
-    let txn_id = utils::get_connector_transaction_id(authorize_response.response.clone()).unwrap();
+    let txn_id = "".to_string();
     let connector_meta = utils::get_connector_metadata(authorize_response.response);
     let response = CONNECTOR
         .void_payment(
@@ -176,11 +175,11 @@ async fn should_refund_manually_captured_payment() {
         .authorize_payment(get_payment_data(), get_default_payment_info())
         .await
         .expect("Authorize payment response");
-    let txn_id = utils::get_connector_transaction_id(authorize_response.response.clone()).unwrap();
+    let txn_id = "".to_string();
     let capture_connector_meta = utils::get_connector_metadata(authorize_response.response);
     let capture_response = CONNECTOR
         .capture_payment(
-            txn_id.clone(),
+            txn_id,
             Some(types::PaymentsCaptureData {
                 connector_meta: capture_connector_meta,
                 ..utils::PaymentCaptureType::default().0
@@ -189,12 +188,12 @@ async fn should_refund_manually_captured_payment() {
         )
         .await
         .expect("Capture payment response");
-    let refund_connector_metadata = utils::get_connector_metadata(capture_response.response);
+    let refund_txn_id =
+        utils::get_connector_transaction_id(capture_response.response.clone()).unwrap();
     let response = CONNECTOR
         .refund_payment(
-            txn_id,
+            refund_txn_id,
             Some(types::RefundsData {
-                connector_metadata: refund_connector_metadata,
                 ..utils::PaymentRefundType::default().0
             }),
             get_default_payment_info(),
@@ -214,11 +213,11 @@ async fn should_partially_refund_manually_captured_payment() {
         .authorize_payment(get_payment_data(), get_default_payment_info())
         .await
         .expect("Authorize payment response");
-    let txn_id = utils::get_connector_transaction_id(authorize_response.response.clone()).unwrap();
+    let txn_id = "".to_string();
     let capture_connector_meta = utils::get_connector_metadata(authorize_response.response);
     let capture_response = CONNECTOR
         .capture_payment(
-            txn_id.clone(),
+            txn_id,
             Some(types::PaymentsCaptureData {
                 connector_meta: capture_connector_meta,
                 ..utils::PaymentCaptureType::default().0
@@ -227,12 +226,12 @@ async fn should_partially_refund_manually_captured_payment() {
         )
         .await
         .expect("Capture payment response");
-    let refund_connector_metadata = utils::get_connector_metadata(capture_response.response);
+    let refund_txn_id =
+        utils::get_connector_transaction_id(capture_response.response.clone()).unwrap();
     let response = CONNECTOR
         .refund_payment(
-            txn_id,
+            refund_txn_id,
             Some(types::RefundsData {
-                connector_metadata: refund_connector_metadata,
                 refund_amount: 50,
                 ..utils::PaymentRefundType::default().0
             }),
@@ -253,11 +252,11 @@ async fn should_sync_manually_captured_refund() {
         .authorize_payment(get_payment_data(), get_default_payment_info())
         .await
         .expect("Authorize payment response");
-    let txn_id = utils::get_connector_transaction_id(authorize_response.response.clone()).unwrap();
+    let txn_id = "".to_string();
     let capture_connector_meta = utils::get_connector_metadata(authorize_response.response);
     let capture_response = CONNECTOR
         .capture_payment(
-            txn_id.clone(),
+            txn_id,
             Some(types::PaymentsCaptureData {
                 connector_meta: capture_connector_meta,
                 ..utils::PaymentCaptureType::default().0
@@ -266,12 +265,12 @@ async fn should_sync_manually_captured_refund() {
         )
         .await
         .expect("Capture payment response");
-    let refund_connector_metadata = utils::get_connector_metadata(capture_response.response);
+    let refund_txn_id =
+        utils::get_connector_transaction_id(capture_response.response.clone()).unwrap();
     let refund_response = CONNECTOR
         .refund_payment(
-            txn_id,
+            refund_txn_id,
             Some(types::RefundsData {
-                connector_metadata: refund_connector_metadata,
                 ..utils::PaymentRefundType::default().0
             }),
             get_default_payment_info(),
@@ -338,33 +337,8 @@ async fn should_sync_auto_captured_payment() {
 // Refunds a payment using the automatic capture flow (Non 3DS).
 #[actix_web::test]
 async fn should_refund_auto_captured_payment() {
-    let authorize_response = CONNECTOR
-        .authorize_payment(get_payment_data(), get_default_payment_info())
-        .await
-        .expect("Authorize payment response");
-    let txn_id = utils::get_connector_transaction_id(authorize_response.response.clone()).unwrap();
-    let capture_connector_meta = utils::get_connector_metadata(authorize_response.response);
-    let capture_response = CONNECTOR
-        .capture_payment(
-            txn_id.clone(),
-            Some(types::PaymentsCaptureData {
-                connector_meta: capture_connector_meta,
-                ..utils::PaymentCaptureType::default().0
-            }),
-            get_default_payment_info(),
-        )
-        .await
-        .expect("Capture payment response");
-    let refund_connector_metadata = utils::get_connector_metadata(capture_response.response);
     let response = CONNECTOR
-        .refund_payment(
-            txn_id,
-            Some(types::RefundsData {
-                connector_metadata: refund_connector_metadata,
-                ..utils::PaymentRefundType::default().0
-            }),
-            get_default_payment_info(),
-        )
+        .make_payment_and_refund(get_payment_data(), None, get_default_payment_info())
         .await
         .unwrap();
     assert_eq!(
@@ -377,28 +351,15 @@ async fn should_refund_auto_captured_payment() {
 #[actix_web::test]
 async fn should_partially_refund_succeeded_payment() {
     let authorize_response = CONNECTOR
-        .authorize_payment(get_payment_data(), get_default_payment_info())
+        .make_payment(get_payment_data(), get_default_payment_info())
         .await
-        .expect("Authorize payment response");
+        .unwrap();
+
     let txn_id = utils::get_connector_transaction_id(authorize_response.response.clone()).unwrap();
-    let capture_connector_meta = utils::get_connector_metadata(authorize_response.response);
-    let capture_response = CONNECTOR
-        .capture_payment(
-            txn_id.clone(),
-            Some(types::PaymentsCaptureData {
-                connector_meta: capture_connector_meta,
-                ..utils::PaymentCaptureType::default().0
-            }),
-            get_default_payment_info(),
-        )
-        .await
-        .expect("Capture payment response");
-    let refund_connector_metadata = utils::get_connector_metadata(capture_response.response);
     let refund_response = CONNECTOR
         .refund_payment(
             txn_id,
             Some(types::RefundsData {
-                connector_metadata: refund_connector_metadata,
                 refund_amount: 50,
                 ..utils::PaymentRefundType::default().0
             }),
@@ -416,29 +377,16 @@ async fn should_partially_refund_succeeded_payment() {
 #[actix_web::test]
 async fn should_refund_succeeded_payment_multiple_times() {
     let authorize_response = CONNECTOR
-        .authorize_payment(get_payment_data(), get_default_payment_info())
+        .make_payment(get_payment_data(), get_default_payment_info())
         .await
-        .expect("Authorize payment response");
+        .unwrap();
+
     let txn_id = utils::get_connector_transaction_id(authorize_response.response.clone()).unwrap();
-    let capture_connector_meta = utils::get_connector_metadata(authorize_response.response);
-    let capture_response = CONNECTOR
-        .capture_payment(
-            txn_id.clone(),
-            Some(types::PaymentsCaptureData {
-                connector_meta: capture_connector_meta,
-                ..utils::PaymentCaptureType::default().0
-            }),
-            get_default_payment_info(),
-        )
-        .await
-        .expect("Capture payment response");
-    let refund_connector_metadata = utils::get_connector_metadata(capture_response.response);
     for _x in 0..2 {
         let refund_response = CONNECTOR
             .refund_payment(
                 txn_id.clone(),
                 Some(types::RefundsData {
-                    connector_metadata: refund_connector_metadata.clone(),
                     refund_amount: 50,
                     ..utils::PaymentRefundType::default().0
                 }),
@@ -456,33 +404,8 @@ async fn should_refund_succeeded_payment_multiple_times() {
 // Synchronizes a refund using the automatic capture flow (Non 3DS).
 #[actix_web::test]
 async fn should_sync_refund() {
-    let authorize_response = CONNECTOR
-        .authorize_payment(get_payment_data(), get_default_payment_info())
-        .await
-        .expect("Authorize payment response");
-    let txn_id = utils::get_connector_transaction_id(authorize_response.response.clone()).unwrap();
-    let capture_connector_meta = utils::get_connector_metadata(authorize_response.response);
-    let capture_response = CONNECTOR
-        .capture_payment(
-            txn_id.clone(),
-            Some(types::PaymentsCaptureData {
-                connector_meta: capture_connector_meta,
-                ..utils::PaymentCaptureType::default().0
-            }),
-            get_default_payment_info(),
-        )
-        .await
-        .expect("Capture payment response");
-    let refund_connector_metadata = utils::get_connector_metadata(capture_response.response);
     let refund_response = CONNECTOR
-        .refund_payment(
-            txn_id,
-            Some(types::RefundsData {
-                connector_metadata: refund_connector_metadata,
-                ..utils::PaymentRefundType::default().0
-            }),
-            get_default_payment_info(),
-        )
+        .make_payment_and_refund(get_payment_data(), None, get_default_payment_info())
         .await
         .unwrap();
     let response = CONNECTOR
@@ -619,7 +542,7 @@ async fn should_fail_void_payment_for_auto_capture() {
         .authorize_payment(get_payment_data(), get_default_payment_info())
         .await
         .expect("Authorize payment response");
-    let txn_id = utils::get_connector_transaction_id(authorize_response.response.clone()).unwrap();
+    let txn_id = "".to_string();
     let capture_connector_meta = utils::get_connector_metadata(authorize_response.response);
     let capture_response = CONNECTOR
         .capture_payment(
@@ -646,18 +569,23 @@ async fn should_fail_void_payment_for_auto_capture() {
         )
         .await
         .expect("Void payment response");
-    assert_eq!(void_response.response.unwrap_err().message, "description - Specified resource ID does not exist. Please check the resource ID and try again. ; ");
+    assert_eq!(
+        void_response.response.unwrap_err().message,
+        "description - Authorization has been previously captured and hence cannot be voided. ; "
+    );
 }
 
 // Captures a payment using invalid connector payment id.
 #[actix_web::test]
 async fn should_fail_capture_for_invalid_payment() {
     let connector_meta = Some(serde_json::json!({
-        "txn_id": "56YH8TZ",
+        "authorize_id": "56YH8TZ",
+        "order_id":"02569315XM5003146",
+        "psync_flow":"AUTHORIZE",
     }));
     let capture_response = CONNECTOR
         .capture_payment(
-            "123456789".to_string(),
+            "".to_string(),
             Some(types::PaymentsCaptureData {
                 connector_meta,
                 ..utils::PaymentCaptureType::default().0
@@ -676,28 +604,14 @@ async fn should_fail_capture_for_invalid_payment() {
 #[actix_web::test]
 async fn should_fail_for_refund_amount_higher_than_payment_amount() {
     let authorize_response = CONNECTOR
-        .authorize_payment(get_payment_data(), get_default_payment_info())
+        .make_payment(get_payment_data(), get_default_payment_info())
         .await
-        .expect("Authorize payment response");
+        .unwrap();
     let txn_id = utils::get_connector_transaction_id(authorize_response.response.clone()).unwrap();
-    let capture_connector_meta = utils::get_connector_metadata(authorize_response.response);
-    let capture_response = CONNECTOR
-        .capture_payment(
-            txn_id.clone(),
-            Some(types::PaymentsCaptureData {
-                connector_meta: capture_connector_meta,
-                ..utils::PaymentCaptureType::default().0
-            }),
-            get_default_payment_info(),
-        )
-        .await
-        .expect("Capture payment response");
-    let refund_connector_metadata = utils::get_connector_metadata(capture_response.response);
     let response = CONNECTOR
         .refund_payment(
             txn_id,
             Some(types::RefundsData {
-                connector_metadata: refund_connector_metadata,
                 refund_amount: 150,
                 ..utils::PaymentRefundType::default().0
             }),
