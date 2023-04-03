@@ -117,8 +117,6 @@ pub struct RouterData<Flow, Request, Response> {
     pub connector_auth_type: ConnectorAuthType,
     pub description: Option<String>,
     pub return_url: Option<String>,
-    pub router_return_url: Option<String>,
-    pub complete_authorize_url: Option<String>,
     pub address: PaymentAddress,
     pub auth_type: storage_enums::AuthenticationType,
     pub connector_meta_data: Option<pii::SecretSerdeValue>,
@@ -148,6 +146,9 @@ pub struct PaymentsAuthorizeData {
     pub statement_descriptor_suffix: Option<String>,
     pub statement_descriptor: Option<String>,
     pub capture_method: Option<storage_enums::CaptureMethod>,
+    pub router_return_url: Option<String>,
+    pub webhook_url: Option<String>,
+    pub complete_authorize_url: Option<String>,
     // Mandates
     pub setup_future_usage: Option<storage_enums::FutureUsage>,
     pub mandate_id: Option<api_models::payments::MandateIds>,
@@ -225,7 +226,7 @@ pub struct PaymentsCancelData {
 pub struct PaymentsSessionData {
     pub amount: i64,
     pub currency: storage_enums::Currency,
-    pub country: Option<String>,
+    pub country: Option<api::enums::CountryCode>,
     pub order_details: Option<api_models::payments::OrderDetails>,
 }
 
@@ -487,8 +488,6 @@ impl<F1, F2, T1, T2> From<(&&mut RouterData<F1, T1, PaymentsResponseData>, T2)>
             connector_auth_type: data.connector_auth_type.clone(),
             description: data.description.clone(),
             return_url: data.return_url.clone(),
-            router_return_url: data.router_return_url.clone(),
-            complete_authorize_url: data.complete_authorize_url.clone(),
             address: data.address.clone(),
             auth_type: data.auth_type,
             connector_meta_data: data.connector_meta_data.clone(),

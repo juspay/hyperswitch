@@ -17,7 +17,7 @@ pub fn update_router_data_with_access_token_result<F, Req, Res>(
     add_access_token_result: &types::AddAccessTokenResult,
     router_data: &mut types::RouterData<F, Req, Res>,
     call_connector_action: &payments::CallConnectorAction,
-) {
+) -> bool {
     // Update router data with access token or error only if it will be calling connector
     let should_update_router_data = matches!(
         (
@@ -29,9 +29,17 @@ pub fn update_router_data_with_access_token_result<F, Req, Res>(
 
     if should_update_router_data {
         match add_access_token_result.access_token_result.as_ref() {
-            Ok(access_token) => router_data.access_token = access_token.clone(),
-            Err(connector_error) => router_data.response = Err(connector_error.clone()),
+            Ok(access_token) => {
+                router_data.access_token = access_token.clone();
+                true
+            }
+            Err(connector_error) => {
+                router_data.response = Err(connector_error.clone());
+                false
+            }
         }
+    } else {
+        true
     }
 }
 

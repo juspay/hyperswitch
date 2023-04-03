@@ -125,10 +125,12 @@ pub struct CurrencyCountryFilter {
     #[serde(deserialize_with = "currency_set_deser")]
     pub currency: Option<HashSet<api_models::enums::Currency>>,
     #[serde(deserialize_with = "string_set_deser")]
-    pub country: Option<HashSet<String>>,
+    pub country: Option<HashSet<api_models::enums::CountryCode>>,
 }
 
-fn string_set_deser<'a, D>(deserializer: D) -> Result<Option<HashSet<String>>, D::Error>
+fn string_set_deser<'a, D>(
+    deserializer: D,
+) -> Result<Option<HashSet<api_models::enums::CountryCode>>, D::Error>
 where
     D: Deserializer<'a>,
 {
@@ -137,7 +139,7 @@ where
         let list = inner
             .trim()
             .split(',')
-            .map(|value| value.to_string())
+            .flat_map(api_models::enums::CountryCode::from_str)
             .collect::<HashSet<_>>();
         match list.len() {
             0 => None,
@@ -250,12 +252,15 @@ pub struct Server {
 #[serde(default)]
 pub struct Database {
     pub username: String,
+    #[cfg(not(feature = "kms"))]
     pub password: String,
     pub host: String,
     pub port: u16,
     pub dbname: String,
     pub pool_size: u32,
     pub connection_timeout: u64,
+    #[cfg(feature = "kms")]
+    pub kms_encrypted_password: String,
 }
 
 #[derive(Debug, Deserialize, Clone)]

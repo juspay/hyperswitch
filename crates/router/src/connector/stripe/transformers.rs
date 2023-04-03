@@ -163,7 +163,7 @@ pub enum BankSpecificData {
         #[serde(rename = "payment_method_options[sofort][preferred_language]")]
         preferred_language: String,
         #[serde(rename = "payment_method_data[sofort][country]")]
-        country: String,
+        country: api_enums::CountryCode,
     },
 }
 
@@ -701,6 +701,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
             metadata_txn_id,
             metadata_txn_uuid,
             return_url: item
+                .request
                 .router_return_url
                 .clone()
                 .unwrap_or_else(|| "https://juspay.in/".to_string()),
@@ -1168,7 +1169,7 @@ pub struct StripeShippingAddress {
     #[serde(rename = "shipping[address][city]")]
     pub city: Option<String>,
     #[serde(rename = "shipping[address][country]")]
-    pub country: Option<String>,
+    pub country: Option<api_enums::CountryCode>,
     #[serde(rename = "shipping[address][line1]")]
     pub line1: Option<Secret<String>>,
     #[serde(rename = "shipping[address][line2]")]
@@ -1188,7 +1189,7 @@ pub struct StripeBillingAddress {
     #[serde(rename = "payment_method_data[billing_details][email]")]
     pub email: Option<Secret<String, Email>>,
     #[serde(rename = "payment_method_data[billing_details][address][country]")]
-    pub country: Option<String>,
+    pub country: Option<api_enums::CountryCode>,
     #[serde(rename = "payment_method_data[billing_details][name]")]
     pub name: Option<Secret<String>>,
 }
@@ -1214,7 +1215,7 @@ impl TryFrom<&types::PaymentsCancelRouterData> for CancelRequest {
             Some(c) => Some(
                 CancellationReason::from_str(c)
                     .into_report()
-                    .change_context(errors::ConnectorError::ResponseDeserializationFailed)?,
+                    .change_context(errors::ConnectorError::RequestEncodingFailed)?,
             ),
             None => None,
         };

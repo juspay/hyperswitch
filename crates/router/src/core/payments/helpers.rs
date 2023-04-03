@@ -348,28 +348,38 @@ pub fn create_startpay_url(
 }
 
 pub fn create_redirect_url(
-    server: &Server,
+    router_base_url: &String,
     payment_attempt: &storage::PaymentAttempt,
-    connector_name: &str,
+    connector_name: &String,
     creds_identifier: Option<&str>,
 ) -> String {
     let creds_identifier_path = creds_identifier.map_or_else(String::new, |cd| format!("/{}", cd));
     format!(
         "{}/payments/{}/{}/response/{}",
-        server.base_url, payment_attempt.payment_id, payment_attempt.merchant_id, connector_name,
+        router_base_url, payment_attempt.payment_id, payment_attempt.merchant_id, connector_name,
     ) + &creds_identifier_path
 }
+
+pub fn create_webhook_url(
+    router_base_url: &String,
+    payment_attempt: &storage::PaymentAttempt,
+    connector_name: &String,
+) -> String {
+    format!(
+        "{}/webhooks/{}/{}",
+        router_base_url, payment_attempt.merchant_id, connector_name
+    )
+}
 pub fn create_complete_authorize_url(
-    server: &Server,
+    router_base_url: &String,
     payment_attempt: &storage::PaymentAttempt,
     connector_name: &String,
 ) -> String {
     format!(
         "{}/payments/{}/{}/complete/{}",
-        server.base_url, payment_attempt.payment_id, payment_attempt.merchant_id, connector_name
+        router_base_url, payment_attempt.payment_id, payment_attempt.merchant_id, connector_name
     )
 }
-
 fn validate_recurring_mandate(req: api::MandateValidationFields) -> RouterResult<()> {
     req.mandate_id.check_value_present("mandate_id")?;
 
@@ -1373,8 +1383,6 @@ pub fn router_data_type_conversion<F1, F2, Req1, Req2, Res1, Res2>(
         connector_auth_type: router_data.connector_auth_type,
         connector_meta_data: router_data.connector_meta_data,
         description: router_data.description,
-        router_return_url: router_data.router_return_url,
-        complete_authorize_url: router_data.complete_authorize_url,
         payment_id: router_data.payment_id,
         payment_method: router_data.payment_method,
         payment_method_id: router_data.payment_method_id,
