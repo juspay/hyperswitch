@@ -61,11 +61,6 @@ pub struct NmiPaymentsRequest {
     // Payment method types
     applepay_payment_data: Option<String>,
     googlepay_payment_data: Option<String>,
-    // 3DS payment
-    // cardholder_auth: Option<ThreeDSCondition>,
-    // cavv: Option<String>,
-    // xid: Option<String>,
-    // three_ds_version: Option<String>,
 }
 
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for NmiPaymentsRequest {
@@ -98,10 +93,6 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for NmiPaymentsRequest {
                     cvv: Some(card.card_cvc.clone()),
                     applepay_payment_data: None,
                     googlepay_payment_data: None,
-                    // cardholder_auth: Some(),
-                    // cavv: Some(),
-                    // xid: Some(),
-                    // three_ds_version: Some("2.2.0".to_string()),
                 })
             }
             api::PaymentMethodData::Wallet(ref wallet_type) => match wallet_type {
@@ -115,10 +106,6 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for NmiPaymentsRequest {
                     cvv: None,
                     applepay_payment_data: None,
                     googlepay_payment_data: Some(googlepay_data.tokenization_data.token.to_owned()),
-                    // cardholder_auth: Some(),
-                    // cavv: Some(),
-                    // xid: Some(),
-                    // three_ds_version: Some("2.2.0".to_string()),
                 }),
                 api_models::payments::WalletData::ApplePay(ref applepay_data) => Ok(Self {
                     transaction_type,
@@ -130,10 +117,6 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for NmiPaymentsRequest {
                     cvv: None,
                     applepay_payment_data: Some(applepay_data.payment_data.to_owned()),
                     googlepay_payment_data: None,
-                    // cardholder_auth: Some(),
-                    // cavv: Some(),
-                    // xid: Some(),
-                    // three_ds_version: Some("2.2.0".to_string()),
                 }),
                 _ => Err(errors::ConnectorError::NotImplemented("Wallet type".to_string()).into()),
             },
@@ -167,10 +150,6 @@ impl TryFrom<&types::VerifyRouterData> for NmiPaymentsRequest {
                     cvv: Some(card.card_cvc.clone()),
                     applepay_payment_data: None,
                     googlepay_payment_data: None,
-                    // cardholder_auth: Some(),
-                    // cavv: Some(),
-                    // xid: Some(),
-                    // three_ds_version: Some("2.2.0".to_string()),
                 })
             }
             api::PaymentMethodData::Wallet(ref wallet_type) => match wallet_type {
@@ -184,10 +163,6 @@ impl TryFrom<&types::VerifyRouterData> for NmiPaymentsRequest {
                     cvv: None,
                     applepay_payment_data: None,
                     googlepay_payment_data: Some(googlepay_data.tokenization_data.token.to_owned()),
-                    // cardholder_auth: Some(),
-                    // cavv: Some(),
-                    // xid: Some(),
-                    // three_ds_version: Some("2.2.0".to_string()),
                 }),
                 api_models::payments::WalletData::ApplePay(ref applepay_data) => Ok(Self {
                     transaction_type,
@@ -199,10 +174,6 @@ impl TryFrom<&types::VerifyRouterData> for NmiPaymentsRequest {
                     cvv: None,
                     applepay_payment_data: Some(applepay_data.payment_data.to_owned()),
                     googlepay_payment_data: None,
-                    // cardholder_auth: Some(),
-                    // cavv: Some(),
-                    // xid: Some(),
-                    // three_ds_version: Some("2.2.0".to_string()),
                 }),
                 _ => Err(errors::ConnectorError::NotImplemented("Wallet type".to_string()).into()),
             },
@@ -422,7 +393,6 @@ impl From<NmiResponseStatus> for enums::AttemptStatus {
     }
 }
 
-//TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct NmiPaymentsResponse {
     status: NmiResponseStatus,
@@ -450,15 +420,7 @@ impl<F, T>
     }
 }
 
-impl
-    TryFrom<
-        types::ResponseRouterData<
-            api::Authorize,
-            StandardResponse,
-            types::PaymentsAuthorizeData,
-            types::PaymentsResponseData,
-        >,
-    >
+impl TryFrom<types::PaymentsResponseRouterData<StandardResponse>>
     for types::RouterData<api::Authorize, types::PaymentsAuthorizeData, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;

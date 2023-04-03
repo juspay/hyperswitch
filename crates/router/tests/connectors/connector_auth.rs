@@ -38,8 +38,8 @@ pub(crate) struct ConnectorAuthentication {
 impl ConnectorAuthentication {
     #[allow(clippy::expect_used)]
     pub(crate) fn new() -> Self {
-        // Temporarily, comment/remove `path` variable and first line while testing
-        // Instead, pass the full path of authentication config file to read_to-string() at line 40
+        // Do `export CONNECTOR_AUTH_FILE_PATH="/hyperswitch/crates/router/tests/connectors/sample_auth.toml"`
+        // before running tests
         let path = env::var("CONNECTOR_AUTH_FILE_PATH")
             .expect("connector authentication file path not set");
         toml::from_str(
