@@ -672,13 +672,14 @@ impl
 
     fn get_request_body(
         &self,
-        _req: &types::PaymentsCompleteAuthorizeRouterData,
+        req: &types::PaymentsCompleteAuthorizeRouterData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        let bambora_req =bambora::BamboraThreedsContinueRequest{
-            payment_method : "credit_card".to_string(),
-            card_response: bambora::CardResponse{
-                cres : "eyJhY3NUcmFuc0lEIjoiNUUwRDhFQ0UtNDU0RC00QzkwLTk2QzMtMTRERTZFNTYxNjBFIiwidHJhbnNTdGF0dXMiOiJZIiwibWVzc2FnZVR5cGUiOiJDUmVzIiwibWVzc2FnZVZlcnNpb24iOiIyLjIuMCIsInRocmVlRFNTZXJ2ZXJUcmFuc0lEIjoiYTI0NjcwMmUtZTBlMS00ZDM5LWE0N2EtN2ZjNTFmZTcxMjM2In0".to_string()
-            }
+        println!("payload{:?}", req.request.payload);
+        let bambora_req = bambora::BamboraThreedsContinueRequest {
+            payment_method: "credit_card".to_string(),
+            card_response: bambora::CardResponse {
+                cres: "".to_string(), //get the cres valur from req.request.payload
+            },
         };
         let bambora_req =
             utils::Encode::<bambora::BamboraThreedsContinueRequest>::encode_to_string_of_json(

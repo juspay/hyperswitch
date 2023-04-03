@@ -314,6 +314,11 @@ impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
         let payment_confirm_req = api::PaymentsRequest {
             payment_id: Some(req.resource_id.clone()),
             merchant_id: req.merchant_id.clone(),
+            metadata: Some(api_models::payments::Metadata {
+                order_details: None,
+                data: masking::Secret::new("{}".into()),
+                payload: Some(req.json_payload.unwrap_or("{}".into())),
+            }),
             ..Default::default()
         };
         payments_core::<api::CompleteAuthorize, api::PaymentsResponse, _, _, _>(
