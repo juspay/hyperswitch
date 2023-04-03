@@ -1313,7 +1313,7 @@ pub fn get_connector_label_and_business_details(
         business: business_label.to_owned(),
     };
 
-    let mut connector_label = format!("{}_{}_{}", connector_name, business_country, business_label);
+    let mut connector_label = format!("{connector_name}_{business_country}_{business_label}");
 
     // Business sub label is currently being used only for cybersource
     // To ensure backwards compatibality, cybersource mca's created before this change
@@ -1324,7 +1324,7 @@ pub fn get_connector_label_and_business_details(
         if let Some(sub_label) = business_sub_label {
             connector_label.push_str(&format!("_{sub_label}"));
         } else {
-            connector_label.push_str(&format!("_default"));
+            connector_label.push_str("_default"); // For backwards compatibality
         }
     }
 

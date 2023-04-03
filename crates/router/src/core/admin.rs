@@ -1,5 +1,5 @@
 use api_models::admin::PrimaryBusinessDetails;
-use common_utils::ext_traits::ValueExt;
+use common_utils::{ext_traits::ValueExt, fp_utils::when};
 use error_stack::{report, FutureExt, IntoReport, ResultExt};
 use storage_models::{enums, merchant_account};
 use uuid::Uuid;
@@ -430,31 +430,24 @@ pub async fn update_payment_connector(
     merchant_connector_id: &str,
     req: api::MerchantConnector,
 ) -> RouterResponse<api::MerchantConnector> {
+    // Updating any of the fields related to connector label is not allowed
+    when(
+        req.business_country.is_some()
+            || req.business_label.is_some()
+            || req.business_sub_label.is_some(),
+        || {
+            Err(errors::ApiErrorResponse::UpdateNotAllowed {
+                fields: "business_label, business_sub_label and business_country",
+            })
+        },
+    )?;
+
     let merchant_account = db
         .find_merchant_account_by_merchant_id(merchant_id)
         .await
         .map_err(|error| {
             error.to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
         })?;
-
-    // Update connector label only if
-    // any of the `country`, `business_label` or `business_sub_label` fields are changed
-    let connector_label_update = req
-        .business_country
-        .as_ref()
-        .or(req.business_label.as_ref())
-        .or(req.business_sub_label.as_ref())
-        .map(|_| {
-            helpers::get_connector_label_and_business_details(
-                req.business_country.as_ref(),
-                req.business_label.as_ref(),
-                req.business_sub_label.as_ref(),
-                &req.connector_name,
-                &merchant_account,
-            )
-        })
-        .transpose()?
-        .map(|(connector_label, _)| connector_label);
 
     let mca = db
         .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
@@ -485,7 +478,7 @@ pub async fn update_payment_connector(
         test_mode: req.test_mode,
         disabled: req.disabled,
         metadata: req.metadata,
-        connector_label: connector_label_update,
+        connector_label: None,
         business_country: req.business_country,
         business_label: req.business_label,
         business_sub_label: req.business_sub_label,

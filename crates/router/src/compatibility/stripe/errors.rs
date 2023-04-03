@@ -180,6 +180,9 @@ pub enum StripeErrorCode {
 
     #[error(error_type = StripeErrorType::HyperswitchError, code = "", message = "The connector provided in the request is incorrect or not available")]
     IncorrectConnectorNameGiven,
+
+    #[error(error_type = StripeErrorType::HyperswitchError, code = "", message = "Fields {fields} are not allowed to be updated")]
+    UpdateNotAllowed { fields: &'static str },
     // [#216]: https://github.com/juspay/hyperswitch/issues/216
     // Implement the remaining stripe error codes
 
@@ -461,6 +464,9 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
                 Self::DuplicatePayment { payment_id }
             }
             errors::ApiErrorResponse::NotSupported { .. } => Self::InternalServerError,
+            errors::ApiErrorResponse::UpdateNotAllowed { fields } => {
+                Self::UpdateNotAllowed { fields }
+            }
         }
     }
 }
@@ -507,7 +513,8 @@ impl actix_web::ResponseError for StripeErrorCode {
             | Self::PaymentIntentMandateInvalid { .. }
             | Self::PaymentIntentUnexpectedState { .. }
             | Self::DuplicatePayment { .. }
-            | Self::IncorrectConnectorNameGiven => StatusCode::BAD_REQUEST,
+            | Self::IncorrectConnectorNameGiven
+            | Self::UpdateNotAllowed { .. } => StatusCode::BAD_REQUEST,
             Self::RefundFailed
             | Self::InternalServerError
             | Self::MandateActive
