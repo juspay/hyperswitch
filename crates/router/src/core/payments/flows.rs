@@ -88,7 +88,6 @@ default_imp_for_complete_authorize!(
     connector::Multisafepay,
     connector::Payu,
     connector::Rapyd,
-    connector::Shift4,
     connector::Stripe,
     connector::Trustpay,
     connector::Worldline,

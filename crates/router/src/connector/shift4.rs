@@ -10,9 +10,12 @@ use super::utils::RefundsRequestData;
 use crate::{
     configs::settings,
     consts,
-    core::errors::{self, CustomResult},
+    core::{
+        errors::{self, CustomResult},
+        payments,
+    },
     headers,
-    services::{self, ConnectorIntegration},
+    services::{self, request::ContentType, ConnectorIntegration},
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
@@ -93,6 +96,15 @@ impl ConnectorCommon for Shift4 {
 }
 
 impl api::Payment for Shift4 {}
+impl api::PaymentVoid for Shift4 {}
+impl api::PaymentSync for Shift4 {}
+impl api::PaymentCapture for Shift4 {}
+impl api::PaymentSession for Shift4 {}
+impl api::PaymentAuthorize for Shift4 {}
+impl api::PaymentsCompleteAuthorize for Shift4 {}
+impl api::Refund for Shift4 {}
+impl api::RefundExecute for Shift4 {}
+impl api::RefundSync for Shift4 {}
 impl api::ConnectorAccessToken for Shift4 {}
 
 impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, types::AccessToken>
@@ -107,14 +119,127 @@ impl ConnectorIntegration<api::Verify, types::VerifyRequestData, types::Payments
 {
 }
 
-impl api::PaymentVoid for Shift4 {}
+#[async_trait::async_trait]
+impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::PaymentsResponseData>
+    for Shift4
+{
+    fn get_headers(
+        &self,
+        req: &types::PaymentsAuthorizeRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(
+        &self,
+        _req: &types::PaymentsAuthorizeRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(format!("{}charges", self.base_url(connectors)))
+    }
+
+    fn get_request_body(
+        &self,
+        req: &types::PaymentsAuthorizeRouterData,
+    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+        let req_obj = shift4::Shift4PaymentsRequest::try_from(req)?;
+        let req =
+            utils::Encode::<shift4::Shift4PaymentsRequest>::encode_to_string_of_json(&req_obj)
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        Ok(Some(req))
+    }
+
+    async fn execute_pretasks(
+        &self,
+        router_data: &mut types::PaymentsAuthorizeRouterData,
+        app_state: &crate::routes::AppState,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        match router_data.auth_type {
+            storage_models::enums::AuthenticationType::ThreeDs => {
+                let integ: Box<
+                    &(dyn ConnectorIntegration<
+                        api::InitPayment,
+                        types::PaymentsAuthorizeData,
+                        types::PaymentsResponseData,
+                    > + Send
+                          + Sync
+                          + 'static),
+                > = Box::new(&Self);
+                let init_data = &types::PaymentsInitRouterData::from((
+                    &router_data,
+                    router_data.request.clone(),
+                ));
+                let init_resp = services::execute_connector_processing_step(
+                    app_state,
+                    integ,
+                    init_data,
+                    payments::CallConnectorAction::Trigger,
+                )
+                .await?;
+                if init_resp.request.enrolled_for_3ds {
+                    router_data.response = init_resp.response;
+                } else {
+                    router_data.request.enrolled_for_3ds = false;
+                }
+            }
+            storage_models::enums::AuthenticationType::NoThreeDs => (),
+        };
+        Ok(())
+    }
+
+    fn build_request(
+        &self,
+        req: &types::PaymentsAuthorizeRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        Ok(Some(
+            services::RequestBuilder::new()
+                .method(services::Method::Post)
+                .url(&types::PaymentsAuthorizeType::get_url(
+                    self, req, connectors,
+                )?)
+                .headers(types::PaymentsAuthorizeType::get_headers(
+                    self, req, connectors,
+                )?)
+                .body(types::PaymentsAuthorizeType::get_request_body(self, req)?)
+                .build(),
+        ))
+    }
+    fn handle_response(
+        &self,
+        data: &types::PaymentsAuthorizeRouterData,
+        res: types::Response,
+    ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
+        let response: shift4::Shift4NonThreeDsResponse = res
+            .response
+            .parse_struct("Shift4NonThreeDsResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        types::RouterData::try_from(types::ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+    }
+
+    fn get_error_response(
+        &self,
+        res: types::Response,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res)
+    }
+}
 
 impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsResponseData>
     for Shift4
 {
 }
 
-impl api::PaymentSync for Shift4 {}
 impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>
     for Shift4
 {
@@ -173,9 +298,9 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         data: &types::PaymentsSyncRouterData,
         res: types::Response,
     ) -> CustomResult<types::PaymentsSyncRouterData, errors::ConnectorError> {
-        let response: shift4::Shift4PaymentsResponse = res
+        let response: shift4::Shift4NonThreeDsResponse = res
             .response
-            .parse_struct("shift4 PaymentsResponse")
+            .parse_struct("Shift4NonThreeDsResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         types::RouterData::try_from(types::ResponseRouterData {
             response,
@@ -185,8 +310,6 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 }
-
-impl api::PaymentCapture for Shift4 {}
 
 impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::PaymentsResponseData>
     for Shift4
@@ -224,9 +347,9 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         data: &types::PaymentsCaptureRouterData,
         res: types::Response,
     ) -> CustomResult<types::PaymentsCaptureRouterData, errors::ConnectorError> {
-        let response: shift4::Shift4PaymentsResponse = res
+        let response: shift4::Shift4NonThreeDsResponse = res
             .response
-            .parse_struct("Shift4PaymentsResponse")
+            .parse_struct("Shift4NonThreeDsResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         types::ResponseRouterData {
             response,
@@ -258,25 +381,37 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
     }
 }
 
-impl api::PaymentSession for Shift4 {}
-
 impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::PaymentsResponseData>
     for Shift4
 {
     //TODO: implement sessions flow
 }
 
-impl api::PaymentAuthorize for Shift4 {}
-
-impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::PaymentsResponseData>
-    for Shift4
+impl
+    ConnectorIntegration<
+        api::InitPayment,
+        types::PaymentsAuthorizeData,
+        types::PaymentsResponseData,
+    > for Shift4
 {
     fn get_headers(
         &self,
-        req: &types::PaymentsAuthorizeRouterData,
-        connectors: &settings::Connectors,
+        req: &types::PaymentsInitRouterData,
+        _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        self.build_headers(req, connectors)
+        let mut headers = vec![
+            (
+                headers::CONTENT_TYPE.to_string(),
+                "application/x-www-form-urlencoded".to_string(),
+            ),
+            (
+                headers::ACCEPT.to_string(),
+                self.common_get_content_type().to_string(),
+            ),
+        ];
+        let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
+        headers.append(&mut api_key);
+        Ok(headers)
     }
 
     fn get_content_type(&self) -> &'static str {
@@ -285,54 +420,53 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
 
     fn get_url(
         &self,
-        _req: &types::PaymentsAuthorizeRouterData,
+        _req: &types::PaymentsInitRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!("{}charges", self.base_url(connectors)))
+        Ok(format!("{}3d-secure", self.base_url(connectors)))
     }
 
     fn get_request_body(
         &self,
-        req: &types::PaymentsAuthorizeRouterData,
+        req: &types::PaymentsInitRouterData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        let shift4_req = utils::Encode::<shift4::Shift4PaymentsRequest>::convert_and_encode(req)
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(shift4_req))
+        let req_obj = shift4::Shift4PaymentsRequest::try_from(req)?;
+        let req =
+            utils::Encode::<shift4::Shift4PaymentsRequest>::encode_to_string_of_json(&req_obj)
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        Ok(Some(req))
     }
 
     fn build_request(
         &self,
-        req: &types::PaymentsAuthorizeRouterData,
+        req: &types::PaymentsInitRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         Ok(Some(
             services::RequestBuilder::new()
                 .method(services::Method::Post)
-                .url(&types::PaymentsAuthorizeType::get_url(
-                    self, req, connectors,
-                )?)
-                .headers(types::PaymentsAuthorizeType::get_headers(
-                    self, req, connectors,
-                )?)
-                .body(types::PaymentsAuthorizeType::get_request_body(self, req)?)
+                .url(&types::PaymentsInitType::get_url(self, req, connectors)?)
+                .content_type(ContentType::FormUrlEncoded)
+                .headers(types::PaymentsInitType::get_headers(self, req, connectors)?)
+                .body(types::PaymentsInitType::get_request_body(self, req)?)
                 .build(),
         ))
     }
+
     fn handle_response(
         &self,
-        data: &types::PaymentsAuthorizeRouterData,
+        data: &types::PaymentsInitRouterData,
         res: types::Response,
-    ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
-        let response: shift4::Shift4PaymentsResponse = res
+    ) -> CustomResult<types::PaymentsInitRouterData, errors::ConnectorError> {
+        let response: shift4::Shift4ThreeDsResponse = res
             .response
-            .parse_struct("Shift4PaymentsResponse")
+            .parse_struct("Shift4ThreeDsResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        types::ResponseRouterData {
+        types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
-        }
-        .try_into()
+        })
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
@@ -344,9 +478,89 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     }
 }
 
-impl api::Refund for Shift4 {}
-impl api::RefundExecute for Shift4 {}
-impl api::RefundSync for Shift4 {}
+impl
+    ConnectorIntegration<
+        api::CompleteAuthorize,
+        types::CompleteAuthorizeData,
+        types::PaymentsResponseData,
+    > for Shift4
+{
+    fn get_headers(
+        &self,
+        req: &types::PaymentsCompleteAuthorizeRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(
+        &self,
+        _req: &types::PaymentsCompleteAuthorizeRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(format!("{}charges", self.base_url(connectors)))
+    }
+
+    fn get_request_body(
+        &self,
+        req: &types::PaymentsCompleteAuthorizeRouterData,
+    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+        let req_obj = shift4::Shift4PaymentsRequest::try_from(req)?;
+        let req =
+            utils::Encode::<shift4::Shift4PaymentsRequest>::encode_to_string_of_json(&req_obj)
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        Ok(Some(req))
+    }
+
+    fn build_request(
+        &self,
+        req: &types::PaymentsCompleteAuthorizeRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        Ok(Some(
+            services::RequestBuilder::new()
+                .method(services::Method::Post)
+                .url(&types::PaymentsComeplteAuthorizeType::get_url(
+                    self, req, connectors,
+                )?)
+                .headers(types::PaymentsComeplteAuthorizeType::get_headers(
+                    self, req, connectors,
+                )?)
+                .body(types::PaymentsComeplteAuthorizeType::get_request_body(
+                    self, req,
+                )?)
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        data: &types::PaymentsCompleteAuthorizeRouterData,
+        res: types::Response,
+    ) -> CustomResult<types::PaymentsCompleteAuthorizeRouterData, errors::ConnectorError> {
+        let response: shift4::Shift4NonThreeDsResponse = res
+            .response
+            .parse_struct("Shift4NonThreeDsResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        types::RouterData::try_from(types::ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+    }
+
+    fn get_error_response(
+        &self,
+        res: types::Response,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res)
+    }
+}
 
 impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsResponseData> for Shift4 {
     fn get_headers(

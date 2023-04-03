@@ -143,7 +143,10 @@ pub trait PaymentsAuthorizeRequestData {
 
 impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
     fn is_auto_capture(&self) -> bool {
-        self.capture_method == Some(storage_models::enums::CaptureMethod::Automatic)
+        matches!(
+            self.capture_method,
+            Some(storage_models::enums::CaptureMethod::Automatic) | None
+        )
     }
     fn get_email(&self) -> Result<Secret<String, Email>, Error> {
         self.email.clone().ok_or_else(missing_field_err("email"))
@@ -163,6 +166,19 @@ impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
         self.router_return_url
             .clone()
             .ok_or_else(missing_field_err("return_url"))
+    }
+}
+
+pub trait PaymentsCompleteAuthorizeRequestData {
+    fn is_auto_capture(&self) -> bool;
+}
+
+impl PaymentsCompleteAuthorizeRequestData for types::CompleteAuthorizeData {
+    fn is_auto_capture(&self) -> bool {
+        matches!(
+            self.capture_method,
+            Some(storage_models::enums::CaptureMethod::Automatic) | None
+        )
     }
 }
 
