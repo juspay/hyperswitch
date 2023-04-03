@@ -4,7 +4,7 @@ use storage_models::enums;
 
 use crate::errors::{CustomResult, ValidationError};
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct MerchantAccount {
     pub id: Option<i32>,
     pub merchant_id: String,

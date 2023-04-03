@@ -15,6 +15,7 @@ use crate::{
     routes::AppState,
     types::{
         api::{self, PaymentIdTypeExt},
+        domain::customer as domain,
         storage::{self, enums},
         transformers::ForeignInto,
     },
@@ -176,7 +177,7 @@ impl<F: Clone> UpdateTracker<F, payments::PaymentData<F>, api::PaymentsCaptureRe
         _db: &dyn StorageInterface,
         _payment_id: &api::PaymentIdType,
         payment_data: payments::PaymentData<F>,
-        _customer: Option<storage::Customer>,
+        _customer: Option<domain::Customer>,
         _storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<(
         BoxedOperation<'b, F, api::PaymentsCaptureRequest>,

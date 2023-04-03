@@ -9,7 +9,7 @@ use crate::{
     },
     routes::{metrics, AppState},
     services,
-    types::{self, api, storage},
+    types::{self, api, domain::customer, storage},
 };
 
 #[async_trait]
@@ -48,7 +48,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
         mut self,
         state: &AppState,
         connector: &api::ConnectorData,
-        customer: &Option<storage::Customer>,
+        customer: &Option<customer::Customer>,
         call_connector_action: payments::CallConnectorAction,
         merchant_account: &storage::MerchantAccount,
     ) -> RouterResult<Self> {
@@ -83,7 +83,7 @@ impl types::PaymentsAuthorizeRouterData {
         &'b mut self,
         state: &'a AppState,
         connector: &api::ConnectorData,
-        maybe_customer: &Option<storage::Customer>,
+        maybe_customer: &Option<customer::Customer>,
         confirm: Option<bool>,
         call_connector_action: payments::CallConnectorAction,
         merchant_account: &storage::MerchantAccount,

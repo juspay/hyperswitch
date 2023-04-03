@@ -17,6 +17,7 @@ use crate::{
     routes::AppState,
     types::{
         api::{self, PaymentIdTypeExt},
+        domain::customer as domain,
         storage::{self, enums as storage_enums},
         transformers::ForeignInto,
     },
@@ -159,7 +160,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsStartRequest> for P
         _db: &dyn StorageInterface,
         _payment_id: &api::PaymentIdType,
         payment_data: PaymentData<F>,
-        _customer: Option<storage::Customer>,
+        _customer: Option<domain::Customer>,
         _storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> RouterResult<(
         BoxedOperation<'b, F, api::PaymentsStartRequest>,
@@ -219,7 +220,7 @@ where
     ) -> CustomResult<
         (
             BoxedOperation<'a, F, api::PaymentsStartRequest>,
-            Option<storage::Customer>,
+            Option<domain::Customer>,
         ),
         errors::StorageError,
     > {

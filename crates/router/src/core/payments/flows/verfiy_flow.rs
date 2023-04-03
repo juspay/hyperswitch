@@ -9,7 +9,7 @@ use crate::{
     },
     routes::AppState,
     services,
-    types::{self, api, storage},
+    types::{self, api, domain::customer, storage},
 };
 
 #[async_trait]
@@ -38,7 +38,7 @@ impl Feature<api::Verify, types::VerifyRequestData> for types::VerifyRouterData 
         self,
         state: &AppState,
         connector: &api::ConnectorData,
-        customer: &Option<storage::Customer>,
+        customer: &Option<customer::Customer>,
         call_connector_action: payments::CallConnectorAction,
         merchant_account: &storage::MerchantAccount,
     ) -> RouterResult<Self> {
@@ -68,7 +68,7 @@ impl types::VerifyRouterData {
         &'b self,
         state: &'a AppState,
         connector: &api::ConnectorData,
-        maybe_customer: &Option<storage::Customer>,
+        maybe_customer: &Option<customer::Customer>,
         confirm: Option<bool>,
         call_connector_action: payments::CallConnectorAction,
         merchant_account: &storage::MerchantAccount,

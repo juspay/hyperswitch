@@ -8,7 +8,7 @@ use crate::{
     },
     routes::AppState,
     services,
-    types::{self, api, storage},
+    types::{self, api, domain::customer, storage},
 };
 
 #[async_trait]
@@ -41,7 +41,7 @@ impl Feature<api::PSync, types::PaymentsSyncData>
         self,
         state: &AppState,
         connector: &api::ConnectorData,
-        customer: &Option<storage::Customer>,
+        customer: &Option<customer::Customer>,
         call_connector_action: payments::CallConnectorAction,
         _merchant_account: &storage::MerchantAccount,
     ) -> RouterResult<Self> {
@@ -70,7 +70,7 @@ impl types::PaymentsSyncRouterData {
         &'b self,
         state: &'a AppState,
         connector: &api::ConnectorData,
-        _maybe_customer: &Option<storage::Customer>,
+        _maybe_customer: &Option<customer::Customer>,
         _confirm: Option<bool>,
         call_connector_action: payments::CallConnectorAction,
     ) -> RouterResult<Self> {

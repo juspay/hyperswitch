@@ -10,7 +10,7 @@ use crate::{
     },
     routes::{self, metrics},
     services,
-    types::{self, api, storage},
+    types::{self, api, domain::customer, storage},
     utils::OptionExt,
 };
 
@@ -41,7 +41,7 @@ impl Feature<api::Session, types::PaymentsSessionData> for types::PaymentsSessio
         self,
         state: &routes::AppState,
         connector: &api::ConnectorData,
-        customer: &Option<storage::Customer>,
+        customer: &Option<customer::Customer>,
         call_connector_action: payments::CallConnectorAction,
         _merchant_account: &storage::MerchantAccount,
     ) -> RouterResult<Self> {
@@ -119,7 +119,7 @@ impl types::PaymentsSessionRouterData {
         &'b self,
         state: &'a routes::AppState,
         connector: &api::ConnectorData,
-        _customer: &Option<storage::Customer>,
+        _customer: &Option<customer::Customer>,
         _confirm: Option<bool>,
         call_connector_action: payments::CallConnectorAction,
     ) -> RouterResult<Self> {

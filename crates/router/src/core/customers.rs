@@ -14,6 +14,7 @@ use crate::{
     services,
     types::{
         api::customers::{self, CustomerRequestExt},
+        domain::customer as domain,
         storage::{self, enums},
     },
 };
@@ -58,7 +59,7 @@ pub async fn create_customer(
         .attach_printable("Failed while inserting new address")?;
     };
 
-    let new_customer = storage::CustomerNew {
+    let new_customer = domain::Customer {
         customer_id: customer_id.to_string(),
         merchant_id: merchant_id.to_string(),
         name: customer_data.name,
@@ -67,6 +68,8 @@ pub async fn create_customer(
         description: customer_data.description,
         phone_country_code: customer_data.phone_country_code,
         metadata: customer_data.metadata,
+        id: None,
+        created_at: common_utils::date_time::now(),
     };
 
     let customer = match db.insert_customer(new_customer).await {

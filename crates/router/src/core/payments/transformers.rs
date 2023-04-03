@@ -14,6 +14,7 @@ use crate::{
     services::{self, RedirectForm},
     types::{
         self, api,
+        domain::customer,
         storage::{self, enums, PaymentAttemptExt},
         transformers::{ForeignInto, ForeignTryFrom},
     },
@@ -111,7 +112,7 @@ where
     fn generate_response(
         req: Option<Req>,
         data: D,
-        customer: Option<storage::Customer>,
+        customer: Option<customer::Customer>,
         auth_flow: services::AuthFlow,
         server: &Server,
         operation: Op,
@@ -126,7 +127,7 @@ where
     fn generate_response(
         req: Option<Req>,
         payment_data: PaymentData<F>,
-        customer: Option<storage::Customer>,
+        customer: Option<customer::Customer>,
         auth_flow: services::AuthFlow,
         server: &Server,
         operation: Op,
@@ -156,7 +157,7 @@ where
     fn generate_response(
         _req: Option<Req>,
         payment_data: PaymentData<F>,
-        _customer: Option<storage::Customer>,
+        _customer: Option<customer::Customer>,
         _auth_flow: services::AuthFlow,
         _server: &Server,
         _operation: Op,
@@ -182,7 +183,7 @@ where
     fn generate_response(
         _req: Option<Req>,
         data: PaymentData<F>,
-        customer: Option<storage::Customer>,
+        customer: Option<customer::Customer>,
         _auth_flow: services::AuthFlow,
         _server: &Server,
         _operation: Op,
@@ -226,7 +227,7 @@ pub fn payments_to_payments_response<R, Op>(
     payment_intent: storage::PaymentIntent,
     refunds: Vec<storage::Refund>,
     payment_method_data: Option<api::PaymentMethodData>,
-    customer: Option<storage::Customer>,
+    customer: Option<customer::Customer>,
     auth_flow: services::AuthFlow,
     address: PaymentAddress,
     server: &Server,

@@ -14,6 +14,7 @@ use crate::{
             customers,
             mandates::{self, MandateResponseExt},
         },
+        domain::customer,
         storage,
         transformers::ForeignInto,
     },
@@ -95,7 +96,7 @@ pub async fn get_customer_mandates(
 pub async fn mandate_procedure<F, FData>(
     state: &AppState,
     mut resp: types::RouterData<F, FData, types::PaymentsResponseData>,
-    maybe_customer: &Option<storage::Customer>,
+    maybe_customer: &Option<customer::Customer>,
     merchant_account: &storage::MerchantAccount,
 ) -> errors::RouterResult<types::RouterData<F, FData, types::PaymentsResponseData>>
 where

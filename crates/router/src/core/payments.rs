@@ -31,6 +31,7 @@ use crate::{
     services,
     types::{
         self, api,
+        domain::customer,
         storage::{self, enums as storage_enums},
     },
     utils::{Encode, OptionExt, ValueExt},
@@ -43,7 +44,7 @@ pub async fn payments_operation_core<F, Req, Op, FData>(
     operation: Op,
     req: Req,
     call_connector_action: CallConnectorAction,
-) -> RouterResult<(PaymentData<F>, Req, Option<storage::Customer>)>
+) -> RouterResult<(PaymentData<F>, Req, Option<customer::Customer>)>
 where
     F: Send + Clone,
     Op: Operation<F, Req> + Send + Sync,
@@ -381,7 +382,7 @@ pub async fn call_connector_service<F, Op, Req>(
     connector: api::ConnectorData,
     _operation: &Op,
     payment_data: &PaymentData<F>,
-    customer: &Option<storage::Customer>,
+    customer: &Option<customer::Customer>,
     call_connector_action: CallConnectorAction,
 ) -> RouterResult<types::RouterData<F, Req, types::PaymentsResponseData>>
 where
@@ -441,7 +442,7 @@ pub async fn call_multiple_connectors_service<F, Op, Req>(
     connectors: Vec<api::ConnectorData>,
     _operation: &Op,
     mut payment_data: PaymentData<F>,
-    customer: &Option<storage::Customer>,
+    customer: &Option<customer::Customer>,
 ) -> RouterResult<PaymentData<F>>
 where
     Op: Debug,
