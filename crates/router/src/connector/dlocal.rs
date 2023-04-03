@@ -116,7 +116,7 @@ impl ConnectorCommon for Dlocal {
 impl
     ConnectorIntegration<
         api::PaymentMethodToken,
-        types::TokenizationData,
+        types::PaymentMethodTokenizationData,
         types::PaymentsResponseData,
     > for Dlocal
 {

@@ -89,7 +89,7 @@ impl api::PaymentToken for Stripe {}
 impl
     services::ConnectorIntegration<
         api::PaymentMethodToken,
-        types::TokenizationData,
+        types::PaymentMethodTokenizationData,
         types::PaymentsResponseData,
     > for Stripe
 {

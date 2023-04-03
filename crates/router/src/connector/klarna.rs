@@ -59,7 +59,7 @@ impl api::PaymentToken for Klarna {}
 impl
     services::ConnectorIntegration<
         api::PaymentMethodToken,
-        types::TokenizationData,
+        types::PaymentMethodTokenizationData,
         types::PaymentsResponseData,
     > for Klarna
 {

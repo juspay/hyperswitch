@@ -38,7 +38,7 @@ pub type RefundsRouterData<F> = RouterData<F, RefundsData, RefundsResponseData>;
 pub type RefundExecuteRouterData = RouterData<api::Execute, RefundsData, RefundsResponseData>;
 pub type RefundSyncRouterData = RouterData<api::RSync, RefundsData, RefundsResponseData>;
 pub type TokenizationRouterData =
-    RouterData<api::PaymentMethodToken, TokenizationData, PaymentsResponseData>;
+    RouterData<api::PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>;
 
 pub type RefreshTokenRouterData =
     RouterData<api::AccessTokenAuth, AccessTokenRequestData, AccessToken>;
@@ -53,8 +53,12 @@ pub type PaymentsSessionResponseRouterData<R> =
     ResponseRouterData<api::Session, R, PaymentsSessionData, PaymentsResponseData>;
 pub type PaymentsCaptureResponseRouterData<R> =
     ResponseRouterData<api::Capture, R, PaymentsCaptureData, PaymentsResponseData>;
-pub type TokenizationResponseRouterData<R> =
-    ResponseRouterData<api::PaymentMethodToken, R, TokenizationData, PaymentsResponseData>;
+pub type TokenizationResponseRouterData<R> = ResponseRouterData<
+    api::PaymentMethodToken,
+    R,
+    PaymentMethodTokenizationData,
+    PaymentsResponseData,
+>;
 
 pub type RefundsResponseRouterData<F, R> =
     ResponseRouterData<F, R, RefundsData, RefundsResponseData>;
@@ -87,7 +91,7 @@ pub type PaymentsVoidType =
 
 pub type TokenizationType = dyn services::ConnectorIntegration<
     api::PaymentMethodToken,
-    TokenizationData,
+    PaymentMethodTokenizationData,
     PaymentsResponseData,
 >;
 
@@ -122,7 +126,7 @@ pub struct RouterData<Flow, Request, Response> {
     pub access_token: Option<AccessToken>,
     pub session_token: Option<String>,
     pub reference_id: Option<String>,
-    pub payment_token: Option<String>,
+    pub payment_method_token: Option<String>,
 
     /// Contains flow-specific data required to construct a request and send it to the connector.
     pub request: Request,
@@ -176,7 +180,7 @@ pub struct AuthorizeSessionTokenData {
 }
 
 #[derive(Debug, Clone)]
-pub struct TokenizationData {
+pub struct PaymentMethodTokenizationData {
     pub payment_method_data: payments::PaymentMethodData,
 }
 
@@ -495,7 +499,7 @@ impl<F1, F2, T1, T2> From<(&&mut RouterData<F1, T1, PaymentsResponseData>, T2)>
             payment_id: data.payment_id.clone(),
             session_token: data.session_token.clone(),
             reference_id: data.reference_id.clone(),
-            payment_token: None,
+            payment_method_token: None,
         }
     }
 }

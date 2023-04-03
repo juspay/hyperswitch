@@ -43,7 +43,7 @@ impl api::PaymentToken for Applepay {}
 impl
     services::ConnectorIntegration<
         api::PaymentMethodToken,
-        types::TokenizationData,
+        types::PaymentMethodTokenizationData,
         types::PaymentsResponseData,
     > for Applepay
 {

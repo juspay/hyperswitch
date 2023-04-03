@@ -97,7 +97,7 @@ pub async fn mandate_procedure<F, FData>(
     state: &AppState,
     mut resp: types::RouterData<F, FData, types::PaymentsResponseData>,
     maybe_customer: &Option<storage::Customer>,
-    payment_method_id: Option<String>,
+    pm_id: Option<String>,
 ) -> errors::RouterResult<types::RouterData<F, FData, types::PaymentsResponseData>>
 where
     FData: MandateBehaviour,
@@ -148,7 +148,7 @@ where
         }
         None => {
             if resp.request.get_setup_mandate_details().is_some() {
-                resp.payment_method_id = payment_method_id.clone();
+                resp.payment_method_id = pm_id.clone();
                 let mandate_reference = match resp.response.as_ref().ok() {
                     Some(types::PaymentsResponseData::TransactionResponse {
                         mandate_reference,
@@ -162,7 +162,7 @@ where
                     resp.connector.clone(),
                     resp.request.get_setup_mandate_details().map(Clone::clone),
                     maybe_customer,
-                    payment_method_id.get_required_value("payment_method_id")?,
+                    pm_id.get_required_value("payment_method_id")?,
                     mandate_reference,
                 ) {
                     let connector = new_mandate_data.connector.clone();

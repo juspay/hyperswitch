@@ -79,8 +79,6 @@ where
         &connector_id.to_owned(),
     ));
 
-    let payment_token = payment_data.payment_attempt.payment_token.to_owned();
-
     router_data = types::RouterData {
         flow: PhantomData,
         merchant_id: merchant_account.merchant_id.clone(),
@@ -107,7 +105,7 @@ where
         access_token: None,
         session_token: None,
         reference_id: None,
-        payment_token,
+        payment_method_token: payment_data.pm_token,
     };
 
     Ok(router_data)
@@ -624,14 +622,14 @@ impl<F: Clone> TryFrom<PaymentData<F>> for types::CompleteAuthorizeData {
     }
 }
 
-impl<F: Clone> TryFrom<PaymentData<F>> for types::TokenizationData {
-    type Error = error_stack::Report<errors::ApiErrorResponse>;
+// impl<F: Clone> TryFrom<PaymentData<F>> for types::PaymentMethodTokenizationData {
+//     type Error = error_stack::Report<errors::ApiErrorResponse>;
 
-    fn try_from(payment_data: PaymentData<F>) -> Result<Self, Self::Error> {
-        Ok(Self {
-            payment_method_data: payment_data
-                .payment_method_data
-                .get_required_value("payment_method_data")?,
-        })
-    }
-}
+//     fn try_from(payment_data: PaymentData<F>) -> Result<Self, Self::Error> {
+//         Ok(Self {
+//             payment_method_data: payment_data
+//                 .payment_method_data
+//                 .get_required_value("payment_method_data")?,
+//         })
+//     }
+// }

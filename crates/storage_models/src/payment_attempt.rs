@@ -127,9 +127,6 @@ pub enum PaymentAttemptUpdate {
         status: storage_enums::AttemptStatus,
         cancellation_reason: Option<String>,
     },
-    PaymentMethodTokenUpdate {
-        payment_token: Option<String>,
-    },
     ResponseUpdate {
         status: storage_enums::AttemptStatus,
         connector: Option<serde_json::Value>,
@@ -314,10 +311,6 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
             } => Self {
                 payment_token,
                 connector,
-                ..Default::default()
-            },
-            PaymentAttemptUpdate::PaymentMethodTokenUpdate { payment_token } => Self {
-                payment_token,
                 ..Default::default()
             },
         }

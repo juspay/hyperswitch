@@ -161,7 +161,11 @@ pub trait PaymentsCompleteAuthorize:
 }
 
 pub trait PaymentToken:
-    api::ConnectorIntegration<PaymentMethodToken, types::TokenizationData, types::PaymentsResponseData>
+    api::ConnectorIntegration<
+    PaymentMethodToken,
+    types::PaymentMethodTokenizationData,
+    types::PaymentsResponseData,
+>
 {
 }
 

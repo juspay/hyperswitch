@@ -4,7 +4,6 @@ pub mod capture_flow;
 pub mod complete_authorize_flow;
 pub mod psync_flow;
 pub mod session_flow;
-pub mod tokenization_flow;
 pub mod verfiy_flow;
 
 use async_trait::async_trait;
@@ -51,6 +50,17 @@ pub trait Feature<F, T> {
         connector: &api::ConnectorData,
         merchant_account: &storage::MerchantAccount,
     ) -> RouterResult<types::AddAccessTokenResult>
+    where
+        F: Clone,
+        Self: Sized,
+        dyn api::Connector: services::ConnectorIntegration<F, T, types::PaymentsResponseData>;
+
+    async fn add_payment_method_token<'a>(
+        &self,
+        state: &AppState,
+        connector: &api::ConnectorData,
+        tokenization_action: &payments::TokenizationAction,
+    ) -> RouterResult<Option<String>>
     where
         F: Clone,
         Self: Sized,

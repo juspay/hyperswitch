@@ -77,7 +77,7 @@ impl api::PaymentToken for Nuvei {}
 impl
     ConnectorIntegration<
         api::PaymentMethodToken,
-        types::TokenizationData,
+        types::PaymentMethodTokenizationData,
         types::PaymentsResponseData,
     > for Nuvei
 {

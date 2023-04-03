@@ -51,34 +51,8 @@ pub async fn create_payment_method(
     customer_id: &str,
     payment_method_id: &str,
     merchant_id: &str,
-    connector_token: Option<(&api::ConnectorData, String)>,
+    pm_metadata: Option<serde_json::Value>,
 ) -> errors::CustomResult<storage::PaymentMethod, errors::StorageError> {
-    let pm_metadata = connector_token
-        .map(
-            |connector_and_token| -> errors::CustomResult<_, errors::StorageError> {
-                let mut pm_tokenization = HashMap::new();
-                pm_tokenization.insert(
-                    connector_and_token.0.connector_name.to_string(),
-                    connector_and_token.1,
-                );
-                let metadata = payment_methods::PaymentMethodMetadata {
-                    payment_method_tokenization: pm_tokenization,
-                };
-                let metadata_value =
-                    utils::Encode::<payment_methods::PaymentMethodMetadata>::encode_to_value(
-                        &metadata,
-                    )
-                    .change_context(errors::StorageError::SerializationFailed)?;
-                let mut metadata_map = serde_json::Map::new();
-                metadata_map.insert(
-                    connector_and_token.0.connector_name.to_string(),
-                    metadata_value,
-                );
-                Ok(serde_json::Value::Object(metadata_map))
-            },
-        )
-        .transpose()?;
-
     let response = db
         .insert_payment_method(storage::PaymentMethodNew {
             customer_id: customer_id.to_string(),
@@ -128,24 +102,8 @@ pub async fn add_payment_method(
             Ok((payment_method_response, false))
         }
     };
-
-    // Adding duplicate check in redis as we can't return that because of api contract issues
-    let pm_response = response?;
-    let payment_method_response = pm_response.0;
-    let duplication = pm_response.1;
-    let redis_conn = connection::redis_connection(&state.conf).await;
-    redis_conn
-        .set_key_with_expiry("pm_duplicate_check", duplication, 900)
-        .await
-        .map_err(|error| {
-            logger::error!(access_token_kv_error=?error);
-            errors::StorageError::KVError
-        })
-        .into_report()
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to add data in redis")?;
-
-    Ok(payment_method_response).map(services::ApplicationResponse::Json)
+    // pm_responsec = (PaymentMethodResponse,is_duplicate)
+    Ok(response?.0).map(services::ApplicationResponse::Json)
 }
 
 #[instrument(skip_all)]
@@ -417,49 +375,15 @@ pub async fn add_card(
 
 pub async fn update_payment_method(
     db: &dyn db::StorageInterface,
-    connector_token: Option<(&api::ConnectorData, String)>,
     pm: payment_method::PaymentMethod,
+    pm_metadata: serde_json::Value,
 ) -> errors::CustomResult<(), errors::VaultError> {
-    if let Some(connector_and_token) = connector_token {
-        let mut tokenization_map = HashMap::new();
-        tokenization_map.insert(
-            connector_and_token.0.connector_name.to_string(),
-            connector_and_token.1,
-        );
-
-        let pm_metadata = payment_methods::PaymentMethodMetadata {
-            payment_method_tokenization: tokenization_map,
-        };
-        let metadata_value =
-            utils::Encode::<payment_methods::PaymentMethodMetadata>::encode_to_value(&pm_metadata)
-                .change_context(errors::VaultError::RequestEncodingFailed)?;
-
-        let metadata = pm
-            .metadata
-            .to_owned()
-            .and_then(|data| {
-                let mut value_exposed = data.expose();
-                value_exposed.as_object_mut().and_then(|val| {
-                    val.insert(
-                        connector_and_token.0.connector_name.to_string(),
-                        metadata_value,
-                    )
-                })
-            })
-            .get_required_value("metadata")
-            .change_context(errors::VaultError::RequestEncodingFailed)?;
-
-        let mut map = serde_json::Map::new();
-        map.insert(connector_and_token.0.connector_name.to_string(), metadata);
-
-        let pm_update = payment_method::PaymentMethodUpdate::MetadataUpdate {
-            metadata: Some(serde_json::Value::Object(map)),
-        };
-
-        db.update_payment_method(pm, pm_update)
-            .await
-            .change_context(errors::VaultError::UpdateInPMDTableFailed)?;
+    let pm_update = payment_method::PaymentMethodUpdate::MetadataUpdate {
+        metadata: Some(pm_metadata),
     };
+    db.update_payment_method(pm, pm_update)
+        .await
+        .change_context(errors::VaultError::UpdateInPMDTableFailed)?;
     Ok(())
 }
 

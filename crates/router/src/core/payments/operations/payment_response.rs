@@ -23,7 +23,7 @@ use crate::{
 #[derive(Debug, Clone, Copy, router_derive::PaymentOperation)]
 #[operation(
     ops = "post_tracker",
-    flow = "syncdata,authorizedata,canceldata,capturedata,completeauthorizedata,verifydata,sessiondata,tokendata"
+    flow = "syncdata,authorizedata,canceldata,capturedata,completeauthorizedata,verifydata,sessiondata"
 )]
 pub struct PaymentResponse;
 
@@ -106,45 +106,6 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSessionData>
         payment_id: &api::PaymentIdType,
         mut payment_data: PaymentData<F>,
         router_data: types::RouterData<F, types::PaymentsSessionData, types::PaymentsResponseData>,
-        storage_scheme: enums::MerchantStorageScheme,
-    ) -> RouterResult<PaymentData<F>>
-    where
-        F: 'b + Send,
-    {
-        let router_response = router_data.response.clone();
-        let connector = router_data.connector.clone();
-
-        payment_data = payment_response_update_tracker(
-            db,
-            payment_id,
-            payment_data,
-            router_data,
-            storage_scheme,
-        )
-        .await?;
-
-        router_response.map_err(|error_response| {
-            errors::ApiErrorResponse::ExternalConnectorError {
-                message: error_response.message,
-                code: error_response.code,
-                status_code: error_response.status_code,
-                reason: error_response.reason,
-                connector,
-            }
-        })?;
-
-        Ok(payment_data)
-    }
-}
-
-#[async_trait]
-impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::TokenizationData> for PaymentResponse {
-    async fn update_tracker<'b>(
-        &'b self,
-        db: &dyn StorageInterface,
-        payment_id: &api::PaymentIdType,
-        mut payment_data: PaymentData<F>,
-        router_data: types::RouterData<F, types::TokenizationData, types::PaymentsResponseData>,
         storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<PaymentData<F>>
     where
@@ -396,13 +357,7 @@ async fn payment_response_update_tracker<F: Clone, T>(
 
             types::PaymentsResponseData::SessionResponse { .. } => (None, None),
             types::PaymentsResponseData::SessionTokenResponse { .. } => (None, None),
-            types::PaymentsResponseData::TokenizationResponse { token } => {
-                let payment_attempt_update =
-                    storage::PaymentAttemptUpdate::PaymentMethodTokenUpdate {
-                        payment_token: Some(token),
-                    };
-                (Some(payment_attempt_update), None)
-            }
+            types::PaymentsResponseData::TokenizationResponse { .. } => (None, None),
         },
     };
 

@@ -182,7 +182,6 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Co
                 mandate_id: None,
                 setup_mandate,
                 token,
-                store_connector_token: None,
                 address: PaymentAddress {
                     shipping: shipping_address.as_ref().map(|a| a.foreign_into()),
                     billing: billing_address.as_ref().map(|a| a.foreign_into()),
@@ -194,6 +193,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Co
                 sessions_token: vec![],
                 card_cvc: request.card_cvc.clone(),
                 creds_identifier: None,
+                pm_token: None,
             },
             Some(CustomerDetails {
                 customer_id: request.customer_id.clone(),

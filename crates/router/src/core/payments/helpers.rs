@@ -28,6 +28,7 @@ use crate::{
     scheduler::{metrics as scheduler_metrics, workflows::payment_sync},
     services,
     types::{
+        self,
         api::{self, admin, enums as api_enums, CustomerAcceptanceExt, MandateValidationFieldsExt},
         storage::{self, enums as storage_enums, ephemeral_key},
         transformers::ForeignInto,
@@ -520,7 +521,7 @@ where
 pub(crate) async fn get_payment_method_create_request(
     payment_method: Option<&api::PaymentMethodData>,
     payment_method_type: Option<storage_enums::PaymentMethod>,
-    maybe_customer: &Option<storage::Customer>,
+    customer: &storage::Customer,
 ) -> RouterResult<api::PaymentMethodCreate> {
     match payment_method {
         Some(pm_data) => match payment_method_type {
@@ -532,49 +533,35 @@ pub(crate) async fn get_payment_method_create_request(
                         card_exp_year: card.card_exp_year.clone(),
                         card_holder_name: Some(card.card_holder_name.clone()),
                     };
-                    match maybe_customer {
-                        Some(customer) => {
-                            let customer_id = customer.customer_id.clone();
-                            let payment_method_request = api::PaymentMethodCreate {
-                                payment_method: payment_method_type.foreign_into(),
-                                payment_method_type: None,
-                                payment_method_issuer: card.card_issuer.clone(),
-                                payment_method_issuer_code: None,
-                                card: Some(card_detail),
-                                metadata: None,
-                                customer_id: Some(customer_id),
-                                card_network: card
-                                    .card_network
-                                    .as_ref()
-                                    .map(|card_network| card_network.to_string()),
-                            };
-                            Ok(payment_method_request)
-                        }
-                        None => Err(report!(errors::ApiErrorResponse::MissingRequiredField {
-                            field_name: "customer"
-                        })
-                        .attach_printable("Missing Customer Object")),
-                    }
+                    let customer_id = customer.customer_id.clone();
+                    let payment_method_request = api::PaymentMethodCreate {
+                        payment_method: payment_method_type.foreign_into(),
+                        payment_method_type: None,
+                        payment_method_issuer: card.card_issuer.clone(),
+                        payment_method_issuer_code: None,
+                        card: Some(card_detail),
+                        metadata: None,
+                        customer_id: Some(customer_id),
+                        card_network: card
+                            .card_network
+                            .as_ref()
+                            .map(|card_network| card_network.to_string()),
+                    };
+                    Ok(payment_method_request)
                 }
-                _ => match maybe_customer {
-                    Some(customer) => {
-                        let payment_method_request = api::PaymentMethodCreate {
-                            payment_method: payment_method_type.foreign_into(),
-                            payment_method_type: None,
-                            payment_method_issuer: None,
-                            payment_method_issuer_code: None,
-                            card: None,
-                            metadata: None,
-                            customer_id: Some(customer.customer_id.to_owned()),
-                            card_network: None,
-                        };
-                        Ok(payment_method_request)
-                    }
-                    None => Err(report!(errors::ApiErrorResponse::MissingRequiredField {
-                        field_name: "customer"
-                    })
-                    .attach_printable("Missing Customer Object")),
-                },
+                _ => {
+                    let payment_method_request = api::PaymentMethodCreate {
+                        payment_method: payment_method_type.foreign_into(),
+                        payment_method_type: None,
+                        payment_method_issuer: None,
+                        payment_method_issuer_code: None,
+                        card: None,
+                        metadata: None,
+                        customer_id: Some(customer.customer_id.to_owned()),
+                        card_network: None,
+                    };
+                    Ok(payment_method_request)
+                }
             },
             None => Err(report!(errors::ApiErrorResponse::MissingRequiredField {
                 field_name: "payment_method_type"
@@ -1359,5 +1346,44 @@ pub async fn get_merchant_connector_account(
             .await
             .map(MerchantConnectorAccountType::DbVal)
             .change_context(errors::ApiErrorResponse::MerchantConnectorAccountNotFound),
+    }
+}
+
+/// This function replaces the request and response type of routerdata with the
+/// request and response type passed
+/// # Arguments
+///
+/// * `router_data` - original router data
+/// * `request` - new request
+/// * `response` - new response
+pub fn router_data_type_conversion<F1, F2, Req1, Req2, Res1, Res2>(
+    router_data: types::RouterData<F1, Req1, Res1>,
+    request: Req2,
+    response: Result<Res2, types::ErrorResponse>,
+) -> types::RouterData<F2, Req2, Res2> {
+    types::RouterData {
+        flow: std::marker::PhantomData,
+        request,
+        response,
+        merchant_id: router_data.merchant_id,
+        address: router_data.address,
+        amount_captured: router_data.amount_captured,
+        auth_type: router_data.auth_type,
+        connector: router_data.connector,
+        connector_auth_type: router_data.connector_auth_type,
+        connector_meta_data: router_data.connector_meta_data,
+        description: router_data.description,
+        router_return_url: router_data.router_return_url,
+        complete_authorize_url: router_data.complete_authorize_url,
+        payment_id: router_data.payment_id,
+        payment_method: router_data.payment_method,
+        payment_method_id: router_data.payment_method_id,
+        return_url: router_data.return_url,
+        status: router_data.status,
+        attempt_id: router_data.attempt_id,
+        access_token: router_data.access_token,
+        session_token: router_data.session_token,
+        reference_id: None,
+        payment_method_token: router_data.payment_method_token,
     }
 }

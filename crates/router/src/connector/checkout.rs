@@ -66,7 +66,7 @@ impl api::PaymentToken for Checkout {}
 impl
     services::ConnectorIntegration<
         api::PaymentMethodToken,
-        types::TokenizationData,
+        types::PaymentMethodTokenizationData,
         types::PaymentsResponseData,
     > for Checkout
 {

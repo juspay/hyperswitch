@@ -1,17 +1,23 @@
 use async_trait::async_trait;
+use common_utils::pii;
 use error_stack::ResultExt;
+use masking::ExposeInterface;
 
 use super::{ConstructFlowSpecificData, Feature};
 use crate::{
-    connection,
     core::{
         errors::{self, ConnectorErrorExt, RouterResult},
         mandate, payment_methods,
         payments::{self, access_token, helpers, transformers, PaymentData},
     },
+    logger,
     routes::{metrics, AppState},
     services,
-    types::{self, api, storage},
+    types::{
+        self,
+        api::{self, PaymentMethodCreateExt},
+        storage,
+    },
     utils::OptionExt,
 };
 
@@ -78,6 +84,15 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
         merchant_account: &storage::MerchantAccount,
     ) -> RouterResult<types::AddAccessTokenResult> {
         access_token::add_access_token(state, connector, merchant_account, self).await
+    }
+
+    async fn add_payment_method_token<'a>(
+        &self,
+        state: &AppState,
+        connector: &api::ConnectorData,
+        tokenization_action: &payments::TokenizationAction,
+    ) -> RouterResult<Option<String>> {
+        add_payment_method_token(state, connector, tokenization_action, self).await
     }
 }
 
@@ -148,18 +163,17 @@ where
     FData: mandate::MandateBehaviour,
 {
     let db = &*state.store;
-    let tokenization_connector_check = state
+    let token_store = state
         .conf
         .tokenization
         .0
-        .get(&connector.connector_name.to_string());
-    let token_store = match tokenization_connector_check {
-        Some(token_filter) => token_filter.long_lived_token,
-        None => false,
-    };
+        .get(&connector.connector_name.to_string())
+        .map(|token_filter| token_filter.long_lived_token)
+        .unwrap_or(false);
+
     let connector_token = if token_store {
         let token = resp
-            .payment_token
+            .payment_method_token
             .to_owned()
             .get_required_value("payment_token")?;
         Some((connector, token))
@@ -168,17 +182,14 @@ where
     };
 
     let pm_id = if resp.request.get_setup_future_usage().is_some() {
+        let customer = maybe_customer.to_owned().get_required_value("customer")?;
         let payment_method_create_request = helpers::get_payment_method_create_request(
             Some(&resp.request.get_payment_method_data()),
             Some(resp.payment_method),
-            maybe_customer,
+            &customer,
         )
         .await?;
         let merchant_id = &merchant_account.merchant_id;
-        let customer_id = payment_method_create_request
-            .customer_id
-            .clone()
-            .get_required_value("customer_id")?;
 
         let locker_response = save_in_locker(
             state,
@@ -186,35 +197,35 @@ where
             payment_method_create_request.to_owned(),
         )
         .await?;
-
-        let redis_conn = connection::redis_connection(&state.conf).await;
-        let val = redis_conn.get_key::<bool>("pm_duplicate_check").await;
-
-        let is_duplicate = val.unwrap_or(false);
+        let is_duplicate = locker_response.1;
 
         if is_duplicate {
             let pm = db
-                .find_payment_method(&locker_response.payment_method_id)
+                .find_payment_method(&locker_response.0.payment_method_id)
                 .await
                 .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)?;
-            payment_methods::cards::update_payment_method(db, connector_token, pm)
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to add payment method in db")?;
+            let pm_metadata = create_payment_method_metadata(pm.metadata.as_ref(), connector_token);
+            if let Some(metadata) = pm_metadata {
+                payment_methods::cards::update_payment_method(db, pm, metadata)
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to add payment method in db")?;
+            };
         } else {
+            let pm_metadata = create_new_payment_method_metadata(connector_token);
             payment_methods::cards::create_payment_method(
                 db,
                 &payment_method_create_request,
-                &customer_id,
-                &locker_response.payment_method_id,
+                &customer.customer_id,
+                &locker_response.0.payment_method_id,
                 merchant_id,
-                connector_token,
+                pm_metadata,
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to add payment method in db")?;
         };
-        Some(locker_response.payment_method_id)
+        Some(locker_response.0.payment_method_id)
     } else {
         None
     };
@@ -225,18 +236,72 @@ pub async fn save_in_locker(
     state: &AppState,
     merchant_account: &storage::MerchantAccount,
     payment_method_request: api::PaymentMethodCreate,
-) -> RouterResult<api_models::payment_methods::PaymentMethodResponse> {
-    let resp =
-        payment_methods::cards::add_payment_method(state, payment_method_request, merchant_account)
-            .await
-            .attach_printable("Error on adding payment method")?;
-    match resp {
-        crate::services::ApplicationResponse::Json(payment_method) => Ok(payment_method),
-        _ => Err(
-            error_stack::report!(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Error on adding payment method"),
-        ),
+) -> RouterResult<(api_models::payment_methods::PaymentMethodResponse, bool)> {
+    payment_method_request.validate()?;
+    let merchant_id = &merchant_account.merchant_id;
+    let customer_id = payment_method_request
+        .customer_id
+        .clone()
+        .get_required_value("customer_id")?;
+    match payment_method_request.card.clone() {
+        Some(card) => payment_methods::cards::add_card_to_locker(
+            state,
+            payment_method_request,
+            card,
+            customer_id,
+            merchant_account,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Add Card Failed"),
+        None => {
+            let pm_id = common_utils::generate_id(crate::consts::ID_LENGTH, "pm");
+            let payment_method_response = api::PaymentMethodResponse {
+                merchant_id: merchant_id.to_string(),
+                customer_id: Some(customer_id),
+                payment_method_id: pm_id,
+                payment_method: payment_method_request.payment_method,
+                payment_method_type: payment_method_request.payment_method_type,
+                card: None,
+                metadata: None,
+                created: Some(common_utils::date_time::now()),
+                recurring_enabled: false,           //[#219]
+                installment_payment_enabled: false, //[#219]
+                payment_experience: Some(vec![api_models::enums::PaymentExperience::RedirectToUrl]), //[#219]
+            };
+            Ok((payment_method_response, false))
+        }
     }
+}
+
+pub fn create_payment_method_metadata(
+    metadata: Option<&pii::SecretSerdeValue>,
+    connector_token: Option<(&api::ConnectorData, String)>,
+) -> Option<serde_json::Value> {
+    connector_token.and_then(|connector_and_token| {
+        metadata.and_then(|data| {
+            let mut value_exposed = data.clone().expose();
+            value_exposed.as_object_mut().and_then(|val| {
+                val.insert(
+                    connector_and_token.0.connector_name.to_string(),
+                    serde_json::Value::String(connector_and_token.1),
+                )
+            })
+        })
+    })
+}
+
+pub fn create_new_payment_method_metadata(
+    connector_token: Option<(&api::ConnectorData, String)>,
+) -> Option<serde_json::Value> {
+    connector_token.map(|connector_and_token| {
+        let mut metadata_map = serde_json::Map::new();
+        metadata_map.insert(
+            connector_and_token.0.connector_name.to_string(),
+            serde_json::Value::String(connector_and_token.1),
+        );
+        serde_json::Value::Object(metadata_map)
+    })
 }
 
 pub enum Action {
@@ -264,5 +329,73 @@ impl mandate::MandateBehaviour for types::PaymentsAuthorizeData {
 
     fn set_mandate_id(&mut self, new_mandate_id: api_models::payments::MandateIds) {
         self.mandate_id = Some(new_mandate_id);
+    }
+}
+
+pub async fn add_payment_method_token<F: Clone>(
+    state: &AppState,
+    connector: &api::ConnectorData,
+    tokenization_action: &payments::TokenizationAction,
+    router_data: &types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
+) -> RouterResult<Option<String>> {
+    match tokenization_action {
+        payments::TokenizationAction::TokenizeInConnector => {
+            let connector_integration: services::BoxedConnectorIntegration<
+                '_,
+                api::PaymentMethodToken,
+                types::PaymentMethodTokenizationData,
+                types::PaymentsResponseData,
+            > = connector.connector.get_connector_integration();
+
+            let pm_token_response_data: Result<types::PaymentsResponseData, types::ErrorResponse> =
+                Err(types::ErrorResponse::default());
+
+            let pm_token_request_data =
+                types::PaymentMethodTokenizationData::try_from(router_data.request.to_owned())?;
+
+            let pm_token_router_data = payments::helpers::router_data_type_conversion::<
+                _,
+                api::PaymentMethodToken,
+                _,
+                _,
+                _,
+                _,
+            >(
+                router_data.clone(),
+                pm_token_request_data,
+                pm_token_response_data,
+            );
+            let resp = services::execute_connector_processing_step(
+                state,
+                connector_integration,
+                &pm_token_router_data,
+                payments::CallConnectorAction::Trigger,
+            )
+            .await
+            .map_err(|error| error.to_payment_failed_response())?;
+
+            let pm_token = match resp.response {
+                Ok(response) => match response {
+                    types::PaymentsResponseData::TokenizationResponse { token } => Some(token),
+                    _ => None,
+                },
+                Err(err) => {
+                    logger::debug!(payment_method_tokenization_error=?err);
+                    None
+                }
+            };
+            Ok(pm_token)
+        }
+        _ => Ok(None),
+    }
+}
+
+impl TryFrom<types::PaymentsAuthorizeData> for types::PaymentMethodTokenizationData {
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
+
+    fn try_from(data: types::PaymentsAuthorizeData) -> Result<Self, Self::Error> {
+        Ok(Self {
+            payment_method_data: data.payment_method_data,
+        })
     }
 }

@@ -90,7 +90,7 @@ impl api::PaymentToken for Bambora {}
 impl
     ConnectorIntegration<
         api::PaymentMethodToken,
-        types::TokenizationData,
+        types::PaymentMethodTokenizationData,
         types::PaymentsResponseData,
     > for Bambora
 {

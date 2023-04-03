@@ -100,7 +100,7 @@ impl api::PaymentToken for Airwallex {}
 impl
     ConnectorIntegration<
         api::PaymentMethodToken,
-        types::TokenizationData,
+        types::PaymentMethodTokenizationData,
         types::PaymentsResponseData,
     > for Airwallex
 {

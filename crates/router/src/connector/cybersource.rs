@@ -183,7 +183,7 @@ impl api::PaymentToken for Cybersource {}
 impl
     ConnectorIntegration<
         api::PaymentMethodToken,
-        types::TokenizationData,
+        types::PaymentMethodTokenizationData,
         types::PaymentsResponseData,
     > for Cybersource
 {

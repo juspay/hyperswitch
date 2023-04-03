@@ -22,7 +22,6 @@ enum Derives {
     Verify,
     Session,
     SessionData,
-    TokenData,
 }
 
 impl From<String> for Derives {
@@ -42,7 +41,6 @@ impl From<String> for Derives {
             "verifydata" => Self::VerifyData,
             "session" => Self::Session,
             "sessiondata" => Self::SessionData,
-            "tokendata" => Self::TokenData,
             _ => Self::Authorize,
         }
     }
@@ -122,7 +120,6 @@ impl Conversion {
             Derives::VerifyData => syn::Ident::new("VerifyRequestData", Span::call_site()),
             Derives::Session => syn::Ident::new("PaymentsSessionRequest", Span::call_site()),
             Derives::SessionData => syn::Ident::new("PaymentsSessionData", Span::call_site()),
-            Derives::TokenData => syn::Ident::new("TokenizationData", Span::call_site()),
         }
     }
 
@@ -336,7 +333,6 @@ pub fn operation_derive_inner(input: DeriveInput) -> syn::Result<proc_macro::Tok
                     PaymentsCancelData,
                     PaymentsAuthorizeData,
                     PaymentsSessionData,
-                    TokenizationData,
                     CompleteAuthorizeData,
 
                     api::{

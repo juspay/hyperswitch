@@ -682,7 +682,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
             payments::PaymentMethodData::Wallet(payments::WalletData::ApplePay(_)) => Some(
                 StripePaymentMethodData::Wallet(StripeWallet::ApplepayPayment(ApplepayPayment {
                     token: item
-                        .payment_token
+                        .payment_method_token
                         .to_owned()
                         .get_required_value("payment_token")
                         .change_context(errors::ConnectorError::RequestEncodingFailed)?,

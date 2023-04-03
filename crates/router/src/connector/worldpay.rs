@@ -98,7 +98,7 @@ impl api::PaymentToken for Worldpay {}
 impl
     ConnectorIntegration<
         api::PaymentMethodToken,
-        types::TokenizationData,
+        types::PaymentMethodTokenizationData,
         types::PaymentsResponseData,
     > for Worldpay
 {
