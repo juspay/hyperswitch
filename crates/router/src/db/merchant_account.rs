@@ -1,3 +1,4 @@
+use common_utils::ext_traits::AsyncExt;
 use error_stack::{IntoReport, ResultExt};
 
 use super::{MockDb, Store};
@@ -12,7 +13,6 @@ use crate::{
         storage::{self, enums},
     },
 };
-use common_utils::ext_traits::AsyncExt;
 
 #[async_trait::async_trait]
 pub trait MerchantAccountInterface {

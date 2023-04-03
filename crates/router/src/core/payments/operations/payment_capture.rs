@@ -16,7 +16,7 @@ use crate::{
     types::{
         api::{self, PaymentIdTypeExt},
         domain::{customer as domain, merchant_account},
-        storage::{enums},
+        storage::enums,
         transformers::ForeignInto,
     },
     utils::OptionExt,

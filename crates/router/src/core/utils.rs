@@ -12,9 +12,9 @@ use crate::{
     routes::AppState,
     types::{
         self,
-        storage::{self, enums},
         domain::merchant_account,
-    }, 
+        storage::{self, enums},
+    },
     utils::{generate_id, OptionExt, ValueExt},
 };
 

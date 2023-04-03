@@ -14,7 +14,7 @@ use crate::{
     db::StorageInterface,
     routes::app::AppStateInfo,
     services::api,
-    types::{domain::merchant_account},
+    types::domain::merchant_account,
     utils::OptionExt,
 };
 

@@ -31,7 +31,7 @@ use crate::{
     services,
     types::{
         self, api,
-        domain::{customer,merchant_account},
+        domain::{customer, merchant_account},
         storage::{self, enums as storage_enums},
     },
     utils::{Encode, OptionExt, ValueExt},
