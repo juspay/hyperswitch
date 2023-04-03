@@ -10,7 +10,6 @@ use masking::Secret;
 use once_cell::sync::Lazy;
 use regex::Regex;
 use serde::Serializer;
-use url::form_urlencoded;
 
 use crate::{
     consts,
@@ -550,28 +549,4 @@ pub fn collect_and_sort_values_by_removing_signature(
     let mut values = collect_values_by_removing_signature(value, signature);
     values.sort();
     values
-}
-
-pub fn decode_html(encoded: &str) -> String {
-    let decoded: String = form_urlencoded::parse(encoded.as_bytes())
-        .map(|(k, v)| format!("{}={}", k, v))
-        .collect::<Vec<String>>()
-        .join("&");
-    url::form_urlencoded::parse(decoded.as_bytes())
-        .map(|(k, v)| (k.into_owned(), v.into_owned()))
-        .collect::<Vec<(String, String)>>()
-        .iter()
-        .map(|(k, v)| format!("{}={}", k, v))
-        .collect::<Vec<String>>()
-        .join("")
-        .replace('+', " ")
-        .replace("%3D", "=")
-        .replace("%3A", ":")
-        .replace("%2F", "/")
-        .replace("%3F", "?")
-        .replace("%26", "&")
-        .replace("%3C", "<")
-        .replace("%3E", ">")
-        .replace("%27", "'")
-        .replace("%22", "\"")
 }

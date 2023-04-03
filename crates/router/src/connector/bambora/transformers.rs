@@ -4,7 +4,7 @@ use masking::Secret;
 use serde::{Deserialize, Deserializer, Serialize};
 
 use crate::{
-    connector::utils::{self, PaymentsAuthorizeRequestData},
+    connector::utils::PaymentsAuthorizeRequestData,
     consts,
     core::errors,
     services,
@@ -169,7 +169,7 @@ impl<F, T>
         let flow = data.1;
         let item = data.0;
         match item.response {
-            BamboraResponse::NormalTranaction(pg_response) => Ok(Self {
+            BamboraResponse::NormalTransaction(pg_response) => Ok(Self {
                 status: match pg_response.approved.as_str() {
                     "0" => match flow {
                         PaymentFlow::Authorize => enums::AttemptStatus::AuthorizationFailed,
@@ -195,9 +195,13 @@ impl<F, T>
             }),
 
             BamboraResponse::ThreeDsResponse(response) => {
-                let url_decoded = utils::decode_html(&response.contents);
+                let mut value = url::form_urlencoded::parse(response.contents.as_bytes());
                 let redirection_data = Some(services::RedirectForm::Html {
-                    html_data: url_decoded,
+                    html_data: value
+                        .next()
+                        .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?
+                        .0
+                        .to_string(),
                 });
                 Ok(Self {
                     status: enums::AttemptStatus::AuthenticationPending,
@@ -242,7 +246,7 @@ where
 #[derive(Debug, Clone, Deserialize)]
 #[serde(untagged)]
 pub enum BamboraResponse {
-    NormalTranaction(Box<BamboraPaymentsResponse>),
+    NormalTransaction(Box<BamboraPaymentsResponse>),
     ThreeDsResponse(Bambora3DsResponse),
 }
 
