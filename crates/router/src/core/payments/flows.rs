@@ -16,7 +16,10 @@ use crate::{
     },
     routes::AppState,
     services,
-    types::{self, api, domain::customer, storage},
+    types::{
+        self, api,
+        domain::{customer, merchant_account},
+    },
 };
 
 #[async_trait]
@@ -25,7 +28,7 @@ pub trait ConstructFlowSpecificData<F, Req, Res> {
         &self,
         state: &AppState,
         connector_id: &str,
-        merchant_account: &storage::MerchantAccount,
+        merchant_account: &merchant_account::MerchantAccount,
     ) -> RouterResult<types::RouterData<F, Req, Res>>;
 }
 
@@ -37,7 +40,7 @@ pub trait Feature<F, T> {
         connector: &api::ConnectorData,
         maybe_customer: &Option<customer::Customer>,
         call_connector_action: payments::CallConnectorAction,
-        merchant_account: &storage::MerchantAccount,
+        merchant_account: &merchant_account::MerchantAccount,
     ) -> RouterResult<Self>
     where
         Self: Sized,
@@ -48,7 +51,7 @@ pub trait Feature<F, T> {
         &self,
         state: &AppState,
         connector: &api::ConnectorData,
-        merchant_account: &storage::MerchantAccount,
+        merchant_account: &merchant_account::MerchantAccount,
     ) -> RouterResult<types::AddAccessTokenResult>
     where
         F: Clone,

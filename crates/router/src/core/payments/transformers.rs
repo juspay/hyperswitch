@@ -14,7 +14,7 @@ use crate::{
     services::{self, RedirectForm},
     types::{
         self, api,
-        domain::customer,
+        domain::{customer, merchant_account},
         storage::{self, enums, PaymentAttemptExt},
         transformers::{ForeignInto, ForeignTryFrom},
     },
@@ -26,7 +26,7 @@ pub async fn construct_payment_router_data<'a, F, T>(
     state: &'a AppState,
     payment_data: PaymentData<F>,
     connector_id: &str,
-    merchant_account: &storage::MerchantAccount,
+    merchant_account: &merchant_account::MerchantAccount,
 ) -> RouterResult<types::RouterData<F, T, types::PaymentsResponseData>>
 where
     T: TryFrom<PaymentAdditionalData<F>>,

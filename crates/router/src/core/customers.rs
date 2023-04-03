@@ -14,7 +14,7 @@ use crate::{
     services,
     types::{
         api::customers::{self, CustomerRequestExt},
-        domain::customer as domain,
+        domain::{customer as domain, merchant_account},
         storage::{self, enums},
     },
 };
@@ -24,7 +24,7 @@ pub const REDACTED: &str = "Redacted";
 #[instrument(skip(db))]
 pub async fn create_customer(
     db: &dyn StorageInterface,
-    merchant_account: storage::MerchantAccount,
+    merchant_account: merchant_account::MerchantAccount,
     customer_data: customers::CustomerRequest,
 ) -> RouterResponse<customers::CustomerResponse> {
     let mut customer_data = customer_data.validate()?;
@@ -100,7 +100,7 @@ pub async fn create_customer(
 #[instrument(skip(db))]
 pub async fn retrieve_customer(
     db: &dyn StorageInterface,
-    merchant_account: storage::MerchantAccount,
+    merchant_account: merchant_account::MerchantAccount,
     req: customers::CustomerId,
 ) -> RouterResponse<customers::CustomerResponse> {
     let response = db
@@ -114,7 +114,7 @@ pub async fn retrieve_customer(
 #[instrument(skip_all)]
 pub async fn delete_customer(
     state: &AppState,
-    merchant_account: storage::MerchantAccount,
+    merchant_account: merchant_account::MerchantAccount,
     req: customers::CustomerId,
 ) -> RouterResponse<customers::CustomerDeleteResponse> {
     let db = &state.store;
@@ -232,7 +232,7 @@ pub async fn delete_customer(
 #[instrument(skip(db))]
 pub async fn update_customer(
     db: &dyn StorageInterface,
-    merchant_account: storage::MerchantAccount,
+    merchant_account: merchant_account::MerchantAccount,
     update_customer: customers::CustomerRequest,
 ) -> RouterResponse<customers::CustomerResponse> {
     let update_customer = update_customer.validate()?;

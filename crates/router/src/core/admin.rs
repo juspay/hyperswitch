@@ -15,7 +15,8 @@ use crate::{
     services::api as service_api,
     types::{
         self, api,
-        storage::{self, MerchantAccount},
+        domain::merchant_account as merchant_domain,
+        storage,
         transformers::{ForeignInto, ForeignTryInto},
     },
     utils::{self, OptionExt},
@@ -87,7 +88,7 @@ pub async fn create_merchant_account(
             .attach_printable("Invalid routing algorithm given")?;
     }
 
-    let merchant_account = storage::MerchantAccountNew {
+    let merchant_account = merchant_domain::MerchantAccount {
         merchant_id: req.merchant_id,
         merchant_name: req.merchant_name,
         api_key: Some(api_key),
@@ -102,12 +103,16 @@ pub async fn create_merchant_account(
             req.parent_merchant_id,
         )
         .await?,
-        enable_payment_response_hash: req.enable_payment_response_hash,
+        enable_payment_response_hash: req.enable_payment_response_hash.unwrap_or_default(),
         payment_response_hash_key: req.payment_response_hash_key,
-        redirect_to_merchant_with_http_post: req.redirect_to_merchant_with_http_post,
+        redirect_to_merchant_with_http_post: req
+            .redirect_to_merchant_with_http_post
+            .unwrap_or_default(),
         publishable_key,
         locker_id: req.locker_id,
         metadata: req.metadata,
+        storage_scheme: storage_models::enums::MerchantStorageScheme::PostgresOnly,
+        id: None,
     };
 
     let merchant_account = db
@@ -260,7 +265,7 @@ async fn get_parent_merchant(
 async fn validate_merchant_id<S: Into<String>>(
     db: &dyn StorageInterface,
     merchant_id: S,
-) -> RouterResult<MerchantAccount> {
+) -> RouterResult<merchant_domain::MerchantAccount> {
     db.find_merchant_account_by_merchant_id(&merchant_id.into())
         .await
         .map_err(|error| {

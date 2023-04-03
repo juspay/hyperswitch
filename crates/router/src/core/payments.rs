@@ -31,7 +31,7 @@ use crate::{
     services,
     types::{
         self, api,
-        domain::customer,
+        domain::{customer,merchant_account},
         storage::{self, enums as storage_enums},
     },
     utils::{Encode, OptionExt, ValueExt},
@@ -40,7 +40,7 @@ use crate::{
 #[instrument(skip_all)]
 pub async fn payments_operation_core<F, Req, Op, FData>(
     state: &AppState,
-    merchant_account: storage::MerchantAccount,
+    merchant_account: merchant_account::MerchantAccount,
     operation: Op,
     req: Req,
     call_connector_action: CallConnectorAction,
@@ -176,7 +176,7 @@ where
 #[allow(clippy::too_many_arguments)]
 pub async fn payments_core<F, Res, Req, Op, FData>(
     state: &AppState,
-    merchant_account: storage::MerchantAccount,
+    merchant_account: merchant_account::MerchantAccount,
     operation: Op,
     req: Req,
     auth_flow: services::AuthFlow,
@@ -238,7 +238,7 @@ pub trait PaymentRedirectFlow: Sync {
     async fn call_payment_flow(
         &self,
         state: &AppState,
-        merchant_account: storage::MerchantAccount,
+        merchant_account: merchant_account::MerchantAccount,
         req: PaymentsRedirectResponseData,
         connector_action: CallConnectorAction,
     ) -> RouterResponse<api::PaymentsResponse>;
@@ -249,7 +249,7 @@ pub trait PaymentRedirectFlow: Sync {
     async fn handle_payments_redirect_response(
         &self,
         state: &AppState,
-        merchant_account: storage::MerchantAccount,
+        merchant_account: merchant_account::MerchantAccount,
         req: PaymentsRedirectResponseData,
     ) -> RouterResponse<api::RedirectionResponse> {
         let connector = req.connector.clone().get_required_value("connector")?;
@@ -308,7 +308,7 @@ impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
     async fn call_payment_flow(
         &self,
         state: &AppState,
-        merchant_account: storage::MerchantAccount,
+        merchant_account: merchant_account::MerchantAccount,
         req: PaymentsRedirectResponseData,
         connector_action: CallConnectorAction,
     ) -> RouterResponse<api::PaymentsResponse> {
@@ -341,7 +341,7 @@ impl PaymentRedirectFlow for PaymentRedirectSync {
     async fn call_payment_flow(
         &self,
         state: &AppState,
-        merchant_account: storage::MerchantAccount,
+        merchant_account: merchant_account::MerchantAccount,
         req: PaymentsRedirectResponseData,
         connector_action: CallConnectorAction,
     ) -> RouterResponse<api::PaymentsResponse> {
@@ -378,7 +378,7 @@ impl PaymentRedirectFlow for PaymentRedirectSync {
 #[instrument(skip_all)]
 pub async fn call_connector_service<F, Op, Req>(
     state: &AppState,
-    merchant_account: &storage::MerchantAccount,
+    merchant_account: &merchant_account::MerchantAccount,
     connector: api::ConnectorData,
     _operation: &Op,
     payment_data: &PaymentData<F>,
@@ -438,7 +438,7 @@ where
 
 pub async fn call_multiple_connectors_service<F, Op, Req>(
     state: &AppState,
-    merchant_account: &storage::MerchantAccount,
+    merchant_account: &merchant_account::MerchantAccount,
     connectors: Vec<api::ConnectorData>,
     _operation: &Op,
     mut payment_data: PaymentData<F>,
@@ -638,7 +638,7 @@ pub fn should_call_connector<Op: Debug, F: Clone>(
 #[cfg(feature = "olap")]
 pub async fn list_payments(
     db: &dyn StorageInterface,
-    merchant: storage::MerchantAccount,
+    merchant: merchant_account::MerchantAccount,
     constraints: api::PaymentListConstraints,
 ) -> RouterResponse<api::PaymentListResponse> {
     use futures::stream::StreamExt;
@@ -753,7 +753,7 @@ pub async fn get_connector_choice<F, Req>(
     operation: &BoxedOperation<'_, F, Req>,
     state: &AppState,
     req: &Req,
-    merchant_account: &storage::MerchantAccount,
+    merchant_account: &merchant_account::MerchantAccount,
     payment_data: &mut PaymentData<F>,
 ) -> RouterResult<Option<api::ConnectorCallType>>
 where
@@ -795,7 +795,7 @@ where
 
 pub fn connector_selection<F>(
     state: &AppState,
-    merchant_account: &storage::MerchantAccount,
+    merchant_account: &merchant_account::MerchantAccount,
     payment_data: &mut PaymentData<F>,
     request_straight_through: Option<serde_json::Value>,
 ) -> RouterResult<api::ConnectorCallType>
@@ -835,7 +835,7 @@ where
 
 pub fn decide_connector(
     state: &AppState,
-    merchant_account: &storage::MerchantAccount,
+    merchant_account: &merchant_account::MerchantAccount,
     request_straight_through: Option<api::RoutingAlgorithm>,
     routing_data: &mut storage::RoutingData,
 ) -> RouterResult<api::ConnectorCallType> {
