@@ -100,8 +100,8 @@ impl types::PaymentsAuthorizeRouterData {
                     .execute_pretasks(self, state)
                     .await
                     .map_err(|error| error.to_payment_failed_response())?;
-                self.decide_authentication_type();
                 if self.should_proceed_with_authorize() {
+                    self.decide_authentication_type();
                     let resp = services::execute_connector_processing_step(
                         state,
                         connector_integration,
@@ -130,7 +130,7 @@ impl types::PaymentsAuthorizeRouterData {
         }
     }
 
-    /// to decide if we need to proceed with authorize or not, Eg: If the any of the pretask returns `redirection_response` then we should not proceed with authorize call
+    /// to decide if we need to proceed with authorize or not, Eg: If any of the pretask returns `redirection_response` then we should not proceed with authorize call
     fn should_proceed_with_authorize(&self) -> bool {
         match &self.response {
             Ok(types::PaymentsResponseData::TransactionResponse {
