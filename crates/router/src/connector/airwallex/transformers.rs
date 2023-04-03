@@ -110,7 +110,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for AirwallexPaymentsRequest {
             request_id: Uuid::new_v4().to_string(),
             payment_method,
             payment_method_options,
-            return_url: item.router_return_url.clone(),
+            return_url: item.request.router_return_url.clone(),
         })
     }
 }

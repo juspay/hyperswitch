@@ -41,7 +41,7 @@ fn get_default_payment_info() -> Option<PaymentInfo> {
         address: Some(types::PaymentAddress {
             billing: Some(api::Address {
                 address: Some(api::AddressDetails {
-                    country: Some("US".to_string()),
+                    country: Some(api_models::enums::CountryCode::US),
                     ..Default::default()
                 }),
                 phone: None,

@@ -193,7 +193,7 @@ impl ByteSliceExt for [u8] {
         serde_json::from_slice(self)
             .into_report()
             .change_context(errors::ParsingError)
-            .attach_printable_lazy(|| format!("Unable to parse {type_name} from &[u8]"))
+            .attach_printable_lazy(|| format!("Unable to parse {type_name} from &[u8] {:?}", &self))
     }
 }
 
@@ -277,7 +277,9 @@ impl<T> StringExt<T> for String {
         serde_json::from_str::<T>(self)
             .into_report()
             .change_context(errors::ParsingError)
-            .attach_printable_lazy(|| format!("Unable to parse {type_name} from string"))
+            .attach_printable_lazy(|| {
+                format!("Unable to parse {type_name} from string {:?}", &self)
+            })
     }
 }
 

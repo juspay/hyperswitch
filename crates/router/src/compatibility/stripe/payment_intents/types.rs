@@ -1,10 +1,11 @@
 use api_models::payments;
-use common_utils::{ext_traits::StringExt, pii as secret};
+use common_utils::{date_time, ext_traits::StringExt, pii as secret};
 use error_stack::ResultExt;
 use serde::{Deserialize, Serialize};
 
 use crate::{
     compatibility::stripe::refunds::types as stripe_refunds,
+    consts,
     core::errors,
     pii::{self, PeekInterface},
     types::{
@@ -26,7 +27,9 @@ impl From<StripeBillingDetails> for payments::Address {
         Self {
             phone: Some(payments::PhoneDetails {
                 number: details.phone,
-                country_code: details.address.as_ref().and_then(|a| a.country.clone()),
+                country_code: details.address.as_ref().and_then(|address| {
+                    address.country.as_ref().map(|country| country.to_string())
+                }),
             }),
 
             address: details.address,
@@ -108,7 +111,9 @@ impl From<Shipping> for payments::Address {
         Self {
             phone: Some(payments::PhoneDetails {
                 number: details.phone,
-                country_code: details.address.as_ref().and_then(|a| a.country.clone()),
+                country_code: details.address.as_ref().and_then(|address| {
+                    address.country.as_ref().map(|country| country.to_string())
+                }),
             }),
             address: details.address,
         }
@@ -295,12 +300,23 @@ pub struct StripePaymentIntentResponse {
     pub payment_token: Option<String>,
     pub email: Option<masking::Secret<String, common_utils::pii::Email>>,
     pub phone: Option<masking::Secret<String>>,
-    pub error_code: Option<String>,
-    pub error_message: Option<String>,
     pub statement_descriptor_suffix: Option<String>,
     pub statement_descriptor_name: Option<String>,
     pub capture_method: Option<api_models::enums::CaptureMethod>,
     pub name: Option<masking::Secret<String>>,
+    pub last_payment_error: Option<LastPaymentError>,
+}
+
+#[derive(Default, Eq, PartialEq, Serialize)]
+pub struct LastPaymentError {
+    charge: Option<String>,
+    code: Option<String>,
+    decline_code: Option<String>,
+    message: String,
+    param: Option<String>,
+    payment_method: StripePaymentMethod,
+    #[serde(rename = "type")]
+    error_type: String,
 }
 
 impl From<payments::PaymentsResponse> for StripePaymentIntentResponse {
@@ -328,7 +344,7 @@ impl From<payments::PaymentsResponse> for StripePaymentIntentResponse {
             capture_on: resp.capture_on,
             capture_method: resp.capture_method,
             payment_method: resp.payment_method,
-            payment_method_data: resp.payment_method_data,
+            payment_method_data: resp.payment_method_data.clone(),
             payment_token: resp.payment_token,
             shipping: resp.shipping,
             billing: resp.billing,
@@ -340,12 +356,41 @@ impl From<payments::PaymentsResponse> for StripePaymentIntentResponse {
             statement_descriptor_suffix: resp.statement_descriptor_suffix,
             next_action: into_stripe_next_action(resp.next_action, resp.return_url),
             cancellation_reason: resp.cancellation_reason,
-            error_code: resp.error_code,
-            error_message: resp.error_message,
             metadata: resp.metadata,
             charges: Charges::new(),
+            last_payment_error: resp.error_code.map(|code| LastPaymentError {
+                charge: None,
+                code: Some(code.to_owned()),
+                decline_code: None,
+                message: resp
+                    .error_message
+                    .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
+                param: None,
+                payment_method: StripePaymentMethod {
+                    payment_method_id: "place_holder_id".to_string(),
+                    object: "payment_method",
+                    card: None,
+                    created: u64::try_from(date_time::now().assume_utc().unix_timestamp())
+                        .unwrap_or_default(),
+                    method_type: "card".to_string(),
+                    live_mode: false,
+                },
+                error_type: code,
+            }),
         }
     }
+}
+
+#[derive(Default, Eq, PartialEq, Serialize)]
+pub struct StripePaymentMethod {
+    #[serde(rename = "id")]
+    payment_method_id: String,
+    object: &'static str,
+    card: Option<StripeCard>,
+    created: u64,
+    #[serde(rename = "type")]
+    method_type: String,
+    live_mode: bool,
 }
 
 #[derive(Default, Eq, PartialEq, Serialize)]

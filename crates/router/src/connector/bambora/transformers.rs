@@ -109,7 +109,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BamboraPaymentsRequest {
                     payment_method: PaymentMethod::Card,
                     card: bambora_card,
                     customer_ip: browser_info.ip_address,
-                    term_url: item.complete_authorize_url.clone(),
+                    term_url: item.request.complete_authorize_url.clone(),
                 })
             }
             _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
