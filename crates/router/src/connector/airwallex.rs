@@ -2,7 +2,7 @@ mod transformers;
 
 use std::fmt::Debug;
 
-use common_utils::{errors::ReportSwitchExt, ext_traits::ByteSliceExt};
+use common_utils::ext_traits::ByteSliceExt;
 use error_stack::{IntoReport, ResultExt};
 use transformers as airwallex;
 
@@ -517,7 +517,7 @@ impl
         let response: airwallex::AirwallexPaymentsResponse = res
             .response
             .parse_struct("AirwallexPaymentsResponse")
-            .switch()?;
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -984,8 +984,7 @@ impl services::ConnectorRedirectResponse for Airwallex {
         action: services::PaymentAction,
     ) -> CustomResult<payments::CallConnectorAction, errors::ConnectorError> {
         match action {
-            services::PaymentAction::PSync => Ok(payments::CallConnectorAction::Trigger),
-            services::PaymentAction::CompleteAuthorize => {
+            services::PaymentAction::PSync | services::PaymentAction::CompleteAuthorize => {
                 Ok(payments::CallConnectorAction::Trigger)
             }
         }

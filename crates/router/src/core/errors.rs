@@ -293,8 +293,6 @@ pub enum ConnectorError {
     InvalidDataFormat { field_name: &'static str },
     #[error("Payment Method data / Payment Method Type / Payment Experience Mismatch ")]
     MismatchedPaymentData,
-    #[error("Invalid Connector Response")]
-    InvalidConnectorResponse { field_name: &'static str },
     #[error("Failed to parse Wallet token")]
     InvalidWalletToken,
 }
