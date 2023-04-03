@@ -4,7 +4,10 @@ use rand::distributions::DistString;
 use serde::{Deserialize, Serialize};
 
 use super::{
-    requests::{self, GlobalpayPaymentsRequest, GlobalpayRefreshTokenRequest},
+    requests::{
+        self, ApmProvider, GlobalpayPaymentsRequest, GlobalpayRefreshTokenRequest, Initiator,
+        PaymentMethodData, StoredCredential,
+    },
     response::{GlobalpayPaymentStatus, GlobalpayPaymentsResponse, GlobalpayRefreshTokenResponse},
 };
 use crate::{
@@ -26,46 +29,8 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for GlobalpayPaymentsRequest {
         let metadata: GlobalPayMeta =
             utils::to_connector_meta_from_secret(item.connector_meta_data.clone())?;
         let account_name = metadata.account_name;
-        let payment_method_data = match item.request.payment_method_data.clone() {
-            api::PaymentMethodData::Card(ccard) => {
-                requests::PaymentMethodData::Card(requests::Card {
-                    number: ccard.card_number,
-                    expiry_month: ccard.card_exp_month,
-                    expiry_year: ccard.card_exp_year,
-                    cvv: ccard.card_cvc,
-                    account_type: None,
-                    authcode: None,
-                    avs_address: None,
-                    avs_postal_code: None,
-                    brand_reference: None,
-                    chip_condition: None,
-                    cvv_indicator: Default::default(),
-                    funding: None,
-                    pin_block: None,
-                    tag: None,
-                    track: None,
-                })
-            }
-            api::PaymentMethodData::Wallet(wallet_data) => match wallet_data {
-                api_models::payments::WalletData::PaypalRedirect(_) => {
-                    requests::PaymentMethodData::Apm(requests::Apm {
-                        provider: Some(requests::ApmProvider::Paypal),
-                    })
-                }
-                api_models::payments::WalletData::GooglePay(_) => {
-                    requests::PaymentMethodData::DigitalWallet(requests::DigitalWallet {
-                        provider: Some(requests::DigitalWalletProvider::PayByGoogle),
-                        payment_token: wallet_data.get_wallet_token_as_json()?,
-                    })
-                }
-                _ => Err(errors::ConnectorError::NotImplemented(
-                    "Payment methods".to_string(),
-                ))?,
-            },
-            _ => Err(errors::ConnectorError::NotImplemented(
-                "Payment methods".to_string(),
-            ))?,
-        };
+        let (initiator, stored_credential, brand_reference) = get_mandate_details(item)?;
+        let payment_method_data = get_payment_method_data(item, brand_reference)?;
         Ok(Self {
             account_name,
             amount: Some(item.request.amount.to_string()),
@@ -87,7 +52,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for GlobalpayPaymentsRequest {
                 storage_mode: None,
             },
             notifications: Some(requests::Notifications {
-                return_url: item.request.complete_authorize_url.clone(),
+                return_url: get_return_url(item),
                 challenge_return_url: None,
                 decoupled_challenge_return_url: None,
                 status_url: item.request.webhook_url.clone(),
@@ -101,14 +66,14 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for GlobalpayPaymentsRequest {
             description: None,
             device: None,
             gratuity_amount: None,
-            initiator: None,
+            initiator,
             ip_address: None,
             language: None,
             lodging: None,
             order: None,
             payer_reference: None,
             site_reference: None,
-            stored_credential: None,
+            stored_credential,
             surcharge_amount: None,
             total_capture_count: None,
             globalpay_payments_request_type: None,
@@ -231,9 +196,16 @@ fn get_payment_response(
     response: GlobalpayPaymentsResponse,
 ) -> Result<types::PaymentsResponseData, ErrorResponse> {
     let redirection_data = response.payment_method.as_ref().and_then(|payment_method| {
-        payment_method.redirect_url.as_ref().map(|redirect_url| {
-            services::RedirectForm::from((redirect_url.to_owned(), services::Method::Get))
+        payment_method.apm.as_ref().and_then(|apm| {
+            apm.redirect_url.as_ref().map(|redirect_url| {
+                services::RedirectForm::from((redirect_url.to_owned(), services::Method::Get))
+            })
         })
+    });
+    let mandate_reference = response.payment_method.as_ref().and_then(|pm| {
+        pm.card
+            .as_ref()
+            .and_then(|card| card.brand_reference.to_owned())
     });
     match status {
         enums::AttemptStatus::Failure => Err(ErrorResponse {
@@ -246,7 +218,7 @@ fn get_payment_response(
         _ => Ok(types::PaymentsResponseData::TransactionResponse {
             resource_id: types::ResponseId::ConnectorTransactionId(response.id),
             redirection_data,
-            mandate_reference: None,
+            mandate_reference,
             connector_metadata: None,
         }),
     }
@@ -340,4 +312,133 @@ pub struct GlobalpayErrorResponse {
     pub error_code: String,
     pub detailed_error_code: String,
     pub detailed_error_description: String,
+}
+
+fn get_payment_method_data<'a>(
+    item: &types::PaymentsAuthorizeRouterData,
+    brand_reference: Option<String>,
+) -> Result<PaymentMethodData, error_stack::Report<errors::ConnectorError>> {
+    match item.request.payment_method_data.clone() {
+        api::PaymentMethodData::Card(ccard) => Ok(PaymentMethodData::Card(requests::Card {
+            number: ccard.card_number,
+            expiry_month: ccard.card_exp_month,
+            expiry_year: ccard.card_exp_year,
+            cvv: ccard.card_cvc,
+            account_type: None,
+            authcode: None,
+            avs_address: None,
+            avs_postal_code: None,
+            brand_reference,
+            chip_condition: None,
+            funding: None,
+            pin_block: None,
+            tag: None,
+            track: None,
+        })),
+        api::PaymentMethodData::Wallet(wallet_data) => get_wallet_data(&wallet_data),
+        api::PaymentMethodData::BankRedirect(bank_redirect) => {
+            get_bank_redirect_data(&bank_redirect)
+        }
+        _ => Err(errors::ConnectorError::NotImplemented(
+            "Payment methods".to_string(),
+        ))?,
+    }
+}
+
+fn get_return_url(item: &types::PaymentsAuthorizeRouterData) -> Option<String> {
+    match item.request.payment_method_data.clone() {
+        api::PaymentMethodData::Wallet(wallet_data) => match wallet_data {
+            api_models::payments::WalletData::PaypalRedirect(_) => {
+                item.request.complete_authorize_url.clone()
+            }
+            _ => item.request.router_return_url.clone(),
+        },
+        _ => item.request.router_return_url.clone(),
+    }
+}
+
+fn get_mandate_details(
+    item: &types::PaymentsAuthorizeRouterData,
+) -> Result<
+    (Option<Initiator>, Option<StoredCredential>, Option<String>),
+    error_stack::Report<errors::ConnectorError>,
+> {
+    let connector_mandate_id = item
+        .request
+        .mandate_id
+        .as_ref()
+        .and_then(|mandate_ids| mandate_ids.connector_mandate_id.clone());
+    Ok(if is_mandate_payment(item, connector_mandate_id.as_ref()) {
+        (
+            Some(match item.request.off_session {
+                Some(true) => Initiator::Merchant,
+                _ => Initiator::Payer,
+            }),
+            Some(StoredCredential {
+                model: Some(requests::Model::Recurring),
+                sequence: Some(match connector_mandate_id.is_some() {
+                    true => requests::Sequence::Subsequent,
+                    false => requests::Sequence::First,
+                }),
+            }),
+            connector_mandate_id,
+        )
+    } else {
+        (None, None, None)
+    })
+}
+
+fn is_mandate_payment(
+    item: &types::PaymentsAuthorizeRouterData,
+    connector_mandate_id: Option<&String>,
+) -> bool {
+    item.request.setup_mandate_details.is_some() || connector_mandate_id.is_some()
+}
+
+fn get_wallet_data(
+    wallet_data: &api_models::payments::WalletData,
+) -> Result<PaymentMethodData, error_stack::Report<errors::ConnectorError>> {
+    match wallet_data {
+        api_models::payments::WalletData::PaypalRedirect(_) => {
+            Ok(PaymentMethodData::Apm(requests::Apm {
+                provider: Some(ApmProvider::Paypal),
+            }))
+        }
+        api_models::payments::WalletData::GooglePay(_) => {
+            Ok(PaymentMethodData::DigitalWallet(requests::DigitalWallet {
+                provider: Some(requests::DigitalWalletProvider::PayByGoogle),
+                payment_token: wallet_data.get_wallet_token_as_json()?,
+            }))
+        }
+        _ => Err(errors::ConnectorError::NotImplemented(
+            "Payment methods".to_string(),
+        ))?,
+    }
+}
+
+fn get_bank_redirect_data(
+    bank_redirect: &api_models::payments::BankRedirectData,
+) -> Result<PaymentMethodData, error_stack::Report<errors::ConnectorError>> {
+    match bank_redirect {
+        api_models::payments::BankRedirectData::Eps { .. } => {
+            Ok(PaymentMethodData::Apm(requests::Apm {
+                provider: Some(ApmProvider::Eps),
+            }))
+        }
+        api_models::payments::BankRedirectData::Giropay { .. } => {
+            Ok(PaymentMethodData::Apm(requests::Apm {
+                provider: Some(ApmProvider::Giropay),
+            }))
+        }
+        api_models::payments::BankRedirectData::Ideal { .. } => {
+            Ok(PaymentMethodData::Apm(requests::Apm {
+                provider: Some(ApmProvider::Ideal),
+            }))
+        }
+        api_models::payments::BankRedirectData::Sofort { .. } => {
+            Ok(PaymentMethodData::Apm(requests::Apm {
+                provider: Some(ApmProvider::Sofort),
+            }))
+        }
+    }
 }
