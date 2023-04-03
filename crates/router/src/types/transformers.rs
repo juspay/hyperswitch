@@ -2,6 +2,7 @@ use api_models::enums as api_enums;
 use common_utils::ext_traits::ValueExt;
 use error_stack::ResultExt;
 use storage_models::enums as storage_enums;
+// use common_utils::ext_traits::ByteSliceExt;
 
 use crate::{
     core::errors,
@@ -324,7 +325,21 @@ impl ForeignTryFrom<storage::MerchantConnectorAccount> for api_models::admin::Me
                 .change_context(errors::ApiErrorResponse::InternalServerError)?,
             None => None,
         };
+    let configs_for_frm : api_models::admin::FrmConfigs = merchant_ca
+        .frm_configs
+        .expect("Error decoding frm_configs")
+        .clone()
+        .parse_value("FrmConfigs")
+        .change_context(errors::ApiErrorResponse::InvalidDataFormat {
+            field_name: "frm_configs".to_string(),
+            expected_format: "frm_enabled_pms, frm_enabled_pm_types, frm_enabled_gateways, frm_action, and frm_preferred_flow_type".to_string(),
+        })?;
 
+        // let frm_configs: Option<api_models::admin::FrmConfigs> = merchant_ca.frm_configs.map(|frmconfig| {
+        //     let x: api_models::admin::FrmConfigs = frmconfig.parse_value("type_name").change_context(errors::ApiErrorResponse::InternalServerError)?;
+        //     Some(x)
+        // })?;
+    
         Ok(Self {
             connector_type: merchant_ca.connector_type.foreign_into(),
             connector_name: merchant_ca.connector_name,
@@ -336,6 +351,7 @@ impl ForeignTryFrom<storage::MerchantConnectorAccount> for api_models::admin::Me
             disabled: merchant_ca.disabled,
             metadata: merchant_ca.metadata,
             payment_methods_enabled,
+            frm_configs : Some(configs_for_frm)
         })
     }
 }

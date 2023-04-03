@@ -183,6 +183,7 @@ impl MerchantConnectorAccountInterface for Store {
         &self,
         t: storage::MerchantConnectorAccountNew,
     ) -> CustomResult<storage::MerchantConnectorAccount, errors::StorageError> {
+        logger::error!("{:?}", "Rishav111");
         let conn = connection::pg_connection_write(self).await?;
         t.insert(&conn).await.map_err(Into::into).into_report()
     }
@@ -275,6 +276,7 @@ impl MerchantConnectorAccountInterface for MockDb {
         &self,
         t: storage::MerchantConnectorAccountNew,
     ) -> CustomResult<storage::MerchantConnectorAccount, errors::StorageError> {
+        logger::error!("{:?}", "Rishav101");
         let mut accounts = self.merchant_connector_accounts.lock().await;
         let account = storage::MerchantConnectorAccount {
             #[allow(clippy::as_conversions)]
@@ -287,11 +289,15 @@ impl MerchantConnectorAccountInterface for MockDb {
             merchant_connector_id: t.merchant_connector_id,
             payment_methods_enabled: t.payment_methods_enabled,
             metadata: t.metadata,
+            frm_configs : t.frm_configs,
             connector_type: t
                 .connector_type
                 .unwrap_or(crate::types::storage::enums::ConnectorType::FinOperations),
         };
+        logger::error!("{:?}", "Rishav102");
+        logger::error!("{:?}", accounts);
         accounts.push(account.clone());
+        logger::error!("{:?}", "Rishav103");
         Ok(account)
     }
 

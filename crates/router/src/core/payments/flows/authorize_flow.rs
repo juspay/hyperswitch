@@ -41,7 +41,7 @@ impl
         .await
     }
 }
-
+//implement the 3 flows(sale, checkout and transaction) here like below...but in a separate file (frm_flows.rs)
 #[async_trait]
 impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAuthorizeRouterData {
     async fn decide_flows<'a>(

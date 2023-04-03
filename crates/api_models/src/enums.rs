@@ -555,6 +555,7 @@ pub enum Connector {
     Cybersource,
     #[default]
     Dummy,
+	Signifyd,
     Bambora,
     Dlocal,
     Fiserv,
@@ -599,6 +600,7 @@ impl Connector {
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum RoutableConnectors {
+	Signifyd,
     Aci,
     Adyen,
     Airwallex,
@@ -765,4 +767,46 @@ impl From<AttemptStatus> for IntentStatus {
             AttemptStatus::Voided => Self::Cancelled,
         }
     }
+}
+
+
+#[derive(
+    Clone,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    frunk::LabelledGeneric,
+    ToSchema,
+)]
+#[strum(serialize_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
+pub enum FrmAction {
+    CancelTxn,
+    AutoRefund,
+    ManualReview
+}
+
+#[derive(
+    Clone,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    frunk::LabelledGeneric,
+    ToSchema,
+)]
+#[strum(serialize_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
+pub enum FrmPreferredFlowTypes {
+    Pre,
+    Post
 }
