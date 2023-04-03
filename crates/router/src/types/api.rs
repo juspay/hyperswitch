@@ -2,6 +2,7 @@ pub mod admin;
 pub mod api_keys;
 pub mod configs;
 pub mod customers;
+pub mod disputes;
 pub mod enums;
 pub mod mandates;
 pub mod payment_methods;

@@ -37,8 +37,6 @@ pub fn router_data_type_conversion<F1, F2, Req1, Req2, Res1, Res2>(
         connector_auth_type: router_data.connector_auth_type,
         connector_meta_data: router_data.connector_meta_data,
         description: router_data.description,
-        router_return_url: router_data.router_return_url,
-        complete_authorize_url: router_data.complete_authorize_url,
         payment_id: router_data.payment_id,
         payment_method: router_data.payment_method,
         payment_method_id: router_data.payment_method_id,
@@ -55,7 +53,7 @@ pub fn update_router_data_with_access_token_result<F, Req, Res>(
     add_access_token_result: &types::AddAccessTokenResult,
     router_data: &mut types::RouterData<F, Req, Res>,
     call_connector_action: &payments::CallConnectorAction,
-) {
+) -> bool {
     // Update router data with access token or error only if it will be calling connector
     let should_update_router_data = matches!(
         (
@@ -67,9 +65,17 @@ pub fn update_router_data_with_access_token_result<F, Req, Res>(
 
     if should_update_router_data {
         match add_access_token_result.access_token_result.as_ref() {
-            Ok(access_token) => router_data.access_token = access_token.clone(),
-            Err(connector_error) => router_data.response = Err(connector_error.clone()),
+            Ok(access_token) => {
+                router_data.access_token = access_token.clone();
+                true
+            }
+            Err(connector_error) => {
+                router_data.response = Err(connector_error.clone());
+                false
+            }
         }
+    } else {
+        true
     }
 }
 

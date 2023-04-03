@@ -293,6 +293,8 @@ pub enum ConnectorError {
     InvalidDataFormat { field_name: &'static str },
     #[error("Payment Method data / Payment Method Type / Payment Experience Mismatch ")]
     MismatchedPaymentData,
+    #[error("Failed to parse Wallet token")]
+    InvalidWalletToken,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -428,6 +430,8 @@ pub enum WebhooksFlowError {
     PaymentsCoreFailed,
     #[error("Refunds core flow failed")]
     RefundsCoreFailed,
+    #[error("Dispuste core flow failed")]
+    DisputeCoreFailed,
     #[error("Webhook event creation failed")]
     WebhookEventCreationFailed,
     #[error("Unable to fork webhooks flow for outgoing webhooks")]
@@ -438,4 +442,12 @@ pub enum WebhooksFlowError {
     NotReceivedByMerchant,
     #[error("Resource not found")]
     ResourceNotFound,
+    #[error("Webhook source verification failed")]
+    WebhookSourceVerificationFailed,
+    #[error("Webhook event object creation failed")]
+    WebhookEventObjectCreationFailed,
+    #[error("Not implemented")]
+    NotImplemented,
+    #[error("Dispute webhook status validation failed")]
+    DisputeWebhookValidationFailed,
 }

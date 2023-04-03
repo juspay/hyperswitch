@@ -347,25 +347,36 @@ pub fn create_startpay_url(
 }
 
 pub fn create_redirect_url(
-    server: &Server,
+    router_base_url: &String,
     payment_attempt: &storage::PaymentAttempt,
-    connector_name: &str,
+    connector_name: &String,
     creds_identifier: Option<&str>,
 ) -> String {
     let creds_identifier_path = creds_identifier.map_or_else(String::new, |cd| format!("/{}", cd));
     format!(
         "{}/payments/{}/{}/response/{}",
-        server.base_url, payment_attempt.payment_id, payment_attempt.merchant_id, connector_name,
+        router_base_url, payment_attempt.payment_id, payment_attempt.merchant_id, connector_name,
     ) + &creds_identifier_path
 }
+
+pub fn create_webhook_url(
+    router_base_url: &String,
+    payment_attempt: &storage::PaymentAttempt,
+    connector_name: &String,
+) -> String {
+    format!(
+        "{}/webhooks/{}/{}",
+        router_base_url, payment_attempt.merchant_id, connector_name
+    )
+}
 pub fn create_complete_authorize_url(
-    server: &Server,
+    router_base_url: &String,
     payment_attempt: &storage::PaymentAttempt,
     connector_name: &String,
 ) -> String {
     format!(
         "{}/payments/{}/{}/complete/{}",
-        server.base_url, payment_attempt.payment_id, payment_attempt.merchant_id, connector_name
+        router_base_url, payment_attempt.payment_id, payment_attempt.merchant_id, connector_name
     )
 }
 
@@ -1292,7 +1303,6 @@ pub fn get_connector_label_and_business_details(
                     .unwrap_or(primary_business_details.country),
                 business_label
                     .map(ToString::to_string)
-                    .to_owned()
                     .unwrap_or(primary_business_details.business),
             )
         }

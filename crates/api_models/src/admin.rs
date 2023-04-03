@@ -411,8 +411,8 @@ pub enum AcceptedCurrencies {
     rename_all = "snake_case"
 )]
 pub enum AcceptedCountries {
-    EnableOnly(Vec<String>),
-    DisableOnly(Vec<String>),
+    EnableOnly(Vec<api_enums::CountryCode>),
+    DisableOnly(Vec<api_enums::CountryCode>),
     AllAccepted,
 }
 

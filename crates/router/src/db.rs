@@ -5,6 +5,7 @@ pub mod cards_info;
 pub mod configs;
 pub mod connector_response;
 pub mod customers;
+pub mod dispute;
 pub mod ephemeral_key;
 pub mod events;
 pub mod locker_mock_up;
@@ -42,6 +43,7 @@ pub trait StorageInterface:
     + configs::ConfigInterface
     + connector_response::ConnectorResponseInterface
     + customers::CustomerInterface
+    + dispute::DisputeInterface
     + ephemeral_key::EphemeralKeyInterface
     + events::EventInterface
     + locker_mock_up::LockerMockUpInterface
