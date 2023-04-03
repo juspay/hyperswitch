@@ -8,7 +8,9 @@ use reqwest::Url;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils::{self, AddressDetailsData, CardData, RouterData},
+    connector::utils::{
+        self, AddressDetailsData, CardData, PaymentsAuthorizeRequestData, RouterData,
+    },
     consts,
     core::errors,
     pii::{self},
@@ -120,7 +122,7 @@ pub struct PaymentRequestCards {
     #[serde(rename = "billing[city]")]
     pub billing_city: String,
     #[serde(rename = "billing[country]")]
-    pub billing_country: String,
+    pub billing_country: api_models::enums::CountryCode,
     #[serde(rename = "billing[street1]")]
     pub billing_street1: Secret<String>,
     #[serde(rename = "billing[postcode]")]
@@ -174,7 +176,7 @@ pub enum TrustpayPaymentsRequest {
 #[derive(Debug, Serialize, Eq, PartialEq)]
 pub struct TrustpayMandatoryParams {
     pub billing_city: String,
-    pub billing_country: String,
+    pub billing_country: api_models::enums::CountryCode,
     pub billing_street1: Secret<String>,
     pub billing_postcode: Secret<String>,
 }
@@ -308,14 +310,14 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for TrustpayPaymentsRequest {
                 params,
                 amount,
                 ccard,
-                item.get_return_url()?,
+                item.request.get_return_url()?,
             )),
             api::PaymentMethodData::BankRedirect(ref bank_redirection_data) => {
                 Ok(get_bank_redirection_request_data(
                     item,
                     bank_redirection_data,
                     amount,
-                    item.get_return_url()?,
+                    item.request.get_return_url()?,
                     auth,
                 ))
             }

@@ -262,6 +262,7 @@ impl ForeignFrom<api_enums::Currency> for storage_enums::Currency {
         frunk::labelled_convert_from(currency)
     }
 }
+
 impl ForeignFrom<storage_enums::Currency> for api_enums::Currency {
     fn foreign_from(currency: storage_enums::Currency) -> Self {
         frunk::labelled_convert_from(currency)
@@ -273,7 +274,7 @@ impl<'a> ForeignFrom<&'a api_types::Address> for storage::AddressUpdate {
         let address = address;
         Self::Update {
             city: address.address.as_ref().and_then(|a| a.city.clone()),
-            country: address.address.as_ref().and_then(|a| a.country.clone()),
+            country: address.address.as_ref().and_then(|a| a.country),
             line1: address.address.as_ref().and_then(|a| a.line1.clone()),
             line2: address.address.as_ref().and_then(|a| a.line2.clone()),
             line3: address.address.as_ref().and_then(|a| a.line3.clone()),
@@ -312,7 +313,7 @@ impl<'a> ForeignFrom<&'a storage::Address> for api_types::Address {
         Self {
             address: Some(api_types::AddressDetails {
                 city: address.city.clone(),
-                country: address.country.clone(),
+                country: address.country,
                 line1: address.line1.clone(),
                 line2: address.line2.clone(),
                 line3: address.line3.clone(),

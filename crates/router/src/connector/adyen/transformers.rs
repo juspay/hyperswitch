@@ -4,7 +4,7 @@ use reqwest::Url;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils::RouterData,
+    connector::utils::PaymentsAuthorizeRequestData,
     consts,
     core::errors,
     pii::{self, Email, Secret},
@@ -59,7 +59,7 @@ pub struct ShopperName {
 #[serde(rename_all = "camelCase")]
 pub struct Address {
     city: Option<String>,
-    country: Option<String>,
+    country: Option<api_enums::CountryCode>,
     house_number_or_name: Option<Secret<String>>,
     postal_code: Option<Secret<String>>,
     state_or_province: Option<Secret<String>>,
@@ -96,7 +96,7 @@ pub struct AdyenPaymentRequest<'a> {
     telephone_number: Option<Secret<String>>,
     billing_address: Option<Address>,
     delivery_address: Option<Address>,
-    country_code: Option<String>,
+    country_code: Option<api_enums::CountryCode>,
     line_items: Option<Vec<LineItem>>,
 }
 
@@ -496,7 +496,7 @@ fn get_address_info(address: Option<&api_models::payments::Address>) -> Option<A
     address.and_then(|add| {
         add.address.as_ref().map(|a| Address {
             city: a.city.clone(),
-            country: a.country.clone(),
+            country: a.country,
             house_number_or_name: a.line1.clone(),
             postal_code: a.zip.clone(),
             state_or_province: a.state.clone(),
@@ -548,13 +548,11 @@ fn get_shopper_name(item: &types::PaymentsAuthorizeRouterData) -> Option<Shopper
     })
 }
 
-fn get_country_code(item: &types::PaymentsAuthorizeRouterData) -> Option<String> {
-    let address = item
-        .address
+fn get_country_code(item: &types::PaymentsAuthorizeRouterData) -> Option<api_enums::CountryCode> {
+    item.address
         .billing
         .as_ref()
-        .and_then(|billing| billing.address.as_ref());
-    address.and_then(|address| address.country.clone())
+        .and_then(|billing| billing.address.as_ref().and_then(|address| address.country))
 }
 
 fn get_payment_method_data<'a>(
@@ -659,7 +657,7 @@ fn get_card_specific_payment_data<'a>(
     let recurring_processing_model = get_recurring_processing_model(item);
     let browser_info = get_browser_info(item);
     let additional_data = get_additional_data(item);
-    let return_url = item.get_return_url()?;
+    let return_url = item.request.get_return_url()?;
     let payment_method = get_payment_method_data(item)?;
     Ok(AdyenPaymentRequest {
         amount,
@@ -684,7 +682,7 @@ fn get_card_specific_payment_data<'a>(
 
 fn get_sofort_extra_details(
     item: &types::PaymentsAuthorizeRouterData,
-) -> (Option<String>, Option<String>) {
+) -> (Option<String>, Option<api_enums::CountryCode>) {
     match item.request.payment_method_data {
         api_models::payments::PaymentMethodData::BankRedirect(ref b) => {
             if let api_models::payments::BankRedirectData::Sofort {
@@ -694,7 +692,7 @@ fn get_sofort_extra_details(
             {
                 (
                     Some(preferred_language.to_string()),
-                    Some(country.to_string()),
+                    Some(country.to_owned()),
                 )
             } else {
                 (None, None)
@@ -712,7 +710,7 @@ fn get_bank_redirect_specific_payment_data<'a>(
     let recurring_processing_model = get_recurring_processing_model(item);
     let browser_info = get_browser_info(item);
     let additional_data = get_additional_data(item);
-    let return_url = item.get_return_url()?;
+    let return_url = item.request.get_return_url()?;
     let payment_method = get_payment_method_data(item)?;
     let (shopper_locale, country) = get_sofort_extra_details(item);
 
@@ -747,7 +745,7 @@ fn get_wallet_specific_payment_data<'a>(
     let payment_method = get_payment_method_data(item)?;
     let shopper_interaction = AdyenShopperInteraction::from(item);
     let recurring_processing_model = get_recurring_processing_model(item);
-    let return_url = item.get_return_url()?;
+    let return_url = item.request.get_return_url()?;
     Ok(AdyenPaymentRequest {
         amount,
         merchant_account: auth_type.merchant_account,
@@ -779,7 +777,7 @@ fn get_paylater_specific_payment_data<'a>(
     let payment_method = get_payment_method_data(item)?;
     let shopper_interaction = AdyenShopperInteraction::from(item);
     let recurring_processing_model = get_recurring_processing_model(item);
-    let return_url = item.get_return_url()?;
+    let return_url = item.request.get_return_url()?;
     let shopper_name = get_shopper_name(item);
     let shopper_email = item.request.email.clone();
     let billing_address = get_address_info(item.address.billing.as_ref());

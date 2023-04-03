@@ -84,7 +84,6 @@ default_imp_for_complete_authorize!(
     connector::Cybersource,
     connector::Dlocal,
     connector::Fiserv,
-    connector::Globalpay,
     connector::Intuit,
     connector::Klarna,
     connector::Multisafepay,
