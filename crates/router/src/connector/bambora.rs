@@ -685,7 +685,6 @@ impl
                 &bambora_req,
             )
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        println!(">>{:?}", bambora_req);
         Ok(Some(bambora_req))
     }
 
