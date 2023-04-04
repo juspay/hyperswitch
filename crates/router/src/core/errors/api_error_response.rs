@@ -452,7 +452,7 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
                 AER::BadRequest(ApiError::new("IR", 20, format!("{flow} flow not supported"), Some(Extra {connector: Some(connector.to_owned()), ..Default::default()}))) //FIXME: error message
             },
             Self::UpdateNotAllowed { fields } => {
-                AER::BadRequest(ApiError::new("IR", 21, format!("The following fields cannot be updated"), Some(Extra {reason: Some(fields.to_string()), ..Default::default()})))
+                AER::BadRequest(ApiError::new("IR", 21, "The following fields cannot be updated".to_string(), Some(Extra {reason: Some(fields.to_string()), ..Default::default()})))
             }
         }
     }

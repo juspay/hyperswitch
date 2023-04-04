@@ -442,7 +442,7 @@ pub async fn update_payment_connector(
         },
     )?;
 
-    let merchant_account = db
+    let _merchant_account = db
         .find_merchant_account_by_merchant_id(merchant_id)
         .await
         .map_err(|error| {
