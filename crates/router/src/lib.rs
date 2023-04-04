@@ -162,13 +162,10 @@ pub fn get_application_builder(
     let json_cfg = actix_web::web::JsonConfig::default()
         .limit(request_body_limit)
         .content_type_required(true)
-        .content_type(|mime| mime == mime::APPLICATION_JSON) // FIXME: This doesn't seem to be enforced.
         .error_handler(utils::error_parser::custom_json_error_handler);
 
     actix_web::App::new()
         .app_data(json_cfg)
-        .wrap(middleware::RequestId)
-        .wrap(router_env::tracing_actix_web::TracingLogger::default())
         .wrap(ErrorHandlers::new().handler(
             StatusCode::NOT_FOUND,
             errors::error_handlers::custom_error_handlers,
@@ -177,5 +174,8 @@ pub fn get_application_builder(
             StatusCode::METHOD_NOT_ALLOWED,
             errors::error_handlers::custom_error_handlers,
         ))
+        .wrap(middleware::default_response_headers())
         .wrap(cors::cors())
+        .wrap(middleware::RequestId)
+        .wrap(router_env::tracing_actix_web::TracingLogger::default())
 }
