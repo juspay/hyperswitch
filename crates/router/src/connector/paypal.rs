@@ -66,18 +66,13 @@ impl Paypal {
                 for item in mes.iter() {
                     let mut description = format!("description - {}", item.to_owned().description);
 
-                    if item.value.is_some() {
-                        description.push_str(
-                            format!(", value - {}", item.value.to_owned().unwrap_or_default())
-                                .as_str(),
-                        );
+                    if let Some(data) = &item.value {
+                        description.push_str(format!(", value - {}", data.to_owned()).as_str());
                     }
 
-                    if item.field.is_some() {
-                        let field = item
-                            .field
+                    if let Some(data) = &item.field {
+                        let field = data
                             .clone()
-                            .unwrap_or_default()
                             .split('/')
                             .last()
                             .unwrap_or_default()
@@ -349,7 +344,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         data: &types::PaymentsAuthorizeRouterData,
         res: Response,
     ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
-        let response: paypal::PaypalPaymentsResponse = res
+        let response: paypal::PaypalOrdersResponse = res
             .response
             .parse_struct("Paypal PaymentsAuthorizeResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;

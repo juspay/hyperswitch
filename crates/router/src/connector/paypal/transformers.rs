@@ -197,7 +197,7 @@ impl ForeignFrom<(PaypalOrderStatus, PaypalPaymentIntent)> for storage_enums::At
                     Self::Charged
                 }
             }
-            PaypalOrderStatus::Voided => Self::Failure,
+            PaypalOrderStatus::Voided => Self::Voided,
             PaypalOrderStatus::Created | PaypalOrderStatus::Saved | PaypalOrderStatus::Approved => {
                 Self::Pending
             }
@@ -228,7 +228,7 @@ pub struct PurchaseUnitItem {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct PaypalPaymentsResponse {
+pub struct PaypalOrdersResponse {
     id: String,
     intent: PaypalPaymentIntent,
     status: PaypalOrderStatus,
@@ -279,12 +279,12 @@ fn get_id_based_on_intent(
 }
 
 impl<F, T>
-    TryFrom<types::ResponseRouterData<F, PaypalPaymentsResponse, T, types::PaymentsResponseData>>
+    TryFrom<types::ResponseRouterData<F, PaypalOrdersResponse, T, types::PaymentsResponseData>>
     for types::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::ResponseRouterData<F, PaypalPaymentsResponse, T, types::PaymentsResponseData>,
+        item: types::ResponseRouterData<F, PaypalOrdersResponse, T, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         let purchase_units = item
             .response
@@ -379,10 +379,15 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for PaypalPaymentsCaptureRequest
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum PaypalPaymentStatus {
     Created,
+    Captured,
     Completed,
     Declined,
     Failed,
     Pending,
+    Denied,
+    Expired,
+    PartiallyCaptured,
+    Refunded,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -397,10 +402,14 @@ impl From<PaypalPaymentStatus> for storage_enums::AttemptStatus {
     fn from(item: PaypalPaymentStatus) -> Self {
         match item {
             PaypalPaymentStatus::Created => Self::Authorized,
-            PaypalPaymentStatus::Completed => Self::Charged,
+            PaypalPaymentStatus::Completed
+            | PaypalPaymentStatus::Captured
+            | PaypalPaymentStatus::Refunded => Self::Charged,
             PaypalPaymentStatus::Declined => Self::Failure,
             PaypalPaymentStatus::Failed => Self::CaptureFailed,
             PaypalPaymentStatus::Pending => Self::Pending,
+            PaypalPaymentStatus::Denied | PaypalPaymentStatus::Expired => Self::Failure,
+            PaypalPaymentStatus::PartiallyCaptured => Self::PartialCharged,
         }
     }
 }
