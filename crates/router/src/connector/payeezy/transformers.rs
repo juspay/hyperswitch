@@ -270,7 +270,7 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for PayeezyCaptureOrVoidRequest 
     fn try_from(item: &types::PaymentsCaptureRouterData) -> Result<Self, Self::Error> {
         let metadata: PayeezyPaymentsMetadata =
             utils::to_connector_meta(item.request.connector_meta.clone())
-                .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Self {
             transaction_type: PayeezyTransactionType::Capture,
             amount: item.request.amount.to_string(),
@@ -285,7 +285,7 @@ impl TryFrom<&types::PaymentsCancelRouterData> for PayeezyCaptureOrVoidRequest {
     fn try_from(item: &types::PaymentsCancelRouterData) -> Result<Self, Self::Error> {
         let metadata: PayeezyPaymentsMetadata =
             utils::to_connector_meta(item.request.connector_meta.clone())
-                .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Self {
             transaction_type: PayeezyTransactionType::Void,
             amount: item
@@ -333,9 +333,7 @@ impl<F, T>
                 )
             })
             .transpose()
-            .change_context(errors::ConnectorError::MissingRequiredField {
-                field_name: "connector_meta",
-            })?;
+            .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
 
         let mandate_reference = item
             .response
@@ -366,17 +364,17 @@ impl ForeignFrom<(PayeezyPaymentStatus, PayeezyTransactionType)> for enums::Atte
         match status {
             PayeezyPaymentStatus::Approved => match method {
                 PayeezyTransactionType::Authorize => Self::Authorized,
-                PayeezyTransactionType::Capture => Self::Charged,
-                PayeezyTransactionType::Purchase => Self::Charged,
-                PayeezyTransactionType::Recurring => Self::Charged,
+                PayeezyTransactionType::Capture
+                | PayeezyTransactionType::Purchase
+                | PayeezyTransactionType::Recurring => Self::Charged,
                 PayeezyTransactionType::Void => Self::Voided,
                 _ => Self::Pending,
             },
             PayeezyPaymentStatus::Declined | PayeezyPaymentStatus::NotProcessed => match method {
-                PayeezyTransactionType::Authorize => Self::AuthorizationFailed,
                 PayeezyTransactionType::Capture => Self::CaptureFailed,
-                PayeezyTransactionType::Purchase => Self::AuthorizationFailed,
-                PayeezyTransactionType::Recurring => Self::AuthorizationFailed,
+                PayeezyTransactionType::Authorize
+                | PayeezyTransactionType::Purchase
+                | PayeezyTransactionType::Recurring => Self::AuthorizationFailed,
                 PayeezyTransactionType::Void => Self::VoidFailed,
                 _ => Self::Pending,
             },
@@ -399,7 +397,7 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for PayeezyRefundRequest {
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
         let metadata: PayeezyPaymentsMetadata =
             utils::to_connector_meta(item.request.connector_metadata.clone())
-                .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Self {
             transaction_type: PayeezyTransactionType::Refund,
             amount: item.request.refund_amount.to_string(),

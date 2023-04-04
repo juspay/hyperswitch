@@ -136,9 +136,8 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
     ) -> CustomResult<String, errors::ConnectorError> {
         let connector_payment_id = req.request.connector_transaction_id.clone();
         Ok(format!(
-            "{}{}/{}",
+            "{}v1/transactions/{}",
             self.base_url(connectors),
-            "v1/transactions",
             connector_payment_id
         ))
     }
@@ -207,46 +206,11 @@ impl api::PaymentSync for Payeezy {}
 impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>
     for Payeezy
 {
-    fn get_headers(
-        &self,
-        _req: &types::PaymentsSyncRouterData,
-        _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        Err(errors::ConnectorError::FlowNotSupported {
-            flow: "Psync".to_owned(),
-            connector: "payeezy".to_owned(),
-        }
-        .into())
-    }
-
     fn build_request(
         &self,
         _req: &types::PaymentsSyncRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        Err(errors::ConnectorError::FlowNotSupported {
-            flow: "Psync".to_owned(),
-            connector: "payeezy".to_owned(),
-        }
-        .into())
-    }
-
-    fn get_error_response(
-        &self,
-        _res: Response,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        Err(errors::ConnectorError::FlowNotSupported {
-            flow: "Psync".to_owned(),
-            connector: "payeezy".to_owned(),
-        }
-        .into())
-    }
-
-    fn handle_response(
-        &self,
-        _data: &types::PaymentsSyncRouterData,
-        _res: Response,
-    ) -> CustomResult<types::PaymentsSyncRouterData, errors::ConnectorError> {
         Err(errors::ConnectorError::FlowNotSupported {
             flow: "Psync".to_owned(),
             connector: "payeezy".to_owned(),
@@ -278,9 +242,8 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
     ) -> CustomResult<String, errors::ConnectorError> {
         let connector_payment_id = req.request.connector_transaction_id.clone();
         Ok(format!(
-            "{}{}/{}",
+            "{}v1/transactions/{}",
             self.base_url(connectors),
-            "v1/transactions",
             connector_payment_id
         ))
     }
@@ -370,11 +333,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         _req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!(
-            "{}{}",
-            self.base_url(connectors),
-            "v1/transactions"
-        ))
+        Ok(format!("{}v1/transactions", self.base_url(connectors)))
     }
 
     fn get_request_body(
@@ -460,9 +419,8 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
     ) -> CustomResult<String, errors::ConnectorError> {
         let connector_payment_id = req.request.connector_transaction_id.clone();
         Ok(format!(
-            "{}{}/{}",
+            "{}v1/transactions/{}",
             self.base_url(connectors),
-            "v1/transactions",
             connector_payment_id
         ))
     }
@@ -518,34 +476,11 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
 }
 
 impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponseData> for Payeezy {
-    fn get_headers(
-        &self,
-        _req: &types::RefundSyncRouterData,
-        _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        Err(errors::ConnectorError::FlowNotSupported {
-            flow: "Rsync".to_owned(),
-            connector: "payeezy".to_owned(),
-        }
-        .into())
-    }
-
     fn build_request(
         &self,
         _req: &types::RefundSyncRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        Err(errors::ConnectorError::FlowNotSupported {
-            flow: "Rsync".to_owned(),
-            connector: "payeezy".to_owned(),
-        }
-        .into())
-    }
-
-    fn get_error_response(
-        &self,
-        _res: Response,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         Err(errors::ConnectorError::FlowNotSupported {
             flow: "Rsync".to_owned(),
             connector: "payeezy".to_owned(),
