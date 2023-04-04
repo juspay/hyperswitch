@@ -308,8 +308,8 @@ impl<'a> ForeignFrom<&'a api_types::ConfigUpdate> for storage::ConfigUpdate {
     }
 }
 
-impl<'a> ForeignFrom<&'a domain::address::Address> for api_types::Address {
-    fn foreign_from(address: &domain::address::Address) -> Self {
+impl<'a> From<&'a domain::address::Address> for api_types::Address {
+    fn from(address: &domain::address::Address) -> Self {
         let address = address;
         Self {
             address: Some(api_types::AddressDetails {
