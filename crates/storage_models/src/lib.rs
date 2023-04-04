@@ -5,6 +5,7 @@ pub mod configs;
 pub mod connector_response;
 pub mod customers;
 pub mod dispute;
+pub mod encryption;
 pub mod enums;
 pub mod ephemeral_key;
 pub mod errors;
