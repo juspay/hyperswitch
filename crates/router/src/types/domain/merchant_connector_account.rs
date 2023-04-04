@@ -1,9 +1,5 @@
 use common_utils::pii;
-use masking::Secret;
 use storage_models::enums;
-use time::PrimitiveDateTime;
-
-use super::behaviour;
 
 #[derive(Clone, Debug)]
 pub struct MerchantConnectorAccount {
