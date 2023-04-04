@@ -160,6 +160,7 @@ impl
             .url(&types::PaymentsAuthorizeType::get_url(
                 self, req, connectors,
             )?)
+            .attach_default_headers()
             .headers(types::PaymentsAuthorizeType::get_headers(
                 self, req, connectors,
             )?)
@@ -274,6 +275,7 @@ impl
         let request = services::RequestBuilder::new()
             .method(services::Method::Delete)
             .url(&types::PaymentsVoidType::get_url(self, req, connectors)?)
+            .attach_default_headers()
             .headers(types::PaymentsVoidType::get_headers(self, req, connectors)?)
             .headers(headers)
             .build();
@@ -367,6 +369,7 @@ impl
         let request = services::RequestBuilder::new()
             .method(services::Method::Get)
             .url(&types::PaymentsSyncType::get_url(self, req, connectors)?)
+            .attach_default_headers()
             .headers(types::PaymentsSyncType::get_headers(self, req, connectors)?)
             .headers(headers)
             .build();
@@ -458,6 +461,7 @@ impl
         let request = services::RequestBuilder::new()
             .method(services::Method::Post)
             .url(&types::PaymentsCaptureType::get_url(self, req, connectors)?)
+            .attach_default_headers()
             .headers(types::PaymentsCaptureType::get_headers(
                 self, req, connectors,
             )?)
@@ -579,6 +583,7 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
         let request = services::RequestBuilder::new()
             .method(services::Method::Post)
             .url(&types::RefundExecuteType::get_url(self, req, connectors)?)
+            .attach_default_headers()
             .headers(headers)
             .body(Some(rapyd_req))
             .build();
