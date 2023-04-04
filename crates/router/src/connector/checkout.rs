@@ -106,13 +106,10 @@ impl
         req: &types::PaymentsCaptureRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        let mut header = vec![
-            (
-                headers::CONTENT_TYPE.to_string(),
-                self.common_get_content_type().to_string(),
-            ),
-            (headers::X_ROUTER.to_string(), "test".to_string()),
-        ];
+        let mut header = vec![(
+            headers::CONTENT_TYPE.to_string(),
+            self.common_get_content_type().to_string(),
+        )];
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         header.append(&mut api_key);
         Ok(header)
@@ -151,6 +148,7 @@ impl
             services::RequestBuilder::new()
                 .method(services::Method::Post)
                 .url(&types::PaymentsCaptureType::get_url(self, req, connectors)?)
+                .attach_default_headers()
                 .headers(types::PaymentsCaptureType::get_headers(
                     self, req, connectors,
                 )?)
@@ -208,13 +206,10 @@ impl
         req: &types::PaymentsSyncRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        let mut header = vec![
-            (
-                headers::CONTENT_TYPE.to_string(),
-                types::PaymentsAuthorizeType::get_content_type(self).to_string(),
-            ),
-            (headers::X_ROUTER.to_string(), "test".to_string()),
-        ];
+        let mut header = vec![(
+            headers::CONTENT_TYPE.to_string(),
+            types::PaymentsAuthorizeType::get_content_type(self).to_string(),
+        )];
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         header.append(&mut api_key);
         Ok(header)
@@ -245,8 +240,8 @@ impl
             services::RequestBuilder::new()
                 .method(services::Method::Get)
                 .url(&types::PaymentsSyncType::get_url(self, req, connectors)?)
+                .attach_default_headers()
                 .headers(types::PaymentsSyncType::get_headers(self, req, connectors)?)
-                .header(headers::X_ROUTER, "test")
                 .body(types::PaymentsSyncType::get_request_body(self, req)?)
                 .build(),
         ))
@@ -308,13 +303,10 @@ impl
         req: &types::PaymentsAuthorizeRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        let mut header = vec![
-            (
-                headers::CONTENT_TYPE.to_string(),
-                types::PaymentsAuthorizeType::get_content_type(self).to_string(),
-            ),
-            (headers::X_ROUTER.to_string(), "test".to_string()),
-        ];
+        let mut header = vec![(
+            headers::CONTENT_TYPE.to_string(),
+            types::PaymentsAuthorizeType::get_content_type(self).to_string(),
+        )];
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         header.append(&mut api_key);
         Ok(header)
@@ -353,10 +345,10 @@ impl
                 .url(&types::PaymentsAuthorizeType::get_url(
                     self, req, connectors,
                 )?)
+                .attach_default_headers()
                 .headers(types::PaymentsAuthorizeType::get_headers(
                     self, req, connectors,
                 )?)
-                .header(headers::X_ROUTER, "test")
                 .body(types::PaymentsAuthorizeType::get_request_body(self, req)?)
                 .build(),
         ))
@@ -425,13 +417,10 @@ impl
         req: &types::PaymentsCancelRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        let mut header = vec![
-            (
-                headers::CONTENT_TYPE.to_string(),
-                types::PaymentsVoidType::get_content_type(self).to_string(),
-            ),
-            (headers::X_ROUTER.to_string(), "test".to_string()),
-        ];
+        let mut header = vec![(
+            headers::CONTENT_TYPE.to_string(),
+            types::PaymentsVoidType::get_content_type(self).to_string(),
+        )];
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         header.append(&mut api_key);
         Ok(header)
@@ -468,6 +457,7 @@ impl
             services::RequestBuilder::new()
                 .method(services::Method::Post)
                 .url(&types::PaymentsVoidType::get_url(self, req, connectors)?)
+                .attach_default_headers()
                 .headers(types::PaymentsVoidType::get_headers(self, req, connectors)?)
                 .body(types::PaymentsVoidType::get_request_body(self, req)?)
                 .build(),
@@ -526,13 +516,10 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
         req: &types::RefundsRouterData<api::Execute>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        let mut header = vec![
-            (
-                headers::CONTENT_TYPE.to_string(),
-                types::RefundExecuteType::get_content_type(self).to_string(),
-            ),
-            (headers::X_ROUTER.to_string(), "test".to_string()),
-        ];
+        let mut header = vec![(
+            headers::CONTENT_TYPE.to_string(),
+            types::RefundExecuteType::get_content_type(self).to_string(),
+        )];
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         header.append(&mut api_key);
         Ok(header)
@@ -574,6 +561,7 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
         let request = services::RequestBuilder::new()
             .method(services::Method::Post)
             .url(&types::RefundExecuteType::get_url(self, req, connectors)?)
+            .attach_default_headers()
             .headers(types::RefundExecuteType::get_headers(
                 self, req, connectors,
             )?)
@@ -634,13 +622,10 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
         req: &types::RefundsRouterData<api::RSync>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        let mut header = vec![
-            (
-                headers::CONTENT_TYPE.to_string(),
-                types::RefundSyncType::get_content_type(self).to_string(),
-            ),
-            (headers::X_ROUTER.to_string(), "test".to_string()),
-        ];
+        let mut header = vec![(
+            headers::CONTENT_TYPE.to_string(),
+            types::RefundSyncType::get_content_type(self).to_string(),
+        )];
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         header.append(&mut api_key);
         Ok(header)
@@ -668,6 +653,7 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
             services::RequestBuilder::new()
                 .method(services::Method::Get)
                 .url(&types::RefundSyncType::get_url(self, req, connectors)?)
+                .attach_default_headers()
                 .headers(types::RefundSyncType::get_headers(self, req, connectors)?)
                 .body(types::RefundSyncType::get_request_body(self, req)?)
                 .build(),

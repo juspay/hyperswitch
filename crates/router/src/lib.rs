@@ -52,7 +52,6 @@ pub mod headers {
     pub const X_API_KEY: &str = "X-API-KEY";
     pub const X_API_VERSION: &str = "X-ApiVersion";
     pub const X_MERCHANT_ID: &str = "X-Merchant-Id";
-    pub const X_ROUTER: &str = "X-router";
     pub const X_LOGIN: &str = "X-Login";
     pub const X_TRANS_KEY: &str = "X-Trans-Key";
     pub const X_VERSION: &str = "X-Version";
