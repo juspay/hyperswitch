@@ -61,15 +61,6 @@ impl Feature<api::Verify, types::VerifyRequestData> for types::VerifyRouterData 
     ) -> RouterResult<types::AddAccessTokenResult> {
         access_token::add_access_token(state, connector, merchant_account, self).await
     }
-
-    async fn add_payment_method_token<'a>(
-        &self,
-        _state: &AppState,
-        _connector: &api::ConnectorData,
-        _tokenization_action: &payments::TokenizationAction,
-    ) -> RouterResult<Option<String>> {
-        Ok(None)
-    }
 }
 
 impl types::VerifyRouterData {

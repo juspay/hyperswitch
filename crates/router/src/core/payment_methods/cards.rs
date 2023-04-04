@@ -102,7 +102,6 @@ pub async fn add_payment_method(
             Ok((payment_method_response, false))
         }
     };
-    // pm_responsec = (PaymentMethodResponse,is_duplicate)
     Ok(response?.0).map(services::ApplicationResponse::Json)
 }
 

@@ -45,7 +45,7 @@ pub async fn payments_operation_core<F, Req, Op, FData>(
     call_connector_action: CallConnectorAction,
 ) -> RouterResult<(PaymentData<F>, Req, Option<storage::Customer>)>
 where
-    F: Send + Clone,
+    F: Send + Clone + Sync,
     Op: Operation<F, Req> + Send + Sync,
 
     // To create connector flow specific interface data
@@ -58,7 +58,7 @@ where
 
     // To perform router related operation for PaymentResponse
     PaymentResponse: Operation<F, FData>,
-    FData: Send,
+    FData: Send + Sync,
 {
     let operation: BoxedOperation<'_, F, Req> = Box::new(operation);
 
@@ -186,8 +186,8 @@ pub async fn payments_core<F, Res, Req, Op, FData>(
     call_connector_action: CallConnectorAction,
 ) -> RouterResponse<Res>
 where
-    F: Send + Clone,
-    FData: Send,
+    F: Send + Clone + Sync,
+    FData: Send + Sync,
     Op: Operation<F, Req> + Send + Sync + Clone,
     Req: Debug,
     Res: transformers::ToResponse<Req, PaymentData<F>, Op>,
@@ -390,7 +390,8 @@ pub async fn call_connector_service<F, Op, Req>(
 ) -> RouterResult<types::RouterData<F, Req, types::PaymentsResponseData>>
 where
     Op: Debug + Sync,
-    F: Send + Clone,
+    F: Send + Clone + Sync,
+    Req: Send + Sync,
 
     // To create connector flow specific interface data
     PaymentData<F>: ConstructFlowSpecificData<F, Req, types::PaymentsResponseData>,

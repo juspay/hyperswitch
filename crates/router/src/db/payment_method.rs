@@ -65,7 +65,7 @@ impl PaymentMethodInterface for Store {
         payment_method: storage::PaymentMethodUpdate,
     ) -> CustomResult<storage::PaymentMethod, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
-        m.update(&conn, payment_method)
+        m.update_with_payment_method_id(&conn, payment_method)
             .await
             .map_err(Into::into)
             .into_report()

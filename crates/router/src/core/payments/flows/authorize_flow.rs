@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use common_utils::pii;
+use common_utils::{ext_traits::ValueExt, pii};
 use error_stack::ResultExt;
 use masking::ExposeInterface;
 
@@ -204,7 +204,8 @@ where
                 .find_payment_method(&locker_response.0.payment_method_id)
                 .await
                 .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)?;
-            let pm_metadata = create_payment_method_metadata(pm.metadata.as_ref(), connector_token);
+            let pm_metadata =
+                create_payment_method_metadata(pm.metadata.as_ref(), connector_token)?;
             if let Some(metadata) = pm_metadata {
                 payment_methods::cards::update_payment_method(db, pm, metadata)
                     .await
@@ -212,7 +213,7 @@ where
                     .attach_printable("Failed to add payment method in db")?;
             };
         } else {
-            let pm_metadata = create_new_payment_method_metadata(connector_token);
+            let pm_metadata = create_payment_method_metadata(None, connector_token)?;
             payment_methods::cards::create_payment_method(
                 db,
                 &payment_method_create_request,
@@ -277,31 +278,24 @@ pub async fn save_in_locker(
 pub fn create_payment_method_metadata(
     metadata: Option<&pii::SecretSerdeValue>,
     connector_token: Option<(&api::ConnectorData, String)>,
-) -> Option<serde_json::Value> {
-    connector_token.and_then(|connector_and_token| {
-        metadata.and_then(|data| {
-            let mut value_exposed = data.clone().expose();
-            value_exposed.as_object_mut().and_then(|val| {
-                val.insert(
-                    connector_and_token.0.connector_name.to_string(),
-                    serde_json::Value::String(connector_and_token.1),
-                )
-            })
-        })
-    })
-}
-
-pub fn create_new_payment_method_metadata(
-    connector_token: Option<(&api::ConnectorData, String)>,
-) -> Option<serde_json::Value> {
-    connector_token.map(|connector_and_token| {
-        let mut metadata_map = serde_json::Map::new();
-        metadata_map.insert(
+) -> RouterResult<Option<serde_json::Value>> {
+    let mut meta = match metadata {
+        None => serde_json::Map::new(),
+        Some(meta) => {
+            let metadata = meta.clone().expose();
+            let existing_metadata: serde_json::Map<String, serde_json::Value> = metadata
+                .parse_value("Map<String, Value>")
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to parse the metadata")?;
+            existing_metadata
+        }
+    };
+    Ok(connector_token.and_then(|connector_and_token| {
+        meta.insert(
             connector_and_token.0.connector_name.to_string(),
             serde_json::Value::String(connector_and_token.1),
-        );
-        serde_json::Value::Object(metadata_map)
-    })
+        )
+    }))
 }
 
 pub enum Action {

@@ -57,14 +57,17 @@ pub trait Feature<F, T> {
 
     async fn add_payment_method_token<'a>(
         &self,
-        state: &AppState,
-        connector: &api::ConnectorData,
-        tokenization_action: &payments::TokenizationAction,
+        _state: &AppState,
+        _connector: &api::ConnectorData,
+        _tokenization_action: &payments::TokenizationAction,
     ) -> RouterResult<Option<String>>
     where
         F: Clone,
         Self: Sized,
-        dyn api::Connector: services::ConnectorIntegration<F, T, types::PaymentsResponseData>;
+        dyn api::Connector: services::ConnectorIntegration<F, T, types::PaymentsResponseData>,
+    {
+        Ok(None)
+    }
 }
 
 macro_rules! default_imp_for_complete_authorize{

@@ -99,7 +99,7 @@ impl PaymentMethod {
         .await
     }
 
-    pub async fn update(
+    pub async fn update_with_payment_method_id(
         self,
         conn: &PgPooledConn,
         payment_method: payment_method::PaymentMethodUpdate,
