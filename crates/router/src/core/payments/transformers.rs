@@ -531,12 +531,12 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSyncData
     }
 }
 
-impl api::GetConnectorRequestId for Paypal {
-    fn get_connector_request_id(
+impl api::ConnectorTransactionId for Paypal {
+    fn connector_transaction_id(
         &self,
         payment_attempt: storage::PaymentAttempt,
-    ) -> Result<String, errors::ApiErrorResponse> {
-        let metadata = Self::get_connector_id(self, &payment_attempt.connector_metadata);
+    ) -> Result<Option<String>, errors::ApiErrorResponse> {
+        let metadata = Self::connector_transaction_id(self, &payment_attempt.connector_metadata);
         match metadata {
             Ok(data) => Ok(data),
             _ => Err(errors::ApiErrorResponse::ResourceIdNotFound),
@@ -563,7 +563,8 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCaptureD
             amount_to_capture: payment_data.payment_attempt.amount_to_capture,
             currency: payment_data.currency,
             connector_transaction_id: connectors
-                .get_connector_request_id(payment_data.payment_attempt.clone())?,
+                .connector_transaction_id(payment_data.payment_attempt.clone())?
+                .ok_or(errors::ApiErrorResponse::ResourceIdNotFound)?,
             amount: payment_data.amount.into(),
             connector_meta: payment_data.payment_attempt.connector_metadata,
         })
@@ -588,7 +589,8 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCancelDa
             amount: Some(payment_data.amount.into()),
             currency: Some(payment_data.currency),
             connector_transaction_id: connectors
-                .get_connector_request_id(payment_data.payment_attempt.clone())?,
+                .connector_transaction_id(payment_data.payment_attempt.clone())?
+                .ok_or(errors::ApiErrorResponse::ResourceIdNotFound)?,
             cancellation_reason: payment_data.payment_attempt.cancellation_reason,
             connector_meta: payment_data.payment_attempt.connector_metadata,
         })

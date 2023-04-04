@@ -247,8 +247,6 @@ pub enum ConnectorError {
     FailedToObtainCertificate,
     #[error("Connector meta data not found")]
     NoConnectorMetaData,
-    #[error("Missing Connector meta data field: {0}")]
-    MissingConnectorMetaDataField(String),
     #[error("Failed to obtain certificate key")]
     FailedToObtainCertificateKey,
     #[error("This step has not been implemented for: {0}")]

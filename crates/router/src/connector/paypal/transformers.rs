@@ -249,8 +249,8 @@ pub struct PaypalMeta {
     pub psync_flow: PaypalPaymentIntent,
 }
 
-fn get_auth_or_capt(
-    intent: PaypalPaymentIntent,
+fn get_id_based_on_intent(
+    intent: &PaypalPaymentIntent,
     purchase_unit: &PurchaseUnitItem,
 ) -> CustomResult<String, errors::ConnectorError> {
     || -> _ {
@@ -292,30 +292,25 @@ impl<F, T>
             .first()
             .ok_or(errors::ConnectorError::MissingConnectorTransactionID)?;
 
+        let id = get_id_based_on_intent(&item.response.intent, purchase_units)?;
         let (connector_meta, capture_id) = match item.response.intent.clone() {
-            PaypalPaymentIntent::Capture => {
-                let id = get_auth_or_capt(item.response.intent.clone(), purchase_units)?;
-                (
-                    serde_json::json!(PaypalMeta {
-                        authorize_id: None,
-                        order_id: item.response.id,
-                        psync_flow: item.response.intent.clone()
-                    }),
-                    types::ResponseId::ConnectorTransactionId(id),
-                )
-            }
+            PaypalPaymentIntent::Capture => (
+                serde_json::json!(PaypalMeta {
+                    authorize_id: None,
+                    order_id: item.response.id,
+                    psync_flow: item.response.intent.clone()
+                }),
+                types::ResponseId::ConnectorTransactionId(id),
+            ),
 
-            PaypalPaymentIntent::Authorize => {
-                let id = get_auth_or_capt(item.response.intent.clone(), purchase_units)?;
-                (
-                    serde_json::json!(PaypalMeta {
-                        authorize_id: Some(id),
-                        order_id: item.response.id,
-                        psync_flow: item.response.intent.clone()
-                    }),
-                    types::ResponseId::NoResponseId,
-                )
-            }
+            PaypalPaymentIntent::Authorize => (
+                serde_json::json!(PaypalMeta {
+                    authorize_id: Some(id),
+                    order_id: item.response.id,
+                    psync_flow: item.response.intent.clone()
+                }),
+                types::ResponseId::NoResponseId,
+            ),
         };
         Ok(Self {
             status: storage_enums::AttemptStatus::foreign_from((

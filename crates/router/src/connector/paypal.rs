@@ -41,14 +41,12 @@ impl api::RefundExecute for Paypal {}
 impl api::RefundSync for Paypal {}
 
 impl Paypal {
-    pub fn get_connector_id(
+    pub fn connector_transaction_id(
         &self,
         connector_meta: &Option<serde_json::Value>,
-    ) -> CustomResult<String, errors::ConnectorError> {
+    ) -> CustomResult<Option<String>, errors::ConnectorError> {
         let meta: PaypalMeta = to_connector_meta(connector_meta.clone())?;
-        meta.authorize_id.ok_or_else(|| {
-            errors::ConnectorError::MissingConnectorMetaDataField("authorize_id".to_string()).into()
-        })
+        Ok(meta.authorize_id)
     }
 
     pub fn get_order_error_response(
@@ -399,19 +397,20 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         req: &types::PaymentsSyncRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let id = req
+        let capture_id = req
             .request
             .connector_transaction_id
             .get_connector_transaction_id()
             .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
-        let connector_payment_id: PaypalMeta =
-            to_connector_meta(req.request.connector_meta.clone())?;
-        let psync_url = match connector_payment_id.psync_flow {
+        let paypal_meta: PaypalMeta = to_connector_meta(req.request.connector_meta.clone())?;
+        let psync_url = match paypal_meta.psync_flow {
             transformers::PaypalPaymentIntent::Authorize => format!(
                 "v2/payments/authorizations/{}",
-                connector_payment_id.authorize_id.unwrap_or_default()
+                paypal_meta.authorize_id.unwrap_or_default()
             ),
-            transformers::PaypalPaymentIntent::Capture => format!("v2/payments/captures/{}", id),
+            transformers::PaypalPaymentIntent::Capture => {
+                format!("v2/payments/captures/{}", capture_id)
+            }
         };
         Ok(format!("{}{}", self.base_url(connectors), psync_url,))
     }
@@ -474,9 +473,8 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         req: &types::PaymentsCaptureRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let connector_payment_id: PaypalMeta =
-            to_connector_meta(req.request.connector_meta.clone())?;
-        let txn_id = connector_payment_id.authorize_id.ok_or(
+        let paypal_meta: PaypalMeta = to_connector_meta(req.request.connector_meta.clone())?;
+        let authorize_id = paypal_meta.authorize_id.ok_or(
             errors::ConnectorError::RequestEncodingFailedWithReason(
                 "Missing Authorize id".to_string(),
             ),
@@ -484,7 +482,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         Ok(format!(
             "{}v2/payments/authorizations/{}/capture",
             self.base_url(connectors),
-            txn_id
+            authorize_id
         ))
     }
 
@@ -561,9 +559,8 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
         req: &types::PaymentsCancelRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let connector_payment_id: PaypalMeta =
-            to_connector_meta(req.request.connector_meta.clone())?;
-        let txn_id = connector_payment_id.authorize_id.ok_or(
+        let paypal_meta: PaypalMeta = to_connector_meta(req.request.connector_meta.clone())?;
+        let authorize_id = paypal_meta.authorize_id.ok_or(
             errors::ConnectorError::RequestEncodingFailedWithReason(
                 "Missing Authorize id".to_string(),
             ),
@@ -571,7 +568,7 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
         Ok(format!(
             "{}v2/payments/authorizations/{}/void",
             self.base_url(connectors),
-            txn_id,
+            authorize_id,
         ))
     }
 

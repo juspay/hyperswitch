@@ -35,14 +35,12 @@ pub trait ConnectorAccessToken:
 {
 }
 
-pub trait GetConnectorRequestId: ConnectorCommon + Sync {
-    fn get_connector_request_id(
+pub trait ConnectorTransactionId: ConnectorCommon + Sync {
+    fn connector_transaction_id(
         &self,
         payment_attempt: storage_models::payment_attempt::PaymentAttempt,
-    ) -> Result<String, errors::ApiErrorResponse> {
-        payment_attempt
-            .connector_transaction_id
-            .ok_or_else(|| errors::ApiErrorResponse::ResourceIdNotFound)
+    ) -> Result<Option<String>, errors::ApiErrorResponse> {
+        Ok(payment_attempt.connector_transaction_id)
     }
 }
 
@@ -108,7 +106,7 @@ pub trait Connector:
     + ConnectorRedirectResponse
     + IncomingWebhook
     + ConnectorAccessToken
-    + GetConnectorRequestId
+    + ConnectorTransactionId
 {
 }
 
@@ -124,7 +122,7 @@ impl<
             + Send
             + IncomingWebhook
             + ConnectorAccessToken
-            + GetConnectorRequestId,
+            + ConnectorTransactionId,
     > Connector for T
 {
 }

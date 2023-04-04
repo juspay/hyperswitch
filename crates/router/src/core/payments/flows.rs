@@ -137,7 +137,7 @@ default_imp_for_connector_redirect_response!(
 macro_rules! default_imp_for_connector_request_id{
     ($($path:ident::$connector:ident),*)=> {
         $(
-            impl api::GetConnectorRequestId for $path::$connector {}
+            impl api::ConnectorTransactionId for $path::$connector {}
     )*
     };
 }
