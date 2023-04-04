@@ -15,7 +15,11 @@ use crate::{
 };
 
 #[async_trait::async_trait]
-pub trait MerchantAccountInterface {
+pub trait MerchantAccountInterface
+where
+    merchant_account::MerchantAccount:
+        Conversion<DstType = storage::MerchantAccount, NewDstType = storage::MerchantAccountNew>,
+{
     async fn insert_merchant(
         &self,
         merchant_account: merchant_account::MerchantAccount,

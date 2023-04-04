@@ -18,7 +18,10 @@ use crate::{
 };
 
 #[async_trait::async_trait]
-pub trait CustomerInterface {
+pub trait CustomerInterface
+where
+    domain::Customer: Conversion<DstType = storage::Customer, NewDstType = storage::CustomerNew>,
+{
     async fn delete_customer_by_customer_id_merchant_id(
         &self,
         customer_id: &str,
