@@ -9,6 +9,7 @@ pub mod errors;
 pub mod ext_traits;
 pub mod fp_utils;
 pub mod pii;
+#[cfg(feature = "signals")]
 pub mod signals;
 pub mod validation;
 

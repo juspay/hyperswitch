@@ -77,7 +77,6 @@ impl
                 headers::CONTENT_TYPE.to_string(),
                 types::PaymentsSessionType::get_content_type(self).to_string(),
             ),
-            (headers::X_ROUTER.to_string(), "test".to_string()),
             (headers::X_API_VERSION.to_string(), "6".to_string()),
             (headers::ACCEPT.to_string(), "application/json".to_string()),
         ];
@@ -113,6 +112,7 @@ impl
             services::RequestBuilder::new()
                 .method(services::Method::Post)
                 .url(&types::PaymentsSessionType::get_url(self, req, connectors)?)
+                .attach_default_headers()
                 .headers(types::PaymentsSessionType::get_headers(
                     self, req, connectors,
                 )?)
@@ -219,7 +219,6 @@ impl
                 headers::CONTENT_TYPE.to_string(),
                 types::PaymentsSyncType::get_content_type(self).to_string(),
             ),
-            (headers::X_ROUTER.to_string(), "test".to_string()),
             (headers::X_API_VERSION.to_string(), "6".to_string()),
             (headers::ACCEPT.to_string(), "application/json".to_string()),
         ];
@@ -261,6 +260,7 @@ impl
             services::RequestBuilder::new()
                 .method(services::Method::Get)
                 .url(&types::PaymentsSyncType::get_url(self, req, connectors)?)
+                .attach_default_headers()
                 .headers(types::PaymentsSyncType::get_headers(self, req, connectors)?)
                 .body(types::PaymentsSyncType::get_request_body(self, req)?)
                 .build(),
@@ -326,7 +326,6 @@ impl
                 headers::CONTENT_TYPE.to_string(),
                 types::PaymentsAuthorizeType::get_content_type(self).to_string(),
             ),
-            (headers::X_ROUTER.to_string(), "test".to_string()),
             (headers::X_API_VERSION.to_string(), "6".to_string()),
             (headers::ACCEPT.to_string(), "application/json".to_string()),
         ];
@@ -361,6 +360,7 @@ impl
                 .url(&types::PaymentsAuthorizeType::get_url(
                     self, req, connectors,
                 )?)
+                .attach_default_headers()
                 .headers(types::PaymentsAuthorizeType::get_headers(
                     self, req, connectors,
                 )?)
@@ -431,7 +431,6 @@ impl
                 headers::CONTENT_TYPE.to_string(),
                 types::PaymentsAuthorizeType::get_content_type(self).to_string(),
             ),
-            (headers::X_ROUTER.to_string(), "test".to_string()),
             (headers::X_API_VERSION.to_string(), "6".to_string()),
             (headers::ACCEPT.to_string(), "application/json".to_string()),
         ];
@@ -468,6 +467,7 @@ impl
             services::RequestBuilder::new()
                 .method(services::Method::Put)
                 .url(&types::PaymentsVoidType::get_url(self, req, connectors)?)
+                .attach_default_headers()
                 .headers(types::PaymentsVoidType::get_headers(self, req, connectors)?)
                 .body(types::PaymentsVoidType::get_request_body(self, req)?)
                 .build(),
@@ -533,7 +533,6 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
                 headers::CONTENT_TYPE.to_string(),
                 types::RefundExecuteType::get_content_type(self).to_string(),
             ),
-            (headers::X_ROUTER.to_string(), "test".to_string()),
             (headers::X_API_VERSION.to_string(), "6".to_string()),
             (headers::ACCEPT.to_string(), "application/json".to_string()),
         ];
@@ -580,6 +579,7 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
         let request = services::RequestBuilder::new()
             .method(services::Method::Post)
             .url(&types::RefundExecuteType::get_url(self, req, connectors)?)
+            .attach_default_headers()
             .headers(types::RefundExecuteType::get_headers(
                 self, req, connectors,
             )?)

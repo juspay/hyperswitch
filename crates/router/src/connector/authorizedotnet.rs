@@ -107,13 +107,10 @@ impl
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
         // This connector does not require an auth header, the authentication details are sent in the request body
-        Ok(vec![
-            (
-                headers::CONTENT_TYPE.to_string(),
-                types::PaymentsSyncType::get_content_type(self).to_string(),
-            ),
-            (headers::X_ROUTER.to_string(), "test".to_string()),
-        ])
+        Ok(vec![(
+            headers::CONTENT_TYPE.to_string(),
+            types::PaymentsSyncType::get_content_type(self).to_string(),
+        )])
     }
 
     fn get_content_type(&self) -> &'static str {
@@ -149,6 +146,7 @@ impl
         let request = services::RequestBuilder::new()
             .method(services::Method::Post)
             .url(&types::PaymentsSyncType::get_url(self, req, connectors)?)
+            .attach_default_headers()
             .headers(types::PaymentsSyncType::get_headers(self, req, connectors)?)
             .body(types::PaymentsSyncType::get_request_body(self, req)?)
             .build();
@@ -201,13 +199,10 @@ impl
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
         // This connector does not require an auth header, the authentication details are sent in the request body
-        Ok(vec![
-            (
-                headers::CONTENT_TYPE.to_string(),
-                types::PaymentsAuthorizeType::get_content_type(self).to_string(),
-            ),
-            (headers::X_ROUTER.to_string(), "test".to_string()),
-        ])
+        Ok(vec![(
+            headers::CONTENT_TYPE.to_string(),
+            types::PaymentsAuthorizeType::get_content_type(self).to_string(),
+        )])
     }
 
     fn get_content_type(&self) -> &'static str {
@@ -251,10 +246,10 @@ impl
                 .url(&types::PaymentsAuthorizeType::get_url(
                     self, req, connectors,
                 )?)
+                .attach_default_headers()
                 .headers(types::PaymentsAuthorizeType::get_headers(
                     self, req, connectors,
                 )?)
-                .header(headers::X_ROUTER, "test")
                 .body(types::PaymentsAuthorizeType::get_request_body(self, req)?)
                 .build(),
         ))
@@ -307,13 +302,10 @@ impl
         _req: &types::PaymentsCancelRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        Ok(vec![
-            (
-                headers::CONTENT_TYPE.to_string(),
-                types::PaymentsAuthorizeType::get_content_type(self).to_string(),
-            ),
-            (headers::X_ROUTER.to_string(), "test".to_string()),
-        ])
+        Ok(vec![(
+            headers::CONTENT_TYPE.to_string(),
+            types::PaymentsAuthorizeType::get_content_type(self).to_string(),
+        )])
     }
 
     fn get_content_type(&self) -> &'static str {
@@ -349,8 +341,8 @@ impl
             services::RequestBuilder::new()
                 .method(services::Method::Post)
                 .url(&types::PaymentsVoidType::get_url(self, req, connectors)?)
+                .attach_default_headers()
                 .headers(types::PaymentsVoidType::get_headers(self, req, connectors)?)
-                .header(headers::X_ROUTER, "test")
                 .body(types::PaymentsVoidType::get_request_body(self, req)?)
                 .build(),
         ))
@@ -403,13 +395,10 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
         // This connector does not require an auth header, the authentication details are sent in the request body
-        Ok(vec![
-            (
-                headers::CONTENT_TYPE.to_string(),
-                types::PaymentsAuthorizeType::get_content_type(self).to_string(),
-            ),
-            (headers::X_ROUTER.to_string(), "test".to_string()),
-        ])
+        Ok(vec![(
+            headers::CONTENT_TYPE.to_string(),
+            types::PaymentsAuthorizeType::get_content_type(self).to_string(),
+        )])
     }
 
     fn get_content_type(&self) -> &'static str {
@@ -446,6 +435,7 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
         let request = services::RequestBuilder::new()
             .method(services::Method::Post)
             .url(&types::RefundExecuteType::get_url(self, req, connectors)?)
+            .attach_default_headers()
             .headers(types::RefundExecuteType::get_headers(
                 self, req, connectors,
             )?)
@@ -498,13 +488,10 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
         // This connector does not require an auth header, the authentication details are sent in the request body
-        Ok(vec![
-            (
-                headers::CONTENT_TYPE.to_string(),
-                types::RefundSyncType::get_content_type(self).to_string(),
-            ),
-            (headers::X_ROUTER.to_string(), "test".to_string()),
-        ])
+        Ok(vec![(
+            headers::CONTENT_TYPE.to_string(),
+            types::RefundSyncType::get_content_type(self).to_string(),
+        )])
     }
 
     fn get_content_type(&self) -> &'static str {
@@ -540,6 +527,7 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
         let request = services::RequestBuilder::new()
             .method(services::Method::Post)
             .url(&types::RefundSyncType::get_url(self, req, connectors)?)
+            .attach_default_headers()
             .headers(types::RefundSyncType::get_headers(self, req, connectors)?)
             .body(types::RefundSyncType::get_request_body(self, req)?)
             .build();
