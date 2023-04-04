@@ -563,7 +563,7 @@ pub fn mk_delete_card_request<'a>(
     let mut url = locker.host.to_owned();
     url.push_str("/card/deleteCard");
     let mut request = services::Request::new(services::Method::Post, &url);
-    request.add_header(headers::X_ROUTER, "test");
+    request.add_default_headers();
     request.add_header(headers::CONTENT_TYPE, "application/x-www-form-urlencoded");
 
     request.set_body(body);
@@ -611,7 +611,7 @@ pub fn mk_crud_locker_request(
     let mut url = locker.basilisk_host.to_owned();
     url.push_str(path);
     let mut request = services::Request::new(services::Method::Post, &url);
-    request.add_header(headers::X_ROUTER, "test");
+    request.add_default_headers();
     request.add_header(headers::CONTENT_TYPE, "application/json");
     request.set_body(body.to_string());
     Ok(request)
