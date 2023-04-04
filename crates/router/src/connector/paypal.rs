@@ -2,7 +2,6 @@ mod transformers;
 use std::fmt::Debug;
 
 use base64::Engine;
-use common_utils::errors::ReportSwitchExt;
 use error_stack::{IntoReport, ResultExt};
 use transformers as paypal;
 
@@ -58,8 +57,10 @@ impl Paypal {
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         //Handled error response separately for Orders as the end point is different for Orders - (Authorize) and Payments - (Capture, void, refund, rsync).
         //Error response have different fields for Orders and Payments.
-        let response: paypal::PaypalOrderErrorResponse =
-            res.response.parse_struct("Paypal ErrorResponse").switch()?;
+        let response: paypal::PaypalOrderErrorResponse = res
+            .response
+            .parse_struct("Paypal ErrorResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
         let message = match response.details {
             Some(mes) => {
@@ -158,8 +159,10 @@ impl ConnectorCommon for Paypal {
         &self,
         res: Response,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let response: paypal::PaypalPaymentErrorResponse =
-            res.response.parse_struct("Paypal ErrorResponse").switch()?;
+        let response: paypal::PaypalPaymentErrorResponse = res
+            .response
+            .parse_struct("Paypal ErrorResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
         let message = match response.details {
             Some(mes) => {
@@ -258,7 +261,7 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
         let response: paypal::PaypalAuthUpdateResponse = res
             .response
             .parse_struct("Paypal PaypalAuthUpdateResponse")
-            .switch()?;
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
         types::RouterData::try_from(types::ResponseRouterData {
             response,
@@ -351,7 +354,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         let response: paypal::PaypalPaymentsResponse = res
             .response
             .parse_struct("Paypal PaymentsAuthorizeResponse")
-            .switch()?;
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -435,7 +438,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         let response: paypal::PaypalPaymentsSyncResponse = res
             .response
             .parse_struct("paypal PaymentsSyncResponse")
-            .switch()?;
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -522,7 +525,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         let response: paypal::PaymentCaptureResponse = res
             .response
             .parse_struct("Paypal PaymentsCaptureResponse")
-            .switch()?;
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -594,7 +597,7 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
         let response: paypal::PaypalPaymentsCancelResponse = res
             .response
             .parse_struct("PaymentCancelResponse")
-            .switch()?;
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -668,10 +671,10 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         data: &types::RefundsRouterData<api::Execute>,
         res: Response,
     ) -> CustomResult<types::RefundsRouterData<api::Execute>, errors::ConnectorError> {
-        let response: paypal::RefundResponse = res
-            .response
-            .parse_struct("paypal RefundResponse")
-            .switch()?;
+        let response: paypal::RefundResponse =
+            res.response
+                .parse_struct("paypal RefundResponse")
+                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -734,7 +737,7 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         let response: paypal::RefundSyncResponse = res
             .response
             .parse_struct("paypal RefundSyncResponse")
-            .switch()?;
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),

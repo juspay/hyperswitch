@@ -2,7 +2,6 @@ use std::{fmt::Debug, marker::PhantomData};
 
 use error_stack::ResultExt;
 use router_env::{instrument, tracing};
-use storage_models::payment_attempt::PaymentAttempt;
 
 use super::{flows::Feature, PaymentAddress, PaymentData};
 use crate::{
@@ -225,7 +224,7 @@ where
 #[allow(clippy::too_many_arguments)]
 pub fn payments_to_payments_response<R, Op>(
     payment_request: Option<R>,
-    payment_attempt: PaymentAttempt,
+    payment_attempt: storage::PaymentAttempt,
     payment_intent: storage::PaymentIntent,
     refunds: Vec<storage::Refund>,
     payment_method_data: Option<api::PaymentMethodData>,
@@ -397,11 +396,11 @@ where
     })
 }
 
-impl ForeignTryFrom<(storage::PaymentIntent, PaymentAttempt)> for api::PaymentsResponse {
+impl ForeignTryFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::PaymentsResponse {
     type Error = error_stack::Report<errors::ParsingError>;
 
     fn foreign_try_from(
-        item: (storage::PaymentIntent, PaymentAttempt),
+        item: (storage::PaymentIntent, storage::PaymentAttempt),
     ) -> Result<Self, Self::Error> {
         let pi = item.0;
         let pa = item.1;
@@ -535,7 +534,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSyncData
 impl api::GetConnectorRequestId for Paypal {
     fn get_connector_request_id(
         &self,
-        payment_attempt: PaymentAttempt,
+        payment_attempt: storage::PaymentAttempt,
     ) -> Result<String, errors::ApiErrorResponse> {
         let metadata = Self::get_connector_id(self, &payment_attempt.connector_metadata);
         match metadata {
