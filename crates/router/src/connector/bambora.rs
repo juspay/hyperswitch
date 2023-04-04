@@ -674,16 +674,10 @@ impl
         &self,
         req: &types::PaymentsCompleteAuthorizeRouterData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        println!("payload{:?}", req.request.payload);
-        let bambora_req = bambora::BamboraThreedsContinueRequest {
-            payment_method: "credit_card".to_string(),
-            card_response: bambora::CardResponse {
-                cres: "".to_string(), //get the cres valur from req.request.payload
-            },
-        };
+        let request = bambora::BamboraThreedsContinueRequest::try_from(&req.request)?;
         let bambora_req =
             utils::Encode::<bambora::BamboraThreedsContinueRequest>::encode_to_string_of_json(
-                &bambora_req,
+                &request,
             )
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(bambora_req))

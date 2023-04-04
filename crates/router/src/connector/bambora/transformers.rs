@@ -9,6 +9,7 @@ use crate::{
     core::errors,
     services,
     types::{self, api, storage::enums},
+    utils::OptionExt,
 };
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
@@ -77,6 +78,28 @@ fn get_browser_info(item: &types::PaymentsAuthorizeRouterData) -> Option<Bambora
             })
     } else {
         None
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct CresBambora {
+    cres: String,
+}
+impl TryFrom<&types::CompleteAuthorizeData> for BamboraThreedsContinueRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(value: &types::CompleteAuthorizeData) -> Result<Self, Self::Error> {
+        let cres_value: CardResponse = value
+            .payload
+            .clone()
+            .parse_value("CardResponse")
+            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let bambora_req = Self {
+            payment_method: "credit_card".to_string(),
+            card_response: CardResponse {
+                cres: cres_value.cres,
+            },
+        };
+        Ok(bambora_req)
     }
 }
 
@@ -195,14 +218,10 @@ impl<F, T>
             }),
 
             BamboraResponse::ThreeDsResponse(response) => {
-                let mut value = url::form_urlencoded::parse(response.contents.as_bytes());
-                let redirection_data = Some(services::RedirectForm::Html {
-                    html_data: value
-                        .next()
-                        .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?
-                        .0
-                        .to_string(),
-                });
+                let value = url::form_urlencoded::parse(response.contents.as_bytes())
+                    .map(|(key, val)| [key, val].concat())
+                    .collect();
+                let redirection_data = Some(services::RedirectForm::Html { html_data: value });
                 Ok(Self {
                     status: enums::AttemptStatus::AuthenticationPending,
                     response: Ok(types::PaymentsResponseData::TransactionResponse {
@@ -298,7 +317,7 @@ pub struct BamboraThreedsContinueRequest {
     pub(crate) card_response: CardResponse,
 }
 
-#[derive(Default, Debug, Serialize, Eq, PartialEq)]
+#[derive(Default, Debug, Deserialize, Serialize, Eq, PartialEq)]
 pub struct CardResponse {
     pub(crate) cres: String,
 }
