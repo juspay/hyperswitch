@@ -33,7 +33,7 @@ use crate::{
     services,
     types::{
         api::{self, PaymentMethodCreateExt},
-        domain::merchant_account,
+        domain::{self, merchant_account},
         storage::{self, enums},
         transformers::ForeignInto,
     },
@@ -1061,7 +1061,7 @@ async fn filter_payment_methods(
     resp: &mut Vec<ResponsePaymentMethodIntermediate>,
     payment_intent: Option<&storage::PaymentIntent>,
     payment_attempt: Option<&storage::PaymentAttempt>,
-    address: Option<&storage::Address>,
+    address: Option<&domain::address::Address>,
     connector: String,
     config: &settings::ConnectorFilters,
 ) -> errors::CustomResult<(), errors::ApiErrorResponse> {
@@ -1389,7 +1389,7 @@ fn filter_installment_based(
 
 async fn filter_payment_country_based(
     pm: &RequestPaymentMethodTypes,
-    address: Option<&storage::Address>,
+    address: Option<&domain::address::Address>,
 ) -> errors::CustomResult<bool, errors::ApiErrorResponse> {
     Ok(address.map_or(true, |address| {
         address.country.as_ref().map_or(true, |country| {

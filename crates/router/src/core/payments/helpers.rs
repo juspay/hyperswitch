@@ -3,7 +3,7 @@ use std::borrow::Cow;
 use base64::Engine;
 use common_utils::{
     ext_traits::{AsyncExt, ByteSliceExt},
-    fp_utils,
+    fp_utils, generate_id,
 };
 // TODO : Evaluate all the helper functions ()
 use error_stack::{report, IntoReport, ResultExt};
@@ -29,7 +29,7 @@ use crate::{
     services,
     types::{
         api::{self, admin, enums as api_enums, CustomerAcceptanceExt, MandateValidationFieldsExt},
-        domain::{customer as domain, merchant_account},
+        domain::{self, customer, merchant_account},
         storage::{self, enums as storage_enums, ephemeral_key},
         transformers::ForeignInto,
     },
@@ -46,7 +46,7 @@ pub async fn get_address_for_payment_request(
     address_id: Option<&str>,
     merchant_id: &str,
     customer_id: &Option<String>,
-) -> CustomResult<Option<storage::Address>, errors::ApiErrorResponse> {
+) -> CustomResult<Option<domain::address::Address>, errors::ApiErrorResponse> {
     Ok(match req_address {
         Some(address) => {
             match address_id {
@@ -66,7 +66,7 @@ pub async fn get_address_for_payment_request(
 
                     let address_details = address.address.clone().unwrap_or_default();
                     Some(
-                        db.insert_address(storage::AddressNew {
+                        db.insert_address(domain::address::Address {
                             phone_number: address.phone.as_ref().and_then(|a| a.number.clone()),
                             country_code: address
                                 .phone
@@ -74,8 +74,19 @@ pub async fn get_address_for_payment_request(
                                 .and_then(|a| a.country_code.clone()),
                             customer_id: customer_id.to_string(),
                             merchant_id: merchant_id.to_string(),
-
-                            ..address_details.foreign_into()
+                            address_id: generate_id(consts::ID_LENGTH, "add"),
+                            city: address_details.city,
+                            country: address_details.country,
+                            line1: address_details.line1,
+                            line2: address_details.line2,
+                            line3: address_details.line3,
+                            id: None,
+                            state: address_details.state,
+                            created_at: common_utils::date_time::now(),
+                            first_name: address_details.first_name,
+                            last_name: address_details.last_name,
+                            modified_at: common_utils::date_time::now(),
+                            zip: address_details.zip,
                         })
                         .await
                         .map_err(|_| errors::ApiErrorResponse::InternalServerError)?,
@@ -95,7 +106,7 @@ pub async fn get_address_for_payment_request(
 pub async fn get_address_by_id(
     db: &dyn StorageInterface,
     address_id: Option<String>,
-) -> CustomResult<Option<storage::Address>, errors::ApiErrorResponse> {
+) -> CustomResult<Option<domain::address::Address>, errors::ApiErrorResponse> {
     match address_id {
         None => Ok(None),
         Some(address_id) => Ok(db.find_address(&address_id).await.ok()),
@@ -533,7 +544,7 @@ pub(crate) async fn call_payment_method(
     merchant_account: &merchant_account::MerchantAccount,
     payment_method: Option<&api::PaymentMethodData>,
     payment_method_type: Option<storage_enums::PaymentMethod>,
-    maybe_customer: &Option<domain::Customer>,
+    maybe_customer: &Option<customer::Customer>,
 ) -> RouterResult<api::PaymentMethodResponse> {
     match payment_method {
         Some(pm_data) => match payment_method_type {
@@ -623,7 +634,7 @@ pub async fn get_customer_from_details<F: Clone>(
     customer_id: Option<String>,
     merchant_id: &str,
     payment_data: &mut PaymentData<F>,
-) -> CustomResult<Option<domain::Customer>, errors::StorageError> {
+) -> CustomResult<Option<customer::Customer>, errors::StorageError> {
     match customer_id {
         None => Ok(None),
         Some(c_id) => {
@@ -656,7 +667,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R>(
     payment_data: &mut PaymentData<F>,
     req: Option<CustomerDetails>,
     merchant_id: &str,
-) -> CustomResult<(BoxedOperation<'a, F, R>, Option<domain::Customer>), errors::StorageError> {
+) -> CustomResult<(BoxedOperation<'a, F, R>, Option<customer::Customer>), errors::StorageError> {
     let req = req
         .get_required_value("customer")
         .change_context(errors::StorageError::ValueNotFound("customer".to_owned()))?;
@@ -668,7 +679,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R>(
             Some(match customer_data {
                 Some(c) => Ok(c),
                 None => {
-                    let new_customer = domain::Customer {
+                    let new_customer = customer::Customer {
                         customer_id: customer_id.to_string(),
                         merchant_id: merchant_id.to_string(),
                         name: req.name.expose_option(),
@@ -1139,7 +1150,7 @@ pub fn generate_mandate(
     merchant_id: String,
     connector: String,
     setup_mandate_details: Option<api::MandateData>,
-    customer: &Option<domain::Customer>,
+    customer: &Option<customer::Customer>,
     payment_method_id: String,
     connector_mandate_id: Option<String>,
 ) -> Option<storage::MandateNew> {
@@ -1316,7 +1327,7 @@ pub async fn insert_merchant_connector_creds_to_config(
 }
 
 pub enum MerchantConnectorAccountType {
-    DbVal(storage::MerchantConnectorAccount),
+    DbVal(domain::merchant_connector_account::MerchantConnectorAccount),
     CacheVal(api_models::admin::MerchantConnectorDetails),
 }
 
@@ -1329,7 +1340,7 @@ impl MerchantConnectorAccountType {
     }
     pub fn get_connector_account_details(&self) -> serde_json::Value {
         match self {
-            Self::DbVal(val) => val.connector_account_details.to_owned(),
+            Self::DbVal(val) => val.connector_account_details.peek().to_owned(),
             Self::CacheVal(val) => val.connector_account_details.peek().to_owned(),
         }
     }

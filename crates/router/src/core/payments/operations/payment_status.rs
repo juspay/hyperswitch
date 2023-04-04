@@ -18,7 +18,6 @@ use crate::{
         api,
         domain::{customer as domain, merchant_account},
         storage::{self, enums},
-        transformers::ForeignInto,
     },
     utils::OptionExt,
 };
@@ -255,8 +254,8 @@ async fn get_tracker_for_sync<
             setup_mandate: None,
             token: None,
             address: PaymentAddress {
-                shipping: shipping_address.as_ref().map(|a| a.foreign_into()),
-                billing: billing_address.as_ref().map(|a| a.foreign_into()),
+                shipping: shipping_address.as_ref().map(|a| a.into()),
+                billing: billing_address.as_ref().map(|a| a.into()),
             },
             confirm: Some(request.force_sync),
             payment_method_data: None,
