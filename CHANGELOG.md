@@ -9,7 +9,7 @@
 
 ## Bug Fixes
 
-* **cads_info:**  add extra columns to cards_info struct (#813) (442bed0f)
+* **cards_info:**  add extra columns to cards_info struct (#813) (442bed0f)
 * **connector:**  [Mollie] remove unsupported implementation of Void flow from mollie connector (#808) (eee8304b)
 
 ## Other Changes
