@@ -153,14 +153,8 @@ impl From<ConfigError> for ApplicationError {
 }
 
 fn error_response<T: Display>(err: &T) -> actix_web::HttpResponse {
-    use actix_web::http::header;
-
-    use crate::consts;
-
     actix_web::HttpResponse::BadRequest()
-        .append_header((header::STRICT_TRANSPORT_SECURITY, consts::HSTS_HEADER_VALUE))
-        .append_header((header::VIA, "Juspay_Router"))
-        .content_type("application/json")
+        .content_type(mime::APPLICATION_JSON)
         .body(format!(r#"{{ "error": {{ "message": "{err}" }} }}"#))
 }
 
