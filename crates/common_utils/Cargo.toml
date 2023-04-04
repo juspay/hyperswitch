@@ -16,14 +16,15 @@ signals = [
     "dep:futures"
 ]
 async_ext = [
-    "dep:futures"
+    "dep:futures",
+    "dep:async-trait"
 ]
 logs = [
     "dep:router_env"
 ]
 
 [dependencies]
-async-trait = "0.1.66"
+async-trait = { version = "0.1.66", optional = true }
 bytes = "1.4.0"
 error-stack = "0.3.1"
 futures = { version = "0.3.27", optional = true }
