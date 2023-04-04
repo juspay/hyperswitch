@@ -1,4 +1,4 @@
-#0.5.4 (2023-04-04)
+# 0.5.4 (2023-04-04)
 
 ## New Features
 
@@ -18,7 +18,6 @@
 * **core:**  replace string with enum for country (#735) (e18bfb2a)
 * **api_models:**  put the errors module behind a feature flag (#815) (f14f87a1)
 * **storage_models:**  delete client secret when status is succeeded, failed, cancelled (#724) (a05059b7)
-
 ## Refactors
 
 * **drainer, router:**  KMS decrypt database password when `kms` feature is enabled (#733) (9d6e4ee3)
