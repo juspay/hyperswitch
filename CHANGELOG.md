@@ -1,3 +1,27 @@
+# 0.5.4 (2023-04-04)
+
+## New Features
+
+* **request:**  add `RequestBuilder` method to attach default request headers (#826) (6f61f830)
+* **middleware:**  add middleware to attach default response headers (#824) (6d7b11a0)
+* **core:**  added multiple payment_attempt support for payment_intent (#439) (35d3e277)
+* **router:**  added incoming dispute webhooks flow (#769) (a733eafb)
+
+## Bug Fixes
+
+* **cards_info:**  add extra columns to cards_info struct (#813) (442bed0f)
+* **connector:**  [Mollie] remove unsupported implementation of Void flow from mollie connector (#808) (eee8304b)
+
+## Other Changes
+
+* **common_utils:**  put the signals module behind a feature flag (#814) (fb4ec431)
+* **core:**  replace string with enum for country (#735) (e18bfb2a)
+* **api_models:**  put the errors module behind a feature flag (#815) (f14f87a1)
+* **storage_models:**  delete client secret when status is succeeded, failed, cancelled (#724) (a05059b7)
+## Refactors
+
+* **drainer, router:**  KMS decrypt database password when `kms` feature is enabled (#733) (9d6e4ee3)
+
 # 0.5.3 (2023-03-29)
 
 ## Documentation Changes
