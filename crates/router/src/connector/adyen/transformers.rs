@@ -92,7 +92,7 @@ pub struct AdyenPaymentRequest<'a> {
     additional_data: Option<AdditionalData>,
     shopper_name: Option<ShopperName>,
     shopper_locale: Option<String>,
-    shopper_email: Option<Secret<String, Email>>,
+    shopper_email: Option<pii::Email>,
     telephone_number: Option<Secret<String>>,
     billing_address: Option<Address>,
     delivery_address: Option<Address>,

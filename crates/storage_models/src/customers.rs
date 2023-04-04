@@ -2,6 +2,7 @@ use common_utils::pii;
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
 use masking::Secret;
 use time::PrimitiveDateTime;
+use common_utils::pii::Email;
 
 use crate::schema::customers;
 
@@ -11,7 +12,7 @@ pub struct CustomerNew {
     pub customer_id: String,
     pub merchant_id: String,
     pub name: Option<String>,
-    pub email: Option<Secret<String, pii::Email>>,
+    pub email: Option<Email>,
     pub phone: Option<Secret<String>>,
     pub description: Option<String>,
     pub phone_country_code: Option<String>,
@@ -25,7 +26,7 @@ pub struct Customer {
     pub customer_id: String,
     pub merchant_id: String,
     pub name: Option<String>,
-    pub email: Option<Secret<String, pii::Email>>,
+    pub email: Option<Email>,
     pub phone: Option<Secret<String>>,
     pub phone_country_code: Option<String>,
     pub description: Option<String>,
@@ -37,7 +38,7 @@ pub struct Customer {
 pub enum CustomerUpdate {
     Update {
         name: Option<String>,
-        email: Option<Secret<String, pii::Email>>,
+        email: Option<Email>,
         phone: Option<Secret<String>>,
         description: Option<String>,
         phone_country_code: Option<String>,
@@ -49,7 +50,7 @@ pub enum CustomerUpdate {
 #[diesel(table_name = customers)]
 pub struct CustomerUpdateInternal {
     name: Option<String>,
-    email: Option<Secret<String, pii::Email>>,
+    email: Option<Email>,
     phone: Option<Secret<String>>,
     description: Option<String>,
     phone_country_code: Option<String>,

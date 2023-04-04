@@ -19,7 +19,7 @@ pub struct CustomerRequest {
     pub name: Option<String>,
     /// The customer's email address
     #[schema(value_type = Option<String>,max_length = 255, example = "JonTest@test.com")]
-    pub email: Option<Secret<String, pii::Email>>,
+    pub email: Option<pii::Email>,
     /// The customer's phone number
     #[schema(value_type = Option<String>,max_length = 255, example = "9999999999")]
     pub phone: Option<Secret<String>>,
@@ -59,7 +59,7 @@ pub struct CustomerResponse {
     pub name: Option<String>,
     /// The customer's email address
     #[schema(value_type = Option<String>,max_length = 255, example = "JonTest@test.com")]
-    pub email: Option<Secret<String, pii::Email>>,
+    pub email: Option<pii::Email>,
     /// The customer's phone number
     #[schema(value_type = Option<String>,max_length = 255, example = "9999999999")]
     pub phone: Option<Secret<String>>,

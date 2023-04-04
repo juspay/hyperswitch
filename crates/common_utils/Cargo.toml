@@ -31,6 +31,7 @@ md5 = "0.7.0"
 # First party crates
 masking = { version = "0.1.0", path = "../masking" }
 router_env = { version = "0.1.0", path = "../router_env", features = ["log_extra_implicit_fields", "log_custom_entries_to_extra"] }
+diesel = { version = "2.0.3", features = ["postgres", "serde_json", "time", "64-column-tables"] }
 
 [dev-dependencies]
 fake = "2.5.0"
