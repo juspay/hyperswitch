@@ -3,6 +3,7 @@ use common_utils::ext_traits::ValueExt;
 use error_stack::ResultExt;
 use storage_models::enums as storage_enums;
 
+use super::domain;
 use crate::{
     core::errors,
     types::{api as api_types, storage},
@@ -307,8 +308,8 @@ impl<'a> ForeignFrom<&'a api_types::ConfigUpdate> for storage::ConfigUpdate {
     }
 }
 
-impl<'a> ForeignFrom<&'a storage::Address> for api_types::Address {
-    fn foreign_from(address: &storage::Address) -> Self {
+impl<'a> From<&'a domain::address::Address> for api_types::Address {
+    fn from(address: &domain::address::Address) -> Self {
         let address = address;
         Self {
             address: Some(api_types::AddressDetails {
@@ -330,9 +331,13 @@ impl<'a> ForeignFrom<&'a storage::Address> for api_types::Address {
     }
 }
 
-impl ForeignTryFrom<storage::MerchantConnectorAccount> for api_models::admin::MerchantConnector {
+impl TryFrom<domain::merchant_connector_account::MerchantConnectorAccount>
+    for api_models::admin::MerchantConnector
+{
     type Error = error_stack::Report<errors::ApiErrorResponse>;
-    fn foreign_try_from(item: storage::MerchantConnectorAccount) -> Result<Self, Self::Error> {
+    fn try_from(
+        item: domain::merchant_connector_account::MerchantConnectorAccount,
+    ) -> Result<Self, Self::Error> {
         let merchant_ca = item;
 
         let payment_methods_enabled = match merchant_ca.payment_methods_enabled {
@@ -346,9 +351,7 @@ impl ForeignTryFrom<storage::MerchantConnectorAccount> for api_models::admin::Me
             connector_type: merchant_ca.connector_type.foreign_into(),
             connector_name: merchant_ca.connector_name,
             merchant_connector_id: Some(merchant_ca.merchant_connector_id),
-            connector_account_details: Some(masking::Secret::new(
-                merchant_ca.connector_account_details,
-            )),
+            connector_account_details: Some(merchant_ca.connector_account_details),
             test_mode: merchant_ca.test_mode,
             disabled: merchant_ca.disabled,
             metadata: merchant_ca.metadata,
@@ -370,24 +373,6 @@ impl ForeignFrom<storage_models::enums::PaymentMethodType>
 {
     fn foreign_from(payment_method_type: storage_models::enums::PaymentMethodType) -> Self {
         frunk::labelled_convert_from(payment_method_type)
-    }
-}
-
-impl ForeignFrom<api_models::payments::AddressDetails> for storage_models::address::AddressNew {
-    fn foreign_from(item: api_models::payments::AddressDetails) -> Self {
-        let address = item;
-        Self {
-            city: address.city,
-            country: address.country,
-            line1: address.line1,
-            line2: address.line2,
-            line3: address.line3,
-            state: address.state,
-            zip: address.zip,
-            first_name: address.first_name,
-            last_name: address.last_name,
-            ..Default::default()
-        }
     }
 }
 

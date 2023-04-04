@@ -4,6 +4,7 @@ use router_env::{instrument, tracing};
 use storage_models::errors as storage_errors;
 
 use crate::{
+    consts,
     core::{
         errors::{self, RouterResponse, StorageErrorExt},
         payment_methods::cards,
@@ -14,8 +15,10 @@ use crate::{
     services,
     types::{
         api::customers::{self, CustomerRequestExt},
+        domain,
         storage::{self, enums},
     },
+    utils::generate_id,
 };
 
 pub const REDACTED: &str = "Redacted";
@@ -37,7 +40,7 @@ pub async fn create_customer(
             .clone()
             .parse_value("AddressDetails")
             .change_context(errors::ApiErrorResponse::AddressNotFound)?;
-        db.insert_address(storage::AddressNew {
+        db.insert_address(domain::address::Address {
             city: customer_address.city,
             country: customer_address.country,
             line1: customer_address.line1,
@@ -51,7 +54,10 @@ pub async fn create_customer(
             country_code: customer_data.phone_country_code.clone(),
             customer_id: customer_id.to_string(),
             merchant_id: merchant_id.to_string(),
-            ..Default::default()
+            id: None,
+            address_id: generate_id(consts::ID_LENGTH, "add"),
+            created_at: common_utils::date_time::now(),
+            modified_at: common_utils::date_time::now(),
         })
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
