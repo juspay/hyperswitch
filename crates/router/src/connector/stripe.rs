@@ -63,7 +63,6 @@ impl api::PaymentVoid for Stripe {}
 impl api::PaymentCapture for Stripe {}
 impl api::PaymentSession for Stripe {}
 impl api::ConnectorAccessToken for Stripe {}
-impl api::GetConnectorRequestId for Stripe {}
 
 impl
     services::ConnectorIntegration<

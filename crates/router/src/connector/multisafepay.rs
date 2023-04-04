@@ -95,7 +95,6 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
     for Multisafepay
 {
 }
-impl api::GetConnectorRequestId for Multisafepay {}
 
 impl api::PaymentSync for Multisafepay {}
 impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>

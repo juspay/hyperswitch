@@ -82,7 +82,6 @@ impl api::RefundExecute for Nuvei {}
 impl api::RefundSync for Nuvei {}
 impl api::PaymentsCompleteAuthorize for Nuvei {}
 impl api::ConnectorAccessToken for Nuvei {}
-impl api::GetConnectorRequestId for Nuvei {}
 
 impl ConnectorIntegration<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>
     for Nuvei

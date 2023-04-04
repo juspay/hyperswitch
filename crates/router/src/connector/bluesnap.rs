@@ -117,7 +117,6 @@ impl ConnectorIntegration<api::Verify, types::VerifyRequestData, types::Payments
 }
 
 impl api::PaymentVoid for Bluesnap {}
-impl api::GetConnectorRequestId for Bluesnap {}
 
 impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsResponseData>
     for Bluesnap

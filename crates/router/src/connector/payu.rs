@@ -99,7 +99,6 @@ impl ConnectorIntegration<api::Verify, types::VerifyRequestData, types::Payments
 }
 
 impl api::PaymentVoid for Payu {}
-impl api::GetConnectorRequestId for Payu {}
 
 impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsResponseData>
     for Payu

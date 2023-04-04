@@ -94,7 +94,6 @@ impl ConnectorCommon for Shift4 {
 
 impl api::Payment for Shift4 {}
 impl api::ConnectorAccessToken for Shift4 {}
-impl api::GetConnectorRequestId for Shift4 {}
 
 impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, types::AccessToken>
     for Shift4

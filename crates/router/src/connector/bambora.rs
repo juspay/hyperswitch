@@ -92,7 +92,6 @@ impl ConnectorIntegration<api::Verify, types::VerifyRequestData, types::Payments
 }
 
 impl api::PaymentVoid for Bambora {}
-impl api::GetConnectorRequestId for Bambora {}
 
 impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsResponseData>
     for Bambora

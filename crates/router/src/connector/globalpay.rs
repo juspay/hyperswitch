@@ -99,7 +99,6 @@ impl ConnectorCommon for Globalpay {
 }
 
 impl PaymentsCompleteAuthorize for Globalpay {}
-impl api::GetConnectorRequestId for Globalpay {}
 
 impl
     ConnectorIntegration<

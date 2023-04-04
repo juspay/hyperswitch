@@ -159,7 +159,6 @@ impl ConnectorIntegration<api::Verify, types::VerifyRequestData, types::Payments
 }
 
 impl api::PaymentVoid for Fiserv {}
-impl api::GetConnectorRequestId for Fiserv {}
 
 #[allow(dead_code)]
 impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsResponseData>

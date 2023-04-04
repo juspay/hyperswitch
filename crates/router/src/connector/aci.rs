@@ -51,7 +51,6 @@ impl api::PaymentVoid for Aci {}
 impl api::PaymentCapture for Aci {}
 impl api::PaymentSession for Aci {}
 impl api::ConnectorAccessToken for Aci {}
-impl api::GetConnectorRequestId for Aci {}
 
 impl
     services::ConnectorIntegration<
