@@ -1,10 +1,10 @@
 //! Personal Identifiable Information protection.
 
-use std::{convert::AsRef, fmt, str::FromStr};
+use std::{convert::AsRef, fmt};
 
-use masking::{Secret, Strategy, WithType};
+use masking::{Strategy, WithType};
 
-use crate::{errors::ValidationError, validation::validate_email};
+use crate::validation::validate_email;
 
 /// Type alias for serde_json value which has Secret Information
 pub type SecretSerdeValue = masking::Secret<serde_json::Value>;
@@ -89,20 +89,7 @@ where
 
 /// Email address
 #[derive(Debug)]
-pub struct Email(Secret<String>);
-
-impl FromStr for Email {
-    type Err = ValidationError;
-
-    fn from_str(email: &str) -> Result<Self, Self::Err> {
-        match validate_email(email) {
-            Ok(_) => Ok(Email(Secret::new(email.to_string()))),
-            Err(_) => Err(ValidationError::InvalidValue {
-                message: "Invalid email address format".into(),
-            }),
-        }
-    }
-}
+pub struct Email;
 
 impl<T> Strategy<T> for Email
 where
@@ -152,8 +139,6 @@ where
 
 #[cfg(test)]
 mod pii_masking_strategy_tests {
-    use std::str::FromStr;
-
     use masking::Secret;
 
     use super::{CardNumber, ClientSecret, Email, IpAddress};
@@ -167,7 +152,7 @@ mod pii_masking_strategy_tests {
     #[test]
     fn test_invalid_card_number_masking() {
         let secret: Secret<String, CardNumber> = Secret::new("1234567890".to_string());
-        assert_eq!("*** alloc::string::String ***", format!("{secret:?}"));
+        assert_eq!("123456****", format!("{secret:?}"));
     }
 
     /*
@@ -200,18 +185,6 @@ mod pii_masking_strategy_tests {
 
         let secret: Secret<String, Email> = Secret::new("myemail@gmail@com".to_string());
         assert_eq!("*** alloc::string::String ***", format!("{secret:?}"));
-    }
-
-    #[test]
-    fn test_valid_newtype_email() {
-        let email_check = Email::from_str("example@abc.com");
-        assert!(email_check.is_ok());
-    }
-
-    #[test]
-    fn test_invalid_newtype_email() {
-        let email_check = Email::from_str("example@abc@com");
-        assert!(email_check.is_err());
     }
 
     #[test]
