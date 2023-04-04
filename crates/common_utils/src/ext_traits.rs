@@ -286,6 +286,7 @@ impl<T> StringExt<T> for String {
 ///
 /// Extending functionalities of Wrapper types for idiomatic
 ///
+#[cfg(feature = "async_ext")]
 #[async_trait::async_trait]
 pub trait AsyncExt<A, B> {
     /// Output type of the map function
@@ -307,6 +308,7 @@ pub trait AsyncExt<A, B> {
         Fut: futures::Future<Output = Self::WrappedSelf<B>> + Send;
 }
 
+#[cfg(feature = "async_ext")]
 #[async_trait::async_trait]
 impl<A: Send, B, E: Send> AsyncExt<A, B> for Result<A, E> {
     type WrappedSelf<T> = Result<T, E>;
@@ -333,6 +335,7 @@ impl<A: Send, B, E: Send> AsyncExt<A, B> for Result<A, E> {
     }
 }
 
+#[cfg(feature = "async_ext")]
 #[async_trait::async_trait]
 impl<A: Send, B> AsyncExt<A, B> for Option<A> {
     type WrappedSelf<T> = Option<T>;
