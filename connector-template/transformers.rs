@@ -38,7 +38,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for {{project-name | downcase 
                 })
             }
             _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
-        }    
+        }
     }
 }
 

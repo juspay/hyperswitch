@@ -1,7 +1,8 @@
 use common_utils::crypto::{self, GenerateDigest};
-use error_stack::ResultExt;
+use error_stack::{IntoReport, ResultExt};
 use rand::distributions::DistString;
 use serde::{Deserialize, Serialize};
+use url::Url;
 
 use super::{
     requests::{
@@ -14,7 +15,7 @@ use crate::{
     connector::utils::{self, RouterData, WalletData},
     consts,
     core::errors,
-    services::{self},
+    services::{self, RedirectForm},
     types::{self, api, storage::enums, ErrorResponse},
 };
 
@@ -194,14 +195,8 @@ impl From<Option<enums::CaptureMethod>> for requests::CaptureMode {
 fn get_payment_response(
     status: enums::AttemptStatus,
     response: GlobalpayPaymentsResponse,
+    redirection_data: Option<RedirectForm>,
 ) -> Result<types::PaymentsResponseData, ErrorResponse> {
-    let redirection_data = response.payment_method.as_ref().and_then(|payment_method| {
-        payment_method.apm.as_ref().and_then(|apm| {
-            apm.redirect_url.as_ref().map(|redirect_url| {
-                services::RedirectForm::from((redirect_url.to_owned(), services::Method::Get))
-            })
-        })
-    });
     let mandate_reference = response.payment_method.as_ref().and_then(|pm| {
         pm.card
             .as_ref()
@@ -238,9 +233,28 @@ impl<F, T>
         >,
     ) -> Result<Self, Self::Error> {
         let status = enums::AttemptStatus::from(item.response.status);
+        let redirect_url = item
+            .response
+            .payment_method
+            .as_ref()
+            .and_then(|payment_method| {
+                payment_method
+                    .apm
+                    .as_ref()
+                    .and_then(|apm| apm.redirect_url.as_ref())
+            })
+            .filter(|redirect_str| !redirect_str.is_empty())
+            .map(|url| {
+                Url::parse(url)
+                    .into_report()
+                    .change_context(errors::ConnectorError::FailedToObtainIntegrationUrl)
+            })
+            .transpose()?;
+        let redirection_data =
+            redirect_url.map(|url| services::RedirectForm::from((url, services::Method::Get)));
         Ok(Self {
             status,
-            response: get_payment_response(status, item.response),
+            response: get_payment_response(status, item.response, redirection_data),
             ..item.data
         })
     }
@@ -314,7 +328,7 @@ pub struct GlobalpayErrorResponse {
     pub detailed_error_description: String,
 }
 
-fn get_payment_method_data<'a>(
+fn get_payment_method_data(
     item: &types::PaymentsAuthorizeRouterData,
     brand_reference: Option<String>,
 ) -> Result<PaymentMethodData, error_stack::Report<errors::ConnectorError>> {
@@ -347,22 +361,17 @@ fn get_payment_method_data<'a>(
 
 fn get_return_url(item: &types::PaymentsAuthorizeRouterData) -> Option<String> {
     match item.request.payment_method_data.clone() {
-        api::PaymentMethodData::Wallet(wallet_data) => match wallet_data {
-            api_models::payments::WalletData::PaypalRedirect(_) => {
-                item.request.complete_authorize_url.clone()
-            }
-            _ => item.request.router_return_url.clone(),
-        },
+        api::PaymentMethodData::Wallet(api_models::payments::WalletData::PaypalRedirect(_)) => {
+            item.request.complete_authorize_url.clone()
+        }
         _ => item.request.router_return_url.clone(),
     }
 }
 
+type MandateDetails = (Option<Initiator>, Option<StoredCredential>, Option<String>);
 fn get_mandate_details(
     item: &types::PaymentsAuthorizeRouterData,
-) -> Result<
-    (Option<Initiator>, Option<StoredCredential>, Option<String>),
-    error_stack::Report<errors::ConnectorError>,
-> {
+) -> Result<MandateDetails, error_stack::Report<errors::ConnectorError>> {
     let connector_mandate_id = item
         .request
         .mandate_id

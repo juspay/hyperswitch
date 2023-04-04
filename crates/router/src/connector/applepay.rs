@@ -143,6 +143,7 @@ impl
         let request = services::RequestBuilder::new()
             .method(services::Method::Post)
             .url(&types::PaymentsSessionType::get_url(self, req, connectors)?)
+            .attach_default_headers()
             .headers(types::PaymentsSessionType::get_headers(
                 self, req, connectors,
             )?)

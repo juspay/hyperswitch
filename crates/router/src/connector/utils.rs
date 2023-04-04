@@ -6,11 +6,10 @@ use common_utils::{
     pii::{self, Email},
 };
 use error_stack::{report, IntoReport, ResultExt};
-use masking::{Deserialize, Secret};
+use masking::Secret;
 use once_cell::sync::Lazy;
 use regex::Regex;
 use serde::Serializer;
-use url::Url;
 
 use crate::{
     consts,
@@ -551,14 +550,23 @@ pub fn collect_and_sort_values_by_removing_signature(
     values.sort();
     values
 }
-pub fn deserialize_redirect_url<'de, D>(deserializer: D) -> Result<Option<Url>, D::Error>
-where
-    D: serde::Deserializer<'de>,
-{
-    let item = String::deserialize(deserializer)?;
-    if item.is_empty() {
-        Ok(None)
-    } else {
-        Ok(Some(Url::parse(&item).map_err(serde::de::Error::custom)?))
-    }
-}
+// pub fn deserialize_redirect_url<'de, D>(deserializer: D) -> Result<Option<Url>, D::Error>
+// where
+//     D: serde::Deserializer<'de>,
+// {
+//     println!(">>>Calling des");
+//     let item:Option<String> = Option::deserialize(deserializer)?;
+//     println!(">>>{:?}", item);
+//     let res = match item{
+//         Some(url) => {
+//             if url.is_empty() {
+//                 Ok(None)
+//             } else {
+//                 Ok(Some(Url::parse(&url).map_err(serde::de::Error::custom)?))
+//             }
+//         },
+//         _ => Ok(None)
+//     };
+//     println!(">>>{:?}", res);
+//     res
+// }
