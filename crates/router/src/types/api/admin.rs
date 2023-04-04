@@ -6,10 +6,10 @@ pub use api_models::admin::{
     WebhookDetails,
 };
 
-use crate::types::{domain::merchant_account, transformers::ForeignFrom};
+use crate::types::domain::merchant_account;
 
-impl ForeignFrom<merchant_account::MerchantAccount> for MerchantAccountResponse {
-    fn foreign_from(value: merchant_account::MerchantAccount) -> Self {
+impl From<merchant_account::MerchantAccount> for MerchantAccountResponse {
+    fn from(value: merchant_account::MerchantAccount) -> Self {
         let item = value;
         Self {
             merchant_id: item.merchant_id,

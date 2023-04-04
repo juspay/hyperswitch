@@ -123,7 +123,7 @@ pub async fn create_merchant_account(
         })?;
 
     Ok(service_api::ApplicationResponse::Json(
-        merchant_account.foreign_into(),
+        merchant_account.into(),
     ))
 }
 
@@ -139,7 +139,7 @@ pub async fn get_merchant_account(
         })?;
 
     Ok(service_api::ApplicationResponse::Json(
-        merchant_account.foreign_into(),
+        merchant_account.into(),
     ))
 }
 
@@ -213,9 +213,7 @@ pub async fn merchant_account_update(
             error.to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
         })?;
 
-    Ok(service_api::ApplicationResponse::Json(
-        response.foreign_into(),
-    ))
+    Ok(service_api::ApplicationResponse::Json(response.into()))
 }
 
 pub async fn merchant_account_delete(
