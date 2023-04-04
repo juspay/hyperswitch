@@ -26,7 +26,6 @@ pub struct Address {
     pub customer_id: String,
     pub merchant_id: String,
 }
-// TODO: Do we need this to implement serde?
 
 #[async_trait]
 impl behaviour::Conversion for Address {

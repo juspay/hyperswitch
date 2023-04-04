@@ -15,7 +15,7 @@ use crate::{
     types::{
         self, api, domain,
         storage::{self, MerchantAccount},
-        transformers::{ForeignInto, ForeignTryInto},
+        transformers::ForeignInto,
     },
     utils::{self, OptionExt},
 };
@@ -359,9 +359,7 @@ pub async fn retrieve_payment_connector(
             error.to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound)
         })?;
 
-    Ok(service_api::ApplicationResponse::Json(
-        mca.foreign_try_into()?,
-    ))
+    Ok(service_api::ApplicationResponse::Json(mca.try_into()?))
 }
 
 pub async fn list_payment_connectors(
@@ -386,7 +384,7 @@ pub async fn list_payment_connectors(
 
     // The can be eliminated once [#79711](https://github.com/rust-lang/rust/issues/79711) is stabilized
     for mca in merchant_connector_accounts.into_iter() {
-        response.push(mca.foreign_try_into()?);
+        response.push(mca.try_into()?);
     }
 
     Ok(service_api::ApplicationResponse::Json(response))
