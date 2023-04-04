@@ -9,7 +9,10 @@ use crate::{
     },
     routes::{metrics, AppState},
     services,
-    types::{self, api, storage},
+    types::{
+        self, api,
+        domain::{customer, merchant_account},
+    },
 };
 
 #[async_trait]
@@ -24,7 +27,7 @@ impl
         &self,
         state: &AppState,
         connector_id: &str,
-        merchant_account: &storage::MerchantAccount,
+        merchant_account: &merchant_account::MerchantAccount,
     ) -> RouterResult<
         types::RouterData<
             api::Authorize,
@@ -48,9 +51,9 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
         mut self,
         state: &AppState,
         connector: &api::ConnectorData,
-        customer: &Option<storage::Customer>,
+        customer: &Option<customer::Customer>,
         call_connector_action: payments::CallConnectorAction,
-        merchant_account: &storage::MerchantAccount,
+        merchant_account: &merchant_account::MerchantAccount,
     ) -> RouterResult<Self> {
         let resp = self
             .decide_flow(
@@ -72,7 +75,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
         &self,
         state: &AppState,
         connector: &api::ConnectorData,
-        merchant_account: &storage::MerchantAccount,
+        merchant_account: &merchant_account::MerchantAccount,
     ) -> RouterResult<types::AddAccessTokenResult> {
         access_token::add_access_token(state, connector, merchant_account, self).await
     }
@@ -83,10 +86,10 @@ impl types::PaymentsAuthorizeRouterData {
         &'b mut self,
         state: &'a AppState,
         connector: &api::ConnectorData,
-        maybe_customer: &Option<storage::Customer>,
+        maybe_customer: &Option<customer::Customer>,
         confirm: Option<bool>,
         call_connector_action: payments::CallConnectorAction,
-        merchant_account: &storage::MerchantAccount,
+        merchant_account: &merchant_account::MerchantAccount,
     ) -> RouterResult<Self> {
         match confirm {
             Some(true) => {

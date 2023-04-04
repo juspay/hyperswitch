@@ -14,6 +14,7 @@ use crate::{
             customers,
             mandates::{self, MandateResponseExt},
         },
+        domain::{customer, merchant_account},
         storage,
         transformers::ForeignInto,
     },
@@ -22,7 +23,7 @@ use crate::{
 #[instrument(skip(state))]
 pub async fn get_mandate(
     state: &AppState,
-    merchant_account: storage::MerchantAccount,
+    merchant_account: merchant_account::MerchantAccount,
     req: mandates::MandateId,
 ) -> RouterResponse<mandates::MandateResponse> {
     let mandate = state
@@ -38,7 +39,7 @@ pub async fn get_mandate(
 #[instrument(skip(db))]
 pub async fn revoke_mandate(
     db: &dyn StorageInterface,
-    merchant_account: storage::MerchantAccount,
+    merchant_account: merchant_account::MerchantAccount,
     req: mandates::MandateId,
 ) -> RouterResponse<mandates::MandateRevokedResponse> {
     let mandate = db
@@ -63,7 +64,7 @@ pub async fn revoke_mandate(
 #[instrument(skip(state))]
 pub async fn get_customer_mandates(
     state: &AppState,
-    merchant_account: storage::MerchantAccount,
+    merchant_account: merchant_account::MerchantAccount,
     req: customers::CustomerId,
 ) -> RouterResponse<Vec<mandates::MandateResponse>> {
     let mandates = state
@@ -95,8 +96,8 @@ pub async fn get_customer_mandates(
 pub async fn mandate_procedure<F, FData>(
     state: &AppState,
     mut resp: types::RouterData<F, FData, types::PaymentsResponseData>,
-    maybe_customer: &Option<storage::Customer>,
-    merchant_account: &storage::MerchantAccount,
+    maybe_customer: &Option<customer::Customer>,
+    merchant_account: &merchant_account::MerchantAccount,
 ) -> errors::RouterResult<types::RouterData<F, FData, types::PaymentsResponseData>>
 where
     FData: MandateBehaviour,

@@ -14,7 +14,7 @@ use crate::{
     db::StorageInterface,
     routes::app::AppStateInfo,
     services::api,
-    types::storage,
+    types::domain::merchant_account,
     utils::OptionExt,
 };
 
@@ -50,7 +50,7 @@ where
 }
 
 #[async_trait]
-impl<A> AuthenticateAndFetch<storage::MerchantAccount, A> for ApiKeyAuth
+impl<A> AuthenticateAndFetch<merchant_account::MerchantAccount, A> for ApiKeyAuth
 where
     A: AppStateInfo + Sync,
 {
@@ -58,7 +58,7 @@ where
         &self,
         request_headers: &HeaderMap,
         state: &A,
-    ) -> RouterResult<storage::MerchantAccount> {
+    ) -> RouterResult<merchant_account::MerchantAccount> {
         let api_key = get_api_key(request_headers)
             .change_context(errors::ApiErrorResponse::Unauthorized)?
             .trim();
@@ -140,7 +140,7 @@ where
 pub struct MerchantIdAuth(pub String);
 
 #[async_trait]
-impl<A> AuthenticateAndFetch<storage::MerchantAccount, A> for MerchantIdAuth
+impl<A> AuthenticateAndFetch<merchant_account::MerchantAccount, A> for MerchantIdAuth
 where
     A: AppStateInfo + Sync,
 {
@@ -148,7 +148,7 @@ where
         &self,
         _request_headers: &HeaderMap,
         state: &A,
-    ) -> RouterResult<storage::MerchantAccount> {
+    ) -> RouterResult<merchant_account::MerchantAccount> {
         state
             .store()
             .find_merchant_account_by_merchant_id(self.0.as_ref())
@@ -167,7 +167,7 @@ where
 pub struct PublishableKeyAuth;
 
 #[async_trait]
-impl<A> AuthenticateAndFetch<storage::MerchantAccount, A> for PublishableKeyAuth
+impl<A> AuthenticateAndFetch<merchant_account::MerchantAccount, A> for PublishableKeyAuth
 where
     A: AppStateInfo + Sync,
 {
@@ -175,7 +175,7 @@ where
         &self,
         request_headers: &HeaderMap,
         state: &A,
-    ) -> RouterResult<storage::MerchantAccount> {
+    ) -> RouterResult<merchant_account::MerchantAccount> {
         let publishable_key =
             get_api_key(request_headers).change_context(errors::ApiErrorResponse::Unauthorized)?;
         state
@@ -223,7 +223,7 @@ struct JwtAuthPayloadFetchMerchantAccount {
 }
 
 #[async_trait]
-impl<A> AuthenticateAndFetch<storage::MerchantAccount, A> for JWTAuth
+impl<A> AuthenticateAndFetch<merchant_account::MerchantAccount, A> for JWTAuth
 where
     A: AppStateInfo + Sync,
 {
@@ -231,7 +231,7 @@ where
         &self,
         request_headers: &HeaderMap,
         state: &A,
-    ) -> RouterResult<storage::MerchantAccount> {
+    ) -> RouterResult<merchant_account::MerchantAccount> {
         let mut token = get_jwt(request_headers)?;
         token = strip_jwt_token(token)?;
         let payload = decode_jwt::<JwtAuthPayloadFetchMerchantAccount>(token, state)?;
@@ -281,7 +281,7 @@ where
 pub fn get_auth_type_and_flow<A: AppStateInfo + Sync>(
     headers: &HeaderMap,
 ) -> RouterResult<(
-    Box<dyn AuthenticateAndFetch<storage::MerchantAccount, A>>,
+    Box<dyn AuthenticateAndFetch<merchant_account::MerchantAccount, A>>,
     api::AuthFlow,
 )> {
     let api_key = get_api_key(headers)?;
@@ -296,13 +296,13 @@ pub fn check_client_secret_and_get_auth<T>(
     headers: &HeaderMap,
     payload: &impl ClientSecretFetch,
 ) -> RouterResult<(
-    Box<dyn AuthenticateAndFetch<storage::MerchantAccount, T>>,
+    Box<dyn AuthenticateAndFetch<merchant_account::MerchantAccount, T>>,
     api::AuthFlow,
 )>
 where
     T: AppStateInfo,
-    ApiKeyAuth: AuthenticateAndFetch<storage::MerchantAccount, T>,
-    PublishableKeyAuth: AuthenticateAndFetch<storage::MerchantAccount, T>,
+    ApiKeyAuth: AuthenticateAndFetch<merchant_account::MerchantAccount, T>,
+    PublishableKeyAuth: AuthenticateAndFetch<merchant_account::MerchantAccount, T>,
 {
     let api_key = get_api_key(headers)?;
 
@@ -330,7 +330,7 @@ pub async fn is_ephemeral_auth<A: AppStateInfo + Sync>(
     headers: &HeaderMap,
     db: &dyn StorageInterface,
     customer_id: &str,
-) -> RouterResult<Box<dyn AuthenticateAndFetch<storage::MerchantAccount, A>>> {
+) -> RouterResult<Box<dyn AuthenticateAndFetch<merchant_account::MerchantAccount, A>>> {
     let api_key = get_api_key(headers)?;
 
     if !api_key.starts_with("epk") {

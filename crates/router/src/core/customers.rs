@@ -15,7 +15,7 @@ use crate::{
     services,
     types::{
         api::customers::{self, CustomerRequestExt},
-        domain,
+        domain::{self, customer, merchant_account},
         storage::{self, enums},
     },
     utils::generate_id,
@@ -26,7 +26,7 @@ pub const REDACTED: &str = "Redacted";
 #[instrument(skip(db))]
 pub async fn create_customer(
     db: &dyn StorageInterface,
-    merchant_account: storage::MerchantAccount,
+    merchant_account: merchant_account::MerchantAccount,
     customer_data: customers::CustomerRequest,
 ) -> RouterResponse<customers::CustomerResponse> {
     let mut customer_data = customer_data.validate()?;
@@ -64,7 +64,7 @@ pub async fn create_customer(
         .attach_printable("Failed while inserting new address")?;
     };
 
-    let new_customer = storage::CustomerNew {
+    let new_customer = customer::Customer {
         customer_id: customer_id.to_string(),
         merchant_id: merchant_id.to_string(),
         name: customer_data.name,
@@ -73,6 +73,8 @@ pub async fn create_customer(
         description: customer_data.description,
         phone_country_code: customer_data.phone_country_code,
         metadata: customer_data.metadata,
+        id: None,
+        created_at: common_utils::date_time::now(),
     };
 
     let customer = match db.insert_customer(new_customer).await {
@@ -103,7 +105,7 @@ pub async fn create_customer(
 #[instrument(skip(db))]
 pub async fn retrieve_customer(
     db: &dyn StorageInterface,
-    merchant_account: storage::MerchantAccount,
+    merchant_account: merchant_account::MerchantAccount,
     req: customers::CustomerId,
 ) -> RouterResponse<customers::CustomerResponse> {
     let response = db
@@ -117,7 +119,7 @@ pub async fn retrieve_customer(
 #[instrument(skip_all)]
 pub async fn delete_customer(
     state: &AppState,
-    merchant_account: storage::MerchantAccount,
+    merchant_account: merchant_account::MerchantAccount,
     req: customers::CustomerId,
 ) -> RouterResponse<customers::CustomerDeleteResponse> {
     let db = &state.store;
@@ -235,7 +237,7 @@ pub async fn delete_customer(
 #[instrument(skip(db))]
 pub async fn update_customer(
     db: &dyn StorageInterface,
-    merchant_account: storage::MerchantAccount,
+    merchant_account: merchant_account::MerchantAccount,
     update_customer: customers::CustomerRequest,
 ) -> RouterResponse<customers::CustomerResponse> {
     let update_customer = update_customer.validate()?;

@@ -29,7 +29,7 @@ use crate::{
     services,
     types::{
         api::{self, admin, enums as api_enums, CustomerAcceptanceExt, MandateValidationFieldsExt},
-        domain,
+        domain::{self, customer, merchant_account},
         storage::{self, enums as storage_enums, ephemeral_key},
         transformers::ForeignInto,
     },
@@ -117,7 +117,7 @@ pub async fn get_token_pm_type_mandate_details(
     state: &AppState,
     request: &api::PaymentsRequest,
     mandate_type: Option<api::MandateTxnType>,
-    merchant_account: &storage::MerchantAccount,
+    merchant_account: &merchant_account::MerchantAccount,
 ) -> RouterResult<(
     Option<String>,
     Option<storage_enums::PaymentMethod>,
@@ -151,7 +151,7 @@ pub async fn get_token_pm_type_mandate_details(
 pub async fn get_token_for_recurring_mandate(
     state: &AppState,
     req: &api::PaymentsRequest,
-    merchant_account: &storage::MerchantAccount,
+    merchant_account: &merchant_account::MerchantAccount,
 ) -> RouterResult<(Option<String>, Option<storage_enums::PaymentMethod>)> {
     let db = &*state.store;
     let mandate_id = req.mandate_id.clone().get_required_value("mandate_id")?;
@@ -541,10 +541,10 @@ where
 #[instrument(skip_all)]
 pub(crate) async fn call_payment_method(
     state: &AppState,
-    merchant_account: &storage::MerchantAccount,
+    merchant_account: &merchant_account::MerchantAccount,
     payment_method: Option<&api::PaymentMethodData>,
     payment_method_type: Option<storage_enums::PaymentMethod>,
-    maybe_customer: &Option<storage::Customer>,
+    maybe_customer: &Option<customer::Customer>,
 ) -> RouterResult<api::PaymentMethodResponse> {
     match payment_method {
         Some(pm_data) => match payment_method_type {
@@ -634,7 +634,7 @@ pub async fn get_customer_from_details<F: Clone>(
     customer_id: Option<String>,
     merchant_id: &str,
     payment_data: &mut PaymentData<F>,
-) -> CustomResult<Option<storage::Customer>, errors::StorageError> {
+) -> CustomResult<Option<customer::Customer>, errors::StorageError> {
     match customer_id {
         None => Ok(None),
         Some(c_id) => {
@@ -667,7 +667,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R>(
     payment_data: &mut PaymentData<F>,
     req: Option<CustomerDetails>,
     merchant_id: &str,
-) -> CustomResult<(BoxedOperation<'a, F, R>, Option<storage::Customer>), errors::StorageError> {
+) -> CustomResult<(BoxedOperation<'a, F, R>, Option<customer::Customer>), errors::StorageError> {
     let req = req
         .get_required_value("customer")
         .change_context(errors::StorageError::ValueNotFound("customer".to_owned()))?;
@@ -679,14 +679,17 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R>(
             Some(match customer_data {
                 Some(c) => Ok(c),
                 None => {
-                    let new_customer = storage::CustomerNew {
+                    let new_customer = customer::Customer {
                         customer_id: customer_id.to_string(),
                         merchant_id: merchant_id.to_string(),
                         name: req.name.expose_option(),
                         email: req.email.clone(),
                         phone: req.phone.clone(),
                         phone_country_code: req.phone_country_code.clone(),
-                        ..storage::CustomerNew::default()
+                        description: None,
+                        created_at: common_utils::date_time::now(),
+                        id: None,
+                        metadata: None,
                     };
 
                     metrics::CUSTOMER_CREATED.add(&metrics::CONTEXT, 1, &[]);
@@ -959,7 +962,7 @@ pub(super) fn validate_payment_list_request(
 
 pub fn get_handle_response_url(
     payment_id: String,
-    merchant_account: &storage::MerchantAccount,
+    merchant_account: &merchant_account::MerchantAccount,
     response: api::PaymentsResponse,
     connector: String,
 ) -> RouterResult<api::RedirectionResponse> {
@@ -977,7 +980,7 @@ pub fn get_handle_response_url(
 }
 
 pub fn make_merchant_url_with_response(
-    merchant_account: &storage::MerchantAccount,
+    merchant_account: &merchant_account::MerchantAccount,
     redirection_response: api::PgRedirectResponse,
     request_return_url: Option<&String>,
 ) -> RouterResult<String> {
@@ -1069,7 +1072,7 @@ pub fn make_pg_redirect_response(
 
 pub fn make_url_with_signature(
     redirect_url: &str,
-    merchant_account: &storage::MerchantAccount,
+    merchant_account: &merchant_account::MerchantAccount,
 ) -> RouterResult<api::RedirectionResponse> {
     let mut url = url::Url::parse(redirect_url)
         .into_report()
@@ -1147,7 +1150,7 @@ pub fn generate_mandate(
     merchant_id: String,
     connector: String,
     setup_mandate_details: Option<api::MandateData>,
-    customer: &Option<storage::Customer>,
+    customer: &Option<customer::Customer>,
     payment_method_id: String,
     connector_mandate_id: Option<String>,
 ) -> Option<storage::MandateNew> {

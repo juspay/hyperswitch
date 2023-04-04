@@ -9,7 +9,10 @@ use crate::{
         payments::{self, PaymentRedirectFlow},
     },
     services::{api, authentication as auth},
-    types::api::{self as api_types, enums as api_enums, payments as payment_types},
+    types::{
+        api::{self as api_types, enums as api_enums, payments as payment_types},
+        domain::merchant_account,
+    },
 };
 
 /// Payments - Create
@@ -696,7 +699,7 @@ pub async fn payments_list(
 async fn authorize_verify_select<Op>(
     operation: Op,
     state: &app::AppState,
-    merchant_account: storage_models::merchant_account::MerchantAccount,
+    merchant_account: merchant_account::MerchantAccount,
     req: api_models::payments::PaymentsRequest,
     auth_flow: api::AuthFlow,
 ) -> app::core::errors::RouterResponse<api_models::payments::PaymentsResponse>
