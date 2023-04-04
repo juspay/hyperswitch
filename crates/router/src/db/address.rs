@@ -15,7 +15,11 @@ use crate::{
 };
 
 #[async_trait::async_trait]
-pub trait AddressInterface {
+pub trait AddressInterface
+where
+    domain::address::Address:
+        Conversion<DstType = storage::Address, NewDstType = storage::AddressNew>,
+{
     async fn update_address(
         &self,
         address_id: String,

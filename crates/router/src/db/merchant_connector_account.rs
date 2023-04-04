@@ -104,7 +104,13 @@ impl ConnectorAccessToken for MockDb {
 }
 
 #[async_trait::async_trait]
-pub trait MerchantConnectorAccountInterface {
+pub trait MerchantConnectorAccountInterface
+where
+    domain::merchant_connector_account::MerchantConnectorAccount: Conversion<
+        DstType = storage::MerchantConnectorAccount,
+        NewDstType = storage::MerchantConnectorAccountNew,
+    >,
+{
     async fn find_merchant_connector_account_by_merchant_id_connector(
         &self,
         merchant_id: &str,
