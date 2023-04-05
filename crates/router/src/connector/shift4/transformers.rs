@@ -134,7 +134,7 @@ impl<T> TryFrom<&types::RouterData<T, types::CompleteAuthorizeData, types::Payme
     ) -> Result<Self, Self::Error> {
         match &item.request.payment_method_data {
             Some(api::PaymentMethodData::Card(_)) => {
-                let card_token: NuveiCardToken =
+                let card_token: Shift4CardToken =
                     to_connector_meta(item.request.connector_meta.clone())?;
                 Ok(Self::Non3DSRequest(Box::new(Shift4Non3DSRequest {
                     amount: item.request.amount.to_string(),
@@ -409,7 +409,7 @@ pub enum NextAction {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct NuveiCardToken {
+pub struct Shift4CardToken {
     pub id: String,
 }
 
@@ -451,7 +451,7 @@ impl<F>
                 redirection_data,
                 mandate_reference: None,
                 connector_metadata: Some(
-                    serde_json::to_value(NuveiCardToken {
+                    serde_json::to_value(Shift4CardToken {
                         id: item.response.token.id,
                     })
                     .into_report()
