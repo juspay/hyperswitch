@@ -389,13 +389,13 @@ impl From<api_models::payments::GooglePayWalletData> for NuveiPaymentsRequest {
     }
 }
 impl From<api_models::payments::ApplePayWalletData> for NuveiPaymentsRequest {
-    fn from(apple_data: api_models::payments::ApplePayWalletData) -> Self {
+    fn from(apple_pay_data: api_models::payments::ApplePayWalletData) -> Self {
         Self {
             payment_option: PaymentOption {
                 card: Some(Card {
                     external_token: Some(ExternalToken {
                         external_token_provider: ExternalTokenProvider::ApplePay,
-                        mobile_token: apple_data.payment_data,
+                        mobile_token: apple_pay_data.payment_data,
                     }),
                     ..Default::default()
                 }),
@@ -424,8 +424,8 @@ impl<F>
             api::PaymentMethodData::Card(card) => get_card_info(item, &card),
             api::PaymentMethodData::Wallet(wallet) => match wallet {
                 api_models::payments::WalletData::GooglePay(gpay_data) => Ok(Self::from(gpay_data)),
-                api_models::payments::WalletData::ApplePay(apple_data) => {
-                    Ok(Self::from(apple_data))
+                api_models::payments::WalletData::ApplePay(apple_pay_data) => {
+                    Ok(Self::from(apple_pay_data))
                 }
                 api_models::payments::WalletData::PaypalRedirect(_) => Ok(Self {
                     payment_option: PaymentOption {
