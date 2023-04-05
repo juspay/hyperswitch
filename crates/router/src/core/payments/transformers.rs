@@ -198,7 +198,7 @@ where
                 .and_then(|cus| cus.email.as_ref().map(|s| s.to_owned())),
             name: customer
                 .as_ref()
-                .and_then(|cus| cus.name.as_ref().map(|s| s.to_owned().into())),
+                .and_then(|cus| cus.name.as_ref().map(|s| s.to_owned())),
             phone: customer
                 .as_ref()
                 .and_then(|cus| cus.phone.as_ref().map(|s| s.to_owned())),

@@ -1,27 +1,39 @@
 use async_trait::async_trait;
-use common_utils::errors::{CustomResult, ValidationError};
+use common_utils::{
+    crypto::{Encryptable, GcmAes256},
+    date_time,
+    errors::{CustomResult, ValidationError},
+    ext_traits::AsyncExt,
+};
+use error_stack::ResultExt;
 use masking::Secret;
-use storage_models::enums;
-use time::PrimitiveDateTime;
+use storage_models::{address::AddressUpdateInternal, encryption::Encryption, enums};
+use time::{OffsetDateTime, PrimitiveDateTime};
 
-use super::behaviour;
+use super::{behaviour, types::TypeEncryption};
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, serde::Serialize)]
 pub struct Address {
+    #[serde(skip_serializing)]
     pub id: Option<i32>,
+    #[serde(skip_serializing)]
     pub address_id: String,
     pub city: Option<String>,
     pub country: Option<enums::CountryCode>,
-    pub line1: Option<Secret<String>>,
-    pub line2: Option<Secret<String>>,
-    pub line3: Option<Secret<String>>,
-    pub state: Option<Secret<String>>,
-    pub zip: Option<Secret<String>>,
-    pub first_name: Option<Secret<String>>,
-    pub last_name: Option<Secret<String>>,
-    pub phone_number: Option<Secret<String>>,
+    pub line1: Option<Encryptable<Secret<String>>>,
+    pub line2: Option<Encryptable<Secret<String>>>,
+    pub line3: Option<Encryptable<Secret<String>>>,
+    pub state: Option<Encryptable<Secret<String>>>,
+    pub zip: Option<Encryptable<Secret<String>>>,
+    pub first_name: Option<Encryptable<Secret<String>>>,
+    pub last_name: Option<Encryptable<Secret<String>>>,
+    pub phone_number: Option<Encryptable<Secret<String>>>,
     pub country_code: Option<String>,
+    #[serde(skip_serializing)]
+    #[serde(with = "custom_serde::iso8601")]
     pub created_at: PrimitiveDateTime,
+    #[serde(skip_serializing)]
+    #[serde(with = "custom_serde::iso8601")]
     pub modified_at: PrimitiveDateTime,
     pub customer_id: String,
     pub merchant_id: String,
@@ -40,14 +52,14 @@ impl behaviour::Conversion for Address {
             address_id: self.address_id,
             city: self.city,
             country: self.country,
-            line1: self.line1,
-            line2: self.line2,
-            line3: self.line3,
-            state: self.state,
-            zip: self.zip,
-            first_name: self.first_name,
-            last_name: self.last_name,
-            phone_number: self.phone_number,
+            line1: self.line1.map(Encryption::from),
+            line2: self.line2.map(Encryption::from),
+            line3: self.line3.map(Encryption::from),
+            state: self.state.map(Encryption::from),
+            zip: self.zip.map(Encryption::from),
+            first_name: self.first_name.map(Encryption::from),
+            last_name: self.last_name.map(Encryption::from),
+            phone_number: self.phone_number.map(Encryption::from),
             country_code: self.country_code,
             created_at: self.created_at,
             modified_at: self.modified_at,
@@ -57,19 +69,76 @@ impl behaviour::Conversion for Address {
     }
 
     async fn convert_back(other: Self::DstType) -> CustomResult<Self, ValidationError> {
+        let key = &[0];
         Ok(Self {
             id: Some(other.id),
             address_id: other.address_id,
             city: other.city,
             country: other.country,
-            line1: other.line1,
-            line2: other.line2,
-            line3: other.line3,
-            state: other.state,
-            zip: other.zip,
-            first_name: other.first_name,
-            last_name: other.last_name,
-            phone_number: other.phone_number,
+            line1: other
+                .line1
+                .async_map(|inner| Encryptable::decrypt(inner, key, GcmAes256 {}))
+                .await
+                .transpose()
+                .change_context(ValidationError::InvalidValue {
+                    message: "Failed while decrypting".to_string(),
+                })?,
+            line2: other
+                .line2
+                .async_map(|inner| Encryptable::decrypt(inner, key, GcmAes256 {}))
+                .await
+                .transpose()
+                .change_context(ValidationError::InvalidValue {
+                    message: "Failed while decrypting".to_string(),
+                })?,
+            line3: other
+                .line3
+                .async_map(|inner| Encryptable::decrypt(inner, key, GcmAes256 {}))
+                .await
+                .transpose()
+                .change_context(ValidationError::InvalidValue {
+                    message: "Failed while decrypting".to_string(),
+                })?,
+            state: other
+                .state
+                .async_map(|inner| Encryptable::decrypt(inner, key, GcmAes256 {}))
+                .await
+                .transpose()
+                .change_context(ValidationError::InvalidValue {
+                    message: "Failed while decrypting".to_string(),
+                })?,
+            zip: other
+                .zip
+                .async_map(|inner| Encryptable::decrypt(inner, key, GcmAes256 {}))
+                .await
+                .transpose()
+                .change_context(ValidationError::InvalidValue {
+                    message: "Failed while decrypting".to_string(),
+                })?,
+            first_name: other
+                .first_name
+                .async_map(|inner| Encryptable::decrypt(inner, key, GcmAes256 {}))
+                .await
+                .transpose()
+                .change_context(ValidationError::InvalidValue {
+                    message: "Failed while decrypting".to_string(),
+                })?,
+            last_name: other
+                .last_name
+                .async_map(|inner| Encryptable::decrypt(inner, key, GcmAes256 {}))
+                .await
+                .transpose()
+                .change_context(ValidationError::InvalidValue {
+                    message: "Failed while decrypting".to_string(),
+                })?,
+            phone_number: other
+                .phone_number
+                .async_map(|inner| Encryptable::decrypt(inner, key, GcmAes256 {}))
+                .await
+                .transpose()
+                .change_context(ValidationError::InvalidValue {
+                    message: "Failed while decrypting".to_string(),
+                })?,
             country_code: other.country_code,
             created_at: other.created_at,
             modified_at: other.modified_at,
@@ -88,17 +157,67 @@ impl behaviour::Conversion for Address {
             address_id: self.address_id,
             city: self.city,
             country: self.country,
-            line1: self.line1,
-            line2: self.line2,
-            line3: self.line3,
-            state: self.state,
-            zip: self.zip,
-            first_name: self.first_name,
-            last_name: self.last_name,
-            phone_number: self.phone_number,
+            line1: self.line1.map(Encryption::from),
+            line2: self.line2.map(Encryption::from),
+            line3: self.line3.map(Encryption::from),
+            state: self.state.map(Encryption::from),
+            zip: self.zip.map(Encryption::from),
+            first_name: self.first_name.map(Encryption::from),
+            last_name: self.last_name.map(Encryption::from),
+            phone_number: self.phone_number.map(Encryption::from),
             country_code: self.country_code,
             customer_id: self.customer_id,
             merchant_id: self.merchant_id,
         })
+    }
+}
+
+#[derive(Debug, frunk::LabelledGeneric)]
+pub enum AddressUpdate {
+    Update {
+        city: Option<String>,
+        country: Option<enums::CountryCode>,
+        line1: Option<Encryptable<Secret<String>>>,
+        line2: Option<Encryptable<Secret<String>>>,
+        line3: Option<Encryptable<Secret<String>>>,
+        state: Option<Encryptable<Secret<String>>>,
+        zip: Option<Encryptable<Secret<String>>>,
+        first_name: Option<Encryptable<Secret<String>>>,
+        last_name: Option<Encryptable<Secret<String>>>,
+        phone_number: Option<Encryptable<Secret<String>>>,
+        country_code: Option<String>,
+    },
+}
+
+impl From<AddressUpdate> for AddressUpdateInternal {
+    fn from(address_update: AddressUpdate) -> Self {
+        match address_update {
+            AddressUpdate::Update {
+                city,
+                country,
+                line1,
+                line2,
+                line3,
+                state,
+                zip,
+                first_name,
+                last_name,
+                phone_number,
+                country_code,
+            } => Self {
+                city,
+                country,
+                line1: line1.map(Encryption::from),
+                line2: line2.map(Encryption::from),
+                line3: line3.map(Encryption::from),
+                state: state.map(Encryption::from),
+                zip: zip.map(Encryption::from),
+                first_name: first_name.map(Encryption::from),
+                last_name: last_name.map(Encryption::from),
+                phone_number: phone_number.map(Encryption::from),
+                country_code,
+                modified_at: date_time::convert_to_pdt(OffsetDateTime::now_utc()),
+            },
+        }
     }
 }

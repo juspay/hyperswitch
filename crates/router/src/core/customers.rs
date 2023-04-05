@@ -40,23 +40,69 @@ pub async fn create_customer(
     let merchant_id = &merchant_account.merchant_id;
     customer_data.merchant_id = merchant_id.to_owned();
 
+    let key = get_key_and_algo(db, merchant_id.clone())
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
     if let Some(addr) = &customer_data.address {
         let customer_address: api_models::payments::AddressDetails = addr
             .peek()
             .clone()
             .parse_value("AddressDetails")
             .change_context(errors::ApiErrorResponse::AddressNotFound)?;
+
         db.insert_address(domain::address::Address {
             city: customer_address.city,
             country: customer_address.country,
-            line1: customer_address.line1,
-            line2: customer_address.line2,
-            line3: customer_address.line3,
-            zip: customer_address.zip,
-            state: customer_address.state,
-            first_name: customer_address.first_name,
-            last_name: customer_address.last_name,
-            phone_number: customer_data.phone.clone(),
+            line1: customer_address
+                .line1
+                .async_map(|inner| crypto::Encryptable::encrypt(inner, &key, GcmAes256 {}))
+                .await
+                .transpose()
+                .change_context(errors::ApiErrorResponse::InternalServerError)?,
+            line2: customer_address
+                .line2
+                .async_map(|inner| crypto::Encryptable::encrypt(inner, &key, GcmAes256 {}))
+                .await
+                .transpose()
+                .change_context(errors::ApiErrorResponse::InternalServerError)?,
+            line3: customer_address
+                .line3
+                .async_map(|inner| crypto::Encryptable::encrypt(inner, &key, GcmAes256 {}))
+                .await
+                .transpose()
+                .change_context(errors::ApiErrorResponse::InternalServerError)?,
+            zip: customer_address
+                .zip
+                .async_map(|inner| crypto::Encryptable::encrypt(inner, &key, GcmAes256 {}))
+                .await
+                .transpose()
+                .change_context(errors::ApiErrorResponse::InternalServerError)?,
+            state: customer_address
+                .state
+                .async_map(|inner| crypto::Encryptable::encrypt(inner, &key, GcmAes256 {}))
+                .await
+                .transpose()
+                .change_context(errors::ApiErrorResponse::InternalServerError)?,
+            first_name: customer_address
+                .first_name
+                .async_map(|inner| crypto::Encryptable::encrypt(inner, &key, GcmAes256 {}))
+                .await
+                .transpose()
+                .change_context(errors::ApiErrorResponse::InternalServerError)?,
+            last_name: customer_address
+                .last_name
+                .async_map(|inner| crypto::Encryptable::encrypt(inner, &key, GcmAes256 {}))
+                .await
+                .transpose()
+                .change_context(errors::ApiErrorResponse::InternalServerError)?,
+            phone_number: customer_data
+                .phone
+                .clone()
+                .async_map(|inner| crypto::Encryptable::encrypt(inner, &key, GcmAes256 {}))
+                .await
+                .transpose()
+                .change_context(errors::ApiErrorResponse::InternalServerError)?,
             country_code: customer_data.phone_country_code.clone(),
             customer_id: customer_id.to_string(),
             merchant_id: merchant_id.to_string(),
@@ -69,10 +115,6 @@ pub async fn create_customer(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed while inserting new address")?;
     };
-
-    let key = get_key_and_algo(db, merchant_id.clone())
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
     let new_customer = customer::Customer {
         customer_id: customer_id.to_string(),
@@ -201,17 +243,53 @@ pub async fn delete_customer(
         }?,
     };
 
+    let key = get_key_and_algo(&**db, merchant_account.merchant_id.clone())
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
     let update_address = storage::AddressUpdate::Update {
         city: Some(REDACTED.to_string()),
         country: None,
-        line1: Some(REDACTED.to_string().into()),
-        line2: Some(REDACTED.to_string().into()),
-        line3: Some(REDACTED.to_string().into()),
-        state: Some(REDACTED.to_string().into()),
-        zip: Some(REDACTED.to_string().into()),
-        first_name: Some(REDACTED.to_string().into()),
-        last_name: Some(REDACTED.to_string().into()),
-        phone_number: Some(REDACTED.to_string().into()),
+        line1: Some(
+            Encryptable::encrypt(REDACTED.to_string().into(), &key, GcmAes256 {})
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)?,
+        ),
+        line2: Some(
+            Encryptable::encrypt(REDACTED.to_string().into(), &key, GcmAes256 {})
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)?,
+        ),
+        line3: Some(
+            Encryptable::encrypt(REDACTED.to_string().into(), &key, GcmAes256 {})
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)?,
+        ),
+        state: Some(
+            Encryptable::encrypt(REDACTED.to_string().into(), &key, GcmAes256 {})
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)?,
+        ),
+        zip: Some(
+            Encryptable::encrypt(REDACTED.to_string().into(), &key, GcmAes256 {})
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)?,
+        ),
+        first_name: Some(
+            Encryptable::encrypt(REDACTED.to_string().into(), &key, GcmAes256 {})
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)?,
+        ),
+        last_name: Some(
+            Encryptable::encrypt(REDACTED.to_string().into(), &key, GcmAes256 {})
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)?,
+        ),
+        phone_number: Some(
+            Encryptable::encrypt(REDACTED.to_string().into(), &key, GcmAes256 {})
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)?,
+        ),
         country_code: Some(REDACTED.to_string()),
     };
 
@@ -232,10 +310,6 @@ pub async fn delete_customer(
             _ => Err(errors::ApiErrorResponse::InternalServerError),
         },
     }?;
-
-    let key = get_key_and_algo(&**db, merchant_account.merchant_id.clone())
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
     let updated_customer = storage::CustomerUpdate::Update {
         name: Some(
@@ -290,6 +364,10 @@ pub async fn update_customer(
     .await
     .map_err(|err| err.to_not_found_response(errors::ApiErrorResponse::CustomerNotFound))?;
 
+    let key = get_key_and_algo(db, merchant_account.merchant_id.clone())
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
     if let Some(addr) = &update_customer.address {
         let customer_address: api_models::payments::AddressDetails = addr
             .peek()
@@ -299,14 +377,55 @@ pub async fn update_customer(
         let update_address = storage::AddressUpdate::Update {
             city: customer_address.city,
             country: customer_address.country,
-            line1: customer_address.line1,
-            line2: customer_address.line2,
-            line3: customer_address.line3,
-            zip: customer_address.zip,
-            state: customer_address.state,
-            first_name: customer_address.first_name,
-            last_name: customer_address.last_name,
-            phone_number: update_customer.phone.clone(),
+            line1: customer_address
+                .line1
+                .async_map(|inner| crypto::Encryptable::encrypt(inner, &key, GcmAes256 {}))
+                .await
+                .transpose()
+                .change_context(errors::ApiErrorResponse::InternalServerError)?,
+            line2: customer_address
+                .line2
+                .async_map(|inner| crypto::Encryptable::encrypt(inner, &key, GcmAes256 {}))
+                .await
+                .transpose()
+                .change_context(errors::ApiErrorResponse::InternalServerError)?,
+            line3: customer_address
+                .line3
+                .async_map(|inner| crypto::Encryptable::encrypt(inner, &key, GcmAes256 {}))
+                .await
+                .transpose()
+                .change_context(errors::ApiErrorResponse::InternalServerError)?,
+            zip: customer_address
+                .zip
+                .async_map(|inner| crypto::Encryptable::encrypt(inner, &key, GcmAes256 {}))
+                .await
+                .transpose()
+                .change_context(errors::ApiErrorResponse::InternalServerError)?,
+            state: customer_address
+                .state
+                .async_map(|inner| crypto::Encryptable::encrypt(inner, &key, GcmAes256 {}))
+                .await
+                .transpose()
+                .change_context(errors::ApiErrorResponse::InternalServerError)?,
+            first_name: customer_address
+                .first_name
+                .async_map(|inner| crypto::Encryptable::encrypt(inner, &key, GcmAes256 {}))
+                .await
+                .transpose()
+                .change_context(errors::ApiErrorResponse::InternalServerError)?,
+            last_name: customer_address
+                .last_name
+                .async_map(|inner| crypto::Encryptable::encrypt(inner, &key, GcmAes256 {}))
+                .await
+                .transpose()
+                .change_context(errors::ApiErrorResponse::InternalServerError)?,
+            phone_number: update_customer
+                .phone
+                .clone()
+                .async_map(|inner| crypto::Encryptable::encrypt(inner, &key, GcmAes256 {}))
+                .await
+                .transpose()
+                .change_context(errors::ApiErrorResponse::InternalServerError)?,
             country_code: update_customer.phone_country_code.clone(),
         };
         db.update_address_by_merchant_id_customer_id(
@@ -321,10 +440,6 @@ pub async fn update_customer(
             merchant_account.merchant_id, update_customer.customer_id
         ))?;
     };
-
-    let key = get_key_and_algo(db, merchant_account.merchant_id.clone())
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
     let response = db
         .update_customer_by_customer_id_merchant_id(
