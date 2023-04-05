@@ -56,6 +56,7 @@ fn get_default_payment_authorize_data() -> Option<types::PaymentsAuthorizeData> 
             ..utils::CCardType::default().0
         }),
         browser_info: Some(get_default_browser_info()),
+        router_return_url: Some(String::from("http://localhost:8080")),
         ..utils::PaymentAuthorizeType::default().0
     })
 }
@@ -71,14 +72,13 @@ fn get_default_payment_info() -> Option<utils::PaymentInfo> {
                     line2: Some(Secret::new("line2".to_string())),
                     city: Some("city".to_string()),
                     zip: Some(Secret::new("zip".to_string())),
-                    country: Some("IN".to_string()),
+                    country: Some(api_models::enums::CountryCode::IN),
                     ..Default::default()
                 }),
                 phone: None,
             }),
             ..Default::default()
         }),
-        router_return_url: Some(String::from("http://localhost:8080")),
         ..Default::default()
     })
 }

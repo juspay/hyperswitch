@@ -61,23 +61,35 @@ impl super::settings::Database {
             ))
         })?;
 
+        when(self.dbname.is_default_or_empty(), || {
+            Err(ApplicationError::InvalidConfigurationValueError(
+                "database name must not be empty".into(),
+            ))
+        })?;
+
         when(self.username.is_default_or_empty(), || {
             Err(ApplicationError::InvalidConfigurationValueError(
                 "database user username must not be empty".into(),
             ))
         })?;
 
-        when(self.password.is_default_or_empty(), || {
-            Err(ApplicationError::InvalidConfigurationValueError(
-                "database user password must not be empty".into(),
-            ))
-        })?;
+        #[cfg(not(feature = "kms"))]
+        {
+            when(self.password.is_default_or_empty(), || {
+                Err(ApplicationError::InvalidConfigurationValueError(
+                    "database user password must not be empty".into(),
+                ))
+            })
+        }
 
-        when(self.dbname.is_default_or_empty(), || {
-            Err(ApplicationError::InvalidConfigurationValueError(
-                "database name must not be empty".into(),
-            ))
-        })
+        #[cfg(feature = "kms")]
+        {
+            when(self.kms_encrypted_password.is_default_or_empty(), || {
+                Err(ApplicationError::InvalidConfigurationValueError(
+                    "database KMS encrypted password must not be empty".into(),
+                ))
+            })
+        }
     }
 }
 
@@ -180,25 +192,6 @@ impl super::settings::ApiKeys {
         when(self.hash_key.is_empty(), || {
             Err(ApplicationError::InvalidConfigurationValueError(
                 "API key hashing key must not be empty".into(),
-            ))
-        })
-    }
-}
-
-#[cfg(feature = "kms")]
-impl super::settings::Kms {
-    pub fn validate(&self) -> Result<(), ApplicationError> {
-        use common_utils::fp_utils::when;
-
-        when(self.key_id.is_default_or_empty(), || {
-            Err(ApplicationError::InvalidConfigurationValueError(
-                "KMS AWS key ID must not be empty".into(),
-            ))
-        })?;
-
-        when(self.region.is_default_or_empty(), || {
-            Err(ApplicationError::InvalidConfigurationValueError(
-                "KMS AWS region must not be empty".into(),
             ))
         })
     }

@@ -5,7 +5,7 @@ use api_models::{
 use serde::Serialize;
 
 use super::{
-    payment_intents::types::StripePaymentIntentResponse, refunds::types::StripeCreateRefundResponse,
+    payment_intents::types::StripePaymentIntentResponse, refunds::types::StripeRefundResponse,
 };
 
 #[derive(Serialize)]
@@ -22,7 +22,7 @@ impl api::OutgoingWebhookType for StripeOutgoingWebhook {}
 #[serde(tag = "type", content = "object", rename_all = "snake_case")]
 pub enum StripeWebhookObject {
     PaymentIntent(StripePaymentIntentResponse),
-    Refund(StripeCreateRefundResponse),
+    Refund(StripeRefundResponse),
     Dispute(StripeDisputeResponse),
 }
 

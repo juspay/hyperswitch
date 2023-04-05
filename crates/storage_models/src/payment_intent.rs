@@ -33,6 +33,7 @@ pub struct PaymentIntent {
     pub setup_future_usage: Option<storage_enums::FutureUsage>,
     pub off_session: Option<bool>,
     pub client_secret: Option<String>,
+    pub active_attempt_id: String,
 }
 
 #[derive(
@@ -72,6 +73,7 @@ pub struct PaymentIntentNew {
     pub client_secret: Option<String>,
     pub setup_future_usage: Option<storage_enums::FutureUsage>,
     pub off_session: Option<bool>,
+    pub active_attempt_id: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -109,6 +111,9 @@ pub enum PaymentIntentUpdate {
         billing_address_id: Option<String>,
         return_url: Option<String>,
     },
+    PaymentAttemptUpdate {
+        active_attempt_id: String,
+    },
 }
 
 #[derive(Clone, Debug, Default, AsChangeset, router_derive::DebugAsDisplay)]
@@ -128,6 +133,7 @@ pub struct PaymentIntentUpdateInternal {
     pub billing_address_id: Option<String>,
     pub shipping_address_id: Option<String>,
     pub modified_at: Option<PrimitiveDateTime>,
+    pub active_attempt_id: Option<String>,
 }
 
 impl PaymentIntentUpdate {
@@ -178,7 +184,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 status: Some(status),
                 setup_future_usage,
                 customer_id,
-                client_secret: make_client_secret_null_if_success(Some(status)),
+                client_secret: make_client_secret_null_based_on_status(status),
                 shipping_address_id,
                 billing_address_id,
                 modified_at: Some(common_utils::date_time::now()),
@@ -199,7 +205,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
             } => Self {
                 return_url,
                 status,
-                client_secret: make_client_secret_null_if_success(status),
+                client_secret: status.and_then(make_client_secret_null_based_on_status),
                 customer_id,
                 shipping_address_id,
                 billing_address_id,
@@ -209,6 +215,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
             PaymentIntentUpdate::PGStatusUpdate { status } => Self {
                 status: Some(status),
                 modified_at: Some(common_utils::date_time::now()),
+                client_secret: make_client_secret_null_based_on_status(status),
                 ..Default::default()
             },
             PaymentIntentUpdate::MerchantStatusUpdate {
@@ -217,7 +224,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 billing_address_id,
             } => Self {
                 status: Some(status),
-                client_secret: make_client_secret_null_if_success(Some(status)),
+                client_secret: make_client_secret_null_based_on_status(status),
                 shipping_address_id,
                 billing_address_id,
                 modified_at: Some(common_utils::date_time::now()),
@@ -237,20 +244,29 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 amount_captured,
                 // customer_id,
                 return_url,
-                client_secret: make_client_secret_null_if_success(Some(status)),
+                client_secret: make_client_secret_null_based_on_status(status),
                 modified_at: Some(common_utils::date_time::now()),
+                ..Default::default()
+            },
+            PaymentIntentUpdate::PaymentAttemptUpdate { active_attempt_id } => Self {
+                active_attempt_id: Some(active_attempt_id),
                 ..Default::default()
             },
         }
     }
 }
 
-fn make_client_secret_null_if_success(
-    status: Option<storage_enums::IntentStatus>,
+fn make_client_secret_null_based_on_status(
+    status: storage_enums::IntentStatus,
 ) -> Option<Option<String>> {
-    if status == Some(storage_enums::IntentStatus::Succeeded) {
-        Some(None)
-    } else {
-        None
+    match status {
+        storage_enums::IntentStatus::Succeeded
+        | storage_enums::IntentStatus::Failed
+        | storage_enums::IntentStatus::Cancelled => Some(None),
+        storage_enums::IntentStatus::Processing
+        | storage_enums::IntentStatus::RequiresCustomerAction
+        | storage_enums::IntentStatus::RequiresPaymentMethod
+        | storage_enums::IntentStatus::RequiresConfirmation
+        | storage_enums::IntentStatus::RequiresCapture => None,
     }
 }

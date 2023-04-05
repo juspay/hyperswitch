@@ -2,13 +2,15 @@ use std::collections::HashMap;
 
 use api_models::payments::BankRedirectData;
 use common_utils::{errors::CustomResult, pii::Email};
-use error_stack::ResultExt;
+use error_stack::{IntoReport, ResultExt};
 use masking::Secret;
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils::{self, AddressDetailsData, CardData, RouterData},
+    connector::utils::{
+        self, AddressDetailsData, CardData, PaymentsAuthorizeRequestData, RouterData,
+    },
     consts,
     core::errors,
     pii::{self},
@@ -120,7 +122,7 @@ pub struct PaymentRequestCards {
     #[serde(rename = "billing[city]")]
     pub billing_city: String,
     #[serde(rename = "billing[country]")]
-    pub billing_country: String,
+    pub billing_country: api_models::enums::CountryCode,
     #[serde(rename = "billing[street1]")]
     pub billing_street1: Secret<String>,
     #[serde(rename = "billing[postcode]")]
@@ -174,7 +176,7 @@ pub enum TrustpayPaymentsRequest {
 #[derive(Debug, Serialize, Eq, PartialEq)]
 pub struct TrustpayMandatoryParams {
     pub billing_city: String,
-    pub billing_country: String,
+    pub billing_country: api_models::enums::CountryCode,
     pub billing_street1: Secret<String>,
     pub billing_postcode: Secret<String>,
 }
@@ -219,7 +221,7 @@ fn get_card_request_data(
         cvv: ccard.card_cvc.clone(),
         expiry_date: ccard.get_card_expiry_month_year_2_digit_with_delimiter("/".to_owned()),
         cardholder: ccard.card_holder_name.clone(),
-        reference: item.payment_id.clone(),
+        reference: item.attempt_id.clone(),
         redirect_url: return_url,
         billing_city: params.billing_city,
         billing_country: params.billing_country,
@@ -260,7 +262,7 @@ fn get_bank_redirection_request_data(
                 currency: item.request.currency.to_string(),
             },
             references: References {
-                merchant_reference: item.payment_id.clone(),
+                merchant_reference: item.attempt_id.clone(),
             },
         },
         callback_urls: CallbackURLs {
@@ -297,7 +299,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for TrustpayPaymentsRequest {
             utils::to_currency_base_unit(item.request.amount, item.request.currency)?
                 .parse::<f64>()
                 .ok()
-                .ok_or_else(|| errors::ConnectorError::RequestEncodingFailed)?
+                .ok_or(errors::ConnectorError::RequestEncodingFailed)?
         );
         let auth = TrustpayAuthType::try_from(&item.connector_auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
@@ -308,14 +310,14 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for TrustpayPaymentsRequest {
                 params,
                 amount,
                 ccard,
-                item.get_return_url()?,
+                item.request.get_return_url()?,
             )),
             api::PaymentMethodData::BankRedirect(ref bank_redirection_data) => {
                 Ok(get_bank_redirection_request_data(
                     item,
                     bank_redirection_data,
                     amount,
-                    item.get_return_url()?,
+                    item.request.get_return_url()?,
                     auth,
                 ))
             }
@@ -556,9 +558,7 @@ fn handle_cards_response(
         response.payment_status.as_str(),
         response.redirect_url.clone(),
     )?;
-    let form_fields = response
-        .redirect_params
-        .unwrap_or(std::collections::HashMap::new());
+    let form_fields = response.redirect_params.unwrap_or_default();
     let redirection_data = response.redirect_url.map(|url| services::RedirectForm {
         endpoint: url.to_string(),
         method: services::Method::Post,
@@ -567,7 +567,7 @@ fn handle_cards_response(
     let error = if msg.is_some() {
         Some(types::ErrorResponse {
             code: response.payment_status,
-            message: msg.unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
+            message: msg.unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
             reason: None,
             status_code,
         })
@@ -626,7 +626,7 @@ fn handle_bank_redirects_error_response(
         message: response
             .payment_result_info
             .additional_info
-            .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
+            .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
         reason: None,
         status_code,
     });
@@ -661,7 +661,7 @@ fn handle_bank_redirects_sync_response(
             message: reason_info
                 .reason
                 .reject_reason
-                .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
+                .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
             reason: None,
             status_code,
         })
@@ -786,7 +786,7 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, TrustpayAuthUpdateResponse, T, t
                         .response
                         .result_info
                         .additional_info
-                        .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
+                        .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
                     reason: None,
                     status_code: item.http_code,
                 }),
@@ -826,8 +826,8 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for TrustpayRefundRequest {
             "{:.2}",
             utils::to_currency_base_unit(item.request.amount, item.request.currency)?
                 .parse::<f64>()
-                .ok()
-                .ok_or_else(|| errors::ConnectorError::RequestEncodingFailed)?
+                .into_report()
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?
         );
         match item.payment_method {
             storage_models::enums::PaymentMethod::BankRedirect => {
@@ -896,7 +896,7 @@ fn handle_cards_refund_response(
     let error = if msg.is_some() {
         Some(types::ErrorResponse {
             code: response.payment_status,
-            message: msg.unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
+            message: msg.unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
             reason: None,
             status_code,
         })
@@ -962,7 +962,7 @@ fn handle_bank_redirects_refund_sync_response(
             message: reason_info
                 .reason
                 .reject_reason
-                .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
+                .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
             reason: None,
             status_code,
         })
@@ -985,7 +985,7 @@ fn handle_bank_redirects_refund_sync_error_response(
         message: response
             .payment_result_info
             .additional_info
-            .unwrap_or(consts::NO_ERROR_MESSAGE.to_owned()),
+            .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_owned()),
         reason: None,
         status_code,
     });

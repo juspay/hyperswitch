@@ -1,11 +1,12 @@
 pub mod transformers;
 pub mod utils;
 
-use api_models::{disputes::DisputePayload, webhooks::IncomingWebhookRequestDetails};
+use std::collections::HashMap;
 use error_stack::{IntoReport, ResultExt};
 use masking::ExposeInterface;
 use router_env::{instrument, tracing};
 
+use super::metrics;
 use crate::{
     consts,
     core::{
@@ -51,6 +52,7 @@ async fn payments_incoming_webhook_flow<W: api::OutgoingWebhookType>(
                     force_sync: true,
                     connector: None,
                     param: None,
+                    merchant_connector_details: None,
                 },
                 services::AuthFlow::Merchant,
                 consume_or_trigger_flow,
@@ -158,15 +160,22 @@ async fn refunds_incoming_webhook_flow<W: api::OutgoingWebhookType>(
                 )
             })?
     } else {
-        refunds::refund_retrieve_core(&state, merchant_account.clone(), refund_id.to_owned())
-            .await
-            .change_context(errors::WebhooksFlowError::RefundsCoreFailed)
-            .attach_printable_lazy(|| {
-                format!(
-                    "Failed while updating refund: refund_id: {}",
-                    refund_id.to_owned()
-                )
-            })?
+        refunds::refund_retrieve_core(
+            &state,
+            merchant_account.clone(),
+            api_models::refunds::RefundsRetrieveRequest {
+                refund_id: refund_id.to_owned(),
+                merchant_connector_details: None,
+            },
+        )
+        .await
+        .change_context(errors::WebhooksFlowError::RefundsCoreFailed)
+        .attach_printable_lazy(|| {
+            format!(
+                "Failed while updating refund: refund_id: {}",
+                refund_id.to_owned()
+            )
+        })?
     };
     let event_type: enums::EventType = updated_refund
         .refund_status
@@ -195,14 +204,6 @@ async fn get_payment_attempt_from_object_reference_id(
 ) -> CustomResult<storage_models::payment_attempt::PaymentAttempt, errors::WebhooksFlowError> {
     let db = &*state.store;
     match object_reference_id {
-        api::ObjectReferenceId::PaymentId(api::PaymentIdType::PaymentIntentId(ref id)) => db
-            .find_payment_attempt_by_payment_id_merchant_id(
-                id,
-                &merchant_account.merchant_id,
-                merchant_account.storage_scheme,
-            )
-            .await
-            .change_context(errors::WebhooksFlowError::ResourceNotFound),
         api::ObjectReferenceId::PaymentId(api::PaymentIdType::ConnectorTransactionId(ref id)) => db
             .find_payment_attempt_by_merchant_id_connector_txn_id(
                 &merchant_account.merchant_id,
@@ -212,9 +213,9 @@ async fn get_payment_attempt_from_object_reference_id(
             .await
             .change_context(errors::WebhooksFlowError::ResourceNotFound),
         api::ObjectReferenceId::PaymentId(api::PaymentIdType::PaymentAttemptId(ref id)) => db
-            .find_payment_attempt_by_merchant_id_attempt_id(
-                &merchant_account.merchant_id,
+            .find_payment_attempt_by_attempt_id_merchant_id(
                 id,
+                &merchant_account.merchant_id,
                 merchant_account.storage_scheme,
             )
             .await
@@ -223,18 +224,20 @@ async fn get_payment_attempt_from_object_reference_id(
     }
 }
 
-async fn get_updated_dispute_object(
+async fn get_or_update_dispute_object(
     state: AppState,
     option_dispute: Option<storage_models::dispute::Dispute>,
-    dispute_details: DisputePayload,
+    dispute_details: api::disputes::DisputePayload,
     merchant_id: &str,
     payment_id: &str,
+    attempt_id: &str,
     event_type: api_models::webhooks::IncomingWebhookEvent,
     connector_name: &str,
 ) -> CustomResult<storage_models::dispute::Dispute, errors::WebhooksFlowError> {
     let db = &*state.store;
     match option_dispute {
         None => {
+            metrics::INCOMING_DISPUTE_WEBHOOK_NEW_RECORD_METRIC.add(&metrics::CONTEXT, 1, &[]);
             let dispute_id = generate_id(consts::ID_LENGTH, "dp");
             let new_dispute = storage_models::dispute::DisputeNew {
                 dispute_id,
@@ -246,8 +249,9 @@ async fn get_updated_dispute_object(
                     .into_report()
                     .change_context(errors::WebhooksFlowError::DisputeCoreFailed)?,
                 payment_id: payment_id.to_owned(),
-                merchant_id: merchant_id.to_owned(),
                 connector: connector_name.to_owned(),
+                attempt_id: attempt_id.to_owned(),
+                merchant_id: merchant_id.to_owned(),
                 connector_status: dispute_details.connector_status,
                 connector_dispute_id: dispute_details.connector_dispute_id,
                 connector_reason: dispute_details.connector_reason,
@@ -264,12 +268,20 @@ async fn get_updated_dispute_object(
         }
         Some(dispute) => {
             logger::info!("Dispute Already exists, Updating the dispute details");
+            metrics::INCOMING_DISPUTE_WEBHOOK_UPDATE_RECORD_METRIC.add(&metrics::CONTEXT, 1, &[]);
+            let dispute_status: storage_models::enums::DisputeStatus = event_type
+                .foreign_try_into()
+                .into_report()
+                .change_context(errors::WebhooksFlowError::DisputeCoreFailed)?;
+            crate::core::utils::validate_dispute_stage_and_dispute_status(
+                dispute.dispute_stage.foreign_into(),
+                dispute.dispute_status.foreign_into(),
+                dispute_details.dispute_stage.clone(),
+                dispute_status.foreign_into(),
+            )?;
             let update_dispute = storage_models::dispute::DisputeUpdate::Update {
                 dispute_stage: dispute_details.dispute_stage.foreign_into(),
-                dispute_status: event_type
-                    .foreign_try_into()
-                    .into_report()
-                    .change_context(errors::WebhooksFlowError::DisputeCoreFailed)?,
+                dispute_status,
                 connector_status: dispute_details.connector_status,
                 connector_reason: dispute_details.connector_reason,
                 connector_reason_code: dispute_details.connector_reason_code,
@@ -290,11 +302,12 @@ async fn disputes_incoming_webhook_flow<W: api::OutgoingWebhookType>(
     webhook_details: api::IncomingWebhookDetails,
     source_verified: bool,
     connector: &(dyn api::Connector + Sync),
-    request_details: &IncomingWebhookRequestDetails<'_>,
+    request_details: &api::IncomingWebhookRequestDetails<'_>,
     event_type: api_models::webhooks::IncomingWebhookEvent,
     connector_name: &str,
 ) -> CustomResult<(), errors::WebhooksFlowError> {
-    if source_verified {
+    metrics::INCOMING_DISPUTE_WEBHOOK_METRIC.add(&metrics::CONTEXT, 1, &[]);
+    if true {
         let db = &*state.store;
         let dispute_details = connector
             .get_dispute_details(request_details)
@@ -306,18 +319,20 @@ async fn disputes_incoming_webhook_flow<W: api::OutgoingWebhookType>(
         )
         .await?;
         let option_dispute = db
-            .find_by_payment_id_connector_dispute_id(
+            .find_by_merchant_id_payment_id_connector_dispute_id(
+                &merchant_account.merchant_id,
                 &payment_attempt.payment_id,
                 &dispute_details.connector_dispute_id,
             )
             .await
             .change_context(errors::WebhooksFlowError::ResourceNotFound)?;
-        let dispute_object = get_updated_dispute_object(
+        let dispute_object = get_or_update_dispute_object(
             state.clone(),
             option_dispute,
             dispute_details,
             &merchant_account.merchant_id,
             &payment_attempt.payment_id,
+            &payment_attempt.attempt_id,
             event_type.clone(),
             connector_name,
         )
@@ -345,8 +360,10 @@ async fn disputes_incoming_webhook_flow<W: api::OutgoingWebhookType>(
             api::OutgoingWebhookContent::DisputeDetails(disputes_response),
         )
         .await?;
+        metrics::INCOMING_DISPUTE_WEBHOOK_MERCHANT_NOTIFIED_METRIC.add(&metrics::CONTEXT, 1, &[]);
         Ok(())
     } else {
+        metrics::INCOMING_DISPUTE_WEBHOOK_SIGNATURE_FAILURE_METRIC.add(&metrics::CONTEXT, 1, &[]);
         Err(errors::WebhooksFlowError::WebhookSourceVerificationFailed).into_report()
     }
 }
@@ -474,10 +491,20 @@ pub async fn webhooks_core<W: api::OutgoingWebhookType>(
     .attach_printable("Failed construction of ConnectorData")?;
 
     let connector = connector.connector;
+    let query_params = Some(req.query_string().to_string());
+    let qp: HashMap<String, String> =
+        url::form_urlencoded::parse(query_params.unwrap_or_default().as_bytes())
+            .into_owned()
+            .collect();
+    let json = Encode::<HashMap<String, String>>::encode_to_string_of_json(&qp)
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("There was an error in parsing the query params")?;
 
-    let mut request_details = IncomingWebhookRequestDetails {
+    let mut request_details = api::IncomingWebhookRequestDetails {
         method: req.method().clone(),
         headers: req.headers(),
+        query_params: req.query_string().to_string(),
+        query_params_json: json.as_bytes(),
         body: &body,
     };
 

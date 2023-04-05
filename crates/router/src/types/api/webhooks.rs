@@ -1,7 +1,6 @@
 pub use api_models::webhooks::{
-    IncomingWebhookDetails, IncomingWebhookEvent, IncomingWebhookRequestDetails,
-    MerchantWebhookConfig, ObjectReferenceId, OutgoingWebhook, OutgoingWebhookContent,
-    OutgoingWebhookType, WebhookFlow,
+    IncomingWebhookDetails, IncomingWebhookEvent, MerchantWebhookConfig, ObjectReferenceId,
+    OutgoingWebhook, OutgoingWebhookContent, OutgoingWebhookType, WebhookFlow,
 };
 use error_stack::ResultExt;
 
@@ -12,6 +11,14 @@ use crate::{
     services,
     utils::crypto,
 };
+
+pub struct IncomingWebhookRequestDetails<'a> {
+    pub method: actix_web::http::Method,
+    pub headers: &'a actix_web::http::header::HeaderMap,
+    pub body: &'a [u8],
+    pub query_params: String,
+    pub query_params_json: &'a [u8],
+}
 
 #[async_trait::async_trait]
 pub trait IncomingWebhook: ConnectorCommon + Sync {
@@ -141,9 +148,7 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
     fn get_dispute_details(
         &self,
         _request: &IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<api_models::disputes::DisputePayload, errors::ConnectorError> {
-        Ok(api_models::disputes::DisputePayload {
-            ..Default::default()
-        })
+    ) -> CustomResult<super::disputes::DisputePayload, errors::ConnectorError> {
+        Err(errors::ConnectorError::NotImplemented("get_dispute_details method".to_string()).into())
     }
 }

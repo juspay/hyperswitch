@@ -8,7 +8,7 @@ diesel::table! {
         id -> Int4,
         address_id -> Varchar,
         city -> Nullable<Varchar>,
-        country -> Nullable<Varchar>,
+        country -> Nullable<CountryCode>,
         line1 -> Nullable<Varchar>,
         line2 -> Nullable<Varchar>,
         line3 -> Nullable<Varchar>,
@@ -39,6 +39,26 @@ diesel::table! {
         created_at -> Timestamp,
         expires_at -> Nullable<Timestamp>,
         last_used -> Nullable<Timestamp>,
+    }
+}
+
+diesel::table! {
+    use diesel::sql_types::*;
+    use crate::enums::diesel_exports::*;
+
+    cards_info (card_iin) {
+        card_iin -> Varchar,
+        card_issuer -> Nullable<Text>,
+        card_network -> Nullable<Text>,
+        card_type -> Nullable<Text>,
+        card_subtype -> Nullable<Text>,
+        card_issuing_country -> Nullable<Text>,
+        bank_code_id -> Nullable<Varchar>,
+        bank_code -> Nullable<Varchar>,
+        country_code -> Nullable<Varchar>,
+        date_created -> Timestamp,
+        last_updated -> Nullable<Timestamp>,
+        last_updated_provider -> Nullable<Text>,
     }
 }
 
@@ -101,6 +121,7 @@ diesel::table! {
         dispute_stage -> DisputeStage,
         dispute_status -> DisputeStatus,
         payment_id -> Varchar,
+        attempt_id -> Varchar,
         merchant_id -> Varchar,
         connector -> Varchar,
         connector_status -> Varchar,
@@ -237,7 +258,7 @@ diesel::table! {
         amount -> Int8,
         currency -> Nullable<Currency>,
         save_to_locker -> Nullable<Bool>,
-        connector -> Nullable<Varchar>,
+        connector -> Nullable<Jsonb>,
         error_message -> Nullable<Text>,
         offer_amount -> Nullable<Int8>,
         surcharge_amount -> Nullable<Int8>,
@@ -292,6 +313,7 @@ diesel::table! {
         setup_future_usage -> Nullable<FutureUsage>,
         off_session -> Nullable<Bool>,
         client_secret -> Nullable<Varchar>,
+        active_attempt_id -> Varchar,
     }
 }
 
@@ -392,6 +414,7 @@ diesel::table! {
 diesel::allow_tables_to_appear_in_same_query!(
     address,
     api_keys,
+    cards_info,
     configs,
     connector_response,
     customers,

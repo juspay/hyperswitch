@@ -1,3 +1,4 @@
+pub use common_enums::*;
 use utoipa::ToSchema;
 
 #[derive(
@@ -137,6 +138,7 @@ pub enum ConnectorType {
     serde::Serialize,
     strum::Display,
     strum::EnumString,
+    strum::EnumIter,
     ToSchema,
     frunk::LabelledGeneric,
 )]

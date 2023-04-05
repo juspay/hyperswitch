@@ -138,6 +138,8 @@ pub enum Flow {
     PayoutsCancel,
     /// Payouts accounts flow.
     PayoutsAccounts,
+    /// Payments Redirect flow.
+    PaymentsRedirect,
     /// Refunds create flow.
     RefundsCreate,
     /// Refunds retrieve flow.
@@ -164,7 +166,15 @@ pub enum Flow {
     DisputesRetrieve,
     /// Dispute List flow
     DisputesList,
+    /// Cards Info flow
+    CardsInfo,
 }
+
+///
+/// Trait for providing generic behaviour to flow metric
+///
+pub trait FlowMetric: ToString + std::fmt::Debug {}
+impl FlowMetric for Flow {}
 
 /// Category of log event.
 #[derive(Debug)]

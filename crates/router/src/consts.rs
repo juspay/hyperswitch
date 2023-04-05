@@ -1,6 +1,6 @@
 // ID generation
 pub(crate) const ID_LENGTH: usize = 20;
-pub(crate) const MAX_ID_LENGTH: usize = 24;
+pub(crate) const MAX_ID_LENGTH: usize = 64;
 #[rustfmt::skip]
 pub(crate) const ALPHABETS: [char; 62] = [
     '0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
@@ -24,6 +24,3 @@ pub(crate) const BASE64_ENGINE_URL_SAFE: base64::engine::GeneralPurpose =
 
 pub(crate) const API_KEY_LENGTH: usize = 64;
 pub(crate) const PUB_SUB_CHANNEL: &str = "hyperswitch_invalidate";
-
-/// Max age of 1 year in seconds. Which is `60*60*24*365`
-pub(crate) const HSTS_HEADER_VALUE: &str = "max-age=31536000";

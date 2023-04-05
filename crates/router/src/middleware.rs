@@ -59,3 +59,14 @@ where
         })
     }
 }
+
+/// Middleware for attaching default response headers. Headers with the same key already set in a
+/// response will not be overwritten.
+pub fn default_response_headers() -> actix_web::middleware::DefaultHeaders {
+    use actix_web::http::header;
+
+    actix_web::middleware::DefaultHeaders::new()
+        // Max age of 1 year in seconds, equal to `60 * 60 * 24 * 365` seconds.
+        .add((header::STRICT_TRANSPORT_SECURITY, "max-age=31536000"))
+        .add((header::VIA, "HyperSwitch"))
+}

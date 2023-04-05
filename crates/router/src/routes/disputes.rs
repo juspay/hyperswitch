@@ -30,10 +30,12 @@ pub async fn retrieve_dispute(
     req: HttpRequest,
     path: web::Path<String>,
 ) -> HttpResponse {
+    let flow = Flow::DisputesRetrieve;
     let dispute_id = dispute_types::DisputeId {
         dispute_id: path.into_inner(),
     };
     api::server_wrap(
+        flow,
         state.get_ref(),
         &req,
         dispute_id,
@@ -64,8 +66,10 @@ pub async fn retrieve_disputes_list(
     req: HttpRequest,
     payload: web::Query<DisputeListConstraints>
 ) -> HttpResponse {
+    let flow = Flow::DisputesList;
     let payload = payload.into_inner();
     api::server_wrap(
+        flow,
         state.get_ref(),
         &req,
         payload,
