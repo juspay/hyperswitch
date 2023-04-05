@@ -315,8 +315,7 @@ pub async fn add_card_hs(
         req,
         merchant_id,
     );
-    //TODO: For now sending duplicate as false as it is default, it can be changed accordingly after duplication check is introduced
-    Ok((payment_method_resp, false))
+    Ok((payment_method_resp, store_card_payload.duplicate))
 }
 
 // Legacy Locker Function
@@ -585,6 +584,7 @@ pub async fn mock_add_card_hs(
         .change_context(errors::VaultError::SaveCardFailed)?;
     let payload = payment_methods::StoreCardRespPayload {
         card_reference: response.card_id,
+        duplicate: false,
     };
     Ok(payment_methods::StoreCardResp {
         status: "SUCCESS".to_string(),

@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 use common_utils::{ext_traits::ValueExt, pii};
-use error_stack::ResultExt;
+use error_stack::{report, ResultExt};
 use masking::ExposeInterface;
 
 use super::{ConstructFlowSpecificData, Feature};
@@ -200,17 +200,43 @@ where
         let is_duplicate = locker_response.1;
 
         if is_duplicate {
-            let pm = db
+            let existing_pm = db
                 .find_payment_method(&locker_response.0.payment_method_id)
-                .await
-                .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)?;
-            let pm_metadata =
-                create_payment_method_metadata(pm.metadata.as_ref(), connector_token)?;
-            if let Some(metadata) = pm_metadata {
-                payment_methods::cards::update_payment_method(db, pm, metadata)
-                    .await
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Failed to add payment method in db")?;
+                .await;
+            match existing_pm {
+                Ok(pm) => {
+                    let pm_metadata =
+                        create_payment_method_metadata(pm.metadata.as_ref(), connector_token)?;
+                    if let Some(metadata) = pm_metadata {
+                        payment_methods::cards::update_payment_method(db, pm, metadata)
+                            .await
+                            .change_context(errors::ApiErrorResponse::InternalServerError)
+                            .attach_printable("Failed to add payment method in db")?;
+                    };
+                }
+                Err(error) => {
+                    match error.current_context() {
+                        errors::StorageError::DatabaseError(err) => match err.current_context() {
+                            storage_models::errors::DatabaseError::NotFound => {
+                                let pm_metadata =
+                                    create_payment_method_metadata(None, connector_token)?;
+                                payment_methods::cards::create_payment_method(
+                                    db,
+                                    &payment_method_create_request,
+                                    &customer.customer_id,
+                                    &locker_response.0.payment_method_id,
+                                    merchant_id,
+                                    pm_metadata,
+                                )
+                                .await
+                                .change_context(errors::ApiErrorResponse::InternalServerError)
+                                .attach_printable("Failed to add payment method in db")
+                            }
+                            _ => Err(report!(errors::ApiErrorResponse::InternalServerError)),
+                        },
+                        _ => Err(report!(errors::ApiErrorResponse::InternalServerError)),
+                    }?;
+                }
             };
         } else {
             let pm_metadata = create_payment_method_metadata(None, connector_token)?;

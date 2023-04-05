@@ -44,6 +44,7 @@ pub struct StoreCardResp {
 #[derive(Debug, Deserialize, Serialize)]
 pub struct StoreCardRespPayload {
     pub card_reference: String,
+    pub duplicate: bool,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
