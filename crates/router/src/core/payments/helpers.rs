@@ -7,7 +7,7 @@ use common_utils::{
 };
 // TODO : Evaluate all the helper functions ()
 use error_stack::{report, IntoReport, ResultExt};
-use masking::{ExposeOptionInterface, PeekInterface};
+use masking::PeekInterface;
 use router_env::{instrument, tracing};
 use storage_models::enums;
 use uuid::Uuid;
@@ -29,7 +29,10 @@ use crate::{
     services,
     types::{
         api::{self, admin, enums as api_enums, CustomerAcceptanceExt, MandateValidationFieldsExt},
-        domain::{self, customer, merchant_account},
+        domain::{
+            self, customer, merchant_account,
+            types::{get_key_and_algo, TypeEncryption},
+        },
         storage::{self, enums as storage_enums, ephemeral_key},
         transformers::ForeignInto,
     },
@@ -641,10 +644,14 @@ pub async fn get_customer_from_details<F: Clone>(
             let customer = db
                 .find_customer_optional_by_customer_id_merchant_id(&c_id, merchant_id)
                 .await?;
-            payment_data.email = payment_data
-                .email
-                .clone()
-                .or_else(|| customer.as_ref().and_then(|inner| inner.email.clone()));
+            payment_data.email = payment_data.email.clone().or_else(|| {
+                customer.as_ref().and_then(|inner| {
+                    inner
+                        .email
+                        .clone()
+                        .map(|encrypted_value| encrypted_value.into_inner())
+                })
+            });
             Ok(customer)
         }
     }
@@ -679,12 +686,37 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R>(
             Some(match customer_data {
                 Some(c) => Ok(c),
                 None => {
+                    let key = get_key_and_algo(db, merchant_id.to_string()).await?;
+
                     let new_customer = customer::Customer {
                         customer_id: customer_id.to_string(),
                         merchant_id: merchant_id.to_string(),
-                        name: req.name.expose_option(),
-                        email: req.email.clone(),
-                        phone: req.phone.clone(),
+                        name: req
+                            .name
+                            .async_map(|inner| {
+                                crypto::Encryptable::encrypt(inner, &key, crypto::GcmAes256 {})
+                            })
+                            .await
+                            .transpose()
+                            .change_context(errors::StorageError::SerializationFailed)?,
+                        email: req
+                            .email
+                            .clone()
+                            .async_map(|inner| {
+                                crypto::Encryptable::encrypt(inner, &key, crypto::GcmAes256 {})
+                            })
+                            .await
+                            .transpose()
+                            .change_context(errors::StorageError::SerializationFailed)?,
+                        phone: req
+                            .phone
+                            .clone()
+                            .async_map(|inner| {
+                                crypto::Encryptable::encrypt(inner, &key, crypto::GcmAes256 {})
+                            })
+                            .await
+                            .transpose()
+                            .change_context(errors::StorageError::SerializationFailed)?,
                         phone_country_code: req.phone_country_code.clone(),
                         description: None,
                         created_at: common_utils::date_time::now(),
@@ -712,10 +744,12 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R>(
                 let customer = customer?;
 
                 payment_data.payment_intent.customer_id = Some(customer.customer_id.clone());
-                payment_data.email = payment_data
-                    .email
-                    .clone()
-                    .or_else(|| customer.email.clone());
+                payment_data.email = payment_data.email.clone().or_else(|| {
+                    customer
+                        .email
+                        .clone()
+                        .map(|encrypted_value| encrypted_value.into_inner())
+                });
 
                 Some(customer)
             }

@@ -1,4 +1,4 @@
-use common_utils::{consts, custom_serde, pii};
+use common_utils::{consts, crypto, custom_serde, pii};
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
@@ -56,13 +56,13 @@ pub struct CustomerResponse {
     pub customer_id: String,
     /// The customer's name
     #[schema(max_length = 255, example = "Jon Test")]
-    pub name: Option<String>,
+    pub name: Option<crypto::Encryptable<Secret<String>>>,
     /// The customer's email address
     #[schema(value_type = Option<String>,max_length = 255, example = "JonTest@test.com")]
-    pub email: Option<Secret<String, pii::Email>>,
+    pub email: Option<crypto::Encryptable<Secret<String, pii::Email>>>,
     /// The customer's phone number
     #[schema(value_type = Option<String>,max_length = 255, example = "9999999999")]
-    pub phone: Option<Secret<String>>,
+    pub phone: Option<crypto::Encryptable<Secret<String>>>,
     /// The country code for the customer phone number
     #[schema(max_length = 255, example = "+65")]
     pub phone_country_code: Option<String>,

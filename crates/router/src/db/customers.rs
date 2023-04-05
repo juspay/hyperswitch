@@ -1,5 +1,6 @@
 use common_utils::ext_traits::AsyncExt;
 use error_stack::{IntoReport, ResultExt};
+use masking::PeekInterface;
 
 use super::{MockDb, Store};
 use crate::{
@@ -81,7 +82,9 @@ impl CustomerInterface for Store {
             // in the future, once #![feature(is_some_and)] is stable, we can make this more concise:
             // `if customer.name.is_some_and(|ref name| name == REDACTED) ...`
             match customer.name {
-                Some(ref name) if name == REDACTED => Err(errors::StorageError::CustomerRedacted)?,
+                Some(ref name) if name.peek() == REDACTED => {
+                    Err(errors::StorageError::CustomerRedacted)?
+                }
                 _ => Ok(Some(customer)),
             }
         })
@@ -98,7 +101,7 @@ impl CustomerInterface for Store {
             &conn,
             customer_id,
             merchant_id,
-            customer,
+            customer.into(),
         )
         .await
         .map_err(Into::into)
@@ -129,7 +132,9 @@ impl CustomerInterface for Store {
                 })
                 .await?;
         match customer.name {
-            Some(ref name) if name == REDACTED => Err(errors::StorageError::CustomerRedacted)?,
+            Some(ref name) if name.peek() == REDACTED => {
+                Err(errors::StorageError::CustomerRedacted)?
+            }
             _ => Ok(customer),
         }
     }
@@ -218,19 +223,10 @@ impl CustomerInterface for MockDb {
         customer_data: domain::Customer,
     ) -> CustomResult<domain::Customer, errors::StorageError> {
         let mut customers = self.customers.lock().await;
-        let customer = storage::Customer {
-            #[allow(clippy::as_conversions)]
-            id: customers.len() as i32,
-            customer_id: customer_data.customer_id,
-            merchant_id: customer_data.merchant_id,
-            name: customer_data.name,
-            email: customer_data.email,
-            phone: customer_data.phone,
-            phone_country_code: customer_data.phone_country_code,
-            description: customer_data.description,
-            created_at: common_utils::date_time::now(),
-            metadata: customer_data.metadata,
-        };
+
+        let customer = Conversion::convert(customer_data)
+            .await
+            .change_context(errors::StorageError::SerializationFailed)?;
         customers.push(customer.clone());
 
         customer

@@ -1,7 +1,14 @@
-use common_utils::pii;
+use common_utils::{
+    crypto::{Encryptable, GcmAes256},
+    ext_traits::AsyncExt,
+    pii,
+};
+use error_stack::ResultExt;
 use masking::Secret;
+use storage_models::{customers::CustomerUpdateInternal, encryption::Encryption};
 use time::PrimitiveDateTime;
 
+use super::types::TypeEncryption;
 use crate::errors::{CustomResult, ValidationError};
 
 #[derive(Clone, Debug)]
@@ -9,9 +16,9 @@ pub struct Customer {
     pub id: Option<i32>,
     pub customer_id: String,
     pub merchant_id: String,
-    pub name: Option<String>,
-    pub email: Option<Secret<String, pii::Email>>,
-    pub phone: Option<Secret<String>>,
+    pub name: Option<Encryptable<Secret<String>>>,
+    pub email: Option<Encryptable<Secret<String, pii::Email>>>,
+    pub phone: Option<Encryptable<Secret<String>>>,
     pub phone_country_code: Option<String>,
     pub description: Option<String>,
     pub created_at: PrimitiveDateTime,
@@ -29,9 +36,9 @@ impl super::behaviour::Conversion for Customer {
             })?,
             customer_id: self.customer_id,
             merchant_id: self.merchant_id,
-            name: self.name,
-            email: self.email,
-            phone: self.phone,
+            name: self.name.map(|value| value.into()),
+            email: self.email.map(|value| value.into()),
+            phone: self.phone.map(Encryption::from),
             phone_country_code: self.phone_country_code,
             description: self.description,
             created_at: self.created_at,
@@ -43,13 +50,35 @@ impl super::behaviour::Conversion for Customer {
     where
         Self: Sized,
     {
+        let key = &[0]; // To be replaced by key fetched from Store
         Ok(Self {
             id: Some(item.id),
             customer_id: item.customer_id,
             merchant_id: item.merchant_id,
-            name: item.name,
-            email: item.email,
-            phone: item.phone,
+            name: item
+                .name
+                .async_map(|value| Encryptable::decrypt(value, key, GcmAes256 {}))
+                .await
+                .transpose()
+                .change_context(ValidationError::InvalidValue {
+                    message: "Failed while decrypting customer data".to_string(),
+                })?,
+            email: item
+                .email
+                .async_map(|value| Encryptable::decrypt(value, key, GcmAes256 {}))
+                .await
+                .transpose()
+                .change_context(ValidationError::InvalidValue {
+                    message: "Failed while decrypting customer data".to_string(),
+                })?,
+            phone: item
+                .phone
+                .async_map(|value| Encryptable::decrypt(value, key, GcmAes256 {}))
+                .await
+                .transpose()
+                .change_context(ValidationError::InvalidValue {
+                    message: "Failed while decrypting customer data".to_string(),
+                })?,
             phone_country_code: item.phone_country_code,
             description: item.description,
             created_at: item.created_at,
@@ -61,12 +90,46 @@ impl super::behaviour::Conversion for Customer {
         Ok(storage_models::customers::CustomerNew {
             customer_id: self.customer_id,
             merchant_id: self.merchant_id,
-            name: self.name,
-            email: self.email,
-            phone: self.phone,
+            name: self.name.map(Encryption::from),
+            email: self.email.map(Encryption::from),
+            phone: self.phone.map(Encryption::from),
             description: self.description,
             phone_country_code: self.phone_country_code,
             metadata: self.metadata,
         })
+    }
+}
+
+#[derive(Debug)]
+pub enum CustomerUpdate {
+    Update {
+        name: Option<Encryptable<Secret<String>>>,
+        email: Option<Encryptable<Secret<String, pii::Email>>>,
+        phone: Option<Encryptable<Secret<String>>>,
+        description: Option<String>,
+        phone_country_code: Option<String>,
+        metadata: Option<pii::SecretSerdeValue>,
+    },
+}
+
+impl From<CustomerUpdate> for CustomerUpdateInternal {
+    fn from(customer_update: CustomerUpdate) -> Self {
+        match customer_update {
+            CustomerUpdate::Update {
+                name,
+                email,
+                phone,
+                description,
+                phone_country_code,
+                metadata,
+            } => Self {
+                name: name.map(Encryption::from),
+                email: email.map(Encryption::from),
+                phone: phone.map(Encryption::from),
+                description,
+                phone_country_code,
+                metadata,
+            },
+        }
     }
 }

@@ -1,5 +1,3 @@
-use std::ops::Deref;
-
 use async_trait::async_trait;
 use common_utils::{
     crypto,
@@ -9,16 +7,15 @@ use error_stack::{IntoReport, ResultExt};
 use masking::{PeekInterface, Secret};
 use storage_models::encryption::Encryption;
 
-#[derive(Debug)]
-pub struct Encryptable<T> {
-    inner: T,
-    encrypted: Vec<u8>,
-}
-
 #[async_trait]
-pub trait TypeEncryption<T, V: crypto::EncodeMessage + crypto::DecodeMessage>: Sized {
+pub trait TypeEncryption<
+    T,
+    V: crypto::EncodeMessage + crypto::DecodeMessage,
+    S: masking::Strategy<T>,
+>: Sized
+{
     async fn encrypt(
-        masked_data: Secret<T>,
+        masked_data: Secret<T, S>,
         key: &[u8],
         crypt_algo: V,
     ) -> CustomResult<Self, errors::CryptoError>;
@@ -29,34 +26,20 @@ pub trait TypeEncryption<T, V: crypto::EncodeMessage + crypto::DecodeMessage>: S
     ) -> CustomResult<Self, errors::CryptoError>;
 }
 
-impl<T> Deref for Encryptable<Secret<T>> {
-    type Target = Secret<T>;
-    fn deref(&self) -> &Self::Target {
-        &self.inner
-    }
-}
-
-impl<T> From<Encryptable<T>> for Encryption {
-    fn from(value: Encryptable<T>) -> Self {
-        Self::new(value.encrypted)
-    }
-}
-
 #[async_trait]
-impl<V: crypto::DecodeMessage + crypto::EncodeMessage + Send + 'static> TypeEncryption<String, V>
-    for Encryptable<Secret<String>>
+impl<
+        V: crypto::DecodeMessage + crypto::EncodeMessage + Send + 'static,
+        S: masking::Strategy<String> + Send,
+    > TypeEncryption<String, V, S> for crypto::Encryptable<Secret<String, S>>
 {
     async fn encrypt(
-        masked_data: Secret<String>,
+        masked_data: Secret<String, S>,
         key: &[u8],
         crypt_algo: V,
     ) -> CustomResult<Self, errors::CryptoError> {
         let encrypted_data = crypt_algo.encode_message(key, masked_data.peek().as_bytes())?;
 
-        Ok(Self {
-            inner: masked_data,
-            encrypted: encrypted_data,
-        })
+        Ok(Self::new(masked_data, encrypted_data))
     }
 
     async fn decrypt(
@@ -71,9 +54,13 @@ impl<V: crypto::DecodeMessage + crypto::EncodeMessage + Send + 'static> TypeEncr
             .change_context(errors::CryptoError::DecodingFailed)?
             .to_string();
 
-        Ok(Self {
-            inner: value.into(),
-            encrypted,
-        })
+        Ok(Self::new(value.into(), encrypted))
     }
+}
+
+pub async fn get_key_and_algo(
+    _db: &dyn crate::db::StorageInterface,
+    _merchant_id: String,
+) -> CustomResult<Vec<u8>, crate::core::errors::StorageError> {
+    Ok(Vec::new())
 }
