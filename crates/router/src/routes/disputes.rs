@@ -50,7 +50,16 @@ pub async fn retrieve_dispute(
     get,
     path = "/disputes/list",
     params(
-        ("limit" = Option<i64>, Query, description = "The maximum number of Dispute Objects to include in the response")
+        ("limit" = Option<i64>, Query, description = "The maximum number of Dispute Objects to include in the response"),
+        ("dispute_status" = Option<DisputeStatus>, Query, description = "The status of dispute"),
+        ("dispute_stage" = Option<DisputeStage>, Query, description = "The stage of dispute"),
+        ("reason" = Option<String>, Query, description = "The reason for dispute"),
+        ("connector" = Option<String>, Query, description = "The connector linked to dispute"),
+        ("received_time" = Option<PrimitiveDateTime>, Query, description = "The time at which dispute is received"),
+        ("received_time.lt" = Option<PrimitiveDateTime>, Query, description = "Time less than the dispute received time"),
+        ("received_time.gt" = Option<PrimitiveDateTime>, Query, description = "Time greater than the dispute received time"),
+        ("received_time.lte" = Option<PrimitiveDateTime>, Query, description = "Time less than or equals to the dispute received time"),
+        ("received_time.gte" = Option<PrimitiveDateTime>, Query, description = "Time greater than or equals to the dispute received time"),
     ),
     responses(
         (status = 200, description = "The dispute list was retrieved successfully", body = Vec<DisputeResponse>),

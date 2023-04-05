@@ -2,7 +2,7 @@ use masking::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 use utoipa::ToSchema;
 
-use crate::enums::{DisputeStage, DisputeStatus};
+use super::enums::{DisputeStage, DisputeStatus};
 
 #[derive(Default, Clone, Debug, Serialize, ToSchema)]
 pub struct DisputeResponse {
@@ -44,11 +44,15 @@ pub struct DisputeListConstraints {
     /// limit on the number of objects to return
     #[schema(default = 10)]
     pub limit: Option<i64>,
+    /// status of the dispute
     pub dispute_status: Option<DisputeStatus>,
+    /// stage of the dispute
     pub dispute_stage: Option<DisputeStage>,
+    /// reason for the dispute
     pub reason: Option<String>,
+    /// connector linked to dispute
     pub connector: Option<String>,
-    /// The time at which payment is created
+    /// The time at which dispute is received
     #[schema(example = "2022-09-10T10:11:12Z")]
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub received_time: Option<PrimitiveDateTime>,

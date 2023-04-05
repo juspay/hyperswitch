@@ -57,7 +57,7 @@ Never share your secret api keys. Keep them guarded and secure.
         (name = "Mandates", description = "Manage mandates"),
         (name = "Customers", description = "Create and manage customers"),
         (name = "Payment Methods", description = "Create and manage payment methods of customers"),
-        (name = "Disputes", description = "Manage disputes of customers"),
+        (name = "Disputes", description = "Manage disputes"),
         // (name = "API Key", description = "Create and manage API Keys"),
     ),
     paths(
