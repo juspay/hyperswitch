@@ -4,10 +4,8 @@ use std::{
 };
 
 use error_stack::{report, ResultExt};
-use futures::StreamExt;
 use redis_interface::{RedisConnectionPool, RedisEntryId};
 use router_env::opentelemetry;
-use tokio::sync::oneshot;
 use uuid::Uuid;
 
 use super::{consumer, metrics, process_data, workflows};
@@ -17,7 +15,10 @@ use crate::{
     logger,
     routes::AppState,
     scheduler::{ProcessTrackerBatch, SchedulerFlow},
-    types::storage::{self, enums::ProcessTrackerStatus},
+    types::storage::{
+        self,
+        enums::{self, ProcessTrackerStatus},
+    },
     utils::{OptionExt, StringExt},
 };
 
@@ -314,6 +315,26 @@ pub fn get_schedule_time(
     }
 }
 
+pub fn get_pm_schedule_time(
+    mapping: process_data::PaymentMethodsPTMapping,
+    pm: &enums::PaymentMethod,
+    retry_count: i32,
+) -> Option<i32> {
+    let mapping = match mapping.custom_pm_mapping.get(pm) {
+        Some(map) => map.clone(),
+        None => mapping.default_mapping,
+    };
+
+    if retry_count == 0 {
+        Some(mapping.start_after)
+    } else {
+        get_delay(
+            retry_count,
+            mapping.count.iter().zip(mapping.frequency.iter()),
+        )
+    }
+}
+
 fn get_delay<'a>(
     retry_count: i32,
     mut array: impl Iterator<Item = (&'a i32, &'a i32)>,
@@ -345,13 +366,14 @@ where
     let lock_val = "LOCKED";
     let ttl = settings.producer.lock_ttl;
 
-    let result = if state
+    if state
         .store
         .acquire_pt_lock(tag, lock_key, lock_val, ttl)
         .await
         .change_context(errors::ProcessTrackerError::ERedisError(
             errors::RedisError::RedisConnectionError.into(),
-        ))? {
+        ))?
+    {
         let result = callback().await;
         state
             .store
@@ -361,31 +383,5 @@ where
         result
     } else {
         Ok(())
-    };
-    result
-}
-
-pub(crate) async fn signal_handler(
-    mut sig: signal_hook_tokio::Signals,
-    sender: oneshot::Sender<()>,
-) {
-    if let Some(signal) = sig.next().await {
-        logger::info!(
-            "Received signal: {:?}",
-            signal_hook::low_level::signal_name(signal)
-        );
-        match signal {
-            signal_hook::consts::SIGTERM | signal_hook::consts::SIGINT => match sender.send(()) {
-                Ok(_) => {
-                    logger::info!("Request for force shutdown received")
-                }
-                Err(_) => {
-                    logger::error!(
-                        "The receiver is closed, a termination call might already be sent"
-                    )
-                }
-            },
-            _ => {}
-        }
     }
 }

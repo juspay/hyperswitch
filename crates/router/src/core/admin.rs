@@ -1,13 +1,17 @@
 use common_utils::ext_traits::ValueExt;
-use error_stack::{report, FutureExt, ResultExt};
+use error_stack::{report, FutureExt, IntoReport, ResultExt};
 use storage_models::{enums, merchant_account};
 use uuid::Uuid;
 
 use crate::{
     consts,
-    core::errors::{self, RouterResponse, RouterResult, StorageErrorExt},
+    core::{
+        api_keys,
+        errors::{self, RouterResponse, RouterResult, StorageErrorExt},
+    },
     db::StorageInterface,
     pii::Secret,
+    routes::AppState,
     services::api as service_api,
     types::{
         self, api,
@@ -18,21 +22,46 @@ use crate::{
 };
 
 #[inline]
-pub fn create_merchant_api_key() -> String {
+pub fn create_merchant_publishable_key() -> String {
     format!(
-        "{}_{}",
+        "pk_{}_{}",
         router_env::env::prefix_for_env(),
         Uuid::new_v4().simple()
     )
 }
 
 pub async fn create_merchant_account(
-    db: &dyn StorageInterface,
-    req: api::CreateMerchantAccount,
+    state: &AppState,
+    req: api::MerchantAccountCreate,
 ) -> RouterResponse<api::MerchantAccountResponse> {
-    let publishable_key = Some(format!("pk_{}", create_merchant_api_key()));
+    let db = &*state.store;
+    let publishable_key = Some(create_merchant_publishable_key());
 
-    let api_key = Some(create_merchant_api_key().into());
+    let api_key_request = api::CreateApiKeyRequest {
+        name: "Default API key".into(),
+        description: Some(
+            "An API key created by default when a user signs up on the HyperSwitch dashboard"
+                .into(),
+        ),
+        expiration: api::ApiKeyExpiration::Never,
+    };
+    let api_key = match api_keys::create_api_key(
+        db,
+        &state.conf.api_keys,
+        #[cfg(feature = "kms")]
+        &state.conf.kms,
+        api_key_request,
+        req.merchant_id.clone(),
+    )
+    .await?
+    {
+        service_api::ApplicationResponse::Json(api::CreateApiKeyResponse { api_key, .. }) => {
+            Ok(api_key)
+        }
+        _ => Err(errors::ApiErrorResponse::InternalServerError)
+            .into_report()
+            .attach_printable("Unexpected create API key response"),
+    }?;
 
     let merchant_details = Some(
         utils::Encode::<api::MerchantDetails>::encode_to_value(&req.merchant_details)
@@ -61,7 +90,7 @@ pub async fn create_merchant_account(
     let merchant_account = storage::MerchantAccountNew {
         merchant_id: req.merchant_id,
         merchant_name: req.merchant_name,
-        api_key,
+        api_key: Some(api_key),
         merchant_details,
         return_url: req.return_url.map(|a| a.to_string()),
         webhook_details,
@@ -112,7 +141,7 @@ pub async fn get_merchant_account(
 pub async fn merchant_account_update(
     db: &dyn StorageInterface,
     merchant_id: &String,
-    req: api::CreateMerchantAccount,
+    req: api::MerchantAccountUpdate,
 ) -> RouterResponse<api::MerchantAccountResponse> {
     if &req.merchant_id != merchant_id {
         Err(report!(errors::ValidationError::IncorrectValueProvided {
@@ -169,7 +198,6 @@ pub async fn merchant_account_update(
         redirect_to_merchant_with_http_post: req.redirect_to_merchant_with_http_post,
         locker_id: req.locker_id,
         metadata: req.metadata,
-        api_key: None,
         publishable_key: None,
     };
 
@@ -188,14 +216,14 @@ pub async fn merchant_account_update(
 pub async fn merchant_account_delete(
     db: &dyn StorageInterface,
     merchant_id: String,
-) -> RouterResponse<api::DeleteMerchantAccountResponse> {
+) -> RouterResponse<api::MerchantAccountDeleteResponse> {
     let is_deleted = db
         .delete_merchant_account_by_merchant_id(&merchant_id)
         .await
         .map_err(|error| {
             error.to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
         })?;
-    let response = api::DeleteMerchantAccountResponse {
+    let response = api::MerchantAccountDeleteResponse {
         merchant_id,
         deleted: is_deleted,
     };
@@ -240,14 +268,14 @@ async fn validate_merchant_id<S: Into<String>>(
         })
 }
 
-// Payment Connector API -  Every merchant and connector can have an instance of (merchant <> connector)
+// Merchant Connector API -  Every merchant and connector can have an instance of (merchant <> connector)
 //                          with unique merchant_connector_id for Create Operation
 
 pub async fn create_payment_connector(
     store: &dyn StorageInterface,
-    req: api::PaymentConnectorCreate,
+    req: api::MerchantConnector,
     merchant_id: &String,
-) -> RouterResponse<api::PaymentConnectorCreate> {
+) -> RouterResponse<api::MerchantConnector> {
     let _merchant_account = store
         .find_merchant_account_by_merchant_id(merchant_id)
         .await
@@ -309,7 +337,7 @@ pub async fn retrieve_payment_connector(
     store: &dyn StorageInterface,
     merchant_id: String,
     merchant_connector_id: String,
-) -> RouterResponse<api::PaymentConnectorCreate> {
+) -> RouterResponse<api::MerchantConnector> {
     let _merchant_account = store
         .find_merchant_account_by_merchant_id(&merchant_id)
         .await
@@ -335,7 +363,7 @@ pub async fn retrieve_payment_connector(
 pub async fn list_payment_connectors(
     store: &dyn StorageInterface,
     merchant_id: String,
-) -> RouterResponse<Vec<api::PaymentConnectorCreate>> {
+) -> RouterResponse<Vec<api::MerchantConnector>> {
     // Validate merchant account
     store
         .find_merchant_account_by_merchant_id(&merchant_id)
@@ -364,8 +392,8 @@ pub async fn update_payment_connector(
     db: &dyn StorageInterface,
     merchant_id: &str,
     merchant_connector_id: &str,
-    req: api::PaymentConnectorCreate,
-) -> RouterResponse<api::PaymentConnectorCreate> {
+    req: api::MerchantConnector,
+) -> RouterResponse<api::MerchantConnector> {
     let _merchant_account = db
         .find_merchant_account_by_merchant_id(merchant_id)
         .await
@@ -423,7 +451,7 @@ pub async fn update_payment_connector(
             .collect::<Vec<api_models::admin::PaymentMethodsEnabled>>()
     });
 
-    let response = api::PaymentConnectorCreate {
+    let response = api::MerchantConnector {
         connector_type: updated_mca.connector_type.foreign_into(),
         connector_name: updated_mca.connector_name,
         merchant_connector_id: Some(updated_mca.merchant_connector_id),
@@ -440,7 +468,7 @@ pub async fn delete_payment_connector(
     db: &dyn StorageInterface,
     merchant_id: String,
     merchant_connector_id: String,
-) -> RouterResponse<api::DeleteMcaResponse> {
+) -> RouterResponse<api::MerchantConnectorDeleteResponse> {
     let _merchant_account = db
         .find_merchant_account_by_merchant_id(&merchant_id)
         .await
@@ -457,7 +485,7 @@ pub async fn delete_payment_connector(
         .map_err(|error| {
             error.to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound)
         })?;
-    let response = api::DeleteMcaResponse {
+    let response = api::MerchantConnectorDeleteResponse {
         merchant_id,
         merchant_connector_id,
         deleted: is_deleted,

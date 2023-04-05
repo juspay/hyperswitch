@@ -1,9 +1,5 @@
 use masking::Secret;
-use router::types::{
-    self,
-    api::{self},
-    storage::enums,
-};
+use router::types::{self, api, storage::enums};
 use serde_json::json;
 
 use crate::{
@@ -45,7 +41,7 @@ fn get_default_payment_info() -> Option<PaymentInfo> {
         address: Some(types::PaymentAddress {
             billing: Some(api::Address {
                 address: Some(api::AddressDetails {
-                    country: Some("US".to_string()),
+                    country: Some(api_models::enums::CountryCode::US),
                     ..Default::default()
                 }),
                 phone: None,
@@ -109,8 +105,7 @@ async fn should_sync_payment() {
                 connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
                     txn_id.unwrap(),
                 ),
-                encoded_data: None,
-                capture_method: None,
+                ..Default::default()
             }),
             get_default_payment_info(),
         )

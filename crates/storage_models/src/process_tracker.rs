@@ -23,6 +23,7 @@ pub struct ProcessTracker {
     pub tag: Vec<String>,
     pub runner: Option<String>,
     pub retry_count: i32,
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub schedule_time: Option<PrimitiveDateTime>,
     pub rule: String,
     pub tracking_data: serde_json::Value,
@@ -30,7 +31,9 @@ pub struct ProcessTracker {
     pub status: storage_enums::ProcessTrackerStatus,
     #[diesel(deserialize_as = super::DieselArray<String>)]
     pub event: Vec<String>,
+    #[serde(with = "common_utils::custom_serde::iso8601")]
     pub created_at: PrimitiveDateTime,
+    #[serde(with = "common_utils::custom_serde::iso8601")]
     pub updated_at: PrimitiveDateTime,
 }
 

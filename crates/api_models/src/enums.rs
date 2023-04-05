@@ -1,3 +1,4 @@
+pub use common_enums::*;
 use utoipa::ToSchema;
 
 #[derive(
@@ -137,6 +138,7 @@ pub enum ConnectorType {
     serde::Serialize,
     strum::Display,
     strum::EnumString,
+    strum::EnumIter,
     ToSchema,
     frunk::LabelledGeneric,
 )]
@@ -266,6 +268,13 @@ pub enum EventType {
     PaymentSucceeded,
     RefundSucceeded,
     RefundFailed,
+    DisputeOpened,
+    DisputeExpired,
+    DisputeAccepted,
+    DisputeCancelled,
+    DisputeChallenged,
+    DisputeWon,
+    DisputeLost,
 }
 
 #[derive(
@@ -539,6 +548,7 @@ pub enum MandateStatus {
     strum::Display,
     strum::EnumString,
     frunk::LabelledGeneric,
+    Hash,
 )]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
@@ -559,20 +569,28 @@ pub enum Connector {
     Fiserv,
     Globalpay,
     Klarna,
+    Mollie,
     Multisafepay,
     Nuvei,
     Payu,
     Rapyd,
     Shift4,
     Stripe,
+    Trustpay,
     Worldline,
     Worldpay,
     Zen,
 }
 
 impl Connector {
-    pub fn supports_access_token(&self) -> bool {
-        matches!(self, Self::Airwallex | Self::Globalpay | Self::Payu)
+    pub fn supports_access_token(&self, payment_method: PaymentMethod) -> bool {
+        matches!(
+            (self, payment_method),
+            (Self::Airwallex, _)
+                | (Self::Globalpay, _)
+                | (Self::Payu, _)
+                | (Self::Trustpay, PaymentMethod::BankRedirect)
+        )
     }
 }
 
@@ -604,14 +622,16 @@ pub enum RoutableConnectors {
     Fiserv,
     Globalpay,
     Klarna,
+    Mollie,
+    Multisafepay,
     Nuvei,
     Payu,
     Rapyd,
     Shift4,
     Stripe,
+    Trustpay,
     Worldline,
     Worldpay,
-    Multisafepay,
     Zen,
 }
 
@@ -625,6 +645,7 @@ pub enum SupportedWallets {
     Gpay,
 }
 
+/// Name of banks supported by Hyperswitch
 #[derive(
     Clone,
     Copy,
@@ -755,4 +776,52 @@ impl From<AttemptStatus> for IntentStatus {
             AttemptStatus::Voided => Self::Cancelled,
         }
     }
+}
+
+#[derive(
+    Clone,
+    Default,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    frunk::LabelledGeneric,
+    ToSchema,
+)]
+pub enum DisputeStage {
+    PreDispute,
+    #[default]
+    Dispute,
+    PreArbitration,
+}
+
+#[derive(
+    Clone,
+    Debug,
+    Default,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    frunk::LabelledGeneric,
+    ToSchema,
+)]
+pub enum DisputeStatus {
+    #[default]
+    DisputeOpened,
+    DisputeExpired,
+    DisputeAccepted,
+    DisputeCancelled,
+    DisputeChallenged,
+    // dispute has been successfully challenged by the merchant
+    DisputeWon,
+    // dispute has been unsuccessfully challenged
+    DisputeLost,
 }

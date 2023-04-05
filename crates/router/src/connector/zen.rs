@@ -560,11 +560,15 @@ impl api::IncomingWebhook for Zen {
     fn get_webhook_object_reference_id(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<String, errors::ConnectorError> {
+    ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
         let webhook_body: zen::ZenWebhookBody = serde_urlencoded::from_bytes(request.body)
             .into_report()
             .change_context(errors::ConnectorError::WebhookSignatureNotFound)?;
-        Ok(webhook_body.transaction_id)
+        Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
+            api_models::payments::PaymentIdType::ConnectorTransactionId(
+                webhook_body.transaction_id,
+            ),
+        ))
     }
 
     fn get_webhook_event_type(
@@ -589,6 +593,8 @@ impl services::ConnectorRedirectResponse for Zen {
     fn get_flow_type(
         &self,
         _query_params: &str,
+        _json_payload: Option<serde_json::Value>,
+        _action: services::PaymentAction,
     ) -> CustomResult<payments::CallConnectorAction, errors::ConnectorError> {
         Ok(payments::CallConnectorAction::Trigger)
     }

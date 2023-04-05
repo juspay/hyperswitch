@@ -62,16 +62,16 @@ pub enum Flow {
     MerchantsAccountUpdate,
     /// Merchants account delete flow.
     MerchantsAccountDelete,
-    /// Payment connectors create flow.
-    PaymentConnectorsCreate,
-    /// Payment connectors retrieve flow.
-    PaymentConnectorsRetrieve,
-    /// Payment connectors update flow.
-    PaymentConnectorsUpdate,
-    /// Payment connectors delete flow.
-    PaymentConnectorsDelete,
-    /// Payment connectors list flow.
-    PaymentConnectorsList,
+    /// Merchant Connectors create flow.
+    MerchantConnectorsCreate,
+    /// Merchant Connectors retrieve flow.
+    MerchantConnectorsRetrieve,
+    /// Merchant Connectors update flow.
+    MerchantConnectorsUpdate,
+    /// Merchant Connectors delete flow.
+    MerchantConnectorsDelete,
+    /// Merchant Connectors list flow.
+    MerchantConnectorsList,
     /// ConfigKey create flow.
     ConfigKeyCreate,
     /// ConfigKey fetch flow.
@@ -138,6 +138,8 @@ pub enum Flow {
     PayoutsCancel,
     /// Payouts accounts flow.
     PayoutsAccounts,
+    /// Payments Redirect flow.
+    PaymentsRedirect,
     /// Refunds create flow.
     RefundsCreate,
     /// Refunds retrieve flow.
@@ -160,7 +162,15 @@ pub enum Flow {
     ApiKeyRevoke,
     /// API Key list flow
     ApiKeyList,
+    /// Cards Info flow
+    CardsInfo,
 }
+
+///
+/// Trait for providing generic behaviour to flow metric
+///
+pub trait FlowMetric: ToString + std::fmt::Debug {}
+impl FlowMetric for Flow {}
 
 /// Category of log event.
 #[derive(Debug)]

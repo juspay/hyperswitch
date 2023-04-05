@@ -30,7 +30,6 @@ pub struct PaymentInfo {
     pub address: Option<PaymentAddress>,
     pub auth_type: Option<enums::AuthenticationType>,
     pub access_token: Option<AccessToken>,
-    pub router_return_url: Option<String>,
     pub connector_meta_data: Option<serde_json::Value>,
 }
 
@@ -360,7 +359,6 @@ pub trait ConnectorActions: Connector {
             payment_id: uuid::Uuid::new_v4().to_string(),
             attempt_id: uuid::Uuid::new_v4().to_string(),
             status: enums::AttemptStatus::default(),
-            router_return_url: info.clone().and_then(|a| a.router_return_url),
             auth_type: info
                 .clone()
                 .map_or(enums::AuthenticationType::NoThreeDs, |a| {
@@ -379,7 +377,9 @@ pub trait ConnectorActions: Connector {
                 .and_then(|a| a.address)
                 .or_else(|| Some(PaymentAddress::default()))
                 .unwrap(),
-            connector_meta_data: info.clone().and_then(|a| a.connector_meta_data),
+            connector_meta_data: info
+                .clone()
+                .and_then(|a| a.connector_meta_data.map(masking::Secret::new)),
             amount_captured: None,
             access_token: info.and_then(|a| a.access_token),
             session_token: None,
@@ -484,8 +484,14 @@ impl Default for PaymentAuthorizeType {
             browser_info: Some(BrowserInfoType::default().0),
             order_details: None,
             email: None,
+            session_token: None,
+            enrolled_for_3ds: false,
+            related_transaction_id: None,
             payment_experience: None,
             payment_method_type: None,
+            router_return_url: None,
+            complete_authorize_url: None,
+            webhook_url: None,
         };
         Self(data)
     }
@@ -498,6 +504,7 @@ impl Default for PaymentCaptureType {
             currency: enums::Currency::USD,
             connector_transaction_id: "".to_string(),
             amount: 100,
+            ..Default::default()
         })
     }
 }
@@ -538,6 +545,7 @@ impl Default for PaymentSyncType {
             ),
             encoded_data: None,
             capture_method: None,
+            connector_meta: None,
         };
         Self(data)
     }

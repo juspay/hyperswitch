@@ -1,8 +1,9 @@
 pub use api_models::admin::{
-    CreateMerchantAccount, DeleteMcaResponse, DeleteMerchantAccountResponse,
-    MerchantAccountResponse, MerchantConnectorId, MerchantDetails, MerchantId,
-    PaymentConnectorCreate, PaymentMethodsEnabled, RoutingAlgorithm, ToggleKVRequest,
-    ToggleKVResponse, WebhookDetails,
+    MerchantAccountCreate, MerchantAccountDeleteResponse, MerchantAccountResponse,
+    MerchantAccountUpdate, MerchantConnector, MerchantConnectorDeleteResponse,
+    MerchantConnectorDetails, MerchantConnectorDetailsWrap, MerchantConnectorId, MerchantDetails,
+    MerchantId, PaymentMethodsEnabled, RoutingAlgorithm, ToggleKVRequest, ToggleKVResponse,
+    WebhookDetails,
 };
 
 use crate::types::{storage, transformers::ForeignFrom};

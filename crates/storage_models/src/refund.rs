@@ -1,3 +1,4 @@
+use common_utils::pii;
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
@@ -25,9 +26,11 @@ pub struct Refund {
     pub refund_status: storage_enums::RefundStatus,
     pub sent_to_gateway: bool,
     pub refund_error_message: Option<String>,
-    pub metadata: Option<serde_json::Value>,
+    pub metadata: Option<pii::SecretSerdeValue>,
     pub refund_arn: Option<String>,
+    #[serde(with = "common_utils::custom_serde::iso8601")]
     pub created_at: PrimitiveDateTime,
+    #[serde(with = "common_utils::custom_serde::iso8601")]
     pub updated_at: PrimitiveDateTime,
     pub description: Option<String>,
     pub attempt_id: String,
@@ -63,9 +66,11 @@ pub struct RefundNew {
     pub refund_amount: i64,
     pub refund_status: storage_enums::RefundStatus,
     pub sent_to_gateway: bool,
-    pub metadata: Option<serde_json::Value>,
+    pub metadata: Option<pii::SecretSerdeValue>,
     pub refund_arn: Option<String>,
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub created_at: Option<PrimitiveDateTime>,
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub modified_at: Option<PrimitiveDateTime>,
     pub description: Option<String>,
     pub attempt_id: String,
@@ -82,7 +87,7 @@ pub enum RefundUpdate {
         refund_arn: String,
     },
     MetadataAndReasonUpdate {
-        metadata: Option<serde_json::Value>,
+        metadata: Option<pii::SecretSerdeValue>,
         reason: Option<String>,
     },
     StatusUpdate {
@@ -105,7 +110,7 @@ pub struct RefundUpdateInternal {
     sent_to_gateway: Option<bool>,
     refund_error_message: Option<String>,
     refund_arn: Option<String>,
-    metadata: Option<serde_json::Value>,
+    metadata: Option<pii::SecretSerdeValue>,
     refund_reason: Option<String>,
     refund_error_code: Option<String>,
 }

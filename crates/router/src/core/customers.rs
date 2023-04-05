@@ -10,7 +10,7 @@ use crate::{
     },
     db::StorageInterface,
     pii::PeekInterface,
-    routes::AppState,
+    routes::{metrics, AppState},
     services,
     types::{
         api::customers::{self, CustomerRequestExt},
@@ -141,8 +141,13 @@ pub async fn delete_customer(
         Ok(customer_payment_methods) => {
             for pm in customer_payment_methods.into_iter() {
                 if pm.payment_method == enums::PaymentMethod::Card {
-                    cards::delete_card(state, &merchant_account.merchant_id, &pm.payment_method_id)
-                        .await?;
+                    cards::delete_card_from_locker(
+                        state,
+                        &req.customer_id,
+                        &merchant_account.merchant_id,
+                        &pm.payment_method_id,
+                    )
+                    .await?;
                 }
                 db.delete_payment_method_by_merchant_id_payment_method_id(
                     &merchant_account.merchant_id,
@@ -165,7 +170,7 @@ pub async fn delete_customer(
 
     let update_address = storage::AddressUpdate::Update {
         city: Some(REDACTED.to_string()),
-        country: Some(REDACTED.to_string()),
+        country: None,
         line1: Some(REDACTED.to_string().into()),
         line2: Some(REDACTED.to_string().into()),
         line3: Some(REDACTED.to_string().into()),
@@ -217,6 +222,7 @@ pub async fn delete_customer(
         address_deleted: true,
         payment_methods_deleted: true,
     };
+    metrics::CUSTOMER_REDACTED.add(&metrics::CONTEXT, 1, &[]);
     Ok(services::ApplicationResponse::Json(response))
 }
 

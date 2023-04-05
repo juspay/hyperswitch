@@ -1,59 +1,65 @@
-use common_utils::{date_time, errors::CustomResult, fp_utils};
+use common_utils::date_time;
 use error_stack::{report, IntoReport, ResultExt};
-use masking::{PeekInterface, Secret, StrongSecret};
+#[cfg(feature = "kms")]
+use external_services::kms;
+use masking::{PeekInterface, StrongSecret};
 use router_env::{instrument, tracing};
 
-#[cfg(feature = "kms")]
-use crate::services::kms;
 use crate::{
     configs::settings,
     consts,
     core::errors::{self, RouterResponse, StorageErrorExt},
     db::StorageInterface,
+    routes::metrics,
     services::ApplicationResponse,
     types::{api, storage, transformers::ForeignInto},
     utils,
 };
 
-pub static HASH_KEY: tokio::sync::OnceCell<StrongSecret<[u8; PlaintextApiKey::HASH_KEY_LEN]>> =
+static HASH_KEY: tokio::sync::OnceCell<StrongSecret<[u8; PlaintextApiKey::HASH_KEY_LEN]>> =
     tokio::sync::OnceCell::const_new();
 
 pub async fn get_hash_key(
     api_key_config: &settings::ApiKeys,
-) -> errors::RouterResult<StrongSecret<[u8; PlaintextApiKey::HASH_KEY_LEN]>> {
-    #[cfg(feature = "kms")]
-    let hash_key = kms::KeyHandler::get_kms_decrypted_key(
-        &api_key_config.aws_region,
-        &api_key_config.aws_key_id,
-        api_key_config.kms_encrypted_hash_key.clone(),
-    )
-    .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("Failed to KMS decrypt API key hashing key")?;
+    #[cfg(feature = "kms")] kms_config: &kms::KmsConfig,
+) -> errors::RouterResult<&'static StrongSecret<[u8; PlaintextApiKey::HASH_KEY_LEN]>> {
+    HASH_KEY
+        .get_or_try_init(|| async {
+            #[cfg(feature = "kms")]
+            let hash_key = kms::get_kms_client(kms_config)
+                .await
+                .decrypt(&api_key_config.kms_encrypted_hash_key)
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to KMS decrypt API key hashing key")?;
 
-    #[cfg(not(feature = "kms"))]
-    let hash_key = &api_key_config.hash_key;
+            #[cfg(not(feature = "kms"))]
+            let hash_key = &api_key_config.hash_key;
 
-    <[u8; PlaintextApiKey::HASH_KEY_LEN]>::try_from(
-        hex::decode(hash_key)
+            <[u8; PlaintextApiKey::HASH_KEY_LEN]>::try_from(
+                hex::decode(hash_key)
+                    .into_report()
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("API key hash key has invalid hexadecimal data")?
+                    .as_slice(),
+            )
             .into_report()
             .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("API key hash key has invalid hexadecimal data")?
-            .as_slice(),
-    )
-    .into_report()
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("The API hashing key has incorrect length")
-    .map(StrongSecret::new)
+            .attach_printable("The API hashing key has incorrect length")
+            .map(StrongSecret::new)
+        })
+        .await
 }
 
 // Defining new types `PlaintextApiKey` and `HashedApiKey` in the hopes of reducing the possibility
 // of plaintext API key being stored in the data store.
-pub struct PlaintextApiKey(Secret<String>);
+pub struct PlaintextApiKey(StrongSecret<String>);
+
+#[derive(Debug, PartialEq, Eq)]
 pub struct HashedApiKey(String);
 
 impl PlaintextApiKey {
-    pub const HASH_KEY_LEN: usize = 32;
+    const HASH_KEY_LEN: usize = 32;
 
     const PREFIX_LEN: usize = 12;
 
@@ -107,34 +113,22 @@ impl PlaintextApiKey {
                 .to_string(),
         )
     }
-
-    pub fn verify_hash(
-        &self,
-        key: &[u8; Self::HASH_KEY_LEN],
-        stored_api_key: &HashedApiKey,
-    ) -> CustomResult<(), errors::ApiKeyError> {
-        // Converting both hashes to `blake3::Hash` since it provides constant-time equality checks
-        let provided_api_key_hash = blake3::keyed_hash(key, self.0.peek().as_bytes());
-        let stored_api_key_hash = blake3::Hash::from_hex(&stored_api_key.0)
-            .into_report()
-            .change_context(errors::ApiKeyError::FailedToReadHashFromHex)?;
-
-        fp_utils::when(provided_api_key_hash != stored_api_key_hash, || {
-            Err(errors::ApiKeyError::HashVerificationFailed).into_report()
-        })
-    }
 }
 
 #[instrument(skip_all)]
 pub async fn create_api_key(
     store: &dyn StorageInterface,
     api_key_config: &settings::ApiKeys,
+    #[cfg(feature = "kms")] kms_config: &kms::KmsConfig,
     api_key: api::CreateApiKeyRequest,
     merchant_id: String,
 ) -> RouterResponse<api::CreateApiKeyResponse> {
-    let hash_key = HASH_KEY
-        .get_or_try_init(|| get_hash_key(api_key_config))
-        .await?;
+    let hash_key = get_hash_key(
+        api_key_config,
+        #[cfg(feature = "kms")]
+        kms_config,
+    )
+    .await?;
     let plaintext_api_key = PlaintextApiKey::new(consts::API_KEY_LENGTH);
     let api_key = storage::ApiKeyNew {
         key_id: PlaintextApiKey::new_key_id(),
@@ -154,6 +148,8 @@ pub async fn create_api_key(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to insert new API key")?;
 
+    metrics::API_KEY_CREATED.add(&metrics::CONTEXT, 1, &[]);
+
     Ok(ApplicationResponse::Json(
         (api_key, plaintext_api_key).foreign_into(),
     ))
@@ -165,7 +161,7 @@ pub async fn retrieve_api_key(
     key_id: &str,
 ) -> RouterResponse<api::RetrieveApiKeyResponse> {
     let api_key = store
-        .find_api_key_optional(key_id)
+        .find_api_key_by_key_id_optional(key_id)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError) // If retrieve failed
         .attach_printable("Failed to retrieve new API key")?
@@ -198,6 +194,8 @@ pub async fn revoke_api_key(
         .await
         .map_err(|err| err.to_not_found_response(errors::ApiErrorResponse::ApiKeyNotFound))?;
 
+    metrics::API_KEY_REVOKED.add(&metrics::CONTEXT, 1, &[]);
+
     Ok(ApplicationResponse::Json(api::RevokeApiKeyResponse {
         key_id: key_id.to_owned(),
         revoked,
@@ -224,9 +222,27 @@ pub async fn list_api_keys(
     Ok(ApplicationResponse::Json(api_keys))
 }
 
+impl From<&str> for PlaintextApiKey {
+    fn from(s: &str) -> Self {
+        Self(s.to_owned().into())
+    }
+}
+
+impl From<String> for PlaintextApiKey {
+    fn from(s: String) -> Self {
+        Self(s.into())
+    }
+}
+
 impl From<HashedApiKey> for storage::HashedApiKey {
     fn from(hashed_api_key: HashedApiKey) -> Self {
         hashed_api_key.0.into()
+    }
+}
+
+impl From<storage::HashedApiKey> for HashedApiKey {
+    fn from(hashed_api_key: storage::HashedApiKey) -> Self {
+        Self(hashed_api_key.into_inner())
     }
 }
 
@@ -240,10 +256,13 @@ mod tests {
         let settings = settings::Settings::new().expect("invalid settings");
 
         let plaintext_api_key = PlaintextApiKey::new(consts::API_KEY_LENGTH);
-        let hash_key = HASH_KEY
-            .get_or_try_init(|| get_hash_key(&settings.api_keys))
-            .await
-            .unwrap();
+        let hash_key = get_hash_key(
+            &settings.api_keys,
+            #[cfg(feature = "kms")]
+            &settings.kms,
+        )
+        .await
+        .unwrap();
         let hashed_api_key = plaintext_api_key.keyed_hash(hash_key.peek());
 
         assert_ne!(
@@ -251,8 +270,7 @@ mod tests {
             hashed_api_key.0.as_bytes()
         );
 
-        plaintext_api_key
-            .verify_hash(hash_key.peek(), &hashed_api_key)
-            .unwrap();
+        let new_hashed_api_key = plaintext_api_key.keyed_hash(hash_key.peek());
+        assert_eq!(hashed_api_key, new_hashed_api_key)
     }
 }
