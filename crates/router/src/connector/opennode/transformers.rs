@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::default;
 
 use crate::{
-    connector::utils::PaymentsAuthorizeRequestData,
+    connector::utils::{PaymentsAuthorizeRequestData, RouterData},
     core::errors,
     services,
     types::{self, api, storage::enums},
@@ -222,10 +222,10 @@ fn get_crypto_specific_payment_data<'a>(
 ) -> Result<OpennodePaymentsRequest, error_stack::Report<errors::ConnectorError>> {
     let amount = item.request.amount;
     let currency = item.request.currency.to_string();
-    let description = item.description.as_ref().unwrap().to_string();
+    let description = item.get_description()?;
     let auto_settle = true;
     let success_url = item.return_url.as_ref().unwrap().to_string();
-    let callback_url = item.webhook_url.as_ref().unwrap().to_string();
+    let callback_url = item.request.webhook_url.as_ref().unwrap().to_string();
 
     Ok(OpennodePaymentsRequest {
         amount,

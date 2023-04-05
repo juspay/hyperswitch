@@ -87,10 +87,18 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             )
             .await?;
 
+        payment_intent = db
+            .find_payment_intent_by_payment_id_merchant_id(&payment_id, merchant_id, storage_scheme)
+            .await
+            .map_err(|error| {
+                error.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
+            })?;
+
         payment_attempt = db
-            .find_payment_attempt_by_payment_id_merchant_id(
-                &payment_id,
+            .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
+                payment_intent.payment_id.as_str(),
                 merchant_id,
+                payment_intent.active_attempt_id.as_str(),
                 storage_scheme,
             )
             .await
@@ -210,6 +218,24 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             .payment_experience
             .map(|experience| experience.foreign_into());
 
+        let creds_identifier = request
+            .merchant_connector_details
+            .as_ref()
+            .map(|mcd| mcd.creds_identifier.to_owned());
+        request
+            .merchant_connector_details
+            .to_owned()
+            .async_map(|mcd| async {
+                helpers::insert_merchant_connector_creds_to_config(
+                    db,
+                    merchant_account.merchant_id.as_str(),
+                    mcd,
+                )
+                .await
+            })
+            .await
+            .transpose()?;
+
         Ok((
             next_operation,
             PaymentData {
@@ -233,6 +259,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 connector_response,
                 sessions_token: vec![],
                 card_cvc: request.card_cvc.clone(),
+                creds_identifier,
             },
             Some(CustomerDetails {
                 customer_id: request.customer_id.clone(),
@@ -297,10 +324,9 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentUpdate {
         &'a self,
         _merchant_account: &storage::MerchantAccount,
         state: &AppState,
-        _request: &api::PaymentsRequest,
-        previously_used_connector: Option<&String>,
-    ) -> CustomResult<api::ConnectorCallType, errors::ApiErrorResponse> {
-        helpers::get_connector_default(state, previously_used_connector).await
+        request: &api::PaymentsRequest,
+    ) -> CustomResult<api::ConnectorChoice, errors::ApiErrorResponse> {
+        helpers::get_connector_default(state, request.routing.clone()).await
     }
 }
 
@@ -346,7 +372,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
         let payment_method_type = payment_data.payment_attempt.payment_method_type.clone();
         let payment_experience = payment_data.payment_attempt.payment_experience.clone();
         payment_data.payment_attempt = db
-            .update_payment_attempt(
+            .update_payment_attempt_with_attempt_id(
                 payment_data.payment_attempt,
                 storage::PaymentAttemptUpdate::Update {
                     amount: payment_data.amount.into(),

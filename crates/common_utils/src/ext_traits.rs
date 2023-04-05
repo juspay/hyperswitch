@@ -277,7 +277,9 @@ impl<T> StringExt<T> for String {
         serde_json::from_str::<T>(self)
             .into_report()
             .change_context(errors::ParsingError)
-            .attach_printable_lazy(|| format!("Unable to parse {type_name} {:?}", &self))
+            .attach_printable_lazy(|| {
+                format!("Unable to parse {type_name} from string {:?}", &self)
+            })
     }
 }
 

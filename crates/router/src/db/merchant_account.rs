@@ -2,7 +2,7 @@ use error_stack::IntoReport;
 
 use super::{MockDb, Store};
 use crate::{
-    connection::pg_connection,
+    connection,
     core::errors::{self, CustomResult},
     types::storage::{self, enums},
 };
@@ -48,7 +48,7 @@ impl MerchantAccountInterface for Store {
         &self,
         merchant_account: storage::MerchantAccountNew,
     ) -> CustomResult<storage::MerchantAccount, errors::StorageError> {
-        let conn = pg_connection(&self.master_pool).await?;
+        let conn = connection::pg_connection_write(self).await?;
         merchant_account
             .insert(&conn)
             .await
@@ -61,7 +61,7 @@ impl MerchantAccountInterface for Store {
         merchant_id: &str,
     ) -> CustomResult<storage::MerchantAccount, errors::StorageError> {
         let fetch_func = || async {
-            let conn = pg_connection(&self.master_pool).await?;
+            let conn = connection::pg_connection_read(self).await?;
             storage::MerchantAccount::find_by_merchant_id(&conn, merchant_id)
                 .await
                 .map_err(Into::into)
@@ -75,7 +75,7 @@ impl MerchantAccountInterface for Store {
 
         #[cfg(feature = "accounts_cache")]
         {
-            super::cache::get_or_populate_cache(self, merchant_id, fetch_func).await
+            super::cache::get_or_populate_redis(self, merchant_id, fetch_func).await
         }
     }
 
@@ -86,7 +86,7 @@ impl MerchantAccountInterface for Store {
     ) -> CustomResult<storage::MerchantAccount, errors::StorageError> {
         let _merchant_id = this.merchant_id.clone();
         let update_func = || async {
-            let conn = pg_connection(&self.master_pool).await?;
+            let conn = connection::pg_connection_write(self).await?;
             this.update(&conn, merchant_account)
                 .await
                 .map_err(Into::into)
@@ -100,7 +100,7 @@ impl MerchantAccountInterface for Store {
 
         #[cfg(feature = "accounts_cache")]
         {
-            super::cache::redact_cache(self, &_merchant_id, update_func).await
+            super::cache::redact_cache(self, &_merchant_id, update_func, None).await
         }
     }
 
@@ -110,7 +110,7 @@ impl MerchantAccountInterface for Store {
         merchant_account: storage::MerchantAccountUpdate,
     ) -> CustomResult<storage::MerchantAccount, errors::StorageError> {
         let update_func = || async {
-            let conn = pg_connection(&self.master_pool).await?;
+            let conn = connection::pg_connection_write(self).await?;
             storage::MerchantAccount::update_with_specific_fields(
                 &conn,
                 merchant_id,
@@ -128,7 +128,7 @@ impl MerchantAccountInterface for Store {
 
         #[cfg(feature = "accounts_cache")]
         {
-            super::cache::redact_cache(self, merchant_id, update_func).await
+            super::cache::redact_cache(self, merchant_id, update_func, None).await
         }
     }
 
@@ -136,7 +136,7 @@ impl MerchantAccountInterface for Store {
         &self,
         publishable_key: &str,
     ) -> CustomResult<storage::MerchantAccount, errors::StorageError> {
-        let conn = pg_connection(&self.master_pool).await?;
+        let conn = connection::pg_connection_read(self).await?;
         storage::MerchantAccount::find_by_publishable_key(&conn, publishable_key)
             .await
             .map_err(Into::into)
@@ -148,7 +148,7 @@ impl MerchantAccountInterface for Store {
         merchant_id: &str,
     ) -> CustomResult<bool, errors::StorageError> {
         let delete_func = || async {
-            let conn = pg_connection(&self.master_pool).await?;
+            let conn = connection::pg_connection_write(self).await?;
             storage::MerchantAccount::delete_by_merchant_id(&conn, merchant_id)
                 .await
                 .map_err(Into::into)
@@ -162,7 +162,7 @@ impl MerchantAccountInterface for Store {
 
         #[cfg(feature = "accounts_cache")]
         {
-            super::cache::redact_cache(self, merchant_id, delete_func).await
+            super::cache::redact_cache(self, merchant_id, delete_func, None).await
         }
     }
 }

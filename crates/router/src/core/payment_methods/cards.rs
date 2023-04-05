@@ -19,7 +19,7 @@ use error_stack::{report, ResultExt};
 use router_env::{instrument, tracing};
 
 #[cfg(feature = "basilisk")]
-use crate::scheduler::metrics;
+use crate::scheduler::metrics as scheduler_metrics;
 use crate::{
     configs::settings,
     core::{
@@ -29,7 +29,8 @@ use crate::{
     },
     db, logger,
     pii::prelude::*,
-    routes, services,
+    routes::{self, metrics},
+    services,
     types::{
         api::{self, PaymentMethodCreateExt},
         storage::{self, enums},
@@ -159,14 +160,25 @@ pub async fn add_card_to_locker(
     customer_id: String,
     merchant_account: &storage::MerchantAccount,
 ) -> errors::CustomResult<api::PaymentMethodResponse, errors::VaultError> {
-    match state.conf.locker.locker_setup {
-        settings::LockerSetup::BasiliskLocker => {
-            add_card_hs(state, req, card, customer_id, merchant_account).await
-        }
-        settings::LockerSetup::LegacyLocker => {
-            add_card(state, req, card, customer_id, merchant_account).await
-        }
-    }
+    metrics::STORED_TO_LOCKER.add(&metrics::CONTEXT, 1, &[]);
+    metrics::request::record_card_operation_time(
+        async {
+            match state.conf.locker.locker_setup {
+                settings::LockerSetup::BasiliskLocker => {
+                    add_card_hs(state, req, card, customer_id, merchant_account).await
+                }
+                settings::LockerSetup::LegacyLocker => {
+                    add_card(state, req, card, customer_id, merchant_account).await
+                }
+            }
+            .map_err(|error| {
+                metrics::CARD_LOCKER_FAILURES.add(&metrics::CONTEXT, 1, &[]);
+                error
+            })
+        },
+        &metrics::CARD_ADD_TIME,
+    )
+    .await
 }
 
 pub async fn get_card_from_locker(
@@ -176,22 +188,34 @@ pub async fn get_card_from_locker(
     card_reference: &str,
     locker_id: Option<String>,
 ) -> errors::RouterResult<payment_methods::Card> {
-    match state.conf.locker.locker_setup {
-        settings::LockerSetup::LegacyLocker => {
-            get_card_from_legacy_locker(
-                state,
-                &locker_id.get_required_value("locker_id")?,
-                card_reference,
-            )
-            .await
-        }
-        settings::LockerSetup::BasiliskLocker => {
-            get_card_from_hs_locker(state, customer_id, merchant_id, card_reference)
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed while getting card from basilisk_hs")
-        }
-    }
+    metrics::GET_FROM_LOCKER.add(&metrics::CONTEXT, 1, &[]);
+
+    metrics::request::record_card_operation_time(
+        async {
+            match state.conf.locker.locker_setup {
+                settings::LockerSetup::LegacyLocker => {
+                    get_card_from_legacy_locker(
+                        state,
+                        &locker_id.get_required_value("locker_id")?,
+                        card_reference,
+                    )
+                    .await
+                }
+                settings::LockerSetup::BasiliskLocker => {
+                    get_card_from_hs_locker(state, customer_id, merchant_id, card_reference)
+                        .await
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Failed while getting card from basilisk_hs")
+                }
+            }
+            .map_err(|error| {
+                metrics::CARD_LOCKER_FAILURES.add(&metrics::CONTEXT, 1, &[]);
+                error
+            })
+        },
+        &metrics::CARD_GET_TIME,
+    )
+    .await
 }
 
 pub async fn delete_card_from_locker(
@@ -200,14 +224,27 @@ pub async fn delete_card_from_locker(
     merchant_id: &str,
     card_reference: &str,
 ) -> errors::RouterResult<payment_methods::DeleteCardResp> {
-    match state.conf.locker.locker_setup {
-        settings::LockerSetup::LegacyLocker => {
-            delete_card(state, merchant_id, card_reference).await
-        }
-        settings::LockerSetup::BasiliskLocker => {
-            delete_card_from_hs_locker(state, customer_id, merchant_id, card_reference).await
-        }
-    }
+    metrics::DELETE_FROM_LOCKER.add(&metrics::CONTEXT, 1, &[]);
+
+    metrics::request::record_card_operation_time(
+        async {
+            match state.conf.locker.locker_setup {
+                settings::LockerSetup::LegacyLocker => {
+                    delete_card(state, merchant_id, card_reference).await
+                }
+                settings::LockerSetup::BasiliskLocker => {
+                    delete_card_from_hs_locker(state, customer_id, merchant_id, card_reference)
+                        .await
+                }
+            }
+            .map_err(|error| {
+                metrics::CARD_LOCKER_FAILURES.add(&metrics::CONTEXT, 1, &[]);
+                error
+            })
+        },
+        &metrics::CARD_DELETE_TIME,
+    )
+    .await
 }
 
 #[instrument(skip_all)]
@@ -780,9 +817,10 @@ pub async fn list_payment_methods(
     let payment_attempt = payment_intent
         .as_ref()
         .async_map(|pi| async {
-            db.find_payment_attempt_by_payment_id_merchant_id(
+            db.find_payment_attempt_by_payment_id_merchant_id_attempt_id(
                 &pi.payment_id,
                 &pi.merchant_id,
+                &pi.active_attempt_id,
                 merchant_account.storage_scheme,
             )
             .await
@@ -1083,7 +1121,7 @@ async fn filter_payment_methods(
                         &connector,
                         &payment_method_object.payment_method_type,
                         &mut payment_method_object.card_networks,
-                        &address.and_then(|inner| inner.country.clone()),
+                        &address.and_then(|inner| inner.country),
                         payment_attempt
                             .and_then(|value| value.currency)
                             .map(|value| value.foreign_into()),
@@ -1112,7 +1150,7 @@ fn filter_pm_based_on_config<'a>(
     connector: &'a str,
     payment_method_type: &'a api_enums::PaymentMethodType,
     card_network: &mut Option<Vec<api_enums::CardNetwork>>,
-    country: &Option<String>,
+    country: &Option<api_enums::CountryCode>,
     currency: Option<api_enums::Currency>,
 ) -> bool {
     config
@@ -1134,7 +1172,7 @@ fn filter_pm_based_on_config<'a>(
 }
 
 fn card_network_filter(
-    country: &Option<String>,
+    country: &Option<api_enums::CountryCode>,
     currency: Option<api_enums::Currency>,
     card_network: &mut Option<Vec<api_enums::CardNetwork>>,
     payment_method_filters: &settings::PaymentMethodFilters,
@@ -1158,7 +1196,7 @@ fn card_network_filter(
 
 fn global_country_currency_filter(
     item: &settings::CurrencyCountryFilter,
-    country: &Option<String>,
+    country: &Option<api_enums::CountryCode>,
     currency: Option<api_enums::Currency>,
 ) -> bool {
     let country_condition = item
@@ -1196,33 +1234,38 @@ fn filter_pm_card_network_based(
 }
 fn filter_pm_country_based(
     accepted_countries: &Option<admin::AcceptedCountries>,
-    req_country_list: &Option<Vec<String>>,
-) -> (Option<admin::AcceptedCountries>, Option<Vec<String>>, bool) {
+    req_country_list: &Option<Vec<api_enums::CountryCode>>,
+) -> (
+    Option<admin::AcceptedCountries>,
+    Option<Vec<api_enums::CountryCode>>,
+    bool,
+) {
     match (accepted_countries, req_country_list) {
         (None, None) => (None, None, true),
         (None, Some(ref r)) => (
-            Some(admin::AcceptedCountries {
-                accept_type: "enable_only".to_owned(),
-                list: Some(r.to_vec()),
-            }),
+            Some(admin::AcceptedCountries::EnableOnly(r.to_vec())),
             Some(r.to_vec()),
             true,
         ),
         (Some(l), None) => (Some(l.to_owned()), None, true),
         (Some(l), Some(ref r)) => {
-            let list = if l.accept_type == "enable_only" {
-                filter_accepted_enum_based(&l.list, &Some(r.to_owned()))
-            } else {
-                filter_disabled_enum_based(&l.list, &Some(r.to_owned()))
+            let updated = match l {
+                admin::AcceptedCountries::EnableOnly(acc) => {
+                    filter_accepted_enum_based(&Some(acc.clone()), &Some(r.to_owned()))
+                        .map(admin::AcceptedCountries::EnableOnly)
+                }
+
+                admin::AcceptedCountries::DisableOnly(den) => {
+                    filter_disabled_enum_based(&Some(den.clone()), &Some(r.to_owned()))
+                        .map(admin::AcceptedCountries::DisableOnly)
+                }
+
+                admin::AcceptedCountries::AllAccepted => {
+                    Some(admin::AcceptedCountries::AllAccepted)
+                }
             };
-            (
-                Some(admin::AcceptedCountries {
-                    accept_type: l.accept_type.to_owned(),
-                    list,
-                }),
-                Some(r.to_vec()),
-                true,
-            )
+
+            (updated, Some(r.to_vec()), true)
         }
     }
 }
@@ -1238,28 +1281,29 @@ fn filter_pm_currencies_based(
     match (accepted_currency, req_currency_list) {
         (None, None) => (None, None, true),
         (None, Some(ref r)) => (
-            Some(admin::AcceptedCurrencies {
-                accept_type: "enable_only".to_owned(),
-                list: Some(r.to_vec()),
-            }),
+            Some(admin::AcceptedCurrencies::EnableOnly(r.to_vec())),
             Some(r.to_vec()),
             true,
         ),
         (Some(l), None) => (Some(l.to_owned()), None, true),
         (Some(l), Some(ref r)) => {
-            let list = if l.accept_type == "enable_only" {
-                filter_accepted_enum_based(&l.list, &Some(r.to_owned()))
-            } else {
-                filter_disabled_enum_based(&l.list, &Some(r.to_owned()))
+            let updated = match l {
+                admin::AcceptedCurrencies::EnableOnly(acc) => {
+                    filter_accepted_enum_based(&Some(acc.clone()), &Some(r.to_owned()))
+                        .map(admin::AcceptedCurrencies::EnableOnly)
+                }
+
+                admin::AcceptedCurrencies::DisableOnly(den) => {
+                    filter_disabled_enum_based(&Some(den.clone()), &Some(r.to_owned()))
+                        .map(admin::AcceptedCurrencies::DisableOnly)
+                }
+
+                admin::AcceptedCurrencies::AllAccepted => {
+                    Some(admin::AcceptedCurrencies::AllAccepted)
+                }
             };
-            (
-                Some(admin::AcceptedCurrencies {
-                    accept_type: l.accept_type.to_owned(),
-                    list,
-                }),
-                Some(r.to_vec()),
-                true,
-            )
+
+            (updated, Some(r.to_vec()), true)
         }
     }
 }
@@ -1348,16 +1392,10 @@ async fn filter_payment_country_based(
 ) -> errors::CustomResult<bool, errors::ApiErrorResponse> {
     Ok(address.map_or(true, |address| {
         address.country.as_ref().map_or(true, |country| {
-            pm.accepted_countries.as_ref().map_or(true, |ac| {
-                if ac.accept_type == "enable_only" {
-                    ac.list
-                        .as_ref()
-                        .map_or(false, |enable_countries| enable_countries.contains(country))
-                } else {
-                    ac.list.as_ref().map_or(true, |disable_countries| {
-                        !disable_countries.contains(country)
-                    })
-                }
+            pm.accepted_countries.as_ref().map_or(true, |ac| match ac {
+                admin::AcceptedCountries::EnableOnly(acc) => acc.contains(country),
+                admin::AcceptedCountries::DisableOnly(den) => !den.contains(country),
+                admin::AcceptedCountries::AllAccepted => true,
             })
         })
     }))
@@ -1368,16 +1406,10 @@ fn filter_payment_currency_based(
     pm: &RequestPaymentMethodTypes,
 ) -> bool {
     payment_intent.currency.map_or(true, |currency| {
-        pm.accepted_currencies.as_ref().map_or(true, |ac| {
-            if ac.accept_type == "enable_only" {
-                ac.list.as_ref().map_or(false, |enable_currencies| {
-                    enable_currencies.contains(&currency.foreign_into())
-                })
-            } else {
-                ac.list.as_ref().map_or(true, |disable_currencies| {
-                    !disable_currencies.contains(&currency.foreign_into())
-                })
-            }
+        pm.accepted_currencies.as_ref().map_or(true, |ac| match ac {
+            admin::AcceptedCurrencies::EnableOnly(acc) => acc.contains(&currency.foreign_into()),
+            admin::AcceptedCurrencies::DisableOnly(den) => !den.contains(&currency.foreign_into()),
+            admin::AcceptedCurrencies::AllAccepted => true,
         })
     })
 }
@@ -1659,7 +1691,7 @@ impl BasiliskCardSupport {
             enums::PaymentMethod::Card,
         )
         .await?;
-        metrics::TOKENIZED_DATA_COUNT.add(&metrics::CONTEXT, 1, &[]);
+        scheduler_metrics::TOKENIZED_DATA_COUNT.add(&metrics::CONTEXT, 1, &[]);
         Ok(card)
     }
 }

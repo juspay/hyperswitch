@@ -10,6 +10,7 @@ use crate::{
         payments::PaymentData,
     },
     db::StorageInterface,
+    routes::metrics,
     services::RedirectForm,
     types::{
         self, api,
@@ -292,7 +293,7 @@ async fn payment_response_update_tracker<F: Clone, T>(
     let (payment_attempt_update, connector_response_update) = match router_data.response.clone() {
         Err(err) => (
             Some(storage::PaymentAttemptUpdate::ErrorUpdate {
-                connector: Some(router_data.connector.clone()),
+                connector: None,
                 status: storage::enums::AttemptStatus::Failure,
                 error_message: Some(err.message),
                 error_code: Some(err.code),
@@ -315,7 +316,7 @@ async fn payment_response_update_tracker<F: Clone, T>(
                 };
 
                 let encoded_data = payment_data.connector_response.encoded_data.clone();
-                let connector_name = payment_data.payment_attempt.connector.clone();
+                let connector_name = router_data.connector.clone();
 
                 let authentication_data = redirection_data
                     .map(|data| utils::Encode::<RedirectForm>::encode_to_value(&data))
@@ -329,10 +330,14 @@ async fn payment_response_update_tracker<F: Clone, T>(
                 } else {
                     None
                 };
+                
+                if router_data.status == enums::AttemptStatus::Charged {
+                    metrics::SUCCESSFUL_PAYMENT.add(&metrics::CONTEXT, 1, &[]);
+                }
 
                 let payment_attempt_update = storage::PaymentAttemptUpdate::ResponseUpdate {
                     status: router_data.status,
-                    connector: Some(router_data.connector),
+                    connector: None,
                     connector_transaction_id: connector_transaction_id.clone(),
                     authentication_type: None,
                     payment_method_id: Some(router_data.payment_method_id),
@@ -349,7 +354,7 @@ async fn payment_response_update_tracker<F: Clone, T>(
                     connector_transaction_id,
                     authentication_data,
                     encoded_data,
-                    connector_name,
+                    connector_name: Some(connector_name),
                 };
 
                 (
@@ -369,7 +374,7 @@ async fn payment_response_update_tracker<F: Clone, T>(
                 (
                     Some(storage::PaymentAttemptUpdate::UnresolvedResponseUpdate {
                         status: router_data.status,
-                        connector: Some(router_data.connector),
+                        connector: None,
                         connector_transaction_id: connector_transaction_id.clone(),
                         payment_method_id: Some(router_data.payment_method_id),
                         error_code: reason.clone().map(|cd| cd.code),
@@ -385,7 +390,7 @@ async fn payment_response_update_tracker<F: Clone, T>(
 
     payment_data.payment_attempt = match payment_attempt_update {
         Some(payment_attempt_update) => db
-            .update_payment_attempt(
+            .update_payment_attempt_with_attempt_id(
                 payment_data.payment_attempt,
                 payment_attempt_update,
                 storage_scheme,

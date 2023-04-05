@@ -1,15 +1,16 @@
 use common_utils::date_time;
 use error_stack::{report, IntoReport, ResultExt};
+#[cfg(feature = "kms")]
+use external_services::kms;
 use masking::{PeekInterface, StrongSecret};
 use router_env::{instrument, tracing};
 
-#[cfg(feature = "kms")]
-use crate::services::kms;
 use crate::{
     configs::settings,
     consts,
     core::errors::{self, RouterResponse, StorageErrorExt},
     db::StorageInterface,
+    routes::metrics,
     services::ApplicationResponse,
     types::{api, storage, transformers::ForeignInto},
     utils,
@@ -20,7 +21,7 @@ static HASH_KEY: tokio::sync::OnceCell<StrongSecret<[u8; PlaintextApiKey::HASH_K
 
 pub async fn get_hash_key(
     api_key_config: &settings::ApiKeys,
-    #[cfg(feature = "kms")] kms_config: &settings::Kms,
+    #[cfg(feature = "kms")] kms_config: &kms::KmsConfig,
 ) -> errors::RouterResult<&'static StrongSecret<[u8; PlaintextApiKey::HASH_KEY_LEN]>> {
     HASH_KEY
         .get_or_try_init(|| async {
@@ -118,7 +119,7 @@ impl PlaintextApiKey {
 pub async fn create_api_key(
     store: &dyn StorageInterface,
     api_key_config: &settings::ApiKeys,
-    #[cfg(feature = "kms")] kms_config: &settings::Kms,
+    #[cfg(feature = "kms")] kms_config: &kms::KmsConfig,
     api_key: api::CreateApiKeyRequest,
     merchant_id: String,
 ) -> RouterResponse<api::CreateApiKeyResponse> {
@@ -146,6 +147,8 @@ pub async fn create_api_key(
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to insert new API key")?;
+
+    metrics::API_KEY_CREATED.add(&metrics::CONTEXT, 1, &[]);
 
     Ok(ApplicationResponse::Json(
         (api_key, plaintext_api_key).foreign_into(),
@@ -190,6 +193,8 @@ pub async fn revoke_api_key(
         .revoke_api_key(key_id)
         .await
         .map_err(|err| err.to_not_found_response(errors::ApiErrorResponse::ApiKeyNotFound))?;
+
+    metrics::API_KEY_REVOKED.add(&metrics::CONTEXT, 1, &[]);
 
     Ok(ApplicationResponse::Json(api::RevokeApiKeyResponse {
         key_id: key_id.to_owned(),

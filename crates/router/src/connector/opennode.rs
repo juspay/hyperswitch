@@ -490,8 +490,9 @@ impl api::IncomingWebhook for Opennode {
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
-        let notif: OpennodeWebhookDetails =
-            utils::convert_query_params_to_struct(request.body).unwrap();
+        let notif = serde_urlencoded::from_bytes::<OpennodeWebhookDetails>(request.body)
+        .into_report()
+        .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
         let base64_signature = notif.hashed_order;
         hex::decode(base64_signature)
             .into_report()
@@ -526,19 +527,23 @@ impl api::IncomingWebhook for Opennode {
 
     fn get_webhook_object_reference_id(
         &self,
-        _request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<String, errors::ConnectorError> {
-        let notif: OpennodeWebhookDetails =
-            utils::convert_query_params_to_struct(_request.body).unwrap();
-        Ok(notif.id)
+        request: &api::IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
+        let notif = serde_urlencoded::from_bytes::<OpennodeWebhookDetails>(request.body)
+        .into_report()
+        .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+        Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
+            api_models::payments::PaymentIdType::ConnectorTransactionId(notif.id),
+        ))
     }
 
     fn get_webhook_event_type(
         &self,
-        _request: &api::IncomingWebhookRequestDetails<'_>,
+        request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api::IncomingWebhookEvent, errors::ConnectorError> {
-        let notif: OpennodeWebhookDetails =
-            utils::convert_query_params_to_struct(_request.body).unwrap();
+        let notif = serde_urlencoded::from_bytes::<OpennodeWebhookDetails>(request.body)
+        .into_report()
+        .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
 
         match notif.status {
             opennode::OpennodePaymentStatus::Paid => {
@@ -560,10 +565,11 @@ impl api::IncomingWebhook for Opennode {
 
     fn get_webhook_resource_object(
         &self,
-        _request: &api::IncomingWebhookRequestDetails<'_>,
+        request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<serde_json::Value, errors::ConnectorError> {
-        let notif: OpennodeWebhookDetails =
-            utils::convert_query_params_to_struct(_request.body).unwrap();
+        let notif = serde_urlencoded::from_bytes::<OpennodeWebhookDetails>(request.body)
+        .into_report()
+        .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
         Encode::<OpennodeWebhookDetails>::encode_to_value(&notif.status).switch()
     }
 }

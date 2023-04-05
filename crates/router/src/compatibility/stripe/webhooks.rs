@@ -1,8 +1,11 @@
-use api_models::webhooks::{self as api};
+use api_models::{
+    enums::DisputeStatus,
+    webhooks::{self as api},
+};
 use serde::Serialize;
 
 use super::{
-    payment_intents::types::StripePaymentIntentResponse, refunds::types::StripeCreateRefundResponse,
+    payment_intents::types::StripePaymentIntentResponse, refunds::types::StripeRefundResponse,
 };
 
 #[derive(Serialize)]
@@ -19,7 +22,58 @@ impl api::OutgoingWebhookType for StripeOutgoingWebhook {}
 #[serde(tag = "type", content = "object", rename_all = "snake_case")]
 pub enum StripeWebhookObject {
     PaymentIntent(StripePaymentIntentResponse),
-    Refund(StripeCreateRefundResponse),
+    Refund(StripeRefundResponse),
+    Dispute(StripeDisputeResponse),
+}
+
+#[derive(Serialize)]
+pub struct StripeDisputeResponse {
+    pub id: String,
+    pub amount: String,
+    pub currency: String,
+    pub payment_intent: String,
+    pub reason: Option<String>,
+    pub status: StripeDisputeStatus,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum StripeDisputeStatus {
+    WarningNeedsResponse,
+    WarningUnderReview,
+    WarningClosed,
+    NeedsResponse,
+    UnderReview,
+    ChargeRefunded,
+    Won,
+    Lost,
+}
+
+impl From<api_models::disputes::DisputeResponse> for StripeDisputeResponse {
+    fn from(res: api_models::disputes::DisputeResponse) -> Self {
+        Self {
+            id: res.dispute_id,
+            amount: res.amount,
+            currency: res.currency,
+            payment_intent: res.payment_id,
+            reason: res.connector_reason,
+            status: StripeDisputeStatus::from(res.dispute_status),
+        }
+    }
+}
+
+impl From<DisputeStatus> for StripeDisputeStatus {
+    fn from(status: DisputeStatus) -> Self {
+        match status {
+            DisputeStatus::DisputeOpened => Self::WarningNeedsResponse,
+            DisputeStatus::DisputeExpired => Self::Lost,
+            DisputeStatus::DisputeAccepted => Self::Lost,
+            DisputeStatus::DisputeCancelled => Self::WarningClosed,
+            DisputeStatus::DisputeChallenged => Self::WarningUnderReview,
+            DisputeStatus::DisputeWon => Self::Won,
+            DisputeStatus::DisputeLost => Self::Lost,
+        }
+    }
 }
 
 impl From<api::OutgoingWebhook> for StripeOutgoingWebhook {
@@ -40,6 +94,9 @@ impl From<api::OutgoingWebhookContent> for StripeWebhookObject {
                 Self::PaymentIntent(payment.into())
             }
             api::OutgoingWebhookContent::RefundDetails(refund) => Self::Refund(refund.into()),
+            api::OutgoingWebhookContent::DisputeDetails(dispute) => {
+                Self::Dispute((*dispute).into())
+            }
         }
     }
 }
@@ -49,6 +106,7 @@ impl StripeWebhookObject {
         match self {
             Self::PaymentIntent(p) => p.id.to_owned(),
             Self::Refund(r) => Some(r.id.to_owned()),
+            Self::Dispute(d) => Some(d.id.to_owned()),
         }
     }
 }

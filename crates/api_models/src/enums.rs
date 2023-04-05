@@ -1,3 +1,4 @@
+pub use common_enums::*;
 use utoipa::ToSchema;
 
 #[derive(
@@ -138,6 +139,7 @@ pub enum ConnectorType {
     serde::Serialize,
     strum::Display,
     strum::EnumString,
+    strum::EnumIter,
     ToSchema,
     frunk::LabelledGeneric,
 )]
@@ -269,6 +271,13 @@ pub enum EventType {
     ActionRequired,
     RefundSucceeded,
     RefundFailed,
+    DisputeOpened,
+    DisputeExpired,
+    DisputeAccepted,
+    DisputeCancelled,
+    DisputeChallenged,
+    DisputeWon,
+    DisputeLost,
 }
 
 #[derive(
@@ -776,6 +785,54 @@ impl From<AttemptStatus> for IntentStatus {
             AttemptStatus::Voided => Self::Cancelled,
         }
     }
+}
+
+#[derive(
+    Clone,
+    Default,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    frunk::LabelledGeneric,
+    ToSchema,
+)]
+pub enum DisputeStage {
+    PreDispute,
+    #[default]
+    Dispute,
+    PreArbitration,
+}
+
+#[derive(
+    Clone,
+    Debug,
+    Default,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    frunk::LabelledGeneric,
+    ToSchema,
+)]
+pub enum DisputeStatus {
+    #[default]
+    DisputeOpened,
+    DisputeExpired,
+    DisputeAccepted,
+    DisputeCancelled,
+    DisputeChallenged,
+    // dispute has been successfully challenged by the merchant
+    DisputeWon,
+    // dispute has been unsuccessfully challenged
+    DisputeLost,
 }
 
 #[derive(Debug, Eq, PartialEq, Clone, serde::Serialize, serde::Deserialize)]

@@ -524,12 +524,14 @@ impl api::IncomingWebhook for Coinbase {
     fn get_webhook_object_reference_id(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<String, errors::ConnectorError> {
+    ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
         let notif: CoinbaseWebhookDetails = request
             .body
             .parse_struct("CoinbaseWebhookDetails")
             .switch()?;
-        Ok(notif.event.data.id)
+        Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
+            api_models::payments::PaymentIdType::ConnectorTransactionId(notif.event.data.id),
+        ))
     }
 
     fn get_webhook_event_type(

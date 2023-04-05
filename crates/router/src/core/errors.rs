@@ -153,14 +153,8 @@ impl From<ConfigError> for ApplicationError {
 }
 
 fn error_response<T: Display>(err: &T) -> actix_web::HttpResponse {
-    use actix_web::http::header;
-
-    use crate::consts;
-
     actix_web::HttpResponse::BadRequest()
-        .append_header((header::STRICT_TRANSPORT_SECURITY, consts::HSTS_HEADER_VALUE))
-        .append_header((header::VIA, "Juspay_Router"))
-        .content_type("application/json")
+        .content_type(mime::APPLICATION_JSON)
         .body(format!(r#"{{ "error": {{ "message": "{err}" }} }}"#))
 }
 
@@ -293,6 +287,8 @@ pub enum ConnectorError {
     InvalidDataFormat { field_name: &'static str },
     #[error("Payment Method data / Payment Method Type / Payment Experience Mismatch ")]
     MismatchedPaymentData,
+    #[error("Failed to parse Wallet token")]
+    InvalidWalletToken,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -428,6 +424,8 @@ pub enum WebhooksFlowError {
     PaymentsCoreFailed,
     #[error("Refunds core flow failed")]
     RefundsCoreFailed,
+    #[error("Dispuste core flow failed")]
+    DisputeCoreFailed,
     #[error("Webhook event creation failed")]
     WebhookEventCreationFailed,
     #[error("Unable to fork webhooks flow for outgoing webhooks")]
@@ -438,4 +436,12 @@ pub enum WebhooksFlowError {
     NotReceivedByMerchant,
     #[error("Resource not found")]
     ResourceNotFound,
+    #[error("Webhook source verification failed")]
+    WebhookSourceVerificationFailed,
+    #[error("Webhook event object creation failed")]
+    WebhookEventObjectCreationFailed,
+    #[error("Not implemented")]
+    NotImplemented,
+    #[error("Dispute webhook status validation failed")]
+    DisputeWebhookValidationFailed,
 }

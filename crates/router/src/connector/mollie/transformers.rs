@@ -6,7 +6,7 @@ use storage_models::enums;
 use url::Url;
 
 use crate::{
-    connector::utils::{self, AddressDetailsData, RouterData},
+    connector::utils::{self, AddressDetailsData, PaymentsAuthorizeRequestData, RouterData},
     core::errors,
     services, types,
 };
@@ -83,7 +83,7 @@ pub struct Address {
     pub postal_code: Secret<String>,
     pub city: String,
     pub region: Option<Secret<String>>,
-    pub country: String,
+    pub country: api_models::enums::CountryCode,
 }
 
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for MolliePaymentsRequest {
@@ -94,7 +94,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for MolliePaymentsRequest {
             value: utils::to_currency_base_unit(item.request.amount, item.request.currency)?,
         };
         let description = item.get_description()?;
-        let redirect_url = item.get_return_url()?;
+        let redirect_url = item.request.get_return_url()?;
         let payment_method_data = match item.request.capture_method.unwrap_or_default() {
             enums::CaptureMethod::Automatic => match item.request.payment_method_data {
                 api_models::payments::PaymentMethodData::BankRedirect(ref redirect_data) => {
