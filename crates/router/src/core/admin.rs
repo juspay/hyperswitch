@@ -296,7 +296,7 @@ pub async fn create_payment_connector(
     req: api::MerchantConnector,
     merchant_id: &String,
 ) -> RouterResponse<api::MerchantConnector> {
-    let merchant_account = store
+    let _merchant_account = store
         .find_merchant_account_by_merchant_id(merchant_id)
         .await
         .map_err(|error| {
