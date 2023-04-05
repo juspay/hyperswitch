@@ -330,7 +330,7 @@ async fn payment_response_update_tracker<F: Clone, T>(
                 } else {
                     None
                 };
-                
+
                 if router_data.status == enums::AttemptStatus::Charged {
                     metrics::SUCCESSFUL_PAYMENT.add(&metrics::CONTEXT, 1, &[]);
                 }
@@ -375,7 +375,7 @@ async fn payment_response_update_tracker<F: Clone, T>(
                     Some(storage::PaymentAttemptUpdate::UnresolvedResponseUpdate {
                         status: router_data.status,
                         connector: None,
-                        connector_transaction_id: connector_transaction_id.clone(),
+                        connector_transaction_id,
                         payment_method_id: Some(router_data.payment_method_id),
                         error_code: reason.clone().map(|cd| cd.code),
                         error_message: reason.map(|cd| cd.message),

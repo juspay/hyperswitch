@@ -41,8 +41,6 @@ async fn payments_incoming_webhook_flow<W: api::OutgoingWebhookType>(
         payments::CallConnectorAction::Trigger
     };
 
-    logger::info!(webhook_flow=?consume_or_trigger_flow);
-
     let payments_response = match webhook_details.object_reference_id {
         api_models::webhooks::ObjectReferenceId::PaymentId(id) => {
             payments::payments_core::<api::PSync, api::PaymentsResponse, _, _, _>(

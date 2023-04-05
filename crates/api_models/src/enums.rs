@@ -571,7 +571,7 @@ pub enum Connector {
     Cybersource,
     #[default]
     Dummy,
-	Opennode,
+    Opennode,
     Bambora,
     Dlocal,
     Fiserv,
@@ -616,7 +616,6 @@ impl Connector {
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum RoutableConnectors {
-	Opennode,
     Aci,
     Adyen,
     Airwallex,
@@ -634,6 +633,7 @@ pub enum RoutableConnectors {
     Mollie,
     Multisafepay,
     Nuvei,
+    Opennode,
     Payu,
     Rapyd,
     Shift4,

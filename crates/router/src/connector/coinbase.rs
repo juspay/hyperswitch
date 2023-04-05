@@ -2,7 +2,7 @@ mod transformers;
 
 use std::fmt::Debug;
 
-use common_utils::{crypto, errors::ReportSwitchExt, ext_traits::ByteSliceExt};
+use common_utils::{crypto, ext_traits::ByteSliceExt};
 use error_stack::{IntoReport, ResultExt};
 use transformers as coinbase;
 
@@ -87,7 +87,7 @@ impl ConnectorCommon for Coinbase {
         let response: coinbase::CoinbaseErrorResponse = res
             .response
             .parse_struct("CoinbaseErrorResponse")
-            .switch()?;
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
         Ok(ErrorResponse {
             status_code: res.status_code,
@@ -175,7 +175,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         let response: coinbase::CoinbasePaymentsResponse = res
             .response
             .parse_struct("Coinbase PaymentsAuthorizeResponse")
-            .switch()?;
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -246,7 +246,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         let response: coinbase::CoinbasePaymentsResponse = res
             .response
             .parse_struct("coinbase PaymentsSyncResponse")
-            .switch()?;
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -317,7 +317,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         let response: coinbase::CoinbasePaymentsResponse = res
             .response
             .parse_struct("Coinbase PaymentsCaptureResponse")
-            .switch()?;
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -397,7 +397,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         let response: coinbase::RefundResponse = res
             .response
             .parse_struct("coinbase RefundResponse")
-            .switch()?;
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -458,7 +458,7 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         let response: coinbase::RefundResponse = res
             .response
             .parse_struct("coinbase RefundSyncResponse")
-            .switch()?;
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -503,7 +503,7 @@ impl api::IncomingWebhook for Coinbase {
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let message = std::str::from_utf8(request.body)
             .into_report()
-            .change_context(errors::ConnectorError::ParsingFailed)?;
+            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
         Ok(message.to_string().into_bytes())
     }
 
@@ -528,7 +528,7 @@ impl api::IncomingWebhook for Coinbase {
         let notif: CoinbaseWebhookDetails = request
             .body
             .parse_struct("CoinbaseWebhookDetails")
-            .switch()?;
+            .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
         Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
             api_models::payments::PaymentIdType::ConnectorTransactionId(notif.event.data.id),
         ))
@@ -541,7 +541,7 @@ impl api::IncomingWebhook for Coinbase {
         let notif: CoinbaseWebhookDetails = request
             .body
             .parse_struct("CoinbaseWebhookDetails")
-            .switch()?;
+            .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
         match notif.event.event_type {
             coinbase::WebhookEventType::Confirmed | coinbase::WebhookEventType::Resolved => {
                 Ok(api::IncomingWebhookEvent::PaymentIntentSuccess)
@@ -563,7 +563,8 @@ impl api::IncomingWebhook for Coinbase {
         let notif: CoinbaseWebhookDetails = request
             .body
             .parse_struct("CoinbaseWebhookDetails")
-            .switch()?;
-        Encode::<CoinbaseWebhookDetails>::encode_to_value(&notif.event).switch()
+            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+        Encode::<CoinbaseWebhookDetails>::encode_to_value(&notif.event)
+            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)
     }
 }

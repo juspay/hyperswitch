@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils::{self, AddressDetailsData, RouterData, PaymentsAuthorizeRequestData},
+    connector::utils::{self, AddressDetailsData, PaymentsAuthorizeRequestData, RouterData},
     core::errors,
     pii::Secret,
     services,
@@ -35,8 +35,8 @@ pub struct CoinbasePaymentsRequest {
 
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for CoinbasePaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(_item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
-        get_crypto_specific_payment_data(_item)
+    fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
+        get_crypto_specific_payment_data(item)
     }
 }
 
@@ -55,7 +55,6 @@ impl TryFrom<&types::ConnectorAuthType> for CoinbaseAuthType {
         } else {
             Err(errors::ConnectorError::FailedToObtainAuthType.into())
         }
-        // Err(errors::ConnectorError::NotImplemented("try_from ConnectorAuthType".to_string()).into())
     }
 }
 // PaymentsResponse

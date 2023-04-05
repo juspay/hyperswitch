@@ -3,7 +3,6 @@ use std::collections::HashMap;
 use base64::Engine;
 use common_utils::{
     errors::ReportSwitchExt,
-    ext_traits::ByteSliceExt,
     pii::{self, Email},
 };
 use error_stack::{report, IntoReport, ResultExt};
@@ -17,7 +16,7 @@ use crate::{
     core::errors::{self, CustomResult},
     pii::PeekInterface,
     types::{self, api, PaymentsCancelData, ResponseId},
-    utils::{Encode, OptionExt, ValueExt},
+    utils::{OptionExt, ValueExt},
 };
 
 pub fn missing_field_err(
@@ -51,6 +50,7 @@ pub trait RouterData {
     fn get_billing_country(&self) -> Result<api_models::enums::CountryCode, Error>;
     fn get_billing_phone(&self) -> Result<&api::PhoneDetails, Error>;
     fn get_description(&self) -> Result<String, Error>;
+    fn get_return_url(&self) -> Result<String, Error>;
     fn get_billing_address(&self) -> Result<&api::AddressDetails, Error>;
     fn get_shipping_address(&self) -> Result<&api::AddressDetails, Error>;
     fn get_connector_meta(&self) -> Result<pii::SecretSerdeValue, Error>;
@@ -89,6 +89,11 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
         self.description
             .clone()
             .ok_or_else(missing_field_err("description"))
+    }
+    fn get_return_url(&self) -> Result<String, Error> {
+        self.return_url
+            .clone()
+            .ok_or_else(missing_field_err("return_url"))
     }
     fn get_billing_address(&self) -> Result<&api::AddressDetails, Error> {
         self.address
@@ -140,6 +145,7 @@ pub trait PaymentsAuthorizeRequestData {
     fn get_browser_info(&self) -> Result<types::BrowserInformation, Error>;
     fn get_card(&self) -> Result<api::Card, Error>;
     fn get_return_url(&self) -> Result<String, Error>;
+    fn get_webhook_url(&self) -> Result<String, Error>;
 }
 
 impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
@@ -164,6 +170,11 @@ impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
         self.router_return_url
             .clone()
             .ok_or_else(missing_field_err("return_url"))
+    }
+    fn get_webhook_url(&self) -> Result<String, Error> {
+        self.router_return_url
+            .clone()
+            .ok_or_else(missing_field_err("webhook_url"))
     }
 }
 

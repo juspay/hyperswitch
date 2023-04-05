@@ -1,5 +1,6 @@
 use std::collections::HashMap;
-use std::default;
+
+use serde::{Deserialize, Serialize};
 
 use crate::{
     connector::utils::{PaymentsAuthorizeRequestData, RouterData},
@@ -7,8 +8,6 @@ use crate::{
     services,
     types::{self, api, storage::enums},
 };
-use masking::Secret;
-use serde::{Deserialize, Serialize};
 
 //TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
@@ -217,15 +216,15 @@ pub struct OpennodeErrorResponse {
     pub reason: Option<String>,
 }
 
-fn get_crypto_specific_payment_data<'a>(
+fn get_crypto_specific_payment_data(
     item: &types::PaymentsAuthorizeRouterData,
 ) -> Result<OpennodePaymentsRequest, error_stack::Report<errors::ConnectorError>> {
     let amount = item.request.amount;
     let currency = item.request.currency.to_string();
     let description = item.get_description()?;
     let auto_settle = true;
-    let success_url = item.return_url.as_ref().unwrap().to_string();
-    let callback_url = item.request.webhook_url.as_ref().unwrap().to_string();
+    let success_url = item.get_return_url()?;
+    let callback_url = item.request.get_webhook_url()?;
 
     Ok(OpennodePaymentsRequest {
         amount,

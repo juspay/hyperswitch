@@ -653,7 +653,7 @@ fn get_payment_method_data<'a>(
                 }
             }
         }
-        _ => Err(errors::ConnectorError::NotSupported {
+        api::PaymentMethodData::Crypto(_) => Err(errors::ConnectorError::NotSupported {
             payment_method: format!("{:?}", item.payment_method),
             connector: "Adyen",
             payment_experience: api_models::enums::PaymentExperience::RedirectToUrl.to_string(),
