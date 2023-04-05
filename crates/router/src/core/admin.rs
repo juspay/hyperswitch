@@ -303,13 +303,18 @@ pub async fn create_payment_connector(
             error.to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
         })?;
 
-    let (connector_label, business_details) = helpers::get_connector_label_and_business_details(
+    let business_details = helpers::get_business_details(
         req.business_country.as_ref(),
         req.business_label.as_ref(),
-        req.business_sub_label.as_ref(),
-        &req.connector_name,
         &merchant_account,
     )?;
+
+    let connector_label = helpers::get_connector_label(
+        &business_details.country,
+        &business_details.business,
+        req.business_sub_label.as_ref(),
+        &req.connector_name,
+    );
 
     let mut vec = Vec::new();
     let mut response = req.clone();

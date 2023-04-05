@@ -287,6 +287,7 @@ diesel::table! {
         payment_experience -> Nullable<Varchar>,
         payment_method_type -> Nullable<Varchar>,
         payment_method_data -> Nullable<Jsonb>,
+        business_sub_label -> Nullable<Varchar>,
     }
 }
 
@@ -317,9 +318,9 @@ diesel::table! {
         setup_future_usage -> Nullable<FutureUsage>,
         off_session -> Nullable<Bool>,
         client_secret -> Nullable<Varchar>,
-        business_country -> Nullable<Varchar>,
-        business_label -> Nullable<Varchar>,
         active_attempt_id -> Varchar,
+        business_country -> Varchar,
+        business_label -> Varchar,
     }
 }
 

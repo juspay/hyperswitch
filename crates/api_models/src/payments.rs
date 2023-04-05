@@ -208,8 +208,12 @@ pub struct PaymentsRequest {
     /// Business label of the merchant for this payment
     #[schema(example = "food")]
     pub business_label: Option<String>,
+
     /// Merchant connector details used to make payments.
     pub merchant_connector_details: Option<admin::MerchantConnectorDetailsWrap>,
+
+    /// Business sub label for the payment
+    pub business_sub_label: Option<String>,
 }
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, Copy, PartialEq, Eq)]

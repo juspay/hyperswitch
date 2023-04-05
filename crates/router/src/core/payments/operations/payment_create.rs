@@ -496,23 +496,11 @@ impl PaymentCreate {
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Encoding Metadata to value failed")?;
 
-        let primary_business_details: api_models::admin::PrimaryBusinessDetails = merchant_account
-            .primary_business_details
-            .clone()
-            .parse_value("PrimaryBusinessDetails")
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("failed to parse primary business details")?;
-
-        let (business_country, business_label) = request
-            .business_country
-            .clone()
-            .zip(request.business_label.clone())
-            .unwrap_or({
-                (
-                    primary_business_details.country,
-                    primary_business_details.business,
-                )
-            });
+        let primary_business_details = helpers::get_business_details(
+            request.business_country.as_ref(),
+            request.business_label.as_ref(),
+            merchant_account,
+        )?;
 
         Ok(storage::PaymentIntentNew {
             payment_id: payment_id.to_string(),
@@ -533,8 +521,8 @@ impl PaymentCreate {
             statement_descriptor_name: request.statement_descriptor_name.clone(),
             statement_descriptor_suffix: request.statement_descriptor_suffix.clone(),
             metadata: metadata.map(masking::Secret::new),
-            business_country: Some(business_country),
-            business_label: Some(business_label),
+            business_country: primary_business_details.country,
+            business_label: primary_business_details.business,
             active_attempt_id,
             ..storage::PaymentIntentNew::default()
         })

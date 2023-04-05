@@ -35,13 +35,12 @@ where
         From<<T as TryFrom<PaymentAdditionalData<F>>>::Error>,
 {
     let (merchant_connector_account, payment_method, router_data);
-    let (connector_label, _business_details) = helpers::get_connector_label_and_business_details(
-        payment_data.payment_intent.business_country.as_ref(),
-        payment_data.payment_intent.business_label.as_ref(),
-        None,
+    let connector_label = helpers::get_connector_label(
+        &payment_data.payment_intent.business_country,
+        &payment_data.payment_intent.business_label,
+        payment_data.payment_attempt.business_sub_label.as_ref(),
         connector_id,
-        merchant_account,
-    )?;
+    );
 
     let db = &*state.store;
     merchant_connector_account = helpers::get_merchant_connector_account(
