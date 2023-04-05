@@ -550,23 +550,3 @@ pub fn collect_and_sort_values_by_removing_signature(
     values.sort();
     values
 }
-// pub fn deserialize_redirect_url<'de, D>(deserializer: D) -> Result<Option<Url>, D::Error>
-// where
-//     D: serde::Deserializer<'de>,
-// {
-//     println!(">>>Calling des");
-//     let item:Option<String> = Option::deserialize(deserializer)?;
-//     println!(">>>{:?}", item);
-//     let res = match item{
-//         Some(url) => {
-//             if url.is_empty() {
-//                 Ok(None)
-//             } else {
-//                 Ok(Some(Url::parse(&url).map_err(serde::de::Error::custom)?))
-//             }
-//         },
-//         _ => Ok(None)
-//     };
-//     println!(">>>{:?}", res);
-//     res
-// }
