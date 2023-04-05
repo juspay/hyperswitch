@@ -650,15 +650,3 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<F>> for types::CompleteAuthorizeDat
         })
     }
 }
-
-// impl<F: Clone> TryFrom<PaymentData<F>> for types::PaymentMethodTokenizationData {
-//     type Error = error_stack::Report<errors::ApiErrorResponse>;
-
-//     fn try_from(payment_data: PaymentData<F>) -> Result<Self, Self::Error> {
-//         Ok(Self {
-//             payment_method_data: payment_data
-//                 .payment_method_data
-//                 .get_required_value("payment_method_data")?,
-//         })
-//     }
-// }
