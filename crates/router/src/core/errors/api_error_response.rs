@@ -159,7 +159,7 @@ pub enum ApiErrorResponse {
     #[error(error_type = ErrorType::ObjectNotFound, code = "HE_04", message = "Address does not exist in our records")]
     AddressNotFound,
     #[error(error_type = ErrorType::ObjectNotFound, code = "HE_04", message = "Dispute does not exist in our records")]
-    DisputeNotFound {dispute_id: String},
+    DisputeNotFound { dispute_id: String },
     #[error(error_type = ErrorType::InvalidRequestError, code = "HE_04", message = "Card with the provided iin does not exist")]
     InvalidCardIin,
     #[error(error_type = ErrorType::InvalidRequestError, code = "HE_04", message = "The provided card IIN length is invalid, please provide an iin with 6 or 8 digits")]
@@ -256,7 +256,7 @@ impl actix_web::ResponseError for ApiErrorResponse {
             | Self::DuplicateMerchantConnectorAccount
             | Self::DuplicatePaymentMethod
             | Self::DuplicateMandate
-            | Self::DisputeNotFound {..} => StatusCode::BAD_REQUEST, // 400
+            | Self::DisputeNotFound { .. } => StatusCode::BAD_REQUEST, // 400
             Self::ReturnUrlUnavailable => StatusCode::SERVICE_UNAVAILABLE, // 503
             Self::PaymentNotSucceeded => StatusCode::BAD_REQUEST,          // 400
             Self::NotImplemented { .. } => StatusCode::NOT_IMPLEMENTED,    // 501

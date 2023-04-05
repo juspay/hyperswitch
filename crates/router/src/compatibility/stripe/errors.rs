@@ -461,9 +461,10 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
             },
             errors::ApiErrorResponse::DuplicatePayment { payment_id } => {
                 Self::DuplicatePayment { payment_id }
-            },
-            errors::ApiErrorResponse::DisputeNotFound {dispute_id} => {
-                Self::ResourceMissing { object: "dispute".to_owned(), id: dispute_id }
+            }
+            errors::ApiErrorResponse::DisputeNotFound { dispute_id } => Self::ResourceMissing {
+                object: "dispute".to_owned(),
+                id: dispute_id,
             },
             errors::ApiErrorResponse::NotSupported { .. } => Self::InternalServerError,
         }

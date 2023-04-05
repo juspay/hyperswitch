@@ -64,7 +64,7 @@ pub async fn retrieve_dispute(
 pub async fn retrieve_disputes_list(
     state: web::Data<AppState>,
     req: HttpRequest,
-    payload: web::Query<DisputeListConstraints>
+    payload: web::Query<DisputeListConstraints>,
 ) -> HttpResponse {
     let flow = Flow::DisputesList;
     let payload = payload.into_inner();

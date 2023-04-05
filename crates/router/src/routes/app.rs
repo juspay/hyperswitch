@@ -4,7 +4,9 @@ use super::health::*;
 #[cfg(feature = "olap")]
 use super::{admin::*, api_keys::*};
 #[cfg(any(feature = "olap", feature = "oltp"))]
-use super::{configs::*, customers::*, mandates::*, payments::*, payouts::*, refunds::*, disputes::*};
+use super::{
+    configs::*, customers::*, disputes::*, mandates::*, payments::*, payouts::*, refunds::*,
+};
 #[cfg(feature = "oltp")]
 use super::{ephemeral_key::*, payment_methods::*, webhooks::*};
 use crate::{
@@ -387,14 +389,8 @@ impl Disputes {
     pub fn server(state: AppState) -> Scope {
         web::scope("/disputes")
             .app_data(web::Data::new(state))
-            .service(
-                web::resource("/list")
-                    .route(web::get().to(retrieve_disputes_list))
-            )
-            .service(
-                web::resource("/{dispute_id}")
-                    .route(web::get().to(retrieve_dispute))
-            )
+            .service(web::resource("/list").route(web::get().to(retrieve_disputes_list)))
+            .service(web::resource("/{dispute_id}").route(web::get().to(retrieve_dispute)))
     }
 }
 

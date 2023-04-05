@@ -2,6 +2,7 @@ pub mod transformers;
 pub mod utils;
 
 use std::collections::HashMap;
+
 use error_stack::{IntoReport, ResultExt};
 use masking::ExposeInterface;
 use router_env::{instrument, tracing};
@@ -229,8 +230,7 @@ async fn get_or_update_dispute_object(
     option_dispute: Option<storage_models::dispute::Dispute>,
     dispute_details: api::disputes::DisputePayload,
     merchant_id: &str,
-    payment_id: &str,
-    attempt_id: &str,
+    payment_attempt: &storage_models::payment_attempt::PaymentAttempt,
     event_type: api_models::webhooks::IncomingWebhookEvent,
     connector_name: &str,
 ) -> CustomResult<storage_models::dispute::Dispute, errors::WebhooksFlowError> {
@@ -248,9 +248,9 @@ async fn get_or_update_dispute_object(
                     .foreign_try_into()
                     .into_report()
                     .change_context(errors::WebhooksFlowError::DisputeCoreFailed)?,
-                payment_id: payment_id.to_owned(),
+                payment_id: payment_attempt.payment_id.to_owned(),
                 connector: connector_name.to_owned(),
-                attempt_id: attempt_id.to_owned(),
+                attempt_id: payment_attempt.attempt_id.to_owned(),
                 merchant_id: merchant_id.to_owned(),
                 connector_status: dispute_details.connector_status,
                 connector_dispute_id: dispute_details.connector_dispute_id,
@@ -304,10 +304,9 @@ async fn disputes_incoming_webhook_flow<W: api::OutgoingWebhookType>(
     connector: &(dyn api::Connector + Sync),
     request_details: &api::IncomingWebhookRequestDetails<'_>,
     event_type: api_models::webhooks::IncomingWebhookEvent,
-    connector_name: &str,
 ) -> CustomResult<(), errors::WebhooksFlowError> {
     metrics::INCOMING_DISPUTE_WEBHOOK_METRIC.add(&metrics::CONTEXT, 1, &[]);
-    if true {
+    if source_verified {
         let db = &*state.store;
         let dispute_details = connector
             .get_dispute_details(request_details)
@@ -331,10 +330,9 @@ async fn disputes_incoming_webhook_flow<W: api::OutgoingWebhookType>(
             option_dispute,
             dispute_details,
             &merchant_account.merchant_id,
-            &payment_attempt.payment_id,
-            &payment_attempt.attempt_id,
+            &payment_attempt,
             event_type.clone(),
-            connector_name,
+            connector.id(),
         )
         .await?;
         let disputes_response = Box::new(
@@ -599,7 +597,6 @@ pub async fn webhooks_core<W: api::OutgoingWebhookType>(
                     *connector,
                     &request_details,
                     event_type,
-                    connector_name,
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)

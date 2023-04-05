@@ -1,11 +1,12 @@
 use error_stack::{IntoReport, ResultExt};
 use router_env::{instrument, tracing};
 
+use super::errors::{self, RouterResponse, StorageErrorExt};
 use crate::{
-    routes::AppState, types::{storage, api::disputes, transformers::ForeignTryFrom}, services,
+    routes::AppState,
+    services,
+    types::{api::disputes, storage, transformers::ForeignTryFrom},
 };
-
-use super::errors::{RouterResponse, self, StorageErrorExt};
 
 #[instrument(skip(state))]
 pub async fn retrieve_dispute(
@@ -17,7 +18,11 @@ pub async fn retrieve_dispute(
         .store
         .find_dispute_by_merchant_id_dispute_id(&merchant_account.merchant_id, &req.dispute_id)
         .await
-        .map_err(|error| error.to_not_found_response(errors::ApiErrorResponse::DisputeNotFound { dispute_id: req.dispute_id }))?;
+        .map_err(|error| {
+            error.to_not_found_response(errors::ApiErrorResponse::DisputeNotFound {
+                dispute_id: req.dispute_id,
+            })
+        })?;
     let dispute_response = api_models::disputes::DisputeResponse::foreign_try_from(dispute)
         .into_report()
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
@@ -34,8 +39,10 @@ pub async fn retrieve_disputes_list(
         .store
         .find_disputes_by_merchant_id(&merchant_account.merchant_id, constraints)
         .await
-        .map_err(|error| error.to_not_found_response(errors::ApiErrorResponse::InternalServerError))?;
-    let mut disputes_list : Vec<api_models::disputes::DisputeResponse> = vec![];
+        .map_err(|error| {
+            error.to_not_found_response(errors::ApiErrorResponse::InternalServerError)
+        })?;
+    let mut disputes_list: Vec<api_models::disputes::DisputeResponse> = vec![];
     for dispute in disputes {
         let dispute_response = api_models::disputes::DisputeResponse::foreign_try_from(dispute)
             .into_report()

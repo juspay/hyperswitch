@@ -1,9 +1,10 @@
 use async_bb8_diesel::AsyncRunQueryDsl;
 use common_utils::errors::CustomResult;
+use diesel::{associations::HasTable, ExpressionMethods, QueryDsl};
 use error_stack::{IntoReport, ResultExt};
-use diesel::{associations::HasTable, QueryDsl, ExpressionMethods};
 pub use storage_models::dispute::{Dispute, DisputeNew, DisputeUpdate};
 use storage_models::{errors, schema::dispute::dsl};
+
 use crate::{connection::PgPooledConn, logger, types::transformers::ForeignInto};
 
 #[async_trait::async_trait]
@@ -49,11 +50,13 @@ impl DisputeDbExt for Dispute {
             filter = filter.filter(dsl::connector_reason.eq(reason));
         }
         if let Some(dispute_stage) = dispute_list_constraints.dispute_stage {
-            let storage_dispute_stage: storage_models::enums::DisputeStage = dispute_stage.foreign_into();
+            let storage_dispute_stage: storage_models::enums::DisputeStage =
+                dispute_stage.foreign_into();
             filter = filter.filter(dsl::dispute_stage.eq(storage_dispute_stage));
         }
         if let Some(dispute_status) = dispute_list_constraints.dispute_status {
-            let storage_dispute_status: storage_models::enums::DisputeStatus = dispute_status.foreign_into();
+            let storage_dispute_status: storage_models::enums::DisputeStatus =
+                dispute_status.foreign_into();
             filter = filter.filter(dsl::dispute_status.eq(storage_dispute_status));
         }
         if let Some(limit) = dispute_list_constraints.limit {
