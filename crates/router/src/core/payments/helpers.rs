@@ -1272,7 +1272,7 @@ fn connector_needs_business_sub_label(connector_name: &str) -> bool {
 /// Create the connector label
 /// {connector_name}_{country}_{business_label}
 pub fn get_connector_label(
-    business_country: &str,
+    business_country: api_models::enums::CountryCode,
     business_label: &str,
     business_sub_label: Option<&String>,
     connector_name: &str,
@@ -1299,7 +1299,7 @@ pub fn get_connector_label(
 /// If both country and label are passed, no need to parse business details from merchant_account
 /// If any one is missing, get it from merchant_account
 pub fn get_business_details(
-    business_country: Option<&String>,
+    business_country: Option<api_enums::CountryCode>,
     business_label: Option<&String>,
     merchant_account: &storage_models::merchant_account::MerchantAccount,
 ) -> Result<api_models::admin::PrimaryBusinessDetails, error_stack::Report<errors::ApiErrorResponse>>
@@ -1319,9 +1319,7 @@ pub fn get_business_details(
                     .attach_printable("failed to parse primary business details")?;
 
             (
-                business_country
-                    .map(ToString::to_string)
-                    .unwrap_or(primary_business_details.country),
+                business_country.unwrap_or(primary_business_details.country),
                 business_label
                     .map(ToString::to_string)
                     .unwrap_or(primary_business_details.business),

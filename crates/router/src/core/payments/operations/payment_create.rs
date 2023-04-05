@@ -1,7 +1,7 @@
 use std::marker::PhantomData;
 
 use async_trait::async_trait;
-use common_utils::ext_traits::{AsyncExt, Encode, ValueExt};
+use common_utils::ext_traits::{AsyncExt, Encode};
 use error_stack::{self, ResultExt};
 use router_derive::PaymentOperation;
 use router_env::{instrument, tracing};
@@ -497,7 +497,7 @@ impl PaymentCreate {
             .attach_printable("Encoding Metadata to value failed")?;
 
         let primary_business_details = helpers::get_business_details(
-            request.business_country.as_ref(),
+            request.business_country,
             request.business_label.as_ref(),
             merchant_account,
         )?;

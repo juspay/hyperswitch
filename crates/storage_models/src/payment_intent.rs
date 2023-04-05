@@ -34,7 +34,7 @@ pub struct PaymentIntent {
     pub off_session: Option<bool>,
     pub client_secret: Option<String>,
     pub active_attempt_id: String,
-    pub business_country: String,
+    pub business_country: storage_enums::CountryCode,
     pub business_label: String,
 }
 
@@ -76,7 +76,7 @@ pub struct PaymentIntentNew {
     pub off_session: Option<bool>,
     pub client_secret: Option<String>,
     pub active_attempt_id: String,
-    pub business_country: String,
+    pub business_country: storage_enums::CountryCode,
     pub business_label: String,
 }
 

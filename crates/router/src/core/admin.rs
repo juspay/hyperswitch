@@ -1,5 +1,5 @@
 use api_models::admin::PrimaryBusinessDetails;
-use common_utils::{ext_traits::ValueExt, fp_utils::when};
+use common_utils::ext_traits::ValueExt;
 use error_stack::{report, FutureExt, IntoReport, ResultExt};
 use storage_models::{enums, merchant_account};
 use uuid::Uuid;
@@ -303,15 +303,9 @@ pub async fn create_payment_connector(
             error.to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
         })?;
 
-    let business_details = helpers::get_business_details(
-        req.business_country.as_ref(),
-        req.business_label.as_ref(),
-        &merchant_account,
-    )?;
-
     let connector_label = helpers::get_connector_label(
-        &business_details.country,
-        &business_details.business,
+        req.business_country,
+        &req.business_label,
         req.business_sub_label.as_ref(),
         &req.connector_name,
     );
@@ -354,8 +348,8 @@ pub async fn create_payment_connector(
         disabled: req.disabled,
         metadata: req.metadata,
         connector_label: connector_label.clone(),
-        business_country: business_details.country,
-        business_label: business_details.business,
+        business_country: req.business_country,
+        business_label: req.business_label,
         business_sub_label: req.business_sub_label,
     };
 
@@ -368,8 +362,8 @@ pub async fn create_payment_connector(
 
     response.merchant_connector_id = Some(mca.merchant_connector_id);
     response.connector_label = connector_label;
-    response.business_country = Some(mca.business_country);
-    response.business_label = Some(mca.business_label);
+    response.business_country = mca.business_country;
+    response.business_label = mca.business_label;
 
     Ok(service_api::ApplicationResponse::Json(response))
 }
@@ -433,20 +427,8 @@ pub async fn update_payment_connector(
     db: &dyn StorageInterface,
     merchant_id: &str,
     merchant_connector_id: &str,
-    req: api::MerchantConnector,
+    req: api_models::admin::MerchantConnectorUpdate,
 ) -> RouterResponse<api::MerchantConnector> {
-    // Updating any of the fields related to connector label is not allowed
-    when(
-        req.business_country.is_some()
-            || req.business_label.is_some()
-            || req.business_sub_label.is_some(),
-        || {
-            Err(errors::ApiErrorResponse::UpdateNotAllowed {
-                fields: "business_label, business_sub_label and business_country",
-            })
-        },
-    )?;
-
     let _merchant_account = db
         .find_merchant_account_by_merchant_id(merchant_id)
         .await
@@ -483,10 +465,6 @@ pub async fn update_payment_connector(
         test_mode: req.test_mode,
         disabled: req.disabled,
         metadata: req.metadata,
-        connector_label: None,
-        business_country: req.business_country,
-        business_label: req.business_label,
-        business_sub_label: req.business_sub_label,
     };
 
     let updated_mca = db
@@ -518,8 +496,8 @@ pub async fn update_payment_connector(
         payment_methods_enabled: updated_pm_enabled,
         metadata: updated_mca.metadata,
         connector_label: updated_mca.connector_label,
-        business_country: Some(updated_mca.business_country),
-        business_label: Some(updated_mca.business_label),
+        business_country: updated_mca.business_country,
+        business_label: updated_mca.business_label,
         business_sub_label: updated_mca.business_sub_label,
     };
     Ok(service_api::ApplicationResponse::Json(response))

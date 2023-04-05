@@ -32,7 +32,7 @@ pub async fn construct_refund_router_data<'a, F>(
     let db = &*state.store;
 
     let connector_label = helpers::get_connector_label(
-        &payment_intent.business_country,
+        payment_intent.business_country,
         &payment_intent.business_label,
         None,
         connector_id,

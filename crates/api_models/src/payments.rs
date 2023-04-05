@@ -203,7 +203,7 @@ pub struct PaymentsRequest {
 
     /// Business country of the merchant for this payment
     #[schema(example = "US")]
-    pub business_country: Option<String>,
+    pub business_country: Option<api_enums::CountryCode>,
 
     /// Business label of the merchant for this payment
     #[schema(example = "food")]

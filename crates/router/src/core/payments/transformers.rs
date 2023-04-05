@@ -36,7 +36,7 @@ where
 {
     let (merchant_connector_account, payment_method, router_data);
     let connector_label = helpers::get_connector_label(
-        &payment_data.payment_intent.business_country,
+        payment_data.payment_intent.business_country,
         &payment_data.payment_intent.business_label,
         payment_data.payment_attempt.business_sub_label.as_ref(),
         connector_id,

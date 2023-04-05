@@ -243,7 +243,7 @@ diesel::table! {
         connector_type -> ConnectorType,
         metadata -> Nullable<Jsonb>,
         connector_label -> Varchar,
-        business_country -> Varchar,
+        business_country -> CountryCode,
         business_label -> Varchar,
         business_sub_label -> Nullable<Varchar>,
     }
@@ -319,7 +319,7 @@ diesel::table! {
         off_session -> Nullable<Bool>,
         client_secret -> Nullable<Varchar>,
         active_attempt_id -> Varchar,
-        business_country -> Varchar,
+        business_country -> CountryCode,
         business_label -> Varchar,
     }
 }

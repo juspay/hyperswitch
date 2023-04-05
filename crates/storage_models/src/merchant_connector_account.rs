@@ -29,7 +29,7 @@ pub struct MerchantConnectorAccount {
     pub connector_type: storage_enums::ConnectorType,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub connector_label: String,
-    pub business_country: String,
+    pub business_country: storage_enums::CountryCode,
     pub business_label: String,
     pub business_sub_label: Option<String>,
 }
@@ -47,7 +47,7 @@ pub struct MerchantConnectorAccountNew {
     pub payment_methods_enabled: Option<Vec<serde_json::Value>>,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub connector_label: String,
-    pub business_country: String,
+    pub business_country: storage_enums::CountryCode,
     pub business_label: String,
     pub business_sub_label: Option<String>,
 }
@@ -64,10 +64,6 @@ pub enum MerchantConnectorAccountUpdate {
         merchant_connector_id: Option<String>,
         payment_methods_enabled: Option<Vec<serde_json::Value>>,
         metadata: Option<pii::SecretSerdeValue>,
-        connector_label: Option<String>,
-        business_country: Option<String>,
-        business_label: Option<String>,
-        business_sub_label: Option<String>,
     },
 }
 #[derive(Clone, Debug, Default, AsChangeset, router_derive::DebugAsDisplay)]
@@ -82,10 +78,6 @@ pub struct MerchantConnectorAccountUpdateInternal {
     merchant_connector_id: Option<String>,
     payment_methods_enabled: Option<Vec<serde_json::Value>>,
     metadata: Option<pii::SecretSerdeValue>,
-    connector_label: Option<String>,
-    business_country: Option<String>,
-    business_label: Option<String>,
-    business_sub_label: Option<String>,
 }
 
 impl From<MerchantConnectorAccountUpdate> for MerchantConnectorAccountUpdateInternal {
@@ -101,10 +93,6 @@ impl From<MerchantConnectorAccountUpdate> for MerchantConnectorAccountUpdateInte
                 merchant_connector_id,
                 payment_methods_enabled,
                 metadata,
-                connector_label,
-                business_country,
-                business_label,
-                business_sub_label,
             } => Self {
                 merchant_id,
                 connector_type,
@@ -115,10 +103,6 @@ impl From<MerchantConnectorAccountUpdate> for MerchantConnectorAccountUpdateInte
                 merchant_connector_id,
                 payment_methods_enabled,
                 metadata,
-                connector_label,
-                business_label,
-                business_country,
-                business_sub_label,
             },
         }
     }
