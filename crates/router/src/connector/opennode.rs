@@ -2,7 +2,7 @@ mod transformers;
 
 use std::fmt::Debug;
 
-use common_utils::{crypto, errors::ReportSwitchExt};
+use common_utils::crypto;
 use error_stack::{IntoReport, ResultExt};
 use transformers as opennode;
 
@@ -89,7 +89,7 @@ impl ConnectorCommon for Opennode {
         let response: opennode::OpennodeErrorResponse = res
             .response
             .parse_struct("OpennodeErrorResponse")
-            .switch()?;
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
         Ok(ErrorResponse {
             status_code: res.status_code,
@@ -177,7 +177,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         let response: opennode::OpennodePaymentsResponse = res
             .response
             .parse_struct("Opennode PaymentsAuthorizeResponse")
-            .switch()?;
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -248,7 +248,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         let response: opennode::OpennodePaymentsResponse = res
             .response
             .parse_struct("opennode PaymentsSyncResponse")
-            .switch()?;
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -319,7 +319,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         let response: opennode::OpennodePaymentsResponse = res
             .response
             .parse_struct("Opennode PaymentsCaptureResponse")
-            .switch()?;
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -399,7 +399,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         let response: opennode::RefundResponse = res
             .response
             .parse_struct("opennode RefundResponse")
-            .switch()?;
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -459,7 +459,7 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         let response: opennode::RefundResponse = res
             .response
             .parse_struct("opennode RefundSyncResponse")
-            .switch()?;
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -569,6 +569,7 @@ impl api::IncomingWebhook for Opennode {
         let notif = serde_urlencoded::from_bytes::<OpennodeWebhookDetails>(request.body)
             .into_report()
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
-        Encode::<OpennodeWebhookDetails>::encode_to_value(&notif.status).switch()
+        Encode::<OpennodeWebhookDetails>::encode_to_value(&notif.status)
+            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)
     }
 }

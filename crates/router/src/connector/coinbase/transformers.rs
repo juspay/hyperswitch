@@ -86,22 +86,13 @@ impl From<CoinbasePaymentStatus> for enums::AttemptStatus {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, strum::Display)]
 #[serde(rename_all = "UPPERCASE")]
+#[strum(serialize_all = "UPPERCASE")]
 pub enum UnResolvedContext {
     Underpaid,
     Overpaid,
     Delayed,
-}
-
-impl From<UnResolvedContext> for String {
-    fn from(context: UnResolvedContext) -> Self {
-        match context {
-            UnResolvedContext::Underpaid => "UNDERPAID".to_string(),
-            UnResolvedContext::Overpaid => "OVERPAID".to_string(),
-            UnResolvedContext::Delayed => "DELAYED".to_string(),
-        }
-    }
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -158,7 +149,7 @@ impl<F, T>
                 Ok(types::PaymentsResponseData::TransactionUnresolvedResponse{
                 resource_id: connector_id,
                 reason: Some(api::enums::UnresolvedResponseReason {
-                    code: String::from(context),
+                code: context.to_string(),
                 message: "Please check the transaction in coinbase dashboard and resolve manually"
                     .to_string(),
                 })
