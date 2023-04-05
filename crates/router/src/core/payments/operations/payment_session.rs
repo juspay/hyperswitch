@@ -298,8 +298,6 @@ where
         let connectors = &state.conf.connectors;
         let db = &state.store;
 
-        let supported_connectors: &Vec<String> = state.conf.connectors.supported.wallets.as_ref();
-
         let connector_accounts = db
             .find_merchant_connector_account_by_merchant_id_and_disabled_list(
                 &merchant_account.merchant_id,
@@ -345,76 +343,96 @@ where
             .map(|filtered_connector| filtered_connector.connector_name.clone())
             .collect();
 
-        // Parse the payment methods enabled to check if the merchant has enabled googlepay ( wallet ) using that connector.
-        // A single connector can support creating session token from metadata as well as by calling the connector.
-        let session_token_from_metadata_connectors = connector_accounts
-            .iter()
-            .filter(|connector_account| {
-                connector_account
-                    .payment_methods_enabled
-                    .clone()
-                    .unwrap_or_default()
-                    .iter()
-                    .any(|payment_method| {
-                        let parsed_payment_method_result: Result<
-                            PaymentMethodsEnabled,
-                            error_stack::Report<errors::ParsingError>,
-                        > = payment_method.clone().parse_value("payment_method");
+        let connectors_for_googlepay = get_supported_connectors(
+            connector_accounts.to_owned(),
+            vec![api_models::enums::PaymentMethodType::GooglePay],
+        );
+        let connectors_for_applepay = get_supported_connectors(
+            connector_accounts.to_owned(),
+            vec![api_models::enums::PaymentMethodType::ApplePay],
+        );
 
-                        match parsed_payment_method_result {
-                            Ok(parsed_payment_method) => parsed_payment_method
-                                .payment_method_types
-                                .map(|payment_method_types| {
-                                    payment_method_types.iter().any(|payment_method_type| {
-                                        matches!(
-                                            payment_method_type.payment_method_type,
-                                            api_models::enums::PaymentMethodType::GooglePay
-                                        )
-                                    })
-                                })
-                                .unwrap_or(false),
-                            Err(parsing_error) => {
-                                logger::debug!(session_token_parsing_error=?parsing_error);
-                                false
-                            }
-                        }
-                    })
-            })
-            .map(|filtered_connector| filtered_connector.connector_name.clone())
-            .collect::<HashSet<String>>();
+        let connectors_for_other_wallets = get_supported_connectors(
+            connector_accounts,
+            vec![
+                api_models::enums::PaymentMethodType::Klarna,
+                api_models::enums::PaymentMethodType::Paypal,
+            ],
+        );
 
         let given_wallets = request.wallets.clone();
 
         let connectors_data = if !given_wallets.is_empty() {
-            // Create connectors for provided wallets
-            let mut connectors_data = Vec::with_capacity(supported_connectors.len());
+            let mut connectors_data = Vec::new();
             for wallet in given_wallets {
-                let (connector_name, connector_type) = match wallet {
-                    api_enums::SupportedWallets::Gpay => ("adyen", api::GetToken::Metadata),
-                    api_enums::SupportedWallets::ApplePay => ("applepay", api::GetToken::Connector),
-                    api_enums::SupportedWallets::Paypal => ("braintree", api::GetToken::Connector),
-                    api_enums::SupportedWallets::Klarna => ("klarna", api::GetToken::Connector),
-                };
+                match wallet {
+                    api_enums::SupportedWallets::Gpay => {
+                        let _ = connectors_for_googlepay.clone().into_iter().map(
+                            |connector_name| -> RouterResult<_> {
+                                let name = api::ConnectorData::get_connector_by_name(
+                                    connectors,
+                                    connector_name.as_str(),
+                                    api::GetToken::GpayMetadata,
+                                )?;
+                                connectors_data.push(name);
+                                Ok(())
+                            },
+                        );
+                    }
+                    api_enums::SupportedWallets::ApplePay => {
+                        let _ = connectors_for_applepay.clone().into_iter().map(
+                            |connector_name| -> RouterResult<_> {
+                                let name = api::ConnectorData::get_connector_by_name(
+                                    connectors,
+                                    connector_name.as_str(),
+                                    api::GetToken::ApplePayMetadata,
+                                )?;
+                                connectors_data.push(name);
+                                Ok(())
+                            },
+                        );
+                    }
+                    api_enums::SupportedWallets::Paypal => {
+                        let connectors_data_supporting_paypal = || -> RouterResult<_> {
+                            if normal_connector_names.contains("braintree") {
+                                let name = api::ConnectorData::get_connector_by_name(
+                                    connectors,
+                                    "braintree",
+                                    api::GetToken::Connector,
+                                )?;
+                                connectors_data.push(name);
+                            };
+                            Ok(())
+                        };
 
-                // Check if merchant has enabled the required merchant connector account
-                if session_token_from_metadata_connectors.contains(connector_name)
-                    || normal_connector_names.contains(connector_name)
-                {
-                    connectors_data.push(api::ConnectorData::get_connector_by_name(
-                        connectors,
-                        connector_name,
-                        connector_type,
-                    )?);
-                }
+                        let _ = connectors_data_supporting_paypal;
+                    }
+                    api_enums::SupportedWallets::Klarna => {
+                        let connectors_data_supporting_klarna = || -> RouterResult<_> {
+                            if normal_connector_names.contains("klarna") {
+                                let name = api::ConnectorData::get_connector_by_name(
+                                    connectors,
+                                    "klarna",
+                                    api::GetToken::Connector,
+                                )?;
+                                connectors_data.push(name);
+                            };
+                            Ok(())
+                        };
+
+                        let _ = connectors_data_supporting_klarna;
+                    }
+                };
             }
             connectors_data
         } else {
-            // Create connectors for all enabled wallets
             let mut connectors_data = Vec::with_capacity(
-                normal_connector_names.len() + session_token_from_metadata_connectors.len(),
+                normal_connector_names.len()
+                    + connectors_for_googlepay.len()
+                    + connectors_for_applepay.len(),
             );
 
-            for connector_name in normal_connector_names {
+            for connector_name in connectors_for_other_wallets {
                 let connector_data = api::ConnectorData::get_connector_by_name(
                     connectors,
                     &connector_name,
@@ -423,17 +441,66 @@ where
                 connectors_data.push(connector_data);
             }
 
-            for connector_name in session_token_from_metadata_connectors {
+            for connector_name in connectors_for_applepay {
                 let connector_data = api::ConnectorData::get_connector_by_name(
                     connectors,
                     &connector_name,
-                    api::GetToken::Metadata,
+                    api::GetToken::ApplePayMetadata,
                 )?;
                 connectors_data.push(connector_data);
             }
+
+            for connector_name in connectors_for_googlepay {
+                let connector_data = api::ConnectorData::get_connector_by_name(
+                    connectors,
+                    &connector_name,
+                    api::GetToken::GpayMetadata,
+                )?;
+                connectors_data.push(connector_data);
+            }
+
             connectors_data
         };
 
         Ok(api::ConnectorChoice::SessionMultiple(connectors_data))
     }
+}
+
+pub fn get_supported_connectors(
+    connector_accounts: Vec<storage_models::merchant_connector_account::MerchantConnectorAccount>,
+    payment_method_typed: Vec<api_models::enums::PaymentMethodType>,
+) -> HashSet<String> {
+    connector_accounts
+        .iter()
+        .filter(|connector_account| {
+            connector_account
+                .payment_methods_enabled
+                .clone()
+                .unwrap_or_default()
+                .iter()
+                .any(|payment_method| {
+                    let parsed_payment_method_result: Result<
+                        PaymentMethodsEnabled,
+                        error_stack::Report<errors::ParsingError>,
+                    > = payment_method.clone().parse_value("payment_method");
+
+                    match parsed_payment_method_result {
+                        Ok(parsed_payment_method) => parsed_payment_method
+                            .payment_method_types
+                            .map(|payment_method_types| {
+                                payment_method_types.iter().any(|payment_method_types| {
+                                    payment_method_typed
+                                        .contains(&payment_method_types.payment_method_type)
+                                })
+                            })
+                            .unwrap_or(false),
+                        Err(parsing_error) => {
+                            logger::debug!(session_token_parsing_error=?parsing_error);
+                            false
+                        }
+                    }
+                })
+        })
+        .map(|filtered_connector| filtered_connector.connector_name.clone())
+        .collect::<HashSet<String>>()
 }

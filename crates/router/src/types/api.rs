@@ -115,7 +115,8 @@ type BoxedConnector = Box<&'static (dyn Connector + Sync)>;
 // Normal flow will call the connector and follow the flow specific operations (capture, authorize)
 // SessionTokenFromMetadata will avoid calling the connector instead create the session token ( for sdk )
 pub enum GetToken {
-    Metadata,
+    GpayMetadata,
+    ApplePayMetadata,
     Connector,
 }
 
@@ -169,7 +170,6 @@ impl ConnectorData {
             "aci" => Ok(Box::new(&connector::Aci)),
             "adyen" => Ok(Box::new(&connector::Adyen)),
             "airwallex" => Ok(Box::new(&connector::Airwallex)),
-            "applepay" => Ok(Box::new(&connector::Applepay)),
             "authorizedotnet" => Ok(Box::new(&connector::Authorizedotnet)),
             "bambora" => Ok(Box::new(&connector::Bambora)),
             "bluesnap" => Ok(Box::new(&connector::Bluesnap)),

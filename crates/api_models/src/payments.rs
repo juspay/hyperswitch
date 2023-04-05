@@ -1271,6 +1271,44 @@ pub struct GpaySessionTokenData {
     pub data: GpayMetaData,
 }
 
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ApplepaySessionRequest {
+    pub merchant_identifier: String,
+    pub display_name: String,
+    pub initiative: String,
+    pub initiative_context: String,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct ApplepaySessionTokenData {
+    #[serde(rename = "applepay")]
+    pub data: ApplePayMetadata,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct ApplePayMetadata {
+    pub payment_request_data: PaymentRequestMetadata,
+    pub session_token_data: SessionTokenInfo,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct PaymentRequestMetadata {
+    pub supported_networks: Vec<String>,
+    pub merchant_capabilities: Vec<String>,
+    pub label: String,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct SessionTokenInfo {
+    pub certificate: String,
+    pub certificate_keys: String,
+    pub merchant_identifier: String,
+    pub display_name: String,
+    pub initiative: String,
+    pub initiative_context: String,
+}
+
 #[derive(Debug, Clone, serde::Serialize, ToSchema)]
 #[serde(tag = "wallet_name")]
 #[serde(rename_all = "snake_case")]
@@ -1294,6 +1332,7 @@ pub struct GpaySessionTokenResponse {
     pub allowed_payment_methods: Vec<GpayAllowedPaymentMethods>,
     /// The transaction info Google Pay requires
     pub transaction_info: GpayTransactionInfo,
+    pub connector: String,
 }
 
 #[derive(Debug, Clone, serde::Serialize, ToSchema)]
@@ -1319,9 +1358,11 @@ pub struct ApplepaySessionTokenResponse {
     pub session_token_data: ApplePaySessionResponse,
     /// Payment request object for Apple Pay
     pub payment_request_data: ApplePayPaymentRequest,
+    pub connector: String,
 }
 
 #[derive(Debug, Clone, serde::Serialize, ToSchema, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ApplePaySessionResponse {
     /// Timestamp at which session is requested
     pub epoch_timestamp: u64,
@@ -1360,6 +1401,7 @@ pub struct ApplePayPaymentRequest {
     pub merchant_capabilities: Vec<String>,
     /// The list of supported networks
     pub supported_networks: Vec<String>,
+    pub merchant_identifier: String,
 }
 
 #[derive(Debug, Clone, serde::Serialize, ToSchema, serde::Deserialize)]
