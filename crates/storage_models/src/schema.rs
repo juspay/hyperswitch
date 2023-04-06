@@ -8,7 +8,7 @@ diesel::table! {
         id -> Int4,
         address_id -> Varchar,
         city -> Nullable<Varchar>,
-        country -> Nullable<Varchar>,
+        country -> Nullable<CountryCode>,
         line1 -> Nullable<Varchar>,
         line2 -> Nullable<Varchar>,
         line3 -> Nullable<Varchar>,
@@ -56,6 +56,9 @@ diesel::table! {
         bank_code_id -> Nullable<Varchar>,
         bank_code -> Nullable<Varchar>,
         country_code -> Nullable<Varchar>,
+        date_created -> Timestamp,
+        last_updated -> Nullable<Timestamp>,
+        last_updated_provider -> Nullable<Text>,
     }
 }
 
@@ -238,6 +241,7 @@ diesel::table! {
         payment_methods_enabled -> Nullable<Array<Nullable<Json>>>,
         connector_type -> ConnectorType,
         metadata -> Nullable<Jsonb>,
+        frm_configs -> Nullable<Jsonb>,
     }
 }
 
@@ -309,6 +313,7 @@ diesel::table! {
         setup_future_usage -> Nullable<FutureUsage>,
         off_session -> Nullable<Bool>,
         client_secret -> Nullable<Varchar>,
+        active_attempt_id -> Varchar,
     }
 }
 

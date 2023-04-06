@@ -42,7 +42,7 @@ impl WorldlineTest {
             address: Some(PaymentAddress {
                 billing: Some(Address {
                     address: Some(AddressDetails {
-                        country: Some("US".to_string()),
+                        country: Some(api_models::enums::CountryCode::US),
                         ..Default::default()
                     }),
                     phone: None,
@@ -88,6 +88,9 @@ impl WorldlineTest {
             related_transaction_id: None,
             payment_experience: None,
             payment_method_type: None,
+            router_return_url: None,
+            webhook_url: None,
+            complete_authorize_url: None,
         })
     }
 }

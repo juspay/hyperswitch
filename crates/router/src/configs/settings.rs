@@ -98,10 +98,12 @@ pub struct CurrencyCountryFilter {
     #[serde(deserialize_with = "currency_set_deser")]
     pub currency: Option<HashSet<api_models::enums::Currency>>,
     #[serde(deserialize_with = "string_set_deser")]
-    pub country: Option<HashSet<String>>,
+    pub country: Option<HashSet<api_models::enums::CountryCode>>,
 }
 
-fn string_set_deser<'a, D>(deserializer: D) -> Result<Option<HashSet<String>>, D::Error>
+fn string_set_deser<'a, D>(
+    deserializer: D,
+) -> Result<Option<HashSet<api_models::enums::CountryCode>>, D::Error>
 where
     D: Deserializer<'a>,
 {
@@ -110,7 +112,7 @@ where
         let list = inner
             .trim()
             .split(',')
-            .map(|value| value.to_string())
+            .flat_map(api_models::enums::CountryCode::from_str)
             .collect::<HashSet<_>>();
         match list.len() {
             0 => None,
@@ -165,6 +167,7 @@ pub struct Locker {
     pub mock_locker: bool,
     pub basilisk_host: String,
     pub locker_setup: LockerSetup,
+    pub locker_signing_key_id: String,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -291,6 +294,8 @@ pub struct SchedulerSettings {
     pub stream: String,
     pub producer: ProducerSettings,
     pub consumer: ConsumerSettings,
+    pub loop_interval: u64,
+    pub graceful_shutdown_interval: u64,
 }
 
 #[derive(Debug, Clone, Deserialize)]

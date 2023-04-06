@@ -129,7 +129,7 @@ pub enum AlternativePaymentMethodType {
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct BillingAddress {
     pub email: Secret<String, Email>,
-    pub country: String,
+    pub country: api_models::enums::CountryCode,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -478,7 +478,7 @@ fn get_card_info<F>(
                 time_zone: browser_info.time_zone,
                 user_agent: browser_info.user_agent,
             }),
-            notification_url: item.complete_authorize_url.clone(),
+            notification_url: item.request.complete_authorize_url.clone(),
             merchant_url: item.return_url.clone(),
             platform_type: Some(PlatformType::Browser),
             method_completion_ind: Some(MethodCompletion::Unavailable),
@@ -597,7 +597,7 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for NuveiPaymentFlowRequest {
             merchant_id: merchant_id.clone(),
             merchant_site_id: merchant_site_id.clone(),
             client_request_id: client_request_id.clone(),
-            amount: item.request.amount.clone().to_string(),
+            amount: item.request.amount_to_capture.clone().to_string(),
             currency: item.request.currency.clone().to_string(),
             related_transaction_id: Some(item.request.connector_transaction_id.clone()),
             time_stamp: time_stamp.clone(),
@@ -605,7 +605,7 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for NuveiPaymentFlowRequest {
                 merchant_id,
                 merchant_site_id,
                 client_request_id,
-                item.request.amount.to_string(),
+                item.request.amount_to_capture.to_string(),
                 item.request.currency.to_string(),
                 item.request.connector_transaction_id.clone(),
                 time_stamp,
@@ -880,7 +880,7 @@ impl<F, T>
                             .transaction_id
                             .map_or(response.order_id, Some) // For paypal there will be no transaction_id, only order_id will be present
                             .map(types::ResponseId::ConnectorTransactionId)
-                            .ok_or_else(|| errors::ConnectorError::MissingConnectorTransactionID)?,
+                            .ok_or(errors::ConnectorError::MissingConnectorTransactionID)?,
                         redirection_data,
                         mandate_reference: None,
                         // we don't need to save session token for capture, void flow so ignoring if it is not present

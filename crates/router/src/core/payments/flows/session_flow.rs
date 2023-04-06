@@ -92,7 +92,7 @@ fn create_gpay_session_token(
 
     let session_data = router_data.request.clone();
     let transaction_info = payment_types::GpayTransactionInfo {
-        country_code: session_data.country.unwrap_or_else(|| "US".to_string()),
+        country_code: session_data.country.unwrap_or_default(),
         currency_code: router_data.request.currency.to_string(),
         total_price_status: "Final".to_string(),
         total_price: router_data.request.amount,

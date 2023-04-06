@@ -262,6 +262,7 @@ impl ForeignFrom<api_enums::Currency> for storage_enums::Currency {
         frunk::labelled_convert_from(currency)
     }
 }
+
 impl ForeignFrom<storage_enums::Currency> for api_enums::Currency {
     fn foreign_from(currency: storage_enums::Currency) -> Self {
         frunk::labelled_convert_from(currency)
@@ -273,7 +274,7 @@ impl<'a> ForeignFrom<&'a api_types::Address> for storage::AddressUpdate {
         let address = address;
         Self::Update {
             city: address.address.as_ref().and_then(|a| a.city.clone()),
-            country: address.address.as_ref().and_then(|a| a.country.clone()),
+            country: address.address.as_ref().and_then(|a| a.country),
             line1: address.address.as_ref().and_then(|a| a.line1.clone()),
             line2: address.address.as_ref().and_then(|a| a.line2.clone()),
             line3: address.address.as_ref().and_then(|a| a.line3.clone()),
@@ -312,7 +313,7 @@ impl<'a> ForeignFrom<&'a storage::Address> for api_types::Address {
         Self {
             address: Some(api_types::AddressDetails {
                 city: address.city.clone(),
-                country: address.country.clone(),
+                country: address.country,
                 line1: address.line1.clone(),
                 line2: address.line2.clone(),
                 line3: address.line3.clone(),
@@ -340,6 +341,16 @@ impl ForeignTryFrom<storage::MerchantConnectorAccount> for api_models::admin::Me
                 .change_context(errors::ApiErrorResponse::InternalServerError)?,
             None => None,
         };
+        let configs_for_frm_value = merchant_ca
+            .frm_configs
+            .ok_or_else(|| errors::ApiErrorResponse::ConfigNotFound)?;
+        let configs_for_frm : api_models::admin::FrmConfigs = configs_for_frm_value
+        // .clone()
+        .parse_value("FrmConfigs")
+        .change_context(errors::ApiErrorResponse::InvalidDataFormat {
+            field_name: "frm_configs".to_string(),
+            expected_format: "\"frm_configs\" : { \"frm_enabled_pms\" : [\"card\"], \"frm_enabled_pm_types\" : [\"credit\"], \"frm_enabled_gateways\" : [\"stripe\"], \"frm_action\": \"cancel_txn\", \"frm_preferred_flow_type\" : \"pre\" }".to_string(),
+        })?;
 
         Ok(Self {
             connector_type: merchant_ca.connector_type.foreign_into(),
@@ -352,6 +363,7 @@ impl ForeignTryFrom<storage::MerchantConnectorAccount> for api_models::admin::Me
             disabled: merchant_ca.disabled,
             metadata: merchant_ca.metadata,
             payment_methods_enabled,
+            frm_configs: Some(configs_for_frm),
         })
     }
 }

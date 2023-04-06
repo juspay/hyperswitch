@@ -6,7 +6,6 @@ pub mod transformers;
 
 use std::{fmt::Debug, marker::PhantomData, time::Instant};
 
-use common_utils::ext_traits::AsyncExt;
 use error_stack::{IntoReport, ResultExt};
 use futures::future::join_all;
 use router_env::{instrument, tracing};
@@ -127,17 +126,29 @@ where
 
         payment_data = match connector_details {
             api::ConnectorCallType::Single(connector) => {
-                call_connector_service(
+                let router_data = call_connector_service(
                     state,
                     &merchant_account,
-                    &validate_result.payment_id,
                     connector,
                     &operation,
-                    payment_data,
+                    &payment_data,
                     &customer,
                     call_connector_action,
                 )
-                .await?
+                .await?;
+
+                let operation = Box::new(PaymentResponse);
+                let db = &*state.store;
+                operation
+                    .to_post_update_tracker()?
+                    .update_tracker(
+                        db,
+                        &validate_result.payment_id,
+                        payment_data,
+                        router_data,
+                        merchant_account.storage_scheme,
+                    )
+                    .await?
             }
 
             api::ConnectorCallType::Multiple(connectors) => {
@@ -367,13 +378,12 @@ impl PaymentRedirectFlow for PaymentRedirectSync {
 pub async fn call_connector_service<F, Op, Req>(
     state: &AppState,
     merchant_account: &storage::MerchantAccount,
-    payment_id: &api::PaymentIdType,
     connector: api::ConnectorData,
     _operation: &Op,
-    payment_data: PaymentData<F>,
+    payment_data: &PaymentData<F>,
     customer: &Option<storage::Customer>,
     call_connector_action: CallConnectorAction,
-) -> RouterResult<PaymentData<F>>
+) -> RouterResult<types::RouterData<F, Req, types::PaymentsResponseData>>
 where
     Op: Debug + Sync,
     F: Send + Clone,
@@ -388,8 +398,6 @@ where
     // To perform router related operation for PaymentResponse
     PaymentResponse: Operation<F, Req>,
 {
-    let db = &*state.store;
-
     let stime_connector = Instant::now();
 
     let mut router_data = payment_data
@@ -400,15 +408,13 @@ where
         .add_access_token(state, &connector, merchant_account)
         .await?;
 
-    access_token::update_router_data_with_access_token_result(
+    let should_continue_payment = access_token::update_router_data_with_access_token_result(
         &add_access_token_result,
         &mut router_data,
         &call_connector_action,
     );
 
-    let router_data_res = if !(add_access_token_result.connector_supports_access_token
-        && router_data.access_token.is_none())
-    {
+    let router_data_res = if should_continue_payment {
         router_data
             .decide_flows(
                 state,
@@ -422,28 +428,11 @@ where
         Ok(router_data)
     };
 
-    let response = router_data_res
-        .async_and_then(|response| async {
-            let operation = helpers::response_operation::<F, Req>();
-            let payment_data = operation
-                .to_post_update_tracker()?
-                .update_tracker(
-                    db,
-                    payment_id,
-                    payment_data,
-                    response,
-                    merchant_account.storage_scheme,
-                )
-                .await?;
-            Ok(payment_data)
-        })
-        .await?;
-
     let etime_connector = Instant::now();
     let duration_connector = etime_connector.saturating_duration_since(stime_connector);
     tracing::info!(duration = format!("Duration taken: {}", duration_connector.as_millis()));
 
-    Ok(response)
+    router_data_res
 }
 
 pub async fn call_multiple_connectors_service<F, Op, Req>(
@@ -670,9 +659,10 @@ pub async fn list_payments(
     let pi = futures::stream::iter(payment_intents)
         .filter_map(|pi| async {
             let pa = db
-                .find_payment_attempt_by_payment_id_merchant_id(
+                .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
                     &pi.payment_id,
                     merchant_id,
+                    &pi.active_attempt_id,
                     // since OLAP doesn't have KV. Force to get the data from PSQL.
                     storage_enums::MerchantStorageScheme::PostgresOnly,
                 )

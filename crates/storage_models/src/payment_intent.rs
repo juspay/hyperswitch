@@ -33,6 +33,7 @@ pub struct PaymentIntent {
     pub setup_future_usage: Option<storage_enums::FutureUsage>,
     pub off_session: Option<bool>,
     pub client_secret: Option<String>,
+    pub active_attempt_id: String,
 }
 
 #[derive(
@@ -72,6 +73,7 @@ pub struct PaymentIntentNew {
     pub client_secret: Option<String>,
     pub setup_future_usage: Option<storage_enums::FutureUsage>,
     pub off_session: Option<bool>,
+    pub active_attempt_id: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -109,6 +111,9 @@ pub enum PaymentIntentUpdate {
         billing_address_id: Option<String>,
         return_url: Option<String>,
     },
+    PaymentAttemptUpdate {
+        active_attempt_id: String,
+    },
 }
 
 #[derive(Clone, Debug, Default, AsChangeset, router_derive::DebugAsDisplay)]
@@ -128,6 +133,7 @@ pub struct PaymentIntentUpdateInternal {
     pub billing_address_id: Option<String>,
     pub shipping_address_id: Option<String>,
     pub modified_at: Option<PrimitiveDateTime>,
+    pub active_attempt_id: Option<String>,
 }
 
 impl PaymentIntentUpdate {
@@ -240,6 +246,10 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 return_url,
                 client_secret: make_client_secret_null_based_on_status(status),
                 modified_at: Some(common_utils::date_time::now()),
+                ..Default::default()
+            },
+            PaymentIntentUpdate::PaymentAttemptUpdate { active_attempt_id } => Self {
+                active_attempt_id: Some(active_attempt_id),
                 ..Default::default()
             },
         }
