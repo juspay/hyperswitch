@@ -500,10 +500,10 @@ impl Default for PaymentAuthorizeType {
 impl Default for PaymentCaptureType {
     fn default() -> Self {
         Self(types::PaymentsCaptureData {
-            amount_to_capture: Some(100),
+            amount_to_capture: 100,
             currency: enums::Currency::USD,
             connector_transaction_id: "".to_string(),
-            amount: 100,
+            payment_amount: 100,
             ..Default::default()
         })
     }
