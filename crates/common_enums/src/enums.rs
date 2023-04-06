@@ -2330,6 +2330,7 @@ impl Country {
     }
 }
 
+#[allow(dead_code)]
 mod custom_serde {
     use super::*;
 
@@ -2425,17 +2426,16 @@ mod custom_serde {
         where
             D: serde::Deserializer<'a>,
         {
-            match u32::deserialize(deserializer).map(Country::from_numeric) {
-                Ok(Ok(country)) => Ok(country),
-                Ok(Err(e)) => Err(serde::de::Error::custom(format!("{}", e))),
-                Err(e) => Err(serde::de::Error::custom(format!("{}", e))),
-            }
+            u32::deserialize(deserializer)
+                .and_then(|value| Country::from_numeric(value).map_err(serde::de::Error::custom))
         }
     }
 }
 
 #[cfg(test)]
 mod tests {
+    #![allow(clippy::unwrap_used)]
+
     use super::*;
 
     #[derive(serde::Serialize)]
