@@ -295,8 +295,8 @@ async fn payment_response_update_tracker<F: Clone, T>(
             Some(storage::PaymentAttemptUpdate::ErrorUpdate {
                 connector: None,
                 status: storage::enums::AttemptStatus::Failure,
-                error_message: Some(err.message),
-                error_code: Some(err.code),
+                error_message: Some(Some(err.message)),
+                error_code: Some(Some(err.code)),
             }),
             Some(storage::ConnectorResponseUpdate::ErrorUpdate {
                 connector_name: Some(router_data.connector.clone()),
@@ -326,7 +326,7 @@ async fn payment_response_update_tracker<F: Clone, T>(
 
                 // incase of success, update error code and error message
                 let error_status = if router_data.status == enums::AttemptStatus::Charged {
-                    Some(String::default())
+                    Some(None)
                 } else {
                     None
                 };
@@ -377,8 +377,8 @@ async fn payment_response_update_tracker<F: Clone, T>(
                         connector: None,
                         connector_transaction_id,
                         payment_method_id: Some(router_data.payment_method_id),
-                        error_code: reason.clone().map(|cd| cd.code),
-                        error_message: reason.map(|cd| cd.message),
+                        error_code: Some(reason.clone().map(|cd| cd.code)),
+                        error_message: Some(reason.map(|cd| cd.message)),
                     }),
                     None,
                 )
