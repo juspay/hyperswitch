@@ -4,12 +4,11 @@ use masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils::{
-        self, CardData, PaymentsAuthorizeRequestData, RefundsRequestData, RouterData,
-    },
+    connector::utils::{self, CardData, PaymentsAuthorizeRequestData, RouterData},
     core::errors,
     pii,
-    types::{self, api, storage::enums},
+    services::{self, Method},
+    types::{self, api, storage::enums, transformers::ForeignTryFrom},
 };
 
 // Auth Struct
@@ -43,6 +42,8 @@ pub struct ZenPaymentsRequest {
     currency: enums::Currency,
     payment_specific_data: ZenPaymentData,
     customer: ZenCustomerDetails,
+    custom_ipn_url: String,
+    items: Vec<ZenItemObject>,
 }
 
 #[derive(Debug, Serialize, Eq, PartialEq)]
@@ -66,6 +67,7 @@ pub struct ZenPaymentData {
     payment_type: ZenPaymentTypes,
     card: ZenCardDetails,
     descriptor: String,
+    return_verify_url: Option<String>,
 }
 
 #[derive(Debug, Serialize, Eq, PartialEq, frunk::LabelledGeneric)]
@@ -100,6 +102,15 @@ pub struct ZenCardDetails {
     cvv: Secret<String>,
 }
 
+#[derive(Debug, Serialize, Eq, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct ZenItemObject {
+    name: String,
+    price: String,
+    quantity: u32,
+    line_amount_total: String,
+}
+
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for ZenPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
@@ -112,7 +123,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for ZenPaymentsRequest {
             screen_width: browser_info.screen_width.to_string(),
             timezone: browser_info.time_zone.to_string(),
             accept_header: browser_info.accept_header,
-            window_size: "01".to_string(), //todo get this from frontend in browser info,
+            window_size: "05".to_string(), //todo get this from frontend in browser info,
             user_agent: browser_info.user_agent,
         };
         let (payment_specific_data, payment_channel) =
@@ -131,6 +142,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for ZenPaymentsRequest {
                             cvv: ccard.card_cvc,
                         },
                         descriptor: item.get_description()?.chars().take(24).collect(),
+                        return_verify_url: item.request.router_return_url.clone(),
                     },
                     ZenPaymentChannels::PclCard,
                 )),
@@ -152,6 +164,17 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for ZenPaymentsRequest {
                     },
                 )?,
             },
+            custom_ipn_url: item.request.webhook_url.clone().ok_or(
+                errors::ConnectorError::MissingRequiredField {
+                    field_name: "item.request.webhook_url",
+                },
+            )?,
+            items: vec![ZenItemObject {
+                name: "test_item".to_string(),
+                price: "65.4".to_string(),
+                quantity: 1,
+                line_amount_total: "65.4".to_string(),
+            }],
         })
     }
 }
@@ -169,20 +192,25 @@ pub enum ZenPaymentStatus {
     Canceled,
 }
 
-impl From<ZenPaymentStatus> for enums::AttemptStatus {
-    fn from(item: ZenPaymentStatus) -> Self {
-        match item {
+impl ForeignTryFrom<(ZenPaymentStatus, Option<ZenActions>)> for enums::AttemptStatus {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn foreign_try_from(item: (ZenPaymentStatus, Option<ZenActions>)) -> Result<Self, Self::Error> {
+        let (item_txn_status, item_action_status) = item;
+        Ok(match item_txn_status {
             ZenPaymentStatus::Authorized => Self::Authorized,
             ZenPaymentStatus::Accepted => Self::Charged,
-            ZenPaymentStatus::Pending => Self::Pending,
+            ZenPaymentStatus::Pending => {
+                item_action_status.map_or(Self::Pending, |action| match action {
+                    ZenActions::Redirect => Self::AuthenticationPending,
+                })
+            }
             ZenPaymentStatus::Rejected => Self::Failure,
             ZenPaymentStatus::Canceled => Self::Voided,
-        }
+        })
     }
 }
 
-//TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct ZenPaymentsResponse {
     status: ZenPaymentStatus,
@@ -190,6 +218,24 @@ pub struct ZenPaymentsResponse {
     redirect_url: Option<String>,
     #[serde(rename = "type")]
     transaction_type: String,
+    merchant_action: Option<ZenMerchantAction>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct ZenMerchantAction {
+    action: ZenActions,
+    data: ZenMerchantActionData,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "UPPERCASE")]
+pub enum ZenActions {
+    Redirect,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct ZenMerchantActionData {
+    redirect_url: url::Url,
 }
 
 impl<F, T>
@@ -200,11 +246,21 @@ impl<F, T>
     fn try_from(
         item: types::ResponseRouterData<F, ZenPaymentsResponse, T, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
+        let (redirection_data, action) = item
+            .response
+            .merchant_action
+            .map(|merchant_action| {
+                (
+                    services::RedirectForm::from((merchant_action.data.redirect_url, Method::Get)),
+                    merchant_action.action,
+                )
+            })
+            .unzip();
         Ok(Self {
-            status: enums::AttemptStatus::from(item.response.status),
+            status: enums::AttemptStatus::foreign_try_from((item.response.status, action))?,
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
-                redirection_data: None,
+                redirection_data,
                 mandate_reference: None,
                 connector_metadata: None,
             }),
@@ -232,7 +288,7 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for ZenRefundRequest {
             amount: item.request.refund_amount.to_string(),
             transaction_id: item.request.connector_transaction_id.clone(),
             currency: item.request.currency,
-            merchant_transaction_id: item.request.get_connector_refund_id()?,
+            merchant_transaction_id: item.request.refund_id.clone(),
         })
     }
 }
@@ -241,6 +297,7 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for ZenRefundRequest {
 
 #[allow(dead_code)]
 #[derive(Debug, Serialize, Default, Deserialize, Clone)]
+#[serde(rename_all = "UPPERCASE")]
 pub enum RefundStatus {
     Authorized,
     Accepted,
@@ -291,12 +348,16 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        _item: types::RefundsResponseRouterData<api::RSync, RefundResponse>,
+        item: types::RefundsResponseRouterData<api::RSync, RefundResponse>,
     ) -> Result<Self, Self::Error> {
-        Err(errors::ConnectorError::NotImplemented(
-            "try_from RefundsResponseRouterData".to_string(),
-        )
-        .into())
+        let refund_status = enums::RefundStatus::from(item.response.status);
+        Ok(Self {
+            response: Ok(types::RefundsResponseData {
+                connector_refund_id: item.response.id,
+                refund_status,
+            }),
+            ..item.data
+        })
     }
 }
 
@@ -304,13 +365,20 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
 #[serde(rename_all = "camelCase")]
 pub struct ZenWebhookBody {
     #[serde(rename = "type")]
-    pub transaction_type: String,
+    pub transaction_type: ZenWebhookTxnType,
     pub transaction_id: String,
     pub merchant_transaction_id: String,
     pub amount: String,
     pub currency: String,
-    pub transaction_status: ZenPaymentStatus,
+    pub status: ZenPaymentStatus,
     pub hash: String,
+}
+
+#[derive(Debug, Clone, Deserialize, PartialEq)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum ZenWebhookTxnType {
+    TrtPurchase,
+    TrtRefund,
 }
 
 //TODO: Fill the struct with respective fields

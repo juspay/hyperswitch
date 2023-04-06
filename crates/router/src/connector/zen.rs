@@ -2,12 +2,14 @@ mod transformers;
 
 use std::fmt::Debug;
 
-use common_utils::crypto;
+use common_utils::{crypto, ext_traits::ByteSliceExt};
 use error_stack::{IntoReport, ResultExt};
 use transformers as zen;
 use uuid::Uuid;
 
-use super::utils::{RefundsRequestData, RouterData};
+use self::transformers::{ZenPaymentStatus, ZenWebhookTxnType};
+
+use super::utils::{RefundsRequestData};
 use crate::{
     configs::settings,
     core::{
@@ -49,7 +51,7 @@ where
         req: &types::RouterData<Flow, Request, Response>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        let zen_terminal_id: zen::ZenTerminalID = req.to_connector_meta()?;
+        // let zen_terminal_id: zen::ZenTerminalID = req.to_connector_meta()?;
 
         let mut headers = vec![
             (
@@ -57,7 +59,7 @@ where
                 self.get_content_type().to_string(),
             ),
             ("request-id".to_string(), Uuid::new_v4().to_string()),
-            ("terminal-id".to_string(), zen_terminal_id.terminal_id),
+            // ("terminal-id".to_string(), zen_terminal_id.terminal_id),
         ];
 
         let mut auth_header = self.get_auth_header(&req.connector_auth_type)?;
@@ -492,8 +494,9 @@ impl api::IncomingWebhook for Zen {
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
-        let webhook_body: zen::ZenWebhookBody = serde_urlencoded::from_bytes(request.body)
-            .into_report()
+        let webhook_body: zen::ZenWebhookBody = request
+            .body
+            .parse_struct("ZenWebhookBody")
             .change_context(errors::ConnectorError::WebhookSignatureNotFound)?;
         let signature = webhook_body.hash;
         hex::decode(signature)
@@ -507,13 +510,14 @@ impl api::IncomingWebhook for Zen {
         _merchant_id: &str,
         _secret: &[u8],
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
-        let webhook_body: zen::ZenWebhookBody = serde_urlencoded::from_bytes(request.body)
-            .into_report()
+        let webhook_body: zen::ZenWebhookBody = request
+            .body
+            .parse_struct("ZenWebhookBody")
             .change_context(errors::ConnectorError::WebhookSignatureNotFound)?;
         let msg = webhook_body.merchant_transaction_id
             + &webhook_body.currency
             + &webhook_body.amount
-            + &webhook_body.transaction_status.to_string();
+            + &webhook_body.status.to_string();
         Ok(msg.into_bytes())
     }
 
@@ -561,21 +565,43 @@ impl api::IncomingWebhook for Zen {
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
-        let webhook_body: zen::ZenWebhookBody = serde_urlencoded::from_bytes(request.body)
-            .into_report()
+        let webhook_body: zen::ZenWebhookBody = request
+            .body
+            .parse_struct("ZenWebhookBody")
             .change_context(errors::ConnectorError::WebhookSignatureNotFound)?;
-        Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
-            api_models::payments::PaymentIdType::ConnectorTransactionId(
-                webhook_body.transaction_id,
+        Ok(match &webhook_body.transaction_type {
+            ZenWebhookTxnType::TrtPurchase => api_models::webhooks::ObjectReferenceId::PaymentId(
+                api_models::payments::PaymentIdType::ConnectorTransactionId(
+                    webhook_body.transaction_id,
+                ),
             ),
-        ))
+            ZenWebhookTxnType::TrtRefund => api_models::webhooks::ObjectReferenceId::RefundId(
+                api_models::webhooks::RefundIdType::ConnectorRefundId(webhook_body.transaction_id),
+            ),
+        })
     }
 
     fn get_webhook_event_type(
         &self,
-        _request: &api::IncomingWebhookRequestDetails<'_>,
+        request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api::IncomingWebhookEvent, errors::ConnectorError> {
-        Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
+        let details: zen::ZenWebhookBody = request
+            .body
+            .parse_struct("ZenWebhookBody")
+            .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
+
+        Ok(match &details.transaction_type {
+            ZenWebhookTxnType::TrtPurchase => match &details.status {
+                ZenPaymentStatus::Rejected => api::IncomingWebhookEvent::PaymentIntentFailure,
+                ZenPaymentStatus::Accepted => api::IncomingWebhookEvent::PaymentIntentSuccess,
+                _ => Err(errors::ConnectorError::WebhookEventTypeNotFound).into_report()?,
+            },
+            ZenWebhookTxnType::TrtRefund => match &details.status {
+                ZenPaymentStatus::Rejected => api::IncomingWebhookEvent::RefundFailure,
+                ZenPaymentStatus::Accepted => api::IncomingWebhookEvent::RefundSuccess,
+                _ => Err(errors::ConnectorError::WebhookEventTypeNotFound).into_report()?,
+            },
+        })
     }
 
     fn get_webhook_resource_object(
@@ -586,6 +612,17 @@ impl api::IncomingWebhook for Zen {
             .into_report()
             .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
         Ok(reference_object)
+    }
+    fn get_webhook_api_response(
+        &self,
+        _request: &api::IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<services::api::ApplicationResponse<serde_json::Value>, errors::ConnectorError>
+    {
+        Ok(services::api::ApplicationResponse::Json(
+            serde_json::json!({
+                "status": "ok"
+            }),
+        ))
     }
 }
 

@@ -117,7 +117,7 @@ trustpay.base_url = "https://test-tpgw.trustpay.eu/"
 trustpay.base_url_bank_redirects = "https://aapi.trustpay.eu/"
 
 [connectors.zen]
-base_url = "https://api.zen.com/"
+base_url = "https://api.zen-test.com/"
 
 [scheduler]
 stream = "SCHEDULER_STREAM"
