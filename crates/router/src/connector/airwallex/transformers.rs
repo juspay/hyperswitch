@@ -11,6 +11,8 @@ use crate::{
     types::{self, api, storage::enums},
 };
 
+type Error = error_stack::Report<errors::ConnectorError>;
+
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
 pub struct AirwallexIntentRequest {
     // Unique ID to be sent for each transaction/operation request to the connector
@@ -21,7 +23,7 @@ pub struct AirwallexIntentRequest {
     merchant_order_id: String,
 }
 impl TryFrom<&types::PaymentsInitRouterData> for AirwallexIntentRequest {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = Error;
     fn try_from(item: &types::PaymentsInitRouterData) -> Result<Self, Self::Error> {
         Ok(Self {
             request_id: Uuid::new_v4().to_string(),
@@ -78,7 +80,7 @@ pub struct AirwallexCardPaymentOptions {
 }
 
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for AirwallexPaymentsRequest {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = Error;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         let mut payment_method_options = None;
         let payment_method = match item.request.payment_method_data.clone() {
@@ -122,10 +124,28 @@ pub struct AirwallexAuthUpdateResponse {
     token: String,
 }
 
+pub struct AirwallexAuthType {
+    pub client_id: String,
+    pub api_key: String,
+}
+
+impl TryFrom<&types::ConnectorAuthType> for AirwallexAuthType {
+    type Error = Error;
+    fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
+        match auth_type {
+            types::ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
+                api_key: api_key.to_owned(),
+                client_id: key1.to_owned(),
+            }),
+            _ => Err(errors::ConnectorError::FailedToObtainAuthType)?,
+        }
+    }
+}
+
 impl<F, T> TryFrom<types::ResponseRouterData<F, AirwallexAuthUpdateResponse, T, types::AccessToken>>
     for types::RouterData<F, T, types::AccessToken>
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = Error;
     fn try_from(
         item: types::ResponseRouterData<F, AirwallexAuthUpdateResponse, T, types::AccessToken>,
     ) -> Result<Self, Self::Error> {
@@ -134,6 +154,9 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, AirwallexAuthUpdateResponse, T, 
             response: Ok(types::AccessToken {
                 token: item.response.token,
                 expires,
+                created_at: None,
+                refresh_token: None,
+                skip_expiration: None,
             }),
             ..item.data
         })
@@ -148,7 +171,7 @@ pub struct AirwallexPaymentsCaptureRequest {
 }
 
 impl TryFrom<&types::PaymentsCaptureRouterData> for AirwallexPaymentsCaptureRequest {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = Error;
     fn try_from(item: &types::PaymentsCaptureRouterData) -> Result<Self, Self::Error> {
         Ok(Self {
             request_id: Uuid::new_v4().to_string(),
@@ -168,7 +191,7 @@ pub struct AirwallexPaymentsCancelRequest {
 }
 
 impl TryFrom<&types::PaymentsCancelRouterData> for AirwallexPaymentsCancelRequest {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = Error;
     fn try_from(item: &types::PaymentsCancelRouterData) -> Result<Self, Self::Error> {
         Ok(Self {
             request_id: Uuid::new_v4().to_string(),
@@ -286,7 +309,7 @@ pub struct AirwallexRefundRequest {
 }
 
 impl<F> TryFrom<&types::RefundsRouterData<F>> for AirwallexRefundRequest {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = Error;
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
         Ok(Self {
             request_id: Uuid::new_v4().to_string(),

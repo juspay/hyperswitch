@@ -64,15 +64,28 @@ impl ConnectorAccessToken for Store {
         let serialized_access_token =
             Encode::<types::AccessToken>::encode_to_string_of_json(&access_token)
                 .change_context(errors::StorageError::SerializationFailed)?;
-        self.redis_conn()
-            .map_err(Into::<errors::StorageError>::into)?
-            .set_key_with_expiry(&key, serialized_access_token, access_token.expires)
-            .await
-            .map_err(|error| {
-                logger::error!(access_token_kv_error=?error);
-                errors::StorageError::KVError
-            })
-            .into_report()
+        match access_token.skip_expiration {
+            Some(true) => self
+                .redis_conn()
+                .map_err(Into::<errors::StorageError>::into)?
+                .set_key(&key, serialized_access_token)
+                .await
+                .map_err(|error| {
+                    logger::error!(access_token_kv_error=?error);
+                    errors::StorageError::KVError
+                })
+                .into_report(),
+            _ => self
+                .redis_conn()
+                .map_err(Into::<errors::StorageError>::into)?
+                .set_key_with_expiry(&key, serialized_access_token, access_token.expires)
+                .await
+                .map_err(|error| {
+                    logger::error!(access_token_kv_error=?error);
+                    errors::StorageError::KVError
+                })
+                .into_report(),
+        }
     }
 }
 

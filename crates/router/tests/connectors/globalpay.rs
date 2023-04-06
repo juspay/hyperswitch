@@ -51,6 +51,9 @@ fn get_default_payment_info() -> Option<PaymentInfo> {
         access_token: Some(types::AccessToken {
             token: "<access_token>".to_string(),
             expires: 18600,
+            refresh_token: None,
+            created_at: None,
+            skip_expiration: None,
         }),
         ..Default::default()
     })

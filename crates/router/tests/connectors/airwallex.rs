@@ -40,6 +40,9 @@ fn get_access_token() -> Option<AccessToken> {
         types::ConnectorAuthType::BodyKey { api_key, key1 } => Some(AccessToken {
             token: api_key,
             expires: key1.parse::<i64>().unwrap(),
+            refresh_token: None,
+            created_at: None,
+            skip_expiration: None,
         }),
         _ => None,
     }

@@ -199,13 +199,10 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
         req: &types::RefreshTokenRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+        let auth_type = intuit::IntuitAuthType::try_from(&req.connector_auth_type)?;
         let encoded_api_key = consts::BASE64_ENGINE.encode(format!(
             "{}:{}",
-            req.request.app_id,
-            req.request
-                .sig_id
-                .clone()
-                .ok_or(errors::ConnectorError::FailedToObtainAuthType)?
+            auth_type.client_id, auth_type.client_secret
         ));
 
         let headers = vec![

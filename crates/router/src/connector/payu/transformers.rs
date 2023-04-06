@@ -3,7 +3,6 @@ use error_stack::{IntoReport, ResultExt};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils::AccessTokenRequestInfo,
     consts,
     core::errors,
     pii::{self, Secret},
@@ -265,10 +264,11 @@ pub struct PayuAuthUpdateRequest {
 impl TryFrom<&types::RefreshTokenRouterData> for PayuAuthUpdateRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::RefreshTokenRouterData) -> Result<Self, Self::Error> {
+        let auth_type = PayuAuthType::try_from(&item.connector_auth_type)?;
         Ok(Self {
             grant_type: "client_credentials".to_string(),
-            client_id: item.get_request_id()?,
-            client_secret: item.request.app_id.clone(),
+            client_id: auth_type.merchant_pos_id,
+            client_secret: auth_type.api_key,
         })
     }
 }
@@ -291,6 +291,9 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, PayuAuthUpdateResponse, T, types
             response: Ok(types::AccessToken {
                 token: item.response.access_token,
                 expires: item.response.expires_in,
+                created_at: None,
+                refresh_token: None,
+                skip_expiration: None,
             }),
             ..item.data
         })

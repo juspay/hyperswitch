@@ -9,6 +9,11 @@ key1 = "MyEntityId"
 api_key = "Bearer MyApiKey"
 key1 = "MerchantId"
 
+[airwallex]
+api_key = "Client Secret"
+key1 = "Client Id"
+api_secret = "Refresh token"
+
 [authorizedotnet]
 api_key = "MyMerchantName"
 key1 = "MyTransactionKey"

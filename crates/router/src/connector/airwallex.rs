@@ -6,7 +6,7 @@ use common_utils::ext_traits::ByteSliceExt;
 use error_stack::{IntoReport, ResultExt};
 use transformers as airwallex;
 
-use super::utils::{AccessTokenRequestInfo, RefundsRequestData};
+use super::utils::RefundsRequestData;
 use crate::{
     configs::settings,
     core::{
@@ -117,10 +117,10 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
         req: &types::RefreshTokenRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+        let auth_type = airwallex::AirwallexAuthType::try_from(&req.connector_auth_type)?;
         let headers = vec![
-            (headers::X_API_KEY.to_string(), req.request.app_id.clone()),
-            ("Content-Length".to_string(), "0".to_string()),
-            ("x-client-id".to_string(), req.get_request_id()?),
+            (headers::X_API_KEY.to_string(), auth_type.api_key),
+            ("x-client-id".to_string(), auth_type.client_id),
         ];
         Ok(headers)
     }

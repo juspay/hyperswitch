@@ -776,6 +776,9 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, TrustpayAuthUpdateResponse, T, t
                 response: Ok(types::AccessToken {
                     token: access_token,
                     expires: expires_in,
+                    created_at: None,
+                    refresh_token: None,
+                    skip_expiration: None,
                 }),
                 ..item.data
             }),

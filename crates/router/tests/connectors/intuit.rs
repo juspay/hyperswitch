@@ -35,14 +35,18 @@ impl Connector for IntuitTest {
 static CONNECTOR: IntuitTest = IntuitTest {};
 
 fn get_access_token() -> Option<AccessToken> {
-    match CONNECTOR.get_auth_token() {
-        types::ConnectorAuthType::BodyKey { api_key, key1 } => Some(AccessToken {
-            token: api_key,
-            expires: key1.parse::<i64>().unwrap(),
-        }),
-        _ => None,
-    }
+    let signature_key = connector_auth::ConnectorAuthentication::new()
+        .intuit
+        .expect("Missing connector authentication configuration");
+    Some(AccessToken {
+        token: "".to_string(),
+        expires: 60,
+        skip_expiration: Some(true),
+        refresh_token: Some(signature_key.api_secret),
+        created_at: Some(time::OffsetDateTime::now_utc().unix_timestamp()),
+    })
 }
+
 fn get_default_payment_info() -> Option<utils::PaymentInfo> {
     Some(utils::PaymentInfo {
         access_token: get_access_token(),

@@ -224,10 +224,7 @@ pub struct VerifyRequestData {
 
 #[derive(Debug, Clone)]
 pub struct AccessTokenRequestData {
-    pub app_id: String,
-    pub id: Option<String>,
-    pub sig_id: Option<String>,
-    // Add more keys if required
+    pub old_access_token: Option<AccessToken>, // Add more keys if required
 }
 
 pub struct AddAccessTokenResult {
@@ -237,8 +234,18 @@ pub struct AddAccessTokenResult {
 
 #[derive(serde::Deserialize, serde::Serialize, Debug, Clone)]
 pub struct AccessToken {
+    // Access token
     pub token: String,
+    // Expiration time in seconds. eg: 3600 for 60 minutes
+    // This will be used as ttl in redis, So that expired token will be removed automatically
     pub expires: i64,
+    // Token which has to be exchanged for new token
+    pub refresh_token: Option<String>,
+    // Token created time in UNIX EPOCH timestamp
+    pub created_at: Option<i64>,
+    // For some cases we should not expire the token based on expires as it will remove the token from the redis
+    // Instead skip_expiration should be set true which doesn't set any ttl while storing access token in the redis.
+    pub skip_expiration: Option<bool>,
 }
 
 #[derive(Debug, Clone)]
@@ -395,33 +402,12 @@ impl ErrorResponse {
     }
 }
 
-impl TryFrom<ConnectorAuthType> for AccessTokenRequestData {
+impl TryFrom<Option<AccessToken>> for AccessTokenRequestData {
     type Error = errors::ApiErrorResponse;
-    fn try_from(connector_auth: ConnectorAuthType) -> Result<Self, Self::Error> {
-        match connector_auth {
-            ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
-                app_id: api_key,
-                id: None,
-                sig_id: None,
-            }),
-            ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
-                app_id: api_key,
-                id: Some(key1),
-                sig_id: None,
-            }),
-            ConnectorAuthType::SignatureKey {
-                api_key,
-                key1,
-                api_secret,
-            } => Ok(Self {
-                app_id: api_key,
-                id: Some(key1),
-                sig_id: Some(api_secret),
-            }),
-            _ => Err(errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "connector_account_details",
-            }),
-        }
+    fn try_from(old_access_token: Option<AccessToken>) -> Result<Self, Self::Error> {
+        Ok(Self {
+            old_access_token,
+        })
     }
 }
 

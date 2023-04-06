@@ -8,7 +8,9 @@ use router::{
     core::{errors, errors::ConnectorError, payments},
     db::StorageImpl,
     routes, services,
-    types::{self, api, storage::enums, AccessToken, PaymentAddress, RouterData},
+    types::{
+        self, api, storage::enums, AccessToken, AccessTokenRequestData, PaymentAddress, RouterData,
+    },
 };
 use wiremock::{Mock, MockServer};
 
@@ -345,6 +347,15 @@ pub trait ConnectorActions: Connector {
             tokio::time::sleep(Duration::from_secs(self.get_request_interval())).await;
         }
         Err(errors::ConnectorError::ProcessingStepFailed(None).into())
+    }
+
+    async fn generate_access_token(
+        &self,
+        old_access_token: Option<AccessToken>,
+    ) -> Result<types::RefreshTokenRouterData, Report<ConnectorError>> {
+        let integration = self.get_data().connector.get_connector_integration();
+        let request = self.generate_data(AccessTokenRequestData { old_access_token }, None);
+        call_connector(request, integration).await
     }
 
     fn generate_data<Flow, Req: From<Req>, Res>(

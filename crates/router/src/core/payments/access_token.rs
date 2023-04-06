@@ -101,12 +101,11 @@ pub async fn add_access_token<
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("DB error when accessing the access token")?;
 
-        let res = match old_access_token {
-            Some(access_token) => Ok(Some(access_token)),
-            None => {
+        let res = match is_new_access_token_required(old_access_token.as_ref()) {
+            true => {
                 let cloned_router_data = router_data.clone();
                 let refresh_token_request_data = types::AccessTokenRequestData::try_from(
-                    router_data.connector_auth_type.clone(),
+                    old_access_token.clone(),
                 )
                 .into_report()
                 .attach_printable(
@@ -146,6 +145,7 @@ pub async fn add_access_token<
                 })
                 .await
             }
+            false => Ok(old_access_token),
         };
 
         Ok(types::AddAccessTokenResult {
@@ -157,6 +157,25 @@ pub async fn add_access_token<
             access_token_result: Err(types::ErrorResponse::default()),
             connector_supports_access_token: false,
         })
+    }
+}
+
+pub fn is_new_access_token_required(old_access_token: Option<&types::AccessToken>) -> bool {
+    match old_access_token {
+        Some(access_token) => {
+            // Access token is present
+            match access_token.created_at {
+                // If access_token is present along with created_at, then the current time should not exceed the expiration time
+                Some(created_at) => {
+                    let now = time::OffsetDateTime::now_utc().unix_timestamp();
+                    now > (created_at + access_token.expires)
+                }
+                // If created_at is not present for the token, then the token can be cosidered valid.
+                None => false,
+            }
+        }
+        // Access token does not present, so new token has to be generated
+        None => true,
     }
 }
 
