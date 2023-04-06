@@ -309,6 +309,12 @@ pub async fn create_payment_connector(
             field_name: "connector_account_details".to_string(),
             expected_format: "auth_type and api_key".to_string(),
         })?;
+    let configs_for_frm_value = req
+        .frm_configs
+        .ok_or_else(|| errors::ApiErrorResponse::ConfigNotFound)?;
+    let frm_value: serde_json::Value =
+        utils::Encode::<api_models::admin::FrmConfigs>::encode_to_value(&configs_for_frm_value)
+            .change_context(errors::ApiErrorResponse::ConfigNotFound)?;
 
     let merchant_connector_account = storage::MerchantConnectorAccountNew {
         merchant_id: Some(merchant_id.to_string()),
@@ -320,6 +326,7 @@ pub async fn create_payment_connector(
         test_mode: req.test_mode,
         disabled: req.disabled,
         metadata: req.metadata,
+        frm_configs: Some(frm_value),
     };
 
     let mca = store
@@ -419,7 +426,13 @@ pub async fn update_payment_connector(
             })
             .collect::<Vec<serde_json::Value>>()
     });
-
+    let configs_for_frm_value = req
+        .frm_configs
+        .as_ref()
+        .ok_or_else(|| errors::ApiErrorResponse::ConfigNotFound)?;
+    let frm_value: serde_json::Value =
+        utils::Encode::<api_models::admin::FrmConfigs>::encode_to_value(&configs_for_frm_value)
+            .change_context(errors::ApiErrorResponse::ConfigNotFound)?;
     let payment_connector = storage::MerchantConnectorAccountUpdate::Update {
         merchant_id: Some(merchant_id.to_string()),
         connector_type: Some(req.connector_type.foreign_into()),
@@ -430,6 +443,7 @@ pub async fn update_payment_connector(
         test_mode: req.test_mode,
         disabled: req.disabled,
         metadata: req.metadata,
+        frm_configs: Some(frm_value),
     };
 
     let updated_mca = db
@@ -460,6 +474,7 @@ pub async fn update_payment_connector(
         disabled: updated_mca.disabled,
         payment_methods_enabled: updated_pm_enabled,
         metadata: updated_mca.metadata,
+        frm_configs: req.frm_configs,
     };
     Ok(service_api::ApplicationResponse::Json(response))
 }
