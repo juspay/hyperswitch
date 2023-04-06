@@ -531,6 +531,7 @@ pub async fn webhooks_core<W: api::OutgoingWebhookType>(
     .await;
 
     logger::info!(process_webhook=?process_webhook_further);
+    logger::info!(event_type=?event_type);
 
     if process_webhook_further {
         let source_verified = connector

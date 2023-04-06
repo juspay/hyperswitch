@@ -28,7 +28,6 @@ pub struct CoinbasePaymentsRequest {
     pub description: String,
     pub pricing_type: String,
     pub local_price: LocalPrice,
-    pub metadata: Metadata,
     pub redirect_url: String,
     pub cancel_url: String,
 }
@@ -254,7 +253,6 @@ fn get_crypto_specific_payment_data(
         utils::to_connector_meta_from_secret(item.connector_meta_data.clone())?;
     let pricing_type = connector_meta.pricing_type;
     let local_price = get_local_price(item);
-    let metadata = get_metadata(item);
     let redirect_url = item.request.get_return_url()?;
     let cancel_url = item.request.get_return_url()?;
 
@@ -263,7 +261,6 @@ fn get_crypto_specific_payment_data(
         description,
         pricing_type,
         local_price,
-        metadata,
         redirect_url,
         cancel_url,
     })
@@ -276,12 +273,6 @@ fn get_local_price(item: &types::PaymentsAuthorizeRouterData) -> LocalPrice {
     }
 }
 
-fn get_metadata(_item: &types::PaymentsAuthorizeRouterData) -> Metadata {
-    Metadata {
-        customer_id: "112".to_string(),
-        customer_name: "John".to_string(),
-    }
-}
 #[derive(Debug, Serialize, Deserialize)]
 pub struct CoinbaseWebhookDetails {
     pub attempt_number: i64,
