@@ -388,10 +388,6 @@ pub struct MerchantConnectorUpdate {
     #[schema(example = "stripe")]
     pub connector_name: String,
 
-    /// Business Sub label of the merchant
-    #[schema(example = "chase")]
-    pub business_sub_label: Option<String>,
-
     /// Account details of the Connector. You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Useful for storing additional, structured information on an object.
     #[schema(value_type = Option<Object>,example = json!({ "auth_type": "HeaderKey","api_key": "Basic MyVerySecretApiKey" }))]
     pub connector_account_details: Option<pii::SecretSerdeValue>,
