@@ -35,6 +35,15 @@ pub trait ConnectorAccessToken:
 {
 }
 
+pub trait ConnectorTransactionId: ConnectorCommon + Sync {
+    fn connector_transaction_id(
+        &self,
+        payment_attempt: storage_models::payment_attempt::PaymentAttempt,
+    ) -> Result<Option<String>, errors::ApiErrorResponse> {
+        Ok(payment_attempt.connector_transaction_id)
+    }
+}
+
 pub trait ConnectorCommon {
     /// Name of the connector (in lowercase).
     fn id(&self) -> &'static str;
@@ -90,7 +99,14 @@ pub trait ConnectorCommonExt<Flow, Req, Resp>:
 pub trait Router {}
 
 pub trait Connector:
-    Send + Refund + Payment + Debug + ConnectorRedirectResponse + IncomingWebhook + ConnectorAccessToken
+    Send
+    + Refund
+    + Payment
+    + Debug
+    + ConnectorRedirectResponse
+    + IncomingWebhook
+    + ConnectorAccessToken
+    + ConnectorTransactionId
 {
 }
 
@@ -105,7 +121,8 @@ impl<
             + ConnectorRedirectResponse
             + Send
             + IncomingWebhook
-            + ConnectorAccessToken,
+            + ConnectorAccessToken
+            + ConnectorTransactionId,
     > Connector for T
 {
 }
@@ -184,6 +201,7 @@ impl ConnectorData {
             "mollie" => Ok(Box::new(&connector::Mollie)),
             "multisafepay" => Ok(Box::new(&connector::Multisafepay)),
             "nuvei" => Ok(Box::new(&connector::Nuvei)),
+            "paypal" => Ok(Box::new(&connector::Paypal)),
             "payu" => Ok(Box::new(&connector::Payu)),
             "rapyd" => Ok(Box::new(&connector::Rapyd)),
             "shift4" => Ok(Box::new(&connector::Shift4)),

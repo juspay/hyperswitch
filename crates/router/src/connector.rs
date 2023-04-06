@@ -15,6 +15,7 @@ pub mod intuit;
 pub mod klarna;
 pub mod multisafepay;
 pub mod nuvei;
+pub mod paypal;
 pub mod payu;
 pub mod rapyd;
 pub mod shift4;
@@ -31,6 +32,6 @@ pub use self::{
     authorizedotnet::Authorizedotnet, bambora::Bambora, bluesnap::Bluesnap, braintree::Braintree,
     checkout::Checkout, cybersource::Cybersource, dlocal::Dlocal, fiserv::Fiserv,
     globalpay::Globalpay, intuit::Intuit, klarna::Klarna, mollie::Mollie,
-    multisafepay::Multisafepay, nuvei::Nuvei, payu::Payu, rapyd::Rapyd, shift4::Shift4,
-    stripe::Stripe, trustpay::Trustpay, worldline::Worldline, worldpay::Worldpay,
+    multisafepay::Multisafepay, nuvei::Nuvei, paypal::Paypal, payu::Payu, rapyd::Rapyd,
+    shift4::Shift4, stripe::Stripe, trustpay::Trustpay, worldline::Worldline, worldpay::Worldpay,
 };

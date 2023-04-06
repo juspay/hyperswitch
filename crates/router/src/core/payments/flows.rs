@@ -134,3 +134,39 @@ default_imp_for_connector_redirect_response!(
     connector::Worldline,
     connector::Worldpay
 );
+
+macro_rules! default_imp_for_connector_transaction_id{
+    ($($path:ident::$connector:ident),*)=> {
+        $(
+            impl api::ConnectorTransactionId for $path::$connector {}
+    )*
+    };
+}
+
+default_imp_for_connector_transaction_id!(
+    connector::Aci,
+    connector::Adyen,
+    connector::Airwallex,
+    connector::Applepay,
+    connector::Authorizedotnet,
+    connector::Bambora,
+    connector::Bluesnap,
+    connector::Braintree,
+    connector::Checkout,
+    connector::Cybersource,
+    connector::Dlocal,
+    connector::Fiserv,
+    connector::Globalpay,
+    connector::Intuit,
+    connector::Klarna,
+    connector::Mollie,
+    connector::Multisafepay,
+    connector::Nuvei,
+    connector::Payu,
+    connector::Rapyd,
+    connector::Shift4,
+    connector::Stripe,
+    connector::Trustpay,
+    connector::Worldline,
+    connector::Worldpay
+);
