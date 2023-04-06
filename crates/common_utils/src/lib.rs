@@ -17,6 +17,7 @@ pub mod validation;
 pub mod date_time {
     use std::num::NonZeroU8;
 
+    #[cfg(feature = "async_ext")]
     use time::{
         format_description::{
             well_known::iso8601::{Config, EncodedConfig, Iso8601, TimePrecision},
@@ -54,6 +55,7 @@ pub mod date_time {
     }
 
     /// Calculate execution time for a async block in milliseconds
+    #[cfg(feature = "async_ext")]
     pub async fn time_it<T, Fut: futures::Future<Output = T>, F: FnOnce() -> Fut>(
         block: F,
     ) -> (T, f64) {

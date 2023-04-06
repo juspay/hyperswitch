@@ -67,5 +67,9 @@ api_key = "api_key"
 key1 = "key1"
 api_secret = "secret"
 
+[paypal]
+api_key = "api_key"
+key1 = "key1"
+
 [mollie]
 api_key = "API Key"

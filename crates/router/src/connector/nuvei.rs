@@ -374,7 +374,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         let req_obj = nuvei::NuveiPaymentFlowRequest::try_from(nuvei::NuveiPaymentRequestData {
             client_request_id: req.attempt_id.clone(),
             connector_auth_type: req.connector_auth_type.clone(),
-            amount: req.request.amount.to_string(),
+            amount: req.request.amount_to_capture.to_string(),
             currency: req.request.currency.to_string(),
             related_transaction_id: Some(req.request.connector_transaction_id.clone()),
             ..Default::default()

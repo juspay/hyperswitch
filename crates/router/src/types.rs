@@ -150,10 +150,10 @@ pub struct PaymentsAuthorizeData {
 
 #[derive(Debug, Clone, Default)]
 pub struct PaymentsCaptureData {
-    pub amount_to_capture: Option<i64>,
+    pub amount_to_capture: i64,
     pub currency: storage_enums::Currency,
     pub connector_transaction_id: String,
-    pub amount: i64,
+    pub payment_amount: i64,
     pub connector_meta: Option<serde_json::Value>,
 }
 
