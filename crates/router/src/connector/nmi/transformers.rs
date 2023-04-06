@@ -224,12 +224,7 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for NmiCaptureRequest {
             security_key: auth.api_key,
             transactionid: item.request.connector_transaction_id.clone(),
             amount: Some(utils::to_currency_base_unit_as_f64(
-                match item.request.amount_to_capture {
-                    Some(a) => Ok(a),
-                    _ => Err(errors::ConnectorError::RequestEncodingFailedWithReason(
-                        "Amount is a required field.".to_string(),
-                    )),
-                }?,
+                item.request.amount_to_capture,
                 item.request.currency,
             )?),
         })

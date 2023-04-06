@@ -158,7 +158,7 @@ async fn should_partially_capture_authorized_payment() {
             .capture_payment(
                 transaction_id.clone(),
                 Some(types::PaymentsCaptureData {
-                    amount_to_capture: Some(1000),
+                    amount_to_capture: 1000,
                     ..utils::PaymentCaptureType::default().0
                 }),
                 None,
@@ -350,7 +350,7 @@ async fn should_partially_refund_manually_captured_payment() {
             .capture_payment(
                 transaction_id.clone(),
                 Some(types::PaymentsCaptureData {
-                    amount_to_capture: Some(2023),
+                    amount_to_capture: 2023,
                     ..utils::PaymentCaptureType::default().0
                 }),
                 None,
