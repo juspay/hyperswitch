@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use api_models::payments::MandateAmountData;
+use api_models::payments;
 use base64::Engine;
 use common_utils::{
     date_time,
