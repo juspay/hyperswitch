@@ -433,8 +433,7 @@ pub enum PaymentMethodData {
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "snake_case")]
-pub struct RewardData
-{
+pub struct RewardData {
     pub reward_type: String,
     pub mid: String,
 }
@@ -475,7 +474,7 @@ impl From<&PaymentMethodData> for AdditionalPaymentData {
             },
             PaymentMethodData::Wallet(_) => Self::Wallet {},
             PaymentMethodData::PayLater(_) => Self::PayLater {},
-            PaymentMethodData::Reward(_) => Self::Reward{},
+            PaymentMethodData::Reward(_) => Self::Reward {},
         }
     }
 }
@@ -1134,8 +1133,8 @@ impl From<PaymentMethodData> for PaymentMethodDataResponse {
             PaymentMethodData::Wallet(wallet_data) => Self::Wallet(wallet_data),
             PaymentMethodData::BankRedirect(bank_redirect_data) => {
                 Self::BankRedirect(bank_redirect_data)
-            },
-            PaymentMethodData::Reward(reward_data) => Self::Reward(reward_data)
+            }
+            PaymentMethodData::Reward(reward_data) => Self::Reward(reward_data),
         }
     }
 }

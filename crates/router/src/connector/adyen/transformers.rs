@@ -651,7 +651,7 @@ fn get_payment_method_data<'a>(
                 }
             }
         }
-        _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into())
+        _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
     }
 }
 

@@ -1,15 +1,14 @@
-
-
-use serde::{Deserialize, Serialize};
+use common_utils::pii::Email;
 use masking::Secret;
 use router_env::logger;
-use crate::
-    {connector::utils::{self},
+use serde::{Deserialize, Serialize};
+
+use crate::{
+    connector::utils::{self},
     core::errors,
     services,
     types::{self, api, storage::enums},
 };
-use common_utils::{pii::Email};
 
 //TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
@@ -35,11 +34,13 @@ pub struct CashToCodeMandatoryParams {
     pub cancel_url: String,
 }
 
-fn get_mid(payment_method_data : &api::payments::PaymentMethodData,) -> Result<String,errors::ConnectorError>
-{
-    match payment_method_data{
-        api_models::payments::PaymentMethodData::Reward(reward_data) =>
-        Ok(reward_data.mid.to_string()),
+fn get_mid(
+    payment_method_data: &api::payments::PaymentMethodData,
+) -> Result<String, errors::ConnectorError> {
+    match payment_method_data {
+        api_models::payments::PaymentMethodData::Reward(reward_data) => {
+            Ok(reward_data.mid.to_string())
+        }
         _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
     }
 }
@@ -52,8 +53,10 @@ fn get_mandatory_params(
         .customer_id
         .as_ref()
         .ok_or_else(utils::missing_field_err("customer_id"))?;
-    let url = item.return_url.to_owned().ok_or_else(
-    utils::missing_field_err("return_url"))?;
+    let url = item
+        .return_url
+        .to_owned()
+        .ok_or_else(utils::missing_field_err("return_url"))?;
     Ok(CashToCodeMandatoryParams {
         user_id: customer_id.to_owned(),
         user_alias: customer_id.to_owned(),
@@ -64,7 +67,7 @@ fn get_mandatory_params(
 
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for CashtocodePaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self,Self::Error> {
+    fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         let params: CashToCodeMandatoryParams = get_mandatory_params(item)?;
         let mid_helper = get_mid(&item.request.payment_method_data);
         let mid = match mid_helper {
@@ -72,19 +75,19 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for CashtocodePaymentsRequest 
             Err(err) => return Err(err.into()),
         };
         match item.payment_method {
-            storage_models::enums::PaymentMethod::Reward => Ok( CashtocodePaymentsRequest {
-                    amount: item.request.amount,
-                    transaction_id: item.attempt_id.clone(),
-                    currency: item.request.currency.to_string(),
-                    user_id: params.user_id,
-                    first_name: None,
-                    last_name: None,
-                    user_alias: params.user_alias,
-                    requested_url: params.requested_url,
-                    cancel_url: params.cancel_url,
-                    email: item.request.email.clone(),
-                    mid,
-        }),
+            storage_models::enums::PaymentMethod::Reward => Ok(CashtocodePaymentsRequest {
+                amount: item.request.amount,
+                transaction_id: item.attempt_id.clone(),
+                currency: item.request.currency.to_string(),
+                user_id: params.user_id,
+                first_name: None,
+                last_name: None,
+                user_alias: params.user_alias,
+                requested_url: params.requested_url,
+                cancel_url: params.cancel_url,
+                email: item.request.email.clone(),
+                mid,
+            }),
             _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
         }
     }
@@ -93,7 +96,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for CashtocodePaymentsRequest 
 //TODO: Fill the struct with respective fields
 // Auth Struct
 pub struct CashtocodeAuthType {
-    pub(super) api_key: String
+    pub(super) api_key: String,
 }
 
 // fn get_appropriate_api_key(
@@ -116,13 +119,12 @@ pub struct CashtocodeAuthType {
 //     }
 // }
 
-impl TryFrom<&types::ConnectorAuthType> for CashtocodeAuthType  {
+impl TryFrom<&types::ConnectorAuthType> for CashtocodeAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
     // need paymentMethoddata at this point
     fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
-            types::ConnectorAuthType::HeaderKey { api_key,} =>
-            Ok(Self {
+            types::ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
                 api_key: api_key.to_string(),
             }),
             _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
@@ -163,23 +165,34 @@ pub struct CashtocodePaymentsResponse {
     pub pay_url: String,
 }
 
-pub struct CashtocodePaymentsSyncResponse {
+pub struct CashtocodePaymentsSyncResponse {}
 
-}
-
-impl<F,T> TryFrom<types::ResponseRouterData<F, CashtocodePaymentsResponse, T, types::PaymentsResponseData>> for types::RouterData<F, T, types::PaymentsResponseData> {
+impl<F, T>
+    TryFrom<
+        types::ResponseRouterData<F, CashtocodePaymentsResponse, T, types::PaymentsResponseData>,
+    > for types::RouterData<F, T, types::PaymentsResponseData>
+{
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: types::ResponseRouterData<F, CashtocodePaymentsResponse, T, types::PaymentsResponseData>) -> Result<Self,Self::Error> {
+    fn try_from(
+        item: types::ResponseRouterData<
+            F,
+            CashtocodePaymentsResponse,
+            T,
+            types::PaymentsResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
         logger::info!(item.response.pay_url);
         let redirection_data = services::RedirectForm {
-                    endpoint: item.response.pay_url.clone(),
-                    method: services::Method::Post,
-                    form_fields: Default::default(),
-                };
+            endpoint: item.response.pay_url.clone(),
+            method: services::Method::Post,
+            form_fields: Default::default(),
+        };
         Ok(Self {
             status: enums::AttemptStatus::AuthenticationPending,
             response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(item.data.attempt_id.clone()),
+                resource_id: types::ResponseId::ConnectorTransactionId(
+                    item.data.attempt_id.clone(),
+                ),
                 redirection_data: Some(redirection_data),
                 mandate_reference: None,
                 connector_metadata: None,
@@ -189,14 +202,31 @@ impl<F,T> TryFrom<types::ResponseRouterData<F, CashtocodePaymentsResponse, T, ty
     }
 }
 
-
-impl<F,T> TryFrom<types::ResponseRouterData<F, CashtocodePaymentsSyncResponse, T, types::PaymentsResponseData>> for types::RouterData<F, T, types::PaymentsResponseData> {
+impl<F, T>
+    TryFrom<
+        types::ResponseRouterData<
+            F,
+            CashtocodePaymentsSyncResponse,
+            T,
+            types::PaymentsResponseData,
+        >,
+    > for types::RouterData<F, T, types::PaymentsResponseData>
+{
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: types::ResponseRouterData<F, CashtocodePaymentsSyncResponse, T, types::PaymentsResponseData>) -> Result<Self,Self::Error> {
+    fn try_from(
+        item: types::ResponseRouterData<
+            F,
+            CashtocodePaymentsSyncResponse,
+            T,
+            types::PaymentsResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
         Ok(Self {
             status: enums::AttemptStatus::Charged,
             response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(item.data.attempt_id.clone()),
+                resource_id: types::ResponseId::ConnectorTransactionId(
+                    item.data.attempt_id.clone(),
+                ),
                 redirection_data: None,
                 mandate_reference: None,
                 connector_metadata: None,
@@ -211,12 +241,12 @@ impl<F,T> TryFrom<types::ResponseRouterData<F, CashtocodePaymentsSyncResponse, T
 // Type definition for RefundRequest
 #[derive(Default, Debug, Serialize)]
 pub struct CashtocodeRefundRequest {
-    pub amount: i64
+    pub amount: i64,
 }
 
 impl<F> TryFrom<&types::RefundsRouterData<F>> for CashtocodeRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self,Self::Error> {
+    fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
         Ok(Self {
             amount: item.request.amount,
         })
@@ -249,7 +279,7 @@ impl From<RefundStatus> for enums::RefundStatus {
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct RefundResponse {
     id: String,
-    status: RefundStatus
+    status: RefundStatus,
 }
 
 impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
@@ -269,10 +299,13 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
     }
 }
 
-impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>> for types::RefundsRouterData<api::RSync>
+impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
+    for types::RefundsRouterData<api::RSync>
 {
-     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: types::RefundsResponseRouterData<api::RSync, RefundResponse>) -> Result<Self,Self::Error> {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: types::RefundsResponseRouterData<api::RSync, RefundResponse>,
+    ) -> Result<Self, Self::Error> {
         Ok(Self {
             response: Ok(types::RefundsResponseData {
                 connector_refund_id: item.response.id.to_string(),
@@ -280,8 +313,8 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>> for t
             }),
             ..item.data
         })
-     }
- }
+    }
+}
 
 //TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
@@ -297,6 +330,6 @@ pub struct CashtocodeIncomingWebhook {
     pub amount: i64,
     pub currency: String,
     pub foreign_transaction_id: String,
-    pub r#type : String,
-    pub transaction_id : String,
+    pub r#type: String,
+    pub transaction_id: String,
 }

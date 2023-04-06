@@ -558,7 +558,7 @@ pub enum Connector {
     Cybersource,
     #[default]
     Dummy,
-	Cashtocode,
+    Cashtocode,
     Bambora,
     Dlocal,
     Fiserv,
