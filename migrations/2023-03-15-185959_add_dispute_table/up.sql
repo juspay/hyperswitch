@@ -12,7 +12,6 @@ CREATE TABLE dispute (
     payment_id VARCHAR(255) NOT NULL,
     attempt_id VARCHAR(64) NOT NULL,
     merchant_id VARCHAR(255) NOT NULL,
-    connector VARCHAR(255) NOT NULL,
     connector_status VARCHAR(255) NOT NULL,
     connector_dispute_id VARCHAR(255) NOT NULL,
     connector_reason VARCHAR(255),

@@ -123,7 +123,6 @@ diesel::table! {
         payment_id -> Varchar,
         attempt_id -> Varchar,
         merchant_id -> Varchar,
-        connector -> Varchar,
         connector_status -> Varchar,
         connector_dispute_id -> Varchar,
         connector_reason -> Nullable<Varchar>,
@@ -133,6 +132,7 @@ diesel::table! {
         updated_at -> Nullable<Varchar>,
         created_at -> Timestamp,
         modified_at -> Timestamp,
+        connector -> Varchar,
     }
 }
 
