@@ -405,7 +405,7 @@ impl AddressDetailsData for api::AddressDetails {
 
 pub trait MandateData {
     fn get_end_date(&self, format: date_time::DateFormat) -> Result<String, Error>;
-    fn get_meta_data(&self) -> Result<serde_json::Value, Error>;
+    fn get_meta_data(&self) -> Result<pii::SecretSerdeValue, Error>;
 }
 
 impl MandateData for MandateAmountData {
@@ -417,7 +417,7 @@ impl MandateData for MandateAmountData {
             .into_report()
             .change_context(errors::ConnectorError::DateFormattingFailed)
     }
-    fn get_meta_data(&self) -> Result<serde_json::Value, Error> {
+    fn get_meta_data(&self) -> Result<pii::SecretSerdeValue, Error> {
         self.meta_data.clone().ok_or_else(missing_field_err(
             "mandate_data.mandate_type.{multi_use|single_use}.meta_data",
         ))

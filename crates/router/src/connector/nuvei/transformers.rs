@@ -503,7 +503,7 @@ fn get_card_info<F>(
                     }
                 };
                 let mandate_meta: NuveiMandateMeta =
-                    utils::to_connector_meta(Some(details.get_meta_data()?))?;
+                    utils::to_connector_meta_from_secret(Some(details.get_meta_data()?))?;
                 (
                     Some("0".to_string()),
                     Some(V2AdditionalParams {
