@@ -456,6 +456,7 @@ impl<F: Clone> TryFrom<PaymentData<F>> for types::PaymentsAuthorizeData {
             payment_method_data: payment_data
                 .payment_method_data
                 .get_required_value("payment_method_data")?,
+            customer_id: payment_data.payment_intent.customer_id,
             setup_future_usage: payment_data.payment_intent.setup_future_usage,
             mandate_id: payment_data.mandate_id.clone(),
             off_session: payment_data.mandate_id.as_ref().map(|_| true),

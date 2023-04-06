@@ -66,6 +66,7 @@ enum PaymentDetails {
     Paypal,
     #[serde(rename = "bankRedirect")]
     BankRedirect,
+    Reward,
 }
 
 impl From<api_models::payments::PaymentMethodData> for PaymentDetails {
@@ -86,6 +87,7 @@ impl From<api_models::payments::PaymentMethodData> for PaymentDetails {
             api::PaymentMethodData::PayLater(_) => Self::Klarna,
             api::PaymentMethodData::Wallet(_) => Self::Wallet,
             api::PaymentMethodData::BankRedirect(_) => Self::BankRedirect,
+            api::PaymentMethodData::Reward(_) => Self::Reward,
         }
     }
 }

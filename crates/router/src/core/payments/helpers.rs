@@ -802,6 +802,7 @@ pub async fn make_pm_data<'a, F: Clone, R>(
             payment_data.token = Some(token);
             Ok(pm_opt.to_owned())
         }
+        (pm @ Some(api::PaymentMethodData::Reward(_)), _) => Ok(pm.to_owned()),
         _ => Ok(None),
     }?;
 

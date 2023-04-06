@@ -428,6 +428,15 @@ pub enum PaymentMethodData {
     Wallet(WalletData),
     PayLater(PayLaterData),
     BankRedirect(BankRedirectData),
+    Reward(RewardData),
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub struct RewardData
+{
+    pub reward_type: String,
+    pub mid: String,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
@@ -442,6 +451,7 @@ pub enum AdditionalPaymentData {
     },
     Wallet {},
     PayLater {},
+    Reward {},
 }
 
 impl From<&PaymentMethodData> for AdditionalPaymentData {
@@ -465,6 +475,7 @@ impl From<&PaymentMethodData> for AdditionalPaymentData {
             },
             PaymentMethodData::Wallet(_) => Self::Wallet {},
             PaymentMethodData::PayLater(_) => Self::PayLater {},
+            PaymentMethodData::Reward(_) => Self::Reward{},
         }
     }
 }
@@ -607,6 +618,7 @@ pub enum PaymentMethodDataResponse {
     PayLater(PayLaterData),
     Paypal,
     BankRedirect(BankRedirectData),
+    Reward(RewardData),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -1122,7 +1134,8 @@ impl From<PaymentMethodData> for PaymentMethodDataResponse {
             PaymentMethodData::Wallet(wallet_data) => Self::Wallet(wallet_data),
             PaymentMethodData::BankRedirect(bank_redirect_data) => {
                 Self::BankRedirect(bank_redirect_data)
-            }
+            },
+            PaymentMethodData::Reward(reward_data) => Self::Reward(reward_data)
         }
     }
 }

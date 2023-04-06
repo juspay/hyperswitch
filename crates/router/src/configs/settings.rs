@@ -246,6 +246,7 @@ pub struct Connectors {
     pub bambora: ConnectorParams,
     pub bluesnap: ConnectorParams,
     pub braintree: ConnectorParams,
+	pub cashtocode: ConnectorParams,
     pub checkout: ConnectorParams,
     pub cybersource: ConnectorParams,
     pub dlocal: ConnectorParams,

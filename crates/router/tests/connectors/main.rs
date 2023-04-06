@@ -6,6 +6,7 @@ mod airwallex;
 mod authorizedotnet;
 mod bambora;
 mod bluesnap;
+mod cashtocode;
 mod checkout;
 mod connector_auth;
 mod cybersource;

@@ -193,6 +193,7 @@ pub enum StripePaymentMethodData {
     PayLater(StripePayLaterData),
     Wallet,
     BankRedirect(StripeBankRedirectData),
+    Reward,
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize, Clone)]
@@ -1296,6 +1297,7 @@ impl
                 }))
             }
             api::PaymentMethodData::Wallet(_) => Ok(Self::Wallet),
+            api::PaymentMethodData::Reward(_) => Ok(Self::Reward),
         }
     }
 }

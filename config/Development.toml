@@ -71,6 +71,7 @@ cards = [
     "worldline",
     "worldpay",
 ]
+rewards = ["cashtocode"]
 
 [refund]
 max_attempts = 10
@@ -94,6 +95,7 @@ authorizedotnet.base_url = "https://apitest.authorize.net/xml/v1/request.api"
 bambora.base_url = "https://api.na.bambora.com"
 bluesnap.base_url = "https://sandbox.bluesnap.com/"
 braintree.base_url = "https://api.sandbox.braintreegateway.com/"
+cashtocode.base_url = "https://cluster05.api-test.cashtocode.com/"
 checkout.base_url = "https://api.sandbox.checkout.com/"
 cybersource.base_url = "https://apitest.cybersource.com/"
 dlocal.base_url = "https://sandbox.dlocal.com/"

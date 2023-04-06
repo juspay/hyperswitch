@@ -407,6 +407,8 @@ pub enum PaymentMethodType {
     GooglePay,
     ApplePay,
     Paypal,
+    Evoucher,
+    Classic,
 }
 
 #[derive(
@@ -432,6 +434,7 @@ pub enum PaymentMethod {
     PayLater,
     Wallet,
     BankRedirect,
+    Reward,
 }
 
 #[derive(
@@ -555,6 +558,7 @@ pub enum Connector {
     Cybersource,
     #[default]
     Dummy,
+	Cashtocode,
     Bambora,
     Dlocal,
     Fiserv,
@@ -606,6 +610,7 @@ pub enum RoutableConnectors {
     Bambora,
     Bluesnap,
     Braintree,
+    Cashtocode,
     Checkout,
     Cybersource,
     Dlocal,

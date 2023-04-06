@@ -437,6 +437,7 @@ pub enum PaymentMethod {
     PayLater,
     Wallet,
     BankRedirect,
+    Reward,
 }
 
 #[derive(
@@ -605,6 +606,8 @@ pub enum PaymentMethodType {
     GooglePay,
     ApplePay,
     Paypal,
+    Evoucher,
+    Classic,
 }
 
 #[derive(

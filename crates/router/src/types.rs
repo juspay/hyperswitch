@@ -126,6 +126,7 @@ pub struct RouterData<Flow, Request, Response> {
 #[derive(Debug, Clone)]
 pub struct PaymentsAuthorizeData {
     pub payment_method_data: payments::PaymentMethodData,
+    pub customer_id: Option<String>,
     pub amount: i64,
     pub email: Option<masking::Secret<String, Email>>,
     pub currency: storage_enums::Currency,

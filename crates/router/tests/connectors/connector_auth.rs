@@ -9,6 +9,7 @@ pub(crate) struct ConnectorAuthentication {
     pub authorizedotnet: Option<BodyKey>,
     pub bambora: Option<BodyKey>,
     pub bluesnap: Option<BodyKey>,
+    pub cashtocode: Option<BodyKey>,
     pub checkout: Option<BodyKey>,
     pub cybersource: Option<SignatureKey>,
     pub dlocal: Option<SignatureKey>,

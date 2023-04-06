@@ -83,7 +83,7 @@ impl types::PaymentsSyncRouterData {
         let resp = services::execute_connector_processing_step(
             state,
             connector_integration,
-            self,
+            self,   
             call_connector_action,
         )
         .await
