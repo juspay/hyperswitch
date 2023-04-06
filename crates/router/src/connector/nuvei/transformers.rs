@@ -1,6 +1,6 @@
 use common_utils::{
     crypto::{self, GenerateDigest},
-    date_time,
+    date_time, fp_utils,
     pii::Email,
 };
 use error_stack::{IntoReport, ResultExt};
@@ -9,9 +9,7 @@ use reqwest::Url;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils::{
-        self, MandateData, PaymentsAuthorizeRequestData, PaymentsCancelRequestData, RouterData,
-    },
+    connector::utils::{self, MandateData, PaymentsAuthorizeRequestData, RouterData},
     consts,
     core::errors,
     services,
@@ -609,12 +607,9 @@ impl TryFrom<NuveiPaymentRequestData> for NuveiPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(request: NuveiPaymentRequestData) -> Result<Self, Self::Error> {
         let session_token = request.session_token;
-        if session_token.is_empty() {
-            return Err(errors::ConnectorError::MissingRequiredField {
-                field_name: "session_token",
-            }
-            .into());
-        }
+        fp_utils::when(session_token.is_empty(), || {
+            Err(errors::ConnectorError::FailedToObtainAuthType)
+        })?;
         let connector_meta: NuveiAuthType = NuveiAuthType::try_from(&request.connector_auth_type)?;
         let merchant_id = connector_meta.merchant_id;
         let merchant_site_id = connector_meta.merchant_site_id;
@@ -695,51 +690,12 @@ pub struct NuveiPaymentRequestData {
     pub capture_method: Option<storage_models::enums::CaptureMethod>,
 }
 
-impl TryFrom<&types::PaymentsCaptureRouterData> for NuveiPaymentFlowRequest {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::PaymentsCaptureRouterData) -> Result<Self, Self::Error> {
-        Self::try_from(NuveiPaymentRequestData {
-            client_request_id: item.attempt_id.clone(),
-            connector_auth_type: item.connector_auth_type.clone(),
-            amount: item.request.amount.to_string(),
-            currency: item.request.currency.to_string(),
-            related_transaction_id: Some(item.request.connector_transaction_id.clone()),
-            ..Default::default()
-        })
-    }
-}
-impl TryFrom<&types::RefundExecuteRouterData> for NuveiPaymentFlowRequest {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::RefundExecuteRouterData) -> Result<Self, Self::Error> {
-        Self::try_from(NuveiPaymentRequestData {
-            client_request_id: item.attempt_id.clone(),
-            connector_auth_type: item.connector_auth_type.clone(),
-            amount: item.request.amount.to_string(),
-            currency: item.request.currency.to_string(),
-            related_transaction_id: Some(item.request.connector_transaction_id.clone()),
-            ..Default::default()
-        })
-    }
-}
 impl TryFrom<&types::PaymentsSyncRouterData> for NuveiPaymentSyncRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(value: &types::PaymentsSyncRouterData) -> Result<Self, Self::Error> {
         let meta: NuveiMeta = utils::to_connector_meta(value.request.connector_meta.clone())?;
         Ok(Self {
             session_token: meta.session_token,
-        })
-    }
-}
-impl TryFrom<&types::PaymentsCancelRouterData> for NuveiPaymentFlowRequest {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::PaymentsCancelRouterData) -> Result<Self, Self::Error> {
-        Self::try_from(NuveiPaymentRequestData {
-            client_request_id: item.attempt_id.clone(),
-            connector_auth_type: item.connector_auth_type.clone(),
-            amount: item.request.get_amount()?.to_string(),
-            currency: item.request.get_currency()?.to_string(),
-            related_transaction_id: Some(item.request.connector_transaction_id.clone()),
-            ..Default::default()
         })
     }
 }
