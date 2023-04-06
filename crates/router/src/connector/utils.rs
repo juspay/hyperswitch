@@ -139,6 +139,7 @@ pub trait PaymentsAuthorizeRequestData {
     fn get_browser_info(&self) -> Result<types::BrowserInformation, Error>;
     fn get_card(&self) -> Result<api::Card, Error>;
     fn get_return_url(&self) -> Result<String, Error>;
+    fn is_mandate_payment(&self) -> bool;
 }
 
 impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
@@ -163,6 +164,14 @@ impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
         self.router_return_url
             .clone()
             .ok_or_else(missing_field_err("return_url"))
+    }
+    fn is_mandate_payment(&self) -> bool {
+        self.setup_mandate_details.is_some()
+            || self
+                .mandate_id
+                .as_ref()
+                .and_then(|mandate_ids| mandate_ids.connector_mandate_id.as_ref())
+                .is_some()
     }
 }
 

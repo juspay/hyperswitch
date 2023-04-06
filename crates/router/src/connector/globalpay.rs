@@ -887,8 +887,7 @@ impl services::ConnectorRedirectResponse for Globalpay {
         Ok(query.status.map_or(
             payments::CallConnectorAction::Trigger,
             |status| match status {
-                response::GlobalpayPaymentStatus::Captured
-                | response::GlobalpayPaymentStatus::Declined => {
+                response::GlobalpayPaymentStatus::Captured => {
                     payments::CallConnectorAction::StatusUpdate(
                         storage_models::enums::AttemptStatus::from(status),
                     )

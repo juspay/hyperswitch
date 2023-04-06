@@ -12,7 +12,7 @@ use super::{
     response::{GlobalpayPaymentStatus, GlobalpayPaymentsResponse, GlobalpayRefreshTokenResponse},
 };
 use crate::{
-    connector::utils::{self, RouterData, WalletData},
+    connector::utils::{self, PaymentsAuthorizeRequestData, RouterData, WalletData},
     consts,
     core::errors,
     services::{self, RedirectForm},
@@ -332,12 +332,12 @@ fn get_payment_method_data(
     item: &types::PaymentsAuthorizeRouterData,
     brand_reference: Option<String>,
 ) -> Result<PaymentMethodData, error_stack::Report<errors::ConnectorError>> {
-    match item.request.payment_method_data.clone() {
+    match &item.request.payment_method_data {
         api::PaymentMethodData::Card(ccard) => Ok(PaymentMethodData::Card(requests::Card {
-            number: ccard.card_number,
-            expiry_month: ccard.card_exp_month,
-            expiry_year: ccard.card_exp_year,
-            cvv: ccard.card_cvc,
+            number: ccard.card_number.clone(),
+            expiry_month: ccard.card_exp_month.clone(),
+            expiry_year: ccard.card_exp_year.clone(),
+            cvv: ccard.card_cvc.clone(),
             account_type: None,
             authcode: None,
             avs_address: None,
@@ -349,9 +349,9 @@ fn get_payment_method_data(
             tag: None,
             track: None,
         })),
-        api::PaymentMethodData::Wallet(wallet_data) => get_wallet_data(&wallet_data),
+        api::PaymentMethodData::Wallet(wallet_data) => get_wallet_data(wallet_data),
         api::PaymentMethodData::BankRedirect(bank_redirect) => {
-            get_bank_redirect_data(&bank_redirect)
+            get_bank_redirect_data(bank_redirect)
         }
         _ => Err(errors::ConnectorError::NotImplemented(
             "Payment methods".to_string(),
@@ -372,12 +372,12 @@ type MandateDetails = (Option<Initiator>, Option<StoredCredential>, Option<Strin
 fn get_mandate_details(
     item: &types::PaymentsAuthorizeRouterData,
 ) -> Result<MandateDetails, error_stack::Report<errors::ConnectorError>> {
-    let connector_mandate_id = item
-        .request
-        .mandate_id
-        .as_ref()
-        .and_then(|mandate_ids| mandate_ids.connector_mandate_id.clone());
-    Ok(if is_mandate_payment(item, connector_mandate_id.as_ref()) {
+    Ok(if item.request.is_mandate_payment() {
+        let connector_mandate_id = item
+            .request
+            .mandate_id
+            .as_ref()
+            .and_then(|mandate_ids| mandate_ids.connector_mandate_id.clone());
         (
             Some(match item.request.off_session {
                 Some(true) => Initiator::Merchant,
@@ -395,13 +395,6 @@ fn get_mandate_details(
     } else {
         (None, None, None)
     })
-}
-
-fn is_mandate_payment(
-    item: &types::PaymentsAuthorizeRouterData,
-    connector_mandate_id: Option<&String>,
-) -> bool {
-    item.request.setup_mandate_details.is_some() || connector_mandate_id.is_some()
 }
 
 fn get_wallet_data(
