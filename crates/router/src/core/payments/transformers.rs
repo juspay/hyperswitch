@@ -278,6 +278,15 @@ where
                 let routed_through = payment_attempt
                     .get_routed_through_connector()
                     .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
+                let connector_label = routed_through.as_ref().map(|connector_name| {
+                    helpers::get_connector_label(
+                        payment_intent.business_country,
+                        &payment_intent.business_label,
+                        payment_attempt.business_sub_label.as_ref(),
+                        connector_name,
+                    )
+                });
                 services::ApplicationResponse::Json(
                     response
                         .set_payment_id(Some(payment_attempt.payment_id))
@@ -355,6 +364,7 @@ where
                                 .map(ForeignInto::foreign_into),
                         )
                         .set_metadata(payment_intent.metadata)
+                        .set_connector_label(connector_label)
                         .to_owned(),
                 )
             }

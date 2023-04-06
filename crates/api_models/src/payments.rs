@@ -943,6 +943,10 @@ pub struct PaymentsResponse {
     /// Payment Method Type
     #[schema(value_type = Option<PaymentMethodType>, example = "gpay")]
     pub payment_method_type: Option<api_enums::PaymentMethodType>,
+
+    /// The connector used for this payment along with the country and business details
+    #[schema(example = "stripe_US_food")]
+    pub connector_label: Option<String>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, ToSchema)]
