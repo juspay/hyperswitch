@@ -995,10 +995,7 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for AdyenCaptureRequest {
             reference: item.payment_id.to_string(),
             amount: Amount {
                 currency: item.request.currency.to_string(),
-                value: item
-                    .request
-                    .amount_to_capture
-                    .unwrap_or(item.request.amount),
+                value: item.request.amount_to_capture,
             },
         })
     }

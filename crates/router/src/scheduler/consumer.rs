@@ -35,22 +35,19 @@ pub fn valid_business_statuses() -> Vec<&'static str> {
 #[instrument(skip_all)]
 pub async fn start_consumer(
     state: &AppState,
-    options: sync::Arc<super::SchedulerOptions>,
     settings: sync::Arc<settings::SchedulerSettings>,
 ) -> CustomResult<(), errors::ProcessTrackerError> {
     use std::time::Duration;
 
     use rand::Rng;
 
-    let timeout = rand::thread_rng().gen_range(0..=options.looper_interval.milliseconds);
+    let timeout = rand::thread_rng().gen_range(0..=settings.loop_interval);
     tokio::time::sleep(Duration::from_millis(timeout)).await;
 
-    let mut interval =
-        tokio::time::interval(Duration::from_millis(options.looper_interval.milliseconds));
+    let mut interval = tokio::time::interval(Duration::from_millis(settings.loop_interval));
 
-    let mut shutdown_interval = tokio::time::interval(Duration::from_millis(
-        options.readiness.graceful_termination_duration.milliseconds,
-    ));
+    let mut shutdown_interval =
+        tokio::time::interval(Duration::from_millis(settings.graceful_shutdown_interval));
 
     let consumer_operation_counter = sync::Arc::new(atomic::AtomicU64::new(0));
     let signal = get_allowed_signals()
@@ -76,7 +73,6 @@ pub async fn start_consumer(
 
                 tokio::task::spawn(pt_utils::consumer_operation_handler(
                     state.clone(),
-                    options.clone(),
                     settings.clone(),
                     |err| {
                         logger::error!(%err);
@@ -111,7 +107,6 @@ pub async fn start_consumer(
 #[instrument(skip_all)]
 pub async fn consumer_operations(
     state: &AppState,
-    _options: &super::SchedulerOptions,
     settings: &settings::SchedulerSettings,
 ) -> CustomResult<(), errors::ProcessTrackerError> {
     let stream_name = settings.stream.clone();

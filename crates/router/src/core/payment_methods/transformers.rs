@@ -126,10 +126,6 @@ pub struct DeleteCardResponse {
     pub status: String,
 }
 
-pub fn basilisk_hs_key_id() -> &'static str {
-    "1"
-}
-
 pub fn get_dotted_jwe(jwe: encryption::JweBody) -> String {
     let header = jwe.header;
     let encryption_key = jwe.encrypted_key;
@@ -172,12 +168,17 @@ pub async fn get_decrypted_response_payload(
     let private_key = jwekey.vault_private_key.to_owned();
 
     let jwt = get_dotted_jwe(jwe_body);
-    let key_id = basilisk_hs_key_id();
     let alg = jwe::RSA_OAEP;
-    let jwe_decrypted = encryption::decrypt_jwe(&jwt, key_id, key_id, private_key, alg)
-        .await
-        .change_context(errors::VaultError::SaveCardFailed)
-        .attach_printable("Jwe Decryption failed for JweBody for vault")?;
+
+    let jwe_decrypted = encryption::decrypt_jwe(
+        &jwt,
+        encryption::KeyIdCheck::SkipKeyIdCheck,
+        private_key,
+        alg,
+    )
+    .await
+    .change_context(errors::VaultError::SaveCardFailed)
+    .attach_printable("Jwe Decryption failed for JweBody for vault")?;
 
     let jws = jwe_decrypted
         .parse_struct("JwsBody")
@@ -282,7 +283,7 @@ pub async fn mk_add_card_request_hs(
     #[cfg(not(feature = "kms"))]
     let private_key = jwekey.vault_private_key.to_owned();
 
-    let jws = encryption::jws_sign_payload(&payload, basilisk_hs_key_id(), private_key)
+    let jws = encryption::jws_sign_payload(&payload, &locker.locker_signing_key_id, private_key)
         .await
         .change_context(errors::VaultError::RequestEncodingFailed)?;
 
@@ -435,7 +436,7 @@ pub async fn mk_get_card_request_hs(
     #[cfg(not(feature = "kms"))]
     let private_key = jwekey.vault_private_key.to_owned();
 
-    let jws = encryption::jws_sign_payload(&payload, basilisk_hs_key_id(), private_key)
+    let jws = encryption::jws_sign_payload(&payload, &locker.locker_signing_key_id, private_key)
         .await
         .change_context(errors::VaultError::RequestEncodingFailed)?;
 
@@ -527,7 +528,7 @@ pub async fn mk_delete_card_request_hs(
     #[cfg(not(feature = "kms"))]
     let private_key = jwekey.vault_private_key.to_owned();
 
-    let jws = encryption::jws_sign_payload(&payload, basilisk_hs_key_id(), private_key)
+    let jws = encryption::jws_sign_payload(&payload, &locker.locker_signing_key_id, private_key)
         .await
         .change_context(errors::VaultError::RequestEncodingFailed)?;
 
