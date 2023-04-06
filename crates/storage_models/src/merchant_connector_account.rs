@@ -57,7 +57,6 @@ pub enum MerchantConnectorAccountUpdate {
     Update {
         merchant_id: Option<String>,
         connector_type: Option<storage_enums::ConnectorType>,
-        connector_name: Option<String>,
         connector_account_details: Option<Secret<serde_json::Value>>,
         test_mode: Option<bool>,
         disabled: Option<bool>,
@@ -71,7 +70,6 @@ pub enum MerchantConnectorAccountUpdate {
 pub struct MerchantConnectorAccountUpdateInternal {
     merchant_id: Option<String>,
     connector_type: Option<storage_enums::ConnectorType>,
-    connector_name: Option<String>,
     connector_account_details: Option<Secret<serde_json::Value>>,
     test_mode: Option<bool>,
     disabled: Option<bool>,
@@ -86,7 +84,6 @@ impl From<MerchantConnectorAccountUpdate> for MerchantConnectorAccountUpdateInte
             MerchantConnectorAccountUpdate::Update {
                 merchant_id,
                 connector_type,
-                connector_name,
                 connector_account_details,
                 test_mode,
                 disabled,
@@ -96,7 +93,6 @@ impl From<MerchantConnectorAccountUpdate> for MerchantConnectorAccountUpdateInte
             } => Self {
                 merchant_id,
                 connector_type,
-                connector_name,
                 connector_account_details,
                 test_mode,
                 disabled,

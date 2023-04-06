@@ -458,7 +458,6 @@ pub async fn update_payment_connector(
     let payment_connector = storage::MerchantConnectorAccountUpdate::Update {
         merchant_id: Some(merchant_id.to_string()),
         connector_type: Some(req.connector_type.foreign_into()),
-        connector_name: Some(req.connector_name),
         merchant_connector_id: Some(merchant_connector_id.to_string()),
         connector_account_details: req.connector_account_details,
         payment_methods_enabled,
