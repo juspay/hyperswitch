@@ -90,6 +90,8 @@ impl Default for super::settings::SchedulerSettings {
             stream: "SCHEDULER_STREAM".into(),
             producer: super::settings::ProducerSettings::default(),
             consumer: super::settings::ConsumerSettings::default(),
+            graceful_shutdown_interval: 60000,
+            loop_interval: 5000,
         }
     }
 }
