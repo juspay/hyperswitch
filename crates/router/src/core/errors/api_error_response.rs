@@ -162,8 +162,6 @@ pub enum ApiErrorResponse {
     InvalidCardIin,
     #[error(error_type = ErrorType::InvalidRequestError, code = "HE_04", message = "The provided card IIN length is invalid, please provide an iin with 6 or 8 digits")]
     InvalidCardIinLength,
-    #[error(error_type = ErrorType::InvalidRequestError, code = "HE_04", message = "Fields {fields} are not allowed to be updated")]
-    UpdateNotAllowed { fields: &'static str },
 }
 
 #[derive(Clone)]
@@ -228,8 +226,7 @@ impl actix_web::ResponseError for ApiErrorResponse {
             | Self::RefundNotPossible { .. }
             | Self::VerificationFailed { .. }
             | Self::PaymentUnexpectedState { .. }
-            | Self::MandateValidationFailed { .. }
-            | Self::UpdateNotAllowed { .. } => StatusCode::BAD_REQUEST, // 400
+            | Self::MandateValidationFailed { .. } => StatusCode::BAD_REQUEST, // 400
 
             Self::InternalServerError => StatusCode::INTERNAL_SERVER_ERROR, // 500
             Self::DuplicateRefundRequest | Self::DuplicatePayment { .. } => StatusCode::BAD_REQUEST, // 400
@@ -447,9 +444,6 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
             Self::FlowNotSupported { flow, connector } => {
                 AER::BadRequest(ApiError::new("IR", 20, format!("{flow} flow not supported"), Some(Extra {connector: Some(connector.to_owned()), ..Default::default()}))) //FIXME: error message
             },
-            Self::UpdateNotAllowed { fields } => {
-                AER::BadRequest(ApiError::new("IR", 21, "The following fields cannot be updated".to_string(), Some(Extra {reason: Some(fields.to_string()), ..Default::default()})))
-            }
         }
     }
 }
