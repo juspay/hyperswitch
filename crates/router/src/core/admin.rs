@@ -1,6 +1,7 @@
 use api_models::admin::PrimaryBusinessDetails;
 use common_utils::ext_traits::ValueExt;
 use error_stack::{report, FutureExt, IntoReport, ResultExt};
+use masking::ExposeInterface;
 use storage_models::{enums, merchant_account};
 use uuid::Uuid;
 
@@ -87,11 +88,14 @@ pub async fn create_merchant_account(
         })
         .transpose()?;
 
-    let primary_business_details =
-        utils::Encode::<PrimaryBusinessDetails>::encode_to_value(&req.primary_business_details)
-            .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "default business details",
-            })?;
+    let primary_business_details = req.primary_business_details.expose();
+
+    let _valid_business_details: PrimaryBusinessDetails = primary_business_details
+        .clone()
+        .parse_value("primary_business_details")
+        .change_context(errors::ApiErrorResponse::InvalidDataValue {
+            field_name: "primary_business_details",
+        })?;
 
     if let Some(ref routing_algorithm) = req.routing_algorithm {
         let _: api::RoutingAlgorithm = routing_algorithm

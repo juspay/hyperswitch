@@ -69,7 +69,7 @@ pub struct MerchantAccountCreate {
 
     ///Default business details for connector routing
     #[schema(value_type = PrimaryBusinessDetails)]
-    pub primary_business_details: PrimaryBusinessDetails,
+    pub primary_business_details: pii::SecretSerdeValue,
 }
 
 #[derive(Clone, Debug, Deserialize, ToSchema)]
@@ -195,7 +195,7 @@ pub struct MerchantAccountResponse {
     pub locker_id: Option<String>,
     ///Default business details for connector routing
     #[schema(value_type = Option<PrimaryBusinessDetails>)]
-    pub primary_business_details: serde_json::Value,
+    pub primary_business_details: pii::SecretSerdeValue,
 }
 
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
