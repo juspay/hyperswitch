@@ -108,7 +108,7 @@ async fn should_partially_capture_authorized_payment() {
             txn_id,
             Some(types::PaymentsCaptureData {
                 connector_meta,
-                amount_to_capture: Some(50),
+                amount_to_capture: 50,
                 ..utils::PaymentCaptureType::default().0
             }),
             get_default_payment_info(),

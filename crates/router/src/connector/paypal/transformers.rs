@@ -366,7 +366,7 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for PaypalPaymentsCaptureRequest
     fn try_from(item: &types::PaymentsCaptureRouterData) -> Result<Self, Self::Error> {
         let amount = OrderAmount {
             currency_code: item.request.currency,
-            value: item.request.amount.to_string(),
+            value: item.request.amount_to_capture.to_string(),
         };
         Ok(Self {
             amount,
@@ -437,7 +437,7 @@ impl TryFrom<types::PaymentsCaptureResponseRouterData<PaymentCaptureResponse>>
                     psync_flow: PaypalPaymentIntent::Capture
                 })),
             }),
-            amount_captured,
+            amount_captured: Some(amount_captured),
             ..item.data
         })
     }

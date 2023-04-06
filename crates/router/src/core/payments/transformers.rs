@@ -559,13 +559,17 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCaptureD
             _ => Err(errors::ApiErrorResponse::ResourceIdNotFound)?,
         };
 
+        let amount_to_capture: i64 = payment_data
+            .payment_attempt
+            .amount_to_capture
+            .map_or(payment_data.amount.into(), |capture_amount| capture_amount);
         Ok(Self {
-            amount_to_capture: payment_data.payment_attempt.amount_to_capture,
+            amount_to_capture,
             currency: payment_data.currency,
             connector_transaction_id: connectors
                 .connector_transaction_id(payment_data.payment_attempt.clone())?
                 .ok_or(errors::ApiErrorResponse::ResourceIdNotFound)?,
-            amount: payment_data.amount.into(),
+            payment_amount: payment_data.amount.into(),
             connector_meta: payment_data.payment_attempt.connector_metadata,
         })
     }
