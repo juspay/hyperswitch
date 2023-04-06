@@ -146,7 +146,7 @@ impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
         match self.capture_method {
             Some(storage_models::enums::CaptureMethod::Automatic) | None => Ok(true),
             Some(storage_models::enums::CaptureMethod::Manual) => Ok(false),
-            Some(_) => Err(errors::ConnectorError::CaptureMethodNotSupported.into())
+            Some(_) => Err(errors::ConnectorError::CaptureMethodNotSupported.into()),
         }
     }
     fn get_email(&self) -> Result<Secret<String, Email>, Error> {
@@ -179,7 +179,7 @@ impl PaymentsCompleteAuthorizeRequestData for types::CompleteAuthorizeData {
         match self.capture_method {
             Some(storage_models::enums::CaptureMethod::Automatic) | None => Ok(true),
             Some(storage_models::enums::CaptureMethod::Manual) => Ok(false),
-            Some(_) => Err(errors::ConnectorError::CaptureMethodNotSupported.into())
+            Some(_) => Err(errors::ConnectorError::CaptureMethodNotSupported.into()),
         }
     }
 }
@@ -194,7 +194,7 @@ impl PaymentsSyncRequestData for types::PaymentsSyncData {
         match self.capture_method {
             Some(storage_models::enums::CaptureMethod::Automatic) | None => Ok(true),
             Some(storage_models::enums::CaptureMethod::Manual) => Ok(false),
-            Some(_) => Err(errors::ConnectorError::CaptureMethodNotSupported.into())
+            Some(_) => Err(errors::ConnectorError::CaptureMethodNotSupported.into()),
         }
     }
     fn get_connector_transaction_id(&self) -> CustomResult<String, errors::ValidationError> {
