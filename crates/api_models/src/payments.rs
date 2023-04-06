@@ -1415,6 +1415,13 @@ pub struct AmountInfo {
     pub amount: String,
 }
 
+#[derive(Debug, Clone, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ApplepayErrorResponse {
+    pub status_code: String,
+    pub status_message: String,
+}
+
 #[derive(Default, Debug, serde::Serialize, Clone, ToSchema)]
 pub struct PaymentsSessionResponse {
     /// The identifier for the payment

@@ -77,6 +77,7 @@ impl Feature<api::Session, types::PaymentsSessionData> for types::PaymentsSessio
 }
 
 fn mk_applepay_session_request(
+    state: &routes::AppState,
     router_data: &types::PaymentsSessionRouterData,
 ) -> RouterResult<(services::Request, payment_types::ApplepaySessionTokenData)> {
     let connector_metadata = router_data.connector_meta_data.clone();
@@ -116,9 +117,12 @@ fn mk_applepay_session_request(
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to encode ApplePay session request to a string of json")?;
 
+    let mut url = state.conf.connectors.applepay.base_url.to_owned();
+    url.push_str("paymentservices/paymentSession");
+
     let session_request = services::RequestBuilder::new()
         .method(services::Method::Post)
-        .url("https://apple-pay-gateway.apple.com/paymentservices/paymentSession")
+        .url(url.as_str())
         .headers(vec![(
             headers::CONTENT_TYPE.to_string(),
             "application/json".to_string(),
@@ -147,7 +151,8 @@ async fn create_applepay_session_token(
     router_data: &types::PaymentsSessionRouterData,
     connector: &api::ConnectorData,
 ) -> RouterResult<types::PaymentsSessionRouterData> {
-    let (applepay_session_request, applepay_metadata) = mk_applepay_session_request(router_data)?;
+    let (applepay_session_request, applepay_metadata) =
+        mk_applepay_session_request(state, router_data)?;
     let response = services::call_connector_api(state, applepay_session_request)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -158,8 +163,19 @@ async fn create_applepay_session_token(
             .parse_struct("ApplePaySessionResponse")
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to parse ApplePaySessionResponse struct"),
-        Err(err) => Err(report!(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable(format!("Failed with {} status code", err.status_code))),
+        Err(err) => {
+            let error_response: payment_types::ApplepayErrorResponse = err
+                .response
+                .parse_struct("ApplepayErrorResponse")
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to parse ApplepayErrorResponse struct")?;
+            Err(
+                report!(errors::ApiErrorResponse::InternalServerError).attach_printable(format!(
+                    "Failed with {} status code and the error response is {:?}",
+                    err.status_code, error_response
+                )),
+            )
+        }
     }?;
 
     let amount_info = payment_types::AmountInfo {
