@@ -771,9 +771,6 @@ impl From<AttemptStatus> for IntentStatus {
 #[derive(
     Clone,
     Debug,
-    Eq,
-    Hash,
-    PartialEq,
     serde::Deserialize,
     serde::Serialize,
     strum::Display,
@@ -792,9 +789,6 @@ pub enum FrmAction {
 #[derive(
     Clone,
     Debug,
-    Eq,
-    Hash,
-    PartialEq,
     serde::Deserialize,
     serde::Serialize,
     strum::Display,

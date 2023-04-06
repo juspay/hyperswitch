@@ -309,8 +309,12 @@ pub async fn create_payment_connector(
             field_name: "connector_account_details".to_string(),
             expected_format: "auth_type and api_key".to_string(),
         })?;
-    let frm_value: serde_json::Value = utils::Encode::<api_models::admin::FrmConfigs>::encode_to_value(&req.frm_configs).expect("Error encoding frm_configs to value");
-    
+    let configs_for_frm_value = req
+        .frm_configs
+        .ok_or_else(|| errors::ApiErrorResponse::ConfigNotFound)?;
+    let frm_value: serde_json::Value = utils::Encode::<api_models::admin::FrmConfigs>::encode_to_value(&configs_for_frm_value)
+        .change_context(errors::ApiErrorResponse::ConfigNotFound)?;
+
     let merchant_connector_account = storage::MerchantConnectorAccountNew {
         merchant_id: Some(merchant_id.to_string()),
         connector_type: Some(req.connector_type.foreign_into()),
@@ -421,7 +425,12 @@ pub async fn update_payment_connector(
             })
             .collect::<Vec<serde_json::Value>>()
     });
-    let frm_value: serde_json::Value = utils::Encode::<api::PaymentMethodsEnabled>::encode_to_value(&req.frm_configs).expect("Error encoding frm_configs to value");
+   let configs_for_frm_value = req
+        .frm_configs
+        .as_ref()
+        .ok_or_else(|| errors::ApiErrorResponse::ConfigNotFound)?;
+    let frm_value: serde_json::Value = utils::Encode::<api_models::admin::FrmConfigs>::encode_to_value(&configs_for_frm_value)
+        .change_context(errors::ApiErrorResponse::ConfigNotFound)?;
     let payment_connector = storage::MerchantConnectorAccountUpdate::Update {
         merchant_id: Some(merchant_id.to_string()),
         connector_type: Some(req.connector_type.foreign_into()),

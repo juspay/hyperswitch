@@ -324,18 +324,15 @@ impl ForeignTryFrom<storage::MerchantConnectorAccount> for api_models::admin::Me
                 .change_context(errors::ApiErrorResponse::InternalServerError)?,
             None => None,
         };
-    // let configs_for_frm_option = match merchant_ca.frm_configs {
-    //     Some(a) => Ok:(a),
-    //     None => Err(errors::ApplicationError::ConfigurationError.into()),
-    // }?;
-    let configs_for_frm_option = merchant_ca.frm_configs.ok_or_else(|| Err(errors::ApiErrorResponse::ConfigNotFound))?;
-    
-    let configs_for_frm : api_models::admin::FrmConfigs = configs_for_frm_option
+    let configs_for_frm_value = merchant_ca
+            .frm_configs
+            .ok_or_else(|| errors::ApiErrorResponse::ConfigNotFound)?;
+    let configs_for_frm : api_models::admin::FrmConfigs = configs_for_frm_value
         .clone()
         .parse_value("FrmConfigs")
         .change_context(errors::ApiErrorResponse::InvalidDataFormat {
             field_name: "frm_configs".to_string(),
-            expected_format: "frm_enabled_pms, frm_enabled_pm_types, frm_enabled_gateways, frm_action, and frm_preferred_flow_type".to_string(),
+            expected_format: "\"frm_configs\" : { \"frm_enabled_pms\" : [\"card\"], \"frm_enabled_pm_types\" : [\"credit\"], \"frm_enabled_gateways\" : [\"stripe\"], \"frm_action\": \"cancel_txn\", \"frm_preferred_flow_type\" : \"pre\" }".to_string(),
         })?;
 
         Ok(Self {
