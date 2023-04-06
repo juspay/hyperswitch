@@ -141,7 +141,7 @@ impl<T> TryFrom<&types::RouterData<T, types::CompleteAuthorizeData, types::Payme
                     card: Some(CardPayment::CardToken(card_token.id)),
                     currency: item.request.currency.to_string(),
                     description: item.description.clone(),
-                    captured: item.request.is_auto_capture(),
+                    captured: item.request.is_auto_capture()?,
                     payment_method: None,
                     flow: None,
                 })))
@@ -155,7 +155,7 @@ fn get_card_payment_request<T>(
     item: &types::RouterData<T, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
     card: &api_models::payments::Card,
 ) -> Result<Shift4PaymentsRequest, Error> {
-    let submit_for_settlement = item.request.is_auto_capture();
+    let submit_for_settlement = item.request.is_auto_capture()?;
     let card = Card {
         number: card.card_number.clone(),
         exp_month: card.card_exp_month.clone(),
@@ -194,7 +194,7 @@ fn get_bank_redirect_request<T>(
     item: &types::RouterData<T, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
     redirect_data: &payments::BankRedirectData,
 ) -> Result<Shift4PaymentsRequest, Error> {
-    let submit_for_settlement = item.request.is_auto_capture();
+    let submit_for_settlement = item.request.is_auto_capture()?;
     let method_type = PaymentMethodType::from(redirect_data);
     let billing = get_billing(item)?;
     let payment_method = Some(PaymentMethod {
