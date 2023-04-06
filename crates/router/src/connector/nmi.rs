@@ -10,10 +10,7 @@ use self::transformers::NmiCaptureRequest;
 use crate::{
     configs::settings,
     connector::nmi::transformers::{get_query_info, get_refund_status},
-    core::{
-        errors::{self, CustomResult},
-        payments,
-    },
+    core::errors::{self, CustomResult},
     services::{self, ConnectorIntegration},
     types::{
         self,
@@ -587,16 +584,5 @@ impl api::IncomingWebhook for Nmi {
         _request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<serde_json::Value, errors::ConnectorError> {
         Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
-    }
-}
-
-impl services::ConnectorRedirectResponse for Nmi {
-    fn get_flow_type(
-        &self,
-        _query_params: &str,
-        _json_payload: Option<serde_json::Value>,
-        _action: services::PaymentAction,
-    ) -> CustomResult<payments::CallConnectorAction, errors::ConnectorError> {
-        Ok(payments::CallConnectorAction::Trigger)
     }
 }

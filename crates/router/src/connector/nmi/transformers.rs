@@ -82,7 +82,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for NmiPaymentsRequest {
                     card,
                     "".to_string(),
                 );
-                let expiry_date: Secret<String> = Secret::new(value);
+                let expiry_date: Secret<String> = value;
                 Ok(Self {
                     transaction_type,
                     security_key: auth_type.api_key,
@@ -139,7 +139,7 @@ impl TryFrom<&types::VerifyRouterData> for NmiPaymentsRequest {
                     card,
                     "".to_string(),
                 );
-                let expiry_date: Secret<String> = Secret::new(value);
+                let expiry_date: Secret<String> = value;
                 Ok(Self {
                     transaction_type,
                     security_key: security_key.api_key,
