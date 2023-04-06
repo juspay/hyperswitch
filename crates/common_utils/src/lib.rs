@@ -18,12 +18,13 @@ pub mod date_time {
     use std::num::NonZeroU8;
 
     #[cfg(feature = "async_ext")]
+    use time::Instant;
     use time::{
         format_description::{
             well_known::iso8601::{Config, EncodedConfig, Iso8601, TimePrecision},
             FormatItem,
         },
-        Instant, OffsetDateTime, PrimitiveDateTime,
+        OffsetDateTime, PrimitiveDateTime,
     };
     /// Struct to represent milliseconds in time sensitive data fields
     #[derive(Debug)]
