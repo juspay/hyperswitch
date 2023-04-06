@@ -71,7 +71,7 @@ jobs:
           #- fiserv
           - worldline
           #- multisafepay
-          - dlocal
+          #- dlocal
           #- bambora
           #- nuvei
 
