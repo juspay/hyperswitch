@@ -61,6 +61,7 @@ impl AdyenTest {
         Some(types::PaymentsAuthorizeData {
             amount: 3500,
             currency: enums::Currency::USD,
+            customer_id: None,
             payment_method_data: types::api::PaymentMethodData::Card(types::api::Card {
                 card_number: Secret::new(card_number.to_string()),
                 card_exp_month: Secret::new(card_exp_month.to_string()),
