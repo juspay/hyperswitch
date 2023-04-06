@@ -324,9 +324,13 @@ impl ForeignTryFrom<storage::MerchantConnectorAccount> for api_models::admin::Me
                 .change_context(errors::ApiErrorResponse::InternalServerError)?,
             None => None,
         };
-    let configs_for_frm : api_models::admin::FrmConfigs = merchant_ca
-        .frm_configs
-        .expect("Error decoding frm_configs")
+    // let configs_for_frm_option = match merchant_ca.frm_configs {
+    //     Some(a) => Ok:(a),
+    //     None => Err(errors::ApplicationError::ConfigurationError.into()),
+    // }?;
+    let configs_for_frm_option = merchant_ca.frm_configs.ok_or_else(|| Err(errors::ApiErrorResponse::ConfigNotFound))?;
+    
+    let configs_for_frm : api_models::admin::FrmConfigs = configs_for_frm_option
         .clone()
         .parse_value("FrmConfigs")
         .change_context(errors::ApiErrorResponse::InvalidDataFormat {
