@@ -1,5 +1,6 @@
 use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods, Table};
 use router_env::{instrument, tracing};
+
 use super::generics;
 use crate::{
     errors,
@@ -14,7 +15,7 @@ use crate::{
 impl MerchantConnectorAccountNew {
     #[instrument(skip(conn))]
     pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<MerchantConnectorAccount> {
-         generics::generic_insert(conn, self).await
+        generics::generic_insert(conn, self).await
     }
 }
 

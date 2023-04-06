@@ -341,11 +341,11 @@ impl ForeignTryFrom<storage::MerchantConnectorAccount> for api_models::admin::Me
                 .change_context(errors::ApiErrorResponse::InternalServerError)?,
             None => None,
         };
-    let configs_for_frm_value = merchant_ca
+        let configs_for_frm_value = merchant_ca
             .frm_configs
             .ok_or_else(|| errors::ApiErrorResponse::ConfigNotFound)?;
-    let configs_for_frm : api_models::admin::FrmConfigs = configs_for_frm_value
-        .clone()
+        let configs_for_frm : api_models::admin::FrmConfigs = configs_for_frm_value
+        // .clone()
         .parse_value("FrmConfigs")
         .change_context(errors::ApiErrorResponse::InvalidDataFormat {
             field_name: "frm_configs".to_string(),
@@ -363,7 +363,7 @@ impl ForeignTryFrom<storage::MerchantConnectorAccount> for api_models::admin::Me
             disabled: merchant_ca.disabled,
             metadata: merchant_ca.metadata,
             payment_methods_enabled,
-            frm_configs : Some(configs_for_frm)
+            frm_configs: Some(configs_for_frm),
         })
     }
 }

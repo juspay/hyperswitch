@@ -839,7 +839,7 @@ pub enum DisputeStatus {
 pub enum FrmAction {
     CancelTxn,
     AutoRefund,
-    ManualReview
+    ManualReview,
 }
 
 #[derive(
@@ -856,5 +856,5 @@ pub enum FrmAction {
 #[serde(rename_all = "snake_case")]
 pub enum FrmPreferredFlowTypes {
     Pre,
-    Post
+    Post,
 }
