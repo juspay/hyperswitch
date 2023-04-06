@@ -408,7 +408,7 @@ pub trait MandateData {
     fn get_meta_data(&self) -> Result<pii::SecretSerdeValue, Error>;
 }
 
-impl MandateData for MandateAmountData {
+impl MandateData for payments::MandateAmountData {
     fn get_end_date(&self, format: date_time::DateFormat) -> Result<String, Error> {
         let date = self.end_date.ok_or_else(missing_field_err(
             "mandate_data.mandate_type.{multi_use|single_use}.end_date",
