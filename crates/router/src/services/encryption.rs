@@ -151,8 +151,8 @@ pub async fn decrypt_jwe(
 ) -> CustomResult<String, errors::EncryptionError> {
     if let KeyIdCheck::RequestResponseKeyId((req_key_id, resp_key_id)) = key_ids {
         utils::when(req_key_id.ne(resp_key_id), || {
-            Err(report!(errors::EncryptionError).attach_printable("Missing ciphertext blob"))
-                .attach_printable("key_id mismatch, Error authenticating response")
+            Err(report!(errors::EncryptionError)
+                .attach_printable("key_id mismatch, Error authenticating response"))
         })?;
     }
 
