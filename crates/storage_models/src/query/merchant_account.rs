@@ -4,9 +4,7 @@ use router_env::{instrument, tracing};
 use super::generics;
 use crate::{
     errors,
-    merchant_account::{
-        MerchantAccount, MerchantAccountNew, MerchantAccountUpdate, MerchantAccountUpdateInternal,
-    },
+    merchant_account::{MerchantAccount, MerchantAccountNew, MerchantAccountUpdateInternal},
     schema::merchant_account::dsl,
     PgPooledConn, StorageResult,
 };
@@ -23,12 +21,12 @@ impl MerchantAccount {
     pub async fn update(
         self,
         conn: &PgPooledConn,
-        merchant_account: MerchantAccountUpdate,
+        merchant_account: MerchantAccountUpdateInternal,
     ) -> StorageResult<Self> {
         match generics::generic_update_by_id::<<Self as HasTable>::Table, _, _, _>(
             conn,
             self.id,
-            MerchantAccountUpdateInternal::from(merchant_account),
+            merchant_account,
         )
         .await
         {
@@ -43,7 +41,7 @@ impl MerchantAccount {
     pub async fn update_with_specific_fields(
         conn: &PgPooledConn,
         merchant_id: &str,
-        merchant_account: MerchantAccountUpdate,
+        merchant_account: MerchantAccountUpdateInternal,
     ) -> StorageResult<Self> {
         generics::generic_update_with_unique_predicate_get_result::<
             <Self as HasTable>::Table,
@@ -53,7 +51,7 @@ impl MerchantAccount {
         >(
             conn,
             dsl::merchant_id.eq(merchant_id.to_owned()),
-            MerchantAccountUpdateInternal::from(merchant_account),
+            merchant_account,
         )
         .await
     }

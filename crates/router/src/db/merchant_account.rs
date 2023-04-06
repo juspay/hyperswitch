@@ -10,7 +10,7 @@ use crate::{
             behaviour::{Conversion, ReverseConversion},
             merchant_account,
         },
-        storage::{self, enums},
+        storage::{self},
     },
 };
 
@@ -82,20 +82,25 @@ impl MerchantAccountInterface for Store {
             storage::MerchantAccount::find_by_merchant_id(&conn, merchant_id)
                 .await
                 .map_err(Into::into)
-                .into_report()?
-                .convert()
-                .await
-                .change_context(errors::StorageError::DeserializationFailed)
+                .into_report()
         };
 
         #[cfg(not(feature = "accounts_cache"))]
         {
-            fetch_func().await
+            fetch_func()
+                .await?
+                .convert()
+                .await
+                .change_context(errors::StorageError::DeserializationFailed)
         }
 
         #[cfg(feature = "accounts_cache")]
         {
-            super::cache::get_or_populate_redis(self, merchant_id, fetch_func).await
+            super::cache::get_or_populate_redis(self, merchant_id, fetch_func)
+                .await?
+                .convert()
+                .await
+                .change_context(errors::StorageError::DeserializationFailed)
         }
     }
 
@@ -110,7 +115,7 @@ impl MerchantAccountInterface for Store {
             Conversion::convert(this)
                 .await
                 .change_context(errors::StorageError::DeserializationFailed)?
-                .update(&conn, merchant_account)
+                .update(&conn, merchant_account.into())
                 .await
                 .map_err(Into::into)
                 .into_report()
@@ -143,7 +148,7 @@ impl MerchantAccountInterface for Store {
             storage::MerchantAccount::update_with_specific_fields(
                 &conn,
                 merchant_id,
-                merchant_account,
+                merchant_account.into(),
             )
             .await
             .map_err(Into::into)
@@ -216,32 +221,15 @@ impl MerchantAccountInterface for MockDb {
         merchant_account: merchant_account::MerchantAccount,
     ) -> CustomResult<merchant_account::MerchantAccount, errors::StorageError> {
         let mut accounts = self.merchant_accounts.lock().await;
-        let account = storage::MerchantAccount {
-            #[allow(clippy::as_conversions)]
-            id: accounts.len() as i32,
-            merchant_id: merchant_account.merchant_id,
-            api_key: merchant_account.api_key,
-            return_url: merchant_account.return_url,
-            enable_payment_response_hash: merchant_account.enable_payment_response_hash,
-            payment_response_hash_key: merchant_account.payment_response_hash_key,
-            redirect_to_merchant_with_http_post: merchant_account
-                .redirect_to_merchant_with_http_post,
-            merchant_name: merchant_account.merchant_name,
-            merchant_details: merchant_account.merchant_details,
-            webhook_details: merchant_account.webhook_details,
-            routing_algorithm: merchant_account.routing_algorithm,
-            sub_merchants_enabled: merchant_account.sub_merchants_enabled,
-            parent_merchant_id: merchant_account.parent_merchant_id,
-            publishable_key: merchant_account.publishable_key,
-            storage_scheme: enums::MerchantStorageScheme::PostgresOnly,
-            locker_id: merchant_account.locker_id,
-            metadata: merchant_account.metadata,
-        };
+        let account = Conversion::convert(merchant_account)
+            .await
+            .change_context(errors::StorageError::SerializationFailed)?;
         accounts.push(account.clone());
+
         account
             .convert()
             .await
-            .change_context(errors::StorageError::DeserializationFailed)
+            .change_context(errors::StorageError::SerializationFailed)
     }
 
     #[allow(clippy::panic)]

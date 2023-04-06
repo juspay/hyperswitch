@@ -1,6 +1,10 @@
-use common_utils::ext_traits::ValueExt;
+use common_utils::{
+    crypto::{self, GcmAes256},
+    ext_traits::{AsyncExt, ValueExt},
+};
 use error_stack::{report, FutureExt, IntoReport, ResultExt};
-use storage_models::{enums, merchant_account};
+use masking::PeekInterface;
+use storage_models::enums;
 use uuid::Uuid;
 
 use crate::{
@@ -14,7 +18,10 @@ use crate::{
     services::api as service_api,
     types::{
         self, api,
-        domain::{self, merchant_account as merchant_domain},
+        domain::{
+            self, merchant_account as merchant_domain,
+            types::{get_key_and_algo, TypeEncryption},
+        },
         storage,
         transformers::ForeignInto,
     },
@@ -45,6 +52,11 @@ pub async fn create_merchant_account(
         ),
         expiration: api::ApiKeyExpiration::Never,
     };
+
+    let key = get_key_and_algo(db, req.merchant_id.clone())
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
     let api_key = match api_keys::create_api_key(
         db,
         &state.conf.api_keys,
@@ -89,9 +101,22 @@ pub async fn create_merchant_account(
 
     let merchant_account = merchant_domain::MerchantAccount {
         merchant_id: req.merchant_id,
-        merchant_name: req.merchant_name,
-        api_key: Some(api_key),
-        merchant_details,
+        merchant_name: req
+            .merchant_name
+            .async_map(|inner| crypto::Encryptable::encrypt(inner.into(), &key, GcmAes256 {}))
+            .await
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)?,
+        api_key: Some(
+            crypto::Encryptable::encrypt(api_key.peek().clone().into(), &key, GcmAes256 {})
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)?,
+        ),
+        merchant_details: merchant_details
+            .async_map(|inner| crypto::Encryptable::encrypt(inner.into(), &key, GcmAes256 {}))
+            .await
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)?,
         return_url: req.return_url.map(|a| a.to_string()),
         webhook_details,
         routing_algorithm: req.routing_algorithm,
@@ -147,6 +172,10 @@ pub async fn merchant_account_update(
     merchant_id: &String,
     req: api::MerchantAccountUpdate,
 ) -> RouterResponse<api::MerchantAccountResponse> {
+    let key = get_key_and_algo(db, merchant_id.clone())
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
     if &req.merchant_id != merchant_id {
         Err(report!(errors::ValidationError::IncorrectValueProvided {
             field_name: "parent_merchant_id"
@@ -170,12 +199,21 @@ pub async fn merchant_account_update(
     }
 
     let updated_merchant_account = storage::MerchantAccountUpdate::Update {
-        merchant_name: req.merchant_name,
+        merchant_name: req
+            .merchant_name
+            .async_map(|inner| crypto::Encryptable::encrypt(inner.into(), &key, GcmAes256 {}))
+            .await
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)?,
 
         merchant_details: req
             .merchant_details
             .as_ref()
             .map(utils::Encode::<api::MerchantDetails>::encode_to_value)
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)?
+            .async_map(|inner| crypto::Encryptable::encrypt(inner.into(), &key, GcmAes256 {}))
+            .await
             .transpose()
             .change_context(errors::ApiErrorResponse::InternalServerError)?,
 
@@ -517,7 +555,7 @@ pub async fn kv_for_merchant(
         (true, enums::MerchantStorageScheme::PostgresOnly) => {
             db.update_merchant(
                 merchant_account,
-                merchant_account::MerchantAccountUpdate::StorageSchemeUpdate {
+                storage::MerchantAccountUpdate::StorageSchemeUpdate {
                     storage_scheme: enums::MerchantStorageScheme::RedisKv,
                 },
             )
@@ -526,7 +564,7 @@ pub async fn kv_for_merchant(
         (false, enums::MerchantStorageScheme::RedisKv) => {
             db.update_merchant(
                 merchant_account,
-                merchant_account::MerchantAccountUpdate::StorageSchemeUpdate {
+                storage::MerchantAccountUpdate::StorageSchemeUpdate {
                     storage_scheme: enums::MerchantStorageScheme::PostgresOnly,
                 },
             )
