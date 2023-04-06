@@ -40,7 +40,7 @@ pub async fn retrieve_dispute(
         &req,
         dispute_id,
         disputes::retrieve_dispute,
-        &auth::ApiKeyAuth,
+        auth::auth_type(&auth::ApiKeyAuth, &auth::JWTAuth, req.headers()),
     )
     .await
 }
@@ -83,7 +83,7 @@ pub async fn retrieve_disputes_list(
         &req,
         payload,
         disputes::retrieve_disputes_list,
-        &auth::ApiKeyAuth,
+        auth::auth_type(&auth::ApiKeyAuth, &auth::JWTAuth, req.headers()),
     )
     .await
 }

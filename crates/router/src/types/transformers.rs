@@ -516,6 +516,7 @@ impl ForeignTryFrom<storage::Dispute> for api_models::disputes::DisputeResponse 
             currency: dispute.currency,
             dispute_stage: dispute.dispute_stage.foreign_into(),
             dispute_status: dispute.dispute_status.foreign_into(),
+            connector: dispute.connector,
             connector_status: dispute.connector_status,
             connector_dispute_id: dispute.connector_dispute_id,
             connector_reason: dispute.connector_reason,

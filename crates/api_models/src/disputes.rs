@@ -20,6 +20,8 @@ pub struct DisputeResponse {
     pub dispute_stage: DisputeStage,
     /// Status of the dispute
     pub dispute_status: DisputeStatus,
+    /// conector to which dispute is associated with
+    pub connector: String,
     /// Status of the dispute sent by connector
     pub connector_status: String,
     /// Dispute id sent by connector
