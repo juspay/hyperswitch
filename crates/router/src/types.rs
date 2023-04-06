@@ -405,9 +405,7 @@ impl ErrorResponse {
 impl TryFrom<Option<AccessToken>> for AccessTokenRequestData {
     type Error = errors::ApiErrorResponse;
     fn try_from(old_access_token: Option<AccessToken>) -> Result<Self, Self::Error> {
-        Ok(Self {
-            old_access_token,
-        })
+        Ok(Self { old_access_token })
     }
 }
 

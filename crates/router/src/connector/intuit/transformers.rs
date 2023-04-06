@@ -1,7 +1,6 @@
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils::PaymentsCaptureRequestData,
     core::errors,
     pii::{self, Secret},
     types::{self, api, storage::enums},
@@ -179,7 +178,7 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for IntuitPaymentsCaptureRequest
     type Error = Error;
     fn try_from(item: &types::PaymentsCaptureRouterData) -> Result<Self, Self::Error> {
         Ok(Self {
-            amount: item.request.get_amount_to_capture()?.to_string(),
+            amount: item.request.amount_to_capture.to_string(),
         })
     }
 }

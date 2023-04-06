@@ -194,17 +194,6 @@ impl PaymentsCancelRequestData for PaymentsCancelData {
     }
 }
 
-pub trait PaymentsCaptureRequestData {
-    fn get_amount_to_capture(&self) -> Result<i64, Error>;
-}
-
-impl PaymentsCaptureRequestData for types::PaymentsCaptureData {
-    fn get_amount_to_capture(&self) -> Result<i64, Error> {
-        self.amount_to_capture
-            .ok_or_else(missing_field_err("amount_to_capture"))
-    }
-}
-
 pub trait RefundsRequestData {
     fn get_connector_refund_id(&self) -> Result<String, Error>;
 }

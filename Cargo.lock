@@ -476,6 +476,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "async_once"
+version = "0.2.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2ce4f10ea3abcd6617873bae9f91d1c5332b4a778bd9ce34d0cd517474c1de82"
+
+[[package]]
 name = "atty"
 version = "0.2.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3461,6 +3467,7 @@ dependencies = [
  "api_models",
  "async-bb8-diesel",
  "async-trait",
+ "async_once",
  "awc",
  "base64 0.21.0",
  "bb8",
@@ -3483,6 +3490,7 @@ dependencies = [
  "http",
  "josekit",
  "jsonwebtoken",
+ "lazy_static",
  "literally",
  "masking",
  "maud",

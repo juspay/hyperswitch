@@ -15,8 +15,8 @@ use crate::{
         errors::{self, CustomResult},
         payments,
     },
-    headers, logger,
-    services::{self, ConnectorIntegration},
+    headers,
+    services::{self, request::ContentType, ConnectorIntegration},
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
@@ -226,8 +226,6 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
         let intuit_req =
             utils::Encode::<intuit::IntuitAuthUpdateRequest>::encode_to_string_of_json(&req_obj)
                 .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-
-        logger::debug!(intuit_access_token_request=?intuit_req);
         Ok(Some(intuit_req))
     }
 
@@ -242,9 +240,9 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
                 .headers(types::RefreshTokenType::get_headers(self, req, connectors)?)
                 .url(&types::RefreshTokenType::get_url(self, req, connectors)?)
                 .body(types::RefreshTokenType::get_request_body(self, req)?)
+                .content_type(ContentType::FormUrlEncoded)
                 .build(),
         );
-        logger::debug!(intuit_access_token_request=?req);
         Ok(req)
     }
     fn handle_response(

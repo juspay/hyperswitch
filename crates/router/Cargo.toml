@@ -30,6 +30,7 @@ actix-cors = "0.6.4"
 actix-rt = "2.8.0"
 actix-web = "4.3.1"
 async-bb8-diesel = { git = "https://github.com/juspay/async-bb8-diesel", rev = "9a71d142726dbc33f41c1fd935ddaa79841c7be5" }
+async_once = "0.2.6"
 async-trait = "0.1.66"
 base64 = "0.21.0"
 bb8 = "0.8"
@@ -49,6 +50,7 @@ hex = "0.4.3"
 http = "0.2.9"
 josekit = "0.8.2"
 jsonwebtoken = "8.2.0"
+lazy_static = "1.4.0"
 literally = "0.1.3"
 maud = { version = "0.24", features = ["actix-web"] }
 mimalloc = { version = "0.1", optional = true }
