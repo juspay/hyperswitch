@@ -249,8 +249,8 @@ pub enum RoutingAlgorithm {
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct PrimaryBusinessDetails {
-    pub country: api_enums::CountryCode,
-    pub business: String,
+    pub country: Vec<api_enums::CountryCode>,
+    pub business: Vec<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]

@@ -1298,12 +1298,13 @@ pub fn get_connector_label(
 /// Do lazy parsing of primary business details
 /// If both country and label are passed, no need to parse business details from merchant_account
 /// If any one is missing, get it from merchant_account
+/// If there is more than one label or country configured in merchant account, then
+/// passing business details for payment is mandatory to avoid ambiguity
 pub fn get_business_details(
     business_country: Option<api_enums::CountryCode>,
     business_label: Option<&String>,
     merchant_account: &storage_models::merchant_account::MerchantAccount,
-) -> Result<api_models::admin::PrimaryBusinessDetails, error_stack::Report<errors::ApiErrorResponse>>
-{
+) -> Result<(api_enums::CountryCode, String), error_stack::Report<errors::ApiErrorResponse>> {
     let (business_country, business_label) = match business_country.zip(business_label) {
         Some((business_country, business_label)) => {
             (business_country.to_owned(), business_label.to_owned())
@@ -1318,21 +1319,36 @@ pub fn get_business_details(
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("failed to parse primary business details")?;
 
-            (
-                business_country.unwrap_or(primary_business_details.country),
-                business_label
-                    .map(ToString::to_string)
-                    .unwrap_or(primary_business_details.business),
-            )
+            if primary_business_details.country.len() == 1
+                && primary_business_details.business.len() == 1
+            {
+                let primary_business_country = primary_business_details
+                    .country
+                    .first()
+                    .get_required_value("business_country")?
+                    .to_owned();
+
+                let primary_business_label = primary_business_details
+                    .business
+                    .first()
+                    .get_required_value("business_label")?
+                    .to_owned();
+
+                (
+                    business_country.unwrap_or(primary_business_country),
+                    business_label
+                        .map(ToString::to_string)
+                        .unwrap_or(primary_business_label),
+                )
+            } else {
+                Err(report!(errors::ApiErrorResponse::MissingRequiredField {
+                    field_name: "business_country, business_label"
+                }))?
+            }
         }
     };
 
-    let primary_business_detail = api_models::admin::PrimaryBusinessDetails {
-        country: business_country,
-        business: business_label,
-    };
-
-    Ok(primary_business_detail)
+    Ok((business_country, business_label))
 }
 
 #[inline]

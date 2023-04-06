@@ -150,6 +150,14 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         payment_intent.billing_address_id = billing_address.clone().map(|x| x.address_id);
         payment_intent.return_url = request.return_url.as_ref().map(|a| a.to_string());
 
+        payment_intent.business_country = request
+            .business_country
+            .unwrap_or(payment_intent.business_country);
+        payment_intent.business_label = request
+            .business_label
+            .clone()
+            .unwrap_or(payment_intent.business_label);
+
         let token = token.or_else(|| payment_attempt.payment_token.clone());
 
         if request.confirm.unwrap_or(false) {
@@ -414,6 +422,8 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
 
         let return_url = payment_data.payment_intent.return_url.clone();
         let setup_future_usage = payment_data.payment_intent.setup_future_usage;
+        let business_label = Some(payment_data.payment_intent.business_label.clone());
+        let business_country = Some(payment_data.payment_intent.business_country);
 
         payment_data.payment_intent = db
             .update_payment_intent(
@@ -427,6 +437,8 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
                     shipping_address_id: shipping_address,
                     billing_address_id: billing_address,
                     return_url,
+                    business_country,
+                    business_label,
                 },
                 storage_scheme,
             )

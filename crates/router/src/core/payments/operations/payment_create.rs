@@ -496,7 +496,7 @@ impl PaymentCreate {
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Encoding Metadata to value failed")?;
 
-        let primary_business_details = helpers::get_business_details(
+        let (business_country, business_label) = helpers::get_business_details(
             request.business_country,
             request.business_label.as_ref(),
             merchant_account,
@@ -521,8 +521,8 @@ impl PaymentCreate {
             statement_descriptor_name: request.statement_descriptor_name.clone(),
             statement_descriptor_suffix: request.statement_descriptor_suffix.clone(),
             metadata: metadata.map(masking::Secret::new),
-            business_country: primary_business_details.country,
-            business_label: primary_business_details.business,
+            business_country,
+            business_label,
             active_attempt_id,
             ..storage::PaymentIntentNew::default()
         })

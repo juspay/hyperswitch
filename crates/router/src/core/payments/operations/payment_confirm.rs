@@ -369,6 +369,8 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
         let customer_id = customer.map(|c| c.customer_id);
         let return_url = payment_data.payment_intent.return_url.clone();
         let setup_future_usage = payment_data.payment_intent.setup_future_usage;
+        let business_label = Some(payment_data.payment_intent.business_label.clone());
+        let business_country = Some(payment_data.payment_intent.business_country);
 
         payment_data.payment_intent = db
             .update_payment_intent(
@@ -382,6 +384,8 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
                     shipping_address_id: shipping_address,
                     billing_address_id: billing_address,
                     return_url,
+                    business_country,
+                    business_label,
                 },
                 storage_scheme,
             )
