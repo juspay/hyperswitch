@@ -484,8 +484,10 @@ pub async fn create_tokenize(
             let alg = jwe::RSA_OAEP_256;
             let decrypted_payload = services::decrypt_jwe(
                 &resp.payload,
-                get_key_id(&state.conf.jwekey),
-                &resp.key_id,
+                services::KeyIdCheck::RequestResponseKeyId((
+                    get_key_id(&state.conf.jwekey),
+                    &resp.key_id,
+                )),
                 private_key,
                 alg,
             )
@@ -557,8 +559,10 @@ pub async fn get_tokenized_data(
             let alg = jwe::RSA_OAEP_256;
             let decrypted_payload = services::decrypt_jwe(
                 &resp.payload,
-                get_key_id(&state.conf.jwekey),
-                &resp.key_id,
+                services::KeyIdCheck::RequestResponseKeyId((
+                    get_key_id(&state.conf.jwekey),
+                    &resp.key_id,
+                )),
                 private_key,
                 alg,
             )

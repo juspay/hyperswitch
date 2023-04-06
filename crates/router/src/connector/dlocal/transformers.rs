@@ -179,13 +179,9 @@ pub struct DlocalPaymentsCaptureRequest {
 impl TryFrom<&types::PaymentsCaptureRouterData> for DlocalPaymentsCaptureRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsCaptureRouterData) -> Result<Self, Self::Error> {
-        let amount_to_capture = match item.request.amount_to_capture {
-            Some(val) => val,
-            None => item.request.amount,
-        };
         Ok(Self {
             authorization_id: item.request.connector_transaction_id.clone(),
-            amount: amount_to_capture,
+            amount: item.request.amount_to_capture,
             currency: item.request.currency.to_string(),
             order_id: item.payment_id.clone(),
         })
