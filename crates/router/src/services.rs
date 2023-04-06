@@ -1,8 +1,6 @@
 pub mod api;
 pub mod authentication;
 pub mod encryption;
-#[cfg(feature = "kms")]
-pub mod kms;
 pub mod logger;
 
 use std::sync::{atomic, Arc};
@@ -111,9 +109,21 @@ impl Store {
         });
 
         Self {
-            master_pool: diesel_make_pg_pool(&config.master_database, test_transaction).await,
+            master_pool: diesel_make_pg_pool(
+                &config.master_database,
+                test_transaction,
+                #[cfg(feature = "kms")]
+                &config.kms,
+            )
+            .await,
             #[cfg(feature = "olap")]
-            replica_pool: diesel_make_pg_pool(&config.replica_database, test_transaction).await,
+            replica_pool: diesel_make_pg_pool(
+                &config.replica_database,
+                test_transaction,
+                #[cfg(feature = "kms")]
+                &config.kms,
+            )
+            .await,
             redis_conn,
             #[cfg(feature = "kv_store")]
             config: StoreConfig {

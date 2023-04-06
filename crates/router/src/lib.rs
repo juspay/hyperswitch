@@ -52,7 +52,6 @@ pub mod headers {
     pub const X_API_KEY: &str = "X-API-KEY";
     pub const X_API_VERSION: &str = "X-ApiVersion";
     pub const X_MERCHANT_ID: &str = "X-Merchant-Id";
-    pub const X_ROUTER: &str = "X-router";
     pub const X_LOGIN: &str = "X-Login";
     pub const X_TRANS_KEY: &str = "X-Trans-Key";
     pub const X_VERSION: &str = "X-Version";
@@ -121,6 +120,7 @@ pub fn mk_app(
     {
         server_app = server_app.service(routes::StripeApis::server(state.clone()));
     }
+    server_app = server_app.service(routes::Cards::server(state.clone()));
     server_app = server_app.service(routes::Health::server(state));
     server_app
 }
@@ -161,13 +161,10 @@ pub fn get_application_builder(
     let json_cfg = actix_web::web::JsonConfig::default()
         .limit(request_body_limit)
         .content_type_required(true)
-        .content_type(|mime| mime == mime::APPLICATION_JSON) // FIXME: This doesn't seem to be enforced.
         .error_handler(utils::error_parser::custom_json_error_handler);
 
     actix_web::App::new()
         .app_data(json_cfg)
-        .wrap(middleware::RequestId)
-        .wrap(router_env::tracing_actix_web::TracingLogger::default())
         .wrap(ErrorHandlers::new().handler(
             StatusCode::NOT_FOUND,
             errors::error_handlers::custom_error_handlers,
@@ -176,5 +173,8 @@ pub fn get_application_builder(
             StatusCode::METHOD_NOT_ALLOWED,
             errors::error_handlers::custom_error_handlers,
         ))
+        .wrap(middleware::default_response_headers())
         .wrap(cors::cors())
+        .wrap(middleware::RequestId)
+        .wrap(router_env::tracing_actix_web::TracingLogger::default())
 }

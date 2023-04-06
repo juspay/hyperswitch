@@ -18,7 +18,13 @@ pub struct StoreConfig {
 impl Store {
     pub async fn new(config: &crate::settings::Settings, test_transaction: bool) -> Self {
         Self {
-            master_pool: diesel_make_pg_pool(&config.master_database, test_transaction).await,
+            master_pool: diesel_make_pg_pool(
+                &config.master_database,
+                test_transaction,
+                #[cfg(feature = "kms")]
+                &config.kms,
+            )
+            .await,
             redis_conn: Arc::new(crate::connection::redis_connection(config).await),
             config: StoreConfig {
                 drainer_stream_name: config.drainer.stream_name.clone(),

@@ -1,10 +1,10 @@
 use common_utils::date_time;
 use error_stack::{report, IntoReport, ResultExt};
+#[cfg(feature = "kms")]
+use external_services::kms;
 use masking::{PeekInterface, StrongSecret};
 use router_env::{instrument, tracing};
 
-#[cfg(feature = "kms")]
-use crate::services::kms;
 use crate::{
     configs::settings,
     consts,
@@ -21,7 +21,7 @@ static HASH_KEY: tokio::sync::OnceCell<StrongSecret<[u8; PlaintextApiKey::HASH_K
 
 pub async fn get_hash_key(
     api_key_config: &settings::ApiKeys,
-    #[cfg(feature = "kms")] kms_config: &settings::Kms,
+    #[cfg(feature = "kms")] kms_config: &kms::KmsConfig,
 ) -> errors::RouterResult<&'static StrongSecret<[u8; PlaintextApiKey::HASH_KEY_LEN]>> {
     HASH_KEY
         .get_or_try_init(|| async {
@@ -119,7 +119,7 @@ impl PlaintextApiKey {
 pub async fn create_api_key(
     store: &dyn StorageInterface,
     api_key_config: &settings::ApiKeys,
-    #[cfg(feature = "kms")] kms_config: &settings::Kms,
+    #[cfg(feature = "kms")] kms_config: &kms::KmsConfig,
     api_key: api::CreateApiKeyRequest,
     merchant_id: String,
 ) -> RouterResponse<api::CreateApiKeyResponse> {

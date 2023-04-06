@@ -1,3 +1,97 @@
+# 0.5.4 (2023-04-04)
+
+## New Features
+
+* **request:**  add `RequestBuilder` method to attach default request headers (#826) (6f61f830)
+* **middleware:**  add middleware to attach default response headers (#824) (6d7b11a0)
+* **core:**  added multiple payment_attempt support for payment_intent (#439) (35d3e277)
+* **router:**  added incoming dispute webhooks flow (#769) (a733eafb)
+
+## Bug Fixes
+
+* **cards_info:**  add extra columns to cards_info struct (#813) (442bed0f)
+* **connector:**  [Mollie] remove unsupported implementation of Void flow from mollie connector (#808) (eee8304b)
+
+## Other Changes
+
+* **common_utils:**  put the signals module behind a feature flag (#814) (fb4ec431)
+* **core:**  replace string with enum for country (#735) (e18bfb2a)
+* **api_models:**  put the errors module behind a feature flag (#815) (f14f87a1)
+* **storage_models:**  delete client secret when status is succeeded, failed, cancelled (#724) (a05059b7)
+## Refactors
+
+* **drainer, router:**  KMS decrypt database password when `kms` feature is enabled (#733) (9d6e4ee3)
+
+# 0.5.3 (2023-03-29)
+
+## Documentation Changes
+
+* **rfc:**  add rfc template & first RFC (#806) (01a5e0a0)
+
+## New Features
+
+*  cards info api (#749) (b15b8f7b)
+* **connector:**  [Nuvei] add webhook support (#795) (20b4372b)
+
+## Bug Fixes
+
+* **compatibility:**  add last_payment_error in stripe payment response (#803) (97b95f0e)
+
+## Refactors
+
+* **api_models:**  enhance accepted countries/currencies types (#807) (f9ef3135)
+* **services:**   make AppState impl generic using AppStateInfo (#805) (642c3f3a)
+
+# 0.5.2 (2023-03-24)
+
+## Chores
+
+*  prepare for building production Docker images (#794) (6ddc30eb)
+
+## Bug Fixes
+
+* **connector:**  [Airwallex] Change Session Token to Init Payment (#798) (a3c00339)
+
+## Other Changes
+
+* **router:**  change MAX_ID_LENGTH to 64 (#792) (346bd954)
+
+## Refactors
+
+*  extract kms module to `external_services` crate (#793) (029e3894)
+
+# 0.5.1 (2023-03-21)
+
+## Documentation Changes
+
+* **try_local_system:**
+  *  add Ubuntu on WSL2 setup instructions (#767) (1d2166cf)
+  *  add API key creation step (#765) (4b268068)
+
+## New Features
+
+* **pm_list:**  handle client secret check (#759) (82344fc4)
+*  add in-memory cache support for config table (#751) (abedaae4)
+*  compile time optimization (#775) (5b5557b7)
+* **router:**
+  *  add support for stateful straight through routing (#752) (568bf01a)
+  *  adding metrics for tracking behavior throughout the `router` crate  (#768) (d302b286)
+* **router_env:**
+  *  making metric flow as a trait for extensibility (#797) (df699e2b)
+* **core:**  accept gateway credentials in the request body in payments and refunds (#766) (cb188f92)
+* **connector:**
+  *  Add support to provide connector_payment_meta for capture and void request (#770) (6c008ae6)
+  *  [Trustpay] add webhooks (payment and refund events) (#746) (853dfa16)
+
+## Bug Fixes
+
+*  process delete response from basilisk-v3 as plaintext instead of JWE (#791) (699ca4f)
+* **storage:**  add serialization for primitivedatetime for diesel structs (#764) (f27732a6)
+
+## Refactors
+
+*  get connection pool based on olap/oltp features (#743) (a392fb16)
+
 # 0.5.0 (2023-03-21)
 
 ## Build System / Dependencies

@@ -133,6 +133,7 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
         let req = Some(
             services::RequestBuilder::new()
                 .method(services::Method::Post)
+                .attach_default_headers()
                 .headers(types::RefreshTokenType::get_headers(self, req, connectors)?)
                 .url(&types::RefreshTokenType::get_url(self, req, connectors)?)
                 .body(types::RefreshTokenType::get_request_body(self, req)?)
@@ -172,14 +173,14 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
 
 impl
     ConnectorIntegration<
-        api::AuthorizeSessionToken,
-        types::AuthorizeSessionTokenData,
+        api::InitPayment,
+        types::PaymentsAuthorizeData,
         types::PaymentsResponseData,
     > for Airwallex
 {
     fn get_headers(
         &self,
-        req: &types::PaymentsAuthorizeSessionTokenRouterData,
+        req: &types::PaymentsInitRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
@@ -191,7 +192,7 @@ impl
 
     fn get_url(
         &self,
-        _req: &types::PaymentsAuthorizeSessionTokenRouterData,
+        _req: &types::PaymentsInitRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!(
@@ -203,7 +204,7 @@ impl
 
     fn get_request_body(
         &self,
-        req: &types::PaymentsAuthorizeSessionTokenRouterData,
+        req: &types::PaymentsInitRouterData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
         let req_obj = airwallex::AirwallexIntentRequest::try_from(req)?;
         let req =
@@ -214,46 +215,25 @@ impl
 
     fn build_request(
         &self,
-        req: &types::PaymentsAuthorizeSessionTokenRouterData,
+        req: &types::PaymentsInitRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         Ok(Some(
             services::RequestBuilder::new()
                 .method(services::Method::Post)
-                .url(&types::PaymentsPreAuthorizeType::get_url(
-                    self, req, connectors,
-                )?)
-                .headers(types::PaymentsPreAuthorizeType::get_headers(
-                    self, req, connectors,
-                )?)
-                .body(types::PaymentsPreAuthorizeType::get_request_body(
-                    self, req,
-                )?)
+                .url(&types::PaymentsInitType::get_url(self, req, connectors)?)
+                .attach_default_headers()
+                .headers(types::PaymentsInitType::get_headers(self, req, connectors)?)
+                .body(types::PaymentsInitType::get_request_body(self, req)?)
                 .build(),
         ))
     }
 
     fn handle_response(
         &self,
-        data: &RouterData<
-            api::AuthorizeSessionToken,
-            types::AuthorizeSessionTokenData,
-            types::PaymentsResponseData,
-        >,
+        data: &types::PaymentsInitRouterData,
         res: Response,
-    ) -> CustomResult<
-        RouterData<
-            api::AuthorizeSessionToken,
-            types::AuthorizeSessionTokenData,
-            types::PaymentsResponseData,
-        >,
-        errors::ConnectorError,
-    >
-    where
-        api::AuthorizeSessionToken: Clone,
-        types::AuthorizeSessionTokenData: Clone,
-        types::PaymentsResponseData: Clone,
-    {
+    ) -> CustomResult<types::PaymentsInitRouterData, errors::ConnectorError> {
         let response: airwallex::AirwallexPaymentsResponse = res
             .response
             .parse_struct("airwallex AirwallexPaymentsResponse")
@@ -289,17 +269,15 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     ) -> CustomResult<(), errors::ConnectorError> {
         let integ: Box<
             &(dyn ConnectorIntegration<
-                api::AuthorizeSessionToken,
-                types::AuthorizeSessionTokenData,
+                api::InitPayment,
+                types::PaymentsAuthorizeData,
                 types::PaymentsResponseData,
             > + Send
                   + Sync
                   + 'static),
         > = Box::new(&Self);
-        let authorize_data = &types::PaymentsAuthorizeSessionTokenRouterData::from((
-            &router_data,
-            types::AuthorizeSessionTokenData::from(&router_data),
-        ));
+        let authorize_data =
+            &types::PaymentsInitRouterData::from((&router_data, router_data.request.clone()));
         let resp = services::execute_connector_processing_step(
             app_state,
             integ,
@@ -360,6 +338,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
                 .url(&types::PaymentsAuthorizeType::get_url(
                     self, req, connectors,
                 )?)
+                .attach_default_headers()
                 .headers(types::PaymentsAuthorizeType::get_headers(
                     self, req, connectors,
                 )?)
@@ -438,6 +417,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
             services::RequestBuilder::new()
                 .method(services::Method::Get)
                 .url(&types::PaymentsSyncType::get_url(self, req, connectors)?)
+                .attach_default_headers()
                 .headers(types::PaymentsSyncType::get_headers(self, req, connectors)?)
                 .build(),
         ))
@@ -521,6 +501,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
             services::RequestBuilder::new()
                 .method(services::Method::Post)
                 .url(&types::PaymentsCaptureType::get_url(self, req, connectors)?)
+                .attach_default_headers()
                 .headers(types::PaymentsCaptureType::get_headers(
                     self, req, connectors,
                 )?)
@@ -634,6 +615,7 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
             services::RequestBuilder::new()
                 .method(services::Method::Post)
                 .url(&types::PaymentsVoidType::get_url(self, req, connectors)?)
+                .attach_default_headers()
                 .headers(types::PaymentsVoidType::get_headers(self, req, connectors)?)
                 .body(types::PaymentsVoidType::get_request_body(self, req)?)
                 .build(),
@@ -697,6 +679,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         let request = services::RequestBuilder::new()
             .method(services::Method::Post)
             .url(&types::RefundExecuteType::get_url(self, req, connectors)?)
+            .attach_default_headers()
             .headers(types::RefundExecuteType::get_headers(
                 self, req, connectors,
             )?)
@@ -769,6 +752,7 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
             services::RequestBuilder::new()
                 .method(services::Method::Get)
                 .url(&types::RefundSyncType::get_url(self, req, connectors)?)
+                .attach_default_headers()
                 .headers(types::RefundSyncType::get_headers(self, req, connectors)?)
                 .body(types::RefundSyncType::get_request_body(self, req)?)
                 .build(),
