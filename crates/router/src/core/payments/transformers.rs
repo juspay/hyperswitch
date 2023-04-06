@@ -365,6 +365,9 @@ where
                         )
                         .set_metadata(payment_intent.metadata)
                         .set_connector_label(connector_label)
+                        .set_business_country(payment_intent.business_country)
+                        .set_business_label(payment_intent.business_label)
+                        .set_business_sub_label(payment_attempt.business_sub_label)
                         .to_owned(),
                 )
             }

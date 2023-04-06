@@ -947,6 +947,15 @@ pub struct PaymentsResponse {
     /// The connector used for this payment along with the country and business details
     #[schema(example = "stripe_US_food")]
     pub connector_label: Option<String>,
+
+    /// The business country of merchant for this payment
+    pub business_country: api_enums::CountryCode,
+
+    /// The business label of merchant for this payment
+    pub business_label: String,
+
+    /// The business_sub_label for this payment
+    pub business_sub_label: Option<String>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, ToSchema)]
