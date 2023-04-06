@@ -158,6 +158,11 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             .clone()
             .unwrap_or(payment_intent.business_label);
 
+        payment_attempt.business_sub_label = request
+            .business_sub_label
+            .clone()
+            .or(payment_attempt.business_sub_label);
+
         let token = token.or_else(|| payment_attempt.payment_token.clone());
 
         if request.confirm.unwrap_or(false) {
@@ -377,6 +382,8 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to encode additional pm data")?;
 
+        let business_sub_label = payment_data.payment_attempt.business_sub_label.clone();
+
         let payment_method_type = payment_data.payment_attempt.payment_method_type.clone();
         let payment_experience = payment_data.payment_attempt.payment_experience.clone();
         payment_data.payment_attempt = db
@@ -392,6 +399,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
                     payment_method_data: additional_pm_data,
                     payment_experience,
                     payment_method_type,
+                    business_sub_label,
                 },
                 storage_scheme,
             )
