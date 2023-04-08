@@ -37,7 +37,7 @@ fn get_access_token() -> Option<AccessToken> {
             expires: key1.parse::<i64>().unwrap(),
             refresh_token: None,
             created_at: None,
-            skip_expiration: None,
+            refresh_token_epires: None,
         }),
         _ => None,
     }

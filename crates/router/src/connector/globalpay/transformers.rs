@@ -162,7 +162,7 @@ impl TryFrom<GlobalpayRefreshTokenResponse> for types::AccessToken {
             expires: item.seconds_to_expire,
             created_at: None,
             refresh_token: None,
-            skip_expiration: None,
+            refresh_token_epires: None,
         })
     }
 }
@@ -288,7 +288,7 @@ impl<F, T>
                 expires: item.response.seconds_to_expire,
                 created_at: None,
                 refresh_token: None,
-                skip_expiration: None,
+                refresh_token_epires: None,
             }),
             ..item.data
         })

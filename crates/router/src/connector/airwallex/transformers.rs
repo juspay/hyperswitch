@@ -156,7 +156,7 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, AirwallexAuthUpdateResponse, T, 
                 expires,
                 created_at: None,
                 refresh_token: None,
-                skip_expiration: None,
+                refresh_token_epires: None,
             }),
             ..item.data
         })

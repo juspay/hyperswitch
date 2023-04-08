@@ -241,11 +241,11 @@ pub struct AccessToken {
     pub expires: i64,
     // Token which has to be exchanged for new token
     pub refresh_token: Option<String>,
+    // Expiration time in seconds. eg: 3600 for 60 minutes
+    // This will be used as ttl in redis, So that expired token will be removed automatically
+    pub refresh_token_epires: Option<i64>,
     // Token created time in UNIX EPOCH timestamp
     pub created_at: Option<i64>,
-    // For some cases we should not expire the token based on expires as it will remove the token from the redis
-    // Instead skip_expiration should be set true which doesn't set any ttl while storing access token in the redis.
-    pub skip_expiration: Option<bool>,
 }
 
 #[derive(Debug, Clone)]
@@ -399,13 +399,6 @@ impl ErrorResponse {
             reason: None,
             status_code: http::StatusCode::INTERNAL_SERVER_ERROR.as_u16(),
         }
-    }
-}
-
-impl TryFrom<Option<AccessToken>> for AccessTokenRequestData {
-    type Error = errors::ApiErrorResponse;
-    fn try_from(old_access_token: Option<AccessToken>) -> Result<Self, Self::Error> {
-        Ok(Self { old_access_token })
     }
 }
 

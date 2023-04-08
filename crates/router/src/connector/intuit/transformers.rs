@@ -8,13 +8,13 @@ use crate::{
 
 type Error = error_stack::Report<errors::ConnectorError>;
 
-#[derive(Debug, Serialize, Eq, PartialEq)]
+#[derive(Debug, Serialize)]
 pub struct IntuitAuthUpdateRequest {
     grant_type: IntuitAuthGrantTypes,
     refresh_token: String,
 }
 
-#[derive(Debug, Serialize, Eq, PartialEq)]
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum IntuitAuthGrantTypes {
     RefreshToken,
@@ -23,24 +23,6 @@ pub enum IntuitAuthGrantTypes {
 impl TryFrom<&types::RefreshTokenRouterData> for IntuitAuthUpdateRequest {
     type Error = Error;
 
-    /// Creates IntuitAuthUpdateRequest from connector_auth_type or RefreshTokenRouterData
-    ///
-    /// As of now Hyperswitch doesn't provide complete support for OAuth flow.
-    /// However merchant can follow below two steps to configure a connector which supports OAuth flow
-    ///
-    /// 1. Creating refresh token at connector dashboard (for intuit: https://developer.intuit.com/app/developer/playground).
-    /// 2. Configure client id, client secret and authorized refresh token by creating/updating merchant_connector_account.
-    ///
-    /// For intuit refresh token is valid for 100 days, So credentials in merchant_connector_account is also valid for same number of days.
-    /// After that merchant has to follow above steps again to update merchant_connector_account with new refresh token.
-    ///
-    /// For intuit refresh_token will also be rotated, which requires update call in merchant_connector_account everytime when the refresh_token got rotated.
-    /// To avoid the merchant_connector_account updation, rotated refresh_token will always me maintained in redis as AccessToken.
-    /// Which means once AccessToken is created successfully, then updated refresh token can be found only in AccessToken. And refresh_token in merchant_connector_account becomes stale.
-    ///
-    /// Hence for this reason first access token will be generated from the refresh token configured in merchant_connector_account and further tokens will be generated from the refresh_token in AccessToken
-    ///
-    /// For more info about intuit OAuth: https://developer.intuit.com/app/developer/qbo/docs/develop/authentication-and-authorization/oauth-2.0
     fn try_from(item: &types::RefreshTokenRouterData) -> Result<Self, Self::Error> {
         let auth_type = IntuitAuthType::try_from(&item.connector_auth_type)?;
         let refresh_token = match &item.request.old_access_token {
@@ -57,12 +39,12 @@ impl TryFrom<&types::RefreshTokenRouterData> for IntuitAuthUpdateRequest {
     }
 }
 
-#[derive(Default, Debug, Clone, Deserialize, PartialEq)]
+#[derive(Debug, Deserialize)]
 pub struct IntuitAuthUpdateResponse {
-    access_token: String,
-    expires_in: i64,
-    refresh_token: String,
-    x_refresh_token_expires_in: i64,
+    pub access_token: String,
+    pub expires_in: i64,
+    pub refresh_token: String,
+    pub x_refresh_token_expires_in: i64,
 }
 
 pub struct IntuitAuthType {
@@ -102,14 +84,14 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, IntuitAuthUpdateResponse, T, typ
                 expires: item.response.expires_in,
                 refresh_token: Some(item.response.refresh_token),
                 created_at: Some(time::OffsetDateTime::now_utc().unix_timestamp()),
-                skip_expiration: Some(true),
+                refresh_token_epires: Some(item.response.x_refresh_token_expires_in),
             }),
             ..item.data
         })
     }
 }
 
-#[derive(Default, Debug, Serialize, Eq, PartialEq)]
+#[derive(Debug, Serialize)]
 pub struct IntuitPaymentsRequest {
     amount: String,
     currency: enums::Currency,
@@ -119,7 +101,7 @@ pub struct IntuitPaymentsRequest {
     capture: bool,
 }
 
-#[derive(Default, Debug, Serialize, Eq, PartialEq)]
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Card {
     number: Secret<String, pii::CardNumber>,
@@ -128,7 +110,7 @@ pub struct Card {
     cvc: Secret<String>,
 }
 
-#[derive(Default, Debug, Serialize, Eq, PartialEq)]
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct IntuitPaymentsRequestContext {
     //Flag that indicates if the charge was made from a mobile device.
@@ -142,10 +124,14 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for IntuitPaymentsRequest {
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         match item.request.payment_method_data {
             api::PaymentMethodData::Card(ref ccard) => {
-                let submit_for_settlement = matches!(
-                    item.request.capture_method,
-                    Some(enums::CaptureMethod::Automatic) | None
-                );
+                let submit_for_settlement = match item.request.capture_method {
+                    Some(enums::CaptureMethod::Automatic) => Ok(true),
+                    Some(enums::CaptureMethod::Manual) => Ok(false),
+                    _ => Err(errors::ConnectorError::FlowNotSupported {
+                        flow: item.request.capture_method.unwrap_or_default().to_string(),
+                        connector: "intuit".to_string(),
+                    }),
+                }?;
                 Ok(Self {
                     amount: item.request.amount.to_string(),
                     currency: item.request.currency,
@@ -168,7 +154,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for IntuitPaymentsRequest {
     }
 }
 
-#[derive(Default, Debug, Serialize, Eq, PartialEq)]
+#[derive(Default, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct IntuitPaymentsCaptureRequest {
     amount: String,
@@ -184,7 +170,7 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for IntuitPaymentsCaptureRequest
 }
 
 // PaymentsResponse
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Deserialize)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum IntuitPaymentStatus {
     Captured,
@@ -223,7 +209,7 @@ impl From<IntuitVoidStatus> for enums::AttemptStatus {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Deserialize)]
 pub struct IntuitPaymentsResponse {
     status: IntuitPaymentStatus,
     id: String,
@@ -250,7 +236,7 @@ impl<F, T>
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Deserialize)]
 pub struct IntuitVoidResponse {
     status: IntuitVoidStatus,
     id: String,
@@ -278,7 +264,7 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, IntuitVoidResponse, T, types::Pa
 
 // REFUND :
 // Type definition for RefundRequest
-#[derive(Default, Debug, Serialize)]
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct IntuitRefundRequest {
     amount: String,
@@ -294,7 +280,7 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for IntuitRefundRequest {
 }
 
 // Type definition for Refund Response
-#[derive(Debug, Clone, Default, Deserialize, PartialEq)]
+#[derive(Default, Debug, Deserialize)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum IntuitRefundStatus {
     Issued,
@@ -311,19 +297,19 @@ impl From<IntuitRefundStatus> for enums::RefundStatus {
     }
 }
 
-#[derive(Default, Debug, Clone, Deserialize)]
+#[derive(Debug, Deserialize)]
 pub struct RefundResponse {
     pub id: String,
     pub amount: String,
     pub status: IntuitRefundStatus,
 }
 
-impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
-    for types::RefundsRouterData<api::Execute>
+impl<T> TryFrom<types::RefundsResponseRouterData<T, RefundResponse>>
+    for types::RefundsRouterData<T>
 {
     type Error = Error;
     fn try_from(
-        item: types::RefundsResponseRouterData<api::Execute, RefundResponse>,
+        item: types::RefundsResponseRouterData<T, RefundResponse>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             response: Ok(types::RefundsResponseData {
@@ -335,35 +321,18 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
     }
 }
 
-impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
-    for types::RefundsRouterData<api::RSync>
-{
-    type Error = Error;
-    fn try_from(
-        item: types::RefundsResponseRouterData<api::RSync, RefundResponse>,
-    ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            response: Ok(types::RefundsResponseData {
-                connector_refund_id: item.response.id,
-                refund_status: enums::RefundStatus::from(item.response.status),
-            }),
-            ..item.data
-        })
-    }
-}
-
-#[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Deserialize)]
 pub struct IntuitErrorData {
     pub message: String,
     pub code: String,
 }
 
-#[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Deserialize)]
 pub struct IntuitErrorResponse {
     pub errors: Vec<IntuitErrorData>,
 }
 
-#[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Deserialize)]
 pub struct IntuitAuthErrorResponse {
     pub error: String,
 }

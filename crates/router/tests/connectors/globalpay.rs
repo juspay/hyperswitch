@@ -53,7 +53,7 @@ fn get_default_payment_info() -> Option<PaymentInfo> {
             expires: 18600,
             refresh_token: None,
             created_at: None,
-            skip_expiration: None,
+            refresh_token_epires: None,
         }),
         ..Default::default()
     })

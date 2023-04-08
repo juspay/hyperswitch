@@ -1,7 +1,7 @@
 use std::fmt::Debug;
 
 use common_utils::ext_traits::AsyncExt;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 
 use crate::{
     core::{
@@ -79,6 +79,20 @@ pub fn update_router_data_with_access_token_result<F, Req, Res>(
     }
 }
 
+/// Supports access token and refresh token flows
+///
+/// Access Token Flow:
+/// In access token flow, Once access token is generated it will be stored in redis.
+/// TTL for the access token will be set from 'expires' field in AccessToken. After
+/// expiration a new token has to be generated everytime.
+///
+/// Refresh Token Flow:
+/// This flow also involves access token. But the main difference is, to get a new access
+/// token refresh token has to be exchanged. Usually refresh token will have longer validity
+/// than access token. In Refresh token flow we use the refresh token expiry as TTL of
+/// AccessToken and this validity can be found in refresh_token_epires field of AccessToken.
+/// Eventhough the refresh token has longer validity, once access token got expired a new
+/// access token will be generated using AccessTokenAuth flow
 pub async fn add_access_token<
     F: Clone + 'static,
     Req: Debug + Clone + 'static,
@@ -104,14 +118,7 @@ pub async fn add_access_token<
         let res = match is_new_access_token_required(old_access_token.as_ref()) {
             true => {
                 let cloned_router_data = router_data.clone();
-                let refresh_token_request_data = types::AccessTokenRequestData::try_from(
-                    old_access_token.clone(),
-                )
-                .into_report()
-                .attach_printable(
-                    "Could not create access token request, invalid connector account credentials",
-                )?;
-
+                let refresh_token_request_data = types::AccessTokenRequestData { old_access_token };
                 let refresh_token_response_data: Result<types::AccessToken, types::ErrorResponse> =
                     Err(types::ErrorResponse::default());
                 let refresh_token_router_data =

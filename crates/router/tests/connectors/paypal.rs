@@ -41,7 +41,7 @@ fn get_access_token() -> Option<AccessToken> {
             expires: 18600,
             refresh_token: None,
             created_at: None,
-            skip_expiration: None,
+            refresh_token_epires: None,
         }),
         _ => None,
     }

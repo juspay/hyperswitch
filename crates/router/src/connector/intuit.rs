@@ -39,15 +39,10 @@ where
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
         let access_token = req
             .access_token
-            .clone()
+            .as_ref()
             .ok_or(errors::ConnectorError::FailedToObtainAuthType)?;
 
-        let auth_header = (
-            headers::AUTHORIZATION.to_string(),
-            format!("Bearer {}", access_token.token),
-        );
-
-        let mut headers = vec![
+        let headers = vec![
             (
                 headers::CONTENT_TYPE.to_string(),
                 self.get_content_type().to_string(),
@@ -56,10 +51,13 @@ where
                 headers::ACCEPT.to_string(),
                 self.get_content_type().to_string(),
             ),
+            (
+                headers::AUTHORIZATION.to_string(),
+                format!("Bearer {}", access_token.token),
+            ),
             //Unique ID used by the connector to differentiate among the incoming operations which might look similar
             ("request-id".to_string(), Uuid::new_v4().to_string()),
         ];
-        headers.push(auth_header);
         Ok(headers)
     }
 }
@@ -85,17 +83,24 @@ impl ConnectorCommon for Intuit {
             .response
             .parse_struct("Intuit ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-
-        if let Some(error_resp) = response.errors.get(0) {
-            return Ok(ErrorResponse {
-                status_code: res.status_code,
-                code: error_resp.code.clone(),
-                message: error_resp.message.clone(),
-                reason: None,
-            });
+        let mut codes: Vec<String> = Vec::new();
+        let mut messages: Vec<String> = Vec::new();
+        for error in response.errors.iter() {
+            messages.push(error.message.clone());
+            codes.push(error.code.clone());
         }
-
-        Ok(ErrorResponse::default())
+        Ok(ErrorResponse {
+            code: match codes.is_empty() {
+                true => consts::NO_ERROR_CODE.to_string(),
+                false => codes.join("; "),
+            },
+            message: match messages.is_empty() {
+                true => consts::NO_ERROR_MESSAGE.to_string(),
+                false => messages.join("; "),
+            },
+            reason: None,
+            status_code: res.status_code,
+        })
     }
 }
 
@@ -127,9 +132,8 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
     ) -> CustomResult<String, errors::ConnectorError> {
         let connector_payment_id = req.request.connector_transaction_id.clone();
         Ok(format!(
-            "{}/quickbooks/v4/payments/txn-requests/{}/void",
-            self.base_url(connectors),
-            connector_payment_id
+            "{}/quickbooks/v4/payments/txn-requests/{connector_payment_id}/void",
+            self.base_url(connectors)
         ))
     }
 
@@ -159,7 +163,7 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
     ) -> CustomResult<types::PaymentsCancelRouterData, errors::ConnectorError> {
         let response: intuit::IntuitVoidResponse = res
             .response
-            .parse_struct("intuit VoidResponse")
+            .parse_struct("IntuitVoidResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         types::RouterData::try_from(types::ResponseRouterData {
             response,
@@ -179,6 +183,29 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
 
 impl api::ConnectorAccessToken for Intuit {}
 
+/// As of now Hyperswitch doesn't provide complete support for OAuth flow.
+/// However merchant can follow below two steps to configure a connector which supports OAuth flow
+///
+/// 1. Creating refresh token at connector dashboard
+/// (for intuit: https://developer.intuit.com/app/developer/playground).
+/// 2. Configure client id, client secret and authorized refresh token by creating/updating
+/// merchant_connector_account.
+///
+/// For intuit refresh token is valid for 100 days, So credentials in merchant_connector_account is also
+/// valid for same number of days. After that merchant has to follow above steps again to update
+/// merchant_connector_account with new refresh token.
+///
+/// For intuit refresh_token will also be rotated, which requires update call in merchant_connector_account
+/// everytime when the refresh_token got rotated. To avoid the merchant_connector_account updation, rotated
+/// refresh_token will always me maintained in redis as AccessToken. Which means once AccessToken is created
+/// successfully, then updated refresh token can be found only in AccessToken. And refresh_token in
+/// merchant_connector_account becomes stale.
+///
+/// Hence for this reason first access token will be generated from the refresh token configured in
+/// merchant_connector_account and further tokens will be generated from the refresh_token in AccessToken
+///
+/// For more info about intuit OAuth:
+/// https://developer.intuit.com/app/developer/qbo/docs/develop/authentication-and-authorization/oauth-2.0
 impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, types::AccessToken>
     for Intuit
 {
@@ -252,7 +279,7 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
     ) -> CustomResult<types::RefreshTokenRouterData, errors::ConnectorError> {
         let response: intuit::IntuitAuthUpdateResponse = res
             .response
-            .parse_struct("airwallex AirwallexAuthUpdateResponse")
+            .parse_struct("IntuitAuthTokenResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
         types::RouterData::try_from(types::ResponseRouterData {
@@ -269,11 +296,12 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         let response: intuit::IntuitAuthErrorResponse = res
             .response
-            .parse_struct("Intuit IntuitAuthErrorResponse")
+            .parse_struct("IntuitAuthTokenErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
         Ok(ErrorResponse {
             message: response.error,
+            status_code: res.status_code,
             ..Default::default()
         })
     }
@@ -306,9 +334,8 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
             .get_connector_transaction_id()
             .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
         Ok(format!(
-            "{}/quickbooks/v4/payments/charges/{}",
-            self.base_url(connectors),
-            connector_payment_id
+            "{}/quickbooks/v4/payments/charges/{connector_payment_id}",
+            self.base_url(connectors)
         ))
     }
 
@@ -333,7 +360,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
     ) -> CustomResult<types::PaymentsSyncRouterData, errors::ConnectorError> {
         let response: intuit::IntuitPaymentsResponse = res
             .response
-            .parse_struct("intuit PaymentsResponse")
+            .parse_struct("IntuitPaymentsSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         types::RouterData::try_from(types::ResponseRouterData {
             response,
@@ -374,9 +401,8 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
     ) -> CustomResult<String, errors::ConnectorError> {
         let connector_payment_id = req.request.connector_transaction_id.clone();
         Ok(format!(
-            "{}/quickbooks/v4/payments/charges/{}/capture",
-            self.base_url(connectors),
-            connector_payment_id
+            "{}/quickbooks/v4/payments/charges/{connector_payment_id}/capture",
+            self.base_url(connectors)
         ))
     }
 
@@ -416,7 +442,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
     ) -> CustomResult<types::PaymentsCaptureRouterData, errors::ConnectorError> {
         let response: intuit::IntuitPaymentsResponse = res
             .response
-            .parse_struct("Intuit PaymentsResponse")
+            .parse_struct("IntuitPaymentsCaptureResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         types::RouterData::try_from(types::ResponseRouterData {
             response,
@@ -507,7 +533,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
         let response: intuit::IntuitPaymentsResponse = res
             .response
-            .parse_struct("PaymentIntentResponse")
+            .parse_struct("IntuitsPaymentsResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         types::RouterData::try_from(types::ResponseRouterData {
             response,
@@ -549,9 +575,8 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
     ) -> CustomResult<String, errors::ConnectorError> {
         let connector_payment_id = req.request.connector_transaction_id.clone();
         Ok(format!(
-            "{}/quickbooks/v4/payments/charges/{}/refunds",
-            self.base_url(connectors),
-            connector_payment_id
+            "{}/quickbooks/v4/payments/charges/{connector_payment_id}/refunds",
+            self.base_url(connectors)
         ))
     }
 
@@ -587,10 +612,10 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         data: &types::RefundsRouterData<api::Execute>,
         res: Response,
     ) -> CustomResult<types::RefundsRouterData<api::Execute>, errors::ConnectorError> {
-        let response: intuit::RefundResponse =
-            res.response
-                .parse_struct("intuit RefundResponse")
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let response: intuit::RefundResponse = res
+            .response
+            .parse_struct("IntuitRefundResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -628,10 +653,8 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         let connector_payment_id = req.request.connector_transaction_id.clone();
         let connector_refund_id = req.request.get_connector_refund_id()?;
         Ok(format!(
-            "{}/quickbooks/v4/payments/charges/{}/refunds/{}",
+            "{}/quickbooks/v4/payments/charges/{connector_payment_id}/refunds/{connector_refund_id}",
             self.base_url(connectors),
-            connector_payment_id,
-            connector_refund_id
         ))
     }
 
@@ -655,10 +678,10 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         data: &types::RefundSyncRouterData,
         res: Response,
     ) -> CustomResult<types::RefundSyncRouterData, errors::ConnectorError> {
-        let response: intuit::RefundResponse =
-            res.response
-                .parse_struct("intuit RefundResponse")
-                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        let response: intuit::RefundResponse = res
+            .response
+            .parse_struct("IntuitRefundSyncResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),

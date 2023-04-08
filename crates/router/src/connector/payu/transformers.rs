@@ -293,7 +293,7 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, PayuAuthUpdateResponse, T, types
                 expires: item.response.expires_in,
                 created_at: None,
                 refresh_token: None,
-                skip_expiration: None,
+                refresh_token_epires: None,
             }),
             ..item.data
         })

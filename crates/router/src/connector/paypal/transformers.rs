@@ -152,7 +152,7 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, PaypalAuthUpdateResponse, T, typ
                 token: item.response.access_token,
                 expires: item.response.expires_in,
                 created_at: None,
-                skip_expiration: None,
+                refresh_token_epires: None,
                 refresh_token: None,
             }),
             ..item.data

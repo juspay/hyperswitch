@@ -56,8 +56,9 @@ api_key = "API Key"
 api_secret = "API Secret Key"
 
 [intuit]
-api_key = "Bearer Access Token"
-key1 = "Access token expires in"
+api_key = "Client Secret"
+key1 = "Client Id"
+api_secret = "Refresh token"
 
 [multisafepay]
 api_key = "API Key"
