@@ -5,10 +5,27 @@ use std::path::PathBuf;
 use serde::{Deserialize, Serialize};
 use strum::{Display, EnumString};
 
-/// Parent directory where `Cargo.toml` is stored.
-pub const CARGO_MANIFEST_DIR: &str = "CARGO_MANIFEST_DIR";
-/// Environment variable that sets Development/Sandbox/Production environment.
-pub const RUN_ENV: &str = "RUN_ENV";
+/// Environment variables accessed by the application. This module aims to be the source of truth
+/// containing all environment variable that the application accesses.
+pub mod vars {
+    /// Parent directory where `Cargo.toml` is stored.
+    pub const CARGO_MANIFEST_DIR: &str = "CARGO_MANIFEST_DIR";
+
+    /// Environment variable that sets Development/Sandbox/Production environment.
+    pub const RUN_ENV: &str = "RUN_ENV";
+
+    /// Directory of config TOML files. Default is `config`.
+    pub const CONFIG_DIR: &str = "CONFIG_DIR";
+
+    /// Environment variable that sets the log level.
+    pub const RUST_LOG: &str = "RUST_LOG";
+
+    /// Target to which the OpenTelemetry exporter is going to send signals.
+    pub const OTEL_EXPORTER_OTLP_ENDPOINT: &str = opentelemetry_otlp::OTEL_EXPORTER_OTLP_ENDPOINT;
+
+    /// Max waiting time for the OpenTelemetry backend to process each signal batch.
+    pub const OTEL_EXPORTER_OTLP_TIMEOUT: &str = opentelemetry_otlp::OTEL_EXPORTER_OTLP_TIMEOUT;
+}
 
 /// Current environment.
 #[derive(Debug, Default, Deserialize, Serialize, Clone, Copy, Display, EnumString)]
@@ -29,7 +46,7 @@ pub fn which() -> Env {
     #[cfg(not(debug_assertions))]
     let default_env = Env::Production;
 
-    std::env::var(RUN_ENV).map_or_else(|_| default_env, |v| v.parse().unwrap_or(default_env))
+    std::env::var(vars::RUN_ENV).map_or_else(|_| default_env, |v| v.parse().unwrap_or(default_env))
 }
 
 /// Three letter (lowercase) prefix corresponding to the current environment.
@@ -46,7 +63,7 @@ pub fn prefix_for_env() -> &'static str {
 /// It is recommended that this be used by the application as the base path to build other paths
 /// such as configuration and logs directories.
 pub fn workspace_path() -> PathBuf {
-    if let Ok(manifest_dir) = std::env::var(CARGO_MANIFEST_DIR) {
+    if let Ok(manifest_dir) = std::env::var(vars::CARGO_MANIFEST_DIR) {
         let mut path = PathBuf::from(manifest_dir);
         path.pop();
         path.pop();

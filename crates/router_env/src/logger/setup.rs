@@ -1,7 +1,6 @@
-//!
 //! Setup logging subsystem.
-//!
-use std::{path::PathBuf, time::Duration};
+
+use std::{str::FromStr, time::Duration};
 
 use once_cell::sync::Lazy;
 use opentelemetry::{
@@ -46,9 +45,23 @@ pub fn setup<Str: AsRef<str>>(
                 conf.telemetry.sampling_rate.unwrap_or(1.0),
             ))
             .with_resource(Resource::new(vec![KeyValue::new("service.name", "router")]));
+
+        let endpoint = std::env::var(crate::env::vars::OTEL_EXPORTER_OTLP_ENDPOINT).ok();
+        let timeout = std::env::var(crate::env::vars::OTEL_EXPORTER_OTLP_TIMEOUT)
+            .ok()
+            .and_then(|s| u64::from_str(&s).ok());
+
+        let mut exporter_builder = opentelemetry_otlp::new_exporter().tonic();
+        if let Some(endpoint) = endpoint {
+            exporter_builder = exporter_builder.with_endpoint(endpoint);
+        }
+        if let Some(timeout) = timeout {
+            exporter_builder = exporter_builder.with_timeout(Duration::from_secs(timeout));
+        }
+
         let tracer = opentelemetry_otlp::new_pipeline()
             .tracing()
-            .with_exporter(opentelemetry_otlp::new_exporter().tonic().with_env())
+            .with_exporter(exporter_builder)
             .with_trace_config(trace_config)
             .install_simple();
 
@@ -86,6 +99,7 @@ pub fn setup<Str: AsRef<str>>(
         .with(
             EnvFilter::builder()
                 .with_default_directive(Level::TRACE.into())
+                .with_env_var(crate::env::vars::RUST_LOG)
                 .from_env_lossy(),
         );
 
@@ -144,15 +158,26 @@ static HISTOGRAM_BUCKETS: Lazy<[f64; 15]> = Lazy::new(|| {
 });
 
 fn setup_metrics() -> Option<BasicController> {
+    let endpoint = std::env::var(crate::env::vars::OTEL_EXPORTER_OTLP_ENDPOINT).ok();
+    let timeout = std::env::var(crate::env::vars::OTEL_EXPORTER_OTLP_TIMEOUT)
+        .ok()
+        .and_then(|s| u64::from_str(&s).ok());
+
+    let mut exporter_builder = opentelemetry_otlp::new_exporter().tonic();
+    if let Some(endpoint) = endpoint {
+        exporter_builder = exporter_builder.with_endpoint(endpoint);
+    }
+    if let Some(timeout) = timeout {
+        exporter_builder = exporter_builder.with_timeout(Duration::from_secs(timeout));
+    }
+
     opentelemetry_otlp::new_pipeline()
         .metrics(
             simple::histogram(*HISTOGRAM_BUCKETS),
             cumulative_temporality_selector(),
             runtime::TokioCurrentThread,
         )
-        .with_exporter(
-            opentelemetry_otlp::new_exporter().tonic().with_env(), // can also config it using with_* functions like the tracing part above.
-        )
+        .with_exporter(exporter_builder)
         .with_period(Duration::from_secs(3))
         .with_timeout(Duration::from_secs(10))
         .build()

@@ -6,9 +6,6 @@ use std::path::PathBuf;
 
 use serde::Deserialize;
 
-/// Directory of config toml files. Default is config
-pub const CONFIG_DIR: &str = "CONFIG_DIR";
-
 /// Config settings.
 #[derive(Debug, Deserialize, Clone)]
 pub struct Config {
@@ -158,7 +155,8 @@ impl Config {
         if let Some(explicit_config_path_val) = explicit_config_path {
             config_path.push(explicit_config_path_val);
         } else {
-            let config_directory = std::env::var(CONFIG_DIR).unwrap_or_else(|_| "config".into());
+            let config_directory =
+                std::env::var(crate::env::vars::CONFIG_DIR).unwrap_or_else(|_| "config".into());
             let config_file_name = match environment {
                 "Production" => "Production.toml",
                 "Sandbox" => "Sandbox.toml",
