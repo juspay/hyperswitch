@@ -87,3 +87,39 @@ pub async fn retrieve_disputes_list(
     )
     .await
 }
+
+/// Diputes - Accept Dispute
+#[utoipa::path(
+    get,
+    path = "/disputes/accept/{dispute_id}",
+    params(
+        ("dispute_id" = String, Path, description = "The identifier for dispute")
+    ),
+    responses(
+        (status = 200, description = "The dispute was accepted successfully", body = DisputeResponse),
+        (status = 404, description = "Dispute does not exist in our records")
+    ),
+    tag = "Disputes",
+    operation_id = "Accept a Dispute",
+    security(("api_key" = []))
+)]
+#[instrument(skip_all, fields(flow = ?Flow::DisputesRetrieve))]
+pub async fn accept_dispute(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    path: web::Path<String>,
+) -> HttpResponse {
+    let flow = Flow::DisputesRetrieve;
+    let dispute_id = dispute_types::DisputeId {
+        dispute_id: path.into_inner(),
+    };
+    api::server_wrap(
+        flow,
+        state.get_ref(),
+        &req,
+        dispute_id,
+        disputes::accept_dispute,
+        auth::auth_type(&auth::ApiKeyAuth, &auth::JWTAuth, req.headers()),
+    )
+    .await
+}

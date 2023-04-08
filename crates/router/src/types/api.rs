@@ -90,7 +90,7 @@ pub trait ConnectorCommonExt<Flow, Req, Resp>:
 pub trait Router {}
 
 pub trait Connector:
-    Send + Refund + Payment + Debug + ConnectorRedirectResponse + IncomingWebhook + ConnectorAccessToken
+    Send + Refund + Payment + Debug + ConnectorRedirectResponse + IncomingWebhook + ConnectorAccessToken + Dispute
 {
 }
 
@@ -105,7 +105,8 @@ impl<
             + ConnectorRedirectResponse
             + Send
             + IncomingWebhook
-            + ConnectorAccessToken,
+            + ConnectorAccessToken
+            + Dispute,
     > Connector for T
 {
 }

@@ -1,4 +1,7 @@
+use api_models::disputes;
 use masking::{Deserialize, Serialize};
+
+use crate::services;
 
 #[derive(Default, Debug, Deserialize, Serialize)]
 pub struct DisputeId {
@@ -18,3 +21,19 @@ pub struct DisputePayload {
     pub created_at: Option<String>,
     pub updated_at: Option<String>,
 }
+
+#[derive(Default, Debug, Clone, Deserialize)]
+pub struct AcceptDisputeRequestData {
+    pub dispute_id: String,
+    pub connector_dispute_id: String,
+}
+
+#[derive(Debug, Clone)]
+pub struct Accept;
+
+pub trait AcceptDispute:
+    services::ConnectorIntegration<Accept, AcceptDisputeRequestData, disputes::AcceptDisputeResponse>
+{
+}
+
+pub trait Dispute: super::ConnectorCommon + AcceptDispute {}

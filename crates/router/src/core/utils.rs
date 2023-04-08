@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-use api_models::enums::{DisputeStage, DisputeStatus};
+use api_models::{enums::{DisputeStage, DisputeStatus}, disputes};
 use common_utils::errors::CustomResult;
 use error_stack::ResultExt;
 use router_env::{instrument, tracing};
@@ -12,7 +12,7 @@ use crate::{
     routes::AppState,
     types::{
         self,
-        storage::{self, enums},
+        storage::{self, enums}, api::AcceptDisputeRequestData, transformers::ForeignInto,
     },
     utils::{generate_id, OptionExt, ValueExt},
 };
@@ -212,4 +212,63 @@ pub fn validate_dispute_stage_and_dispute_status(
             Err(errors::WebhooksFlowError::DisputeWebhookValidationFailed)?
         },
     )
+}
+
+#[instrument(skip_all)]
+#[allow(clippy::too_many_arguments)]
+pub async fn construct_accept_dispute_router_data<'a>(
+    state: &'a AppState,
+    payment_intent: &'a storage::PaymentIntent,
+    payment_attempt: &storage::PaymentAttempt,
+    merchant_account: &storage::MerchantAccount,
+    dispute: &storage::Dispute,
+) -> RouterResult<types::AcceptDisputeRouterData> {
+    let db = &*state.store;
+    let connector_id = &dispute.connector;
+    let merchant_connector_account = helpers::get_merchant_connector_account(
+        db,
+        merchant_account.merchant_id.as_str(),
+        connector_id,
+        None,
+    )
+    .await?;
+    let auth_type: types::ConnectorAuthType = merchant_connector_account
+        .get_connector_account_details()
+        .parse_value("ConnectorAuthType")
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+    let payment_method_type = payment_attempt
+        .payment_method
+        .get_required_value("payment_method_type")?;
+    let router_data = types::RouterData {
+        flow: PhantomData,
+        merchant_id: merchant_account.merchant_id.clone(),
+        connector: connector_id.to_string(),
+        payment_id: payment_attempt.payment_id.clone(),
+        attempt_id: payment_attempt.attempt_id.clone(),
+        status: payment_attempt.status,
+        payment_method: payment_method_type,
+        connector_auth_type: auth_type,
+        description: None,
+        return_url: payment_intent.return_url.clone(),
+        payment_method_id: payment_attempt.payment_method_id.clone(),
+        address: PaymentAddress::default(),
+        auth_type: payment_attempt.authentication_type.unwrap_or_default(),
+        connector_meta_data: merchant_connector_account.get_metadata(),
+        amount_captured: payment_intent.amount_captured,
+        request: AcceptDisputeRequestData{
+            dispute_id: dispute.dispute_id.clone(),
+            connector_dispute_id: dispute.connector_dispute_id.clone(),
+        },
+        //TODO: Why do we need the response in request
+        response: Ok(disputes::AcceptDisputeResponse {
+            success: true,
+            dispute_stage: dispute.dispute_stage.foreign_into(),
+            dispute_status: dispute.dispute_status.foreign_into(),
+            reason: None,
+        }),
+        access_token: None,
+        session_token: None,
+        reference_id: None,
+    };
+    Ok(router_data)
 }

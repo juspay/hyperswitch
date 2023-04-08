@@ -133,3 +133,80 @@ default_imp_for_connector_redirect_response!(
     connector::Worldline,
     connector::Worldpay
 );
+
+macro_rules! default_imp_for_dispute{
+    ($($path:ident::$connector:ident),*)=> {
+        $(
+            impl api::Dispute for $path::$connector {}
+    )*
+    };
+}
+
+default_imp_for_dispute!(
+    connector::Aci,
+    connector::Adyen,
+    connector::Airwallex,
+    connector::Applepay,
+    connector::Authorizedotnet,
+    connector::Bambora,
+    connector::Bluesnap,
+    connector::Braintree,
+    connector::Checkout,
+    connector::Cybersource,
+    connector::Dlocal,
+    connector::Fiserv,
+    connector::Globalpay,
+    connector::Klarna,
+    connector::Mollie,
+    connector::Multisafepay,
+    connector::Nuvei,
+    connector::Payu,
+    connector::Rapyd,
+    connector::Shift4,
+    connector::Stripe,
+    connector::Trustpay,
+    connector::Worldline,
+    connector::Worldpay
+);
+
+macro_rules! default_imp_for_accept_dispute{
+    ($($path:ident::$connector:ident),*)=> {
+        $(
+            impl api::AcceptDispute for $path::$connector {}
+            impl
+                services::ConnectorIntegration<
+                api::Accept,
+                api::AcceptDisputeRequestData,
+                api_models::disputes::AcceptDisputeResponse,
+            > for $path::$connector
+            {}
+    )*
+    };
+}
+
+default_imp_for_accept_dispute!(
+    connector::Aci,
+    connector::Adyen,
+    connector::Airwallex,
+    connector::Applepay,
+    connector::Authorizedotnet,
+    connector::Bambora,
+    connector::Bluesnap,
+    connector::Braintree,
+    connector::Checkout,
+    connector::Cybersource,
+    connector::Dlocal,
+    connector::Fiserv,
+    connector::Globalpay,
+    connector::Klarna,
+    connector::Mollie,
+    connector::Multisafepay,
+    connector::Nuvei,
+    connector::Payu,
+    connector::Rapyd,
+    connector::Shift4,
+    connector::Stripe,
+    connector::Trustpay,
+    connector::Worldline,
+    connector::Worldpay
+);

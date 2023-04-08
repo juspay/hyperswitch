@@ -390,6 +390,7 @@ impl Disputes {
         web::scope("/disputes")
             .app_data(web::Data::new(state))
             .service(web::resource("/list").route(web::get().to(retrieve_disputes_list)))
+            .service(web::resource("/accept/{dispute_id}").route(web::post().to(accept_dispute)))
             .service(web::resource("/{dispute_id}").route(web::get().to(retrieve_dispute)))
     }
 }
