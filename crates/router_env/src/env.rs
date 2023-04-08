@@ -1,21 +1,16 @@
-//!
-//! Current environment related stuff.
-//!
+//! Information about the current environment.
 
 use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
 use strum::{Display, EnumString};
 
-/// Parent dir where Cargo.toml is stored
+/// Parent directory where `Cargo.toml` is stored.
 pub const CARGO_MANIFEST_DIR: &str = "CARGO_MANIFEST_DIR";
-/// Env variable that sets Development/Production env
+/// Environment variable that sets Development/Sandbox/Production environment.
 pub const RUN_ENV: &str = "RUN_ENV";
 
-///
 /// Current environment.
-///
-
 #[derive(Debug, Default, Deserialize, Serialize, Clone, Copy, Display, EnumString)]
 pub enum Env {
     /// Development environment.
@@ -47,32 +42,10 @@ pub fn prefix_for_env() -> &'static str {
     }
 }
 
-///
-/// Base path to look for config and logs directories.
-/// Application expects to find `./config/` and `./logs/` relative this directories.
-///
-/// Using workspace and splitting into monolith into crates introduce introduce extra level of complexity.
-/// We can't rely on current working directory anymore because there are several ways of running applications.
-///
-/// Developer can run application from root of repository:
-/// ```bash
-/// cargo run
-/// ```
-///
-/// Alternatively, developer can run from directory of crate:
-/// ```bash
-/// cd crates/router
-/// cargo run
-/// ```
-///
-/// Config and log files are located at root. No matter application is run it should work properly.
-/// `router_log::env::workspace_path` takes care of the problem returning path tho workspace relative which should other paths be calculated.
-///
-
+/// Path to the root directory of the cargo workspace.
+/// It is recommended that this be used by the application as the base path to build other paths
+/// such as configuration and logs directories.
 pub fn workspace_path() -> PathBuf {
-    // for (key, value) in std::env::vars() {
-    //     println!("{key} : {value}");
-    // }
     if let Ok(manifest_dir) = std::env::var(CARGO_MANIFEST_DIR) {
         let mut path = PathBuf::from(manifest_dir);
         path.pop();
@@ -105,10 +78,9 @@ macro_rules! version {
     };
 }
 
+/// A string uniquely identifying the application build.
 ///
-/// A string uniquely identify build of the service.
-///
-/// Consists of combination of
+/// Consists of a combination of:
 /// - Version defined in the crate file
 /// - Timestamp of commit
 /// - Hash of the commit
@@ -116,8 +88,6 @@ macro_rules! version {
 /// - Target triple
 ///
 /// Example: `0.1.0-f5f383e-2022-09-04T11:39:37Z-1.63.0-x86_64-unknown-linux-gnu`
-///
-
 #[cfg(feature = "vergen")]
 #[macro_export]
 macro_rules! build {
@@ -138,11 +108,9 @@ macro_rules! build {
     };
 }
 
+/// Short hash of the current commit.
 ///
-/// Full hash of the current commit.
-///
-/// Example: `f5f383ee7e36214d60ce3c6353b57db03ff0ceb1`.
-///
+/// Example: `f5f383e`.
 #[cfg(feature = "vergen")]
 #[macro_export]
 macro_rules! commit {
@@ -151,13 +119,11 @@ macro_rules! commit {
     };
 }
 
-// ///
 // /// Information about the platform on which service was built, including:
 // /// - Information about OS
 // /// - Information about CPU
 // ///
 // /// Example: ``.
-// ///
 // #[macro_export]
 // macro_rules! platform {
 //     (
@@ -170,12 +136,9 @@ macro_rules! commit {
 //     };
 // }
 
-///
 /// Service name deduced from name of the crate.
 ///
 /// Example: `router`.
-///
-
 #[macro_export]
 macro_rules! service_name {
     () => {
@@ -183,12 +146,9 @@ macro_rules! service_name {
     };
 }
 
-///
 /// Build profile, either debug or release.
 ///
 /// Example: `release`.
-///
-
 #[macro_export]
 macro_rules! profile {
     () => {
