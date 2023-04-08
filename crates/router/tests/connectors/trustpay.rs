@@ -1,5 +1,7 @@
+use async_once::AsyncOnce;
+use lazy_static::lazy_static;
 use masking::Secret;
-use router::types::{self, api, storage::enums, BrowserInformation};
+use router::types::{self, api, storage::enums, AccessToken, BrowserInformation, ErrorResponse};
 
 use crate::{
     connector_auth,
@@ -61,7 +63,8 @@ fn get_default_payment_authorize_data() -> Option<types::PaymentsAuthorizeData> 
     })
 }
 
-fn get_default_payment_info() -> Option<utils::PaymentInfo> {
+async fn get_default_payment_info() -> Option<utils::PaymentInfo> {
+    let access_token = ACCESS_TOKEN.get().await.to_owned().unwrap();
     Some(utils::PaymentInfo {
         address: Some(types::PaymentAddress {
             billing: Some(api::Address {
@@ -79,21 +82,31 @@ fn get_default_payment_info() -> Option<utils::PaymentInfo> {
             }),
             ..Default::default()
         }),
+        access_token: Some(access_token),
         ..Default::default()
     })
 }
 
 static CONNECTOR: TrustpayTest = TrustpayTest {};
 
+lazy_static! {
+    static ref ACCESS_TOKEN: AsyncOnce<Result<AccessToken, ErrorResponse>> =
+        AsyncOnce::new(async {
+            CONNECTOR
+                .generate_access_token(None)
+                .await
+                .expect("Access token response")
+                .response
+        });
+}
+
 // Cards Positive Tests
 // Creates a payment using the automatic capture flow (Non 3DS).
 #[actix_web::test]
 async fn should_make_payment() {
+    let payment_info = get_default_payment_info().await;
     let authorize_response = CONNECTOR
-        .make_payment(
-            get_default_payment_authorize_data(),
-            get_default_payment_info(),
-        )
+        .make_payment(get_default_payment_authorize_data(), payment_info)
         .await
         .unwrap();
     assert_eq!(authorize_response.status, enums::AttemptStatus::Charged);
@@ -102,11 +115,9 @@ async fn should_make_payment() {
 // Synchronizes a payment using the automatic capture flow (Non 3DS).
 #[actix_web::test]
 async fn should_sync_auto_captured_payment() {
+    let payment_info = get_default_payment_info().await;
     let authorize_response = CONNECTOR
-        .make_payment(
-            get_default_payment_authorize_data(),
-            get_default_payment_info(),
-        )
+        .make_payment(get_default_payment_authorize_data(), payment_info.clone())
         .await
         .unwrap();
     assert_eq!(authorize_response.status, enums::AttemptStatus::Charged);
@@ -121,7 +132,7 @@ async fn should_sync_auto_captured_payment() {
                 ),
                 ..Default::default()
             }),
-            None,
+            payment_info,
         )
         .await
         .unwrap();
@@ -131,12 +142,9 @@ async fn should_sync_auto_captured_payment() {
 // Refunds a payment using the automatic capture flow (Non 3DS).
 #[actix_web::test]
 async fn should_refund_auto_captured_payment() {
+    let payment_info = get_default_payment_info().await;
     let response = CONNECTOR
-        .make_payment_and_refund(
-            get_default_payment_authorize_data(),
-            None,
-            get_default_payment_info(),
-        )
+        .make_payment_and_refund(get_default_payment_authorize_data(), None, payment_info)
         .await
         .unwrap();
     assert_eq!(
@@ -148,11 +156,12 @@ async fn should_refund_auto_captured_payment() {
 // Synchronizes a refund using the automatic capture flow (Non 3DS).
 #[actix_web::test]
 async fn should_sync_refund() {
+    let payment_info = get_default_payment_info().await;
     let refund_response = CONNECTOR
         .make_payment_and_refund(
             get_default_payment_authorize_data(),
             None,
-            get_default_payment_info(),
+            payment_info.clone(),
         )
         .await
         .unwrap();
@@ -161,7 +170,7 @@ async fn should_sync_refund() {
             enums::RefundStatus::Success,
             refund_response.response.unwrap().connector_refund_id,
             None,
-            None,
+            payment_info,
         )
         .await
         .unwrap();
@@ -183,15 +192,17 @@ async fn should_fail_payment_for_incorrect_card_number() {
             ..utils::CCardType::default().0
         }),
         browser_info: Some(get_default_browser_info()),
+        router_return_url: Some(String::from("http://localhost:8080")),
         ..utils::PaymentAuthorizeType::default().0
     };
+    let payment_info = get_default_payment_info().await;
     let response = CONNECTOR
-        .make_payment(Some(payment_authorize_data), get_default_payment_info())
+        .make_payment(Some(payment_authorize_data), payment_info)
         .await
         .unwrap();
     assert_eq!(
         response.response.unwrap_err().message,
-        "Errors { code: 61, description: \"invalid payment data (country or brand)\" }".to_string(),
+        "Errors { code: 10, description: \"the provided pan is invalid according to the Luhn algorithm\" }".to_string(),
     );
 }
 
@@ -206,10 +217,12 @@ async fn should_fail_payment_for_empty_card_number() {
             ..utils::CCardType::default().0
         }),
         browser_info: Some(get_default_browser_info()),
+        router_return_url: Some(String::from("http://localhost:8080")),
         ..utils::PaymentAuthorizeType::default().0
     };
+    let payment_info = get_default_payment_info().await;
     let response = CONNECTOR
-        .make_payment(Some(payment_authorize_data), get_default_payment_info())
+        .make_payment(Some(payment_authorize_data), payment_info)
         .await
         .unwrap();
     let x = response.response.unwrap_err();
@@ -230,10 +243,12 @@ async fn should_fail_payment_for_incorrect_expiry_year() {
             ..utils::CCardType::default().0
         }),
         browser_info: Some(get_default_browser_info()),
+        router_return_url: Some(String::from("http://localhost:8080")),
         ..utils::PaymentAuthorizeType::default().0
     });
+    let payment_info = get_default_payment_info().await;
     let response = CONNECTOR
-        .make_payment(payment_authorize_data, get_default_payment_info())
+        .make_payment(payment_authorize_data, payment_info)
         .await
         .unwrap();
     assert_eq!(
