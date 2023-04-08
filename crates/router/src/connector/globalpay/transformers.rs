@@ -8,7 +8,7 @@ use super::{
     response::{GlobalpayPaymentStatus, GlobalpayPaymentsResponse, GlobalpayRefreshTokenResponse},
 };
 use crate::{
-    connector::utils::{self, RouterData, WalletData},
+    connector::utils::{self, CardData, RouterData, WalletData},
     consts,
     core::errors,
     services::{self},
@@ -29,9 +29,9 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for GlobalpayPaymentsRequest {
         let payment_method_data = match item.request.payment_method_data.clone() {
             api::PaymentMethodData::Card(ccard) => {
                 requests::PaymentMethodData::Card(requests::Card {
-                    number: ccard.card_number,
-                    expiry_month: ccard.card_exp_month,
-                    expiry_year: ccard.card_exp_year,
+                    number: ccard.card_number.clone(),
+                    expiry_month: ccard.card_exp_month.clone(),
+                    expiry_year: ccard.get_card_expiry_year_2_digit(),
                     cvv: ccard.card_cvc,
                     account_type: None,
                     authcode: None,

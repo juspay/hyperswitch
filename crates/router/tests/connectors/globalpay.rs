@@ -1,15 +1,17 @@
+use async_once::AsyncOnce;
+use lazy_static::lazy_static;
 use masking::Secret;
-use router::types::{self, api, storage::enums};
+use router::types::{self, api, storage::enums, AccessToken, ErrorResponse};
 use serde_json::json;
 
 use crate::{
     connector_auth,
-    utils::{self, ConnectorActions, PaymentInfo},
+    utils::{self, Connector, ConnectorActions, PaymentInfo},
 };
 
 struct Globalpay;
 impl ConnectorActions for Globalpay {}
-impl utils::Connector for Globalpay {
+impl Connector for Globalpay {
     fn get_data(&self) -> types::api::ConnectorData {
         use router::connector::Globalpay;
         types::api::ConnectorData {
@@ -36,7 +38,8 @@ impl utils::Connector for Globalpay {
     }
 }
 
-fn get_default_payment_info() -> Option<PaymentInfo> {
+async fn get_default_payment_info() -> Option<PaymentInfo> {
+    let access_token = ACCESS_TOKEN.get().await.to_owned().unwrap();
     Some(PaymentInfo {
         address: Some(types::PaymentAddress {
             billing: Some(api::Address {
@@ -48,21 +51,30 @@ fn get_default_payment_info() -> Option<PaymentInfo> {
             }),
             ..Default::default()
         }),
-        access_token: Some(types::AccessToken {
-            token: "<access_token>".to_string(),
-            expires: 18600,
-            refresh_token: None,
-            created_at: None,
-            refresh_token_epires: None,
-        }),
+        access_token: Some(access_token),
+        connector_meta_data: CONNECTOR.get_connector_meta(),
         ..Default::default()
     })
 }
 
+static CONNECTOR: Globalpay = Globalpay {};
+
+lazy_static! {
+    static ref ACCESS_TOKEN: AsyncOnce<Result<AccessToken, ErrorResponse>> =
+        AsyncOnce::new(async {
+            CONNECTOR
+                .generate_access_token(None)
+                .await
+                .expect("Access token response")
+                .response
+        });
+}
+
 #[actix_web::test]
 async fn should_only_authorize_payment() {
-    let response = Globalpay {}
-        .authorize_payment(None, get_default_payment_info())
+    let payment_info = get_default_payment_info().await;
+    let response = CONNECTOR
+        .authorize_payment(None, payment_info)
         .await
         .unwrap();
     assert_eq!(response.status, enums::AttemptStatus::Authorized);
@@ -70,24 +82,22 @@ async fn should_only_authorize_payment() {
 
 #[actix_web::test]
 async fn should_authorize_and_capture_payment() {
-    let response = Globalpay {}
-        .make_payment(None, get_default_payment_info())
-        .await
-        .unwrap();
+    let payment_info = get_default_payment_info().await;
+    let response = CONNECTOR.make_payment(None, payment_info).await.unwrap();
     assert_eq!(response.status, enums::AttemptStatus::Charged);
 }
 
 #[actix_web::test]
 async fn should_capture_already_authorized_payment() {
-    let connector = Globalpay {};
-    let response = connector
+    let payment_info = get_default_payment_info().await;
+    let response = CONNECTOR
         .authorize_and_capture_payment(
             None,
             Some(types::PaymentsCaptureData {
                 amount_to_capture: 50,
                 ..utils::PaymentCaptureType::default().0
             }),
-            get_default_payment_info(),
+            payment_info,
         )
         .await;
     assert_eq!(response.unwrap().status, enums::AttemptStatus::Charged);
@@ -95,13 +105,13 @@ async fn should_capture_already_authorized_payment() {
 
 #[actix_web::test]
 async fn should_sync_payment() {
-    let connector = Globalpay {};
-    let authorize_response = connector
-        .authorize_payment(None, get_default_payment_info())
+    let payment_info = get_default_payment_info().await;
+    let authorize_response = CONNECTOR
+        .authorize_payment(None, payment_info.clone())
         .await
         .unwrap();
     let txn_id = utils::get_connector_transaction_id(authorize_response.response);
-    let response = connector
+    let response = CONNECTOR
         .psync_retry_till_status_matches(
             enums::AttemptStatus::Authorized,
             Some(types::PaymentsSyncData {
@@ -110,7 +120,7 @@ async fn should_sync_payment() {
                 ),
                 ..Default::default()
             }),
-            get_default_payment_info(),
+            payment_info,
         )
         .await
         .unwrap();
@@ -119,7 +129,8 @@ async fn should_sync_payment() {
 
 #[actix_web::test]
 async fn should_fail_payment_for_incorrect_cvc() {
-    let response = Globalpay {}
+    let payment_info = get_default_payment_info().await;
+    let response = CONNECTOR
         .make_payment(
             Some(types::PaymentsAuthorizeData {
                 payment_method_data: types::api::PaymentMethodData::Card(api::Card {
@@ -128,7 +139,7 @@ async fn should_fail_payment_for_incorrect_cvc() {
                 }),
                 ..utils::PaymentAuthorizeType::default().0
             }),
-            get_default_payment_info(),
+            payment_info,
         )
         .await
         .unwrap();
@@ -138,9 +149,9 @@ async fn should_fail_payment_for_incorrect_cvc() {
 
 #[actix_web::test]
 async fn should_refund_succeeded_payment() {
-    let connector = Globalpay {};
-    let response = connector
-        .make_payment_and_refund(None, None, get_default_payment_info())
+    let payment_info = get_default_payment_info().await;
+    let response = CONNECTOR
+        .make_payment_and_refund(None, None, payment_info)
         .await
         .unwrap();
     assert_eq!(
@@ -151,26 +162,27 @@ async fn should_refund_succeeded_payment() {
 
 #[actix_web::test]
 async fn should_void_already_authorized_payment() {
-    let connector = Globalpay {};
-    let response = connector
-        .authorize_and_void_payment(None, None, get_default_payment_info())
+    let payment_info = get_default_payment_info().await;
+    let response = CONNECTOR
+        .authorize_and_void_payment(None, None, payment_info)
         .await;
     assert_eq!(response.unwrap().status, enums::AttemptStatus::Voided);
 }
 
 #[actix_web::test]
+#[ignore = "Refund Sync API not available"]
 async fn should_sync_refund() {
-    let connector = Globalpay {};
-    let refund_response = connector
-        .make_payment_and_refund(None, None, get_default_payment_info())
+    let payment_info = get_default_payment_info().await;
+    let refund_response = CONNECTOR
+        .make_payment_and_refund(None, None, payment_info.clone())
         .await
         .unwrap();
-    let response = connector
+    let response = CONNECTOR
         .rsync_retry_till_status_matches(
             enums::RefundStatus::Success,
             refund_response.response.unwrap().connector_refund_id,
             None,
-            get_default_payment_info(),
+            payment_info,
         )
         .await
         .unwrap();

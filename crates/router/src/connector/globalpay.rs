@@ -26,7 +26,7 @@ use crate::{
         api::{self, ConnectorCommon, ConnectorCommonExt, PaymentsCompleteAuthorize},
         ErrorResponse,
     },
-    utils::{self, crypto, BytesExt, OptionExt},
+    utils::{self, crypto, BytesExt},
 };
 
 #[derive(Debug, Clone)]
@@ -244,6 +244,7 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
         let globalpay_req =
             utils::Encode::<GlobalpayPaymentsRequest>::encode_to_string_of_json(&req_obj)
                 .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+
         Ok(Some(globalpay_req))
     }
 
@@ -724,16 +725,13 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let refund_id = req
-            .response
+            .request
+            .connector_refund_id
             .clone()
-            .ok()
-            .get_required_value("response")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?
-            .connector_refund_id;
+            .ok_or(errors::ConnectorError::MissingConnectorRefundID)?;
         Ok(format!(
-            "{}transactions/{}",
+            "{}transactions/{refund_id}",
             self.base_url(connectors),
-            refund_id
         ))
     }
 
