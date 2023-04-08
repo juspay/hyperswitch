@@ -58,7 +58,7 @@ api_secret = "API Secret Key"
 [intuit]
 api_key = "Client Secret"
 key1 = "Client Id"
-api_secret = "Refresh token"
+api_secret = "Refresh Token"
 
 [multisafepay]
 api_key = "API Key"

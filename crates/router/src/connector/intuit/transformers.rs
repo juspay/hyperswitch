@@ -173,10 +173,10 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for IntuitPaymentsCaptureRequest
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum IntuitPaymentStatus {
-    Captured,
-    Failed,
     Authorized,
     Declined,
+    Captured,
+    Cancelled,
     Settled,
     Refunded,
 }
@@ -187,7 +187,8 @@ impl From<IntuitPaymentStatus> for enums::AttemptStatus {
             IntuitPaymentStatus::Captured
             | IntuitPaymentStatus::Settled
             | IntuitPaymentStatus::Refunded => Self::Charged,
-            IntuitPaymentStatus::Failed | IntuitPaymentStatus::Declined => Self::Failure,
+            IntuitPaymentStatus::Declined => Self::Failure,
+            IntuitPaymentStatus::Cancelled => Self::Voided,
             IntuitPaymentStatus::Authorized => Self::Authorized,
         }
     }
@@ -283,15 +284,17 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for IntuitRefundRequest {
 #[derive(Default, Debug, Deserialize)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum IntuitRefundStatus {
-    Issued,
     #[default]
     Declined,
+    Issued,
+    Settled,
 }
 
 impl From<IntuitRefundStatus> for enums::RefundStatus {
     fn from(item: IntuitRefundStatus) -> Self {
         match item {
-            IntuitRefundStatus::Issued => Self::Success,
+            IntuitRefundStatus::Issued => Self::Pending,
+            IntuitRefundStatus::Settled => Self::Success,
             IntuitRefundStatus::Declined => Self::Failure,
         }
     }
