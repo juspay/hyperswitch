@@ -170,7 +170,7 @@ async fn should_void_already_authorized_payment() {
 }
 
 #[actix_web::test]
-#[ignore = "Refund Sync API not available"]
+#[ignore = "Refund not supported"]
 async fn should_sync_refund() {
     let payment_info = get_default_payment_info().await;
     let refund_response = CONNECTOR

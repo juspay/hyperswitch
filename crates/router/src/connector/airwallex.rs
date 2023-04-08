@@ -120,6 +120,7 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
         let auth_type = airwallex::AirwallexAuthType::try_from(&req.connector_auth_type)?;
         let headers = vec![
             (headers::X_API_KEY.to_string(), auth_type.api_key),
+            ("Content-Length".to_string(), "0".to_string()),
             ("x-client-id".to_string(), auth_type.client_id),
         ];
         Ok(headers)
