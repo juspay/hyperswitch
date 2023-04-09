@@ -89,10 +89,16 @@ pub type RefundSyncType =
 pub type RefreshTokenType =
     dyn services::ConnectorIntegration<api::AccessTokenAuth, AccessTokenRequestData, AccessToken>;
 
+pub type AcceptDisputeType = dyn services::ConnectorIntegration<
+    api::Accept,
+    AcceptDisputeRequestData,
+    AcceptDisputeResponse,
+>;
+
 pub type VerifyRouterData = RouterData<api::Verify, VerifyRequestData, PaymentsResponseData>;
 
 pub type AcceptDisputeRouterData =
-    RouterData<api::Accept, api::AcceptDisputeRequestData, api_models::disputes::AcceptDisputeResponse>;
+    RouterData<api::Accept, AcceptDisputeRequestData, AcceptDisputeResponse>;
 
 #[derive(Debug, Clone)]
 pub struct RouterData<Flow, Request, Response> {
@@ -323,6 +329,18 @@ pub struct RefundsResponseData {
 pub enum Redirection {
     Redirect,
     NoRedirect,
+}
+
+#[derive(Default, Debug, Clone)]
+pub struct AcceptDisputeRequestData {
+    pub dispute_id: String,
+    pub connector_dispute_id: String,
+}
+
+#[derive(Default, Clone, Debug)]
+pub struct AcceptDisputeResponse {
+    pub dispute_status: api_models::enums::DisputeStatus,
+    pub connector_status: Option<String>,
 }
 
 #[derive(Debug, Clone, Default, serde::Deserialize, serde::Serialize)]

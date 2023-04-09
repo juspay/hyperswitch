@@ -160,6 +160,8 @@ pub enum ApiErrorResponse {
     AddressNotFound,
     #[error(error_type = ErrorType::ObjectNotFound, code = "HE_04", message = "Dispute does not exist in our records")]
     DisputeNotFound { dispute_id: String },
+    #[error(error_type = ErrorType::InvalidRequestError, code = "HE_04", message = "Dispute status validation failed")]
+    DisputeStatusValidationFailed { reason: String },
     #[error(error_type = ErrorType::InvalidRequestError, code = "HE_04", message = "Card with the provided iin does not exist")]
     InvalidCardIin,
     #[error(error_type = ErrorType::InvalidRequestError, code = "HE_04", message = "The provided card IIN length is invalid, please provide an iin with 6 or 8 digits")]
@@ -251,7 +253,8 @@ impl actix_web::ResponseError for ApiErrorResponse {
             | Self::AddressNotFound
             | Self::NotSupported { .. }
             | Self::FlowNotSupported { .. }
-            | Self::ApiKeyNotFound => StatusCode::BAD_REQUEST, // 400
+            | Self::ApiKeyNotFound
+            | Self::DisputeStatusValidationFailed { .. } => StatusCode::BAD_REQUEST, // 400
             Self::DuplicateMerchantAccount
             | Self::DuplicateMerchantConnectorAccount
             | Self::DuplicatePaymentMethod
@@ -449,6 +452,9 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
             }
             Self::DisputeNotFound { .. } => {
                 AER::NotFound(ApiError::new("HE", 2, "Dispute does not exist in our records", None))
+            }
+            Self::DisputeStatusValidationFailed { .. } => {
+                AER::NotFound(ApiError::new("HE", 2, "Dispute status validation failed", None))
             }
         }
     }

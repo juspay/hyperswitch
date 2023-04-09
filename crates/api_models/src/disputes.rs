@@ -40,18 +40,6 @@ pub struct DisputeResponse {
     pub received_at: String,
 }
 
-#[derive(Default, Clone, Debug, Serialize, ToSchema)]
-pub struct AcceptDisputeResponse {
-    /// Status of the accept dispute request
-    pub success: bool,
-    /// Status of the dispute
-    pub dispute_status: DisputeStatus,
-    /// Stage of the dispute
-    pub dispute_stage: DisputeStage,
-    /// Response code
-    pub reason: Option<String>,
-}
-
 #[derive(Clone, Debug, Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct DisputeListConstraints {

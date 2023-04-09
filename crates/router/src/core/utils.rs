@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-use api_models::{enums::{DisputeStage, DisputeStatus}, disputes};
+use api_models::enums::{DisputeStage, DisputeStatus};
 use common_utils::errors::CustomResult;
 use error_stack::ResultExt;
 use router_env::{instrument, tracing};
@@ -12,7 +12,8 @@ use crate::{
     routes::AppState,
     types::{
         self,
-        storage::{self, enums}, api::AcceptDisputeRequestData, transformers::ForeignInto,
+        storage::{self, enums},
+        transformers::ForeignInto,
     },
     utils::{generate_id, OptionExt, ValueExt},
 };
@@ -255,16 +256,14 @@ pub async fn construct_accept_dispute_router_data<'a>(
         auth_type: payment_attempt.authentication_type.unwrap_or_default(),
         connector_meta_data: merchant_connector_account.get_metadata(),
         amount_captured: payment_intent.amount_captured,
-        request: AcceptDisputeRequestData{
+        request: types::AcceptDisputeRequestData {
             dispute_id: dispute.dispute_id.clone(),
             connector_dispute_id: dispute.connector_dispute_id.clone(),
         },
         //TODO: Why do we need the response in request
-        response: Ok(disputes::AcceptDisputeResponse {
-            success: true,
-            dispute_stage: dispute.dispute_stage.foreign_into(),
+        response: Ok(types::AcceptDisputeResponse {
             dispute_status: dispute.dispute_status.foreign_into(),
-            reason: None,
+            connector_status: None,
         }),
         access_token: None,
         session_token: None,

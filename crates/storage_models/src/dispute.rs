@@ -66,7 +66,6 @@ pub enum DisputeUpdate {
         updated_at: Option<String>,
     },
     StatusUpdate {
-        dispute_stage: storage_enums::DisputeStage,
         dispute_status: storage_enums::DisputeStatus,
         connector_status: Option<String>,
     },
@@ -75,7 +74,7 @@ pub enum DisputeUpdate {
 #[derive(Clone, Debug, Default, AsChangeset, router_derive::DebugAsDisplay)]
 #[diesel(table_name = dispute)]
 pub struct DisputeUpdateInternal {
-    dispute_stage: storage_enums::DisputeStage,
+    dispute_stage: Option<storage_enums::DisputeStage>,
     dispute_status: storage_enums::DisputeStatus,
     connector_status: Option<String>,
     connector_reason: Option<String>,
@@ -97,7 +96,7 @@ impl From<DisputeUpdate> for DisputeUpdateInternal {
                 challenge_required_by,
                 updated_at,
             } => Self {
-                dispute_stage,
+                dispute_stage: Some(dispute_stage),
                 dispute_status,
                 connector_status: Some(connector_status),
                 connector_reason,
@@ -107,18 +106,14 @@ impl From<DisputeUpdate> for DisputeUpdateInternal {
                 modified_at: Some(common_utils::date_time::now()),
             },
             DisputeUpdate::StatusUpdate {
-                dispute_stage,
                 dispute_status,
                 connector_status,
-            } => {
-                Self {
-                    dispute_stage,
-                    dispute_status,
-                    connector_status,
-                    modified_at: Some(common_utils::date_time::now()),
-                    ..Default::default()
-                }
-            }
+            } => Self {
+                dispute_status,
+                connector_status,
+                modified_at: Some(common_utils::date_time::now()),
+                ..Default::default()
+            },
         }
     }
 }

@@ -360,7 +360,7 @@ async fn handle_response(
             logger::info!(?response);
             let status_code = response.status().as_u16();
             match status_code {
-                200..=202 | 302 => {
+                200..=202 | 302 | 204 => {
                     logger::debug!(response=?response);
                     // If needed add log line
                     // logger:: error!( error_parsing_response=?err);

@@ -176,8 +176,8 @@ macro_rules! default_imp_for_accept_dispute{
             impl
                 services::ConnectorIntegration<
                 api::Accept,
-                api::AcceptDisputeRequestData,
-                api_models::disputes::AcceptDisputeResponse,
+                types::AcceptDisputeRequestData,
+                types::AcceptDisputeResponse,
             > for $path::$connector
             {}
     )*
@@ -193,7 +193,6 @@ default_imp_for_accept_dispute!(
     connector::Bambora,
     connector::Bluesnap,
     connector::Braintree,
-    connector::Checkout,
     connector::Cybersource,
     connector::Dlocal,
     connector::Fiserv,

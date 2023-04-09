@@ -466,6 +466,9 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
                 object: "dispute".to_owned(),
                 id: dispute_id,
             },
+            errors::ApiErrorResponse::DisputeStatusValidationFailed { reason } => {
+                Self::InternalServerError
+            }
             errors::ApiErrorResponse::NotSupported { .. } => Self::InternalServerError,
         }
     }
