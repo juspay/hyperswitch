@@ -17,8 +17,11 @@ pub mod vars {
     /// Directory of config TOML files. Default is `config`.
     pub const CONFIG_DIR: &str = "CONFIG_DIR";
 
-    /// Environment variable that sets the log level.
-    pub const RUST_LOG: &str = "RUST_LOG";
+    /// Environment variable that sets the console logging level.
+    pub const RUST_CONSOLE_LOG: &str = "RUST_CONSOLE_LOG";
+
+    /// Environment variable that sets the file logging level.
+    pub const RUST_FILE_LOG: &str = "RUST_FILE_LOG";
 
     /// Target to which the OpenTelemetry exporter is going to send signals.
     pub const OTEL_EXPORTER_OTLP_ENDPOINT: &str = opentelemetry_otlp::OTEL_EXPORTER_OTLP_ENDPOINT;

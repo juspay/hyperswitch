@@ -42,7 +42,7 @@ pub struct LogFile {
 }
 
 /// Describes the level of verbosity of a span or event.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub struct Level(pub(super) tracing::Level);
 
 impl Level {
