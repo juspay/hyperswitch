@@ -6,6 +6,8 @@ use std::{
 
 use common_utils::ext_traits::ConfigExt;
 use config::{Environment, File};
+#[cfg(feature = "kms")]
+use external_services::kms;
 use redis_interface::RedisSettings;
 pub use router_env::config::{Log, LogConsole, LogFile, LogTelemetry};
 use serde::{Deserialize, Deserializer};
@@ -16,7 +18,7 @@ use crate::{
 };
 
 #[derive(clap::Parser, Default)]
-#[command(version = router_env::version!())]
+#[cfg_attr(feature = "vergen", command(version = router_env::version!()))]
 pub struct CmdLineConf {
     /// Config file.
     /// Application will look for "config/config.toml" if this option isn't specified.
@@ -59,7 +61,7 @@ pub struct Settings {
     pub bank_config: BankRedirectConfig,
     pub api_keys: ApiKeys,
     #[cfg(feature = "kms")]
-    pub kms: Kms,
+    pub kms: kms::KmsConfig,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -96,10 +98,12 @@ pub struct CurrencyCountryFilter {
     #[serde(deserialize_with = "currency_set_deser")]
     pub currency: Option<HashSet<api_models::enums::Currency>>,
     #[serde(deserialize_with = "string_set_deser")]
-    pub country: Option<HashSet<String>>,
+    pub country: Option<HashSet<api_models::enums::CountryCode>>,
 }
 
-fn string_set_deser<'a, D>(deserializer: D) -> Result<Option<HashSet<String>>, D::Error>
+fn string_set_deser<'a, D>(
+    deserializer: D,
+) -> Result<Option<HashSet<api_models::enums::CountryCode>>, D::Error>
 where
     D: Deserializer<'a>,
 {
@@ -108,7 +112,7 @@ where
         let list = inner
             .trim()
             .split(',')
-            .map(|value| value.to_string())
+            .flat_map(api_models::enums::CountryCode::from_str)
             .collect::<HashSet<_>>();
         match list.len() {
             0 => None,
@@ -163,6 +167,7 @@ pub struct Locker {
     pub mock_locker: bool,
     pub basilisk_host: String,
     pub locker_setup: LockerSetup,
+    pub locker_signing_key_id: String,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -221,12 +226,15 @@ pub struct Server {
 #[serde(default)]
 pub struct Database {
     pub username: String,
+    #[cfg(not(feature = "kms"))]
     pub password: String,
     pub host: String,
     pub port: u16,
     pub dbname: String,
     pub pool_size: u32,
     pub connection_timeout: u64,
+    #[cfg(feature = "kms")]
+    pub kms_encrypted_password: String,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -256,6 +264,7 @@ pub struct Connectors {
     pub mollie: ConnectorParams,
     pub multisafepay: ConnectorParams,
     pub nuvei: ConnectorParams,
+    pub paypal: ConnectorParams,
     pub payu: ConnectorParams,
     pub rapyd: ConnectorParams,
     pub shift4: ConnectorParams,
@@ -287,6 +296,8 @@ pub struct SchedulerSettings {
     pub stream: String,
     pub producer: ProducerSettings,
     pub consumer: ConsumerSettings,
+    pub loop_interval: u64,
+    pub graceful_shutdown_interval: u64,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -336,14 +347,6 @@ pub struct ApiKeys {
     /// hashes of API keys
     #[cfg(not(feature = "kms"))]
     pub hash_key: String,
-}
-
-#[cfg(feature = "kms")]
-#[derive(Debug, Deserialize, Clone, Default)]
-#[serde(default)]
-pub struct Kms {
-    pub key_id: String,
-    pub region: String,
 }
 
 impl Settings {
@@ -421,7 +424,9 @@ impl Settings {
         self.drainer.validate()?;
         self.api_keys.validate()?;
         #[cfg(feature = "kms")]
-        self.kms.validate()?;
+        self.kms
+            .validate()
+            .map_err(|error| ApplicationError::InvalidConfigurationValueError(error.into()))?;
 
         Ok(())
     }

@@ -28,6 +28,9 @@ dbname = "hyperswitch_db"
 pool_size = 5
 connection_timeout = 10
 
+[secrets]
+admin_api_key = "test_admin"
+
 [proxy]
 
 [locker]
@@ -64,6 +67,7 @@ cards = [
     "mollie",
     "multisafepay",
     "nuvei",
+    "paypal",
     "payu",
     "shift4",
     "stripe",
@@ -105,6 +109,7 @@ klarna.base_url = "https://api-na.playground.klarna.com/"
 mollie.base_url = "https://api.mollie.com/v2/"
 multisafepay.base_url = "https://testapi.multisafepay.com/"
 nuvei.base_url = "https://ppp-test.nuvei.com/"
+paypal.base_url = "https://www.sandbox.paypal.com/"
 payu.base_url = "https://secure.snd.payu.com/"
 rapyd.base_url = "https://sandboxapi.rapyd.net"
 shift4.base_url = "https://api.shift4.com/"

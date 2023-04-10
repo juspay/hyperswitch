@@ -1,10 +1,10 @@
 use common_utils::ext_traits::StringExt;
 use error_stack::ResultExt;
+#[cfg(feature = "kms")]
+use external_services::kms;
 use josekit::jwe;
 use serde::{Deserialize, Serialize};
 
-#[cfg(feature = "kms")]
-use crate::services::kms;
 use crate::{
     configs::settings,
     core::errors::{self, CustomResult},
@@ -126,10 +126,6 @@ pub struct DeleteCardResponse {
     pub status: String,
 }
 
-pub fn basilisk_hs_key_id() -> &'static str {
-    "1"
-}
-
 pub fn get_dotted_jwe(jwe: encryption::JweBody) -> String {
     let header = jwe.header;
     let encryption_key = jwe.encrypted_key;
@@ -149,7 +145,7 @@ pub fn get_dotted_jws(jws: encryption::JwsBody) -> String {
 pub async fn get_decrypted_response_payload(
     jwekey: &settings::Jwekey,
     jwe_body: encryption::JweBody,
-    #[cfg(feature = "kms")] kms_config: &settings::Kms,
+    #[cfg(feature = "kms")] kms_config: &kms::KmsConfig,
 ) -> CustomResult<String, errors::VaultError> {
     #[cfg(feature = "kms")]
     let public_key = kms::get_kms_client(kms_config)
@@ -172,12 +168,17 @@ pub async fn get_decrypted_response_payload(
     let private_key = jwekey.vault_private_key.to_owned();
 
     let jwt = get_dotted_jwe(jwe_body);
-    let key_id = basilisk_hs_key_id();
     let alg = jwe::RSA_OAEP;
-    let jwe_decrypted = encryption::decrypt_jwe(&jwt, key_id, key_id, private_key, alg)
-        .await
-        .change_context(errors::VaultError::SaveCardFailed)
-        .attach_printable("Jwe Decryption failed for JweBody for vault")?;
+
+    let jwe_decrypted = encryption::decrypt_jwe(
+        &jwt,
+        encryption::KeyIdCheck::SkipKeyIdCheck,
+        private_key,
+        alg,
+    )
+    .await
+    .change_context(errors::VaultError::SaveCardFailed)
+    .attach_printable("Jwe Decryption failed for JweBody for vault")?;
 
     let jws = jwe_decrypted
         .parse_struct("JwsBody")
@@ -192,7 +193,7 @@ pub async fn get_decrypted_response_payload(
 pub async fn mk_basilisk_req(
     jwekey: &settings::Jwekey,
     jws: &str,
-    #[cfg(feature = "kms")] kms_config: &settings::Kms,
+    #[cfg(feature = "kms")] kms_config: &kms::KmsConfig,
 ) -> CustomResult<encryption::JweBody, errors::VaultError> {
     let jws_payload: Vec<&str> = jws.split('.').collect();
 
@@ -247,7 +248,7 @@ pub async fn mk_add_card_request_hs(
     card: &api::CardDetail,
     customer_id: &str,
     merchant_id: &str,
-    #[cfg(feature = "kms")] kms_config: &settings::Kms,
+    #[cfg(feature = "kms")] kms_config: &kms::KmsConfig,
 ) -> CustomResult<services::Request, errors::VaultError> {
     let merchant_customer_id = if cfg!(feature = "sandbox") {
         format!("{customer_id}::{merchant_id}")
@@ -282,7 +283,7 @@ pub async fn mk_add_card_request_hs(
     #[cfg(not(feature = "kms"))]
     let private_key = jwekey.vault_private_key.to_owned();
 
-    let jws = encryption::jws_sign_payload(&payload, basilisk_hs_key_id(), private_key)
+    let jws = encryption::jws_sign_payload(&payload, &locker.locker_signing_key_id, private_key)
         .await
         .change_context(errors::VaultError::RequestEncodingFailed)?;
 
@@ -409,7 +410,7 @@ pub async fn mk_get_card_request_hs(
     customer_id: &str,
     merchant_id: &str,
     card_reference: &str,
-    #[cfg(feature = "kms")] kms_config: &settings::Kms,
+    #[cfg(feature = "kms")] kms_config: &kms::KmsConfig,
 ) -> CustomResult<services::Request, errors::VaultError> {
     let merchant_customer_id = if cfg!(feature = "sandbox") {
         format!("{customer_id}::{merchant_id}")
@@ -435,7 +436,7 @@ pub async fn mk_get_card_request_hs(
     #[cfg(not(feature = "kms"))]
     let private_key = jwekey.vault_private_key.to_owned();
 
-    let jws = encryption::jws_sign_payload(&payload, basilisk_hs_key_id(), private_key)
+    let jws = encryption::jws_sign_payload(&payload, &locker.locker_signing_key_id, private_key)
         .await
         .change_context(errors::VaultError::RequestEncodingFailed)?;
 
@@ -501,7 +502,7 @@ pub async fn mk_delete_card_request_hs(
     customer_id: &str,
     merchant_id: &str,
     card_reference: &str,
-    #[cfg(feature = "kms")] kms_config: &settings::Kms,
+    #[cfg(feature = "kms")] kms_config: &kms::KmsConfig,
 ) -> CustomResult<services::Request, errors::VaultError> {
     let merchant_customer_id = if cfg!(feature = "sandbox") {
         format!("{customer_id}::{merchant_id}")
@@ -527,7 +528,7 @@ pub async fn mk_delete_card_request_hs(
     #[cfg(not(feature = "kms"))]
     let private_key = jwekey.vault_private_key.to_owned();
 
-    let jws = encryption::jws_sign_payload(&payload, basilisk_hs_key_id(), private_key)
+    let jws = encryption::jws_sign_payload(&payload, &locker.locker_signing_key_id, private_key)
         .await
         .change_context(errors::VaultError::RequestEncodingFailed)?;
 
@@ -563,7 +564,7 @@ pub fn mk_delete_card_request<'a>(
     let mut url = locker.host.to_owned();
     url.push_str("/card/deleteCard");
     let mut request = services::Request::new(services::Method::Post, &url);
-    request.add_header(headers::X_ROUTER, "test");
+    request.add_default_headers();
     request.add_header(headers::CONTENT_TYPE, "application/x-www-form-urlencoded");
 
     request.set_body(body);
@@ -611,7 +612,7 @@ pub fn mk_crud_locker_request(
     let mut url = locker.basilisk_host.to_owned();
     url.push_str(path);
     let mut request = services::Request::new(services::Method::Post, &url);
-    request.add_header(headers::X_ROUTER, "test");
+    request.add_default_headers();
     request.add_header(headers::CONTENT_TYPE, "application/json");
     request.set_body(body.to_string());
     Ok(request)

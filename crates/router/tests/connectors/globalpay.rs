@@ -41,7 +41,7 @@ fn get_default_payment_info() -> Option<PaymentInfo> {
         address: Some(types::PaymentAddress {
             billing: Some(api::Address {
                 address: Some(api::AddressDetails {
-                    country: Some("US".to_string()),
+                    country: Some(api_models::enums::CountryCode::US),
                     ..Default::default()
                 }),
                 phone: None,
@@ -81,7 +81,7 @@ async fn should_capture_already_authorized_payment() {
         .authorize_and_capture_payment(
             None,
             Some(types::PaymentsCaptureData {
-                amount_to_capture: Some(50),
+                amount_to_capture: 50,
                 ..utils::PaymentCaptureType::default().0
             }),
             get_default_payment_info(),

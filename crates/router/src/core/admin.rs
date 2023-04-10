@@ -1,13 +1,17 @@
 use common_utils::ext_traits::ValueExt;
-use error_stack::{report, FutureExt, ResultExt};
+use error_stack::{report, FutureExt, IntoReport, ResultExt};
 use storage_models::{enums, merchant_account};
 use uuid::Uuid;
 
 use crate::{
     consts,
-    core::errors::{self, RouterResponse, RouterResult, StorageErrorExt},
+    core::{
+        api_keys,
+        errors::{self, RouterResponse, RouterResult, StorageErrorExt},
+    },
     db::StorageInterface,
     pii::Secret,
+    routes::AppState,
     services::api as service_api,
     types::{
         self, api,
@@ -27,10 +31,37 @@ pub fn create_merchant_publishable_key() -> String {
 }
 
 pub async fn create_merchant_account(
-    db: &dyn StorageInterface,
+    state: &AppState,
     req: api::MerchantAccountCreate,
 ) -> RouterResponse<api::MerchantAccountResponse> {
+    let db = &*state.store;
     let publishable_key = Some(create_merchant_publishable_key());
+
+    let api_key_request = api::CreateApiKeyRequest {
+        name: "Default API key".into(),
+        description: Some(
+            "An API key created by default when a user signs up on the HyperSwitch dashboard"
+                .into(),
+        ),
+        expiration: api::ApiKeyExpiration::Never,
+    };
+    let api_key = match api_keys::create_api_key(
+        db,
+        &state.conf.api_keys,
+        #[cfg(feature = "kms")]
+        &state.conf.kms,
+        api_key_request,
+        req.merchant_id.clone(),
+    )
+    .await?
+    {
+        service_api::ApplicationResponse::Json(api::CreateApiKeyResponse { api_key, .. }) => {
+            Ok(api_key)
+        }
+        _ => Err(errors::ApiErrorResponse::InternalServerError)
+            .into_report()
+            .attach_printable("Unexpected create API key response"),
+    }?;
 
     let merchant_details = Some(
         utils::Encode::<api::MerchantDetails>::encode_to_value(&req.merchant_details)
@@ -59,6 +90,7 @@ pub async fn create_merchant_account(
     let merchant_account = storage::MerchantAccountNew {
         merchant_id: req.merchant_id,
         merchant_name: req.merchant_name,
+        api_key: Some(api_key),
         merchant_details,
         return_url: req.return_url.map(|a| a.to_string()),
         webhook_details,
@@ -277,6 +309,12 @@ pub async fn create_payment_connector(
             field_name: "connector_account_details".to_string(),
             expected_format: "auth_type and api_key".to_string(),
         })?;
+    let configs_for_frm_value = req
+        .frm_configs
+        .ok_or_else(|| errors::ApiErrorResponse::ConfigNotFound)?;
+    let frm_value: serde_json::Value =
+        utils::Encode::<api_models::admin::FrmConfigs>::encode_to_value(&configs_for_frm_value)
+            .change_context(errors::ApiErrorResponse::ConfigNotFound)?;
 
     let merchant_connector_account = storage::MerchantConnectorAccountNew {
         merchant_id: Some(merchant_id.to_string()),
@@ -288,6 +326,7 @@ pub async fn create_payment_connector(
         test_mode: req.test_mode,
         disabled: req.disabled,
         metadata: req.metadata,
+        frm_configs: Some(frm_value),
     };
 
     let mca = store
@@ -387,7 +426,13 @@ pub async fn update_payment_connector(
             })
             .collect::<Vec<serde_json::Value>>()
     });
-
+    let configs_for_frm_value = req
+        .frm_configs
+        .as_ref()
+        .ok_or_else(|| errors::ApiErrorResponse::ConfigNotFound)?;
+    let frm_value: serde_json::Value =
+        utils::Encode::<api_models::admin::FrmConfigs>::encode_to_value(&configs_for_frm_value)
+            .change_context(errors::ApiErrorResponse::ConfigNotFound)?;
     let payment_connector = storage::MerchantConnectorAccountUpdate::Update {
         merchant_id: Some(merchant_id.to_string()),
         connector_type: Some(req.connector_type.foreign_into()),
@@ -398,6 +443,7 @@ pub async fn update_payment_connector(
         test_mode: req.test_mode,
         disabled: req.disabled,
         metadata: req.metadata,
+        frm_configs: Some(frm_value),
     };
 
     let updated_mca = db
@@ -428,6 +474,7 @@ pub async fn update_payment_connector(
         disabled: updated_mca.disabled,
         payment_methods_enabled: updated_pm_enabled,
         metadata: updated_mca.metadata,
+        frm_configs: req.frm_configs,
     };
     Ok(service_api::ApplicationResponse::Json(response))
 }

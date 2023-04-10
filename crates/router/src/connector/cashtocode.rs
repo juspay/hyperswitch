@@ -564,13 +564,15 @@ impl api::IncomingWebhook for Cashtocode {
     fn get_webhook_object_reference_id(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<String, errors::ConnectorError> {
+    ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
         let webhook: transformers::CashtocodeIncomingWebhook = request
             .body
             .parse_struct("CashtocodeIncomingWebhook")
             .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
 
-        Ok(webhook.transaction_id)
+        return Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
+                api_models::payments::PaymentIdType::ConnectorTransactionId(webhook.transaction_id),
+            ));
     }
 
     fn get_webhook_event_type(
@@ -605,8 +607,17 @@ impl api::IncomingWebhook for Cashtocode {
         let id = self
             .get_webhook_object_reference_id(request)
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
+        let txn_id = match id {
+            api_models::webhooks::ObjectReferenceId::PaymentId(txn_id) => {
+                match txn_id {
+                    api_models::payments::PaymentIdType::ConnectorTransactionId(connector_txn_id) => connector_txn_id.to_string(),
+                    _ => return Err(errors::ConnectorError::MissingConnectorTransactionID).into_report(),
+                }
+            },
+            _ => return Err(errors::ConnectorError::MissingConnectorTransactionID).into_report(),
+        };
         let response: serde_json::Value =
-            serde_json::json!({ "status": status, "transactionId" : id});
+            serde_json::json!({ "status": status, "transactionId" : txn_id});
         Ok(services::api::ApplicationResponse::Json(response))
     }
 }

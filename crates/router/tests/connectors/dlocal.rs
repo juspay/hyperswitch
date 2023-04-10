@@ -63,7 +63,7 @@ async fn should_partially_capture_authorized_payment() {
         .authorize_and_capture_payment(
             None,
             Some(types::PaymentsCaptureData {
-                amount_to_capture: Some(50),
+                amount_to_capture: 50,
                 ..utils::PaymentCaptureType::default().0
             }),
             Some(get_payment_info()),
@@ -443,7 +443,7 @@ pub fn get_payment_info() -> PaymentInfo {
                 phone: None,
                 address: Some(api::AddressDetails {
                     city: None,
-                    country: Some("PA".to_string()),
+                    country: Some(api_models::enums::CountryCode::PA),
                     line1: None,
                     line2: None,
                     line3: None,
@@ -456,7 +456,6 @@ pub fn get_payment_info() -> PaymentInfo {
         }),
         auth_type: None,
         access_token: None,
-        router_return_url: None,
         connector_meta_data: None,
     }
 }

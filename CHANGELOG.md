@@ -1,3 +1,165 @@
+# 0.5.4 (2023-04-04)
+
+## New Features
+
+* **request:**  add `RequestBuilder` method to attach default request headers (#826) (6f61f830)
+* **middleware:**  add middleware to attach default response headers (#824) (6d7b11a0)
+* **core:**  added multiple payment_attempt support for payment_intent (#439) (35d3e277)
+* **router:**  added incoming dispute webhooks flow (#769) (a733eafb)
+
+## Bug Fixes
+
+* **cards_info:**  add extra columns to cards_info struct (#813) (442bed0f)
+* **connector:**  [Mollie] remove unsupported implementation of Void flow from mollie connector (#808) (eee8304b)
+
+## Other Changes
+
+* **common_utils:**  put the signals module behind a feature flag (#814) (fb4ec431)
+* **core:**  replace string with enum for country (#735) (e18bfb2a)
+* **api_models:**  put the errors module behind a feature flag (#815) (f14f87a1)
+* **storage_models:**  delete client secret when status is succeeded, failed, cancelled (#724) (a05059b7)
+## Refactors
+
+* **drainer, router:**  KMS decrypt database password when `kms` feature is enabled (#733) (9d6e4ee3)
+
+# 0.5.3 (2023-03-29)
+
+## Documentation Changes
+
+* **rfc:**  add rfc template & first RFC (#806) (01a5e0a0)
+
+## New Features
+
+*  cards info api (#749) (b15b8f7b)
+* **connector:**  [Nuvei] add webhook support (#795) (20b4372b)
+
+## Bug Fixes
+
+* **compatibility:**  add last_payment_error in stripe payment response (#803) (97b95f0e)
+
+## Refactors
+
+* **api_models:**  enhance accepted countries/currencies types (#807) (f9ef3135)
+* **services:**   make AppState impl generic using AppStateInfo (#805) (642c3f3a)
+
+# 0.5.2 (2023-03-24)
+
+## Chores
+
+*  prepare for building production Docker images (#794) (6ddc30eb)
+
+## Bug Fixes
+
+* **connector:**  [Airwallex] Change Session Token to Init Payment (#798) (a3c00339)
+
+## Other Changes
+
+* **router:**  change MAX_ID_LENGTH to 64 (#792) (346bd954)
+
+## Refactors
+
+*  extract kms module to `external_services` crate (#793) (029e3894)
+
+# 0.5.1 (2023-03-21)
+
+## Documentation Changes
+
+* **try_local_system:**
+  *  add Ubuntu on WSL2 setup instructions (#767) (1d2166cf)
+  *  add API key creation step (#765) (4b268068)
+
+## New Features
+
+* **pm_list:**  handle client secret check (#759) (82344fc4)
+*  add in-memory cache support for config table (#751) (abedaae4)
+*  compile time optimization (#775) (5b5557b7)
+* **router:**
+  *  add support for stateful straight through routing (#752) (568bf01a)
+  *  adding metrics for tracking behavior throughout the `router` crate  (#768) (d302b286)
+* **router_env:**
+  *  making metric flow as a trait for extensibility (#797) (df699e2b)
+* **core:**  accept gateway credentials in the request body in payments and refunds (#766) (cb188f92)
+* **connector:**
+  *  Add support to provide connector_payment_meta for capture and void request (#770) (6c008ae6)
+  *  [Trustpay] add webhooks (payment and refund events) (#746) (853dfa16)
+
+## Bug Fixes
+
+*  process delete response from basilisk-v3 as plaintext instead of JWE (#791) (699ca4f)
+* **storage:**  add serialization for primitivedatetime for diesel structs (#764) (f27732a6)
+
+## Refactors
+
+*  get connection pool based on olap/oltp features (#743) (a392fb16)
+
+# 0.5.0 (2023-03-21)
+
+## Build System / Dependencies
+
+* **deps:**  update deps (#734) (16bc886c)
+
+## Chores
+
+* **merchant_account:**  remove `api_key` field (#713) (230fcdd4)
+* **config:**  move connector base URLs under the `[connectors]` table (#723) (df8c8b5a)
+*  address Rust 1.68 clippy lints (#728) (1ffabb40)
+
+## Continuous Integration
+
+* **release:**  specify `fetch-depth` for code checkout and use official Docker GitHub actions (#722) (c451368f)
+
+## Documentation Changes
+
+*  Update naming conventions and added examples (#709) (98415193)
+* **openapi:**  document path parameters for API keys endpoints (#702) (9062dc80)
+
+## New Features
+
+* **connector:**
+  *  [Mollie]: add authorize, void, refund, psync, rsync support for mollie connector (#740) (168fa32)
+  *  [worldline] add webhook support for connector (#721) (13a8ce8e)
+  *  [Trustpay] add authorize (cards 3ds, no3ds and bank redirects), refund, psync, rsync (#717) (e102cae7)
+  *  [Fiserv] add Refunds, Cancel and Wallets flow along with Unit Tests (#593) (cd1c5409)
+  *  Add support for complete authorize payment after 3DS redirection (#741) (ec2b1b18)
+*  removing unnecessary logs from console (#753) (1021d1ae)
+*  Time based deletion of temp card (#729) (db3d3164)
+*  populate fields from payment attempt in payment list (#736) (b5b3d57c)
+*  add generic in-memory cache interface (#737) (7f5e5d86)
+*  Add HSTS headers to response (#725) (7ed665ec)
+*  cache reverse lookup fetches on redis (#719) (1a27faca)
+* **compatibility:**  add webhook support for stripe compatibility (#710) (79160504)
+
+## Bug Fixes
+
+* **docker-compose:**  remove port for hyperswitch-server-init in docker-compose.yml (#763) (20b93276)
+*  fixing docker compose setup & adding redisinsight (#748) (5c9bec9f)
+* **kms:**  log KMS SDK errors using the `Debug` impl (#720) (468aa87f)
+* **errors:**
+  *  Replace PaymentMethod with PaymentModethodData in test.rs (#716) (763ee094)
+  *  use `Debug` impl instead of `Display` for error types wrapping `error_stack::Report` (#714) (45484752)
+
+## Other Changes
+
+*  card_fingerprint not sent by basilisk_hs (#754) (5ae2f63f)
+
+## Refactors
+
+* **merchant_account:**  add back `api_key` field for backward compatibility (#761) (661dd48a)
+* **connector:**  update add_connector script (#762) (78794ed6)
+* **metrics:**  use macros for constructing counter and histogram metrics (#755) (58106d91)
+* **kms:**  share a KMS client for all KMS operations (#744) (a3ff2e8d)
+*  Basilisk hs integration (#704) (585618e5)
+*  Add service_name to get and delete request (#738) (8b7ae9c3)
+*  Add secret to metadata (#706) (d36afbed)
+* **client:**
+  *  simplify HTTP client construction (#731) (1756d1c4)
+  *  remove dependence on `ROUTER_HTTP_PROXY` and `ROUTER_HTTPS_PROXY` env vars (#730) (c085e460)
+* **authentication:**  authenticate merchant by API keys from API keys table (#712) (afd08d42)
+* **api_keys:**  use a KMS encrypted API key hashing key and remove key ID prefix from plaintext API keys (#639) (3a3b33ac)
+
+## Tests
+
+* **masking:**  add suitable feature gates for basic tests (#745) (4859b6e4)
 # 0.3.0 (2023-03-05)
 
 ## Chores
