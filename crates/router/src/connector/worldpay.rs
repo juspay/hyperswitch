@@ -22,7 +22,7 @@ use crate::{
         api::{self, ConnectorCommon, ConnectorCommonExt},
         ErrorResponse, Response,
     },
-    utils::{BytesExt, Encode},
+    utils::{self as ext_traits, BytesExt},
 };
 
 #[derive(Debug, Clone)]
@@ -383,7 +383,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
         let connector_req = WorldpayPaymentsRequest::try_from(req)?;
         let worldpay_req =
-            Encode::<WorldpayPaymentsRequest>::encode_to_string_of_json(&connector_req)
+            ext_traits::Encode::<WorldpayPaymentsRequest>::encode_to_string_of_json(&connector_req)
                 .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(worldpay_req))
     }
@@ -456,8 +456,9 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         req: &types::RefundExecuteRouterData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
         let connector_req = WorldpayRefundRequest::try_from(req)?;
-        let req = Encode::<WorldpayRefundRequest>::encode_to_string_of_json(&connector_req)
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let req =
+            ext_traits::Encode::<WorldpayRefundRequest>::encode_to_string_of_json(&connector_req)
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(req))
     }
 
