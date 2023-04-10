@@ -40,8 +40,8 @@ pub fn setup(
     let (telemetry_tracer, _metrics_controller) = if config.telemetry.enabled {
         global::set_text_map_propagator(TraceContextPropagator::new());
         (
-            setup_tracing_pipeline(service_name, config.telemetry.sampling_rate),
-            setup_metrics_pipeline(),
+            setup_tracing_pipeline(&config.telemetry, service_name),
+            setup_metrics_pipeline(&config.telemetry),
         )
     } else {
         (None, None)
@@ -123,30 +123,26 @@ pub fn setup(
     })
 }
 
-fn get_opentelemetry_exporter() -> TonicExporterBuilder {
-    let endpoint = std::env::var(crate::env::vars::OTEL_EXPORTER_OTLP_ENDPOINT).ok();
-    let timeout = std::env::var(crate::env::vars::OTEL_EXPORTER_OTLP_TIMEOUT)
-        .ok()
-        .and_then(|s| u64::from_str(&s).ok());
-
+fn get_opentelemetry_exporter(config: &config::LogTelemetry) -> TonicExporterBuilder {
     let mut exporter_builder = opentelemetry_otlp::new_exporter().tonic();
-    if let Some(endpoint) = endpoint {
+
+    if let Some(ref endpoint) = config.otel_exporter_otlp_endpoint {
         exporter_builder = exporter_builder.with_endpoint(endpoint);
     }
-    if let Some(timeout) = timeout {
-        exporter_builder = exporter_builder.with_timeout(Duration::from_secs(timeout));
+    if let Some(timeout) = config.otel_exporter_otlp_timeout {
+        exporter_builder = exporter_builder.with_timeout(Duration::from_millis(timeout));
     }
 
     exporter_builder
 }
 
 fn setup_tracing_pipeline(
+    config: &config::LogTelemetry,
     service_name: &'static str,
-    sampling_rate: Option<f64>,
 ) -> Option<Result<trace::Tracer, TraceError>> {
     let trace_config = trace::config()
         .with_sampler(trace::Sampler::TraceIdRatioBased(
-            sampling_rate.unwrap_or(1.0),
+            config.sampling_rate.unwrap_or(1.0),
         ))
         .with_resource(Resource::new(vec![KeyValue::new(
             "service.name",
@@ -155,14 +151,14 @@ fn setup_tracing_pipeline(
 
     let tracer = opentelemetry_otlp::new_pipeline()
         .tracing()
-        .with_exporter(get_opentelemetry_exporter())
+        .with_exporter(get_opentelemetry_exporter(config))
         .with_trace_config(trace_config)
         .install_simple();
 
     Some(tracer)
 }
 
-fn setup_metrics_pipeline() -> Option<BasicController> {
+fn setup_metrics_pipeline(config: &config::LogTelemetry) -> Option<BasicController> {
     let histogram_buckets = {
         let mut init = 0.01;
         let mut buckets: [f64; 15] = [0.0; 15];
@@ -181,7 +177,7 @@ fn setup_metrics_pipeline() -> Option<BasicController> {
             // This would have to be updated if a different web framework is used
             runtime::TokioCurrentThread,
         )
-        .with_exporter(get_opentelemetry_exporter())
+        .with_exporter(get_opentelemetry_exporter(config))
         .with_period(Duration::from_secs(3))
         .with_timeout(Duration::from_secs(10))
         .build()

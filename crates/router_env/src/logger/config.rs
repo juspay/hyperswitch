@@ -87,6 +87,10 @@ pub struct LogTelemetry {
     pub enabled: bool,
     /// Sampling rate for traces
     pub sampling_rate: Option<f64>,
+    /// Base endpoint URL to send metrics and traces to. Can optionally include the port number.
+    pub otel_exporter_otlp_endpoint: Option<String>,
+    /// Timeout (in milliseconds) for sending metrics and traces.
+    pub otel_exporter_otlp_timeout: Option<u64>,
 }
 
 /// Telemetry / tracing.

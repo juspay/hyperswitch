@@ -22,12 +22,6 @@ pub mod vars {
 
     /// Environment variable that sets the file logging level.
     pub const RUST_FILE_LOG: &str = "RUST_FILE_LOG";
-
-    /// Target to which the OpenTelemetry exporter is going to send signals.
-    pub const OTEL_EXPORTER_OTLP_ENDPOINT: &str = opentelemetry_otlp::OTEL_EXPORTER_OTLP_ENDPOINT;
-
-    /// Max waiting time for the OpenTelemetry backend to process each signal batch.
-    pub const OTEL_EXPORTER_OTLP_TIMEOUT: &str = opentelemetry_otlp::OTEL_EXPORTER_OTLP_TIMEOUT;
 }
 
 /// Current environment.
