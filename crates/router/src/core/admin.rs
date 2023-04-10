@@ -19,7 +19,7 @@ use crate::{
     types::{
         self, api,
         domain::{
-            self, merchant_account as merchant_domain,
+            self, merchant_account as merchant_domain, merchant_key_store,
             types::{get_key_and_algo, TypeEncryption},
         },
         storage,
@@ -42,6 +42,11 @@ pub async fn create_merchant_account(
     req: api::MerchantAccountCreate,
 ) -> RouterResponse<api::MerchantAccountResponse> {
     let db = &*state.store;
+    let master_key = db.get_master_key();
+
+    let key = crate::services::generate_aes256_key()
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
     let publishable_key = Some(create_merchant_publishable_key());
 
     let api_key_request = api::CreateApiKeyRequest {
@@ -52,10 +57,6 @@ pub async fn create_merchant_account(
         ),
         expiration: api::ApiKeyExpiration::Never,
     };
-
-    let key = get_key_and_algo(db, req.merchant_id.clone())
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
     let api_key = match api_keys::create_api_key(
         db,
@@ -98,6 +99,20 @@ pub async fn create_merchant_account(
             })
             .attach_printable("Invalid routing algorithm given")?;
     }
+
+    let key_store = merchant_key_store::MerchantKeyStore {
+        id: None,
+        merchant_id: req.merchant_id.clone(),
+        key: crypto::Encryptable::encrypt(key.to_vec().into(), &master_key, GcmAes256 {})
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)?,
+    };
+
+    db.insert_merchant_key_store(key_store)
+        .await
+        .map_err(|error| {
+            error.to_duplicate_response(errors::ApiErrorResponse::DuplicateMerchantAccount)
+        })?;
 
     let merchant_account = merchant_domain::MerchantAccount {
         merchant_id: req.merchant_id,
@@ -145,7 +160,6 @@ pub async fn create_merchant_account(
         .map_err(|error| {
             error.to_duplicate_response(errors::ApiErrorResponse::DuplicateMerchantAccount)
         })?;
-
     Ok(service_api::ApplicationResponse::Json(
         merchant_account.into(),
     ))

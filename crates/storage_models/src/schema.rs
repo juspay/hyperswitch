@@ -248,6 +248,17 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
+    merchantkeystore (id) {
+        id -> Int4,
+        merchant_id -> Varchar,
+        key -> Binary,
+    }
+}
+
+diesel::table! {
+    use diesel::sql_types::*;
+    use crate::enums::diesel_exports::*;
+
     payment_attempt (id) {
         id -> Int4,
         payment_id -> Varchar,
@@ -423,6 +434,7 @@ diesel::allow_tables_to_appear_in_same_query!(
     mandate,
     merchant_account,
     merchant_connector_account,
+    merchantkeystore,
     payment_attempt,
     payment_intent,
     payment_methods,

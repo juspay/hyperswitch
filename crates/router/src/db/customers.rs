@@ -72,7 +72,7 @@ impl CustomerInterface for Store {
             .map_err(Into::into)
             .into_report()?
             .async_map(|c| async {
-                c.convert()
+                c.convert(self, merchant_id)
                     .await
                     .change_context(errors::StorageError::DeserializationFailed)
             })
@@ -107,7 +107,8 @@ impl CustomerInterface for Store {
         .map_err(Into::into)
         .into_report()
         .async_and_then(|c| async {
-            c.convert()
+            let merchant_id = c.merchant_id.clone();
+            c.convert(self, &merchant_id)
                 .await
                 .change_context(errors::StorageError::DeserializationFailed)
         })
@@ -126,7 +127,8 @@ impl CustomerInterface for Store {
                 .map_err(Into::into)
                 .into_report()
                 .async_and_then(|c| async {
-                    c.convert()
+                    let merchant_id = c.merchant_id.clone();
+                    c.convert(self, &merchant_id)
                         .await
                         .change_context(errors::StorageError::DeserializationFailed)
                 })
@@ -153,7 +155,8 @@ impl CustomerInterface for Store {
             .map_err(Into::into)
             .into_report()
             .async_and_then(|c| async {
-                c.convert()
+                let merchant_id = c.merchant_id.clone();
+                c.convert(self, &merchant_id)
                     .await
                     .change_context(errors::StorageError::DeserializationFailed)
             })
@@ -190,7 +193,8 @@ impl CustomerInterface for MockDb {
             .cloned();
         customer
             .async_map(|c| async {
-                c.convert()
+                let merchant_id = c.merchant_id.clone();
+                c.convert(self, &merchant_id)
                     .await
                     .change_context(errors::StorageError::DeserializationFailed)
             })
@@ -227,10 +231,12 @@ impl CustomerInterface for MockDb {
         let customer = Conversion::convert(customer_data)
             .await
             .change_context(errors::StorageError::SerializationFailed)?;
+
+        let merchant_id = customer.merchant_id.clone();
         customers.push(customer.clone());
 
         customer
-            .convert()
+            .convert(self, &merchant_id)
             .await
             .change_context(errors::StorageError::DeserializationFailed)
     }

@@ -182,7 +182,7 @@ impl MerchantConnectorAccountInterface for Store {
         .map_err(Into::into)
         .into_report()
         .async_and_then(|item| async {
-            item.convert()
+            item.convert(self, merchant_id)
                 .await
                 .change_context(errors::StorageError::DeserializationFailed)
         })
@@ -208,7 +208,7 @@ impl MerchantConnectorAccountInterface for Store {
             .map_err(Into::into)
             .into_report()
             .async_and_then(|item| async {
-                item.convert()
+                item.convert(self, merchant_id)
                     .await
                     .change_context(errors::StorageError::DeserializationFailed)
             })
@@ -241,7 +241,8 @@ impl MerchantConnectorAccountInterface for Store {
             .map_err(Into::into)
             .into_report()
             .async_and_then(|item| async {
-                item.convert()
+                let merchant_id = item.merchant_id.clone();
+                item.convert(self, &merchant_id)
                     .await
                     .change_context(errors::StorageError::DeserializationFailed)
             })
@@ -265,7 +266,7 @@ impl MerchantConnectorAccountInterface for Store {
                 let mut output = Vec::with_capacity(items.len());
                 for item in items.into_iter() {
                     output.push(
-                        item.convert()
+                        item.convert(self, merchant_id)
                             .await
                             .change_context(errors::StorageError::DeserializationFailed)?,
                     )
@@ -294,7 +295,8 @@ impl MerchantConnectorAccountInterface for Store {
                 .map_err(Into::into)
                 .into_report()
                 .async_and_then(|item| async {
-                    item.convert()
+                    let merchant_id = item.merchant_id.clone();
+                    item.convert(self, &merchant_id)
                         .await
                         .change_context(errors::StorageError::DeserializationFailed)
                 })
@@ -350,7 +352,7 @@ impl MerchantConnectorAccountInterface for MockDb {
             .cloned()
             .unwrap();
         account
-            .convert()
+            .convert(self, merchant_id)
             .await
             .change_context(errors::StorageError::DeserializationFailed)
     }
@@ -376,6 +378,7 @@ impl MerchantConnectorAccountInterface for MockDb {
         errors::StorageError,
     > {
         let mut accounts = self.merchant_connector_accounts.lock().await;
+        let merchant_id = t.merchant_id.clone();
         let account = storage::MerchantConnectorAccount {
             #[allow(clippy::as_conversions)]
             id: accounts.len() as i32,
@@ -391,7 +394,7 @@ impl MerchantConnectorAccountInterface for MockDb {
         };
         accounts.push(account.clone());
         account
-            .convert()
+            .convert(self, &merchant_id)
             .await
             .change_context(errors::StorageError::DeserializationFailed)
     }

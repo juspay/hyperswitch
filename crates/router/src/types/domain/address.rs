@@ -11,6 +11,7 @@ use storage_models::{address::AddressUpdateInternal, encryption::Encryption, enu
 use time::{OffsetDateTime, PrimitiveDateTime};
 
 use super::{behaviour, types::TypeEncryption};
+use crate::db::StorageInterface;
 
 #[derive(Clone, Debug, serde::Serialize)]
 pub struct Address {
@@ -68,7 +69,11 @@ impl behaviour::Conversion for Address {
         })
     }
 
-    async fn convert_back(other: Self::DstType) -> CustomResult<Self, ValidationError> {
+    async fn convert_back(
+        other: Self::DstType,
+        _db: &dyn StorageInterface,
+        _merchant_id: &str,
+    ) -> CustomResult<Self, ValidationError> {
         let key = &[0];
         Ok(Self {
             id: Some(other.id),
