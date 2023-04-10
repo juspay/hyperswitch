@@ -150,7 +150,7 @@ pub struct RefundListResponse {
 
 /// The status for refunds
 #[derive(
-    Debug, Eq, Clone, PartialEq, Default, Deserialize, Serialize, ToSchema, strum::Display,
+    Debug, Eq, Clone, Copy, PartialEq, Default, Deserialize, Serialize, ToSchema, strum::Display,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum RefundStatus {
