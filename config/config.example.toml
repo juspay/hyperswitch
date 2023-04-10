@@ -61,6 +61,13 @@ file_name = "debug.log" # base name for log files.
 # levels can be "TRACE", "DEBUG", "INFO", "WARN", "ERROR", "OFF"
 # defaults to "WARN"
 level = "WARN"
+# sets the log level for one or more crates
+filtering_directive = "WARN,router=INFO,reqwest=INFO" 
+#                      ^^^^        ^^^^---------^^^^-- sets the log level for the
+#                      |                               router and reqwest crates to INFO.
+#                      |
+#                      |______________________________ sets the log level for all
+#                                                      other crates to WARN.
 
 # Logging configuration for console logging
 [log.console]
@@ -69,6 +76,13 @@ log_format = "default" # Log format. "default" or "json"
 # levels can be "TRACE", "DEBUG", "INFO", "WARN", "ERROR", "OFF"
 # defaults to "WARN"
 level = "DEBUG"
+# sets the log level for one or more crates
+filtering_directive = "WARN,router=INFO,reqwest=INFO" 
+#                      ^^^^        ^^^^---------^^^^-- sets the log level for the
+#                      |                               router and reqwest crates to INFO.
+#                      |
+#                      |______________________________ sets the log level for all
+#                                                      other crates to WARN.
 
 # Telemetry configuration for metrics and traces
 [log.telemetry]

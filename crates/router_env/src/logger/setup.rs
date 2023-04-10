@@ -63,7 +63,7 @@ pub fn setup(
         guards.push(guard);
 
         let file_filter = get_target_filter(
-            crate::env::vars::RUST_FILE_LOG,
+            config.file.filtering_directive.as_ref(),
             config::Level(tracing::Level::WARN),
             config.file.level,
             &crates_to_filter,
@@ -85,7 +85,7 @@ pub fn setup(
         guards.push(guard);
 
         let console_filter = get_target_filter(
-            crate::env::vars::RUST_CONSOLE_LOG,
+            config.console.filtering_directive.as_ref(),
             config::Level(tracing::Level::WARN),
             config.console.level,
             &crates_to_filter,
@@ -186,18 +186,17 @@ fn setup_metrics_pipeline(config: &config::LogTelemetry) -> Option<BasicControll
 }
 
 fn get_target_filter(
-    env_var: &'static str,
+    filtering_directive: Option<&String>,
     default_log_level: config::Level,
     filter_log_level: config::Level,
     crates_to_filter: impl AsRef<[&'static str]>,
 ) -> Targets {
-    std::env::var(env_var)
-        .ok()
+    filtering_directive
         .and_then(|filter| {
-            // Try to create target filter from specified environment variable, if set
-            Targets::from_str(&filter)
+            // Try to create target filter from specified filtering directive, if set
+            Targets::from_str(filter)
                 .map_err(|error| {
-                    eprintln!("Invalid target filtering directive for `{env_var}`: {error}")
+                    eprintln!("Invalid target filtering directive `{filter}`: {error}")
                 })
                 .ok()
         })

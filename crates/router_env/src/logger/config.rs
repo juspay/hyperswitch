@@ -35,9 +35,11 @@ pub struct LogFile {
     pub path: String,
     /// Name of log file without suffix.
     pub file_name: String,
-    // pub do_async: bool, // is not used
     /// What gets into log files.
     pub level: Level,
+    /// Directive which sets the log level for one or more crates/modules.
+    pub filtering_directive: Option<String>,
+    // pub do_async: bool, // is not used
     // pub rotation: u16,
 }
 
@@ -77,6 +79,8 @@ pub struct LogConsole {
     /// Log format
     #[serde(default)]
     pub log_format: LogFormat,
+    /// Directive which sets the log level for one or more crates/modules.
+    pub filtering_directive: Option<String>,
 }
 
 /// Telemetry / tracing.
