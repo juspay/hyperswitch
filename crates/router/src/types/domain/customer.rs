@@ -8,8 +8,11 @@ use masking::Secret;
 use storage_models::{customers::CustomerUpdateInternal, encryption::Encryption};
 use time::PrimitiveDateTime;
 
-use super::types::TypeEncryption;
-use crate::errors::{CustomResult, ValidationError};
+use super::types::{get_key_and_algo, TypeEncryption};
+use crate::{
+    db::StorageInterface,
+    errors::{CustomResult, ValidationError},
+};
 
 #[derive(Clone, Debug)]
 pub struct Customer {
@@ -46,18 +49,26 @@ impl super::behaviour::Conversion for Customer {
         })
     }
 
-    async fn convert_back(item: Self::DstType) -> CustomResult<Self, ValidationError>
+    async fn convert_back(
+        item: Self::DstType,
+        db: &dyn StorageInterface,
+        merchant_id: &str,
+    ) -> CustomResult<Self, ValidationError>
     where
         Self: Sized,
     {
-        let key = &[0]; // To be replaced by key fetched from Store
+        let key = get_key_and_algo(db, merchant_id).await.change_context(
+            ValidationError::InvalidValue {
+                message: "Failed while getting key from key store".to_string(),
+            },
+        )?;
         Ok(Self {
             id: Some(item.id),
             customer_id: item.customer_id,
             merchant_id: item.merchant_id,
             name: item
                 .name
-                .async_map(|value| Encryptable::decrypt(value, key, GcmAes256 {}))
+                .async_map(|value| Encryptable::decrypt(value, &key, GcmAes256 {}))
                 .await
                 .transpose()
                 .change_context(ValidationError::InvalidValue {
@@ -65,7 +76,7 @@ impl super::behaviour::Conversion for Customer {
                 })?,
             email: item
                 .email
-                .async_map(|value| Encryptable::decrypt(value, key, GcmAes256 {}))
+                .async_map(|value| Encryptable::decrypt(value, &key, GcmAes256 {}))
                 .await
                 .transpose()
                 .change_context(ValidationError::InvalidValue {
@@ -73,7 +84,7 @@ impl super::behaviour::Conversion for Customer {
                 })?,
             phone: item
                 .phone
-                .async_map(|value| Encryptable::decrypt(value, key, GcmAes256 {}))
+                .async_map(|value| Encryptable::decrypt(value, &key, GcmAes256 {}))
                 .await
                 .transpose()
                 .change_context(ValidationError::InvalidValue {

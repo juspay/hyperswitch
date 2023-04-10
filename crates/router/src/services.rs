@@ -80,6 +80,7 @@ pub struct Store {
     pub redis_conn: Arc<redis_interface::RedisConnectionPool>,
     #[cfg(feature = "kv_store")]
     pub(crate) config: StoreConfig,
+    pub master_key: Vec<u8>,
 }
 
 #[cfg(feature = "kv_store")]
@@ -108,6 +109,13 @@ impl Store {
             redis_clone.on_error().await;
         });
 
+        let master_enc_key = get_master_enc_key(
+            config,
+            #[cfg(feature = "kms")]
+            &config.kms,
+        )
+        .await;
+
         Self {
             master_pool: diesel_make_pg_pool(
                 &config.master_database,
@@ -130,6 +138,7 @@ impl Store {
                 drainer_stream_name: config.drainer.stream_name.clone(),
                 drainer_num_partitions: config.drainer.num_partitions,
             },
+            master_key: master_enc_key,
         }
     }
 
@@ -176,4 +185,62 @@ impl Store {
             .await
             .change_context(crate::core::errors::StorageError::KVError)
     }
+}
+
+async fn get_master_enc_key(
+    conf: &crate::configs::settings::Settings,
+    #[cfg(feature = "kms")] kms_config: &kms::KmsConfig,
+) -> Vec<u8> {
+    #[cfg(feature = "kms")]
+    let master_enc_key = kms::get_kms_client(kms_config)
+        .await
+        .decrypt(&conf.master_enc_key)
+        .await
+        .expect("Failed to decrypt master enc key");
+
+    #[cfg(not(feature = "kms"))]
+    let master_enc_key = from_hex(&conf.secrets.master_enc_key);
+
+    master_enc_key
+}
+
+pub fn generate_aes256_key(
+) -> crate::core::errors::CustomResult<Vec<u8>, common_utils::errors::CryptoError> {
+    use ring::rand::SecureRandom;
+
+    let rng = ring::rand::SystemRandom::new();
+    let mut key: [u8; 256 / 8] = [0_u8; 256 / 8];
+    rng.fill(&mut key)
+        .into_report()
+        .change_context(common_utils::errors::CryptoError::EncodingFailed)?;
+    Ok(key.to_vec())
+}
+
+/// Decode an string of hex digits into a sequence of bytes. The input must
+/// have an even number of digits.
+pub fn from_hex(hex_str: &str) -> Vec<u8> {
+    if hex_str.len() % 2 != 0 {
+        panic!("Hex string does not have an even number of digits",);
+    }
+
+    let mut result = Vec::with_capacity(hex_str.len() / 2);
+    for digits in hex_str.as_bytes().chunks(2) {
+        let hi = from_hex_digit(digits[0]).unwrap();
+        let lo = from_hex_digit(digits[1]).unwrap();
+        result.push((hi * 0x10) | lo);
+    }
+    result
+}
+
+fn from_hex_digit(d: u8) -> Result<u8, String> {
+    use core::ops::RangeInclusive;
+    const DECIMAL: (u8, RangeInclusive<u8>) = (0, b'0'..=b'9');
+    const HEX_LOWER: (u8, RangeInclusive<u8>) = (10, b'a'..=b'f');
+    const HEX_UPPER: (u8, RangeInclusive<u8>) = (10, b'A'..=b'F');
+    for (offset, range) in &[DECIMAL, HEX_LOWER, HEX_UPPER] {
+        if range.contains(&d) {
+            return Ok(d - range.start() + offset);
+        }
+    }
+    Err(format!("Invalid hex digit '{}'", d as char))
 }

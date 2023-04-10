@@ -244,6 +244,7 @@ impl EncodeMessage for GcmAes256 {
             .attach_printable(RING_ERR_UNSPECIFIED)
             .change_context(errors::CryptoError::EncodingFailed)?;
         let current_nonce = nonce_sequence.current();
+        router_env::logger::error!("{:?}", secret);
         let key = UnboundKey::new(&aead::AES_256_GCM, secret)
             .into_report()
             .attach_printable(RING_ERR_UNSPECIFIED)

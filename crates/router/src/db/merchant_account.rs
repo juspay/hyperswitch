@@ -60,6 +60,7 @@ impl MerchantAccountInterface for Store {
         merchant_account: merchant_account::MerchantAccount,
     ) -> CustomResult<merchant_account::MerchantAccount, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
+        let merchant_id = merchant_account.merchant_id.clone();
         merchant_account
             .construct_new()
             .await
@@ -68,7 +69,7 @@ impl MerchantAccountInterface for Store {
             .await
             .map_err(Into::into)
             .into_report()?
-            .convert()
+            .convert(self, &merchant_id)
             .await
             .change_context(errors::StorageError::DeserializationFailed)
     }
@@ -98,7 +99,7 @@ impl MerchantAccountInterface for Store {
         {
             super::cache::get_or_populate_redis(self, merchant_id, fetch_func)
                 .await?
-                .convert()
+                .convert(self, merchant_id)
                 .await
                 .change_context(errors::StorageError::DeserializationFailed)
         }
@@ -120,7 +121,7 @@ impl MerchantAccountInterface for Store {
                 .map_err(Into::into)
                 .into_report()
                 .async_and_then(|item| async {
-                    item.convert()
+                    item.convert(self, &_merchant_id)
                         .await
                         .change_context(errors::StorageError::DeserializationFailed)
                 })
@@ -154,7 +155,7 @@ impl MerchantAccountInterface for Store {
             .map_err(Into::into)
             .into_report()
             .async_and_then(|item| async {
-                item.convert()
+                item.convert(self, merchant_id)
                     .await
                     .change_context(errors::StorageError::DeserializationFailed)
             })
@@ -182,7 +183,8 @@ impl MerchantAccountInterface for Store {
             .map_err(Into::into)
             .into_report()
             .async_and_then(|item| async {
-                item.convert()
+                let merchant_id = item.merchant_id.clone();
+                item.convert(self, &merchant_id)
                     .await
                     .change_context(errors::StorageError::DeserializationFailed)
             })
@@ -224,10 +226,11 @@ impl MerchantAccountInterface for MockDb {
         let account = Conversion::convert(merchant_account)
             .await
             .change_context(errors::StorageError::SerializationFailed)?;
+        let merchant_id = account.merchant_id.clone();
         accounts.push(account.clone());
 
         account
-            .convert()
+            .convert(self, &merchant_id)
             .await
             .change_context(errors::StorageError::SerializationFailed)
     }
@@ -243,7 +246,7 @@ impl MerchantAccountInterface for MockDb {
             .find(|account| account.merchant_id == merchant_id)
             .cloned()
             .async_map(|a| async {
-                a.convert()
+                a.convert(self, merchant_id)
                     .await
                     .change_context(errors::StorageError::DeserializationFailed)
             })

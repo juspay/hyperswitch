@@ -4,7 +4,7 @@ use common_utils::{
     errors::{self, CustomResult},
 };
 use error_stack::{IntoReport, ResultExt};
-use masking::{PeekInterface, Secret};
+use masking::{ExposeInterface, PeekInterface, Secret};
 use storage_models::encryption::Encryption;
 
 #[async_trait]
@@ -93,9 +93,43 @@ impl<
     }
 }
 
+#[async_trait]
+impl<
+        V: crypto::DecodeMessage + crypto::EncodeMessage + Send + 'static,
+        S: masking::Strategy<Vec<u8>> + Send,
+    > TypeEncryption<Vec<u8>, V, S> for crypto::Encryptable<Secret<Vec<u8>, S>>
+{
+    async fn encrypt(
+        masked_data: Secret<Vec<u8>, S>,
+        key: &[u8],
+        crypt_algo: V,
+    ) -> CustomResult<Self, errors::CryptoError> {
+        let encrypted_data = crypt_algo.encode_message(key, masked_data.peek())?;
+
+        Ok(Self::new(masked_data, encrypted_data))
+    }
+
+    async fn decrypt(
+        encrypted_data: Encryption,
+        key: &[u8],
+        crypt_algo: V,
+    ) -> CustomResult<Self, errors::CryptoError> {
+        let encrypted = encrypted_data.into_inner();
+        let decrypted_data = crypt_algo.decode_message(key, encrypted.clone())?;
+
+        Ok(Self::new(decrypted_data.into(), encrypted))
+    }
+}
+
 pub async fn get_key_and_algo(
-    _db: &dyn crate::db::StorageInterface,
-    _merchant_id: String,
+    db: &dyn crate::db::StorageInterface,
+    merchant_id: impl AsRef<str>,
 ) -> CustomResult<Vec<u8>, crate::core::errors::StorageError> {
-    Ok(Vec::new())
+    let merchant_id = merchant_id.as_ref();
+    let key = db
+        .get_merchant_key_store_by_merchant_id(merchant_id)
+        .await?
+        .key
+        .into_inner();
+    Ok(key.expose())
 }

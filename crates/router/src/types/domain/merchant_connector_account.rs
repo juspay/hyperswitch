@@ -6,6 +6,7 @@ use masking::{ExposeInterface, Secret};
 use storage_models::enums;
 
 use super::behaviour;
+use crate::db::StorageInterface;
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct MerchantConnectorAccount {
@@ -45,7 +46,11 @@ impl behaviour::Conversion for MerchantConnectorAccount {
         )
     }
 
-    async fn convert_back(other: Self::DstType) -> CustomResult<Self, ValidationError> {
+    async fn convert_back(
+        other: Self::DstType,
+        _db: &dyn StorageInterface,
+        _merchant_id: &str,
+    ) -> CustomResult<Self, ValidationError> {
         Ok(Self {
             id: Some(other.id),
             merchant_id: other.merchant_id,

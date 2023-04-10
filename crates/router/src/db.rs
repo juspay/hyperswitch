@@ -12,6 +12,7 @@ pub mod locker_mock_up;
 pub mod mandate;
 pub mod merchant_account;
 pub mod merchant_connector_account;
+pub mod merchant_key_store;
 pub mod payment_attempt;
 pub mod payment_intent;
 pub mod payment_method;
@@ -59,9 +60,27 @@ pub trait StorageInterface:
     + refund::RefundInterface
     + reverse_lookup::ReverseLookupInterface
     + cards_info::CardsInfoInterface
+    + merchant_key_store::MerchantKeyStoreInterface
+    + MasterKeyInterface
     + 'static
 {
     async fn close(&mut self) {}
+}
+
+pub trait MasterKeyInterface {
+    fn get_master_key(&self) -> Vec<u8>;
+}
+
+impl MasterKeyInterface for Store {
+    fn get_master_key(&self) -> Vec<u8> {
+        self.master_key.clone()
+    }
+}
+
+impl MasterKeyInterface for MockDb {
+    fn get_master_key(&self) -> Vec<u8> {
+        vec![0]
+    }
 }
 
 #[async_trait::async_trait]

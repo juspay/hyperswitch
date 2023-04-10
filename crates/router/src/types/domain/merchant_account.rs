@@ -10,8 +10,9 @@ use storage_models::{
 };
 
 use crate::{
+    db::StorageInterface,
     errors::{CustomResult, ValidationError},
-    types::domain::types::TypeEncryption,
+    types::domain::types::{get_key_and_algo, TypeEncryption},
 };
 
 #[derive(Clone, Debug, serde::Serialize)]
@@ -126,11 +127,19 @@ impl super::behaviour::Conversion for MerchantAccount {
         })
     }
 
-    async fn convert_back(item: Self::DstType) -> CustomResult<Self, ValidationError>
+    async fn convert_back(
+        item: Self::DstType,
+        db: &dyn StorageInterface,
+        merchant_id: &str,
+    ) -> CustomResult<Self, ValidationError>
     where
         Self: Sized,
     {
-        let key = &[0];
+        let key = get_key_and_algo(db, merchant_id.to_owned())
+            .await
+            .change_context(ValidationError::InvalidValue {
+                message: "Failed while getting key from key store".to_string(),
+            })?;
         Ok(Self {
             id: Some(item.id),
             merchant_id: item.merchant_id,
@@ -140,7 +149,7 @@ impl super::behaviour::Conversion for MerchantAccount {
             redirect_to_merchant_with_http_post: item.redirect_to_merchant_with_http_post,
             merchant_name: item
                 .merchant_name
-                .async_map(|value| Encryptable::decrypt(value, key, GcmAes256 {}))
+                .async_map(|value| Encryptable::decrypt(value, &key, GcmAes256 {}))
                 .await
                 .transpose()
                 .change_context(ValidationError::InvalidValue {
@@ -148,7 +157,7 @@ impl super::behaviour::Conversion for MerchantAccount {
                 })?,
             merchant_details: item
                 .merchant_details
-                .async_map(|value| Encryptable::decrypt(value, key, GcmAes256 {}))
+                .async_map(|value| Encryptable::decrypt(value, &key, GcmAes256 {}))
                 .await
                 .transpose()
                 .change_context(ValidationError::InvalidValue {
@@ -164,7 +173,7 @@ impl super::behaviour::Conversion for MerchantAccount {
             routing_algorithm: item.routing_algorithm,
             api_key: item
                 .api_key
-                .async_map(|value| Encryptable::decrypt(value, key, GcmAes256 {}))
+                .async_map(|value| Encryptable::decrypt(value, &key, GcmAes256 {}))
                 .await
                 .transpose()
                 .change_context(ValidationError::InvalidValue {

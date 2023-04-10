@@ -158,6 +158,7 @@ where
 pub struct Secrets {
     pub jwt_secret: String,
     pub admin_api_key: String,
+    pub master_enc_key: String,
 }
 
 #[derive(Debug, Deserialize, Clone)]
