@@ -200,7 +200,7 @@ diesel::table! {
         connector_mandate_id -> Nullable<Varchar>,
         start_date -> Nullable<Timestamp>,
         end_date -> Nullable<Timestamp>,
-        meta_data -> Nullable<Jsonb>,
+        metadata -> Nullable<Jsonb>,
     }
 }
 

@@ -1,4 +1,4 @@
 ALTER TABLE mandate 
 DROP COLUMN IF EXISTS start_date,
 DROP COLUMN IF EXISTS end_date,
-DROP COLUMN IF EXISTS meta_data;
+DROP COLUMN IF EXISTS metadata;

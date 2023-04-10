@@ -1188,7 +1188,7 @@ pub fn generate_mandate(
                         .set_mandate_currency(Some(data.currency.foreign_into()))
                         .set_start_date(data.start_date)
                         .set_end_date(data.end_date)
-                        .set_meta_data(data.meta_data),
+                        .set_metadata(data.metadata),
                     None => &mut new_mandate,
                 }
                 .set_mandate_type(storage_enums::MandateType::MultiUse)

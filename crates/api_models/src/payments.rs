@@ -334,7 +334,7 @@ pub struct MandateAmountData {
     #[schema(value_type = Option<Object>, example = r#"{
         "frequency": "DAILY"
     }"#)]
-    pub meta_data: Option<pii::SecretSerdeValue>,
+    pub metadata: Option<pii::SecretSerdeValue>,
 }
 
 #[derive(Eq, PartialEq, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]

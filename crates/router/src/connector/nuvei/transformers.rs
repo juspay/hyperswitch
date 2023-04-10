@@ -26,13 +26,13 @@ pub struct NuveiMandateMeta {
     pub frequency: String,
 }
 
-#[derive(Debug, Serialize, Default, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NuveiSessionRequest {
     pub merchant_id: String,
     pub merchant_site_id: String,
     pub client_request_id: String,
-    pub time_stamp: String,
+    pub time_stamp: date_time::DateTime<date_time::YYYYMMDDHHmmss>,
     pub checksum: String,
 }
 
@@ -324,10 +324,7 @@ impl TryFrom<&types::PaymentsAuthorizeSessionTokenRouterData> for NuveiSessionRe
         let merchant_id = connector_meta.merchant_id;
         let merchant_site_id = connector_meta.merchant_site_id;
         let client_request_id = item.attempt_id.clone();
-        let time_stamp =
-            date_time::format_date(date_time::now(), date_time::DateFormat::YYYYMMDDHHmmss)
-                .into_report()
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let time_stamp = date_time::DateTime::<date_time::YYYYMMDDHHmmss>::from(date_time::now());
         let merchant_secret = connector_meta.merchant_secret;
         Ok(Self {
             merchant_id: merchant_id.clone(),
@@ -338,7 +335,7 @@ impl TryFrom<&types::PaymentsAuthorizeSessionTokenRouterData> for NuveiSessionRe
                 merchant_id,
                 merchant_site_id,
                 client_request_id,
-                time_stamp,
+                time_stamp.to_string(),
                 merchant_secret,
             ])?,
         })
@@ -480,7 +477,7 @@ fn get_card_info<F>(
     if connector_mandate_id.is_some() {
         return Ok(NuveiPaymentsRequest {
             related_transaction_id,
-            is_rebilling: Some("1".to_string()),
+            is_rebilling: Some("1".to_string()), // In case of second installment, rebilling should be 1
             user_token_id: Some(item.request.get_email()?),
             payment_option: PaymentOption {
                 user_payment_option_id: connector_mandate_id.clone(),
@@ -501,9 +498,9 @@ fn get_card_info<F>(
                     }
                 };
                 let mandate_meta: NuveiMandateMeta =
-                    utils::to_connector_meta_from_secret(Some(details.get_meta_data()?))?;
+                    utils::to_connector_meta_from_secret(Some(details.get_metadata()?))?;
                 (
-                    Some("0".to_string()),
+                    Some("0".to_string()), // In case of first installment, rebilling should be 0
                     Some(V2AdditionalParams {
                         rebill_expiry: Some(details.get_end_date(date_time::DateFormat::YYYYMMDD)?),
                         rebill_frequency: Some(mandate_meta.frequency),
