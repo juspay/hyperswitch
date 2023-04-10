@@ -32,6 +32,6 @@ pub use self::{
     authorizedotnet::Authorizedotnet, bambora::Bambora, bluesnap::Bluesnap, braintree::Braintree,
     cashtocode::Cashtocode, checkout::Checkout, cybersource::Cybersource, dlocal::Dlocal,
     fiserv::Fiserv, globalpay::Globalpay, klarna::Klarna, mollie::Mollie,
-    multisafepay::Multisafepay, nuvei::Nuvei, paypal::Paypal, payu::Payu, rapyd::Rapyd, shift4::Shift4,
-    stripe::Stripe, trustpay::Trustpay, worldline::Worldline, worldpay::Worldpay,
+    multisafepay::Multisafepay, nuvei::Nuvei, paypal::Paypal, payu::Payu, rapyd::Rapyd,
+    shift4::Shift4, stripe::Stripe, trustpay::Trustpay, worldline::Worldline, worldpay::Worldpay,
 };

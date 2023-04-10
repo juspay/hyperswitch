@@ -41,7 +41,9 @@ fn get_mid(
         api_models::payments::PaymentMethodData::Reward(reward_data) => {
             Ok(reward_data.mid.to_string())
         }
-        _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
+        _ => Err(errors::ConnectorError::NotImplemented(
+            "Payment methods".to_string(),
+        )),
     }
 }
 
@@ -75,7 +77,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for CashtocodePaymentsRequest 
             Err(err) => return Err(err.into()),
         };
         match item.payment_method {
-            storage_models::enums::PaymentMethod::Reward => Ok(CashtocodePaymentsRequest {
+            storage_models::enums::PaymentMethod::Reward => Ok(Self {
                 amount: item.request.amount,
                 transaction_id: item.attempt_id.clone(),
                 currency: item.request.currency.to_string(),
@@ -321,7 +323,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
 pub struct CashtocodeErrorResponse {
     pub error: String,
     pub error_description: String,
-    pub errors: Option<Vec<Box<CashtocodeErrors>>>,
+    pub errors: Option<Vec<CashtocodeErrors>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]

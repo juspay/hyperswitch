@@ -160,7 +160,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
             get_auth_cashtocode(&req.request.payment_method_data, &req.connector_auth_type);
         let mut api_key = match auth_differentiator {
             Ok(auth_type) => auth_type,
-            Err(err) => return Err(err.into()),
+            Err(err) => return Err(err),
         };
         header.append(&mut api_key);
         Ok(header)
@@ -570,9 +570,9 @@ impl api::IncomingWebhook for Cashtocode {
             .parse_struct("CashtocodeIncomingWebhook")
             .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
 
-        return Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
-                api_models::payments::PaymentIdType::ConnectorTransactionId(webhook.transaction_id),
-            ));
+        Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
+            api_models::payments::PaymentIdType::ConnectorTransactionId(webhook.transaction_id),
+        ))
     }
 
     fn get_webhook_event_type(
@@ -608,12 +608,9 @@ impl api::IncomingWebhook for Cashtocode {
             .get_webhook_object_reference_id(request)
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
         let txn_id = match id {
-            api_models::webhooks::ObjectReferenceId::PaymentId(txn_id) => {
-                match txn_id {
-                    api_models::payments::PaymentIdType::ConnectorTransactionId(connector_txn_id) => connector_txn_id.to_string(),
-                    _ => return Err(errors::ConnectorError::MissingConnectorTransactionID).into_report(),
-                }
-            },
+            api_models::webhooks::ObjectReferenceId::PaymentId(
+                api_models::payments::PaymentIdType::ConnectorTransactionId(connector_txn_id),
+            ) => connector_txn_id,
             _ => return Err(errors::ConnectorError::MissingConnectorTransactionID).into_report(),
         };
         let response: serde_json::Value =
