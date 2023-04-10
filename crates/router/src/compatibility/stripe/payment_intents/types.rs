@@ -1,7 +1,8 @@
 use api_models::payments;
 use common_utils::{date_time, ext_traits::StringExt, pii as secret};
-use error_stack::ResultExt;
+use error_stack::{IntoReport, ResultExt};
 use serde::{Deserialize, Serialize};
+use time::PrimitiveDateTime;
 
 use crate::{
     compatibility::stripe::refunds::types as stripe_refunds,
@@ -10,9 +11,11 @@ use crate::{
     pii::{self, PeekInterface},
     types::{
         api::{admin, enums as api_enums},
-        transformers::{ForeignFrom, ForeignInto},
+        transformers::{ForeignFrom, ForeignInto, ForeignTryFrom, ForeignTryInto},
     },
 };
+
+// pub struct MyMandateData(pub payments::MandateData);
 
 #[derive(Default, Serialize, PartialEq, Eq, Deserialize, Clone)]
 pub struct StripeBillingDetails {
@@ -59,6 +62,7 @@ impl From<StripePaymentMethodType> for api_enums::PaymentMethod {
         }
     }
 }
+
 #[derive(Default, PartialEq, Eq, Deserialize, Clone)]
 pub struct StripePaymentMethodData {
     #[serde(rename = "type")]
@@ -143,11 +147,21 @@ pub struct StripePaymentIntentRequest {
     pub client_secret: Option<pii::Secret<String>>,
     pub payment_method_options: Option<StripePaymentMethodOptions>,
     pub merchant_connector_details: Option<admin::MerchantConnectorDetailsWrap>,
+    pub mandate_data: Option<StripePaymentMethodOptions>,
 }
 
 impl TryFrom<StripePaymentIntentRequest> for payments::PaymentsRequest {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
     fn try_from(item: StripePaymentIntentRequest) -> errors::RouterResult<Self> {
+        let stripe_mandate = item.mandate_data.and_then(|mandate| {
+            let StripePaymentMethodOptions::Card {
+                request_three_d_secure: _,
+                mandate_options,
+            }: StripePaymentMethodOptions = mandate;
+            mandate_options
+        });
+        let f = (stripe_mandate, item.currency.to_owned());
+        let mandate_data: Option<payments::MandateData> = f.foreign_try_into()?;
         Ok(Self {
             payment_id: item.id.map(payments::PaymentIdType::PaymentIntentId),
             amount: item.amount.map(|amount| amount.into()),
@@ -191,10 +205,12 @@ impl TryFrom<StripePaymentIntentRequest> for payments::PaymentsRequest {
             authentication_type: item.payment_method_options.map(|pmo| {
                 let StripePaymentMethodOptions::Card {
                     request_three_d_secure,
-                } = pmo;
+                    mandate_options: _,
+                }: StripePaymentMethodOptions = pmo;
 
                 request_three_d_secure.foreign_into()
             }),
+            mandate_data: mandate_data,
             merchant_connector_details: item.merchant_connector_details,
             ..Self::default()
         })
@@ -495,7 +511,64 @@ impl From<payments::PaymentListResponse> for StripePaymentIntentListResponse {
 pub enum StripePaymentMethodOptions {
     Card {
         request_three_d_secure: Option<Request3DS>,
+        mandate_options: Option<MandateOption>,
     },
+}
+
+#[derive(PartialEq, Eq, Deserialize, Clone, Default)]
+#[serde(rename_all = "snake_case")]
+pub struct MandateOption {
+    pub reference: Option<String>,
+    pub amount_type: Option<String>,
+    pub amount: Option<i64>,
+    pub start_date: Option<PrimitiveDateTime>,
+    pub interval: Option<i64>,
+    pub supported_types: Option<String>,
+}
+
+impl ForeignTryFrom<(Option<MandateOption>, Option<String>)> for Option<payments::MandateData> {
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
+    fn foreign_try_from(
+        (mandate_options, currency): (Option<MandateOption>, Option<String>),
+    ) -> errors::RouterResult<Self> {
+        let curr: Option<api_enums::Currency> = currency
+            .as_ref()
+            .map(|c| c.to_uppercase().parse_enum("currency"))
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "currency",
+            })?;
+        let extracted_currmatch = match curr {
+            Some(curr) => curr,
+            None => {
+                return Err(errors::ApiErrorResponse::InvalidDataValue {
+                    field_name: "currency",
+                })
+                .into_report()
+            }
+        };
+        Ok({
+            match mandate_options {
+                Some (mandate) => Some (payments::MandateData {
+                    mandate_type: payments::MandateType::SingleUse(payments::MandateAmountData {
+                        amount: mandate.amount.unwrap_or_default(),
+                        currency: extracted_currmatch
+                    }),
+                    customer_acceptance: payments::CustomerAcceptance {
+                    acceptance_type: payments::AcceptanceType::Online,
+                    accepted_at: mandate.start_date.map(|dt| dt.into()),
+                    online: Some(payments::OnlineMandate {
+                            ip_address: "127.0.01".to_string().into(),
+                            user_agent: "Mozilla/5.0 (Windows NT 6.2; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/32.0.1667.0 Safari/537.36".to_string(),
+                            }),
+                        },
+                    }),
+                None => {
+                    None
+                }
+                }
+        })
+    }
 }
 
 #[derive(Default, Eq, PartialEq, Serialize, Deserialize, Clone)]
