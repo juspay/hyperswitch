@@ -51,6 +51,7 @@ pub enum AttemptStatus {
     VoidFailed,
     AutoRefunded,
     PartialCharged,
+    Unresolved,
     #[default]
     Pending,
     Failure,
@@ -318,6 +319,8 @@ pub enum EventObjectType {
 #[strum(serialize_all = "snake_case")]
 pub enum EventType {
     PaymentSucceeded,
+    PaymentProcessing,
+    ActionRequired,
     RefundSucceeded,
     RefundFailed,
     DisputeOpened,
@@ -351,6 +354,7 @@ pub enum IntentStatus {
     Cancelled,
     Processing,
     RequiresCustomerAction,
+    RequiresMerchantAction,
     RequiresPaymentMethod,
     #[default]
     RequiresConfirmation,
@@ -451,6 +455,7 @@ pub enum PaymentMethod {
     PayLater,
     Wallet,
     BankRedirect,
+    Crypto,
 }
 
 #[derive(
@@ -619,6 +624,7 @@ pub enum PaymentMethodType {
     GooglePay,
     ApplePay,
     Paypal,
+    CryptoCurrency,
 }
 
 #[derive(

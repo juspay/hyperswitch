@@ -379,6 +379,7 @@ pub fn create_complete_authorize_url(
         router_base_url, payment_attempt.payment_id, payment_attempt.merchant_id, connector_name
     )
 }
+
 fn validate_recurring_mandate(req: api::MandateValidationFields) -> RouterResult<()> {
     req.mandate_id.check_value_present("mandate_id")?;
 
@@ -805,6 +806,7 @@ pub async fn make_pm_data<'a, F: Clone, R>(
         }
         (pm @ Some(api::PaymentMethodData::PayLater(_)), _) => Ok(pm.to_owned()),
         (pm @ Some(api::PaymentMethodData::BankRedirect(_)), _) => Ok(pm.to_owned()),
+        (pm @ Some(api::PaymentMethodData::Crypto(_)), _) => Ok(pm.to_owned()),
         (pm_opt @ Some(pm @ api::PaymentMethodData::Wallet(_)), _) => {
             let token = vault::Vault::store_payment_method_data_in_locker(
                 state,
