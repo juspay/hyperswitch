@@ -10,3 +10,6 @@ pub(crate) const ALPHABETS: [char; 62] = [
     'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U',
     'V', 'W', 'X', 'Y', 'Z',
 ];
+
+/// TTL for token
+pub const TOKEN_TTL: i64 = 900;

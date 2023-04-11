@@ -623,11 +623,11 @@ impl api::IncomingWebhook for Worldpay {
             utils::get_header_key_value("Event-Signature", request.headers)?.split(',');
         let sign_header = event_signature
             .last()
-            .ok_or_else(|| errors::ConnectorError::WebhookSignatureNotFound)?;
+            .ok_or(errors::ConnectorError::WebhookSignatureNotFound)?;
         let signature = sign_header
             .split('/')
             .last()
-            .ok_or_else(|| errors::ConnectorError::WebhookSignatureNotFound)?;
+            .ok_or(errors::ConnectorError::WebhookSignatureNotFound)?;
         hex::decode(signature)
             .into_report()
             .change_context(errors::ConnectorError::WebhookResponseEncodingFailed)

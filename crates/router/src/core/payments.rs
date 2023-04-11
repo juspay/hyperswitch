@@ -106,7 +106,6 @@ where
         connector.as_ref(),
         payment_data,
         &validate_result,
-        &req,
     )
     .await?;
 
@@ -564,20 +563,17 @@ async fn decide_payment_method_tokenize_action(
                 payment_method,
                 connector_name
             );
-            // We can't discard the error, we need to log it
-            logger::debug!(
-                connector_token_redis_error=?redis_conn.get_key::<String>(&key).await.err()
-            );
 
-            match redis_conn.get_key::<String>(&key).await.ok() {
-                None => {
+            match redis_conn.get_key::<String>(&key).await {
+                Ok(connector_token) => TokenizationAction::ConnectorToken(connector_token),
+                Err(error) => {
+                    logger::debug!(connector_token_redis_error=?error);
                     if is_connector_tokenization_enabled {
                         TokenizationAction::TokenizeInConnector
                     } else {
                         TokenizationAction::SkipConnectorTokenization
                     }
                 }
-                Some(connector_token) => TokenizationAction::ConnectorToken(connector_token),
             }
         }
     }
@@ -598,78 +594,96 @@ pub async fn get_connector_tokenization_action<F, Req>(
     connector_details: Option<&api::ConnectorCallType>,
     mut payment_data: PaymentData<F>,
     validate_result: &operations::ValidateResult<'_>,
-    _req: &Req,
 ) -> RouterResult<(PaymentData<F>, TokenizationAction)>
 where
     F: Send + Clone,
 {
     let payment_data_and_tokenization_action =
-        if get_connector_from_connector_type(connector_details).is_some()
-            && is_operation_confirm(&operation)
-        {
-            let payment_method = &payment_data
-                .payment_attempt
-                .payment_method
-                .get_required_value("payment_method")?;
+        match get_connector_from_connector_type(connector_details) {
+            Some(connector) => {
+                if is_operation_confirm(&operation) {
+                    let payment_method = &payment_data
+                        .payment_attempt
+                        .payment_method
+                        .get_required_value("payment_method")?;
 
-            let connector = get_connector_from_connector_type(connector_details)
-                .get_required_value("connector")?;
+                    let is_connector_tokenization_enabled =
+                        is_payment_method_tokenization_enabled_for_connector(
+                            state,
+                            &connector,
+                            payment_method,
+                        )?;
 
-            let is_connector_tokenization_enabled =
-                is_payment_method_tokenization_enabled_for_connector(
-                    state,
-                    &connector,
-                    payment_method,
-                )?;
+                    let payment_method_action = decide_payment_method_tokenize_action(
+                        state,
+                        &connector,
+                        payment_method,
+                        payment_data.token.as_ref(),
+                        is_connector_tokenization_enabled,
+                    )
+                    .await;
 
-            let payment_method_action = decide_payment_method_tokenize_action(
-                state,
-                &connector,
-                payment_method,
-                payment_data.token.as_ref(),
-                is_connector_tokenization_enabled,
-            )
-            .await;
+                    let connector_tokenization_action = match payment_method_action {
+                        TokenizationAction::TokenizeInRouter => {
+                            let (_operation, payment_method_data) = operation
+                                .to_domain()?
+                                .make_pm_data(
+                                    state,
+                                    &mut payment_data,
+                                    validate_result.storage_scheme,
+                                )
+                                .await?;
 
-            let connector_tokenization_action = match payment_method_action {
-                TokenizationAction::TokenizeInRouter => {
+                            payment_data.payment_method_data = payment_method_data;
+                            TokenizationAction::SkipConnectorTokenization
+                        }
+
+                        TokenizationAction::TokenizeInConnector => {
+                            TokenizationAction::TokenizeInConnector
+                        }
+                        TokenizationAction::TokenizeInConnectorAndRouter => {
+                            let (_operation, payment_method_data) = operation
+                                .to_domain()?
+                                .make_pm_data(
+                                    state,
+                                    &mut payment_data,
+                                    validate_result.storage_scheme,
+                                )
+                                .await?;
+
+                            payment_data.payment_method_data = payment_method_data;
+                            TokenizationAction::TokenizeInConnector
+                        }
+                        TokenizationAction::ConnectorToken(token) => {
+                            payment_data.pm_token = Some(token);
+                            TokenizationAction::SkipConnectorTokenization
+                        }
+                        TokenizationAction::SkipConnectorTokenization => {
+                            TokenizationAction::SkipConnectorTokenization
+                        }
+                    };
+                    (payment_data, connector_tokenization_action)
+                } else {
                     let (_operation, payment_method_data) = operation
                         .to_domain()?
                         .make_pm_data(state, &mut payment_data, validate_result.storage_scheme)
                         .await?;
 
                     payment_data.payment_method_data = payment_method_data;
-                    TokenizationAction::SkipConnectorTokenization
+                    (payment_data, TokenizationAction::SkipConnectorTokenization)
                 }
+            }
+            None => {
+                let (_operation, payment_method_data) = operation
+                    .to_domain()?
+                    .make_pm_data(state, &mut payment_data, validate_result.storage_scheme)
+                    .await?;
 
-                TokenizationAction::TokenizeInConnector => TokenizationAction::TokenizeInConnector,
-                TokenizationAction::TokenizeInConnectorAndRouter => {
-                    let (_operation, payment_method_data) = operation
-                        .to_domain()?
-                        .make_pm_data(state, &mut payment_data, validate_result.storage_scheme)
-                        .await?;
-
-                    payment_data.payment_method_data = payment_method_data;
-                    TokenizationAction::TokenizeInConnector
-                }
-                TokenizationAction::ConnectorToken(token) => {
-                    payment_data.pm_token = Some(token);
-                    TokenizationAction::SkipConnectorTokenization
-                }
-                TokenizationAction::SkipConnectorTokenization => {
-                    TokenizationAction::SkipConnectorTokenization
-                }
-            };
-            (payment_data, connector_tokenization_action)
-        } else {
-            let (_operation, payment_method_data) = operation
-                .to_domain()?
-                .make_pm_data(state, &mut payment_data, validate_result.storage_scheme)
-                .await?;
-
-            payment_data.payment_method_data = payment_method_data;
-            (payment_data, TokenizationAction::SkipConnectorTokenization)
+                payment_data.payment_method_data = payment_method_data;
+                (payment_data, TokenizationAction::SkipConnectorTokenization)
+            }
         };
+
     Ok(payment_data_and_tokenization_action)
 }
 

@@ -310,7 +310,7 @@ pub enum VaultError {
     #[error("The card vault returned an unexpected response: {0:?}")]
     UnexpectedResponseError(bytes::Bytes),
     #[error("Failed to update in PMD table")]
-    UpdateInPMDTableFailed,
+    UpdateInPaymentMethodDataTableFailed,
 }
 
 #[derive(Debug, thiserror::Error)]

@@ -93,7 +93,7 @@ pub async fn add_payment_method(
                 payment_method: req.payment_method,
                 payment_method_type: req.payment_method_type,
                 card: None,
-                metadata: None,
+                metadata: req.metadata,
                 created: Some(common_utils::date_time::now()),
                 recurring_enabled: false,           //[#219]
                 installment_payment_enabled: false, //[#219]
@@ -149,6 +149,7 @@ pub async fn update_customer_payment_method(
 
 // Wrapper function to switch lockers
 
+/// The response will be the tuple of PaymentMethodResponse and the duplication check of payment_method
 pub async fn add_card_to_locker(
     state: &routes::AppState,
     req: api::PaymentMethodCreate,
@@ -381,7 +382,7 @@ pub async fn update_payment_method(
     };
     db.update_payment_method(pm, pm_update)
         .await
-        .change_context(errors::VaultError::UpdateInPMDTableFailed)?;
+        .change_context(errors::VaultError::UpdateInPaymentMethodDataTableFailed)?;
     Ok(())
 }
 
@@ -1481,7 +1482,11 @@ pub async fn list_customer_payment_method(
             parent_payment_method_token, pma.payment_method
         );
         redis_conn
-            .set_key_with_expiry(&key_for_hyperswitch_token, hyperswitch_token, 900)
+            .set_key_with_expiry(
+                &key_for_hyperswitch_token,
+                hyperswitch_token,
+                consts::TOKEN_TTL,
+            )
             .await
             .map_err(|error| {
                 logger::error!(hyperswitch_token_kv_error=?error);
@@ -1505,7 +1510,7 @@ pub async fn list_customer_payment_method(
                     parent_payment_method_token, pma.payment_method, pm_metadata.0
                 );
                 redis_conn
-                    .set_key_with_expiry(&key, pm_metadata.1, 900)
+                    .set_key_with_expiry(&key, pm_metadata.1, consts::TOKEN_TTL)
                     .await
                     .map_err(|error| {
                         logger::error!(connector_payment_method_token_kv_error=?error);
