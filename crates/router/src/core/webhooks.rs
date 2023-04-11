@@ -1,8 +1,6 @@
 pub mod transformers;
 pub mod utils;
 
-use std::collections::HashMap;
-
 use error_stack::{IntoReport, ResultExt};
 use masking::ExposeInterface;
 use router_env::{instrument, tracing};
@@ -488,20 +486,10 @@ pub async fn webhooks_core<W: api::OutgoingWebhookType>(
     .attach_printable("Failed construction of ConnectorData")?;
 
     let connector = connector.connector;
-    let query_params = Some(req.query_string().to_string());
-    let qp: HashMap<String, String> =
-        url::form_urlencoded::parse(query_params.unwrap_or_default().as_bytes())
-            .into_owned()
-            .collect();
-    let json = Encode::<HashMap<String, String>>::encode_to_string_of_json(&qp)
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("There was an error in parsing the query params")?;
-
     let mut request_details = api::IncomingWebhookRequestDetails {
         method: req.method().clone(),
         headers: req.headers(),
         query_params: req.query_string().to_string(),
-        query_params_json: json.as_bytes(),
         body: &body,
     };
 

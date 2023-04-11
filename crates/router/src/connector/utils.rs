@@ -486,15 +486,6 @@ impl common_utils::errors::ErrorSwitch<errors::ConnectorError> for errors::Parsi
     }
 }
 
-pub fn to_string<T>(data: &T) -> Result<String, Error>
-where
-    T: serde::Serialize,
-{
-    serde_json::to_string(data)
-        .into_report()
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
-}
-
 pub fn base64_decode(data: String) -> Result<Vec<u8>, Error> {
     consts::BASE64_ENGINE
         .decode(data)
