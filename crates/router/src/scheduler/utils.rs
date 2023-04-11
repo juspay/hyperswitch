@@ -245,12 +245,7 @@ pub async fn consumer_operation_handler<E>(
     settings: sync::Arc<SchedulerSettings>,
     error_handler_fun: E,
     consumer_operation_counter: sync::Arc<atomic::AtomicU64>,
-    workflow_selector: impl Fn(
-            &storage::ProcessTracker,
-        ) -> Result<
-            Option<Box<dyn workflows::ProcessTrackerWorkflow>>,
-            errors::ProcessTrackerError,
-        > + Send,
+    workflow_selector: workflows::WorkflowSelectorFn,
 ) where
     // Error handler function
     E: FnOnce(error_stack::Report<errors::ProcessTrackerError>),

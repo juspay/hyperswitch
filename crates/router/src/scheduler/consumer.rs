@@ -110,12 +110,7 @@ pub async fn start_consumer(
 pub async fn consumer_operations(
     state: &AppState,
     settings: &settings::SchedulerSettings,
-    workflow_selector: impl Fn(
-        &storage::ProcessTracker,
-    ) -> Result<
-        Option<Box<dyn ProcessTrackerWorkflow>>,
-        errors::ProcessTrackerError,
-    >,
+    workflow_selector: workflows::WorkflowSelectorFn,
 ) -> CustomResult<(), errors::ProcessTrackerError> {
     let stream_name = settings.stream.clone();
     let group_name = settings.consumer.consumer_group.clone();
@@ -143,8 +138,6 @@ pub async fn consumer_operations(
         pt_utils::add_histogram_metrics(&pickup_time, task, &stream_name);
 
         metrics::TASK_CONSUMED.add(&metrics::CONTEXT, 1, &[]);
-        // let runner = workflows::runner_from_task(task)?
-        //     .ok_or(errors::ProcessTrackerError::UnexpectedFlow)?;
         let runner = workflow_selector(task)?.ok_or(errors::ProcessTrackerError::UnexpectedFlow)?;
         handler.push(tokio::task::spawn(start_workflow(
             state.clone(),
@@ -209,7 +202,6 @@ pub async fn start_workflow(
 ) {
     tracing::Span::current().record("workflow_id", Uuid::new_v4().to_string());
     run_executor(&state, process, runner).await
-    // workflows::perform_workflow_execution(&state, process, runner).await
 }
 
 pub async fn run_executor(
