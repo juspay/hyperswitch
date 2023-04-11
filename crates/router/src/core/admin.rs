@@ -309,7 +309,7 @@ pub async fn create_payment_connector(
             field_name: "connector_account_details".to_string(),
             expected_format: "auth_type and api_key".to_string(),
         })?;
-    let frm_configs = match req.frm_configs  {
+    let frm_configs = match req.frm_configs {
         Some(frm_value) => {
             let configs_for_frm_value: serde_json::Value =
                 utils::Encode::<api_models::admin::FrmConfigs>::encode_to_value(&frm_value)
@@ -428,7 +428,7 @@ pub async fn update_payment_connector(
             })
             .collect::<Vec<serde_json::Value>>()
     });
-    let frm_configs = match req.frm_configs.as_ref()  {
+    let frm_configs = match req.frm_configs.as_ref() {
         Some(frm_value) => {
             let configs_for_frm_value: serde_json::Value =
                 utils::Encode::<api_models::admin::FrmConfigs>::encode_to_value(&frm_value)

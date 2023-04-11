@@ -344,7 +344,7 @@ impl ForeignTryFrom<storage::MerchantConnectorAccount> for api_models::admin::Me
                 .change_context(errors::ApiErrorResponse::InternalServerError)?,
             None => None,
         };
-        let frm_configs = match merchant_ca.frm_configs  {
+        let frm_configs = match merchant_ca.frm_configs {
             Some(frm_value) => {
                 let configs_for_frm : api_models::admin::FrmConfigs = frm_value
                     .parse_value("FrmConfigs")
