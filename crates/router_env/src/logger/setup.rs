@@ -1,6 +1,6 @@
 //! Setup logging subsystem.
 
-use std::{collections::HashSet, str::FromStr, time::Duration};
+use std::{collections::HashSet, time::Duration};
 
 use opentelemetry::{
     global, runtime,
@@ -15,7 +15,7 @@ use opentelemetry::{
 };
 use opentelemetry_otlp::{TonicExporterBuilder, WithExportConfig};
 use tracing_appender::non_blocking::WorkerGuard;
-use tracing_subscriber::{filter::Targets, fmt, prelude::*, util::SubscriberInitExt, Layer};
+use tracing_subscriber::{fmt, prelude::*, util::SubscriberInitExt, EnvFilter, Layer};
 
 use crate::{config, FormattingLayer, StorageSubscription};
 
@@ -62,7 +62,7 @@ pub fn setup(
         let (file_writer, guard) = tracing_appender::non_blocking(file_appender);
         guards.push(guard);
 
-        let file_filter = get_target_filter(
+        let file_filter = get_envfilter(
             config.file.filtering_directive.as_ref(),
             config::Level(tracing::Level::WARN),
             config.file.level,
@@ -84,7 +84,7 @@ pub fn setup(
         let (console_writer, guard) = tracing_appender::non_blocking(std::io::stdout());
         guards.push(guard);
 
-        let console_filter = get_target_filter(
+        let console_filter = get_envfilter(
             config.console.filtering_directive.as_ref(),
             config::Level(tracing::Level::WARN),
             config.console.level,
@@ -185,20 +185,23 @@ fn setup_metrics_pipeline(config: &config::LogTelemetry) -> Option<BasicControll
         .ok()
 }
 
-fn get_target_filter(
+fn get_envfilter(
     filtering_directive: Option<&String>,
     default_log_level: config::Level,
     filter_log_level: config::Level,
     crates_to_filter: impl AsRef<[&'static str]>,
-) -> Targets {
+) -> EnvFilter {
     filtering_directive
-        .and_then(|filter| {
+        .map(|filter| {
             // Try to create target filter from specified filtering directive, if set
-            Targets::from_str(filter)
-                .map_err(|error| {
-                    eprintln!("Invalid target filtering directive `{filter}`: {error}")
-                })
-                .ok()
+
+            // Safety: If user is overriding the default filtering directive, then we need to panic
+            // for invalid directives.
+            #[allow(clippy::expect_used)]
+            EnvFilter::builder()
+                .with_default_directive(default_log_level.into_level().into())
+                .parse(filter)
+                .expect("Invalid EnvFilter filtering directive")
         })
         .unwrap_or_else(|| {
             // Construct a default target filter otherwise
@@ -207,12 +210,21 @@ fn get_target_filter(
                 .collect::<HashSet<_>>();
             workspace_members.extend(crates_to_filter.as_ref());
 
-            Targets::new()
-                .with_default(default_log_level.into_level())
-                .with_targets(
-                    workspace_members
-                        .drain()
-                        .zip(std::iter::repeat(filter_log_level.into_level())),
+            workspace_members
+                .drain()
+                .zip(std::iter::repeat(filter_log_level.into_level()))
+                .fold(
+                    EnvFilter::default().add_directive(default_log_level.into_level().into()),
+                    |env_filter, (target, level)| {
+                        // Safety: This is a hardcoded basic filtering directive. If even the basic
+                        // filter is wrong, it's better to panic.
+                        #[allow(clippy::expect_used)]
+                        env_filter.add_directive(
+                            format!("{target}={level}")
+                                .parse()
+                                .expect("Invalid EnvFilter directive format"),
+                        )
+                    },
                 )
         })
 }
