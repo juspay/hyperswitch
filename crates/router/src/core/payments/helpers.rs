@@ -309,8 +309,8 @@ fn validate_new_mandate_request(req: api::MandateValidationFields) -> RouterResu
         api_models::payments::MandateType::SingleUse(details) => Some(details),
         api_models::payments::MandateType::MultiUse(details) => details,
     };
-    mandate_details.and_then(|md| md.start_date.zip(md.end_date)).map(|dates|
-        utils::when (dates.0 >= dates.1, || {
+    mandate_details.and_then(|md| md.start_date.zip(md.end_date)).map(|(start_date, end_date)|
+        utils::when (start_date >= end_date, || {
         Err(report!(errors::ApiErrorResponse::PreconditionFailed {
             message: "`mandate_data.mandate_type.{multi_use|single_use}.start_date` should be greater than  \
             `mandate_data.mandate_type.{multi_use|single_use}.end_date`"

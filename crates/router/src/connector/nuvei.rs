@@ -10,7 +10,7 @@ use ::common_utils::{
 use error_stack::{IntoReport, ResultExt};
 use transformers as nuvei;
 
-use super::utils::{self, to_boolean, PaymentsCancelRequestData, RouterData};
+use super::utils::{self, to_boolean, RouterData};
 use crate::{
     configs::settings,
     core::{
@@ -203,14 +203,7 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
         &self,
         req: &types::PaymentsCancelRouterData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        let req_obj = nuvei::NuveiPaymentFlowRequest::try_from(nuvei::NuveiPaymentRequestData {
-            client_request_id: req.attempt_id.clone(),
-            connector_auth_type: req.connector_auth_type.clone(),
-            amount: req.request.get_amount()?.to_string(),
-            currency: req.request.get_currency()?.to_string(),
-            related_transaction_id: Some(req.request.connector_transaction_id.clone()),
-            ..Default::default()
-        })?;
+        let req_obj = nuvei::NuveiPaymentFlowRequest::try_from(req)?;
         let req = common_utils::Encode::<nuvei::NuveiPaymentFlowRequest>::encode_to_string_of_json(
             &req_obj,
         )
@@ -371,14 +364,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         &self,
         req: &types::PaymentsCaptureRouterData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        let req_obj = nuvei::NuveiPaymentFlowRequest::try_from(nuvei::NuveiPaymentRequestData {
-            client_request_id: req.attempt_id.clone(),
-            connector_auth_type: req.connector_auth_type.clone(),
-            amount: req.request.amount_to_capture.to_string(),
-            currency: req.request.currency.to_string(),
-            related_transaction_id: Some(req.request.connector_transaction_id.clone()),
-            ..Default::default()
-        })?;
+        let req_obj = nuvei::NuveiPaymentFlowRequest::try_from(req)?;
         let req = common_utils::Encode::<nuvei::NuveiPaymentFlowRequest>::encode_to_string_of_json(
             &req_obj,
         )
@@ -786,14 +772,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         &self,
         req: &types::RefundsRouterData<api::Execute>,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        let req_obj = nuvei::NuveiPaymentFlowRequest::try_from(nuvei::NuveiPaymentRequestData {
-            client_request_id: req.attempt_id.clone(),
-            connector_auth_type: req.connector_auth_type.clone(),
-            amount: req.request.amount.to_string(),
-            currency: req.request.currency.to_string(),
-            related_transaction_id: Some(req.request.connector_transaction_id.clone()),
-            ..Default::default()
-        })?;
+        let req_obj = nuvei::NuveiPaymentFlowRequest::try_from(req)?;
         let req = common_utils::Encode::<nuvei::NuveiPaymentFlowRequest>::encode_to_string_of_json(
             &req_obj,
         )
