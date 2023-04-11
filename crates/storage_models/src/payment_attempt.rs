@@ -135,6 +135,7 @@ pub enum PaymentAttemptUpdate {
         payment_method_id: Option<Option<String>>,
         mandate_id: Option<String>,
         connector_metadata: Option<serde_json::Value>,
+        payment_token: Option<String>,
         error_code: Option<Option<String>>,
         error_message: Option<Option<String>>,
     },
@@ -284,6 +285,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 payment_method_id,
                 mandate_id,
                 connector_metadata,
+                payment_token,
                 error_code,
                 error_message,
             } => Self {
@@ -297,6 +299,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 connector_metadata,
                 error_code,
                 error_message,
+                payment_token,
                 ..Default::default()
             },
             PaymentAttemptUpdate::ErrorUpdate {

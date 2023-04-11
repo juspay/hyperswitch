@@ -51,6 +51,17 @@ impl api::PaymentVoid for Aci {}
 impl api::PaymentCapture for Aci {}
 impl api::PaymentSession for Aci {}
 impl api::ConnectorAccessToken for Aci {}
+impl api::PaymentToken for Aci {}
+
+impl
+    services::ConnectorIntegration<
+        api::PaymentMethodToken,
+        types::PaymentMethodTokenizationData,
+        types::PaymentsResponseData,
+    > for Aci
+{
+    // Not Implemented (R)
+}
 
 impl
     services::ConnectorIntegration<

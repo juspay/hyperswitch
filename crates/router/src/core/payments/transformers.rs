@@ -100,6 +100,7 @@ where
         access_token: None,
         session_token: None,
         reference_id: None,
+        payment_method_token: payment_data.pm_token,
     };
 
     Ok(router_data)
