@@ -15,6 +15,7 @@ mod globalpay;
 mod mollie;
 mod multisafepay;
 mod nuvei;
+mod paypal;
 mod payu;
 mod rapyd;
 mod shift4;

@@ -263,12 +263,8 @@ impl actix_web::ResponseError for ApiErrorResponse {
     fn error_response(&self) -> actix_web::HttpResponse {
         use actix_web::http::header;
 
-        use crate::consts;
-
         actix_web::HttpResponseBuilder::new(self.status_code())
             .insert_header((header::CONTENT_TYPE, mime::APPLICATION_JSON))
-            .insert_header((header::STRICT_TRANSPORT_SECURITY, consts::HSTS_HEADER_VALUE))
-            .insert_header((header::VIA, "Juspay_Router"))
             .body(self.to_string())
     }
 }

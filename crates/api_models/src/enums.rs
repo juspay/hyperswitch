@@ -573,6 +573,7 @@ pub enum Connector {
     Mollie,
     Multisafepay,
     Nuvei,
+    Paypal,
     Payu,
     Rapyd,
     Shift4,
@@ -588,6 +589,7 @@ impl Connector {
             (self, payment_method),
             (Self::Airwallex, _)
                 | (Self::Globalpay, _)
+                | (Self::Paypal, _)
                 | (Self::Payu, _)
                 | (Self::Trustpay, PaymentMethod::BankRedirect)
         )
@@ -625,6 +627,7 @@ pub enum RoutableConnectors {
     Mollie,
     Multisafepay,
     Nuvei,
+    Paypal,
     Payu,
     Rapyd,
     Shift4,
