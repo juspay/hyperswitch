@@ -2,45 +2,46 @@
 
 ## New Features
 
-* **request:**  add `RequestBuilder` method to attach default request headers (#826) (6f61f830)
-* **middleware:**  add middleware to attach default response headers (#824) (6d7b11a0)
-* **core:**  added multiple payment_attempt support for payment_intent (#439) (35d3e277)
-* **router:**  added incoming dispute webhooks flow (#769) (a733eafb)
+- **request:** add `RequestBuilder` method to attach default request headers (#826) (6f61f830)
+- **middleware:** add middleware to attach default response headers (#824) (6d7b11a0)
+- **core:** added multiple payment_attempt support for payment_intent (#439) (35d3e277)
+- **router:** added incoming dispute webhooks flow (#769) (a733eafb)
 
 ## Bug Fixes
 
-* **cards_info:**  add extra columns to cards_info struct (#813) (442bed0f)
-* **connector:**  [Mollie] remove unsupported implementation of Void flow from mollie connector (#808) (eee8304b)
+- **cards_info:** add extra columns to cards_info struct (#813) (442bed0f)
+- **connector:** [Mollie] remove unsupported implementation of Void flow from mollie connector (#808) (eee8304b)
 
 ## Other Changes
 
-* **common_utils:**  put the signals module behind a feature flag (#814) (fb4ec431)
-* **core:**  replace string with enum for country (#735) (e18bfb2a)
-* **api_models:**  put the errors module behind a feature flag (#815) (f14f87a1)
-* **storage_models:**  delete client secret when status is succeeded, failed, cancelled (#724) (a05059b7)
+- **common_utils:** put the signals module behind a feature flag (#814) (fb4ec431)
+- **core:** replace string with enum for country (#735) (e18bfb2a)
+- **api_models:** put the errors module behind a feature flag (#815) (f14f87a1)
+- **storage_models:** delete client secret when status is succeeded, failed, cancelled (#724) (a05059b7)
+
 ## Refactors
 
-* **drainer, router:**  KMS decrypt database password when `kms` feature is enabled (#733) (9d6e4ee3)
+- **drainer, router:** KMS decrypt database password when `kms` feature is enabled (#733) (9d6e4ee3)
 
 # 0.5.3 (2023-03-29)
 
 ## Documentation Changes
 
-* **rfc:**  add rfc template & first RFC (#806) (01a5e0a0)
+- **rfc:** add rfc template & first RFC (#806) (01a5e0a0)
 
 ## New Features
 
-*  cards info api (#749) (b15b8f7b)
-* **connector:**  [Nuvei] add webhook support (#795) (20b4372b)
+- cards info api (#749) (b15b8f7b)
+- **connector:** [Nuvei] add webhook support (#795) (20b4372b)
 
 ## Bug Fixes
 
-* **compatibility:**  add last_payment_error in stripe payment response (#803) (97b95f0e)
+- **compatibility:** add last_payment_error in stripe payment response (#803) (97b95f0e)
 
 ## Refactors
 
-* **api_models:**  enhance accepted countries/currencies types (#807) (f9ef3135)
-* **services:**   make AppState impl generic using AppStateInfo (#805) (642c3f3a)
+- **api_models:** enhance accepted countries/currencies types (#807) (f9ef3135)
+- **services:** make AppState impl generic using AppStateInfo (#805) (642c3f3a)
 
 # 0.5.2 (2023-03-24)
 
