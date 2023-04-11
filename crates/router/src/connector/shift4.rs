@@ -14,8 +14,8 @@ use crate::{
         errors::{self, CustomResult},
         payments,
     },
-    headers,
-    services::{self, request::ContentType, ConnectorIntegration},
+    headers, routes,
+    services::{self, request, ConnectorIntegration},
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
@@ -157,7 +157,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     async fn execute_pretasks(
         &self,
         router_data: &mut types::PaymentsAuthorizeRouterData,
-        app_state: &crate::routes::AppState,
+        app_state: &routes::AppState,
     ) -> CustomResult<(), errors::ConnectorError> {
         match router_data.auth_type {
             storage_models::enums::AuthenticationType::ThreeDs => {
@@ -448,7 +448,7 @@ impl
             services::RequestBuilder::new()
                 .method(services::Method::Post)
                 .url(&types::PaymentsInitType::get_url(self, req, connectors)?)
-                .content_type(ContentType::FormUrlEncoded)
+                .content_type(request::ContentType::FormUrlEncoded)
                 .attach_default_headers()
                 .headers(types::PaymentsInitType::get_headers(self, req, connectors)?)
                 .body(types::PaymentsInitType::get_request_body(self, req)?)

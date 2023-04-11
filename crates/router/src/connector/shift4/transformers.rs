@@ -20,7 +20,7 @@ type Error = error_stack::Report<errors::ConnectorError>;
 #[serde(untagged)]
 pub enum Shift4PaymentsRequest {
     Non3DSRequest(Box<Shift4Non3DSRequest>),
-    ThreeDSRequest(Shift43DSRequest),
+    ThreeDSRequest(Box<Shift43DSRequest>),
 }
 
 #[derive(Debug, Serialize)]
@@ -104,7 +104,7 @@ pub struct Card {
 #[derive(Debug, Serialize, Eq, PartialEq)]
 #[serde(untagged)]
 pub enum CardPayment {
-    RawCard(Card),
+    RawCard(Box<Card>),
     CardToken(String),
 }
 
@@ -163,23 +163,25 @@ fn get_card_payment_request<T>(
         cardholder_name: card.card_holder_name.clone(),
     };
     if item.is_three_ds() {
-        Ok(Shift4PaymentsRequest::ThreeDSRequest(Shift43DSRequest {
-            amount: item.request.amount.to_string(),
-            currency: item.request.currency.to_string(),
-            card_number: card.number,
-            card_exp_month: card.exp_month,
-            card_exp_year: card.exp_year,
-            return_url: item
-                .request
-                .complete_authorize_url
-                .clone()
-                .ok_or_else(|| errors::ConnectorError::RequestEncodingFailed)?,
-        }))
+        Ok(Shift4PaymentsRequest::ThreeDSRequest(Box::new(
+            Shift43DSRequest {
+                amount: item.request.amount.to_string(),
+                currency: item.request.currency.to_string(),
+                card_number: card.number,
+                card_exp_month: card.exp_month,
+                card_exp_year: card.exp_year,
+                return_url: item
+                    .request
+                    .complete_authorize_url
+                    .clone()
+                    .ok_or_else(|| errors::ConnectorError::RequestEncodingFailed)?,
+            },
+        )))
     } else {
         Ok(Shift4PaymentsRequest::Non3DSRequest(Box::new(
             Shift4Non3DSRequest {
                 amount: item.request.amount.to_string(),
-                card: Some(CardPayment::RawCard(card)),
+                card: Some(CardPayment::RawCard(Box::new(card))),
                 currency: item.request.currency.to_string(),
                 description: item.description.clone(),
                 captured: submit_for_settlement,
