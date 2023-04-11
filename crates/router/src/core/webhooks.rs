@@ -335,13 +335,7 @@ async fn disputes_incoming_webhook_flow<W: api::OutgoingWebhookType>(
             connector.id(),
         )
         .await?;
-        let disputes_response = Box::new(
-            dispute_object
-                .clone()
-                .foreign_try_into()
-                .into_report()
-                .change_context(errors::WebhooksFlowError::DisputeCoreFailed)?,
-        );
+        let disputes_response = Box::new(dispute_object.clone().foreign_into());
         let event_type: enums::EventType = dispute_object
             .dispute_status
             .foreign_try_into()

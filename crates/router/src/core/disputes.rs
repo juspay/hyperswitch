@@ -1,11 +1,10 @@
-use error_stack::{IntoReport, ResultExt};
 use router_env::{instrument, tracing};
 
 use super::errors::{self, RouterResponse, StorageErrorExt};
 use crate::{
     routes::AppState,
     services,
-    types::{api::disputes, storage, transformers::ForeignTryFrom},
+    types::{api::disputes, storage, transformers::ForeignFrom},
 };
 
 #[instrument(skip(state))]
@@ -23,9 +22,7 @@ pub async fn retrieve_dispute(
                 dispute_id: req.dispute_id,
             })
         })?;
-    let dispute_response = api_models::disputes::DisputeResponse::foreign_try_from(dispute)
-        .into_report()
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+    let dispute_response = api_models::disputes::DisputeResponse::foreign_from(dispute);
     Ok(services::ApplicationResponse::Json(dispute_response))
 }
 
@@ -44,9 +41,7 @@ pub async fn retrieve_disputes_list(
         })?;
     let mut disputes_list: Vec<api_models::disputes::DisputeResponse> = vec![];
     for dispute in disputes {
-        let dispute_response = api_models::disputes::DisputeResponse::foreign_try_from(dispute)
-            .into_report()
-            .change_context(errors::ApiErrorResponse::InternalServerError)?;
+        let dispute_response = api_models::disputes::DisputeResponse::foreign_from(dispute);
         disputes_list.push(dispute_response);
     }
     Ok(services::ApplicationResponse::Json(disputes_list))
