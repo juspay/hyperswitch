@@ -7,7 +7,6 @@ use crate::{
     types::{self, api, storage::enums},
 };
 
-//TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
 pub struct NexinetsPaymentsRequest {
     amount: i64,
@@ -47,7 +46,6 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for NexinetsPaymentsRequest {
     }
 }
 
-//TODO: Fill the struct with respective fields
 // Auth Struct
 pub struct NexinetsAuthType {
     pub(super) api_key: String,
@@ -65,7 +63,7 @@ impl TryFrom<&types::ConnectorAuthType> for NexinetsAuthType {
     }
 }
 // PaymentsResponse
-//TODO: Append the remaining status flags
+
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum NexinetsPaymentStatus {
@@ -85,7 +83,6 @@ impl From<NexinetsPaymentStatus> for enums::AttemptStatus {
     }
 }
 
-//TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct NexinetsPaymentsResponse {
     status: NexinetsPaymentStatus,
@@ -118,7 +115,6 @@ impl<F, T>
     }
 }
 
-//TODO: Fill the struct with respective fields
 // REFUND :
 // Type definition for RefundRequest
 #[derive(Default, Debug, Serialize)]
@@ -152,12 +148,10 @@ impl From<RefundStatus> for enums::RefundStatus {
             RefundStatus::Succeeded => Self::Success,
             RefundStatus::Failed => Self::Failure,
             RefundStatus::Processing => Self::Pending,
-            //TODO: Review mapping
         }
     }
 }
 
-//TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct RefundResponse {
     id: String,
@@ -198,7 +192,6 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
     }
 }
 
-//TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
 pub struct NexinetsErrorResponse {
     pub status_code: u16,

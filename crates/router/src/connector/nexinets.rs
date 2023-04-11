@@ -2,7 +2,6 @@ mod transformers;
 
 use std::fmt::Debug;
 
-use common_utils::errors::ReportSwitchExt;
 use error_stack::{IntoReport, ResultExt};
 use transformers as nexinets;
 
@@ -82,7 +81,7 @@ impl ConnectorCommon for Nexinets {
         let response: nexinets::NexinetsErrorResponse = res
             .response
             .parse_struct("NexinetsErrorResponse")
-            .switch()?;
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
         Ok(ErrorResponse {
             status_code: res.status_code,
@@ -102,13 +101,12 @@ impl
         types::PaymentsResponseData,
     > for Nexinets
 {
-    // N\ot Implemented (R)
+    // Not Implemented (R)
 }
 
 impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::PaymentsResponseData>
     for Nexinets
 {
-    //TODO: implement sessions flow
 }
 
 impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, types::AccessToken>
@@ -183,7 +181,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         let response: nexinets::NexinetsPaymentsResponse = res
             .response
             .parse_struct("Nexinets PaymentsAuthorizeResponse")
-            .switch()?;
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -246,7 +244,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         let response: nexinets::NexinetsPaymentsResponse = res
             .response
             .parse_struct("nexinets PaymentsSyncResponse")
-            .switch()?;
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -318,7 +316,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         let response: nexinets::NexinetsPaymentsResponse = res
             .response
             .parse_struct("Nexinets PaymentsCaptureResponse")
-            .switch()?;
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -399,7 +397,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         let response: nexinets::RefundResponse = res
             .response
             .parse_struct("nexinets RefundResponse")
-            .switch()?;
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -461,7 +459,7 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         let response: nexinets::RefundResponse = res
             .response
             .parse_struct("nexinets RefundSyncResponse")
-            .switch()?;
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
