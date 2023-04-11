@@ -174,6 +174,11 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         payment_intent.billing_address_id = billing_address.clone().map(|i| i.address_id);
         payment_intent.return_url = request.return_url.as_ref().map(|a| a.to_string());
 
+        payment_attempt.business_sub_label = request
+            .business_sub_label
+            .clone()
+            .or(payment_attempt.business_sub_label);
+
         let creds_identifier = request
             .merchant_connector_details
             .as_ref()
@@ -339,6 +344,8 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to encode additional pm data")?;
 
+        let business_sub_label = payment_data.payment_attempt.business_sub_label.clone();
+
         payment_data.payment_attempt = db
             .update_payment_attempt_with_attempt_id(
                 payment_data.payment_attempt,
@@ -354,6 +361,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
                     payment_method_data: additional_pm_data,
                     payment_method_type,
                     payment_experience,
+                    business_sub_label,
                 },
                 storage_scheme,
             )
@@ -370,6 +378,8 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
         let customer_id = customer.map(|c| c.customer_id);
         let return_url = payment_data.payment_intent.return_url.clone();
         let setup_future_usage = payment_data.payment_intent.setup_future_usage;
+        let business_label = Some(payment_data.payment_intent.business_label.clone());
+        let business_country = Some(payment_data.payment_intent.business_country);
 
         payment_data.payment_intent = db
             .update_payment_intent(
@@ -383,6 +393,8 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
                     shipping_address_id: shipping_address,
                     billing_address_id: billing_address,
                     return_url,
+                    business_country,
+                    business_label,
                 },
                 storage_scheme,
             )

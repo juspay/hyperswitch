@@ -122,7 +122,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             .insert_payment_intent(
                 Self::make_payment_intent(
                     &payment_id,
-                    merchant_id,
+                    merchant_account,
                     money,
                     request,
                     shipping_address.clone().map(|x| x.address_id),
@@ -476,7 +476,7 @@ impl PaymentCreate {
     #[instrument(skip_all)]
     fn make_payment_intent(
         payment_id: &str,
-        merchant_id: &str,
+        merchant_account: &storage::MerchantAccount,
         money: (api::Amount, enums::Currency),
         request: &api::PaymentsRequest,
         shipping_address_id: Option<String>,
@@ -496,9 +496,16 @@ impl PaymentCreate {
             .transpose()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Encoding Metadata to value failed")?;
+
+        let (business_country, business_label) = helpers::get_business_details(
+            request.business_country,
+            request.business_label.as_ref(),
+            merchant_account,
+        )?;
+
         Ok(storage::PaymentIntentNew {
             payment_id: payment_id.to_string(),
-            merchant_id: merchant_id.to_string(),
+            merchant_id: merchant_account.merchant_id.to_string(),
             status,
             amount: amount.into(),
             currency,
@@ -515,6 +522,8 @@ impl PaymentCreate {
             statement_descriptor_name: request.statement_descriptor_name.clone(),
             statement_descriptor_suffix: request.statement_descriptor_suffix.clone(),
             metadata: metadata.map(masking::Secret::new),
+            business_country,
+            business_label,
             active_attempt_id,
             ..storage::PaymentIntentNew::default()
         })
