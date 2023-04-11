@@ -341,17 +341,18 @@ impl ForeignTryFrom<storage::MerchantConnectorAccount> for api_models::admin::Me
                 .change_context(errors::ApiErrorResponse::InternalServerError)?,
             None => None,
         };
-        let configs_for_frm_value = merchant_ca
-            .frm_configs
-            .ok_or_else(|| errors::ApiErrorResponse::ConfigNotFound)?;
-        let configs_for_frm : api_models::admin::FrmConfigs = configs_for_frm_value
-        // .clone()
-        .parse_value("FrmConfigs")
-        .change_context(errors::ApiErrorResponse::InvalidDataFormat {
-            field_name: "frm_configs".to_string(),
-            expected_format: "\"frm_configs\" : { \"frm_enabled_pms\" : [\"card\"], \"frm_enabled_pm_types\" : [\"credit\"], \"frm_enabled_gateways\" : [\"stripe\"], \"frm_action\": \"cancel_txn\", \"frm_preferred_flow_type\" : \"pre\" }".to_string(),
-        })?;
-
+        let frm_configs = match merchant_ca.frm_configs  {
+            Some(frm_value) => {
+                let configs_for_frm : api_models::admin::FrmConfigs = frm_value
+                    .parse_value("FrmConfigs")
+                    .change_context(errors::ApiErrorResponse::InvalidDataFormat {
+                        field_name: "frm_configs".to_string(),
+                        expected_format: "\"frm_configs\" : { \"frm_enabled_pms\" : [\"card\"], \"frm_enabled_pm_types\" : [\"credit\"], \"frm_enabled_gateways\" : [\"stripe\"], \"frm_action\": \"cancel_txn\", \"frm_preferred_flow_type\" : \"pre\" }".to_string(),
+                    })?;
+                Some(configs_for_frm)
+            }
+            None => None,
+        };
         Ok(Self {
             connector_type: merchant_ca.connector_type.foreign_into(),
             connector_name: merchant_ca.connector_name,
@@ -363,7 +364,7 @@ impl ForeignTryFrom<storage::MerchantConnectorAccount> for api_models::admin::Me
             disabled: merchant_ca.disabled,
             metadata: merchant_ca.metadata,
             payment_methods_enabled,
-            frm_configs: Some(configs_for_frm),
+            frm_configs,
         })
     }
 }
