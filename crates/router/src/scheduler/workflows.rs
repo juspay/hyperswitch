@@ -46,7 +46,7 @@ macro_rules! as_item {
 runners! {
     PaymentsSyncWorkflow,
     RefundWorkflowRouter,
-    AccessTokenRefresh
+    AccessTokenRefresh,
     DeleteTokenizeDataWorkflow
 }
 

@@ -8,18 +8,17 @@ use crate::{
         payments,
     },
     db,
-    routes::AppState,
     routes::{metrics, AppState},
     scheduler::{
         process_data::{self, ConnectorPTMapping},
         utils as scheduler_utils,
         workflows::{AccessTokenRefresh, ProcessTrackerWorkflow},
     },
-    services, services,
-    types::{self, api as api_types, storage, transformers::ForeignInto},
+    services,
     types::{
         self, api as api_types,
         storage::{self, ProcessTrackerExt},
+        transformers::ForeignInto,
     },
 };
 
@@ -307,7 +306,6 @@ fn construct_access_token_router_data(
         connector_auth_type,
         description: None,
         return_url: None,
-        router_return_url: None,
         address: types::PaymentAddress::default(),
         auth_type: storage_models::enums::AuthenticationType::default(),
         connector_meta_data: None,
