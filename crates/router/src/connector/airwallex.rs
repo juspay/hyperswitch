@@ -95,6 +95,18 @@ impl ConnectorIntegration<api::Verify, types::VerifyRequestData, types::Payments
 {
 }
 
+impl api::PaymentToken for Airwallex {}
+
+impl
+    ConnectorIntegration<
+        api::PaymentMethodToken,
+        types::PaymentMethodTokenizationData,
+        types::PaymentsResponseData,
+    > for Airwallex
+{
+    // Not Implemented (R)
+}
+
 impl api::ConnectorAccessToken for Airwallex {}
 
 impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, types::AccessToken>

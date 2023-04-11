@@ -131,11 +131,13 @@ type BoxedConnector = Box<&'static (dyn Connector + Sync)>;
 
 // Normal flow will call the connector and follow the flow specific operations (capture, authorize)
 // SessionTokenFromMetadata will avoid calling the connector instead create the session token ( for sdk )
+#[derive(Clone)]
 pub enum GetToken {
     Metadata,
     Connector,
 }
 
+#[derive(Clone)]
 pub struct ConnectorData {
     pub connector: BoxedConnector,
     pub connector_name: types::Connector,
@@ -148,6 +150,7 @@ pub enum ConnectorChoice {
     Decide,
 }
 
+#[derive(Clone)]
 pub enum ConnectorCallType {
     Multiple(Vec<ConnectorData>),
     Single(ConnectorData),
@@ -192,6 +195,7 @@ impl ConnectorData {
             "bluesnap" => Ok(Box::new(&connector::Bluesnap)),
             "braintree" => Ok(Box::new(&connector::Braintree)),
             "checkout" => Ok(Box::new(&connector::Checkout)),
+            "coinbase" => Ok(Box::new(&connector::Coinbase)),
             "cybersource" => Ok(Box::new(&connector::Cybersource)),
             "dlocal" => Ok(Box::new(&connector::Dlocal)),
             "fiserv" => Ok(Box::new(&connector::Fiserv)),
@@ -199,6 +203,7 @@ impl ConnectorData {
             "klarna" => Ok(Box::new(&connector::Klarna)),
             "mollie" => Ok(Box::new(&connector::Mollie)),
             "nuvei" => Ok(Box::new(&connector::Nuvei)),
+            "opennode" => Ok(Box::new(&connector::Opennode)),
             "payu" => Ok(Box::new(&connector::Payu)),
             "rapyd" => Ok(Box::new(&connector::Rapyd)),
             "shift4" => Ok(Box::new(&connector::Shift4)),
