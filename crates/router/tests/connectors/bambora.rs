@@ -75,7 +75,7 @@ async fn should_partially_capture_authorized_payment() {
         .authorize_and_capture_payment(
             get_default_payment_authorize_data(),
             Some(types::PaymentsCaptureData {
-                amount_to_capture: Some(50),
+                amount_to_capture: 50,
                 ..utils::PaymentCaptureType::default().0
             }),
             None,

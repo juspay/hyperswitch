@@ -136,6 +136,16 @@ pub enum PaymentAttemptUpdate {
         mandate_id: Option<String>,
         connector_metadata: Option<serde_json::Value>,
         payment_token: Option<String>,
+        error_code: Option<Option<String>>,
+        error_message: Option<Option<String>>,
+    },
+    UnresolvedResponseUpdate {
+        status: storage_enums::AttemptStatus,
+        connector: Option<serde_json::Value>,
+        connector_transaction_id: Option<String>,
+        payment_method_id: Option<Option<String>>,
+        error_code: Option<Option<String>>,
+        error_message: Option<Option<String>>,
     },
     StatusUpdate {
         status: storage_enums::AttemptStatus,
@@ -143,8 +153,8 @@ pub enum PaymentAttemptUpdate {
     ErrorUpdate {
         connector: Option<serde_json::Value>,
         status: storage_enums::AttemptStatus,
-        error_code: Option<String>,
-        error_message: Option<String>,
+        error_code: Option<Option<String>>,
+        error_message: Option<Option<String>>,
     },
 }
 
@@ -158,14 +168,14 @@ pub struct PaymentAttemptUpdateInternal {
     connector: Option<serde_json::Value>,
     authentication_type: Option<storage_enums::AuthenticationType>,
     payment_method: Option<storage_enums::PaymentMethod>,
-    error_message: Option<String>,
+    error_message: Option<Option<String>>,
     payment_method_id: Option<Option<String>>,
     cancellation_reason: Option<String>,
     modified_at: Option<PrimitiveDateTime>,
     mandate_id: Option<String>,
     browser_info: Option<serde_json::Value>,
     payment_token: Option<String>,
-    error_code: Option<String>,
+    error_code: Option<Option<String>>,
     connector_metadata: Option<serde_json::Value>,
     payment_method_data: Option<serde_json::Value>,
     payment_method_type: Option<storage_enums::PaymentMethodType>,
@@ -185,7 +195,7 @@ impl PaymentAttemptUpdate {
                 .or(pa_update.connector_transaction_id),
             authentication_type: pa_update.authentication_type.or(source.authentication_type),
             payment_method: pa_update.payment_method.or(source.payment_method),
-            error_message: pa_update.error_message.or(source.error_message),
+            error_message: pa_update.error_message.unwrap_or(source.error_message),
             payment_method_id: pa_update
                 .payment_method_id
                 .unwrap_or(source.payment_method_id),
@@ -276,6 +286,8 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 mandate_id,
                 connector_metadata,
                 payment_token,
+                error_code,
+                error_message,
             } => Self {
                 status: Some(status),
                 connector,
@@ -285,6 +297,8 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 modified_at: Some(common_utils::date_time::now()),
                 mandate_id,
                 connector_metadata,
+                error_code,
+                error_message,
                 payment_token,
                 ..Default::default()
             },
@@ -311,6 +325,23 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
             } => Self {
                 payment_token,
                 connector,
+                ..Default::default()
+            },
+            PaymentAttemptUpdate::UnresolvedResponseUpdate {
+                status,
+                connector,
+                connector_transaction_id,
+                payment_method_id,
+                error_code,
+                error_message,
+            } => Self {
+                status: Some(status),
+                connector,
+                connector_transaction_id,
+                payment_method_id,
+                modified_at: Some(common_utils::date_time::now()),
+                error_code,
+                error_message,
                 ..Default::default()
             },
         }

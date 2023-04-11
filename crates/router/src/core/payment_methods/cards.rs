@@ -1484,7 +1484,7 @@ pub async fn list_customer_payment_method(
             .set_key_with_expiry(&key_for_hyperswitch_token, hyperswitch_token, 900)
             .await
             .map_err(|error| {
-                logger::error!(access_token_kv_error=?error);
+                logger::error!(hyperswitch_token_kv_error=?error);
                 errors::StorageError::KVError
             })
             .into_report()
@@ -1508,7 +1508,7 @@ pub async fn list_customer_payment_method(
                     .set_key_with_expiry(&key, pm_metadata.1, 900)
                     .await
                     .map_err(|error| {
-                        logger::error!(access_token_kv_error=?error);
+                        logger::error!(connector_payment_method_token_kv_error=?error);
                         errors::StorageError::KVError
                     })
                     .into_report()
