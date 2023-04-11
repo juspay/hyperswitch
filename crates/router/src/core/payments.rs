@@ -616,6 +616,7 @@ pub fn should_call_connector<Op: Debug, F: Clone>(
                     | storage_enums::IntentStatus::Processing
                     | storage_enums::IntentStatus::Succeeded
                     | storage_enums::IntentStatus::RequiresCustomerAction
+                    | storage_enums::IntentStatus::RequiresMerchantAction
             ) && payment_data.force_sync.unwrap_or(false)
         }
         "PaymentCancel" => matches!(

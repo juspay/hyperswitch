@@ -1180,7 +1180,7 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for CaptureRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsCaptureRouterData) -> Result<Self, Self::Error> {
         Ok(Self {
-            amount_to_capture: item.request.amount_to_capture,
+            amount_to_capture: Some(item.request.amount_to_capture),
         })
     }
 }
@@ -1297,6 +1297,11 @@ impl
                 }))
             }
             api::PaymentMethodData::Wallet(_) => Ok(Self::Wallet),
+            api::PaymentMethodData::Crypto(_) => Err(errors::ConnectorError::NotSupported {
+                payment_method: format!("{pm_type:?}"),
+                connector: "Stripe",
+                payment_experience: api_models::enums::PaymentExperience::RedirectToUrl.to_string(),
+            })?,
         }
     }
 }

@@ -167,6 +167,7 @@ pub struct Locker {
     pub mock_locker: bool,
     pub basilisk_host: String,
     pub locker_setup: LockerSetup,
+    pub locker_signing_key_id: String,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -254,6 +255,7 @@ pub struct Connectors {
     pub bluesnap: ConnectorParams,
     pub braintree: ConnectorParams,
     pub checkout: ConnectorParams,
+    pub coinbase: ConnectorParams,
     pub cybersource: ConnectorParams,
     pub dlocal: ConnectorParams,
     pub fiserv: ConnectorParams,
@@ -262,6 +264,8 @@ pub struct Connectors {
     pub mollie: ConnectorParams,
     pub multisafepay: ConnectorParams,
     pub nuvei: ConnectorParams,
+    pub opennode: ConnectorParams,
+    pub paypal: ConnectorParams,
     pub payu: ConnectorParams,
     pub rapyd: ConnectorParams,
     pub shift4: ConnectorParams,
@@ -293,6 +297,8 @@ pub struct SchedulerSettings {
     pub stream: String,
     pub producer: ProducerSettings,
     pub consumer: ConsumerSettings,
+    pub loop_interval: u64,
+    pub graceful_shutdown_interval: u64,
 }
 
 #[derive(Debug, Clone, Deserialize)]
