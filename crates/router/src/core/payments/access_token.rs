@@ -188,12 +188,12 @@ pub async fn add_access_token<
 
 fn get_requeue_schedule_time(access_token_ttl: i64) -> time::PrimitiveDateTime {
     // Scheduler to get a new access token 60 seconds before it expires
-    // If for some reason the ttl is negative, get the time untill refresh to be 0 seconds
+    // If for some reason the ttl is negative, get the time until refresh to be 0 seconds
     // The problem arises if the access_token_ttl is greater than 30 minutes in the opposite time duration
     // as this will not be picked up the scheduler.
 
     let access_token_ttl = access_token_ttl - 60;
-    let time_untill_refresh = if access_token_ttl < 0 {
+    let time_until_refresh = if access_token_ttl < 0 {
         0
     } else {
         access_token_ttl
