@@ -73,3 +73,6 @@ key1 = "key1"
 
 [mollie]
 api_key = "API Key"
+
+[forte]
+api_key="API Key"
