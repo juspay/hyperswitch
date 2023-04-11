@@ -12,7 +12,7 @@ use crate::{
     types::{
         api::{admin, enums as api_enums},
         transformers::{ForeignFrom, ForeignInto, ForeignTryFrom, ForeignTryInto},
-    },
+    }, logger,
 };
 
 // pub struct MyMandateData(pub payments::MandateData);
@@ -162,7 +162,7 @@ impl TryFrom<StripePaymentIntentRequest> for payments::PaymentsRequest {
         });
         let f = (stripe_mandate, item.currency.to_owned());
         let mandate_data: Option<payments::MandateData> = f.foreign_try_into()?;
-        Ok(Self {
+        let request = Ok(Self {
             payment_id: item.id.map(payments::PaymentIdType::PaymentIntentId),
             amount: item.amount.map(|amount| amount.into()),
             connector: item.connector,
@@ -210,10 +210,12 @@ impl TryFrom<StripePaymentIntentRequest> for payments::PaymentsRequest {
 
                 request_three_d_secure.foreign_into()
             }),
-            mandate_data: mandate_data,
+            mandate_data: mandate_data.clone(),
             merchant_connector_details: item.merchant_connector_details,
             ..Self::default()
-        })
+        });
+        logger::debug!(shakthi=?mandate_data);
+        request
     }
 }
 
@@ -521,6 +523,7 @@ pub struct MandateOption {
     pub reference: Option<String>,
     pub amount_type: Option<String>,
     pub amount: Option<i64>,
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub start_date: Option<PrimitiveDateTime>,
     pub interval: Option<i64>,
     pub supported_types: Option<String>,
