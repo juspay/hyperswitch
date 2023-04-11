@@ -1,3 +1,16 @@
+# 0.5.6 (2023-04-11)
+
+## New Features
+
+*  multiple connector account support for the same `country` (#816) (6188d515)
+*  connector tokenization flow (#750) (29da1dfa)
+* **process_tracker:**  changing runner selection to dyn dispatch (#853) (18b84c42)
+* **connector:**  [Worldpay] add support for webhook (#820) (23511166)
+
+## Refactors
+
+* **refund_type:** Feat/add copy dervie (#849) (ccf03273)
+
 # 0.5.5 (2023-04-10)
 
 ## New Features
