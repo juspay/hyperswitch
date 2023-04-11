@@ -70,6 +70,10 @@ pub enum ProcessTrackerUpdate {
         status: storage_enums::ProcessTrackerStatus,
         business_status: Option<String>,
     },
+    RequeueUpdate {
+        status: storage_enums::ProcessTrackerStatus,
+        schedule_time: PrimitiveDateTime,
+    },
     StatusRetryUpdate {
         status: storage_enums::ProcessTrackerStatus,
         retry_count: i32,
@@ -138,6 +142,14 @@ impl From<ProcessTrackerUpdate> for ProcessTrackerUpdateInternal {
             } => Self {
                 status: Some(status),
                 retry_count: Some(retry_count),
+                schedule_time: Some(schedule_time),
+                ..Default::default()
+            },
+            ProcessTrackerUpdate::RequeueUpdate {
+                status,
+                schedule_time,
+            } => Self {
+                status: Some(status),
                 schedule_time: Some(schedule_time),
                 ..Default::default()
             },

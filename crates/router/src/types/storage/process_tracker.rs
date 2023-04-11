@@ -30,6 +30,12 @@ pub trait ProcessTrackerExt {
         schedule_time: PrimitiveDateTime,
     ) -> Result<(), errors::ProcessTrackerError>;
 
+    async fn requeue(
+        self,
+        db: &dyn StorageInterface,
+        schedule_time: PrimitiveDateTime,
+    ) -> Result<(), errors::ProcessTrackerError>;
+
     async fn finish_with_status(
         self,
         db: &dyn StorageInterface,
@@ -83,6 +89,22 @@ impl ProcessTrackerExt for ProcessTracker {
             ProcessTrackerUpdate::StatusRetryUpdate {
                 status: storage_enums::ProcessTrackerStatus::Pending,
                 retry_count: self.retry_count + 1,
+                schedule_time,
+            },
+        )
+        .await?;
+        Ok(())
+    }
+
+    async fn requeue(
+        self,
+        db: &dyn StorageInterface,
+        schedule_time: PrimitiveDateTime,
+    ) -> Result<(), errors::ProcessTrackerError> {
+        db.update_process_tracker(
+            self.clone(),
+            ProcessTrackerUpdate::RequeueUpdate {
+                status: storage_enums::ProcessTrackerStatus::Pending,
                 schedule_time,
             },
         )
