@@ -32,7 +32,6 @@ pub struct MerchantConnectorAccount {
     pub business_country: storage_enums::CountryCode,
     pub business_label: String,
     pub business_sub_label: Option<String>,
-    pub frm_configs: Option<serde_json::Value>, //Option<FrmConfigs>
 }
 
 #[derive(Clone, Debug, Default, Insertable, router_derive::DebugAsDisplay)]
@@ -51,7 +50,6 @@ pub struct MerchantConnectorAccountNew {
     pub business_country: storage_enums::CountryCode,
     pub business_label: String,
     pub business_sub_label: Option<String>,
-    pub frm_configs: Option<serde_json::Value>,
 }
 
 #[derive(Debug)]
@@ -65,7 +63,6 @@ pub enum MerchantConnectorAccountUpdate {
         merchant_connector_id: Option<String>,
         payment_methods_enabled: Option<Vec<serde_json::Value>>,
         metadata: Option<pii::SecretSerdeValue>,
-        frm_configs: Option<serde_json::Value>,
     },
 }
 #[derive(Clone, Debug, Default, AsChangeset, router_derive::DebugAsDisplay)]
@@ -79,7 +76,6 @@ pub struct MerchantConnectorAccountUpdateInternal {
     merchant_connector_id: Option<String>,
     payment_methods_enabled: Option<Vec<serde_json::Value>>,
     metadata: Option<pii::SecretSerdeValue>,
-    frm_configs: Option<serde_json::Value>,
 }
 
 impl From<MerchantConnectorAccountUpdate> for MerchantConnectorAccountUpdateInternal {
@@ -94,7 +90,6 @@ impl From<MerchantConnectorAccountUpdate> for MerchantConnectorAccountUpdateInte
                 merchant_connector_id,
                 payment_methods_enabled,
                 metadata,
-                frm_configs,
             } => Self {
                 merchant_id,
                 connector_type,
@@ -104,7 +99,6 @@ impl From<MerchantConnectorAccountUpdate> for MerchantConnectorAccountUpdateInte
                 merchant_connector_id,
                 payment_methods_enabled,
                 metadata,
-                frm_configs,
             },
         }
     }

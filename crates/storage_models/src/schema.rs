@@ -246,7 +246,6 @@ diesel::table! {
         business_country -> CountryCode,
         business_label -> Varchar,
         business_sub_label -> Nullable<Varchar>,
-        frm_configs -> Nullable<Jsonb>,
     }
 }
 
