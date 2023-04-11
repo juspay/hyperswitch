@@ -129,9 +129,7 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, AirwallexAuthUpdateResponse, T, 
     fn try_from(
         item: types::ResponseRouterData<F, AirwallexAuthUpdateResponse, T, types::AccessToken>,
     ) -> Result<Self, Self::Error> {
-        // if expiry time is less than current time, then make the expiry seconds to 0
         let expires = (item.response.expires_at - common_utils::date_time::now()).whole_seconds();
-
         Ok(Self {
             response: Ok(types::AccessToken {
                 token: item.response.token,
