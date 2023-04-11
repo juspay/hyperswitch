@@ -397,6 +397,7 @@ pub trait ConnectorActions: Connector {
             }
             Ok(types::PaymentsResponseData::SessionResponse { .. }) => None,
             Ok(types::PaymentsResponseData::SessionTokenResponse { .. }) => None,
+            Ok(types::PaymentsResponseData::TransactionUnresolvedResponse { .. }) => None,
             Err(_) => None,
         }
     }
@@ -500,10 +501,10 @@ impl Default for PaymentAuthorizeType {
 impl Default for PaymentCaptureType {
     fn default() -> Self {
         Self(types::PaymentsCaptureData {
-            amount_to_capture: Some(100),
+            amount_to_capture: 100,
             currency: enums::Currency::USD,
             connector_transaction_id: "".to_string(),
-            amount: 100,
+            payment_amount: 100,
             ..Default::default()
         })
     }
@@ -576,6 +577,21 @@ pub fn get_connector_transaction_id(
         }
         Ok(types::PaymentsResponseData::SessionResponse { .. }) => None,
         Ok(types::PaymentsResponseData::SessionTokenResponse { .. }) => None,
+        Ok(types::PaymentsResponseData::TransactionUnresolvedResponse { .. }) => None,
         Err(_) => None,
+    }
+}
+
+pub fn get_connector_metadata(
+    response: Result<types::PaymentsResponseData, types::ErrorResponse>,
+) -> Option<serde_json::Value> {
+    match response {
+        Ok(types::PaymentsResponseData::TransactionResponse {
+            resource_id: _,
+            redirection_data: _,
+            mandate_reference: _,
+            connector_metadata,
+        }) => connector_metadata,
+        _ => None,
     }
 }

@@ -35,6 +35,15 @@ pub trait ConnectorAccessToken:
 {
 }
 
+pub trait ConnectorTransactionId: ConnectorCommon + Sync {
+    fn connector_transaction_id(
+        &self,
+        payment_attempt: storage_models::payment_attempt::PaymentAttempt,
+    ) -> Result<Option<String>, errors::ApiErrorResponse> {
+        Ok(payment_attempt.connector_transaction_id)
+    }
+}
+
 pub trait ConnectorCommon {
     /// Name of the connector (in lowercase).
     fn id(&self) -> &'static str;
@@ -90,7 +99,14 @@ pub trait ConnectorCommonExt<Flow, Req, Resp>:
 pub trait Router {}
 
 pub trait Connector:
-    Send + Refund + Payment + Debug + ConnectorRedirectResponse + IncomingWebhook + ConnectorAccessToken
+    Send
+    + Refund
+    + Payment
+    + Debug
+    + ConnectorRedirectResponse
+    + IncomingWebhook
+    + ConnectorAccessToken
+    + ConnectorTransactionId
 {
 }
 
@@ -105,7 +121,8 @@ impl<
             + ConnectorRedirectResponse
             + Send
             + IncomingWebhook
-            + ConnectorAccessToken,
+            + ConnectorAccessToken
+            + ConnectorTransactionId,
     > Connector for T
 {
 }
@@ -175,6 +192,7 @@ impl ConnectorData {
             "bluesnap" => Ok(Box::new(&connector::Bluesnap)),
             "braintree" => Ok(Box::new(&connector::Braintree)),
             "checkout" => Ok(Box::new(&connector::Checkout)),
+            "coinbase" => Ok(Box::new(&connector::Coinbase)),
             "cybersource" => Ok(Box::new(&connector::Cybersource)),
             "dlocal" => Ok(Box::new(&connector::Dlocal)),
             "fiserv" => Ok(Box::new(&connector::Fiserv)),
@@ -182,6 +200,7 @@ impl ConnectorData {
             "klarna" => Ok(Box::new(&connector::Klarna)),
             "mollie" => Ok(Box::new(&connector::Mollie)),
             "nuvei" => Ok(Box::new(&connector::Nuvei)),
+            "opennode" => Ok(Box::new(&connector::Opennode)),
             "payu" => Ok(Box::new(&connector::Payu)),
             "rapyd" => Ok(Box::new(&connector::Rapyd)),
             "shift4" => Ok(Box::new(&connector::Shift4)),
@@ -189,6 +208,7 @@ impl ConnectorData {
             "worldline" => Ok(Box::new(&connector::Worldline)),
             "worldpay" => Ok(Box::new(&connector::Worldpay)),
             "multisafepay" => Ok(Box::new(&connector::Multisafepay)),
+            "paypal" => Ok(Box::new(&connector::Paypal)),
             "trustpay" => Ok(Box::new(&connector::Trustpay)),
             _ => Err(report!(errors::ConnectorError::InvalidConnectorName)
                 .attach_printable(format!("invalid connector name: {connector_name}")))

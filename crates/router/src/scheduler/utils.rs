@@ -243,7 +243,6 @@ pub fn get_time_from_delta(delta: Option<i32>) -> Option<time::PrimitiveDateTime
 
 pub async fn consumer_operation_handler<E>(
     state: AppState,
-    options: sync::Arc<super::SchedulerOptions>,
     settings: sync::Arc<SchedulerSettings>,
     error_handler_fun: E,
     consumer_operation_counter: sync::Arc<atomic::AtomicU64>,
@@ -254,7 +253,7 @@ pub async fn consumer_operation_handler<E>(
     consumer_operation_counter.fetch_add(1, atomic::Ordering::Release);
     let start_time = std_time::Instant::now();
 
-    match consumer::consumer_operations(&state, &options, &settings).await {
+    match consumer::consumer_operations(&state, &settings).await {
         Ok(_) => (),
         Err(err) => error_handler_fun(err),
     }
