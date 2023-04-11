@@ -81,11 +81,13 @@ default_imp_for_complete_authorize!(
     connector::Bluesnap,
     connector::Braintree,
     connector::Checkout,
+    connector::Coinbase,
     connector::Cybersource,
     connector::Dlocal,
     connector::Fiserv,
     connector::Klarna,
     connector::Multisafepay,
+    connector::Opennode,
     connector::Payu,
     connector::Rapyd,
     connector::Shift4,
@@ -121,15 +123,54 @@ default_imp_for_connector_redirect_response!(
     connector::Bambora,
     connector::Bluesnap,
     connector::Braintree,
+    connector::Coinbase,
     connector::Cybersource,
     connector::Dlocal,
     connector::Fiserv,
     connector::Globalpay,
     connector::Klarna,
     connector::Multisafepay,
+    connector::Opennode,
     connector::Payu,
     connector::Rapyd,
     connector::Shift4,
+    connector::Worldline,
+    connector::Worldpay
+);
+
+macro_rules! default_imp_for_connector_request_id{
+    ($($path:ident::$connector:ident),*)=> {
+        $(
+            impl api::ConnectorTransactionId for $path::$connector {}
+    )*
+    };
+}
+
+default_imp_for_connector_request_id!(
+    connector::Aci,
+    connector::Adyen,
+    connector::Airwallex,
+    connector::Applepay,
+    connector::Authorizedotnet,
+    connector::Bambora,
+    connector::Bluesnap,
+    connector::Braintree,
+    connector::Checkout,
+    connector::Coinbase,
+    connector::Cybersource,
+    connector::Dlocal,
+    connector::Fiserv,
+    connector::Globalpay,
+    connector::Klarna,
+    connector::Mollie,
+    connector::Multisafepay,
+    connector::Nuvei,
+    connector::Opennode,
+    connector::Payu,
+    connector::Rapyd,
+    connector::Shift4,
+    connector::Stripe,
+    connector::Trustpay,
     connector::Worldline,
     connector::Worldpay
 );

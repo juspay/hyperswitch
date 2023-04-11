@@ -129,6 +129,7 @@ impl ForeignFrom<storage_enums::AttemptStatus> for storage_enums::IntentStatus {
 
             storage_enums::AttemptStatus::Authorized => Self::RequiresCapture,
             storage_enums::AttemptStatus::AuthenticationPending => Self::RequiresCustomerAction,
+            storage_enums::AttemptStatus::Unresolved => Self::RequiresMerchantAction,
 
             storage_enums::AttemptStatus::PartialCharged
             | storage_enums::AttemptStatus::Started
@@ -156,6 +157,8 @@ impl ForeignTryFrom<api_enums::IntentStatus> for storage_enums::EventType {
     fn foreign_try_from(value: api_enums::IntentStatus) -> Result<Self, Self::Error> {
         match value {
             api_enums::IntentStatus::Succeeded => Ok(Self::PaymentSucceeded),
+            api_enums::IntentStatus::Processing => Ok(Self::PaymentProcessing),
+            api_enums::IntentStatus::RequiresMerchantAction => Ok(Self::ActionRequired),
             _ => Err(errors::ValidationError::IncorrectValueProvided {
                 field_name: "intent_status",
             }),
