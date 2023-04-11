@@ -24,9 +24,6 @@ use crate::{
 
 #[derive(serde::Serialize, serde::Deserialize)]
 pub struct ProcessTrackerAccessTokenData {
-    // Required to construct the request
-    pub access_token_request: types::AccessTokenRequestData,
-
     // Fields required to construct router data
     pub merchant_id: String,
     pub connector: String,
@@ -194,6 +191,7 @@ fn get_requeue_schedule_time(access_token_ttl: i64) -> time::PrimitiveDateTime {
     // The problem arises if the access_token_ttl is greater than 30 minutes in the opposite time duration
     // as this will not be picked up the scheduler.
 
+    let access_token_ttl = access_token_ttl - 60;
     let time_untill_refresh = if access_token_ttl < 0 {
         0
     } else {
@@ -209,7 +207,6 @@ async fn add_access_token_refresh_task<Flow, Response>(
     router_data: &types::RouterData<Flow, types::AccessTokenRequestData, Response>,
 ) -> Result<(), errors::ProcessTrackerError> {
     let tracking_data = ProcessTrackerAccessTokenData {
-        access_token_request: router_data.request.clone(),
         merchant_id: router_data.merchant_id.clone(),
         connector: router_data.connector.clone(),
         payment_id: router_data.payment_id.clone(),
