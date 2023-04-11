@@ -25,6 +25,7 @@ impl
         state: &AppState,
         connector_id: &str,
         merchant_account: &storage::MerchantAccount,
+        customer: &Option<storage::Customer>,
     ) -> RouterResult<
         types::RouterData<
             api::Authorize,
@@ -37,6 +38,7 @@ impl
             self.clone(),
             connector_id,
             merchant_account,
+            customer,
         )
         .await
     }

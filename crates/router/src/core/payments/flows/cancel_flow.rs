@@ -20,12 +20,14 @@ impl ConstructFlowSpecificData<api::Void, types::PaymentsCancelData, types::Paym
         state: &AppState,
         connector_id: &str,
         merchant_account: &storage::MerchantAccount,
+        customer: &Option<storage::Customer>,
     ) -> RouterResult<types::PaymentsCancelRouterData> {
         transformers::construct_payment_router_data::<api::Void, types::PaymentsCancelData>(
             state,
             self.clone(),
             connector_id,
             merchant_account,
+            customer,
         )
         .await
     }

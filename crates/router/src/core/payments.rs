@@ -401,7 +401,7 @@ where
     let stime_connector = Instant::now();
 
     let mut router_data = payment_data
-        .construct_router_data(state, connector.connector.id(), merchant_account)
+        .construct_router_data(state, connector.connector.id(), merchant_account, customer)
         .await?;
 
     let add_access_token_result = router_data
@@ -463,7 +463,7 @@ where
     for connector in connectors.iter() {
         let connector_id = connector.connector.id();
         let router_data = payment_data
-            .construct_router_data(state, connector_id, merchant_account)
+            .construct_router_data(state, connector_id, merchant_account, customer)
             .await?;
 
         let res = router_data.decide_flows(

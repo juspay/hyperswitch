@@ -95,6 +95,7 @@ pub type VerifyRouterData = RouterData<api::Verify, VerifyRequestData, PaymentsR
 pub struct RouterData<Flow, Request, Response> {
     pub flow: PhantomData<Flow>,
     pub merchant_id: String,
+    pub customer_id: Option<String>,
     pub connector: String,
     pub payment_id: String,
     pub attempt_id: String,
@@ -475,6 +476,7 @@ impl<F1, F2, T1, T2> From<(&&mut RouterData<F1, T1, PaymentsResponseData>, T2)>
             payment_id: data.payment_id.clone(),
             session_token: data.session_token.clone(),
             reference_id: data.reference_id.clone(),
+            customer_id: data.customer_id.clone(),
         }
     }
 }

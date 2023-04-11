@@ -355,6 +355,7 @@ pub trait ConnectorActions: Connector {
         RouterData {
             flow: PhantomData,
             merchant_id: self.get_name(),
+            customer_id: Some(self.get_name()),
             connector: self.get_name(),
             payment_id: uuid::Uuid::new_v4().to_string(),
             attempt_id: uuid::Uuid::new_v4().to_string(),

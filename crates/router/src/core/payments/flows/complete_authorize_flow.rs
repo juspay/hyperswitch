@@ -24,6 +24,7 @@ impl
         state: &AppState,
         connector_id: &str,
         merchant_account: &storage::MerchantAccount,
+        customer: &Option<storage::Customer>,
     ) -> RouterResult<
         types::RouterData<
             api::CompleteAuthorize,
@@ -34,7 +35,13 @@ impl
         transformers::construct_payment_router_data::<
             api::CompleteAuthorize,
             types::CompleteAuthorizeData,
-        >(state, self.clone(), connector_id, merchant_account)
+        >(
+            state,
+            self.clone(),
+            connector_id,
+            merchant_account,
+            customer,
+        )
         .await
     }
 }

@@ -20,6 +20,7 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
     types::RouterData {
         flow: PhantomData,
         merchant_id: String::from("authorizedotnet"),
+        customer_id: Some(String::from("authorizedotnet")),
         connector: "authorizedotnet".to_string(),
         payment_id: uuid::Uuid::new_v4().to_string(),
         attempt_id: uuid::Uuid::new_v4().to_string(),
@@ -81,6 +82,7 @@ fn construct_refund_router_data<F>() -> types::RefundsRouterData<F> {
         flow: PhantomData,
         connector_meta_data: None,
         merchant_id: String::from("authorizedotnet"),
+        customer_id: Some(String::from("authorizedotnet")),
         connector: "authorizedotnet".to_string(),
         payment_id: uuid::Uuid::new_v4().to_string(),
         attempt_id: uuid::Uuid::new_v4().to_string(),
