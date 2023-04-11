@@ -199,7 +199,7 @@ fn get_requeue_schedule_time(access_token_ttl: i64) -> time::PrimitiveDateTime {
         access_token_ttl
     };
 
-    common_utils::date_time::now().saturating_add(time::Duration::seconds(time_untill_refresh))
+    common_utils::date_time::now().saturating_add(time::Duration::seconds(time_until_refresh))
 }
 
 async fn add_access_token_refresh_task<Flow, Response>(
