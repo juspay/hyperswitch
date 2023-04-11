@@ -141,7 +141,6 @@ default_imp_for_connector_redirect_response!(
     connector::Cybersource,
     connector::Dlocal,
     connector::Fiserv,
-    connector::Globalpay,
     connector::Klarna,
     connector::Multisafepay,
     connector::Opennode,
