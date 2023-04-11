@@ -1,18 +1,32 @@
 use common_utils::generate_id_with_default_len;
 use error_stack::{IntoReport, ResultExt};
+#[cfg(feature = "basilisk")]
+use external_services::kms;
+#[cfg(feature = "basilisk")]
+use josekit::jwe;
 use masking::PeekInterface;
 use router_env::{instrument, tracing};
 
-#[cfg(not(feature = "basilisk"))]
-use crate::types::storage;
+#[cfg(feature = "basilisk")]
+use crate::routes::metrics;
 use crate::{
+    configs::settings,
     core::errors::{self, CustomResult, RouterResult},
     logger, routes,
-    types::api,
+    types::{
+        api,
+        storage::{self, enums},
+    },
     utils::{self, StringExt},
 };
 #[cfg(feature = "basilisk")]
 use crate::{core::payment_methods::transformers as payment_methods, services, utils::BytesExt};
+#[cfg(feature = "basilisk")]
+use crate::{
+    db,
+    scheduler::{metrics as scheduler_metrics, process_data, utils as process_tracker_utils},
+    types::storage::ProcessTrackerExt,
+};
 #[cfg(feature = "basilisk")]
 const VAULT_SERVICE_NAME: &str = "CARD";
 #[cfg(feature = "basilisk")]
@@ -250,6 +264,7 @@ impl Vault {
         token_id: Option<String>,
         payment_method: &api::PaymentMethodData,
         customer_id: Option<String>,
+        _pm: enums::PaymentMethod,
     ) -> RouterResult<String> {
         let value1 = payment_method
             .get_value1(customer_id.clone())
@@ -336,6 +351,7 @@ impl Vault {
         token_id: Option<String>,
         payment_method: &api::PaymentMethodData,
         customer_id: Option<String>,
+        pm: enums::PaymentMethod,
     ) -> RouterResult<String> {
         let value1 = payment_method
             .get_value1(customer_id.clone())
@@ -349,7 +365,10 @@ impl Vault {
 
         let lookup_key = token_id.unwrap_or_else(|| generate_id_with_default_len("token"));
 
-        create_tokenize(state, value1, Some(value2), lookup_key).await
+        let lookup_key = create_tokenize(state, value1, Some(value2), lookup_key).await?;
+        add_delete_tokenized_data_task(&*state.store, &lookup_key, pm).await?;
+        scheduler_metrics::TOKENIZED_DATA_COUNT.add(&metrics::CONTEXT, 1, &[]);
+        Ok(lookup_key)
     }
 
     #[instrument(skip_all)]
@@ -374,6 +393,43 @@ impl Vault {
 }
 
 //------------------------------------------------TokenizeService------------------------------------------------
+pub fn get_key_id(keys: &settings::Jwekey) -> &str {
+    let key_identifier = "1"; // [#46]: Fetch this value from redis or external sources
+    if key_identifier == "1" {
+        &keys.locker_key_identifier1
+    } else {
+        &keys.locker_key_identifier2
+    }
+}
+
+#[cfg(feature = "basilisk")]
+async fn get_locker_jwe_keys(
+    keys: &settings::Jwekey,
+    kms_config: &kms::KmsConfig,
+) -> CustomResult<(String, String), errors::EncryptionError> {
+    let key_id = get_key_id(keys);
+    let (encryption_key, decryption_key) = if key_id == keys.locker_key_identifier1 {
+        (&keys.locker_encryption_key1, &keys.locker_decryption_key1)
+    } else if key_id == keys.locker_key_identifier2 {
+        (&keys.locker_encryption_key2, &keys.locker_decryption_key2)
+    } else {
+        return Err(errors::EncryptionError.into());
+    };
+
+    let public_key = kms::get_kms_client(kms_config)
+        .await
+        .decrypt(encryption_key)
+        .await
+        .change_context(errors::EncryptionError)?;
+    let private_key = kms::get_kms_client(kms_config)
+        .await
+        .decrypt(decryption_key)
+        .await
+        .change_context(errors::EncryptionError)?;
+
+    Ok((public_key, private_key))
+}
+
 #[cfg(feature = "basilisk")]
 pub async fn create_tokenize(
     state: &routes::AppState,
@@ -381,6 +437,7 @@ pub async fn create_tokenize(
     value2: Option<String>,
     lookup_key: String,
 ) -> RouterResult<String> {
+    metrics::CREATED_TOKENIZED_CARD.add(&metrics::CONTEXT, 1, &[]);
     let payload_to_be_encrypted = api::TokenizePayloadRequest {
         value1,
         value2: value2.unwrap_or_default(),
@@ -391,14 +448,19 @@ pub async fn create_tokenize(
         &payload_to_be_encrypted,
     )
     .change_context(errors::ApiErrorResponse::InternalServerError)?;
-    let encrypted_payload = services::encrypt_jwe(&state.conf.jwekey, &payload)
+
+    let (public_key, private_key) = get_locker_jwe_keys(&state.conf.jwekey, &state.conf.kms)
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Error getting Encryption key")?;
+    let encrypted_payload = services::encrypt_jwe(payload.as_bytes(), public_key)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Error getting Encrypt JWE response")?;
 
     let create_tokenize_request = api::TokenizePayloadEncrypted {
         payload: encrypted_payload,
-        key_id: services::get_key_id(&state.conf.jwekey).to_string(),
+        key_id: get_key_id(&state.conf.jwekey).to_string(),
         version: Some(VAULT_VERSION.to_string()),
     };
     let request = payment_methods::mk_crud_locker_request(
@@ -419,11 +481,19 @@ pub async fn create_tokenize(
                 .parse_struct("TokenizePayloadEncrypted")
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Decoding Failed for TokenizePayloadEncrypted")?;
-            let decrypted_payload =
-                services::decrypt_jwe(&state.conf.jwekey, &resp.payload, &resp.key_id)
-                    .await
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Decrypt Jwe failed for TokenizePayloadEncrypted")?;
+            let alg = jwe::RSA_OAEP_256;
+            let decrypted_payload = services::decrypt_jwe(
+                &resp.payload,
+                services::KeyIdCheck::RequestResponseKeyId((
+                    get_key_id(&state.conf.jwekey),
+                    &resp.key_id,
+                )),
+                private_key,
+                alg,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Decrypt Jwe failed for TokenizePayloadEncrypted")?;
             let get_response: api::GetTokenizePayloadResponse = decrypted_payload
                 .parse_struct("GetTokenizePayloadResponse")
                 .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -432,9 +502,12 @@ pub async fn create_tokenize(
                 )?;
             Ok(get_response.lookup_key)
         }
-        Err(err) => Err(errors::ApiErrorResponse::InternalServerError)
-            .into_report()
-            .attach_printable(format!("Got 4xx from the basilisk locker: {err:?}")),
+        Err(err) => {
+            metrics::TEMP_LOCKER_FAILURES.add(&metrics::CONTEXT, 1, &[]);
+            Err(errors::ApiErrorResponse::InternalServerError)
+                .into_report()
+                .attach_printable(format!("Got 4xx from the basilisk locker: {err:?}"))
+        }
     }
 }
 
@@ -444,19 +517,26 @@ pub async fn get_tokenized_data(
     lookup_key: &str,
     should_get_value2: bool,
 ) -> RouterResult<api::TokenizePayloadRequest> {
+    metrics::GET_TOKENIZED_CARD.add(&metrics::CONTEXT, 1, &[]);
     let payload_to_be_encrypted = api::GetTokenizePayloadRequest {
         lookup_key: lookup_key.to_string(),
         get_value2: should_get_value2,
+        service_name: VAULT_SERVICE_NAME.to_string(),
     };
     let payload = serde_json::to_string(&payload_to_be_encrypted)
         .map_err(|_x| errors::ApiErrorResponse::InternalServerError)?;
-    let encrypted_payload = services::encrypt_jwe(&state.conf.jwekey, &payload)
+
+    let (public_key, private_key) = get_locker_jwe_keys(&state.conf.jwekey, &state.conf.kms)
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Error getting Encryption key")?;
+    let encrypted_payload = services::encrypt_jwe(payload.as_bytes(), public_key)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Error getting Encrypt JWE response")?;
     let create_tokenize_request = api::TokenizePayloadEncrypted {
         payload: encrypted_payload,
-        key_id: services::get_key_id(&state.conf.jwekey).to_string(),
+        key_id: get_key_id(&state.conf.jwekey).to_string(),
         version: Some("0".to_string()),
     };
     let request = payment_methods::mk_crud_locker_request(
@@ -476,22 +556,31 @@ pub async fn get_tokenized_data(
                 .parse_struct("TokenizePayloadEncrypted")
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Decoding Failed for TokenizePayloadEncrypted")?;
-            let decrypted_payload =
-                services::decrypt_jwe(&state.conf.jwekey, &resp.payload, &resp.key_id)
-                    .await
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable(
-                        "GetTokenizedApi: Decrypt Jwe failed for TokenizePayloadEncrypted",
-                    )?;
+            let alg = jwe::RSA_OAEP_256;
+            let decrypted_payload = services::decrypt_jwe(
+                &resp.payload,
+                services::KeyIdCheck::RequestResponseKeyId((
+                    get_key_id(&state.conf.jwekey),
+                    &resp.key_id,
+                )),
+                private_key,
+                alg,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("GetTokenizedApi: Decrypt Jwe failed for TokenizePayloadEncrypted")?;
             let get_response: api::TokenizePayloadRequest = decrypted_payload
                 .parse_struct("TokenizePayloadRequest")
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Error getting TokenizePayloadRequest from tokenize response")?;
             Ok(get_response)
         }
-        Err(err) => Err(errors::ApiErrorResponse::InternalServerError)
-            .into_report()
-            .attach_printable(format!("Got 4xx from the basilisk locker: {err:?}")),
+        Err(err) => {
+            metrics::TEMP_LOCKER_FAILURES.add(&metrics::CONTEXT, 1, &[]);
+            Err(errors::ApiErrorResponse::InternalServerError)
+                .into_report()
+                .attach_printable(format!("Got 4xx from the basilisk locker: {err:?}"))
+        }
     }
 }
 
@@ -500,18 +589,25 @@ pub async fn delete_tokenized_data(
     state: &routes::AppState,
     lookup_key: &str,
 ) -> RouterResult<String> {
+    metrics::DELETED_TOKENIZED_CARD.add(&metrics::CONTEXT, 1, &[]);
     let payload_to_be_encrypted = api::DeleteTokenizeByTokenRequest {
         lookup_key: lookup_key.to_string(),
+        service_name: VAULT_SERVICE_NAME.to_string(),
     };
     let payload = serde_json::to_string(&payload_to_be_encrypted)
         .map_err(|_x| errors::ApiErrorResponse::InternalServerError)?;
-    let encrypted_payload = services::encrypt_jwe(&state.conf.jwekey, &payload)
+
+    let (public_key, _private_key) = get_locker_jwe_keys(&state.conf.jwekey, &state.conf.kms)
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Error getting Encryption key")?;
+    let encrypted_payload = services::encrypt_jwe(payload.as_bytes(), public_key)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Error getting Encrypt JWE response")?;
     let create_tokenize_request = api::TokenizePayloadEncrypted {
         payload: encrypted_payload,
-        key_id: services::get_key_id(&state.conf.jwekey).to_string(),
+        key_id: get_key_id(&state.conf.jwekey).to_string(),
         version: Some("0".to_string()),
     };
     let request = payment_methods::mk_crud_locker_request(
@@ -526,28 +622,148 @@ pub async fn delete_tokenized_data(
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
     match response {
         Ok(r) => {
-            let resp: api::TokenizePayloadEncrypted = r
-                .response
-                .parse_struct("TokenizePayloadEncrypted")
+            let delete_response = std::str::from_utf8(&r.response)
+                .into_report()
                 .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Decoding Failed for TokenizePayloadEncrypted")?;
-            let decrypted_payload =
-                services::decrypt_jwe(&state.conf.jwekey, &resp.payload, &resp.key_id)
-                    .await
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable(
-                        "DeleteTokenizedApi: Decrypt Jwe failed for TokenizePayloadEncrypted",
-                    )?;
-            let delete_response = decrypted_payload
-                .parse_struct("Delete")
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable(
-                    "Error getting TokenizePayloadEncrypted from tokenize response",
-                )?;
-            Ok(delete_response)
+                .attach_printable("Decoding Failed for basilisk delete response")?;
+            Ok(delete_response.to_string())
         }
-        Err(err) => Err(errors::ApiErrorResponse::InternalServerError)
-            .into_report()
-            .attach_printable(format!("Got 4xx from the basilisk locker: {err:?}")),
+        Err(err) => {
+            metrics::TEMP_LOCKER_FAILURES.add(&metrics::CONTEXT, 1, &[]);
+            Err(errors::ApiErrorResponse::InternalServerError)
+                .into_report()
+                .attach_printable(format!("Got 4xx from the basilisk locker: {err:?}"))
+        }
+    }
+}
+
+// ********************************************** PROCESS TRACKER **********************************************
+#[cfg(feature = "basilisk")]
+pub async fn add_delete_tokenized_data_task(
+    db: &dyn db::StorageInterface,
+    lookup_key: &str,
+    pm: enums::PaymentMethod,
+) -> RouterResult<storage::ProcessTracker> {
+    let runner = "DELETE_TOKENIZE_DATA_WORKFLOW";
+    let current_time = common_utils::date_time::now();
+    let tracking_data = serde_json::to_value(storage::TokenizeCoreWorkflow {
+        lookup_key: lookup_key.to_owned(),
+        pm,
+    })
+    .into_report()
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable_lazy(|| format!("unable to convert into value {lookup_key:?}"))?;
+
+    let schedule_time = get_delete_tokenize_schedule_time(db, &pm, 0).await;
+
+    let process_tracker_entry = storage::ProcessTrackerNew {
+        id: format!("{runner}_{lookup_key}"),
+        name: Some(String::from(runner)),
+        tag: vec![String::from("BASILISK-V3")],
+        runner: Some(String::from(runner)),
+        retry_count: 0,
+        schedule_time,
+        rule: String::new(),
+        tracking_data,
+        business_status: String::from("Pending"),
+        status: enums::ProcessTrackerStatus::New,
+        event: vec![],
+        created_at: current_time,
+        updated_at: current_time,
+    };
+    let response = db
+        .insert_process(process_tracker_entry)
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable_lazy(|| {
+            format!("Failed while inserting task in process_tracker: lookup_key: {lookup_key}")
+        })?;
+    Ok(response)
+}
+
+#[cfg(feature = "basilisk")]
+pub async fn start_tokenize_data_workflow(
+    state: &routes::AppState,
+    tokenize_tracker: &storage::ProcessTracker,
+) -> Result<(), errors::ProcessTrackerError> {
+    let db = &*state.store;
+    let delete_tokenize_data = serde_json::from_value::<storage::TokenizeCoreWorkflow>(
+        tokenize_tracker.tracking_data.clone(),
+    )
+    .into_report()
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable_lazy(|| {
+        format!(
+            "unable to convert into DeleteTokenizeByTokenRequest {:?}",
+            tokenize_tracker.tracking_data
+        )
+    })?;
+
+    let delete_resp = delete_tokenized_data(state, &delete_tokenize_data.lookup_key).await;
+    match delete_resp {
+        Ok(resp) => {
+            if resp == "Ok" {
+                logger::info!("Card From locker deleted Successfully");
+                //mark task as finished
+                let id = tokenize_tracker.id.clone();
+                tokenize_tracker
+                    .clone()
+                    .finish_with_status(db, format!("COMPLETED_BY_PT_{id}"))
+                    .await?;
+            } else {
+                logger::error!("Error: Deleting Card From Locker : {}", resp);
+                retry_delete_tokenize(db, &delete_tokenize_data.pm, tokenize_tracker.to_owned())
+                    .await?;
+                scheduler_metrics::RETRIED_DELETE_DATA_COUNT.add(&metrics::CONTEXT, 1, &[]);
+            }
+        }
+        Err(err) => {
+            logger::error!("Err: Deleting Card From Locker : {}", err);
+            retry_delete_tokenize(db, &delete_tokenize_data.pm, tokenize_tracker.to_owned())
+                .await?;
+            scheduler_metrics::RETRIED_DELETE_DATA_COUNT.add(&metrics::CONTEXT, 1, &[]);
+        }
+    }
+    Ok(())
+}
+
+#[cfg(feature = "basilisk")]
+pub async fn get_delete_tokenize_schedule_time(
+    db: &dyn db::StorageInterface,
+    pm: &enums::PaymentMethod,
+    retry_count: i32,
+) -> Option<time::PrimitiveDateTime> {
+    let redis_mapping = db::get_and_deserialize_key(
+        db,
+        &format!("pt_mapping_delete_{pm}_tokenize_data"),
+        "PaymentMethodsPTMapping",
+    )
+    .await;
+    let mapping = match redis_mapping {
+        Ok(x) => x,
+        Err(err) => {
+            logger::info!("Redis Mapping Error: {}", err);
+            process_data::PaymentMethodsPTMapping::default()
+        }
+    };
+    let time_delta = process_tracker_utils::get_pm_schedule_time(mapping, pm, retry_count + 1);
+
+    process_tracker_utils::get_time_from_delta(time_delta)
+}
+
+#[cfg(feature = "basilisk")]
+pub async fn retry_delete_tokenize(
+    db: &dyn db::StorageInterface,
+    pm: &enums::PaymentMethod,
+    pt: storage::ProcessTracker,
+) -> Result<(), errors::ProcessTrackerError> {
+    let schedule_time = get_delete_tokenize_schedule_time(db, pm, pt.retry_count).await;
+
+    match schedule_time {
+        Some(s_time) => pt.retry(db, s_time).await,
+        None => {
+            pt.finish_with_status(db, "RETRIES_EXCEEDED".to_string())
+                .await
+        }
     }
 }

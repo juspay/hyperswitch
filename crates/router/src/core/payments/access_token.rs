@@ -9,12 +9,14 @@ use crate::{
     },
     db,
     routes::AppState,
+    routes::{metrics, AppState},
     scheduler::{
         process_data::{self, ConnectorPTMapping},
         utils as scheduler_utils,
         workflows::{AccessTokenRefresh, ProcessTrackerWorkflow},
     },
-    services,
+    services, services,
+    types::{self, api as api_types, storage, transformers::ForeignInto},
     types::{
         self, api as api_types,
         storage::{self, ProcessTrackerExt},
@@ -58,7 +60,6 @@ pub fn router_data_type_conversion<F1, F2, Req1, Req2, Res1, Res2>(
         connector_auth_type: router_data.connector_auth_type,
         connector_meta_data: router_data.connector_meta_data,
         description: router_data.description,
-        router_return_url: router_data.router_return_url,
         payment_id: router_data.payment_id,
         payment_method: router_data.payment_method,
         payment_method_id: router_data.payment_method_id,
@@ -75,7 +76,7 @@ pub fn update_router_data_with_access_token_result<F, Req, Res>(
     add_access_token_result: &types::AddAccessTokenResult,
     router_data: &mut types::RouterData<F, Req, Res>,
     call_connector_action: &payments::CallConnectorAction,
-) {
+) -> bool {
     // Update router data with access token or error only if it will be calling connector
     let should_update_router_data = matches!(
         (
@@ -87,9 +88,17 @@ pub fn update_router_data_with_access_token_result<F, Req, Res>(
 
     if should_update_router_data {
         match add_access_token_result.access_token_result.as_ref() {
-            Ok(access_token) => router_data.access_token = access_token.clone(),
-            Err(connector_error) => router_data.response = Err(connector_error.clone()),
+            Ok(access_token) => {
+                router_data.access_token = access_token.clone();
+                true
+            }
+            Err(connector_error) => {
+                router_data.response = Err(connector_error.clone());
+                false
+            }
         }
+    } else {
+        true
     }
 }
 
@@ -103,7 +112,10 @@ pub async fn add_access_token<
     merchant_account: &storage::MerchantAccount,
     router_data: &types::RouterData<F, Req, Res>,
 ) -> RouterResult<types::AddAccessTokenResult> {
-    if connector.connector_name.supports_access_token() {
+    if connector
+        .connector_name
+        .supports_access_token(router_data.payment_method.foreign_into())
+    {
         let merchant_id = &merchant_account.merchant_id;
         let store = &*state.store;
         let old_access_token = store
@@ -252,7 +264,14 @@ pub async fn refresh_connector_auth(
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Could not refresh access token")?;
-
+    metrics::ACCESS_TOKEN_CREATION.add(
+        &metrics::CONTEXT,
+        1,
+        &[metrics::request::add_attributes(
+            "connector",
+            connector.connector_name.to_string(),
+        )],
+    );
     Ok(access_token_router_data.response)
 }
 

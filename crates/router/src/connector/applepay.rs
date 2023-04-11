@@ -143,6 +143,7 @@ impl
         let request = services::RequestBuilder::new()
             .method(services::Method::Post)
             .url(&types::PaymentsSessionType::get_url(self, req, connectors)?)
+            .attach_default_headers()
             .headers(types::PaymentsSessionType::get_headers(
                 self, req, connectors,
             )?)
@@ -236,14 +237,12 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
 {
 }
 
-impl services::ConnectorRedirectResponse for Applepay {}
-
 #[async_trait::async_trait]
 impl api::IncomingWebhook for Applepay {
     fn get_webhook_object_reference_id(
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<String, errors::ConnectorError> {
+    ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
         Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
     }
 

@@ -1,30 +1,18 @@
-use once_cell::sync::Lazy;
-use router_env::opentelemetry::{
-    global,
-    metrics::{Counter, Histogram, Meter},
-    Context,
-};
+use router_env::{counter_metric, global_meter, histogram_metric, metrics_context};
 
-pub(crate) static CONTEXT: Lazy<Context> = Lazy::new(Context::current);
-static PT_METER: Lazy<Meter> = Lazy::new(|| global::meter("PROCESS_TRACKER"));
+metrics_context!(CONTEXT);
+global_meter!(PT_METER, "PROCESS_TRACKER");
 
-pub(crate) static CONSUMER_STATS: Lazy<Histogram<f64>> =
-    Lazy::new(|| PT_METER.f64_histogram("CONSUMER_OPS").init());
+histogram_metric!(CONSUMER_STATS, PT_METER, "CONSUMER_OPS");
 
-#[macro_export]
-macro_rules! create_counter {
-    ($name:ident, $meter:ident) => {
-        pub(crate) static $name: Lazy<Counter<u64>> =
-            Lazy::new(|| $meter.u64_counter(stringify!($name)).init());
-    };
-}
-
-create_counter!(PAYMENT_COUNT, PT_METER); // No. of payments created
-create_counter!(TASKS_ADDED_COUNT, PT_METER); // Tasks added to process tracker
-create_counter!(TASKS_PICKED_COUNT, PT_METER); // Tasks picked by
-create_counter!(BATCHES_CREATED, PT_METER); // Batches added to stream
-create_counter!(BATCHES_CONSUMED, PT_METER); // Batches consumed by consumer
-create_counter!(TASK_CONSUMED, PT_METER); // Tasks consumed by consumer
-create_counter!(TASK_PROCESSED, PT_METER); // Tasks completed processing
-create_counter!(TASK_FINISHED, PT_METER); // Tasks finished
-create_counter!(TASK_RETRIED, PT_METER); // Tasks added for retries
+counter_metric!(PAYMENT_COUNT, PT_METER); // No. of payments created
+counter_metric!(TASKS_ADDED_COUNT, PT_METER); // Tasks added to process tracker
+counter_metric!(TASKS_PICKED_COUNT, PT_METER); // Tasks picked by
+counter_metric!(BATCHES_CREATED, PT_METER); // Batches added to stream
+counter_metric!(BATCHES_CONSUMED, PT_METER); // Batches consumed by consumer
+counter_metric!(TASK_CONSUMED, PT_METER); // Tasks consumed by consumer
+counter_metric!(TASK_PROCESSED, PT_METER); // Tasks completed processing
+counter_metric!(TASK_FINISHED, PT_METER); // Tasks finished
+counter_metric!(TASK_RETRIED, PT_METER); // Tasks added for retries
+counter_metric!(TOKENIZED_DATA_COUNT, PT_METER); // Tokenized data added
+counter_metric!(RETRIED_DELETE_DATA_COUNT, PT_METER); // Tokenized data retried

@@ -12,10 +12,7 @@ use crate::{
     configs::settings,
     connector::utils as conn_utils,
     consts,
-    core::{
-        errors::{self, CustomResult},
-        payments,
-    },
+    core::errors::{self, CustomResult},
     db::StorageInterface,
     headers, services,
     types::{
@@ -162,6 +159,7 @@ impl
             .url(&types::PaymentsAuthorizeType::get_url(
                 self, req, connectors,
             )?)
+            .attach_default_headers()
             .headers(types::PaymentsAuthorizeType::get_headers(
                 self, req, connectors,
             )?)
@@ -276,6 +274,7 @@ impl
         let request = services::RequestBuilder::new()
             .method(services::Method::Delete)
             .url(&types::PaymentsVoidType::get_url(self, req, connectors)?)
+            .attach_default_headers()
             .headers(types::PaymentsVoidType::get_headers(self, req, connectors)?)
             .headers(headers)
             .build();
@@ -369,6 +368,7 @@ impl
         let request = services::RequestBuilder::new()
             .method(services::Method::Get)
             .url(&types::PaymentsSyncType::get_url(self, req, connectors)?)
+            .attach_default_headers()
             .headers(types::PaymentsSyncType::get_headers(self, req, connectors)?)
             .headers(headers)
             .build();
@@ -460,6 +460,7 @@ impl
         let request = services::RequestBuilder::new()
             .method(services::Method::Post)
             .url(&types::PaymentsCaptureType::get_url(self, req, connectors)?)
+            .attach_default_headers()
             .headers(types::PaymentsCaptureType::get_headers(
                 self, req, connectors,
             )?)
@@ -581,6 +582,7 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
         let request = services::RequestBuilder::new()
             .method(services::Method::Post)
             .url(&types::RefundExecuteType::get_url(self, req, connectors)?)
+            .attach_default_headers()
             .headers(headers)
             .body(Some(rapyd_req))
             .build();
@@ -760,15 +762,23 @@ impl api::IncomingWebhook for Rapyd {
     fn get_webhook_object_reference_id(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<String, errors::ConnectorError> {
+    ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
         let webhook: transformers::RapydIncomingWebhook = request
             .body
             .parse_struct("RapydIncomingWebhook")
             .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
 
         Ok(match webhook.data {
-            transformers::WebhookData::PaymentData(payment_data) => payment_data.id,
-            transformers::WebhookData::RefundData(refund_data) => refund_data.id,
+            transformers::WebhookData::PaymentData(payment_data) => {
+                api_models::webhooks::ObjectReferenceId::PaymentId(
+                    api_models::payments::PaymentIdType::ConnectorTransactionId(payment_data.id),
+                )
+            }
+            transformers::WebhookData::RefundData(refund_data) => {
+                api_models::webhooks::ObjectReferenceId::RefundId(
+                    api_models::webhooks::RefundIdType::ConnectorRefundId(refund_data.id),
+                )
+            }
         })
     }
 
@@ -804,14 +814,5 @@ impl api::IncomingWebhook for Rapyd {
                 .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
 
         Ok(res_json)
-    }
-}
-
-impl services::ConnectorRedirectResponse for Rapyd {
-    fn get_flow_type(
-        &self,
-        _query_params: &str,
-    ) -> CustomResult<payments::CallConnectorAction, errors::ConnectorError> {
-        Ok(payments::CallConnectorAction::Trigger)
     }
 }

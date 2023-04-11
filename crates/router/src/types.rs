@@ -24,6 +24,10 @@ pub type PaymentsAuthorizeRouterData =
     RouterData<api::Authorize, PaymentsAuthorizeData, PaymentsResponseData>;
 pub type PaymentsAuthorizeSessionTokenRouterData =
     RouterData<api::AuthorizeSessionToken, AuthorizeSessionTokenData, PaymentsResponseData>;
+pub type PaymentsCompleteAuthorizeRouterData =
+    RouterData<api::CompleteAuthorize, CompleteAuthorizeData, PaymentsResponseData>;
+pub type PaymentsInitRouterData =
+    RouterData<api::InitPayment, PaymentsAuthorizeData, PaymentsResponseData>;
 pub type PaymentsSyncRouterData = RouterData<api::PSync, PaymentsSyncData, PaymentsResponseData>;
 pub type PaymentsCaptureRouterData =
     RouterData<api::Capture, PaymentsCaptureData, PaymentsResponseData>;
@@ -53,9 +57,19 @@ pub type RefundsResponseRouterData<F, R> =
 
 pub type PaymentsAuthorizeType =
     dyn services::ConnectorIntegration<api::Authorize, PaymentsAuthorizeData, PaymentsResponseData>;
+pub type PaymentsComeplteAuthorizeType = dyn services::ConnectorIntegration<
+    api::CompleteAuthorize,
+    CompleteAuthorizeData,
+    PaymentsResponseData,
+>;
 pub type PaymentsPreAuthorizeType = dyn services::ConnectorIntegration<
     api::AuthorizeSessionToken,
     AuthorizeSessionTokenData,
+    PaymentsResponseData,
+>;
+pub type PaymentsInitType = dyn services::ConnectorIntegration<
+    api::InitPayment,
+    PaymentsAuthorizeData,
     PaymentsResponseData,
 >;
 pub type PaymentsSyncType =
@@ -89,7 +103,6 @@ pub struct RouterData<Flow, Request, Response> {
     pub connector_auth_type: ConnectorAuthType,
     pub description: Option<String>,
     pub return_url: Option<String>,
-    pub router_return_url: Option<String>,
     pub address: PaymentAddress,
     pub auth_type: storage_enums::AuthenticationType,
     pub connector_meta_data: Option<pii::SecretSerdeValue>,
@@ -118,6 +131,9 @@ pub struct PaymentsAuthorizeData {
     pub statement_descriptor_suffix: Option<String>,
     pub statement_descriptor: Option<String>,
     pub capture_method: Option<storage_enums::CaptureMethod>,
+    pub router_return_url: Option<String>,
+    pub webhook_url: Option<String>,
+    pub complete_authorize_url: Option<String>,
     // Mandates
     pub setup_future_usage: Option<storage_enums::FutureUsage>,
     pub mandate_id: Option<api_models::payments::MandateIds>,
@@ -125,16 +141,20 @@ pub struct PaymentsAuthorizeData {
     pub setup_mandate_details: Option<payments::MandateData>,
     pub browser_info: Option<BrowserInformation>,
     pub order_details: Option<api_models::payments::OrderDetails>,
+    pub session_token: Option<String>,
+    pub enrolled_for_3ds: bool,
+    pub related_transaction_id: Option<String>,
     pub payment_experience: Option<storage_enums::PaymentExperience>,
     pub payment_method_type: Option<storage_enums::PaymentMethodType>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct PaymentsCaptureData {
-    pub amount_to_capture: Option<i64>,
+    pub amount_to_capture: i64,
     pub currency: storage_enums::Currency,
     pub connector_transaction_id: String,
-    pub amount: i64,
+    pub payment_amount: i64,
+    pub connector_meta: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Clone)]
@@ -146,11 +166,31 @@ pub struct AuthorizeSessionTokenData {
 }
 
 #[derive(Debug, Clone)]
+pub struct CompleteAuthorizeData {
+    pub payment_method_data: Option<payments::PaymentMethodData>,
+    pub amount: i64,
+    pub email: Option<masking::Secret<String, Email>>,
+    pub currency: storage_enums::Currency,
+    pub confirm: bool,
+    pub statement_descriptor_suffix: Option<String>,
+    pub capture_method: Option<storage_enums::CaptureMethod>,
+    // Mandates
+    pub setup_future_usage: Option<storage_enums::FutureUsage>,
+    pub mandate_id: Option<api_models::payments::MandateIds>,
+    pub off_session: Option<bool>,
+    pub setup_mandate_details: Option<payments::MandateData>,
+    pub browser_info: Option<BrowserInformation>,
+    pub connector_transaction_id: Option<String>,
+    pub connector_meta: Option<serde_json::Value>,
+}
+
+#[derive(Debug, Default, Clone)]
 pub struct PaymentsSyncData {
     //TODO : add fields based on the connector requirements
     pub connector_transaction_id: ResponseId,
     pub encoded_data: Option<String>,
     pub capture_method: Option<storage_enums::CaptureMethod>,
+    pub connector_meta: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Default, Clone)]
@@ -159,13 +199,14 @@ pub struct PaymentsCancelData {
     pub currency: Option<storage_enums::Currency>,
     pub connector_transaction_id: String,
     pub cancellation_reason: Option<String>,
+    pub connector_meta: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Clone)]
 pub struct PaymentsSessionData {
     pub amount: i64,
     pub currency: storage_enums::Currency,
-    pub country: Option<String>,
+    pub country: Option<api::enums::CountryCode>,
     pub order_details: Option<api_models::payments::OrderDetails>,
 }
 
@@ -396,16 +437,26 @@ impl Default for ErrorResponse {
     }
 }
 
-impl From<&&mut PaymentsAuthorizeRouterData> for PaymentsAuthorizeSessionTokenRouterData {
+impl From<&&mut PaymentsAuthorizeRouterData> for AuthorizeSessionTokenData {
     fn from(data: &&mut PaymentsAuthorizeRouterData) -> Self {
         Self {
+            amount_to_capture: data.amount_captured,
+            currency: data.request.currency,
+            connector_transaction_id: data.payment_id.clone(),
+            amount: data.request.amount,
+        }
+    }
+}
+
+impl<F1, F2, T1, T2> From<(&&mut RouterData<F1, T1, PaymentsResponseData>, T2)>
+    for RouterData<F2, T2, PaymentsResponseData>
+{
+    fn from(item: (&&mut RouterData<F1, T1, PaymentsResponseData>, T2)) -> Self {
+        let data = item.0;
+        let request = item.1;
+        Self {
             flow: PhantomData,
-            request: AuthorizeSessionTokenData {
-                amount_to_capture: data.amount_captured,
-                currency: data.request.currency,
-                connector_transaction_id: data.payment_id.clone(),
-                amount: data.request.amount,
-            },
+            request,
             merchant_id: data.merchant_id.clone(),
             connector: data.connector.clone(),
             attempt_id: data.attempt_id.clone(),
@@ -414,7 +465,6 @@ impl From<&&mut PaymentsAuthorizeRouterData> for PaymentsAuthorizeSessionTokenRo
             connector_auth_type: data.connector_auth_type.clone(),
             description: data.description.clone(),
             return_url: data.return_url.clone(),
-            router_return_url: data.router_return_url.clone(),
             address: data.address.clone(),
             auth_type: data.auth_type,
             connector_meta_data: data.connector_meta_data.clone(),
