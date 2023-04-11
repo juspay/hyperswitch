@@ -2,7 +2,6 @@ mod transformers;
 
 use std::fmt::Debug;
 
-use common_utils::errors::ReportSwitchExt;
 use error_stack::{IntoReport, ResultExt};
 use transformers as forte;
 
@@ -80,7 +79,9 @@ impl ConnectorCommon for Forte {
         res: Response,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         let response: forte::ForteErrorResponse =
-            res.response.parse_struct("ForteErrorResponse").switch()?;
+            res.response
+                .parse_struct("ForteErrorResponse")
+                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
         Ok(ErrorResponse {
             status_code: res.status_code,
@@ -94,7 +95,6 @@ impl ConnectorCommon for Forte {
 impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::PaymentsResponseData>
     for Forte
 {
-    //TODO: implement sessions flow
 }
 
 impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, types::AccessToken>
@@ -169,7 +169,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         let response: forte::FortePaymentsResponse = res
             .response
             .parse_struct("Forte PaymentsAuthorizeResponse")
-            .switch()?;
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -232,7 +232,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         let response: forte::FortePaymentsResponse = res
             .response
             .parse_struct("forte PaymentsSyncResponse")
-            .switch()?;
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -304,7 +304,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         let response: forte::FortePaymentsResponse = res
             .response
             .parse_struct("Forte PaymentsCaptureResponse")
-            .switch()?;
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -380,8 +380,10 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         data: &types::RefundsRouterData<api::Execute>,
         res: Response,
     ) -> CustomResult<types::RefundsRouterData<api::Execute>, errors::ConnectorError> {
-        let response: forte::RefundResponse =
-            res.response.parse_struct("forte RefundResponse").switch()?;
+        let response: forte::RefundResponse = res
+            .response
+            .parse_struct("forte RefundResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -443,7 +445,7 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         let response: forte::RefundResponse = res
             .response
             .parse_struct("forte RefundSyncResponse")
-            .switch()?;
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
