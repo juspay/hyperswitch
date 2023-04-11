@@ -1752,7 +1752,9 @@
             "description": "List of countries of the provided type",
             "example": ["FR", "DE", "IN"],
             "nullable": true
-          }
+          },
+        "discriminator": {
+          "propertyName": "type"
         }
       },
       "AcceptedCurrencies": {
@@ -1773,6 +1775,9 @@
             "example": ["USD", "EUR"],
             "nullable": true
           }
+        ],
+        "discriminator": {
+          "propertyName": "type"
         }
       },
       "Address": {
@@ -2378,6 +2383,7 @@
           "fiserv",
           "globalpay",
           "klarna",
+          "mollie",
           "multisafepay",
           "nuvei",
           "payu",
@@ -3367,6 +3373,7 @@
         "required": [
           "merchant_id",
           "merchant_name",
+          "api_key",
           "merchant_details",
           "return_url",
           "webhook_details",
@@ -3378,7 +3385,8 @@
           "redirect_to_merchant_with_http_post",
           "metadata",
           "publishable_key",
-          "locker_id"
+          "locker_id",
+          "primary_business_details"
         ],
         "properties": {
           "merchant_id": {
@@ -3391,6 +3399,12 @@
             "type": "string",
             "description": "Name of the Merchant Account",
             "example": "NewAge Retailer",
+            "nullable": true
+          },
+          "api_key": {
+            "type": "string",
+            "description": "API key that will be used for server side API access",
+            "example": "Ah2354543543523",
             "nullable": true
           },
           "merchant_details": {
@@ -3470,6 +3484,14 @@
             "description": "An identifier for the vault used to store payment method information.",
             "example": "locker_abc123",
             "nullable": true
+          },
+          "primary_business_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PrimaryBusinessDetails"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -3495,6 +3517,7 @@
         "required": [
           "merchant_id",
           "merchant_name",
+          "api_key",
           "return_url",
           "enable_payment_response_hash",
           "payment_response_hash_key",
@@ -3506,7 +3529,8 @@
           "parent_merchant_id",
           "publishable_key",
           "metadata",
-          "locker_id"
+          "locker_id",
+          "primary_business_details"
         ],
         "properties": {
           "merchant_id": {
@@ -3519,6 +3543,12 @@
             "type": "string",
             "description": "Name of the Merchant Account",
             "example": "NewAge Retailer",
+            "nullable": true
+          },
+          "api_key": {
+            "type": "string",
+            "description": "API key that will be used for server side API access",
+            "example": "Ah2354543543523",
             "nullable": true
           },
           "return_url": {
@@ -3601,6 +3631,14 @@
             "description": "An identifier for the vault used to store payment method information.",
             "example": "locker_abc123",
             "nullable": true
+          },
+          "primary_business_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PrimaryBusinessDetails"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -3620,7 +3658,8 @@
           "redirect_to_merchant_with_http_post",
           "metadata",
           "publishable_key",
-          "locker_id"
+          "locker_id",
+          "primary_business_details"
         ],
         "properties": {
           "merchant_id": {
@@ -3712,6 +3751,14 @@
             "description": "An identifier for the vault used to store payment method information.",
             "example": "locker_abc123",
             "nullable": true
+          },
+          "primary_business_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PrimaryBusinessDetails"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -3721,6 +3768,10 @@
         "required": [
           "connector_type",
           "connector_name",
+          "connector_label",
+          "business_country",
+          "business_label",
+          "business_sub_label",
           "merchant_connector_id",
           "connector_account_details",
           "test_mode",
@@ -3737,6 +3788,28 @@
             "description": "Name of the Connector",
             "example": "stripe"
           },
+          "connector_label": {
+            "type": "string",
+            "example": "stripe_US_travel"
+          },
+          "business_country": {
+            "type": "string",
+            "description": "Country through which payment should be processed",
+            "example": "US",
+            "nullable": true
+          },
+          "business_label": {
+            "type": "string",
+            "description": "Business Type of the merchant",
+            "example": "travel",
+            "nullable": true
+          },
+          "business_sub_label": {
+            "type": "string",
+            "description": "Business Sub label of the merchant",
+            "example": "chase",
+            "nullable": true
+          },
           "merchant_connector_id": {
             "type": "string",
             "description": "Unique ID of the connector",
@@ -3744,8 +3817,12 @@
             "nullable": true
           },
           "connector_account_details": {
-            "type": "object",
+            "type": "string",
             "description": "Account details of the Connector. You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Useful for storing additional, structured information on an object.",
+            "example": {
+              "auth_type": "HeaderKey",
+              "api_key": "Basic MyVerySecretApiKey"
+            },
             "nullable": true
           },
           "test_mode": {
@@ -4552,6 +4629,14 @@
             "type": "string",
             "description": "The reason for the payment cancel",
             "nullable": true
+          },
+          "merchant_connector_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/admin.MerchantConnectorDetailsWrap"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -4563,7 +4648,8 @@
           "amount_to_capture",
           "refund_uncaptured_amount",
           "statement_descriptor_suffix",
-          "statement_descriptor_prefix"
+          "statement_descriptor_prefix",
+          "merchant_connector_details"
         ],
         "properties": {
           "payment_id": {
@@ -4596,6 +4682,14 @@
             "type": "string",
             "description": "Concatenated with the statement descriptor suffix that’s set on the account to form the complete statement descriptor.",
             "nullable": true
+          },
+          "merchant_connector_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/admin.MerchantConnectorDetailsWrap"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -4603,6 +4697,7 @@
         "type": "object",
         "required": [
           "merchant_id",
+          "routing",
           "connector",
           "currency",
           "capture_method",
@@ -4632,7 +4727,10 @@
           "mandate_id",
           "browser_info",
           "payment_experience",
-          "payment_method_type"
+          "payment_method_type",
+          "business_country",
+          "business_label",
+          "merchant_connector_details"
         ],
         "properties": {
           "payment_id": {
@@ -4657,11 +4755,23 @@
             "example": 6540,
             "nullable": true
           },
-          "connector": {
+          "routing": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/Connector"
+                "$ref": "#/components/schemas/RoutingAlgorithm"
               }
+            ],
+            "nullable": true
+          },
+          "connector": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Connector"
+            },
+            "description": "This allows the merchant to manually select a connector with which the payment can go through",
+            "example": [
+              "stripe",
+              "adyen"
             ],
             "nullable": true
           },
@@ -4874,6 +4984,26 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/PaymentMethodType"
+              }
+            ],
+            "nullable": true
+          },
+          "business_country": {
+            "type": "string",
+            "description": "Business country of the merchant for this payment",
+            "example": "US",
+            "nullable": true
+          },
+          "business_label": {
+            "type": "string",
+            "description": "Business label of the merchant for this payment",
+            "example": "food",
+            "nullable": true
+          },
+          "merchant_connector_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/admin.MerchantConnectorDetailsWrap"
               }
             ],
             "nullable": true
@@ -5187,7 +5317,8 @@
           "merchant_id",
           "force_sync",
           "param",
-          "connector"
+          "connector",
+          "merchant_connector_details"
         ],
         "properties": {
           "resource_id": {
@@ -5211,6 +5342,14 @@
             "type": "string",
             "description": "The name of the connector",
             "nullable": true
+          },
+          "merchant_connector_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/admin.MerchantConnectorDetailsWrap"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -5232,6 +5371,14 @@
               "$ref": "#/components/schemas/SupportedWallets"
             },
             "description": "The list of the supported wallets"
+          },
+          "merchant_connector_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/admin.MerchantConnectorDetailsWrap"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -5374,7 +5521,8 @@
           "amount",
           "reason",
           "refund_type",
-          "metadata"
+          "metadata",
+          "merchant_connector_details"
         ],
         "properties": {
           "refund_id": {
@@ -5425,6 +5573,14 @@
           "metadata": {
             "type": "object",
             "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.",
+            "nullable": true
+          },
+          "merchant_connector_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/admin.MerchantConnectorDetailsWrap"
+              }
+            ],
             "nullable": true
           }
         }

@@ -81,6 +81,9 @@ pub struct Void;
 pub struct Session;
 
 #[derive(Debug, Clone)]
+pub struct PaymentMethodToken;
+
+#[derive(Debug, Clone)]
 pub struct Verify;
 
 pub(crate) trait PaymentIdTypeExt {
@@ -157,6 +160,15 @@ pub trait PaymentsCompleteAuthorize:
 {
 }
 
+pub trait PaymentToken:
+    api::ConnectorIntegration<
+    PaymentMethodToken,
+    types::PaymentMethodTokenizationData,
+    types::PaymentsResponseData,
+>
+{
+}
+
 pub trait Payment:
     api_types::ConnectorCommon
     + PaymentAuthorize
@@ -166,6 +178,7 @@ pub trait Payment:
     + PaymentVoid
     + PreVerify
     + PaymentSession
+    + PaymentToken
 {
 }
 

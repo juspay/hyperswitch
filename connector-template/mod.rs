@@ -35,6 +35,17 @@ impl api::PaymentVoid for {{project-name | downcase | pascal_case}} {}
 impl api::Refund for {{project-name | downcase | pascal_case}} {}
 impl api::RefundExecute for {{project-name | downcase | pascal_case}} {}
 impl api::RefundSync for {{project-name | downcase | pascal_case}} {}
+impl api::PaymentToken for {{project-name | downcase | pascal_case}} {}
+
+impl
+    ConnectorIntegration<
+        api::PaymentMethodToken,
+        types::PaymentMethodTokenizationData,
+        types::PaymentsResponseData,
+    > for {{project-name | downcase | pascal_case}}
+{
+    // Not Implemented (R)
+}
 
 impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for {{project-name | downcase | pascal_case}}
 where

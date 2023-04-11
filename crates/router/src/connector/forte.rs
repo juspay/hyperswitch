@@ -32,6 +32,16 @@ impl api::PaymentVoid for Forte {}
 impl api::Refund for Forte {}
 impl api::RefundExecute for Forte {}
 impl api::RefundSync for Forte {}
+impl api::PaymentToken for Forte {}
+
+impl
+    ConnectorIntegration<
+        api::PaymentMethodToken,
+        types::PaymentMethodTokenizationData,
+        types::PaymentsResponseData,
+    > for Forte
+{
+}
 
 impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Forte
 where
