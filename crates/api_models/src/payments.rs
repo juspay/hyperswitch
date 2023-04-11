@@ -1199,7 +1199,7 @@ pub struct Metadata {
     #[serde(flatten)]
     pub data: pii::SecretSerdeValue,
     /// Payload coming in request as a metadata field
-    pub payload: Option<serde_json::Value>,
+    pub payload: Option<pii::SecretSerdeValue>,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]

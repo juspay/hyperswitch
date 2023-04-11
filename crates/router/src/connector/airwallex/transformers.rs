@@ -150,7 +150,7 @@ pub struct AirwallexCompleteRequest {
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
 pub struct AirwallexThreeDsData {
-    acs_response: Option<serde_json::Value>,
+    acs_response: Option<common_utils::pii::SecretSerdeValue>,
 }
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
@@ -166,7 +166,7 @@ impl TryFrom<&types::PaymentsCompleteAuthorizeRouterData> for AirwallexCompleteR
         Ok(Self {
             request_id: Uuid::new_v4().to_string(),
             three_ds: AirwallexThreeDsData {
-                acs_response: item.request.payload.clone(),
+                acs_response: item.request.payload.clone().map(Secret::new),
             },
             three_ds_type: AirwallexThreeDsType::ThreeDSContinue,
         })

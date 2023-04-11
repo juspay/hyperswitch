@@ -321,7 +321,7 @@ impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
             metadata: Some(Metadata {
                 order_details: None,
                 data: masking::Secret::new("{}".into()),
-                payload: Some(req.json_payload.unwrap_or("{}".into())),
+                payload: Some(req.json_payload.unwrap_or("{}".into()).into()),
             }),
             ..Default::default()
         };
