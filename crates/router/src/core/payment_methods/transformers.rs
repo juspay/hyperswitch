@@ -44,6 +44,7 @@ pub struct StoreCardResp {
 #[derive(Debug, Deserialize, Serialize)]
 pub struct StoreCardRespPayload {
     pub card_reference: String,
+    pub duplicate: bool,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -87,7 +88,7 @@ pub struct AddCardRequest<'a> {
     pub nickname: Option<String>,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AddCardResponse {
     pub card_id: String,
@@ -124,6 +125,11 @@ pub struct DeleteCardResponse {
     pub external_id: Option<String>,
     pub card_isin: Option<Secret<String>>,
     pub status: String,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct PaymentMethodMetadata {
+    pub payment_method_tokenization: std::collections::HashMap<String, String>,
 }
 
 pub fn get_dotted_jwe(jwe: encryption::JweBody) -> String {
