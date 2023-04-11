@@ -254,6 +254,11 @@ pub enum PaymentsResponseData {
     SessionTokenResponse {
         session_token: String,
     },
+    TransactionUnresolvedResponse {
+        resource_id: ResponseId,
+        //to add more info on cypto response, like `unresolved` reason(overpaid, underpaid, delayed)
+        reason: Option<api::enums::UnresolvedResponseReason>,
+    },
 }
 
 #[derive(Debug, Clone, Default)]
