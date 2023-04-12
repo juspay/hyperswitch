@@ -71,7 +71,7 @@ pub trait Transpose<U: Clone> {
     where
         T: Clone;
 
-    fn tpose<Func>(self, func: Func) -> Self::OtherWrapper<U>
+    fn transpose<Func>(self, func: Func) -> Self::OtherWrapper<U>
     where
         Func: Fn(Self::SelfWrapper<U>) -> Self::OtherWrapper<U>;
 }
@@ -81,7 +81,7 @@ impl<U: Clone, S: masking::Strategy<U> + Send> Transpose<Secret<U, S>> for Optio
 
     type OtherWrapper<T: Clone> = CustomResult<Option<crypto::Encryptable<T>>, errors::CryptoError>;
 
-    fn tpose<Func>(self, func: Func) -> Self::OtherWrapper<Secret<U, S>>
+    fn transpose<Func>(self, func: Func) -> Self::OtherWrapper<Secret<U, S>>
     where
         Func: Fn(Self::SelfWrapper<Secret<U, S>>) -> Self::OtherWrapper<Secret<U, S>>,
     {
