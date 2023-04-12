@@ -718,8 +718,12 @@ pub enum BankNames {
     BrullKallmusBankAg,
     BtvVierLanderBank,
     CapitalBankGraweGruppeAg,
+    #[serde(rename = "Česká spořitelna")]
+    CeskaSporitelna,
     Dolomitenbank,
     EasybankAg,
+    #[serde(rename = "ePlatby VÚB")]
+    EPlatbyVUb,
     ErsteBankUndSparkassen,
     HypoAlpeadriabankInternationalAg,
     HypoNoeLbFurNiederosterreichUWien,
@@ -727,68 +731,26 @@ pub enum BankNames {
     HypoTirolBankAg,
     HypoVorarlbergBankAg,
     HypoBankBurgenlandAktiengesellschaft,
+    #[serde(rename = "Komercní banka")]
+    KomercniBanka,
     MarchfelderBank,
     OberbankAg,
     OsterreichischeArzteUndApothekerbank,
     PosojilnicaBankEGen,
+    #[serde(rename = "Poštová banka")]
+    PostovaBanka,
     RaiffeisenBankengruppeOsterreich,
+    #[serde(rename = "Płatność online kartą płatniczą")]
+    PlatnoscOnlineKartaPlatnicza,
     SchelhammerCapitalBankAg,
     SchoellerbankAg,
     SpardaBankWien,
-    VolksbankGruppe,
-    VolkskreditbankAg,
-    VrBankBraunau,
-}
-
-#[derive(
-    Clone,
-    Copy,
-    Debug,
-    Eq,
-    Hash,
-    PartialEq,
-    serde::Deserialize,
-    serde::Serialize,
-    strum::Display,
-    strum::EnumString,
-    frunk::LabelledGeneric,
-    ToSchema,
-)]
-#[strum(serialize_all = "snake_case")]
-#[serde(rename_all = "snake_case")]
-pub enum OnlineBankingCzechRepublicIssuers {
-    #[serde(rename = "Komercní banka")]
-    KomercniBanka,
-    #[serde(rename = "Česká spořitelna")]
-    CeskaSporitelna,
-    #[serde(rename = "Płatność online kartą płatniczą")]
-    PlatnoscOnlineKartaPlatnicza,
-}
-
-#[derive(
-    Clone,
-    Copy,
-    Debug,
-    Eq,
-    Hash,
-    PartialEq,
-    serde::Deserialize,
-    serde::Serialize,
-    strum::Display,
-    strum::EnumString,
-    frunk::LabelledGeneric,
-    ToSchema,
-)]
-#[strum(serialize_all = "snake_case")]
-#[serde(rename_all = "snake_case")]
-pub enum OnlineBankingSlovakiaIssuers {
-    #[serde(rename = "ePlatby VÚB")]
-    EPlatbyVUb,
-    #[serde(rename = "Poštová banka")]
-    PostovaBanka,
     Sporopay,
     TatraPay,
     Viamo,
+    VolksbankGruppe,
+    VolkskreditbankAg,
+    VrBankBraunau,
 }
 
 #[derive(

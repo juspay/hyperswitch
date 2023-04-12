@@ -527,7 +527,7 @@ pub enum BankRedirectData {
     },
     OnlineBankingCzechRepublic {
         // Issuer banks
-        issuer: api_enums::OnlineBankingCzechRepublicIssuers,
+        issuer: api_enums::BankNames,
     },
     OnlineBankingFinland {
         // Shopper Email
@@ -535,7 +535,7 @@ pub enum BankRedirectData {
     },
     OnlineBankingSlovakia {
         // Issuer value corresponds to the bank
-        issuer: api_enums::OnlineBankingSlovakiaIssuers,
+        issuer: api_enums::BankNames,
     },
     Przelewy24 {},
     Sofort {
