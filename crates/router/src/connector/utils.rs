@@ -141,7 +141,7 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
 
 pub trait PaymentsAuthorizeRequestData {
     fn is_auto_capture(&self) -> bool;
-    fn get_email(&self) -> Result<Secret<String, Email>, Error>;
+    fn get_email(&self) -> Result<Email, Error>;
     fn get_browser_info(&self) -> Result<types::BrowserInformation, Error>;
     fn get_card(&self) -> Result<api::Card, Error>;
     fn get_return_url(&self) -> Result<String, Error>;
@@ -153,7 +153,7 @@ impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
     fn is_auto_capture(&self) -> bool {
         self.capture_method == Some(storage_models::enums::CaptureMethod::Automatic)
     }
-    fn get_email(&self) -> Result<Secret<String, Email>, Error> {
+    fn get_email(&self) -> Result<Email, Error> {
         self.email.clone().ok_or_else(missing_field_err("email"))
     }
     fn get_browser_info(&self) -> Result<types::BrowserInformation, Error> {

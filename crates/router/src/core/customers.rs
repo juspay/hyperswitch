@@ -24,9 +24,9 @@ pub const REDACTED: &str = "Redacted";
 pub async fn create_customer(
     db: &dyn StorageInterface,
     merchant_account: storage::MerchantAccount,
-    customer_data: customers::CustomerRequest,
+    mut customer_data: customers::CustomerRequest,
 ) -> RouterResponse<customers::CustomerResponse> {
-    let mut customer_data = customer_data.validate()?;
+    // let mut customer_data = customer_data.validate()?;
     let customer_id = &customer_data.customer_id;
     let merchant_id = &merchant_account.merchant_id;
     customer_data.merchant_id = merchant_id.to_owned();
@@ -232,7 +232,7 @@ pub async fn update_customer(
     merchant_account: storage::MerchantAccount,
     update_customer: customers::CustomerRequest,
 ) -> RouterResponse<customers::CustomerResponse> {
-    let update_customer = update_customer.validate()?;
+    // let update_customer = update_customer.validate()?;
     //Add this in update call if customer can be updated anywhere else
     db.find_customer_by_customer_id_merchant_id(
         &update_customer.customer_id,

@@ -10,6 +10,8 @@ use error_stack::{IntoReport, ResultExt};
 use futures::future::join_all;
 use router_env::tracing;
 use time;
+use common_utils::pii::Email;
+use masking::Secret;
 
 pub use self::operations::{
     PaymentCancel, PaymentCapture, PaymentConfirm, PaymentCreate, PaymentMethodValidate,
@@ -722,7 +724,7 @@ where
     pub refunds: Vec<storage::Refund>,
     pub sessions_token: Vec<api::SessionToken>,
     pub card_cvc: Option<pii::Secret<String>>,
-    pub email: Option<masking::Secret<String, pii::Email>>,
+    pub email: Option<pii::Email>,
     pub creds_identifier: Option<String>,
     pub pm_token: Option<String>,
 }
@@ -731,7 +733,7 @@ where
 pub struct CustomerDetails {
     pub customer_id: Option<String>,
     pub name: Option<masking::Secret<String, masking::WithType>>,
-    pub email: Option<masking::Secret<String, pii::Email>>,
+    pub email: Option<pii::Email>,
     pub phone: Option<masking::Secret<String, masking::WithType>>,
     pub phone_country_code: Option<String>,
 }

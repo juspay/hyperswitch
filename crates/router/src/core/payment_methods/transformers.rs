@@ -83,7 +83,7 @@ pub struct AddCardRequest<'a> {
     pub card_exp_month: Secret<String>,
     pub card_exp_year: Secret<String>,
     pub merchant_id: &'a str,
-    pub email_address: Option<Secret<String, pii::Email>>,
+    pub email_address: Option<pii::Email>,
     pub name_on_card: Option<Secret<String>>,
     pub nickname: Option<String>,
 }

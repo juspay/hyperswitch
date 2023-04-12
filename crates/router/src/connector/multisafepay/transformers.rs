@@ -105,7 +105,7 @@ pub struct Customer {
     pub state: Option<String>,
     pub country: Option<String>,
     pub phone: Option<String>,
-    pub email: Option<Secret<String, Email>>,
+    pub email: Option<Email>,
     pub user_agent: Option<String>,
     pub referrer: Option<String>,
     pub reference: Option<String>,
@@ -121,7 +121,7 @@ pub struct GatewayInfo {
     pub flexible_3d: Option<bool>,
     pub moto: Option<bool>,
     pub term_url: Option<String>,
-    pub email: Option<Secret<String, Email>>,
+    pub email: Option<Email>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]

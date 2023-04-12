@@ -140,7 +140,7 @@ pub struct RouterData<Flow, Request, Response> {
 pub struct PaymentsAuthorizeData {
     pub payment_method_data: payments::PaymentMethodData,
     pub amount: i64,
-    pub email: Option<masking::Secret<String, Email>>,
+    pub email: Option<Email>,
     pub currency: storage_enums::Currency,
     pub confirm: bool,
     pub statement_descriptor_suffix: Option<String>,
@@ -189,7 +189,7 @@ pub struct PaymentMethodTokenizationData {
 pub struct CompleteAuthorizeData {
     pub payment_method_data: Option<payments::PaymentMethodData>,
     pub amount: i64,
-    pub email: Option<masking::Secret<String, Email>>,
+    pub email: Option<Email>,
     pub currency: storage_enums::Currency,
     pub confirm: bool,
     pub statement_descriptor_suffix: Option<String>,

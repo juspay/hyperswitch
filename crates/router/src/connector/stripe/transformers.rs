@@ -1191,7 +1191,7 @@ pub struct StripeShippingAddress {
 #[derive(Debug, Default, Eq, PartialEq, Serialize)]
 pub struct StripeBillingAddress {
     #[serde(rename = "payment_method_data[billing_details][email]")]
-    pub email: Option<Secret<String, Email>>,
+    pub email: Option<Email>,
     #[serde(rename = "payment_method_data[billing_details][address][country]")]
     pub country: Option<api_enums::CountryCode>,
     #[serde(rename = "payment_method_data[billing_details][name]")]
