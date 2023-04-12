@@ -3,3 +3,5 @@ CREATE TABLE MERCHANTKEYSTORE(
     MERCHANT_ID VARCHAR(255) NOT NULL,
     KEY BYTEA NOT NULL
 );
+
+CREATE UNIQUE INDEX merchant_key_store_unique_index ON merchantkeystore(merchant_id);
