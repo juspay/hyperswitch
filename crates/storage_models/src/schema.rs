@@ -9,14 +9,14 @@ diesel::table! {
         address_id -> Varchar,
         city -> Nullable<Varchar>,
         country -> Nullable<CountryCode>,
-        line1 -> Nullable<Varchar>,
-        line2 -> Nullable<Varchar>,
-        line3 -> Nullable<Varchar>,
-        state -> Nullable<Varchar>,
-        zip -> Nullable<Varchar>,
-        first_name -> Nullable<Varchar>,
-        last_name -> Nullable<Varchar>,
-        phone_number -> Nullable<Varchar>,
+        line1 -> Nullable<Binary>,
+        line2 -> Nullable<Binary>,
+        line3 -> Nullable<Binary>,
+        state -> Nullable<Binary>,
+        zip -> Nullable<Binary>,
+        first_name -> Nullable<Binary>,
+        last_name -> Nullable<Binary>,
+        phone_number -> Nullable<Binary>,
         country_code -> Nullable<Varchar>,
         created_at -> Timestamp,
         modified_at -> Timestamp,
@@ -99,9 +99,9 @@ diesel::table! {
         id -> Int4,
         customer_id -> Varchar,
         merchant_id -> Varchar,
-        name -> Nullable<Varchar>,
-        email -> Nullable<Varchar>,
-        phone -> Nullable<Varchar>,
+        name -> Nullable<Binary>,
+        email -> Nullable<Binary>,
+        phone -> Nullable<Binary>,
         phone_country_code -> Nullable<Varchar>,
         description -> Nullable<Varchar>,
         created_at -> Timestamp,
@@ -212,8 +212,8 @@ diesel::table! {
         enable_payment_response_hash -> Bool,
         payment_response_hash_key -> Nullable<Varchar>,
         redirect_to_merchant_with_http_post -> Bool,
-        merchant_name -> Nullable<Varchar>,
-        merchant_details -> Nullable<Json>,
+        merchant_name -> Nullable<Binary>,
+        merchant_details -> Nullable<Binary>,
         webhook_details -> Nullable<Json>,
         sub_merchants_enabled -> Nullable<Bool>,
         parent_merchant_id -> Nullable<Varchar>,
@@ -222,7 +222,7 @@ diesel::table! {
         locker_id -> Nullable<Varchar>,
         metadata -> Nullable<Jsonb>,
         routing_algorithm -> Nullable<Json>,
-        api_key -> Nullable<Varchar>,
+        api_key -> Nullable<Binary>,
     }
 }
 
@@ -234,13 +234,26 @@ diesel::table! {
         id -> Int4,
         merchant_id -> Varchar,
         connector_name -> Varchar,
-        connector_account_details -> Json,
+        connector_account_details -> Binary,
         test_mode -> Nullable<Bool>,
         disabled -> Nullable<Bool>,
         merchant_connector_id -> Varchar,
         payment_methods_enabled -> Nullable<Array<Nullable<Json>>>,
         connector_type -> ConnectorType,
         metadata -> Nullable<Jsonb>,
+    }
+}
+
+diesel::table! {
+    use diesel::sql_types::*;
+    use crate::enums::diesel_exports::*;
+
+    onboarding_data (id) {
+        id -> Int4,
+        user_id -> Varchar,
+        onboarding_step -> Int4,
+        created_at -> Timestamp,
+        last_modified -> Timestamp,
     }
 }
 
@@ -410,6 +423,23 @@ diesel::table! {
     }
 }
 
+diesel::table! {
+    use diesel::sql_types::*;
+    use crate::enums::diesel_exports::*;
+
+    users (id) {
+        id -> Int4,
+        user_id -> Varchar,
+        email -> Text,
+        name -> Varchar,
+        password -> Varchar,
+        merchant_id -> Nullable<Varchar>,
+        is_verified -> Bool,
+        created_at -> Timestamp,
+        last_modified -> Timestamp,
+    }
+}
+
 diesel::allow_tables_to_appear_in_same_query!(
     address,
     api_keys,
@@ -423,10 +453,12 @@ diesel::allow_tables_to_appear_in_same_query!(
     mandate,
     merchant_account,
     merchant_connector_account,
+    onboarding_data,
     payment_attempt,
     payment_intent,
     payment_methods,
     process_tracker,
     refund,
     reverse_lookup,
+    users,
 );
