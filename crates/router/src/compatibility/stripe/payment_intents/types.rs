@@ -147,17 +147,18 @@ pub struct StripePaymentIntentRequest {
     pub client_secret: Option<pii::Secret<String>>,
     pub payment_method_options: Option<StripePaymentMethodOptions>,
     pub merchant_connector_details: Option<admin::MerchantConnectorDetailsWrap>,
-    pub mandate_data: Option<StripePaymentMethodOptions>,
+    pub mandate_id: Option<String>,
+    pub off_session: Option<bool>
 }
 
 impl TryFrom<StripePaymentIntentRequest> for payments::PaymentsRequest {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
     fn try_from(item: StripePaymentIntentRequest) -> errors::RouterResult<Self> {
-        let stripe_mandate = item.mandate_data.and_then(|mandate| {
+        let stripe_mandate = item.payment_method_options.as_ref().and_then(|mandate| {
             let StripePaymentMethodOptions::Card {
                 request_three_d_secure: _,
                 mandate_options,
-            }: StripePaymentMethodOptions = mandate;
+            }: StripePaymentMethodOptions = mandate.clone();
             mandate_options
         });
         let f = (stripe_mandate, item.currency.to_owned());
@@ -212,9 +213,13 @@ impl TryFrom<StripePaymentIntentRequest> for payments::PaymentsRequest {
             }),
             mandate_data: mandate_data.clone(),
             merchant_connector_details: item.merchant_connector_details,
+            setup_future_usage: item.setup_future_usage,
+            mandate_id: item.mandate_id,
+            off_session: item.off_session,
             ..Self::default()
         });
-        logger::debug!(shakthi=?mandate_data);
+        // println!("{:#?}",(item.payment_method_options).clone());
+        // logger::debug!(shakthi=?item.payment_method_options.clone());
         request
     }
 }
@@ -508,7 +513,7 @@ impl From<payments::PaymentListResponse> for StripePaymentIntentListResponse {
     }
 }
 
-#[derive(PartialEq, Eq, Deserialize, Clone)]
+#[derive(PartialEq, Eq, Deserialize, Clone, Debug)]
 #[serde(rename_all = "snake_case")]
 pub enum StripePaymentMethodOptions {
     Card {
@@ -517,16 +522,15 @@ pub enum StripePaymentMethodOptions {
     },
 }
 
-#[derive(PartialEq, Eq, Deserialize, Clone, Default)]
+#[derive(PartialEq, Eq, Deserialize, Clone, Default, Debug)]
 #[serde(rename_all = "snake_case")]
 pub struct MandateOption {
-    pub reference: Option<String>,
-    pub amount_type: Option<String>,
-    pub amount: Option<i64>,
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
-    pub start_date: Option<PrimitiveDateTime>,
-    pub interval: Option<i64>,
-    pub supported_types: Option<String>,
+    pub accepted_at: Option<PrimitiveDateTime>,
+    pub user_agent: Option<String>,
+    pub ip_address : Option<String>,
+    pub mandate_type: Option<String>,
+    pub amount: Option<i64>,
 }
 
 impl ForeignTryFrom<(Option<MandateOption>, Option<String>)> for Option<payments::MandateData> {
@@ -553,16 +557,27 @@ impl ForeignTryFrom<(Option<MandateOption>, Option<String>)> for Option<payments
         Ok({
             match mandate_options {
                 Some (mandate) => Some (payments::MandateData {
-                    mandate_type: payments::MandateType::SingleUse(payments::MandateAmountData {
-                        amount: mandate.amount.unwrap_or_default(),
-                        currency: extracted_currmatch
-                    }),
+                    mandate_type: 
+                    if mandate.mandate_type == Some("multi_use".to_string())
+                        {
+                           payments::MandateType::MultiUse(None)
+                        // payments::MandateType::MultiUse(Some(payments::MandateAmountData {
+                        // amount: mandate.amount.unwrap_or_default(),
+                        // currency: extracted_currmatch
+                        // }))
+                        }
+                    else{
+                        payments::MandateType::SingleUse(payments::MandateAmountData {
+                            amount: mandate.amount.unwrap_or_default(),
+                            currency: extracted_currmatch
+                        })}
+                    ,
                     customer_acceptance: payments::CustomerAcceptance {
                     acceptance_type: payments::AcceptanceType::Online,
-                    accepted_at: mandate.start_date.map(|dt| dt.into()),
+                    accepted_at: mandate.accepted_at.map(|dt| dt.into()),
                     online: Some(payments::OnlineMandate {
-                            ip_address: "127.0.01".to_string().into(),
-                            user_agent: "Mozilla/5.0 (Windows NT 6.2; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/32.0.1667.0 Safari/537.36".to_string(),
+                            ip_address: (mandate.ip_address).unwrap_or_default().into(),
+                            user_agent: mandate.user_agent.unwrap_or_default(),
                             }),
                         },
                     }),
@@ -574,7 +589,7 @@ impl ForeignTryFrom<(Option<MandateOption>, Option<String>)> for Option<payments
     }
 }
 
-#[derive(Default, Eq, PartialEq, Serialize, Deserialize, Clone)]
+#[derive(Default, Eq, PartialEq, Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "snake_case")]
 pub enum Request3DS {
     #[default]
