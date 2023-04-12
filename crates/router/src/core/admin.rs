@@ -1,5 +1,7 @@
+use api_models::admin::PrimaryBusinessDetails;
 use common_utils::ext_traits::ValueExt;
 use error_stack::{report, FutureExt, IntoReport, ResultExt};
+use masking::ExposeInterface;
 use storage_models::{enums, merchant_account};
 use uuid::Uuid;
 
@@ -8,6 +10,7 @@ use crate::{
     core::{
         api_keys,
         errors::{self, RouterResponse, RouterResult, StorageErrorExt},
+        payments::helpers,
     },
     db::StorageInterface,
     pii::Secret,
@@ -63,19 +66,36 @@ pub async fn create_merchant_account(
             .attach_printable("Unexpected create API key response"),
     }?;
 
-    let merchant_details = Some(
-        utils::Encode::<api::MerchantDetails>::encode_to_value(&req.merchant_details)
-            .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "merchant_details",
-            })?,
-    );
+    let merchant_details = req
+        .merchant_details
+        .map(|md| {
+            utils::Encode::<api::MerchantDetails>::encode_to_value(&md).change_context(
+                errors::ApiErrorResponse::InvalidDataValue {
+                    field_name: "merchant_details",
+                },
+            )
+        })
+        .transpose()?;
 
-    let webhook_details = Some(
-        utils::Encode::<api::WebhookDetails>::encode_to_value(&req.webhook_details)
-            .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "webhook details",
-            })?,
-    );
+    let webhook_details = req
+        .webhook_details
+        .map(|wd| {
+            utils::Encode::<api::WebhookDetails>::encode_to_value(&wd).change_context(
+                errors::ApiErrorResponse::InvalidDataValue {
+                    field_name: "webhook details",
+                },
+            )
+        })
+        .transpose()?;
+
+    let primary_business_details = req.primary_business_details.expose();
+
+    let _valid_business_details: PrimaryBusinessDetails = primary_business_details
+        .clone()
+        .parse_value("primary_business_details")
+        .change_context(errors::ApiErrorResponse::InvalidDataValue {
+            field_name: "primary_business_details",
+        })?;
 
     if let Some(ref routing_algorithm) = req.routing_algorithm {
         let _: api::RoutingAlgorithm = routing_algorithm
@@ -108,6 +128,7 @@ pub async fn create_merchant_account(
         publishable_key,
         locker_id: req.locker_id,
         metadata: req.metadata,
+        primary_business_details,
     };
 
     let merchant_account = db
@@ -199,6 +220,12 @@ pub async fn merchant_account_update(
         locker_id: req.locker_id,
         metadata: req.metadata,
         publishable_key: None,
+        primary_business_details: req
+            .primary_business_details
+            .as_ref()
+            .map(utils::Encode::<PrimaryBusinessDetails>::encode_to_value)
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)?,
     };
 
     let response = db
@@ -268,9 +295,6 @@ async fn validate_merchant_id<S: Into<String>>(
         })
 }
 
-// Merchant Connector API -  Every merchant and connector can have an instance of (merchant <> connector)
-//                          with unique merchant_connector_id for Create Operation
-
 pub async fn create_payment_connector(
     store: &dyn StorageInterface,
     req: api::MerchantConnector,
@@ -282,6 +306,13 @@ pub async fn create_payment_connector(
         .map_err(|error| {
             error.to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
         })?;
+
+    let connector_label = helpers::get_connector_label(
+        req.business_country,
+        &req.business_label,
+        req.business_sub_label.as_ref(),
+        &req.connector_name,
+    );
 
     let mut vec = Vec::new();
     let mut response = req.clone();
@@ -320,6 +351,10 @@ pub async fn create_payment_connector(
         test_mode: req.test_mode,
         disabled: req.disabled,
         metadata: req.metadata,
+        connector_label: connector_label.clone(),
+        business_country: req.business_country,
+        business_label: req.business_label,
+        business_sub_label: req.business_sub_label,
     };
 
     let mca = store
@@ -330,6 +365,10 @@ pub async fn create_payment_connector(
         })?;
 
     response.merchant_connector_id = Some(mca.merchant_connector_id);
+    response.connector_label = connector_label;
+    response.business_country = mca.business_country;
+    response.business_label = mca.business_label;
+
     Ok(service_api::ApplicationResponse::Json(response))
 }
 
@@ -392,7 +431,7 @@ pub async fn update_payment_connector(
     db: &dyn StorageInterface,
     merchant_id: &str,
     merchant_connector_id: &str,
-    req: api::MerchantConnector,
+    req: api_models::admin::MerchantConnectorUpdate,
 ) -> RouterResponse<api::MerchantConnector> {
     let _merchant_account = db
         .find_merchant_account_by_merchant_id(merchant_id)
@@ -423,7 +462,6 @@ pub async fn update_payment_connector(
     let payment_connector = storage::MerchantConnectorAccountUpdate::Update {
         merchant_id: Some(merchant_id.to_string()),
         connector_type: Some(req.connector_type.foreign_into()),
-        connector_name: Some(req.connector_name),
         merchant_connector_id: Some(merchant_connector_id.to_string()),
         connector_account_details: req.connector_account_details,
         payment_methods_enabled,
@@ -460,6 +498,10 @@ pub async fn update_payment_connector(
         disabled: updated_mca.disabled,
         payment_methods_enabled: updated_pm_enabled,
         metadata: updated_mca.metadata,
+        connector_label: updated_mca.connector_label,
+        business_country: updated_mca.business_country,
+        business_label: updated_mca.business_label,
+        business_sub_label: updated_mca.business_sub_label,
     };
     Ok(service_api::ApplicationResponse::Json(response))
 }

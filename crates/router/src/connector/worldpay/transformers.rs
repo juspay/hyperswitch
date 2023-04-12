@@ -122,7 +122,7 @@ impl From<EventType> for enums::AttemptStatus {
             EventType::Authorized => Self::Authorized,
             EventType::CaptureFailed => Self::CaptureFailed,
             EventType::Refused => Self::Failure,
-            EventType::Charged => Self::Charged,
+            EventType::Charged | EventType::SentForSettlement => Self::Charged,
             _ => Self::Pending,
         }
     }
@@ -173,6 +173,16 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for WorldpayRefundRequest {
                 amount: item.request.amount,
                 currency: item.request.currency.to_string(),
             },
+        })
+    }
+}
+
+impl TryFrom<WorldpayWebhookEventType> for WorldpayEventResponse {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(event: WorldpayWebhookEventType) -> Result<Self, Self::Error> {
+        Ok(Self {
+            last_event: event.event_details.event_type,
+            links: None,
         })
     }
 }

@@ -8,7 +8,7 @@ use std::{fmt::Debug, marker::PhantomData, time::Instant};
 
 use error_stack::{IntoReport, ResultExt};
 use futures::future::join_all;
-use router_env::{instrument, tracing};
+use router_env::tracing;
 use time;
 
 pub use self::operations::{
@@ -20,6 +20,7 @@ use self::{
     operations::{payment_complete_authorize, BoxedOperation, Operation},
 };
 use crate::{
+    connection,
     core::{
         errors::{self, CustomResult, RouterResponse, RouterResult},
         payment_methods::vault,
@@ -36,7 +37,6 @@ use crate::{
     utils::{Encode, OptionExt, ValueExt},
 };
 
-#[instrument(skip_all)]
 pub async fn payments_operation_core<F, Req, Op, FData>(
     state: &AppState,
     merchant_account: storage::MerchantAccount,
@@ -45,7 +45,7 @@ pub async fn payments_operation_core<F, Req, Op, FData>(
     call_connector_action: CallConnectorAction,
 ) -> RouterResult<(PaymentData<F>, Req, Option<storage::Customer>)>
 where
-    F: Send + Clone,
+    F: Send + Clone + Sync,
     Op: Operation<F, Req> + Send + Sync,
 
     // To create connector flow specific interface data
@@ -58,7 +58,7 @@ where
 
     // To perform router related operation for PaymentResponse
     PaymentResponse: Operation<F, FData>,
-    FData: Send,
+    FData: Send + Sync,
 {
     let operation: BoxedOperation<'_, F, Req> = Box::new(operation);
 
@@ -74,7 +74,7 @@ where
             state,
             &validate_result.payment_id,
             &req,
-            validate_result.mandate_type,
+            validate_result.mandate_type.to_owned(),
             &merchant_account,
         )
         .await?;
@@ -91,19 +91,21 @@ where
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed while fetching/creating customer")?;
 
-    let (operation, payment_method_data) = operation
-        .to_domain()?
-        .make_pm_data(state, &mut payment_data, validate_result.storage_scheme)
-        .await?;
-
-    payment_data.payment_method_data = payment_method_data;
-
     let connector = get_connector_choice(
         &operation,
         state,
         &req,
         &merchant_account,
         &mut payment_data,
+    )
+    .await?;
+
+    let (payment_data, tokenization_action) = get_connector_tokenization_action(
+        state,
+        &operation,
+        connector.as_ref(),
+        payment_data,
+        &validate_result,
     )
     .await?;
 
@@ -134,6 +136,7 @@ where
                     &payment_data,
                     &customer,
                     call_connector_action,
+                    tokenization_action,
                 )
                 .await?;
 
@@ -182,8 +185,8 @@ pub async fn payments_core<F, Res, Req, Op, FData>(
     call_connector_action: CallConnectorAction,
 ) -> RouterResponse<Res>
 where
-    F: Send + Clone,
-    FData: Send,
+    F: Send + Clone + Sync,
+    FData: Send + Sync,
     Op: Operation<F, Req> + Send + Sync + Clone,
     Req: Debug,
     Res: transformers::ToResponse<Req, PaymentData<F>, Op>,
@@ -374,7 +377,6 @@ impl PaymentRedirectFlow for PaymentRedirectSync {
 }
 
 #[allow(clippy::too_many_arguments)]
-#[instrument(skip_all)]
 pub async fn call_connector_service<F, Op, Req>(
     state: &AppState,
     merchant_account: &storage::MerchantAccount,
@@ -383,10 +385,12 @@ pub async fn call_connector_service<F, Op, Req>(
     payment_data: &PaymentData<F>,
     customer: &Option<storage::Customer>,
     call_connector_action: CallConnectorAction,
+    tokenization_action: TokenizationAction,
 ) -> RouterResult<types::RouterData<F, Req, types::PaymentsResponseData>>
 where
     Op: Debug + Sync,
-    F: Send + Clone,
+    F: Send + Clone + Sync,
+    Req: Send + Sync,
 
     // To create connector flow specific interface data
     PaymentData<F>: ConstructFlowSpecificData<F, Req, types::PaymentsResponseData>,
@@ -413,6 +417,14 @@ where
         &mut router_data,
         &call_connector_action,
     );
+
+    let pm_token = router_data
+        .add_payment_method_token(state, &connector, &tokenization_action)
+        .await?;
+
+    if let Some(payment_method_token) = pm_token {
+        router_data.payment_method_token = Some(payment_method_token);
+    };
 
     let router_data_res = if should_continue_payment {
         router_data
@@ -507,7 +519,175 @@ where
     Ok(payment_data)
 }
 
-#[derive(Clone, Debug)]
+fn get_connector_from_connector_type(
+    connector_details: Option<&api::ConnectorCallType>,
+) -> Option<String> {
+    connector_details.and_then(|connector_call_type| match connector_call_type {
+        api::ConnectorCallType::Single(data) => Some(data.connector_name.to_string()),
+        _ => None,
+    })
+}
+
+fn is_payment_method_tokenization_enabled_for_connector(
+    state: &AppState,
+    connector_name: &str,
+    payment_method: &storage::enums::PaymentMethod,
+) -> RouterResult<bool> {
+    let connector_tokenization_filter = state.conf.tokenization.0.get(connector_name);
+
+    Ok(connector_tokenization_filter
+        .map(|connector_filter| connector_filter.payment_method.contains(payment_method))
+        .unwrap_or(false))
+}
+
+async fn decide_payment_method_tokenize_action(
+    state: &AppState,
+    connector_name: &str,
+    payment_method: &storage::enums::PaymentMethod,
+    pm_parent_token: Option<&String>,
+    is_connector_tokenization_enabled: bool,
+) -> TokenizationAction {
+    match pm_parent_token {
+        None => {
+            if is_connector_tokenization_enabled {
+                TokenizationAction::TokenizeInConnectorAndRouter
+            } else {
+                TokenizationAction::TokenizeInRouter
+            }
+        }
+        Some(token) => {
+            let redis_conn = connection::redis_connection(&state.conf).await;
+            let key = format!(
+                "pm_token_{}_{}_{}",
+                token.to_owned(),
+                payment_method,
+                connector_name
+            );
+
+            match redis_conn.get_key::<String>(&key).await {
+                Ok(connector_token) => TokenizationAction::ConnectorToken(connector_token),
+                Err(error) => {
+                    logger::debug!(connector_token_redis_error=?error);
+                    if is_connector_tokenization_enabled {
+                        TokenizationAction::TokenizeInConnector
+                    } else {
+                        TokenizationAction::SkipConnectorTokenization
+                    }
+                }
+            }
+        }
+    }
+}
+
+pub enum TokenizationAction {
+    TokenizeInRouter,
+    TokenizeInConnector,
+    TokenizeInConnectorAndRouter,
+    ConnectorToken(String),
+    SkipConnectorTokenization,
+}
+
+#[allow(clippy::too_many_arguments)]
+pub async fn get_connector_tokenization_action<F, Req>(
+    state: &AppState,
+    operation: &BoxedOperation<'_, F, Req>,
+    connector_details: Option<&api::ConnectorCallType>,
+    mut payment_data: PaymentData<F>,
+    validate_result: &operations::ValidateResult<'_>,
+) -> RouterResult<(PaymentData<F>, TokenizationAction)>
+where
+    F: Send + Clone,
+{
+    let payment_data_and_tokenization_action =
+        match get_connector_from_connector_type(connector_details) {
+            Some(connector) => {
+                if is_operation_confirm(&operation) {
+                    let payment_method = &payment_data
+                        .payment_attempt
+                        .payment_method
+                        .get_required_value("payment_method")?;
+
+                    let is_connector_tokenization_enabled =
+                        is_payment_method_tokenization_enabled_for_connector(
+                            state,
+                            &connector,
+                            payment_method,
+                        )?;
+
+                    let payment_method_action = decide_payment_method_tokenize_action(
+                        state,
+                        &connector,
+                        payment_method,
+                        payment_data.token.as_ref(),
+                        is_connector_tokenization_enabled,
+                    )
+                    .await;
+
+                    let connector_tokenization_action = match payment_method_action {
+                        TokenizationAction::TokenizeInRouter => {
+                            let (_operation, payment_method_data) = operation
+                                .to_domain()?
+                                .make_pm_data(
+                                    state,
+                                    &mut payment_data,
+                                    validate_result.storage_scheme,
+                                )
+                                .await?;
+
+                            payment_data.payment_method_data = payment_method_data;
+                            TokenizationAction::SkipConnectorTokenization
+                        }
+
+                        TokenizationAction::TokenizeInConnector => {
+                            TokenizationAction::TokenizeInConnector
+                        }
+                        TokenizationAction::TokenizeInConnectorAndRouter => {
+                            let (_operation, payment_method_data) = operation
+                                .to_domain()?
+                                .make_pm_data(
+                                    state,
+                                    &mut payment_data,
+                                    validate_result.storage_scheme,
+                                )
+                                .await?;
+
+                            payment_data.payment_method_data = payment_method_data;
+                            TokenizationAction::TokenizeInConnector
+                        }
+                        TokenizationAction::ConnectorToken(token) => {
+                            payment_data.pm_token = Some(token);
+                            TokenizationAction::SkipConnectorTokenization
+                        }
+                        TokenizationAction::SkipConnectorTokenization => {
+                            TokenizationAction::SkipConnectorTokenization
+                        }
+                    };
+                    (payment_data, connector_tokenization_action)
+                } else {
+                    let (_operation, payment_method_data) = operation
+                        .to_domain()?
+                        .make_pm_data(state, &mut payment_data, validate_result.storage_scheme)
+                        .await?;
+
+                    payment_data.payment_method_data = payment_method_data;
+                    (payment_data, TokenizationAction::SkipConnectorTokenization)
+                }
+            }
+            None => {
+                let (_operation, payment_method_data) = operation
+                    .to_domain()?
+                    .make_pm_data(state, &mut payment_data, validate_result.storage_scheme)
+                    .await?;
+
+                payment_data.payment_method_data = payment_method_data;
+                (payment_data, TokenizationAction::SkipConnectorTokenization)
+            }
+        };
+
+    Ok(payment_data_and_tokenization_action)
+}
+
+#[derive(Clone)]
 pub enum CallConnectorAction {
     Trigger,
     Avoid,
@@ -544,6 +724,7 @@ where
     pub card_cvc: Option<pii::Secret<String>>,
     pub email: Option<masking::Secret<String, pii::Email>>,
     pub creds_identifier: Option<String>,
+    pub pm_token: Option<String>,
 }
 
 #[derive(Debug, Default)]
@@ -616,6 +797,7 @@ pub fn should_call_connector<Op: Debug, F: Clone>(
                     | storage_enums::IntentStatus::Processing
                     | storage_enums::IntentStatus::Succeeded
                     | storage_enums::IntentStatus::RequiresCustomerAction
+                    | storage_enums::IntentStatus::RequiresMerchantAction
             ) && payment_data.force_sync.unwrap_or(false)
         }
         "PaymentCancel" => matches!(
@@ -634,6 +816,10 @@ pub fn should_call_connector<Op: Debug, F: Clone>(
     }
 }
 
+pub fn is_operation_confirm<Op: Debug>(operation: &Op) -> bool {
+    matches!(format!("{operation:?}").as_str(), "PaymentConfirm")
+}
+
 #[cfg(feature = "olap")]
 pub async fn list_payments(
     db: &dyn StorageInterface,
@@ -642,7 +828,7 @@ pub async fn list_payments(
 ) -> RouterResponse<api::PaymentListResponse> {
     use futures::stream::StreamExt;
 
-    use crate::types::transformers::ForeignTryFrom;
+    use crate::types::transformers::ForeignFrom;
 
     helpers::validate_payment_list_request(&constraints)?;
     let merchant_id = &merchant.merchant_id;
@@ -673,11 +859,7 @@ pub async fn list_payments(
         .collect::<Vec<(storage::PaymentIntent, storage::PaymentAttempt)>>()
         .await;
 
-    let data: Vec<api::PaymentsResponse> = pi
-        .into_iter()
-        .map(ForeignTryFrom::foreign_try_from)
-        .collect::<Result<_, _>>()
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+    let data: Vec<api::PaymentsResponse> = pi.into_iter().map(ForeignFrom::foreign_from).collect();
 
     Ok(services::ApplicationResponse::Json(
         api::PaymentListResponse {
@@ -726,24 +908,12 @@ pub fn update_straight_through_routing<F>(
 where
     F: Send + Clone,
 {
-    let mut routing_data: storage::RoutingData = payment_data
-        .payment_attempt
-        .connector
+    let _: api::RoutingAlgorithm = request_straight_through
         .clone()
-        .unwrap_or_else(|| serde_json::json!({}))
-        .parse_value("RoutingData")
-        .attach_printable("Invalid routing data format in payment attempt")?;
-
-    let request_straight_through: api::RoutingAlgorithm = request_straight_through
         .parse_value("RoutingAlgorithm")
         .attach_printable("Invalid straight through routing rules format")?;
 
-    routing_data.algorithm = Some(request_straight_through);
-
-    let encoded_routing_data = Encode::<storage::RoutingData>::encode_to_value(&routing_data)
-        .attach_printable("Unable to serialize routing data to serde value")?;
-
-    payment_data.payment_attempt.connector = Some(encoded_routing_data);
+    payment_data.payment_attempt.straight_through_algorithm = Some(request_straight_through);
 
     Ok(())
 }
@@ -801,14 +971,17 @@ pub fn connector_selection<F>(
 where
     F: Send + Clone,
 {
-    let mut routing_data: storage::RoutingData = payment_data
-        .payment_attempt
-        .connector
-        .clone()
-        .unwrap_or_else(|| serde_json::json!({}))
-        .parse_value("RoutingData")
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Invalid routing data format in payment attempt")?;
+    let mut routing_data = storage::RoutingData {
+        routed_through: payment_data.payment_attempt.connector.clone(),
+        algorithm: payment_data
+            .payment_attempt
+            .straight_through_algorithm
+            .clone()
+            .map(|val| val.parse_value("RoutingAlgorithm"))
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Invalid straight through algorithm format in payment attempt")?,
+    };
 
     let request_straight_through: Option<api::RoutingAlgorithm> = request_straight_through
         .map(|val| val.parse_value("RoutingAlgorithm"))
@@ -823,11 +996,15 @@ where
         &mut routing_data,
     )?;
 
-    let encoded_routing_data = Encode::<storage::RoutingData>::encode_to_value(&routing_data)
+    let encoded_algorithm = routing_data
+        .algorithm
+        .map(|algo| Encode::<api::RoutingAlgorithm>::encode_to_value(&algo))
+        .transpose()
         .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Unable to serialize routing data to serde value")?;
+        .attach_printable("Unable to serialize routing algorithm to serde value")?;
 
-    payment_data.payment_attempt.connector = Some(encoded_routing_data);
+    payment_data.payment_attempt.connector = routing_data.routed_through;
+    payment_data.payment_attempt.straight_through_algorithm = encoded_algorithm;
 
     Ok(decided_connector)
 }

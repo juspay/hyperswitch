@@ -114,7 +114,7 @@ pub struct PaymentRequestCards {
     pub pan: Secret<String, pii::CardNumber>,
     pub cvv: Secret<String>,
     #[serde(rename = "exp")]
-    pub expiry_date: String,
+    pub expiry_date: Secret<String>,
     pub cardholder: Secret<String>,
     pub reference: String,
     #[serde(rename = "redirectUrl")]

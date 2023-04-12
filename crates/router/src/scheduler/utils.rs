@@ -4,10 +4,8 @@ use std::{
 };
 
 use error_stack::{report, ResultExt};
-use futures::StreamExt;
 use redis_interface::{RedisConnectionPool, RedisEntryId};
 use router_env::opentelemetry;
-use tokio::sync::oneshot;
 use uuid::Uuid;
 
 use super::{consumer, metrics, process_data, workflows};
@@ -21,7 +19,6 @@ use crate::{
         self,
         enums::{self, ProcessTrackerStatus},
     },
-    utils::{OptionExt, StringExt},
 };
 
 pub async fn divide_and_append_tasks(
@@ -245,10 +242,10 @@ pub fn get_time_from_delta(delta: Option<i32>) -> Option<time::PrimitiveDateTime
 
 pub async fn consumer_operation_handler<E>(
     state: AppState,
-    options: sync::Arc<super::SchedulerOptions>,
     settings: sync::Arc<SchedulerSettings>,
     error_handler_fun: E,
     consumer_operation_counter: sync::Arc<atomic::AtomicU64>,
+    workflow_selector: workflows::WorkflowSelectorFn,
 ) where
     // Error handler function
     E: FnOnce(error_stack::Report<errors::ProcessTrackerError>),
@@ -256,7 +253,7 @@ pub async fn consumer_operation_handler<E>(
     consumer_operation_counter.fetch_add(1, atomic::Ordering::Release);
     let start_time = std_time::Instant::now();
 
-    match consumer::consumer_operations(&state, &options, &settings).await {
+    match consumer::consumer_operations(&state, &settings, workflow_selector).await {
         Ok(_) => (),
         Err(err) => error_handler_fun(err),
     }
@@ -266,14 +263,6 @@ pub async fn consumer_operation_handler<E>(
 
     let current_count = consumer_operation_counter.fetch_sub(1, atomic::Ordering::Release);
     logger::info!("Current tasks being executed: {}", current_count);
-}
-
-pub fn runner_from_task(
-    task: &storage::ProcessTracker,
-) -> Result<workflows::PTRunner, errors::ProcessTrackerError> {
-    let runner = task.runner.clone().get_required_value("runner")?;
-
-    Ok(runner.parse_enum("PTRunner")?)
 }
 
 pub fn add_histogram_metrics(
@@ -385,30 +374,5 @@ where
         result
     } else {
         Ok(())
-    }
-}
-
-pub(crate) async fn signal_handler(
-    mut sig: signal_hook_tokio::Signals,
-    sender: oneshot::Sender<()>,
-) {
-    if let Some(signal) = sig.next().await {
-        logger::info!(
-            "Received signal: {:?}",
-            signal_hook::low_level::signal_name(signal)
-        );
-        match signal {
-            signal_hook::consts::SIGTERM | signal_hook::consts::SIGINT => match sender.send(()) {
-                Ok(_) => {
-                    logger::info!("Request for force shutdown received")
-                }
-                Err(_) => {
-                    logger::error!(
-                        "The receiver is closed, a termination call might already be sent"
-                    )
-                }
-            },
-            _ => {}
-        }
     }
 }

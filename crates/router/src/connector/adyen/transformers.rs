@@ -431,6 +431,14 @@ impl<'a> TryFrom<&types::PaymentsAuthorizeRouterData> for AdyenPaymentRequest<'a
             storage_models::enums::PaymentMethod::BankRedirect => {
                 get_bank_redirect_specific_payment_data(item)
             }
+            storage_models::enums::PaymentMethod::Crypto => {
+                Err(errors::ConnectorError::NotSupported {
+                    payment_method: format!("{:?}", item.payment_method),
+                    connector: "Adyen",
+                    payment_experience: api_models::enums::PaymentExperience::RedirectToUrl
+                        .to_string(),
+                })?
+            }
         }
     }
 }
@@ -645,6 +653,11 @@ fn get_payment_method_data<'a>(
                 }
             }
         }
+        api::PaymentMethodData::Crypto(_) => Err(errors::ConnectorError::NotSupported {
+            payment_method: format!("{:?}", item.payment_method),
+            connector: "Adyen",
+            payment_experience: api_models::enums::PaymentExperience::RedirectToUrl.to_string(),
+        })?,
     }
 }
 
@@ -995,10 +1008,7 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for AdyenCaptureRequest {
             reference: item.payment_id.to_string(),
             amount: Amount {
                 currency: item.request.currency.to_string(),
-                value: item
-                    .request
-                    .amount_to_capture
-                    .unwrap_or(item.request.amount),
+                value: item.request.amount_to_capture,
             },
         })
     }

@@ -71,6 +71,19 @@ impl ConnectorCommon for Nuvei {
 }
 
 impl api::Payment for Nuvei {}
+
+impl api::PaymentToken for Nuvei {}
+
+impl
+    ConnectorIntegration<
+        api::PaymentMethodToken,
+        types::PaymentMethodTokenizationData,
+        types::PaymentsResponseData,
+    > for Nuvei
+{
+    // Not Implemented (R)
+}
+
 impl api::PreVerify for Nuvei {}
 impl api::PaymentVoid for Nuvei {}
 impl api::PaymentSync for Nuvei {}
@@ -138,6 +151,7 @@ impl
                 .url(&types::PaymentsComeplteAuthorizeType::get_url(
                     self, req, connectors,
                 )?)
+                .attach_default_headers()
                 .headers(types::PaymentsComeplteAuthorizeType::get_headers(
                     self, req, connectors,
                 )?)
@@ -218,6 +232,7 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
         let request = services::RequestBuilder::new()
             .method(services::Method::Post)
             .url(&types::PaymentsVoidType::get_url(self, req, connectors)?)
+            .attach_default_headers()
             .headers(types::PaymentsVoidType::get_headers(self, req, connectors)?)
             .body(types::PaymentsVoidType::get_request_body(self, req)?)
             .build();
@@ -300,6 +315,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
             services::RequestBuilder::new()
                 .method(services::Method::Post)
                 .url(&types::PaymentsSyncType::get_url(self, req, connectors)?)
+                .attach_default_headers()
                 .headers(types::PaymentsSyncType::get_headers(self, req, connectors)?)
                 .body(types::PaymentsSyncType::get_request_body(self, req)?)
                 .build(),
@@ -378,6 +394,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
             services::RequestBuilder::new()
                 .method(services::Method::Post)
                 .url(&types::PaymentsCaptureType::get_url(self, req, connectors)?)
+                .attach_default_headers()
                 .headers(types::PaymentsCaptureType::get_headers(
                     self, req, connectors,
                 )?)
@@ -526,6 +543,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
                 .url(&types::PaymentsAuthorizeType::get_url(
                     self, req, connectors,
                 )?)
+                .attach_default_headers()
                 .headers(types::PaymentsAuthorizeType::get_headers(
                     self, req, connectors,
                 )?)
@@ -611,6 +629,7 @@ impl
                 .url(&types::PaymentsPreAuthorizeType::get_url(
                     self, req, connectors,
                 )?)
+                .attach_default_headers()
                 .headers(types::PaymentsPreAuthorizeType::get_headers(
                     self, req, connectors,
                 )?)
@@ -690,6 +709,7 @@ impl ConnectorIntegration<InitPayment, types::PaymentsAuthorizeData, types::Paym
             services::RequestBuilder::new()
                 .method(services::Method::Post)
                 .url(&types::PaymentsInitType::get_url(self, req, connectors)?)
+                .attach_default_headers()
                 .headers(types::PaymentsInitType::get_headers(self, req, connectors)?)
                 .body(types::PaymentsInitType::get_request_body(self, req)?)
                 .build(),
@@ -781,6 +801,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         let request = services::RequestBuilder::new()
             .method(services::Method::Post)
             .url(&types::RefundExecuteType::get_url(self, req, connectors)?)
+            .attach_default_headers()
             .headers(types::RefundExecuteType::get_headers(
                 self, req, connectors,
             )?)
@@ -854,10 +875,9 @@ impl api::IncomingWebhook for Nuvei {
         _merchant_id: &str,
         secret: &[u8],
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
-        let body: nuvei::NuveiWebhookDetails = request
-            .query_params_json
-            .parse_struct("NuveiWebhookDetails")
-            .switch()?;
+        let body = serde_urlencoded::from_str::<nuvei::NuveiWebhookDetails>(&request.query_params)
+            .into_report()
+            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
         let secret_str = std::str::from_utf8(secret)
             .into_report()
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
@@ -879,10 +899,10 @@ impl api::IncomingWebhook for Nuvei {
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
-        let body: nuvei::NuveiWebhookTransactionId = request
-            .query_params_json
-            .parse_struct("NuveiWebhookTransactionId")
-            .switch()?;
+        let body =
+            serde_urlencoded::from_str::<nuvei::NuveiWebhookTransactionId>(&request.query_params)
+                .into_report()
+                .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
         Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
             types::api::PaymentIdType::ConnectorTransactionId(body.ppp_transaction_id),
         ))
@@ -892,10 +912,10 @@ impl api::IncomingWebhook for Nuvei {
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api::IncomingWebhookEvent, errors::ConnectorError> {
-        let body: nuvei::NuveiWebhookDataStatus = request
-            .query_params_json
-            .parse_struct("NuveiWebhookDataStatus")
-            .switch()?;
+        let body =
+            serde_urlencoded::from_str::<nuvei::NuveiWebhookDataStatus>(&request.query_params)
+                .into_report()
+                .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
         match body.status {
             nuvei::NuveiWebhookStatus::Approved => {
                 Ok(api::IncomingWebhookEvent::PaymentIntentSuccess)
@@ -911,10 +931,9 @@ impl api::IncomingWebhook for Nuvei {
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<serde_json::Value, errors::ConnectorError> {
-        let body: nuvei::NuveiWebhookDetails = request
-            .query_params_json
-            .parse_struct("NuveiWebhookDetails")
-            .switch()?;
+        let body = serde_urlencoded::from_str::<nuvei::NuveiWebhookDetails>(&request.query_params)
+            .into_report()
+            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
         let payment_response = nuvei::NuveiPaymentsResponse::from(body);
         Encode::<nuvei::NuveiPaymentsResponse>::encode_to_value(&payment_response).switch()
     }
