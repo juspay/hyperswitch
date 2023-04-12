@@ -483,14 +483,9 @@ where
     Op: std::fmt::Debug,
 {
     if check_if_operation_confirm(operation) {
-        let routed_through: storage::RoutedThroughData = payment_attempt
+        let connector_name = payment_attempt
             .connector
             .clone()
-            .parse_value("RoutedThroughData")
-            .change_context(errors::ApiErrorResponse::InternalServerError)?;
-
-        let connector_name = routed_through
-            .routed_through
             .ok_or(errors::ApiErrorResponse::InternalServerError)?;
 
         let schedule_time = payment_sync::get_sync_process_schedule_time(
