@@ -346,6 +346,7 @@ async fn payment_response_update_tracker<F: Clone, T>(
                         .clone()
                         .map(|mandate| mandate.mandate_id),
                     connector_metadata,
+                    payment_token: None,
                     error_code: error_status.clone(),
                     error_message: error_status,
                 };
@@ -385,6 +386,7 @@ async fn payment_response_update_tracker<F: Clone, T>(
             }
             types::PaymentsResponseData::SessionResponse { .. } => (None, None),
             types::PaymentsResponseData::SessionTokenResponse { .. } => (None, None),
+            types::PaymentsResponseData::TokenizationResponse { .. } => (None, None),
         },
     };
 
