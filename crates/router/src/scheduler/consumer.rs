@@ -35,22 +35,20 @@ pub fn valid_business_statuses() -> Vec<&'static str> {
 #[instrument(skip_all)]
 pub async fn start_consumer(
     state: &AppState,
-    options: sync::Arc<super::SchedulerOptions>,
     settings: sync::Arc<settings::SchedulerSettings>,
+    workflow_selector: workflows::WorkflowSelectorFn,
 ) -> CustomResult<(), errors::ProcessTrackerError> {
     use std::time::Duration;
 
     use rand::Rng;
 
-    let timeout = rand::thread_rng().gen_range(0..=options.looper_interval.milliseconds);
+    let timeout = rand::thread_rng().gen_range(0..=settings.loop_interval);
     tokio::time::sleep(Duration::from_millis(timeout)).await;
 
-    let mut interval =
-        tokio::time::interval(Duration::from_millis(options.looper_interval.milliseconds));
+    let mut interval = tokio::time::interval(Duration::from_millis(settings.loop_interval));
 
-    let mut shutdown_interval = tokio::time::interval(Duration::from_millis(
-        options.readiness.graceful_termination_duration.milliseconds,
-    ));
+    let mut shutdown_interval =
+        tokio::time::interval(Duration::from_millis(settings.graceful_shutdown_interval));
 
     let consumer_operation_counter = sync::Arc::new(atomic::AtomicU64::new(0));
     let signal = get_allowed_signals()
@@ -76,12 +74,12 @@ pub async fn start_consumer(
 
                 tokio::task::spawn(pt_utils::consumer_operation_handler(
                     state.clone(),
-                    options.clone(),
                     settings.clone(),
                     |err| {
                         logger::error!(%err);
                     },
                     sync::Arc::clone(&consumer_operation_counter),
+                    workflow_selector,
                 ));
             }
             Ok(()) | Err(oneshot::error::TryRecvError::Closed) => {
@@ -111,8 +109,8 @@ pub async fn start_consumer(
 #[instrument(skip_all)]
 pub async fn consumer_operations(
     state: &AppState,
-    _options: &super::SchedulerOptions,
     settings: &settings::SchedulerSettings,
+    workflow_selector: workflows::WorkflowSelectorFn,
 ) -> CustomResult<(), errors::ProcessTrackerError> {
     let stream_name = settings.stream.clone();
     let group_name = settings.consumer.consumer_group.clone();
@@ -140,7 +138,7 @@ pub async fn consumer_operations(
         pt_utils::add_histogram_metrics(&pickup_time, task, &stream_name);
 
         metrics::TASK_CONSUMED.add(&metrics::CONTEXT, 1, &[]);
-        let runner = pt_utils::runner_from_task(task)?;
+        let runner = workflow_selector(task)?.ok_or(errors::ProcessTrackerError::UnexpectedFlow)?;
         handler.push(tokio::task::spawn(start_workflow(
             state.clone(),
             task.clone(),
@@ -195,21 +193,21 @@ pub async fn fetch_consumer_tasks(
 }
 
 // Accept flow_options if required
-#[instrument(skip(state), fields(workflow_id))]
+#[instrument(skip(state, runner), fields(workflow_id))]
 pub async fn start_workflow(
     state: AppState,
     process: storage::ProcessTracker,
     _pickup_time: PrimitiveDateTime,
-    runner: workflows::PTRunner,
+    runner: Box<dyn ProcessTrackerWorkflow>,
 ) {
     tracing::Span::current().record("workflow_id", Uuid::new_v4().to_string());
-    workflows::perform_workflow_execution(&state, process, runner).await
+    run_executor(&state, process, runner).await
 }
 
-pub async fn run_executor<'a>(
-    state: &'a AppState,
+pub async fn run_executor(
+    state: &AppState,
     process: storage::ProcessTracker,
-    operation: &(impl ProcessTrackerWorkflow + Send + Sync),
+    operation: Box<dyn ProcessTrackerWorkflow>,
 ) {
     let output = operation.execute_workflow(state, process.clone()).await;
     match output {
