@@ -68,18 +68,22 @@ pub trait StorageInterface:
 }
 
 pub trait MasterKeyInterface {
-    fn get_master_key(&self) -> Vec<u8>;
+    fn get_master_key(&self) -> &[u8];
 }
 
 impl MasterKeyInterface for Store {
-    fn get_master_key(&self) -> Vec<u8> {
-        self.master_key.clone()
+    fn get_master_key(&self) -> &[u8] {
+        &self.master_key
     }
 }
 
+/// Default dummy key for MockDb
 impl MasterKeyInterface for MockDb {
-    fn get_master_key(&self) -> Vec<u8> {
-        vec![0]
+    fn get_master_key(&self) -> &[u8] {
+        &[
+            129, 95, 165, 215, 251, 88, 58, 2, 119, 176, 231, 226, 224, 200, 153, 124, 232, 114,
+            17, 160, 42, 252, 196, 204, 75, 60, 142, 247, 210, 28, 157, 241,
+        ]
     }
 }
 

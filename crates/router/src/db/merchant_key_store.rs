@@ -1,3 +1,5 @@
+use error_stack::{IntoReport, ResultExt};
+
 use crate::{
     connection,
     core::errors::{self, CustomResult},
@@ -8,8 +10,6 @@ use crate::{
         merchant_key_store,
     },
 };
-
-use error_stack::{IntoReport, ResultExt};
 
 #[async_trait::async_trait]
 pub trait MerchantKeyStoreInterface {

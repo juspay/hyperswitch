@@ -211,8 +211,9 @@ async fn get_master_enc_key(
     master_enc_key
 }
 
+#[inline]
 pub fn generate_aes256_key(
-) -> crate::core::errors::CustomResult<Vec<u8>, common_utils::errors::CryptoError> {
+) -> crate::core::errors::CustomResult<[u8; 32], common_utils::errors::CryptoError> {
     use ring::rand::SecureRandom;
 
     let rng = ring::rand::SystemRandom::new();
@@ -220,5 +221,5 @@ pub fn generate_aes256_key(
     rng.fill(&mut key)
         .into_report()
         .change_context(common_utils::errors::CryptoError::EncodingFailed)?;
-    Ok(key.to_vec())
+    Ok(key)
 }
