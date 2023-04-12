@@ -100,8 +100,7 @@ pub fn mk_app(
             .service(routes::Refunds::server(state.clone()))
             .service(routes::Payouts::server(state.clone()))
             .service(routes::MerchantConnectorAccount::server(state.clone()))
-            .service(routes::Mandates::server(state.clone()))
-            .service(routes::Disputes::server(state.clone()));
+            .service(routes::Mandates::server(state.clone()));
     }
 
     #[cfg(feature = "oltp")]
@@ -116,7 +115,8 @@ pub fn mk_app(
     {
         server_app = server_app
             .service(routes::MerchantAccount::server(state.clone()))
-            .service(routes::ApiKeys::server(state.clone()));
+            .service(routes::ApiKeys::server(state.clone()))
+            .service(routes::Disputes::server(state.clone()));
     }
 
     #[cfg(feature = "stripe")]
