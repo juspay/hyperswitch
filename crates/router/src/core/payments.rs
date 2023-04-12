@@ -828,7 +828,7 @@ pub async fn list_payments(
 ) -> RouterResponse<api::PaymentListResponse> {
     use futures::stream::StreamExt;
 
-    use crate::types::transformers::ForeignTryFrom;
+    use crate::types::transformers::ForeignFrom;
 
     helpers::validate_payment_list_request(&constraints)?;
     let merchant_id = &merchant.merchant_id;
@@ -859,11 +859,7 @@ pub async fn list_payments(
         .collect::<Vec<(storage::PaymentIntent, storage::PaymentAttempt)>>()
         .await;
 
-    let data: Vec<api::PaymentsResponse> = pi
-        .into_iter()
-        .map(ForeignTryFrom::foreign_try_from)
-        .collect::<Result<_, _>>()
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+    let data: Vec<api::PaymentsResponse> = pi.into_iter().map(ForeignFrom::foreign_from).collect();
 
     Ok(services::ApplicationResponse::Json(
         api::PaymentListResponse {
@@ -912,24 +908,12 @@ pub fn update_straight_through_routing<F>(
 where
     F: Send + Clone,
 {
-    let mut routing_data: storage::RoutingData = payment_data
-        .payment_attempt
-        .connector
+    let _: api::RoutingAlgorithm = request_straight_through
         .clone()
-        .unwrap_or_else(|| serde_json::json!({}))
-        .parse_value("RoutingData")
-        .attach_printable("Invalid routing data format in payment attempt")?;
-
-    let request_straight_through: api::RoutingAlgorithm = request_straight_through
         .parse_value("RoutingAlgorithm")
         .attach_printable("Invalid straight through routing rules format")?;
 
-    routing_data.algorithm = Some(request_straight_through);
-
-    let encoded_routing_data = Encode::<storage::RoutingData>::encode_to_value(&routing_data)
-        .attach_printable("Unable to serialize routing data to serde value")?;
-
-    payment_data.payment_attempt.connector = Some(encoded_routing_data);
+    payment_data.payment_attempt.straight_through_algorithm = Some(request_straight_through);
 
     Ok(())
 }
@@ -987,14 +971,17 @@ pub fn connector_selection<F>(
 where
     F: Send + Clone,
 {
-    let mut routing_data: storage::RoutingData = payment_data
-        .payment_attempt
-        .connector
-        .clone()
-        .unwrap_or_else(|| serde_json::json!({}))
-        .parse_value("RoutingData")
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Invalid routing data format in payment attempt")?;
+    let mut routing_data = storage::RoutingData {
+        routed_through: payment_data.payment_attempt.connector.clone(),
+        algorithm: payment_data
+            .payment_attempt
+            .straight_through_algorithm
+            .clone()
+            .map(|val| val.parse_value("RoutingAlgorithm"))
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Invalid straight through algorithm format in payment attempt")?,
+    };
 
     let request_straight_through: Option<api::RoutingAlgorithm> = request_straight_through
         .map(|val| val.parse_value("RoutingAlgorithm"))
@@ -1009,11 +996,15 @@ where
         &mut routing_data,
     )?;
 
-    let encoded_routing_data = Encode::<storage::RoutingData>::encode_to_value(&routing_data)
+    let encoded_algorithm = routing_data
+        .algorithm
+        .map(|algo| Encode::<api::RoutingAlgorithm>::encode_to_value(&algo))
+        .transpose()
         .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Unable to serialize routing data to serde value")?;
+        .attach_printable("Unable to serialize routing algorithm to serde value")?;
 
-    payment_data.payment_attempt.connector = Some(encoded_routing_data);
+    payment_data.payment_attempt.connector = routing_data.routed_through;
+    payment_data.payment_attempt.straight_through_algorithm = encoded_algorithm;
 
     Ok(decided_connector)
 }
