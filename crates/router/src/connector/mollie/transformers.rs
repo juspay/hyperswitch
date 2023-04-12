@@ -148,7 +148,7 @@ impl TryFrom<&api_models::payments::BankRedirectData> for PaymentMethodData {
                 })))
             }
             api_models::payments::BankRedirectData::Sofort { .. } => Ok(Self::Sofort),
-            _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
+            _ => Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into()),
         }
     }
 }

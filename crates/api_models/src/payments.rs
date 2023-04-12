@@ -610,7 +610,7 @@ pub struct MobilePayRedirection {}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct MBPayRedirection {
-    /// Telephone numer of the shopper. Should be Portugese phone number.
+    /// Telephone number of the shopper. Should be Portuguese phone number.
     pub telephone_number: String,
 }
 

@@ -140,7 +140,7 @@ impl TryFrom<&payments::BankRedirectData> for PaymentMethodType {
             payments::BankRedirectData::Giropay { .. } => Ok(Self::Giropay),
             payments::BankRedirectData::Ideal { .. } => Ok(Self::Ideal),
             payments::BankRedirectData::Sofort { .. } => Ok(Self::Sofort),
-            _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
+            _ => Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into()),
         }
     }
 }
