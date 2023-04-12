@@ -14,7 +14,7 @@ use wiremock::{Mock, MockServer};
 
 pub trait Connector {
     fn get_data(&self) -> types::api::ConnectorData;
-    fn get_auth_token(&self) -> types::ConnectorAuthType;
+    fn get_auth_token(&self) -> common_enums::ConnectorAuthType;
     fn get_name(&self) -> String;
     fn get_connector_meta(&self) -> Option<serde_json::Value> {
         None

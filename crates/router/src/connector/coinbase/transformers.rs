@@ -44,10 +44,10 @@ pub struct CoinbaseAuthType {
     pub(super) api_key: String,
 }
 
-impl TryFrom<&types::ConnectorAuthType> for CoinbaseAuthType {
+impl TryFrom<&common_enums::ConnectorAuthType> for CoinbaseAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(_auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
-        if let types::ConnectorAuthType::HeaderKey { api_key } = _auth_type {
+    fn try_from(_auth_type: &common_enums::ConnectorAuthType) -> Result<Self, Self::Error> {
+        if let common_enums::ConnectorAuthType::Coinbase { api_key } = _auth_type {
             Ok(Self {
                 api_key: api_key.to_string(),
             })

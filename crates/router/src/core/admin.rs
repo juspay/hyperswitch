@@ -1,5 +1,5 @@
 use api_models::admin::PrimaryBusinessDetails;
-use common_utils::ext_traits::ValueExt;
+use common_utils::ext_traits::{ValueExt, Encode};
 use error_stack::{report, FutureExt, IntoReport, ResultExt};
 use masking::Secret; //PeekInterface
 use storage_models::{enums, merchant_account};
@@ -16,7 +16,7 @@ use crate::{
     routes::AppState,
     services::api as service_api,
     types::{
-        self, api,
+        api,
         storage::{self, MerchantAccount},
         transformers::{ForeignInto, ForeignTryFrom, ForeignTryInto},
     },
@@ -362,7 +362,7 @@ pub async fn create_payment_connector(
         business_country,
         &business_label,
         req.business_sub_label.as_ref(),
-        &req.connector_name,
+        &req.connector_info.to_string(),
     );
 
     let mut vec = Vec::new();
@@ -382,14 +382,14 @@ pub async fn create_payment_connector(
     };
 
     // Validate Merchant api details and return error if not in correct format
-    let _: types::ConnectorAuthType = req
-        .connector_account_details
-        .clone()
-        .parse_value("ConnectorAuthType")
-        .change_context(errors::ApiErrorResponse::InvalidDataFormat {
-            field_name: "connector_account_details".to_string(),
-            expected_format: "auth_type and api_key".to_string(),
-        })?;
+    // let _: common_enums::ConnectorAuthType = req
+    //     .connector_account_details
+    //     .clone()
+    //     .parse_value("ConnectorAuthType")
+    //     .change_context(errors::ApiErrorResponse::InvalidDataFormat {
+    //         field_name: "connector_account_details".to_string(),
+    //         expected_format: "auth_type and api_key".to_string(),
+    //     })?;
     let frm_configs = match req.frm_configs {
         Some(frm_value) => {
             let configs_for_frm_value: serde_json::Value =
@@ -399,12 +399,16 @@ pub async fn create_payment_connector(
         }
         None => None,
     };
+
     let merchant_connector_account = storage::MerchantConnectorAccountNew {
         merchant_id: Some(merchant_id.to_string()),
         connector_type: Some(req.connector_type.foreign_into()),
-        connector_name: Some(req.connector_name),
+        connector_name: Some(req.connector_info.to_string()),
         merchant_connector_id: utils::generate_id(consts::ID_LENGTH, "mca"),
-        connector_account_details: req.connector_account_details,
+        connector_account_details: Encode::<common_enums::ConnectorAuthType>::encode_to_value(&req.connector_info).change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable_lazy(|| {
+            format!("Failed to convert connector_info as JSON: id: {merchant_id}")
+        }).map(|value| Some(Secret::new(value)))?,
         payment_methods_enabled,
         test_mode: req.test_mode,
         disabled: req.disabled,
@@ -513,7 +517,10 @@ pub async fn update_payment_connector(
         merchant_id: Some(merchant_id.to_string()),
         connector_type: Some(req.connector_type.foreign_into()),
         merchant_connector_id: Some(merchant_connector_id.to_string()),
-        connector_account_details: req.connector_account_details,
+        connector_account_details: Encode::<common_enums::ConnectorAuthType>::encode_to_value(&req.connector_account_details).change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable_lazy(|| {
+            format!("Failed to convert connector_account_details as JSON: id: {merchant_connector_id}")
+        }).map(|value| Some(Secret::new(value)))?,
         payment_methods_enabled,
         test_mode: req.test_mode,
         disabled: req.disabled,

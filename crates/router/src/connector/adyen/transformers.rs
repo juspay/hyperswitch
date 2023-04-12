@@ -404,13 +404,13 @@ impl<'a> TryFrom<&api_enums::BankNames> for AdyenTestBankNames<'a> {
     }
 }
 
-impl TryFrom<&types::ConnectorAuthType> for AdyenAuthType {
+impl TryFrom<&common_enums::ConnectorAuthType> for AdyenAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
-        if let types::ConnectorAuthType::BodyKey { api_key, key1 } = auth_type {
+    fn try_from(auth_type: &common_enums::ConnectorAuthType) -> Result<Self, Self::Error> {
+        if let common_enums::ConnectorAuthType::Adyen { adyen_api_key, adyen_account_id } = auth_type {
             Ok(Self {
-                api_key: api_key.to_string(),
-                merchant_account: key1.to_string(),
+                api_key: adyen_api_key.to_string(),
+                merchant_account: adyen_account_id.to_string(),
             })
         } else {
             Err(errors::ConnectorError::FailedToObtainAuthType)?

@@ -59,13 +59,13 @@ impl ConnectorCommon for Bluesnap {
 
     fn get_auth_header(
         &self,
-        auth_type: &types::ConnectorAuthType,
+        auth_type: &common_enums::ConnectorAuthType,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
         let auth: bluesnap::BluesnapAuthType = auth_type
             .try_into()
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         let encoded_api_key =
-            consts::BASE64_ENGINE.encode(format!("{}:{}", auth.key1, auth.api_key));
+            consts::BASE64_ENGINE.encode(format!("{}:{}", auth.username, auth.password));
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
             format!("Basic {encoded_api_key}"),

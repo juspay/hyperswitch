@@ -128,7 +128,6 @@ pub enum ConnectorType {
     PaymentVas,
     /// Accounting, Billing, Invoicing, Tax etc
     FinOperations,
-    /// Inventory, ERP, CRM, KYC etc
     FizOperations,
     /// Payment Networks like Visa, MasterCard etc
     Networks,

@@ -264,19 +264,19 @@ pub struct AuthType {
     pub merchant_account_id: String,
 }
 
-impl TryFrom<&types::ConnectorAuthType> for AuthType {
+impl TryFrom<&common_enums::ConnectorAuthType> for AuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
-        if let types::ConnectorAuthType::SignatureKey {
+    fn try_from(auth_type: &common_enums::ConnectorAuthType) -> Result<Self, Self::Error> {
+        if let common_enums::ConnectorAuthType::Worldline {
             api_key,
-            key1,
+            merchant_account_id,
             api_secret,
         } = auth_type
         {
             Ok(Self {
                 api_key: api_key.to_string(),
                 api_secret: api_secret.to_string(),
-                merchant_account_id: key1.to_string(),
+                merchant_account_id: merchant_account_id.to_string(),
             })
         } else {
             Err(errors::ConnectorError::FailedToObtainAuthType)?

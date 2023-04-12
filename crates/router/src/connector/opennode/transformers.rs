@@ -33,11 +33,11 @@ pub struct OpennodeAuthType {
     pub(super) api_key: String,
 }
 
-impl TryFrom<&types::ConnectorAuthType> for OpennodeAuthType {
+impl TryFrom<&common_enums::ConnectorAuthType> for OpennodeAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
+    fn try_from(auth_type: &common_enums::ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
-            types::ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
+            common_enums::ConnectorAuthType::Opennode { api_key } => Ok(Self {
                 api_key: api_key.to_string(),
             }),
             _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),

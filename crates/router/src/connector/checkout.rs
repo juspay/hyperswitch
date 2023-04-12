@@ -37,7 +37,7 @@ impl ConnectorCommon for Checkout {
 
     fn get_auth_header(
         &self,
-        auth_type: &types::ConnectorAuthType,
+        auth_type: &common_enums::ConnectorAuthType,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
         let auth: checkout::CheckoutAuthType = auth_type
             .try_into()

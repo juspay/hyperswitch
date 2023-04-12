@@ -52,7 +52,7 @@ where
     )
     .await?;
 
-    let auth_type: types::ConnectorAuthType = merchant_connector_account
+    let auth_type: common_enums::ConnectorAuthType = merchant_connector_account
         .get_connector_account_details()
         .parse_value("ConnectorAuthType")
         .change_context(errors::ApiErrorResponse::InternalServerError)

@@ -2623,3 +2623,157 @@ mod tests {
         assert!(result.is_err());
     }
 }
+
+#[derive(Default, serde::Serialize, Debug, Clone, serde::Deserialize, strum::Display)]
+#[serde(rename_all = "snake_case")]
+#[serde(tag = "connector_name", content = "connector_account_details")]
+pub enum ConnectorAuthType {
+    #[strum(serialize = "aci")]
+    Aci {
+        api_key: String,
+        entity_id: String,
+    },
+    #[strum(serialize = "adyen")]
+    Adyen {
+        adyen_api_key: String,
+        adyen_account_id: String,
+    },
+    #[strum(serialize = "airwallex")]
+    Airwallex {
+        app_id: String,
+        key1: String
+    },
+    //applepay not sure it will work
+    #[strum(serialize = "authorizedotnet")]
+    Authorizedotnet {
+        api_login_id: String,
+        transaction_key: String,
+    },
+    #[strum(serialize = "bambora")]
+    Bambora {
+        passcode: String,
+        merchant_id: String,
+    },
+    #[strum(serialize = "bluesnap")]
+    Bluesnap {
+        username: String,
+        password: String,
+    },
+    #[strum(serialize = "braintree")]
+    Braintree {
+        public_key: String,
+        merchant_id: String,
+        private_key: String,
+    },
+    #[strum(serialize = "checkout")]
+    Checkout {
+        checkout_api_key: String,
+        processing_channel_id: String,
+    },
+    #[strum(serialize = "coinbase")]
+    Coinbase {
+        api_key: String,
+    },
+    //TODO:need to check  
+    #[strum(serialize = "cybersource")]
+    Cybersource {
+        key: String,
+        merchant_account: String,
+        api_secret: String,
+    },
+    #[strum(serialize = "dlocal")]
+    Dlocal {
+        x_login: String,
+        x_trans_key: String,
+        secret: String,
+    },
+    #[strum(serialize = "fiserv")]
+    Fiserv {
+        api_key: String,
+        merchant_id: String,
+        api_secret: String,
+    },
+    #[strum(serialize = "forte")]
+    Forte {
+        api_key: String,
+    },
+    #[strum(serialize = "globalpay")]
+    Globalpay {
+        globalpay_app_id: String,
+        globalpay_app_key: String,
+    },
+    #[strum(serialize = "klarna")]
+    Klarna {
+        klarna_api_key: String,
+    },
+    #[strum(serialize = "mollie")]
+    Mollie {
+        api_key: String,
+    },
+    #[strum(serialize = "multisafepay")]
+    Multisafepay {
+        api_key: String,
+    },
+    #[strum(serialize = "nexinets")]
+    Nexinets {
+        api_key: String,
+    },
+    #[strum(serialize = "nuvei")]
+    Nuvei {
+        merchant_id: String,
+        merchant_site_id: String,
+        merchant_secret: String,
+    },
+    #[strum(serialize = "opennode")]
+    Opennode {
+        api_key: String,
+    },
+    #[strum(serialize = "payeezy")]
+    Payeezy {
+        api_key: String,
+        api_secret: String,
+        merchant_token: String,
+    },
+    #[strum(serialize = "paypal")]
+    Paypal {
+        api_key: String,
+        api_secret: String,
+    },
+    #[strum(serialize = "payu")]
+    Payu {
+        api_key: String,
+        merchant_pos_id: String,
+    },
+    #[strum(serialize = "rapyd")]
+    Rapyd {
+        api_secret: String,
+        secret_key: String,
+    },
+    #[strum(serialize = "shift4")]
+    Shift4 {
+        shift4_api_key: String,
+    },
+    #[strum(serialize = "stripe")]
+    Stripe {
+        stripe_api_key: String,
+    },
+    #[strum(serialize = "trustPay")]
+    TrustPay {
+        api_key: String,
+        project_id: String,
+        secret_key: String,
+    },
+    #[strum(serialize = "worldline")]
+    Worldline {
+        api_key: String,
+        api_secret: String,
+        merchant_account_id: String,
+    },
+    #[strum(serialize = "worldpay")]
+    Worldpay {
+        username: String,
+        password: String,
+    },
+    #[default]
+    NoKey,
+}

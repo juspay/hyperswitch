@@ -1,4 +1,5 @@
-use router::types::{self, api, storage::enums, AccessToken, ConnectorAuthType};
+use router::types::{self, api, storage::enums, AccessToken};
+use common_enums::ConnectorAuthType;
 
 use crate::{
     connector_auth,
@@ -17,7 +18,7 @@ impl Connector for Payu {
     }
 
     fn get_auth_token(&self) -> ConnectorAuthType {
-        types::ConnectorAuthType::from(
+        common_enums::ConnectorAuthType::from(
             connector_auth::ConnectorAuthentication::new()
                 .payu
                 .expect("Missing connector authentication configuration"),
@@ -32,9 +33,9 @@ impl Connector for Payu {
 fn get_access_token() -> Option<AccessToken> {
     let connector = Payu {};
     match connector.get_auth_token() {
-        ConnectorAuthType::BodyKey { api_key, key1 } => Some(AccessToken {
+        ConnectorAuthType::Payu { api_key, merchant_pos_id } => Some(AccessToken {
             token: api_key,
-            expires: key1.parse::<i64>().unwrap(),
+            expires: merchant_pos_id.parse::<i64>().unwrap(),
         }),
         _ => None,
     }

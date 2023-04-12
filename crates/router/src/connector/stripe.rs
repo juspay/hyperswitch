@@ -43,7 +43,7 @@ impl ConnectorCommon for Stripe {
 
     fn get_auth_header(
         &self,
-        auth_type: &types::ConnectorAuthType,
+        auth_type: &common_enums::ConnectorAuthType,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
         let auth: stripe::StripeAuthType = auth_type
             .try_into()

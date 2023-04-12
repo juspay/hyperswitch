@@ -106,13 +106,13 @@ pub struct GlobalpayAuthType {
     pub key: String,
 }
 
-impl TryFrom<&types::ConnectorAuthType> for GlobalpayAuthType {
+impl TryFrom<&common_enums::ConnectorAuthType> for GlobalpayAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
+    fn try_from(auth_type: &common_enums::ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
-            types::ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
-                app_id: key1.to_string(),
-                key: api_key.to_string(),
+            common_enums::ConnectorAuthType::Globalpay { globalpay_app_key, globalpay_app_id } => Ok(Self {
+                app_id: globalpay_app_id.to_string(),
+                key: globalpay_app_key.to_string(),
             }),
             _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
         }

@@ -37,7 +37,7 @@ impl ConnectorCommon for Klarna {
 
     fn get_auth_header(
         &self,
-        auth_type: &types::ConnectorAuthType,
+        auth_type: &common_enums::ConnectorAuthType,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
         let auth: klarna::KlarnaAuthType = auth_type
             .try_into()

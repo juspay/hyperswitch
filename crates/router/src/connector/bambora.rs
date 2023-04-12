@@ -57,7 +57,7 @@ impl ConnectorCommon for Bambora {
 
     fn get_auth_header(
         &self,
-        auth_type: &types::ConnectorAuthType,
+        auth_type: &common_enums::ConnectorAuthType,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
         let auth: bambora::BamboraAuthType = auth_type
             .try_into()

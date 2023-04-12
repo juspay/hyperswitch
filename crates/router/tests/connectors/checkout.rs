@@ -236,10 +236,7 @@ async fn test_checkout_payment_failure() {
         types::PaymentsResponseData,
     > = connector.connector.get_connector_integration();
     let mut request = construct_payment_router_data();
-    request.connector_auth_type = types::ConnectorAuthType::BodyKey {
-        api_key: "".to_string(),
-        key1: "".to_string(),
-    };
+    request.connector_auth_type = common_enums::ConnectorAuthType::Checkout { checkout_api_key: "".to_string(), processing_channel_id: "".to_string() };
     let response = services::api::execute_connector_processing_step(
         &state,
         connector_integration,

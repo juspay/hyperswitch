@@ -19,8 +19,8 @@ impl utils::Connector for CoinbaseTest {
         }
     }
 
-    fn get_auth_token(&self) -> types::ConnectorAuthType {
-        types::ConnectorAuthType::from(
+    fn get_auth_token(&self) -> common_enums::ConnectorAuthType {
+        common_enums::ConnectorAuthType::from(
             connector_auth::ConnectorAuthentication::new()
                 .coinbase
                 .expect("Missing connector authentication configuration"),

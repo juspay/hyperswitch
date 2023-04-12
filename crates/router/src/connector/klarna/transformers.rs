@@ -147,12 +147,12 @@ pub struct KlarnaAuthType {
     pub basic_token: String,
 }
 
-impl TryFrom<&types::ConnectorAuthType> for KlarnaAuthType {
+impl TryFrom<&common_enums::ConnectorAuthType> for KlarnaAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
-        if let types::ConnectorAuthType::HeaderKey { api_key } = auth_type {
+    fn try_from(auth_type: &common_enums::ConnectorAuthType) -> Result<Self, Self::Error> {
+        if let common_enums::ConnectorAuthType::Klarna { klarna_api_key } = auth_type {
             Ok(Self {
-                basic_token: api_key.to_string(),
+                basic_token: klarna_api_key.to_string(),
             })
         } else {
             Err(errors::ConnectorError::FailedToObtainAuthType.into())

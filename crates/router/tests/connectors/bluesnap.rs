@@ -1,5 +1,6 @@
 use masking::Secret;
-use router::types::{self, api, storage::enums, ConnectorAuthType};
+use router::types::{self, api, storage::enums};
+use common_enums::ConnectorAuthType;
 
 use crate::{
     connector_auth,
@@ -21,7 +22,7 @@ impl utils::Connector for BluesnapTest {
     }
 
     fn get_auth_token(&self) -> ConnectorAuthType {
-        types::ConnectorAuthType::from(
+        common_enums::ConnectorAuthType::from(
             connector_auth::ConnectorAuthentication::new()
                 .bluesnap
                 .expect("Missing connector authentication configuration"),

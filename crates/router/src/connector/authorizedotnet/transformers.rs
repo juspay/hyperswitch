@@ -25,14 +25,14 @@ struct MerchantAuthentication {
     transaction_key: String,
 }
 
-impl TryFrom<&types::ConnectorAuthType> for MerchantAuthentication {
+impl TryFrom<&common_enums::ConnectorAuthType> for MerchantAuthentication {
     type Error = error_stack::Report<errors::ConnectorError>;
 
-    fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
-        if let types::ConnectorAuthType::BodyKey { api_key, key1 } = auth_type {
+    fn try_from(auth_type: &common_enums::ConnectorAuthType) -> Result<Self, Self::Error> {
+        if let common_enums::ConnectorAuthType::Authorizedotnet { api_login_id, transaction_key } = auth_type {
             Ok(Self {
-                name: api_key.clone(),
-                transaction_key: key1.clone(),
+                name: api_login_id.clone(),
+                transaction_key: transaction_key.clone(),
             })
         } else {
             Err(errors::ConnectorError::FailedToObtainAuthType)?

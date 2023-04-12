@@ -91,12 +91,12 @@ pub struct WorldpayAuthType {
     pub(super) api_key: String,
 }
 
-impl TryFrom<&types::ConnectorAuthType> for WorldpayAuthType {
+impl TryFrom<&common_enums::ConnectorAuthType> for WorldpayAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
+    fn try_from(auth_type: &common_enums::ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
-            types::ConnectorAuthType::BodyKey { api_key, key1 } => {
-                let auth_key = format!("{key1}:{api_key}");
+            common_enums::ConnectorAuthType::Worldpay { password, username } => {
+                let auth_key = format!("{username}:{password}");
                 let auth_header = format!("Basic {}", consts::BASE64_ENGINE.encode(auth_key));
                 Ok(Self {
                     api_key: auth_header,

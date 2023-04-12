@@ -22,8 +22,8 @@ impl Connector for AirwallexTest {
         }
     }
 
-    fn get_auth_token(&self) -> types::ConnectorAuthType {
-        types::ConnectorAuthType::from(
+    fn get_auth_token(&self) -> common_enums::ConnectorAuthType {
+        common_enums::ConnectorAuthType::from(
             connector_auth::ConnectorAuthentication::new()
                 .airwallex
                 .expect("Missing connector authentication configuration"),
@@ -37,8 +37,8 @@ impl Connector for AirwallexTest {
 
 fn get_access_token() -> Option<AccessToken> {
     match CONNECTOR.get_auth_token() {
-        types::ConnectorAuthType::BodyKey { api_key, key1 } => Some(AccessToken {
-            token: api_key,
+        common_enums::ConnectorAuthType::Airwallex { app_id, key1 } => Some(AccessToken {
+            token: app_id,
             expires: key1.parse::<i64>().unwrap(),
         }),
         _ => None,

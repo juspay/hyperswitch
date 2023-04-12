@@ -65,7 +65,7 @@ impl ConnectorCommon for Rapyd {
 
     fn get_auth_header(
         &self,
-        _auth_type: &types::ConnectorAuthType,
+        _auth_type: &common_enums::ConnectorAuthType,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
         Ok(vec![])
     }

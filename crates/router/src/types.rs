@@ -13,6 +13,7 @@ pub mod transformers;
 use std::marker::PhantomData;
 
 pub use api_models::enums::Connector;
+use common_enums::ConnectorAuthType;
 use common_utils::{pii, pii::Email};
 use error_stack::{IntoReport, ResultExt};
 
@@ -367,25 +368,26 @@ pub struct ResponseRouterData<Flow, R, Request, Response> {
     pub http_code: u16,
 }
 
+//TODO: ANJI
 // Different patterns of authentication.
-#[derive(Default, Debug, Clone, serde::Deserialize)]
-#[serde(tag = "auth_type")]
-pub enum ConnectorAuthType {
-    HeaderKey {
-        api_key: String,
-    },
-    BodyKey {
-        api_key: String,
-        key1: String,
-    },
-    SignatureKey {
-        api_key: String,
-        key1: String,
-        api_secret: String,
-    },
-    #[default]
-    NoKey,
-}
+// #[derive(Default, Debug, Clone, serde::Deserialize)]
+// #[serde(tag = "auth_type")]
+// pub enum ConnectorAuthType {
+//     HeaderKey {
+//         api_key: String,
+//     },
+//     BodyKey {
+//         api_key: String,
+//         key1: String,
+//     },
+//     SignatureKey {
+//         api_key: String,
+//         key1: String,
+//         api_secret: String,
+//     },
+//     #[default]
+//     NoKey,
+// }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ConnectorsList {
@@ -427,18 +429,22 @@ impl TryFrom<ConnectorAuthType> for AccessTokenRequestData {
     type Error = errors::ApiErrorResponse;
     fn try_from(connector_auth: ConnectorAuthType) -> Result<Self, Self::Error> {
         match connector_auth {
-            ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
-                app_id: api_key,
-                id: None,
-            }),
-            ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
-                app_id: api_key,
+            ConnectorAuthType::Airwallex { app_id, key1 } => Ok(Self {
+                app_id: app_id,
                 id: Some(key1),
             }),
-            ConnectorAuthType::SignatureKey { api_key, key1, .. } => Ok(Self {
-                app_id: api_key,
-                id: Some(key1),
-            }),
+            // ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
+            //     app_id: api_key,
+            //     id: None,
+            // }),
+            // ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
+            //     app_id: api_key,
+            //     id: Some(key1),
+            // }),
+            // ConnectorAuthType::SignatureKey { api_key, key1, .. } => Ok(Self {
+            //     app_id: api_key,
+            //     id: Some(key1),
+            // }),
             _ => Err(errors::ApiErrorResponse::InvalidDataValue {
                 field_name: "connector_account_details",
             }),

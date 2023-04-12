@@ -141,13 +141,13 @@ pub struct BraintreeAuthType {
     pub(super) merchant_id: String,
 }
 
-impl TryFrom<&types::ConnectorAuthType> for BraintreeAuthType {
+impl TryFrom<&common_enums::ConnectorAuthType> for BraintreeAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
-        if let types::ConnectorAuthType::SignatureKey {
-            api_key: public_key,
-            key1: merchant_id,
-            api_secret: private_key,
+    fn try_from(item: &common_enums::ConnectorAuthType) -> Result<Self, Self::Error> {
+        if let common_enums::ConnectorAuthType::Braintree {
+            public_key,
+            merchant_id,
+            private_key,
         } = item
         {
             let auth_key = format!("{public_key}:{private_key}");

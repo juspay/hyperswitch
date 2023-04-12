@@ -271,12 +271,12 @@ pub struct Shift4AuthType {
     pub(super) api_key: String,
 }
 
-impl TryFrom<&types::ConnectorAuthType> for Shift4AuthType {
+impl TryFrom<&common_enums::ConnectorAuthType> for Shift4AuthType {
     type Error = Error;
-    fn try_from(item: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
-        if let types::ConnectorAuthType::HeaderKey { api_key } = item {
+    fn try_from(item: &common_enums::ConnectorAuthType) -> Result<Self, Self::Error> {
+        if let common_enums::ConnectorAuthType::Shift4 { shift4_api_key } = item {
             Ok(Self {
-                api_key: api_key.to_string(),
+                api_key: shift4_api_key.to_string(),
             })
         } else {
             Err(errors::ConnectorError::FailedToObtainAuthType)?

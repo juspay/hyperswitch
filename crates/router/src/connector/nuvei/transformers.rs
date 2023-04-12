@@ -692,7 +692,7 @@ pub struct NuveiPaymentRequestData {
     pub currency: String,
     pub related_transaction_id: Option<String>,
     pub client_request_id: String,
-    pub connector_auth_type: types::ConnectorAuthType,
+    pub connector_auth_type: common_enums::ConnectorAuthType,
     pub session_token: String,
     pub capture_method: Option<storage_models::enums::CaptureMethod>,
 }
@@ -755,19 +755,19 @@ pub struct NuveiAuthType {
     pub(super) merchant_secret: String,
 }
 
-impl TryFrom<&types::ConnectorAuthType> for NuveiAuthType {
+impl TryFrom<&common_enums::ConnectorAuthType> for NuveiAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
-        if let types::ConnectorAuthType::SignatureKey {
-            api_key,
-            key1,
-            api_secret,
+    fn try_from(auth_type: &common_enums::ConnectorAuthType) -> Result<Self, Self::Error> {
+        if let common_enums::ConnectorAuthType::Nuvei {
+            merchant_id,
+            merchant_site_id,
+            merchant_secret,
         } = auth_type
         {
             Ok(Self {
-                merchant_id: api_key.to_string(),
-                merchant_site_id: key1.to_string(),
-                merchant_secret: api_secret.to_string(),
+                merchant_id: merchant_id.to_string(),
+                merchant_site_id: merchant_site_id.to_string(),
+                merchant_secret: merchant_secret.to_string(),
             })
         } else {
             Err(errors::ConnectorError::FailedToObtainAuthType)?

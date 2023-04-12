@@ -141,7 +141,7 @@ impl ConnectorCommon for Paypal {
 
     fn get_auth_header(
         &self,
-        auth_type: &types::ConnectorAuthType,
+        auth_type: &common_enums::ConnectorAuthType,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
         let auth: paypal::PaypalAuthType = auth_type
             .try_into()
@@ -218,7 +218,7 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
             .try_into()
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
 
-        let auth_id = format!("{}:{}", auth.key1, auth.api_key);
+        let auth_id = format!("{}:{}", auth.api_secret, auth.api_key);
         let auth_val = format!("Basic {}", consts::BASE64_ENGINE.encode(auth_id));
 
         Ok(vec![

@@ -135,13 +135,13 @@ pub struct PayuAuthType {
     pub(super) merchant_pos_id: String,
 }
 
-impl TryFrom<&types::ConnectorAuthType> for PayuAuthType {
+impl TryFrom<&common_enums::ConnectorAuthType> for PayuAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
+    fn try_from(auth_type: &common_enums::ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
-            types::ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
+            common_enums::ConnectorAuthType::Payu { api_key, merchant_pos_id } => Ok(Self {
                 api_key: api_key.to_string(),
-                merchant_pos_id: key1.to_string(),
+                merchant_pos_id: merchant_pos_id.to_string(),
             }),
             _ => Err(errors::ConnectorError::FailedToObtainAuthType)?,
         }

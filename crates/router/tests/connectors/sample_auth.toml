@@ -3,50 +3,51 @@
 
 [aci]
 api_key = "Bearer MyApiKey"
-key1 = "MyEntityId"
+entity_id = "MyEntityId"
 
 [adyen]
-api_key = "Bearer MyApiKey"
-key1 = "MerchantId"
+adyen_api_key = "Bearer MyApiKey"
+adyen_account_id = "MerchantId"
 
 [authorizedotnet]
-api_key = "MyMerchantName"
-key1 = "MyTransactionKey"
+api_login_id = "MyMerchantName"
+transaction_key = "MyTransactionKey"
 
 [checkout]
-api_key = "Bearer MyApiKey"
-key1 = "MyProcessingChannelId"
+checkout_api_key = "Bearer MyApiKey"
+processing_channel_id = "MyProcessingChannelId"
 
 [cybersource]
-api_key = "Bearer MyApiKey"
-key1 = "Merchant id"
+key = "Bearer MyApiKey"
+merchant_account = "Merchant id"
 api_secret = "Secret key"
 
 [shift4]
-api_key = "Bearer MyApiKey"
+shift4_api_key = "Bearer MyApiKey"
 
 [worldpay]
-api_key = "api_key"
-key1 = "key1"
+username = "api_key"
+password = "key1"
 
 [payu]
-api_key = "Bearer MyApiKey"
-key1 = "MerchantPosId"
+api_secret = "Bearer MyApiKey"
+secret_key = "MerchantPosId"
 
+# TODO: need to check once 
 [globalpay]
 api_key = "Bearer MyApiKey"
 
 [rapyd]
-api_key = "access_key"
-key1 = "secret_key"
+api_secret = "access_key"
+secret_key = "secret_key"
 
 [fiserv]
 api_key = "MyApiKey"
-key1 = "MerchantID"
+merchant_id = "MerchantID"
 api_secret = "MySecretKey"
 
 [worldline]
-key1 = "Merchant Id"
+merchant_account_id = "Merchant Id"
 api_key = "API Key"
 api_secret = "API Secret Key"
 
@@ -54,29 +55,28 @@ api_secret = "API Secret Key"
 api_key = "API Key"
 
 [dlocal]
-key1 = "key1"
-api_key = "api_key"
-api_secret = "secret"
+x_login = "key1"
+x_trans_key = "api_key"
+secret = "secret"
 
 [bambora]
-api_key = "api_key"
-key1= "key1"
+passcode = "api_key"
+merchant_id= "key1"
 
 [nuvei]
-api_key = "api_key"
-key1 = "key1"
-api_secret = "secret"
+merchant_id = "api_key"
+merchant_site_id = "key1"
+merchant_secret = "secret"
 
 [paypal]
 api_key = "api_key"
-key1 = "key1"
+api_secret = "key1"
 
 [mollie]
 api_key = "API Key"
 
 [forte]
 api_key="API Key"
-
 
 [coinbase]
 api_key="API Key"
@@ -90,5 +90,5 @@ key1 = "key1"
 
 [payeezy]
 api_key = "api_key"
-key1 = "key1"
+merchant_token = "key1"
 api_secret = "secret"

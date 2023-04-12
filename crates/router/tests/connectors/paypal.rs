@@ -1,5 +1,6 @@
+use common_enums::ConnectorAuthType;
 use masking::Secret;
-use router::types::{self, api, storage::enums, AccessToken, ConnectorAuthType};
+use router::types::{self, api, storage::enums, AccessToken};
 
 use crate::{
     connector_auth,
@@ -19,7 +20,7 @@ impl Connector for PaypalTest {
     }
 
     fn get_auth_token(&self) -> ConnectorAuthType {
-        types::ConnectorAuthType::from(
+        common_enums::ConnectorAuthType::from(
             connector_auth::ConnectorAuthentication::new()
                 .paypal
                 .expect("Missing connector authentication configuration"),
@@ -36,7 +37,7 @@ fn get_access_token() -> Option<AccessToken> {
     let connector = PaypalTest {};
 
     match connector.get_auth_token() {
-        ConnectorAuthType::BodyKey { api_key, key1: _ } => Some(AccessToken {
+        ConnectorAuthType::Paypal { api_key, api_secret: _ } => Some(AccessToken {
             token: api_key,
             expires: 18600,
         }),

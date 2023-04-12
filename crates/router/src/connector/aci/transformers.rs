@@ -15,13 +15,13 @@ pub struct AciAuthType {
     pub entity_id: String,
 }
 
-impl TryFrom<&types::ConnectorAuthType> for AciAuthType {
+impl TryFrom<&common_enums::ConnectorAuthType> for AciAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
-        if let types::ConnectorAuthType::BodyKey { api_key, key1 } = item {
+    fn try_from(item: &common_enums::ConnectorAuthType) -> Result<Self, Self::Error> {
+        if let common_enums::ConnectorAuthType::Aci { api_key, entity_id } = item {
             Ok(Self {
                 api_key: api_key.to_string(),
-                entity_id: key1.to_string(),
+                entity_id: entity_id.to_string(),
             })
         } else {
             Err(errors::ConnectorError::FailedToObtainAuthType)?

@@ -203,19 +203,19 @@ pub struct PayeezyAuthType {
     pub(super) merchant_token: String,
 }
 
-impl TryFrom<&types::ConnectorAuthType> for PayeezyAuthType {
+impl TryFrom<&common_enums::ConnectorAuthType> for PayeezyAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
-        if let types::ConnectorAuthType::SignatureKey {
+    fn try_from(item: &common_enums::ConnectorAuthType) -> Result<Self, Self::Error> {
+        if let common_enums::ConnectorAuthType::Payeezy {
             api_key,
-            key1,
             api_secret,
+            merchant_token,
         } = item
         {
             Ok(Self {
                 api_key: api_key.to_string(),
                 api_secret: api_secret.to_string(),
-                merchant_token: key1.to_string(),
+                merchant_token: merchant_token.to_string(),
             })
         } else {
             Err(errors::ConnectorError::FailedToObtainAuthType.into())

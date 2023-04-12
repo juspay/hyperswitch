@@ -206,18 +206,18 @@ pub struct CybersourceAuthType {
     pub(super) api_secret: String,
 }
 
-impl TryFrom<&types::ConnectorAuthType> for CybersourceAuthType {
+impl TryFrom<&common_enums::ConnectorAuthType> for CybersourceAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
-        if let types::ConnectorAuthType::SignatureKey {
-            api_key,
-            key1,
+    fn try_from(auth_type: &common_enums::ConnectorAuthType) -> Result<Self, Self::Error> {
+        if let common_enums::ConnectorAuthType::Cybersource {
+            key,
+            merchant_account,
             api_secret,
         } = auth_type
         {
             Ok(Self {
-                api_key: api_key.to_string(),
-                merchant_account: key1.to_string(),
+                api_key: key.to_string(),
+                merchant_account: merchant_account.to_string(),
                 api_secret: api_secret.to_string(),
             })
         } else {

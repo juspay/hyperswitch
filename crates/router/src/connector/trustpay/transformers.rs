@@ -24,19 +24,19 @@ pub struct TrustpayAuthType {
     pub(super) secret_key: String,
 }
 
-impl TryFrom<&types::ConnectorAuthType> for TrustpayAuthType {
+impl TryFrom<&common_enums::ConnectorAuthType> for TrustpayAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
-        if let types::ConnectorAuthType::SignatureKey {
+    fn try_from(auth_type: &common_enums::ConnectorAuthType) -> Result<Self, Self::Error> {
+        if let common_enums::ConnectorAuthType::TrustPay {
             api_key,
-            key1,
-            api_secret,
+            project_id,
+            secret_key,
         } = auth_type
         {
             Ok(Self {
                 api_key: api_key.to_string(),
-                project_id: key1.to_string(),
-                secret_key: api_secret.to_string(),
+                project_id: project_id.to_string(),
+                secret_key: secret_key.to_string(),
             })
         } else {
             Err(errors::ConnectorError::FailedToObtainAuthType.into())

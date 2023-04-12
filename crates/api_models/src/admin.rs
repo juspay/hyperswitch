@@ -1,3 +1,4 @@
+use common_enums::ConnectorAuthType;
 use common_utils::pii;
 use masking::{Secret, StrongSecret};
 use serde::{Deserialize, Serialize};
@@ -319,8 +320,8 @@ pub struct MerchantConnectorCreate {
     #[schema(value_type = ConnectorType, example = "payment_processor")]
     pub connector_type: api_enums::ConnectorType,
     /// Name of the Connector
-    #[schema(example = "stripe")]
-    pub connector_name: String,
+    // #[schema(example = "stripe")]
+    // pub connector_name: String,
     // /// Connector label for specific country and Business
     #[serde(skip_deserializing)]
     #[schema(example = "stripe_US_travel")]
@@ -329,9 +330,13 @@ pub struct MerchantConnectorCreate {
     /// Unique ID of the connector
     #[schema(example = "mca_5apGeP94tMts6rg3U3kR")]
     pub merchant_connector_id: Option<String>,
-    /// Account details of the Connector. You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Useful for storing additional, structured information on an object.
-    #[schema(value_type = Option<Object>,example = json!({ "auth_type": "HeaderKey","api_key": "Basic MyVerySecretApiKey" }))]
-    pub connector_account_details: Option<pii::SecretSerdeValue>,
+    // /// Account details of the Connector. You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Useful for storing additional, structured information on an object.
+    // #[schema(value_type = Option<Object>,example = json!({ "auth_type": "HeaderKey","api_key": "Basic MyVerySecretApiKey" }))]
+    // pub connector_account_details: Option<pii::SecretSerdeValue>,
+    #[schema(value_type = Option<Object>,example = json!({ "api_key": "Basic MyVerySecretApiKey" }))]
+    #[serde(flatten)]
+    pub connector_info: ConnectorAuthType,
+
     /// A boolean value to indicate if the connector is in Test mode. By default, its value is false.
     #[schema(default = false, example = false)]
     pub test_mode: Option<bool>,

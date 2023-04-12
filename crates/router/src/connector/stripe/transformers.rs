@@ -20,12 +20,12 @@ pub struct StripeAuthType {
     pub(super) api_key: String,
 }
 
-impl TryFrom<&types::ConnectorAuthType> for StripeAuthType {
+impl TryFrom<&common_enums::ConnectorAuthType> for StripeAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
-        if let types::ConnectorAuthType::HeaderKey { api_key } = item {
+    fn try_from(item: &common_enums::ConnectorAuthType) -> Result<Self, Self::Error> {
+        if let common_enums::ConnectorAuthType::Stripe { stripe_api_key } = item {
             Ok(Self {
-                api_key: api_key.to_string(),
+                api_key: stripe_api_key.to_string(),
             })
         } else {
             Err(errors::ConnectorError::FailedToObtainAuthType.into())
