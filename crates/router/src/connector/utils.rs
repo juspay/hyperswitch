@@ -47,9 +47,10 @@ impl AccessTokenRequestInfo for types::RefreshTokenRouterData {
 
 pub trait RouterData {
     fn get_billing(&self) -> Result<&api::Address, Error>;
-    fn get_billing_country(&self) -> Result<String, Error>;
+    fn get_billing_country(&self) -> Result<api_models::enums::CountryCode, Error>;
     fn get_billing_phone(&self) -> Result<&api::PhoneDetails, Error>;
     fn get_description(&self) -> Result<String, Error>;
+    fn get_return_url(&self) -> Result<String, Error>;
     fn get_billing_address(&self) -> Result<&api::AddressDetails, Error>;
     fn get_shipping_address(&self) -> Result<&api::AddressDetails, Error>;
     fn get_connector_meta(&self) -> Result<pii::SecretSerdeValue, Error>;
@@ -57,7 +58,6 @@ pub trait RouterData {
     fn to_connector_meta<T>(&self) -> Result<T, Error>
     where
         T: serde::de::DeserializeOwned;
-    fn get_return_url(&self) -> Result<String, Error>;
     fn is_three_ds(&self) -> bool;
 }
 
@@ -69,12 +69,12 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
             .ok_or_else(missing_field_err("billing"))
     }
 
-    fn get_billing_country(&self) -> Result<String, Error> {
+    fn get_billing_country(&self) -> Result<api_models::enums::CountryCode, Error> {
         self.address
             .billing
             .as_ref()
             .and_then(|a| a.address.as_ref())
-            .and_then(|ad| ad.country.clone())
+            .and_then(|ad| ad.country)
             .ok_or_else(missing_field_err("billing.address.country"))
     }
 
@@ -89,6 +89,11 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
         self.description
             .clone()
             .ok_or_else(missing_field_err("description"))
+    }
+    fn get_return_url(&self) -> Result<String, Error> {
+        self.return_url
+            .clone()
+            .ok_or_else(missing_field_err("return_url"))
     }
     fn get_billing_address(&self) -> Result<&api::AddressDetails, Error> {
         self.address
@@ -118,12 +123,6 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
             .change_context(errors::ConnectorError::NoConnectorMetaData)
     }
 
-    fn get_return_url(&self) -> Result<String, Error> {
-        self.router_return_url
-            .clone()
-            .ok_or_else(missing_field_err("return_url"))
-    }
-
     fn is_three_ds(&self) -> bool {
         matches!(
             self.auth_type,
@@ -145,6 +144,9 @@ pub trait PaymentsAuthorizeRequestData {
     fn get_email(&self) -> Result<Secret<String, Email>, Error>;
     fn get_browser_info(&self) -> Result<types::BrowserInformation, Error>;
     fn get_card(&self) -> Result<api::Card, Error>;
+    fn get_return_url(&self) -> Result<String, Error>;
+    fn is_mandate_payment(&self) -> bool;
+    fn get_webhook_url(&self) -> Result<String, Error>;
 }
 
 impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
@@ -164,6 +166,24 @@ impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
             api::PaymentMethodData::Card(card) => Ok(card),
             _ => Err(missing_field_err("card")()),
         }
+    }
+    fn get_return_url(&self) -> Result<String, Error> {
+        self.router_return_url
+            .clone()
+            .ok_or_else(missing_field_err("return_url"))
+    }
+    fn is_mandate_payment(&self) -> bool {
+        self.setup_mandate_details.is_some()
+            || self
+                .mandate_id
+                .as_ref()
+                .and_then(|mandate_ids| mandate_ids.connector_mandate_id.as_ref())
+                .is_some()
+    }
+    fn get_webhook_url(&self) -> Result<String, Error> {
+        self.router_return_url
+            .clone()
+            .ok_or_else(missing_field_err("webhook_url"))
     }
 }
 
@@ -248,7 +268,11 @@ pub enum CardIssuer {
 pub trait CardData {
     fn get_card_expiry_year_2_digit(&self) -> Secret<String>;
     fn get_card_issuer(&self) -> Result<CardIssuer, Error>;
-    fn get_card_expiry_month_year_2_digit_with_delimiter(&self, delimiter: String) -> String;
+    fn get_card_expiry_month_year_2_digit_with_delimiter(
+        &self,
+        delimiter: String,
+    ) -> Secret<String>;
+    fn get_expiry_date_as_yyyymm(&self, delimiter: &str) -> Secret<String>;
 }
 
 impl CardData for api::Card {
@@ -264,14 +288,29 @@ impl CardData for api::Card {
             .map(|card| card.split_whitespace().collect());
         get_card_issuer(card.peek().clone().as_str())
     }
-    fn get_card_expiry_month_year_2_digit_with_delimiter(&self, delimiter: String) -> String {
+    fn get_card_expiry_month_year_2_digit_with_delimiter(
+        &self,
+        delimiter: String,
+    ) -> Secret<String> {
         let year = self.get_card_expiry_year_2_digit();
-        format!(
+        Secret::new(format!(
             "{}{}{}",
             self.card_exp_month.peek().clone(),
             delimiter,
             year.peek()
-        )
+        ))
+    }
+    fn get_expiry_date_as_yyyymm(&self, delimiter: &str) -> Secret<String> {
+        let mut x = self.card_exp_year.peek().clone();
+        if x.len() == 2 {
+            x = format!("20{}", x);
+        }
+        Secret::new(format!(
+            "{}{}{}",
+            x,
+            delimiter,
+            self.card_exp_month.peek().clone()
+        ))
     }
 }
 
@@ -289,6 +328,32 @@ fn get_card_issuer(card_number: &str) -> Result<CardIssuer, Error> {
         errors::ConnectorError::NotImplemented("Card Type".into()),
     ))
 }
+pub trait WalletData {
+    fn get_wallet_token(&self) -> Result<String, Error>;
+    fn get_wallet_token_as_json<T>(&self) -> Result<T, Error>
+    where
+        T: serde::de::DeserializeOwned;
+}
+
+impl WalletData for api::WalletData {
+    fn get_wallet_token(&self) -> Result<String, Error> {
+        match self {
+            Self::GooglePay(data) => Ok(data.tokenization_data.token.clone()),
+            Self::ApplePay(data) => Ok(data.payment_data.clone()),
+            Self::PaypalSdk(data) => Ok(data.token.clone()),
+            _ => Err(errors::ConnectorError::InvalidWallet.into()),
+        }
+    }
+    fn get_wallet_token_as_json<T>(&self) -> Result<T, Error>
+    where
+        T: serde::de::DeserializeOwned,
+    {
+        serde_json::from_str::<T>(&self.get_wallet_token()?)
+            .into_report()
+            .change_context(errors::ConnectorError::InvalidWalletToken)
+    }
+}
+
 pub trait PhoneDetailsData {
     fn get_number(&self) -> Result<Secret<String>, Error>;
     fn get_country_code(&self) -> Result<String, Error>;
@@ -314,7 +379,7 @@ pub trait AddressDetailsData {
     fn get_city(&self) -> Result<&String, Error>;
     fn get_line2(&self) -> Result<&Secret<String>, Error>;
     fn get_zip(&self) -> Result<&Secret<String>, Error>;
-    fn get_country(&self) -> Result<&String, Error>;
+    fn get_country(&self) -> Result<&api_models::enums::CountryCode, Error>;
     fn get_combined_address_line(&self) -> Result<Secret<String>, Error>;
 }
 
@@ -355,7 +420,7 @@ impl AddressDetailsData for api::AddressDetails {
             .ok_or_else(missing_field_err("address.zip"))
     }
 
-    fn get_country(&self) -> Result<&String, Error> {
+    fn get_country(&self) -> Result<&api_models::enums::CountryCode, Error> {
         self.country
             .as_ref()
             .ok_or_else(missing_field_err("address.country"))
@@ -428,15 +493,6 @@ impl common_utils::errors::ErrorSwitch<errors::ConnectorError> for errors::Parsi
     fn switch(&self) -> errors::ConnectorError {
         errors::ConnectorError::ParsingFailed
     }
-}
-
-pub fn to_string<T>(data: &T) -> Result<String, Error>
-where
-    T: serde::Serialize,
-{
-    serde_json::to_string(data)
-        .into_report()
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
 }
 
 pub fn base64_decode(data: String) -> Result<Vec<u8>, Error> {

@@ -10,7 +10,7 @@ use config::{Environment, File};
 use external_services::kms;
 use redis_interface::RedisSettings;
 pub use router_env::config::{Log, LogConsole, LogFile, LogTelemetry};
-use serde::{Deserialize, Deserializer};
+use serde::{de::Error, Deserialize, Deserializer};
 
 use crate::{
     core::errors::{ApplicationError, ApplicationResult},
@@ -62,6 +62,33 @@ pub struct Settings {
     pub api_keys: ApiKeys,
     #[cfg(feature = "kms")]
     pub kms: kms::KmsConfig,
+    pub tokenization: TokenizationConfig,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+#[serde(transparent)]
+pub struct TokenizationConfig(pub HashMap<String, PaymentMethodTokenFilter>);
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct PaymentMethodTokenFilter {
+    #[serde(deserialize_with = "pm_deser")]
+    pub payment_method: HashSet<storage_models::enums::PaymentMethod>,
+    pub long_lived_token: bool,
+}
+
+fn pm_deser<'a, D>(
+    deserializer: D,
+) -> Result<HashSet<storage_models::enums::PaymentMethod>, D::Error>
+where
+    D: Deserializer<'a>,
+{
+    let value = <String>::deserialize(deserializer)?;
+    value
+        .trim()
+        .split(',')
+        .map(storage_models::enums::PaymentMethod::from_str)
+        .collect::<Result<_, _>>()
+        .map_err(D::Error::custom)
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -98,10 +125,12 @@ pub struct CurrencyCountryFilter {
     #[serde(deserialize_with = "currency_set_deser")]
     pub currency: Option<HashSet<api_models::enums::Currency>>,
     #[serde(deserialize_with = "string_set_deser")]
-    pub country: Option<HashSet<String>>,
+    pub country: Option<HashSet<api_models::enums::CountryCode>>,
 }
 
-fn string_set_deser<'a, D>(deserializer: D) -> Result<Option<HashSet<String>>, D::Error>
+fn string_set_deser<'a, D>(
+    deserializer: D,
+) -> Result<Option<HashSet<api_models::enums::CountryCode>>, D::Error>
 where
     D: Deserializer<'a>,
 {
@@ -110,7 +139,7 @@ where
         let list = inner
             .trim()
             .split(',')
-            .map(|value| value.to_string())
+            .flat_map(api_models::enums::CountryCode::from_str)
             .collect::<HashSet<_>>();
         match list.len() {
             0 => None,
@@ -165,6 +194,7 @@ pub struct Locker {
     pub mock_locker: bool,
     pub basilisk_host: String,
     pub locker_setup: LockerSetup,
+    pub locker_signing_key_id: String,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -223,12 +253,15 @@ pub struct Server {
 #[serde(default)]
 pub struct Database {
     pub username: String,
+    #[cfg(not(feature = "kms"))]
     pub password: String,
     pub host: String,
     pub port: u16,
     pub dbname: String,
     pub pool_size: u32,
     pub connection_timeout: u64,
+    #[cfg(feature = "kms")]
+    pub kms_encrypted_password: String,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -249,6 +282,7 @@ pub struct Connectors {
     pub bluesnap: ConnectorParams,
     pub braintree: ConnectorParams,
     pub checkout: ConnectorParams,
+    pub coinbase: ConnectorParams,
     pub cybersource: ConnectorParams,
     pub dlocal: ConnectorParams,
     pub fiserv: ConnectorParams,
@@ -257,6 +291,8 @@ pub struct Connectors {
     pub mollie: ConnectorParams,
     pub multisafepay: ConnectorParams,
     pub nuvei: ConnectorParams,
+    pub opennode: ConnectorParams,
+    pub paypal: ConnectorParams,
     pub payu: ConnectorParams,
     pub rapyd: ConnectorParams,
     pub shift4: ConnectorParams,
@@ -288,6 +324,8 @@ pub struct SchedulerSettings {
     pub stream: String,
     pub producer: ProducerSettings,
     pub consumer: ConsumerSettings,
+    pub loop_interval: u64,
+    pub graceful_shutdown_interval: u64,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -419,5 +457,23 @@ impl Settings {
             .map_err(|error| ApplicationError::InvalidConfigurationValueError(error.into()))?;
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod payment_method_deserialization_test {
+    #![allow(clippy::unwrap_used)]
+    use serde::de::{
+        value::{Error as ValueError, StrDeserializer},
+        IntoDeserializer,
+    };
+
+    use super::*;
+
+    #[test]
+    fn test_pm_deserializer() {
+        let deserializer: StrDeserializer<'_, ValueError> = "wallet,card".into_deserializer();
+        let test_pm = pm_deser(deserializer);
+        assert!(test_pm.is_ok())
     }
 }

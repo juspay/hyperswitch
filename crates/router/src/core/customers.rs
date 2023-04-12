@@ -170,7 +170,7 @@ pub async fn delete_customer(
 
     let update_address = storage::AddressUpdate::Update {
         city: Some(REDACTED.to_string()),
-        country: Some(REDACTED.to_string()),
+        country: None,
         line1: Some(REDACTED.to_string().into()),
         line2: Some(REDACTED.to_string().into()),
         line3: Some(REDACTED.to_string().into()),

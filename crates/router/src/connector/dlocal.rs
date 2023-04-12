@@ -27,6 +27,7 @@ use crate::{
 pub struct Dlocal;
 
 impl api::Payment for Dlocal {}
+impl api::PaymentToken for Dlocal {}
 impl api::PaymentSession for Dlocal {}
 impl api::ConnectorAccessToken for Dlocal {}
 impl api::PreVerify for Dlocal {}
@@ -112,6 +113,16 @@ impl ConnectorCommon for Dlocal {
     }
 }
 
+impl
+    ConnectorIntegration<
+        api::PaymentMethodToken,
+        types::PaymentMethodTokenizationData,
+        types::PaymentsResponseData,
+    > for Dlocal
+{
+    // Not Implemented (R)
+}
+
 impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::PaymentsResponseData>
     for Dlocal
 {
@@ -171,6 +182,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
                 .url(&types::PaymentsAuthorizeType::get_url(
                     self, req, connectors,
                 )?)
+                .attach_default_headers()
                 .headers(types::PaymentsAuthorizeType::get_headers(
                     self, req, connectors,
                 )?)
@@ -243,6 +255,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
             services::RequestBuilder::new()
                 .method(services::Method::Get)
                 .url(&types::PaymentsSyncType::get_url(self, req, connectors)?)
+                .attach_default_headers()
                 .headers(types::PaymentsSyncType::get_headers(self, req, connectors)?)
                 .build(),
         ))
@@ -316,6 +329,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
             services::RequestBuilder::new()
                 .method(services::Method::Post)
                 .url(&types::PaymentsCaptureType::get_url(self, req, connectors)?)
+                .attach_default_headers()
                 .headers(types::PaymentsCaptureType::get_headers(
                     self, req, connectors,
                 )?)
@@ -388,6 +402,7 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
             services::RequestBuilder::new()
                 .method(services::Method::Post)
                 .url(&types::PaymentsVoidType::get_url(self, req, connectors)?)
+                .attach_default_headers()
                 .headers(types::PaymentsVoidType::get_headers(self, req, connectors)?)
                 .build(),
         ))
@@ -458,6 +473,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         let request = services::RequestBuilder::new()
             .method(services::Method::Post)
             .url(&types::RefundExecuteType::get_url(self, req, connectors)?)
+            .attach_default_headers()
             .headers(types::RefundExecuteType::get_headers(
                 self, req, connectors,
             )?)
@@ -528,6 +544,7 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
             services::RequestBuilder::new()
                 .method(services::Method::Get)
                 .url(&types::RefundSyncType::get_url(self, req, connectors)?)
+                .attach_default_headers()
                 .headers(types::RefundSyncType::get_headers(self, req, connectors)?)
                 .build(),
         ))

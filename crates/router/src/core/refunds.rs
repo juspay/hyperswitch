@@ -18,7 +18,7 @@ use crate::{
     types::{
         self,
         api::{self, refunds},
-        storage::{self, enums, PaymentAttemptExt, ProcessTrackerExt},
+        storage::{self, enums, ProcessTrackerExt},
         transformers::{ForeignFrom, ForeignInto},
     },
     utils::{self, OptionExt},
@@ -37,26 +37,6 @@ pub async fn refund_create_core(
 
     merchant_id = &merchant_account.merchant_id;
 
-    payment_attempt = db
-        .find_payment_attempt_last_successful_attempt_by_payment_id_merchant_id(
-            &req.payment_id,
-            merchant_id,
-            merchant_account.storage_scheme,
-        )
-        .await
-        .change_context(errors::ApiErrorResponse::SuccessfulPaymentNotFound)?;
-
-    // Amount is not passed in request refer from payment attempt.
-    amount = req.amount.unwrap_or(payment_attempt.amount); // [#298]: Need to that capture amount
-                                                           //[#299]: Can we change the flow based on some workflow idea
-    utils::when(amount <= 0, || {
-        Err(report!(errors::ApiErrorResponse::InvalidDataFormat {
-            field_name: "amount".to_string(),
-            expected_format: "positive integer".to_string()
-        })
-        .attach_printable("amount less than zero"))
-    })?;
-
     payment_intent = db
         .find_payment_intent_by_payment_id_merchant_id(
             &req.payment_id,
@@ -73,6 +53,32 @@ pub async fn refund_create_core(
                 .attach_printable("unable to refund for a unsuccessful payment intent"))
         },
     )?;
+
+    // Amount is not passed in request refer from payment attempt.
+    amount = req.amount.unwrap_or(
+        payment_intent
+            .amount_captured
+            .ok_or(errors::ApiErrorResponse::InternalServerError)
+            .into_report()
+            .attach_printable("amount captured is none in a successful payment")?,
+    );
+    //[#299]: Can we change the flow based on some workflow idea
+    utils::when(amount <= 0, || {
+        Err(report!(errors::ApiErrorResponse::InvalidDataFormat {
+            field_name: "amount".to_string(),
+            expected_format: "positive integer".to_string()
+        })
+        .attach_printable("amount less than zero"))
+    })?;
+
+    payment_attempt = db
+        .find_payment_attempt_last_successful_attempt_by_payment_id_merchant_id(
+            &req.payment_id,
+            merchant_id,
+            merchant_account.storage_scheme,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::SuccessfulPaymentNotFound)?;
 
     let creds_identifier = req
         .merchant_connector_details
@@ -114,8 +120,8 @@ pub async fn trigger_refund_to_gateway(
     creds_identifier: Option<String>,
 ) -> RouterResult<storage::Refund> {
     let routed_through = payment_attempt
-        .get_routed_through_connector()
-        .change_context(errors::ApiErrorResponse::InternalServerError)?
+        .connector
+        .clone()
         .ok_or(errors::ApiErrorResponse::InternalServerError)
         .into_report()
         .attach_printable("Failed to retrieve connector from payment attempt")?;
@@ -546,8 +552,8 @@ pub async fn validate_and_create_refund(
             .change_context(errors::ApiErrorResponse::MaximumRefundCount)?;
 
             let connector = payment_attempt
-                .get_routed_through_connector()
-                .change_context(errors::ApiErrorResponse::InternalServerError)?
+                .connector
+                .clone()
                 .ok_or(errors::ApiErrorResponse::InternalServerError)
                 .into_report()
                 .attach_printable("No connector populated in payment attempt")?;

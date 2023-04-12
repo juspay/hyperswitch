@@ -68,9 +68,10 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsStartRequest> f
         )?;
 
         payment_attempt = db
-            .find_payment_attempt_by_payment_id_merchant_id(
-                &payment_id,
+            .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
+                payment_intent.payment_id.as_str(),
                 merchant_id,
+                payment_intent.active_attempt_id.as_str(),
                 storage_scheme,
             )
             .await
@@ -144,6 +145,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsStartRequest> f
                 sessions_token: vec![],
                 card_cvc: None,
                 creds_identifier: None,
+                pm_token: None,
             },
             Some(customer_details),
         ))

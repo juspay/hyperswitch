@@ -21,8 +21,6 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
         payment_id: uuid::Uuid::new_v4().to_string(),
         attempt_id: uuid::Uuid::new_v4().to_string(),
         status: enums::AttemptStatus::default(),
-        router_return_url: None,
-        complete_authorize_url: None,
         auth_type: enums::AuthenticationType::NoThreeDs,
         payment_method: enums::PaymentMethod::Card,
         connector_auth_type: auth.into(),
@@ -56,6 +54,9 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
             related_transaction_id: None,
             payment_experience: None,
             payment_method_type: None,
+            router_return_url: None,
+            webhook_url: None,
+            complete_authorize_url: None,
         },
         response: Err(types::ErrorResponse::default()),
         payment_method_id: None,
@@ -65,6 +66,7 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
         access_token: None,
         session_token: None,
         reference_id: None,
+        payment_method_token: None,
     }
 }
 
@@ -81,8 +83,6 @@ fn construct_refund_router_data<F>() -> types::RefundsRouterData<F> {
         payment_id: uuid::Uuid::new_v4().to_string(),
         attempt_id: uuid::Uuid::new_v4().to_string(),
         status: enums::AttemptStatus::default(),
-        router_return_url: None,
-        complete_authorize_url: None,
         payment_method: enums::PaymentMethod::Card,
         auth_type: enums::AuthenticationType::NoThreeDs,
         connector_auth_type: auth.into(),
@@ -105,6 +105,7 @@ fn construct_refund_router_data<F>() -> types::RefundsRouterData<F> {
         access_token: None,
         session_token: None,
         reference_id: None,
+        payment_method_token: None,
     }
 }
 

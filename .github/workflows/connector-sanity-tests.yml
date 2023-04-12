@@ -1,0 +1,101 @@
+name: Connector Sanity Tests
+
+on:
+  push:
+    branches:
+      - main
+
+  pull_request:
+
+  schedule:
+    - cron: '5 0 * * *'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Disable incremental compilation.
+  #
+  # Incremental compilation is useful as part of an edit-build-test-edit cycle,
+  # as it lets the compiler avoid recompiling code that hasn't changed. However,
+  # on CI, we're not making small edits; we're almost always building the entire
+  # project from scratch. Thus, incremental compilation on CI actually
+  # introduces *additional* overhead to support making future builds
+  # faster...but no future builds will ever occur in any given CI environment.
+  #
+  # See https://matklad.github.io/2021/09/04/fast-rust-builds.html#ci-workflow
+  # for details.
+  CARGO_INCREMENTAL: 0
+  # Allow more retries for network requests in cargo (downloading crates) and
+  # rustup (installing toolchains). This should help to reduce flaky CI failures
+  # from transient network timeouts or other issues.
+  CARGO_NET_RETRY: 10
+  RUSTUP_MAX_RETRIES: 10
+  # Don't emit giant backtraces in the CI logs.
+  RUST_BACKTRACE: short
+  # Use cargo's sparse index protocol
+  CARGO_REGISTRIES_CRATES_IO_PROTOCOL: sparse
+
+jobs:
+  test_connectors:
+    name: Run tests on stable toolchain for connectors
+    runs-on: ubuntu-latest
+    
+    services:
+      redis:
+        image: redis
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    strategy:
+      fail-fast: false
+      matrix:
+        connector:
+          - stripe
+          - aci
+          - adyen
+          #- authorizedotnet 
+          #- checkout
+          #- cybersource
+          - shift4
+          #- worldpay
+          #- payu
+          #- globalpay
+          #- rapyd
+          #- fiserv
+          - worldline
+          #- multisafepay
+          #- dlocal
+          #- bambora
+          #- nuvei
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3.1.0
+      
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+
+      - uses: Swatinem/rust-cache@v2.2.0
+
+      - name: Decrypt connector auth file
+        run: ./scripts/decrypt_connector_auth.sh
+        env:
+          CONNECTOR_AUTH_PASSPHRASE: ${{ secrets.CONNECTOR_AUTH_PASSPHRASE }}
+
+      - name: Set connector auth file path in env
+        run: echo "CONNECTOR_AUTH_FILE_PATH=$HOME/target/test/connector_auth.toml" >> $GITHUB_ENV
+
+      - name: Run connector tests
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --package router --test connectors -- ${{ matrix.connector }} --test-threads=1

@@ -12,12 +12,7 @@ fn logger() -> &'static TelemetryGuard {
     INSTANCE.get_or_init(|| {
         let config = env::Config::new().unwrap();
 
-        env::logger::setup(
-            &config.log,
-            env::service_name!(),
-            vec![env::service_name!()],
-        )
-        .unwrap()
+        env::logger::setup(&config.log, env::service_name!(), []).unwrap()
     })
 }
 

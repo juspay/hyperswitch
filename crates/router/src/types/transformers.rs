@@ -129,6 +129,7 @@ impl ForeignFrom<storage_enums::AttemptStatus> for storage_enums::IntentStatus {
 
             storage_enums::AttemptStatus::Authorized => Self::RequiresCapture,
             storage_enums::AttemptStatus::AuthenticationPending => Self::RequiresCustomerAction,
+            storage_enums::AttemptStatus::Unresolved => Self::RequiresMerchantAction,
 
             storage_enums::AttemptStatus::PartialCharged
             | storage_enums::AttemptStatus::Started
@@ -156,6 +157,8 @@ impl ForeignTryFrom<api_enums::IntentStatus> for storage_enums::EventType {
     fn foreign_try_from(value: api_enums::IntentStatus) -> Result<Self, Self::Error> {
         match value {
             api_enums::IntentStatus::Succeeded => Ok(Self::PaymentSucceeded),
+            api_enums::IntentStatus::Processing => Ok(Self::PaymentProcessing),
+            api_enums::IntentStatus::RequiresMerchantAction => Ok(Self::ActionRequired),
             _ => Err(errors::ValidationError::IncorrectValueProvided {
                 field_name: "intent_status",
             }),
@@ -173,6 +176,22 @@ impl ForeignTryFrom<storage_enums::RefundStatus> for storage_enums::EventType {
             _ => Err(errors::ValidationError::IncorrectValueProvided {
                 field_name: "refund_status",
             }),
+        }
+    }
+}
+
+impl ForeignTryFrom<storage_enums::DisputeStatus> for storage_enums::EventType {
+    type Error = errors::ValidationError;
+
+    fn foreign_try_from(value: storage_enums::DisputeStatus) -> Result<Self, Self::Error> {
+        match value {
+            storage_enums::DisputeStatus::DisputeOpened => Ok(Self::DisputeOpened),
+            storage_enums::DisputeStatus::DisputeExpired => Ok(Self::DisputeExpired),
+            storage_enums::DisputeStatus::DisputeAccepted => Ok(Self::DisputeAccepted),
+            storage_enums::DisputeStatus::DisputeCancelled => Ok(Self::DisputeCancelled),
+            storage_enums::DisputeStatus::DisputeChallenged => Ok(Self::DisputeChallenged),
+            storage_enums::DisputeStatus::DisputeWon => Ok(Self::DisputeWon),
+            storage_enums::DisputeStatus::DisputeLost => Ok(Self::DisputeLost),
         }
     }
 }
@@ -246,6 +265,7 @@ impl ForeignFrom<api_enums::Currency> for storage_enums::Currency {
         frunk::labelled_convert_from(currency)
     }
 }
+
 impl ForeignFrom<storage_enums::Currency> for api_enums::Currency {
     fn foreign_from(currency: storage_enums::Currency) -> Self {
         frunk::labelled_convert_from(currency)
@@ -257,7 +277,7 @@ impl<'a> ForeignFrom<&'a api_types::Address> for storage::AddressUpdate {
         let address = address;
         Self::Update {
             city: address.address.as_ref().and_then(|a| a.city.clone()),
-            country: address.address.as_ref().and_then(|a| a.country.clone()),
+            country: address.address.as_ref().and_then(|a| a.country),
             line1: address.address.as_ref().and_then(|a| a.line1.clone()),
             line2: address.address.as_ref().and_then(|a| a.line2.clone()),
             line3: address.address.as_ref().and_then(|a| a.line3.clone()),
@@ -296,7 +316,7 @@ impl<'a> ForeignFrom<&'a storage::Address> for api_types::Address {
         Self {
             address: Some(api_types::AddressDetails {
                 city: address.city.clone(),
-                country: address.country.clone(),
+                country: address.country,
                 line1: address.line1.clone(),
                 line2: address.line2.clone(),
                 line3: address.line3.clone(),
@@ -336,6 +356,10 @@ impl ForeignTryFrom<storage::MerchantConnectorAccount> for api_models::admin::Me
             disabled: merchant_ca.disabled,
             metadata: merchant_ca.metadata,
             payment_methods_enabled,
+            connector_label: merchant_ca.connector_label,
+            business_country: merchant_ca.business_country,
+            business_label: merchant_ca.business_label,
+            business_sub_label: merchant_ca.business_sub_label,
         })
     }
 }
@@ -433,5 +457,95 @@ impl ForeignFrom<api_models::api_keys::UpdateApiKeyRequest>
 impl ForeignFrom<storage_enums::AttemptStatus> for api_enums::AttemptStatus {
     fn foreign_from(status: storage_enums::AttemptStatus) -> Self {
         frunk::labelled_convert_from(status)
+    }
+}
+
+impl ForeignFrom<api_enums::DisputeStage> for storage_enums::DisputeStage {
+    fn foreign_from(status: api_enums::DisputeStage) -> Self {
+        frunk::labelled_convert_from(status)
+    }
+}
+
+impl ForeignFrom<api_enums::DisputeStatus> for storage_enums::DisputeStatus {
+    fn foreign_from(status: api_enums::DisputeStatus) -> Self {
+        frunk::labelled_convert_from(status)
+    }
+}
+
+impl ForeignFrom<storage_enums::DisputeStage> for api_enums::DisputeStage {
+    fn foreign_from(status: storage_enums::DisputeStage) -> Self {
+        frunk::labelled_convert_from(status)
+    }
+}
+
+impl ForeignFrom<storage_enums::DisputeStatus> for api_enums::DisputeStatus {
+    fn foreign_from(status: storage_enums::DisputeStatus) -> Self {
+        frunk::labelled_convert_from(status)
+    }
+}
+
+impl ForeignTryFrom<api_models::webhooks::IncomingWebhookEvent> for storage_enums::DisputeStatus {
+    type Error = errors::ValidationError;
+
+    fn foreign_try_from(
+        value: api_models::webhooks::IncomingWebhookEvent,
+    ) -> Result<Self, Self::Error> {
+        match value {
+            api_models::webhooks::IncomingWebhookEvent::DisputeOpened => Ok(Self::DisputeOpened),
+            api_models::webhooks::IncomingWebhookEvent::DisputeExpired => Ok(Self::DisputeExpired),
+            api_models::webhooks::IncomingWebhookEvent::DisputeAccepted => {
+                Ok(Self::DisputeAccepted)
+            }
+            api_models::webhooks::IncomingWebhookEvent::DisputeCancelled => {
+                Ok(Self::DisputeCancelled)
+            }
+            api_models::webhooks::IncomingWebhookEvent::DisputeChallenged => {
+                Ok(Self::DisputeChallenged)
+            }
+            api_models::webhooks::IncomingWebhookEvent::DisputeWon => Ok(Self::DisputeWon),
+            api_models::webhooks::IncomingWebhookEvent::DisputeLost => Ok(Self::DisputeLost),
+            _ => Err(errors::ValidationError::IncorrectValueProvided {
+                field_name: "incoming_webhook_event",
+            }),
+        }
+    }
+}
+
+impl ForeignTryFrom<storage::Dispute> for api_models::disputes::DisputeResponse {
+    type Error = errors::ValidationError;
+
+    fn foreign_try_from(dispute: storage::Dispute) -> Result<Self, Self::Error> {
+        Ok(Self {
+            dispute_id: dispute.dispute_id,
+            payment_id: dispute.payment_id,
+            attempt_id: dispute.attempt_id,
+            amount: dispute.amount,
+            currency: dispute.currency,
+            dispute_stage: dispute.dispute_stage.foreign_into(),
+            dispute_status: dispute.dispute_status.foreign_into(),
+            connector_status: dispute.connector_status,
+            connector_dispute_id: dispute.connector_dispute_id,
+            connector_reason: dispute.connector_reason,
+            connector_reason_code: dispute.connector_reason_code,
+            challenge_required_by: dispute.challenge_required_by,
+            created_at: dispute.dispute_created_at,
+            updated_at: dispute.updated_at,
+            received_at: dispute.created_at.to_string(),
+        })
+    }
+}
+
+impl ForeignFrom<storage_models::cards_info::CardInfo>
+    for api_models::cards_info::CardInfoResponse
+{
+    fn foreign_from(item: storage_models::cards_info::CardInfo) -> Self {
+        Self {
+            card_iin: item.card_iin,
+            card_type: item.card_type,
+            card_sub_type: item.card_subtype,
+            card_network: item.card_network,
+            card_issuer: item.card_issuer,
+            card_issuing_country: item.card_issuing_country,
+        }
     }
 }

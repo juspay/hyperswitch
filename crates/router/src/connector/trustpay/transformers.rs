@@ -8,7 +8,9 @@ use reqwest::Url;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils::{self, AddressDetailsData, CardData, RouterData},
+    connector::utils::{
+        self, AddressDetailsData, CardData, PaymentsAuthorizeRequestData, RouterData,
+    },
     consts,
     core::errors,
     pii::{self},
@@ -112,7 +114,7 @@ pub struct PaymentRequestCards {
     pub pan: Secret<String, pii::CardNumber>,
     pub cvv: Secret<String>,
     #[serde(rename = "exp")]
-    pub expiry_date: String,
+    pub expiry_date: Secret<String>,
     pub cardholder: Secret<String>,
     pub reference: String,
     #[serde(rename = "redirectUrl")]
@@ -120,7 +122,7 @@ pub struct PaymentRequestCards {
     #[serde(rename = "billing[city]")]
     pub billing_city: String,
     #[serde(rename = "billing[country]")]
-    pub billing_country: String,
+    pub billing_country: api_models::enums::CountryCode,
     #[serde(rename = "billing[street1]")]
     pub billing_street1: Secret<String>,
     #[serde(rename = "billing[postcode]")]
@@ -174,7 +176,7 @@ pub enum TrustpayPaymentsRequest {
 #[derive(Debug, Serialize, Eq, PartialEq)]
 pub struct TrustpayMandatoryParams {
     pub billing_city: String,
-    pub billing_country: String,
+    pub billing_country: api_models::enums::CountryCode,
     pub billing_street1: Secret<String>,
     pub billing_postcode: Secret<String>,
 }
@@ -219,7 +221,7 @@ fn get_card_request_data(
         cvv: ccard.card_cvc.clone(),
         expiry_date: ccard.get_card_expiry_month_year_2_digit_with_delimiter("/".to_owned()),
         cardholder: ccard.card_holder_name.clone(),
-        reference: item.payment_id.clone(),
+        reference: item.attempt_id.clone(),
         redirect_url: return_url,
         billing_city: params.billing_city,
         billing_country: params.billing_country,
@@ -260,7 +262,7 @@ fn get_bank_redirection_request_data(
                 currency: item.request.currency.to_string(),
             },
             references: References {
-                merchant_reference: item.payment_id.clone(),
+                merchant_reference: item.attempt_id.clone(),
             },
         },
         callback_urls: CallbackURLs {
@@ -308,14 +310,14 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for TrustpayPaymentsRequest {
                 params,
                 amount,
                 ccard,
-                item.get_return_url()?,
+                item.request.get_return_url()?,
             )),
             api::PaymentMethodData::BankRedirect(ref bank_redirection_data) => {
                 Ok(get_bank_redirection_request_data(
                     item,
                     bank_redirection_data,
                     amount,
-                    item.get_return_url()?,
+                    item.request.get_return_url()?,
                     auth,
                 ))
             }
@@ -1115,12 +1117,11 @@ pub enum CreditDebitIndicator {
     Dbit,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(strum::Display, Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum WebhookStatus {
     Paid,
     Rejected,
     Refunded,
-    // TODO (Handle Chargebacks)
     Chargebacked,
 }
 
@@ -1151,7 +1152,15 @@ impl TryFrom<WebhookStatus> for storage_models::enums::RefundStatus {
 #[serde(rename_all = "PascalCase")]
 pub struct WebhookReferences {
     pub merchant_reference: String,
+    pub payment_id: String,
     pub payment_request_id: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "PascalCase")]
+pub struct WebhookAmount {
+    pub amount: f64,
+    pub currency: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -1160,6 +1169,8 @@ pub struct WebhookPaymentInformation {
     pub credit_debit_indicator: CreditDebitIndicator,
     pub references: WebhookReferences,
     pub status: WebhookStatus,
+    pub amount: WebhookAmount,
+    pub status_reason_information: Option<StatusReasonInformation>,
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]

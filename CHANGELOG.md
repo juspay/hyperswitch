@@ -1,3 +1,87 @@
+# 0.5.5 (2023-04-10)
+
+## New Features
+
+* **api_models:**  derive `strum::Display` for `RefundStatus` (#846) (4524d4f5)
+*  allow (de)serializing countries to/from alpha-2, alpha-3 and numeric country codes (#836) (899767cf)
+* **connector:**  add authorize, capture, void, psync, refund, rsync for PayPal connector (#747) (36049c13)
+
+## Bug Fixes
+
+*  Add locker sign keyid in env (#844) (70dff140)
+
+## Other Changes
+
+* **common_utils:**  put the async ext trait behind a feature (#835) (de29eb68)
+*  update ci workflows for common_enums crate (#843) (45111337)
+
+## Refactors
+
+* **scheduler:**  remove scheduler options & adding graceful shutdown to producer (#840) (11df8436)
+* **router:**  refactor amount in PaymentsCaptureData from Option<i64> to i64 (#821) (b8bcba4e)
+
+# 0.5.4 (2023-04-04)
+
+## New Features
+
+* **request:**  add `RequestBuilder` method to attach default request headers (#826) (6f61f830)
+* **middleware:**  add middleware to attach default response headers (#824) (6d7b11a0)
+* **core:**  added multiple payment_attempt support for payment_intent (#439) (35d3e277)
+* **router:**  added incoming dispute webhooks flow (#769) (a733eafb)
+
+## Bug Fixes
+
+* **cards_info:**  add extra columns to cards_info struct (#813) (442bed0f)
+* **connector:**  [Mollie] remove unsupported implementation of Void flow from mollie connector (#808) (eee8304b)
+
+## Other Changes
+
+* **common_utils:**  put the signals module behind a feature flag (#814) (fb4ec431)
+* **core:**  replace string with enum for country (#735) (e18bfb2a)
+* **api_models:**  put the errors module behind a feature flag (#815) (f14f87a1)
+* **storage_models:**  delete client secret when status is succeeded, failed, cancelled (#724) (a05059b7)
+## Refactors
+
+* **drainer, router:**  KMS decrypt database password when `kms` feature is enabled (#733) (9d6e4ee3)
+
+# 0.5.3 (2023-03-29)
+
+## Documentation Changes
+
+* **rfc:**  add rfc template & first RFC (#806) (01a5e0a0)
+
+## New Features
+
+*  cards info api (#749) (b15b8f7b)
+* **connector:**  [Nuvei] add webhook support (#795) (20b4372b)
+
+## Bug Fixes
+
+* **compatibility:**  add last_payment_error in stripe payment response (#803) (97b95f0e)
+
+## Refactors
+
+* **api_models:**  enhance accepted countries/currencies types (#807) (f9ef3135)
+* **services:**   make AppState impl generic using AppStateInfo (#805) (642c3f3a)
+
+# 0.5.2 (2023-03-24)
+
+## Chores
+
+*  prepare for building production Docker images (#794) (6ddc30eb)
+
+## Bug Fixes
+
+* **connector:**  [Airwallex] Change Session Token to Init Payment (#798) (a3c00339)
+
+## Other Changes
+
+* **router:**  change MAX_ID_LENGTH to 64 (#792) (346bd954)
+
+## Refactors
+
+*  extract kms module to `external_services` crate (#793) (029e3894)
+
 # 0.5.1 (2023-03-21)
 
 ## Documentation Changes

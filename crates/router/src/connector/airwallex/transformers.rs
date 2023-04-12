@@ -110,7 +110,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for AirwallexPaymentsRequest {
             request_id: Uuid::new_v4().to_string(),
             payment_method,
             payment_method_options,
-            return_url: item.router_return_url.clone(),
+            return_url: item.request.router_return_url.clone(),
         })
     }
 }
@@ -152,10 +152,10 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for AirwallexPaymentsCaptureRequ
     fn try_from(item: &types::PaymentsCaptureRouterData) -> Result<Self, Self::Error> {
         Ok(Self {
             request_id: Uuid::new_v4().to_string(),
-            amount: match item.request.amount_to_capture {
-                Some(a) => Some(utils::to_currency_base_unit(a, item.request.currency)?),
-                _ => None,
-            },
+            amount: Some(utils::to_currency_base_unit(
+                item.request.amount_to_capture,
+                item.request.currency,
+            )?),
         })
     }
 }

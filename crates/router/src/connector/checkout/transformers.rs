@@ -72,7 +72,8 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentsRequest {
             api::PaymentMethodData::Card(ref ccard) => Some(ccard),
             api::PaymentMethodData::Wallet(_)
             | api::PaymentMethodData::PayLater(_)
-            | api::PaymentMethodData::BankRedirect(_) => None,
+            | api::PaymentMethodData::BankRedirect(_)
+            | api::PaymentMethodData::Crypto(_) => None,
         };
 
         let three_ds = match item.auth_type {
@@ -88,10 +89,12 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentsRequest {
 
         let return_url = ReturnUrl {
             success_url: item
+                .request
                 .router_return_url
                 .as_ref()
                 .map(|return_url| format!("{return_url}?status=success")),
             failure_url: item
+                .request
                 .router_return_url
                 .as_ref()
                 .map(|return_url| format!("{return_url}?status=failure")),
@@ -329,7 +332,7 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for PaymentCaptureRequest {
         let auth_type: CheckoutAuthType = connector_auth.try_into()?;
         let processing_channel_id = auth_type.processing_channel_id;
         Ok(Self {
-            amount: item.request.amount_to_capture,
+            amount: Some(item.request.amount_to_capture),
             capture_type: Some(CaptureType::Final),
             processing_channel_id,
         })
@@ -351,7 +354,7 @@ impl TryFrom<types::PaymentsCaptureResponseRouterData<PaymentCaptureResponse>>
         let (status, amount_captured) = if item.http_code == 202 {
             (
                 enums::AttemptStatus::Charged,
-                item.data.request.amount_to_capture,
+                Some(item.data.request.amount_to_capture),
             )
         } else {
             (enums::AttemptStatus::Pending, None)
