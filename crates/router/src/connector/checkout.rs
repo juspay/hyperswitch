@@ -4,10 +4,11 @@ mod transformers;
 
 use std::fmt::Debug;
 
+use common_utils::{crypto, ext_traits::ByteSliceExt};
 use error_stack::{IntoReport, ResultExt};
 
 use self::transformers as checkout;
-use super::utils::RefundsRequestData;
+use super::utils::{self as conn_utils, RefundsRequestData};
 use crate::{
     configs::settings,
     consts,
@@ -15,6 +16,7 @@ use crate::{
         errors::{self, CustomResult},
         payments,
     },
+    db::StorageInterface,
     headers, services,
     types::{
         self,
@@ -44,7 +46,7 @@ impl ConnectorCommon for Checkout {
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
-            format!("Bearer {}", auth.api_key),
+            format!("Bearer {}", auth.api_secret),
         )])
     }
 
@@ -70,7 +72,105 @@ impl
         types::PaymentsResponseData,
     > for Checkout
 {
-    // Not Implemented (R)
+    fn get_headers(
+        &self,
+        req: &types::TokenizationRouterData,
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+        let mut header = vec![(
+            headers::CONTENT_TYPE.to_string(),
+            self.common_get_content_type().to_string(),
+        )];
+        let api_key = checkout::CheckoutAuthType::try_from(&req.connector_auth_type)
+            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+        let mut auth = vec![(
+            headers::AUTHORIZATION.to_string(),
+            format!("Bearer {}", api_key.api_key),
+        )];
+        header.append(&mut auth);
+        Ok(header)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(
+        &self,
+        _req: &types::TokenizationRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(format!("{}tokens", self.base_url(connectors)))
+    }
+
+    fn get_request_body(
+        &self,
+        req: &types::TokenizationRouterData,
+    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+        let connector_req = checkout::TokenRequest::try_from(req)?;
+        let checkout_req =
+            utils::Encode::<checkout::TokenRequest>::encode_to_string_of_json(&connector_req)
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        Ok(Some(checkout_req))
+    }
+
+    fn build_request(
+        &self,
+        req: &types::TokenizationRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        Ok(Some(
+            services::RequestBuilder::new()
+                .method(services::Method::Post)
+                .url(&types::TokenizationType::get_url(self, req, connectors)?)
+                .attach_default_headers()
+                .headers(types::TokenizationType::get_headers(self, req, connectors)?)
+                .body(types::TokenizationType::get_request_body(self, req)?)
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        data: &types::TokenizationRouterData,
+        res: types::Response,
+    ) -> CustomResult<types::TokenizationRouterData, errors::ConnectorError>
+    where
+        types::PaymentsResponseData: Clone,
+    {
+        let response: checkout::CheckoutTokenResponse = res
+            .response
+            .parse_struct("CheckoutTokenResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        types::RouterData::try_from(types::ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+    }
+
+    fn get_error_response(
+        &self,
+        res: types::Response,
+    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
+        let response: checkout::ErrorResponse = res
+            .response
+            .parse_struct("ErrorResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        Ok(types::ErrorResponse {
+            status_code: res.status_code,
+            code: response
+                .error_codes
+                .unwrap_or_else(|| vec![consts::NO_ERROR_CODE.to_string()])
+                .join(" & "),
+            message: response
+                .error_type
+                .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
+            reason: None,
+        })
+    }
 }
 
 impl
@@ -720,25 +820,98 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
 
 #[async_trait::async_trait]
 impl api::IncomingWebhook for Checkout {
-    fn get_webhook_object_reference_id(
+    fn get_webhook_source_verification_algorithm(
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<Box<dyn crypto::VerifySignature + Send>, errors::ConnectorError> {
+        Ok(Box::new(crypto::HmacSha256))
+    }
+    fn get_webhook_source_verification_signature(
+        &self,
+        request: &api::IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
+        let signature = conn_utils::get_header_key_value("cko-signature", request.headers)
+            .change_context(errors::ConnectorError::WebhookSignatureNotFound)?;
+        hex::decode(signature)
+            .into_report()
+            .change_context(errors::ConnectorError::WebhookSignatureNotFound)
+    }
+    fn get_webhook_source_verification_message(
+        &self,
+        request: &api::IncomingWebhookRequestDetails<'_>,
+        _merchant_id: &str,
+        _secret: &[u8],
+    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
+        Ok(format!("{}", String::from_utf8_lossy(request.body)).into_bytes())
+    }
+    async fn get_webhook_source_verification_merchant_secret(
+        &self,
+        db: &dyn StorageInterface,
+        merchant_id: &str,
+    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
+        let key = format!("whsec_verification_{}_{}", self.id(), merchant_id);
+        let secret = db
+            .find_config_by_key(&key)
+            .await
+            .change_context(errors::ConnectorError::WebhookVerificationSecretNotFound)?;
+        Ok(secret.config.into_bytes())
+    }
+    fn get_webhook_object_reference_id(
+        &self,
+        request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
-        Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
+        let details: checkout::CheckoutWebhookBody = request
+            .body
+            .parse_struct("CheckoutWebhookBody")
+            .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
+
+        if checkout::is_chargeback_event(&details.txn_type) {
+            return Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
+                api_models::payments::PaymentIdType::ConnectorTransactionId(
+                    details
+                        .data
+                        .payment_id
+                        .ok_or(errors::ConnectorError::WebhookReferenceIdNotFound)?,
+                ),
+            ));
+        }
+        if checkout::is_refund_event(&details.txn_type) {
+            return Ok(api_models::webhooks::ObjectReferenceId::RefundId(
+                api_models::webhooks::RefundIdType::ConnectorRefundId(
+                    details
+                        .data
+                        .action_id
+                        .ok_or(errors::ConnectorError::WebhookReferenceIdNotFound)?,
+                ),
+            ));
+        }
+        Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
+            api_models::payments::PaymentIdType::ConnectorTransactionId(details.data.id),
+        ))
     }
 
     fn get_webhook_event_type(
         &self,
-        _request: &api::IncomingWebhookRequestDetails<'_>,
+        request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api::IncomingWebhookEvent, errors::ConnectorError> {
-        Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
+        let details: checkout::CheckoutWebhookBody = request
+            .body
+            .parse_struct("CheckoutWebhookBody")
+            .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
+
+        Ok(api::IncomingWebhookEvent::from(details.txn_type))
     }
 
     fn get_webhook_resource_object(
         &self,
-        _request: &api::IncomingWebhookRequestDetails<'_>,
+        request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<serde_json::Value, errors::ConnectorError> {
-        Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
+        let details: checkout::CheckoutWebhookObjectResource = request
+            .body
+            .parse_struct("CheckoutWebhookObjectResource")
+            .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
+
+        Ok(details.data)
     }
 }
 
