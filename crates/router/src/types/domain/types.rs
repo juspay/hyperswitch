@@ -2,7 +2,6 @@ use async_trait::async_trait;
 use common_utils::{
     crypto,
     errors::{self, CustomResult},
-    ext_traits::AsyncExt,
 };
 use error_stack::{IntoReport, ResultExt};
 use masking::{PeekInterface, Secret};
@@ -66,26 +65,51 @@ pub async fn get_key_and_algo(
     Ok(Vec::new())
 }
 
-#[async_trait]
-pub trait OptionSecretExt<V: Clone, S: masking::Strategy<V> + Send> {
-    async fn encrypt_optional_secret(
-        self,
-        key: &[u8],
-    ) -> CustomResult<Option<crypto::Encryptable<Secret<V, S>>>, errors::CryptoError>;
+pub trait Transpose<U: Clone> {
+    type SelfWrapper<T>;
+    type OtherWrapper<T>
+    where
+        T: Clone;
+
+    fn tpose<Func>(self, func: Func) -> Self::OtherWrapper<U>
+    where
+        Func: Fn(Self::SelfWrapper<U>) -> Self::OtherWrapper<U>;
+}
+
+impl<U: Clone, S: masking::Strategy<U> + Send> Transpose<Secret<U, S>> for Option<Secret<U, S>> {
+    type SelfWrapper<T> = Option<T>;
+
+    type OtherWrapper<T: Clone> = CustomResult<Option<crypto::Encryptable<T>>, errors::CryptoError>;
+
+    fn tpose<Func>(self, func: Func) -> Self::OtherWrapper<Secret<U, S>>
+    where
+        Func: Fn(Self::SelfWrapper<Secret<U, S>>) -> Self::OtherWrapper<Secret<U, S>>,
+    {
+        func(self)
+    }
 }
 
 #[async_trait]
-impl<T: Clone, S: masking::Strategy<T> + Send> OptionSecretExt<T, S> for Option<Secret<T, S>>
-where
-    crypto::Encryptable<Secret<T, S>>: TypeEncryption<T, crypto::GcmAes256, S>,
-    Secret<T, S>: Send,
-{
-    async fn encrypt_optional_secret(
-        self,
-        key: &[u8],
-    ) -> CustomResult<Option<crypto::Encryptable<Secret<T, S>>>, errors::CryptoError> {
-        self.async_map(|inner| crypto::Encryptable::encrypt(inner, key, crypto::GcmAes256 {}))
-            .await
-            .transpose()
+pub trait AsyncTranspose<U: Clone> {
+    type SelfWrapper<T>;
+    type OtherWrapper<T: Clone>;
+
+    async fn async_transpose<Func, F>(self, func: Func) -> Self::OtherWrapper<U>
+    where
+        Func: Fn(Self::SelfWrapper<U>) -> F + Send + Sync,
+        F: futures::Future<Output = Self::OtherWrapper<U>> + Send;
+}
+
+#[async_trait]
+impl<U: Clone, V: Transpose<U> + Transpose<U, SelfWrapper<U> = V> + Send> AsyncTranspose<U> for V {
+    type SelfWrapper<T> = <V as Transpose<U>>::SelfWrapper<T>;
+    type OtherWrapper<T: Clone> = <V as Transpose<U>>::OtherWrapper<T>;
+
+    async fn async_transpose<Func, F>(self, func: Func) -> Self::OtherWrapper<U>
+    where
+        Func: Fn(Self::SelfWrapper<U>) -> F + Send + Sync,
+        F: futures::Future<Output = Self::OtherWrapper<U>> + Send,
+    {
+        func(self).await
     }
 }

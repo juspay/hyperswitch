@@ -20,7 +20,7 @@ use crate::{
         api::customers::{self, CustomerRequestExt},
         domain::{
             self, customer, merchant_account,
-            types::{get_key_and_algo, OptionSecretExt, TypeEncryption},
+            types::{get_key_and_algo, AsyncTranspose, TypeEncryption},
         },
         storage::{self, enums},
     },
@@ -43,6 +43,21 @@ pub async fn create_customer(
     let key = get_key_and_algo(db, merchant_id.clone())
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
+    let encrypt = |inner: Option<masking::Secret<String>>| async {
+        inner
+            .async_map(|value| crypto::Encryptable::encrypt(value, &key, GcmAes256 {}))
+            .await
+            .transpose()
+    };
+
+    let encrypt_email = |inner: Option<masking::Secret<String, crate::pii::Email>>| async {
+        inner
+            .async_map(|value| crypto::Encryptable::encrypt(value, &key, GcmAes256 {}))
+            .await
+            .transpose()
+    };
+
     if let Some(addr) = &customer_data.address {
         let customer_address: api_models::payments::AddressDetails = addr
             .peek()
@@ -55,43 +70,43 @@ pub async fn create_customer(
             country: customer_address.country,
             line1: customer_address
                 .line1
-                .encrypt_optional_secret(&key)
+                .async_transpose(encrypt)
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)?,
             line2: customer_address
                 .line2
-                .encrypt_optional_secret(&key)
+                .async_transpose(encrypt)
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)?,
             line3: customer_address
                 .line3
-                .encrypt_optional_secret(&key)
+                .async_transpose(encrypt)
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)?,
             zip: customer_address
                 .zip
-                .encrypt_optional_secret(&key)
+                .async_transpose(encrypt)
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)?,
             state: customer_address
                 .state
-                .encrypt_optional_secret(&key)
+                .async_transpose(encrypt)
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)?,
             first_name: customer_address
                 .first_name
-                .encrypt_optional_secret(&key)
+                .async_transpose(encrypt)
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)?,
             last_name: customer_address
                 .last_name
-                .encrypt_optional_secret(&key)
+                .async_transpose(encrypt)
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)?,
             phone_number: customer_data
                 .phone
                 .clone()
-                .encrypt_optional_secret(&key)
+                .async_transpose(encrypt)
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)?,
             country_code: customer_data.phone_country_code.clone(),
@@ -118,12 +133,12 @@ pub async fn create_customer(
             .change_context(errors::ApiErrorResponse::InternalServerError)?,
         email: customer_data
             .email
-            .encrypt_optional_secret(&key)
+            .async_transpose(encrypt_email)
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)?,
         phone: customer_data
             .phone
-            .encrypt_optional_secret(&key)
+            .async_transpose(encrypt)
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)?,
         description: customer_data.description,
@@ -329,6 +344,20 @@ pub async fn update_customer(
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
+    let encrypt = |inner: Option<masking::Secret<String>>| async {
+        inner
+            .async_map(|value| crypto::Encryptable::encrypt(value, &key, GcmAes256 {}))
+            .await
+            .transpose()
+    };
+
+    let encrypt_email = |inner: Option<masking::Secret<String, crate::pii::Email>>| async {
+        inner
+            .async_map(|value| crypto::Encryptable::encrypt(value, &key, GcmAes256 {}))
+            .await
+            .transpose()
+    };
+
     if let Some(addr) = &update_customer.address {
         let customer_address: api_models::payments::AddressDetails = addr
             .peek()
@@ -340,43 +369,43 @@ pub async fn update_customer(
             country: customer_address.country,
             line1: customer_address
                 .line1
-                .encrypt_optional_secret(&key)
+                .async_transpose(encrypt)
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)?,
             line2: customer_address
                 .line2
-                .encrypt_optional_secret(&key)
+                .async_transpose(encrypt)
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)?,
             line3: customer_address
                 .line3
-                .encrypt_optional_secret(&key)
+                .async_transpose(encrypt)
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)?,
             zip: customer_address
                 .zip
-                .encrypt_optional_secret(&key)
+                .async_transpose(encrypt)
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)?,
             state: customer_address
                 .state
-                .encrypt_optional_secret(&key)
+                .async_transpose(encrypt)
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)?,
             first_name: customer_address
                 .first_name
-                .encrypt_optional_secret(&key)
+                .async_transpose(encrypt)
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)?,
             last_name: customer_address
                 .last_name
-                .encrypt_optional_secret(&key)
+                .async_transpose(encrypt)
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)?,
             phone_number: update_customer
                 .phone
                 .clone()
-                .encrypt_optional_secret(&key)
+                .async_transpose(encrypt)
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)?,
             country_code: update_customer.phone_country_code.clone(),
@@ -409,12 +438,12 @@ pub async fn update_customer(
                     .change_context(errors::ApiErrorResponse::InternalServerError)?,
                 email: update_customer
                     .email
-                    .encrypt_optional_secret(&key)
+                    .async_transpose(encrypt_email)
                     .await
                     .change_context(errors::ApiErrorResponse::InternalServerError)?,
                 phone: update_customer
                     .phone
-                    .encrypt_optional_secret(&key)
+                    .async_transpose(encrypt)
                     .await
                     .change_context(errors::ApiErrorResponse::InternalServerError)?,
                 phone_country_code: update_customer.phone_country_code,
