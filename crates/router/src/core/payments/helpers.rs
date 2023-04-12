@@ -65,73 +65,69 @@ pub async fn get_address_for_payment_request(
         Some(address) => {
             match address_id {
                 Some(id) => {
-                    let address_update = storage::AddressUpdate::Update {
-                        city: address
-                            .address
-                            .as_ref()
-                            .and_then(|value| value.city.clone()),
-                        country: address.address.as_ref().and_then(|value| value.country),
-                        line1: address
-                            .address
-                            .as_ref()
-                            .and_then(|value| value.line1.clone())
-                            .async_transpose(encrypt)
-                            .await
-                            .change_context(errors::ApiErrorResponse::InternalServerError)?,
-                        line2: address
-                            .address
-                            .as_ref()
-                            .and_then(|value| value.line2.clone())
-                            .async_transpose(encrypt)
-                            .await
-                            .change_context(errors::ApiErrorResponse::InternalServerError)?,
-                        line3: address
-                            .address
-                            .as_ref()
-                            .and_then(|value| value.line3.clone())
-                            .async_transpose(encrypt)
-                            .await
-                            .change_context(errors::ApiErrorResponse::InternalServerError)?,
-                        state: address
-                            .address
-                            .as_ref()
-                            .and_then(|value| value.state.clone())
-                            .async_transpose(encrypt)
-                            .await
-                            .change_context(errors::ApiErrorResponse::InternalServerError)?,
-                        zip: address
-                            .address
-                            .as_ref()
-                            .and_then(|value| value.zip.clone())
-                            .async_transpose(encrypt)
-                            .await
-                            .change_context(errors::ApiErrorResponse::InternalServerError)?,
-                        first_name: address
-                            .address
-                            .as_ref()
-                            .and_then(|value| value.first_name.clone())
-                            .async_transpose(encrypt)
-                            .await
-                            .change_context(errors::ApiErrorResponse::InternalServerError)?,
-                        last_name: address
-                            .address
-                            .as_ref()
-                            .and_then(|value| value.last_name.clone())
-                            .async_transpose(encrypt)
-                            .await
-                            .change_context(errors::ApiErrorResponse::InternalServerError)?,
-                        phone_number: address
-                            .phone
-                            .as_ref()
-                            .and_then(|value| value.number.clone())
-                            .async_transpose(encrypt)
-                            .await
-                            .change_context(errors::ApiErrorResponse::InternalServerError)?,
-                        country_code: address
-                            .phone
-                            .as_ref()
-                            .and_then(|value| value.country_code.clone()),
-                    };
+                    let address_update = async {
+                        Ok(storage::AddressUpdate::Update {
+                            city: address
+                                .address
+                                .as_ref()
+                                .and_then(|value| value.city.clone()),
+                            country: address.address.as_ref().and_then(|value| value.country),
+                            line1: address
+                                .address
+                                .as_ref()
+                                .and_then(|value| value.line1.clone())
+                                .async_transpose(encrypt)
+                                .await?,
+                            line2: address
+                                .address
+                                .as_ref()
+                                .and_then(|value| value.line2.clone())
+                                .async_transpose(encrypt)
+                                .await?,
+                            line3: address
+                                .address
+                                .as_ref()
+                                .and_then(|value| value.line3.clone())
+                                .async_transpose(encrypt)
+                                .await?,
+                            state: address
+                                .address
+                                .as_ref()
+                                .and_then(|value| value.state.clone())
+                                .async_transpose(encrypt)
+                                .await?,
+                            zip: address
+                                .address
+                                .as_ref()
+                                .and_then(|value| value.zip.clone())
+                                .async_transpose(encrypt)
+                                .await?,
+                            first_name: address
+                                .address
+                                .as_ref()
+                                .and_then(|value| value.first_name.clone())
+                                .async_transpose(encrypt)
+                                .await?,
+                            last_name: address
+                                .address
+                                .as_ref()
+                                .and_then(|value| value.last_name.clone())
+                                .async_transpose(encrypt)
+                                .await?,
+                            phone_number: address
+                                .phone
+                                .as_ref()
+                                .and_then(|value| value.number.clone())
+                                .async_transpose(encrypt)
+                                .await?,
+                            country_code: address
+                                .phone
+                                .as_ref()
+                                .and_then(|value| value.country_code.clone()),
+                        })
+                    }
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)?;
                     Some(
                         db.update_address(id.to_owned(), address_update)
                             .await
@@ -149,64 +145,45 @@ pub async fn get_address_for_payment_request(
 
                     let address_details = address.address.clone().unwrap_or_default();
                     Some(
-                        db.insert_address(domain::address::Address {
-                            phone_number: address
-                                .phone
-                                .as_ref()
-                                .and_then(|a| a.number.clone())
-                                .async_transpose(encrypt)
-                                .await
-                                .change_context(errors::ApiErrorResponse::InternalServerError)?,
-                            country_code: address
-                                .phone
-                                .as_ref()
-                                .and_then(|a| a.country_code.clone()),
-                            customer_id: customer_id.to_string(),
-                            merchant_id: merchant_id.to_string(),
-                            address_id: generate_id(consts::ID_LENGTH, "add"),
-                            city: address_details.city,
-                            country: address_details.country,
-                            line1: address_details
-                                .line1
-                                .async_transpose(encrypt)
-                                .await
-                                .change_context(errors::ApiErrorResponse::InternalServerError)?,
-                            line2: address_details
-                                .line2
-                                .async_transpose(encrypt)
-                                .await
-                                .change_context(errors::ApiErrorResponse::InternalServerError)?,
-                            line3: address_details
-                                .line3
-                                .async_transpose(encrypt)
-                                .await
-                                .change_context(errors::ApiErrorResponse::InternalServerError)?,
-                            id: None,
-                            state: address_details
-                                .state
-                                .async_transpose(encrypt)
-                                .await
-                                .change_context(errors::ApiErrorResponse::InternalServerError)?,
-                            created_at: common_utils::date_time::now(),
-                            first_name: address_details
-                                .first_name
-                                .async_transpose(encrypt)
-                                .await
-                                .change_context(
-                                errors::ApiErrorResponse::InternalServerError,
-                            )?,
-                            last_name: address_details
-                                .last_name
-                                .async_transpose(encrypt)
-                                .await
-                                .change_context(errors::ApiErrorResponse::InternalServerError)?,
-                            modified_at: common_utils::date_time::now(),
-                            zip: address_details
-                                .zip
-                                .async_transpose(encrypt)
-                                .await
-                                .change_context(errors::ApiErrorResponse::InternalServerError)?,
-                        })
+                        db.insert_address(
+                            async {
+                                Ok(domain::address::Address {
+                                    phone_number: address
+                                        .phone
+                                        .as_ref()
+                                        .and_then(|a| a.number.clone())
+                                        .async_transpose(encrypt)
+                                        .await?,
+                                    country_code: address
+                                        .phone
+                                        .as_ref()
+                                        .and_then(|a| a.country_code.clone()),
+                                    customer_id: customer_id.to_string(),
+                                    merchant_id: merchant_id.to_string(),
+                                    address_id: generate_id(consts::ID_LENGTH, "add"),
+                                    city: address_details.city,
+                                    country: address_details.country,
+                                    line1: address_details.line1.async_transpose(encrypt).await?,
+                                    line2: address_details.line2.async_transpose(encrypt).await?,
+                                    line3: address_details.line3.async_transpose(encrypt).await?,
+                                    id: None,
+                                    state: address_details.state.async_transpose(encrypt).await?,
+                                    created_at: common_utils::date_time::now(),
+                                    first_name: address_details
+                                        .first_name
+                                        .async_transpose(encrypt)
+                                        .await?,
+                                    last_name: address_details
+                                        .last_name
+                                        .async_transpose(encrypt)
+                                        .await?,
+                                    modified_at: common_utils::date_time::now(),
+                                    zip: address_details.zip.async_transpose(encrypt).await?,
+                                })
+                            }
+                            .await
+                            .change_context(errors::ApiErrorResponse::InternalServerError)?,
+                        )
                         .await
                         .map_err(|_| errors::ApiErrorResponse::InternalServerError)?,
                     )
