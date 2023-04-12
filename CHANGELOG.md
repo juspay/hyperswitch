@@ -10,6 +10,7 @@
 ## Refactors
 
 * **refund_type:** Feat/add copy dervie (#849) (ccf03273)
+* **router_env:**  improve logging setup (#847) (1b94d25f)
 
 # 0.5.5 (2023-04-10)
 
