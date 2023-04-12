@@ -1,10 +1,9 @@
 use common_utils::{
-    crypto::{Encryptable, GcmAes256},
+    crypto::{self, Encryptable, GcmAes256},
     ext_traits::AsyncExt,
     pii,
 };
 use error_stack::ResultExt;
-use masking::Secret;
 use storage_models::{customers::CustomerUpdateInternal, encryption::Encryption};
 use time::PrimitiveDateTime;
 
@@ -19,9 +18,9 @@ pub struct Customer {
     pub id: Option<i32>,
     pub customer_id: String,
     pub merchant_id: String,
-    pub name: Option<Encryptable<Secret<String>>>,
-    pub email: Option<Encryptable<Secret<String, pii::Email>>>,
-    pub phone: Option<Encryptable<Secret<String>>>,
+    pub name: crypto::OptionalEncryptableName,
+    pub email: crypto::OptionalEncryptableEmail,
+    pub phone: crypto::OptionalEncryptablePhone,
     pub phone_country_code: Option<String>,
     pub description: Option<String>,
     pub created_at: PrimitiveDateTime,
@@ -114,9 +113,9 @@ impl super::behaviour::Conversion for Customer {
 #[derive(Debug)]
 pub enum CustomerUpdate {
     Update {
-        name: Option<Encryptable<Secret<String>>>,
-        email: Option<Encryptable<Secret<String, pii::Email>>>,
-        phone: Option<Encryptable<Secret<String>>>,
+        name: crypto::OptionalEncryptableName,
+        email: crypto::OptionalEncryptableEmail,
+        phone: crypto::OptionalEncryptablePhone,
         description: Option<String>,
         phone_country_code: Option<String>,
         metadata: Option<pii::SecretSerdeValue>,

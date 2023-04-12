@@ -31,7 +31,7 @@ use crate::{
         api::{self, admin, enums as api_enums, CustomerAcceptanceExt, MandateValidationFieldsExt},
         domain::{
             self, customer, merchant_account,
-            types::{get_key_and_algo, TypeEncryption},
+            types::{get_key_and_algo, OptionSecretExt},
         },
         storage::{self, enums as storage_enums, ephemeral_key},
         transformers::ForeignInto,
@@ -68,81 +68,57 @@ pub async fn get_address_for_payment_request(
                             .address
                             .as_ref()
                             .and_then(|value| value.line1.clone())
-                            .async_map(|inner| {
-                                crypto::Encryptable::encrypt(inner, &key, crypto::GcmAes256 {})
-                            })
+                            .encrypt_optional_secret(&key)
                             .await
-                            .transpose()
                             .change_context(errors::ApiErrorResponse::InternalServerError)?,
                         line2: address
                             .address
                             .as_ref()
                             .and_then(|value| value.line2.clone())
-                            .async_map(|inner| {
-                                crypto::Encryptable::encrypt(inner, &key, crypto::GcmAes256 {})
-                            })
+                            .encrypt_optional_secret(&key)
                             .await
-                            .transpose()
                             .change_context(errors::ApiErrorResponse::InternalServerError)?,
                         line3: address
                             .address
                             .as_ref()
                             .and_then(|value| value.line3.clone())
-                            .async_map(|inner| {
-                                crypto::Encryptable::encrypt(inner, &key, crypto::GcmAes256 {})
-                            })
+                            .encrypt_optional_secret(&key)
                             .await
-                            .transpose()
                             .change_context(errors::ApiErrorResponse::InternalServerError)?,
                         state: address
                             .address
                             .as_ref()
                             .and_then(|value| value.state.clone())
-                            .async_map(|inner| {
-                                crypto::Encryptable::encrypt(inner, &key, crypto::GcmAes256 {})
-                            })
+                            .encrypt_optional_secret(&key)
                             .await
-                            .transpose()
                             .change_context(errors::ApiErrorResponse::InternalServerError)?,
                         zip: address
                             .address
                             .as_ref()
                             .and_then(|value| value.zip.clone())
-                            .async_map(|inner| {
-                                crypto::Encryptable::encrypt(inner, &key, crypto::GcmAes256 {})
-                            })
+                            .encrypt_optional_secret(&key)
                             .await
-                            .transpose()
                             .change_context(errors::ApiErrorResponse::InternalServerError)?,
                         first_name: address
                             .address
                             .as_ref()
                             .and_then(|value| value.first_name.clone())
-                            .async_map(|inner| {
-                                crypto::Encryptable::encrypt(inner, &key, crypto::GcmAes256 {})
-                            })
+                            .encrypt_optional_secret(&key)
                             .await
-                            .transpose()
                             .change_context(errors::ApiErrorResponse::InternalServerError)?,
                         last_name: address
                             .address
                             .as_ref()
                             .and_then(|value| value.last_name.clone())
-                            .async_map(|inner| {
-                                crypto::Encryptable::encrypt(inner, &key, crypto::GcmAes256 {})
-                            })
+                            .encrypt_optional_secret(&key)
                             .await
-                            .transpose()
                             .change_context(errors::ApiErrorResponse::InternalServerError)?,
                         phone_number: address
                             .phone
                             .as_ref()
                             .and_then(|value| value.number.clone())
-                            .async_map(|inner| {
-                                crypto::Encryptable::encrypt(inner, &key, crypto::GcmAes256 {})
-                            })
+                            .encrypt_optional_secret(&key)
                             .await
-                            .transpose()
                             .change_context(errors::ApiErrorResponse::InternalServerError)?,
                         country_code: address
                             .phone
@@ -175,11 +151,8 @@ pub async fn get_address_for_payment_request(
                                 .phone
                                 .as_ref()
                                 .and_then(|a| a.number.clone())
-                                .async_map(|inner| {
-                                    crypto::Encryptable::encrypt(inner, &key, crypto::GcmAes256 {})
-                                })
+                                .encrypt_optional_secret(&key)
                                 .await
-                                .transpose()
                                 .change_context(errors::ApiErrorResponse::InternalServerError)?,
                             country_code: address
                                 .phone
@@ -192,62 +165,41 @@ pub async fn get_address_for_payment_request(
                             country: address_details.country,
                             line1: address_details
                                 .line1
-                                .async_map(|inner| {
-                                    crypto::Encryptable::encrypt(inner, &key, crypto::GcmAes256 {})
-                                })
+                                .encrypt_optional_secret(&key)
                                 .await
-                                .transpose()
                                 .change_context(errors::ApiErrorResponse::InternalServerError)?,
                             line2: address_details
                                 .line2
-                                .async_map(|inner| {
-                                    crypto::Encryptable::encrypt(inner, &key, crypto::GcmAes256 {})
-                                })
+                                .encrypt_optional_secret(&key)
                                 .await
-                                .transpose()
                                 .change_context(errors::ApiErrorResponse::InternalServerError)?,
                             line3: address_details
                                 .line3
-                                .async_map(|inner| {
-                                    crypto::Encryptable::encrypt(inner, &key, crypto::GcmAes256 {})
-                                })
+                                .encrypt_optional_secret(&key)
                                 .await
-                                .transpose()
                                 .change_context(errors::ApiErrorResponse::InternalServerError)?,
                             id: None,
                             state: address_details
                                 .state
-                                .async_map(|inner| {
-                                    crypto::Encryptable::encrypt(inner, &key, crypto::GcmAes256 {})
-                                })
+                                .encrypt_optional_secret(&key)
                                 .await
-                                .transpose()
                                 .change_context(errors::ApiErrorResponse::InternalServerError)?,
                             created_at: common_utils::date_time::now(),
                             first_name: address_details
                                 .first_name
-                                .async_map(|inner| {
-                                    crypto::Encryptable::encrypt(inner, &key, crypto::GcmAes256 {})
-                                })
+                                .encrypt_optional_secret(&key)
                                 .await
-                                .transpose()
                                 .change_context(errors::ApiErrorResponse::InternalServerError)?,
                             last_name: address_details
                                 .last_name
-                                .async_map(|inner| {
-                                    crypto::Encryptable::encrypt(inner, &key, crypto::GcmAes256 {})
-                                })
+                                .encrypt_optional_secret(&key)
                                 .await
-                                .transpose()
                                 .change_context(errors::ApiErrorResponse::InternalServerError)?,
                             modified_at: common_utils::date_time::now(),
                             zip: address_details
                                 .zip
-                                .async_map(|inner| {
-                                    crypto::Encryptable::encrypt(inner, &key, crypto::GcmAes256 {})
-                                })
+                                .encrypt_optional_secret(&key)
                                 .await
-                                .transpose()
                                 .change_context(errors::ApiErrorResponse::InternalServerError)?,
                         })
                         .await
@@ -852,29 +804,20 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R>(
                         merchant_id: merchant_id.to_string(),
                         name: req
                             .name
-                            .async_map(|inner| {
-                                crypto::Encryptable::encrypt(inner, &key, crypto::GcmAes256 {})
-                            })
+                            .encrypt_optional_secret(&key)
                             .await
-                            .transpose()
                             .change_context(errors::StorageError::SerializationFailed)?,
                         email: req
                             .email
                             .clone()
-                            .async_map(|inner| {
-                                crypto::Encryptable::encrypt(inner, &key, crypto::GcmAes256 {})
-                            })
+                            .encrypt_optional_secret(&key)
                             .await
-                            .transpose()
                             .change_context(errors::StorageError::SerializationFailed)?,
                         phone: req
                             .phone
                             .clone()
-                            .async_map(|inner| {
-                                crypto::Encryptable::encrypt(inner, &key, crypto::GcmAes256 {})
-                            })
+                            .encrypt_optional_secret(&key)
                             .await
-                            .transpose()
                             .change_context(errors::StorageError::SerializationFailed)?,
                         phone_country_code: req.phone_country_code.clone(),
                         description: None,

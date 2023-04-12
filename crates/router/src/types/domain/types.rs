@@ -2,6 +2,7 @@ use async_trait::async_trait;
 use common_utils::{
     crypto,
     errors::{self, CustomResult},
+    ext_traits::AsyncExt,
 };
 use error_stack::{IntoReport, ResultExt};
 use masking::{ExposeInterface, PeekInterface, Secret};
@@ -132,4 +133,28 @@ pub async fn get_key_and_algo(
         .key
         .into_inner();
     Ok(key.expose())
+}
+
+#[async_trait]
+pub trait OptionSecretExt<V: Clone, S: masking::Strategy<V> + Send> {
+    async fn encrypt_optional_secret(
+        self,
+        key: &[u8],
+    ) -> CustomResult<Option<crypto::Encryptable<Secret<V, S>>>, errors::CryptoError>;
+}
+
+#[async_trait]
+impl<T: Clone, S: masking::Strategy<T> + Send> OptionSecretExt<T, S> for Option<Secret<T, S>>
+where
+    crypto::Encryptable<Secret<T, S>>: TypeEncryption<T, crypto::GcmAes256, S>,
+    Secret<T, S>: Send,
+{
+    async fn encrypt_optional_secret(
+        self,
+        key: &[u8],
+    ) -> CustomResult<Option<crypto::Encryptable<Secret<T, S>>>, errors::CryptoError> {
+        self.async_map(|inner| crypto::Encryptable::encrypt(inner, key, crypto::GcmAes256 {}))
+            .await
+            .transpose()
+    }
 }

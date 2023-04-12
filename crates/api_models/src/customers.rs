@@ -56,13 +56,13 @@ pub struct CustomerResponse {
     pub customer_id: String,
     /// The customer's name
     #[schema(max_length = 255, example = "Jon Test")]
-    pub name: Option<crypto::Encryptable<Secret<String>>>,
+    pub name: crypto::OptionalEncryptableName,
     /// The customer's email address
     #[schema(value_type = Option<String>,max_length = 255, example = "JonTest@test.com")]
-    pub email: Option<crypto::Encryptable<Secret<String, pii::Email>>>,
+    pub email: crypto::OptionalEncryptableEmail,
     /// The customer's phone number
     #[schema(value_type = Option<String>,max_length = 255, example = "9999999999")]
-    pub phone: Option<crypto::Encryptable<Secret<String>>>,
+    pub phone: crypto::OptionalEncryptablePhone,
     /// The country code for the customer phone number
     #[schema(max_length = 255, example = "+65")]
     pub phone_country_code: Option<String>,
