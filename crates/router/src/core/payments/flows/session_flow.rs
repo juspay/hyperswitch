@@ -123,6 +123,7 @@ fn mk_applepay_session_request(
     let session_request = services::RequestBuilder::new()
         .method(services::Method::Post)
         .url(url.as_str())
+        .attach_default_headers()
         .headers(vec![(
             headers::CONTENT_TYPE.to_string(),
             "application/json".to_string(),

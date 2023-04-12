@@ -265,6 +265,7 @@ fn make_client_secret_null_based_on_status(
         | storage_enums::IntentStatus::Cancelled => Some(None),
         storage_enums::IntentStatus::Processing
         | storage_enums::IntentStatus::RequiresCustomerAction
+        | storage_enums::IntentStatus::RequiresMerchantAction
         | storage_enums::IntentStatus::RequiresPaymentMethod
         | storage_enums::IntentStatus::RequiresConfirmation
         | storage_enums::IntentStatus::RequiresCapture => None,

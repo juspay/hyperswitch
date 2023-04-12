@@ -34,6 +34,7 @@ pub enum AttemptStatus {
     VoidFailed,
     AutoRefunded,
     PartialCharged,
+    Unresolved,
     #[default]
     Pending,
     Failure,
@@ -266,6 +267,8 @@ pub enum Currency {
 #[strum(serialize_all = "snake_case")]
 pub enum EventType {
     PaymentSucceeded,
+    PaymentProcessing,
+    ActionRequired,
     RefundSucceeded,
     RefundFailed,
     DisputeOpened,
@@ -299,6 +302,7 @@ pub enum IntentStatus {
     Cancelled,
     Processing,
     RequiresCustomerAction,
+    RequiresMerchantAction,
     RequiresPaymentMethod,
     #[default]
     RequiresConfirmation,
@@ -416,6 +420,7 @@ pub enum PaymentMethodType {
     GooglePay,
     ApplePay,
     Paypal,
+    CryptoCurrency,
 }
 
 #[derive(
@@ -441,6 +446,7 @@ pub enum PaymentMethod {
     PayLater,
     Wallet,
     BankRedirect,
+    Crypto,
 }
 
 #[derive(
@@ -561,9 +567,11 @@ pub enum Connector {
     Bluesnap,
     Braintree,
     Checkout,
+    Coinbase,
     Cybersource,
     #[default]
     Dummy,
+    Opennode,
     Bambora,
     Dlocal,
     Fiserv,
@@ -572,6 +580,7 @@ pub enum Connector {
     Mollie,
     Multisafepay,
     Nuvei,
+    Paypal,
     Payu,
     Rapyd,
     Shift4,
@@ -587,6 +596,7 @@ impl Connector {
             (self, payment_method),
             (Self::Airwallex, _)
                 | (Self::Globalpay, _)
+                | (Self::Paypal, _)
                 | (Self::Payu, _)
                 | (Self::Trustpay, PaymentMethod::BankRedirect)
         )
@@ -616,6 +626,7 @@ pub enum RoutableConnectors {
     Bluesnap,
     Braintree,
     Checkout,
+    Coinbase,
     Cybersource,
     Dlocal,
     Fiserv,
@@ -624,6 +635,8 @@ pub enum RoutableConnectors {
     Mollie,
     Multisafepay,
     Nuvei,
+    Opennode,
+    Paypal,
     Payu,
     Rapyd,
     Shift4,
@@ -634,13 +647,24 @@ pub enum RoutableConnectors {
 }
 
 /// Wallets which support obtaining session object
-#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+#[derive(
+    Debug,
+    serde::Deserialize,
+    serde::Serialize,
+    Clone,
+    ToSchema,
+    Eq,
+    PartialEq,
+    strum::EnumString,
+    strum::Display,
+)]
+#[strum(serialize_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
 pub enum SupportedWallets {
     Paypal,
     ApplePay,
     Klarna,
-    Gpay,
+    GooglePay,
 }
 
 /// Name of banks supported by Hyperswitch
@@ -755,6 +779,7 @@ impl From<AttemptStatus> for IntentStatus {
 
             AttemptStatus::Authorized => Self::RequiresCapture,
             AttemptStatus::AuthenticationPending => Self::RequiresCustomerAction,
+            AttemptStatus::Unresolved => Self::RequiresMerchantAction,
 
             AttemptStatus::PartialCharged
             | AttemptStatus::Started
@@ -822,4 +847,11 @@ pub enum DisputeStatus {
     DisputeWon,
     // dispute has been unsuccessfully challenged
     DisputeLost,
+}
+
+#[derive(Debug, Eq, PartialEq, Clone, serde::Serialize, serde::Deserialize)]
+pub struct UnresolvedResponseReason {
+    pub code: String,
+    /// A message to merchant to give hint on next action he/she should do to resolve
+    pub message: String,
 }
