@@ -160,7 +160,24 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                     .change_context(errors::ApiErrorResponse::MandateNotFound);
                 Some(mandate.map(|mandate_obj| api_models::payments::MandateIds {
                     mandate_id: mandate_obj.mandate_id,
-                    connector_mandate_id: mandate_obj.connector_mandate_id,
+                    mandate_reference_id: {
+                        match (
+                            mandate_obj.network_transaction_id,
+                            mandate_obj.connector_mandate_id,
+                        ) {
+                            (Some(network_tx_id), _) => {
+                                Some(api_models::payments::MandateReferenceId::NetworkMandateId(
+                                    network_tx_id,
+                                ))
+                            }
+                            (_, Some(connector_mandate_id)) => Some(
+                                api_models::payments::MandateReferenceId::ConnectorMandateId(
+                                    connector_mandate_id,
+                                ),
+                            ),
+                            (_, _) => None,
+                        }
+                    },
                 }))
             })
             .await

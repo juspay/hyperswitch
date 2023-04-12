@@ -266,6 +266,16 @@ pub struct AdyenCard {
     expiry_month: Secret<String>,
     expiry_year: Secret<String>,
     cvc: Option<Secret<String>>,
+    brand: Option<CardBrand>, //Mandatory for mandate using network_txns_id
+    network_payment_reference: Option<String>, //
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum CardBrand {
+    Visa,
+    MC,
+    Amex,
 }
 
 #[derive(Default, Debug, Serialize, Deserialize)]
@@ -358,6 +368,8 @@ pub enum PaymentType {
     Giropay,
     #[serde(rename = "directEbanking")]
     Sofort,
+    #[serde(rename = "networkToken")]
+    NetworkToken,
 }
 
 pub struct AdyenTestBankNames<'a>(&'a str);
@@ -603,14 +615,38 @@ fn get_payment_method_data<'a>(
         .request
         .mandate_id
         .to_owned()
-        .and_then(|mandate_ids| mandate_ids.connector_mandate_id)
+        .and_then(|mandate_ids| mandate_ids.mandate_reference_id)
     {
-        Some(mandate_id) => {
+        Some(api_models::payments::MandateReferenceId::ConnectorMandateId(
+            connector_mandate_id,
+        )) => {
             let adyen_mandate = AdyenMandate {
                 payment_type: PaymentType::Scheme,
-                stored_payment_method_id: mandate_id,
+                stored_payment_method_id: connector_mandate_id,
             };
             Ok(AdyenPaymentMethod::Mandate(adyen_mandate))
+        }
+        Some(api_models::payments::MandateReferenceId::NetworkMandateId(network_mandate_id)) => {
+            match item.request.payment_method_data {
+                api::PaymentMethodData::Card(ref card) => {
+                    let adyen_card = AdyenCard {
+                        payment_type: PaymentType::Scheme,
+                        number: card.card_number.clone(),
+                        expiry_month: card.card_exp_month.clone(),
+                        expiry_year: card.card_exp_year.clone(),
+                        cvc: None,
+                        brand: Some(CardBrand::Visa), //Fixme
+                        network_payment_reference: Some(network_mandate_id),
+                    };
+                    Ok(AdyenPaymentMethod::AdyenCard(adyen_card))
+                }
+                _ => Err(errors::ConnectorError::NotSupported {
+                    payment_method: format!("mandate_{:?}", item.payment_method),
+                    connector: "Adyen",
+                    payment_experience: api_models::enums::PaymentExperience::RedirectToUrl
+                        .to_string(),
+                })?,
+            }
         }
         None => match item.request.payment_method_data {
             api::PaymentMethodData::Card(ref card) => {
@@ -620,6 +656,8 @@ fn get_payment_method_data<'a>(
                     expiry_month: card.card_exp_month.clone(),
                     expiry_year: card.card_exp_year.clone(),
                     cvc: Some(card.card_cvc.clone()),
+                    brand: None,
+                    network_payment_reference: None,
                 };
                 Ok(AdyenPaymentMethod::AdyenCard(adyen_card))
             }

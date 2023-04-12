@@ -597,9 +597,12 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
                 .request
                 .mandate_id
                 .clone()
-                .and_then(|mandate_ids| mandate_ids.connector_mandate_id)
+                .and_then(|mandate_ids| mandate_ids.mandate_reference_id)
             {
-                None => {
+                Some(api_models::payments::MandateReferenceId::ConnectorMandateId(mandate_id)) => {
+                    (None, Some(mandate_id), StripeBillingAddress::default())
+                }
+                _ => {
                     let (payment_method_data, payment_method_type, billing_address) =
                         create_stripe_payment_method(
                             item.request.payment_method_type.as_ref(),
@@ -615,7 +618,6 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
 
                     (Some(payment_method_data), None, billing_address)
                 }
-                Some(mandate_id) => (None, Some(mandate_id), StripeBillingAddress::default()),
             }
         };
 

@@ -181,7 +181,7 @@ where
                     resp.request
                         .set_mandate_id(api_models::payments::MandateIds {
                             mandate_id: new_mandate_data.mandate_id.clone(),
-                            connector_mandate_id: new_mandate_data.connector_mandate_id.clone(),
+                            mandate_reference_id: None, //This is not used further in case needed please handle
                         });
                     state
                         .store
