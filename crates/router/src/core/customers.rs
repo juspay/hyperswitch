@@ -99,11 +99,7 @@ pub async fn create_customer(
         Ok(customer::Customer {
             customer_id: customer_id.to_string(),
             merchant_id: merchant_id.to_string(),
-            name: customer_data
-                .name
-                .async_map(|inner| crypto::Encryptable::encrypt(inner.into(), &key, GcmAes256 {}))
-                .await
-                .transpose()?,
+            name: customer_data.name.async_transpose(encrypt).await?,
             email: customer_data.email.async_transpose(encrypt_email).await?,
             phone: customer_data.phone.async_transpose(encrypt).await?,
             description: customer_data.description,
@@ -256,21 +252,13 @@ pub async fn delete_customer(
     }?;
 
     let updated_customer = storage::CustomerUpdate::Update {
-        name: Some(
-            Encryptable::encrypt(REDACTED.to_string().into(), &key, GcmAes256 {})
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)?,
-        ),
+        name: Some(redacted_encrypted_value.clone()),
         email: Some(
             Encryptable::encrypt(REDACTED.to_string().into(), &key, GcmAes256 {})
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)?,
         ),
-        phone: Some(
-            Encryptable::encrypt(REDACTED.to_string().into(), &key, GcmAes256 {})
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)?,
-        ),
+        phone: Some(redacted_encrypted_value.clone()),
         description: Some(REDACTED.to_string()),
         phone_country_code: Some(REDACTED.to_string()),
         metadata: None,
@@ -372,13 +360,7 @@ pub async fn update_customer(
             merchant_account.merchant_id.to_owned(),
             async {
                 Ok(storage::CustomerUpdate::Update {
-                    name: update_customer
-                        .name
-                        .async_map(|inner| {
-                            crypto::Encryptable::encrypt(inner.into(), &key, GcmAes256 {})
-                        })
-                        .await
-                        .transpose()?,
+                    name: update_customer.name.async_transpose(encrypt).await?,
                     email: update_customer.email.async_transpose(encrypt_email).await?,
                     phone: update_customer.phone.async_transpose(encrypt).await?,
                     phone_country_code: update_customer.phone_country_code,

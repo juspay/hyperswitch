@@ -69,80 +69,63 @@ impl behaviour::Conversion for Address {
 
     async fn convert_back(other: Self::DstType) -> CustomResult<Self, ValidationError> {
         let key = &[0];
-        Ok(Self {
-            id: Some(other.id),
-            address_id: other.address_id,
-            city: other.city,
-            country: other.country,
-            line1: other
-                .line1
-                .async_map(|inner| Encryptable::decrypt(inner, key, GcmAes256 {}))
-                .await
-                .transpose()
-                .change_context(ValidationError::InvalidValue {
-                    message: "Failed while decrypting".to_string(),
-                })?,
-            line2: other
-                .line2
-                .async_map(|inner| Encryptable::decrypt(inner, key, GcmAes256 {}))
-                .await
-                .transpose()
-                .change_context(ValidationError::InvalidValue {
-                    message: "Failed while decrypting".to_string(),
-                })?,
-            line3: other
-                .line3
-                .async_map(|inner| Encryptable::decrypt(inner, key, GcmAes256 {}))
-                .await
-                .transpose()
-                .change_context(ValidationError::InvalidValue {
-                    message: "Failed while decrypting".to_string(),
-                })?,
-            state: other
-                .state
-                .async_map(|inner| Encryptable::decrypt(inner, key, GcmAes256 {}))
-                .await
-                .transpose()
-                .change_context(ValidationError::InvalidValue {
-                    message: "Failed while decrypting".to_string(),
-                })?,
-            zip: other
-                .zip
-                .async_map(|inner| Encryptable::decrypt(inner, key, GcmAes256 {}))
-                .await
-                .transpose()
-                .change_context(ValidationError::InvalidValue {
-                    message: "Failed while decrypting".to_string(),
-                })?,
-            first_name: other
-                .first_name
-                .async_map(|inner| Encryptable::decrypt(inner, key, GcmAes256 {}))
-                .await
-                .transpose()
-                .change_context(ValidationError::InvalidValue {
-                    message: "Failed while decrypting".to_string(),
-                })?,
-            last_name: other
-                .last_name
-                .async_map(|inner| Encryptable::decrypt(inner, key, GcmAes256 {}))
-                .await
-                .transpose()
-                .change_context(ValidationError::InvalidValue {
-                    message: "Failed while decrypting".to_string(),
-                })?,
-            phone_number: other
-                .phone_number
-                .async_map(|inner| Encryptable::decrypt(inner, key, GcmAes256 {}))
-                .await
-                .transpose()
-                .change_context(ValidationError::InvalidValue {
-                    message: "Failed while decrypting".to_string(),
-                })?,
-            country_code: other.country_code,
-            created_at: other.created_at,
-            modified_at: other.modified_at,
-            customer_id: other.customer_id,
-            merchant_id: other.merchant_id,
+
+        async {
+            Ok(Self {
+                id: Some(other.id),
+                address_id: other.address_id,
+                city: other.city,
+                country: other.country,
+                line1: other
+                    .line1
+                    .async_map(|inner| Encryptable::decrypt(inner, key, GcmAes256 {}))
+                    .await
+                    .transpose()?,
+                line2: other
+                    .line2
+                    .async_map(|inner| Encryptable::decrypt(inner, key, GcmAes256 {}))
+                    .await
+                    .transpose()?,
+                line3: other
+                    .line3
+                    .async_map(|inner| Encryptable::decrypt(inner, key, GcmAes256 {}))
+                    .await
+                    .transpose()?,
+                state: other
+                    .state
+                    .async_map(|inner| Encryptable::decrypt(inner, key, GcmAes256 {}))
+                    .await
+                    .transpose()?,
+                zip: other
+                    .zip
+                    .async_map(|inner| Encryptable::decrypt(inner, key, GcmAes256 {}))
+                    .await
+                    .transpose()?,
+                first_name: other
+                    .first_name
+                    .async_map(|inner| Encryptable::decrypt(inner, key, GcmAes256 {}))
+                    .await
+                    .transpose()?,
+                last_name: other
+                    .last_name
+                    .async_map(|inner| Encryptable::decrypt(inner, key, GcmAes256 {}))
+                    .await
+                    .transpose()?,
+                phone_number: other
+                    .phone_number
+                    .async_map(|inner| Encryptable::decrypt(inner, key, GcmAes256 {}))
+                    .await
+                    .transpose()?,
+                country_code: other.country_code,
+                created_at: other.created_at,
+                modified_at: other.modified_at,
+                customer_id: other.customer_id,
+                merchant_id: other.merchant_id,
+            })
+        }
+        .await
+        .change_context(ValidationError::InvalidValue {
+            message: "Failed while decrypting".to_string(),
         })
     }
 
