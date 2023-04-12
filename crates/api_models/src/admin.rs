@@ -68,11 +68,11 @@ pub struct MerchantAccountCreate {
     pub locker_id: Option<String>,
 
     ///Default business details for connector routing
-    #[cfg(not(feature = "backwards_compatible"))]
+    #[cfg(not(feature = "backwards_compatibility"))]
     #[schema(value_type = PrimaryBusinessDetails)]
     pub primary_business_details: PrimaryBusinessDetails,
 
-    #[cfg(feature = "backwards_compatible")]
+    #[cfg(feature = "backwards_compatibility")]
     #[schema(value_type = Option<PrimaryBusinessDetails>)]
     pub primary_business_details: Option<PrimaryBusinessDetails>,
 }
@@ -375,16 +375,16 @@ pub struct MerchantConnectorCreate {
 
     /// Business Country of the connector
     #[schema(example = "US")]
-    #[cfg(not(feature = "backwards_compatible"))]
+    #[cfg(not(feature = "backwards_compatibility"))]
     pub business_country: api_enums::CountryCode,
-    #[cfg(feature = "backwards_compatible")]
+    #[cfg(feature = "backwards_compatibility")]
     pub business_country: Option<api_enums::CountryCode>,
 
     ///Business Type of the merchant
     #[schema(example = "travel")]
-    #[cfg(not(feature = "backwards_compatible"))]
+    #[cfg(not(feature = "backwards_compatibility"))]
     pub business_label: String,
-    #[cfg(feature = "backwards_compatible")]
+    #[cfg(feature = "backwards_compatibility")]
     pub business_label: Option<String>,
 
     /// Business Sub label of the merchant

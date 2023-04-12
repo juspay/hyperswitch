@@ -33,14 +33,14 @@ pub fn create_merchant_publishable_key() -> String {
 
 fn get_primary_business_details(request: &api::MerchantAccountCreate) -> PrimaryBusinessDetails {
     // In this case, business details is not optional, it will always be passed
-    #[cfg(not(feature = "backwards_compatible"))]
+    #[cfg(not(feature = "backwards_compatibility"))]
     {
         request.primary_business_details.to_owned()
     }
 
     // In this case, business details will be optional, if it is not passed, then create the
     // default value
-    #[cfg(feature = "backwards_compatible")]
+    #[cfg(feature = "backwards_compatibility")]
     {
         request
             .primary_business_details
@@ -315,13 +315,13 @@ fn get_business_details_wrapper(
     request: &api::MerchantConnectorCreate,
     _merchant_account: &MerchantAccount,
 ) -> RouterResult<(enums::CountryCode, String)> {
-    #[cfg(not(feature = "backwards_compatible"))]
+    #[cfg(not(feature = "backwards_compatibility"))]
     {
         // The fields are mandatory
         Ok((request.business_country, request.business_label.to_owned()))
     }
 
-    #[cfg(feature = "backwards_compatible")]
+    #[cfg(feature = "backwards_compatibility")]
     {
         // If the value is not passed, then take it from Merchant account
         helpers::get_business_details(
