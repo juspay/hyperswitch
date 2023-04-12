@@ -15,6 +15,7 @@ mod fiserv;
 mod globalpay;
 mod mollie;
 mod multisafepay;
+mod nexinets;
 mod nuvei;
 mod opennode;
 mod paypal;

@@ -86,6 +86,7 @@ macro_rules! default_imp_for_complete_authorize{
 }
 
 default_imp_for_complete_authorize!(
+    connector::Nexinets,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -143,6 +144,7 @@ default_imp_for_connector_redirect_response!(
     connector::Fiserv,
     connector::Klarna,
     connector::Multisafepay,
+    connector::Nexinets,
     connector::Opennode,
     connector::Payu,
     connector::Rapyd,
@@ -177,6 +179,7 @@ default_imp_for_connector_request_id!(
     connector::Klarna,
     connector::Mollie,
     connector::Multisafepay,
+    connector::Nexinets,
     connector::Nuvei,
     connector::Opennode,
     connector::Payu,
