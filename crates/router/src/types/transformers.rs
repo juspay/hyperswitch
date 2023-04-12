@@ -332,7 +332,7 @@ impl TryFrom<domain::merchant_connector_account::MerchantConnectorAccount>
             connector_type: merchant_ca.connector_type.foreign_into(),
             connector_name: merchant_ca.connector_name,
             merchant_connector_id: Some(merchant_ca.merchant_connector_id),
-            connector_account_details: Some(merchant_ca.connector_account_details),
+            connector_account_details: Some(merchant_ca.connector_account_details.into_inner()),
             test_mode: merchant_ca.test_mode,
             disabled: merchant_ca.disabled,
             metadata: merchant_ca.metadata,
