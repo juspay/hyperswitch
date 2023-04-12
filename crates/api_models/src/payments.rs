@@ -548,6 +548,7 @@ pub enum BankRedirectData {
         preferred_language: String,
     },
     Swish {},
+    Trustly {},
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]

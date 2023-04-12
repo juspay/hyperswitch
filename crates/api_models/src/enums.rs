@@ -429,6 +429,7 @@ pub enum PaymentMethodType {
     Przelewy24,
     Sofort,
     Swish,
+    Trustly,
     Walley,
 }
 
