@@ -39,10 +39,9 @@ pub async fn retrieve_disputes_list(
         .map_err(|error| {
             error.to_not_found_response(errors::ApiErrorResponse::InternalServerError)
         })?;
-    let mut disputes_list: Vec<api_models::disputes::DisputeResponse> = vec![];
-    for dispute in disputes {
-        let dispute_response = api_models::disputes::DisputeResponse::foreign_from(dispute);
-        disputes_list.push(dispute_response);
-    }
+    let disputes_list = disputes
+        .into_iter()
+        .map(api_models::disputes::DisputeResponse::foreign_from)
+        .collect();
     Ok(services::ApplicationResponse::Json(disputes_list))
 }

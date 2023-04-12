@@ -384,7 +384,7 @@ impl ApiKeys {
 
 pub struct Disputes;
 
-#[cfg(any(feature = "olap", feature = "oltp"))]
+#[cfg(feature = "olap")]
 impl Disputes {
     pub fn server(state: AppState) -> Scope {
         web::scope("/disputes")
