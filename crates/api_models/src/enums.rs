@@ -408,19 +408,28 @@ pub enum PaymentExperience {
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum PaymentMethodType {
-    Credit,
-    Debit,
-    Giropay,
-    Ideal,
-    Sofort,
-    Eps,
-    Klarna,
     Affirm,
     AfterpayClearpay,
-    GooglePay,
     ApplePay,
-    Paypal,
+    Blik,
+    Credit,
     CryptoCurrency,
+    Debit,
+    Eps,
+    Giropay,
+    GooglePay,
+    Ideal,
+    Klarna,
+    OnlineBankingCzechRepublic,
+    OnlineBankingFinland,
+    OnlineBankingPoland,
+    OnlineBankingSlovakia,
+    PayBright,
+    Paypal,
+    Przelewy24,
+    Sofort,
+    Swish,
+    Walley,
 }
 
 #[derive(
@@ -729,6 +738,57 @@ pub enum BankNames {
     VolksbankGruppe,
     VolkskreditbankAg,
     VrBankBraunau,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    frunk::LabelledGeneric,
+    ToSchema,
+)]
+#[strum(serialize_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
+pub enum OnlineBankingCzechRepublicIssuers {
+    #[serde(rename = "Komercní banka")]
+    KomercniBanka,
+    #[serde(rename = "Česká spořitelna")]
+    CeskaSporitelna,
+    #[serde(rename = "Płatność online kartą płatniczą")]
+    PlatnoscOnlineKartaPlatnicza,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    frunk::LabelledGeneric,
+    ToSchema,
+)]
+#[strum(serialize_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
+pub enum OnlineBankingSlovakiaIssuers {
+    #[serde(rename = "ePlatby VÚB")]
+    EPlatbyVUb,
+    #[serde(rename = "Poštová banka")]
+    PostovaBanka,
+    Sporopay,
+    TatraPay,
+    Viamo,
 }
 
 #[derive(

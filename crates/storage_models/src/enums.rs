@@ -611,19 +611,28 @@ pub enum MandateStatus {
 #[strum(serialize_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
 pub enum PaymentMethodType {
-    Credit,
-    Debit,
-    Giropay,
-    Ideal,
-    Sofort,
-    Eps,
-    Klarna,
     Affirm,
     AfterpayClearpay,
-    GooglePay,
     ApplePay,
-    Paypal,
+    Blik,
+    Credit,
     CryptoCurrency,
+    Debit,
+    Eps,
+    Giropay,
+    GooglePay,
+    Ideal,
+    Klarna,
+    OnlineBankingCzechRepublic,
+    OnlineBankingFinland,
+    OnlineBankingPoland,
+    OnlineBankingSlovakia,
+    PayBright,
+    Paypal,
+    Przelewy24,
+    Sofort,
+    Swish,
+    Walley,
 }
 
 #[derive(

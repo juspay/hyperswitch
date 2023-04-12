@@ -593,15 +593,13 @@ fn get_payment_method_data<'a>(
 
                 Ok(AdyenPaymentMethod::ApplePay(apple_pay_data))
             }
-            api_models::payments::WalletData::PaypalSdk(_) => {
-                Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into())
-            }
             api_models::payments::WalletData::PaypalRedirect(_) => {
                 let wallet = AdyenPaypal {
                     payment_type: PaymentType::Paypal,
                 };
                 Ok(AdyenPaymentMethod::AdyenPaypal(wallet))
             }
+            _ => Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into()),
         },
         api_models::payments::PaymentMethodData::PayLater(ref pay_later_data) => {
             match pay_later_data {
@@ -650,6 +648,9 @@ fn get_payment_method_data<'a>(
                     Ok(AdyenPaymentMethod::Sofort(BankRedirectionPMData {
                         payment_type: PaymentType::Sofort,
                     }))
+                }
+                _ => {
+                    Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into())
                 }
             }
         }

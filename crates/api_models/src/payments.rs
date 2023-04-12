@@ -432,6 +432,8 @@ pub enum PayLaterData {
         #[schema(value_type = String)]
         billing_name: Secret<String>,
     },
+    PayBright {},
+    Walley {},
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -488,6 +490,10 @@ impl From<&PaymentMethodData> for AdditionalPaymentData {
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum BankRedirectData {
+    Blik {
+        // Blik Code
+        blik_code: String,
+    },
     Eps {
         /// The billing details for bank redirection
         billing_details: BankRedirectBilling,
@@ -508,6 +514,19 @@ pub enum BankRedirectData {
         #[schema(value_type = BankNames, example = "abn_amro")]
         bank_name: api_enums::BankNames,
     },
+    OnlineBankingCzechRepublic {
+        // Issuer banks
+        issuer: api_enums::OnlineBankingCzechRepublicIssuers,
+    },
+    OnlineBankingFinland {
+        // Shopper Email
+        email: Option<Secret<String, pii::Email>>,
+    },
+    OnlineBankingSlovakia {
+        // Issuer value corresponds to the bank
+        issuer: api_enums::OnlineBankingSlovakiaIssuers,
+    },
+    Przelewy24 {},
     Sofort {
         /// The country for bank payment
         #[schema(value_type = Country, example = "US")]
@@ -517,6 +536,7 @@ pub enum BankRedirectData {
         #[schema(example = "en")]
         preferred_language: String,
     },
+    Swish {},
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -540,14 +560,19 @@ pub struct BankRedirectBilling {
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum WalletData {
-    /// The wallet data for Google pay
-    GooglePay(GooglePayWalletData),
+    /// The wallet data for Ali Pay redirect
+    AliPay(AliPayRedirection),
     /// The wallet data for Apple pay
     ApplePay(ApplePayWalletData),
-    /// The wallet data for Paypal
-    PaypalSdk(PayPalWalletData),
+    /// The wallet data for Google pay
+    GooglePay(GooglePayWalletData),
+    MBPay(MBPayRedirection),
+    /// The wallet data for MobilePay redirect
+    MobilePay(MobilePayRedirection),
     /// This is for paypal redirection
     PaypalRedirect(PaypalRedirection),
+    /// The wallet data for Paypal
+    PaypalSdk(PayPalWalletData),
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -565,6 +590,18 @@ pub struct GooglePayWalletData {
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct PaypalRedirection {}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct AliPayRedirection {}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct MobilePayRedirection {}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct MBPayRedirection {
+    /// Telephone numer of the shopper. Should be Portugese phone number.
+    pub telephone_number: String,
+}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct GooglePayPaymentMethodInfo {
