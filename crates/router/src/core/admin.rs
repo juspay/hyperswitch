@@ -313,7 +313,7 @@ async fn validate_merchant_id<S: Into<String>>(
 
 fn get_business_details_wrapper(
     request: &api::MerchantConnectorCreate,
-    merchant_account: &MerchantAccount,
+    _merchant_account: &MerchantAccount,
 ) -> RouterResult<(enums::CountryCode, String)> {
     #[cfg(not(feature = "backwards_compatible"))]
     {
@@ -327,7 +327,7 @@ fn get_business_details_wrapper(
         helpers::get_business_details(
             request.business_country,
             request.business_label.as_ref(),
-            merchant_account,
+            _merchant_account,
         )
     }
 }
