@@ -129,6 +129,7 @@ impl ForeignFrom<storage_enums::AttemptStatus> for storage_enums::IntentStatus {
 
             storage_enums::AttemptStatus::Authorized => Self::RequiresCapture,
             storage_enums::AttemptStatus::AuthenticationPending => Self::RequiresCustomerAction,
+            storage_enums::AttemptStatus::Unresolved => Self::RequiresMerchantAction,
 
             storage_enums::AttemptStatus::PartialCharged
             | storage_enums::AttemptStatus::Started
@@ -156,6 +157,8 @@ impl ForeignTryFrom<api_enums::IntentStatus> for storage_enums::EventType {
     fn foreign_try_from(value: api_enums::IntentStatus) -> Result<Self, Self::Error> {
         match value {
             api_enums::IntentStatus::Succeeded => Ok(Self::PaymentSucceeded),
+            api_enums::IntentStatus::Processing => Ok(Self::PaymentProcessing),
+            api_enums::IntentStatus::RequiresMerchantAction => Ok(Self::ActionRequired),
             _ => Err(errors::ValidationError::IncorrectValueProvided {
                 field_name: "intent_status",
             }),
@@ -341,16 +344,6 @@ impl ForeignTryFrom<storage::MerchantConnectorAccount> for api_models::admin::Me
                 .change_context(errors::ApiErrorResponse::InternalServerError)?,
             None => None,
         };
-        let configs_for_frm_value = merchant_ca
-            .frm_configs
-            .ok_or_else(|| errors::ApiErrorResponse::ConfigNotFound)?;
-        let configs_for_frm : api_models::admin::FrmConfigs = configs_for_frm_value
-        // .clone()
-        .parse_value("FrmConfigs")
-        .change_context(errors::ApiErrorResponse::InvalidDataFormat {
-            field_name: "frm_configs".to_string(),
-            expected_format: "\"frm_configs\" : { \"frm_enabled_pms\" : [\"card\"], \"frm_enabled_pm_types\" : [\"credit\"], \"frm_enabled_gateways\" : [\"stripe\"], \"frm_action\": \"cancel_txn\", \"frm_preferred_flow_type\" : \"pre\" }".to_string(),
-        })?;
 
         Ok(Self {
             connector_type: merchant_ca.connector_type.foreign_into(),
@@ -363,7 +356,10 @@ impl ForeignTryFrom<storage::MerchantConnectorAccount> for api_models::admin::Me
             disabled: merchant_ca.disabled,
             metadata: merchant_ca.metadata,
             payment_methods_enabled,
-            frm_configs: Some(configs_for_frm),
+            connector_label: merchant_ca.connector_label,
+            business_country: merchant_ca.business_country,
+            business_label: merchant_ca.business_label,
+            business_sub_label: merchant_ca.business_sub_label,
         })
     }
 }

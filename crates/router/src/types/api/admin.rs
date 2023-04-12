@@ -27,6 +27,7 @@ impl ForeignFrom<storage::MerchantAccount> for MerchantAccountResponse {
             publishable_key: item.publishable_key,
             metadata: item.metadata,
             locker_id: item.locker_id,
+            primary_business_details: item.primary_business_details.into(),
         }
     }
 }

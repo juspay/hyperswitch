@@ -198,6 +198,7 @@ impl MerchantAccountInterface for MockDb {
             storage_scheme: enums::MerchantStorageScheme::PostgresOnly,
             locker_id: merchant_account.locker_id,
             metadata: merchant_account.metadata,
+            primary_business_details: merchant_account.primary_business_details,
         };
         accounts.push(account.clone());
         Ok(account)

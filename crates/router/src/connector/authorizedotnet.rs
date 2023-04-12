@@ -43,6 +43,17 @@ impl api::PaymentVoid for Authorizedotnet {}
 impl api::PaymentCapture for Authorizedotnet {}
 impl api::PaymentSession for Authorizedotnet {}
 impl api::ConnectorAccessToken for Authorizedotnet {}
+impl api::PaymentToken for Authorizedotnet {}
+
+impl
+    services::ConnectorIntegration<
+        api::PaymentMethodToken,
+        types::PaymentMethodTokenizationData,
+        types::PaymentsResponseData,
+    > for Authorizedotnet
+{
+    // Not Implemented (R)
+}
 
 impl
     services::ConnectorIntegration<

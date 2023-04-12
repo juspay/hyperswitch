@@ -8,6 +8,7 @@ pub mod bluesnap;
 pub mod braintree;
 pub mod cashtocode;
 pub mod checkout;
+pub mod coinbase;
 pub mod cybersource;
 pub mod dlocal;
 pub mod fiserv;
@@ -15,6 +16,7 @@ pub mod globalpay;
 pub mod klarna;
 pub mod multisafepay;
 pub mod nuvei;
+pub mod opennode;
 pub mod paypal;
 pub mod payu;
 pub mod rapyd;
@@ -30,8 +32,9 @@ pub mod mollie;
 pub use self::{
     aci::Aci, adyen::Adyen, airwallex::Airwallex, applepay::Applepay,
     authorizedotnet::Authorizedotnet, bambora::Bambora, bluesnap::Bluesnap, braintree::Braintree,
-    cashtocode::Cashtocode, checkout::Checkout, cybersource::Cybersource, dlocal::Dlocal,
-    fiserv::Fiserv, globalpay::Globalpay, klarna::Klarna, mollie::Mollie,
-    multisafepay::Multisafepay, nuvei::Nuvei, paypal::Paypal, payu::Payu, rapyd::Rapyd,
-    shift4::Shift4, stripe::Stripe, trustpay::Trustpay, worldline::Worldline, worldpay::Worldpay,
+    cashtocode::Cashtocode, checkout::Checkout, coinbase::Coinbase, cybersource::Cybersource,
+    dlocal::Dlocal, fiserv::Fiserv, globalpay::Globalpay, klarna::Klarna, mollie::Mollie,
+    multisafepay::Multisafepay, nuvei::Nuvei, opennode::Opennode, paypal::Paypal, payu::Payu,
+    rapyd::Rapyd, shift4::Shift4, stripe::Stripe, trustpay::Trustpay, worldline::Worldline,
+    worldpay::Worldpay,
 };

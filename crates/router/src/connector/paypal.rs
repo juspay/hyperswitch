@@ -29,6 +29,7 @@ pub struct Paypal;
 
 impl api::Payment for Paypal {}
 impl api::PaymentSession for Paypal {}
+impl api::PaymentToken for Paypal {}
 impl api::ConnectorAccessToken for Paypal {}
 impl api::PreVerify for Paypal {}
 impl api::PaymentAuthorize for Paypal {}
@@ -177,6 +178,16 @@ impl ConnectorCommon for Paypal {
             reason: None,
         })
     }
+}
+
+impl
+    ConnectorIntegration<
+        api::PaymentMethodToken,
+        types::PaymentMethodTokenizationData,
+        types::PaymentsResponseData,
+    > for Paypal
+{
+    // Not Implemented (R)
 }
 
 impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::PaymentsResponseData>
