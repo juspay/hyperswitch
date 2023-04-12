@@ -66,7 +66,6 @@ enum PaymentDetails {
     Paypal,
     #[serde(rename = "bankRedirect")]
     BankRedirect,
-    Reward,
 }
 
 impl TryFrom<api_models::payments::PaymentMethodData> for PaymentDetails {

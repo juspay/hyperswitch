@@ -57,7 +57,6 @@ pub enum PaymentDetails {
     Klarna,
     #[serde(rename = "bankRedirect")]
     BankRedirect,
-    Reward,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Serialize)]

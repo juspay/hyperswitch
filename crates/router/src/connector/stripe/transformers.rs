@@ -208,7 +208,6 @@ pub enum StripePaymentMethodData {
     PayLater(StripePayLaterData),
     Wallet(StripeWallet),
     BankRedirect(StripeBankRedirectData),
-    Reward,
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]

@@ -31,6 +31,7 @@ impl api::ConnectorAccessToken for Cashtocode {}
 impl api::PreVerify for Cashtocode {}
 impl api::PaymentAuthorize for Cashtocode {}
 impl api::PaymentSync for Cashtocode {}
+impl api::PaymentToken for Cashtocode {}
 impl api::PaymentCapture for Cashtocode {}
 impl api::PaymentVoid for Cashtocode {}
 impl api::Refund for Cashtocode {}
@@ -617,4 +618,14 @@ impl api::IncomingWebhook for Cashtocode {
             serde_json::json!({ "status": status, "transactionId" : txn_id});
         Ok(services::api::ApplicationResponse::Json(response))
     }
+}
+
+impl
+    ConnectorIntegration<
+        api::PaymentMethodToken,
+        types::PaymentMethodTokenizationData,
+        types::PaymentsResponseData,
+    > for Cashtocode
+{
+    // Not Implemented (R)
 }
