@@ -124,8 +124,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::VerifyRequest> for Paym
 
         connector_response = match db
             .insert_connector_response(
-                PaymentCreate::make_connector_response(&payment_attempt)
-                    .change_context(errors::ApiErrorResponse::InternalServerError)?,
+                PaymentCreate::make_connector_response(&payment_attempt),
                 storage_scheme,
             )
             .await
