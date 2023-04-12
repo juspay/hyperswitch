@@ -977,7 +977,7 @@ where
             .payment_attempt
             .straight_through_algorithm
             .clone()
-            .map(|val| val.parse_value("StraightThroughAlgorithm"))
+            .map(|val| val.parse_value("RoutingAlgorithm"))
             .transpose()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Invalid straight through algorithm format in payment attempt")?,
