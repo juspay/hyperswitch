@@ -262,7 +262,7 @@ diesel::table! {
         amount -> Int8,
         currency -> Nullable<Currency>,
         save_to_locker -> Nullable<Bool>,
-        connector -> Nullable<Jsonb>,
+        connector -> Nullable<Varchar>,
         error_message -> Nullable<Text>,
         offer_amount -> Nullable<Int8>,
         surcharge_amount -> Nullable<Int8>,
@@ -288,6 +288,7 @@ diesel::table! {
         payment_method_type -> Nullable<Varchar>,
         payment_method_data -> Nullable<Jsonb>,
         business_sub_label -> Nullable<Varchar>,
+        straight_through_algorithm -> Nullable<Jsonb>,
     }
 }
 
