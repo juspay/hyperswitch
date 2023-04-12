@@ -1,6 +1,6 @@
 pub use api_models::admin::{
     MerchantAccountCreate, MerchantAccountDeleteResponse, MerchantAccountResponse,
-    MerchantAccountUpdate, MerchantConnector, MerchantConnectorDeleteResponse,
+    MerchantAccountUpdate, MerchantConnectorCreate, MerchantConnectorDeleteResponse,
     MerchantConnectorDetails, MerchantConnectorDetailsWrap, MerchantConnectorId, MerchantDetails,
     MerchantId, PaymentMethodsEnabled, RoutingAlgorithm, ToggleKVRequest, ToggleKVResponse,
     WebhookDetails,

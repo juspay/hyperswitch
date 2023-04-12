@@ -1289,7 +1289,7 @@ pub fn get_business_details(
     business_country: Option<api_enums::CountryCode>,
     business_label: Option<&String>,
     merchant_account: &storage_models::merchant_account::MerchantAccount,
-) -> Result<(api_enums::CountryCode, String), error_stack::Report<errors::ApiErrorResponse>> {
+) -> RouterResult<(api_enums::CountryCode, String)> {
     let (business_country, business_label) = match business_country.zip(business_label) {
         Some((business_country, business_label)) => {
             (business_country.to_owned(), business_label.to_owned())
