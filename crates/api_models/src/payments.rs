@@ -201,8 +201,19 @@ pub struct PaymentsRequest {
     #[schema(value_type = Option<PaymentMethodType>, example = "google_pay")]
     pub payment_method_type: Option<api_enums::PaymentMethodType>,
 
+    /// Business country of the merchant for this payment
+    #[schema(example = "US")]
+    pub business_country: Option<api_enums::CountryCode>,
+
+    /// Business label of the merchant for this payment
+    #[schema(example = "food")]
+    pub business_label: Option<String>,
+
     /// Merchant connector details used to make payments.
     pub merchant_connector_details: Option<admin::MerchantConnectorDetailsWrap>,
+
+    /// Business sub label for the payment
+    pub business_sub_label: Option<String>,
 }
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, Copy, PartialEq, Eq)]
@@ -940,6 +951,19 @@ pub struct PaymentsResponse {
     /// Payment Method Type
     #[schema(value_type = Option<PaymentMethodType>, example = "gpay")]
     pub payment_method_type: Option<api_enums::PaymentMethodType>,
+
+    /// The connector used for this payment along with the country and business details
+    #[schema(example = "stripe_US_food")]
+    pub connector_label: Option<String>,
+
+    /// The business country of merchant for this payment
+    pub business_country: api_enums::CountryCode,
+
+    /// The business label of merchant for this payment
+    pub business_label: String,
+
+    /// The business_sub_label for this payment
+    pub business_sub_label: Option<String>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, ToSchema)]

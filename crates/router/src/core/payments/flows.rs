@@ -54,6 +54,20 @@ pub trait Feature<F, T> {
         F: Clone,
         Self: Sized,
         dyn api::Connector: services::ConnectorIntegration<F, T, types::PaymentsResponseData>;
+
+    async fn add_payment_method_token<'a>(
+        &self,
+        _state: &AppState,
+        _connector: &api::ConnectorData,
+        _tokenization_action: &payments::TokenizationAction,
+    ) -> RouterResult<Option<String>>
+    where
+        F: Clone,
+        Self: Sized,
+        dyn api::Connector: services::ConnectorIntegration<F, T, types::PaymentsResponseData>,
+    {
+        Ok(None)
+    }
 }
 
 macro_rules! default_imp_for_complete_authorize{
@@ -125,7 +139,6 @@ default_imp_for_connector_redirect_response!(
     connector::Cybersource,
     connector::Dlocal,
     connector::Fiserv,
-    connector::Globalpay,
     connector::Klarna,
     connector::Multisafepay,
     connector::Opennode,

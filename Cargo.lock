@@ -1069,6 +1069,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "cargo_metadata"
+version = "0.15.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "eee4243f1f26fc7a42710e7439c149e2b10b05472f88090acce52632f231a73a"
+dependencies = [
+ "camino",
+ "cargo-platform",
+ "semver",
+ "serde",
+ "serde_json",
+ "thiserror",
+]
+
+[[package]]
 name = "cc"
 version = "1.0.79"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2770,7 +2784,7 @@ dependencies = [
 [[package]]
 name = "opentelemetry"
 version = "0.18.0"
-source = "git+https://github.com/open-telemetry/opentelemetry-rust?rev=44b90202fd744598db8b0ace5b8f0bad7ec45658#44b90202fd744598db8b0ace5b8f0bad7ec45658"
+source = "git+https://github.com/open-telemetry/opentelemetry-rust/?rev=44b90202fd744598db8b0ace5b8f0bad7ec45658#44b90202fd744598db8b0ace5b8f0bad7ec45658"
 dependencies = [
  "opentelemetry_api",
  "opentelemetry_sdk",
@@ -2779,7 +2793,7 @@ dependencies = [
 [[package]]
 name = "opentelemetry-otlp"
 version = "0.11.0"
-source = "git+https://github.com/open-telemetry/opentelemetry-rust?rev=44b90202fd744598db8b0ace5b8f0bad7ec45658#44b90202fd744598db8b0ace5b8f0bad7ec45658"
+source = "git+https://github.com/open-telemetry/opentelemetry-rust/?rev=44b90202fd744598db8b0ace5b8f0bad7ec45658#44b90202fd744598db8b0ace5b8f0bad7ec45658"
 dependencies = [
  "async-trait",
  "futures",
@@ -2796,7 +2810,7 @@ dependencies = [
 [[package]]
 name = "opentelemetry-proto"
 version = "0.1.0"
-source = "git+https://github.com/open-telemetry/opentelemetry-rust?rev=44b90202fd744598db8b0ace5b8f0bad7ec45658#44b90202fd744598db8b0ace5b8f0bad7ec45658"
+source = "git+https://github.com/open-telemetry/opentelemetry-rust/?rev=44b90202fd744598db8b0ace5b8f0bad7ec45658#44b90202fd744598db8b0ace5b8f0bad7ec45658"
 dependencies = [
  "futures",
  "futures-util",
@@ -2808,7 +2822,7 @@ dependencies = [
 [[package]]
 name = "opentelemetry_api"
 version = "0.18.0"
-source = "git+https://github.com/open-telemetry/opentelemetry-rust?rev=44b90202fd744598db8b0ace5b8f0bad7ec45658#44b90202fd744598db8b0ace5b8f0bad7ec45658"
+source = "git+https://github.com/open-telemetry/opentelemetry-rust/?rev=44b90202fd744598db8b0ace5b8f0bad7ec45658#44b90202fd744598db8b0ace5b8f0bad7ec45658"
 dependencies = [
  "fnv",
  "futures-channel",
@@ -2823,7 +2837,7 @@ dependencies = [
 [[package]]
 name = "opentelemetry_sdk"
 version = "0.18.0"
-source = "git+https://github.com/open-telemetry/opentelemetry-rust?rev=44b90202fd744598db8b0ace5b8f0bad7ec45658#44b90202fd744598db8b0ace5b8f0bad7ec45658"
+source = "git+https://github.com/open-telemetry/opentelemetry-rust/?rev=44b90202fd744598db8b0ace5b8f0bad7ec45658#44b90202fd744598db8b0ace5b8f0bad7ec45658"
 dependencies = [
  "async-trait",
  "crossbeam-channel",
@@ -3540,6 +3554,7 @@ dependencies = [
 name = "router_env"
 version = "0.1.0"
 dependencies = [
+ "cargo_metadata 0.15.4",
  "config",
  "gethostname",
  "once_cell",
@@ -4013,7 +4028,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "16d23b015676c90a0f01c197bfdc786c20342c73a0afdda9025adb0bc42940a8"
 dependencies = [
  "bytecount",
- "cargo_metadata",
+ "cargo_metadata 0.14.2",
  "error-chain",
  "glob",
  "pulldown-cmark",
