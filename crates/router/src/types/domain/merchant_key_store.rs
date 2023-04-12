@@ -1,7 +1,5 @@
 use common_utils::crypto::{Encryptable, GcmAes256};
-
 use error_stack::ResultExt;
-
 use masking::Secret;
 
 use crate::{

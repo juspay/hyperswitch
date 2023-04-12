@@ -1,6 +1,5 @@
 use common_utils::ext_traits::{AsyncExt, ByteSliceExt, Encode};
 use error_stack::{IntoReport, ResultExt};
-use masking::ExposeInterface;
 
 use super::{MockDb, Store};
 use crate::{
@@ -149,7 +148,7 @@ where
     async fn update_merchant_connector_account(
         &self,
         this: domain::merchant_connector_account::MerchantConnectorAccount,
-        merchant_connector_account: storage::MerchantConnectorAccountUpdate,
+        merchant_connector_account: storage::MerchantConnectorAccountUpdateInternal,
     ) -> CustomResult<
         domain::merchant_connector_account::MerchantConnectorAccount,
         errors::StorageError,
@@ -207,21 +206,23 @@ impl MerchantConnectorAccountInterface for Store {
             .await
             .map_err(Into::into)
             .into_report()
-            .async_and_then(|item| async {
-                item.convert(self, merchant_id)
-                    .await
-                    .change_context(errors::StorageError::DeserializationFailed)
-            })
-            .await
         };
         #[cfg(not(feature = "accounts_cache"))]
         {
-            find_call().await
+            find_call()
+                .await?
+                .convert(self, merchant_id)
+                .await
+                .change_context(errors::StorageError::DeserializationFailed)
         }
 
         #[cfg(feature = "accounts_cache")]
         {
-            super::cache::get_or_populate_redis(self, merchant_connector_id, find_call).await
+            super::cache::get_or_populate_redis(self, merchant_connector_id, find_call)
+                .await?
+                .convert(self, merchant_id)
+                .await
+                .change_context(errors::StorageError::DeserializationFailed)
         }
     }
 
@@ -279,7 +280,7 @@ impl MerchantConnectorAccountInterface for Store {
     async fn update_merchant_connector_account(
         &self,
         this: domain::merchant_connector_account::MerchantConnectorAccount,
-        merchant_connector_account: storage::MerchantConnectorAccountUpdate,
+        merchant_connector_account: storage::MerchantConnectorAccountUpdateInternal,
     ) -> CustomResult<
         domain::merchant_connector_account::MerchantConnectorAccount,
         errors::StorageError,
@@ -384,7 +385,7 @@ impl MerchantConnectorAccountInterface for MockDb {
             id: accounts.len() as i32,
             merchant_id: t.merchant_id,
             connector_name: t.connector_name,
-            connector_account_details: t.connector_account_details.expose(),
+            connector_account_details: t.connector_account_details.into(),
             test_mode: t.test_mode,
             disabled: t.disabled,
             merchant_connector_id: t.merchant_connector_id,
@@ -414,7 +415,7 @@ impl MerchantConnectorAccountInterface for MockDb {
     async fn update_merchant_connector_account(
         &self,
         _this: domain::merchant_connector_account::MerchantConnectorAccount,
-        _merchant_connector_account: storage::MerchantConnectorAccountUpdate,
+        _merchant_connector_account: storage::MerchantConnectorAccountUpdateInternal,
     ) -> CustomResult<
         domain::merchant_connector_account::MerchantConnectorAccount,
         errors::StorageError,

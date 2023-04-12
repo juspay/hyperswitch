@@ -10,7 +10,10 @@ use masking::Secret;
 use storage_models::{address::AddressUpdateInternal, encryption::Encryption, enums};
 use time::{OffsetDateTime, PrimitiveDateTime};
 
-use super::{behaviour, types::TypeEncryption};
+use super::{
+    behaviour,
+    types::{get_key_and_algo, TypeEncryption},
+};
 use crate::db::StorageInterface;
 
 #[derive(Clone, Debug, serde::Serialize)]
@@ -71,10 +74,14 @@ impl behaviour::Conversion for Address {
 
     async fn convert_back(
         other: Self::DstType,
-        _db: &dyn StorageInterface,
-        _merchant_id: &str,
+        db: &dyn StorageInterface,
+        merchant_id: &str,
     ) -> CustomResult<Self, ValidationError> {
-        let key = &[0];
+        let key = get_key_and_algo(db, merchant_id).await.change_context(
+            ValidationError::InvalidValue {
+                message: "Invalid while getting key for address".to_string(),
+            },
+        )?;
         Ok(Self {
             id: Some(other.id),
             address_id: other.address_id,
@@ -82,7 +89,7 @@ impl behaviour::Conversion for Address {
             country: other.country,
             line1: other
                 .line1
-                .async_map(|inner| Encryptable::decrypt(inner, key, GcmAes256 {}))
+                .async_map(|inner| Encryptable::decrypt(inner, &key, GcmAes256 {}))
                 .await
                 .transpose()
                 .change_context(ValidationError::InvalidValue {
@@ -90,7 +97,7 @@ impl behaviour::Conversion for Address {
                 })?,
             line2: other
                 .line2
-                .async_map(|inner| Encryptable::decrypt(inner, key, GcmAes256 {}))
+                .async_map(|inner| Encryptable::decrypt(inner, &key, GcmAes256 {}))
                 .await
                 .transpose()
                 .change_context(ValidationError::InvalidValue {
@@ -98,7 +105,7 @@ impl behaviour::Conversion for Address {
                 })?,
             line3: other
                 .line3
-                .async_map(|inner| Encryptable::decrypt(inner, key, GcmAes256 {}))
+                .async_map(|inner| Encryptable::decrypt(inner, &key, GcmAes256 {}))
                 .await
                 .transpose()
                 .change_context(ValidationError::InvalidValue {
@@ -106,7 +113,7 @@ impl behaviour::Conversion for Address {
                 })?,
             state: other
                 .state
-                .async_map(|inner| Encryptable::decrypt(inner, key, GcmAes256 {}))
+                .async_map(|inner| Encryptable::decrypt(inner, &key, GcmAes256 {}))
                 .await
                 .transpose()
                 .change_context(ValidationError::InvalidValue {
@@ -114,7 +121,7 @@ impl behaviour::Conversion for Address {
                 })?,
             zip: other
                 .zip
-                .async_map(|inner| Encryptable::decrypt(inner, key, GcmAes256 {}))
+                .async_map(|inner| Encryptable::decrypt(inner, &key, GcmAes256 {}))
                 .await
                 .transpose()
                 .change_context(ValidationError::InvalidValue {
@@ -122,7 +129,7 @@ impl behaviour::Conversion for Address {
                 })?,
             first_name: other
                 .first_name
-                .async_map(|inner| Encryptable::decrypt(inner, key, GcmAes256 {}))
+                .async_map(|inner| Encryptable::decrypt(inner, &key, GcmAes256 {}))
                 .await
                 .transpose()
                 .change_context(ValidationError::InvalidValue {
@@ -130,7 +137,7 @@ impl behaviour::Conversion for Address {
                 })?,
             last_name: other
                 .last_name
-                .async_map(|inner| Encryptable::decrypt(inner, key, GcmAes256 {}))
+                .async_map(|inner| Encryptable::decrypt(inner, &key, GcmAes256 {}))
                 .await
                 .transpose()
                 .change_context(ValidationError::InvalidValue {
@@ -138,7 +145,7 @@ impl behaviour::Conversion for Address {
                 })?,
             phone_number: other
                 .phone_number
-                .async_map(|inner| Encryptable::decrypt(inner, key, GcmAes256 {}))
+                .async_map(|inner| Encryptable::decrypt(inner, &key, GcmAes256 {}))
                 .await
                 .transpose()
                 .change_context(ValidationError::InvalidValue {

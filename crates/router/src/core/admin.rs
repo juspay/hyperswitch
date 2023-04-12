@@ -330,6 +330,10 @@ pub async fn create_payment_connector(
     req: api::MerchantConnector,
     merchant_id: &String,
 ) -> RouterResponse<api::MerchantConnector> {
+    let key = get_key_and_algo(store, merchant_id.clone())
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
     let _merchant_account = store
         .find_merchant_account_by_merchant_id(merchant_id)
         .await
@@ -369,11 +373,16 @@ pub async fn create_payment_connector(
         connector_type: req.connector_type.foreign_into(),
         connector_name: req.connector_name,
         merchant_connector_id: utils::generate_id(consts::ID_LENGTH, "mca"),
-        connector_account_details: req.connector_account_details.ok_or(
-            errors::ApiErrorResponse::MissingRequiredField {
-                field_name: "connector_account_details",
-            },
-        )?,
+        connector_account_details: crypto::Encryptable::encrypt(
+            req.connector_account_details
+                .ok_or(errors::ApiErrorResponse::MissingRequiredField {
+                    field_name: "connector_account_details",
+                })?,
+            &key,
+            GcmAes256 {},
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)?,
         payment_methods_enabled,
         test_mode: req.test_mode,
         disabled: req.disabled,
@@ -451,6 +460,10 @@ pub async fn update_payment_connector(
     merchant_connector_id: &str,
     req: api::MerchantConnector,
 ) -> RouterResponse<api::MerchantConnector> {
+    let key = get_key_and_algo(db, merchant_id)
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
     let _merchant_account = db
         .find_merchant_account_by_merchant_id(merchant_id)
         .await
@@ -482,7 +495,12 @@ pub async fn update_payment_connector(
         connector_type: Some(req.connector_type.foreign_into()),
         connector_name: Some(req.connector_name),
         merchant_connector_id: Some(merchant_connector_id.to_string()),
-        connector_account_details: req.connector_account_details,
+        connector_account_details: req
+            .connector_account_details
+            .async_map(|f| crypto::Encryptable::encrypt(f, &key, GcmAes256 {}))
+            .await
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)?,
         payment_methods_enabled,
         test_mode: req.test_mode,
         disabled: req.disabled,
@@ -490,7 +508,7 @@ pub async fn update_payment_connector(
     };
 
     let updated_mca = db
-        .update_merchant_connector_account(mca, payment_connector)
+        .update_merchant_connector_account(mca, payment_connector.into())
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable_lazy(|| {
@@ -512,7 +530,7 @@ pub async fn update_payment_connector(
         connector_type: updated_mca.connector_type.foreign_into(),
         connector_name: updated_mca.connector_name,
         merchant_connector_id: Some(updated_mca.merchant_connector_id),
-        connector_account_details: Some(updated_mca.connector_account_details),
+        connector_account_details: Some(updated_mca.connector_account_details.into_inner()),
         test_mode: updated_mca.test_mode,
         disabled: updated_mca.disabled,
         payment_methods_enabled: updated_pm_enabled,

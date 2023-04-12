@@ -1,11 +1,12 @@
+use diesel::{associations::HasTable, ExpressionMethods};
+use router_env::{instrument, tracing};
+
 use super::generics;
 use crate::{
     merchant_key_store::{MerchantKeyStore, MerchantKeyStoreNew},
     schema::merchantkeystore::dsl,
     PgPooledConn, StorageResult,
 };
-use diesel::{associations::HasTable, ExpressionMethods};
-use router_env::{instrument, tracing};
 
 impl MerchantKeyStoreNew {
     #[instrument(skip(conn))]
