@@ -6,13 +6,12 @@ edition = "2021"
 rust-version = "1.65"
 readme = "README.md"
 license = "Apache-2.0"
-build = "src/build.rs"
 
 [dependencies]
 config = { version = "0.13.3", features = ["toml"] }
 gethostname = "0.4.1"
 once_cell = "1.17.1"
-opentelemetry = { git = "https://github.com/open-telemetry/opentelemetry-rust/", rev = "44b90202fd744598db8b0ace5b8f0bad7ec45658",  features = ["rt-tokio-current-thread", "metrics"] }
+opentelemetry = { git = "https://github.com/open-telemetry/opentelemetry-rust/", rev = "44b90202fd744598db8b0ace5b8f0bad7ec45658", features = ["rt-tokio-current-thread", "metrics"] }
 opentelemetry-otlp = { git = "https://github.com/open-telemetry/opentelemetry-rust/", rev = "44b90202fd744598db8b0ace5b8f0bad7ec45658", features = ["metrics"] }
 rustc-hash = "1.1"
 serde = { version = "1.0.155", features = ["derive"] }
@@ -26,13 +25,14 @@ tracing-actix-web = { version = "0.7.2", features = ["opentelemetry_0_18"], opti
 tracing-appender = { version = "0.2.2" }
 tracing-attributes = "=0.1.22"
 tracing-opentelemetry = { version = "0.18.0" }
-tracing-subscriber = { version = "0.3.16", default-features = true, features = ["json", "env-filter", "registry"] }
+tracing-subscriber = { version = "0.3.16", default-features = true, features = ["env-filter", "json", "registry"] }
 vergen = { version = "8.0.0-beta.9", optional = true, features = ["cargo", "git", "git2", "rustc"] }
 
 [dev-dependencies]
 tokio = { version = "1.26.0", features = ["macros", "rt-multi-thread"] }
 
 [build-dependencies]
+cargo_metadata = "0.15.4"
 vergen = { version = "8.0.0-beta.9", features = ["cargo", "git", "git2", "rustc"], optional = true }
 
 [features]
