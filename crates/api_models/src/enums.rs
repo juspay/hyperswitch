@@ -723,7 +723,7 @@ pub enum BankNames {
     Dolomitenbank,
     EasybankAg,
     #[serde(rename = "ePlatby VÚB")]
-    EPlatbyVUb,
+    EPlatbyVUB,
     ErsteBankUndSparkassen,
     HypoAlpeadriabankInternationalAg,
     HypoNoeLbFurNiederosterreichUWien,
@@ -745,7 +745,7 @@ pub enum BankNames {
     SchelhammerCapitalBankAg,
     SchoellerbankAg,
     SpardaBankWien,
-    Sporopay,
+    SporoPay,
     TatraPay,
     Viamo,
     VolksbankGruppe,
