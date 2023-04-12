@@ -248,6 +248,7 @@ pub enum PaymentsResponseData {
         redirection_data: Option<services::RedirectForm>,
         mandate_reference: Option<String>,
         connector_metadata: Option<serde_json::Value>,
+        network_txn_id: Option<String>,
     },
     SessionResponse {
         session_token: api::SessionToken,

@@ -913,6 +913,7 @@ impl TryFrom<types::PaymentsCancelResponseRouterData<AdyenCancelResponse>>
                 redirection_data: None,
                 mandate_reference: None,
                 connector_metadata: None,
+                network_txn_id: None,
             }),
             ..item.data
         })
@@ -958,12 +959,18 @@ pub fn get_adyen_response(
     };
     let mandate_reference = response
         .additional_data
-        .and_then(|additional_data| additional_data.recurring_detail_reference);
+        .as_ref()
+        .and_then(|additional_data| additional_data.recurring_detail_reference.to_owned());
+    let network_txn_id = response
+        .additional_data
+        .and_then(|additional_data| additional_data.network_tx_reference);
+
     let payments_response_data = types::PaymentsResponseData::TransactionResponse {
         resource_id: types::ResponseId::ConnectorTransactionId(response.psp_reference),
         redirection_data: None,
         mandate_reference,
         connector_metadata: None,
+        network_txn_id,
     };
     Ok((status, error, payments_response_data))
 }
@@ -1018,6 +1025,7 @@ pub fn get_redirection_response(
         redirection_data: Some(redirection_data),
         mandate_reference: None,
         connector_metadata: None,
+        network_txn_id: None,
     };
     Ok((status, error, payments_response_data))
 }
@@ -1108,6 +1116,7 @@ impl TryFrom<types::PaymentsCaptureResponseRouterData<AdyenCaptureResponse>>
                 redirection_data: None,
                 mandate_reference: None,
                 connector_metadata: None,
+                network_txn_id: None,
             }),
             amount_captured,
             ..item.data

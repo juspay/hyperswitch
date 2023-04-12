@@ -819,6 +819,7 @@ impl<F, T>
                 redirection_data,
                 mandate_reference,
                 connector_metadata: None,
+                network_txn_id: None,
             }),
             amount_captured: Some(item.response.amount_received),
             ..item.data
@@ -879,6 +880,7 @@ impl<F, T>
                 redirection_data,
                 mandate_reference,
                 connector_metadata: None,
+                network_txn_id: None,
             }),
             Err,
         );
@@ -924,6 +926,7 @@ impl<F, T>
                 redirection_data,
                 mandate_reference,
                 connector_metadata: None,
+                network_txn_id: None,
             }),
             ..item.data
         })

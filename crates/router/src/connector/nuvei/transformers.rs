@@ -895,6 +895,7 @@ impl<F, T>
                         } else {
                             None
                         },
+                        network_txn_id: None,
                     }),
                 },
             },

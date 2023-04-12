@@ -592,6 +592,7 @@ pub fn get_connector_metadata(
             redirection_data: _,
             mandate_reference: _,
             connector_metadata,
+            network_txn_id: _,
         }) => connector_metadata,
         _ => None,
     }

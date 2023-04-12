@@ -317,6 +317,7 @@ impl<F, T>
                     .map(|url| services::RedirectForm::from((url, services::Method::Get))),
                 mandate_reference: None,
                 connector_metadata: None,
+                network_txn_id: None,
             }),
             ..item.data
         })

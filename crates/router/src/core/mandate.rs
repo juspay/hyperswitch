@@ -158,12 +158,13 @@ where
                 .payment_method_id;
 
                 resp.payment_method_id = Some(payment_method_id.clone());
-                let mandate_reference = match resp.response.as_ref().ok() {
+                let (mandate_reference, network_txn_id) = match resp.response.as_ref().ok() {
                     Some(types::PaymentsResponseData::TransactionResponse {
                         mandate_reference,
+                        network_txn_id,
                         ..
-                    }) => mandate_reference.clone(),
-                    _ => None,
+                    }) => (mandate_reference.clone(), network_txn_id.clone()),
+                    _ => (None, None),
                 };
 
                 if let Some(new_mandate_data) = helpers::generate_mandate(
@@ -173,6 +174,7 @@ where
                     maybe_customer,
                     payment_method_id,
                     mandate_reference,
+                    network_txn_id,
                 ) {
                     let connector = new_mandate_data.connector.clone();
                     logger::debug!("{:?}", new_mandate_data);

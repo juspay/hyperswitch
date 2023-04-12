@@ -469,6 +469,7 @@ impl<F, T>
                     .payment_details
                     .and_then(|payment_details| payment_details.recurring_id),
                 connector_metadata: None,
+                network_txn_id: None,
             }),
             ..item.data
         })
