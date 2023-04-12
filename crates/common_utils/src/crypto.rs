@@ -8,7 +8,10 @@ use ring::{
     hmac,
 };
 
-use crate::errors::{self, CustomResult};
+use crate::{
+    errors::{self, CustomResult},
+    pii,
+};
 
 const RING_ERR_UNSPECIFIED: &str = "ring::error::Unspecified";
 
@@ -480,6 +483,15 @@ where
         self.inner.eq(&other.inner)
     }
 }
+
+/// Type alias for `Option<Encryptable<Secret<String>>>`
+pub type OptionalEncryptableSecretString = Option<Encryptable<masking::Secret<String>>>;
+/// Type alias for `Option<Encryptable<Secret<String>>>` used for `name` field
+pub type OptionalEncryptableName = Option<Encryptable<masking::Secret<String>>>;
+/// Type alias for `Option<Encryptable<Secret<String>>>` used for `email` field
+pub type OptionalEncryptableEmail = Option<Encryptable<masking::Secret<String, pii::Email>>>;
+/// Type alias for `Option<Encryptable<Secret<String>>>` used for `phone` field
+pub type OptionalEncryptablePhone = Option<Encryptable<masking::Secret<String>>>;
 
 #[cfg(test)]
 mod crypto_tests {
