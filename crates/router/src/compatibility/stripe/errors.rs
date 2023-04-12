@@ -182,6 +182,8 @@ pub enum StripeErrorCode {
     IncorrectConnectorNameGiven,
     #[error(error_type = StripeErrorType::HyperswitchError, code = "", message = "No such {object}: '{id}'")]
     ResourceMissing { object: String, id: String },
+    #[error(error_type = StripeErrorType::HyperswitchError, code = "", message = "File validation failed")]
+    FileValidationFailed,
     // [#216]: https://github.com/juspay/hyperswitch/issues/216
     // Implement the remaining stripe error codes
 
@@ -468,7 +470,8 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
             },
             errors::ApiErrorResponse::DisputeStatusValidationFailed { reason } => {
                 Self::InternalServerError
-            }
+            },
+            errors::ApiErrorResponse::FileValidationFailed { .. } => Self::FileValidationFailed,
             errors::ApiErrorResponse::NotSupported { .. } => Self::InternalServerError,
         }
     }
@@ -517,7 +520,8 @@ impl actix_web::ResponseError for StripeErrorCode {
             | Self::PaymentIntentUnexpectedState { .. }
             | Self::DuplicatePayment { .. }
             | Self::IncorrectConnectorNameGiven
-            | Self::ResourceMissing { .. } => StatusCode::BAD_REQUEST,
+            | Self::ResourceMissing { .. }
+            | Self::FileValidationFailed => StatusCode::BAD_REQUEST,
             Self::RefundFailed
             | Self::InternalServerError
             | Self::MandateActive

@@ -168,6 +168,8 @@ pub enum Flow {
     DisputesList,
     /// Cards Info flow
     CardsInfo,
+    /// Create File flow
+    CreateFile,
 }
 
 ///

@@ -260,7 +260,6 @@ pub async fn construct_accept_dispute_router_data<'a>(
             dispute_id: dispute.dispute_id.clone(),
             connector_dispute_id: dispute.connector_dispute_id.clone(),
         },
-        //TODO: Why do we need the response in request
         response: Ok(types::AcceptDisputeResponse {
             dispute_status: dispute.dispute_status.foreign_into(),
             connector_status: None,

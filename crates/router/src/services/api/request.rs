@@ -28,6 +28,7 @@ pub enum Method {
 pub enum ContentType {
     Json,
     FormUrlEncoded,
+    TextPlain,
 }
 
 fn default_request_headers() -> [(String, String); 1] {
@@ -45,6 +46,7 @@ pub struct Request {
     pub content_type: Option<ContentType>,
     pub certificate: Option<String>,
     pub certificate_key: Option<String>,
+    pub file_data: Option<Vec<u8>>,
 }
 
 impl Request {
@@ -57,6 +59,7 @@ impl Request {
             content_type: None,
             certificate: None,
             certificate_key: None,
+            file_data: None,
         }
     }
 
@@ -84,6 +87,10 @@ impl Request {
     pub fn add_certificate_key(&mut self, certificate_key: Option<String>) {
         self.certificate = certificate_key;
     }
+
+    pub fn set_file_data(&mut self, file_data: Vec<u8>) {
+        self.file_data = Some(file_data);
+    }
 }
 
 pub struct RequestBuilder {
@@ -94,6 +101,7 @@ pub struct RequestBuilder {
     pub content_type: Option<ContentType>,
     pub certificate: Option<String>,
     pub certificate_key: Option<String>,
+    pub file_data: Option<Vec<u8>>,
 }
 
 impl RequestBuilder {
@@ -106,6 +114,7 @@ impl RequestBuilder {
             content_type: None,
             certificate: None,
             certificate_key: None,
+            file_data: None,
         }
     }
 
@@ -164,6 +173,7 @@ impl RequestBuilder {
             content_type: self.content_type,
             certificate: self.certificate,
             certificate_key: self.certificate_key,
+            file_data: self.file_data,
         }
     }
 }

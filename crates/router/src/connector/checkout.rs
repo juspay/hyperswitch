@@ -809,6 +809,26 @@ impl
 }
 
 #[async_trait::async_trait]
+impl api::FileUpload for Checkout {
+    fn validate_file_upload(
+        &self,
+        purpose: api_models::files::FilePurpose,
+        file_size: i64,
+        file_type: Option<mime::Mime>,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        match purpose {
+            api_models::files::FilePurpose::DisputeEvidence => {
+                // 4 Megabytes (MB) = 4,194,304 Bytes (B)
+                if file_size > 4194304 {
+                    Err(errors::ConnectorError::FileValidationFailed{ reason: "file_size exceeded the max file size of 4MB".to_owned()})?
+                }
+            }
+        }
+        Ok(())
+    }
+}
+
+#[async_trait::async_trait]
 impl api::IncomingWebhook for Checkout {
     fn get_webhook_object_reference_id(
         &self,

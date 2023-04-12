@@ -166,6 +166,8 @@ pub enum ApiErrorResponse {
     InvalidCardIin,
     #[error(error_type = ErrorType::InvalidRequestError, code = "HE_04", message = "The provided card IIN length is invalid, please provide an iin with 6 or 8 digits")]
     InvalidCardIinLength,
+    #[error(error_type = ErrorType::ValidationError, code = "HE_03", message = "File validation failed")]
+    FileValidationFailed {reason: String},
 }
 
 #[derive(Clone)]
@@ -260,6 +262,7 @@ impl actix_web::ResponseError for ApiErrorResponse {
             | Self::DuplicatePaymentMethod
             | Self::DuplicateMandate
             | Self::DisputeNotFound { .. } => StatusCode::BAD_REQUEST, // 400
+            | Self::FileValidationFailed { .. } => StatusCode::BAD_REQUEST, // 400
             Self::ReturnUrlUnavailable => StatusCode::SERVICE_UNAVAILABLE, // 503
             Self::PaymentNotSucceeded => StatusCode::BAD_REQUEST,          // 400
             Self::NotImplemented { .. } => StatusCode::NOT_IMPLEMENTED,    // 501
@@ -455,6 +458,9 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
             }
             Self::DisputeStatusValidationFailed { .. } => {
                 AER::NotFound(ApiError::new("HE", 2, "Dispute status validation failed", None))
+            }
+            Self::FileValidationFailed { reason } => {
+                AER::NotFound(ApiError::new("HE", 2, format!("File validation failed {reason}"), None))
             }
         }
     }

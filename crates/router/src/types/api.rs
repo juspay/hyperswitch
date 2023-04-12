@@ -4,6 +4,7 @@ pub mod configs;
 pub mod customers;
 pub mod disputes;
 pub mod enums;
+pub mod files;
 pub mod mandates;
 pub mod payment_methods;
 pub mod payments;
@@ -16,7 +17,7 @@ use error_stack::{report, IntoReport, ResultExt};
 
 pub use self::{
     admin::*, api_keys::*, configs::*, customers::*, disputes::*, payment_methods::*, payments::*,
-    refunds::*, webhooks::*,
+    refunds::*, webhooks::*, files::*,
 };
 use super::ErrorResponse;
 use crate::{
@@ -98,6 +99,7 @@ pub trait Connector:
     + IncomingWebhook
     + ConnectorAccessToken
     + Dispute
+    + files::FileUpload
 {
 }
 
@@ -113,7 +115,8 @@ impl<
             + Send
             + IncomingWebhook
             + ConnectorAccessToken
-            + Dispute,
+            + Dispute
+            + files::FileUpload
     > Connector for T
 {
 }

@@ -5,7 +5,7 @@ use super::health::*;
 use super::{admin::*, api_keys::*};
 #[cfg(any(feature = "olap", feature = "oltp"))]
 use super::{
-    configs::*, customers::*, disputes::*, mandates::*, payments::*, payouts::*, refunds::*,
+    configs::*, customers::*, disputes::*, mandates::*, payments::*, payouts::*, refunds::*, files::*,
 };
 #[cfg(feature = "oltp")]
 use super::{ephemeral_key::*, payment_methods::*, webhooks::*};
@@ -402,5 +402,16 @@ impl Cards {
         web::scope("/cards")
             .app_data(web::Data::new(state))
             .service(web::resource("/{bin}").route(web::get().to(card_iin_info)))
+    }
+}
+
+pub struct Files;
+
+#[cfg(any(feature = "olap", feature = "oltp"))]
+impl Files {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/files")
+            .app_data(web::Data::new(state))
+            .service(web::resource("").route(web::post().to(files_create)))
     }
 }

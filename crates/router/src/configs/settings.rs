@@ -62,6 +62,7 @@ pub struct Settings {
     pub api_keys: ApiKeys,
     #[cfg(feature = "kms")]
     pub kms: kms::KmsConfig,
+    pub file_upload_config: FileUploadConfig,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -342,6 +343,13 @@ pub struct ApiKeys {
     /// hashes of API keys
     #[cfg(not(feature = "kms"))]
     pub hash_key: String,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+#[serde(default)]
+pub struct FileUploadConfig {
+    pub host: String,
+    pub api_key: String,
 }
 
 impl Settings {
