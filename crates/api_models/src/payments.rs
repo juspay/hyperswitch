@@ -1,6 +1,9 @@
 use std::num::NonZeroI64;
 
-use common_utils::{crypto::Encryptable, pii};
+use common_utils::{
+    crypto::{self},
+    pii,
+};
 use masking::{PeekInterface, Secret};
 use router_derive::Setter;
 use time::PrimitiveDateTime;
@@ -885,15 +888,15 @@ pub struct PaymentsResponse {
 
     /// description: The customer's email address
     #[schema(max_length = 255, value_type = Option<String>, example = "johntest@test.com")]
-    pub email: Option<Encryptable<Secret<String, pii::Email>>>,
+    pub email: crypto::OptionalEncryptableEmail,
 
     /// description: The customer's name
     #[schema(value_type = Option<String>, max_length = 255, example = "John Test")]
-    pub name: Option<Encryptable<Secret<String>>>,
+    pub name: crypto::OptionalEncryptableName,
 
     /// The customer's phone number
     #[schema(value_type = Option<String>, max_length = 255, example = "3141592653")]
-    pub phone: Option<Encryptable<Secret<String>>>,
+    pub phone: crypto::OptionalEncryptablePhone,
 
     /// The URL to redirect after the completion of the operation
     #[schema(example = "https://hyperswitch.io")]
@@ -1008,9 +1011,9 @@ pub struct VerifyResponse {
     // pub status: enums::VerifyStatus,
     pub client_secret: Option<Secret<String>>,
     pub customer_id: Option<String>,
-    pub email: Option<Encryptable<Secret<String, pii::Email>>>,
-    pub name: Option<Encryptable<Secret<String>>>,
-    pub phone: Option<Encryptable<Secret<String>>>,
+    pub email: crypto::OptionalEncryptableEmail,
+    pub name: crypto::OptionalEncryptableName,
+    pub phone: crypto::OptionalEncryptablePhone,
     pub mandate_id: Option<String>,
     #[auth_based]
     pub payment_method: Option<api_enums::PaymentMethod>,

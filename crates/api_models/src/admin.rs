@@ -15,8 +15,8 @@ pub struct MerchantAccountCreate {
     pub merchant_id: String,
 
     /// Name of the Merchant Account
-    #[schema(example = "NewAge Retailer")]
-    pub merchant_name: Option<String>,
+    #[schema(value_type= Option<String>,example = "NewAge Retailer")]
+    pub merchant_name: Option<Secret<String>>,
 
     /// API key that will be used for server side API access
     #[schema(value_type = Option<String>, example = "Ah2354543543523")]

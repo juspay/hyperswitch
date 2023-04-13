@@ -20,7 +20,7 @@ use crate::{
         api::customers::{self, CustomerRequestExt},
         domain::{
             self, customer, merchant_account,
-            types::{get_key_and_algo, TypeEncryption},
+            types::{get_key_and_algo, AsyncTranspose, TypeEncryption},
         },
         storage::{self, enums},
     },
@@ -44,6 +44,20 @@ pub async fn create_customer(
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
+    let encrypt = |inner: Option<masking::Secret<String>>| async {
+        inner
+            .async_map(|value| crypto::Encryptable::encrypt(value, &key, GcmAes256 {}))
+            .await
+            .transpose()
+    };
+
+    let encrypt_email = |inner: Option<masking::Secret<String, crate::pii::Email>>| async {
+        inner
+            .async_map(|value| crypto::Encryptable::encrypt(value, &key, GcmAes256 {}))
+            .await
+            .transpose()
+    };
+
     if let Some(addr) = &customer_data.address {
         let customer_address: api_models::payments::AddressDetails = addr
             .peek()
@@ -51,98 +65,52 @@ pub async fn create_customer(
             .parse_value("AddressDetails")
             .change_context(errors::ApiErrorResponse::AddressNotFound)?;
 
-        db.insert_address(domain::address::Address {
-            city: customer_address.city,
-            country: customer_address.country,
-            line1: customer_address
-                .line1
-                .async_map(|inner| crypto::Encryptable::encrypt(inner, &key, GcmAes256 {}))
-                .await
-                .transpose()
-                .change_context(errors::ApiErrorResponse::InternalServerError)?,
-            line2: customer_address
-                .line2
-                .async_map(|inner| crypto::Encryptable::encrypt(inner, &key, GcmAes256 {}))
-                .await
-                .transpose()
-                .change_context(errors::ApiErrorResponse::InternalServerError)?,
-            line3: customer_address
-                .line3
-                .async_map(|inner| crypto::Encryptable::encrypt(inner, &key, GcmAes256 {}))
-                .await
-                .transpose()
-                .change_context(errors::ApiErrorResponse::InternalServerError)?,
-            zip: customer_address
-                .zip
-                .async_map(|inner| crypto::Encryptable::encrypt(inner, &key, GcmAes256 {}))
-                .await
-                .transpose()
-                .change_context(errors::ApiErrorResponse::InternalServerError)?,
-            state: customer_address
-                .state
-                .async_map(|inner| crypto::Encryptable::encrypt(inner, &key, GcmAes256 {}))
-                .await
-                .transpose()
-                .change_context(errors::ApiErrorResponse::InternalServerError)?,
-            first_name: customer_address
-                .first_name
-                .async_map(|inner| crypto::Encryptable::encrypt(inner, &key, GcmAes256 {}))
-                .await
-                .transpose()
-                .change_context(errors::ApiErrorResponse::InternalServerError)?,
-            last_name: customer_address
-                .last_name
-                .async_map(|inner| crypto::Encryptable::encrypt(inner, &key, GcmAes256 {}))
-                .await
-                .transpose()
-                .change_context(errors::ApiErrorResponse::InternalServerError)?,
-            phone_number: customer_data
-                .phone
-                .clone()
-                .async_map(|inner| crypto::Encryptable::encrypt(inner, &key, GcmAes256 {}))
-                .await
-                .transpose()
-                .change_context(errors::ApiErrorResponse::InternalServerError)?,
-            country_code: customer_data.phone_country_code.clone(),
+        let address = async {
+            Ok(domain::address::Address {
+                city: customer_address.city,
+                country: customer_address.country,
+                line1: customer_address.line1.async_transpose(encrypt).await?,
+                line2: customer_address.line2.async_transpose(encrypt).await?,
+                line3: customer_address.line3.async_transpose(encrypt).await?,
+                zip: customer_address.zip.async_transpose(encrypt).await?,
+                state: customer_address.state.async_transpose(encrypt).await?,
+                first_name: customer_address.first_name.async_transpose(encrypt).await?,
+                last_name: customer_address.last_name.async_transpose(encrypt).await?,
+                phone_number: customer_data.phone.clone().async_transpose(encrypt).await?,
+                country_code: customer_data.phone_country_code.clone(),
+                customer_id: customer_id.to_string(),
+                merchant_id: merchant_id.to_string(),
+                id: None,
+                address_id: generate_id(consts::ID_LENGTH, "add"),
+                created_at: common_utils::date_time::now(),
+                modified_at: common_utils::date_time::now(),
+            })
+        }
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
+        db.insert_address(address)
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed while inserting new address")?;
+    }
+
+    let new_customer = async {
+        Ok(customer::Customer {
             customer_id: customer_id.to_string(),
             merchant_id: merchant_id.to_string(),
+            name: customer_data.name.async_transpose(encrypt).await?,
+            email: customer_data.email.async_transpose(encrypt_email).await?,
+            phone: customer_data.phone.async_transpose(encrypt).await?,
+            description: customer_data.description,
+            phone_country_code: customer_data.phone_country_code,
+            metadata: customer_data.metadata,
             id: None,
-            address_id: generate_id(consts::ID_LENGTH, "add"),
             created_at: common_utils::date_time::now(),
-            modified_at: common_utils::date_time::now(),
         })
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed while inserting new address")?;
-    };
-
-    let new_customer = customer::Customer {
-        customer_id: customer_id.to_string(),
-        merchant_id: merchant_id.to_string(),
-        name: customer_data
-            .name
-            .async_map(|inner| crypto::Encryptable::encrypt(inner.into(), &key, GcmAes256 {}))
-            .await
-            .transpose()
-            .change_context(errors::ApiErrorResponse::InternalServerError)?,
-        email: customer_data
-            .email
-            .async_map(|inner| crypto::Encryptable::encrypt(inner, &key, GcmAes256 {}))
-            .await
-            .transpose()
-            .change_context(errors::ApiErrorResponse::InternalServerError)?,
-        phone: customer_data
-            .phone
-            .async_map(|inner| crypto::Encryptable::encrypt(inner, &key, GcmAes256 {}))
-            .await
-            .transpose()
-            .change_context(errors::ApiErrorResponse::InternalServerError)?,
-        description: customer_data.description,
-        phone_country_code: customer_data.phone_country_code,
-        metadata: customer_data.metadata,
-        id: None,
-        created_at: common_utils::date_time::now(),
-    };
+    }
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
     let customer = match db.insert_customer(new_customer).await {
         Ok(customer) => customer,
@@ -246,50 +214,22 @@ pub async fn delete_customer(
     let key = get_key_and_algo(&**db, merchant_account.merchant_id.clone())
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
+    let redacted_encrypted_value: Encryptable<masking::Secret<_>> =
+        Encryptable::encrypt(REDACTED.to_string().into(), &key, GcmAes256 {})
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
     let update_address = storage::AddressUpdate::Update {
         city: Some(REDACTED.to_string()),
         country: None,
-        line1: Some(
-            Encryptable::encrypt(REDACTED.to_string().into(), &key, GcmAes256 {})
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)?,
-        ),
-        line2: Some(
-            Encryptable::encrypt(REDACTED.to_string().into(), &key, GcmAes256 {})
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)?,
-        ),
-        line3: Some(
-            Encryptable::encrypt(REDACTED.to_string().into(), &key, GcmAes256 {})
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)?,
-        ),
-        state: Some(
-            Encryptable::encrypt(REDACTED.to_string().into(), &key, GcmAes256 {})
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)?,
-        ),
-        zip: Some(
-            Encryptable::encrypt(REDACTED.to_string().into(), &key, GcmAes256 {})
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)?,
-        ),
-        first_name: Some(
-            Encryptable::encrypt(REDACTED.to_string().into(), &key, GcmAes256 {})
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)?,
-        ),
-        last_name: Some(
-            Encryptable::encrypt(REDACTED.to_string().into(), &key, GcmAes256 {})
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)?,
-        ),
-        phone_number: Some(
-            Encryptable::encrypt(REDACTED.to_string().into(), &key, GcmAes256 {})
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)?,
-        ),
+        line1: Some(redacted_encrypted_value.clone()),
+        line2: Some(redacted_encrypted_value.clone()),
+        line3: Some(redacted_encrypted_value.clone()),
+        state: Some(redacted_encrypted_value.clone()),
+        zip: Some(redacted_encrypted_value.clone()),
+        first_name: Some(redacted_encrypted_value.clone()),
+        last_name: Some(redacted_encrypted_value.clone()),
+        phone_number: Some(redacted_encrypted_value.clone()),
         country_code: Some(REDACTED.to_string()),
     };
 
@@ -312,21 +252,13 @@ pub async fn delete_customer(
     }?;
 
     let updated_customer = storage::CustomerUpdate::Update {
-        name: Some(
-            Encryptable::encrypt(REDACTED.to_string().into(), &key, GcmAes256 {})
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)?,
-        ),
+        name: Some(redacted_encrypted_value.clone()),
         email: Some(
             Encryptable::encrypt(REDACTED.to_string().into(), &key, GcmAes256 {})
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)?,
         ),
-        phone: Some(
-            Encryptable::encrypt(REDACTED.to_string().into(), &key, GcmAes256 {})
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)?,
-        ),
+        phone: Some(redacted_encrypted_value.clone()),
         description: Some(REDACTED.to_string()),
         phone_country_code: Some(REDACTED.to_string()),
         metadata: None,
@@ -368,66 +300,47 @@ pub async fn update_customer(
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
+    let encrypt = |inner: Option<masking::Secret<String>>| async {
+        inner
+            .async_map(|value| crypto::Encryptable::encrypt(value, &key, GcmAes256 {}))
+            .await
+            .transpose()
+    };
+
+    let encrypt_email = |inner: Option<masking::Secret<String, crate::pii::Email>>| async {
+        inner
+            .async_map(|value| crypto::Encryptable::encrypt(value, &key, GcmAes256 {}))
+            .await
+            .transpose()
+    };
+
     if let Some(addr) = &update_customer.address {
         let customer_address: api_models::payments::AddressDetails = addr
             .peek()
             .clone()
             .parse_value("AddressDetails")
             .change_context(errors::ApiErrorResponse::AddressNotFound)?;
-        let update_address = storage::AddressUpdate::Update {
-            city: customer_address.city,
-            country: customer_address.country,
-            line1: customer_address
-                .line1
-                .async_map(|inner| crypto::Encryptable::encrypt(inner, &key, GcmAes256 {}))
-                .await
-                .transpose()
-                .change_context(errors::ApiErrorResponse::InternalServerError)?,
-            line2: customer_address
-                .line2
-                .async_map(|inner| crypto::Encryptable::encrypt(inner, &key, GcmAes256 {}))
-                .await
-                .transpose()
-                .change_context(errors::ApiErrorResponse::InternalServerError)?,
-            line3: customer_address
-                .line3
-                .async_map(|inner| crypto::Encryptable::encrypt(inner, &key, GcmAes256 {}))
-                .await
-                .transpose()
-                .change_context(errors::ApiErrorResponse::InternalServerError)?,
-            zip: customer_address
-                .zip
-                .async_map(|inner| crypto::Encryptable::encrypt(inner, &key, GcmAes256 {}))
-                .await
-                .transpose()
-                .change_context(errors::ApiErrorResponse::InternalServerError)?,
-            state: customer_address
-                .state
-                .async_map(|inner| crypto::Encryptable::encrypt(inner, &key, GcmAes256 {}))
-                .await
-                .transpose()
-                .change_context(errors::ApiErrorResponse::InternalServerError)?,
-            first_name: customer_address
-                .first_name
-                .async_map(|inner| crypto::Encryptable::encrypt(inner, &key, GcmAes256 {}))
-                .await
-                .transpose()
-                .change_context(errors::ApiErrorResponse::InternalServerError)?,
-            last_name: customer_address
-                .last_name
-                .async_map(|inner| crypto::Encryptable::encrypt(inner, &key, GcmAes256 {}))
-                .await
-                .transpose()
-                .change_context(errors::ApiErrorResponse::InternalServerError)?,
-            phone_number: update_customer
-                .phone
-                .clone()
-                .async_map(|inner| crypto::Encryptable::encrypt(inner, &key, GcmAes256 {}))
-                .await
-                .transpose()
-                .change_context(errors::ApiErrorResponse::InternalServerError)?,
-            country_code: update_customer.phone_country_code.clone(),
-        };
+        let update_address = async {
+            Ok(storage::AddressUpdate::Update {
+                city: customer_address.city,
+                country: customer_address.country,
+                line1: customer_address.line1.async_transpose(encrypt).await?,
+                line2: customer_address.line2.async_transpose(encrypt).await?,
+                line3: customer_address.line3.async_transpose(encrypt).await?,
+                zip: customer_address.zip.async_transpose(encrypt).await?,
+                state: customer_address.state.async_transpose(encrypt).await?,
+                first_name: customer_address.first_name.async_transpose(encrypt).await?,
+                last_name: customer_address.last_name.async_transpose(encrypt).await?,
+                phone_number: update_customer
+                    .phone
+                    .clone()
+                    .async_transpose(encrypt)
+                    .await?,
+                country_code: update_customer.phone_country_code.clone(),
+            })
+        }
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
         db.update_address_by_merchant_id_customer_id(
             &update_customer.customer_id,
             &merchant_account.merchant_id,
@@ -445,31 +358,18 @@ pub async fn update_customer(
         .update_customer_by_customer_id_merchant_id(
             update_customer.customer_id.to_owned(),
             merchant_account.merchant_id.to_owned(),
-            storage::CustomerUpdate::Update {
-                name: update_customer
-                    .name
-                    .async_map(|inner| {
-                        crypto::Encryptable::encrypt(inner.into(), &key, GcmAes256 {})
-                    })
-                    .await
-                    .transpose()
-                    .change_context(errors::ApiErrorResponse::InternalServerError)?,
-                email: update_customer
-                    .email
-                    .async_map(|inner| crypto::Encryptable::encrypt(inner, &key, GcmAes256 {}))
-                    .await
-                    .transpose()
-                    .change_context(errors::ApiErrorResponse::InternalServerError)?,
-                phone: update_customer
-                    .phone
-                    .async_map(|inner| crypto::Encryptable::encrypt(inner, &key, GcmAes256 {}))
-                    .await
-                    .transpose()
-                    .change_context(errors::ApiErrorResponse::InternalServerError)?,
-                phone_country_code: update_customer.phone_country_code,
-                metadata: update_customer.metadata,
-                description: update_customer.description,
-            },
+            async {
+                Ok(storage::CustomerUpdate::Update {
+                    name: update_customer.name.async_transpose(encrypt).await?,
+                    email: update_customer.email.async_transpose(encrypt_email).await?,
+                    phone: update_customer.phone.async_transpose(encrypt).await?,
+                    phone_country_code: update_customer.phone_country_code,
+                    metadata: update_customer.metadata,
+                    description: update_customer.description,
+                })
+            }
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)?,
         )
         .await
         .map_err(|error| error.to_not_found_response(errors::ApiErrorResponse::CustomerNotFound))?;
