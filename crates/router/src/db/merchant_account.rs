@@ -90,7 +90,7 @@ impl MerchantAccountInterface for Store {
         {
             fetch_func()
                 .await?
-                .convert()
+                .convert(self,merchant_id)
                 .await
                 .change_context(errors::StorageError::DeserializationFailed)
         }
