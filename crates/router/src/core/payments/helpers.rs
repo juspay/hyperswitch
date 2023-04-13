@@ -24,6 +24,7 @@ use crate::{
         payment_methods::{cards, vault},
     },
     db::StorageInterface,
+    pii,
     routes::{metrics, AppState},
     scheduler::{metrics as scheduler_metrics, workflows::payment_sync},
     services,
@@ -793,15 +794,14 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R>(
                             .transpose()
                     };
 
-                    let encrypt_email =
-                        |inner: Option<masking::Secret<String, crate::pii::Email>>| async {
-                            inner
-                                .async_map(|value| {
-                                    crypto::Encryptable::encrypt(value, &key, crypto::GcmAes256 {})
-                                })
-                                .await
-                                .transpose()
-                        };
+                    let encrypt_email = |inner: Option<masking::Secret<String, pii::Email>>| async {
+                        inner
+                            .async_map(|value| {
+                                crypto::Encryptable::encrypt(value, &key, crypto::GcmAes256 {})
+                            })
+                            .await
+                            .transpose()
+                    };
 
                     let new_customer = async {
                         Ok(customer::Customer {

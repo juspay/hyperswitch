@@ -312,7 +312,7 @@ pub async fn update_customer(
             .transpose()
     };
 
-    let encrypt_email = |inner: Option<masking::Secret<String, crate::pii::Email>>| async {
+    let encrypt_email = |inner: Option<masking::Secret<String, pii::Email>>| async {
         inner
             .async_map(|value| crypto::Encryptable::encrypt(value, &key, GcmAes256 {}))
             .await
