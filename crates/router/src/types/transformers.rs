@@ -128,7 +128,10 @@ impl ForeignFrom<storage_enums::AttemptStatus> for storage_enums::IntentStatus {
             storage_enums::AttemptStatus::PaymentMethodAwaited => Self::RequiresPaymentMethod,
 
             storage_enums::AttemptStatus::Authorized => Self::RequiresCapture,
-            storage_enums::AttemptStatus::AuthenticationPending => Self::RequiresCustomerAction,
+            storage_enums::AttemptStatus::AuthenticationPending
+            | storage_enums::AttemptStatus::DeviceDataCollectionPending => {
+                Self::RequiresCustomerAction
+            }
             storage_enums::AttemptStatus::Unresolved => Self::RequiresMerchantAction,
 
             storage_enums::AttemptStatus::PartialCharged
@@ -511,11 +514,9 @@ impl ForeignTryFrom<api_models::webhooks::IncomingWebhookEvent> for storage_enum
     }
 }
 
-impl ForeignTryFrom<storage::Dispute> for api_models::disputes::DisputeResponse {
-    type Error = errors::ValidationError;
-
-    fn foreign_try_from(dispute: storage::Dispute) -> Result<Self, Self::Error> {
-        Ok(Self {
+impl ForeignFrom<storage::Dispute> for api_models::disputes::DisputeResponse {
+    fn foreign_from(dispute: storage::Dispute) -> Self {
+        Self {
             dispute_id: dispute.dispute_id,
             payment_id: dispute.payment_id,
             attempt_id: dispute.attempt_id,
@@ -523,6 +524,7 @@ impl ForeignTryFrom<storage::Dispute> for api_models::disputes::DisputeResponse 
             currency: dispute.currency,
             dispute_stage: dispute.dispute_stage.foreign_into(),
             dispute_status: dispute.dispute_status.foreign_into(),
+            connector: dispute.connector,
             connector_status: dispute.connector_status,
             connector_dispute_id: dispute.connector_dispute_id,
             connector_reason: dispute.connector_reason,
@@ -531,7 +533,7 @@ impl ForeignTryFrom<storage::Dispute> for api_models::disputes::DisputeResponse 
             created_at: dispute.dispute_created_at,
             updated_at: dispute.updated_at,
             received_at: dispute.created_at.to_string(),
-        })
+        }
     }
 }
 
