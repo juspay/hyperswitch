@@ -6,6 +6,7 @@ pub mod transformers;
 
 use std::{fmt::Debug, marker::PhantomData, time::Instant};
 
+use api_models::payments::Metadata;
 use error_stack::{IntoReport, ResultExt};
 use futures::future::join_all;
 use router_env::tracing;
@@ -247,6 +248,14 @@ pub trait PaymentRedirectFlow: Sync {
 
     fn get_payment_action(&self) -> services::PaymentAction;
 
+    fn generate_response(
+        &self,
+        payments_response: api_models::payments::PaymentsResponse,
+        merchant_account: storage_models::merchant_account::MerchantAccount,
+        payment_id: String,
+        connector: String,
+    ) -> RouterResult<api::RedirectionResponse>;
+
     #[allow(clippy::too_many_arguments)]
     async fn handle_payments_redirect_response(
         &self,
@@ -290,13 +299,8 @@ pub trait PaymentRedirectFlow: Sync {
                 .attach_printable("Failed to get the response in json"),
         }?;
 
-        let result = helpers::get_handle_response_url(
-            resource_id,
-            &merchant_account,
-            payments_response,
-            connector,
-        )
-        .attach_printable("No redirection response")?;
+        let result =
+            self.generate_response(payments_response, merchant_account, resource_id, connector)?;
 
         Ok(services::ApplicationResponse::JsonForRedirection(result))
     }
@@ -317,6 +321,11 @@ impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
         let payment_confirm_req = api::PaymentsRequest {
             payment_id: Some(req.resource_id.clone()),
             merchant_id: req.merchant_id.clone(),
+            metadata: Some(Metadata {
+                order_details: None,
+                data: masking::Secret::new("{}".into()),
+                payload: Some(req.json_payload.unwrap_or("{}".into()).into()),
+            }),
             ..Default::default()
         };
         payments_core::<api::CompleteAuthorize, api::PaymentsResponse, _, _, _>(
@@ -332,6 +341,47 @@ impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
 
     fn get_payment_action(&self) -> services::PaymentAction {
         services::PaymentAction::CompleteAuthorize
+    }
+
+    fn generate_response(
+        &self,
+        payments_response: api_models::payments::PaymentsResponse,
+        merchant_account: storage_models::merchant_account::MerchantAccount,
+        payment_id: String,
+        connector: String,
+    ) -> RouterResult<api::RedirectionResponse> {
+        // There might be multiple redirections needed for some flows
+        // If the status is requires customer action, then send the startpay url again
+        // The redirection data must have been provided and updated by the connector
+        match payments_response.status {
+            api_models::enums::IntentStatus::RequiresCustomerAction => {
+                let startpay_url = payments_response
+                    .next_action
+                    .and_then(|next_action| next_action.redirect_to_url)
+                    .ok_or(errors::ApiErrorResponse::InternalServerError)
+                    .into_report()
+                    .attach_printable(
+                        "did not receive redirect to url when status is requires customer action",
+                    )?;
+                Ok(api::RedirectionResponse {
+                    return_url: String::new(),
+                    params: vec![],
+                    return_url_with_query_params: startpay_url,
+                    http_method: "GET".to_string(),
+                    headers: vec![],
+                })
+            }
+            // If the status is terminal status, then redirect to merchant return url to provide status
+            api_models::enums::IntentStatus::Succeeded
+            | api_models::enums::IntentStatus::Failed
+            | api_models::enums::IntentStatus::Cancelled | api_models::enums::IntentStatus::RequiresCapture=> helpers::get_handle_response_url(
+                payment_id,
+                &merchant_account,
+                payments_response,
+                connector,
+            ),
+            _ => Err(errors::ApiErrorResponse::InternalServerError).into_report().attach_printable_lazy(|| format!("Could not proceed with payment as payment status {} cannot be handled during redirection",payments_response.status))?
+        }
     }
 }
 
@@ -369,6 +419,21 @@ impl PaymentRedirectFlow for PaymentRedirectSync {
             connector_action,
         )
         .await
+    }
+
+    fn generate_response(
+        &self,
+        payments_response: api_models::payments::PaymentsResponse,
+        merchant_account: storage_models::merchant_account::MerchantAccount,
+        payment_id: String,
+        connector: String,
+    ) -> RouterResult<api::RedirectionResponse> {
+        helpers::get_handle_response_url(
+            payment_id,
+            &merchant_account,
+            payments_response,
+            connector,
+        )
     }
 
     fn get_payment_action(&self) -> services::PaymentAction {

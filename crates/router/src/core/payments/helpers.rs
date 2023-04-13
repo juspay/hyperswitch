@@ -339,7 +339,7 @@ pub fn create_startpay_url(
     payment_intent: &storage::PaymentIntent,
 ) -> String {
     format!(
-        "{}/payments/start/{}/{}/{}",
+        "{}/payments/redirect/{}/{}/{}",
         server.base_url,
         payment_intent.payment_id,
         payment_intent.merchant_id,
@@ -355,7 +355,7 @@ pub fn create_redirect_url(
 ) -> String {
     let creds_identifier_path = creds_identifier.map_or_else(String::new, |cd| format!("/{}", cd));
     format!(
-        "{}/payments/{}/{}/response/{}",
+        "{}/payments/{}/{}/redirect/response/{}",
         router_base_url, payment_attempt.payment_id, payment_attempt.merchant_id, connector_name,
     ) + &creds_identifier_path
 }
@@ -376,7 +376,7 @@ pub fn create_complete_authorize_url(
     connector_name: &String,
 ) -> String {
     format!(
-        "{}/payments/{}/{}/complete/{}",
+        "{}/payments/{}/{}/redirect/complete/{}",
         router_base_url, payment_attempt.payment_id, payment_attempt.merchant_id, connector_name
     )
 }
@@ -933,6 +933,7 @@ pub fn get_handle_response_url(
     connector: String,
 ) -> RouterResult<api::RedirectionResponse> {
     let payments_return_url = response.return_url.as_ref();
+
     let redirection_response = make_pg_redirect_response(payment_id, &response, connector);
 
     let return_url = make_merchant_url_with_response(
