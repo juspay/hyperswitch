@@ -1,12 +1,11 @@
 use async_trait::async_trait;
 use common_utils::{
-    crypto::{Encryptable, GcmAes256},
+    crypto::{self, Encryptable, GcmAes256},
     date_time,
     errors::{CustomResult, ValidationError},
     ext_traits::AsyncExt,
 };
 use error_stack::ResultExt;
-use masking::Secret;
 use storage_models::{address::AddressUpdateInternal, encryption::Encryption, enums};
 use time::{OffsetDateTime, PrimitiveDateTime};
 
@@ -21,14 +20,14 @@ pub struct Address {
     pub address_id: String,
     pub city: Option<String>,
     pub country: Option<enums::CountryCode>,
-    pub line1: Option<Encryptable<Secret<String>>>,
-    pub line2: Option<Encryptable<Secret<String>>>,
-    pub line3: Option<Encryptable<Secret<String>>>,
-    pub state: Option<Encryptable<Secret<String>>>,
-    pub zip: Option<Encryptable<Secret<String>>>,
-    pub first_name: Option<Encryptable<Secret<String>>>,
-    pub last_name: Option<Encryptable<Secret<String>>>,
-    pub phone_number: Option<Encryptable<Secret<String>>>,
+    pub line1: crypto::OptionalEncryptableSecretString,
+    pub line2: crypto::OptionalEncryptableSecretString,
+    pub line3: crypto::OptionalEncryptableSecretString,
+    pub state: crypto::OptionalEncryptableSecretString,
+    pub zip: crypto::OptionalEncryptableSecretString,
+    pub first_name: crypto::OptionalEncryptableSecretString,
+    pub last_name: crypto::OptionalEncryptableSecretString,
+    pub phone_number: crypto::OptionalEncryptableSecretString,
     pub country_code: Option<String>,
     #[serde(skip_serializing)]
     #[serde(with = "custom_serde::iso8601")]
@@ -75,80 +74,63 @@ impl behaviour::Conversion for Address {
         _merchant_id: &str,
     ) -> CustomResult<Self, ValidationError> {
         let key = &[0];
-        Ok(Self {
-            id: Some(other.id),
-            address_id: other.address_id,
-            city: other.city,
-            country: other.country,
-            line1: other
-                .line1
-                .async_map(|inner| Encryptable::decrypt(inner, key, GcmAes256 {}))
-                .await
-                .transpose()
-                .change_context(ValidationError::InvalidValue {
-                    message: "Failed while decrypting".to_string(),
-                })?,
-            line2: other
-                .line2
-                .async_map(|inner| Encryptable::decrypt(inner, key, GcmAes256 {}))
-                .await
-                .transpose()
-                .change_context(ValidationError::InvalidValue {
-                    message: "Failed while decrypting".to_string(),
-                })?,
-            line3: other
-                .line3
-                .async_map(|inner| Encryptable::decrypt(inner, key, GcmAes256 {}))
-                .await
-                .transpose()
-                .change_context(ValidationError::InvalidValue {
-                    message: "Failed while decrypting".to_string(),
-                })?,
-            state: other
-                .state
-                .async_map(|inner| Encryptable::decrypt(inner, key, GcmAes256 {}))
-                .await
-                .transpose()
-                .change_context(ValidationError::InvalidValue {
-                    message: "Failed while decrypting".to_string(),
-                })?,
-            zip: other
-                .zip
-                .async_map(|inner| Encryptable::decrypt(inner, key, GcmAes256 {}))
-                .await
-                .transpose()
-                .change_context(ValidationError::InvalidValue {
-                    message: "Failed while decrypting".to_string(),
-                })?,
-            first_name: other
-                .first_name
-                .async_map(|inner| Encryptable::decrypt(inner, key, GcmAes256 {}))
-                .await
-                .transpose()
-                .change_context(ValidationError::InvalidValue {
-                    message: "Failed while decrypting".to_string(),
-                })?,
-            last_name: other
-                .last_name
-                .async_map(|inner| Encryptable::decrypt(inner, key, GcmAes256 {}))
-                .await
-                .transpose()
-                .change_context(ValidationError::InvalidValue {
-                    message: "Failed while decrypting".to_string(),
-                })?,
-            phone_number: other
-                .phone_number
-                .async_map(|inner| Encryptable::decrypt(inner, key, GcmAes256 {}))
-                .await
-                .transpose()
-                .change_context(ValidationError::InvalidValue {
-                    message: "Failed while decrypting".to_string(),
-                })?,
-            country_code: other.country_code,
-            created_at: other.created_at,
-            modified_at: other.modified_at,
-            customer_id: other.customer_id,
-            merchant_id: other.merchant_id,
+
+        async {
+            Ok(Self {
+                id: Some(other.id),
+                address_id: other.address_id,
+                city: other.city,
+                country: other.country,
+                line1: other
+                    .line1
+                    .async_map(|inner| Encryptable::decrypt(inner, key, GcmAes256 {}))
+                    .await
+                    .transpose()?,
+                line2: other
+                    .line2
+                    .async_map(|inner| Encryptable::decrypt(inner, key, GcmAes256 {}))
+                    .await
+                    .transpose()?,
+                line3: other
+                    .line3
+                    .async_map(|inner| Encryptable::decrypt(inner, key, GcmAes256 {}))
+                    .await
+                    .transpose()?,
+                state: other
+                    .state
+                    .async_map(|inner| Encryptable::decrypt(inner, key, GcmAes256 {}))
+                    .await
+                    .transpose()?,
+                zip: other
+                    .zip
+                    .async_map(|inner| Encryptable::decrypt(inner, key, GcmAes256 {}))
+                    .await
+                    .transpose()?,
+                first_name: other
+                    .first_name
+                    .async_map(|inner| Encryptable::decrypt(inner, key, GcmAes256 {}))
+                    .await
+                    .transpose()?,
+                last_name: other
+                    .last_name
+                    .async_map(|inner| Encryptable::decrypt(inner, key, GcmAes256 {}))
+                    .await
+                    .transpose()?,
+                phone_number: other
+                    .phone_number
+                    .async_map(|inner| Encryptable::decrypt(inner, key, GcmAes256 {}))
+                    .await
+                    .transpose()?,
+                country_code: other.country_code,
+                created_at: other.created_at,
+                modified_at: other.modified_at,
+                customer_id: other.customer_id,
+                merchant_id: other.merchant_id,
+            })
+        }
+        .await
+        .change_context(ValidationError::InvalidValue {
+            message: "Failed while decrypting".to_string(),
         })
     }
 
@@ -182,14 +164,14 @@ pub enum AddressUpdate {
     Update {
         city: Option<String>,
         country: Option<enums::CountryCode>,
-        line1: Option<Encryptable<Secret<String>>>,
-        line2: Option<Encryptable<Secret<String>>>,
-        line3: Option<Encryptable<Secret<String>>>,
-        state: Option<Encryptable<Secret<String>>>,
-        zip: Option<Encryptable<Secret<String>>>,
-        first_name: Option<Encryptable<Secret<String>>>,
-        last_name: Option<Encryptable<Secret<String>>>,
-        phone_number: Option<Encryptable<Secret<String>>>,
+        line1: crypto::OptionalEncryptableSecretString,
+        line2: crypto::OptionalEncryptableSecretString,
+        line3: crypto::OptionalEncryptableSecretString,
+        state: crypto::OptionalEncryptableSecretString,
+        zip: crypto::OptionalEncryptableSecretString,
+        first_name: crypto::OptionalEncryptableSecretString,
+        last_name: crypto::OptionalEncryptableSecretString,
+        phone_number: crypto::OptionalEncryptableSecretString,
         country_code: Option<String>,
     },
 }

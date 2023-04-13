@@ -10,7 +10,7 @@ use crate::{logger, types::api};
 pub struct CreateCustomerRequest {
     pub email: Option<masking::Secret<String, pii::Email>>,
     pub invoice_prefix: Option<String>,
-    pub name: Option<String>,
+    pub name: Option<masking::Secret<String>>,
     pub phone: Option<masking::Secret<String>>,
     pub address: Option<masking::Secret<serde_json::Value>>,
     pub metadata: Option<pii::SecretSerdeValue>,
@@ -22,7 +22,7 @@ pub struct CustomerUpdateRequest {
     pub description: Option<String>,
     pub email: Option<masking::Secret<String, pii::Email>>,
     pub phone: Option<masking::Secret<String, masking::WithType>>,
-    pub name: Option<String>,
+    pub name: Option<masking::Secret<String>>,
     pub address: Option<masking::Secret<serde_json::Value>>,
     pub metadata: Option<pii::SecretSerdeValue>,
 }

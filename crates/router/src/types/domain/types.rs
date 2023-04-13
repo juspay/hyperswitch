@@ -133,3 +133,51 @@ pub async fn get_key_and_algo(
         .into_inner();
     Ok(key.expose())
 }
+
+pub trait Transpose<U: Clone> {
+    type SelfWrapper<T>;
+    type OtherWrapper<T, E>
+    where
+        T: Clone;
+
+    fn transpose<Func, E>(self, func: Func) -> Self::OtherWrapper<U, E>
+    where
+        Func: Fn(Self::SelfWrapper<U>) -> Self::OtherWrapper<U, E>;
+}
+
+impl<U: Clone, S: masking::Strategy<U> + Send> Transpose<Secret<U, S>> for Option<Secret<U, S>> {
+    type SelfWrapper<T> = Option<T>;
+    type OtherWrapper<T: Clone, E> = CustomResult<Option<crypto::Encryptable<T>>, E>;
+
+    fn transpose<Func, E>(self, func: Func) -> Self::OtherWrapper<Secret<U, S>, E>
+    where
+        Func: Fn(Self::SelfWrapper<Secret<U, S>>) -> Self::OtherWrapper<Secret<U, S>, E>,
+    {
+        func(self)
+    }
+}
+
+#[async_trait]
+pub trait AsyncTranspose<U: Clone> {
+    type SelfWrapper<T>;
+    type OtherWrapper<T: Clone, E>;
+
+    async fn async_transpose<Func, F, E>(self, func: Func) -> Self::OtherWrapper<U, E>
+    where
+        Func: Fn(Self::SelfWrapper<U>) -> F + Send + Sync,
+        F: futures::Future<Output = Self::OtherWrapper<U, E>> + Send;
+}
+
+#[async_trait]
+impl<U: Clone, V: Transpose<U> + Transpose<U, SelfWrapper<U> = V> + Send> AsyncTranspose<U> for V {
+    type SelfWrapper<T> = <V as Transpose<U>>::SelfWrapper<T>;
+    type OtherWrapper<T: Clone, E> = <V as Transpose<U>>::OtherWrapper<T, E>;
+
+    async fn async_transpose<Func, F, E>(self, func: Func) -> Self::OtherWrapper<U, E>
+    where
+        Func: Fn(Self::SelfWrapper<U>) -> F + Send + Sync,
+        F: futures::Future<Output = Self::OtherWrapper<U, E>> + Send,
+    {
+        func(self).await
+    }
+}
