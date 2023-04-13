@@ -2,14 +2,17 @@ use async_trait::async_trait;
 use common_utils::{
     crypto::{self, Encryptable, GcmAes256},
     date_time,
-    errors::{CustomResult, ValidationError},
+    errors::{self, CustomResult, ValidationError},
     ext_traits::AsyncExt,
 };
 use error_stack::ResultExt;
 use storage_models::{address::AddressUpdateInternal, encryption::Encryption, enums};
 use time::{OffsetDateTime, PrimitiveDateTime};
 
-use super::{behaviour, types::TypeEncryption};
+use super::{
+    behaviour,
+    types::{AsyncLift, TypeEncryption},
+};
 
 #[derive(Clone, Debug, serde::Serialize)]
 pub struct Address {
@@ -71,51 +74,20 @@ impl behaviour::Conversion for Address {
         let key = &[0];
 
         async {
+            let my_cl = |inner| decrypt(inner, key);
             Ok(Self {
                 id: Some(other.id),
                 address_id: other.address_id,
                 city: other.city,
                 country: other.country,
-                line1: other
-                    .line1
-                    .async_map(|inner| Encryptable::decrypt(inner, key, GcmAes256 {}))
-                    .await
-                    .transpose()?,
-                line2: other
-                    .line2
-                    .async_map(|inner| Encryptable::decrypt(inner, key, GcmAes256 {}))
-                    .await
-                    .transpose()?,
-                line3: other
-                    .line3
-                    .async_map(|inner| Encryptable::decrypt(inner, key, GcmAes256 {}))
-                    .await
-                    .transpose()?,
-                state: other
-                    .state
-                    .async_map(|inner| Encryptable::decrypt(inner, key, GcmAes256 {}))
-                    .await
-                    .transpose()?,
-                zip: other
-                    .zip
-                    .async_map(|inner| Encryptable::decrypt(inner, key, GcmAes256 {}))
-                    .await
-                    .transpose()?,
-                first_name: other
-                    .first_name
-                    .async_map(|inner| Encryptable::decrypt(inner, key, GcmAes256 {}))
-                    .await
-                    .transpose()?,
-                last_name: other
-                    .last_name
-                    .async_map(|inner| Encryptable::decrypt(inner, key, GcmAes256 {}))
-                    .await
-                    .transpose()?,
-                phone_number: other
-                    .phone_number
-                    .async_map(|inner| Encryptable::decrypt(inner, key, GcmAes256 {}))
-                    .await
-                    .transpose()?,
+                line1: other.line1.async_lift(my_cl).await?,
+                line2: other.line2.async_lift(my_cl).await?,
+                line3: other.line3.async_lift(my_cl).await?,
+                state: other.state.async_lift(my_cl).await?,
+                zip: other.zip.async_lift(my_cl).await?,
+                first_name: other.first_name.async_lift(my_cl).await?,
+                last_name: other.last_name.async_lift(my_cl).await?,
+                phone_number: other.phone_number.async_lift(my_cl).await?,
                 country_code: other.country_code,
                 created_at: other.created_at,
                 modified_at: other.modified_at,
@@ -152,6 +124,19 @@ impl behaviour::Conversion for Address {
             merchant_id: self.merchant_id,
         })
     }
+}
+
+async fn decrypt<T: Clone, S: masking::Strategy<T>>(
+    inner: Option<Encryption>,
+    key: &[u8],
+) -> CustomResult<Option<Encryptable<masking::Secret<T>>>, errors::CryptoError>
+where
+    Encryptable<masking::Secret<T>>: TypeEncryption<T, GcmAes256, S>,
+{
+    inner
+        .async_map(|item| Encryptable::decrypt(item, key, GcmAes256 {}))
+        .await
+        .transpose()
 }
 
 #[derive(Debug, frunk::LabelledGeneric)]
