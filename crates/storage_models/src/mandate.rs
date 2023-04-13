@@ -28,7 +28,7 @@ pub struct Mandate {
     pub connector_mandate_id: Option<String>,
     pub start_date: Option<PrimitiveDateTime>,
     pub end_date: Option<PrimitiveDateTime>,
-    pub meta_data: Option<serde_json::Value>,
+    pub metadata: Option<pii::SecretSerdeValue>,
 }
 
 #[derive(

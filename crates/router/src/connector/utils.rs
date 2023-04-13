@@ -459,7 +459,7 @@ impl MandateData for payments::MandateAmountData {
     }
     fn get_metadata(&self) -> Result<pii::SecretSerdeValue, Error> {
         self.metadata.clone().ok_or_else(missing_field_err(
-            "mandate_data.mandate_type.{multi_use|single_use}.meta_data",
+            "mandate_data.mandate_type.{multi_use|single_use}.metadata",
         ))
     }
 }
