@@ -318,19 +318,16 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
         let payment_method = payment_data.payment_attempt.payment_method;
         let browser_info = payment_data.payment_attempt.browser_info.clone();
 
-        let (intent_status, attempt_status) = match payment_data.payment_attempt.authentication_type
-        {
-            Some(storage_enums::AuthenticationType::NoThreeDs) => (
-                storage_enums::IntentStatus::Processing,
-                storage_enums::AttemptStatus::Pending,
-            ),
-            _ => (
-                storage_enums::IntentStatus::RequiresCustomerAction,
-                storage_enums::AttemptStatus::AuthenticationPending,
-            ),
-        };
+        let (intent_status, attempt_status) = (
+            storage_enums::IntentStatus::Processing,
+            storage_enums::AttemptStatus::Pending,
+        );
 
         let connector = payment_data.payment_attempt.connector.clone();
+        let straight_through_algorithm = payment_data
+            .payment_attempt
+            .straight_through_algorithm
+            .clone();
         let payment_token = payment_data.token.clone();
         let payment_method_type = payment_data.payment_attempt.payment_method_type.clone();
         let payment_experience = payment_data.payment_attempt.payment_experience.clone();
@@ -362,6 +359,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
                     payment_method_type,
                     payment_experience,
                     business_sub_label,
+                    straight_through_algorithm,
                 },
                 storage_scheme,
             )

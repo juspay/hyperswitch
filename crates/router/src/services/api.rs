@@ -27,7 +27,7 @@ use crate::{
     logger,
     routes::{app::AppStateInfo, metrics, AppState},
     services::authentication as auth,
-    types::{self, api, storage, ErrorResponse},
+    types::{self, api, ErrorResponse},
 };
 
 pub type BoxedConnectorIntegration<'a, T, Req, Resp> =
@@ -445,19 +445,6 @@ pub enum PaymentAction {
 #[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct ApplicationRedirectResponse {
     pub url: String,
-}
-
-impl From<&storage::PaymentAttempt> for ApplicationRedirectResponse {
-    fn from(payment_attempt: &storage::PaymentAttempt) -> Self {
-        Self {
-            url: format!(
-                "/payments/start/{}/{}/{}",
-                &payment_attempt.payment_id,
-                &payment_attempt.merchant_id,
-                &payment_attempt.attempt_id
-            ),
-        }
-    }
 }
 
 #[derive(Debug, Eq, PartialEq, Clone, serde::Serialize, serde::Deserialize)]
