@@ -3,7 +3,7 @@ pub mod utils;
 
 use std::collections::HashMap;
 
-use error_stack::{IntoReport, ResultExt};
+use error_stack::{report, IntoReport, ResultExt};
 use masking::ExposeInterface;
 use router_env::{instrument, tracing};
 
@@ -365,6 +365,43 @@ async fn disputes_incoming_webhook_flow<W: api::OutgoingWebhookType>(
     }
 }
 
+async fn custom_webhook_flow(
+    state: AppState,
+    merchant_account: storage::MerchantAccount,
+    webhook_details: api::IncomingWebhookDetails,
+    source_verified: bool,
+    _connector: &(dyn api::Connector + Sync),
+    _request_details: &api::IncomingWebhookRequestDetails<'_>,
+    _event_type: api_models::webhooks::IncomingWebhookEvent,
+) -> CustomResult<(), errors::WebhooksFlowError> {
+    if source_verified {
+        let _payments_response = match webhook_details.object_reference_id {
+            api_models::webhooks::ObjectReferenceId::PaymentId(id) => {
+                let request = api::PaymentsRequest {
+                    payment_id: Some(id),
+                    merchant_id: Some(merchant_account.merchant_id.to_owned()),
+                    ..Default::default()
+                };
+                payments::payments_core::<api::CompleteAuthorize, api::PaymentsResponse, _, _, _>(
+                    &state,
+                    merchant_account,
+                    payments::operations::payment_complete_authorize::CompleteAuthorize,
+                    request,
+                    services::api::AuthFlow::Merchant,
+                    payments::CallConnectorAction::Trigger,
+                )
+                .await
+            }
+            _ => Err(errors::WebhooksFlowError::PaymentsCoreFailed).into_report()?,
+        };
+        Ok(())
+    } else {
+        Err(report!(
+            errors::WebhooksFlowError::WebhookSourceVerificationFailed
+        ))
+    }
+}
+
 #[allow(clippy::too_many_arguments)]
 #[instrument(skip_all)]
 async fn create_event_and_trigger_outgoing_webhook<W: api::OutgoingWebhookType>(
@@ -600,6 +637,19 @@ pub async fn webhooks_core<W: api::OutgoingWebhookType>(
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Incoming webhook flow for disputes failed")?,
+
+                api::WebhookFlow::Custom => custom_webhook_flow(
+                    state.clone(),
+                    merchant_account,
+                    webhook_details,
+                    source_verified,
+                    *connector,
+                    &request_details,
+                    event_type,
+                )
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Incoming custom webhook flow failed")?,
 
                 api::WebhookFlow::ReturnResponse => {}
 

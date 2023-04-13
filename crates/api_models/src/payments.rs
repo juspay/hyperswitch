@@ -441,6 +441,7 @@ pub enum PaymentMethodData {
     Wallet(WalletData),
     PayLater(PayLaterData),
     BankRedirect(BankRedirectData),
+    AchBankTransfer(AchBankTransferData),
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
@@ -455,6 +456,7 @@ pub enum AdditionalPaymentData {
     },
     Wallet {},
     PayLater {},
+    AchBankTransfer {},
 }
 
 impl From<&PaymentMethodData> for AdditionalPaymentData {
@@ -478,6 +480,7 @@ impl From<&PaymentMethodData> for AdditionalPaymentData {
             },
             PaymentMethodData::Wallet(_) => Self::Wallet {},
             PaymentMethodData::PayLater(_) => Self::PayLater {},
+            PaymentMethodData::AchBankTransfer(_) => Self::AchBankTransfer {},
         }
     }
 }
@@ -514,6 +517,16 @@ pub enum BankRedirectData {
         #[schema(example = "en")]
         preferred_language: String,
     },
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+pub struct AchBankTransferData {
+    pub billing_details: AchBillingDetails,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+pub struct AchBillingDetails {
+    pub email: String,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -620,6 +633,7 @@ pub enum PaymentMethodDataResponse {
     PayLater(PayLaterData),
     Paypal,
     BankRedirect(BankRedirectData),
+    AchBankTransfer(AchBankTransferData),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -1124,6 +1138,9 @@ impl From<PaymentMethodData> for PaymentMethodDataResponse {
             PaymentMethodData::Wallet(wallet_data) => Self::Wallet(wallet_data),
             PaymentMethodData::BankRedirect(bank_redirect_data) => {
                 Self::BankRedirect(bank_redirect_data)
+            }
+            PaymentMethodData::AchBankTransfer(ach_bank_transfer) => {
+                Self::AchBankTransfer(ach_bank_transfer)
             }
         }
     }

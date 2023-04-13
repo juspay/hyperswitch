@@ -343,7 +343,7 @@ impl ForeignTryFrom<storage::MerchantConnectorAccount> for api_models::admin::Me
         };
         let configs_for_frm_value = merchant_ca
             .frm_configs
-            .ok_or_else(|| errors::ApiErrorResponse::ConfigNotFound)?;
+            .ok_or(errors::ApiErrorResponse::ConfigNotFound)?;
         let configs_for_frm : api_models::admin::FrmConfigs = configs_for_frm_value
         // .clone()
         .parse_value("FrmConfigs")

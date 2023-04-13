@@ -2,7 +2,7 @@ use std::str::FromStr;
 
 use api_models::{self, enums as api_enums, payments};
 use common_utils::{fp_utils, pii::Email};
-use error_stack::{IntoReport, ResultExt};
+use error_stack::{report, IntoReport, ResultExt};
 use masking::ExposeInterface;
 use serde::{Deserialize, Serialize};
 use strum::EnumString;
@@ -14,6 +14,7 @@ use crate::{
     pii::{self, ExposeOptionInterface, Secret},
     services,
     types::{self, api, storage::enums},
+    utils::OptionExt,
 };
 
 pub struct StripeAuthType {
@@ -129,6 +130,34 @@ pub struct StripePayLaterData {
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
+pub struct ChargesRequest {
+    pub amount: String,
+    pub currency: String,
+    pub customer: String,
+    pub source: String,
+}
+
+#[derive(Debug, Eq, PartialEq, Serialize)]
+pub struct CustomerRequest {
+    pub email: String,
+    pub source: String,
+}
+
+#[derive(Debug, Default, Eq, PartialEq, Deserialize)]
+pub struct ChargesResponse {
+    pub id: String,
+    pub amount: u64,
+    pub amount_captured: u64,
+    pub currency: String,
+    pub status: StripePaymentStatus,
+}
+
+#[derive(Debug, Default, Eq, PartialEq, Deserialize)]
+pub struct CustomerResponse {
+    pub id: String,
+}
+
+#[derive(Debug, Eq, PartialEq, Serialize)]
 #[serde(untagged)]
 pub enum StripeBankName {
     Eps {
@@ -187,12 +216,28 @@ pub struct StripeBankRedirectData {
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
+pub struct BankTransferData {
+    pub email: String,
+    //pub currency: String,
+}
+
+#[derive(Debug, Eq, PartialEq, Serialize)]
+pub struct StripeAchRequest {
+    #[serde(rename = "type")]
+    pub transfer_type: StripePaymentMethodType,
+    #[serde(rename = "owner[email]")]
+    pub email: String,
+    pub currency: String,
+}
+
+#[derive(Debug, Eq, PartialEq, Serialize)]
 #[serde(untagged)]
 pub enum StripePaymentMethodData {
     Card(StripeCardData),
     PayLater(StripePayLaterData),
     Wallet,
     BankRedirect(StripeBankRedirectData),
+    AchBankTransfer(BankTransferData),
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize, Clone)]
@@ -206,6 +251,7 @@ pub enum StripePaymentMethodType {
     Giropay,
     Ideal,
     Sofort,
+    AchCreditTransfer,
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize, Clone)]
@@ -549,6 +595,13 @@ fn create_stripe_payment_method(
                 billing_address,
             ))
         }
+        payments::PaymentMethodData::AchBankTransfer(ach_bank_transfer_data) => Ok((
+            StripePaymentMethodData::AchBankTransfer(BankTransferData {
+                email: ach_bank_transfer_data.billing_details.email.to_owned(),
+            }),
+            StripePaymentMethodType::AchCreditTransfer,
+            StripeBillingAddress::default(),
+        )),
         _ => Err(errors::ConnectorError::NotImplemented(
             "stripe does not support this payment method".to_string(),
         )),
@@ -731,6 +784,24 @@ pub struct PaymentIntentResponse {
     pub next_action: Option<StripeNextActionResponse>,
     pub payment_method_options: Option<StripePaymentMethodOptions>,
     pub last_payment_error: Option<ErrorDetails>,
+}
+
+#[derive(Debug, Default, Eq, PartialEq, Deserialize)]
+pub struct StripeSourceResponse {
+    pub id: String,
+    pub ach_credit_transfer: AchCreditTransferResponse,
+}
+
+#[derive(Debug, Default, Eq, PartialEq, Deserialize)]
+pub struct AchCreditTransferResponse {
+    pub account_number: String,
+    pub bank_name: String,
+    pub fingerprint: String,
+    pub refund_account_holder_name: Option<String>,
+    pub refund_account_holder_type: Option<String>,
+    pub refund_routing_number: Option<String>,
+    pub routing_number: String,
+    pub swift_code: String,
 }
 
 #[derive(Debug, Default, Eq, PartialEq, Deserialize)]
@@ -1185,6 +1256,139 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for CaptureRequest {
     }
 }
 
+impl TryFrom<&types::PaymentsAuthorizeRouterData> for StripeAchRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
+        let payment_method_data = create_stripe_payment_method(
+            item.request.payment_method_type.as_ref(),
+            item.request.payment_experience.as_ref(),
+            &item.request.payment_method_data,
+            item.auth_type,
+        )?;
+        let email = match payment_method_data.0 {
+            StripePaymentMethodData::AchBankTransfer(ach_data) => Ok(ach_data.email),
+            _ => Err(report!(errors::ConnectorError::MismatchedPaymentData)),
+        }?;
+        Ok(Self {
+            transfer_type: StripePaymentMethodType::AchCreditTransfer,
+            email,
+            currency: item.request.currency.to_string(),
+        })
+    }
+}
+
+impl<F, T>
+    TryFrom<types::ResponseRouterData<F, StripeSourceResponse, T, types::PaymentsResponseData>>
+    for types::RouterData<F, T, types::PaymentsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: types::ResponseRouterData<F, StripeSourceResponse, T, types::PaymentsResponseData>,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            response: Ok(types::PaymentsResponseData::TransactionResponse {
+                resource_id: types::ResponseId::NoResponseId,
+                redirection_data: None,
+                mandate_reference: None,
+                connector_metadata: None,
+            }),
+            ..item.data
+        })
+    }
+}
+
+impl TryFrom<&types::PaymentsCompleteAuthorizeRouterData> for ChargesRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn try_from(value: &types::PaymentsCompleteAuthorizeRouterData) -> Result<Self, Self::Error> {
+        Ok(Self {
+            amount: value.request.amount.to_string(),
+            currency: value.request.currency.to_string(),
+            customer: value
+                .request
+                .customer_id
+                .to_owned()
+                .get_required_value("customer_id")
+                .change_context(errors::ConnectorError::MissingRequiredField {
+                    field_name: "customer_id",
+                })?,
+            source: value
+                .request
+                .connector_transaction_id
+                .to_owned()
+                .get_required_value("source")
+                .change_context(errors::ConnectorError::MissingRequiredField {
+                    field_name: "source",
+                })?,
+        })
+    }
+}
+
+impl TryFrom<&types::CustomerRouterData> for CustomerRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn try_from(value: &types::CustomerRouterData) -> Result<Self, Self::Error> {
+        Ok(Self {
+            email: value
+                .request
+                .email
+                .to_owned()
+                .get_required_value("email")
+                .change_context(errors::ConnectorError::MissingRequiredField {
+                    field_name: "email",
+                })?
+                .expose(),
+            source: value
+                .request
+                .connector_transaction_id
+                .to_owned()
+                .get_required_value("source")
+                .change_context(errors::ConnectorError::MissingRequiredField {
+                    field_name: "source",
+                })?,
+        })
+    }
+}
+
+impl<F, T> TryFrom<types::ResponseRouterData<F, ChargesResponse, T, types::PaymentsResponseData>>
+    for types::RouterData<F, T, types::PaymentsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: types::ResponseRouterData<F, ChargesResponse, T, types::PaymentsResponseData>,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            status: enums::AttemptStatus::from(item.response.status),
+            response: Ok(types::PaymentsResponseData::TransactionResponse {
+                resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
+                redirection_data: None,
+                mandate_reference: None,
+                connector_metadata: None,
+            }),
+            ..item.data
+        })
+    }
+}
+
+impl<F, T> TryFrom<types::ResponseRouterData<F, CustomerResponse, T, types::PaymentsResponseData>>
+    for types::RouterData<F, T, types::PaymentsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: types::ResponseRouterData<F, CustomerResponse, T, types::PaymentsResponseData>,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            response: Ok(types::PaymentsResponseData::TransactionResponse {
+                resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
+                redirection_data: None,
+                mandate_reference: None,
+                connector_metadata: None,
+            }),
+            ..item.data
+        })
+    }
+}
+
 // #[cfg(test)]
 // mod test_stripe_transformers {
 //     use super::*;
@@ -1297,6 +1501,11 @@ impl
                 }))
             }
             api::PaymentMethodData::Wallet(_) => Ok(Self::Wallet),
+            api::PaymentMethodData::AchBankTransfer(ach_bank_transfer_data) => {
+                Ok(Self::AchBankTransfer(BankTransferData {
+                    email: ach_bank_transfer_data.billing_details.email,
+                }))
+            }
         }
     }
 }

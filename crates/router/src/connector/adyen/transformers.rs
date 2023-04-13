@@ -1,4 +1,5 @@
 use api_models::{enums::DisputeStage, webhooks::IncomingWebhookEvent};
+use error_stack::report;
 use masking::PeekInterface;
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
@@ -431,6 +432,10 @@ impl<'a> TryFrom<&types::PaymentsAuthorizeRouterData> for AdyenPaymentRequest<'a
             storage_models::enums::PaymentMethod::BankRedirect => {
                 get_bank_redirect_specific_payment_data(item)
             }
+            _ => Err(report!(errors::ConnectorError::NotImplemented(format!(
+                "Current Payment Method - {:?}",
+                item.request.payment_method_data
+            )))),
         }
     }
 }
@@ -645,6 +650,10 @@ fn get_payment_method_data<'a>(
                 }
             }
         }
+        _ => Err(report!(errors::ConnectorError::NotImplemented(format!(
+            "Current Payment Method - {:?}",
+            item.request.payment_method_data
+        )))),
     }
 }
 

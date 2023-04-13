@@ -67,6 +67,10 @@ pub struct AuthorizeSessionToken;
 
 #[derive(Debug, Clone)]
 pub struct CompleteAuthorize;
+
+#[derive(Debug, Clone)]
+pub struct Customer;
+
 #[derive(Debug, Clone)]
 pub struct InitPayment;
 #[derive(Debug, Clone)]
@@ -154,6 +158,11 @@ pub trait PaymentsCompleteAuthorize:
     types::CompleteAuthorizeData,
     types::PaymentsResponseData,
 >
+{
+}
+
+pub trait Customers:
+    api::ConnectorIntegration<Customer, types::CompleteAuthorizeData, types::PaymentsResponseData>
 {
 }
 

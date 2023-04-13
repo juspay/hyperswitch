@@ -309,9 +309,7 @@ pub async fn create_payment_connector(
             field_name: "connector_account_details".to_string(),
             expected_format: "auth_type and api_key".to_string(),
         })?;
-    let configs_for_frm_value = req
-        .frm_configs
-        .ok_or_else(|| errors::ApiErrorResponse::ConfigNotFound)?;
+    let configs_for_frm_value = req.frm_configs;
     let frm_value: serde_json::Value =
         utils::Encode::<api_models::admin::FrmConfigs>::encode_to_value(&configs_for_frm_value)
             .change_context(errors::ApiErrorResponse::ConfigNotFound)?;
@@ -429,7 +427,7 @@ pub async fn update_payment_connector(
     let configs_for_frm_value = req
         .frm_configs
         .as_ref()
-        .ok_or_else(|| errors::ApiErrorResponse::ConfigNotFound)?;
+        .ok_or(errors::ApiErrorResponse::ConfigNotFound)?;
     let frm_value: serde_json::Value =
         utils::Encode::<api_models::admin::FrmConfigs>::encode_to_value(&configs_for_frm_value)
             .change_context(errors::ApiErrorResponse::ConfigNotFound)?;

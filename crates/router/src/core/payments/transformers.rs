@@ -681,6 +681,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::CompleteAuthoriz
             payment_method_data: payment_data.payment_method_data,
             connector_transaction_id: payment_data.connector_response.connector_transaction_id,
             connector_meta: payment_data.payment_attempt.connector_metadata,
+            customer_id: None,
         })
     }
 }

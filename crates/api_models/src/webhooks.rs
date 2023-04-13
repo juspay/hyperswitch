@@ -9,6 +9,9 @@ use crate::{disputes, enums as api_enums, payments, refunds};
 pub enum IncomingWebhookEvent {
     PaymentIntentFailure,
     PaymentIntentSuccess,
+    SourceChargeable,
+    SourceTransactionCreated,
+    ChargeSucceded,
     RefundFailure,
     RefundSuccess,
     DisputeOpened,
@@ -29,6 +32,7 @@ pub enum WebhookFlow {
     Dispute,
     Subscription,
     ReturnResponse,
+    Custom,
 }
 
 impl From<IncomingWebhookEvent> for WebhookFlow {
@@ -46,6 +50,9 @@ impl From<IncomingWebhookEvent> for WebhookFlow {
             IncomingWebhookEvent::DisputeWon => Self::Dispute,
             IncomingWebhookEvent::DisputeLost => Self::Dispute,
             IncomingWebhookEvent::EndpointVerification => Self::ReturnResponse,
+            IncomingWebhookEvent::SourceChargeable => Self::Custom,
+            IncomingWebhookEvent::SourceTransactionCreated => Self::Custom,
+            IncomingWebhookEvent::ChargeSucceded => Self::Payment,
         }
     }
 }

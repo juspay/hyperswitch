@@ -416,6 +416,7 @@ pub enum PaymentMethodType {
     GooglePay,
     ApplePay,
     Paypal,
+    Ach,
 }
 
 #[derive(
@@ -441,6 +442,7 @@ pub enum PaymentMethod {
     PayLater,
     Wallet,
     BankRedirect,
+    Ach,
 }
 
 #[derive(

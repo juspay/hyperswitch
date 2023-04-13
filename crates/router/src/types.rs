@@ -26,6 +26,8 @@ pub type PaymentsAuthorizeSessionTokenRouterData =
     RouterData<api::AuthorizeSessionToken, AuthorizeSessionTokenData, PaymentsResponseData>;
 pub type PaymentsCompleteAuthorizeRouterData =
     RouterData<api::CompleteAuthorize, CompleteAuthorizeData, PaymentsResponseData>;
+pub type CustomerRouterData =
+    RouterData<api::Customer, CompleteAuthorizeData, PaymentsResponseData>;
 pub type PaymentsInitRouterData =
     RouterData<api::InitPayment, PaymentsAuthorizeData, PaymentsResponseData>;
 pub type PaymentsSyncRouterData = RouterData<api::PSync, PaymentsSyncData, PaymentsResponseData>;
@@ -57,7 +59,7 @@ pub type RefundsResponseRouterData<F, R> =
 
 pub type PaymentsAuthorizeType =
     dyn services::ConnectorIntegration<api::Authorize, PaymentsAuthorizeData, PaymentsResponseData>;
-pub type PaymentsComeplteAuthorizeType = dyn services::ConnectorIntegration<
+pub type PaymentsCompleteAuthorizeType = dyn services::ConnectorIntegration<
     api::CompleteAuthorize,
     CompleteAuthorizeData,
     PaymentsResponseData,
@@ -72,6 +74,8 @@ pub type PaymentsInitType = dyn services::ConnectorIntegration<
     PaymentsAuthorizeData,
     PaymentsResponseData,
 >;
+pub type CustomerType =
+    dyn services::ConnectorIntegration<api::Customer, CompleteAuthorizeData, PaymentsResponseData>;
 pub type PaymentsSyncType =
     dyn services::ConnectorIntegration<api::PSync, PaymentsSyncData, PaymentsResponseData>;
 pub type PaymentsCaptureType =
@@ -182,6 +186,7 @@ pub struct CompleteAuthorizeData {
     pub browser_info: Option<BrowserInformation>,
     pub connector_transaction_id: Option<String>,
     pub connector_meta: Option<serde_json::Value>,
+    pub customer_id: Option<String>,
 }
 
 #[derive(Debug, Default, Clone)]
