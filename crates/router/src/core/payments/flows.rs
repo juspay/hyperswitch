@@ -54,6 +54,20 @@ pub trait Feature<F, T> {
         F: Clone,
         Self: Sized,
         dyn api::Connector: services::ConnectorIntegration<F, T, types::PaymentsResponseData>;
+
+    async fn add_payment_method_token<'a>(
+        &self,
+        _state: &AppState,
+        _connector: &api::ConnectorData,
+        _tokenization_action: &payments::TokenizationAction,
+    ) -> RouterResult<Option<String>>
+    where
+        F: Clone,
+        Self: Sized,
+        dyn api::Connector: services::ConnectorIntegration<F, T, types::PaymentsResponseData>,
+    {
+        Ok(None)
+    }
 }
 
 macro_rules! default_imp_for_complete_authorize{
@@ -74,19 +88,20 @@ macro_rules! default_imp_for_complete_authorize{
 default_imp_for_complete_authorize!(
     connector::Aci,
     connector::Adyen,
-    connector::Airwallex,
     connector::Applepay,
     connector::Authorizedotnet,
     connector::Bambora,
     connector::Bluesnap,
     connector::Braintree,
     connector::Checkout,
+    connector::Coinbase,
     connector::Cybersource,
     connector::Dlocal,
     connector::Fiserv,
     connector::Intuit,
     connector::Klarna,
     connector::Multisafepay,
+    connector::Opennode,
     connector::Payu,
     connector::Rapyd,
     connector::Shift4,
@@ -116,18 +131,18 @@ macro_rules! default_imp_for_connector_redirect_response{
 default_imp_for_connector_redirect_response!(
     connector::Aci,
     connector::Adyen,
-    connector::Airwallex,
     connector::Applepay,
     connector::Authorizedotnet,
     connector::Bambora,
     connector::Bluesnap,
     connector::Braintree,
+    connector::Coinbase,
     connector::Cybersource,
     connector::Dlocal,
     connector::Fiserv,
-    connector::Globalpay,
     connector::Klarna,
     connector::Multisafepay,
+    connector::Opennode,
     connector::Payu,
     connector::Rapyd,
     connector::Shift4,
@@ -153,6 +168,7 @@ default_imp_for_connector_transaction_id!(
     connector::Bluesnap,
     connector::Braintree,
     connector::Checkout,
+    connector::Coinbase,
     connector::Cybersource,
     connector::Dlocal,
     connector::Fiserv,
@@ -162,6 +178,7 @@ default_imp_for_connector_transaction_id!(
     connector::Mollie,
     connector::Multisafepay,
     connector::Nuvei,
+    connector::Opennode,
     connector::Payu,
     connector::Rapyd,
     connector::Shift4,

@@ -1,6 +1,6 @@
 use std::{fmt::Debug, marker::PhantomData};
 
-use error_stack::ResultExt;
+use error_stack::{IntoReport, ResultExt};
 use router_env::{instrument, tracing};
 
 use super::{flows::Feature, PaymentAddress, PaymentData};
@@ -15,8 +15,8 @@ use crate::{
     services::{self, RedirectForm},
     types::{
         self, api,
-        storage::{self, enums, PaymentAttemptExt},
-        transformers::{ForeignInto, ForeignTryFrom},
+        storage::{self, enums},
+        transformers::{ForeignFrom, ForeignInto},
     },
     utils::{OptionExt, ValueExt},
 };
@@ -36,11 +36,18 @@ where
         From<<T as TryFrom<PaymentAdditionalData<'a, F>>>::Error>,
 {
     let (merchant_connector_account, payment_method, router_data);
+    let connector_label = helpers::get_connector_label(
+        payment_data.payment_intent.business_country,
+        &payment_data.payment_intent.business_label,
+        payment_data.payment_attempt.business_sub_label.as_ref(),
+        connector_id,
+    );
+
     let db = &*state.store;
     merchant_connector_account = helpers::get_merchant_connector_account(
         db,
         merchant_account.merchant_id.as_str(),
-        connector_id,
+        &connector_label,
         payment_data.creds_identifier.to_owned(),
     )
     .await?;
@@ -100,6 +107,7 @@ where
         access_token: None,
         session_token: None,
         reference_id: None,
+        payment_method_token: payment_data.pm_token,
     };
 
     Ok(router_data)
@@ -270,9 +278,16 @@ where
                     })
                 }
                 let mut response: api::PaymentsResponse = Default::default();
-                let routed_through = payment_attempt
-                    .get_routed_through_connector()
-                    .change_context(errors::ApiErrorResponse::InternalServerError)?;
+                let routed_through = payment_attempt.connector.clone();
+
+                let connector_label = routed_through.as_ref().map(|connector_name| {
+                    helpers::get_connector_label(
+                        payment_intent.business_country,
+                        &payment_intent.business_label,
+                        payment_attempt.business_sub_label.as_ref(),
+                        connector_name,
+                    )
+                });
                 services::ApplicationResponse::Json(
                     response
                         .set_payment_id(Some(payment_attempt.payment_id))
@@ -350,6 +365,10 @@ where
                                 .map(ForeignInto::foreign_into),
                         )
                         .set_metadata(payment_intent.metadata)
+                        .set_connector_label(connector_label)
+                        .set_business_country(payment_intent.business_country)
+                        .set_business_label(payment_intent.business_label)
+                        .set_business_sub_label(payment_attempt.business_sub_label)
                         .to_owned(),
                 )
             }
@@ -396,15 +415,11 @@ where
     })
 }
 
-impl ForeignTryFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::PaymentsResponse {
-    type Error = error_stack::Report<errors::ParsingError>;
-
-    fn foreign_try_from(
-        item: (storage::PaymentIntent, storage::PaymentAttempt),
-    ) -> Result<Self, Self::Error> {
+impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::PaymentsResponse {
+    fn foreign_from(item: (storage::PaymentIntent, storage::PaymentAttempt)) -> Self {
         let pi = item.0;
         let pa = item.1;
-        Ok(Self {
+        Self {
             payment_id: Some(pi.payment_id),
             merchant_id: Some(pi.merchant_id),
             status: pi.status.foreign_into(),
@@ -416,11 +431,11 @@ impl ForeignTryFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::
             description: pi.description,
             metadata: pi.metadata,
             customer_id: pi.customer_id,
-            connector: pa.get_routed_through_connector()?,
+            connector: pa.connector,
             payment_method: pa.payment_method.map(ForeignInto::foreign_into),
             payment_method_type: pa.payment_method_type.map(ForeignInto::foreign_into),
             ..Default::default()
-        })
+        }
     }
 }
 
@@ -666,6 +681,14 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::CompleteAuthoriz
             .change_context(errors::ApiErrorResponse::InvalidDataValue {
                 field_name: "browser_info",
             })?;
+
+        let json_payload = payment_data
+            .connector_response
+            .encoded_data
+            .map(serde_json::to_value)
+            .transpose()
+            .into_report()
+            .change_context(errors::ApiErrorResponse::InternalServerError)?;
         Ok(Self {
             setup_future_usage: payment_data.payment_intent.setup_future_usage,
             mandate_id: payment_data.mandate_id.clone(),
@@ -680,6 +703,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::CompleteAuthoriz
             email: payment_data.email,
             payment_method_data: payment_data.payment_method_data,
             connector_transaction_id: payment_data.connector_response.connector_transaction_id,
+            payload: json_payload,
             connector_meta: payment_data.payment_attempt.connector_metadata,
         })
     }

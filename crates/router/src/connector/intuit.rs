@@ -106,6 +106,16 @@ impl ConnectorCommon for Intuit {
 
 impl api::Payment for Intuit {}
 
+impl api::PaymentToken for Intuit {}
+impl
+    ConnectorIntegration<
+        api::PaymentMethodToken,
+        types::PaymentMethodTokenizationData,
+        types::PaymentsResponseData,
+    > for Intuit
+{
+}
+
 impl api::PreVerify for Intuit {}
 impl ConnectorIntegration<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>
     for Intuit

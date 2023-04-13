@@ -23,7 +23,6 @@ use crate::{
         storage::{
             self,
             enums::{self, IntentStatus},
-            PaymentAttemptExt,
         },
         transformers::ForeignInto,
     },
@@ -122,7 +121,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             .insert_payment_intent(
                 Self::make_payment_intent(
                     &payment_id,
-                    merchant_id,
+                    merchant_account,
                     money,
                     request,
                     shipping_address.clone().map(|x| x.address_id),
@@ -139,8 +138,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             })?;
         connector_response = db
             .insert_connector_response(
-                Self::make_connector_response(&payment_attempt)
-                    .change_context(errors::ApiErrorResponse::InternalServerError)?,
+                Self::make_connector_response(&payment_attempt),
                 storage_scheme,
             )
             .await
@@ -214,6 +212,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 sessions_token: vec![],
                 card_cvc: request.card_cvc.clone(),
                 creds_identifier,
+                pm_token: None,
             },
             Some(CustomerDetails {
                 customer_id: request.customer_id.clone(),
@@ -315,6 +314,10 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
 
         let payment_token = payment_data.token.clone();
         let connector = payment_data.payment_attempt.connector.clone();
+        let straight_through_algorithm = payment_data
+            .payment_attempt
+            .straight_through_algorithm
+            .clone();
 
         payment_data.payment_attempt = db
             .update_payment_attempt_with_attempt_id(
@@ -322,6 +325,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
                 storage::PaymentAttemptUpdate::UpdateTrackers {
                     payment_token,
                     connector,
+                    straight_through_algorithm,
                 },
                 storage_scheme,
             )
@@ -475,7 +479,7 @@ impl PaymentCreate {
     #[instrument(skip_all)]
     fn make_payment_intent(
         payment_id: &str,
-        merchant_id: &str,
+        merchant_account: &storage::MerchantAccount,
         money: (api::Amount, enums::Currency),
         request: &api::PaymentsRequest,
         shipping_address_id: Option<String>,
@@ -495,9 +499,16 @@ impl PaymentCreate {
             .transpose()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Encoding Metadata to value failed")?;
+
+        let (business_country, business_label) = helpers::get_business_details(
+            request.business_country,
+            request.business_label.as_ref(),
+            merchant_account,
+        )?;
+
         Ok(storage::PaymentIntentNew {
             payment_id: payment_id.to_string(),
-            merchant_id: merchant_id.to_string(),
+            merchant_id: merchant_account.merchant_id.to_string(),
             status,
             amount: amount.into(),
             currency,
@@ -514,6 +525,8 @@ impl PaymentCreate {
             statement_descriptor_name: request.statement_descriptor_name.clone(),
             statement_descriptor_suffix: request.statement_descriptor_suffix.clone(),
             metadata: metadata.map(masking::Secret::new),
+            business_country,
+            business_label,
             active_attempt_id,
             ..storage::PaymentIntentNew::default()
         })
@@ -522,18 +535,18 @@ impl PaymentCreate {
     #[instrument(skip_all)]
     pub fn make_connector_response(
         payment_attempt: &storage::PaymentAttempt,
-    ) -> CustomResult<storage::ConnectorResponseNew, errors::ParsingError> {
-        Ok(storage::ConnectorResponseNew {
+    ) -> storage::ConnectorResponseNew {
+        storage::ConnectorResponseNew {
             payment_id: payment_attempt.payment_id.clone(),
             merchant_id: payment_attempt.merchant_id.clone(),
             attempt_id: payment_attempt.attempt_id.clone(),
             created_at: payment_attempt.created_at,
             modified_at: payment_attempt.modified_at,
-            connector_name: payment_attempt.get_routed_through_connector()?,
+            connector_name: payment_attempt.connector.clone(),
             connector_transaction_id: None,
             authentication_data: None,
             encoded_data: None,
-        })
+        }
     }
 }
 

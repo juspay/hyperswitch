@@ -34,11 +34,13 @@ pub enum AttemptStatus {
     VoidFailed,
     AutoRefunded,
     PartialCharged,
+    Unresolved,
     #[default]
     Pending,
     Failure,
     PaymentMethodAwaited,
     ConfirmationAwaited,
+    DeviceDataCollectionPending,
 }
 
 #[derive(
@@ -266,6 +268,8 @@ pub enum Currency {
 #[strum(serialize_all = "snake_case")]
 pub enum EventType {
     PaymentSucceeded,
+    PaymentProcessing,
+    ActionRequired,
     RefundSucceeded,
     RefundFailed,
     DisputeOpened,
@@ -299,6 +303,7 @@ pub enum IntentStatus {
     Cancelled,
     Processing,
     RequiresCustomerAction,
+    RequiresMerchantAction,
     RequiresPaymentMethod,
     #[default]
     RequiresConfirmation,
@@ -416,6 +421,7 @@ pub enum PaymentMethodType {
     GooglePay,
     ApplePay,
     Paypal,
+    CryptoCurrency,
 }
 
 #[derive(
@@ -441,6 +447,7 @@ pub enum PaymentMethod {
     PayLater,
     Wallet,
     BankRedirect,
+    Crypto,
 }
 
 #[derive(
@@ -561,9 +568,11 @@ pub enum Connector {
     Bluesnap,
     Braintree,
     Checkout,
+    Coinbase,
     Cybersource,
     #[default]
     Dummy,
+    Opennode,
     Bambora,
     Dlocal,
     Fiserv,
@@ -620,6 +629,7 @@ pub enum RoutableConnectors {
     Bluesnap,
     Braintree,
     Checkout,
+    Coinbase,
     Cybersource,
     Dlocal,
     Fiserv,
@@ -629,6 +639,7 @@ pub enum RoutableConnectors {
     Mollie,
     Multisafepay,
     Nuvei,
+    Opennode,
     Paypal,
     Payu,
     Rapyd,
@@ -760,8 +771,10 @@ impl From<AttemptStatus> for IntentStatus {
             AttemptStatus::PaymentMethodAwaited => Self::RequiresPaymentMethod,
 
             AttemptStatus::Authorized => Self::RequiresCapture,
-            AttemptStatus::AuthenticationPending => Self::RequiresCustomerAction,
-
+            AttemptStatus::AuthenticationPending | AttemptStatus::DeviceDataCollectionPending => {
+                Self::RequiresCustomerAction
+            }
+            AttemptStatus::Unresolved => Self::RequiresMerchantAction,
             AttemptStatus::PartialCharged
             | AttemptStatus::Started
             | AttemptStatus::AuthenticationSuccessful
@@ -828,4 +841,11 @@ pub enum DisputeStatus {
     DisputeWon,
     // dispute has been unsuccessfully challenged
     DisputeLost,
+}
+
+#[derive(Debug, Eq, PartialEq, Clone, serde::Serialize, serde::Deserialize)]
+pub struct UnresolvedResponseReason {
+    pub code: String,
+    /// A message to merchant to give hint on next action he/she should do to resolve
+    pub message: String,
 }
