@@ -571,7 +571,7 @@ async fn decide_payment_method_tokenize_action(
                     if is_connector_tokenization_enabled {
                         TokenizationAction::TokenizeInConnector
                     } else {
-                        TokenizationAction::SkipConnectorTokenization
+                        TokenizationAction::TokenizeInRouter
                     }
                 }
             }
