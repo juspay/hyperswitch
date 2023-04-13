@@ -22,7 +22,7 @@ kv_store = []
 accounts_cache = []
 openapi = ["olap", "oltp"]
 vergen = ["router_env/vergen"]
-backwards_compatibility = ["api_models/backwards_compatibility"]
+multiple_mca = ["api_models/multiple_mca"]
 
 
 [dependencies]
