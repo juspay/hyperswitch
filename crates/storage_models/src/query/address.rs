@@ -3,7 +3,7 @@ use router_env::{instrument, tracing};
 
 use super::generics;
 use crate::{
-    address::{Address, AddressNew, AddressUpdate, AddressUpdateInternal},
+    address::{Address, AddressNew, AddressUpdateInternal},
     errors,
     schema::address::dsl,
     PgPooledConn, StorageResult,
@@ -21,12 +21,12 @@ impl Address {
     pub async fn update_by_address_id(
         conn: &PgPooledConn,
         address_id: String,
-        address: AddressUpdate,
+        address: AddressUpdateInternal,
     ) -> StorageResult<Self> {
         match generics::generic_update_by_id::<<Self as HasTable>::Table, _, _, _>(
             conn,
             address_id.clone(),
-            AddressUpdateInternal::from(address),
+            address,
         )
         .await
         {
@@ -63,14 +63,14 @@ impl Address {
         conn: &PgPooledConn,
         customer_id: &str,
         merchant_id: &str,
-        address: AddressUpdate,
+        address: AddressUpdateInternal,
     ) -> StorageResult<Vec<Self>> {
         generics::generic_update_with_results::<<Self as HasTable>::Table, _, _, _>(
             conn,
             dsl::merchant_id
                 .eq(merchant_id.to_owned())
                 .and(dsl::customer_id.eq(customer_id.to_owned())),
-            AddressUpdateInternal::from(address),
+            address,
         )
         .await
     }

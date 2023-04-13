@@ -1,10 +1,16 @@
 use diesel::{backend::Backend, deserialize::FromSql, serialize::ToSql, sql_types, AsExpression};
 
-#[derive(Debug, AsExpression)]
+#[derive(Debug, AsExpression, Clone)]
 #[diesel(sql_type = diesel::sql_types::Binary)]
 #[repr(transparent)]
 pub struct Encryption {
     inner: Vec<u8>,
+}
+
+impl<T: Clone> From<common_utils::crypto::Encryptable<T>> for Encryption {
+    fn from(value: common_utils::crypto::Encryptable<T>) -> Self {
+        Self::new(value.into_encrypted())
+    }
 }
 
 impl Encryption {

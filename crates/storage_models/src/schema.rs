@@ -212,8 +212,8 @@ diesel::table! {
         enable_payment_response_hash -> Bool,
         payment_response_hash_key -> Nullable<Varchar>,
         redirect_to_merchant_with_http_post -> Bool,
-        merchant_name -> Nullable<Binary>,
-        merchant_details -> Nullable<Binary>,
+        merchant_name -> Nullable<Text>,
+        merchant_details -> Nullable<Json>,
         webhook_details -> Nullable<Json>,
         sub_merchants_enabled -> Nullable<Bool>,
         parent_merchant_id -> Nullable<Varchar>,
@@ -222,7 +222,7 @@ diesel::table! {
         locker_id -> Nullable<Varchar>,
         metadata -> Nullable<Jsonb>,
         routing_algorithm -> Nullable<Json>,
-        api_key -> Nullable<Binary>,
+        api_key -> Nullable<Text>,
     }
 }
 
@@ -234,7 +234,7 @@ diesel::table! {
         id -> Int4,
         merchant_id -> Varchar,
         connector_name -> Varchar,
-        connector_account_details -> Binary,
+        connector_account_details -> Json,
         test_mode -> Nullable<Bool>,
         disabled -> Nullable<Bool>,
         merchant_connector_id -> Varchar,

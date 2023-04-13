@@ -1,4 +1,6 @@
 //! Utilities for cryptographic algorithms
+use std::ops::Deref;
+
 use error_stack::{IntoReport, ResultExt};
 use md5;
 use ring::{
@@ -6,7 +8,10 @@ use ring::{
     hmac,
 };
 
-use crate::errors::{self, CustomResult};
+use crate::{
+    errors::{self, CustomResult},
+    pii,
+};
 
 const RING_ERR_UNSPECIFIED: &str = "ring::error::Unspecified";
 
@@ -414,6 +419,79 @@ pub fn generate_cryptographically_secure_random_bytes<const N: usize>() -> [u8; 
     rand::rngs::OsRng.fill_bytes(&mut bytes);
     bytes
 }
+
+///
+/// A wrapper type to store the encrypted data for sensitive pii domain data types
+///
+#[derive(Debug, Clone)]
+pub struct Encryptable<T: Clone> {
+    inner: T,
+    encrypted: Vec<u8>,
+}
+
+impl<T: Clone, S: masking::Strategy<T>> Encryptable<masking::Secret<T, S>> {
+    ///
+    /// constructor function to be used by the encryptor and decryptor to generate the data type
+    ///
+    pub fn new(masked_data: masking::Secret<T, S>, encrypted_data: Vec<u8>) -> Self {
+        Self {
+            inner: masked_data,
+            encrypted: encrypted_data,
+        }
+    }
+}
+
+impl<T: Clone> Encryptable<T> {
+    ///
+    /// Get the inner data while consumping self
+    ///
+    pub fn into_inner(self) -> T {
+        self.inner
+    }
+    ///
+    /// Get the inner encrypted data while consuming self
+    ///
+    pub fn into_encrypted(self) -> Vec<u8> {
+        self.encrypted
+    }
+}
+
+impl<T: Clone> Deref for Encryptable<masking::Secret<T>> {
+    type Target = masking::Secret<T>;
+    fn deref(&self) -> &Self::Target {
+        &self.inner
+    }
+}
+
+impl<T: Clone> masking::Serialize for Encryptable<T>
+where
+    T: masking::Serialize,
+{
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        self.inner.serialize(serializer)
+    }
+}
+
+impl<T: Clone> PartialEq for Encryptable<T>
+where
+    T: PartialEq,
+{
+    fn eq(&self, other: &Self) -> bool {
+        self.inner.eq(&other.inner)
+    }
+}
+
+/// Type alias for `Option<Encryptable<Secret<String>>>`
+pub type OptionalEncryptableSecretString = Option<Encryptable<masking::Secret<String>>>;
+/// Type alias for `Option<Encryptable<Secret<String>>>` used for `name` field
+pub type OptionalEncryptableName = Option<Encryptable<masking::Secret<String>>>;
+/// Type alias for `Option<Encryptable<Secret<String>>>` used for `email` field
+pub type OptionalEncryptableEmail = Option<Encryptable<masking::Secret<String, pii::Email>>>;
+/// Type alias for `Option<Encryptable<Secret<String>>>` used for `phone` field
+pub type OptionalEncryptablePhone = Option<Encryptable<masking::Secret<String>>>;
 
 #[cfg(test)]
 mod crypto_tests {

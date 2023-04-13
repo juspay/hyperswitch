@@ -70,7 +70,7 @@ impl AddressInterface for Store {
         address: storage::AddressUpdate,
     ) -> CustomResult<domain::address::Address, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
-        storage::Address::update_by_address_id(&conn, address_id, address)
+        storage::Address::update_by_address_id(&conn, address_id, address.into())
             .await
             .map_err(Into::into)
             .into_report()
@@ -116,7 +116,7 @@ impl AddressInterface for Store {
             &conn,
             customer_id,
             merchant_id,
-            address,
+            address.into(),
         )
         .await
         .map_err(Into::into)
