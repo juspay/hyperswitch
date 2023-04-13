@@ -13,14 +13,14 @@ use crate::{
         payment_methods::cards,
     },
     db::StorageInterface,
-    pii::PeekInterface,
+    pii::{self, PeekInterface},
     routes::{metrics, AppState},
     services,
     types::{
         api::customers::{self, CustomerRequestExt},
         domain::{
             self, customer, merchant_account,
-            types::{get_key_and_algo, AsyncTranspose, TypeEncryption},
+            types::{get_key_and_algo, AsyncLift, TypeEncryption},
         },
         storage::{self, enums},
     },
@@ -51,7 +51,7 @@ pub async fn create_customer(
             .transpose()
     };
 
-    let encrypt_email = |inner: Option<masking::Secret<String, crate::pii::Email>>| async {
+    let encrypt_email = |inner: Option<masking::Secret<String, pii::Email>>| async {
         inner
             .async_map(|value| crypto::Encryptable::encrypt(value, &key, GcmAes256 {}))
             .await
@@ -69,14 +69,14 @@ pub async fn create_customer(
             Ok(domain::address::Address {
                 city: customer_address.city,
                 country: customer_address.country,
-                line1: customer_address.line1.async_transpose(encrypt).await?,
-                line2: customer_address.line2.async_transpose(encrypt).await?,
-                line3: customer_address.line3.async_transpose(encrypt).await?,
-                zip: customer_address.zip.async_transpose(encrypt).await?,
-                state: customer_address.state.async_transpose(encrypt).await?,
-                first_name: customer_address.first_name.async_transpose(encrypt).await?,
-                last_name: customer_address.last_name.async_transpose(encrypt).await?,
-                phone_number: customer_data.phone.clone().async_transpose(encrypt).await?,
+                line1: customer_address.line1.async_lift(encrypt).await?,
+                line2: customer_address.line2.async_lift(encrypt).await?,
+                line3: customer_address.line3.async_lift(encrypt).await?,
+                zip: customer_address.zip.async_lift(encrypt).await?,
+                state: customer_address.state.async_lift(encrypt).await?,
+                first_name: customer_address.first_name.async_lift(encrypt).await?,
+                last_name: customer_address.last_name.async_lift(encrypt).await?,
+                phone_number: customer_data.phone.clone().async_lift(encrypt).await?,
                 country_code: customer_data.phone_country_code.clone(),
                 customer_id: customer_id.to_string(),
                 merchant_id: merchant_id.to_string(),
@@ -87,7 +87,8 @@ pub async fn create_customer(
             })
         }
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed while encrypting address")?;
 
         db.insert_address(address)
             .await
@@ -99,9 +100,9 @@ pub async fn create_customer(
         Ok(customer::Customer {
             customer_id: customer_id.to_string(),
             merchant_id: merchant_id.to_string(),
-            name: customer_data.name.async_transpose(encrypt).await?,
-            email: customer_data.email.async_transpose(encrypt_email).await?,
-            phone: customer_data.phone.async_transpose(encrypt).await?,
+            name: customer_data.name.async_lift(encrypt).await?,
+            email: customer_data.email.async_lift(encrypt_email).await?,
+            phone: customer_data.phone.async_lift(encrypt).await?,
             description: customer_data.description,
             phone_country_code: customer_data.phone_country_code,
             metadata: customer_data.metadata,
@@ -110,7 +111,8 @@ pub async fn create_customer(
         })
     }
     .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)?;
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed while encrypting Customer")?;
 
     let customer = match db.insert_customer(new_customer).await {
         Ok(customer) => customer,
@@ -324,23 +326,20 @@ pub async fn update_customer(
             Ok(storage::AddressUpdate::Update {
                 city: customer_address.city,
                 country: customer_address.country,
-                line1: customer_address.line1.async_transpose(encrypt).await?,
-                line2: customer_address.line2.async_transpose(encrypt).await?,
-                line3: customer_address.line3.async_transpose(encrypt).await?,
-                zip: customer_address.zip.async_transpose(encrypt).await?,
-                state: customer_address.state.async_transpose(encrypt).await?,
-                first_name: customer_address.first_name.async_transpose(encrypt).await?,
-                last_name: customer_address.last_name.async_transpose(encrypt).await?,
-                phone_number: update_customer
-                    .phone
-                    .clone()
-                    .async_transpose(encrypt)
-                    .await?,
+                line1: customer_address.line1.async_lift(encrypt).await?,
+                line2: customer_address.line2.async_lift(encrypt).await?,
+                line3: customer_address.line3.async_lift(encrypt).await?,
+                zip: customer_address.zip.async_lift(encrypt).await?,
+                state: customer_address.state.async_lift(encrypt).await?,
+                first_name: customer_address.first_name.async_lift(encrypt).await?,
+                last_name: customer_address.last_name.async_lift(encrypt).await?,
+                phone_number: update_customer.phone.clone().async_lift(encrypt).await?,
                 country_code: update_customer.phone_country_code.clone(),
             })
         }
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed while encrypting Address while Update")?;
         db.update_address_by_merchant_id_customer_id(
             &update_customer.customer_id,
             &merchant_account.merchant_id,
@@ -360,16 +359,17 @@ pub async fn update_customer(
             merchant_account.merchant_id.to_owned(),
             async {
                 Ok(storage::CustomerUpdate::Update {
-                    name: update_customer.name.async_transpose(encrypt).await?,
-                    email: update_customer.email.async_transpose(encrypt_email).await?,
-                    phone: update_customer.phone.async_transpose(encrypt).await?,
+                    name: update_customer.name.async_lift(encrypt).await?,
+                    email: update_customer.email.async_lift(encrypt_email).await?,
+                    phone: update_customer.phone.async_lift(encrypt).await?,
                     phone_country_code: update_customer.phone_country_code,
                     metadata: update_customer.metadata,
                     description: update_customer.description,
                 })
             }
             .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)?,
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed while encrypting while updating customer")?,
         )
         .await
         .map_err(|error| error.to_not_found_response(errors::ApiErrorResponse::CustomerNotFound))?;
