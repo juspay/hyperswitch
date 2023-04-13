@@ -24,6 +24,7 @@ use crate::{
         payment_methods::{cards, vault},
     },
     db::StorageInterface,
+    pii,
     routes::{metrics, AppState},
     scheduler::{metrics as scheduler_metrics, workflows::payment_sync},
     services,
@@ -52,7 +53,8 @@ pub async fn get_address_for_payment_request(
 ) -> CustomResult<Option<domain::address::Address>, errors::ApiErrorResponse> {
     let key = get_key_and_algo(db, merchant_id.to_string())
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed while getting key for encryption")?;
 
     let encrypt = |inner: Option<masking::Secret<String>>| async {
         inner
@@ -792,15 +794,14 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R>(
                             .transpose()
                     };
 
-                    let encrypt_email =
-                        |inner: Option<masking::Secret<String, crate::pii::Email>>| async {
-                            inner
-                                .async_map(|value| {
-                                    crypto::Encryptable::encrypt(value, &key, crypto::GcmAes256 {})
-                                })
-                                .await
-                                .transpose()
-                        };
+                    let encrypt_email = |inner: Option<masking::Secret<String, pii::Email>>| async {
+                        inner
+                            .async_map(|value| {
+                                crypto::Encryptable::encrypt(value, &key, crypto::GcmAes256 {})
+                            })
+                            .await
+                            .transpose()
+                    };
 
                     let new_customer = async {
                         Ok(customer::Customer {

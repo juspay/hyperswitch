@@ -42,7 +42,8 @@ pub async fn create_customer(
 
     let key = get_key_and_algo(db, merchant_id.clone())
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed while getting encryption key")?;
 
     let encrypt = |inner: Option<masking::Secret<String>>| async {
         inner
@@ -215,7 +216,8 @@ pub async fn delete_customer(
 
     let key = get_key_and_algo(&**db, merchant_account.merchant_id.clone())
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed while getting key for encryption")?;
     let redacted_encrypted_value: Encryptable<masking::Secret<_>> =
         Encryptable::encrypt(REDACTED.to_string().into(), &key, GcmAes256 {})
             .await
@@ -300,7 +302,8 @@ pub async fn update_customer(
 
     let key = get_key_and_algo(db, merchant_account.merchant_id.clone())
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed while getting key for encryption")?;
 
     let encrypt = |inner: Option<masking::Secret<String>>| async {
         inner
@@ -309,7 +312,7 @@ pub async fn update_customer(
             .transpose()
     };
 
-    let encrypt_email = |inner: Option<masking::Secret<String, crate::pii::Email>>| async {
+    let encrypt_email = |inner: Option<masking::Secret<String, pii::Email>>| async {
         inner
             .async_map(|value| crypto::Encryptable::encrypt(value, &key, GcmAes256 {}))
             .await

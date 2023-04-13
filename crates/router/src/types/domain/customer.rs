@@ -1,17 +1,15 @@
 use common_utils::{
-    crypto::{self, Encryptable, GcmAes256},
-    ext_traits::AsyncExt,
+    crypto::{self},
     pii,
 };
 use error_stack::ResultExt;
 use storage_models::{customers::CustomerUpdateInternal, encryption::Encryption};
 use time::PrimitiveDateTime;
 
-use super::types::{get_key_and_algo, TypeEncryption};
-use crate::{
-    db::StorageInterface,
-    errors::{CustomResult, ValidationError},
-};
+use super::types::{self, AsyncLift};
+use crate::errors::{CustomResult, ValidationError};
+
+use crate::db::StorageInterface;
 
 #[derive(Clone, Debug)]
 pub struct Customer {
@@ -56,31 +54,21 @@ impl super::behaviour::Conversion for Customer {
     where
         Self: Sized,
     {
-        let key = get_key_and_algo(db, merchant_id).await.change_context(
-            ValidationError::InvalidValue {
+        let key = types::get_key_and_algo(db, merchant_id)
+            .await
+            .change_context(ValidationError::InvalidValue {
                 message: "Failed while getting key from key store".to_string(),
-            },
-        )?;
+            })?;
         async {
+            let inner_decrypt = |inner| types::decrypt(inner, &key);
+            let inner_decrypt_email = |inner| types::decrypt(inner, &key);
             Ok(Self {
                 id: Some(item.id),
                 customer_id: item.customer_id,
                 merchant_id: item.merchant_id,
-                name: item
-                    .name
-                    .async_map(|value| Encryptable::decrypt(value, &key, GcmAes256 {}))
-                    .await
-                    .transpose()?,
-                email: item
-                    .email
-                    .async_map(|value| Encryptable::decrypt(value, &key, GcmAes256 {}))
-                    .await
-                    .transpose()?,
-                phone: item
-                    .phone
-                    .async_map(|value| Encryptable::decrypt(value, &key, GcmAes256 {}))
-                    .await
-                    .transpose()?,
+                name: item.name.async_lift(inner_decrypt).await?,
+                email: item.email.async_lift(inner_decrypt_email).await?,
+                phone: item.phone.async_lift(inner_decrypt).await?,
                 phone_country_code: item.phone_country_code,
                 description: item.description,
                 created_at: item.created_at,
