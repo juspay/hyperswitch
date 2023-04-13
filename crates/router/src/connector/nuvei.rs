@@ -486,35 +486,39 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         )
         .await?;
         router_data.session_token = resp.session_token;
-        let (enrolled_for_3ds, related_transaction_id) = match router_data.auth_type {
-            storage_models::enums::AuthenticationType::ThreeDs => {
-                let integ: Box<
-                    &(dyn ConnectorIntegration<
-                        InitPayment,
-                        types::PaymentsAuthorizeData,
-                        types::PaymentsResponseData,
-                    > + Send
-                          + Sync
-                          + 'static),
-                > = Box::new(&Self);
-                let init_data = &types::PaymentsInitRouterData::from((
-                    &router_data,
-                    router_data.request.clone(),
-                ));
-                let init_resp = services::execute_connector_processing_step(
-                    app_state,
-                    integ,
-                    init_data,
-                    payments::CallConnectorAction::Trigger,
-                )
-                .await?;
+        let (enrolled_for_3ds, related_transaction_id) =
+            match (router_data.auth_type, router_data.payment_method) {
                 (
-                    init_resp.request.enrolled_for_3ds,
-                    init_resp.request.related_transaction_id,
-                )
-            }
-            storage_models::enums::AuthenticationType::NoThreeDs => (false, None),
-        };
+                    storage_models::enums::AuthenticationType::ThreeDs,
+                    storage_models::enums::PaymentMethod::Card,
+                ) => {
+                    let integ: Box<
+                        &(dyn ConnectorIntegration<
+                            InitPayment,
+                            types::PaymentsAuthorizeData,
+                            types::PaymentsResponseData,
+                        > + Send
+                              + Sync
+                              + 'static),
+                    > = Box::new(&Self);
+                    let init_data = &types::PaymentsInitRouterData::from((
+                        &router_data,
+                        router_data.request.clone(),
+                    ));
+                    let init_resp = services::execute_connector_processing_step(
+                        app_state,
+                        integ,
+                        init_data,
+                        payments::CallConnectorAction::Trigger,
+                    )
+                    .await?;
+                    (
+                        init_resp.request.enrolled_for_3ds,
+                        init_resp.request.related_transaction_id,
+                    )
+                }
+                _ => (false, None),
+            };
 
         router_data.request.enrolled_for_3ds = enrolled_for_3ds;
         router_data.request.related_transaction_id = related_transaction_id;

@@ -704,7 +704,12 @@ pub async fn make_pm_data<'a, F: Clone, R>(
                 .to_owned()
                 .get_required_value("payment_method")?,
         );
-        redis_conn.get_key::<String>(&key).await.ok()
+        let x = match redis_conn.get_key::<String>(&key).await.ok() {
+            Some(token) => token,
+            None => token,
+        };
+        Some(x)
+        //token
     } else {
         None
     };
