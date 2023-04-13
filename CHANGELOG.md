@@ -1,16 +1,32 @@
-# 0.5.6 (2023-04-11)
+# 0.5.6 2023-04-13
+
+## Build System / Dependencies
+
+* **deps:**  bump `fred` from `5.2.0` to `6.0.0` (#869) (01bc162d)
+
+## Continuous Integration
+
+* **manual_release:**  add `multiple_mca` feature in ci (#872) (aebb4dca)
 
 ## New Features
 
+* **core:**  add backwards compatibility for multiple mca (#866) (cf902f19)
+* **router:**
+  *  added dispute retrieve and dispute list apis (#842) (acab7671)
+  *  separate straight through algorithm in separate column in payment attempt (#863) (01f86c49)
+* **connector:**
+  *  [Airwallex] add multiple redirect support for 3DS (#811) (d1d58e33)
+  *  [Worldpay] add support for webhook (#820) (23511166)
+  *  [Coinbase] [Opennode] Add support for crypto payments via PG redirection (#834) (b3d14737)
 *  multiple connector account support for the same `country` (#816) (6188d515)
 *  connector tokenization flow (#750) (29da1dfa)
 * **process_tracker:**  changing runner selection to dyn dispatch (#853) (18b84c42)
-* **connector:**  [Worldpay] add support for webhook (#820) (23511166)
 
 ## Refactors
 
-* **refund_type:** Feat/add copy derive (#849) (ccf03273)
+* **Tokenization:**  remove ConnectorCallType from tokenization call (#862) (0d047e08)
 * **router_env:**  improve logging setup (#847) (1b94d25f)
+* **refund_type:** Feat/add copy dervie (#849) (ccf03273)
 
 # 0.5.5 (2023-04-10)
 
