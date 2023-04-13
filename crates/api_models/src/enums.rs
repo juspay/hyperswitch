@@ -646,27 +646,6 @@ pub enum RoutableConnectors {
     Worldpay,
 }
 
-/// Wallets which support obtaining session object
-#[derive(
-    Debug,
-    serde::Deserialize,
-    serde::Serialize,
-    Clone,
-    ToSchema,
-    Eq,
-    PartialEq,
-    strum::EnumString,
-    strum::Display,
-)]
-#[strum(serialize_all = "snake_case")]
-#[serde(rename_all = "snake_case")]
-pub enum SupportedWallets {
-    Paypal,
-    ApplePay,
-    Klarna,
-    GooglePay,
-}
-
 /// Name of banks supported by Hyperswitch
 #[derive(
     Clone,

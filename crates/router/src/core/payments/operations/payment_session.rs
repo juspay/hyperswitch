@@ -1,4 +1,4 @@
-use std::{marker::PhantomData, str::FromStr};
+use std::marker::PhantomData;
 
 use api_models::admin::PaymentMethodsEnabled;
 use async_trait::async_trait;
@@ -332,7 +332,7 @@ where
                             ) {
                                 let connector_and_wallet = (
                                     connector_account.connector_name.to_owned(),
-                                    payment_method_type.payment_method_type.to_string(),
+                                    api::GetToken::from(payment_method_type.payment_method_type),
                                 );
                                 connector_and_supporting_wallet.push(connector_and_wallet);
                             }
@@ -345,22 +345,27 @@ where
             }
         }
 
-        let given_wallets = request.wallets.clone();
+        let payment_method_types = request.wallets.clone();
 
-        let connectors_data = if !given_wallets.is_empty() {
+        let connectors_data = if !payment_method_types.is_empty() {
             let mut connectors_data = Vec::new();
-            for wallet in given_wallets {
-                for connector_wallet in &connector_and_supporting_wallet {
-                    let connector_name = match wallet {
-                        api_models::enums::SupportedWallets::Paypal => "braintree",
-                        api_models::enums::SupportedWallets::Klarna => "klarna",
-                        _ => connector_wallet.0.as_str(),
-                    };
-                    if connector_wallet.1 == wallet.to_string() {
+            for payment_method_type in payment_method_types {
+                for connector_tokeninfo in &connector_and_supporting_wallet {
+                    let connector_name = match payment_method_type {
+                        api_models::enums::PaymentMethodType::Paypal => Ok("braintree"),
+                        api_models::enums::PaymentMethodType::Klarna => Ok("klarna"),
+                        api_models::enums::PaymentMethodType::ApplePay
+                        | api_models::enums::PaymentMethodType::GooglePay => {
+                            Ok(connector_tokeninfo.0.as_str())
+                        }
+                        _ => Err(report!(errors::ApiErrorResponse::InternalServerError))
+                            .attach_printable("Payment Method not supported for session token"),
+                    }?;
+                    if connector_tokeninfo.1 == api::GetToken::from(payment_method_type) {
                         let connector_details = api::ConnectorData::get_connector_by_name(
                             connectors,
                             connector_name,
-                            api::GetToken::from_str(connector_wallet.1.as_str())?,
+                            connector_tokeninfo.1.to_owned(),
                         )?;
                         connectors_data.push(connector_details);
                     }
@@ -370,11 +375,11 @@ where
         } else {
             let mut connectors_data = Vec::new();
 
-            for connector_wallet in &connector_and_supporting_wallet {
+            for connector_tokeninfo in &connector_and_supporting_wallet {
                 let connector_details = api::ConnectorData::get_connector_by_name(
                     connectors,
-                    connector_wallet.0.as_str(),
-                    api::GetToken::from_str(connector_wallet.1.as_str())?,
+                    connector_tokeninfo.0.as_str(),
+                    connector_tokeninfo.1.to_owned(),
                 )?;
                 connectors_data.push(connector_details);
             }
@@ -385,16 +390,12 @@ where
     }
 }
 
-impl FromStr for api::GetToken {
-    type Err = error_stack::Report<errors::ApiErrorResponse>;
-    fn from_str(value: &str) -> Result<Self, Self::Err> {
+impl From<api_models::enums::PaymentMethodType> for api::GetToken {
+    fn from(value: api_models::enums::PaymentMethodType) -> Self {
         match value {
-            "apple_pay" => Ok(Self::ApplePayMetadata),
-            "google_pay" => Ok(Self::GpayMetadata),
-            "paypal" => Ok(Self::Connector),
-            "klarna" => Ok(Self::Connector),
-            _ => Err(report!(errors::ApiErrorResponse::InternalServerError))
-                .attach_printable("Not supported wallet"),
+            api_models::enums::PaymentMethodType::GooglePay => Self::GpayMetadata,
+            api_models::enums::PaymentMethodType::ApplePay => Self::ApplePayMetadata,
+            _ => Self::Connector,
         }
     }
 }

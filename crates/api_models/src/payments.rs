@@ -1231,8 +1231,8 @@ pub struct PaymentsSessionRequest {
     /// This is a token which expires after 15 minutes, used from the client to authenticate and create sessions from the SDK
     pub client_secret: String,
     /// The list of the supported wallets
-    #[schema(value_type = Vec<SupportedWallets>)]
-    pub wallets: Vec<api_enums::SupportedWallets>,
+    #[schema(value_type = Vec<PaymentMethodType>)]
+    pub wallets: Vec<api_enums::PaymentMethodType>,
     /// Merchant connector details used to make payments.
     pub merchant_connector_details: Option<admin::MerchantConnectorDetailsWrap>,
 }
