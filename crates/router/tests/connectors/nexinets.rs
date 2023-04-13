@@ -14,7 +14,7 @@ impl utils::Connector for NexinetsTest {
         use router::connector::Nexinets;
         types::api::ConnectorData {
             connector: Box::new(&Nexinets),
-            connector_name: types::Connector::Nexinets,
+            connector_name: types::Connector::Dummy,
             get_token: types::api::GetToken::Connector,
         }
     }

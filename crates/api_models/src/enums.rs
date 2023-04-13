@@ -40,6 +40,7 @@ pub enum AttemptStatus {
     Failure,
     PaymentMethodAwaited,
     ConfirmationAwaited,
+    DeviceDataCollectionPending,
 }
 
 #[derive(
@@ -579,7 +580,7 @@ pub enum Connector {
     Klarna,
     Mollie,
     Multisafepay,
-    Nexinets,
+    // Nexinets, added as template code for future use
     Nuvei,
     Paypal,
     Payu,
@@ -635,7 +636,7 @@ pub enum RoutableConnectors {
     Klarna,
     Mollie,
     Multisafepay,
-    Nexinets,
+    // Nexinets, added as template code for future use
     Nuvei,
     Opennode,
     Paypal,
@@ -769,9 +770,10 @@ impl From<AttemptStatus> for IntentStatus {
             AttemptStatus::PaymentMethodAwaited => Self::RequiresPaymentMethod,
 
             AttemptStatus::Authorized => Self::RequiresCapture,
-            AttemptStatus::AuthenticationPending => Self::RequiresCustomerAction,
+            AttemptStatus::AuthenticationPending | AttemptStatus::DeviceDataCollectionPending => {
+                Self::RequiresCustomerAction
+            }
             AttemptStatus::Unresolved => Self::RequiresMerchantAction,
-
             AttemptStatus::PartialCharged
             | AttemptStatus::Started
             | AttemptStatus::AuthenticationSuccessful

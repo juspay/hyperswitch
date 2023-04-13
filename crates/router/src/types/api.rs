@@ -15,8 +15,8 @@ use std::{fmt::Debug, str::FromStr};
 use error_stack::{report, IntoReport, ResultExt};
 
 pub use self::{
-    admin::*, api_keys::*, configs::*, customers::*, payment_methods::*, payments::*, refunds::*,
-    webhooks::*,
+    admin::*, api_keys::*, configs::*, customers::*, disputes::*, payment_methods::*, payments::*,
+    refunds::*, webhooks::*,
 };
 use super::ErrorResponse;
 use crate::{
@@ -211,7 +211,7 @@ impl ConnectorData {
             "worldline" => Ok(Box::new(&connector::Worldline)),
             "worldpay" => Ok(Box::new(&connector::Worldpay)),
             "multisafepay" => Ok(Box::new(&connector::Multisafepay)),
-            "nexinets" => Ok(Box::new(&connector::Nexinets)),
+            // "nexinets" => Ok(Box::new(&connector::Nexinets)), added as template code for future use
             "paypal" => Ok(Box::new(&connector::Paypal)),
             "trustpay" => Ok(Box::new(&connector::Trustpay)),
             _ => Err(report!(errors::ConnectorError::InvalidConnectorName)

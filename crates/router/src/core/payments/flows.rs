@@ -88,7 +88,6 @@ macro_rules! default_imp_for_complete_authorize{
 default_imp_for_complete_authorize!(
     connector::Aci,
     connector::Adyen,
-    connector::Airwallex,
     connector::Applepay,
     connector::Authorizedotnet,
     connector::Bambora,
@@ -132,7 +131,6 @@ macro_rules! default_imp_for_connector_redirect_response{
 default_imp_for_connector_redirect_response!(
     connector::Aci,
     connector::Adyen,
-    connector::Airwallex,
     connector::Applepay,
     connector::Authorizedotnet,
     connector::Bambora,
