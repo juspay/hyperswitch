@@ -10,7 +10,7 @@ license = "Apache-2.0"
 [dependencies]
 async-trait = "0.1.66"
 error-stack = "0.3.1"
-fred = { version = "5.2.0", features = ["metrics", "partial-tracing"] }
+fred = { version = "6.0.0", features = ["metrics", "partial-tracing"] }
 futures = "0.3"
 serde = { version = "1.0.155", features = ["derive"] }
 thiserror = "1.0.39"

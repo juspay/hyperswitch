@@ -115,7 +115,8 @@ pub fn mk_app(
     {
         server_app = server_app
             .service(routes::MerchantAccount::server(state.clone()))
-            .service(routes::ApiKeys::server(state.clone()));
+            .service(routes::ApiKeys::server(state.clone()))
+            .service(routes::Disputes::server(state.clone()));
     }
 
     #[cfg(feature = "stripe")]

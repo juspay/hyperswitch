@@ -57,6 +57,7 @@ pub enum AttemptStatus {
     Failure,
     PaymentMethodAwaited,
     ConfirmationAwaited,
+    DeviceDataCollectionPending,
 }
 
 #[derive(
