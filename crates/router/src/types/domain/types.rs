@@ -2,6 +2,7 @@ use async_trait::async_trait;
 use common_utils::{
     crypto,
     errors::{self, CustomResult},
+    ext_traits::AsyncExt,
 };
 use error_stack::{IntoReport, ResultExt};
 use masking::{PeekInterface, Secret};
@@ -67,29 +68,6 @@ pub async fn get_key_and_algo(
     Ok(Vec::new())
 }
 
-// pub trait Lift<U: Clone> {
-//     type SelfWrapper<T>;
-//     type OtherWrapper<T, E>
-//     where
-//         T: Clone;
-
-//     fn lift<Func, E>(self, func: Func) -> Self::OtherWrapper<U, E>
-//     where
-//         Func: Fn(Self::SelfWrapper<U>) -> Self::OtherWrapper<U, E>;
-// }
-
-// impl<U: Clone, S: masking::Strategy<U> + Send> Lift<Secret<U, S>> for Option<Secret<U, S>> {
-//     type SelfWrapper<T> = Option<T>;
-//     type OtherWrapper<T: Clone, E> = CustomResult<Option<crypto::Encryptable<T>>, E>;
-
-//     fn lift<Func, E>(self, func: Func) -> Self::OtherWrapper<Secret<U, S>, E>
-//     where
-//         Func: Fn(Self::SelfWrapper<Secret<U, S>>) -> Self::OtherWrapper<Secret<U, S>, E>,
-//     {
-//         func(self)
-//     }
-// }
-
 pub trait Lift<U> {
     type SelfWrapper<T>;
     type OtherWrapper<T, E>;
@@ -134,4 +112,17 @@ impl<U, V: Lift<U> + Lift<U, SelfWrapper<U> = V> + Send> AsyncLift<U> for V {
     {
         func(self).await
     }
+}
+
+pub(crate) async fn decrypt<T: Clone, S: masking::Strategy<T>>(
+    inner: Option<Encryption>,
+    key: &[u8],
+) -> CustomResult<Option<crypto::Encryptable<Secret<T, S>>>, errors::CryptoError>
+where
+    crypto::Encryptable<Secret<T, S>>: TypeEncryption<T, crypto::GcmAes256, S>,
+{
+    inner
+        .async_map(|item| crypto::Encryptable::decrypt(item, key, crypto::GcmAes256 {}))
+        .await
+        .transpose()
 }

@@ -1,9 +1,8 @@
 use async_trait::async_trait;
 use common_utils::{
-    crypto::{self, Encryptable, GcmAes256},
+    crypto::{self},
     date_time,
-    errors::{self, CustomResult, ValidationError},
-    ext_traits::AsyncExt,
+    errors::{CustomResult, ValidationError},
 };
 use error_stack::ResultExt;
 use storage_models::{address::AddressUpdateInternal, encryption::Encryption, enums};
@@ -11,7 +10,7 @@ use time::{OffsetDateTime, PrimitiveDateTime};
 
 use super::{
     behaviour,
-    types::{AsyncLift, TypeEncryption},
+    types::{self, AsyncLift},
 };
 
 #[derive(Clone, Debug, serde::Serialize)]
@@ -74,20 +73,20 @@ impl behaviour::Conversion for Address {
         let key = &[0];
 
         async {
-            let my_cl = |inner| decrypt(inner, key);
+            let inner_decrypt = |inner| types::decrypt(inner, key);
             Ok(Self {
                 id: Some(other.id),
                 address_id: other.address_id,
                 city: other.city,
                 country: other.country,
-                line1: other.line1.async_lift(my_cl).await?,
-                line2: other.line2.async_lift(my_cl).await?,
-                line3: other.line3.async_lift(my_cl).await?,
-                state: other.state.async_lift(my_cl).await?,
-                zip: other.zip.async_lift(my_cl).await?,
-                first_name: other.first_name.async_lift(my_cl).await?,
-                last_name: other.last_name.async_lift(my_cl).await?,
-                phone_number: other.phone_number.async_lift(my_cl).await?,
+                line1: other.line1.async_lift(inner_decrypt).await?,
+                line2: other.line2.async_lift(inner_decrypt).await?,
+                line3: other.line3.async_lift(inner_decrypt).await?,
+                state: other.state.async_lift(inner_decrypt).await?,
+                zip: other.zip.async_lift(inner_decrypt).await?,
+                first_name: other.first_name.async_lift(inner_decrypt).await?,
+                last_name: other.last_name.async_lift(inner_decrypt).await?,
+                phone_number: other.phone_number.async_lift(inner_decrypt).await?,
                 country_code: other.country_code,
                 created_at: other.created_at,
                 modified_at: other.modified_at,
@@ -124,19 +123,6 @@ impl behaviour::Conversion for Address {
             merchant_id: self.merchant_id,
         })
     }
-}
-
-async fn decrypt<T: Clone, S: masking::Strategy<T>>(
-    inner: Option<Encryption>,
-    key: &[u8],
-) -> CustomResult<Option<Encryptable<masking::Secret<T>>>, errors::CryptoError>
-where
-    Encryptable<masking::Secret<T>>: TypeEncryption<T, GcmAes256, S>,
-{
-    inner
-        .async_map(|item| Encryptable::decrypt(item, key, GcmAes256 {}))
-        .await
-        .transpose()
 }
 
 #[derive(Debug, frunk::LabelledGeneric)]
