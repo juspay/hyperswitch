@@ -2,11 +2,11 @@ use async_trait::async_trait;
 use common_utils::{
     crypto,
     errors::{self, CustomResult},
-    ext_traits::AsyncExt,
 };
 use error_stack::{IntoReport, ResultExt};
 use masking::{ExposeInterface, PeekInterface, Secret};
 use storage_models::encryption::Encryption;
+
 
 #[async_trait]
 pub trait TypeEncryption<
@@ -135,26 +135,71 @@ pub async fn get_key_and_algo(
     Ok(key.expose())
 }
 
-#[async_trait]
-pub trait OptionSecretExt<V: Clone, S: masking::Strategy<V> + Send> {
-    async fn encrypt_optional_secret(
-        self,
-        key: &[u8],
-    ) -> CustomResult<Option<crypto::Encryptable<Secret<V, S>>>, errors::CryptoError>;
+// pub trait Lift<U: Clone> {
+//     type SelfWrapper<T>;
+//     type OtherWrapper<T, E>
+//     where
+//         T: Clone;
+
+//     fn lift<Func, E>(self, func: Func) -> Self::OtherWrapper<U, E>
+//     where
+//         Func: Fn(Self::SelfWrapper<U>) -> Self::OtherWrapper<U, E>;
+// }
+
+// impl<U: Clone, S: masking::Strategy<U> + Send> Lift<Secret<U, S>> for Option<Secret<U, S>> {
+//     type SelfWrapper<T> = Option<T>;
+//     type OtherWrapper<T: Clone, E> = CustomResult<Option<crypto::Encryptable<T>>, E>;
+
+//     fn lift<Func, E>(self, func: Func) -> Self::OtherWrapper<Secret<U, S>, E>
+//     where
+//         Func: Fn(Self::SelfWrapper<Secret<U, S>>) -> Self::OtherWrapper<Secret<U, S>, E>,
+//     {
+//         func(self)
+//     }
+// }
+
+pub trait Lift<U> {
+    type SelfWrapper<T>;
+    type OtherWrapper<T, E>;
+
+    fn lift<Func, E, V>(self, func: Func) -> Self::OtherWrapper<V, E>
+    where
+        Func: Fn(Self::SelfWrapper<U>) -> Self::OtherWrapper<V, E>;
+}
+
+impl<U> Lift<U> for Option<U> {
+    type SelfWrapper<T> = Option<T>;
+    type OtherWrapper<T, E> = CustomResult<Option<T>, E>;
+
+    fn lift<Func, E, V>(self, func: Func) -> Self::OtherWrapper<V, E>
+    where
+        Func: Fn(Self::SelfWrapper<U>) -> Self::OtherWrapper<V, E>,
+    {
+        func(self)
+    }
 }
 
 #[async_trait]
-impl<T: Clone, S: masking::Strategy<T> + Send> OptionSecretExt<T, S> for Option<Secret<T, S>>
-where
-    crypto::Encryptable<Secret<T, S>>: TypeEncryption<T, crypto::GcmAes256, S>,
-    Secret<T, S>: Send,
-{
-    async fn encrypt_optional_secret(
-        self,
-        key: &[u8],
-    ) -> CustomResult<Option<crypto::Encryptable<Secret<T, S>>>, errors::CryptoError> {
-        self.async_map(|inner| crypto::Encryptable::encrypt(inner, key, crypto::GcmAes256 {}))
-            .await
-            .transpose()
+pub trait AsyncLift<U> {
+    type SelfWrapper<T>;
+    type OtherWrapper<T, E>;
+
+    async fn async_lift<Func, F, E, V>(self, func: Func) -> Self::OtherWrapper<V, E>
+    where
+        Func: Fn(Self::SelfWrapper<U>) -> F + Send + Sync,
+        F: futures::Future<Output = Self::OtherWrapper<V, E>> + Send;
+}
+
+#[async_trait]
+impl<U, V: Lift<U> + Lift<U, SelfWrapper<U> = V> + Send> AsyncLift<U> for V {
+    type SelfWrapper<T> = <V as Lift<U>>::SelfWrapper<T>;
+    type OtherWrapper<T, E> = <V as Lift<U>>::OtherWrapper<T, E>;
+
+    async fn async_lift<Func, F, E, W>(self, func: Func) -> Self::OtherWrapper<W, E>
+    where
+        Func: Fn(Self::SelfWrapper<U>) -> F + Send + Sync,
+        F: futures::Future<Output = Self::OtherWrapper<W, E>> + Send,
+    {
+        func(self).await
     }
 }

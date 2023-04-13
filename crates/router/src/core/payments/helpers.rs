@@ -31,7 +31,7 @@ use crate::{
         api::{self, admin, enums as api_enums, CustomerAcceptanceExt, MandateValidationFieldsExt},
         domain::{
             self, customer, merchant_account,
-            types::{get_key_and_algo, OptionSecretExt},
+            types::{get_key_and_algo, AsyncLift, TypeEncryption},
         },
         storage::{self, enums as storage_enums, ephemeral_key},
         transformers::ForeignInto,
@@ -52,79 +52,84 @@ pub async fn get_address_for_payment_request(
 ) -> CustomResult<Option<domain::address::Address>, errors::ApiErrorResponse> {
     let key = get_key_and_algo(db, merchant_id.to_string())
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed while getting key for encryption")?;
+
+    let encrypt = |inner: Option<masking::Secret<String>>| async {
+        inner
+            .async_map(|value| crypto::Encryptable::encrypt(value, &key, crypto::GcmAes256 {}))
+            .await
+            .transpose()
+    };
 
     Ok(match req_address {
         Some(address) => {
             match address_id {
                 Some(id) => {
-                    let address_update = storage::AddressUpdate::Update {
-                        city: address
-                            .address
-                            .as_ref()
-                            .and_then(|value| value.city.clone()),
-                        country: address.address.as_ref().and_then(|value| value.country),
-                        line1: address
-                            .address
-                            .as_ref()
-                            .and_then(|value| value.line1.clone())
-                            .encrypt_optional_secret(&key)
-                            .await
-                            .change_context(errors::ApiErrorResponse::InternalServerError)?,
-                        line2: address
-                            .address
-                            .as_ref()
-                            .and_then(|value| value.line2.clone())
-                            .encrypt_optional_secret(&key)
-                            .await
-                            .change_context(errors::ApiErrorResponse::InternalServerError)?,
-                        line3: address
-                            .address
-                            .as_ref()
-                            .and_then(|value| value.line3.clone())
-                            .encrypt_optional_secret(&key)
-                            .await
-                            .change_context(errors::ApiErrorResponse::InternalServerError)?,
-                        state: address
-                            .address
-                            .as_ref()
-                            .and_then(|value| value.state.clone())
-                            .encrypt_optional_secret(&key)
-                            .await
-                            .change_context(errors::ApiErrorResponse::InternalServerError)?,
-                        zip: address
-                            .address
-                            .as_ref()
-                            .and_then(|value| value.zip.clone())
-                            .encrypt_optional_secret(&key)
-                            .await
-                            .change_context(errors::ApiErrorResponse::InternalServerError)?,
-                        first_name: address
-                            .address
-                            .as_ref()
-                            .and_then(|value| value.first_name.clone())
-                            .encrypt_optional_secret(&key)
-                            .await
-                            .change_context(errors::ApiErrorResponse::InternalServerError)?,
-                        last_name: address
-                            .address
-                            .as_ref()
-                            .and_then(|value| value.last_name.clone())
-                            .encrypt_optional_secret(&key)
-                            .await
-                            .change_context(errors::ApiErrorResponse::InternalServerError)?,
-                        phone_number: address
-                            .phone
-                            .as_ref()
-                            .and_then(|value| value.number.clone())
-                            .encrypt_optional_secret(&key)
-                            .await
-                            .change_context(errors::ApiErrorResponse::InternalServerError)?,
-                        country_code: address
-                            .phone
-                            .as_ref()
-                            .and_then(|value| value.country_code.clone()),
-                    };
+                    let address_update = async {
+                        Ok(storage::AddressUpdate::Update {
+                            city: address
+                                .address
+                                .as_ref()
+                                .and_then(|value| value.city.clone()),
+                            country: address.address.as_ref().and_then(|value| value.country),
+                            line1: address
+                                .address
+                                .as_ref()
+                                .and_then(|value| value.line1.clone())
+                                .async_lift(encrypt)
+                                .await?,
+                            line2: address
+                                .address
+                                .as_ref()
+                                .and_then(|value| value.line2.clone())
+                                .async_lift(encrypt)
+                                .await?,
+                            line3: address
+                                .address
+                                .as_ref()
+                                .and_then(|value| value.line3.clone())
+                                .async_lift(encrypt)
+                                .await?,
+                            state: address
+                                .address
+                                .as_ref()
+                                .and_then(|value| value.state.clone())
+                                .async_lift(encrypt)
+                                .await?,
+                            zip: address
+                                .address
+                                .as_ref()
+                                .and_then(|value| value.zip.clone())
+                                .async_lift(encrypt)
+                                .await?,
+                            first_name: address
+                                .address
+                                .as_ref()
+                                .and_then(|value| value.first_name.clone())
+                                .async_lift(encrypt)
+                                .await?,
+                            last_name: address
+                                .address
+                                .as_ref()
+                                .and_then(|value| value.last_name.clone())
+                                .async_lift(encrypt)
+                                .await?,
+                            phone_number: address
+                                .phone
+                                .as_ref()
+                                .and_then(|value| value.number.clone())
+                                .async_lift(encrypt)
+                                .await?,
+                            country_code: address
+                                .phone
+                                .as_ref()
+                                .and_then(|value| value.country_code.clone()),
+                        })
+                    }
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed while encrypting address")?;
                     Some(
                         db.update_address(id.to_owned(), address_update)
                             .await
@@ -140,68 +145,48 @@ pub async fn get_address_for_payment_request(
                         .get_required_value("customer_id")
                         .change_context(errors::ApiErrorResponse::CustomerNotFound)?;
 
-                    let key = get_key_and_algo(db, merchant_id.to_string())
-                        .await
-                        .change_context(errors::ApiErrorResponse::InternalServerError)?;
-
                     let address_details = address.address.clone().unwrap_or_default();
                     Some(
-                        db.insert_address(domain::address::Address {
-                            phone_number: address
-                                .phone
-                                .as_ref()
-                                .and_then(|a| a.number.clone())
-                                .encrypt_optional_secret(&key)
-                                .await
-                                .change_context(errors::ApiErrorResponse::InternalServerError)?,
-                            country_code: address
-                                .phone
-                                .as_ref()
-                                .and_then(|a| a.country_code.clone()),
-                            customer_id: customer_id.to_string(),
-                            merchant_id: merchant_id.to_string(),
-                            address_id: generate_id(consts::ID_LENGTH, "add"),
-                            city: address_details.city,
-                            country: address_details.country,
-                            line1: address_details
-                                .line1
-                                .encrypt_optional_secret(&key)
-                                .await
-                                .change_context(errors::ApiErrorResponse::InternalServerError)?,
-                            line2: address_details
-                                .line2
-                                .encrypt_optional_secret(&key)
-                                .await
-                                .change_context(errors::ApiErrorResponse::InternalServerError)?,
-                            line3: address_details
-                                .line3
-                                .encrypt_optional_secret(&key)
-                                .await
-                                .change_context(errors::ApiErrorResponse::InternalServerError)?,
-                            id: None,
-                            state: address_details
-                                .state
-                                .encrypt_optional_secret(&key)
-                                .await
-                                .change_context(errors::ApiErrorResponse::InternalServerError)?,
-                            created_at: common_utils::date_time::now(),
-                            first_name: address_details
-                                .first_name
-                                .encrypt_optional_secret(&key)
-                                .await
-                                .change_context(errors::ApiErrorResponse::InternalServerError)?,
-                            last_name: address_details
-                                .last_name
-                                .encrypt_optional_secret(&key)
-                                .await
-                                .change_context(errors::ApiErrorResponse::InternalServerError)?,
-                            modified_at: common_utils::date_time::now(),
-                            zip: address_details
-                                .zip
-                                .encrypt_optional_secret(&key)
-                                .await
-                                .change_context(errors::ApiErrorResponse::InternalServerError)?,
-                        })
+                        db.insert_address(
+                            async {
+                                Ok(domain::address::Address {
+                                    phone_number: address
+                                        .phone
+                                        .as_ref()
+                                        .and_then(|a| a.number.clone())
+                                        .async_lift(encrypt)
+                                        .await?,
+                                    country_code: address
+                                        .phone
+                                        .as_ref()
+                                        .and_then(|a| a.country_code.clone()),
+                                    customer_id: customer_id.to_string(),
+                                    merchant_id: merchant_id.to_string(),
+                                    address_id: generate_id(consts::ID_LENGTH, "add"),
+                                    city: address_details.city,
+                                    country: address_details.country,
+                                    line1: address_details.line1.async_lift(encrypt).await?,
+                                    line2: address_details.line2.async_lift(encrypt).await?,
+                                    line3: address_details.line3.async_lift(encrypt).await?,
+                                    id: None,
+                                    state: address_details.state.async_lift(encrypt).await?,
+                                    created_at: common_utils::date_time::now(),
+                                    first_name: address_details
+                                        .first_name
+                                        .async_lift(encrypt)
+                                        .await?,
+                                    last_name: address_details
+                                        .last_name
+                                        .async_lift(encrypt)
+                                        .await?,
+                                    modified_at: common_utils::date_time::now(),
+                                    zip: address_details.zip.async_lift(encrypt).await?,
+                                })
+                            }
+                            .await
+                            .change_context(errors::ApiErrorResponse::InternalServerError)
+                            .attach_printable("Failed while encrypting address while insert")?,
+                        )
                         .await
                         .map_err(|_| errors::ApiErrorResponse::InternalServerError)?,
                     )
@@ -799,33 +784,42 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R>(
                 None => {
                     let key = get_key_and_algo(db, merchant_id.to_string()).await?;
 
-                    let new_customer = customer::Customer {
-                        customer_id: customer_id.to_string(),
-                        merchant_id: merchant_id.to_string(),
-                        name: req
-                            .name
-                            .encrypt_optional_secret(&key)
+                    let encrypt = |inner: Option<masking::Secret<String>>| async {
+                        inner
+                            .async_map(|value| {
+                                crypto::Encryptable::encrypt(value, &key, crypto::GcmAes256 {})
+                            })
                             .await
-                            .change_context(errors::StorageError::SerializationFailed)?,
-                        email: req
-                            .email
-                            .clone()
-                            .encrypt_optional_secret(&key)
-                            .await
-                            .change_context(errors::StorageError::SerializationFailed)?,
-                        phone: req
-                            .phone
-                            .clone()
-                            .encrypt_optional_secret(&key)
-                            .await
-                            .change_context(errors::StorageError::SerializationFailed)?,
-                        phone_country_code: req.phone_country_code.clone(),
-                        description: None,
-                        created_at: common_utils::date_time::now(),
-                        id: None,
-                        metadata: None,
+                            .transpose()
                     };
 
+                    let encrypt_email =
+                        |inner: Option<masking::Secret<String, crate::pii::Email>>| async {
+                            inner
+                                .async_map(|value| {
+                                    crypto::Encryptable::encrypt(value, &key, crypto::GcmAes256 {})
+                                })
+                                .await
+                                .transpose()
+                        };
+
+                    let new_customer = async {
+                        Ok(customer::Customer {
+                            customer_id: customer_id.to_string(),
+                            merchant_id: merchant_id.to_string(),
+                            name: req.name.async_lift(encrypt).await?,
+                            email: req.email.clone().async_lift(encrypt_email).await?,
+                            phone: req.phone.clone().async_lift(encrypt).await?,
+                            phone_country_code: req.phone_country_code.clone(),
+                            description: None,
+                            created_at: common_utils::date_time::now(),
+                            id: None,
+                            metadata: None,
+                        })
+                    }
+                    .await
+                    .change_context(errors::StorageError::SerializationFailed)
+                    .attach_printable("Failed while encrypting Customer while insert")?;
                     metrics::CUSTOMER_CREATED.add(&metrics::CONTEXT, 1, &[]);
                     db.insert_customer(new_customer).await
                 }

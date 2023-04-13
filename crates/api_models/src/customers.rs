@@ -16,7 +16,7 @@ pub struct CustomerRequest {
     pub merchant_id: String,
     /// The customer's name
     #[schema(max_length = 255, example = "Jon Test")]
-    pub name: Option<String>,
+    pub name: Option<Secret<String>>,
     /// The customer's email address
     #[schema(value_type = Option<String>,max_length = 255, example = "JonTest@test.com")]
     pub email: Option<Secret<String, pii::Email>>,

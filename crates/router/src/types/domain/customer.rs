@@ -61,38 +61,35 @@ impl super::behaviour::Conversion for Customer {
                 message: "Failed while getting key from key store".to_string(),
             },
         )?;
-        Ok(Self {
-            id: Some(item.id),
-            customer_id: item.customer_id,
-            merchant_id: item.merchant_id,
-            name: item
-                .name
-                .async_map(|value| Encryptable::decrypt(value, &key, GcmAes256 {}))
-                .await
-                .transpose()
-                .change_context(ValidationError::InvalidValue {
-                    message: "Failed while decrypting customer data".to_string(),
-                })?,
-            email: item
-                .email
-                .async_map(|value| Encryptable::decrypt(value, &key, GcmAes256 {}))
-                .await
-                .transpose()
-                .change_context(ValidationError::InvalidValue {
-                    message: "Failed while decrypting customer data".to_string(),
-                })?,
-            phone: item
-                .phone
-                .async_map(|value| Encryptable::decrypt(value, &key, GcmAes256 {}))
-                .await
-                .transpose()
-                .change_context(ValidationError::InvalidValue {
-                    message: "Failed while decrypting customer data".to_string(),
-                })?,
-            phone_country_code: item.phone_country_code,
-            description: item.description,
-            created_at: item.created_at,
-            metadata: item.metadata,
+        async {
+            Ok(Self {
+                id: Some(item.id),
+                customer_id: item.customer_id,
+                merchant_id: item.merchant_id,
+                name: item
+                    .name
+                    .async_map(|value| Encryptable::decrypt(value, &key, GcmAes256 {}))
+                    .await
+                    .transpose()?,
+                email: item
+                    .email
+                    .async_map(|value| Encryptable::decrypt(value, &key, GcmAes256 {}))
+                    .await
+                    .transpose()?,
+                phone: item
+                    .phone
+                    .async_map(|value| Encryptable::decrypt(value, &key, GcmAes256 {}))
+                    .await
+                    .transpose()?,
+                phone_country_code: item.phone_country_code,
+                description: item.description,
+                created_at: item.created_at,
+                metadata: item.metadata,
+            })
+        }
+        .await
+        .change_context(ValidationError::InvalidValue {
+            message: "Failed while decrypting customer data".to_string(),
         })
     }
 
