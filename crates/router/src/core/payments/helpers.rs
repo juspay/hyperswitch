@@ -1304,14 +1304,19 @@ pub fn get_business_details(
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("failed to parse primary business details")?;
 
-            if let Some(primary_business_details) = primary_business_details.first() {
+            if primary_business_details.len() == 1 {
+                let primary_business_details = primary_business_details.first().ok_or(
+                    errors::ApiErrorResponse::MissingRequiredField {
+                        field_name: "primary_business_details",
+                    },
+                )?;
                 (
                     business_country.unwrap_or(primary_business_details.country.to_owned()),
                     business_label
                         .map(ToString::to_string)
                         .unwrap_or(primary_business_details.business.to_owned()),
                 )
-            } else if primary_business_details.len() == 0 || primary_business_details.len() > 1 {
+            } else {
                 // If primary business details are not present or more than one
                 Err(report!(errors::ApiErrorResponse::MissingRequiredField {
                     field_name: "business_country, business_label"
