@@ -86,6 +86,7 @@ pub struct NuveiInitPaymentRequest {
     pub checksum: String,
 }
 
+/// Handles payment request for capture, void and refund flows
 #[derive(Debug, Serialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct NuveiPaymentFlowRequest {
@@ -678,6 +679,7 @@ impl TryFrom<NuveiPaymentRequestData> for NuveiPaymentFlowRequest {
     }
 }
 
+/// Common request handler for all the flows that has below fields in common
 #[derive(Debug, Clone, Default)]
 pub struct NuveiPaymentRequestData {
     pub amount: String,
