@@ -11,10 +11,10 @@ on:
         options:
           - Sandbox
           - Production
-      backwards_compatibility:
-        description: "Whether to enable the backwards_compatibility feature"
+      multiple_mca:
+        description: "Whether to enable the multiple_mca feature"
         required: true
-        default: true
+        default: false
         type: boolean
 
 jobs:
@@ -32,9 +32,9 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USER }}
           password: ${{ secrets.DOCKERHUB_PASSWD }}
 
-      - name: Add backwards_compatibility feature if enabled
-        if: ${{ inputs.backwards_compatibility == true }}
-        run: echo "--features backwards_compatibility" >> EXTRA_FEATURES
+      - name: Add multiple_mca feature if enabled
+        if: ${{ inputs.multiple_mca == true }}
+        run: echo "--features multiple_mca" >> EXTRA_FEATURES
 
       - name: Build and push router Docker image
         uses: docker/build-push-action@v4
