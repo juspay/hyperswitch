@@ -1,17 +1,25 @@
 pub use api_models::admin::{
     MerchantAccountCreate, MerchantAccountDeleteResponse, MerchantAccountResponse,
-    MerchantAccountUpdate, MerchantConnector, MerchantConnectorDeleteResponse,
+    MerchantAccountUpdate, MerchantConnectorCreate, MerchantConnectorDeleteResponse,
     MerchantConnectorDetails, MerchantConnectorDetailsWrap, MerchantConnectorId, MerchantDetails,
     MerchantId, PaymentMethodsEnabled, RoutingAlgorithm, ToggleKVRequest, ToggleKVResponse,
     WebhookDetails,
 };
+use common_utils::ext_traits::ValueExt;
 
-use crate::types::{storage, transformers::ForeignFrom};
+use crate::{
+    core::errors,
+    types::{storage, transformers::ForeignTryFrom},
+};
 
-impl ForeignFrom<storage::MerchantAccount> for MerchantAccountResponse {
-    fn foreign_from(value: storage::MerchantAccount) -> Self {
-        let item = value;
-        Self {
+impl ForeignTryFrom<storage::MerchantAccount> for MerchantAccountResponse {
+    type Error = error_stack::Report<errors::ParsingError>;
+    fn foreign_try_from(item: storage::MerchantAccount) -> Result<Self, Self::Error> {
+        let primary_business_details: Vec<api_models::admin::PrimaryBusinessDetails> = item
+            .primary_business_details
+            .parse_value("primary_business_details")?;
+
+        Ok(Self {
             merchant_id: item.merchant_id,
             merchant_name: item.merchant_name,
             api_key: item.api_key,
@@ -27,7 +35,7 @@ impl ForeignFrom<storage::MerchantAccount> for MerchantAccountResponse {
             publishable_key: item.publishable_key,
             metadata: item.metadata,
             locker_id: item.locker_id,
-            primary_business_details: item.primary_business_details.into(),
-        }
+            primary_business_details,
+        })
     }
 }
