@@ -105,6 +105,18 @@ impl api::PaymentsCompleteAuthorize for Shift4 {}
 impl api::Refund for Shift4 {}
 impl api::RefundExecute for Shift4 {}
 impl api::RefundSync for Shift4 {}
+impl api::PaymentToken for Shift4 {}
+
+impl
+    ConnectorIntegration<
+        api::PaymentMethodToken,
+        types::PaymentMethodTokenizationData,
+        types::PaymentsResponseData,
+    > for Shift4
+{
+    // Not Implemented (R)
+}
+
 impl api::ConnectorAccessToken for Shift4 {}
 
 impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, types::AccessToken>

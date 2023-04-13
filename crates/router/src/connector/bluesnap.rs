@@ -110,6 +110,18 @@ impl ConnectorCommon for Bluesnap {
 
 impl api::Payment for Bluesnap {}
 
+impl api::PaymentToken for Bluesnap {}
+
+impl
+    ConnectorIntegration<
+        api::PaymentMethodToken,
+        types::PaymentMethodTokenizationData,
+        types::PaymentsResponseData,
+    > for Bluesnap
+{
+    // Not Implemented (R)
+}
+
 impl api::PreVerify for Bluesnap {}
 impl ConnectorIntegration<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>
     for Bluesnap
