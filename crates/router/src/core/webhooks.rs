@@ -421,7 +421,7 @@ async fn create_event_and_trigger_outgoing_webhook<W: api::OutgoingWebhookType>(
 async fn trigger_webhook_to_merchant<W: api::OutgoingWebhookType>(
     merchant_account: storage::MerchantAccount,
     webhook: api::OutgoingWebhook,
-    _db: Box<dyn StorageInterface>,
+    db: Box<dyn StorageInterface>,
 ) -> CustomResult<(), errors::WebhooksFlowError> {
     let webhook_details_json = merchant_account
         .webhook_details
@@ -439,7 +439,7 @@ async fn trigger_webhook_to_merchant<W: api::OutgoingWebhookType>(
         .change_context(errors::WebhooksFlowError::MerchantWebhookURLNotConfigured)
         .map(ExposeInterface::expose)?;
 
-    let transformed_outgoing_webhook = W::from(webhook);
+    let transformed_outgoing_webhook = W::from(webhook.clone());
 
     let response = reqwest::Client::new()
         .post(&webhook_url)
@@ -459,9 +459,21 @@ async fn trigger_webhook_to_merchant<W: api::OutgoingWebhookType>(
                 .change_context(errors::WebhooksFlowError::CallToMerchantFailed)?;
         }
         Ok(res) => {
+            let update_event = storage::EventUpdate {
+                event_type: None,
+                event_class: None,
+                is_webhook_notified: Some(true),
+                intent_reference_id: None,
+                primary_object_id: None,
+                primary_object_type: None,
+            };
             if !res.status().is_success() {
                 // [#217]: Schedule webhook for retry.
                 Err(errors::WebhooksFlowError::NotReceivedByMerchant).into_report()?;
+            } else {
+                db.update_event(webhook.event_id, update_event)
+                    .await
+                    .change_context(errors::WebhooksFlowError::WebhookEventUpdationFailed)?;
             }
         }
     }
