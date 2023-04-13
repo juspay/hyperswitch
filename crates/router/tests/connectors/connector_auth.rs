@@ -21,6 +21,7 @@ pub(crate) struct ConnectorAuthentication {
     pub multisafepay: Option<HeaderKey>,
     pub nuvei: Option<SignatureKey>,
     pub opennode: Option<HeaderKey>,
+    pub payeezy: Option<SignatureKey>,
     pub paypal: Option<BodyKey>,
     pub payu: Option<BodyKey>,
     pub rapyd: Option<BodyKey>,
