@@ -76,11 +76,12 @@ pub async fn create_merchant_account(
             .attach_printable("Unexpected create API key response"),
     }?;
 
-    let merchant_details = Some(
+    let merchant_details: Option<masking::Secret<serde_json::Value>> = Some(
         utils::Encode::<api::MerchantDetails>::encode_to_value(&req.merchant_details)
             .change_context(errors::ApiErrorResponse::InvalidDataValue {
                 field_name: "merchant_details",
-            })?,
+            })?
+            .into(),
     );
 
     let webhook_details = Some(
@@ -114,45 +115,44 @@ pub async fn create_merchant_account(
             error.to_duplicate_response(errors::ApiErrorResponse::DuplicateMerchantAccount)
         })?;
 
-    let merchant_account = merchant_domain::MerchantAccount {
-        merchant_id: req.merchant_id,
-        merchant_name: req
-            .merchant_name
-            .async_map(|inner| crypto::Encryptable::encrypt(inner.into(), &key, GcmAes256 {}))
-            .await
-            .transpose()
-            .change_context(errors::ApiErrorResponse::InternalServerError)?,
-        api_key: Some(
-            crypto::Encryptable::encrypt(api_key.peek().clone().into(), &key, GcmAes256 {})
+    let parent_merchant_id =
+        get_parent_merchant(db, req.sub_merchants_enabled, req.parent_merchant_id).await?;
+
+    let merchant_account = async {
+        Ok(merchant_domain::MerchantAccount {
+            merchant_id: req.merchant_id,
+            merchant_name: req
+                .merchant_name
+                .async_map(|inner| crypto::Encryptable::encrypt(inner, &key, GcmAes256 {}))
                 .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)?,
-        ),
-        merchant_details: merchant_details
-            .async_map(|inner| crypto::Encryptable::encrypt(inner.into(), &key, GcmAes256 {}))
-            .await
-            .transpose()
-            .change_context(errors::ApiErrorResponse::InternalServerError)?,
-        return_url: req.return_url.map(|a| a.to_string()),
-        webhook_details,
-        routing_algorithm: req.routing_algorithm,
-        sub_merchants_enabled: req.sub_merchants_enabled,
-        parent_merchant_id: get_parent_merchant(
-            db,
-            req.sub_merchants_enabled,
-            req.parent_merchant_id,
-        )
-        .await?,
-        enable_payment_response_hash: req.enable_payment_response_hash.unwrap_or_default(),
-        payment_response_hash_key: req.payment_response_hash_key,
-        redirect_to_merchant_with_http_post: req
-            .redirect_to_merchant_with_http_post
-            .unwrap_or_default(),
-        publishable_key,
-        locker_id: req.locker_id,
-        metadata: req.metadata,
-        storage_scheme: storage_models::enums::MerchantStorageScheme::PostgresOnly,
-        id: None,
-    };
+                .transpose()?,
+            api_key: Some(
+                crypto::Encryptable::encrypt(api_key.peek().clone().into(), &key, GcmAes256 {})
+                    .await?,
+            ),
+            merchant_details: merchant_details
+                .async_map(|inner| crypto::Encryptable::encrypt(inner, &key, GcmAes256 {}))
+                .await
+                .transpose()?,
+            return_url: req.return_url.map(|a| a.to_string()),
+            webhook_details,
+            routing_algorithm: req.routing_algorithm,
+            sub_merchants_enabled: req.sub_merchants_enabled,
+            parent_merchant_id,
+            enable_payment_response_hash: req.enable_payment_response_hash.unwrap_or_default(),
+            payment_response_hash_key: req.payment_response_hash_key,
+            redirect_to_merchant_with_http_post: req
+                .redirect_to_merchant_with_http_post
+                .unwrap_or_default(),
+            publishable_key,
+            locker_id: req.locker_id,
+            metadata: req.metadata,
+            storage_scheme: storage_models::enums::MerchantStorageScheme::PostgresOnly,
+            id: None,
+        })
+    }
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
     let merchant_account = db
         .insert_merchant(merchant_account)

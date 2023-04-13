@@ -140,45 +140,42 @@ impl super::behaviour::Conversion for MerchantAccount {
             .change_context(ValidationError::InvalidValue {
                 message: "Failed while getting key from key store".to_string(),
             })?;
-        Ok(Self {
-            id: Some(item.id),
-            merchant_id: item.merchant_id,
-            return_url: item.return_url,
-            enable_payment_response_hash: item.enable_payment_response_hash,
-            payment_response_hash_key: item.payment_response_hash_key,
-            redirect_to_merchant_with_http_post: item.redirect_to_merchant_with_http_post,
-            merchant_name: item
-                .merchant_name
-                .async_map(|value| Encryptable::decrypt(value, &key, GcmAes256 {}))
-                .await
-                .transpose()
-                .change_context(ValidationError::InvalidValue {
-                    message: "Failed while decrypting customer data".to_string(),
-                })?,
-            merchant_details: item
-                .merchant_details
-                .async_map(|value| Encryptable::decrypt(value, &key, GcmAes256 {}))
-                .await
-                .transpose()
-                .change_context(ValidationError::InvalidValue {
-                    message: "Failed while decrypting customer data".to_string(),
-                })?,
-            webhook_details: item.webhook_details,
-            sub_merchants_enabled: item.sub_merchants_enabled,
-            parent_merchant_id: item.parent_merchant_id,
-            publishable_key: item.publishable_key,
-            storage_scheme: item.storage_scheme,
-            locker_id: item.locker_id,
-            metadata: item.metadata,
-            routing_algorithm: item.routing_algorithm,
-            api_key: item
-                .api_key
-                .async_map(|value| Encryptable::decrypt(value, &key, GcmAes256 {}))
-                .await
-                .transpose()
-                .change_context(ValidationError::InvalidValue {
-                    message: "Failed while decrypting customer data".to_string(),
-                })?,
+        async {
+            Ok(Self {
+                id: Some(item.id),
+                merchant_id: item.merchant_id,
+                return_url: item.return_url,
+                enable_payment_response_hash: item.enable_payment_response_hash,
+                payment_response_hash_key: item.payment_response_hash_key,
+                redirect_to_merchant_with_http_post: item.redirect_to_merchant_with_http_post,
+                merchant_name: item
+                    .merchant_name
+                    .async_map(|value| Encryptable::decrypt(value, &key, GcmAes256 {}))
+                    .await
+                    .transpose()?,
+                merchant_details: item
+                    .merchant_details
+                    .async_map(|value| Encryptable::decrypt(value, &key, GcmAes256 {}))
+                    .await
+                    .transpose()?,
+                webhook_details: item.webhook_details,
+                sub_merchants_enabled: item.sub_merchants_enabled,
+                parent_merchant_id: item.parent_merchant_id,
+                publishable_key: item.publishable_key,
+                storage_scheme: item.storage_scheme,
+                locker_id: item.locker_id,
+                metadata: item.metadata,
+                routing_algorithm: item.routing_algorithm,
+                api_key: item
+                    .api_key
+                    .async_map(|value| Encryptable::decrypt(value, &key, GcmAes256 {}))
+                    .await
+                    .transpose()?,
+            })
+        }
+        .await
+        .change_context(ValidationError::InvalidValue {
+            message: "Failed while decrypting merchant data".to_string(),
         })
     }
 
