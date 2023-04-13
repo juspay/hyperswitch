@@ -117,6 +117,7 @@ pub struct CardSource {
     pub number: pii::Secret<String, pii::CardNumber>,
     pub expiry_month: pii::Secret<String>,
     pub expiry_year: pii::Secret<String>,
+    pub cvv: pii::Secret<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -200,6 +201,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentsRequest {
                     number: ccard.card_number.clone(),
                     expiry_month: ccard.card_exp_month.clone(),
                     expiry_year: ccard.card_exp_year.clone(),
+                    cvv: ccard.card_cvc.clone(),
                 });
                 Ok(a)
             }
