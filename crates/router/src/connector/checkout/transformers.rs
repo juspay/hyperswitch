@@ -62,7 +62,7 @@ impl TryFrom<&types::TokenizationRouterData> for TokenRequest {
                 api_models::payments::WalletData::GooglePay(_data) => {
                     let json_wallet_data: CheckoutGooglePayData =
                         wallet_data.get_wallet_token_as_json()?;
-                    Ok(TokenRequest {
+                    Ok(Self {
                         token_request_type: CheckoutTokenRequestType::Googlepay,
                         token_data: CheckoutTokenData::Googlepay(json_wallet_data),
                     })
@@ -70,7 +70,7 @@ impl TryFrom<&types::TokenizationRouterData> for TokenRequest {
                 api_models::payments::WalletData::ApplePay(_data) => {
                     let json_wallet_data: CheckoutApplePayData =
                         wallet_data.get_wallet_token_as_json()?;
-                    Ok(TokenRequest {
+                    Ok(Self {
                         token_request_type: CheckoutTokenRequestType::Applepay,
                         token_data: CheckoutTokenData::Applepay(json_wallet_data),
                     })
@@ -201,7 +201,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentsRequest {
                     number: ccard.card_number.clone(),
                     expiry_month: ccard.card_exp_month.clone(),
                     expiry_year: ccard.card_exp_year.clone(),
-                    cvv: ccard.card_cvc.clone(),
+                    cvv: ccard.card_cvc,
                 });
                 Ok(a)
             }
