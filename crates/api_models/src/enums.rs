@@ -40,6 +40,7 @@ pub enum AttemptStatus {
     Failure,
     PaymentMethodAwaited,
     ConfirmationAwaited,
+    DeviceDataCollectionPending,
 }
 
 #[derive(
@@ -767,9 +768,10 @@ impl From<AttemptStatus> for IntentStatus {
             AttemptStatus::PaymentMethodAwaited => Self::RequiresPaymentMethod,
 
             AttemptStatus::Authorized => Self::RequiresCapture,
-            AttemptStatus::AuthenticationPending => Self::RequiresCustomerAction,
+            AttemptStatus::AuthenticationPending | AttemptStatus::DeviceDataCollectionPending => {
+                Self::RequiresCustomerAction
+            }
             AttemptStatus::Unresolved => Self::RequiresMerchantAction,
-
             AttemptStatus::PartialCharged
             | AttemptStatus::Started
             | AttemptStatus::AuthenticationSuccessful

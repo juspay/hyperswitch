@@ -128,7 +128,10 @@ impl ForeignFrom<storage_enums::AttemptStatus> for storage_enums::IntentStatus {
             storage_enums::AttemptStatus::PaymentMethodAwaited => Self::RequiresPaymentMethod,
 
             storage_enums::AttemptStatus::Authorized => Self::RequiresCapture,
-            storage_enums::AttemptStatus::AuthenticationPending => Self::RequiresCustomerAction,
+            storage_enums::AttemptStatus::AuthenticationPending
+            | storage_enums::AttemptStatus::DeviceDataCollectionPending => {
+                Self::RequiresCustomerAction
+            }
             storage_enums::AttemptStatus::Unresolved => Self::RequiresMerchantAction,
 
             storage_enums::AttemptStatus::PartialCharged
