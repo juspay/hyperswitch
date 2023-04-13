@@ -130,7 +130,7 @@ pub async fn get_admin_api_key(
                 .decrypt(&secrets.kms_encrypted_admin_api_key)
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to KMS decrypt Admin API key hashing key")?;
+                .attach_printable("Failed to KMS decrypt admin API key")?;
 
             #[cfg(not(feature = "kms"))]
             let admin_api_key = secrets.admin_api_key.clone();
@@ -153,33 +153,20 @@ where
         request_headers: &HeaderMap,
         state: &A,
     ) -> RouterResult<()> {
-        let admin_api_key =
+        let request_admin_api_key =
             get_api_key(request_headers).change_context(errors::ApiErrorResponse::Unauthorized)?;
         let conf = state.conf();
 
-        #[cfg(feature = "kms")]
-        {
-            let hashed_admin_api_key = {
-                get_admin_api_key(
-                    &conf.secrets,
-                    #[cfg(feature = "kms")]
-                    &conf.kms,
-                )
-                .await?
-            };
+        let admin_api_key = get_admin_api_key(
+            &conf.secrets,
+            #[cfg(feature = "kms")]
+            &conf.kms,
+        )
+        .await?;
 
-            if admin_api_key != hashed_admin_api_key.peek() {
-                Err(report!(errors::ApiErrorResponse::Unauthorized)
-                    .attach_printable("Admin Authentication Failure"))?;
-            }
-        }
-
-        #[cfg(not(feature = "kms"))]
-        {
-            if admin_api_key != conf.secrets.admin_api_key {
-                Err(report!(errors::ApiErrorResponse::Unauthorized)
-                    .attach_printable("Admin Authentication Failure"))?;
-            }
+        if request_admin_api_key != admin_api_key.peek() {
+            Err(report!(errors::ApiErrorResponse::Unauthorized)
+                .attach_printable("Admin Authentication Failure"))?;
         }
 
         Ok(())
@@ -419,7 +406,7 @@ pub async fn get_jwt_secret(
                 .decrypt(&secrets.kms_encrypted_jwt_secret)
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to KMS decrypt Admin API key hashing key")?;
+                .attach_printable("Failed to KMS decrypt JWT secret")?;
 
             #[cfg(not(feature = "kms"))]
             let jwt_secret = secrets.jwt_secret.clone();
@@ -434,24 +421,15 @@ where
     T: serde::de::DeserializeOwned,
 {
     let conf = state.conf();
-    let secret: &[u8];
-    #[cfg(not(feature = "kms"))]
-    {
-        secret = conf.secrets.jwt_secret.as_bytes();
-    }
-    #[cfg(feature = "kms")]
-    {
-        secret = {
-            get_jwt_secret(
-                &conf.secrets,
-                #[cfg(feature = "kms")]
-                &conf.kms,
-            )
-            .await?
-            .peek()
-            .as_bytes()
-        }
-    }
+    let secret = get_jwt_secret(
+        &conf.secrets,
+        #[cfg(feature = "kms")]
+        &conf.kms,
+    )
+    .await?
+    .peek()
+    .as_bytes();
+
     let key = DecodingKey::from_secret(secret);
     decode::<T>(token, &key, &Validation::new(Algorithm::HS256))
         .map(|decoded| decoded.claims)

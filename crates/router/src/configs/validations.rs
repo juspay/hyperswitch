@@ -25,7 +25,7 @@ impl super::settings::Secrets {
         {
             when(self.kms_encrypted_jwt_secret.is_default_or_empty(), || {
                 Err(ApplicationError::InvalidConfigurationValueError(
-                    "JWT secret must not be empty".into(),
+                    "KMS encrypted JWT secret must not be empty".into(),
                 ))
             })?;
 
@@ -33,7 +33,7 @@ impl super::settings::Secrets {
                 self.kms_encrypted_admin_api_key.is_default_or_empty(),
                 || {
                     Err(ApplicationError::InvalidConfigurationValueError(
-                        "admin API key must not be empty".into(),
+                        "KMS encrypted admin API key must not be empty".into(),
                     ))
                 },
             )
