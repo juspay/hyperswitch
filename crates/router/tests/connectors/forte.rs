@@ -14,7 +14,7 @@ impl utils::Connector for ForteTest {
         use router::connector::Forte;
         types::api::ConnectorData {
             connector: Box::new(&Forte),
-            connector_name: types::Connector::Forte,
+            connector_name: types::Connector::Dummy,
             get_token: types::api::GetToken::Connector,
         }
     }
