@@ -1311,7 +1311,8 @@ pub fn get_business_details(
                         .map(ToString::to_string)
                         .unwrap_or(primary_business_details.business.to_owned()),
                 )
-            } else {
+            } else if primary_business_details.len() == 0 || primary_business_details.len() > 1 {
+                // If primary business details are not present or more than one
                 Err(report!(errors::ApiErrorResponse::MissingRequiredField {
                     field_name: "business_country, business_label"
                 }))?

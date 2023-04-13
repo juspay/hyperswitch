@@ -199,8 +199,8 @@ pub struct MerchantAccountResponse {
     #[schema(example = "locker_abc123")]
     pub locker_id: Option<String>,
     ///Default business details for connector routing
-    #[schema(value_type = Option<PrimaryBusinessDetails>)]
-    pub primary_business_details: pii::SecretSerdeValue,
+    #[schema(value_type = Vec<PrimaryBusinessDetails>)]
+    pub primary_business_details: Vec<PrimaryBusinessDetails>,
 }
 
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]

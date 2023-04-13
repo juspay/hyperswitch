@@ -159,7 +159,11 @@ pub async fn create_merchant_account(
         })?;
 
     Ok(service_api::ApplicationResponse::Json(
-        merchant_account.foreign_into(),
+        ForeignTryFrom::foreign_try_from(merchant_account).change_context(
+            errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "merchant_account",
+            },
+        )?,
     ))
 }
 
@@ -175,7 +179,11 @@ pub async fn get_merchant_account(
         })?;
 
     Ok(service_api::ApplicationResponse::Json(
-        merchant_account.foreign_into(),
+        ForeignTryFrom::foreign_try_from(merchant_account).change_context(
+            errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "merchant_account",
+            },
+        )?,
     ))
 }
 
@@ -256,7 +264,11 @@ pub async fn merchant_account_update(
         })?;
 
     Ok(service_api::ApplicationResponse::Json(
-        response.foreign_into(),
+        ForeignTryFrom::foreign_try_from(response).change_context(
+            errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "merchant_account",
+            },
+        )?,
     ))
 }
 
