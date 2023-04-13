@@ -11,6 +11,11 @@ on:
         options:
           - Sandbox
           - Production
+      backwards_compatibility:
+        description: "Whether to enable the backwards_compatibility feature"
+        required: true
+        default: true
+        type: boolean
 
 jobs:
   build:
@@ -27,11 +32,16 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USER }}
           password: ${{ secrets.DOCKERHUB_PASSWD }}
 
+      - name: Add backwards_compatibility feature if enabled
+        if: ${{ inputs.backwards_compatibility == true }}
+        run: echo "--features backwards_compatibility" >> EXTRA_FEATURES
+
       - name: Build and push router Docker image
         uses: docker/build-push-action@v4
         with:
           build-args: |
             RUN_ENV=${{ inputs.environment }}
+            EXTRA_FEATURES=EXTRA_FEATURES
             BINARY=router
           context: .
           push: true
@@ -53,7 +63,6 @@ jobs:
         with:
           build-args: |
             RUN_ENV=${{ inputs.environment }}
-            BINARY=scheduler
             SCHEDULER_FLOW=Producer
           context: .
           push: true
