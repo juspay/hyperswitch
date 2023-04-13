@@ -232,22 +232,22 @@ pub trait SeleniumTest {
             Event::RunIf(
                 Assert::IsPresent("Sign in"),
                 vec![
-                    Event::Trigger(Trigger::SendKeys(By::Id("identifierId"), "hypers.gpaytest")),
+                    Event::Trigger(Trigger::SendKeys(By::Id("identifierId"), "<Email>")),
                     Event::Trigger(Trigger::ClickNth(By::Tag("button"), 2)),
                     Event::EitherOr(
                         Assert::IsPresent("Welcome"),
                         vec![
-                            Event::Trigger(Trigger::SendKeys(By::Name("Passwd"), "Juspaygpay@123")),
+                            Event::Trigger(Trigger::SendKeys(By::Name("Passwd"), "<Password>")),
                             Event::Trigger(Trigger::Sleep(2)),
                             Event::Trigger(Trigger::Click(By::Id("passwordNext"))),
                         ],
                         vec![
                             Event::Trigger(Trigger::SendKeys(
                                 By::Id("identifierId"),
-                                "hypers.gpaytest",
+                                "<Email>",
                             )),
                             Event::Trigger(Trigger::ClickNth(By::Tag("button"), 2)),
-                            Event::Trigger(Trigger::SendKeys(By::Name("Passwd"), "Juspaygpay@123")),
+                            Event::Trigger(Trigger::SendKeys(By::Name("Passwd"), "<Password>")),
                             Event::Trigger(Trigger::Sleep(2)),
                             Event::Trigger(Trigger::Click(By::Id("passwordNext"))),
                         ],
@@ -283,16 +283,16 @@ pub trait SeleniumTest {
             Event::EitherOr(
                 Assert::IsPresent("Password"),
                 vec![
-                    Event::Trigger(Trigger::SendKeys(By::Id("password"), "Paypal@123")),
+                    Event::Trigger(Trigger::SendKeys(By::Id("password"), "<Password>")),
                     Event::Trigger(Trigger::Click(By::Id("btnLogin"))),
                 ],
                 vec![
                     Event::Trigger(Trigger::SendKeys(
                         By::Id("email"),
-                        "jagan.elavarasan@juspay.in",
+                        "<Email>",
                     )),
                     Event::Trigger(Trigger::Click(By::Id("btnNext"))),
-                    Event::Trigger(Trigger::SendKeys(By::Id("password"), "Paypal@123")),
+                    Event::Trigger(Trigger::SendKeys(By::Id("password"), "<Password>")),
                     Event::Trigger(Trigger::Click(By::Id("btnLogin"))),
                 ],
             ),
