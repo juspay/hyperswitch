@@ -7,9 +7,10 @@ use storage_models::{customers::CustomerUpdateInternal, encryption::Encryption};
 use time::PrimitiveDateTime;
 
 use super::types::{self, AsyncLift};
-use crate::errors::{CustomResult, ValidationError};
-
-use crate::db::StorageInterface;
+use crate::{
+    db::StorageInterface,
+    errors::{CustomResult, ValidationError},
+};
 
 #[derive(Clone, Debug)]
 pub struct Customer {

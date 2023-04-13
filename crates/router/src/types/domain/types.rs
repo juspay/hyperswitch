@@ -8,7 +8,6 @@ use error_stack::{IntoReport, ResultExt};
 use masking::{ExposeInterface, PeekInterface, Secret};
 use storage_models::encryption::Encryption;
 
-
 #[async_trait]
 pub trait TypeEncryption<
     T,

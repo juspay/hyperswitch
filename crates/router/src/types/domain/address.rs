@@ -12,7 +12,6 @@ use super::{
     behaviour,
     types::{self, AsyncLift},
 };
-
 use crate::db::StorageInterface;
 
 #[derive(Clone, Debug, serde::Serialize)]
