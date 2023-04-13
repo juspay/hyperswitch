@@ -551,7 +551,12 @@ impl api::ConnectorTransactionId for Paypal {
         &self,
         payment_attempt: storage::PaymentAttempt,
     ) -> Result<Option<String>, errors::ApiErrorResponse> {
-        let metadata = Self::connector_transaction_id(self, &payment_attempt.connector_metadata);
+        let payment_method = payment_attempt.payment_method.unwrap();
+        let metadata = Self::connector_transaction_id(
+            self,
+            payment_method,
+            &payment_attempt.connector_metadata,
+        );
         match metadata {
             Ok(data) => Ok(data),
             _ => Err(errors::ApiErrorResponse::ResourceIdNotFound),
@@ -676,11 +681,22 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::CompleteAuthoriz
         let browser_info: Option<types::BrowserInformation> = payment_data
             .payment_attempt
             .browser_info
+            .clone()
             .map(|b| b.parse_value("BrowserInformation"))
             .transpose()
             .change_context(errors::ApiErrorResponse::InvalidDataValue {
                 field_name: "browser_info",
             })?;
+        let connector = api::ConnectorData::get_connector_by_name(
+            &additional_data.state.conf.connectors,
+            &additional_data.connector_name,
+            api::GetToken::Connector,
+        );
+        let connectors = match connector {
+            Ok(conn) => *conn.connector,
+            _ => Err(errors::ApiErrorResponse::ResourceIdNotFound)?,
+        };
+
         Ok(Self {
             setup_future_usage: payment_data.payment_intent.setup_future_usage,
             mandate_id: payment_data.mandate_id.clone(),
@@ -694,7 +710,11 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::CompleteAuthoriz
             browser_info,
             email: payment_data.email,
             payment_method_data: payment_data.payment_method_data,
-            connector_transaction_id: payment_data.connector_response.connector_transaction_id,
+            connector_transaction_id: Some(
+                connectors
+                    .connector_transaction_id(payment_data.payment_attempt.clone())?
+                    .ok_or(errors::ApiErrorResponse::ResourceIdNotFound)?,
+            ),
             connector_meta: payment_data.payment_attempt.connector_metadata,
         })
     }
