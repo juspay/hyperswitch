@@ -68,13 +68,13 @@ pub struct MerchantAccountCreate {
     pub locker_id: Option<String>,
 
     ///Default business details for connector routing
-    #[cfg(not(feature = "backwards_compatibility"))]
+    #[cfg(not(feature = "multiple_mca"))]
     #[schema(value_type = PrimaryBusinessDetails)]
-    pub primary_business_details: PrimaryBusinessDetails,
+    pub primary_business_details: Vec<PrimaryBusinessDetails>,
 
-    #[cfg(feature = "backwards_compatibility")]
+    #[cfg(feature = "multiple_mca")]
     #[schema(value_type = Option<PrimaryBusinessDetails>)]
-    pub primary_business_details: Option<PrimaryBusinessDetails>,
+    pub primary_business_details: Option<Vec<PrimaryBusinessDetails>>,
 }
 
 #[derive(Clone, Debug, Deserialize, ToSchema)]
@@ -254,8 +254,8 @@ pub enum RoutingAlgorithm {
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct PrimaryBusinessDetails {
-    pub country: Vec<api_enums::CountryCode>,
-    pub business: Vec<String>,
+    pub country: api_enums::CountryCode,
+    pub business: String,
 }
 
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
@@ -375,16 +375,16 @@ pub struct MerchantConnectorCreate {
 
     /// Business Country of the connector
     #[schema(example = "US")]
-    #[cfg(not(feature = "backwards_compatibility"))]
+    #[cfg(not(feature = "multiple_mca"))]
     pub business_country: api_enums::CountryCode,
-    #[cfg(feature = "backwards_compatibility")]
+    #[cfg(feature = "multiple_mca")]
     pub business_country: Option<api_enums::CountryCode>,
 
     ///Business Type of the merchant
     #[schema(example = "travel")]
-    #[cfg(not(feature = "backwards_compatibility"))]
+    #[cfg(not(feature = "multiple_mca"))]
     pub business_label: String,
-    #[cfg(feature = "backwards_compatibility")]
+    #[cfg(feature = "multiple_mca")]
     pub business_label: Option<String>,
 
     /// Business Sub label of the merchant

@@ -1296,7 +1296,7 @@ pub fn get_business_details(
         }
         None => {
             // Parse the primary business details from merchant account
-            let primary_business_details: api_models::admin::PrimaryBusinessDetails =
+            let primary_business_details: Vec<api_models::admin::PrimaryBusinessDetails> =
                 merchant_account
                     .primary_business_details
                     .clone()
@@ -1304,26 +1304,12 @@ pub fn get_business_details(
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("failed to parse primary business details")?;
 
-            if primary_business_details.country.len() == 1
-                && primary_business_details.business.len() == 1
-            {
-                let primary_business_country = primary_business_details
-                    .country
-                    .first()
-                    .get_required_value("business_country")?
-                    .to_owned();
-
-                let primary_business_label = primary_business_details
-                    .business
-                    .first()
-                    .get_required_value("business_label")?
-                    .to_owned();
-
+            if let Some(primary_business_details) = primary_business_details.first() {
                 (
-                    business_country.unwrap_or(primary_business_country),
+                    business_country.unwrap_or(primary_business_details.country.to_owned()),
                     business_label
                         .map(ToString::to_string)
-                        .unwrap_or(primary_business_label),
+                        .unwrap_or(primary_business_details.business.to_owned()),
                 )
             } else {
                 Err(report!(errors::ApiErrorResponse::MissingRequiredField {
