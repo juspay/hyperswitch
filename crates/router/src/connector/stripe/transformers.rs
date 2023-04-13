@@ -1,5 +1,3 @@
-use std::str::FromStr;
-
 use api_models::{self, enums as api_enums, payments};
 use base64::Engine;
 use common_utils::{fp_utils, pii::Email};
@@ -1207,25 +1205,16 @@ pub struct StripeRedirectResponse {
     pub source_type: Option<Secret<String>>,
 }
 
-#[derive(Debug, Serialize, Clone, Copy)]
+#[derive(Debug, Serialize)]
 pub struct CancelRequest {
-    cancellation_reason: Option<CancellationReason>,
+    cancellation_reason: Option<String>,
 }
 
 impl TryFrom<&types::PaymentsCancelRouterData> for CancelRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsCancelRouterData) -> Result<Self, Self::Error> {
-        let cancellation_reason = match &item.request.cancellation_reason {
-            Some(c) => Some(
-                CancellationReason::from_str(c)
-                    .into_report()
-                    .change_context(errors::ConnectorError::RequestEncodingFailed)?,
-            ),
-            None => None,
-        };
-
         Ok(Self {
-            cancellation_reason,
+            cancellation_reason: item.request.cancellation_reason.clone(),
         })
     }
 }
