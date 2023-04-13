@@ -331,6 +331,10 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
         };
 
         let connector = payment_data.payment_attempt.connector.clone();
+        let straight_through_algorithm = payment_data
+            .payment_attempt
+            .straight_through_algorithm
+            .clone();
         let payment_token = payment_data.token.clone();
         let payment_method_type = payment_data.payment_attempt.payment_method_type.clone();
         let payment_experience = payment_data.payment_attempt.payment_experience.clone();
@@ -362,6 +366,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
                     payment_method_type,
                     payment_experience,
                     business_sub_label,
+                    straight_through_algorithm,
                 },
                 storage_scheme,
             )
