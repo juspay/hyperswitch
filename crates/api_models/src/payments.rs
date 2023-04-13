@@ -1302,7 +1302,7 @@ pub struct GpayMetaData {
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct GpaySessionTokenData {
-    #[serde(rename = "gpay")]
+    #[serde(rename = "google_pay")]
     pub data: GpayMetaData,
 }
 
