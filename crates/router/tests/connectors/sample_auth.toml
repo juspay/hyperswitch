@@ -14,7 +14,8 @@ api_key = "MyMerchantName"
 key1 = "MyTransactionKey"
 
 [checkout]
-api_key = "Bearer MyApiKey"
+api_key = "Bearer PublicKey"
+api_secret = "Bearer SecretKey"
 key1 = "MyProcessingChannelId"
 
 [cybersource]

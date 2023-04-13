@@ -39,11 +39,19 @@ pub struct CheckoutGooglePayData {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
 pub struct CheckoutApplePayData {
     version: String,
     data: String,
     signature: String,
+    header: CheckoutApplePayHeader,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CheckoutApplePayHeader {
+    ephemeral_public_key: String,
+    public_key_hash: String,
+    transaction_id: String,
 }
 
 impl TryFrom<&types::TokenizationRouterData> for TokenRequest {
@@ -56,11 +64,7 @@ impl TryFrom<&types::TokenizationRouterData> for TokenRequest {
                         wallet_data.get_wallet_token_as_json()?;
                     Ok(TokenRequest {
                         token_request_type: CheckoutTokenRequestType::Googlepay,
-                        token_data: CheckoutTokenData::Googlepay(CheckoutGooglePayData {
-                            protocol_version: json_wallet_data.protocol_version,
-                            signature: json_wallet_data.signature,
-                            signed_message: json_wallet_data.signed_message,
-                        }),
+                        token_data: CheckoutTokenData::Googlepay(json_wallet_data),
                     })
                 }
                 api_models::payments::WalletData::ApplePay(_data) => {
@@ -68,15 +72,11 @@ impl TryFrom<&types::TokenizationRouterData> for TokenRequest {
                         wallet_data.get_wallet_token_as_json()?;
                     Ok(TokenRequest {
                         token_request_type: CheckoutTokenRequestType::Applepay,
-                        token_data: CheckoutTokenData::Applepay(CheckoutApplePayData {
-                            version: json_wallet_data.version,
-                            data: json_wallet_data.data,
-                            signature: json_wallet_data.signature,
-                        }),
+                        token_data: CheckoutTokenData::Applepay(json_wallet_data),
                     })
                 }
                 _ => Err(errors::ConnectorError::NotImplemented(
-                    "Unknown Wallet in Payment Method for tokenizationx`".to_string(),
+                    "Unknown Wallet in Payment Method for tokenization".to_string(),
                 ))
                 .into_report(),
             },
@@ -204,10 +204,10 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentsRequest {
                 Ok(a)
             }
             api::PaymentMethodData::Wallet(wallet_data) => match wallet_data {
-                api_models::payments::WalletData::GooglePay(_data) => {
+                api_models::payments::WalletData::GooglePay(_)
+                | api_models::payments::WalletData::ApplePay(_) => {
                     Ok(PaymentSource::Wallets(WalletSource {
                         source_type: CheckoutSourceTypes::Token,
-                        // token: data.tokenization_data.token,
                         token: item.payment_method_token.clone().ok_or(
                             errors::ConnectorError::MissingRequiredField {
                                 field_name: "payment_method_token",
