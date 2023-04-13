@@ -127,7 +127,8 @@ pub async fn get_address_for_payment_request(
                         })
                     }
                     .await
-                    .change_context(errors::ApiErrorResponse::InternalServerError)?;
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed while encrypting address")?;
                     Some(
                         db.update_address(id.to_owned(), address_update)
                             .await
@@ -182,7 +183,8 @@ pub async fn get_address_for_payment_request(
                                 })
                             }
                             .await
-                            .change_context(errors::ApiErrorResponse::InternalServerError)?,
+                            .change_context(errors::ApiErrorResponse::InternalServerError)
+                            .attach_printable("Failed while encrypting address while insert")?,
                         )
                         .await
                         .map_err(|_| errors::ApiErrorResponse::InternalServerError)?,
@@ -800,33 +802,23 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R>(
                                 .transpose()
                         };
 
-                    let new_customer = customer::Customer {
-                        customer_id: customer_id.to_string(),
-                        merchant_id: merchant_id.to_string(),
-                        name: req
-                            .name
-                            .async_lift(encrypt)
-                            .await
-                            .change_context(errors::StorageError::SerializationFailed)?,
-                        email: req
-                            .email
-                            .clone()
-                            .async_lift(encrypt_email)
-                            .await
-                            .change_context(errors::StorageError::SerializationFailed)?,
-                        phone: req
-                            .phone
-                            .clone()
-                            .async_lift(encrypt)
-                            .await
-                            .change_context(errors::StorageError::SerializationFailed)?,
-                        phone_country_code: req.phone_country_code.clone(),
-                        description: None,
-                        created_at: common_utils::date_time::now(),
-                        id: None,
-                        metadata: None,
-                    };
-
+                    let new_customer = async {
+                        Ok(customer::Customer {
+                            customer_id: customer_id.to_string(),
+                            merchant_id: merchant_id.to_string(),
+                            name: req.name.async_lift(encrypt).await?,
+                            email: req.email.clone().async_lift(encrypt_email).await?,
+                            phone: req.phone.clone().async_lift(encrypt).await?,
+                            phone_country_code: req.phone_country_code.clone(),
+                            description: None,
+                            created_at: common_utils::date_time::now(),
+                            id: None,
+                            metadata: None,
+                        })
+                    }
+                    .await
+                    .change_context(errors::StorageError::SerializationFailed)
+                    .attach_printable("Failed while encrypting Customer while insert")?;
                     metrics::CUSTOMER_CREATED.add(&metrics::CONTEXT, 1, &[]);
                     db.insert_customer(new_customer).await
                 }

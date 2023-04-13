@@ -13,7 +13,7 @@ use crate::{
         payment_methods::cards,
     },
     db::StorageInterface,
-    pii::PeekInterface,
+    pii::{self, PeekInterface},
     routes::{metrics, AppState},
     services,
     types::{
@@ -51,7 +51,7 @@ pub async fn create_customer(
             .transpose()
     };
 
-    let encrypt_email = |inner: Option<masking::Secret<String, crate::pii::Email>>| async {
+    let encrypt_email = |inner: Option<masking::Secret<String, pii::Email>>| async {
         inner
             .async_map(|value| crypto::Encryptable::encrypt(value, &key, GcmAes256 {}))
             .await
@@ -87,7 +87,8 @@ pub async fn create_customer(
             })
         }
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed while encrypting address")?;
 
         db.insert_address(address)
             .await
@@ -110,7 +111,8 @@ pub async fn create_customer(
         })
     }
     .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)?;
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed while encrypting Customer")?;
 
     let customer = match db.insert_customer(new_customer).await {
         Ok(customer) => customer,
@@ -336,7 +338,8 @@ pub async fn update_customer(
             })
         }
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed while encrypting Address while Update")?;
         db.update_address_by_merchant_id_customer_id(
             &update_customer.customer_id,
             &merchant_account.merchant_id,
@@ -365,7 +368,8 @@ pub async fn update_customer(
                 })
             }
             .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)?,
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed while encrypting while updating customer")?,
         )
         .await
         .map_err(|error| error.to_not_found_response(errors::ApiErrorResponse::CustomerNotFound))?;
