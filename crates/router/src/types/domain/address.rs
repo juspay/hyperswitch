@@ -1,15 +1,17 @@
 use async_trait::async_trait;
 use common_utils::{
-    crypto::{self, Encryptable, GcmAes256},
+    crypto::{self},
     date_time,
     errors::{CustomResult, ValidationError},
-    ext_traits::AsyncExt,
 };
 use error_stack::ResultExt;
 use storage_models::{address::AddressUpdateInternal, encryption::Encryption, enums};
 use time::{OffsetDateTime, PrimitiveDateTime};
 
-use super::{behaviour, types::TypeEncryption};
+use super::{
+    behaviour,
+    types::{self, AsyncLift},
+};
 
 #[derive(Clone, Debug, serde::Serialize)]
 pub struct Address {
@@ -71,51 +73,20 @@ impl behaviour::Conversion for Address {
         let key = &[0];
 
         async {
+            let inner_decrypt = |inner| types::decrypt(inner, key);
             Ok(Self {
                 id: Some(other.id),
                 address_id: other.address_id,
                 city: other.city,
                 country: other.country,
-                line1: other
-                    .line1
-                    .async_map(|inner| Encryptable::decrypt(inner, key, GcmAes256 {}))
-                    .await
-                    .transpose()?,
-                line2: other
-                    .line2
-                    .async_map(|inner| Encryptable::decrypt(inner, key, GcmAes256 {}))
-                    .await
-                    .transpose()?,
-                line3: other
-                    .line3
-                    .async_map(|inner| Encryptable::decrypt(inner, key, GcmAes256 {}))
-                    .await
-                    .transpose()?,
-                state: other
-                    .state
-                    .async_map(|inner| Encryptable::decrypt(inner, key, GcmAes256 {}))
-                    .await
-                    .transpose()?,
-                zip: other
-                    .zip
-                    .async_map(|inner| Encryptable::decrypt(inner, key, GcmAes256 {}))
-                    .await
-                    .transpose()?,
-                first_name: other
-                    .first_name
-                    .async_map(|inner| Encryptable::decrypt(inner, key, GcmAes256 {}))
-                    .await
-                    .transpose()?,
-                last_name: other
-                    .last_name
-                    .async_map(|inner| Encryptable::decrypt(inner, key, GcmAes256 {}))
-                    .await
-                    .transpose()?,
-                phone_number: other
-                    .phone_number
-                    .async_map(|inner| Encryptable::decrypt(inner, key, GcmAes256 {}))
-                    .await
-                    .transpose()?,
+                line1: other.line1.async_lift(inner_decrypt).await?,
+                line2: other.line2.async_lift(inner_decrypt).await?,
+                line3: other.line3.async_lift(inner_decrypt).await?,
+                state: other.state.async_lift(inner_decrypt).await?,
+                zip: other.zip.async_lift(inner_decrypt).await?,
+                first_name: other.first_name.async_lift(inner_decrypt).await?,
+                last_name: other.last_name.async_lift(inner_decrypt).await?,
+                phone_number: other.phone_number.async_lift(inner_decrypt).await?,
                 country_code: other.country_code,
                 created_at: other.created_at,
                 modified_at: other.modified_at,
