@@ -2,7 +2,7 @@ use actix_web::{web, Scope};
 
 use super::health::*;
 #[cfg(feature = "olap")]
-use super::{admin::*, api_keys::*};
+use super::{admin::*, api_keys::*, disputes::*};
 #[cfg(any(feature = "olap", feature = "oltp"))]
 use super::{configs::*, customers::*, mandates::*, payments::*, payouts::*, refunds::*};
 #[cfg(feature = "oltp")]
@@ -376,6 +376,18 @@ impl ApiKeys {
                     .route(web::post().to(api_key_update))
                     .route(web::delete().to(api_key_revoke)),
             )
+    }
+}
+
+pub struct Disputes;
+
+#[cfg(feature = "olap")]
+impl Disputes {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/disputes")
+            .app_data(web::Data::new(state))
+            .service(web::resource("/list").route(web::get().to(retrieve_disputes_list)))
+            .service(web::resource("/{dispute_id}").route(web::get().to(retrieve_dispute)))
     }
 }
 
