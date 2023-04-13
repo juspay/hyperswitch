@@ -273,7 +273,7 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for PayeezyCaptureOrVoidRequest 
                 .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Self {
             transaction_type: PayeezyTransactionType::Capture,
-            amount: item.request.amount.to_string(),
+            amount: item.request.amount_to_capture.to_string(),
             currency_code: item.request.currency.to_string(),
             transaction_tag: metadata.transaction_tag,
         })

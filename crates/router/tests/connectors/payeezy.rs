@@ -19,7 +19,7 @@ impl utils::Connector for PayeezyTest {
         use router::connector::Payeezy;
         types::api::ConnectorData {
             connector: Box::new(&Payeezy),
-            connector_name: types::Connector::Payeezy,
+            connector_name: types::Connector::Dummy,
             get_token: types::api::GetToken::Connector,
         }
     }
@@ -88,7 +88,7 @@ async fn should_capture_authorized_payment() {
     assert_eq!(response.status, enums::AttemptStatus::Authorized);
     let connector_payment_id =
         utils::get_connector_transaction_id(response.response.clone()).unwrap_or_default();
-    let connector_meta = utils::get_connector_meta(response.response);
+    let connector_meta = utils::get_connector_metadata(response.response);
     let capture_data = types::PaymentsCaptureData {
         connector_meta,
         ..utils::PaymentCaptureType::default().0
@@ -110,10 +110,10 @@ async fn should_partially_capture_authorized_payment() {
     assert_eq!(response.status, enums::AttemptStatus::Authorized);
     let connector_payment_id =
         utils::get_connector_transaction_id(response.response.clone()).unwrap_or_default();
-    let connector_meta = utils::get_connector_meta(response.response);
+    let connector_meta = utils::get_connector_metadata(response.response);
     let capture_data = types::PaymentsCaptureData {
         connector_meta,
-        amount_to_capture: Some(50),
+        amount_to_capture: 50,
         ..utils::PaymentCaptureType::default().0
     };
     let capture_response = CONNECTOR
@@ -138,7 +138,7 @@ async fn should_void_authorized_payment() {
     assert_eq!(response.status, enums::AttemptStatus::Authorized);
     let connector_payment_id =
         utils::get_connector_transaction_id(response.response.clone()).unwrap_or_default();
-    let connector_meta = utils::get_connector_meta(response.response);
+    let connector_meta = utils::get_connector_metadata(response.response);
     tokio::time::sleep(std::time::Duration::from_secs(
         CONNECTOR.get_request_interval(),
     ))
@@ -171,7 +171,7 @@ async fn should_refund_manually_captured_payment() {
         .await
         .expect("Authorize payment response");
     let txn_id = utils::get_connector_transaction_id(authorize_response.response.clone()).unwrap();
-    let capture_connector_meta = utils::get_connector_meta(authorize_response.response);
+    let capture_connector_meta = utils::get_connector_metadata(authorize_response.response);
     let capture_response = CONNECTOR
         .capture_payment(
             txn_id.clone(),
@@ -185,7 +185,7 @@ async fn should_refund_manually_captured_payment() {
         .expect("Capture payment response");
     let capture_txn_id =
         utils::get_connector_transaction_id(capture_response.response.clone()).unwrap();
-    let refund_connector_metadata = utils::get_connector_meta(capture_response.response);
+    let refund_connector_metadata = utils::get_connector_metadata(capture_response.response);
     let response = CONNECTOR
         .refund_payment(
             capture_txn_id.clone(),
@@ -215,7 +215,7 @@ async fn should_partially_refund_manually_captured_payment() {
         .await
         .expect("Authorize payment response");
     let txn_id = utils::get_connector_transaction_id(authorize_response.response.clone()).unwrap();
-    let capture_connector_meta = utils::get_connector_meta(authorize_response.response);
+    let capture_connector_meta = utils::get_connector_metadata(authorize_response.response);
     let capture_response = CONNECTOR
         .capture_payment(
             txn_id.clone(),
@@ -229,7 +229,7 @@ async fn should_partially_refund_manually_captured_payment() {
         .expect("Capture payment response");
     let capture_txn_id =
         utils::get_connector_transaction_id(capture_response.response.clone()).unwrap();
-    let refund_connector_metadata = utils::get_connector_meta(capture_response.response);
+    let refund_connector_metadata = utils::get_connector_metadata(capture_response.response);
     let response = CONNECTOR
         .refund_payment(
             capture_txn_id.clone(),
@@ -278,7 +278,7 @@ async fn should_refund_auto_captured_payment() {
     let captured_response = CONNECTOR.make_payment(None, None).await.unwrap();
     assert_eq!(captured_response.status, enums::AttemptStatus::Charged);
     let txn_id = utils::get_connector_transaction_id(captured_response.response.clone());
-    let connector_meta = utils::get_connector_meta(captured_response.response);
+    let connector_meta = utils::get_connector_metadata(captured_response.response);
     let response = CONNECTOR
         .refund_payment(
             txn_id.clone().unwrap(),
@@ -304,7 +304,7 @@ async fn should_partially_refund_succeeded_payment() {
     let captured_response = CONNECTOR.make_payment(None, None).await.unwrap();
     assert_eq!(captured_response.status, enums::AttemptStatus::Charged);
     let txn_id = utils::get_connector_transaction_id(captured_response.response.clone());
-    let connector_meta = utils::get_connector_meta(captured_response.response);
+    let connector_meta = utils::get_connector_metadata(captured_response.response);
     let response = CONNECTOR
         .refund_payment(
             txn_id.clone().unwrap(),
@@ -330,7 +330,7 @@ async fn should_refund_succeeded_payment_multiple_times() {
     let captured_response = CONNECTOR.make_payment(None, None).await.unwrap();
     assert_eq!(captured_response.status, enums::AttemptStatus::Charged);
     let txn_id = utils::get_connector_transaction_id(captured_response.response.clone());
-    let connector_meta = utils::get_connector_meta(captured_response.response);
+    let connector_meta = utils::get_connector_metadata(captured_response.response);
     for _x in 0..2 {
         let refund_response = CONNECTOR
             .refund_payment(
@@ -486,7 +486,7 @@ async fn should_fail_capture_for_invalid_payment() {
                 connector_meta: Some(
                     serde_json::json!({"transaction_tag" : "10069306640".to_string()}),
                 ),
-                amount_to_capture: Some(50),
+                amount_to_capture: 50,
                 ..utils::PaymentCaptureType::default().0
             }),
             None,
@@ -505,7 +505,7 @@ async fn should_fail_for_refund_amount_higher_than_payment_amount() {
     let captured_response = CONNECTOR.make_payment(None, None).await.unwrap();
     assert_eq!(captured_response.status, enums::AttemptStatus::Charged);
     let txn_id = utils::get_connector_transaction_id(captured_response.response.clone());
-    let connector_meta = utils::get_connector_meta(captured_response.response);
+    let connector_meta = utils::get_connector_metadata(captured_response.response);
     let response = CONNECTOR
         .refund_payment(
             txn_id.clone().unwrap(),

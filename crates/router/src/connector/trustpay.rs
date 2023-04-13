@@ -112,6 +112,18 @@ impl ConnectorCommon for Trustpay {
 
 impl api::Payment for Trustpay {}
 
+impl api::PaymentToken for Trustpay {}
+
+impl
+    ConnectorIntegration<
+        api::PaymentMethodToken,
+        types::PaymentMethodTokenizationData,
+        types::PaymentsResponseData,
+    > for Trustpay
+{
+    // Not Implemented (R)
+}
+
 impl api::PreVerify for Trustpay {}
 impl ConnectorIntegration<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>
     for Trustpay

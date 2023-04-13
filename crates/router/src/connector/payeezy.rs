@@ -112,6 +112,18 @@ impl ConnectorIntegration<api::Verify, types::VerifyRequestData, types::Payments
 {
 }
 
+impl api::PaymentToken for Payeezy {}
+
+impl
+    ConnectorIntegration<
+        api::PaymentMethodToken,
+        types::PaymentMethodTokenizationData,
+        types::PaymentsResponseData,
+    > for Payeezy
+{
+    // Not Implemented (R)
+}
+
 impl api::PaymentVoid for Payeezy {}
 
 impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsResponseData>
@@ -429,7 +441,11 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         &self,
         req: &types::RefundsRouterData<api::Execute>,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        let payeezy_req = utils::Encode::<payeezy::PayeezyRefundRequest>::convert_and_encode(req)
+        let connector_req = payeezy::PayeezyRefundRequest::try_from(req)?;
+        let payeezy_req =
+            utils::Encode::<payeezy::PayeezyCaptureOrVoidRequest>::encode_to_string_of_json(
+                &connector_req,
+            )
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(payeezy_req))
     }
