@@ -35,14 +35,14 @@ fn get_primary_business_details(
     request: &api::MerchantAccountCreate,
 ) -> Vec<PrimaryBusinessDetails> {
     // In this case, business details is not optional, it will always be passed
-    #[cfg(not(feature = "multiple_mca"))]
+    #[cfg(feature = "multiple_mca")]
     {
         request.primary_business_details.to_owned()
     }
 
     // In this case, business details will be optional, if it is not passed, then create the
     // default value
-    #[cfg(feature = "multiple_mca")]
+    #[cfg(not(feature = "multiple_mca"))]
     {
         request
             .primary_business_details
@@ -319,13 +319,13 @@ fn get_business_details_wrapper(
     request: &api::MerchantConnectorCreate,
     _merchant_account: &MerchantAccount,
 ) -> RouterResult<(enums::CountryCode, String)> {
-    #[cfg(not(feature = "multiple_mca"))]
+    #[cfg(feature = "multiple_mca")]
     {
         // The fields are mandatory
         Ok((request.business_country, request.business_label.to_owned()))
     }
 
-    #[cfg(feature = "multiple_mca")]
+    #[cfg(not(feature = "multiple_mca"))]
     {
         // If the value is not passed, then take it from Merchant account
         helpers::get_business_details(
