@@ -1317,7 +1317,7 @@ pub struct ApplepaySessionRequest {
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ApplepaySessionTokenData {
-    #[serde(rename = "applepay")]
+    #[serde(rename = "apple_pay")]
     pub data: ApplePayMetadata,
 }
 

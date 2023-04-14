@@ -3,7 +3,7 @@ use std::marker::PhantomData;
 use api_models::admin::PaymentMethodsEnabled;
 use async_trait::async_trait;
 use common_utils::ext_traits::{AsyncExt, ValueExt};
-use error_stack::{report, ResultExt};
+use error_stack::ResultExt;
 use router_derive::PaymentOperation;
 use router_env::{instrument, tracing};
 
@@ -308,7 +308,7 @@ where
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Database error when querying for merchant connector accounts")?;
 
-        let mut connector_and_supporting_wallet = Vec::new();
+        let mut connector_and_supporting_payment_method_type = Vec::new();
 
         for connector_account in connector_accounts {
             let payment_methods = connector_account
@@ -332,9 +332,10 @@ where
                             ) {
                                 let connector_and_wallet = (
                                     connector_account.connector_name.to_owned(),
-                                    api::GetToken::from(payment_method_type.payment_method_type),
+                                    payment_method_type.payment_method_type,
                                 );
-                                connector_and_supporting_wallet.push(connector_and_wallet);
+                                connector_and_supporting_payment_method_type
+                                    .push(connector_and_wallet);
                             }
                         }
                     }
@@ -345,27 +346,19 @@ where
             }
         }
 
-        let payment_method_types = request.wallets.clone();
+        let requested_payment_method_types = request.wallets.clone();
 
-        let connectors_data = if !payment_method_types.is_empty() {
+        let connectors_data = if !requested_payment_method_types.is_empty() {
             let mut connectors_data = Vec::new();
-            for payment_method_type in payment_method_types {
-                for connector_tokeninfo in &connector_and_supporting_wallet {
-                    let connector_name = match payment_method_type {
-                        api_models::enums::PaymentMethodType::Paypal => Ok("braintree"),
-                        api_models::enums::PaymentMethodType::Klarna => Ok("klarna"),
-                        api_models::enums::PaymentMethodType::ApplePay
-                        | api_models::enums::PaymentMethodType::GooglePay => {
-                            Ok(connector_tokeninfo.0.as_str())
-                        }
-                        _ => Err(report!(errors::ApiErrorResponse::InternalServerError))
-                            .attach_printable("Payment Method not supported for session token"),
-                    }?;
-                    if connector_tokeninfo.1 == api::GetToken::from(payment_method_type) {
+            for payment_method_type in requested_payment_method_types {
+                for connector_and_payment_method_type in
+                    &connector_and_supporting_payment_method_type
+                {
+                    if connector_and_payment_method_type.1 == payment_method_type {
                         let connector_details = api::ConnectorData::get_connector_by_name(
                             connectors,
-                            connector_name,
-                            connector_tokeninfo.1.to_owned(),
+                            connector_and_payment_method_type.0.as_str(),
+                            api::GetToken::from(connector_and_payment_method_type.1),
                         )?;
                         connectors_data.push(connector_details);
                     }
@@ -375,11 +368,11 @@ where
         } else {
             let mut connectors_data = Vec::new();
 
-            for connector_tokeninfo in &connector_and_supporting_wallet {
+            for connector_and_payment_method_type in connector_and_supporting_payment_method_type {
                 let connector_details = api::ConnectorData::get_connector_by_name(
                     connectors,
-                    connector_tokeninfo.0.as_str(),
-                    connector_tokeninfo.1.to_owned(),
+                    connector_and_payment_method_type.0.as_str(),
+                    api::GetToken::from(connector_and_payment_method_type.1),
                 )?;
                 connectors_data.push(connector_details);
             }

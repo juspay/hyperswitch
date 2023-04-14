@@ -1307,10 +1307,10 @@ pub fn get_business_details(
                     },
                 )?;
                 (
-                    business_country.unwrap_or(primary_business_details.country.to_owned()),
+                    business_country.unwrap_or_else(|| primary_business_details.country.to_owned()),
                     business_label
                         .map(ToString::to_string)
-                        .unwrap_or(primary_business_details.business.to_owned()),
+                        .unwrap_or_else(|| primary_business_details.business.to_owned()),
                 )
             } else {
                 // If primary business details are not present or more than one
