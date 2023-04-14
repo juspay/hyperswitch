@@ -1,9 +1,8 @@
 use std::{convert::From, default::Default};
 
 use api_models::payment_methods as api_types;
-use common_utils::{date_time, pii};
+use common_utils::{date_time, pii, pii::Email};
 use serde::{Deserialize, Serialize};
-use common_utils::pii::Email;
 
 use crate::{logger, types::api};
 

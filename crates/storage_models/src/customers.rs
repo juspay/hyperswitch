@@ -1,8 +1,7 @@
-use common_utils::pii;
+use common_utils::{pii, pii::Email};
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
 use masking::Secret;
 use time::PrimitiveDateTime;
-use common_utils::pii::Email;
 
 use crate::schema::customers;
 

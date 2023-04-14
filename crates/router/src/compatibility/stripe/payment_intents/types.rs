@@ -7,7 +7,7 @@ use crate::{
     compatibility::stripe::refunds::types as stripe_refunds,
     consts,
     core::errors,
-    pii::{self, PeekInterface, Email},
+    pii::{self, Email, PeekInterface},
     types::{
         api::{admin, enums as api_enums},
         transformers::{ForeignFrom, ForeignInto},
@@ -17,7 +17,7 @@ use crate::{
 #[derive(Default, Serialize, PartialEq, Eq, Deserialize, Clone)]
 pub struct StripeBillingDetails {
     pub address: Option<payments::AddressDetails>,
-    pub email: Option<pii::Email>,
+    pub email: Option<Email>,
     pub name: Option<String>,
     pub phone: Option<pii::Secret<String>>,
 }

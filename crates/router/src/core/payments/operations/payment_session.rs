@@ -14,8 +14,7 @@ use crate::{
         payments::{self, helpers, operations, PaymentData},
     },
     db::StorageInterface,
-    logger, pii,
-    pii::Secret,
+    logger,
     routes::AppState,
     types::{
         api::{self, enums as api_enums, PaymentIdTypeExt},
@@ -162,7 +161,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsSessionRequest>
                 payment_attempt,
                 currency,
                 amount,
-                email: None::<pii::Email>,
+                email: None,
                 mandate_id: None,
                 token: None,
                 setup_mandate: None,

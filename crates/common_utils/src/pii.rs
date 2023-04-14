@@ -1,23 +1,24 @@
 //! Personal Identifiable Information protection.
 
 use std::{convert::AsRef, fmt, str::FromStr};
-use std::fmt::Formatter;
-use diesel::{expression::AsExpression, backend, deserialize, FromSqlRow, sql_types};
-use diesel::backend::Backend;
-use diesel::deserialize::FromSql;
-use diesel::internal::derives::as_expression::Bound;
-use diesel::pg::Pg;
-use diesel::prelude::*;
-use diesel::query_builder::{AstPass, QueryFragment};
-use diesel::serialize::{Output, ToSql};
-use diesel::sql_types::Text;
 
-use masking::{Secret, Strategy, WithType};
+use diesel::{
+    backend,
+    backend::Backend,
+    deserialize,
+    deserialize::FromSql,
+    pg::Pg,
+    prelude::*,
+    query_builder::{AstPass, QueryFragment},
+    serialize::{Output, ToSql},
+    sql_types,
+};
+use masking::{ExposeInterface, Secret, Strategy, WithType};
 
 use crate::{errors::ValidationError, validation::validate_email};
 
 /// Type alias for serde_json value which has Secret Information
-pub type SecretSerdeValue = masking::Secret<serde_json::Value>;
+pub type SecretSerdeValue = Secret<serde_json::Value>;
 
 /// Card number
 #[derive(Debug)]
@@ -98,43 +99,21 @@ where
 }
 
 /// Email address
-#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, PartialEq, Eq, Default)]
-pub struct Email(
-    Secret<String>
-);
-
-impl From<String> for Email {
-    fn from(value: String) -> Self {
-        Email(Secret::new(value))
-    }
-}
-
-impl<T> AppearsOnTable<T> for Email
-{
-}
-
-impl QueryFragment<Pg> for Email {
-    fn walk_ast(&self, mut out: AstPass<Pg>) -> QueryResult<()> {
-        // out.push_sql(" sql statement ");
-        Ok(())
-    }
-}
-
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, PartialEq, Eq, Default, Queryable)]
+pub struct Email(Secret<String>);
 
 impl Expression for Email {
-    type SqlType = sql_types::Nullable<Text>;
+    type SqlType = sql_types::Nullable<sql_types::Text>;
 }
 
-impl<ST, DB> Queryable<ST, DB> for Email
-where
-    ST: sql_types::SingleValue,
-    DB: Backend,
-    Email: FromSql<ST, DB>
-{
-    type Row = Self;
+impl<T> AppearsOnTable<T> for Email {}
 
-    fn build(row: Self::Row) -> deserialize::Result<Self> {
-        Ok(row)
+impl QueryFragment<Pg> for Email {
+    fn walk_ast(&self, mut out: AstPass<'_, '_, Pg>) -> QueryResult<()> {
+        let binding = self.0.clone().expose();
+        let email = binding.as_str();
+        out.push_identifier(email)?;
+        Ok(())
     }
 }
 
@@ -145,7 +124,7 @@ where
 {
     fn from_sql(bytes: backend::RawValue<'_, DB>) -> deserialize::Result<Self> {
         let val = String::from_sql(bytes)?;
-        return Ok(Email::from_str(val.as_str()).unwrap());
+        Ok(Self::from_str(val.as_str())?)
     }
 }
 
@@ -159,17 +138,6 @@ where
     }
 }
 
-struct EmailStrategy;
-
-impl<T> Strategy<T> for EmailStrategy
-where
-    T: fmt::Display
-{
-    fn fmt(val: &T, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", val.to_string().to_ascii_lowercase())
-    }
-}
-
 impl FromStr for Email {
     type Err = ValidationError;
 
@@ -177,7 +145,7 @@ impl FromStr for Email {
         match validate_email(email) {
             Ok(_) => {
                 let secret: Secret<String> = Secret::new(email.to_string());
-                Ok(Email(secret))
+                Ok(Self(secret))
             }
             Err(_) => Err(ValidationError::InvalidValue {
                 message: "Invalid email address format".into(),
@@ -186,20 +154,19 @@ impl FromStr for Email {
     }
 }
 
-
 impl<T> Strategy<T> for Email
 where
-    T: AsRef<str> + std::fmt::Debug
+    T: AsRef<str> + std::fmt::Debug,
 {
     fn fmt(val: &T, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        dbg!(&val);
         let val_str: &str = val.as_ref();
-        dbg!(&val_str);
 
-        if let Some((a, b)) = val_str.split_once('@') {
-            write!(f, "{}@{}", "*".repeat(a.len()), b)
-        } else {
-            WithType::fmt(val, f)
+        match Self::from_str(val_str) {
+            Ok(_email) => match val_str.split_once('@') {
+                Some((a, b)) => write!(f, "{}@{}", "*".repeat(a.len()), b),
+                None => WithType::fmt(val, f),
+            },
+            Err(..) => WithType::fmt(val, f),
         }
     }
 }
@@ -267,25 +234,23 @@ mod pii_masking_strategy_tests {
     }
     */
 
-    // #[test]
-/*    fn test_valid_email_masking() {
+    #[test]
+    fn test_valid_email_masking() {
+        let secret: Secret<String, Email> = Secret::new("example@test.com".to_string());
+        assert_eq!("*******@test.com", format!("{secret:?}"));
 
-        let secret = Email::from_str("example@abc.com").unwrap();
-        let val = format!("{secret:?}");
-        assert_eq!("*******@abc.com", format!("{secret:?}"));
-
-        let secret: Secret<String, Email> = Secret::new("myemail@gmail.com".to_string());
-        assert_eq!("*******@gmail.com", format!("{secret:?}"));
+        let secret: Secret<String, Email> = Secret::new("username@gmail.com".to_string());
+        assert_eq!("********@gmail.com", format!("{secret:?}"));
     }
 
-    // #[test]
+    #[test]
     fn test_invalid_email_masking() {
         let secret: Secret<String, Email> = Secret::new("myemailgmail.com".to_string());
         assert_eq!("*** alloc::string::String ***", format!("{secret:?}"));
 
         let secret: Secret<String, Email> = Secret::new("myemail@gmail@com".to_string());
         assert_eq!("*** alloc::string::String ***", format!("{secret:?}"));
-    }*/
+    }
 
     #[test]
     fn test_valid_newtype_email() {

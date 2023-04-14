@@ -7,12 +7,12 @@ pub mod transformers;
 use std::{fmt::Debug, marker::PhantomData, time::Instant};
 
 use api_models::payments::Metadata;
+use common_utils::pii::Email;
 use error_stack::{IntoReport, ResultExt};
 use futures::future::join_all;
+use masking::Secret;
 use router_env::tracing;
 use time;
-use common_utils::pii::Email;
-use masking::Secret;
 
 pub use self::operations::{
     PaymentCancel, PaymentCapture, PaymentConfirm, PaymentCreate, PaymentMethodValidate,
@@ -29,7 +29,7 @@ use crate::{
         payment_methods::vault,
     },
     db::StorageInterface,
-    logger, pii,
+    logger,
     routes::AppState,
     scheduler::utils as pt_utils,
     services,
@@ -759,8 +759,8 @@ where
     pub payment_method_data: Option<api::PaymentMethodData>,
     pub refunds: Vec<storage::Refund>,
     pub sessions_token: Vec<api::SessionToken>,
-    pub card_cvc: Option<pii::Secret<String>>,
-    pub email: Option<pii::Email>,
+    pub card_cvc: Option<Secret<String>>,
+    pub email: Option<Email>,
     pub creds_identifier: Option<String>,
     pub pm_token: Option<String>,
 }
@@ -768,9 +768,9 @@ where
 #[derive(Debug, Default)]
 pub struct CustomerDetails {
     pub customer_id: Option<String>,
-    pub name: Option<masking::Secret<String, masking::WithType>>,
-    pub email: Option<pii::Email>,
-    pub phone: Option<masking::Secret<String, masking::WithType>>,
+    pub name: Option<Secret<String, masking::WithType>>,
+    pub email: Option<Email>,
+    pub phone: Option<Secret<String, masking::WithType>>,
     pub phone_country_code: Option<String>,
 }
 
