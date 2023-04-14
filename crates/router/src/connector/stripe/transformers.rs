@@ -5,8 +5,9 @@ use common_utils::{fp_utils, pii::Email};
 use error_stack::{IntoReport, ResultExt};
 use masking::ExposeInterface;
 use serde::{Deserialize, Serialize};
-use strum::EnumString;
+use strum::{EnumString, Display};
 use url::Url;
+use utoipa::openapi::Object;
 use uuid::Uuid;
 
 use crate::{
@@ -975,6 +976,8 @@ pub struct RefundRequest {
     pub metadata_txn_id: String,
     #[serde(rename = "metadata[txn_uuid]")]
     pub metadata_txn_uuid: String,
+    #[serde(rename = "metadata[refund_id]")]
+    pub metadata_refund_id: String,
 }
 
 impl<F> TryFrom<&types::RefundsRouterData<F>> for RefundRequest {
@@ -984,12 +987,14 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for RefundRequest {
         let metadata_txn_id = "Fetch txn_id from DB".to_string();
         let metadata_txn_uuid = "Fetch txn_id from DB".to_string();
         let payment_intent = item.request.connector_transaction_id.clone();
+        let metadata_refund_id = item.request.refund_id.clone();
         Ok(Self {
             amount: Some(amount),
             payment_intent,
             metadata_order_id: item.payment_id.clone(),
             metadata_txn_id,
             metadata_txn_uuid,
+            metadata_refund_id,
         })
     }
 }
@@ -1225,6 +1230,13 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for CaptureRequest {
 #[derive(Debug, Deserialize)]
 pub struct StripeWebhookDataObjectId {
     pub id: String,
+    pub object: String,
+    pub metadata: MetaData,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct MetaData {
+    pub order_id: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -1246,6 +1258,38 @@ pub struct StripeWebhookObjectResource {
 pub struct StripeWebhookObjectEventType {
     #[serde(rename = "type")]
     pub event_type: String,
+    pub data: DataObject,
+}
+
+#[derive(Debug, Deserialize, PartialEq)]
+pub struct DataObject {
+    pub object: Status,
+}
+
+#[derive(Debug, Deserialize, PartialEq)]
+pub struct Status {
+    pub id: String,
+    pub amount: String,
+    pub currency: String,
+    pub reason: String,
+    pub created: i64,
+    pub evidence_details: EvidenceDeatils,
+    pub status: DisputeStatus,
+}
+
+#[derive(Debug, Serialize, Display, Deserialize, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum DisputeStatus {
+    WarningNeedsResponse,
+    WarningClosed,
+    WarningUnderReview,
+    Won,
+    Lost,
+}
+
+#[derive(Debug, Deserialize, PartialEq)]
+pub struct EvidenceDeatils {
+    pub due_by: i64,
 }
 
 #[derive(Debug, Deserialize)]

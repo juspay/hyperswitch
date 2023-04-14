@@ -5,6 +5,8 @@ use std::{collections::HashMap, fmt::Debug};
 use error_stack::{IntoReport, ResultExt};
 use router_env::{instrument, tracing};
 use storage_models::enums;
+use time::serde::timestamp;
+
 
 use self::transformers as stripe;
 use super::utils::RefundsRequestData;
@@ -921,9 +923,15 @@ impl api::IncomingWebhook for Stripe {
             .parse_struct("StripeWebhookObjectId")
             .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
 
-        Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
-            api_models::payments::PaymentIdType::ConnectorTransactionId(details.data.object.id),
-        ))
+        Ok(match details.data.object.object.as_str() {  
+            "payment_intent" => api_models::webhooks::ObjectReferenceId::PaymentId(
+                api_models::payments::PaymentIdType::ConnectorTransactionId(details.data.object.id)),
+            "dispute" => api_models::webhooks::ObjectReferenceId::PaymentId(
+                api_models::payments::PaymentIdType::PaymentIntentId(details.data.object.metadata.order_id),
+            ),
+            _=> Err(errors::ConnectorError::FailedToObtainAuthType)?
+        }
+        )
     }
 
     fn get_webhook_event_type(
@@ -935,9 +943,19 @@ impl api::IncomingWebhook for Stripe {
             .parse_struct("StripeWebhookObjectEventType")
             .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
 
-        Ok(match details.event_type.as_str() {
+        Ok(match details.event_type.as_str()  {
             "payment_intent.payment_failed" => api::IncomingWebhookEvent::PaymentIntentFailure,
             "payment_intent.succeeded" => api::IncomingWebhookEvent::PaymentIntentSuccess,
+            "charge.dispute.created" => api::IncomingWebhookEvent::DisputeOpened,
+            "charge.dispute.closed" => api:: IncomingWebhookEvent::DisputeCancelled,
+            "charge.dispute.updated" => { match details.data.object.status {
+                stripe::DisputeStatus::WarningNeedsResponse => api::IncomingWebhookEvent::DisputeOpened,
+                stripe::DisputeStatus::WarningClosed => api::IncomingWebhookEvent::DisputeCancelled,
+                stripe::DisputeStatus::WarningUnderReview => api::IncomingWebhookEvent::DisputeChallenged,
+                stripe::DisputeStatus::Won => api::IncomingWebhookEvent::DisputeWon,
+                stripe::DisputeStatus::Lost => api::IncomingWebhookEvent::DisputeLost,
+            }
+        }
             _ => Err(errors::ConnectorError::WebhookEventTypeNotFound).into_report()?,
         })
     }
@@ -953,6 +971,40 @@ impl api::IncomingWebhook for Stripe {
 
         Ok(details.data.object)
     }
+
+    fn get_dispute_details(
+        &self,
+        request: &api::IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<api::disputes::DisputePayload, errors::ConnectorError> {
+        let details: stripe::StripeWebhookObjectEventType = request
+            .body
+            .parse_struct("StripeWebhookObjectEventType")
+            .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
+        Ok(api::disputes::DisputePayload {
+            amount: details.data.object.amount.to_string(),
+            currency: details.data.object.currency,
+            dispute_stage: api_models::enums::DisputeStage::Dispute,
+            connector_dispute_id: details.data.object.id,
+            connector_reason: Some(details.data.object.reason),
+            connector_reason_code: None,
+            challenge_required_by: Some(get_date_and_time(details.data.object.evidence_details.due_by)?),
+            connector_status: details.data.object.status.to_string(),
+            created_at: Some(get_date_and_time(details.data.object.created)?),
+            updated_at: None, 
+        })
+    }
+}
+
+pub fn get_date_and_time(timestamp: i64) -> CustomResult<String,errors::ConnectorError> {
+    let datetime = time::OffsetDateTime::from_unix_timestamp(timestamp)
+        .map_err(|_| errors::ConnectorError::ResponseDeserializationFailed)?;
+    let format = time::format_description::parse(
+        "[year]-[month]-[day] [hour]:[minute]:[second] [offset_hour \
+             sign:mandatory]:[offset_minute]:[offset_second]",
+    ).map_err(|_| errors::ConnectorError::ResponseDeserializationFailed)?;
+    let x = datetime.format(&format)
+        .map_err(|_| errors::ConnectorError::ResponseDeserializationFailed)?;
+    Ok(x)
 }
 
 impl services::ConnectorRedirectResponse for Stripe {
