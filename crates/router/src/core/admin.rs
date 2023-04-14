@@ -374,10 +374,11 @@ pub async fn create_payment_connector(
         connector_name: req.connector_name,
         merchant_connector_id: utils::generate_id(consts::ID_LENGTH, "mca"),
         connector_account_details: crypto::Encryptable::encrypt(
-            req.connector_account_details
-                .ok_or(errors::ApiErrorResponse::MissingRequiredField {
+            req.connector_account_details.ok_or(
+                errors::ApiErrorResponse::MissingRequiredField {
                     field_name: "connector_account_details",
-                })?,
+                },
+            )?,
             &key,
             GcmAes256 {},
         )
