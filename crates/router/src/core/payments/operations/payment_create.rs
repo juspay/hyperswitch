@@ -23,7 +23,6 @@ use crate::{
         storage::{
             self,
             enums::{self, IntentStatus},
-            PaymentAttemptExt,
         },
         transformers::ForeignInto,
     },
@@ -139,8 +138,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             })?;
         connector_response = db
             .insert_connector_response(
-                Self::make_connector_response(&payment_attempt)
-                    .change_context(errors::ApiErrorResponse::InternalServerError)?,
+                Self::make_connector_response(&payment_attempt),
                 storage_scheme,
             )
             .await
@@ -316,6 +314,10 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
 
         let payment_token = payment_data.token.clone();
         let connector = payment_data.payment_attempt.connector.clone();
+        let straight_through_algorithm = payment_data
+            .payment_attempt
+            .straight_through_algorithm
+            .clone();
 
         payment_data.payment_attempt = db
             .update_payment_attempt_with_attempt_id(
@@ -323,6 +325,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
                 storage::PaymentAttemptUpdate::UpdateTrackers {
                     payment_token,
                     connector,
+                    straight_through_algorithm,
                 },
                 storage_scheme,
             )
@@ -532,18 +535,18 @@ impl PaymentCreate {
     #[instrument(skip_all)]
     pub fn make_connector_response(
         payment_attempt: &storage::PaymentAttempt,
-    ) -> CustomResult<storage::ConnectorResponseNew, errors::ParsingError> {
-        Ok(storage::ConnectorResponseNew {
+    ) -> storage::ConnectorResponseNew {
+        storage::ConnectorResponseNew {
             payment_id: payment_attempt.payment_id.clone(),
             merchant_id: payment_attempt.merchant_id.clone(),
             attempt_id: payment_attempt.attempt_id.clone(),
             created_at: payment_attempt.created_at,
             modified_at: payment_attempt.modified_at,
-            connector_name: payment_attempt.get_routed_through_connector()?,
+            connector_name: payment_attempt.connector.clone(),
             connector_transaction_id: None,
             authentication_data: None,
             encoded_data: None,
-        })
+        }
     }
 }
 

@@ -228,9 +228,9 @@ async fn get_or_update_dispute_object(
     option_dispute: Option<storage_models::dispute::Dispute>,
     dispute_details: api::disputes::DisputePayload,
     merchant_id: &str,
-    payment_id: &str,
-    attempt_id: &str,
+    payment_attempt: &storage_models::payment_attempt::PaymentAttempt,
     event_type: api_models::webhooks::IncomingWebhookEvent,
+    connector_name: &str,
 ) -> CustomResult<storage_models::dispute::Dispute, errors::WebhooksFlowError> {
     let db = &*state.store;
     match option_dispute {
@@ -246,8 +246,9 @@ async fn get_or_update_dispute_object(
                     .foreign_try_into()
                     .into_report()
                     .change_context(errors::WebhooksFlowError::DisputeCoreFailed)?,
-                payment_id: payment_id.to_owned(),
-                attempt_id: attempt_id.to_owned(),
+                payment_id: payment_attempt.payment_id.to_owned(),
+                connector: connector_name.to_owned(),
+                attempt_id: payment_attempt.attempt_id.to_owned(),
                 merchant_id: merchant_id.to_owned(),
                 connector_status: dispute_details.connector_status,
                 connector_dispute_id: dispute_details.connector_dispute_id,
@@ -327,18 +328,12 @@ async fn disputes_incoming_webhook_flow<W: api::OutgoingWebhookType>(
             option_dispute,
             dispute_details,
             &merchant_account.merchant_id,
-            &payment_attempt.payment_id,
-            &payment_attempt.attempt_id,
+            &payment_attempt,
             event_type.clone(),
+            connector.id(),
         )
         .await?;
-        let disputes_response = Box::new(
-            dispute_object
-                .clone()
-                .foreign_try_into()
-                .into_report()
-                .change_context(errors::WebhooksFlowError::DisputeCoreFailed)?,
-        );
+        let disputes_response = Box::new(dispute_object.clone().foreign_into());
         let event_type: enums::EventType = dispute_object
             .dispute_status
             .foreign_try_into()

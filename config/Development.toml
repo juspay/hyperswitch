@@ -70,6 +70,7 @@ cards = [
     "nexinets",
     "nuvei",
     "opennode",
+    "payeezy",
     "paypal",
     "payu",
     "shift4",
@@ -113,6 +114,7 @@ multisafepay.base_url = "https://testapi.multisafepay.com/"
 nexinets.base_url = "https://apitest.payengine.de/v1"
 nuvei.base_url = "https://ppp-test.nuvei.com/"
 opennode.base_url = "https://dev-api.opennode.com"
+payeezy.base_url = "https://api-cert.payeezy.com/"
 paypal.base_url = "https://www.sandbox.paypal.com/"
 payu.base_url = "https://secure.snd.payu.com/"
 rapyd.base_url = "https://sandboxapi.rapyd.net"
