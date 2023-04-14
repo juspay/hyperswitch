@@ -133,7 +133,7 @@ impl<F, T>
             .data
             .timeline
             .last()
-            .ok_or_else(|| errors::ConnectorError::ResponseHandlingFailed)?
+            .ok_or(errors::ConnectorError::ResponseHandlingFailed)?
             .clone();
         let connector_id = types::ResponseId::ConnectorTransactionId(item.response.data.id);
         let attempt_status = timeline.status.clone();

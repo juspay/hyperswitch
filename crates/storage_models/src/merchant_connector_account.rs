@@ -29,6 +29,10 @@ pub struct MerchantConnectorAccount {
     pub connector_type: storage_enums::ConnectorType,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub frm_configs: Option<Secret<serde_json::Value>>, //Option<FrmConfigs>
+    pub connector_label: String,
+    pub business_country: storage_enums::CountryCode,
+    pub business_label: String,
+    pub business_sub_label: Option<String>,
 }
 
 #[derive(Clone, Debug, Default, Insertable, router_derive::DebugAsDisplay)]
@@ -44,6 +48,10 @@ pub struct MerchantConnectorAccountNew {
     pub payment_methods_enabled: Option<Vec<serde_json::Value>>,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub frm_configs: Option<Secret<serde_json::Value>>,
+    pub connector_label: String,
+    pub business_country: storage_enums::CountryCode,
+    pub business_label: String,
+    pub business_sub_label: Option<String>,
 }
 
 #[derive(Debug)]
@@ -51,7 +59,6 @@ pub enum MerchantConnectorAccountUpdate {
     Update {
         merchant_id: Option<String>,
         connector_type: Option<storage_enums::ConnectorType>,
-        connector_name: Option<String>,
         connector_account_details: Option<Secret<serde_json::Value>>,
         test_mode: Option<bool>,
         disabled: Option<bool>,
@@ -66,7 +73,6 @@ pub enum MerchantConnectorAccountUpdate {
 pub struct MerchantConnectorAccountUpdateInternal {
     merchant_id: Option<String>,
     connector_type: Option<storage_enums::ConnectorType>,
-    connector_name: Option<String>,
     connector_account_details: Option<Secret<serde_json::Value>>,
     test_mode: Option<bool>,
     disabled: Option<bool>,
@@ -82,7 +88,6 @@ impl From<MerchantConnectorAccountUpdate> for MerchantConnectorAccountUpdateInte
             MerchantConnectorAccountUpdate::Update {
                 merchant_id,
                 connector_type,
-                connector_name,
                 connector_account_details,
                 test_mode,
                 disabled,
@@ -93,7 +98,6 @@ impl From<MerchantConnectorAccountUpdate> for MerchantConnectorAccountUpdateInte
             } => Self {
                 merchant_id,
                 connector_type,
-                connector_name,
                 connector_account_details,
                 test_mode,
                 disabled,

@@ -95,6 +95,18 @@ impl ConnectorIntegration<api::Verify, types::VerifyRequestData, types::Payments
 {
 }
 
+impl api::PaymentToken for Worldpay {}
+
+impl
+    ConnectorIntegration<
+        api::PaymentMethodToken,
+        types::PaymentMethodTokenizationData,
+        types::PaymentsResponseData,
+    > for Worldpay
+{
+    // Not Implemented (R)
+}
+
 impl api::PaymentVoid for Worldpay {}
 
 impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsResponseData>
@@ -611,11 +623,11 @@ impl api::IncomingWebhook for Worldpay {
             utils::get_header_key_value("Event-Signature", request.headers)?.split(',');
         let sign_header = event_signature
             .last()
-            .ok_or_else(|| errors::ConnectorError::WebhookSignatureNotFound)?;
+            .ok_or(errors::ConnectorError::WebhookSignatureNotFound)?;
         let signature = sign_header
             .split('/')
             .last()
-            .ok_or_else(|| errors::ConnectorError::WebhookSignatureNotFound)?;
+            .ok_or(errors::ConnectorError::WebhookSignatureNotFound)?;
         hex::decode(signature)
             .into_report()
             .change_context(errors::ConnectorError::WebhookResponseEncodingFailed)
