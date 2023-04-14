@@ -4,7 +4,6 @@ use common_utils::{fp_utils, pii::Email};
 use error_stack::{IntoReport, ResultExt};
 use masking::ExposeInterface;
 use serde::{Deserialize, Serialize};
-use strum::EnumString;
 use url::Url;
 use uuid::Uuid;
 
@@ -1217,16 +1216,6 @@ impl TryFrom<&types::PaymentsCancelRouterData> for CancelRequest {
             cancellation_reason: item.request.cancellation_reason.clone(),
         })
     }
-}
-
-#[derive(Debug, Serialize, Deserialize, Copy, Clone, EnumString)]
-#[serde(rename_all = "snake_case")]
-#[strum(serialize_all = "snake_case")]
-pub enum CancellationReason {
-    Duplicate,
-    Fraudulent,
-    RequestedByCustomer,
-    Abandoned,
 }
 
 #[derive(Deserialize, Debug, Clone, Eq, PartialEq)]
