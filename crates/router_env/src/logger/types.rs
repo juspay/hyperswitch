@@ -170,6 +170,10 @@ pub enum Flow {
     CardsInfo,
     /// Create File flow
     CreateFile,
+    /// Delete File flow
+    DeleteFile,
+    /// Retrieve File flow
+    RetrieveFile,
 }
 
 ///

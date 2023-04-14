@@ -2,10 +2,10 @@ use actix_web::{web, Scope};
 
 use super::health::*;
 #[cfg(feature = "olap")]
-use super::{admin::*, api_keys::*};
+use super::{admin::*, api_keys::*, files::*};
 #[cfg(any(feature = "olap", feature = "oltp"))]
 use super::{
-    configs::*, customers::*, disputes::*, mandates::*, payments::*, payouts::*, refunds::*, files::*,
+    configs::*, customers::*, disputes::*, mandates::*, payments::*, payouts::*, refunds::*,
 };
 #[cfg(feature = "oltp")]
 use super::{ephemeral_key::*, payment_methods::*, webhooks::*};
@@ -407,11 +407,16 @@ impl Cards {
 
 pub struct Files;
 
-#[cfg(any(feature = "olap", feature = "oltp"))]
+#[cfg(feature = "olap")]
 impl Files {
     pub fn server(state: AppState) -> Scope {
         web::scope("/files")
             .app_data(web::Data::new(state))
             .service(web::resource("").route(web::post().to(files_create)))
+            .service(
+                web::resource("/{file_id}")
+                    .route(web::delete().to(files_delete))
+                    .route(web::get().to(files_retrieve)),
+            )
     }
 }

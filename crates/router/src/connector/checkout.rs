@@ -812,15 +812,17 @@ impl
 impl api::FileUpload for Checkout {
     fn validate_file_upload(
         &self,
-        purpose: api_models::files::FilePurpose,
-        file_size: i64,
-        file_type: Option<mime::Mime>,
+        purpose: api::FilePurpose,
+        file_size: i32,
+        _file_type: mime::Mime,
     ) -> CustomResult<(), errors::ConnectorError> {
         match purpose {
-            api_models::files::FilePurpose::DisputeEvidence => {
+            api::FilePurpose::DisputeEvidence => {
                 // 4 Megabytes (MB) = 4,194,304 Bytes (B)
                 if file_size > 4194304 {
-                    Err(errors::ConnectorError::FileValidationFailed{ reason: "file_size exceeded the max file size of 4MB".to_owned()})?
+                    Err(errors::ConnectorError::FileValidationFailed {
+                        reason: "file_size exceeded the max file size of 4MB".to_owned(),
+                    })?
                 }
             }
         }

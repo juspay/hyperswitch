@@ -16,8 +16,8 @@ use std::{fmt::Debug, str::FromStr};
 use error_stack::{report, IntoReport, ResultExt};
 
 pub use self::{
-    admin::*, api_keys::*, configs::*, customers::*, disputes::*, payment_methods::*, payments::*,
-    refunds::*, webhooks::*, files::*,
+    admin::*, api_keys::*, configs::*, customers::*, disputes::*, files::*, payment_methods::*,
+    payments::*, refunds::*, webhooks::*,
 };
 use super::ErrorResponse;
 use crate::{
@@ -99,7 +99,7 @@ pub trait Connector:
     + IncomingWebhook
     + ConnectorAccessToken
     + Dispute
-    + files::FileUpload
+    + FileUpload
 {
 }
 
@@ -116,7 +116,7 @@ impl<
             + IncomingWebhook
             + ConnectorAccessToken
             + Dispute
-            + files::FileUpload
+            + FileUpload,
     > Connector for T
 {
 }

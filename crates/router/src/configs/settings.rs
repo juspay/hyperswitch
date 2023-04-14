@@ -348,8 +348,10 @@ pub struct ApiKeys {
 #[derive(Debug, Deserialize, Clone, Default)]
 #[serde(default)]
 pub struct FileUploadConfig {
-    pub host: String,
-    pub api_key: String,
+    /// The AWS region to send file uploads
+    pub region: String,
+    /// The AWS s3 bucket to send file uploads
+    pub bucket_name: String,
 }
 
 impl Settings {

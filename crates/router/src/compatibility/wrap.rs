@@ -56,6 +56,9 @@ where
         }
         Ok(api::ApplicationResponse::StatusOk) => api::http_response_ok(),
         Ok(api::ApplicationResponse::TextPlain(text)) => api::http_response_plaintext(text),
+        Ok(api::ApplicationResponse::FileData((file_data, content_type))) => {
+            api::http_response_file_data(file_data, content_type)
+        }
         Ok(api::ApplicationResponse::JsonForRedirection(response)) => {
             match serde_json::to_string(&response) {
                 Ok(res) => api::http_redirect_response(res, response),

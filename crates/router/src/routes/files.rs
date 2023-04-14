@@ -1,25 +1,14 @@
+use actix_multipart::Multipart;
 use actix_web::{web, web::Bytes, HttpRequest, HttpResponse};
-use api_models::files;
-use common_utils::ext_traits::ByteSliceExt;
-use error_stack::{IntoReport, ResultExt};
+use futures::{StreamExt, TryStreamExt};
 use router_env::{instrument, tracing, Flow};
-use actix_multipart::{Multipart, Field};
-use futures::{TryStreamExt, StreamExt};
 
 use super::app::AppState;
 use crate::{
-    core::{files::*, errors},
+    core::{errors, files::*},
     services::{api, authentication as auth},
+    types::api::files,
 };
-
-async fn read_string(field: &mut Field) -> Option<String> {
-    let bytes = field.try_next().await;
-    if let Ok(Some(bytes)) = bytes {
-        String::from_utf8(bytes.to_vec()).ok()
-    } else {
-        None
-    }
-}
 
 /// Files - Create
 ///
@@ -30,7 +19,7 @@ async fn read_string(field: &mut Field) -> Option<String> {
     request_body=MultipartRequestWithFile,
     responses(
         (status = 200, description = "File created", body = CreateFileResponse),
-        (status = 400, description = "Missing Mandatory fields")
+        (status = 400, description = "Bad Request")
     ),
     tag = "Files",
     operation_id = "Create a File",
@@ -43,53 +32,81 @@ pub async fn files_create(
     mut payload: Multipart,
 ) -> HttpResponse {
     let flow = Flow::CreateFile;
-    let mut purpose: Option<String> = None;
+
+    let mut option_purpose: Option<files::FilePurpose> = None;
+    let mut dispute_id: Option<String> = None;
+
     let mut file_name: Option<String> = None;
     let mut file_content: Option<Vec<Bytes>> = None;
-    let mut file_size: f64 = 0.0;
-    let mut file_type: Option<mime::Mime> = None;
-    let mut dispute_id: Option<String> = None;
+    let mut option_file_type: Option<mime::Mime> = None;
+
     while let Ok(Some(mut field)) = payload.try_next().await {
         let content_disposition = field.content_disposition();
-        let field_name = content_disposition.get_name().unwrap();
-        file_size = match field.headers().get("Content-Length") {
-            Some(size) => size.to_str().unwrap_or("").parse::<f64>().unwrap_or(0.0),
-            None => 0.0,
-        };
+        let field_name = content_disposition.get_name();
         // Parse the different parameters expected in the multipart request
         match field_name {
-            "purpose" => {
-                purpose = read_string(&mut field).await;
+            Some("purpose") => {
+                option_purpose = transformers::get_file_purpose(&mut field).await;
             }
-            "file" => {
-                file_type = field.content_type().cloned();
+            Some("file") => {
+                option_file_type = field.content_type().cloned();
                 file_name = content_disposition.get_filename().map(String::from);
-                // Need to collect the whole file content here instead of passing the stream of bytes to the 'MultipartRequestWithFile' struct
-                // because 'Field' is not 'Send'
-                file_content = Some(field.map(|chunk| chunk.unwrap()).collect::<Vec<Bytes>>().await);
+
+                //Collect the file content and throw error if something fails
+                let mut file_data = Vec::new();
+                let mut stream = field.into_stream();
+                while let Some(chunk) = stream.next().await {
+                    match chunk {
+                        Ok(bytes) => file_data.push(bytes),
+                        Err(_) => {
+                            return api::log_and_return_error_response(
+                                errors::ApiErrorResponse::InternalServerError.into(),
+                            )
+                        }
+                    }
+                }
+                file_content = Some(file_data)
             }
-            "dispute_id" => {
-                dispute_id = read_string(&mut field).await;
-                // let bytes_a = field.try_next().await;
-                // dispute_params = if let Ok(Some(bytes)) = bytes_a {
-                //     Some(serde_json::from_slice(&bytes).unwrap()
-                //         // .into_report()
-                //         // .change_context(errors::ApiErrorResponse::InvalidRequestData { message: "Dispute Params parsing failed".to_owned() })?
-                //         )
-                // } else {
-                //     None
-                // };
+            Some("dispute_id") => {
+                dispute_id = transformers::read_string(&mut field).await;
             }
-            // Ignore other parameters
-            _ => ()
+            // Can ignore other params
+            _ => (),
         }
     }
-    let create_file_request =  files::CreateFileRequest {
-        file: file_content,
+    let purpose = match option_purpose {
+        Some(valid_purpose) => valid_purpose,
+        None => {
+            return api::log_and_return_error_response(
+                errors::ApiErrorResponse::MissingFilePurpose.into(),
+            )
+        }
+    };
+    let file = match file_content {
+        Some(valid_file_content) => valid_file_content.concat().to_vec(),
+        None => {
+            return api::log_and_return_error_response(errors::ApiErrorResponse::MissingFile.into())
+        }
+    };
+    let file_size = file.len() as i32;
+    // Check if empty file and throw error
+    if file_size <= 0 {
+        return api::log_and_return_error_response(errors::ApiErrorResponse::MissingFile.into());
+    }
+    let file_type = match option_file_type {
+        Some(valid_file_type) => valid_file_type,
+        None => {
+            return api::log_and_return_error_response(
+                errors::ApiErrorResponse::MissingFileContentType.into(),
+            )
+        }
+    };
+    let create_file_request = files::CreateFileRequest {
+        file,
         file_name,
         file_size,
         file_type,
-        purpose: files::FilePurpose::DisputeEvidence,
+        purpose,
         dispute_id,
     };
     api::server_wrap(
@@ -98,7 +115,83 @@ pub async fn files_create(
         &req,
         create_file_request,
         files_create_core,
-        &auth::ApiKeyAuth,
+        auth::auth_type(&auth::ApiKeyAuth, &auth::JWTAuth, req.headers()),
+    )
+    .await
+}
+
+/// Files - Delete
+///
+/// To delete a file
+#[utoipa::path(
+    delete,
+    path = "/files/{file_id}",
+    params(
+        ("file_id" = String, Path, description = "The identifier for file")
+    ),
+    responses(
+        (status = 200, description = "File deleted"),
+        (status = 404, description = "File not found")
+    ),
+    tag = "Files",
+    operation_id = "Delete a File",
+    security(("api_key" = []))
+)]
+#[instrument(skip_all, fields(flow = ?Flow::DeleteFile))]
+pub async fn files_delete(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    path: web::Path<String>,
+) -> HttpResponse {
+    let flow = Flow::DeleteFile;
+    let file_id = files::FileId {
+        file_id: path.into_inner(),
+    };
+    api::server_wrap(
+        flow,
+        state.get_ref(),
+        &req,
+        file_id,
+        files_delete_core,
+        auth::auth_type(&auth::ApiKeyAuth, &auth::JWTAuth, req.headers()),
+    )
+    .await
+}
+
+/// Files - Create
+///
+/// To create a file
+#[utoipa::path(
+    post,
+    path = "/files/{file_id}",
+    params(
+        ("file_id" = String, Path, description = "The identifier for file")
+    ),
+    responses(
+        (status = 200, description = "File body"),
+        (status = 400, description = "Bad Request")
+    ),
+    tag = "Files",
+    operation_id = "Retrieve a File",
+    security(("api_key" = []))
+)]
+#[instrument(skip_all, fields(flow = ?Flow::RetrieveFile))]
+pub async fn files_retrieve(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    path: web::Path<String>,
+) -> HttpResponse {
+    let flow = Flow::RetrieveFile;
+    let file_id = files::FileId {
+        file_id: path.into_inner(),
+    };
+    api::server_wrap(
+        flow,
+        state.get_ref(),
+        &req,
+        file_id,
+        files_retrieve_core,
+        auth::auth_type(&auth::ApiKeyAuth, &auth::JWTAuth, req.headers()),
     )
     .await
 }

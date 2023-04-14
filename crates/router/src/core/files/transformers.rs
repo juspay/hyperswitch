@@ -1,15 +1,21 @@
-use crate::{routes::AppState, services::{self, request::ContentType}, headers};
+use actix_multipart::Field;
+use futures::TryStreamExt;
 
+use crate::types::api;
 
-pub fn build_file_upload_request(
-    state: &AppState,
-    file_data: Vec<u8>,
-) -> services::Request {
-    let file_upload_config = &state.conf.file_upload_config;
-    let mut url = format!("{}", file_upload_config.host);
-    let mut request = services::Request::new(services::Method::Put, &url);
-    request.add_header(headers::CONTENT_TYPE, "text/plain");
-    request.set_file_data(file_data);
-    request.add_content_type(ContentType::TextPlain);
-    request
+pub async fn read_string(field: &mut Field) -> Option<String> {
+    let bytes = field.try_next().await;
+    if let Ok(Some(bytes)) = bytes {
+        String::from_utf8(bytes.to_vec()).ok()
+    } else {
+        None
+    }
+}
+
+pub async fn get_file_purpose(field: &mut Field) -> Option<api::FilePurpose> {
+    let purpose = read_string(field).await;
+    match purpose.as_deref() {
+        Some("dispute_evidence") => Some(api::FilePurpose::DisputeEvidence),
+        _ => None,
+    }
 }

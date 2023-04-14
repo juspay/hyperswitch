@@ -330,16 +330,9 @@ async fn send_request(
             }
         }
 
-        Method::Put => {
-            match request.content_type {
-            Some(ContentType::TextPlain) => client
-                .put(url)
-                .body(request.file_data.unwrap()),
-            _ => client
-                .put(url)
-                .body(request.payload.expose_option().unwrap_or_default()), // If payload needs processing the body cannot have default
-            }
-        }
+        Method::Put => client
+            .put(url)
+            .body(request.payload.expose_option().unwrap_or_default()), // If payload needs processing the body cannot have default
         Method::Delete => client.delete(url),
     }
     .add_headers(headers)
@@ -440,6 +433,7 @@ pub enum ApplicationResponse<R> {
     TextPlain(String),
     JsonForRedirection(api::RedirectionResponse),
     Form(RedirectForm),
+    FileData((Vec<u8>, mime::Mime)),
 }
 
 #[derive(Debug, Eq, PartialEq)]
@@ -568,6 +562,9 @@ where
         },
         Ok(ApplicationResponse::StatusOk) => http_response_ok(),
         Ok(ApplicationResponse::TextPlain(text)) => http_response_plaintext(text),
+        Ok(ApplicationResponse::FileData((file_data, content_type))) => {
+            http_response_file_data(file_data, content_type)
+        }
         Ok(ApplicationResponse::JsonForRedirection(response)) => {
             match serde_json::to_string(&response) {
                 Ok(res) => http_redirect_response(res, response),
@@ -615,6 +612,13 @@ pub fn http_response_json<T: body::MessageBody + 'static>(response: T) -> HttpRe
 
 pub fn http_response_plaintext<T: body::MessageBody + 'static>(res: T) -> HttpResponse {
     HttpResponse::Ok().content_type(mime::TEXT_PLAIN).body(res)
+}
+
+pub fn http_response_file_data<T: body::MessageBody + 'static>(
+    res: T,
+    content_type: mime::Mime,
+) -> HttpResponse {
+    HttpResponse::Ok().content_type(content_type).body(res)
 }
 
 pub fn http_response_ok() -> HttpResponse {

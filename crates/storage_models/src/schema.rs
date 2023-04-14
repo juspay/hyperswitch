@@ -160,9 +160,12 @@ diesel::table! {
     files (id) {
         id -> Int4,
         file_id -> Varchar,
-        file_size -> Varchar,
+        merchant_id -> Varchar,
+        file_name -> Nullable<Varchar>,
+        file_size -> Int4,
         file_type -> Varchar,
         provider_file_id -> Varchar,
+        available -> Bool,
         created_at -> Timestamp,
     }
 }
