@@ -698,10 +698,7 @@ pub async fn make_pm_data<'a, F: Clone, R>(
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to fetch the token from redis")?;
 
-        match hyperswitch_token_option {
-            Some(hyperswitch_token) => Some(hyperswitch_token),
-            None => Some(token),
-        }
+        hyperswitch_token_option.or(Some(token))
     } else {
         None
     };
