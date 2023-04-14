@@ -30,7 +30,7 @@ pub async fn get_mandate(
         .store
         .find_mandate_by_merchant_id_mandate_id(&merchant_account.merchant_id, &req.mandate_id)
         .await
-        .map_err(|error| error.to_not_found_response(errors::ApiErrorResponse::MandateNotFound))?;
+        .to_not_found_response(errors::ApiErrorResponse::MandateNotFound)?;
     Ok(services::ApplicationResponse::Json(
         mandates::MandateResponse::from_db_mandate(state, mandate, &merchant_account).await?,
     ))
@@ -51,7 +51,7 @@ pub async fn revoke_mandate(
             },
         )
         .await
-        .map_err(|error| error.to_not_found_response(errors::ApiErrorResponse::MandateNotFound))?;
+        .to_not_found_response(errors::ApiErrorResponse::MandateNotFound)?;
 
     Ok(services::ApplicationResponse::Json(
         mandates::MandateRevokedResponse {
@@ -176,11 +176,7 @@ where
                         .store
                         .insert_mandate(new_mandate_data)
                         .await
-                        .map_err(|err| {
-                            err.to_duplicate_response(
-                                errors::ApiErrorResponse::DuplicateRefundRequest,
-                            )
-                        })?;
+                        .to_duplicate_response(errors::ApiErrorResponse::DuplicateRefundRequest)?;
                     metrics::MANDATE_COUNT.add(
                         &metrics::CONTEXT,
                         1,

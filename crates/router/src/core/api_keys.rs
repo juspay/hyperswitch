@@ -179,7 +179,7 @@ pub async fn update_api_key(
     let api_key = store
         .update_api_key(key_id.to_owned(), api_key.foreign_into())
         .await
-        .map_err(|err| err.to_not_found_response(errors::ApiErrorResponse::ApiKeyNotFound))?;
+        .to_not_found_response(errors::ApiErrorResponse::ApiKeyNotFound)?;
 
     Ok(ApplicationResponse::Json(api_key.foreign_into()))
 }
@@ -192,7 +192,7 @@ pub async fn revoke_api_key(
     let revoked = store
         .revoke_api_key(key_id)
         .await
-        .map_err(|err| err.to_not_found_response(errors::ApiErrorResponse::ApiKeyNotFound))?;
+        .to_not_found_response(errors::ApiErrorResponse::ApiKeyNotFound)?;
 
     metrics::API_KEY_REVOKED.add(&metrics::CONTEXT, 1, &[]);
 
