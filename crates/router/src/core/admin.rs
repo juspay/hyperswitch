@@ -1,9 +1,10 @@
 use api_models::admin::PrimaryBusinessDetails;
 use common_utils::ext_traits::ValueExt;
 use error_stack::{report, FutureExt, IntoReport, ResultExt};
+use masking::Secret; //PeekInterface
 use storage_models::{enums, merchant_account};
 use uuid::Uuid;
-use masking::{Secret}; //PeekInterface
+
 use crate::{
     consts,
     core::{

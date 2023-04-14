@@ -1,7 +1,7 @@
 use api_models::enums as api_enums;
 use common_utils::ext_traits::ValueExt;
 use error_stack::ResultExt;
-use masking::{Secret, PeekInterface};
+use masking::{PeekInterface, Secret};
 use storage_models::enums as storage_enums;
 
 use crate::{
@@ -562,7 +562,7 @@ impl ForeignTryFrom<storage_models::merchant_connector_account::MerchantConnecto
             business_country: item.business_country,
             business_label: item.business_label,
             business_sub_label: item.business_sub_label,
-            frm_configs
+            frm_configs,
         })
     }
 }
