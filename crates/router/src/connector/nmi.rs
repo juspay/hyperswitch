@@ -34,6 +34,7 @@ impl api::PaymentVoid for Nmi {}
 impl api::Refund for Nmi {}
 impl api::RefundExecute for Nmi {}
 impl api::RefundSync for Nmi {}
+impl api::PaymentToken for Nmi {}
 
 impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Nmi
 where
@@ -75,6 +76,15 @@ impl ConnectorCommon for Nmi {
             ..Default::default()
         })
     }
+}
+
+impl
+    ConnectorIntegration<
+        api::PaymentMethodToken,
+        types::PaymentMethodTokenizationData,
+        types::PaymentsResponseData,
+    > for Nmi
+{
 }
 
 impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::PaymentsResponseData>
