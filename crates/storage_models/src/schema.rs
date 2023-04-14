@@ -132,6 +132,7 @@ diesel::table! {
         updated_at -> Nullable<Varchar>,
         created_at -> Timestamp,
         modified_at -> Timestamp,
+        connector -> Varchar,
     }
 }
 

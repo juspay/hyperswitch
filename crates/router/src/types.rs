@@ -199,6 +199,7 @@ pub struct CompleteAuthorizeData {
     pub mandate_id: Option<api_models::payments::MandateIds>,
     pub off_session: Option<bool>,
     pub setup_mandate_details: Option<payments::MandateData>,
+    pub payload: Option<serde_json::Value>,
     pub browser_info: Option<BrowserInformation>,
     pub connector_transaction_id: Option<String>,
     pub connector_meta: Option<serde_json::Value>,

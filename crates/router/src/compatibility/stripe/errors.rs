@@ -180,6 +180,8 @@ pub enum StripeErrorCode {
 
     #[error(error_type = StripeErrorType::HyperswitchError, code = "", message = "The connector provided in the request is incorrect or not available")]
     IncorrectConnectorNameGiven,
+    #[error(error_type = StripeErrorType::HyperswitchError, code = "", message = "No such {object}: '{id}'")]
+    ResourceMissing { object: String, id: String },
     // [#216]: https://github.com/juspay/hyperswitch/issues/216
     // Implement the remaining stripe error codes
 
@@ -460,6 +462,10 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
             errors::ApiErrorResponse::DuplicatePayment { payment_id } => {
                 Self::DuplicatePayment { payment_id }
             }
+            errors::ApiErrorResponse::DisputeNotFound { dispute_id } => Self::ResourceMissing {
+                object: "dispute".to_owned(),
+                id: dispute_id,
+            },
             errors::ApiErrorResponse::NotSupported { .. } => Self::InternalServerError,
         }
     }
@@ -507,7 +513,8 @@ impl actix_web::ResponseError for StripeErrorCode {
             | Self::PaymentIntentMandateInvalid { .. }
             | Self::PaymentIntentUnexpectedState { .. }
             | Self::DuplicatePayment { .. }
-            | Self::IncorrectConnectorNameGiven => StatusCode::BAD_REQUEST,
+            | Self::IncorrectConnectorNameGiven
+            | Self::ResourceMissing { .. } => StatusCode::BAD_REQUEST,
             Self::RefundFailed
             | Self::InternalServerError
             | Self::MandateActive

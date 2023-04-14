@@ -391,3 +391,16 @@ pub fn strip_jwt_token(token: &str) -> RouterResult<&str> {
         .strip_prefix("Bearer ")
         .ok_or_else(|| errors::ApiErrorResponse::InvalidJwtToken.into())
 }
+
+pub fn auth_type<'a, T, A>(
+    default_auth: &'a dyn AuthenticateAndFetch<T, A>,
+    jwt_auth_type: &'a dyn AuthenticateAndFetch<T, A>,
+    headers: &HeaderMap,
+) -> &'a dyn AuthenticateAndFetch<T, A>
+where
+{
+    if is_jwt_auth(headers) {
+        return jwt_auth_type;
+    }
+    default_auth
+}
