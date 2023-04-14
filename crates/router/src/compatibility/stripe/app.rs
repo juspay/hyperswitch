@@ -1,7 +1,7 @@
 use actix_web::{web, Scope};
 
 use super::{customers::*, payment_intents::*, refunds::*, setup_intents::*, webhooks::*};
-use crate::routes::{self, webhooks};
+use crate::routes::{self, webhooks, mandates};
 
 pub struct PaymentIntents;
 
@@ -72,5 +72,17 @@ impl Webhooks {
                         web::get().to(webhooks::receive_incoming_webhook::<StripeOutgoingWebhook>),
                     ),
             )
+    }
+}
+
+pub struct Mandates;
+
+impl Mandates {
+    pub fn server(config: routes::AppState) -> Scope {
+        web::scope("/payment_methods")
+            .app_data(web::Data::new(config))
+            .service(web::resource("/{id}/detach")
+                    .route(web::post().to(mandates::revoke_mandate))
+                    )
     }
 }

@@ -20,6 +20,7 @@ impl StripeApis {
             .service(app::PaymentIntents::server(state.clone()))
             .service(app::Refunds::server(state.clone()))
             .service(app::Customers::server(state.clone()))
-            .service(app::Webhooks::server(state))
+            .service(app::Webhooks::server(state.clone()))
+            .service(app::Mandates::server(state))
     }
 }
