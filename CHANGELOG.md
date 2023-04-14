@@ -1,4 +1,4 @@
-# 0.5.6 2023-04-13
+# 0.5.6 2023-04-14
 
 ## Build System / Dependencies
 
@@ -22,11 +22,17 @@
 *  connector tokenization flow (#750) (29da1dfa)
 * **process_tracker:**  changing runner selection to dyn dispatch (#853) (18b84c42)
 
+## Bug Fixes
+
+* **merchant_account:**  change `primary_business_details` to vec in update (#877) (396d24fe)
+*  redis deserialization issue in tokenization call (#878) (5e9d7d6b)
+
 ## Refactors
 
 * **Tokenization:**  remove ConnectorCallType from tokenization call (#862) (0d047e08)
 * **router_env:**  improve logging setup (#847) (1b94d25f)
-* **refund_type:** Feat/add copy derive (#849) (ccf03273)
+* **refund_type:** Feat/add copy dervie (#849) (ccf03273)
+
 
 # 0.5.5 (2023-04-10)
 
