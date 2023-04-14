@@ -26,6 +26,7 @@
 
 * **merchant_account:**  change `primary_business_details` to vec in update (#877) (396d24fe)
 *  redis deserialization issue in tokenization call (#878) (5e9d7d6b)
+*  duplication check fix in basilisk-hs (#881) (b12762e7)
 
 ## Refactors
 
