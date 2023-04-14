@@ -86,6 +86,7 @@ pub struct PaymentIntentRequest {
     #[serde(flatten)]
     pub payment_data: Option<StripePaymentMethodData>,
     pub capture_method: StripeCaptureMethod,
+    pub payment_method_options: Option<StripePaymentMethodOptions>, // For mandate txns using network_txns_id, needs to be validated
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
@@ -101,6 +102,7 @@ pub struct SetupIntentRequest {
     pub off_session: Option<bool>,
     #[serde(flatten)]
     pub payment_data: StripePaymentMethodData,
+    pub payment_method_options: Option<StripePaymentMethodOptions>, // For mandate txns using network_txns_id, needs to be validated
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
@@ -642,6 +644,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
             capture_method: StripeCaptureMethod::from(item.request.capture_method),
             payment_data,
             mandate,
+            payment_method_options: None,
         })
     }
 }
@@ -669,6 +672,7 @@ impl TryFrom<&types::VerifyRouterData> for SetupIntentRequest {
             payment_data,
             off_session: item.request.off_session,
             usage: item.request.setup_future_usage,
+            payment_method_options: None,
         })
     }
 }
@@ -733,6 +737,7 @@ pub struct PaymentIntentResponse {
     pub next_action: Option<StripeNextActionResponse>,
     pub payment_method_options: Option<StripePaymentMethodOptions>,
     pub last_payment_error: Option<ErrorDetails>,
+    pub latest_attempt: Option<LatestAttempt>, //need a merchant to test this
 }
 
 #[derive(Debug, Default, Eq, PartialEq, Deserialize)]
@@ -783,6 +788,7 @@ pub struct SetupIntentResponse {
     pub metadata: StripeMetadata,
     pub next_action: Option<StripeNextActionResponse>,
     pub payment_method_options: Option<StripePaymentMethodOptions>,
+    pub latest_attempt: Option<LatestAttempt>,
 }
 
 impl<F, T>
@@ -809,6 +815,19 @@ impl<F, T>
                     } => mandate_options.map(|mandate_options| mandate_options.reference),
                     _ => None,
                 });
+        //Note: we might have to call retrieve_setup_intent to get the network_transaction_id in case its not sent in PaymentIntentResponse
+        // Or we identify the mandate txns before hand and always call SetupIntent in case of mandate payment call
+        let network_txn_id = item.response.latest_attempt.and_then(|latest_attempt| {
+            latest_attempt
+                .payment_method_options
+                .and_then(|payment_method_options| match payment_method_options {
+                    StripePaymentMethodOptions::Card {
+                        network_transaction_id,
+                        ..
+                    } => network_transaction_id,
+                    _ => None,
+                })
+        });
 
         Ok(Self {
             status: enums::AttemptStatus::from(item.response.status),
@@ -821,7 +840,7 @@ impl<F, T>
                 redirection_data,
                 mandate_reference,
                 connector_metadata: None,
-                network_txn_id: None,
+                network_txn_id,
             }),
             amount_captured: Some(item.response.amount_received),
             ..item.data
@@ -921,6 +940,18 @@ impl<F, T>
                     _ => None,
                 });
 
+        let network_txn_id = item.response.latest_attempt.and_then(|latest_attempt| {
+            latest_attempt
+                .payment_method_options
+                .and_then(|payment_method_options| match payment_method_options {
+                    StripePaymentMethodOptions::Card {
+                        network_transaction_id,
+                        ..
+                    } => network_transaction_id,
+                    _ => None,
+                })
+        });
+
         Ok(Self {
             status: enums::AttemptStatus::from(item.response.status),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
@@ -928,7 +959,7 @@ impl<F, T>
                 redirection_data,
                 mandate_reference,
                 connector_metadata: None,
-                network_txn_id: None,
+                network_txn_id,
             }),
             ..item.data
         })
@@ -1153,12 +1184,14 @@ pub enum CancellationReason {
     Abandoned,
 }
 
-#[derive(Deserialize, Debug, Clone, Eq, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
 #[non_exhaustive]
 #[serde(rename_all = "snake_case")]
 pub enum StripePaymentMethodOptions {
     Card {
         mandate_options: Option<StripeMandateOptions>,
+        network_transaction_id: Option<String>,
+        mit_exemption: Option<MITExemption>, // To be used for MIT mandate txns
     },
     Klarna {},
     Affirm {},
@@ -1168,9 +1201,19 @@ pub enum StripePaymentMethodOptions {
     Ideal {},
     Sofort {},
 }
+
+#[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
+pub struct MITExemption {
+    pub network_transaction_id: String,
+}
+
+#[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize)]
+pub struct LatestAttempt {
+    pub payment_method_options: Option<StripePaymentMethodOptions>,
+}
 // #[derive(Deserialize, Debug, Clone, Eq, PartialEq)]
 // pub struct Card
-#[derive(serde::Deserialize, Clone, Debug, Default, Eq, PartialEq)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug, Default, Eq, PartialEq)]
 pub struct StripeMandateOptions {
     reference: String, // Extendable, But only important field to be captured
 }
