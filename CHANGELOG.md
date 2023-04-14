@@ -31,7 +31,7 @@
 
 * **Tokenization:**  remove ConnectorCallType from tokenization call (#862) (0d047e08)
 * **router_env:**  improve logging setup (#847) (1b94d25f)
-* **refund_type:** Feat/add copy dervie (#849) (ccf03273)
+* **refund_type:** Feat/add copy derive (#849) (ccf03273)
 
 
 # 0.5.5 (2023-04-10)
