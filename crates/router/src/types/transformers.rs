@@ -2,6 +2,7 @@ use api_models::enums as api_enums;
 use common_utils::ext_traits::ValueExt;
 use error_stack::ResultExt;
 use storage_models::enums as storage_enums;
+use masking::{PeekInterface};
 
 use crate::{
     core::errors,
@@ -347,6 +348,8 @@ impl ForeignTryFrom<storage::MerchantConnectorAccount> for api_models::admin::Me
         let frm_configs = match merchant_ca.frm_configs {
             Some(frm_value) => {
                 let configs_for_frm : api_models::admin::FrmConfigs = frm_value
+                    .peek()
+                    .clone()
                     .parse_value("FrmConfigs")
                     .change_context(errors::ApiErrorResponse::InvalidDataFormat {
                         field_name: "frm_configs".to_string(),

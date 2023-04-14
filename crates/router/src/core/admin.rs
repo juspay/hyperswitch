@@ -2,6 +2,7 @@ use common_utils::ext_traits::ValueExt;
 use error_stack::{report, FutureExt, IntoReport, ResultExt};
 use storage_models::{enums, merchant_account};
 use uuid::Uuid;
+// use masking::{PeekInterface, Secret};
 
 use crate::{
     consts,
@@ -314,7 +315,7 @@ pub async fn create_payment_connector(
             let configs_for_frm_value: serde_json::Value =
                 utils::Encode::<api_models::admin::FrmConfigs>::encode_to_value(&frm_value)
                     .change_context(errors::ApiErrorResponse::ConfigNotFound)?;
-            Some(configs_for_frm_value)
+            Some(Secret::new(configs_for_frm_value))
         }
         None => None,
     };
@@ -433,7 +434,7 @@ pub async fn update_payment_connector(
             let configs_for_frm_value: serde_json::Value =
                 utils::Encode::<api_models::admin::FrmConfigs>::encode_to_value(&frm_value)
                     .change_context(errors::ApiErrorResponse::ConfigNotFound)?;
-            Some(configs_for_frm_value)
+            Some(Secret::new(configs_for_frm_value))
         }
         None => None,
     };
