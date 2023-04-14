@@ -1,8 +1,8 @@
 use api_models::enums as api_enums;
 use common_utils::ext_traits::ValueExt;
 use error_stack::ResultExt;
+use masking::PeekInterface;
 use storage_models::enums as storage_enums;
-use masking::{PeekInterface};
 
 use crate::{
     core::errors,
