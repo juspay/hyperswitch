@@ -546,7 +546,7 @@ pub enum CountryAlpha3 {
     ZWE,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Deserialize, Serialize)]
 pub enum Country {
     Afghanistan,
     AlandIslands,
