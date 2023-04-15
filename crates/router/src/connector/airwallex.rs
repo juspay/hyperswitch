@@ -962,9 +962,18 @@ impl api::IncomingWebhook for Airwallex {
             .parse_struct("airwallexWebhookData")
             .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
 
-        Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
-            api_models::payments::PaymentIdType::ConnectorTransactionId(details.source_id),
-        ))
+        Ok(match details.name.as_str() { 
+            "payment_attempt.failed_to_process" | "payment_attempt.authorized" => api_models::webhooks::ObjectReferenceId::PaymentId(                            // "payment_intent.created" or ??
+            api_models::payments::PaymentIdType::ConnectorTransactionId(details.source_id)),
+
+            "dispute.dispute_received_by_merchant" => api_models::webhooks::ObjectReferenceId::PaymentId(
+                api_models::payments::PaymentIdType::ConnectorTransactionId(details.source_id)),
+
+            "refund.succeeded" | "refund.failed" => api_models::webhooks::ObjectReferenceId::RefundId(  // for refund
+                api_models::webhooks::RefundIdType::ConnectorRefundId(details.source_id)), // is it we
+
+        }
+        )
     }
 
     fn get_webhook_event_type(
@@ -979,6 +988,17 @@ impl api::IncomingWebhook for Airwallex {
         Ok(match details.name.as_str() {
             "payment_attempt.failed_to_process" => api::IncomingWebhookEvent::PaymentIntentFailure,
             "payment_attempt.authorized" => api::IncomingWebhookEvent::PaymentIntentSuccess,
+            "refund.succeeded" => api::IncomingWebhookEvent::RefundSuccess,
+            "refund.failed" => api::IncomingWebhookEvent::RefundFailure,
+            "dispute.dispute_received_by_merchant" => match details.data.object.status {                    // here it can be dispute.won and dispute.lost also
+                airwallex::DisputeStatus::NeedResponse => _,
+                airwallex::DisputeStatus::EvidenceRequired => _,
+                airwallex::DisputeStatus::UnderReview => api::IncomingWebhookEvent::DisputeChallenged,
+                airwallex::DisputeStatus::REVERSED => _,
+                airwallex::DisputeStatus::ACCEPTED => _,                                                    //DisputeOpened
+                airwallex::DisputeStatus::WON => api::IncomingWebhookEvent::DisputeWon,
+                airwallex::DisputeStatus::LOST => api::IncomingWebhookEvent::DisputeLost,
+            }
             _ => Err(errors::ConnectorError::WebhookEventTypeNotFound).into_report()?,
         })
     }
@@ -993,6 +1013,28 @@ impl api::IncomingWebhook for Airwallex {
             .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
 
         Ok(details.data.object)
+    }
+
+    fn get_dispute_details(
+        &self,
+        request: &api::IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<api::disputes::DisputePayload, errors::ConnectorError> {
+        let details: airwallex::AirwallexWebhookData = request
+            .body
+            .parse_struct("airwallexWebhookData")
+            .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
+        Ok(api::disputes::DisputePayload {
+            amount: details.data.object.dispute_amount.to_string(),
+            currency: details.data.object.dispute_currency,
+            dispute_stage: api_models::enums::DisputeStage::Dispute, //Possible values RFI, DISPUTE, ARBITRATION so should i include this in DisputeStage as enums
+            connector_dispute_id: details.data.object.dispute_id,
+            connector_reason: Some(details.data.object.dispute_reason_type),
+            connector_reason_code: Some(details.data.object.dispute_original_reason_code),
+            challenge_required_by: None,
+            connector_status: details.data.object.status.to_string(),
+            created_at: Some(details.data.object.created_at),
+            updated_at: Some(details.data.object.updated_at),
+        })
     }
 }
 

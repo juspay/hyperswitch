@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use strum::Display;
 use time::PrimitiveDateTime;
 use url::Url;
 use uuid::Uuid;
@@ -482,6 +483,37 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
 pub struct AirwallexWebhookData {
     pub source_id: String,
     pub name: String,
+    pub data: ObjectData,
+}
+
+#[derive(Debug, Deserialize, strum::Display)]                       //is it needed
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum DisputeStatus {
+    NeedResponse,
+    EvidenceRequired,
+    UnderReview,
+    REVERSED,
+    ACCEPTED,
+    WON,
+    LOST,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct ObjectData {
+    pub object: ObjectContents,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct ObjectContents {
+    pub dispute_amount: i64,
+    pub dispute_currency: String,
+    pub stage: String,
+    pub dispute_id: String,
+    pub dispute_reason_type: String,
+    pub dispute_original_reason_code: String,
+    pub status: DisputeStatus,
+    pub created_at: String,
+    pub updated_at: String,
 }
 
 #[derive(Debug, Deserialize)]
