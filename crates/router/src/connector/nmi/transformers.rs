@@ -1,7 +1,7 @@
 use common_utils::pii;
 use error_stack::{IntoReport, ResultExt};
 use masking::Secret;
-use regex::Regex;
+use quick_xml::{events::Event, name::QName, Reader};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -696,40 +696,52 @@ impl From<NmiStatus> for enums::RefundStatus {
     }
 }
 
-// This function is a temporary fix for future that will looked upon.
 pub fn get_query_info(
     query_response: String,
 ) -> Result<(String, NmiStatus), errors::ConnectorError> {
-    let transaction_id_regex = Regex::new("<transaction_id>(.*)</transaction_id>")
-        .map_err(|_| errors::ConnectorError::ResponseHandlingFailed)?;
-    let mut transaction_id = None;
-    for tid in transaction_id_regex.captures_iter(&query_response) {
-        transaction_id = Some(tid[1].to_string());
+    let mut reader = Reader::from_str(&query_response);
+    reader.trim_text(true);
+
+    let mut buf: Vec<u8> = Vec::new();
+    let mut transaction_id = String::new();
+    let mut condition = String::new();
+
+    loop {
+        match reader.read_event() {
+            Ok(Event::Start(ref e)) if e.name() == QName(b"transaction_id") => {
+                transaction_id = match reader.read_text(e.name()) {
+                    Ok(text) => text.into_owned().to_string(),
+                    Err(_err) => return Err(errors::ConnectorError::ResponseHandlingFailed),
+                };
+            }
+            Ok(Event::Start(ref e)) if e.name() == QName(b"condition") => {
+                condition = match reader.read_text(e.name()) {
+                    Ok(text) => text.into_owned().to_string(),
+                    Err(_err) => return Err(errors::ConnectorError::ResponseHandlingFailed),
+                };
+            }
+            Ok(Event::Eof) => break,
+            Err(_e) => Err(errors::ConnectorError::ResponseHandlingFailed)?,
+            _ => (),
+        }
+        buf.clear();
     }
-    let condition_regex = Regex::new("<condition>(.*)</condition>")
-        .map_err(|_| errors::ConnectorError::ResponseHandlingFailed)?;
-    let mut nmi_status: Option<NmiStatus> = Some(NmiStatus::InProgress);
-    for cid in condition_regex.captures_iter(&query_response) {
-        nmi_status = match &cid[1] {
-            "abandoned" => Some(NmiStatus::Abandoned),
-            "canceled" => Some(NmiStatus::Cancelled),
-            "pending" => Some(NmiStatus::Pending),
-            "in_progress" => Some(NmiStatus::InProgress),
-            "pendingsettlement" => Some(NmiStatus::Pendingsettlement),
-            "complete" => Some(NmiStatus::Complete),
-            "failed" => Some(NmiStatus::Failed),
-            "unknown" => Some(NmiStatus::Unknown),
-            _ => None,
-        };
-    }
-    let transaction_id = match transaction_id {
-        Some(value) => Ok(value),
-        None => Err(errors::ConnectorError::ResponseHandlingFailed),
-    }?;
+    let nmi_status = match condition.as_str() {
+        "abandoned" => Some(NmiStatus::Abandoned),
+        "canceled" => Some(NmiStatus::Cancelled),
+        "pending" => Some(NmiStatus::Pending),
+        "in_progress" => Some(NmiStatus::InProgress),
+        "pendingsettlement" => Some(NmiStatus::Pendingsettlement),
+        "complete" => Some(NmiStatus::Complete),
+        "failed" => Some(NmiStatus::Failed),
+        "unknown" => Some(NmiStatus::Unknown),
+        _ => None,
+    };
     let nmi_status = match nmi_status {
         Some(value) => Ok(value),
         None => Err(errors::ConnectorError::ResponseHandlingFailed),
     }?;
+
     Ok((transaction_id, nmi_status))
 }
 
