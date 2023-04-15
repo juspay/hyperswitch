@@ -316,7 +316,10 @@ pub async fn add_card_hs(
         req,
         merchant_id,
     );
-    Ok((payment_method_resp, store_card_payload.duplicate))
+    Ok((
+        payment_method_resp,
+        store_card_payload.duplicate.unwrap_or(false),
+    ))
 }
 
 // Legacy Locker Function
@@ -586,7 +589,7 @@ pub async fn mock_add_card_hs(
         .change_context(errors::VaultError::SaveCardFailed)?;
     let payload = payment_methods::StoreCardRespPayload {
         card_reference: response.card_id,
-        duplicate: false,
+        duplicate: Some(false),
     };
     Ok(payment_methods::StoreCardResp {
         status: "SUCCESS".to_string(),
