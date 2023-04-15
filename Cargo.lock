@@ -1053,6 +1053,8 @@ dependencies = [
  "common_utils",
  "error-stack",
  "masking",
+ "serde",
+ "serde_json",
  "time",
 ]
 
