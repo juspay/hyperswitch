@@ -705,7 +705,7 @@ fn get_sofort_extra_details(
             } = b
             {
                 (
-                    Some(preferred_language.to_string()),
+                    Some(preferred_language.clone().unwrap().to_string()),
                     Some(country.to_owned()),
                 )
             } else {
