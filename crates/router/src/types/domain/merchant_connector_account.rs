@@ -12,7 +12,7 @@ use storage_models::{
 
 use super::{
     behaviour,
-    types::{get_key_and_algo, TypeEncryption},
+    types::{get_merchant_enc_key, TypeEncryption},
 };
 use crate::db::StorageInterface;
 
@@ -74,7 +74,7 @@ impl behaviour::Conversion for MerchantConnectorAccount {
         db: &dyn StorageInterface,
         merchant_id: &str,
     ) -> CustomResult<Self, ValidationError> {
-        let key = get_key_and_algo(db, merchant_id).await.change_context(
+        let key = get_merchant_enc_key(db, merchant_id).await.change_context(
             ValidationError::InvalidValue {
                 message: "Error while getting key from keystore".to_string(),
             },

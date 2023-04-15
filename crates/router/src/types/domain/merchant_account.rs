@@ -12,7 +12,7 @@ use storage_models::{
 use crate::{
     db::StorageInterface,
     errors::{CustomResult, ValidationError},
-    types::domain::types::{get_key_and_algo, TypeEncryption},
+    types::domain::types::{get_merchant_enc_key, TypeEncryption},
 };
 
 #[derive(Clone, Debug, serde::Serialize)]
@@ -135,7 +135,7 @@ impl super::behaviour::Conversion for MerchantAccount {
     where
         Self: Sized,
     {
-        let key = get_key_and_algo(db, merchant_id.to_owned())
+        let key = get_merchant_enc_key(db, merchant_id.to_owned())
             .await
             .change_context(ValidationError::InvalidValue {
                 message: "Failed while getting key from key store".to_string(),
