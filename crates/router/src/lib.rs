@@ -142,7 +142,7 @@ pub async fn start_server(conf: settings::Settings) -> ApplicationResult<(Server
     logger::debug!(startup_config=?conf);
     let server = conf.server.clone();
     let (tx, rx) = oneshot::channel();
-    let state = routes::AppState::new(conf, tx).await;
+    let state = routes::AppState::new(conf, Some(tx)).await;
     // Cloning to close connections before shutdown
     let app_state = state.clone();
     let request_body_limit = server.request_body_limit;
@@ -151,17 +151,16 @@ pub async fn start_server(conf: settings::Settings) -> ApplicationResult<(Server
         .workers(server.workers)
         .shutdown_timeout(server.shutdown_timeout)
         .run();
-    tokio::spawn(receiver_for_error(rx, server.handle().clone()));
+    tokio::spawn(receiver_for_error(rx, server.handle()));
     Ok((server, app_state))
 }
 
 pub async fn receiver_for_error(rx: oneshot::Receiver<()>, server: impl Stop) {
     match rx.await {
         Ok(_) | Err(_) => {
-            println!("the redis server failed ");
+            logger::error!("The redis server failed ");
             let mut server = server;
-            ////handle the await part
-            let _ = server.stop_server().await;
+            server.stop_server().await;
         }
     }
 }
@@ -174,7 +173,7 @@ pub trait Stop {
 #[async_trait::async_trait]
 impl Stop for ServerHandle {
     async fn stop_server(&mut self) {
-        let _ = self.stop(true);
+        let _ = self.stop(true).await;
     }
 }
 #[async_trait::async_trait]

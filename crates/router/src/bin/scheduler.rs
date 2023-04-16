@@ -20,7 +20,7 @@ async fn main() -> CustomResult<(), errors::ProcessTrackerError> {
     let conf = Settings::with_config_path(cmd_line.config_path)
         .expect("Unable to construct application configuration");
     let (oneshot_tx, oneshot_rx) = oneshot::channel();
-    let mut state = routes::AppState::new(conf, oneshot_tx).await;
+    let mut state = routes::AppState::new(conf, Some(oneshot_tx)).await;
     let (tx, rx) = mpsc::channel(1);
     tokio::spawn(router::receiver_for_error(oneshot_rx, tx.clone()));
     let _guard =

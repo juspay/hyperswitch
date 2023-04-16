@@ -48,7 +48,7 @@ pub async fn mk_service(
         conf.connectors.stripe.base_url = url;
     }
 
-    let app_state = AppState::with_storage(conf, router::db::StorageImpl::Mock).await;
+    let app_state = AppState::with_storage(conf, router::db::StorageImpl::Mock, None).await;
     actix_web::test::init_service(router::mk_app(app_state, request_body_limit)).await
 }
 

@@ -49,9 +49,12 @@ pub trait ConnectorActions: Connector {
             },
             payment_info,
         );
-        let state =
-            routes::AppState::with_storage(Settings::new().unwrap(), StorageImpl::PostgresqlTest)
-                .await;
+        let state = routes::AppState::with_storage(
+            Settings::new().unwrap(),
+            StorageImpl::PostgresqlTest,
+            None,
+        )
+        .await;
         integration.execute_pretasks(&mut request, &state).await?;
         call_connector(request, integration).await
     }
@@ -70,9 +73,12 @@ pub trait ConnectorActions: Connector {
             },
             payment_info,
         );
-        let state =
-            routes::AppState::with_storage(Settings::new().unwrap(), StorageImpl::PostgresqlTest)
-                .await;
+        let state = routes::AppState::with_storage(
+            Settings::new().unwrap(),
+            StorageImpl::PostgresqlTest,
+            None,
+        )
+        .await;
         integration.execute_pretasks(&mut request, &state).await?;
         call_connector(request, integration).await
     }
@@ -414,7 +420,7 @@ async fn call_connector<
     integration: services::BoxedConnectorIntegration<'_, T, Req, Resp>,
 ) -> Result<RouterData<T, Req, Resp>, Report<ConnectorError>> {
     let conf = Settings::new().unwrap();
-    let state = routes::AppState::with_storage(conf, StorageImpl::PostgresqlTest).await;
+    let state = routes::AppState::with_storage(conf, StorageImpl::PostgresqlTest, None).await;
     services::api::execute_connector_processing_step(
         &state,
         integration,

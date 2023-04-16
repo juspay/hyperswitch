@@ -144,7 +144,7 @@ impl RedisConnectionPool {
             logger::error!(?redis_error, "Redis protocol or connection error");
             if self.pool.state() == fred::types::ClientState::Disconnected {
                 if let Some(tx) = option_tx {
-                    if tx.send(()).is_err(){
+                    if tx.send(()).is_err() {
                         logger::error!("The redis shutdown signal sender failed to signal");
                     }
                 }

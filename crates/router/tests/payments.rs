@@ -274,7 +274,7 @@ async fn payments_create_core() {
     use configs::settings::Settings;
     let conf = Settings::new().expect("invalid settings");
 
-    let state = routes::AppState::with_storage(conf, StorageImpl::PostgresqlTest).await;
+    let state = routes::AppState::with_storage(conf, StorageImpl::PostgresqlTest, None).await;
 
     let merchant_account = state
         .store
@@ -421,7 +421,7 @@ async fn payments_create_core_adyen_no_redirect() {
     use crate::configs::settings::Settings;
     let conf = Settings::new().expect("invalid settings");
 
-    let state = routes::AppState::with_storage(conf, StorageImpl::PostgresqlTest).await;
+    let state = routes::AppState::with_storage(conf, StorageImpl::PostgresqlTest, None).await;
 
     let customer_id = format!("cust_{}", Uuid::new_v4());
     let merchant_id = "arunraj".to_string();

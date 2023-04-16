@@ -117,7 +117,7 @@ fn construct_refund_router_data<F>() -> types::RefundsRouterData<F> {
 
 async fn payments_create_success() {
     let conf = Settings::new().unwrap();
-    let state = routes::AppState::with_storage(conf, StorageImpl::PostgresqlTest).await;
+    let state = routes::AppState::with_storage(conf, StorageImpl::PostgresqlTest, None).await;
 
     static CV: aci::Aci = aci::Aci;
     let connector = types::api::ConnectorData {
@@ -152,7 +152,7 @@ async fn payments_create_failure() {
     {
         let conf = Settings::new().unwrap();
         static CV: aci::Aci = aci::Aci;
-        let state = routes::AppState::with_storage(conf, StorageImpl::PostgresqlTest).await;
+        let state = routes::AppState::with_storage(conf, StorageImpl::PostgresqlTest, None).await;
         let connector = types::api::ConnectorData {
             connector: Box::new(&CV),
             connector_name: types::Connector::Aci,
@@ -199,7 +199,7 @@ async fn refund_for_successful_payments() {
         connector_name: types::Connector::Aci,
         get_token: types::api::GetToken::Connector,
     };
-    let state = routes::AppState::with_storage(conf, StorageImpl::PostgresqlTest).await;
+    let state = routes::AppState::with_storage(conf, StorageImpl::PostgresqlTest, None).await;
     let connector_integration: services::BoxedConnectorIntegration<
         '_,
         types::api::Authorize,
@@ -257,7 +257,7 @@ async fn refunds_create_failure() {
         connector_name: types::Connector::Aci,
         get_token: types::api::GetToken::Connector,
     };
-    let state = routes::AppState::with_storage(conf, StorageImpl::PostgresqlTest).await;
+    let state = routes::AppState::with_storage(conf, StorageImpl::PostgresqlTest, None).await;
     let connector_integration: services::BoxedConnectorIntegration<
         '_,
         types::api::Execute,
