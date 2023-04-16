@@ -7,13 +7,11 @@ use diesel::{
     backend::Backend,
     deserialize,
     deserialize::FromSql,
-    pg::Pg,
     prelude::*,
-    query_builder::{AstPass, QueryFragment},
     serialize::{Output, ToSql},
-    sql_types,
+    sql_types, AsExpression,
 };
-use masking::{ExposeInterface, Secret, Strategy, WithType};
+use masking::{Secret, Strategy, WithType};
 
 use crate::{errors::ValidationError, validation::validate_email};
 
@@ -99,23 +97,19 @@ where
 }
 
 /// Email address
-#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, PartialEq, Eq, Default, Queryable)]
+#[derive(
+    serde::Serialize,
+    serde::Deserialize,
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    Default,
+    Queryable,
+    AsExpression,
+)]
+#[diesel(sql_type = diesel::sql_types::Text)]
 pub struct Email(Secret<String>);
-
-impl Expression for Email {
-    type SqlType = sql_types::Nullable<sql_types::Text>;
-}
-
-impl<T> AppearsOnTable<T> for Email {}
-
-impl QueryFragment<Pg> for Email {
-    fn walk_ast(&self, mut out: AstPass<'_, '_, Pg>) -> QueryResult<()> {
-        let binding = self.0.clone().expose();
-        let email = binding.as_str();
-        out.push_identifier(email)?;
-        Ok(())
-    }
-}
 
 impl<DB> FromSql<sql_types::Text, DB> for Email
 where
