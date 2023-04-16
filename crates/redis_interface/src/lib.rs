@@ -138,10 +138,16 @@ impl RedisConnectionPool {
             };
         }
     }
-    pub async fn on_error(&self) {
-        while let Ok(redis_error) = self.pool.on_error().recv().await {
+
+    pub async fn on_error(&self, option_tx: Option<tokio::sync::oneshot::Sender<()>>) {
+        if let Ok(redis_error) = self.pool.on_error().recv().await {
             logger::error!(?redis_error, "Redis protocol or connection error");
             if self.pool.state() == fred::types::ClientState::Disconnected {
+                if let Some(tx) = option_tx {
+                    if tx.send(()).is_err(){
+                        logger::error!("The redis shutdown sig sender failed to signal");
+                    }
+                }
                 self.is_redis_available
                     .store(false, atomic::Ordering::SeqCst);
             }

@@ -1,9 +1,9 @@
 use std::sync::Arc;
 
-use common_utils::signals::oneshot;
 use error_stack::{report, IntoReport, ResultExt};
 use router_env::{instrument, tracing};
 use time::Duration;
+use tokio::sync::mpsc;
 
 use super::metrics;
 use crate::{
@@ -20,9 +20,9 @@ use crate::{
 pub async fn start_producer(
     state: &AppState,
     scheduler_settings: Arc<SchedulerSettings>,
+    (tx, mut rx): (mpsc::Sender<()>, mpsc::Receiver<()>),
 ) -> CustomResult<(), errors::ProcessTrackerError> {
     use rand::Rng;
-
     let timeout = rand::thread_rng().gen_range(0..=scheduler_settings.loop_interval);
     tokio::time::sleep(std::time::Duration::from_millis(timeout)).await;
 
@@ -41,15 +41,13 @@ pub async fn start_producer(
         })
         .into_report()
         .attach_printable("Failed while creating a signals handler")?;
-    let (sx, mut rx) = oneshot::channel();
     let handle = signal.handle();
-    let task_handle = tokio::spawn(common_utils::signals::signal_handler(signal, sx));
+    let task_handle = tokio::spawn(common_utils::signals::signal_handler(signal, tx));
 
     loop {
         match rx.try_recv() {
-            Err(oneshot::error::TryRecvError::Empty) => {
+            Err(mpsc::error::TryRecvError::Empty) => {
                 interval.tick().await;
-
                 match run_producer_flow(state, &scheduler_settings).await {
                     Ok(_) => (),
                     Err(error) => {
@@ -60,10 +58,10 @@ pub async fn start_producer(
                     }
                 }
             }
-            Ok(()) | Err(oneshot::error::TryRecvError::Closed) => {
+            Ok(()) | Err(mpsc::error::TryRecvError::Disconnected) => {
                 logger::debug!("Awaiting shutdown!");
+                rx.close();
                 shutdown_interval.tick().await;
-
                 logger::info!("Terminating consumer");
                 break;
             }

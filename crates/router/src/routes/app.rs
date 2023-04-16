@@ -1,4 +1,5 @@
 use actix_web::{web, Scope};
+use tokio::sync::oneshot;
 
 use super::health::*;
 #[cfg(feature = "olap")]
@@ -40,11 +41,15 @@ impl AppStateInfo for AppState {
 }
 
 impl AppState {
-    pub async fn with_storage(conf: Settings, storage_impl: StorageImpl) -> Self {
+    pub async fn with_storage(
+        conf: Settings,
+        storage_impl: StorageImpl,
+        shut_down_signal: oneshot::Sender<()>,
+    ) -> Self {
         let testable = storage_impl == StorageImpl::PostgresqlTest;
         let store: Box<dyn StorageInterface> = match storage_impl {
             StorageImpl::Postgresql | StorageImpl::PostgresqlTest => {
-                Box::new(Store::new(&conf, testable).await)
+                Box::new(Store::new(&conf, testable, shut_down_signal).await)
             }
             StorageImpl::Mock => Box::new(MockDb::new(&conf).await),
         };
@@ -56,8 +61,8 @@ impl AppState {
         }
     }
 
-    pub async fn new(conf: Settings) -> Self {
-        Self::with_storage(conf, StorageImpl::Postgresql).await
+    pub async fn new(conf: Settings, shut_down_signal: oneshot::Sender<()>) -> Self {
+        Self::with_storage(conf, StorageImpl::Postgresql, shut_down_signal).await
     }
 }
 

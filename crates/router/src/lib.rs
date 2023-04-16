@@ -25,11 +25,12 @@ pub mod utils;
 
 use actix_web::{
     body::MessageBody,
-    dev::{Server, ServiceFactory, ServiceRequest},
+    dev::{Server, ServerHandle, ServiceFactory, ServiceRequest},
     middleware::ErrorHandlers,
 };
 use http::StatusCode;
 use routes::AppState;
+use tokio::sync::{mpsc, oneshot};
 
 pub use self::env::logger;
 use crate::{
@@ -140,7 +141,8 @@ pub fn mk_app(
 pub async fn start_server(conf: settings::Settings) -> ApplicationResult<(Server, AppState)> {
     logger::debug!(startup_config=?conf);
     let server = conf.server.clone();
-    let state = routes::AppState::new(conf).await;
+    let (tx, rx) = oneshot::channel();
+    let state = routes::AppState::new(conf, tx).await;
     // Cloning to close connections before shutdown
     let app_state = state.clone();
     let request_body_limit = server.request_body_limit;
@@ -149,8 +151,40 @@ pub async fn start_server(conf: settings::Settings) -> ApplicationResult<(Server
         .workers(server.workers)
         .shutdown_timeout(server.shutdown_timeout)
         .run();
-
+    tokio::spawn(receiver_for_error(rx, server.handle().clone()));
     Ok((server, app_state))
+}
+
+pub async fn receiver_for_error(rx: oneshot::Receiver<()>, server: impl Stop) {
+    match rx.await {
+        Ok(_) | Err(_) => {
+            println!("the redis server failed ");
+            let mut server = server;
+            ////handle the await part
+            let _ = server.stop_server().await;
+        }
+    }
+}
+
+#[async_trait::async_trait]
+pub trait Stop {
+    async fn stop_server(&mut self);
+}
+
+#[async_trait::async_trait]
+impl Stop for ServerHandle {
+    async fn stop_server(&mut self) {
+        let _ = self.stop(true);
+    }
+}
+#[async_trait::async_trait]
+impl Stop for mpsc::Sender<()> {
+    async fn stop_server(&mut self) {
+        match self.send(()).await {
+            Ok(_) => {}
+            Err(e) => logger::error!("{e}"),
+        }
+    }
 }
 
 pub fn get_application_builder(

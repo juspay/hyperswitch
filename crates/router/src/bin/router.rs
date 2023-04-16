@@ -42,7 +42,6 @@ async fn main() -> ApplicationResult<()> {
     let (server, mut state) = router::start_server(conf)
         .await
         .expect("Failed to create the server");
-
     let _ = server.await;
 
     state.store.close().await;
