@@ -203,11 +203,51 @@ pub struct StripeBankRedirectData {
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
 #[serde(untagged)]
+pub enum BankDebitData {
+    Ach {
+        #[serde(rename = "payment_method_data[us_bank_account][account_holder_type]")]
+        account_holder_type: String,
+        #[serde(rename = "payment_method_data[us_bank_account][account_number]")]
+        account_number: Secret<String>,
+        #[serde(rename = "payment_method_data[us_bank_account][routing_number]")]
+        routing_number: Secret<String>,
+    },
+    Sepa {
+        #[serde(rename = "payment_method_data[sepa_debit][iban]")]
+        iban: Secret<String>,
+    },
+    Becs {
+        #[serde(rename = "payment_method_data[au_becs_debit][account_number]")]
+        account_number: Secret<String>,
+        #[serde(rename = "payment_method_data[au_becs_debit][bsb_number]")]
+        bsb_number: Secret<String>,
+    },
+    Bacs {
+        #[serde(rename = "payment_method_data[bacs_debit][account_number]")]
+        account_number: Secret<String>,
+        #[serde(rename = "payment_method_data[bacs_debit][sort_code]")]
+        sort_code: Secret<String>,
+    },
+}
+
+#[derive(Debug, Eq, PartialEq, Serialize)]
+pub struct StripeBankDebitData {
+    #[serde(rename = "payment_method_types[]")]
+    pub payment_method_types: StripePaymentMethodType,
+    #[serde(rename = "payment_method_data[type]")]
+    pub payment_method_data_type: StripePaymentMethodType,
+    #[serde(flatten)]
+    pub bank_specific_data: BankDebitData,
+}
+
+#[derive(Debug, Eq, PartialEq, Serialize)]
+#[serde(untagged)]
 pub enum StripePaymentMethodData {
     Card(StripeCardData),
     PayLater(StripePayLaterData),
     Wallet(StripeWallet),
     BankRedirect(StripeBankRedirectData),
+    BankDebit(StripeBankDebitData),
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
@@ -233,7 +273,7 @@ pub struct ApplepayPayment {
     pub payment_method_types: StripePaymentMethodType,
 }
 
-#[derive(Debug, Eq, PartialEq, Serialize, Clone)]
+#[derive(Debug, Eq, PartialEq, Serialize, Clone, Copy)]
 #[serde(rename_all = "snake_case")]
 pub enum StripePaymentMethodType {
     Card,
@@ -245,6 +285,14 @@ pub enum StripePaymentMethodType {
     Ideal,
     Sofort,
     ApplePay,
+    #[serde(rename = "us_bank_account")]
+    Ach,
+    #[serde(rename = "sepa_debit")]
+    Sepa,
+    #[serde(rename = "au_becs_debit")]
+    Becs,
+    #[serde(rename = "bacs_debit")]
+    Bacs,
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize, Clone)]
@@ -475,6 +523,28 @@ impl TryFrom<(&api_models::payments::PayLaterData, StripePaymentMethodType)>
     }
 }
 
+impl From<&payments::BankDebitBilling> for StripeBillingAddress {
+    fn from(item: &payments::BankDebitBilling) -> Self {
+        Self {
+            email: Some(item.email.to_owned()),
+            country: None,
+            name: Some(item.name.to_owned()),
+            city: item
+                .address
+                .as_ref()
+                .and_then(|address| address.city.to_owned()),
+            address_line1: item
+                .address
+                .as_ref()
+                .and_then(|address| address.line1.to_owned()),
+            address_line2: item
+                .address
+                .as_ref()
+                .and_then(|address| address.line2.to_owned()),
+        }
+    }
+}
+
 impl TryFrom<&payments::BankRedirectData> for StripeBillingAddress {
     type Error = errors::ConnectorError;
 
@@ -513,6 +583,93 @@ fn get_bank_specific_data(
             preferred_language: preferred_language.to_owned(),
         }),
         _ => None,
+    }
+}
+
+fn infer_stripe_bank_debit_type(
+    bank_debit_data: &payments::BankDebitData,
+) -> StripePaymentMethodType {
+    match bank_debit_data {
+        payments::BankDebitData::AchBankDebit { .. } => StripePaymentMethodType::Ach,
+        payments::BankDebitData::SepaBankDebit { .. } => StripePaymentMethodType::Sepa,
+        payments::BankDebitData::BecsBankDebit { .. } => StripePaymentMethodType::Becs,
+        payments::BankDebitData::BacsBankDebit { .. } => StripePaymentMethodType::Bacs,
+    }
+}
+
+fn get_bank_debit_billing(bank_debit_data: &payments::BankDebitData) -> StripeBillingAddress {
+    match bank_debit_data {
+        payments::BankDebitData::AchBankDebit {
+            billing_details, ..
+        } => StripeBillingAddress::from(billing_details),
+        payments::BankDebitData::SepaBankDebit {
+            billing_details, ..
+        } => StripeBillingAddress::from(billing_details),
+        payments::BankDebitData::BecsBankDebit {
+            billing_details, ..
+        } => StripeBillingAddress::from(billing_details),
+        payments::BankDebitData::BacsBankDebit {
+            billing_details, ..
+        } => StripeBillingAddress::from(billing_details),
+    }
+}
+
+fn get_bank_debit_data(
+    bank_debit_data: &payments::BankDebitData,
+) -> (StripePaymentMethodType, BankDebitData, StripeBillingAddress) {
+    match bank_debit_data {
+        payments::BankDebitData::AchBankDebit {
+            billing_details,
+            account_number,
+            bank_name,
+            routing_number,
+        } => {
+            let ach_data = BankDebitData::Ach {
+                account_holder_type: "individual".to_string(),
+                account_number: account_number.to_owned(),
+                routing_number: routing_number.to_owned(),
+            };
+
+            let billing_data = StripeBillingAddress::from(billing_details);
+            (StripePaymentMethodType::Ach, ach_data, billing_data)
+        }
+        payments::BankDebitData::SepaBankDebit {
+            billing_details,
+            iban,
+        } => {
+            let sepa_data = BankDebitData::Sepa {
+                iban: iban.to_owned(),
+            };
+
+            let billing_data = StripeBillingAddress::from(billing_details);
+            (StripePaymentMethodType::Ach, sepa_data, billing_data)
+        }
+        payments::BankDebitData::BecsBankDebit {
+            billing_details,
+            account_number,
+            bsb_number,
+        } => {
+            let becs_data = BankDebitData::Becs {
+                account_number: account_number.to_owned(),
+                bsb_number: bsb_number.to_owned(),
+            };
+
+            let billing_data = StripeBillingAddress::from(billing_details);
+            (StripePaymentMethodType::Ach, becs_data, billing_data)
+        }
+        payments::BankDebitData::BacsBankDebit {
+            billing_details,
+            account_number,
+            sort_code,
+        } => {
+            let bacs_data = BankDebitData::Bacs {
+                account_number: account_number.to_owned(),
+                sort_code: sort_code.to_owned(),
+            };
+
+            let billing_data = StripeBillingAddress::from(billing_details);
+            (StripePaymentMethodType::Ach, bacs_data, billing_data)
+        }
     }
 }
 
@@ -611,6 +768,17 @@ fn create_stripe_payment_method(
             )
             .into()),
         },
+        payments::PaymentMethodData::BankDebit(bank_debit_data) => {
+            let (pm_type, bank_debit_data, billing_address) = get_bank_debit_data(bank_debit_data);
+
+            let pm_data = StripePaymentMethodData::BankDebit(StripeBankDebitData {
+                payment_method_types: pm_type,
+                payment_method_data_type: pm_type,
+                bank_specific_data: bank_debit_data,
+            });
+
+            Ok((pm_data, pm_type, billing_address))
+        }
         _ => Err(errors::ConnectorError::NotImplemented(
             "stripe does not support this payment method".to_string(),
         )
@@ -1196,6 +1364,12 @@ pub struct StripeBillingAddress {
     pub country: Option<api_enums::CountryCode>,
     #[serde(rename = "payment_method_data[billing_details][name]")]
     pub name: Option<Secret<String>>,
+    #[serde(rename = "payment_method_data[billing_details][address][city]")]
+    pub city: Option<String>,
+    #[serde(rename = "payment_method_data[billing_details][address][line1]")]
+    pub address_line1: Option<Secret<String>>,
+    #[serde(rename = "payment_method_data[billing_details][address][line2]")]
+    pub address_line2: Option<Secret<String>>,
 }
 
 #[derive(Debug, Clone, serde::Deserialize, Eq, PartialEq)]
@@ -1424,14 +1598,20 @@ impl
                 }
                 _ => Err(errors::ConnectorError::InvalidWallet.into()),
             },
-            api::PaymentMethodData::Crypto(_) | api::PaymentMethodData::BankDebit(_) => {
-                Err(errors::ConnectorError::NotSupported {
-                    payment_method: format!("{pm_type:?}"),
-                    connector: "Stripe",
-                    payment_experience: api_models::enums::PaymentExperience::RedirectToUrl
-                        .to_string(),
-                })?
+            api::PaymentMethodData::BankDebit(bank_debit_data) => {
+                let (pm_type, bank_data, _) = get_bank_debit_data(&bank_debit_data);
+
+                Ok(Self::BankDebit(StripeBankDebitData {
+                    payment_method_types: pm_type,
+                    payment_method_data_type: pm_type,
+                    bank_specific_data: bank_data,
+                }))
             }
+            api::PaymentMethodData::Crypto(_) => Err(errors::ConnectorError::NotSupported {
+                payment_method: format!("{pm_type:?}"),
+                connector: "Stripe",
+                payment_experience: api_models::enums::PaymentExperience::RedirectToUrl.to_string(),
+            })?,
         }
     }
 }

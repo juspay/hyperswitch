@@ -447,7 +447,26 @@ pub enum PayLaterData {
 
 #[derive(serde::Deserialize, serde::Serialize, Debug, Clone, ToSchema, Eq, PartialEq)]
 pub enum BankDebitData {
-    AchBankDebit { billing_details: BankDebitBilling },
+    AchBankDebit {
+        billing_details: BankDebitBilling,
+        account_number: Secret<String>,
+        bank_name: api_enums::BankNames,
+        routing_number: Secret<String>,
+    },
+    SepaBankDebit {
+        billing_details: BankDebitBilling,
+        iban: Secret<String>,
+    },
+    BecsBankDebit {
+        billing_details: BankDebitBilling,
+        account_number: Secret<String>,
+        bsb_number: Secret<String>,
+    },
+    BacsBankDebit {
+        billing_details: BankDebitBilling,
+        account_number: Secret<String>,
+        sort_code: Secret<String>,
+    },
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -560,6 +579,7 @@ pub struct BankRedirectBilling {
 pub struct BankDebitBilling {
     pub name: Secret<String>,
     pub email: Secret<String, pii::Email>,
+    pub address: Option<AddressDetails>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
