@@ -576,7 +576,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCaptureD
         );
         let connectors = match connector {
             Ok(conn) => *conn.connector,
-            _ => Err(errors::ApiErrorResponse::ResourceIdNotFound)?,
+            _ => Err(errors::ApiErrorResponse::InternalServerError)?,
         };
 
         let amount_to_capture: i64 = payment_data
@@ -607,7 +607,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCancelDa
         );
         let connectors = match connector {
             Ok(conn) => *conn.connector,
-            _ => Err(errors::ApiErrorResponse::ResourceIdNotFound)?,
+            _ => Err(errors::ApiErrorResponse::InternalServerError)?,
         };
         Ok(Self {
             amount: Some(payment_data.amount.into()),

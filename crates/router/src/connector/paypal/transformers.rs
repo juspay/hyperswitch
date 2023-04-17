@@ -156,7 +156,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaypalPaymentsRequest {
                     })
                 }
                 _ => Err(errors::ConnectorError::NotImplemented(
-                    "Unknown Wallet in Payment Method".to_string(),
+                    "Payment Method".to_string(),
                 ))?,
             },
             _ => Err(errors::ConnectorError::NotImplemented("Payment Method".to_string()).into()),
@@ -288,7 +288,7 @@ pub struct PaypalLinks {
     rel: String,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PaypalRedirectResponse {
     id: String,
     intent: PaypalPaymentIntent,
@@ -391,6 +391,19 @@ impl<F, T>
     }
 }
 
+fn get_redirect_url(
+    item: PaypalRedirectResponse,
+) -> CustomResult<Option<Url>, errors::ConnectorError> {
+    let mut link: Option<Url> = None;
+    let link_vec = item.links;
+    for item2 in link_vec.iter() {
+        if item2.rel == "payer-action" {
+            link = item2.href.clone();
+        }
+    }
+    Ok(link)
+}
+
 impl<F, T>
     TryFrom<types::ResponseRouterData<F, PaypalRedirectResponse, T, types::PaymentsResponseData>>
     for types::RouterData<F, T, types::PaymentsResponseData>
@@ -400,20 +413,14 @@ impl<F, T>
         item: types::ResponseRouterData<F, PaypalRedirectResponse, T, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         let status = storage_enums::AttemptStatus::foreign_from((
-            item.response.status,
+            item.response.clone().status,
             item.response.intent.clone(),
         ));
-        let mut link: Option<Url> = None;
-        let link_vec = item.response.links;
-        for item2 in link_vec.iter() {
-            if item2.rel == "payer-action" {
-                link = item2.href.clone();
-            }
-        }
+        let link = get_redirect_url(item.response.clone())?;
         let connector_meta = serde_json::json!(PaypalMeta {
             authorize_id: None,
             order_id: item.response.id,
-            psync_flow: item.response.intent.clone()
+            psync_flow: item.response.intent
         });
 
         Ok(Self {

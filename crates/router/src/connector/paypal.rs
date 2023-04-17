@@ -45,10 +45,10 @@ impl api::RefundSync for Paypal {}
 impl Paypal {
     pub fn connector_transaction_id(
         &self,
-        data: Option<storage_enums::PaymentMethod>,
+        payment_method: Option<storage_enums::PaymentMethod>,
         connector_meta: &Option<serde_json::Value>,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        match data {
+        match payment_method {
             Some(storage_models::enums::PaymentMethod::Wallet) => {
                 let meta: PaypalMeta = to_connector_meta(connector_meta.clone())?;
                 Ok(Some(meta.order_id))
