@@ -492,6 +492,12 @@ pub type OptionalEncryptableName = Option<Encryptable<masking::Secret<String>>>;
 pub type OptionalEncryptableEmail = Option<Encryptable<masking::Secret<String, pii::Email>>>;
 /// Type alias for `Option<Encryptable<Secret<String>>>` used for `phone` field
 pub type OptionalEncryptablePhone = Option<Encryptable<masking::Secret<String>>>;
+/// Type alias for `Option<Encryptable<Secret<serde_json::Value>>>` used for `phone` field
+pub type OptionalEncryptableValue = Option<Encryptable<masking::Secret<serde_json::Value>>>;
+/// Type alias for `Option<Secret<serde_json::Value>>` used for `phone` field
+pub type OptionalSecretValue = Option<masking::Secret<serde_json::Value>>;
+
+
 
 #[cfg(test)]
 mod crypto_tests {

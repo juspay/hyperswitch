@@ -1,5 +1,5 @@
 use common_utils::{
-    crypto::{self, GcmAes256},
+    crypto::{self, GcmAes256, OptionalSecretValue},
     ext_traits::{AsyncExt, ValueExt},
 };
 use error_stack::{report, FutureExt, IntoReport, ResultExt};
@@ -75,7 +75,7 @@ pub async fn create_merchant_account(
             .attach_printable("Unexpected create API key response"),
     }?;
 
-    let merchant_details: Option<masking::Secret<serde_json::Value>> = Some(
+    let merchant_details: OptionalSecretValue = Some(
         utils::Encode::<api::MerchantDetails>::encode_to_value(&req.merchant_details)
             .change_context(errors::ApiErrorResponse::InvalidDataValue {
                 field_name: "merchant_details",
@@ -107,7 +107,7 @@ pub async fn create_merchant_account(
             .transpose()
     };
 
-    let encrypt_value = |inner: Option<masking::Secret<serde_json::Value>>| async {
+    let encrypt_value = |inner: OptionalSecretValue| async {
         inner
             .async_map(|value| crypto::Encryptable::encrypt(value, &key, GcmAes256 {}))
             .await

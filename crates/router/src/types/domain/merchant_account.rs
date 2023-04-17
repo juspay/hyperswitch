@@ -1,5 +1,5 @@
 use common_utils::{
-    crypto::{Encryptable, GcmAes256, OptionalEncryptableName},
+    crypto::{Encryptable, GcmAes256, OptionalEncryptableName, OptionalEncryptableValue},
     ext_traits::AsyncExt,
     pii,
 };
@@ -23,7 +23,7 @@ pub struct MerchantAccount {
     pub payment_response_hash_key: Option<String>,
     pub redirect_to_merchant_with_http_post: bool,
     pub merchant_name: OptionalEncryptableName,
-    pub merchant_details: Option<Encryptable<Secret<serde_json::Value>>>,
+    pub merchant_details: OptionalEncryptableValue,
     pub webhook_details: Option<serde_json::Value>,
     pub sub_merchants_enabled: Option<bool>,
     pub parent_merchant_id: Option<String>,
@@ -38,8 +38,8 @@ pub struct MerchantAccount {
 #[derive(Debug)]
 pub enum MerchantAccountUpdate {
     Update {
-        merchant_name: Option<Encryptable<Secret<String>>>,
-        merchant_details: Option<Encryptable<Secret<serde_json::Value>>>,
+        merchant_name: OptionalEncryptableName,
+        merchant_details: OptionalEncryptableValue,
         return_url: Option<String>,
         webhook_details: Option<serde_json::Value>,
         sub_merchants_enabled: Option<bool>,
