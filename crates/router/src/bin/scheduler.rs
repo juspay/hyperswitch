@@ -19,10 +19,11 @@ async fn main() -> CustomResult<(), errors::ProcessTrackerError> {
     #[allow(clippy::expect_used)]
     let conf = Settings::with_config_path(cmd_line.config_path)
         .expect("Unable to construct application configuration");
-    let (oneshot_tx, oneshot_rx) = oneshot::channel();
-    let mut state = routes::AppState::new(conf, Some(oneshot_tx)).await;
+    //we are having two channels here in order to close redis_interface & scheduler using oneshot and closing drainer using mpsc channel
+    let (redis_shutdown_signal_tx, redis_shutdown_signal_rx) = oneshot::channel();
+    let mut state = routes::AppState::new(conf, Some(redis_shutdown_signal_tx)).await;
     let (tx, rx) = mpsc::channel(1);
-    tokio::spawn(router::receiver_for_error(oneshot_rx, tx.clone()));
+    tokio::spawn(router::receiver_for_error(redis_shutdown_signal_rx, tx.clone()));
     let _guard =
         logger::setup(&state.conf.log).map_err(|_| errors::ProcessTrackerError::UnexpectedFlow)?;
 

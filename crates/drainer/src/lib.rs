@@ -21,7 +21,6 @@ pub async fn start_drainer(
     max_read_count: u64,
     shutdown_interval: u32,
     loop_interval: u32,
-    // (tx,rx):(mpsc::Sender<()>,&mut mpsc::Receiver<()>),
 ) -> errors::DrainerResult<()> {
     let mut stream_index: u8 = 0;
     let mut jobs_picked: u8 = 0;

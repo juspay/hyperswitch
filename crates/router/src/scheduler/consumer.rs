@@ -60,7 +60,6 @@ pub async fn start_consumer(
         })
         .into_report()
         .attach_printable("Failed while creating a signals handler")?;
-    //BUG need to implement the channel here to or it seems only receiver here
     let handle = signal.handle();
     let task_handle = tokio::spawn(common_utils::signals::signal_handler(signal, tx));
 
@@ -86,15 +85,12 @@ pub async fn start_consumer(
             }
             Ok(()) | Err(mpsc::error::TryRecvError::Disconnected) => {
                 logger::debug!("Awaiting shutdown!");
-                ////can panic!
                 rx.close();
                 shutdown_interval.tick().await;
                 let active_tasks = consumer_operation_counter.load(atomic::Ordering::Acquire);
-
                 match active_tasks {
                     0 => {
                         logger::info!("Terminating consumer");
-                        rx.close();
                         break;
                     }
                     _ => continue,

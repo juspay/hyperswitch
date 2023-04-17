@@ -98,7 +98,7 @@ impl Store {
     pub async fn new(
         config: &crate::configs::settings::Settings,
         test_transaction: bool,
-        shut_down_signal: Option<oneshot::Sender<()>>,
+        shut_down_signal: oneshot::Sender<()>,
     ) -> Self {
         let redis_conn = Arc::new(crate::connection::redis_connection(config).await);
         let redis_clone = redis_conn.clone();

@@ -155,12 +155,15 @@ pub async fn start_server(conf: settings::Settings) -> ApplicationResult<(Server
     Ok((server, app_state))
 }
 
-pub async fn receiver_for_error(rx: oneshot::Receiver<()>, server: impl Stop) {
+pub async fn receiver_for_error(rx: oneshot::Receiver<()>, mut server: impl Stop) {
     match rx.await {
-        Ok(_) | Err(_) => {
+        Ok(_) =>{
             logger::error!("The redis server failed ");
-            let mut server = server;
             server.stop_server().await;
+
+        }
+        Err(err) => {
+            logger::error!("Channel receiver error{err}");
         }
     }
 }
@@ -179,10 +182,7 @@ impl Stop for ServerHandle {
 #[async_trait::async_trait]
 impl Stop for mpsc::Sender<()> {
     async fn stop_server(&mut self) {
-        match self.send(()).await {
-            Ok(_) => {}
-            Err(e) => logger::error!("{e}"),
-        }
+        self.send(()).await.map_err(|err| logger::error!("{err}"));
     }
 }
 

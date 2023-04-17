@@ -3447,7 +3447,6 @@ dependencies = [
  "http",
  "josekit",
  "jsonwebtoken",
- "lazy_static",
  "literally",
  "masking",
  "maud",

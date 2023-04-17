@@ -48,8 +48,8 @@ impl AppState {
     ) -> Self {
         let testable = storage_impl == StorageImpl::PostgresqlTest;
         let store: Box<dyn StorageInterface> = match storage_impl {
-            StorageImpl::Postgresql | StorageImpl::PostgresqlTest => {
-                Box::new(Store::new(&conf, testable, shut_down_signal).await)
+            StorageImpl::Postgresql | StorageImpl::PostgresqlTest => {                
+                Box::new(Store::new(&conf, testable, shut_down_signal.unwrap()).await)
             }
             StorageImpl::Mock => Box::new(MockDb::new(&conf).await),
         };
