@@ -15,7 +15,6 @@ use crate::{
     },
 };
 
-
 #[derive(Default, Serialize, PartialEq, Eq, Deserialize, Clone)]
 pub struct StripeBillingDetails {
     pub address: Option<payments::AddressDetails>,
