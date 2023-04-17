@@ -1,4 +1,4 @@
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use router_env::{instrument, tracing};
 
 use super::{
@@ -11,7 +11,7 @@ use crate::{
     types::{
         api::{self, disputes},
         storage::{self, enums as storage_enums},
-        transformers::{ForeignInto, ForeignTryFrom},
+        transformers::{ForeignFrom, ForeignInto},
         AcceptDisputeRequestData, AcceptDisputeResponse,
     },
 };
@@ -31,9 +31,7 @@ pub async fn retrieve_dispute(
                 dispute_id: req.dispute_id,
             })
         })?;
-    let dispute_response = api_models::disputes::DisputeResponse::foreign_try_from(dispute)
-        .into_report()
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+    let dispute_response = api_models::disputes::DisputeResponse::foreign_from(dispute);
     Ok(services::ApplicationResponse::Json(dispute_response))
 }
 
@@ -50,13 +48,10 @@ pub async fn retrieve_disputes_list(
         .map_err(|error| {
             error.to_not_found_response(errors::ApiErrorResponse::InternalServerError)
         })?;
-    let mut disputes_list: Vec<api_models::disputes::DisputeResponse> = vec![];
-    for dispute in disputes {
-        let dispute_response = api_models::disputes::DisputeResponse::foreign_try_from(dispute)
-            .into_report()
-            .change_context(errors::ApiErrorResponse::InternalServerError)?;
-        disputes_list.push(dispute_response);
-    }
+    let disputes_list = disputes
+        .into_iter()
+        .map(api_models::disputes::DisputeResponse::foreign_from)
+        .collect();
     Ok(services::ApplicationResponse::Json(disputes_list))
 }
 
@@ -155,8 +150,6 @@ pub async fn accept_dispute(
         .attach_printable_lazy(|| {
             format!("Unable to update dispute with dispute_id: {}", dispute_id)
         })?;
-    let dispute_response = api_models::disputes::DisputeResponse::foreign_try_from(updated_dispute)
-        .into_report()
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+    let dispute_response = api_models::disputes::DisputeResponse::foreign_from(updated_dispute);
     Ok(services::ApplicationResponse::Json(dispute_response))
 }

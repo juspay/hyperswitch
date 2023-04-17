@@ -45,16 +45,21 @@ static ALLOC: mimalloc::MiMalloc = mimalloc::MiMalloc;
 pub mod headers {
     pub const ACCEPT: &str = "Accept";
     pub const API_KEY: &str = "API-KEY";
+    pub const APIKEY: &str = "apikey";
+    pub const X_CC_API_KEY: &str = "X-CC-Api-Key";
     pub const AUTHORIZATION: &str = "Authorization";
     pub const CONTENT_TYPE: &str = "Content-Type";
     pub const DATE: &str = "Date";
+    pub const NONCE: &str = "nonce";
     pub const TIMESTAMP: &str = "Timestamp";
+    pub const TOKEN: &str = "token";
     pub const X_API_KEY: &str = "X-API-KEY";
     pub const X_API_VERSION: &str = "X-ApiVersion";
     pub const X_MERCHANT_ID: &str = "X-Merchant-Id";
     pub const X_LOGIN: &str = "X-Login";
     pub const X_TRANS_KEY: &str = "X-Trans-Key";
     pub const X_VERSION: &str = "X-Version";
+    pub const X_CC_VERSION: &str = "X-CC-Version";
     pub const X_DATE: &str = "X-Date";
 }
 
@@ -98,8 +103,7 @@ pub fn mk_app(
             .service(routes::Refunds::server(state.clone()))
             .service(routes::Payouts::server(state.clone()))
             .service(routes::MerchantConnectorAccount::server(state.clone()))
-            .service(routes::Mandates::server(state.clone()))
-            .service(routes::Disputes::server(state.clone()));
+            .service(routes::Mandates::server(state.clone()));
     }
 
     #[cfg(feature = "oltp")]
@@ -115,7 +119,8 @@ pub fn mk_app(
         server_app = server_app
             .service(routes::MerchantAccount::server(state.clone()))
             .service(routes::ApiKeys::server(state.clone()))
-            .service(routes::Files::server(state.clone()));
+            .service(routes::Files::server(state.clone()))
+            .service(routes::Disputes::server(state.clone()));
     }
 
     #[cfg(feature = "stripe")]

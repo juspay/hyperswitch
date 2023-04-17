@@ -1,5 +1,5 @@
 use common_utils::pii;
-use diesel::{Identifiable, Insertable, Queryable};
+use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
@@ -92,4 +92,23 @@ impl Default for PaymentMethodNew {
 pub struct TokenizeCoreWorkflow {
     pub lookup_key: String,
     pub pm: storage_enums::PaymentMethod,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub enum PaymentMethodUpdate {
+    MetadataUpdate { metadata: Option<serde_json::Value> },
+}
+
+#[derive(Clone, Debug, Default, AsChangeset, router_derive::DebugAsDisplay)]
+#[diesel(table_name = payment_methods)]
+pub struct PaymentMethodUpdateInternal {
+    metadata: Option<serde_json::Value>,
+}
+
+impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
+    fn from(payment_method_update: PaymentMethodUpdate) -> Self {
+        match payment_method_update {
+            PaymentMethodUpdate::MetadataUpdate { metadata } => Self { metadata },
+        }
+    }
 }

@@ -31,10 +31,18 @@ pub async fn construct_refund_router_data<'a, F>(
     creds_identifier: Option<String>,
 ) -> RouterResult<types::RefundsRouterData<F>> {
     let db = &*state.store;
+
+    let connector_label = helpers::get_connector_label(
+        payment_intent.business_country,
+        &payment_intent.business_label,
+        None,
+        connector_id,
+    );
+
     let merchant_connector_account = helpers::get_merchant_connector_account(
         db,
         merchant_account.merchant_id.as_str(),
-        connector_id,
+        &connector_label,
         creds_identifier,
     )
     .await?;
@@ -87,6 +95,7 @@ pub async fn construct_refund_router_data<'a, F>(
         access_token: None,
         session_token: None,
         reference_id: None,
+        payment_method_token: None,
     };
 
     Ok(router_data)
@@ -226,10 +235,16 @@ pub async fn construct_accept_dispute_router_data<'a>(
 ) -> RouterResult<types::AcceptDisputeRouterData> {
     let db = &*state.store;
     let connector_id = &dispute.connector;
+    let connector_label = helpers::get_connector_label(
+        payment_intent.business_country,
+        &payment_intent.business_label,
+        payment_attempt.business_sub_label.as_ref(),
+        connector_id,
+    );
     let merchant_connector_account = helpers::get_merchant_connector_account(
         db,
         merchant_account.merchant_id.as_str(),
-        connector_id,
+        &connector_label,
         None,
     )
     .await?;
@@ -267,6 +282,7 @@ pub async fn construct_accept_dispute_router_data<'a>(
         access_token: None,
         session_token: None,
         reference_id: None,
+        payment_method_token: None,
     };
     Ok(router_data)
 }

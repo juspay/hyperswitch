@@ -10,7 +10,7 @@ use config::{Environment, File};
 use external_services::kms;
 use redis_interface::RedisSettings;
 pub use router_env::config::{Log, LogConsole, LogFile, LogTelemetry};
-use serde::{Deserialize, Deserializer};
+use serde::{de::Error, Deserialize, Deserializer};
 
 use crate::{
     core::errors::{ApplicationError, ApplicationResult},
@@ -64,6 +64,33 @@ pub struct Settings {
     pub kms: kms::KmsConfig,
     #[cfg(feature = "s3")]
     pub file_upload_config: FileUploadConfig,
+    pub tokenization: TokenizationConfig,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+#[serde(transparent)]
+pub struct TokenizationConfig(pub HashMap<String, PaymentMethodTokenFilter>);
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct PaymentMethodTokenFilter {
+    #[serde(deserialize_with = "pm_deser")]
+    pub payment_method: HashSet<storage_models::enums::PaymentMethod>,
+    pub long_lived_token: bool,
+}
+
+fn pm_deser<'a, D>(
+    deserializer: D,
+) -> Result<HashSet<storage_models::enums::PaymentMethod>, D::Error>
+where
+    D: Deserializer<'a>,
+{
+    let value = <String>::deserialize(deserializer)?;
+    value
+        .trim()
+        .split(',')
+        .map(storage_models::enums::PaymentMethod::from_str)
+        .collect::<Result<_, _>>()
+        .map_err(D::Error::custom)
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -169,6 +196,7 @@ pub struct Locker {
     pub mock_locker: bool,
     pub basilisk_host: String,
     pub locker_setup: LockerSetup,
+    pub locker_signing_key_id: String,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -256,6 +284,7 @@ pub struct Connectors {
     pub bluesnap: ConnectorParams,
     pub braintree: ConnectorParams,
     pub checkout: ConnectorParams,
+    pub coinbase: ConnectorParams,
     pub cybersource: ConnectorParams,
     pub dlocal: ConnectorParams,
     pub fiserv: ConnectorParams,
@@ -264,6 +293,9 @@ pub struct Connectors {
     pub mollie: ConnectorParams,
     pub multisafepay: ConnectorParams,
     pub nuvei: ConnectorParams,
+    pub opennode: ConnectorParams,
+    pub payeezy: ConnectorParams,
+    pub paypal: ConnectorParams,
     pub payu: ConnectorParams,
     pub rapyd: ConnectorParams,
     pub shift4: ConnectorParams,
@@ -295,6 +327,8 @@ pub struct SchedulerSettings {
     pub stream: String,
     pub producer: ProducerSettings,
     pub consumer: ConsumerSettings,
+    pub loop_interval: u64,
+    pub graceful_shutdown_interval: u64,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -437,5 +471,23 @@ impl Settings {
         #[cfg(feature = "s3")]
         self.file_upload_config.validate()?;
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod payment_method_deserialization_test {
+    #![allow(clippy::unwrap_used)]
+    use serde::de::{
+        value::{Error as ValueError, StrDeserializer},
+        IntoDeserializer,
+    };
+
+    use super::*;
+
+    #[test]
+    fn test_pm_deserializer() {
+        let deserializer: StrDeserializer<'_, ValueError> = "wallet,card".into_deserializer();
+        let test_pm = pm_deser(deserializer);
+        assert!(test_pm.is_ok())
     }
 }
