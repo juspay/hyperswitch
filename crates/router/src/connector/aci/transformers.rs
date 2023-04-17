@@ -64,8 +64,8 @@ pub enum PaymentDetails {
 }
 
 #[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct BankRedirectionPMData {
-    #[serde(rename = "paymentBrand")]
     payment_brand: PaymentBrand,
     #[serde(rename = "bankAccount.country")]
     bank_account_country: Option<api_models::enums::CountryCode>,
@@ -75,7 +75,6 @@ pub struct BankRedirectionPMData {
     bank_account_bic: Option<String>,
     #[serde(rename = "bankAccount.iban")]
     bank_account_iban: Option<String>,
-    #[serde(rename = "shopperResultUrl")]
     shopper_result_url: Option<String>,
 }
 
@@ -281,9 +280,9 @@ pub struct AciRedirectionData {
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
 pub struct PreConditions {
     origin: String,
-    #[serde(rename = "waitUntil")]
     wait_until: String,
     description: String,
     method: services::Method,
@@ -325,13 +324,7 @@ fn method_data(redirection_data: AciRedirectionData) -> services::Method {
         }
     }
 
-    // Check if method exists in Redirects
-    if let Some(method) = redirection_data.method {
-        return method;
-    }
-
-    // Default to POST if no method is specified which is rare/edge case
-    services::Method::Post
+    redirection_data.method.unwrap_or(services::Method::Get)
 }
 
 impl<F, T>
