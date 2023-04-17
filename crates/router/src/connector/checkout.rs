@@ -814,14 +814,21 @@ impl api::FileUpload for Checkout {
         &self,
         purpose: api::FilePurpose,
         file_size: i32,
-        _file_type: mime::Mime,
+        file_type: mime::Mime,
     ) -> CustomResult<(), errors::ConnectorError> {
         match purpose {
             api::FilePurpose::DisputeEvidence => {
+                let supported_file_types =
+                    vec!["image/jpeg", "image/jpg", "image/png", "application/pdf"];
                 // 4 Megabytes (MB) = 4,194,304 Bytes (B)
                 if file_size > 4194304 {
                     Err(errors::ConnectorError::FileValidationFailed {
                         reason: "file_size exceeded the max file size of 4MB".to_owned(),
+                    })?
+                }
+                if !supported_file_types.contains(&file_type.to_string().as_str()) {
+                    Err(errors::ConnectorError::FileValidationFailed {
+                        reason: "file_type does not match JPEG, JPG, PNG, or PDF format".to_owned(),
                     })?
                 }
             }

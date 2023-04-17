@@ -481,16 +481,16 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
                 AER::BadRequest(ApiError::new("HE", 2, format!("File validation failed {reason}"), None))
             }
             Self::MissingFile => {
-                AER::BadRequest(ApiError::new("HE", 2, format!("File not found in the request"), None))
+                AER::BadRequest(ApiError::new("HE", 2, "File not found in the request", None))
             }
             Self::MissingFilePurpose => {
-                AER::BadRequest(ApiError::new("HE", 2, format!("File purpose not found in the request or is invalid"), None))
+                AER::BadRequest(ApiError::new("HE", 2, "File purpose not found in the request or is invalid", None))
             }
             Self::MissingFileContentType => {
-                AER::BadRequest(ApiError::new("HE", 2, format!("File content type not found"), None))
+                AER::BadRequest(ApiError::new("HE", 2, "File content type not found", None))
             }
             Self::MissingDisputeId => {
-                AER::BadRequest(ApiError::new("HE", 2, format!("Dispute id not found in the request"), None))
+                AER::BadRequest(ApiError::new("HE", 2, "Dispute id not found in the request", None))
             }
         }
     }

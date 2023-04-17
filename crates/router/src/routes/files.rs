@@ -88,7 +88,15 @@ pub async fn files_create(
             return api::log_and_return_error_response(errors::ApiErrorResponse::MissingFile.into())
         }
     };
-    let file_size = file.len() as i32;
+    let file_size_result: Result<i32, _> = file.len().try_into();
+    let file_size = match file_size_result {
+        Ok(valid_file_size) => valid_file_size,
+        _ => {
+            return api::log_and_return_error_response(
+                errors::ApiErrorResponse::InternalServerError.into(),
+            )
+        }
+    };
     // Check if empty file and throw error
     if file_size <= 0 {
         return api::log_and_return_error_response(errors::ApiErrorResponse::MissingFile.into());

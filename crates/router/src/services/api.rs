@@ -324,7 +324,9 @@ async fn send_request(
                     logger::debug!(?url_encoded_payload);
                     client.body(url_encoded_payload)
                 }
-                Some(ContentType::TextPlain) => client.body(request.payload.expose_option().unwrap_or_default()),
+                Some(ContentType::TextPlain) => {
+                    client.body(request.payload.expose_option().unwrap_or_default())
+                }
                 // If payload needs processing the body cannot have default
                 None => client.body(request.payload.expose_option().unwrap_or_default()),
             }
