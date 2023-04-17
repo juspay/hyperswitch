@@ -1,7 +1,9 @@
 use std::collections::HashMap;
 
+use api_models::payments;
 use base64::Engine;
 use common_utils::{
+    date_time,
     errors::ReportSwitchExt,
     pii::{self, Email},
 };
@@ -145,6 +147,7 @@ pub trait PaymentsAuthorizeRequestData {
     fn get_browser_info(&self) -> Result<types::BrowserInformation, Error>;
     fn get_card(&self) -> Result<api::Card, Error>;
     fn get_return_url(&self) -> Result<String, Error>;
+    fn connector_mandate_id(&self) -> Option<String>;
     fn is_mandate_payment(&self) -> bool;
     fn get_webhook_url(&self) -> Result<String, Error>;
 }
@@ -171,6 +174,11 @@ impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
         self.router_return_url
             .clone()
             .ok_or_else(missing_field_err("return_url"))
+    }
+    fn connector_mandate_id(&self) -> Option<String> {
+        self.mandate_id
+            .as_ref()
+            .and_then(|mandate_ids| mandate_ids.connector_mandate_id.clone())
     }
     fn is_mandate_payment(&self) -> bool {
         self.setup_mandate_details.is_some()
@@ -432,6 +440,27 @@ impl AddressDetailsData for api::AddressDetails {
             self.get_line1()?.peek(),
             self.get_line2()?.peek()
         )))
+    }
+}
+
+pub trait MandateData {
+    fn get_end_date(&self, format: date_time::DateFormat) -> Result<String, Error>;
+    fn get_metadata(&self) -> Result<pii::SecretSerdeValue, Error>;
+}
+
+impl MandateData for payments::MandateAmountData {
+    fn get_end_date(&self, format: date_time::DateFormat) -> Result<String, Error> {
+        let date = self.end_date.ok_or_else(missing_field_err(
+            "mandate_data.mandate_type.{multi_use|single_use}.end_date",
+        ))?;
+        date_time::format_date(date, format)
+            .into_report()
+            .change_context(errors::ConnectorError::DateFormattingFailed)
+    }
+    fn get_metadata(&self) -> Result<pii::SecretSerdeValue, Error> {
+        self.metadata.clone().ok_or_else(missing_field_err(
+            "mandate_data.mandate_type.{multi_use|single_use}.metadata",
+        ))
     }
 }
 
