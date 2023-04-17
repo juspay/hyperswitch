@@ -432,6 +432,8 @@ pub enum WebhooksFlowError {
     DisputeCoreFailed,
     #[error("Webhook event creation failed")]
     WebhookEventCreationFailed,
+    #[error("Webhook event updation failed")]
+    WebhookEventUpdationFailed,
     #[error("Unable to fork webhooks flow for outgoing webhooks")]
     ForkFlowFailed,
     #[error("Webhook api call to merchant failed")]

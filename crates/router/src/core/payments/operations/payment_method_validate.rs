@@ -220,11 +220,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::VerifyRequest> for PaymentM
                 storage_scheme,
             )
             .await
-            .map_err(|err| {
-                err.to_not_found_response(errors::ApiErrorResponse::VerificationFailed {
-                    data: None,
-                })
-            })?;
+            .to_not_found_response(errors::ApiErrorResponse::VerificationFailed { data: None })?;
 
         Ok((Box::new(self), payment_data))
     }
