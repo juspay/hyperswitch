@@ -696,7 +696,7 @@ impl From<NmiStatus> for enums::RefundStatus {
 }
 
 #[derive(Debug, Deserialize)]
-pub struct XMLTransaction {
+pub struct SyncTransactionResponse {
     #[serde(rename = "transaction_id")]
     transaction_id: String,
     #[serde(rename = "condition")]
@@ -704,18 +704,16 @@ pub struct XMLTransaction {
 }
 
 #[derive(Debug, Deserialize)]
-struct XMLResponse {
+struct SyncResponse {
     #[serde(rename = "transaction")]
-    transaction: XMLTransaction,
+    transaction: SyncTransactionResponse,
 }
 
 pub fn get_query_info(
     query_response: String,
 ) -> Result<(String, NmiStatus), Report<errors::ConnectorError>> {
-    // let nm_response: XMLResponse = XmlExt::de::from_str(query_response.as_str())
-    //     .unwrap_or(Err(errors::ConnectorError::ResponseDeserializationFailed)?);
     let nm_response = query_response
-        .parse_xml::<XMLResponse>()
+        .parse_xml::<SyncResponse>()
         .into_report()
         .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
