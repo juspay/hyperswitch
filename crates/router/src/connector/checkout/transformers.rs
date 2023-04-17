@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use url::Url;
 
 use crate::{
-    connector::utils::WalletData,
+    connector::utils::{RouterData, WalletData},
     core::errors,
     pii, services,
     types::{self, api, storage::enums, transformers::ForeignFrom},
@@ -76,12 +76,12 @@ impl TryFrom<&types::TokenizationRouterData> for TokenRequest {
                     })
                 }
                 _ => Err(errors::ConnectorError::NotImplemented(
-                    "Unknown Wallet in Payment Method for tokenization".to_string(),
+                    "Payment Method".to_string(),
                 ))
                 .into_report(),
             },
             _ => Err(errors::ConnectorError::NotImplemented(
-                "Unknown payment method for tokenization".to_string(),
+                "Payment Method".to_string(),
             ))
             .into_report(),
         }
@@ -210,19 +210,15 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentsRequest {
                 | api_models::payments::WalletData::ApplePay(_) => {
                     Ok(PaymentSource::Wallets(WalletSource {
                         source_type: CheckoutSourceTypes::Token,
-                        token: item.payment_method_token.clone().ok_or(
-                            errors::ConnectorError::MissingRequiredField {
-                                field_name: "payment_method_token",
-                            },
-                        )?,
+                        token: item.get_payment_method_token()?,
                     }))
                 }
                 _ => Err(errors::ConnectorError::NotImplemented(
-                    "Unknown Wallet in Payment Method".to_string(),
+                    "Payment Method".to_string(),
                 )),
             },
             _ => Err(errors::ConnectorError::NotImplemented(
-                "Unknown payment method".to_string(),
+                "Payment Method".to_string(),
             )),
         }?;
 
