@@ -155,7 +155,7 @@ impl TryFrom<StripePaymentIntentRequest> for payments::PaymentsRequest {
             let StripePaymentMethodOptions::Card {
                 request_three_d_secure: _,
                 mandate_options,
-            }: StripePaymentMethodOptions = mandate.clone();
+            }: StripePaymentMethodOptions = mandate.to_owned();
             mandate_options
         });
         let mandate_data: Option<payments::MandateData> =
@@ -561,7 +561,7 @@ impl ForeignTryFrom<(Option<MandateOption>, Option<String>)> for Option<payments
                         accepted_at: mandate.clone().accepted_at,
                         online: Some(payments::OnlineMandate {
                             ip_address: mandate.clone().ip_address.unwrap_or_default(),
-                            user_agent: mandate.user_agent.to_owned().unwrap_or_default(),
+                            user_agent: mandate.to_owned().user_agent.unwrap_or_default(),
                         }),
                     },
                 });
