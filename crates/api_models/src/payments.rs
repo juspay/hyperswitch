@@ -501,6 +501,22 @@ impl From<&PaymentMethodData> for AdditionalPaymentData {
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum BankRedirectData {
+    BancontactCard {
+        /// The card number
+        #[schema(value_type = String, example = "4242424242424242")]
+        card_number: Secret<String, pii::CardNumber>,
+        /// The card's expiry month
+        #[schema(value_type = String, example = "24")]
+        card_exp_month: Secret<String>,
+
+        /// The card's expiry year
+        #[schema(value_type = String, example = "24")]
+        card_exp_year: Secret<String>,
+
+        /// The card holder's name
+        #[schema(value_type = String, example = "John Test")]
+        card_holder_name: Secret<String>,
+    },
     Blik {
         // Blik Code
         blik_code: String,
@@ -532,6 +548,10 @@ pub enum BankRedirectData {
     OnlineBankingFinland {
         // Shopper Email
         email: Option<Secret<String, pii::Email>>,
+    },
+    OnlineBankingPoland {
+        // Issuer banks
+        issuer: api_enums::BankNames,
     },
     OnlineBankingSlovakia {
         // Issuer value corresponds to the bank
