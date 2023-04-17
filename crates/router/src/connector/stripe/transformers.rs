@@ -2,7 +2,10 @@ use std::str::FromStr;
 
 use api_models::{self, enums as api_enums, payments};
 use base64::Engine;
-use common_utils::{fp_utils, pii::Email};
+use common_utils::{
+    fp_utils,
+    pii::{self},
+};
 use error_stack::{IntoReport, ResultExt};
 use masking::ExposeInterface;
 use serde::{Deserialize, Serialize};
@@ -13,7 +16,7 @@ use uuid::Uuid;
 use crate::{
     consts,
     core::errors,
-    pii::{self, ExposeOptionInterface, Secret},
+    pii::{ExposeOptionInterface, Secret},
     services,
     types::{self, api, storage::enums},
     utils::OptionExt,
@@ -67,6 +70,22 @@ pub enum Auth3ds {
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum StripeMandateType {
+    Online,
+}
+
+#[derive(Debug, Eq, PartialEq, Serialize)]
+pub struct StripeMandateRequest {
+    #[serde(rename = "mandate_data[customer_acceptance][type]")]
+    pub mandate_type: StripeMandateType,
+    #[serde(rename = "mandate_data[customer_acceptance][online][ip_address]")]
+    pub ip_address: Secret<String, pii::IpAddress>,
+    #[serde(rename = "mandate_data[customer_acceptance][online][user_agent]")]
+    pub user_agent: String,
+}
+
+#[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct PaymentIntentRequest {
     pub amount: i64, //amount in cents, hence passed as integer
     pub currency: String,
@@ -81,6 +100,8 @@ pub struct PaymentIntentRequest {
     pub return_url: String,
     pub confirm: bool,
     pub mandate: Option<String>,
+    #[serde(flatten)]
+    pub setup_mandate_details: Option<StripeMandateRequest>,
     pub description: Option<String>,
     #[serde(flatten)]
     pub shipping: StripeShippingAddress,
@@ -586,34 +607,6 @@ fn get_bank_specific_data(
     }
 }
 
-fn infer_stripe_bank_debit_type(
-    bank_debit_data: &payments::BankDebitData,
-) -> StripePaymentMethodType {
-    match bank_debit_data {
-        payments::BankDebitData::AchBankDebit { .. } => StripePaymentMethodType::Ach,
-        payments::BankDebitData::SepaBankDebit { .. } => StripePaymentMethodType::Sepa,
-        payments::BankDebitData::BecsBankDebit { .. } => StripePaymentMethodType::Becs,
-        payments::BankDebitData::BacsBankDebit { .. } => StripePaymentMethodType::Bacs,
-    }
-}
-
-fn get_bank_debit_billing(bank_debit_data: &payments::BankDebitData) -> StripeBillingAddress {
-    match bank_debit_data {
-        payments::BankDebitData::AchBankDebit {
-            billing_details, ..
-        } => StripeBillingAddress::from(billing_details),
-        payments::BankDebitData::SepaBankDebit {
-            billing_details, ..
-        } => StripeBillingAddress::from(billing_details),
-        payments::BankDebitData::BecsBankDebit {
-            billing_details, ..
-        } => StripeBillingAddress::from(billing_details),
-        payments::BankDebitData::BacsBankDebit {
-            billing_details, ..
-        } => StripeBillingAddress::from(billing_details),
-    }
-}
-
 fn get_bank_debit_data(
     bank_debit_data: &payments::BankDebitData,
 ) -> (StripePaymentMethodType, BankDebitData, StripeBillingAddress) {
@@ -621,7 +614,6 @@ fn get_bank_debit_data(
         payments::BankDebitData::AchBankDebit {
             billing_details,
             account_number,
-            bank_name,
             routing_number,
         } => {
             let ach_data = BankDebitData::Ach {
@@ -864,6 +856,22 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
             _ => payment_data,
         };
 
+        let setup_mandate_details =
+            item.request
+                .setup_mandate_details
+                .as_ref()
+                .and_then(|mandate_details| {
+                    mandate_details
+                        .customer_acceptance
+                        .online
+                        .as_ref()
+                        .map(|online_details| StripeMandateRequest {
+                            mandate_type: StripeMandateType::Online,
+                            ip_address: online_details.ip_address.to_owned(),
+                            user_agent: online_details.user_agent.to_owned(),
+                        })
+                });
+
         Ok(Self {
             amount: item.request.amount, //hopefully we don't loose some cents here
             currency: item.request.currency.to_string(), //we need to copy the value and not transfer ownership
@@ -885,6 +893,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
             capture_method: StripeCaptureMethod::from(item.request.capture_method),
             payment_data,
             mandate,
+            setup_mandate_details,
         })
     }
 }
@@ -1051,12 +1060,9 @@ impl<F, T>
     fn try_from(
         item: types::ResponseRouterData<F, PaymentIntentResponse, T, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
-        let redirection_data =
-            item.response
-                .next_action
-                .map(|StripeNextActionResponse::RedirectToUrl(response)| {
-                    services::RedirectForm::from((response.url, services::Method::Get))
-                });
+        let redirection_data = item.response.next_action.map(|next_action_response| {
+            services::RedirectForm::from((next_action_response.get_url(), services::Method::Get))
+        });
 
         let mandate_reference =
             item.response
@@ -1099,11 +1105,16 @@ impl<F, T>
             types::PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
-        let redirection_data = item.response.next_action.as_ref().map(
-            |StripeNextActionResponse::RedirectToUrl(response)| {
-                services::RedirectForm::from((response.url.clone(), services::Method::Get))
-            },
-        );
+        let redirection_data = item
+            .response
+            .next_action
+            .as_ref()
+            .map(|next_action_response| {
+                services::RedirectForm::from((
+                    next_action_response.get_url(),
+                    services::Method::Get,
+                ))
+            });
 
         let mandate_reference =
             item.response
@@ -1119,7 +1130,11 @@ impl<F, T>
                     | StripePaymentMethodOptions::Eps {}
                     | StripePaymentMethodOptions::Giropay {}
                     | StripePaymentMethodOptions::Ideal {}
-                    | StripePaymentMethodOptions::Sofort {} => None,
+                    | StripePaymentMethodOptions::Sofort {}
+                    | StripePaymentMethodOptions::Ach {}
+                    | StripePaymentMethodOptions::Bacs {}
+                    | StripePaymentMethodOptions::Becs {}
+                    | StripePaymentMethodOptions::Sepa {} => None,
                 });
 
         let error_res =
@@ -1160,12 +1175,9 @@ impl<F, T>
     fn try_from(
         item: types::ResponseRouterData<F, SetupIntentResponse, T, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
-        let redirection_data =
-            item.response
-                .next_action
-                .map(|StripeNextActionResponse::RedirectToUrl(response)| {
-                    services::RedirectForm::from((response.url, services::Method::Get))
-                });
+        let redirection_data = item.response.next_action.map(|next_action_response| {
+            services::RedirectForm::from((next_action_response.get_url(), services::Method::Get))
+        });
 
         let mandate_reference =
             item.response
@@ -1194,6 +1206,20 @@ impl<F, T>
 #[serde(rename_all = "snake_case", remote = "Self")]
 pub enum StripeNextActionResponse {
     RedirectToUrl(StripeRedirectToUrlResponse),
+    VerifyWithMicrodeposits(StripeVerifyWithMicroDepositsResponse),
+}
+
+impl StripeNextActionResponse {
+    fn get_url(&self) -> Url {
+        match self {
+            StripeNextActionResponse::RedirectToUrl(redirect_to_url) => {
+                redirect_to_url.url.to_owned()
+            }
+            StripeNextActionResponse::VerifyWithMicrodeposits(verify_with_microdeposits) => {
+                verify_with_microdeposits.hosted_verification_url.to_owned()
+            }
+        }
+    }
 }
 
 // This impl is required because Stripe's response is of the below format, which is externally
@@ -1220,6 +1246,11 @@ impl<'de> Deserialize<'de> for StripeNextActionResponse {
 pub struct StripeRedirectToUrlResponse {
     return_url: String,
     url: Url,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Deserialize)]
+pub struct StripeVerifyWithMicroDepositsResponse {
+    hosted_verification_url: Url,
 }
 
 // REFUND :
@@ -1359,7 +1390,7 @@ pub struct StripeShippingAddress {
 #[derive(Debug, Default, Eq, PartialEq, Serialize)]
 pub struct StripeBillingAddress {
     #[serde(rename = "payment_method_data[billing_details][email]")]
-    pub email: Option<Secret<String, Email>>,
+    pub email: Option<Secret<String, pii::Email>>,
     #[serde(rename = "payment_method_data[billing_details][address][country]")]
     pub country: Option<api_enums::CountryCode>,
     #[serde(rename = "payment_method_data[billing_details][name]")]
@@ -1428,6 +1459,14 @@ pub enum StripePaymentMethodOptions {
     Giropay {},
     Ideal {},
     Sofort {},
+    #[serde(rename = "us_bank_account")]
+    Ach {},
+    #[serde(rename = "sepa_debit")]
+    Sepa {},
+    #[serde(rename = "au_becs_debit")]
+    Becs {},
+    #[serde(rename = "bacs_debit")]
+    Bacs {},
 }
 // #[derive(Deserialize, Debug, Clone, Eq, PartialEq)]
 // pub struct Card

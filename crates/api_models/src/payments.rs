@@ -446,11 +446,11 @@ pub enum PayLaterData {
 }
 
 #[derive(serde::Deserialize, serde::Serialize, Debug, Clone, ToSchema, Eq, PartialEq)]
+#[serde(rename_all = "snake_case")]
 pub enum BankDebitData {
     AchBankDebit {
         billing_details: BankDebitBilling,
         account_number: Secret<String>,
-        bank_name: api_enums::BankNames,
         routing_number: Secret<String>,
     },
     SepaBankDebit {
