@@ -37,7 +37,7 @@ pub async fn start_drainer(
                 "Failed while getting allowed signals".to_string(),
             ))?;
 
-    let (tx, mut rx) = tokio::sync::mpsc::channel(1);
+    let (tx, mut rx) = mpsc::channel(1);
     let handle = signal.handle();
     let task_handle = tokio::spawn(common_utils::signals::signal_handler(signal, tx));
 
