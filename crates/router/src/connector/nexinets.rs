@@ -89,7 +89,13 @@ impl ConnectorCommon for Nexinets {
         let errors = response.errors.clone();
         let mut message = String::new();
         for error in errors.iter() {
-            let msg = format!("{} : {}", error.field, error.message);
+            let feild = error.field.to_owned().unwrap_or_default();
+            let mut msg = String::new();
+            if !feild.is_empty() {
+                msg.push_str(format!("{} : {}", feild, error.message).as_str());
+            } else {
+                msg = error.message.to_owned();
+            }
             if message.is_empty() {
                 message.push_str(&msg);
             } else {

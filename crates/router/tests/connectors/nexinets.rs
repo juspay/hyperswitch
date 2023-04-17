@@ -41,6 +41,7 @@ impl NexinetsTest {
                 card_number: Secret::new(String::from("4012001038443335")),
                 ..utils::CCardType::default().0
             }),
+            router_return_url: Some("https://google.com".to_string()),
             ..utils::PaymentAuthorizeType::default().0
         })
     }
