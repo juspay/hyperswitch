@@ -73,6 +73,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentsRequest {
             api::PaymentMethodData::Wallet(_)
             | api::PaymentMethodData::PayLater(_)
             | api::PaymentMethodData::BankRedirect(_)
+            | api::PaymentMethodData::Crypto(_)
             | api::PaymentMethodData::AchBankTransfer(_) => None,
         };
 

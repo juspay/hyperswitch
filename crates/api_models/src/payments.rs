@@ -201,8 +201,19 @@ pub struct PaymentsRequest {
     #[schema(value_type = Option<PaymentMethodType>, example = "google_pay")]
     pub payment_method_type: Option<api_enums::PaymentMethodType>,
 
+    /// Business country of the merchant for this payment
+    #[schema(example = "US")]
+    pub business_country: Option<api_enums::CountryCode>,
+
+    /// Business label of the merchant for this payment
+    #[schema(example = "food")]
+    pub business_label: Option<String>,
+
     /// Merchant connector details used to make payments.
     pub merchant_connector_details: Option<admin::MerchantConnectorDetailsWrap>,
+
+    /// Business sub label for the payment
+    pub business_sub_label: Option<String>,
 }
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, Copy, PartialEq, Eq)]
@@ -442,6 +453,7 @@ pub enum PaymentMethodData {
     PayLater(PayLaterData),
     BankRedirect(BankRedirectData),
     AchBankTransfer(AchBankTransferData),
+    Crypto(CryptoData),
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
@@ -457,6 +469,7 @@ pub enum AdditionalPaymentData {
     Wallet {},
     PayLater {},
     AchBankTransfer {},
+    Crypto {},
 }
 
 impl From<&PaymentMethodData> for AdditionalPaymentData {
@@ -481,6 +494,7 @@ impl From<&PaymentMethodData> for AdditionalPaymentData {
             PaymentMethodData::Wallet(_) => Self::Wallet {},
             PaymentMethodData::PayLater(_) => Self::PayLater {},
             PaymentMethodData::AchBankTransfer(_) => Self::AchBankTransfer {},
+            PaymentMethodData::Crypto(_) => Self::Crypto {},
         }
     }
 }
@@ -528,6 +542,10 @@ pub struct AchBankTransferData {
 pub struct AchBillingDetails {
     pub email: String,
 }
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub struct CryptoData {}
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct SofortBilling {
@@ -633,6 +651,7 @@ pub enum PaymentMethodDataResponse {
     PayLater(PayLaterData),
     Paypal,
     BankRedirect(BankRedirectData),
+    Crypto(CryptoData),
     AchBankTransfer(AchBankTransferData),
 }
 
@@ -946,6 +965,19 @@ pub struct PaymentsResponse {
     /// Payment Method Type
     #[schema(value_type = Option<PaymentMethodType>, example = "gpay")]
     pub payment_method_type: Option<api_enums::PaymentMethodType>,
+
+    /// The connector used for this payment along with the country and business details
+    #[schema(example = "stripe_US_food")]
+    pub connector_label: Option<String>,
+
+    /// The business country of merchant for this payment
+    pub business_country: api_enums::CountryCode,
+
+    /// The business label of merchant for this payment
+    pub business_label: String,
+
+    /// The business_sub_label for this payment
+    pub business_sub_label: Option<String>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, ToSchema)]
@@ -1142,6 +1174,7 @@ impl From<PaymentMethodData> for PaymentMethodDataResponse {
             PaymentMethodData::AchBankTransfer(ach_bank_transfer) => {
                 Self::AchBankTransfer(ach_bank_transfer)
             }
+            PaymentMethodData::Crypto(crpto_data) => Self::Crypto(crpto_data),
         }
     }
 }
@@ -1206,6 +1239,8 @@ pub struct Metadata {
     #[schema(value_type = Object, example = r#"{ "city": "NY", "unit": "245" }"#)]
     #[serde(flatten)]
     pub data: pii::SecretSerdeValue,
+    /// Payload coming in request as a metadata field
+    pub payload: Option<pii::SecretSerdeValue>,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
@@ -1284,7 +1319,7 @@ pub struct GpayMetaData {
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct GpaySessionTokenData {
-    #[serde(rename = "gpay")]
+    #[serde(rename = "google_pay")]
     pub data: GpayMetaData,
 }
 

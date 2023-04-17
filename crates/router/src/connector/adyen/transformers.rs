@@ -432,6 +432,14 @@ impl<'a> TryFrom<&types::PaymentsAuthorizeRouterData> for AdyenPaymentRequest<'a
             storage_models::enums::PaymentMethod::BankRedirect => {
                 get_bank_redirect_specific_payment_data(item)
             }
+            storage_models::enums::PaymentMethod::Crypto => {
+                Err(errors::ConnectorError::NotSupported {
+                    payment_method: format!("{:?}", item.payment_method),
+                    connector: "Adyen",
+                    payment_experience: api_models::enums::PaymentExperience::RedirectToUrl
+                        .to_string(),
+                })?
+            }
             _ => Err(report!(errors::ConnectorError::NotImplemented(format!(
                 "Current Payment Method - {:?}",
                 item.request.payment_method_data
@@ -650,6 +658,11 @@ fn get_payment_method_data<'a>(
                 }
             }
         }
+        api::PaymentMethodData::Crypto(_) => Err(errors::ConnectorError::NotSupported {
+            payment_method: format!("{:?}", item.payment_method),
+            connector: "Adyen",
+            payment_experience: api_models::enums::PaymentExperience::RedirectToUrl.to_string(),
+        })?,
         _ => Err(report!(errors::ConnectorError::NotImplemented(format!(
             "Current Payment Method - {:?}",
             item.request.payment_method_data

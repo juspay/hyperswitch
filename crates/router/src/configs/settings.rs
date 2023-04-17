@@ -10,7 +10,7 @@ use config::{Environment, File};
 use external_services::kms;
 use redis_interface::RedisSettings;
 pub use router_env::config::{Log, LogConsole, LogFile, LogTelemetry};
-use serde::{Deserialize, Deserializer};
+use serde::{de::Error, Deserialize, Deserializer};
 
 use crate::{
     core::errors::{ApplicationError, ApplicationResult},
@@ -62,6 +62,33 @@ pub struct Settings {
     pub api_keys: ApiKeys,
     #[cfg(feature = "kms")]
     pub kms: kms::KmsConfig,
+    pub tokenization: TokenizationConfig,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+#[serde(transparent)]
+pub struct TokenizationConfig(pub HashMap<String, PaymentMethodTokenFilter>);
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct PaymentMethodTokenFilter {
+    #[serde(deserialize_with = "pm_deser")]
+    pub payment_method: HashSet<storage_models::enums::PaymentMethod>,
+    pub long_lived_token: bool,
+}
+
+fn pm_deser<'a, D>(
+    deserializer: D,
+) -> Result<HashSet<storage_models::enums::PaymentMethod>, D::Error>
+where
+    D: Deserializer<'a>,
+{
+    let value = <String>::deserialize(deserializer)?;
+    value
+        .trim()
+        .split(',')
+        .map(storage_models::enums::PaymentMethod::from_str)
+        .collect::<Result<_, _>>()
+        .map_err(D::Error::custom)
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -255,6 +282,7 @@ pub struct Connectors {
     pub bluesnap: ConnectorParams,
     pub braintree: ConnectorParams,
     pub checkout: ConnectorParams,
+    pub coinbase: ConnectorParams,
     pub cybersource: ConnectorParams,
     pub dlocal: ConnectorParams,
     pub fiserv: ConnectorParams,
@@ -263,6 +291,8 @@ pub struct Connectors {
     pub mollie: ConnectorParams,
     pub multisafepay: ConnectorParams,
     pub nuvei: ConnectorParams,
+    pub opennode: ConnectorParams,
+    pub payeezy: ConnectorParams,
     pub paypal: ConnectorParams,
     pub payu: ConnectorParams,
     pub rapyd: ConnectorParams,
@@ -428,5 +458,23 @@ impl Settings {
             .map_err(|error| ApplicationError::InvalidConfigurationValueError(error.into()))?;
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod payment_method_deserialization_test {
+    #![allow(clippy::unwrap_used)]
+    use serde::de::{
+        value::{Error as ValueError, StrDeserializer},
+        IntoDeserializer,
+    };
+
+    use super::*;
+
+    #[test]
+    fn test_pm_deserializer() {
+        let deserializer: StrDeserializer<'_, ValueError> = "wallet,card".into_deserializer();
+        let test_pm = pm_deser(deserializer);
+        assert!(test_pm.is_ok())
     }
 }

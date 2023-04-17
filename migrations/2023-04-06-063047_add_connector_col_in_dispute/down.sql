@@ -1,0 +1,1 @@
+ALTER TABLE dispute DROP COLUMN connector;

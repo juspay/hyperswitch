@@ -1,3 +1,62 @@
+# 0.5.6 2023-04-14
+
+## Build System / Dependencies
+
+* **deps:**  bump `fred` from `5.2.0` to `6.0.0` (#869) (01bc162d)
+
+## Continuous Integration
+
+* **manual_release:**  add `multiple_mca` feature in ci (#872) (aebb4dca)
+
+## New Features
+
+* **core:**  add backwards compatibility for multiple mca (#866) (cf902f19)
+* **router:**
+  *  added dispute retrieve and dispute list apis (#842) (acab7671)
+  *  separate straight through algorithm in separate column in payment attempt (#863) (01f86c49)
+* **connector:**
+  *  [Airwallex] add multiple redirect support for 3DS (#811) (d1d58e33)
+  *  [Worldpay] add support for webhook (#820) (23511166)
+  *  [Coinbase] [Opennode] Add support for crypto payments via PG redirection (#834) (b3d14737)
+*  multiple connector account support for the same `country` (#816) (6188d515)
+*  connector tokenization flow (#750) (29da1dfa)
+* **process_tracker:**  changing runner selection to dyn dispatch (#853) (18b84c42)
+
+## Bug Fixes
+
+* **merchant_account:**  change `primary_business_details` to vec in update (#877) (396d24fe)
+*  redis deserialization issue in tokenization call (#878) (5e9d7d6b)
+*  duplication check fix in basilisk-hs (#881) (b12762e7)
+
+## Refactors
+
+* **Tokenization:**  remove ConnectorCallType from tokenization call (#862) (0d047e08)
+* **router_env:**  improve logging setup (#847) (1b94d25f)
+* **refund_type:** Feat/add copy derive (#849) (ccf03273)
+
+
+# 0.5.5 (2023-04-10)
+
+## New Features
+
+* **api_models:**  derive `strum::Display` for `RefundStatus` (#846) (4524d4f5)
+*  allow (de)serializing countries to/from alpha-2, alpha-3 and numeric country codes (#836) (899767cf)
+* **connector:**  add authorize, capture, void, psync, refund, rsync for PayPal connector (#747) (36049c13)
+
+## Bug Fixes
+
+*  Add locker sign keyid in env (#844) (70dff140)
+
+## Other Changes
+
+* **common_utils:**  put the async ext trait behind a feature (#835) (de29eb68)
+*  update ci workflows for common_enums crate (#843) (45111337)
+
+## Refactors
+
+* **scheduler:**  remove scheduler options & adding graceful shutdown to producer (#840) (11df8436)
+* **router:**  refactor amount in PaymentsCaptureData from Option<i64> to i64 (#821) (b8bcba4e)
+
 # 0.5.4 (2023-04-04)
 
 ## New Features
