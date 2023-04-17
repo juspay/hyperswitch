@@ -267,7 +267,7 @@ where
 #[serde(untagged)]
 pub enum BamboraResponse {
     NormalTransaction(Box<BamboraPaymentsResponse>),
-    ThreeDsResponse(Bambora3DsResponse),
+    ThreeDsResponse(Box<Bambora3DsResponse>),
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
