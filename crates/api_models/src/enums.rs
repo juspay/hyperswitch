@@ -423,7 +423,7 @@ pub enum PaymentMethodType {
     GooglePay,
     Ideal,
     Klarna,
-    MBPay,
+    MbWay,
     MobilePay,
     OnlineBankingCzechRepublic,
     OnlineBankingFinland,
@@ -436,6 +436,7 @@ pub enum PaymentMethodType {
     Swish,
     Trustly,
     Walley,
+    WeChatPay,
 }
 
 #[derive(
