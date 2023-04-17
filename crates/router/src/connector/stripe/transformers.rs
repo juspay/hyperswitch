@@ -634,7 +634,7 @@ fn get_bank_debit_data(
             };
 
             let billing_data = StripeBillingAddress::from(billing_details);
-            (StripePaymentMethodType::Ach, sepa_data, billing_data)
+            (StripePaymentMethodType::Sepa, sepa_data, billing_data)
         }
         payments::BankDebitData::BecsBankDebit {
             billing_details,
@@ -647,7 +647,7 @@ fn get_bank_debit_data(
             };
 
             let billing_data = StripeBillingAddress::from(billing_details);
-            (StripePaymentMethodType::Ach, becs_data, billing_data)
+            (StripePaymentMethodType::Becs, becs_data, billing_data)
         }
         payments::BankDebitData::BacsBankDebit {
             billing_details,
@@ -660,7 +660,7 @@ fn get_bank_debit_data(
             };
 
             let billing_data = StripeBillingAddress::from(billing_details);
-            (StripePaymentMethodType::Ach, bacs_data, billing_data)
+            (StripePaymentMethodType::Bacs, bacs_data, billing_data)
         }
     }
 }

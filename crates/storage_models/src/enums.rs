@@ -627,6 +627,7 @@ pub enum PaymentMethodType {
     Paypal,
     CryptoCurrency,
     Ach,
+    Sepa,
 }
 
 #[derive(
