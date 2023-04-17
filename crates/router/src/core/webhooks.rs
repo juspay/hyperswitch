@@ -197,7 +197,7 @@ async fn refunds_incoming_webhook_flow<W: api::OutgoingWebhookType>(
 }
 
 async fn get_payment_attempt_from_object_reference_id(
-    state: AppState,
+    state: &AppState,
     object_reference_id: api_models::webhooks::ObjectReferenceId,
     merchant_account: &storage::MerchantAccount,
 ) -> CustomResult<storage_models::payment_attempt::PaymentAttempt, errors::WebhooksFlowError> {
@@ -310,7 +310,7 @@ async fn disputes_incoming_webhook_flow<W: api::OutgoingWebhookType>(
             .get_dispute_details(request_details)
             .change_context(errors::WebhooksFlowError::WebhookEventObjectCreationFailed)?;
         let payment_attempt = get_payment_attempt_from_object_reference_id(
-            state.clone(),
+            &state,
             webhook_details.object_reference_id,
             &merchant_account,
         )
@@ -358,7 +358,7 @@ async fn disputes_incoming_webhook_flow<W: api::OutgoingWebhookType>(
     }
 }
 
-async fn custom_webhook_flow(
+async fn custom_webhook_flow<W: api::OutgoingWebhookType>(
     state: AppState,
     merchant_account: storage::MerchantAccount,
     webhook_details: api::IncomingWebhookDetails,
@@ -367,32 +367,68 @@ async fn custom_webhook_flow(
     _request_details: &api::IncomingWebhookRequestDetails<'_>,
     _event_type: api_models::webhooks::IncomingWebhookEvent,
 ) -> CustomResult<(), errors::WebhooksFlowError> {
-    if source_verified {
-        let _payments_response = match webhook_details.object_reference_id {
-            api_models::webhooks::ObjectReferenceId::PaymentId(id) => {
-                let request = api::PaymentsRequest {
-                    payment_id: Some(id),
-                    merchant_id: Some(merchant_account.merchant_id.to_owned()),
-                    ..Default::default()
-                };
-                payments::payments_core::<api::CompleteAuthorize, api::PaymentsResponse, _, _, _>(
-                    &state,
-                    merchant_account,
-                    payments::operations::payment_complete_authorize::CompleteAuthorize,
-                    request,
-                    services::api::AuthFlow::Merchant,
-                    payments::CallConnectorAction::Trigger,
-                )
-                .await
-            }
-            _ => Err(errors::WebhooksFlowError::PaymentsCoreFailed).into_report()?,
+    let response = if source_verified {
+        let payment_attempt = get_payment_attempt_from_object_reference_id(
+            &state,
+            webhook_details.object_reference_id,
+            &merchant_account,
+        )
+        .await?;
+        let request = api::PaymentsRequest {
+            payment_id: Some(api_models::payments::PaymentIdType::PaymentIntentId(
+                payment_attempt.payment_id,
+            )),
+            merchant_id: Some(merchant_account.merchant_id.to_owned()),
+            payment_token: payment_attempt.payment_token,
+            ..Default::default()
         };
-        Ok(())
+        payments::payments_core::<api::CompleteAuthorize, api::PaymentsResponse, _, _, _>(
+            &state,
+            merchant_account.to_owned(),
+            payments::operations::payment_complete_authorize::CompleteAuthorize,
+            request,
+            services::api::AuthFlow::Merchant,
+            payments::CallConnectorAction::Trigger,
+        )
+        .await
+        .change_context(errors::WebhooksFlowError::PaymentsCoreFailed)
     } else {
         Err(report!(
             errors::WebhooksFlowError::WebhookSourceVerificationFailed
         ))
+    };
+
+    match response? {
+        services::ApplicationResponse::Json(payments_response) => {
+            let payment_id = payments_response
+                .payment_id
+                .clone()
+                .get_required_value("payment_id")
+                .change_context(errors::WebhooksFlowError::PaymentsCoreFailed)?;
+
+            let event_type: enums::EventType = payments_response
+                .status
+                .foreign_try_into()
+                .into_report()
+                .change_context(errors::WebhooksFlowError::PaymentsCoreFailed)?;
+
+            create_event_and_trigger_outgoing_webhook::<W>(
+                state,
+                merchant_account,
+                event_type,
+                enums::EventClass::Payments,
+                None,
+                payment_id,
+                enums::EventObjectType::PaymentDetails,
+                api::OutgoingWebhookContent::PaymentDetails(payments_response),
+            )
+            .await?;
+        }
+
+        _ => Err(errors::WebhooksFlowError::PaymentsCoreFailed).into_report()?,
     }
+
+    Ok(())
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -620,7 +656,7 @@ pub async fn webhooks_core<W: api::OutgoingWebhookType>(
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Incoming webhook flow for disputes failed")?,
 
-            api::WebhookFlow::Custom => custom_webhook_flow(
+            api::WebhookFlow::Custom => custom_webhook_flow::<W>(
                 state.clone(),
                 merchant_account,
                 webhook_details,

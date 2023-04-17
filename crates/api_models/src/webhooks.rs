@@ -14,7 +14,7 @@ pub enum IncomingWebhookEvent {
     EventNotSupported,
     SourceChargeable,
     SourceTransactionCreated,
-    ChargeSucceded,
+    ChargeSucceeded,
     RefundFailure,
     RefundSuccess,
     DisputeOpened,
@@ -58,7 +58,7 @@ impl From<IncomingWebhookEvent> for WebhookFlow {
             IncomingWebhookEvent::EndpointVerification => Self::ReturnResponse,
             IncomingWebhookEvent::SourceChargeable => Self::Custom,
             IncomingWebhookEvent::SourceTransactionCreated => Self::Custom,
-            IncomingWebhookEvent::ChargeSucceded => Self::Payment,
+            IncomingWebhookEvent::ChargeSucceeded => Self::Payment,
         }
     }
 }

@@ -157,13 +157,14 @@ pub struct CustomerRequest {
     pub source: String,
 }
 
-#[derive(Debug, Default, Eq, PartialEq, Deserialize)]
+#[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
 pub struct ChargesResponse {
     pub id: String,
     pub amount: u64,
     pub amount_captured: u64,
     pub currency: String,
     pub status: StripePaymentStatus,
+    pub source: StripeSourceResponse,
 }
 
 #[derive(Debug, Default, Eq, PartialEq, Deserialize)]
@@ -232,7 +233,6 @@ pub struct StripeBankRedirectData {
 #[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct BankTransferData {
     pub email: String,
-    //pub currency: String,
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
@@ -836,7 +836,6 @@ pub enum StripePaymentStatus {
     RequiresConfirmation,
     Canceled,
     RequiresCapture,
-    // This is the case in
     Pending,
 }
 
@@ -877,22 +876,25 @@ pub struct PaymentIntentResponse {
     pub last_payment_error: Option<ErrorDetails>,
 }
 
-#[derive(Debug, Default, Eq, PartialEq, Deserialize)]
+#[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
 pub struct StripeSourceResponse {
     pub id: String,
     pub ach_credit_transfer: AchCreditTransferResponse,
+    pub receiver: AchRecieverDetails,
 }
 
-#[derive(Debug, Default, Eq, PartialEq, Deserialize)]
+#[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
 pub struct AchCreditTransferResponse {
     pub account_number: String,
     pub bank_name: String,
-    pub fingerprint: String,
-    pub refund_account_holder_name: Option<String>,
-    pub refund_account_holder_type: Option<String>,
-    pub refund_routing_number: Option<String>,
     pub routing_number: String,
     pub swift_code: String,
+}
+
+#[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
+pub struct AchRecieverDetails {
+    pub amount_received: i64,
+    pub amount_charged: i64,
 }
 
 #[derive(Debug, Default, Eq, PartialEq, Deserialize)]
@@ -1376,12 +1378,18 @@ impl<F, T>
     fn try_from(
         item: types::ResponseRouterData<F, StripeSourceResponse, T, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
+        let connector_source_response = item.response.to_owned();
+        let connector_metadata =
+            common_utils::ext_traits::Encode::<StripeSourceResponse>::encode_to_value(
+                &connector_source_response,
+            )
+            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
         Ok(Self {
             response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::NoResponseId,
+                resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
                 redirection_data: None,
                 mandate_reference: None,
-                connector_metadata: None,
+                connector_metadata: Some(connector_metadata),
             }),
             ..item.data
         })
@@ -1448,13 +1456,19 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, ChargesResponse, T, types::Payme
     fn try_from(
         item: types::ResponseRouterData<F, ChargesResponse, T, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
+        let connector_source_response = item.response.to_owned();
+        let connector_metadata =
+            common_utils::ext_traits::Encode::<StripeSourceResponse>::encode_to_value(
+                &connector_source_response.source,
+            )
+            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
         Ok(Self {
             status: enums::AttemptStatus::from(item.response.status),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
                 redirection_data: None,
                 mandate_reference: None,
-                connector_metadata: None,
+                connector_metadata: Some(connector_metadata),
             }),
             ..item.data
         })
@@ -1470,11 +1484,13 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, CustomerResponse, T, types::Paym
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
+                //resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
+                resource_id: types::ResponseId::NoResponseId,
                 redirection_data: None,
                 mandate_reference: None,
                 connector_metadata: None,
             }),
+            reference_id: Some(item.response.id),
             ..item.data
         })
     }

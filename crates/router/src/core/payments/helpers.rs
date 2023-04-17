@@ -769,6 +769,20 @@ pub async fn make_pm_data<'a, F: Clone, R>(
                     }
                 }
 
+                Some(api::PaymentMethodData::AchBankTransfer(bank_transfer)) => {
+                    payment_data.payment_attempt.payment_method =
+                        Some(storage_enums::PaymentMethod::BankTransfer);
+                    let updated_pm = api::PaymentMethodData::AchBankTransfer(bank_transfer);
+                    vault::Vault::store_payment_method_data_in_locker(
+                        state,
+                        Some(hyperswitch_token),
+                        &updated_pm,
+                        payment_data.payment_intent.customer_id.to_owned(),
+                        enums::PaymentMethod::Wallet,
+                    )
+                    .await?;
+                    Some(updated_pm)
+                }
                 Some(_) => Err(errors::ApiErrorResponse::InternalServerError)
                     .into_report()
                     .attach_printable(
@@ -793,7 +807,18 @@ pub async fn make_pm_data<'a, F: Clone, R>(
         (pm @ Some(api::PaymentMethodData::PayLater(_)), _) => Ok(pm.to_owned()),
         (pm @ Some(api::PaymentMethodData::BankRedirect(_)), _) => Ok(pm.to_owned()),
         (pm @ Some(api::PaymentMethodData::Crypto(_)), _) => Ok(pm.to_owned()),
-        (pm @ Some(api::PaymentMethodData::AchBankTransfer(_)), _) => Ok(pm.to_owned()),
+        (pm_opt @ Some(pm @ api::PaymentMethodData::AchBankTransfer(_)), _) => {
+            let token = vault::Vault::store_payment_method_data_in_locker(
+                state,
+                None,
+                pm,
+                payment_data.payment_intent.customer_id.to_owned(),
+                enums::PaymentMethod::BankTransfer,
+            )
+            .await?;
+            payment_data.token = Some(token);
+            Ok(pm_opt.to_owned())
+        }
         (pm_opt @ Some(pm @ api::PaymentMethodData::Wallet(_)), _) => {
             let token = vault::Vault::store_payment_method_data_in_locker(
                 state,

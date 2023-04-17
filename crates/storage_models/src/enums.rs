@@ -455,7 +455,7 @@ pub enum PaymentMethod {
     PayLater,
     Wallet,
     BankRedirect,
-    Ach,
+    BankTransfer,
     Crypto,
 }
 

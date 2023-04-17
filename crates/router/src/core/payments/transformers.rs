@@ -1,5 +1,6 @@
 use std::{fmt::Debug, marker::PhantomData};
 
+use api_models::payments::NextStepsRequirements;
 use error_stack::{IntoReport, ResultExt};
 use router_env::{instrument, tracing};
 
@@ -275,6 +276,24 @@ where
                             &payment_attempt,
                             &payment_intent,
                         )),
+                        bank_transfer_steps_and_charges_details: None,
+                    })
+                } else if payment_attempt
+                    .payment_method
+                    .get_required_value("payment_method")?
+                    == storage_models::enums::PaymentMethod::BankTransfer
+                {
+                    let other_next_steps: NextStepsRequirements = payment_attempt
+                        .connector_metadata
+                        .get_required_value("connector_metadata")?
+                        .parse_value("NextStepsRequirements")
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Failed to parse the Value to NextRequirements struct")?;
+
+                    next_action_response = Some(api::NextAction {
+                        next_action_type: api::NextActionType::DisplayBankTransferInformation,
+                        redirect_to_url: None,
+                        bank_transfer_steps_and_charges_details: Some(other_next_steps),
                     })
                 }
                 let mut response: api::PaymentsResponse = Default::default();

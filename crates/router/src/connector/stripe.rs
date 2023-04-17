@@ -435,7 +435,7 @@ impl
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         match req.payment_method {
-            storage_models::enums::PaymentMethod::Ach => {
+            storage_models::enums::PaymentMethod::BankTransfer => {
                 Ok(format!("{}{}", self.base_url(connectors), "v1/sources"))
             }
             _ => Ok(format!(
@@ -451,7 +451,7 @@ impl
         req: &types::PaymentsAuthorizeRouterData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
         let request = match req.payment_method {
-            enums::PaymentMethod::Ach => {
+            enums::PaymentMethod::BankTransfer => {
                 let req = stripe::StripeAchRequest::try_from(req)?;
                 utils::Encode::<stripe::StripeAchRequest>::url_encode(&req)
                     .change_context(errors::ConnectorError::RequestEncodingFailed)?
@@ -491,7 +491,7 @@ impl
         res: types::Response,
     ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
         match data.payment_method {
-            enums::PaymentMethod::Ach => {
+            enums::PaymentMethod::BankTransfer => {
                 let response: stripe::StripeSourceResponse = res
                     .response
                     .parse_struct("StripeSourceResponse")
@@ -1318,7 +1318,7 @@ impl api::IncomingWebhook for Stripe {
             "payment_intent.succeeded" => api::IncomingWebhookEvent::PaymentIntentSuccess,
             "source.chargeable" => api::IncomingWebhookEvent::SourceChargeable,
             "source.transaction.created" => api::IncomingWebhookEvent::SourceTransactionCreated,
-            "charge.succeeded" => api::IncomingWebhookEvent::ChargeSucceded,
+            "charge.succeeded" => api::IncomingWebhookEvent::ChargeSucceeded,
             _ => Err(errors::ConnectorError::WebhookEventTypeNotFound).into_report()?,
         })
     }

@@ -162,8 +162,7 @@ where
                 .await?
             }
         };
-        if payment_data.payment_intent.status != storage_enums::IntentStatus::RequiresCustomerAction
-        {
+        if should_delete_pm_from_locker(payment_data.payment_intent.status) {
             vault::Vault::delete_locker_payment_method_by_lookup_key(state, &payment_data.token)
                 .await
         }
@@ -850,6 +849,14 @@ pub fn should_call_connector<Op: Debug, F: Clone>(
         "PaymentSession" => true,
         _ => false,
     }
+}
+
+pub fn should_delete_pm_from_locker(status: storage_enums::IntentStatus) -> bool {
+    !matches!(
+        status,
+        storage_models::enums::IntentStatus::RequiresCustomerAction
+            | storage_models::enums::IntentStatus::Processing
+    )
 }
 
 pub fn is_operation_confirm<Op: Debug>(operation: &Op) -> bool {

@@ -596,3 +596,13 @@ pub struct TokenizedWalletValue1 {
 pub struct TokenizedWalletValue2 {
     pub customer_id: Option<String>,
 }
+
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+pub struct TokenizedBankTransferValue1 {
+    pub data: payments::AchBankTransferData,
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+pub struct TokenizedBankTransferValue2 {
+    pub customer_id: Option<String>,
+}

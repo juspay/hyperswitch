@@ -652,6 +652,7 @@ pub enum PaymentMethodDataResponse {
     Paypal,
     BankRedirect(BankRedirectData),
     Crypto(CryptoData),
+    #[serde(rename = "ach_bank_transfer")]
     AchBankTransfer(AchBankTransferData),
 }
 
@@ -795,6 +796,7 @@ pub enum NextActionType {
     DisplayQrCode,
     InvokeSdkClient,
     TriggerApi,
+    DisplayBankTransferInformation,
 }
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, ToSchema)]
 pub struct NextAction {
@@ -804,6 +806,27 @@ pub struct NextAction {
     /// Contains the url for redirection flow
     #[schema(example = "https://router.juspay.io/redirect/fakushdfjlksdfasklhdfj")]
     pub redirect_to_url: Option<String>,
+    pub bank_transfer_steps_and_charges_details: Option<NextStepsRequirements>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct NextStepsRequirements {
+    pub ach_credit_transfer: AchTransfer,
+    pub receiver: RecieverDetails,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct AchTransfer {
+    pub account_number: String,
+    pub bank_name: String,
+    pub routing_number: String,
+    pub swift_code: String,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct RecieverDetails {
+    pub amount_received: i64,
+    pub amount_charged: i64,
 }
 
 #[derive(Setter, Clone, Default, Debug, Eq, PartialEq, serde::Serialize, ToSchema)]
