@@ -13,7 +13,8 @@ use serde::ser::{SerializeMap, Serializer};
 use serde_json::Value;
 // use time::format_description::well_known::Rfc3339;
 use time::format_description::well_known::Iso8601;
-use tracing::{Event, Id, Metadata, Subscriber};
+use tracing::{Event, Metadata, Subscriber};
+
 use tracing_subscriber::{
     fmt::MakeWriter,
     layer::Context,
@@ -282,7 +283,7 @@ where
     }
 
     /// Serialize entries of span.
-    fn span_serialize<S>(
+    fn _span_serialize<S>(
         &self,
         span: &SpanRef<'_, S>,
         ty: RecordType,
@@ -407,17 +408,17 @@ where
         }
     }
 
-    fn on_enter(&self, id: &Id, ctx: Context<'_, S>) {
-        let span = ctx.span(id).expect("No span");
-        if let Ok(serialized) = self.span_serialize(&span, RecordType::EnterSpan) {
-            let _ = self.flush(serialized);
-        }
-    }
+    // fn on_enter(&self, id: &Id, ctx: Context<'_, S>) {
+    //     let span = ctx.span(id).expect("No span");
+    //     if let Ok(serialized) = self.span_serialize(&span, RecordType::EnterSpan) {
+    //         let _ = self.flush(serialized);
+    //     }
+    // }
 
-    fn on_close(&self, id: Id, ctx: Context<'_, S>) {
-        let span = ctx.span(&id).expect("No span");
-        if let Ok(serialized) = self.span_serialize(&span, RecordType::ExitSpan) {
-            let _ = self.flush(serialized);
-        }
-    }
+    // fn on_close(&self, id: Id, ctx: Context<'_, S>) {
+    //     let span = ctx.span(&id).expect("No span");
+    //     if let Ok(serialized) = self.span_serialize(&span, RecordType::ExitSpan) {
+    //         let _ = self.flush(serialized);
+    //     }
+    // }
 }
