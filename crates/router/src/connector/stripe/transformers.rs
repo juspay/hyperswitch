@@ -1263,13 +1263,13 @@ pub struct StripeWebhookObjectEventType {
 
 #[derive(Debug, Deserialize, PartialEq)]
 pub struct DataObject {
-    pub object: Status,
+    pub object: ObjectData,
 }
 
 #[derive(Debug, Deserialize, PartialEq)]
-pub struct Status {
+pub struct ObjectData {
     pub id: String,
-    pub amount: String,
+    pub amount: i32,
     pub currency: String,
     pub reason: String,
     pub created: i64,
@@ -1285,6 +1285,10 @@ pub enum DisputeStatus {
     WarningUnderReview,
     Won,
     Lost,
+    NeedsResponse,
+    UnderReview,
+    ChargeRefunded,
+    Succeeded
 }
 
 #[derive(Debug, Deserialize, PartialEq)]

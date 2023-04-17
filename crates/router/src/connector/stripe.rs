@@ -954,6 +954,7 @@ impl api::IncomingWebhook for Stripe {
                 stripe::DisputeStatus::WarningUnderReview => api::IncomingWebhookEvent::DisputeChallenged,
                 stripe::DisputeStatus::Won => api::IncomingWebhookEvent::DisputeWon,
                 stripe::DisputeStatus::Lost => api::IncomingWebhookEvent::DisputeLost,
+                _ => Err(errors::ConnectorError::WebhookEventTypeNotFound).into_report()?,
             }
         }
             _ => Err(errors::ConnectorError::WebhookEventTypeNotFound).into_report()?,
