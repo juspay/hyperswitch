@@ -1446,22 +1446,18 @@ mod test_validate_shipping_address_against_payment_method {
     #[test]
     fn should_return_ok() {
         // Arrange
-        let _stripe_shipping_address = StripeShippingAddress {
-            name: Some(Secret::new(String::from("name"))),
-            line1: Some(Secret::new(String::from("line1"))),
-            country: Some(CountryCode::AD),
-            zip: Some(Secret::new(String::from("zip"))),
-            city: Some(String::from("city")),
-            line2: Some(Secret::new(String::from("line2"))),
-            state: Some(Secret::new(String::from("state"))),
-            phone: Some(Secret::new(String::from("pbone number"))),
-        };
+        let stripe_shipping_address = create_stripe_shipping_address(
+            Some("name".to_string()),
+            Some("line1".to_string()),
+            Some(CountryCode::AD),
+            Some("zip".to_string()),
+        );
 
         let payment_method = &StripePaymentMethodType::AfterpayClearpay;
 
         //Act
         let result = validate_shipping_address_against_payment_method(
-            &_stripe_shipping_address,
+            &stripe_shipping_address,
             &payment_method,
         );
 
@@ -1472,21 +1468,20 @@ mod test_validate_shipping_address_against_payment_method {
     #[test]
     fn should_return_err_for_empty_name() {
         // Arrange
-        let stripe_shipping_address = StripeShippingAddress {
-            name: None,
-            line1: Some(Secret::new(String::from("line1"))),
-            country: Some(CountryCode::AD),
-            zip: Some(Secret::new(String::from("zip"))),
-            city: Some(String::from("city")),
-            line2: Some(Secret::new(String::from("line2"))),
-            state: Some(Secret::new(String::from("state"))),
-            phone: Some(Secret::new(String::from("pbone number"))),
-        };
+        let stripe_shipping_address = create_stripe_shipping_address(
+            None,
+            Some("line1".to_string()),
+            Some(CountryCode::AD),
+            Some("zip".to_string()),
+        );
 
         let payment_method = &StripePaymentMethodType::AfterpayClearpay;
 
         //Act
-        let result = validate_shipping_address_against_payment_method(&stripe_shipping_address, &payment_method);
+        let result = validate_shipping_address_against_payment_method(
+            &stripe_shipping_address,
+            &payment_method,
+        );
 
         // Assert
         assert_eq!(result.is_err(), true);
@@ -1495,21 +1490,20 @@ mod test_validate_shipping_address_against_payment_method {
     #[test]
     fn should_return_err_for_empty_line1() {
         // Arrange
-        let stripe_shipping_address = StripeShippingAddress {
-            name: Some(Secret::new(String::from("name"))),
-            line1: None,
-            country: Some(CountryCode::AD),
-            zip: Some(Secret::new(String::from("zip"))),
-            city: Some(String::from("city")),
-            line2: Some(Secret::new(String::from("line2"))),
-            state: Some(Secret::new(String::from("state"))),
-            phone: Some(Secret::new(String::from("pbone number"))),
-        };
+        let stripe_shipping_address = create_stripe_shipping_address(
+            Some("name".to_string()),
+            None,
+            Some(CountryCode::AD),
+            Some("zip".to_string()),
+        );
 
         let payment_method = &StripePaymentMethodType::AfterpayClearpay;
 
         //Act
-        let result = validate_shipping_address_against_payment_method(&stripe_shipping_address, &payment_method);
+        let result = validate_shipping_address_against_payment_method(
+            &stripe_shipping_address,
+            &payment_method,
+        );
 
         // Assert
         assert_eq!(result.is_err(), true);
@@ -1518,21 +1512,20 @@ mod test_validate_shipping_address_against_payment_method {
     #[test]
     fn should_return_err_for_empty_country() {
         // Arrange
-        let stripe_shipping_address = StripeShippingAddress {
-            name: Some(Secret::new(String::from("name"))),
-            line1: Some(Secret::new(String::from("line1"))),
-            country: None,
-            zip: Some(Secret::new(String::from("zip"))),
-            city: Some(String::from("city")),
-            line2: Some(Secret::new(String::from("line2"))),
-            state: Some(Secret::new(String::from("state"))),
-            phone: Some(Secret::new(String::from("pbone number"))),
-        };
+        let stripe_shipping_address = create_stripe_shipping_address(
+            Some("name".to_string()),
+            Some("line1".to_string()),
+            None,
+            Some("zip".to_string()),
+        );
 
         let payment_method = &StripePaymentMethodType::AfterpayClearpay;
 
         //Act
-        let result = validate_shipping_address_against_payment_method(&stripe_shipping_address, &payment_method);
+        let result = validate_shipping_address_against_payment_method(
+            &stripe_shipping_address,
+            &payment_method,
+        );
 
         // Assert
         assert_eq!(result.is_err(), true);
@@ -1541,23 +1534,39 @@ mod test_validate_shipping_address_against_payment_method {
     #[test]
     fn should_return_err_for_empty_zip() {
         // Arrange
-        let stripe_shipping_address = StripeShippingAddress {
-            name: Some(Secret::new(String::from("name"))),
-            line1: Some(Secret::new(String::from("line1"))),
-            country: Some(CountryCode::AD),
-            zip: None,
+        let stripe_shipping_address = create_stripe_shipping_address(
+            Some("name".to_string()),
+            Some("line1".to_string()),
+            Some(CountryCode::AD),
+            None,
+        );
+        let payment_method = &StripePaymentMethodType::AfterpayClearpay;
+
+        //Act
+        let result = validate_shipping_address_against_payment_method(
+            &stripe_shipping_address,
+            &payment_method,
+        );
+
+        // Assert
+        assert_eq!(result.is_err(), true);
+    }
+
+    fn create_stripe_shipping_address(
+        name: Option<String>,
+        line1: Option<String>,
+        country: Option<CountryCode>,
+        zip: Option<String>,
+    ) -> StripeShippingAddress {
+        StripeShippingAddress {
+            name: name.map(|x| Secret::new(x)),
+            line1: line1.map(|x| Secret::new(x)),
+            country: country,
+            zip: zip.map(|x| Secret::new(x)),
             city: Some(String::from("city")),
             line2: Some(Secret::new(String::from("line2"))),
             state: Some(Secret::new(String::from("state"))),
             phone: Some(Secret::new(String::from("pbone number"))),
-        };
-
-        let payment_method = &StripePaymentMethodType::AfterpayClearpay;
-
-        //Act
-        let result = validate_shipping_address_against_payment_method(&stripe_shipping_address, &payment_method);
-
-        // Assert
-        assert_eq!(result.is_err(), true);
+        }
     }
 }
