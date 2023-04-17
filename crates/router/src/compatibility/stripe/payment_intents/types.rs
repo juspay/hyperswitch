@@ -15,7 +15,6 @@ use crate::{
     },
 };
 
-// pub struct MyMandateData(pub payments::MandateData);
 
 #[derive(Default, Serialize, PartialEq, Eq, Deserialize, Clone)]
 pub struct StripeBillingDetails {
