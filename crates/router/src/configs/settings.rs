@@ -183,8 +183,15 @@ where
 #[derive(Debug, Deserialize, Clone)]
 #[serde(default)]
 pub struct Secrets {
+    #[cfg(not(feature = "kms"))]
     pub jwt_secret: String,
+    #[cfg(not(feature = "kms"))]
     pub admin_api_key: String,
+
+    #[cfg(feature = "kms")]
+    pub kms_encrypted_jwt_secret: String,
+    #[cfg(feature = "kms")]
+    pub kms_encrypted_admin_api_key: String,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -286,6 +293,7 @@ pub struct Connectors {
     pub cybersource: ConnectorParams,
     pub dlocal: ConnectorParams,
     pub fiserv: ConnectorParams,
+    pub forte: ConnectorParams,
     pub globalpay: ConnectorParams,
     pub klarna: ConnectorParams,
     pub mollie: ConnectorParams,

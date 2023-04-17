@@ -1,6 +1,7 @@
 use api_models::admin::PrimaryBusinessDetails;
 use common_utils::ext_traits::ValueExt;
 use error_stack::{report, FutureExt, IntoReport, ResultExt};
+use masking::Secret; //PeekInterface
 use storage_models::{enums, merchant_account};
 use uuid::Uuid;
 
@@ -401,7 +402,15 @@ pub async fn create_payment_connector(
             field_name: "connector_account_details".to_string(),
             expected_format: "auth_type and api_key".to_string(),
         })?;
-
+    let frm_configs = match req.frm_configs {
+        Some(frm_value) => {
+            let configs_for_frm_value: serde_json::Value =
+                utils::Encode::<api_models::admin::FrmConfigs>::encode_to_value(&frm_value)
+                    .change_context(errors::ApiErrorResponse::ConfigNotFound)?;
+            Some(Secret::new(configs_for_frm_value))
+        }
+        None => None,
+    };
     let merchant_connector_account = storage::MerchantConnectorAccountNew {
         merchant_id: Some(merchant_id.to_string()),
         connector_type: Some(req.connector_type.foreign_into()),
@@ -412,6 +421,7 @@ pub async fn create_payment_connector(
         test_mode: req.test_mode,
         disabled: req.disabled,
         metadata: req.metadata,
+        frm_configs,
         connector_label: connector_label.clone(),
         business_country,
         business_label,
@@ -516,7 +526,15 @@ pub async fn update_payment_connector(
             })
             .collect::<Vec<serde_json::Value>>()
     });
-
+    let frm_configs = match req.frm_configs.as_ref() {
+        Some(frm_value) => {
+            let configs_for_frm_value: serde_json::Value =
+                utils::Encode::<api_models::admin::FrmConfigs>::encode_to_value(&frm_value)
+                    .change_context(errors::ApiErrorResponse::ConfigNotFound)?;
+            Some(Secret::new(configs_for_frm_value))
+        }
+        None => None,
+    };
     let payment_connector = storage::MerchantConnectorAccountUpdate::Update {
         merchant_id: Some(merchant_id.to_string()),
         connector_type: Some(req.connector_type.foreign_into()),
@@ -526,6 +544,7 @@ pub async fn update_payment_connector(
         test_mode: req.test_mode,
         disabled: req.disabled,
         metadata: req.metadata,
+        frm_configs,
     };
 
     let updated_mca = db
