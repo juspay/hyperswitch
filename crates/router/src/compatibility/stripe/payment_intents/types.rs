@@ -211,7 +211,7 @@ impl TryFrom<StripePaymentIntentRequest> for payments::PaymentsRequest {
 
                 request_three_d_secure.foreign_into()
             }),
-            mandate_data: mandate_data,
+            mandate_data,
             merchant_connector_details: item.merchant_connector_details,
             setup_future_usage: item.setup_future_usage,
             mandate_id: item.mandate_id,
@@ -569,7 +569,7 @@ impl ForeignTryFrom<(Option<MandateOption>, Option<String>)> for Option<payments
                     },
                     customer_acceptance: payments::CustomerAcceptance {
                         acceptance_type: payments::AcceptanceType::Online,
-                        accepted_at: mandate.accepted_at.map(|dt| dt),
+                        accepted_at: mandate.accepted_at,
                         online: Some(payments::OnlineMandate {
                             ip_address: (mandate.ip_address).unwrap_or_default().into(),
                             user_agent: mandate.user_agent.unwrap_or_default(),
