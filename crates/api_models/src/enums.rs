@@ -425,6 +425,7 @@ pub enum PaymentMethodType {
     Ach,
     Sepa,
     Becs,
+    Bacs,
 }
 
 #[derive(
