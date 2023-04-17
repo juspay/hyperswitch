@@ -12,7 +12,7 @@ use crate::{
     types::{
         api::{admin, enums as api_enums},
         transformers::{ForeignFrom, ForeignInto, ForeignTryFrom, ForeignTryInto},
-    }, logger,
+    },
 };
 
 // pub struct MyMandateData(pub payments::MandateData);
@@ -148,7 +148,7 @@ pub struct StripePaymentIntentRequest {
     pub payment_method_options: Option<StripePaymentMethodOptions>,
     pub merchant_connector_details: Option<admin::MerchantConnectorDetailsWrap>,
     pub mandate_id: Option<String>,
-    pub off_session: Option<bool>
+    pub off_session: Option<bool>,
 }
 
 impl TryFrom<StripePaymentIntentRequest> for payments::PaymentsRequest {
@@ -211,15 +211,13 @@ impl TryFrom<StripePaymentIntentRequest> for payments::PaymentsRequest {
 
                 request_three_d_secure.foreign_into()
             }),
-            mandate_data: mandate_data.clone(),
+            mandate_data: mandate_data,
             merchant_connector_details: item.merchant_connector_details,
             setup_future_usage: item.setup_future_usage,
             mandate_id: item.mandate_id,
             off_session: item.off_session,
             ..Self::default()
         });
-        // println!("{:#?}",(item.payment_method_options).clone());
-        // logger::debug!(shakthi=?item.payment_method_options.clone());
         request
     }
 }
@@ -319,7 +317,7 @@ pub struct StripePaymentIntentResponse {
     pub shipping: Option<payments::Address>,
     pub billing: Option<payments::Address>,
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
-    pub capture_on: Option<time::PrimitiveDateTime>,
+    pub capture_on: Option<PrimitiveDateTime>,
     pub payment_token: Option<String>,
     pub email: Option<masking::Secret<String, common_utils::pii::Email>>,
     pub phone: Option<masking::Secret<String>>,
@@ -480,7 +478,7 @@ impl TryFrom<StripePaymentListConstraints> for payments::PaymentListConstraints 
 #[inline]
 fn from_timestamp_to_datetime(
     time: Option<i64>,
-) -> Result<Option<time::PrimitiveDateTime>, errors::ApiErrorResponse> {
+) -> Result<Option<PrimitiveDateTime>, errors::ApiErrorResponse> {
     if let Some(time) = time {
         let time = time::OffsetDateTime::from_unix_timestamp(time).map_err(|_| {
             errors::ApiErrorResponse::InvalidRequestData {
@@ -528,7 +526,7 @@ pub struct MandateOption {
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub accepted_at: Option<PrimitiveDateTime>,
     pub user_agent: Option<String>,
-    pub ip_address : Option<String>,
+    pub ip_address: Option<String>,
     pub mandate_type: Option<String>,
     pub amount: Option<i64>,
 }
@@ -556,35 +554,30 @@ impl ForeignTryFrom<(Option<MandateOption>, Option<String>)> for Option<payments
         };
         Ok({
             match mandate_options {
-                Some (mandate) => Some (payments::MandateData {
-                    mandate_type: 
-                    if mandate.mandate_type == Some("multi_use".to_string())
-                        {
-                           payments::MandateType::MultiUse(None)
-                        // payments::MandateType::MultiUse(Some(payments::MandateAmountData {
-                        // amount: mandate.amount.unwrap_or_default(),
-                        // currency: extracted_currmatch
-                        // }))
-                        }
-                    else{
+                Some(mandate) => Some(payments::MandateData {
+                    mandate_type: if mandate.mandate_type == Some("multi_use".to_string()) {
+                        payments::MandateType::MultiUse(None)
+                    // payments::MandateType::MultiUse(Some(payments::MandateAmountData {
+                    // amount: mandate.amount.unwrap_or_default(),
+                    // currency: extracted_currmatch
+                    // }))
+                    } else {
                         payments::MandateType::SingleUse(payments::MandateAmountData {
                             amount: mandate.amount.unwrap_or_default(),
-                            currency: extracted_currmatch
-                        })}
-                    ,
+                            currency: extracted_currmatch,
+                        })
+                    },
                     customer_acceptance: payments::CustomerAcceptance {
-                    acceptance_type: payments::AcceptanceType::Online,
-                    accepted_at: mandate.accepted_at.map(|dt| dt.into()),
-                    online: Some(payments::OnlineMandate {
+                        acceptance_type: payments::AcceptanceType::Online,
+                        accepted_at: mandate.accepted_at.map(|dt| dt),
+                        online: Some(payments::OnlineMandate {
                             ip_address: (mandate.ip_address).unwrap_or_default().into(),
                             user_agent: mandate.user_agent.unwrap_or_default(),
-                            }),
-                        },
-                    }),
-                None => {
-                    None
-                }
-                }
+                        }),
+                    },
+                }),
+                None => None,
+            }
         })
     }
 }
