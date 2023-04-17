@@ -78,14 +78,14 @@ pub async fn retrieve_file_from_s3(
             Err(errors::ApiErrorResponse::InternalServerError)?
         }
     };
-    let mut recieved_data: Vec<u8> = Vec::new();
+    let mut received_data: Vec<u8> = Vec::new();
     while let Some(bytes) = object
         .body
         .try_next()
         .await
         .map_err(|_| errors::ApiErrorResponse::InternalServerError)?
     {
-        recieved_data.extend_from_slice(&bytes); // Collect the bytes in the Vec
+        received_data.extend_from_slice(&bytes); // Collect the bytes in the Vec
     }
-    Ok(recieved_data)
+    Ok(received_data)
 }

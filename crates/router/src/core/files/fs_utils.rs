@@ -33,14 +33,14 @@ pub fn delete_file_from_fs(file_key: String) -> CustomResult<(), errors::ApiErro
 }
 
 pub fn retrieve_file_from_fs(file_key: String) -> CustomResult<Vec<u8>, errors::ApiErrorResponse> {
-    let mut recieved_data: Vec<u8> = Vec::new();
+    let mut received_data: Vec<u8> = Vec::new();
     let mut file_path = PathBuf::new();
     file_path.push(crate::env::workspace_path());
     file_path.push("files");
     file_path.push(file_key);
     let mut file =
         File::open(file_path).map_err(|_| errors::ApiErrorResponse::InternalServerError)?;
-    file.read_to_end(&mut recieved_data)
+    file.read_to_end(&mut received_data)
         .map_err(|_| errors::ApiErrorResponse::InternalServerError)?;
-    Ok(recieved_data)
+    Ok(received_data)
 }

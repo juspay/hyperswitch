@@ -89,7 +89,7 @@ pub async fn files_retrieve_core(
         .find_file_by_merchant_id_file_id(&merchant_account.merchant_id, &req.file_id)
         .await
         .change_context(errors::ApiErrorResponse::FileNotFound)?;
-    let recieved_data = transformers::retrieve_file(
+    let received_data = transformers::retrieve_file(
         #[cfg(feature = "s3")]
         state,
         file_object.provider_file_id,
@@ -99,5 +99,5 @@ pub async fn files_retrieve_core(
         .file_type
         .parse::<mime::Mime>()
         .map_err(|_| errors::ApiErrorResponse::InternalServerError)?;
-    Ok(ApplicationResponse::FileData((recieved_data, content_type)))
+    Ok(ApplicationResponse::FileData((received_data, content_type)))
 }
