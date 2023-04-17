@@ -58,7 +58,6 @@ moka = { version = "0.10", features = ["future"] }
 nanoid = "0.4.0"
 num_cpus = "1.15.0"
 once_cell = "1.17.1"
-quick-xml = { version = "0.28.2", features = ["serialize"] }
 rand = "0.8.5"
 regex = "1.7.3"
 reqwest = { version = "0.11.16", features = ["json", "native-tls", "gzip"] }

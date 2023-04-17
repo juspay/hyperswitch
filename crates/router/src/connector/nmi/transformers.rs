@@ -1,7 +1,6 @@
-use common_utils::pii;
-use error_stack::{IntoReport, ResultExt};
+use common_utils::{ext_traits::XmlExt, pii};
+use error_stack::{IntoReport, Report, ResultExt};
 use masking::Secret;
-use quick_xml::{events::Event, name::QName, Reader};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -28,7 +27,7 @@ pub struct NmiAuthType {
 }
 
 impl TryFrom<&ConnectorAuthType> for NmiAuthType {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = Report<errors::ConnectorError>;
     fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
         if let types::ConnectorAuthType::HeaderKey { api_key } = auth_type {
             Ok(Self {
@@ -64,7 +63,7 @@ pub struct NmiPaymentsRequest {
 }
 
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for NmiPaymentsRequest {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         let transaction_type = match item.request.capture_method {
             Some(storage_models::enums::CaptureMethod::Automatic) => TransactionType::Sale,
@@ -129,7 +128,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for NmiPaymentsRequest {
 }
 
 impl TryFrom<&types::VerifyRouterData> for NmiPaymentsRequest {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = Report<errors::ConnectorError>;
     fn try_from(item: &types::VerifyRouterData) -> Result<Self, Self::Error> {
         let transaction_type = TransactionType::Validate;
         let security_key: NmiAuthType = (&item.connector_auth_type).try_into()?;
@@ -192,7 +191,7 @@ pub struct NmiSyncRequest {
 }
 
 impl TryFrom<&types::PaymentsSyncRouterData> for NmiSyncRequest {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsSyncRouterData) -> Result<Self, Self::Error> {
         let auth = NmiAuthType::try_from(&item.connector_auth_type)?;
         Ok(Self {
@@ -216,7 +215,7 @@ pub struct NmiCaptureRequest {
 }
 
 impl TryFrom<&types::PaymentsCaptureRouterData> for NmiCaptureRequest {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsCaptureRouterData) -> Result<Self, Self::Error> {
         let auth = NmiAuthType::try_from(&item.connector_auth_type)?;
         Ok(Self {
@@ -241,7 +240,7 @@ impl
         >,
     > for types::RouterData<api::Capture, types::PaymentsCaptureData, types::PaymentsResponseData>
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = Report<errors::ConnectorError>;
     fn try_from(
         item: types::ResponseRouterData<
             api::Capture,
@@ -290,7 +289,7 @@ pub struct NmiCancelRequest {
 }
 
 impl TryFrom<&types::PaymentsCancelRouterData> for NmiCancelRequest {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsCancelRouterData) -> Result<Self, Self::Error> {
         let auth = NmiAuthType::try_from(&item.connector_auth_type)?;
         Ok(Self {
@@ -329,7 +328,7 @@ impl<T>
         types::ResponseRouterData<api::Verify, StandardResponse, T, types::PaymentsResponseData>,
     > for types::RouterData<api::Verify, T, types::PaymentsResponseData>
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = Report<errors::ConnectorError>;
     fn try_from(
         item: types::ResponseRouterData<
             api::Verify,
@@ -398,7 +397,7 @@ impl<F, T>
     TryFrom<types::ResponseRouterData<F, NmiPaymentsResponse, T, types::PaymentsResponseData>>
     for types::RouterData<F, T, types::PaymentsResponseData>
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = Report<errors::ConnectorError>;
     fn try_from(
         item: types::ResponseRouterData<F, NmiPaymentsResponse, T, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
@@ -418,7 +417,7 @@ impl<F, T>
 impl TryFrom<types::PaymentsResponseRouterData<StandardResponse>>
     for types::RouterData<api::Authorize, types::PaymentsAuthorizeData, types::PaymentsResponseData>
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = Report<errors::ConnectorError>;
     fn try_from(
         item: types::ResponseRouterData<
             api::Authorize,
@@ -467,7 +466,7 @@ impl<T>
     TryFrom<types::ResponseRouterData<api::Void, StandardResponse, T, types::PaymentsResponseData>>
     for types::RouterData<api::Void, T, types::PaymentsResponseData>
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = Report<errors::ConnectorError>;
     fn try_from(
         item: types::ResponseRouterData<
             api::Void,
@@ -539,7 +538,7 @@ pub struct QueryResponse {
 impl TryFrom<types::PaymentsSyncResponseRouterData<types::Response>>
     for types::PaymentsSyncRouterData
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = Report<errors::ConnectorError>;
     fn try_from(
         item: types::PaymentsSyncResponseRouterData<types::Response>,
     ) -> Result<Self, Self::Error> {
@@ -584,7 +583,7 @@ pub struct NmiRefundRequest {
 }
 
 impl<F> TryFrom<&types::RefundsRouterData<F>> for NmiRefundRequest {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = Report<errors::ConnectorError>;
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
         let security_key: NmiAuthType = (&item.connector_auth_type).try_into()?;
         let security_key = security_key.api_key;
@@ -604,7 +603,7 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for NmiRefundRequest {
 impl TryFrom<types::RefundsResponseRouterData<api::Execute, StandardResponse>>
     for types::RefundsRouterData<api::Execute>
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = Report<errors::ConnectorError>;
     fn try_from(
         item: types::RefundsResponseRouterData<api::Execute, StandardResponse>,
     ) -> Result<Self, Self::Error> {
@@ -622,7 +621,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, StandardResponse>>
 impl TryFrom<types::RefundsResponseRouterData<api::Capture, StandardResponse>>
     for types::RefundsRouterData<api::Capture>
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = Report<errors::ConnectorError>;
     fn try_from(
         item: types::RefundsResponseRouterData<api::Capture, StandardResponse>,
     ) -> Result<Self, Self::Error> {
@@ -647,7 +646,7 @@ impl From<Response> for enums::RefundStatus {
 }
 
 impl TryFrom<&types::RefundSyncRouterData> for NmiSyncRequest {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = Report<errors::ConnectorError>;
     fn try_from(item: &types::RefundSyncRouterData) -> Result<Self, Self::Error> {
         let auth = NmiAuthType::try_from(&item.connector_auth_type)?;
         let transaction_id = item
@@ -666,7 +665,7 @@ impl TryFrom<&types::RefundSyncRouterData> for NmiSyncRequest {
 impl TryFrom<types::RefundsResponseRouterData<api::RSync, QueryResponse>>
     for types::RefundsRouterData<api::RSync>
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = Report<errors::ConnectorError>;
     fn try_from(
         item: types::RefundsResponseRouterData<api::RSync, QueryResponse>,
     ) -> Result<Self, Self::Error> {
@@ -696,37 +695,31 @@ impl From<NmiStatus> for enums::RefundStatus {
     }
 }
 
+#[derive(Debug, Deserialize)]
+pub struct XMLTransaction {
+    #[serde(rename = "transaction_id")]
+    transaction_id: String,
+    #[serde(rename = "condition")]
+    condition: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct XMLResponse {
+    #[serde(rename = "transaction")]
+    transaction: XMLTransaction,
+}
+
 pub fn get_query_info(
     query_response: String,
-) -> Result<(String, NmiStatus), errors::ConnectorError> {
-    let mut reader = Reader::from_str(&query_response);
-    reader.trim_text(true);
+) -> Result<(String, NmiStatus), Report<errors::ConnectorError>> {
+    // let nm_response: XMLResponse = XmlExt::de::from_str(query_response.as_str())
+    //     .unwrap_or(Err(errors::ConnectorError::ResponseDeserializationFailed)?);
+    let nm_response = query_response
+        .parse_xml::<XMLResponse>()
+        .into_report()
+        .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
-    let mut buf: Vec<u8> = Vec::new();
-    let mut transaction_id = String::new();
-    let mut condition = String::new();
-
-    loop {
-        match reader.read_event() {
-            Ok(Event::Start(ref e)) if e.name() == QName(b"transaction_id") => {
-                transaction_id = match reader.read_text(e.name()) {
-                    Ok(text) => text.into_owned().to_string(),
-                    Err(_err) => return Err(errors::ConnectorError::ResponseHandlingFailed),
-                };
-            }
-            Ok(Event::Start(ref e)) if e.name() == QName(b"condition") => {
-                condition = match reader.read_text(e.name()) {
-                    Ok(text) => text.into_owned().to_string(),
-                    Err(_err) => return Err(errors::ConnectorError::ResponseHandlingFailed),
-                };
-            }
-            Ok(Event::Eof) => break,
-            Err(_e) => Err(errors::ConnectorError::ResponseHandlingFailed)?,
-            _ => (),
-        }
-        buf.clear();
-    }
-    let nmi_status = match condition.as_str() {
+    let nmi_status = match nm_response.transaction.condition.as_str() {
         "abandoned" => Some(NmiStatus::Abandoned),
         "canceled" => Some(NmiStatus::Cancelled),
         "pending" => Some(NmiStatus::Pending),
@@ -742,7 +735,7 @@ pub fn get_query_info(
         None => Err(errors::ConnectorError::ResponseHandlingFailed),
     }?;
 
-    Ok((transaction_id, nmi_status))
+    Ok((nm_response.transaction.transaction_id, nmi_status))
 }
 
 pub fn get_attempt_status(
