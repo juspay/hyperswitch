@@ -45,11 +45,14 @@ static ALLOC: mimalloc::MiMalloc = mimalloc::MiMalloc;
 pub mod headers {
     pub const ACCEPT: &str = "Accept";
     pub const API_KEY: &str = "API-KEY";
+    pub const APIKEY: &str = "apikey";
     pub const X_CC_API_KEY: &str = "X-CC-Api-Key";
     pub const AUTHORIZATION: &str = "Authorization";
     pub const CONTENT_TYPE: &str = "Content-Type";
     pub const DATE: &str = "Date";
+    pub const NONCE: &str = "nonce";
     pub const TIMESTAMP: &str = "Timestamp";
+    pub const TOKEN: &str = "token";
     pub const X_API_KEY: &str = "X-API-KEY";
     pub const X_API_VERSION: &str = "X-ApiVersion";
     pub const X_MERCHANT_ID: &str = "X-Merchant-Id";

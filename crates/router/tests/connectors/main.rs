@@ -17,6 +17,7 @@ mod mollie;
 mod multisafepay;
 mod nuvei;
 mod opennode;
+mod payeezy;
 mod paypal;
 mod payu;
 mod rapyd;

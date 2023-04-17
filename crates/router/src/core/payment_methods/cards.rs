@@ -316,7 +316,10 @@ pub async fn add_card_hs(
         req,
         merchant_id,
     );
-    Ok((payment_method_resp, store_card_payload.duplicate))
+    Ok((
+        payment_method_resp,
+        store_card_payload.duplicate.unwrap_or(false),
+    ))
 }
 
 // Legacy Locker Function
@@ -577,6 +580,7 @@ pub async fn mock_add_card_hs(
         card_cvc,
         payment_method_id,
         customer_id: customer_id.map(str::to_string),
+        name_on_card: card.card_holder_name.to_owned().expose_option(),
     };
 
     let response = db
@@ -585,7 +589,7 @@ pub async fn mock_add_card_hs(
         .change_context(errors::VaultError::SaveCardFailed)?;
     let payload = payment_methods::StoreCardRespPayload {
         card_reference: response.card_id,
-        duplicate: false,
+        duplicate: Some(false),
     };
     Ok(payment_methods::StoreCardResp {
         status: "SUCCESS".to_string(),
@@ -616,6 +620,7 @@ pub async fn mock_add_card(
         card_cvc,
         payment_method_id,
         customer_id: customer_id.map(str::to_string),
+        name_on_card: card.card_holder_name.to_owned().expose_option(),
     };
     let response = db
         .insert_locker_mock_up(locker_mock_up)
@@ -630,7 +635,7 @@ pub async fn mock_add_card(
         card_number: Some(response.card_number.into()),
         card_exp_year: Some(response.card_exp_year.into()),
         card_exp_month: Some(response.card_exp_month.into()),
-        name_on_card: None,
+        name_on_card: response.name_on_card.map(|c| c.into()),
         nickname: response.nickname,
         customer_id: response.customer_id,
         duplicate: response.duplicate,
@@ -657,7 +662,7 @@ pub async fn mock_get_card<'a>(
         card_number: Some(locker_mock_up.card_number.into()),
         card_exp_year: Some(locker_mock_up.card_exp_year.into()),
         card_exp_month: Some(locker_mock_up.card_exp_month.into()),
-        name_on_card: None,
+        name_on_card: locker_mock_up.name_on_card.map(|card| card.into()),
         nickname: locker_mock_up.nickname,
         customer_id: locker_mock_up.customer_id,
         duplicate: locker_mock_up.duplicate,

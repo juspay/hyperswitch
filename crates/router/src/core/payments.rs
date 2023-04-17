@@ -319,7 +319,7 @@ impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
             metadata: Some(Metadata {
                 order_details: None,
                 data: masking::Secret::new("{}".into()),
-                payload: Some(req.json_payload.unwrap_or("{}".into()).into()),
+                payload: Some(req.json_payload.unwrap_or(serde_json::json!({})).into()),
             }),
             ..Default::default()
         };
@@ -597,13 +597,13 @@ async fn decide_payment_method_tokenize_action(
     payment_method: &storage::enums::PaymentMethod,
     pm_parent_token: Option<&String>,
     is_connector_tokenization_enabled: bool,
-) -> TokenizationAction {
+) -> RouterResult<TokenizationAction> {
     match pm_parent_token {
         None => {
             if is_connector_tokenization_enabled {
-                TokenizationAction::TokenizeInConnectorAndRouter
+                Ok(TokenizationAction::TokenizeInConnectorAndRouter)
             } else {
-                TokenizationAction::TokenizeInRouter
+                Ok(TokenizationAction::TokenizeInRouter)
             }
         }
         Some(token) => {
@@ -615,14 +615,19 @@ async fn decide_payment_method_tokenize_action(
                 connector_name
             );
 
-            match redis_conn.get_key::<String>(&key).await {
-                Ok(connector_token) => TokenizationAction::ConnectorToken(connector_token),
-                Err(error) => {
-                    logger::debug!(connector_token_redis_error=?error);
+            let connector_token_option = redis_conn
+                .get_key::<Option<String>>(&key)
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to fetch the token from redis")?;
+
+            match connector_token_option {
+                Some(connector_token) => Ok(TokenizationAction::ConnectorToken(connector_token)),
+                None => {
                     if is_connector_tokenization_enabled {
-                        TokenizationAction::TokenizeInConnector
+                        Ok(TokenizationAction::TokenizeInConnector)
                     } else {
-                        TokenizationAction::SkipConnectorTokenization
+                        Ok(TokenizationAction::TokenizeInRouter)
                     }
                 }
             }
@@ -671,7 +676,7 @@ where
                 payment_data.token.as_ref(),
                 is_connector_tokenization_enabled,
             )
-            .await;
+            .await?;
 
             let connector_tokenization_action = match payment_method_action {
                 TokenizationAction::TokenizeInRouter => {
