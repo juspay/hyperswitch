@@ -195,6 +195,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
                 .await?;
                 if init_resp.request.enrolled_for_3ds {
                     router_data.response = init_resp.response;
+                    router_data.status = init_resp.status;
                 } else {
                     router_data.request.enrolled_for_3ds = false;
                 }
