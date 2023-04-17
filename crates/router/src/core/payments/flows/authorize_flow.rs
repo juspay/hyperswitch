@@ -117,26 +117,30 @@ impl types::PaymentsAuthorizeRouterData {
                     .execute_pretasks(self, state)
                     .await
                     .map_err(|error| error.to_payment_failed_response())?;
-                self.decide_authentication_type();
-                let resp = services::execute_connector_processing_step(
-                    state,
-                    connector_integration,
-                    self,
-                    call_connector_action,
-                )
-                .await
-                .map_err(|error| error.to_payment_failed_response())?;
+                if self.should_proceed_with_authorize() {
+                    self.decide_authentication_type();
+                    let resp = services::execute_connector_processing_step(
+                        state,
+                        connector_integration,
+                        self,
+                        call_connector_action,
+                    )
+                    .await
+                    .map_err(|error| error.to_payment_failed_response())?;
 
-                let pm_id = save_payment_method(
-                    state,
-                    connector,
-                    resp.to_owned(),
-                    maybe_customer,
-                    merchant_account,
-                )
-                .await?;
+                    let pm_id = save_payment_method(
+                        state,
+                        connector,
+                        resp.to_owned(),
+                        maybe_customer,
+                        merchant_account,
+                    )
+                    .await?;
 
-                Ok(mandate::mandate_procedure(state, resp, maybe_customer, pm_id).await?)
+                    Ok(mandate::mandate_procedure(state, resp, maybe_customer, pm_id).await?)
+                } else {
+                    Ok(self.clone())
+                }
             }
             _ => Ok(self.clone()),
         }
@@ -147,6 +151,16 @@ impl types::PaymentsAuthorizeRouterData {
             && !self.request.enrolled_for_3ds
         {
             self.auth_type = storage_models::enums::AuthenticationType::NoThreeDs
+        }
+    }
+
+    /// to decide if we need to proceed with authorize or not, Eg: If any of the pretask returns `redirection_response` then we should not proceed with authorize call
+    fn should_proceed_with_authorize(&self) -> bool {
+        match &self.response {
+            Ok(types::PaymentsResponseData::TransactionResponse {
+                redirection_data, ..
+            }) => !redirection_data.is_some(),
+            _ => true,
         }
     }
 }

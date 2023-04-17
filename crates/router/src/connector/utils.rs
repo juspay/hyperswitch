@@ -142,7 +142,7 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
 }
 
 pub trait PaymentsAuthorizeRequestData {
-    fn is_auto_capture(&self) -> bool;
+    fn is_auto_capture(&self) -> Result<bool, Error>;
     fn get_email(&self) -> Result<Secret<String, Email>, Error>;
     fn get_browser_info(&self) -> Result<types::BrowserInformation, Error>;
     fn get_card(&self) -> Result<api::Card, Error>;
@@ -153,8 +153,12 @@ pub trait PaymentsAuthorizeRequestData {
 }
 
 impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
-    fn is_auto_capture(&self) -> bool {
-        self.capture_method == Some(storage_models::enums::CaptureMethod::Automatic)
+    fn is_auto_capture(&self) -> Result<bool, Error> {
+        match self.capture_method {
+            Some(storage_models::enums::CaptureMethod::Automatic) | None => Ok(true),
+            Some(storage_models::enums::CaptureMethod::Manual) => Ok(false),
+            Some(_) => Err(errors::ConnectorError::CaptureMethodNotSupported.into()),
+        }
     }
     fn get_email(&self) -> Result<Secret<String, Email>, Error> {
         self.email.clone().ok_or_else(missing_field_err("email"))
@@ -195,14 +199,32 @@ impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
     }
 }
 
+pub trait PaymentsCompleteAuthorizeRequestData {
+    fn is_auto_capture(&self) -> Result<bool, Error>;
+}
+
+impl PaymentsCompleteAuthorizeRequestData for types::CompleteAuthorizeData {
+    fn is_auto_capture(&self) -> Result<bool, Error> {
+        match self.capture_method {
+            Some(storage_models::enums::CaptureMethod::Automatic) | None => Ok(true),
+            Some(storage_models::enums::CaptureMethod::Manual) => Ok(false),
+            Some(_) => Err(errors::ConnectorError::CaptureMethodNotSupported.into()),
+        }
+    }
+}
+
 pub trait PaymentsSyncRequestData {
-    fn is_auto_capture(&self) -> bool;
+    fn is_auto_capture(&self) -> Result<bool, Error>;
     fn get_connector_transaction_id(&self) -> CustomResult<String, errors::ValidationError>;
 }
 
 impl PaymentsSyncRequestData for types::PaymentsSyncData {
-    fn is_auto_capture(&self) -> bool {
-        self.capture_method == Some(storage_models::enums::CaptureMethod::Automatic)
+    fn is_auto_capture(&self) -> Result<bool, Error> {
+        match self.capture_method {
+            Some(storage_models::enums::CaptureMethod::Automatic) | None => Ok(true),
+            Some(storage_models::enums::CaptureMethod::Manual) => Ok(false),
+            Some(_) => Err(errors::ConnectorError::CaptureMethodNotSupported.into()),
+        }
     }
     fn get_connector_transaction_id(&self) -> CustomResult<String, errors::ValidationError> {
         match self.connector_transaction_id.clone() {
