@@ -52,6 +52,17 @@ impl api::PaymentVoid for Adyen {}
 impl api::PaymentCapture for Adyen {}
 impl api::PreVerify for Adyen {}
 impl api::ConnectorAccessToken for Adyen {}
+impl api::PaymentToken for Adyen {}
+
+impl
+    services::ConnectorIntegration<
+        api::PaymentMethodToken,
+        types::PaymentMethodTokenizationData,
+        types::PaymentsResponseData,
+    > for Adyen
+{
+    // Not Implemented (R)
+}
 
 impl
     services::ConnectorIntegration<

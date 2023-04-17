@@ -1,6 +1,7 @@
 FROM rust:slim as builder
 
 ARG RUN_ENV=Sandbox
+ARG EXTRA_FEATURES=""
 
 RUN apt-get update \
     && apt-get install -y libpq-dev libssl-dev pkg-config
@@ -34,7 +35,7 @@ ENV CARGO_REGISTRIES_CRATES_IO_PROTOCOL="sparse"
 COPY . .
 
 # Use bash variable substitution to convert environment name to lowercase
-RUN bash -c 'cargo build --release --features ${RUN_ENV@L}'
+RUN bash -c 'cargo build --release --features ${RUN_ENV@L} ${EXTRA_FEATURES}'
 
 
 

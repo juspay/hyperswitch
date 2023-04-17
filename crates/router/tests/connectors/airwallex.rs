@@ -63,6 +63,7 @@ fn payment_method_details() -> Option<types::PaymentsAuthorizeData> {
         }),
         capture_method: Some(storage_models::enums::CaptureMethod::Manual),
         router_return_url: Some("https://google.com".to_string()),
+        complete_authorize_url: Some("https://google.com".to_string()),
         ..utils::PaymentAuthorizeType::default().0
     })
 }

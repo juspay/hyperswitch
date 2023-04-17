@@ -60,6 +60,7 @@ cards = [
     "bluesnap",
     "braintree",
     "checkout",
+    "coinbase",
     "cybersource",
     "dlocal",
     "fiserv",
@@ -67,6 +68,8 @@ cards = [
     "mollie",
     "multisafepay",
     "nuvei",
+    "opennode",
+    "payeezy",
     "paypal",
     "payu",
     "shift4",
@@ -99,6 +102,7 @@ bambora.base_url = "https://api.na.bambora.com"
 bluesnap.base_url = "https://sandbox.bluesnap.com/"
 braintree.base_url = "https://api.sandbox.braintreegateway.com/"
 checkout.base_url = "https://api.sandbox.checkout.com/"
+coinbase.base_url = "https://api.commerce.coinbase.com"
 cybersource.base_url = "https://apitest.cybersource.com/"
 dlocal.base_url = "https://sandbox.dlocal.com/"
 fiserv.base_url = "https://cert.api.fiservapps.com/"
@@ -107,6 +111,8 @@ klarna.base_url = "https://api-na.playground.klarna.com/"
 mollie.base_url = "https://api.mollie.com/v2/"
 multisafepay.base_url = "https://testapi.multisafepay.com/"
 nuvei.base_url = "https://ppp-test.nuvei.com/"
+opennode.base_url = "https://dev-api.opennode.com"
+payeezy.base_url = "https://api-cert.payeezy.com/"
 paypal.base_url = "https://www.sandbox.paypal.com/"
 payu.base_url = "https://secure.snd.payu.com/"
 rapyd.base_url = "https://sandboxapi.rapyd.net"
@@ -168,3 +174,6 @@ paypal = { currency = "CHF,DKK,EUR,GBP,NOK,PLN,SEK,USD,AUD,NZD,CAD" }
 [pm_filters.worldpay]
 google_pay = { country = "AL,DZ,AS,AO,AG,AR,AU,AT,AZ,BH,BY,BE,BR,BG,CA,CL,CO,HR,CZ,DK,DO,EG,EE,FI,FR,DE,GR,HK,HU,IN,ID,IE,IL,IT,JP,JO,KZ,KE,KW,LV,LB,LT,LU,MY,MX,NL,NZ,NO,OM,PK,PA,PE,PH,PL,PT,QA,RO,RU,SA,SG,SK,ZA,ES,LK,SE,CH,TW,TH,TR,UA,AE,GB,US,UY,VN" }
 apple_pay = { country = "AU,CN,HK,JP,MO,MY,NZ,SG,TW,AM,AT,AZ,BY,BE,BG,HR,CY,CZ,DK,EE,FO,FI,FR,GE,DE,GR,GL,GG,HU,IS,IE,IM,IT,KZ,JE,LV,LI,LT,LU,MT,MD,MC,ME,NL,NO,PL,PT,RO,SM,RS,SK,SI,ES,SE,CH,UA,GB,AR,CO,CR,BR,MX,PE,BH,IL,JO,KW,PS,QA,SA,AE,CA,UM,US" }
+
+[tokenization]
+stripe = { long_lived_token = false, payment_method = "wallet"}

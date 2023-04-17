@@ -1,8 +1,6 @@
 pub mod transformers;
 pub mod utils;
 
-use std::collections::HashMap;
-
 use error_stack::{IntoReport, ResultExt};
 use masking::ExposeInterface;
 use router_env::{instrument, tracing};
@@ -230,9 +228,9 @@ async fn get_or_update_dispute_object(
     option_dispute: Option<storage_models::dispute::Dispute>,
     dispute_details: api::disputes::DisputePayload,
     merchant_id: &str,
-    payment_id: &str,
-    attempt_id: &str,
+    payment_attempt: &storage_models::payment_attempt::PaymentAttempt,
     event_type: api_models::webhooks::IncomingWebhookEvent,
+    connector_name: &str,
 ) -> CustomResult<storage_models::dispute::Dispute, errors::WebhooksFlowError> {
     let db = &*state.store;
     match option_dispute {
@@ -248,8 +246,9 @@ async fn get_or_update_dispute_object(
                     .foreign_try_into()
                     .into_report()
                     .change_context(errors::WebhooksFlowError::DisputeCoreFailed)?,
-                payment_id: payment_id.to_owned(),
-                attempt_id: attempt_id.to_owned(),
+                payment_id: payment_attempt.payment_id.to_owned(),
+                connector: connector_name.to_owned(),
+                attempt_id: payment_attempt.attempt_id.to_owned(),
                 merchant_id: merchant_id.to_owned(),
                 connector_status: dispute_details.connector_status,
                 connector_dispute_id: dispute_details.connector_dispute_id,
@@ -329,18 +328,12 @@ async fn disputes_incoming_webhook_flow<W: api::OutgoingWebhookType>(
             option_dispute,
             dispute_details,
             &merchant_account.merchant_id,
-            &payment_attempt.payment_id,
-            &payment_attempt.attempt_id,
+            &payment_attempt,
             event_type.clone(),
+            connector.id(),
         )
         .await?;
-        let disputes_response = Box::new(
-            dispute_object
-                .clone()
-                .foreign_try_into()
-                .into_report()
-                .change_context(errors::WebhooksFlowError::DisputeCoreFailed)?,
-        );
+        let disputes_response = Box::new(dispute_object.clone().foreign_into());
         let event_type: enums::EventType = dispute_object
             .dispute_status
             .foreign_try_into()
@@ -488,20 +481,10 @@ pub async fn webhooks_core<W: api::OutgoingWebhookType>(
     .attach_printable("Failed construction of ConnectorData")?;
 
     let connector = connector.connector;
-    let query_params = Some(req.query_string().to_string());
-    let qp: HashMap<String, String> =
-        url::form_urlencoded::parse(query_params.unwrap_or_default().as_bytes())
-            .into_owned()
-            .collect();
-    let json = Encode::<HashMap<String, String>>::encode_to_string_of_json(&qp)
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("There was an error in parsing the query params")?;
-
     let mut request_details = api::IncomingWebhookRequestDetails {
         method: req.method().clone(),
         headers: req.headers(),
         query_params: req.query_string().to_string(),
-        query_params_json: json.as_bytes(),
         body: &body,
     };
 
@@ -522,10 +505,18 @@ pub async fn webhooks_core<W: api::OutgoingWebhookType>(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Could not find event type in incoming webhook body")?;
 
-    if !matches!(
-        event_type,
-        api_models::webhooks::IncomingWebhookEvent::EndpointVerification
-    ) {
+    let process_webhook_further = utils::lookup_webhook_event(
+        &*state.store,
+        connector_name,
+        &merchant_account.merchant_id,
+        &event_type,
+    )
+    .await;
+
+    logger::info!(process_webhook=?process_webhook_further);
+    logger::info!(event_type=?event_type);
+
+    if process_webhook_further {
         let source_verified = connector
             .verify_webhook_source(
                 &*state.store,
@@ -536,77 +527,67 @@ pub async fn webhooks_core<W: api::OutgoingWebhookType>(
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("There was an issue in incoming webhook source verification")?;
 
-        let process_webhook_further = utils::lookup_webhook_event(
-            &*state.store,
-            connector_name,
-            &merchant_account.merchant_id,
-            &event_type,
-        )
-        .await;
+        let object_ref_id = connector
+            .get_webhook_object_reference_id(&request_details)
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Could not find object reference id in incoming webhook body")?;
 
-        if process_webhook_further {
-            let object_ref_id = connector
-                .get_webhook_object_reference_id(&request_details)
+        let event_object = connector
+            .get_webhook_resource_object(&request_details)
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Could not find resource object in incoming webhook body")?;
+
+        let webhook_details = api::IncomingWebhookDetails {
+            object_reference_id: object_ref_id,
+            resource_object: Encode::<serde_json::Value>::encode_to_vec(&event_object)
                 .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Could not find object reference id in incoming webhook body")?;
+                .attach_printable(
+                    "There was an issue when encoding the incoming webhook body to bytes",
+                )?,
+        };
 
-            let event_object = connector
-                .get_webhook_resource_object(&request_details)
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Could not find resource object in incoming webhook body")?;
+        let flow_type: api::WebhookFlow = event_type.to_owned().into();
+        match flow_type {
+            api::WebhookFlow::Payment => payments_incoming_webhook_flow::<W>(
+                state.clone(),
+                merchant_account,
+                webhook_details,
+                source_verified,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Incoming webhook flow for payments failed")?,
 
-            let webhook_details = api::IncomingWebhookDetails {
-                object_reference_id: object_ref_id,
-                resource_object: Encode::<serde_json::Value>::encode_to_vec(&event_object)
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable(
-                        "There was an issue when encoding the incoming webhook body to bytes",
-                    )?,
-            };
+            api::WebhookFlow::Refund => refunds_incoming_webhook_flow::<W>(
+                state.clone(),
+                merchant_account,
+                webhook_details,
+                connector_name,
+                source_verified,
+                event_type,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Incoming webhook flow for refunds failed")?,
 
-            let flow_type: api::WebhookFlow = event_type.to_owned().into();
-            match flow_type {
-                api::WebhookFlow::Payment => payments_incoming_webhook_flow::<W>(
-                    state.clone(),
-                    merchant_account,
-                    webhook_details,
-                    source_verified,
-                )
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Incoming webhook flow for payments failed")?,
+            api::WebhookFlow::Dispute => disputes_incoming_webhook_flow::<W>(
+                state.clone(),
+                merchant_account,
+                webhook_details,
+                source_verified,
+                *connector,
+                &request_details,
+                event_type,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Incoming webhook flow for disputes failed")?,
 
-                api::WebhookFlow::Refund => refunds_incoming_webhook_flow::<W>(
-                    state.clone(),
-                    merchant_account,
-                    webhook_details,
-                    connector_name,
-                    source_verified,
-                    event_type,
-                )
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Incoming webhook flow for refunds failed")?,
+            api::WebhookFlow::ReturnResponse => {}
 
-                api::WebhookFlow::Dispute => disputes_incoming_webhook_flow::<W>(
-                    state.clone(),
-                    merchant_account,
-                    webhook_details,
-                    source_verified,
-                    *connector,
-                    &request_details,
-                    event_type,
-                )
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Incoming webhook flow for disputes failed")?,
-
-                api::WebhookFlow::ReturnResponse => {}
-
-                _ => Err(errors::ApiErrorResponse::InternalServerError)
-                    .into_report()
-                    .attach_printable("Unsupported Flow Type received in incoming webhooks")?,
-            }
+            _ => Err(errors::ApiErrorResponse::InternalServerError)
+                .into_report()
+                .attach_printable("Unsupported Flow Type received in incoming webhooks")?,
         }
     }
 

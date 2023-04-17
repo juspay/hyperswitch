@@ -332,9 +332,6 @@ pub struct Card {
     pub chip_condition: Option<ChipCondition>,
     /// The numeric value printed on the physical card.
     pub cvv: Secret<String>,
-    /// Card Verification Value Indicator sent by the Merchant indicating the CVV
-    /// availability.
-    pub cvv_indicator: CvvIndicator,
     /// The 2 digit expiry date month of the card.
     pub expiry_month: Secret<String>,
     /// The 2 digit expiry date year of the card.
@@ -375,8 +372,6 @@ pub struct StoredCredential {
     /// Indicates the transaction processing model being executed when using stored
     /// credentials.
     pub model: Option<Model>,
-    /// The reason stored credentials are being used to to create a transaction.
-    pub reason: Option<Reason>,
     /// Indicates the order of this transaction in the sequence of a planned repeating
     /// transaction processing model.
     pub sequence: Option<Sequence>,
@@ -578,6 +573,7 @@ pub enum ApmProvider {
     Ideal,
     Paypal,
     Sofort,
+    Eps,
     Testpay,
 }
 
@@ -640,20 +636,6 @@ pub enum ChipCondition {
     PrevFailed,
     /// indicates the previous transaction with this card was a success.
     PrevSuccess,
-}
-
-/// Card Verification Value Indicator sent by the Merchant indicating the CVV
-/// availability.
-#[derive(Debug, Default, Serialize, Deserialize)]
-#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-pub enum CvvIndicator {
-    /// indicates the cvv is present but cannot be read.
-    Illegible,
-    /// indicates the cvv is not present on the card.
-    NotPresent,
-    #[default]
-    /// indicates the cvv is present.
-    Present,
 }
 
 /// Indicates whether the card is a debit or credit card.

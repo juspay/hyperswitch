@@ -1,0 +1,1 @@
+ALTER TYPE "AttemptStatus" ADD VALUE IF NOT EXISTS 'device_data_collection_pending';

@@ -18,7 +18,7 @@ use fred::{
     interfaces::{HashesInterface, KeysInterface, StreamsInterface},
     types::{
         Expiration, FromRedis, MultipleIDs, MultipleKeys, MultipleOrderedPairs, MultipleStrings,
-        RedisKey, RedisMap, RedisValue, SetOptions, XCap, XReadResponse,
+        RedisKey, RedisMap, RedisValue, Scanner, SetOptions, XCap, XReadResponse,
     },
 };
 use futures::StreamExt;
@@ -33,8 +33,8 @@ impl super::RedisConnectionPool {
     #[instrument(level = "DEBUG", skip(self))]
     pub async fn set_key<V>(&self, key: &str, value: V) -> CustomResult<(), errors::RedisError>
     where
-        V: TryInto<RedisValue> + Debug,
-        V::Error: Into<fred::error::RedisError>,
+        V: TryInto<RedisValue> + Debug + Send + Sync,
+        V::Error: Into<fred::error::RedisError> + Send + Sync,
     {
         self.pool
             .set(
@@ -54,8 +54,8 @@ impl super::RedisConnectionPool {
         value: V,
     ) -> CustomResult<MsetnxReply, errors::RedisError>
     where
-        V: TryInto<RedisMap> + Debug,
-        V::Error: Into<fred::error::RedisError>,
+        V: TryInto<RedisMap> + Debug + Send + Sync,
+        V::Error: Into<fred::error::RedisError> + Send + Sync,
     {
         self.pool
             .msetnx(value)
@@ -138,8 +138,8 @@ impl super::RedisConnectionPool {
         seconds: i64,
     ) -> CustomResult<(), errors::RedisError>
     where
-        V: TryInto<RedisValue> + Debug,
-        V::Error: Into<fred::error::RedisError>,
+        V: TryInto<RedisValue> + Debug + Send + Sync,
+        V::Error: Into<fred::error::RedisError> + Send + Sync,
     {
         self.pool
             .set(key, value, Some(Expiration::EX(seconds)), None, false)
@@ -155,8 +155,8 @@ impl super::RedisConnectionPool {
         value: V,
     ) -> CustomResult<SetnxReply, errors::RedisError>
     where
-        V: TryInto<RedisValue> + Debug,
-        V::Error: Into<fred::error::RedisError>,
+        V: TryInto<RedisValue> + Debug + Send + Sync,
+        V::Error: Into<fred::error::RedisError> + Send + Sync,
     {
         self.pool
             .set(
@@ -204,8 +204,8 @@ impl super::RedisConnectionPool {
         values: V,
     ) -> CustomResult<(), errors::RedisError>
     where
-        V: TryInto<RedisMap> + Debug,
-        V::Error: Into<fred::error::RedisError>,
+        V: TryInto<RedisMap> + Debug + Send + Sync,
+        V::Error: Into<fred::error::RedisError> + Send + Sync,
     {
         let output: Result<(), _> = self
             .pool
@@ -228,8 +228,8 @@ impl super::RedisConnectionPool {
         value: V,
     ) -> CustomResult<HsetnxReply, errors::RedisError>
     where
-        V: TryInto<RedisValue> + Debug,
-        V::Error: Into<fred::error::RedisError>,
+        V: TryInto<RedisValue> + Debug + Send + Sync,
+        V::Error: Into<fred::error::RedisError> + Send + Sync,
     {
         let output: Result<HsetnxReply, _> = self
             .pool
@@ -378,8 +378,8 @@ impl super::RedisConnectionPool {
         fields: F,
     ) -> CustomResult<(), errors::RedisError>
     where
-        F: TryInto<MultipleOrderedPairs> + Debug,
-        F::Error: Into<fred::error::RedisError>,
+        F: TryInto<MultipleOrderedPairs> + Debug + Send + Sync,
+        F::Error: Into<fred::error::RedisError> + Send + Sync,
     {
         self.pool
             .xadd(stream, false, None, entry_id, fields)
@@ -395,7 +395,7 @@ impl super::RedisConnectionPool {
         ids: Ids,
     ) -> CustomResult<usize, errors::RedisError>
     where
-        Ids: Into<MultipleStrings> + Debug,
+        Ids: Into<MultipleStrings> + Debug + Send + Sync,
     {
         self.pool
             .xdel(stream, ids)
@@ -411,8 +411,8 @@ impl super::RedisConnectionPool {
         xcap: C,
     ) -> CustomResult<usize, errors::RedisError>
     where
-        C: TryInto<XCap> + Debug,
-        C::Error: Into<fred::error::RedisError>,
+        C: TryInto<XCap> + Debug + Send + Sync,
+        C::Error: Into<fred::error::RedisError> + Send + Sync,
     {
         self.pool
             .xtrim(stream, xcap)
@@ -429,7 +429,7 @@ impl super::RedisConnectionPool {
         ids: Ids,
     ) -> CustomResult<usize, errors::RedisError>
     where
-        Ids: Into<MultipleIDs> + Debug,
+        Ids: Into<MultipleIDs> + Debug + Send + Sync,
     {
         self.pool
             .xack(stream, group, ids)
@@ -441,7 +441,7 @@ impl super::RedisConnectionPool {
     #[instrument(level = "DEBUG", skip(self))]
     pub async fn stream_get_length<K>(&self, stream: K) -> CustomResult<usize, errors::RedisError>
     where
-        K: Into<RedisKey> + Debug,
+        K: Into<RedisKey> + Debug + Send + Sync,
     {
         self.pool
             .xlen(stream)
@@ -458,8 +458,8 @@ impl super::RedisConnectionPool {
         read_count: Option<u64>,
     ) -> CustomResult<XReadResponse<String, String, String, String>, errors::RedisError>
     where
-        K: Into<MultipleKeys> + Debug,
-        Ids: Into<MultipleIDs> + Debug,
+        K: Into<MultipleKeys> + Debug + Send + Sync,
+        Ids: Into<MultipleIDs> + Debug + Send + Sync,
     {
         self.pool
             .xread_map(
@@ -483,8 +483,8 @@ impl super::RedisConnectionPool {
         group: Option<(&str, &str)>, // (group_name, consumer_name)
     ) -> CustomResult<XReadResponse<String, String, String, Option<String>>, errors::RedisError>
     where
-        K: Into<MultipleKeys> + Debug,
-        Ids: Into<MultipleIDs> + Debug,
+        K: Into<MultipleKeys> + Debug + Send + Sync,
+        Ids: Into<MultipleIDs> + Debug + Send + Sync,
     {
         match group {
             Some((group_name, consumer_name)) => {
@@ -574,7 +574,7 @@ impl super::RedisConnectionPool {
         ids: Ids,
     ) -> CustomResult<R, errors::RedisError>
     where
-        Ids: Into<MultipleIDs> + Debug,
+        Ids: Into<MultipleIDs> + Debug + Send + Sync,
         R: FromRedis + Unpin + Send + 'static,
     {
         self.pool

@@ -2,7 +2,7 @@ use actix_web::{web, Scope};
 
 use super::health::*;
 #[cfg(feature = "olap")]
-use super::{admin::*, api_keys::*};
+use super::{admin::*, api_keys::*, disputes::*};
 #[cfg(any(feature = "olap", feature = "oltp"))]
 use super::{configs::*, customers::*, mandates::*, payments::*, payouts::*, refunds::*};
 #[cfg(feature = "oltp")]
@@ -109,22 +109,21 @@ impl Payments {
                     web::resource("/{payment_id}/capture").route(web::post().to(payments_capture)),
                 )
                 .service(
-                    web::resource("/start/{payment_id}/{merchant_id}/{attempt_id}")
+                    web::resource("/redirect/{payment_id}/{merchant_id}/{attempt_id}")
                         .route(web::get().to(payments_start)),
                 )
                 .service(
                     web::resource(
-                        "/{payment_id}/{merchant_id}/response/{connector}/{creds_identifier}",
+                        "/{payment_id}/{merchant_id}/redirect/response/{connector}/{creds_identifier}",
                     )
                     .route(web::get().to(payments_redirect_response_with_creds_identifier)),
                 )
                 .service(
-                    web::resource("/{payment_id}/{merchant_id}/response/{connector}")
+                    web::resource("/{payment_id}/{merchant_id}/redirect/response/{connector}")
                         .route(web::get().to(payments_redirect_response)),
                 )
                 .service(
-                    web::resource("/{payment_id}/{merchant_id}/complete/{connector}")
-                        .route(web::get().to(payments_complete_authorize))
+                    web::resource("/{payment_id}/{merchant_id}/redirect/complete/{connector}")
                         .route(web::post().to(payments_complete_authorize)),
                 );
         }
@@ -377,6 +376,18 @@ impl ApiKeys {
                     .route(web::post().to(api_key_update))
                     .route(web::delete().to(api_key_revoke)),
             )
+    }
+}
+
+pub struct Disputes;
+
+#[cfg(feature = "olap")]
+impl Disputes {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/disputes")
+            .app_data(web::Data::new(state))
+            .service(web::resource("/list").route(web::get().to(retrieve_disputes_list)))
+            .service(web::resource("/{dispute_id}").route(web::get().to(retrieve_dispute)))
     }
 }
 
