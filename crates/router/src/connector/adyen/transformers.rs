@@ -566,14 +566,7 @@ pub struct AdyenRefundResponse {
     psp_reference: String,
     payment_psp_reference: String,
     reference: String,
-    status: RefundStatus,
-}
-
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
-pub enum RefundStatus {
-    #[default]
-    Received,
+    status: String,
 }
 
 pub struct AdyenAuthType {
@@ -1230,7 +1223,8 @@ impl TryFrom<&types::PaymentsCancelRouterData> for AdyenCancelRequest {
 impl From<CancelStatus> for storage_enums::AttemptStatus {
     fn from(status: CancelStatus) -> Self {
         match status {
-            CancelStatus::Received | CancelStatus::Processing => Self::VoidInitiated,
+            CancelStatus::Received => Self::Voided,
+            CancelStatus::Processing => Self::Pending,
         }
     }
 }
@@ -1497,8 +1491,11 @@ impl<F> TryFrom<types::RefundsResponseRouterData<F, AdyenRefundResponse>>
     fn try_from(
         item: types::RefundsResponseRouterData<F, AdyenRefundResponse>,
     ) -> Result<Self, Self::Error> {
-        let refund_status = match item.response.status {
-            RefundStatus::Received => storage_enums::RefundStatus::Pending,
+        let refund_status = match item.response.status.as_str() {
+            // From the docs, the only value returned is "received", outcome of refund is available
+            // through refund notification webhook
+            "received" => storage_enums::RefundStatus::Success,
+            _ => storage_enums::RefundStatus::Pending,
         };
         Ok(Self {
             response: Ok(types::RefundsResponseData {
