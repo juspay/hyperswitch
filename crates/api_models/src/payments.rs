@@ -520,6 +520,9 @@ pub enum BankRedirectData {
         bank_name: api_enums::BankNames,
     },
     Sofort {
+        /// The billing details for bank redirection
+        billing_details: BankRedirectBilling,
+
         /// The country for bank payment
         #[schema(value_type = Country, example = "US")]
         country: api_enums::CountryCode,
