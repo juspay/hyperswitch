@@ -1233,6 +1233,8 @@ pub struct Metadata {
     #[schema(value_type = Object, example = r#"{ "city": "NY", "unit": "245" }"#)]
     #[serde(flatten)]
     pub data: pii::SecretSerdeValue,
+    /// Payload coming in request as a metadata field
+    pub payload: Option<pii::SecretSerdeValue>,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
@@ -1311,7 +1313,7 @@ pub struct GpayMetaData {
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct GpaySessionTokenData {
-    #[serde(rename = "gpay")]
+    #[serde(rename = "google_pay")]
     pub data: GpayMetaData,
 }
 
