@@ -1,4 +1,5 @@
 use api_models::payments;
+use common_utils::pii::SecretSerdeValue;
 use error_stack::{IntoReport, ResultExt};
 use masking::Secret;
 use serde::{Deserialize, Serialize};
@@ -366,7 +367,7 @@ pub struct Token {
     pub object_type: String,
     pub first6: String,
     pub last4: String,
-    pub fingerprint: String,
+    pub fingerprint: Secret<String>,
     pub brand: String,
     #[serde(rename = "type")]
     pub token_type: String,
@@ -385,7 +386,7 @@ pub struct ThreeDSecureInfo {
     pub liability_shift: Option<String>,
     pub version: String,
     #[serde(rename = "authenticationFlow")]
-    pub authentication_flow: Option<serde_json::Value>,
+    pub authentication_flow: Option<SecretSerdeValue>,
 }
 
 #[derive(Debug, Deserialize)]
