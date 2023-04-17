@@ -6,6 +6,7 @@ use router::{
     routes,
     types::{self, api, storage::enums, PaymentAddress},
 };
+use tokio::sync::oneshot;
 
 use crate::connector_auth::ConnectorAuthentication;
 
@@ -121,7 +122,8 @@ async fn test_checkout_payment_success() {
         connector_name: types::Connector::Checkout,
         get_token: types::api::GetToken::Connector,
     };
-    let state = routes::AppState::with_storage(conf, StorageImpl::PostgresqlTest, None).await;
+    let tx: oneshot::Sender<()> = oneshot::channel().0;
+    let state = routes::AppState::with_storage(conf, StorageImpl::PostgresqlTest, tx).await;
     let connector_integration: services::BoxedConnectorIntegration<
         '_,
         types::api::Authorize,
@@ -154,7 +156,8 @@ async fn test_checkout_refund_success() {
     use router::{configs::settings::Settings, connector::Checkout, services};
 
     let conf = Settings::new().expect("invalid settings");
-    let state = routes::AppState::with_storage(conf, StorageImpl::PostgresqlTest, None).await;
+    let tx: oneshot::Sender<()> = oneshot::channel().0;
+    let state = routes::AppState::with_storage(conf, StorageImpl::PostgresqlTest, tx).await;
     static CV: Checkout = Checkout;
     let connector = types::api::ConnectorData {
         connector: Box::new(&CV),
@@ -222,7 +225,8 @@ async fn test_checkout_payment_failure() {
     use router::{configs::settings::Settings, connector::Checkout, services};
 
     let conf = Settings::new().expect("invalid settings");
-    let state = routes::AppState::with_storage(conf, StorageImpl::PostgresqlTest, None).await;
+    let tx: oneshot::Sender<()> = oneshot::channel().0;
+    let state = routes::AppState::with_storage(conf, StorageImpl::PostgresqlTest, tx).await;
     static CV: Checkout = Checkout;
     let connector = types::api::ConnectorData {
         connector: Box::new(&CV),
@@ -255,7 +259,8 @@ async fn test_checkout_refund_failure() {
     use router::{configs::settings::Settings, connector::Checkout, services};
 
     let conf = Settings::new().expect("invalid settings");
-    let state = routes::AppState::with_storage(conf, StorageImpl::PostgresqlTest, None).await;
+    let tx: oneshot::Sender<()> = oneshot::channel().0;
+    let state = routes::AppState::with_storage(conf, StorageImpl::PostgresqlTest, tx).await;
     static CV: Checkout = Checkout;
     let connector = types::api::ConnectorData {
         connector: Box::new(&CV),

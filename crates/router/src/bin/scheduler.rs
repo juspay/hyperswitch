@@ -21,9 +21,12 @@ async fn main() -> CustomResult<(), errors::ProcessTrackerError> {
         .expect("Unable to construct application configuration");
     //we are having two channels here in order to close redis_interface & scheduler using oneshot and closing drainer using mpsc channel
     let (redis_shutdown_signal_tx, redis_shutdown_signal_rx) = oneshot::channel();
-    let mut state = routes::AppState::new(conf, Some(redis_shutdown_signal_tx)).await;
+    let mut state = routes::AppState::new(conf, redis_shutdown_signal_tx).await;
     let (tx, rx) = mpsc::channel(1);
-    tokio::spawn(router::receiver_for_error(redis_shutdown_signal_rx, tx.clone()));
+    tokio::spawn(router::receiver_for_error(
+        redis_shutdown_signal_rx,
+        tx.clone(),
+    ));
     let _guard =
         logger::setup(&state.conf.log).map_err(|_| errors::ProcessTrackerError::UnexpectedFlow)?;
 

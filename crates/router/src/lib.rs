@@ -142,7 +142,7 @@ pub async fn start_server(conf: settings::Settings) -> ApplicationResult<(Server
     logger::debug!(startup_config=?conf);
     let server = conf.server.clone();
     let (tx, rx) = oneshot::channel();
-    let state = routes::AppState::new(conf, Some(tx)).await;
+    let state = routes::AppState::new(conf, tx).await;
     // Cloning to close connections before shutdown
     let app_state = state.clone();
     let request_body_limit = server.request_body_limit;
@@ -157,10 +157,9 @@ pub async fn start_server(conf: settings::Settings) -> ApplicationResult<(Server
 
 pub async fn receiver_for_error(rx: oneshot::Receiver<()>, mut server: impl Stop) {
     match rx.await {
-        Ok(_) =>{
+        Ok(_) => {
             logger::error!("The redis server failed ");
             server.stop_server().await;
-
         }
         Err(err) => {
             logger::error!("Channel receiver error{err}");
@@ -182,7 +181,7 @@ impl Stop for ServerHandle {
 #[async_trait::async_trait]
 impl Stop for mpsc::Sender<()> {
     async fn stop_server(&mut self) {
-        self.send(()).await.map_err(|err| logger::error!("{err}"));
+        let _ = self.send(()).await.map_err(|err| logger::error!("{err}"));
     }
 }
 

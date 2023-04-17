@@ -44,12 +44,12 @@ impl AppState {
     pub async fn with_storage(
         conf: Settings,
         storage_impl: StorageImpl,
-        shut_down_signal: Option<oneshot::Sender<()>>,
+        shut_down_signal: oneshot::Sender<()>,
     ) -> Self {
         let testable = storage_impl == StorageImpl::PostgresqlTest;
         let store: Box<dyn StorageInterface> = match storage_impl {
-            StorageImpl::Postgresql | StorageImpl::PostgresqlTest => {                
-                Box::new(Store::new(&conf, testable, shut_down_signal.unwrap()).await)
+            StorageImpl::Postgresql | StorageImpl::PostgresqlTest => {
+                Box::new(Store::new(&conf, testable, shut_down_signal).await)
             }
             StorageImpl::Mock => Box::new(MockDb::new(&conf).await),
         };
@@ -61,7 +61,7 @@ impl AppState {
         }
     }
 
-    pub async fn new(conf: Settings, shut_down_signal: Option<oneshot::Sender<()>>) -> Self {
+    pub async fn new(conf: Settings, shut_down_signal: oneshot::Sender<()>) -> Self {
         Self::with_storage(conf, StorageImpl::Postgresql, shut_down_signal).await
     }
 }
