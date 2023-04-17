@@ -20,7 +20,7 @@ use crate::{
         self, api,
         domain::{
             self, merchant_account as merchant_domain, merchant_key_store,
-            types::{get_merchant_enc_key, TypeEncryption},
+            types::{get_merchant_enc_key, AsyncLift, TypeEncryption},
         },
         storage,
         transformers::ForeignInto,
@@ -491,6 +491,13 @@ pub async fn update_payment_connector(
             .collect::<Vec<serde_json::Value>>()
     });
 
+    let encrypt = |inner: Option<masking::Secret<serde_json::Value>>| async {
+        inner
+            .async_map(|inner| crypto::Encryptable::encrypt(inner, &key, GcmAes256 {}))
+            .await
+            .transpose()
+    };
+
     let payment_connector = storage::MerchantConnectorAccountUpdate::Update {
         merchant_id: Some(merchant_id.to_string()),
         connector_type: Some(req.connector_type.foreign_into()),
@@ -498,9 +505,8 @@ pub async fn update_payment_connector(
         merchant_connector_id: Some(merchant_connector_id.to_string()),
         connector_account_details: req
             .connector_account_details
-            .async_map(|f| crypto::Encryptable::encrypt(f, &key, GcmAes256 {}))
+            .async_lift(encrypt)
             .await
-            .transpose()
             .change_context(errors::ApiErrorResponse::InternalServerError)?,
         payment_methods_enabled,
         test_mode: req.test_mode,
