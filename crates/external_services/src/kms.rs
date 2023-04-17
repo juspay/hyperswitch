@@ -1,7 +1,7 @@
 //! Interactions with the AWS KMS SDK
 
 use aws_config::meta::region::RegionProviderChain;
-use aws_sdk_kms::{types::Blob, Client, Region};
+use aws_sdk_kms::{config::Region, primitives::Blob, Client};
 use base64::Engine;
 use common_utils::errors::CustomResult;
 use error_stack::{IntoReport, ResultExt};
