@@ -1414,33 +1414,42 @@ impl
 
 #[cfg(test)]
 mod test_validate_shipping_address_against_payment_method {
-    use crate::connector::stripe::transformers::{validate_shipping_address_against_payment_method, StripeShippingAddress, StripePaymentMethodType};
+    use api_models::enums::CountryCode;
+    use masking::Secret;
 
+    use crate::connector::stripe::transformers::{
+        validate_shipping_address_against_payment_method, StripePaymentMethodType,
+        StripeShippingAddress,
+    };
 
     #[test]
-    fn should_return_ok(){
+    fn should_return_ok() {
         // Arrange
         let _stripe_shipping_address = StripeShippingAddress {
-            city: todo!(),
-            country: todo!(),
-            line1: todo!(),
-            line2: todo!(),
-            zip: todo!(),
-            state: todo!(),
-            name: todo!(),
-            phone: todo!(),
+            name: Some(Secret::new(String::from("name"))),
+            line1: Some(Secret::new(String::from("line1"))),
+            country: Some(CountryCode::AD),
+            zip: Some(Secret::new(String::from("zip"))),
+            city: Some(String::from("city")),
+            line2: Some(Secret::new(String::from("line2"))),
+            state: Some(Secret::new(String::from("state"))),
+            phone: Some(Secret::new(String::from("pbone number")))
         };
+
         let payment_method = &StripePaymentMethodType::AfterpayClearpay;
-        
-        //Act 
-        let result = validate_shipping_address_against_payment_method(&_stripe_shipping_address, &payment_method);
+
+        //Act
+        let result = validate_shipping_address_against_payment_method(
+            &_stripe_shipping_address,
+            &payment_method,
+        );
 
         // Assert
         assert_eq!(result.is_ok(), true);
     }
 
     #[test]
-    fn should_return_err(){
+    fn should_return_err() {
         assert_eq!(true, false);
     }
 }
