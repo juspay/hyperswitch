@@ -237,6 +237,21 @@ pub struct ResponseData {
     pub failure_message: Option<String>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct DesputeResponseData {
+    pub id: String,
+    pub amount: i64,
+    pub currency: String,
+    //Stage is None
+    pub token: String,
+    pub dispute_reason_description: String,
+    //Reason code is None
+    pub due_date: i64,                          //its in timestamp requires conversion
+    pub status: String,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
 #[derive(Default, Debug, Serialize)]
 pub struct RapydRefundRequest {
     pub payment: String,
@@ -446,6 +461,16 @@ pub enum RapydWebhookObjectEventType {
     RefundCompleted,
     PaymentRefundRejected,
     PaymentRefundFailed,
+    PaymentDisputeCreated,              //DisputeOpened
+    PaymentDisputeUpdated,              
+}
+
+#[derive(Debug, Deserialize)]
+pub enum RapydWebhookDisputeStatus {
+    ACT,                                //Wen dont have
+    RVW,                                //DisputeChallenged
+    LOS,                                //DisputeLost
+    WIN,                                //DisputeWon
 }
 
 impl TryFrom<RapydWebhookObjectEventType> for api::IncomingWebhookEvent {
@@ -455,6 +480,8 @@ impl TryFrom<RapydWebhookObjectEventType> for api::IncomingWebhookEvent {
             RapydWebhookObjectEventType::PaymentCompleted => Ok(Self::PaymentIntentSuccess),
             RapydWebhookObjectEventType::PaymentCaptured => Ok(Self::PaymentIntentSuccess),
             RapydWebhookObjectEventType::PaymentFailed => Ok(Self::PaymentIntentFailure),
+            RapydWebhookObjectEventType::PaymentRefundFailed => Ok(Self::RefundFailure),
+            RapydWebhookObjectEventType::RefundCompleted => Ok(Self::RefundSuccess),
             _ => Err(errors::ConnectorError::WebhookEventTypeNotFound).into_report()?,
         }
     }
@@ -465,6 +492,7 @@ impl TryFrom<RapydWebhookObjectEventType> for api::IncomingWebhookEvent {
 pub enum WebhookData {
     PaymentData(ResponseData),
     RefundData(RefundResponseData),
+    DisputeData(DesputeResponseData),
 }
 
 impl From<ResponseData> for RapydPaymentsResponse {

@@ -791,6 +791,11 @@ impl api::IncomingWebhook for Rapyd {
                     api_models::webhooks::RefundIdType::ConnectorRefundId(refund_data.id),
                 )
             }
+            transformers::WebhookData::DisputeData(dispute_data) => {
+                api_models::webhooks::ObjectReferenceId::PaymentId(
+                    api_models::payments::PaymentIdType::ConnectorTransactionId(dispute_data.id),
+                )
+            }
         })
     }
 
@@ -819,6 +824,14 @@ impl api::IncomingWebhook for Rapyd {
                 let rapyd_response: transformers::RapydPaymentsResponse = payment_data.into();
                 Ok(rapyd_response)
             }
+            // transformers::WebhookData::RefundData(refund_data) => {
+            //     let rapyd_response: transformers::RapydPaymentsResponse = refund_data.into();
+            //     Ok(rapyd_response)
+            // }
+            // transformers::WebhookData::DisputeData(dispute_data) => {
+            //     let rapyd_response: transformers::RapydPaymentsResponse = dispute_data.into();
+            //     Ok(rapyd_response)
+            // }
             _ => Err(errors::ConnectorError::WebhookEventTypeNotFound),
         }?;
         let res_json =
@@ -826,5 +839,27 @@ impl api::IncomingWebhook for Rapyd {
                 .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
 
         Ok(res_json)
+    }
+
+    fn get_dispute_details(
+        &self,
+        request: &api::IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<api::disputes::DisputePayload, errors::ConnectorError> {
+        let webhook: transformers::DesputeResponseData = request
+            .body
+            .parse_struct("RapydIncomingWebhook")
+            .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
+        Ok(api::disputes::DisputePayload {
+            amount: webhook.amount.to_string(),
+            currency: webhook.currency,
+            dispute_stage: api_models::enums::DisputeStage::Dispute,
+            connector_dispute_id: webhook.token,
+            connector_reason: Some(webhook.dispute_reason_description),
+            connector_reason_code: None,
+            challenge_required_by: webhook.due_date,
+            connector_status: webhook.status,
+            created_at: Some(webhook.created_at),
+            updated_at: Some(webhook.updated_at),
+        })
     }
 }
