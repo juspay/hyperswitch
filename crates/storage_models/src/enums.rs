@@ -628,6 +628,7 @@ pub enum PaymentMethodType {
     CryptoCurrency,
     Ach,
     Sepa,
+    Becs,
 }
 
 #[derive(
