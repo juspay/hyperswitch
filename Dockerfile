@@ -1,6 +1,7 @@
 FROM rust:slim as builder
 
 ARG RUN_ENV=sandbox
+ARG EXTRA_FEATURES=""
 
 RUN apt-get update \
     && apt-get install -y libpq-dev libssl-dev pkg-config
@@ -32,7 +33,7 @@ ENV RUST_BACKTRACE="short"
 ENV CARGO_REGISTRIES_CRATES_IO_PROTOCOL="sparse"
 
 COPY . .
-RUN cargo build --release --features ${RUN_ENV}
+RUN cargo build --release --features ${RUN_ENV} ${EXTRA_FEATURES}
 
 
 
