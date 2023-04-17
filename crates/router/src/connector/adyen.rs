@@ -192,7 +192,7 @@ impl
 }
 
 /// Payment Sync can be useful only incase of Redirect flow.
-/// For payments which doesn't invlove redrection we have to rely on webhooks.
+/// For payments which doesn't involve redrection we have to rely on webhooks.
 impl
     services::ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>
     for Adyen
