@@ -60,7 +60,7 @@ impl AddressInterface for Store {
                 address
                     .convert(self, &merchant_id)
                     .await
-                    .change_context(errors::StorageError::DeserializationFailed)
+                    .change_context(errors::StorageError::DecryptionError)
             })
             .await
     }
@@ -80,7 +80,7 @@ impl AddressInterface for Store {
                 address
                     .convert(self, &merchant_id)
                     .await
-                    .change_context(errors::StorageError::DeserializationFailed)
+                    .change_context(errors::StorageError::DecryptionError)
             })
             .await
     }
@@ -93,7 +93,7 @@ impl AddressInterface for Store {
         address
             .construct_new()
             .await
-            .change_context(errors::StorageError::DeserializationFailed)?
+            .change_context(errors::StorageError::EncryptionError)?
             .insert(&conn)
             .await
             .map_err(Into::into)
@@ -103,7 +103,7 @@ impl AddressInterface for Store {
                 address
                     .convert(self, &merchant_id)
                     .await
-                    .change_context(errors::StorageError::DeserializationFailed)
+                    .change_context(errors::StorageError::DecryptionError)
             })
             .await
     }
@@ -132,7 +132,7 @@ impl AddressInterface for Store {
                     address
                         .convert(self, &merchant_id)
                         .await
-                        .change_context(errors::StorageError::DeserializationFailed)?,
+                        .change_context(errors::StorageError::DecryptionError)?,
                 )
             }
             Ok(output)

@@ -35,14 +35,14 @@ impl MerchantKeyStoreInterface for Store {
         merchant_key_store
             .construct_new()
             .await
-            .change_context(errors::StorageError::DeserializationFailed)?
+            .change_context(errors::StorageError::EncryptionError)?
             .insert(&conn)
             .await
             .map_err(Into::into)
             .into_report()?
             .convert(self, &merchant_id)
             .await
-            .change_context(errors::StorageError::DeserializationFailed)
+            .change_context(errors::StorageError::DecryptionError)
     }
     async fn get_merchant_key_store_by_merchant_id(
         &self,
@@ -58,7 +58,7 @@ impl MerchantKeyStoreInterface for Store {
         .into_report()?
         .convert(self, merchant_id)
         .await
-        .change_context(errors::StorageError::DeserializationFailed)
+        .change_context(errors::StorageError::DecryptionError)
     }
 }
 

@@ -15,7 +15,7 @@ use crate::{
     },
     db::StorageInterface,
     routes::AppState,
-    services::api as service_api,
+    services::{self, api as service_api},
     types::{
         self, api,
         domain::{
@@ -44,7 +44,7 @@ pub async fn create_merchant_account(
     let db = &*state.store;
     let master_key = db.get_master_key();
 
-    let key = crate::services::generate_aes256_key()
+    let key = services::generate_aes256_key()
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
     let publishable_key = Some(create_merchant_publishable_key());
@@ -106,7 +106,8 @@ pub async fn create_merchant_account(
         merchant_id: req.merchant_id.clone(),
         key: crypto::Encryptable::encrypt(key.to_vec().into(), master_key, GcmAes256 {})
             .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)?,
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to decrypt data from key store")?,
     };
 
     db.insert_merchant_key_store(key_store)
