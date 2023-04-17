@@ -1,5 +1,5 @@
 use common_utils::{
-    crypto::{Encryptable, GcmAes256},
+    crypto::{Encryptable, GcmAes256, OptionalEncryptableName},
     ext_traits::AsyncExt,
     pii,
 };
@@ -22,7 +22,7 @@ pub struct MerchantAccount {
     pub enable_payment_response_hash: bool,
     pub payment_response_hash_key: Option<String>,
     pub redirect_to_merchant_with_http_post: bool,
-    pub merchant_name: Option<Encryptable<Secret<String>>>,
+    pub merchant_name: OptionalEncryptableName,
     pub merchant_details: Option<Encryptable<Secret<serde_json::Value>>>,
     pub webhook_details: Option<serde_json::Value>,
     pub sub_merchants_enabled: Option<bool>,
