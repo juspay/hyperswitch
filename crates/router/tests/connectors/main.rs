@@ -18,6 +18,7 @@ mod multisafepay;
 mod nuvei;
 mod nuvei_ui;
 mod opennode;
+mod payeezy;
 mod paypal;
 mod payu;
 mod rapyd;

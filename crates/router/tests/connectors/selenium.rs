@@ -242,10 +242,7 @@ pub trait SeleniumTest {
                             Event::Trigger(Trigger::Click(By::Id("passwordNext"))),
                         ],
                         vec![
-                            Event::Trigger(Trigger::SendKeys(
-                                By::Id("identifierId"),
-                                "<Email>",
-                            )),
+                            Event::Trigger(Trigger::SendKeys(By::Id("identifierId"), "<Email>")),
                             Event::Trigger(Trigger::ClickNth(By::Tag("button"), 2)),
                             Event::Trigger(Trigger::SendKeys(By::Name("Passwd"), "<Password>")),
                             Event::Trigger(Trigger::Sleep(2)),
@@ -287,10 +284,7 @@ pub trait SeleniumTest {
                     Event::Trigger(Trigger::Click(By::Id("btnLogin"))),
                 ],
                 vec![
-                    Event::Trigger(Trigger::SendKeys(
-                        By::Id("email"),
-                        "<Email>",
-                    )),
+                    Event::Trigger(Trigger::SendKeys(By::Id("email"), "<Email>")),
                     Event::Trigger(Trigger::Click(By::Id("btnNext"))),
                     Event::Trigger(Trigger::SendKeys(By::Id("password"), "<Password>")),
                     Event::Trigger(Trigger::Click(By::Id("btnLogin"))),
