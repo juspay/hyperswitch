@@ -71,9 +71,9 @@ pub enum StorageError {
     CustomerRedacted,
     #[error("Deserialization failure")]
     DeserializationFailed,
-    #[error("Error while encryptiong data")]
+    #[error("Error while encrypting data")]
     EncryptionError,
-    #[error("Error while decryptiong data from database")]
+    #[error("Error while decrypting data from database")]
     DecryptionError,
     #[error("RedisError: {0:?}")]
     RedisError(error_stack::Report<RedisError>),
