@@ -5,14 +5,17 @@ use std::fmt::Debug;
 use error_stack::{IntoReport, ResultExt};
 use transformers as nexinets;
 
+use self::transformers::{NexinetsCaptureOrVoidRequest, NexinetsPaymentsMetadata};
 use crate::{
     configs::settings,
+    connector::utils::to_connector_meta,
     core::errors::{self, CustomResult},
     headers,
     services::{self, ConnectorIntegration},
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
+        storage::enums,
         ErrorResponse, Response,
     },
     utils::{self, BytesExt},
@@ -44,7 +47,7 @@ where
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
         let mut header = vec![(
             headers::CONTENT_TYPE.to_string(),
-            types::PaymentsAuthorizeType::get_content_type(self).to_string(),
+            self.get_content_type().to_string(),
         )];
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         header.append(&mut api_key);
@@ -83,25 +86,30 @@ impl ConnectorCommon for Nexinets {
             .parse_struct("NexinetsErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
+        let errors = response.errors.clone();
+        let mut message = String::new();
+        for error in errors.iter() {
+            let feild = error.field.to_owned().unwrap_or_default();
+            let mut msg = String::new();
+            if !feild.is_empty() {
+                msg.push_str(format!("{} : {}", feild, error.message).as_str());
+            } else {
+                msg = error.message.to_owned();
+            }
+            if message.is_empty() {
+                message.push_str(&msg);
+            } else {
+                message.push_str(format!(", {}", msg).as_str());
+            }
+        }
+
         Ok(ErrorResponse {
-            status_code: res.status_code,
-            code: response.code,
-            message: response.message,
-            reason: response.reason,
+            status_code: response.status,
+            code: response.code.to_string(),
+            message,
+            reason: Some(response.message),
         })
     }
-}
-
-impl api::PaymentToken for Nexinets {}
-
-impl
-    ConnectorIntegration<
-        api::PaymentMethodToken,
-        types::PaymentMethodTokenizationData,
-        types::PaymentsResponseData,
-    > for Nexinets
-{
-    // Not Implemented (R)
 }
 
 impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::PaymentsResponseData>
@@ -136,10 +144,15 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
 
     fn get_url(
         &self,
-        _req: &types::PaymentsAuthorizeRouterData,
-        _connectors: &settings::Connectors,
+        req: &types::PaymentsAuthorizeRouterData,
+        connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        let url = if req.request.capture_method == Some(enums::CaptureMethod::Automatic) {
+            format!("{}/orders/debit", self.base_url(connectors))
+        } else {
+            format!("{}/orders/preauth", self.base_url(connectors))
+        };
+        Ok(url)
     }
 
     fn get_request_body(
@@ -178,7 +191,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         data: &types::PaymentsAuthorizeRouterData,
         res: Response,
     ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
-        let response: nexinets::NexinetsPaymentsResponse = res
+        let response: nexinets::NexinetsPreAuthOrDebitResponse = res
             .response
             .parse_struct("Nexinets PaymentsAuthorizeResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
@@ -187,7 +200,6 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
             data: data.clone(),
             http_code: res.status_code,
         })
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
     fn get_error_response(
@@ -215,10 +227,28 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
 
     fn get_url(
         &self,
-        _req: &types::PaymentsSyncRouterData,
-        _connectors: &settings::Connectors,
+        req: &types::PaymentsSyncRouterData,
+        connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        let nexinets_meta: NexinetsPaymentsMetadata =
+            to_connector_meta(req.request.connector_meta.clone())?;
+        let transaction_id = nexinets_meta.transaction_id.ok_or(
+            errors::ConnectorError::RequestEncodingFailedWithReason(
+                "Missing transaction_id".to_string(),
+            ),
+        )?;
+        let order_id = req
+            .request
+            .connector_transaction_id
+            .clone()
+            .get_connector_transaction_id()
+            .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
+        Ok(format!(
+            "{}/orders/{}/transactions/{}",
+            self.base_url(connectors),
+            order_id,
+            transaction_id
+        ))
     }
 
     fn build_request(
@@ -241,16 +271,15 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         data: &types::PaymentsSyncRouterData,
         res: Response,
     ) -> CustomResult<types::PaymentsSyncRouterData, errors::ConnectorError> {
-        let response: nexinets::NexinetsPaymentsResponse = res
+        let response: nexinets::NexinetsPaymentResponse = res
             .response
-            .parse_struct("nexinets PaymentsSyncResponse")
+            .parse_struct("nexinets NexinetsPaymentResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
         })
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
     fn get_error_response(
@@ -278,17 +307,33 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
 
     fn get_url(
         &self,
-        _req: &types::PaymentsCaptureRouterData,
-        _connectors: &settings::Connectors,
+        req: &types::PaymentsCaptureRouterData,
+        connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        let nexinets_meta: NexinetsPaymentsMetadata =
+            to_connector_meta(req.request.connector_meta.clone())?;
+        let transaction_id = nexinets_meta.transaction_id.ok_or(
+            errors::ConnectorError::RequestEncodingFailedWithReason(
+                "Missing transaction_id".to_string(),
+            ),
+        )?;
+        Ok(format!(
+            "{}/orders/{}/transactions/{}/capture",
+            self.base_url(connectors),
+            req.request.connector_transaction_id,
+            transaction_id
+        ))
     }
 
     fn get_request_body(
         &self,
-        _req: &types::PaymentsCaptureRouterData,
+        req: &types::PaymentsCaptureRouterData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_request_body method".to_string()).into())
+        let connector_req = NexinetsCaptureOrVoidRequest::try_from(req)?;
+        let nexinets_req =
+            utils::Encode::<NexinetsCaptureOrVoidRequest>::encode_to_string_of_json(&connector_req)
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        Ok(Some(nexinets_req))
     }
 
     fn build_request(
@@ -304,6 +349,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
                 .headers(types::PaymentsCaptureType::get_headers(
                     self, req, connectors,
                 )?)
+                .body(types::PaymentsCaptureType::get_request_body(self, req)?)
                 .build(),
         ))
     }
@@ -313,16 +359,15 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         data: &types::PaymentsCaptureRouterData,
         res: Response,
     ) -> CustomResult<types::PaymentsCaptureRouterData, errors::ConnectorError> {
-        let response: nexinets::NexinetsPaymentsResponse = res
+        let response: nexinets::NexinetsPaymentResponse = res
             .response
-            .parse_struct("Nexinets PaymentsCaptureResponse")
+            .parse_struct("NexinetsPaymentResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
         })
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
     fn get_error_response(
@@ -336,6 +381,86 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
 impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsResponseData>
     for Nexinets
 {
+    fn get_headers(
+        &self,
+        req: &types::PaymentsCancelRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(
+        &self,
+        req: &types::PaymentsCancelRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        let nexinets_meta: NexinetsPaymentsMetadata =
+            to_connector_meta(req.request.connector_meta.clone())?;
+        let transaction_id = nexinets_meta.transaction_id.ok_or(
+            errors::ConnectorError::RequestEncodingFailedWithReason(
+                "Missing transaction_id".to_string(),
+            ),
+        )?;
+        Ok(format!(
+            "{}/orders/{}/transactions/{}/cancel",
+            self.base_url(connectors),
+            req.request.connector_transaction_id,
+            transaction_id
+        ))
+    }
+
+    fn get_request_body(
+        &self,
+        req: &types::PaymentsCancelRouterData,
+    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+        let connector_req = NexinetsCaptureOrVoidRequest::try_from(req)?;
+        let nexinets_req =
+            utils::Encode::<NexinetsCaptureOrVoidRequest>::encode_to_string_of_json(&connector_req)
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        Ok(Some(nexinets_req))
+    }
+
+    fn build_request(
+        &self,
+        req: &types::PaymentsCancelRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        let request = services::RequestBuilder::new()
+            .method(services::Method::Post)
+            .url(&types::PaymentsVoidType::get_url(self, req, connectors)?)
+            .headers(types::PaymentsVoidType::get_headers(self, req, connectors)?)
+            .body(types::PaymentsVoidType::get_request_body(self, req)?)
+            .build();
+
+        Ok(Some(request))
+    }
+
+    fn handle_response(
+        &self,
+        data: &types::PaymentsCancelRouterData,
+        res: Response,
+    ) -> CustomResult<types::PaymentsCancelRouterData, errors::ConnectorError> {
+        let response: nexinets::NexinetsPaymentResponse = res
+            .response
+            .parse_struct("NexinetsPaymentResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        types::RouterData::try_from(types::ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res)
+    }
 }
 
 impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsResponseData>
@@ -355,10 +480,22 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
 
     fn get_url(
         &self,
-        _req: &types::RefundsRouterData<api::Execute>,
-        _connectors: &settings::Connectors,
+        req: &types::RefundsRouterData<api::Execute>,
+        connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        let nexinets_meta: NexinetsPaymentsMetadata =
+            to_connector_meta(req.request.connector_metadata.clone())?;
+        let transaction_id = nexinets_meta.transaction_id.ok_or(
+            errors::ConnectorError::RequestEncodingFailedWithReason(
+                "Missing transaction_id".to_string(),
+            ),
+        )?;
+        Ok(format!(
+            "{}/orders/{}/transactions/{}/refund",
+            self.base_url(connectors),
+            req.request.connector_transaction_id,
+            transaction_id
+        ))
     }
 
     fn get_request_body(
@@ -394,7 +531,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         data: &types::RefundsRouterData<api::Execute>,
         res: Response,
     ) -> CustomResult<types::RefundsRouterData<api::Execute>, errors::ConnectorError> {
-        let response: nexinets::RefundResponse = res
+        let response: nexinets::NexinetsRefundResponse = res
             .response
             .parse_struct("nexinets RefundResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
@@ -403,7 +540,6 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
             data: data.clone(),
             http_code: res.status_code,
         })
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
     fn get_error_response(
@@ -429,10 +565,20 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
 
     fn get_url(
         &self,
-        _req: &types::RefundSyncRouterData,
-        _connectors: &settings::Connectors,
+        req: &types::RefundSyncRouterData,
+        connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        let transaction_id = req
+            .request
+            .connector_refund_id
+            .clone()
+            .ok_or(errors::ConnectorError::RequestEncodingFailed)?;
+        Ok(format!(
+            "{}/orders/{}/transactions/{}",
+            self.base_url(connectors),
+            req.request.connector_transaction_id,
+            transaction_id
+        ))
     }
 
     fn build_request(
@@ -446,7 +592,6 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
                 .url(&types::RefundSyncType::get_url(self, req, connectors)?)
                 .attach_default_headers()
                 .headers(types::RefundSyncType::get_headers(self, req, connectors)?)
-                .body(types::RefundSyncType::get_request_body(self, req)?)
                 .build(),
         ))
     }
@@ -456,7 +601,7 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         data: &types::RefundSyncRouterData,
         res: Response,
     ) -> CustomResult<types::RefundSyncRouterData, errors::ConnectorError> {
-        let response: nexinets::RefundResponse = res
+        let response: nexinets::NexinetsRefundResponse = res
             .response
             .parse_struct("nexinets RefundSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
@@ -465,7 +610,6 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
             data: data.clone(),
             http_code: res.status_code,
         })
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
     fn get_error_response(
@@ -498,4 +642,16 @@ impl api::IncomingWebhook for Nexinets {
     ) -> CustomResult<serde_json::Value, errors::ConnectorError> {
         Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
     }
+}
+
+impl api::PaymentToken for Nexinets {}
+
+impl
+    ConnectorIntegration<
+        api::PaymentMethodToken,
+        types::PaymentMethodTokenizationData,
+        types::PaymentsResponseData,
+    > for Nexinets
+{
+    // Not Implemented (R)
 }

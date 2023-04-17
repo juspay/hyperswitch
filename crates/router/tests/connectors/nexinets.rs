@@ -1,5 +1,5 @@
 use masking::Secret;
-use router::types::{self, api, storage::enums};
+use router::types::{self, api, storage::enums, PaymentsAuthorizeData};
 
 use crate::{
     connector_auth,
@@ -9,12 +9,13 @@ use crate::{
 #[derive(Clone, Copy)]
 struct NexinetsTest;
 impl ConnectorActions for NexinetsTest {}
+static CONNECTOR: NexinetsTest = NexinetsTest {};
 impl utils::Connector for NexinetsTest {
     fn get_data(&self) -> types::api::ConnectorData {
         use router::connector::Nexinets;
         types::api::ConnectorData {
             connector: Box::new(&Nexinets),
-            connector_name: types::Connector::Dummy,
+            connector_name: types::Connector::Nexinets,
             get_token: types::api::GetToken::Connector,
         }
     }
@@ -32,14 +33,18 @@ impl utils::Connector for NexinetsTest {
     }
 }
 
-static CONNECTOR: NexinetsTest = NexinetsTest {};
-
-fn get_default_payment_info() -> Option<utils::PaymentInfo> {
-    None
-}
-
-fn payment_method_details() -> Option<types::PaymentsAuthorizeData> {
-    None
+impl NexinetsTest {
+    fn get_payment_data() -> Option<PaymentsAuthorizeData> {
+        Some(PaymentsAuthorizeData {
+            currency: storage_models::enums::Currency::EUR,
+            payment_method_data: types::api::PaymentMethodData::Card(api::Card {
+                card_number: Secret::new(String::from("4012001038443335")),
+                ..utils::CCardType::default().0
+            }),
+            router_return_url: Some("https://google.com".to_string()),
+            ..utils::PaymentAuthorizeType::default().0
+        })
+    }
 }
 
 // Cards Positive Tests
@@ -47,7 +52,7 @@ fn payment_method_details() -> Option<types::PaymentsAuthorizeData> {
 #[actix_web::test]
 async fn should_only_authorize_payment() {
     let response = CONNECTOR
-        .authorize_payment(payment_method_details(), get_default_payment_info())
+        .authorize_payment(NexinetsTest::get_payment_data(), None)
         .await
         .expect("Authorize payment response");
     assert_eq!(response.status, enums::AttemptStatus::Authorized);
@@ -57,47 +62,69 @@ async fn should_only_authorize_payment() {
 #[actix_web::test]
 async fn should_capture_authorized_payment() {
     let response = CONNECTOR
-        .authorize_and_capture_payment(payment_method_details(), None, get_default_payment_info())
+        .authorize_payment(NexinetsTest::get_payment_data(), None)
         .await
-        .expect("Capture payment response");
-    assert_eq!(response.status, enums::AttemptStatus::Charged);
+        .unwrap();
+    assert_eq!(response.status, enums::AttemptStatus::Authorized);
+    let connector_payment_id =
+        utils::get_connector_transaction_id(response.response.clone()).unwrap_or_default();
+    let connector_meta = utils::get_connector_metadata(response.response);
+    let capture_data = types::PaymentsCaptureData {
+        connector_meta,
+        currency: storage_models::enums::Currency::EUR,
+        ..utils::PaymentCaptureType::default().0
+    };
+    let capture_response = CONNECTOR
+        .capture_payment(connector_payment_id, Some(capture_data), None)
+        .await
+        .unwrap();
+    assert_eq!(capture_response.status, enums::AttemptStatus::Charged);
 }
 
 // Partially captures a payment using the manual capture flow (Non 3DS).
 #[actix_web::test]
 async fn should_partially_capture_authorized_payment() {
     let response = CONNECTOR
-        .authorize_and_capture_payment(
-            payment_method_details(),
-            Some(types::PaymentsCaptureData {
-                amount_to_capture: 50,
-                ..utils::PaymentCaptureType::default().0
-            }),
-            get_default_payment_info(),
-        )
+        .authorize_payment(NexinetsTest::get_payment_data(), None)
         .await
-        .expect("Capture payment response");
-    assert_eq!(response.status, enums::AttemptStatus::Charged);
+        .unwrap();
+    assert_eq!(response.status, enums::AttemptStatus::Authorized);
+    let connector_payment_id =
+        utils::get_connector_transaction_id(response.response.clone()).unwrap_or_default();
+    let connector_meta = utils::get_connector_metadata(response.response);
+    let capture_data = types::PaymentsCaptureData {
+        connector_meta,
+        amount_to_capture: 50,
+        currency: storage_models::enums::Currency::EUR,
+        ..utils::PaymentCaptureType::default().0
+    };
+    let capture_response = CONNECTOR
+        .capture_payment(connector_payment_id, Some(capture_data), None)
+        .await
+        .unwrap();
+    assert_eq!(capture_response.status, enums::AttemptStatus::Charged);
 }
 
 // Synchronizes a payment using the manual capture flow (Non 3DS).
 #[actix_web::test]
 async fn should_sync_authorized_payment() {
     let authorize_response = CONNECTOR
-        .authorize_payment(payment_method_details(), get_default_payment_info())
+        .authorize_payment(NexinetsTest::get_payment_data(), None)
         .await
         .expect("Authorize payment response");
-    let txn_id = utils::get_connector_transaction_id(authorize_response.response);
+    let txn_id = utils::get_connector_transaction_id(authorize_response.response.clone())
+        .unwrap_or_default();
+    let connector_meta = utils::get_connector_metadata(authorize_response.response);
     let response = CONNECTOR
         .psync_retry_till_status_matches(
             enums::AttemptStatus::Authorized,
             Some(types::PaymentsSyncData {
-                connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
-                    txn_id.unwrap(),
-                ),
-                ..Default::default()
+                connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(txn_id),
+                encoded_data: None,
+                capture_method: None,
+                connector_meta,
             }),
-            get_default_payment_info(),
+            None,
         )
         .await
         .expect("PSync response");
@@ -108,29 +135,64 @@ async fn should_sync_authorized_payment() {
 #[actix_web::test]
 async fn should_void_authorized_payment() {
     let response = CONNECTOR
-        .authorize_and_void_payment(
-            payment_method_details(),
+        .authorize_payment(NexinetsTest::get_payment_data(), None)
+        .await
+        .unwrap();
+    assert_eq!(response.status, enums::AttemptStatus::Authorized);
+    let connector_payment_id =
+        utils::get_connector_transaction_id(response.response.clone()).unwrap_or_default();
+    let connector_meta = utils::get_connector_metadata(response.response);
+    let response = CONNECTOR
+        .void_payment(
+            connector_payment_id,
             Some(types::PaymentsCancelData {
-                connector_transaction_id: String::from(""),
-                cancellation_reason: Some("requested_by_customer".to_string()),
-                ..Default::default()
+                connector_meta,
+                amount: Some(100),
+                currency: Some(storage_models::enums::Currency::EUR),
+                ..utils::PaymentCancelType::default().0
             }),
-            get_default_payment_info(),
+            None,
         )
         .await
-        .expect("Void payment response");
+        .unwrap();
+
     assert_eq!(response.status, enums::AttemptStatus::Voided);
 }
 
 // Refunds a payment using the manual capture flow (Non 3DS).
 #[actix_web::test]
 async fn should_refund_manually_captured_payment() {
+    let authorize_response = CONNECTOR
+        .authorize_payment(NexinetsTest::get_payment_data(), None)
+        .await
+        .expect("Authorize payment response");
+    let txn_id = utils::get_connector_transaction_id(authorize_response.response.clone()).unwrap();
+    let capture_connector_meta = utils::get_connector_metadata(authorize_response.response);
+    let capture_response = CONNECTOR
+        .capture_payment(
+            txn_id.clone(),
+            Some(types::PaymentsCaptureData {
+                currency: storage_models::enums::Currency::EUR,
+                connector_meta: capture_connector_meta,
+                ..utils::PaymentCaptureType::default().0
+            }),
+            None,
+        )
+        .await
+        .expect("Capture payment response");
+    let capture_txn_id =
+        utils::get_connector_transaction_id(capture_response.response.clone()).unwrap();
+    let refund_connector_metadata = utils::get_connector_metadata(capture_response.response);
     let response = CONNECTOR
-        .capture_payment_and_refund(
-            payment_method_details(),
+        .refund_payment(
+            capture_txn_id.clone(),
+            Some(types::RefundsData {
+                connector_transaction_id: capture_txn_id,
+                currency: storage_models::enums::Currency::EUR,
+                connector_metadata: refund_connector_metadata,
+                ..utils::PaymentRefundType::default().0
+            }),
             None,
-            None,
-            get_default_payment_info(),
         )
         .await
         .unwrap();
@@ -143,15 +205,38 @@ async fn should_refund_manually_captured_payment() {
 // Partially refunds a payment using the manual capture flow (Non 3DS).
 #[actix_web::test]
 async fn should_partially_refund_manually_captured_payment() {
-    let response = CONNECTOR
-        .capture_payment_and_refund(
-            payment_method_details(),
+    let authorize_response = CONNECTOR
+        .authorize_payment(NexinetsTest::get_payment_data(), None)
+        .await
+        .expect("Authorize payment response");
+    let txn_id = utils::get_connector_transaction_id(authorize_response.response.clone()).unwrap();
+    let capture_connector_meta = utils::get_connector_metadata(authorize_response.response);
+    let capture_response = CONNECTOR
+        .capture_payment(
+            txn_id.clone(),
+            Some(types::PaymentsCaptureData {
+                currency: storage_models::enums::Currency::EUR,
+                connector_meta: capture_connector_meta,
+                ..utils::PaymentCaptureType::default().0
+            }),
             None,
+        )
+        .await
+        .expect("Capture payment response");
+    let capture_txn_id =
+        utils::get_connector_transaction_id(capture_response.response.clone()).unwrap();
+    let refund_connector_metadata = utils::get_connector_metadata(capture_response.response);
+    let response = CONNECTOR
+        .refund_payment(
+            capture_txn_id.clone(),
             Some(types::RefundsData {
-                refund_amount: 50,
+                refund_amount: 10,
+                connector_transaction_id: capture_txn_id,
+                currency: storage_models::enums::Currency::EUR,
+                connector_metadata: refund_connector_metadata,
                 ..utils::PaymentRefundType::default().0
             }),
-            get_default_payment_info(),
+            None,
         )
         .await
         .unwrap();
@@ -164,21 +249,63 @@ async fn should_partially_refund_manually_captured_payment() {
 // Synchronizes a refund using the manual capture flow (Non 3DS).
 #[actix_web::test]
 async fn should_sync_manually_captured_refund() {
+    let authorize_response = CONNECTOR
+        .authorize_payment(NexinetsTest::get_payment_data(), None)
+        .await
+        .expect("Authorize payment response");
+    let txn_id = utils::get_connector_transaction_id(authorize_response.response.clone()).unwrap();
+    let capture_connector_meta = utils::get_connector_metadata(authorize_response.response);
+    let capture_response = CONNECTOR
+        .capture_payment(
+            txn_id.clone(),
+            Some(types::PaymentsCaptureData {
+                currency: storage_models::enums::Currency::EUR,
+                connector_meta: capture_connector_meta,
+                ..utils::PaymentCaptureType::default().0
+            }),
+            None,
+        )
+        .await
+        .expect("Capture payment response");
+    let capture_txn_id =
+        utils::get_connector_transaction_id(capture_response.response.clone()).unwrap();
+    let refund_connector_metadata = utils::get_connector_metadata(capture_response.response);
     let refund_response = CONNECTOR
-        .capture_payment_and_refund(
-            payment_method_details(),
+        .refund_payment(
+            capture_txn_id.clone(),
+            Some(types::RefundsData {
+                refund_amount: 100,
+                connector_transaction_id: capture_txn_id.clone(),
+                currency: storage_models::enums::Currency::EUR,
+                connector_metadata: refund_connector_metadata.clone(),
+                ..utils::PaymentRefundType::default().0
+            }),
             None,
-            None,
-            get_default_payment_info(),
         )
         .await
         .unwrap();
+    let transaction_id = Some(
+        refund_response
+            .response
+            .clone()
+            .unwrap()
+            .connector_refund_id,
+    );
     let response = CONNECTOR
         .rsync_retry_till_status_matches(
             enums::RefundStatus::Success,
-            refund_response.response.unwrap().connector_refund_id,
+            refund_response
+                .response
+                .clone()
+                .unwrap()
+                .connector_refund_id,
+            Some(types::RefundsData {
+                connector_refund_id: transaction_id,
+                connector_transaction_id: capture_txn_id,
+                connector_metadata: refund_connector_metadata,
+                ..utils::PaymentRefundType::default().0
+            }),
             None,
-            get_default_payment_info(),
         )
         .await
         .unwrap();
@@ -192,7 +319,7 @@ async fn should_sync_manually_captured_refund() {
 #[actix_web::test]
 async fn should_make_payment() {
     let authorize_response = CONNECTOR
-        .make_payment(payment_method_details(), get_default_payment_info())
+        .make_payment(NexinetsTest::get_payment_data(), None)
         .await
         .unwrap();
     assert_eq!(authorize_response.status, enums::AttemptStatus::Charged);
@@ -201,24 +328,23 @@ async fn should_make_payment() {
 // Synchronizes a payment using the automatic capture flow (Non 3DS).
 #[actix_web::test]
 async fn should_sync_auto_captured_payment() {
-    let authorize_response = CONNECTOR
-        .make_payment(payment_method_details(), get_default_payment_info())
+    let cap_response = CONNECTOR
+        .make_payment(NexinetsTest::get_payment_data(), None)
         .await
         .unwrap();
-    assert_eq!(authorize_response.status, enums::AttemptStatus::Charged);
-    let txn_id = utils::get_connector_transaction_id(authorize_response.response);
-    assert_ne!(txn_id, None, "Empty connector transaction id");
+    assert_eq!(cap_response.status, enums::AttemptStatus::Charged);
+    let txn_id = utils::get_connector_transaction_id(cap_response.response.clone()).unwrap();
+    let connector_meta = utils::get_connector_metadata(cap_response.response);
     let response = CONNECTOR
         .psync_retry_till_status_matches(
             enums::AttemptStatus::Charged,
             Some(types::PaymentsSyncData {
-                connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
-                    txn_id.unwrap(),
-                ),
+                connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(txn_id),
                 capture_method: Some(enums::CaptureMethod::Automatic),
+                connector_meta,
                 ..Default::default()
             }),
-            get_default_payment_info(),
+            None,
         )
         .await
         .unwrap();
@@ -228,8 +354,25 @@ async fn should_sync_auto_captured_payment() {
 // Refunds a payment using the automatic capture flow (Non 3DS).
 #[actix_web::test]
 async fn should_refund_auto_captured_payment() {
+    let captured_response = CONNECTOR
+        .make_payment(NexinetsTest::get_payment_data(), None)
+        .await
+        .unwrap();
+    assert_eq!(captured_response.status, enums::AttemptStatus::Charged);
+    let txn_id = utils::get_connector_transaction_id(captured_response.response.clone());
+    let connector_metadata = utils::get_connector_metadata(captured_response.response);
     let response = CONNECTOR
-        .make_payment_and_refund(payment_method_details(), None, get_default_payment_info())
+        .refund_payment(
+            txn_id.clone().unwrap(),
+            Some(types::RefundsData {
+                refund_amount: 100,
+                currency: storage_models::enums::Currency::EUR,
+                connector_transaction_id: txn_id.unwrap(),
+                connector_metadata,
+                ..utils::PaymentRefundType::default().0
+            }),
+            None,
+        )
         .await
         .unwrap();
     assert_eq!(
@@ -241,19 +384,29 @@ async fn should_refund_auto_captured_payment() {
 // Partially refunds a payment using the automatic capture flow (Non 3DS).
 #[actix_web::test]
 async fn should_partially_refund_succeeded_payment() {
-    let refund_response = CONNECTOR
-        .make_payment_and_refund(
-            payment_method_details(),
+    let captured_response = CONNECTOR
+        .make_payment(NexinetsTest::get_payment_data(), None)
+        .await
+        .unwrap();
+    assert_eq!(captured_response.status, enums::AttemptStatus::Charged);
+    let txn_id = utils::get_connector_transaction_id(captured_response.response.clone());
+    let connector_meta = utils::get_connector_metadata(captured_response.response);
+    let response = CONNECTOR
+        .refund_payment(
+            txn_id.clone().unwrap(),
             Some(types::RefundsData {
                 refund_amount: 50,
+                currency: storage_models::enums::Currency::EUR,
+                connector_transaction_id: txn_id.unwrap(),
+                connector_metadata: connector_meta,
                 ..utils::PaymentRefundType::default().0
             }),
-            get_default_payment_info(),
+            None,
         )
         .await
         .unwrap();
     assert_eq!(
-        refund_response.response.unwrap().refund_status,
+        response.response.unwrap().refund_status,
         enums::RefundStatus::Success,
     );
 }
@@ -261,31 +414,81 @@ async fn should_partially_refund_succeeded_payment() {
 // Creates multiple refunds against a payment using the automatic capture flow (Non 3DS).
 #[actix_web::test]
 async fn should_refund_succeeded_payment_multiple_times() {
-    CONNECTOR
-        .make_payment_and_multiple_refund(
-            payment_method_details(),
-            Some(types::RefundsData {
-                refund_amount: 50,
-                ..utils::PaymentRefundType::default().0
-            }),
-            get_default_payment_info(),
-        )
-        .await;
+    let captured_response = CONNECTOR
+        .make_payment(NexinetsTest::get_payment_data(), None)
+        .await
+        .unwrap();
+    assert_eq!(captured_response.status, enums::AttemptStatus::Charged);
+    let txn_id = utils::get_connector_transaction_id(captured_response.response.clone());
+    let connector_meta = utils::get_connector_metadata(captured_response.response);
+    for _x in 0..2 {
+        let refund_response = CONNECTOR
+            .refund_payment(
+                txn_id.clone().unwrap(),
+                Some(types::RefundsData {
+                    connector_metadata: connector_meta.clone(),
+                    connector_transaction_id: txn_id.clone().unwrap(),
+                    refund_amount: 50,
+                    currency: storage_models::enums::Currency::EUR,
+                    ..utils::PaymentRefundType::default().0
+                }),
+                None,
+            )
+            .await
+            .unwrap();
+        assert_eq!(
+            refund_response.response.unwrap().refund_status,
+            enums::RefundStatus::Success,
+        );
+    }
 }
 
 // Synchronizes a refund using the automatic capture flow (Non 3DS).
 #[actix_web::test]
 async fn should_sync_refund() {
-    let refund_response = CONNECTOR
-        .make_payment_and_refund(payment_method_details(), None, get_default_payment_info())
+    let captured_response = CONNECTOR
+        .make_payment(NexinetsTest::get_payment_data(), None)
         .await
         .unwrap();
+    assert_eq!(captured_response.status, enums::AttemptStatus::Charged);
+    let txn_id = utils::get_connector_transaction_id(captured_response.response.clone());
+    let connector_metadata = utils::get_connector_metadata(captured_response.response).clone();
+    let refund_response = CONNECTOR
+        .refund_payment(
+            txn_id.clone().unwrap(),
+            Some(types::RefundsData {
+                connector_transaction_id: txn_id.clone().unwrap(),
+                refund_amount: 100,
+                currency: storage_models::enums::Currency::EUR,
+                connector_metadata: connector_metadata.clone(),
+                ..utils::PaymentRefundType::default().0
+            }),
+            None,
+        )
+        .await
+        .unwrap();
+    let transaction_id = Some(
+        refund_response
+            .response
+            .clone()
+            .unwrap()
+            .connector_refund_id,
+    );
     let response = CONNECTOR
         .rsync_retry_till_status_matches(
             enums::RefundStatus::Success,
-            refund_response.response.unwrap().connector_refund_id,
+            refund_response
+                .response
+                .clone()
+                .unwrap()
+                .connector_refund_id,
+            Some(types::RefundsData {
+                connector_refund_id: transaction_id,
+                connector_transaction_id: txn_id.unwrap(),
+                connector_metadata,
+                ..utils::PaymentRefundType::default().0
+            }),
             None,
-            get_default_payment_info(),
         )
         .await
         .unwrap();
@@ -301,20 +504,21 @@ async fn should_sync_refund() {
 async fn should_fail_payment_for_incorrect_card_number() {
     let response = CONNECTOR
         .make_payment(
-            Some(types::PaymentsAuthorizeData {
+            Some(PaymentsAuthorizeData {
                 payment_method_data: types::api::PaymentMethodData::Card(api::Card {
-                    card_number: Secret::new("1234567891011".to_string()),
+                    card_number: Secret::new("12345678910112331".to_string()),
                     ..utils::CCardType::default().0
                 }),
+                currency: storage_models::enums::Currency::EUR,
                 ..utils::PaymentAuthorizeType::default().0
             }),
-            get_default_payment_info(),
+            None,
         )
         .await
         .unwrap();
     assert_eq!(
         response.response.unwrap_err().message,
-        "Your card number is incorrect.".to_string(),
+        "payment.cardNumber : Bad value for 'payment.cardNumber'. Expected: string of length in range 12 <=> 19 representing a valid creditcard number.".to_string(),
     );
 }
 
@@ -323,21 +527,21 @@ async fn should_fail_payment_for_incorrect_card_number() {
 async fn should_fail_payment_for_empty_card_number() {
     let response = CONNECTOR
         .make_payment(
-            Some(types::PaymentsAuthorizeData {
+            Some(PaymentsAuthorizeData {
                 payment_method_data: types::api::PaymentMethodData::Card(api::Card {
                     card_number: Secret::new(String::from("")),
                     ..utils::CCardType::default().0
                 }),
                 ..utils::PaymentAuthorizeType::default().0
             }),
-            get_default_payment_info(),
+            None,
         )
         .await
         .unwrap();
     let x = response.response.unwrap_err();
     assert_eq!(
         x.message,
-        "You passed an empty string for 'payment_method_data[card][number]'.",
+        "payment.cardNumber : Bad value for 'payment.cardNumber'. Expected: string of length in range 12 <=> 19 representing a valid creditcard number.",
     );
 }
 
@@ -346,20 +550,20 @@ async fn should_fail_payment_for_empty_card_number() {
 async fn should_fail_payment_for_incorrect_cvc() {
     let response = CONNECTOR
         .make_payment(
-            Some(types::PaymentsAuthorizeData {
+            Some(PaymentsAuthorizeData {
                 payment_method_data: types::api::PaymentMethodData::Card(api::Card {
                     card_cvc: Secret::new("12345".to_string()),
                     ..utils::CCardType::default().0
                 }),
                 ..utils::PaymentAuthorizeType::default().0
             }),
-            get_default_payment_info(),
+            None,
         )
         .await
         .unwrap();
     assert_eq!(
         response.response.unwrap_err().message,
-        "Your card's security code is invalid.".to_string(),
+        "payment.verification : Bad value for 'payment.verification'. Expected: string of length in range 3 <=> 4 representing a valid creditcard verification number.".to_string(),
     );
 }
 
@@ -368,20 +572,20 @@ async fn should_fail_payment_for_incorrect_cvc() {
 async fn should_fail_payment_for_invalid_exp_month() {
     let response = CONNECTOR
         .make_payment(
-            Some(types::PaymentsAuthorizeData {
+            Some(PaymentsAuthorizeData {
                 payment_method_data: types::api::PaymentMethodData::Card(api::Card {
                     card_exp_month: Secret::new("20".to_string()),
                     ..utils::CCardType::default().0
                 }),
                 ..utils::PaymentAuthorizeType::default().0
             }),
-            get_default_payment_info(),
+            None,
         )
         .await
         .unwrap();
     assert_eq!(
         response.response.unwrap_err().message,
-        "Your card's expiration month is invalid.".to_string(),
+        "payment.expiryMonth : Bad value for 'payment.expiryMonth'. Expected: string of length 2 in range '01' <=> '12' representing the month in a valid creditcard expiry date >= current date.".to_string(),
     );
 }
 
@@ -390,73 +594,105 @@ async fn should_fail_payment_for_invalid_exp_month() {
 async fn should_fail_payment_for_incorrect_expiry_year() {
     let response = CONNECTOR
         .make_payment(
-            Some(types::PaymentsAuthorizeData {
+            Some(PaymentsAuthorizeData {
                 payment_method_data: types::api::PaymentMethodData::Card(api::Card {
                     card_exp_year: Secret::new("2000".to_string()),
                     ..utils::CCardType::default().0
                 }),
                 ..utils::PaymentAuthorizeType::default().0
             }),
-            get_default_payment_info(),
+            None,
         )
         .await
         .unwrap();
     assert_eq!(
         response.response.unwrap_err().message,
-        "Your card's expiration year is invalid.".to_string(),
+        "payment.expiryYear : Bad value for 'payment.expiryYear'. Expected: string of length 2 in range '01' <=> '99' representing the year in a valid creditcard expiry date >= current date.".to_string(),
     );
 }
 
 // Voids a payment using automatic capture flow (Non 3DS).
 #[actix_web::test]
 async fn should_fail_void_payment_for_auto_capture() {
-    let authorize_response = CONNECTOR
-        .make_payment(payment_method_details(), get_default_payment_info())
+    let captured_response = CONNECTOR
+        .make_payment(NexinetsTest::get_payment_data(), None)
         .await
         .unwrap();
-    assert_eq!(authorize_response.status, enums::AttemptStatus::Charged);
-    let txn_id = utils::get_connector_transaction_id(authorize_response.response);
-    assert_ne!(txn_id, None, "Empty connector transaction id");
+    assert_eq!(captured_response.status, enums::AttemptStatus::Charged);
+    let txn_id = utils::get_connector_transaction_id(captured_response.response.clone()).unwrap();
+    let connector_meta = utils::get_connector_metadata(captured_response.response);
     let void_response = CONNECTOR
-        .void_payment(txn_id.unwrap(), None, get_default_payment_info())
+        .void_payment(
+            txn_id,
+            Some(types::PaymentsCancelData {
+                cancellation_reason: Some("requested_by_customer".to_string()),
+                amount: Some(100),
+                currency: Some(storage_models::enums::Currency::EUR),
+                connector_meta,
+                ..Default::default()
+            }),
+            None,
+        )
         .await
         .unwrap();
     assert_eq!(
         void_response.response.unwrap_err().message,
-        "You cannot cancel this PaymentIntent because it has a status of succeeded."
+        "transactionId : Operation not allowed!"
     );
 }
 
 // Captures a payment using invalid connector payment id.
 #[actix_web::test]
 async fn should_fail_capture_for_invalid_payment() {
+    let connector_payment_id = "12345678".to_string();
     let capture_response = CONNECTOR
-        .capture_payment("123456789".to_string(), None, get_default_payment_info())
+        .capture_payment(
+            connector_payment_id,
+            Some(types::PaymentsCaptureData {
+                connector_meta: Some(
+                    serde_json::json!({"transaction_id" : "transaction_usmh41hymb".to_string()}),
+                ),
+                amount_to_capture: 50,
+                currency: storage_models::enums::Currency::EUR,
+                ..utils::PaymentCaptureType::default().0
+            }),
+            None,
+        )
         .await
         .unwrap();
     assert_eq!(
         capture_response.response.unwrap_err().message,
-        String::from("No such payment_intent: '123456789'")
+        String::from("transactionId : Transaction does not belong to order.")
     );
 }
 
 // Refunds a payment with refund amount higher than payment amount.
 #[actix_web::test]
 async fn should_fail_for_refund_amount_higher_than_payment_amount() {
+    let captured_response = CONNECTOR
+        .make_payment(NexinetsTest::get_payment_data(), None)
+        .await
+        .unwrap();
+    assert_eq!(captured_response.status, enums::AttemptStatus::Charged);
+    let txn_id = utils::get_connector_transaction_id(captured_response.response.clone());
+    let connector_meta = utils::get_connector_metadata(captured_response.response);
     let response = CONNECTOR
-        .make_payment_and_refund(
-            payment_method_details(),
+        .refund_payment(
+            txn_id.clone().unwrap(),
             Some(types::RefundsData {
                 refund_amount: 150,
+                currency: storage_models::enums::Currency::EUR,
+                connector_transaction_id: txn_id.unwrap(),
+                connector_metadata: connector_meta,
                 ..utils::PaymentRefundType::default().0
             }),
-            get_default_payment_info(),
+            None,
         )
         .await
         .unwrap();
     assert_eq!(
         response.response.unwrap_err().message,
-        "Refund amount (₹1.50) is greater than charge amount (₹1.00)",
+        "initialAmount : Bad value for 'initialAmount'. Expected: Positive integer between 1 and maximum available amount (debit/capture.initialAmount - debit/capture.refundedAmount.",
     );
 }
 
