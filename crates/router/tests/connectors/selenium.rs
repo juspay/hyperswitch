@@ -461,8 +461,6 @@ pub fn handle_test_error(
 }
 
 pub fn get_env(name: &str) -> String {
-    let value = env::var(name)
-        .expect(&format!("{name} not present"))
-        .clone();
-    value
+    env::var(name)
+        .unwrap_or_else(|_| panic!("{name} not present"))
 }
