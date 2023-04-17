@@ -691,7 +691,14 @@ pub async fn make_pm_data<'a, F: Clone, R>(
                 .to_owned()
                 .get_required_value("payment_method")?,
         );
-        redis_conn.get_key::<String>(&key).await.ok()
+
+        let hyperswitch_token_option = redis_conn
+            .get_key::<Option<String>>(&key)
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to fetch the token from redis")?;
+
+        hyperswitch_token_option.or(Some(token))
     } else {
         None
     };

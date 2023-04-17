@@ -89,11 +89,12 @@ pub async fn create_merchant_account(
             .attach_printable("Unexpected create API key response"),
     }?;
 
-    let primary_business_details =
-        utils::Encode::<api::WebhookDetails>::encode_to_value(&get_primary_business_details(&req))
-            .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "primary_business_details",
-            })?;
+    let primary_business_details = utils::Encode::<Vec<PrimaryBusinessDetails>>::encode_to_value(
+        &get_primary_business_details(&req),
+    )
+    .change_context(errors::ApiErrorResponse::InvalidDataValue {
+        field_name: "primary_business_details",
+    })?;
 
     let merchant_details =
         req.merchant_details
@@ -214,6 +215,17 @@ pub async fn merchant_account_update(
             .attach_printable("Invalid routing algorithm given")?;
     }
 
+    let primary_business_details = req
+        .primary_business_details
+        .as_ref()
+        .map(|primary_business_details| {
+            utils::Encode::<Vec<PrimaryBusinessDetails>>::encode_to_value(primary_business_details)
+                .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                    field_name: "primary_business_details",
+                })
+        })
+        .transpose()?;
+
     let updated_merchant_account = storage::MerchantAccountUpdate::Update {
         merchant_name: req.merchant_name,
 
@@ -248,12 +260,7 @@ pub async fn merchant_account_update(
         locker_id: req.locker_id,
         metadata: req.metadata,
         publishable_key: None,
-        primary_business_details: req
-            .primary_business_details
-            .as_ref()
-            .map(utils::Encode::<PrimaryBusinessDetails>::encode_to_value)
-            .transpose()
-            .change_context(errors::ApiErrorResponse::InternalServerError)?,
+        primary_business_details,
     };
 
     let response = db

@@ -134,7 +134,7 @@ pub struct MerchantAccountUpdate {
     pub locker_id: Option<String>,
 
     ///Default business details for connector routing
-    pub primary_business_details: Option<PrimaryBusinessDetails>,
+    pub primary_business_details: Option<Vec<PrimaryBusinessDetails>>,
 }
 
 #[derive(Clone, Debug, ToSchema, Serialize)]
