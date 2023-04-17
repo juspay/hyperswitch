@@ -1,6 +1,7 @@
 use api_models::enums as api_enums;
 use common_utils::ext_traits::ValueExt;
 use error_stack::ResultExt;
+use masking::Secret;
 use storage_models::enums as storage_enums;
 
 use crate::{
@@ -336,37 +337,6 @@ impl<'a> ForeignFrom<&'a storage::Address> for api_types::Address {
     }
 }
 
-impl ForeignTryFrom<storage::MerchantConnectorAccount> for api_models::admin::MerchantConnector {
-    type Error = error_stack::Report<errors::ApiErrorResponse>;
-    fn foreign_try_from(item: storage::MerchantConnectorAccount) -> Result<Self, Self::Error> {
-        let merchant_ca = item;
-
-        let payment_methods_enabled = match merchant_ca.payment_methods_enabled {
-            Some(val) => serde_json::Value::Array(val)
-                .parse_value("PaymentMethods")
-                .change_context(errors::ApiErrorResponse::InternalServerError)?,
-            None => None,
-        };
-
-        Ok(Self {
-            connector_type: merchant_ca.connector_type.foreign_into(),
-            connector_name: merchant_ca.connector_name,
-            merchant_connector_id: Some(merchant_ca.merchant_connector_id),
-            connector_account_details: Some(masking::Secret::new(
-                merchant_ca.connector_account_details,
-            )),
-            test_mode: merchant_ca.test_mode,
-            disabled: merchant_ca.disabled,
-            metadata: merchant_ca.metadata,
-            payment_methods_enabled,
-            connector_label: merchant_ca.connector_label,
-            business_country: merchant_ca.business_country,
-            business_label: merchant_ca.business_label,
-            business_sub_label: merchant_ca.business_sub_label,
-        })
-    }
-}
-
 impl ForeignFrom<api_models::enums::PaymentMethodType>
     for storage_models::enums::PaymentMethodType
 {
@@ -549,5 +519,36 @@ impl ForeignFrom<storage_models::cards_info::CardInfo>
             card_issuer: item.card_issuer,
             card_issuing_country: item.card_issuing_country,
         }
+    }
+}
+
+impl ForeignTryFrom<storage_models::merchant_connector_account::MerchantConnectorAccount>
+    for api_models::admin::MerchantConnectorResponse
+{
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
+    fn foreign_try_from(
+        item: storage_models::merchant_connector_account::MerchantConnectorAccount,
+    ) -> Result<Self, Self::Error> {
+        let payment_methods_enabled = match item.payment_methods_enabled {
+            Some(val) => serde_json::Value::Array(val)
+                .parse_value("PaymentMethods")
+                .change_context(errors::ApiErrorResponse::InternalServerError)?,
+            None => None,
+        };
+
+        Ok(Self {
+            connector_type: item.connector_type.foreign_into(),
+            connector_name: item.connector_name,
+            connector_label: item.connector_label,
+            merchant_connector_id: item.merchant_connector_id,
+            connector_account_details: Secret::new(item.connector_account_details),
+            test_mode: item.test_mode,
+            disabled: item.disabled,
+            payment_methods_enabled,
+            metadata: item.metadata,
+            business_country: item.business_country,
+            business_label: item.business_label,
+            business_sub_label: item.business_sub_label,
+        })
     }
 }

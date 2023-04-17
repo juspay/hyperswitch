@@ -691,7 +691,14 @@ pub async fn make_pm_data<'a, F: Clone, R>(
                 .to_owned()
                 .get_required_value("payment_method")?,
         );
-        redis_conn.get_key::<String>(&key).await.ok()
+
+        let hyperswitch_token_option = redis_conn
+            .get_key::<Option<String>>(&key)
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to fetch the token from redis")?;
+
+        hyperswitch_token_option.or(Some(token))
     } else {
         None
     };
@@ -1285,14 +1292,14 @@ pub fn get_business_details(
     business_country: Option<api_enums::CountryCode>,
     business_label: Option<&String>,
     merchant_account: &storage_models::merchant_account::MerchantAccount,
-) -> Result<(api_enums::CountryCode, String), error_stack::Report<errors::ApiErrorResponse>> {
+) -> RouterResult<(api_enums::CountryCode, String)> {
     let (business_country, business_label) = match business_country.zip(business_label) {
         Some((business_country, business_label)) => {
             (business_country.to_owned(), business_label.to_owned())
         }
         None => {
             // Parse the primary business details from merchant account
-            let primary_business_details: api_models::admin::PrimaryBusinessDetails =
+            let primary_business_details: Vec<api_models::admin::PrimaryBusinessDetails> =
                 merchant_account
                     .primary_business_details
                     .clone()
@@ -1300,28 +1307,20 @@ pub fn get_business_details(
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("failed to parse primary business details")?;
 
-            if primary_business_details.country.len() == 1
-                && primary_business_details.business.len() == 1
-            {
-                let primary_business_country = primary_business_details
-                    .country
-                    .first()
-                    .get_required_value("business_country")?
-                    .to_owned();
-
-                let primary_business_label = primary_business_details
-                    .business
-                    .first()
-                    .get_required_value("business_label")?
-                    .to_owned();
-
+            if primary_business_details.len() == 1 {
+                let primary_business_details = primary_business_details.first().ok_or(
+                    errors::ApiErrorResponse::MissingRequiredField {
+                        field_name: "primary_business_details",
+                    },
+                )?;
                 (
-                    business_country.unwrap_or(primary_business_country),
+                    business_country.unwrap_or_else(|| primary_business_details.country.to_owned()),
                     business_label
                         .map(ToString::to_string)
-                        .unwrap_or(primary_business_label),
+                        .unwrap_or_else(|| primary_business_details.business.to_owned()),
                 )
             } else {
+                // If primary business details are not present or more than one
                 Err(report!(errors::ApiErrorResponse::MissingRequiredField {
                     field_name: "business_country, business_label"
                 }))?

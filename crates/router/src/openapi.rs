@@ -149,7 +149,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::enums::DisputeStage,
         api_models::enums::DisputeStatus,
         api_models::enums::CountryCode,
-        api_models::admin::MerchantConnector,
+        api_models::admin::MerchantConnectorCreate,
         api_models::admin::PaymentMethodsEnabled,
         api_models::disputes::DisputeResponse,
         api_models::payments::AddressDetails,
