@@ -372,7 +372,16 @@ pub struct MerchantConnectorCreate {
     /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
     #[schema(value_type = Option<Object>,max_length = 255,example = json!({ "city": "NY", "unit": "245" }))]
     pub metadata: Option<pii::SecretSerdeValue>,
-    /// contains the frm configs for the merchant... it should be of this format:: "\"frm_configs\" : { \"frm_enabled_pms\" : [\"card\"], \"frm_enabled_pm_types\" : [\"credit\"], \"frm_enabled_gateways\" : [\"stripe\"], \"frm_action\": \"cancel_txn\", \"frm_preferred_flow_type\" : \"pre\" }"
+    /// contains the frm configs for the merchant connector
+    #[schema(example = json!([
+        {
+            "frm_enabled_pms" : ["card"],
+            "frm_enabled_pm_types" : ["credit"],
+            "frm_enabled_gateways" : ["stripe"],
+            "frm_action": "cancel_txn",
+            "frm_preferred_flow_type" : "pre"
+        }
+    ]))]
     pub frm_configs: Option<FrmConfigs>,
 
     /// Business Country of the connector
@@ -468,7 +477,16 @@ pub struct MerchantConnectorResponse {
     #[schema(example = "chase")]
     pub business_sub_label: Option<String>,
 
-    /// contains the frm configs for the merchant... it should be of this format:: "\"frm_configs\" : { \"frm_enabled_pms\" : [\"card\"], \"frm_enabled_pm_types\" : [\"credit\"], \"frm_enabled_gateways\" : [\"stripe\"], \"frm_action\": \"cancel_txn\", \"frm_preferred_flow_type\" : \"pre\" }"
+    /// contains the frm configs for the merchant connector
+    #[schema(example = json!([
+        {
+            "frm_enabled_pms" : ["card"],
+            "frm_enabled_pm_types" : ["credit"],
+            "frm_enabled_gateways" : ["stripe"],
+            "frm_action": "cancel_txn",
+            "frm_preferred_flow_type" : "pre"
+        }
+    ]))]
     pub frm_configs: Option<FrmConfigs>,
 }
 
@@ -528,7 +546,16 @@ pub struct MerchantConnectorUpdate {
     #[schema(value_type = Option<Object>,max_length = 255,example = json!({ "city": "NY", "unit": "245" }))]
     pub metadata: Option<pii::SecretSerdeValue>,
 
-    /// contains the frm configs for the merchant... it should be of this format:: "\"frm_configs\" : { \"frm_enabled_pms\" : [\"card\"], \"frm_enabled_pm_types\" : [\"credit\"], \"frm_enabled_gateways\" : [\"stripe\"], \"frm_action\": \"cancel_txn\", \"frm_preferred_flow_type\" : \"pre\" }"
+    /// contains the frm configs for the merchant connector
+    #[schema(example = json!([
+        {
+            "frm_enabled_pms" : ["card"],
+            "frm_enabled_pm_types" : ["credit"],
+            "frm_enabled_gateways" : ["stripe"],
+            "frm_action": "cancel_txn",
+            "frm_preferred_flow_type" : "pre"
+        }
+    ]))]
     pub frm_configs: Option<FrmConfigs>,
 }
 
