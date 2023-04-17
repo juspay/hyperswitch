@@ -169,8 +169,8 @@ impl TryFrom<&types::PaymentsCompleteAuthorizeRouterData> for AirwallexCompleteR
                 acs_response: item
                     .request
                     .payload
-                    .clone()
-                    .map(|a| Secret::new(serde_json::Value::to_string(&a))),
+                    .as_ref()
+                    .map(|data| Secret::new(serde_json::Value::to_string(&data))),
             },
             three_ds_type: AirwallexThreeDsType::ThreeDSContinue,
         })
