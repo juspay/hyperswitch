@@ -598,14 +598,15 @@ pub enum WalletData {
     ApplePay(ApplePayWalletData),
     /// The wallet data for Google pay
     GooglePay(GooglePayWalletData),
-    MbWay(MbWayRedirection),
+    MbWay(Box<MbWayRedirection>),
     /// The wallet data for MobilePay redirect
-    MobilePay(MobilePayRedirection),
+    MobilePay(Box<MobilePayRedirection>),
     /// This is for paypal redirection
     PaypalRedirect(PaypalRedirection),
     /// The wallet data for Paypal
     PaypalSdk(PayPalWalletData),
-    WeChatPayRedirect(WeChatPayRedirection),
+    /// The wallet data for WeChat Pay Redirection
+    WeChatPayRedirect(Box<WeChatPayRedirection>),
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]

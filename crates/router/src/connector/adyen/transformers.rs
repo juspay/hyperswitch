@@ -238,30 +238,30 @@ pub struct Amount {
 #[derive(Debug, Clone, Serialize)]
 #[serde(tag = "type")]
 pub enum AdyenPaymentMethod<'a> {
-    AdyenAffirm(AdyenPayLaterData),
-    AdyenCard(AdyenCard),
-    AdyenKlarna(AdyenPayLaterData),
-    AdyenPaypal(AdyenPaypal),
-    AfterPay(AdyenPayLaterData),
-    AliPay(AliPayData),
-    ApplePay(AdyenApplePay),
-    BancontactCard(BancontactCardData),
-    Blik(BlikRedirectionData),
-    Eps(BankRedirectionWithIssuer<'a>),
-    Giropay(BankRedirectionPMData),
-    Gpay(AdyenGPay),
-    Ideal(BankRedirectionWithIssuer<'a>),
-    Mbway(MbwayData),
-    MobilePay(MobilePayData),
-    OnlineBankingCzechRepublic(OnlineBankingCzechRepublicData),
-    OnlineBankingFinland(OnlineBankingFinlandData),
-    OnlineBankingPoland(OnlineBankingPolandData),
-    OnlineBankingSlovakia(OnlineBankingSlovakiaData),
-    PayBright(PayBrightData),
-    Sofort(BankRedirectionPMData),
-    Trustly(BankRedirectionPMData),
-    Walley(WalleyData),
-    WeChatPayWeb(WeChatPayWebData),
+    AdyenAffirm(Box<AdyenPayLaterData>),
+    AdyenCard(Box<AdyenCard>),
+    AdyenKlarna(Box<AdyenPayLaterData>),
+    AdyenPaypal(Box<AdyenPaypal>),
+    AfterPay(Box<AdyenPayLaterData>),
+    AliPay(Box<AliPayData>),
+    ApplePay(Box<AdyenApplePay>),
+    BancontactCard(Box<BancontactCardData>),
+    Blik(Box<BlikRedirectionData>),
+    Eps(Box<BankRedirectionWithIssuer<'a>>),
+    Giropay(Box<BankRedirectionPMData>),
+    Gpay(Box<AdyenGPay>),
+    Ideal(Box<BankRedirectionWithIssuer<'a>>),
+    Mbway(Box<MbwayData>),
+    MobilePay(Box<MobilePayData>),
+    OnlineBankingCzechRepublic(Box<OnlineBankingCzechRepublicData>),
+    OnlineBankingFinland(Box<OnlineBankingFinlandData>),
+    OnlineBankingPoland(Box<OnlineBankingPolandData>),
+    OnlineBankingSlovakia(Box<OnlineBankingSlovakiaData>),
+    PayBright(Box<PayBrightData>),
+    Sofort(Box<BankRedirectionPMData>),
+    Trustly(Box<BankRedirectionPMData>),
+    Walley(Box<WalleyData>),
+    WeChatPayWeb(Box<WeChatPayWebData>),
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -850,7 +850,7 @@ impl<'a> TryFrom<&api::Card> for AdyenPaymentMethod<'a> {
             expiry_year: card.card_exp_year.clone(),
             cvc: Some(card.card_cvc.clone()),
         };
-        Ok(AdyenPaymentMethod::AdyenCard(adyen_card))
+        Ok(AdyenPaymentMethod::AdyenCard(Box::new(adyen_card)))
     }
 }
 
@@ -863,7 +863,7 @@ impl<'a> TryFrom<&api::WalletData> for AdyenPaymentMethod<'a> {
                     payment_type: PaymentType::Googlepay,
                     google_pay_token: data.tokenization_data.token.to_owned(),
                 };
-                Ok(AdyenPaymentMethod::Gpay(gpay_data))
+                Ok(AdyenPaymentMethod::Gpay(Box::new(gpay_data)))
             }
             api_models::payments::WalletData::ApplePay(data) => {
                 let apple_pay_data = AdyenApplePay {
@@ -871,38 +871,38 @@ impl<'a> TryFrom<&api::WalletData> for AdyenPaymentMethod<'a> {
                     apple_pay_token: data.payment_data.to_string(),
                 };
 
-                Ok(AdyenPaymentMethod::ApplePay(apple_pay_data))
+                Ok(AdyenPaymentMethod::ApplePay(Box::new(apple_pay_data)))
             }
             api_models::payments::WalletData::PaypalRedirect(_) => {
                 let wallet = AdyenPaypal {
                     payment_type: PaymentType::Paypal,
                 };
-                Ok(AdyenPaymentMethod::AdyenPaypal(wallet))
+                Ok(AdyenPaymentMethod::AdyenPaypal(Box::new(wallet)))
             }
             api_models::payments::WalletData::AliPay(_) => {
                 let alipay_data = AliPayData {
                     payment_type: PaymentType::Alipay,
                 };
-                Ok(AdyenPaymentMethod::AliPay(alipay_data))
+                Ok(AdyenPaymentMethod::AliPay(Box::new(alipay_data)))
             }
             api_models::payments::WalletData::MbWay(data) => {
                 let mbway_data = MbwayData {
                     payment_type: PaymentType::Mbway,
                     telephone_number: data.telephone_number.clone(),
                 };
-                Ok(AdyenPaymentMethod::Mbway(mbway_data))
+                Ok(AdyenPaymentMethod::Mbway(Box::new(mbway_data)))
             }
             api_models::payments::WalletData::MobilePay(_) => {
                 let data = MobilePayData {
                     payment_type: PaymentType::MobilePay,
                 };
-                Ok(AdyenPaymentMethod::MobilePay(data))
+                Ok(AdyenPaymentMethod::MobilePay(Box::new(data)))
             }
             api_models::payments::WalletData::WeChatPayRedirect(_) => {
                 let data = WeChatPayWebData {
                     payment_type: PaymentType::WeChatPayWeb,
                 };
-                Ok(AdyenPaymentMethod::WeChatPayWeb(data))
+                Ok(AdyenPaymentMethod::WeChatPayWeb(Box::new(data)))
             }
             _ => Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into()),
         }
@@ -917,27 +917,27 @@ impl<'a> TryFrom<&api::PayLaterData> for AdyenPaymentMethod<'a> {
                 let klarna = AdyenPayLaterData {
                     payment_type: PaymentType::Klarna,
                 };
-                Ok(AdyenPaymentMethod::AdyenKlarna(klarna))
+                Ok(AdyenPaymentMethod::AdyenKlarna(Box::new(klarna)))
             }
-            api_models::payments::PayLaterData::AffirmRedirect { .. } => {
-                Ok(AdyenPaymentMethod::AdyenAffirm(AdyenPayLaterData {
+            api_models::payments::PayLaterData::AffirmRedirect { .. } => Ok(
+                AdyenPaymentMethod::AdyenAffirm(Box::new(AdyenPayLaterData {
                     payment_type: PaymentType::Affirm,
-                }))
-            }
+                })),
+            ),
             api_models::payments::PayLaterData::AfterpayClearpayRedirect { .. } => {
-                Ok(AdyenPaymentMethod::AfterPay(AdyenPayLaterData {
+                Ok(AdyenPaymentMethod::AfterPay(Box::new(AdyenPayLaterData {
                     payment_type: PaymentType::Afterpaytouch,
-                }))
+                })))
             }
             api_models::payments::PayLaterData::PayBright { .. } => {
-                Ok(AdyenPaymentMethod::PayBright(PayBrightData {
+                Ok(AdyenPaymentMethod::PayBright(Box::new(PayBrightData {
                     payment_type: PaymentType::PayBright,
-                }))
+                })))
             }
             api_models::payments::PayLaterData::Walley { .. } => {
-                Ok(AdyenPaymentMethod::Walley(WalleyData {
+                Ok(AdyenPaymentMethod::Walley(Box::new(WalleyData {
                     payment_type: PaymentType::Walley,
-                }))
+                })))
             }
             _ => Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into()),
         }
@@ -955,70 +955,74 @@ impl<'a> TryFrom<&api_models::payments::BankRedirectData> for AdyenPaymentMethod
                 card_exp_month,
                 card_exp_year,
                 card_holder_name,
-            } => Ok(AdyenPaymentMethod::BancontactCard(BancontactCardData {
-                payment_type: PaymentType::Scheme,
-                brand: "bcmc".to_string(),
-                number: card_number.clone(),
-                expiry_month: card_exp_month.clone(),
-                expiry_year: card_exp_year.clone(),
-                holder_name: card_holder_name.clone(),
-            })),
+            } => Ok(AdyenPaymentMethod::BancontactCard(Box::new(
+                BancontactCardData {
+                    payment_type: PaymentType::Scheme,
+                    brand: "bcmc".to_string(),
+                    number: card_number.clone(),
+                    expiry_month: card_exp_month.clone(),
+                    expiry_year: card_exp_year.clone(),
+                    holder_name: card_holder_name.clone(),
+                },
+            ))),
             api_models::payments::BankRedirectData::Blik { blik_code } => {
-                Ok(AdyenPaymentMethod::Blik(BlikRedirectionData {
+                Ok(AdyenPaymentMethod::Blik(Box::new(BlikRedirectionData {
                     payment_type: PaymentType::Blik,
                     blik_code: blik_code.to_string(),
-                }))
+                })))
             }
-            api_models::payments::BankRedirectData::Eps { bank_name, .. } => {
-                Ok(AdyenPaymentMethod::Eps(BankRedirectionWithIssuer {
+            api_models::payments::BankRedirectData::Eps { bank_name, .. } => Ok(
+                AdyenPaymentMethod::Eps(Box::new(BankRedirectionWithIssuer {
                     payment_type: PaymentType::Eps,
                     issuer: AdyenTestBankNames::try_from(bank_name)?.0,
-                }))
-            }
-            api_models::payments::BankRedirectData::Giropay { .. } => {
-                Ok(AdyenPaymentMethod::Giropay(BankRedirectionPMData {
+                })),
+            ),
+            api_models::payments::BankRedirectData::Giropay { .. } => Ok(
+                AdyenPaymentMethod::Giropay(Box::new(BankRedirectionPMData {
                     payment_type: PaymentType::Giropay,
-                }))
-            }
-            api_models::payments::BankRedirectData::Ideal { bank_name, .. } => {
-                Ok(AdyenPaymentMethod::Ideal(BankRedirectionWithIssuer {
+                })),
+            ),
+            api_models::payments::BankRedirectData::Ideal { bank_name, .. } => Ok(
+                AdyenPaymentMethod::Ideal(Box::new(BankRedirectionWithIssuer {
                     payment_type: PaymentType::Ideal,
                     issuer: AdyenTestBankNames::try_from(bank_name)?.0,
-                }))
-            }
-            api_models::payments::BankRedirectData::OnlineBankingCzechRepublic { issuer } => Ok(
-                AdyenPaymentMethod::OnlineBankingCzechRepublic(OnlineBankingCzechRepublicData {
-                    payment_type: PaymentType::OnlineBankingCzechRepublic,
-                    issuer: OnlineBankingCzechRepublicBanks::try_from(issuer)?,
-                }),
+                })),
             ),
+            api_models::payments::BankRedirectData::OnlineBankingCzechRepublic { issuer } => {
+                Ok(AdyenPaymentMethod::OnlineBankingCzechRepublic(Box::new(
+                    OnlineBankingCzechRepublicData {
+                        payment_type: PaymentType::OnlineBankingCzechRepublic,
+                        issuer: OnlineBankingCzechRepublicBanks::try_from(issuer)?,
+                    },
+                )))
+            }
             api_models::payments::BankRedirectData::OnlineBankingFinland { .. } => Ok(
-                AdyenPaymentMethod::OnlineBankingFinland(OnlineBankingFinlandData {
+                AdyenPaymentMethod::OnlineBankingFinland(Box::new(OnlineBankingFinlandData {
                     payment_type: PaymentType::OnlineBankingFinland,
-                }),
+                })),
             ),
             api_models::payments::BankRedirectData::OnlineBankingPoland { issuer } => Ok(
-                AdyenPaymentMethod::OnlineBankingPoland(OnlineBankingPolandData {
+                AdyenPaymentMethod::OnlineBankingPoland(Box::new(OnlineBankingPolandData {
                     payment_type: PaymentType::OnlineBankingPoland,
                     issuer: OnlineBankingPolandBanks::try_from(issuer)?,
-                }),
+                })),
             ),
             api_models::payments::BankRedirectData::OnlineBankingSlovakia { issuer } => Ok(
-                AdyenPaymentMethod::OnlineBankingSlovakia(OnlineBankingSlovakiaData {
+                AdyenPaymentMethod::OnlineBankingSlovakia(Box::new(OnlineBankingSlovakiaData {
                     payment_type: PaymentType::OnlineBankingSlovakia,
                     issuer: OnlineBankingSlovakiaBanks::try_from(issuer)?,
-                }),
+                })),
             ),
-            api_models::payments::BankRedirectData::Sofort { .. } => {
-                Ok(AdyenPaymentMethod::Sofort(BankRedirectionPMData {
+            api_models::payments::BankRedirectData::Sofort { .. } => Ok(
+                AdyenPaymentMethod::Sofort(Box::new(BankRedirectionPMData {
                     payment_type: PaymentType::Sofort,
-                }))
-            }
-            api_models::payments::BankRedirectData::Trustly {} => {
-                Ok(AdyenPaymentMethod::Trustly(BankRedirectionPMData {
+                })),
+            ),
+            api_models::payments::BankRedirectData::Trustly {} => Ok(AdyenPaymentMethod::Trustly(
+                Box::new(BankRedirectionPMData {
                     payment_type: PaymentType::Trustly,
-                }))
-            }
+                }),
+            )),
             _ => Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into()),
         }
     }
