@@ -48,6 +48,8 @@ pub enum EventType {
     Refused,
     Refunded,
     Error,
+    SentForSettlement,
+    Expired,
     CaptureFailed,
 }
 
@@ -304,4 +306,40 @@ pub struct WorldpayErrorResponse {
     pub error_name: String,
     pub message: String,
     pub validation_errors: Option<serde_json::Value>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WorldpayWebhookTransactionId {
+    pub event_details: EventDetails,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct EventDetails {
+    pub transaction_reference: String,
+    #[serde(rename = "type")]
+    pub event_type: EventType,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WorldpayWebhookEventType {
+    pub event_id: String,
+    pub event_timestamp: String,
+    pub event_details: EventDetails,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub enum WorldpayWebhookStatus {
+    SentForSettlement,
+    Authorized,
+    SentForAuthorization,
+    Cancelled,
+    Error,
+    Expired,
+    Refused,
+    SentForRefund,
+    RefundFailed,
 }

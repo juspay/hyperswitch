@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
-use error_stack::{report, ResultExt};
+use common_utils::signals::oneshot;
+use error_stack::{report, IntoReport, ResultExt};
 use router_env::{instrument, tracing};
 use time::Duration;
 
@@ -9,49 +10,70 @@ use crate::{
     configs::settings::SchedulerSettings,
     core::errors::{self, CustomResult},
     db::StorageInterface,
-    logger::{debug, error, info, warn},
+    logger::{self, debug, error, warn},
     routes::AppState,
-    scheduler::{utils::*, SchedulerFlow, SchedulerOptions},
+    scheduler::{utils::*, SchedulerFlow},
     types::storage::{self, enums::ProcessTrackerStatus},
 };
 
 #[instrument(skip_all)]
 pub async fn start_producer(
     state: &AppState,
-    options: Arc<SchedulerOptions>,
     scheduler_settings: Arc<SchedulerSettings>,
 ) -> CustomResult<(), errors::ProcessTrackerError> {
     use rand::Rng;
 
-    let timeout = rand::thread_rng().gen_range(0..=options.looper_interval.milliseconds);
+    let timeout = rand::thread_rng().gen_range(0..=scheduler_settings.loop_interval);
     tokio::time::sleep(std::time::Duration::from_millis(timeout)).await;
 
     let mut interval = tokio::time::interval(std::time::Duration::from_millis(
-        options.looper_interval.milliseconds,
+        scheduler_settings.loop_interval,
     ));
 
-    loop {
-        interval.tick().await;
+    let mut shutdown_interval = tokio::time::interval(std::time::Duration::from_millis(
+        scheduler_settings.graceful_shutdown_interval,
+    ));
 
-        let is_ready = options.readiness.is_ready;
-        if is_ready {
-            match run_producer_flow(state, &options, &scheduler_settings).await {
-                Ok(_) => (),
-                Err(error) => {
-                    // Intentionally not propagating error to caller.
-                    // Any errors that occur in the producer flow must be handled here only, as
-                    // this is the topmost level function which is concerned with the producer flow.
-                    error!(%error);
+    let signal = common_utils::signals::get_allowed_signals()
+        .map_err(|error| {
+            logger::error!("Signal Handler Error: {:?}", error);
+            errors::ProcessTrackerError::ConfigurationError
+        })
+        .into_report()
+        .attach_printable("Failed while creating a signals handler")?;
+    let (sx, mut rx) = oneshot::channel();
+    let handle = signal.handle();
+    let task_handle = tokio::spawn(common_utils::signals::signal_handler(signal, sx));
+
+    loop {
+        match rx.try_recv() {
+            Err(oneshot::error::TryRecvError::Empty) => {
+                interval.tick().await;
+
+                match run_producer_flow(state, &scheduler_settings).await {
+                    Ok(_) => (),
+                    Err(error) => {
+                        // Intentionally not propagating error to caller.
+                        // Any errors that occur in the producer flow must be handled here only, as
+                        // this is the topmost level function which is concerned with the producer flow.
+                        error!(%error);
+                    }
                 }
             }
-        } else {
-            // Currently the producer workflow isn't parallel and a direct termination
-            // will not cause any loss of data.
-            // [#268]: resolving this issue will require a different logic for handling this termination.
-            info!("Terminating producer");
-            break;
+            Ok(()) | Err(oneshot::error::TryRecvError::Closed) => {
+                logger::debug!("Awaiting shutdown!");
+                shutdown_interval.tick().await;
+
+                logger::info!("Terminating consumer");
+                break;
+            }
         }
     }
+    handle.close();
+    task_handle
+        .await
+        .into_report()
+        .change_context(errors::ProcessTrackerError::UnexpectedFlow)?;
 
     Ok(())
 }
@@ -59,11 +81,10 @@ pub async fn start_producer(
 #[instrument(skip_all)]
 pub async fn run_producer_flow(
     state: &AppState,
-    op: &SchedulerOptions,
     settings: &SchedulerSettings,
 ) -> CustomResult<(), errors::ProcessTrackerError> {
     lock_acquire_release::<_, _>(state, settings, move || async {
-        let tasks = fetch_producer_tasks(&*state.store, op, settings).await?;
+        let tasks = fetch_producer_tasks(&*state.store, settings).await?;
         debug!("Producer count of tasks {}", tasks.len());
 
         // [#268]: Allow task based segregation of tasks
@@ -80,7 +101,6 @@ pub async fn run_producer_flow(
 #[instrument(skip_all)]
 pub async fn fetch_producer_tasks(
     db: &dyn StorageInterface,
-    _options: &SchedulerOptions,
     conf: &SchedulerSettings,
 ) -> CustomResult<Vec<storage::ProcessTracker>, errors::ProcessTrackerError> {
     let upper = conf.producer.upper_fetch_limit;

@@ -1,3 +1,25 @@
+# 0.5.5 (2023-04-10)
+
+## New Features
+
+* **api_models:**  derive `strum::Display` for `RefundStatus` (#846) (4524d4f5)
+*  allow (de)serializing countries to/from alpha-2, alpha-3 and numeric country codes (#836) (899767cf)
+* **connector:**  add authorize, capture, void, psync, refund, rsync for PayPal connector (#747) (36049c13)
+
+## Bug Fixes
+
+*  Add locker sign keyid in env (#844) (70dff140)
+
+## Other Changes
+
+* **common_utils:**  put the async ext trait behind a feature (#835) (de29eb68)
+*  update ci workflows for common_enums crate (#843) (45111337)
+
+## Refactors
+
+* **scheduler:**  remove scheduler options & adding graceful shutdown to producer (#840) (11df8436)
+* **router:**  refactor amount in PaymentsCaptureData from Option<i64> to i64 (#821) (b8bcba4e)
+
 # 0.5.4 (2023-04-04)
 
 ## New Features

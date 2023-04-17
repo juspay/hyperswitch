@@ -38,28 +38,6 @@ async fn start_scheduler(
 ) -> CustomResult<(), errors::ProcessTrackerError> {
     use std::str::FromStr;
 
-    let options = scheduler::SchedulerOptions {
-        looper_interval: scheduler::Milliseconds {
-            milliseconds: 5_000,
-        },
-        db_name: "".to_string(),
-        cache_name: "".to_string(),
-        schema_name: "".to_string(),
-        cache_expiry: scheduler::Milliseconds {
-            milliseconds: 30_000_000,
-        },
-        runners: vec![],
-        fetch_limit: 30,
-        fetch_limit_product_factor: 1,
-        query_order: "".to_string(),
-        readiness: scheduler::options::ReadinessOptions {
-            is_ready: true,
-            graceful_termination_duration: scheduler::Milliseconds {
-                milliseconds: 60_000,
-            },
-        },
-    };
-
     #[allow(clippy::expect_used)]
     let flow = std::env::var(SCHEDULER_FLOW).expect("SCHEDULER_FLOW environment variable not set");
     #[allow(clippy::expect_used)]
@@ -71,6 +49,5 @@ async fn start_scheduler(
         .scheduler
         .clone()
         .ok_or(errors::ProcessTrackerError::ConfigurationError)?;
-    scheduler::start_process_tracker(state, Arc::new(options), flow, Arc::new(scheduler_settings))
-        .await
+    scheduler::start_process_tracker(state, flow, Arc::new(scheduler_settings)).await
 }

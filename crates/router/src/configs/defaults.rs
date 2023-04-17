@@ -44,6 +44,7 @@ impl Default for super::settings::Locker {
             mock_locker: true,
             basilisk_host: "localhost".into(),
             locker_setup: super::settings::LockerSetup::LegacyLocker,
+            locker_signing_key_id: "1".into(),
         }
     }
 }
@@ -89,6 +90,8 @@ impl Default for super::settings::SchedulerSettings {
             stream: "SCHEDULER_STREAM".into(),
             producer: super::settings::ProducerSettings::default(),
             consumer: super::settings::ConsumerSettings::default(),
+            graceful_shutdown_interval: 60000,
+            loop_interval: 5000,
         }
     }
 }

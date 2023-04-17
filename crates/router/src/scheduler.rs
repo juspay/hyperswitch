@@ -19,16 +19,13 @@ use crate::{
 
 pub async fn start_process_tracker(
     state: &AppState,
-    options: Arc<SchedulerOptions>,
     scheduler_flow: SchedulerFlow,
     scheduler_settings: Arc<SchedulerSettings>,
 ) -> CustomResult<(), errors::ProcessTrackerError> {
     match scheduler_flow {
-        SchedulerFlow::Producer => {
-            producer::start_producer(state, Arc::clone(&options), scheduler_settings).await?
-        }
+        SchedulerFlow::Producer => producer::start_producer(state, scheduler_settings).await?,
         SchedulerFlow::Consumer => {
-            consumer::start_consumer(state, Arc::clone(&options), scheduler_settings).await?
+            consumer::start_consumer(state, scheduler_settings, workflows::runner_from_task).await?
         }
         SchedulerFlow::Cleaner => {
             error!("This flow has not been implemented yet!");

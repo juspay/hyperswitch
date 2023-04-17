@@ -138,13 +138,24 @@ pub async fn encrypt_jwe(
         .attach_printable("Error getting jwt string")
 }
 
+pub enum KeyIdCheck<'a> {
+    RequestResponseKeyId((&'a str, &'a str)),
+    SkipKeyIdCheck,
+}
+
 pub async fn decrypt_jwe(
     jwt: &str,
-    key_id: &str,
-    resp_key_id: &str,
+    key_ids: KeyIdCheck<'_>,
     private_key: String,
     alg: jwe::alg::rsaes::RsaesJweAlgorithm,
 ) -> CustomResult<String, errors::EncryptionError> {
+    if let KeyIdCheck::RequestResponseKeyId((req_key_id, resp_key_id)) = key_ids {
+        utils::when(req_key_id.ne(resp_key_id), || {
+            Err(report!(errors::EncryptionError)
+                .attach_printable("key_id mismatch, Error authenticating response"))
+        })?;
+    }
+
     let decrypter = alg
         .decrypter_from_pem(private_key)
         .into_report()
@@ -155,10 +166,6 @@ pub async fn decrypt_jwe(
         .into_report()
         .change_context(errors::EncryptionError)
         .attach_printable("Error getting Decrypted jwe")?;
-    utils::when(resp_key_id.ne(key_id), || {
-        Err(report!(errors::EncryptionError).attach_printable("Missing ciphertext blob"))
-            .attach_printable("key_id mismatch, Error authenticating response")
-    })?;
 
     String::from_utf8(dst_payload)
         .into_report()
@@ -245,8 +252,7 @@ mod tests {
         let alg = jwe::RSA_OAEP_256;
         let payload = decrypt_jwe(
             &jwt,
-            &conf.jwekey.locker_key_identifier1,
-            &conf.jwekey.locker_key_identifier1,
+            KeyIdCheck::SkipKeyIdCheck,
             conf.jwekey.locker_decryption_key1.to_owned(),
             alg,
         )

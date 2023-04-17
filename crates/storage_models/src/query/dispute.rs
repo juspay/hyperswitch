@@ -34,6 +34,20 @@ impl Dispute {
         .await
     }
 
+    pub async fn find_by_merchant_id_dispute_id(
+        conn: &PgPooledConn,
+        merchant_id: &str,
+        dispute_id: &str,
+    ) -> StorageResult<Self> {
+        generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
+            conn,
+            dsl::merchant_id
+                .eq(merchant_id.to_owned())
+                .and(dsl::dispute_id.eq(dispute_id.to_owned())),
+        )
+        .await
+    }
+
     #[instrument(skip(conn))]
     pub async fn update(self, conn: &PgPooledConn, dispute: DisputeUpdate) -> StorageResult<Self> {
         match generics::generic_update_with_unique_predicate_get_result::<

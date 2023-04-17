@@ -17,6 +17,7 @@ use crate::{
         storage,
         transformers::ForeignInto,
     },
+    utils::OptionExt,
 };
 
 #[instrument(skip(state))]
@@ -96,7 +97,7 @@ pub async fn mandate_procedure<F, FData>(
     state: &AppState,
     mut resp: types::RouterData<F, FData, types::PaymentsResponseData>,
     maybe_customer: &Option<storage::Customer>,
-    merchant_account: &storage::MerchantAccount,
+    pm_id: Option<String>,
 ) -> errors::RouterResult<types::RouterData<F, FData, types::PaymentsResponseData>>
 where
     FData: MandateBehaviour,
@@ -147,17 +148,7 @@ where
         }
         None => {
             if resp.request.get_setup_mandate_details().is_some() {
-                let payment_method_id = helpers::call_payment_method(
-                    state,
-                    merchant_account,
-                    Some(&resp.request.get_payment_method_data()),
-                    Some(resp.payment_method),
-                    maybe_customer,
-                )
-                .await?
-                .payment_method_id;
-
-                resp.payment_method_id = Some(payment_method_id.clone());
+                resp.payment_method_id = pm_id.clone();
                 let mandate_reference = match resp.response.as_ref().ok() {
                     Some(types::PaymentsResponseData::TransactionResponse {
                         mandate_reference,
@@ -171,7 +162,7 @@ where
                     resp.connector.clone(),
                     resp.request.get_setup_mandate_details().map(Clone::clone),
                     maybe_customer,
-                    payment_method_id,
+                    pm_id.get_required_value("payment_method_id")?,
                     mandate_reference,
                 ) {
                     let connector = new_mandate_data.connector.clone();
@@ -196,15 +187,6 @@ where
                         &[metrics::request::add_attributes("connector", connector)],
                     );
                 };
-            } else if resp.request.get_setup_future_usage().is_some() {
-                helpers::call_payment_method(
-                    state,
-                    merchant_account,
-                    Some(&resp.request.get_payment_method_data()),
-                    Some(resp.payment_method),
-                    maybe_customer,
-                )
-                .await?;
             }
         }
     }

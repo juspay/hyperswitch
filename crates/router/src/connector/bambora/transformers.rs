@@ -1,4 +1,5 @@
 use base64::Engine;
+use common_utils::ext_traits::ValueExt;
 use error_stack::{IntoReport, ResultExt};
 use masking::Secret;
 use serde::{Deserialize, Deserializer, Serialize};
@@ -9,7 +10,6 @@ use crate::{
     core::errors,
     services,
     types::{self, api, storage::enums},
-    utils::OptionExt,
 };
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
@@ -88,16 +88,17 @@ pub struct CresBambora {
 impl TryFrom<&types::CompleteAuthorizeData> for BamboraThreedsContinueRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(value: &types::CompleteAuthorizeData) -> Result<Self, Self::Error> {
-        let cres_value: CardResponse = value
+        let card_response: CardResponse = value
             .payload
             .clone()
+            .ok_or(errors::ConnectorError::MissingRequiredField {
+                field_name: "payload",
+            })?
             .parse_value("CardResponse")
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+            .change_context(errors::ConnectorError::ParsingFailed)?;
         let bambora_req = Self {
             payment_method: "credit_card".to_string(),
-            card_response: CardResponse {
-                cres: cres_value.cres,
-            },
+            card_response,
         };
         Ok(bambora_req)
     }
@@ -314,12 +315,12 @@ pub struct BamboraMeta {
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
 pub struct BamboraThreedsContinueRequest {
     pub(crate) payment_method: String,
-    pub(crate) card_response: CardResponse,
+    pub card_response: CardResponse,
 }
 
 #[derive(Default, Debug, Deserialize, Serialize, Eq, PartialEq)]
 pub struct CardResponse {
-    pub(crate) cres: String,
+    pub(crate) cres: Option<common_utils::pii::SecretSerdeValue>,
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -414,7 +415,7 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for BamboraPaymentsCaptureReques
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsCaptureRouterData) -> Result<Self, Self::Error> {
         Ok(Self {
-            amount: item.request.amount_to_capture,
+            amount: Some(item.request.amount_to_capture),
             payment_method: PaymentMethod::Card,
         })
     }

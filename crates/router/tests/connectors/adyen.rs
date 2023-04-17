@@ -147,7 +147,7 @@ async fn should_partially_capture_authorized_payment() {
                 enums::CaptureMethod::Manual,
             ),
             Some(types::PaymentsCaptureData {
-                amount_to_capture: Some(50),
+                amount_to_capture: 50,
                 ..utils::PaymentCaptureType::default().0
             }),
             AdyenTest::get_payment_info(),

@@ -174,11 +174,7 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for CybersourcePaymentsRequest {
             },
             order_information: OrderInformationWithBill {
                 amount_details: Amount {
-                    total_amount: value
-                        .request
-                        .amount_to_capture
-                        .map(|amount| amount.to_string())
-                        .ok_or_else(utils::missing_field_err("amount_to_capture"))?,
+                    total_amount: value.request.amount_to_capture.to_string(),
                     ..Default::default()
                 },
                 ..Default::default()

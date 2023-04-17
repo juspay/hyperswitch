@@ -169,6 +169,18 @@ impl
     }
 }
 
+impl api::PaymentToken for Braintree {}
+
+impl
+    services::ConnectorIntegration<
+        api::PaymentMethodToken,
+        types::PaymentMethodTokenizationData,
+        types::PaymentsResponseData,
+    > for Braintree
+{
+    // Not Implemented (R)
+}
+
 impl api::PreVerify for Braintree {}
 
 #[allow(dead_code)]

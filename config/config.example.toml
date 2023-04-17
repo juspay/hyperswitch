@@ -61,6 +61,13 @@ file_name = "debug.log" # base name for log files.
 # levels can be "TRACE", "DEBUG", "INFO", "WARN", "ERROR", "OFF"
 # defaults to "WARN"
 level = "WARN"
+# sets the log level for one or more crates
+filtering_directive = "WARN,router=INFO,reqwest=INFO" 
+#                      ^^^^        ^^^^---------^^^^-- sets the log level for the
+#                      |                               router and reqwest crates to INFO.
+#                      |
+#                      |______________________________ sets the log level for all
+#                                                      other crates to WARN.
 
 # Logging configuration for console logging
 [log.console]
@@ -69,11 +76,20 @@ log_format = "default" # Log format. "default" or "json"
 # levels can be "TRACE", "DEBUG", "INFO", "WARN", "ERROR", "OFF"
 # defaults to "WARN"
 level = "DEBUG"
+# sets the log level for one or more crates
+filtering_directive = "WARN,router=INFO,reqwest=INFO" 
+#                      ^^^^        ^^^^---------^^^^-- sets the log level for the
+#                      |                               router and reqwest crates to INFO.
+#                      |
+#                      |______________________________ sets the log level for all
+#                                                      other crates to WARN.
 
-# Telemetry configuration for traces
+# Telemetry configuration for metrics and traces
 [log.telemetry]
-enabled = false     # boolean [true or false]
-sampling_rate = 0.1 # decimal rate between 0.0 - 1.0
+enabled = false                                       # boolean [true or false]
+sampling_rate = 0.1                                   # decimal rate between 0.0 - 1.0
+otel_exporter_otlp_endpoint = "http://localhost:4317" # endpoint to send metrics and traces to, can include port number
+otel_exporter_otlp_timeout = 5000                     # timeout (in milliseconds) for sending metrics and traces
 
 # This section provides some secret values.
 [secrets]
@@ -88,6 +104,7 @@ host = ""                      # Locker host
 mock_locker = true             # Emulate a locker locally using Postgres
 basilisk_host = ""             # Basilisk host
 locker_setup = "legacy_locker" # With locker to use while in the deployed environment (eg. legacy_locker, basilisk_locker)
+locker_signing_key_id = "1"    # Key_id to sign basilisk hs locker
 
 [jwekey] # 4 priv/pub key pair
 locker_key_identifier1 = "" # key identifier for key rotation , should be same as basilisk
@@ -132,6 +149,7 @@ bambora.base_url = "https://api.na.bambora.com"
 bluesnap.base_url = "https://sandbox.bluesnap.com/"
 braintree.base_url = "https://api.sandbox.braintreegateway.com/"
 checkout.base_url = "https://api.sandbox.checkout.com/"
+coinbase.base_url = "https://api.commerce.coinbase.com"
 cybersource.base_url = "https://apitest.cybersource.com/"
 dlocal.base_url = "https://sandbox.dlocal.com/"
 fiserv.base_url = "https://cert.api.fiservapps.com/"
@@ -140,6 +158,9 @@ klarna.base_url = "https://api-na.playground.klarna.com/"
 mollie.base_url = "https://api.mollie.com/v2/"
 multisafepay.base_url = "https://testapi.multisafepay.com/"
 nuvei.base_url = "https://ppp-test.nuvei.com/"
+opennode.base_url = "https://dev-api.opennode.com"
+payeezy.base_url = "https://api-cert.payeezy.com/"
+paypal.base_url = "https://www.sandbox.paypal.com/" 
 payu.base_url = "https://secure.snd.payu.com/"
 rapyd.base_url = "https://sandboxapi.rapyd.net"
 shift4.base_url = "https://api.shift4.com/"
@@ -153,22 +174,25 @@ trustpay.base_url_bank_redirects = "https://aapi.trustpay.eu/"
 [connectors.supported]
 wallets = ["klarna", "braintree", "applepay"]
 cards = [
-    "stripe",
     "adyen",
     "authorizedotnet",
-    "checkout",
+    "coinbase",
     "braintree",
+    "checkout",
     "cybersource",
     "mollie",
+    "paypal",
     "shift4",
+    "stripe",
     "worldpay",
-    "globalpay",
 ]
 
 # Scheduler settings provides a point to modify the behaviour of scheduler flow.
 # It defines the the streams/queues name and configuration as well as event selection variables
 [scheduler]
 stream = "SCHEDULER_STREAM"
+graceful_shutdown_interval = 60000 # Specifies how much time to wait while re-attempting shutdown for a service (in milliseconds)
+loop_interval = 5000               # Specifies how much time to wait before starting the defined behaviour of producer or consumer (in milliseconds)
 
 [scheduler.consumer]
 consumer_group = "SCHEDULER_GROUP"

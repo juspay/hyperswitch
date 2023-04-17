@@ -4,15 +4,17 @@ mod transformers;
 
 use std::fmt::Debug;
 
+use common_utils::{crypto, ext_traits::ByteSliceExt};
 use error_stack::{IntoReport, ResultExt};
 use storage_models::enums;
 use transformers as worldpay;
 
 use self::{requests::*, response::*};
-use super::utils::RefundsRequestData;
+use super::utils::{self, RefundsRequestData};
 use crate::{
     configs::settings,
     core::errors::{self, CustomResult},
+    db::StorageInterface,
     headers,
     services::{self, ConnectorIntegration},
     types::{
@@ -20,7 +22,7 @@ use crate::{
         api::{self, ConnectorCommon, ConnectorCommonExt},
         ErrorResponse, Response,
     },
-    utils::{self, BytesExt},
+    utils::{self as ext_traits, BytesExt},
 };
 
 #[derive(Debug, Clone)]
@@ -91,6 +93,18 @@ impl api::PreVerify for Worldpay {}
 impl ConnectorIntegration<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>
     for Worldpay
 {
+}
+
+impl api::PaymentToken for Worldpay {}
+
+impl
+    ConnectorIntegration<
+        api::PaymentMethodToken,
+        types::PaymentMethodTokenizationData,
+        types::PaymentsResponseData,
+    > for Worldpay
+{
+    // Not Implemented (R)
 }
 
 impl api::PaymentVoid for Worldpay {}
@@ -384,7 +398,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
         let connector_req = WorldpayPaymentsRequest::try_from(req)?;
         let worldpay_req =
-            utils::Encode::<WorldpayPaymentsRequest>::encode_to_string_of_json(&connector_req)
+            ext_traits::Encode::<WorldpayPaymentsRequest>::encode_to_string_of_json(&connector_req)
                 .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(worldpay_req))
     }
@@ -458,8 +472,9 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         req: &types::RefundExecuteRouterData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
         let connector_req = WorldpayRefundRequest::try_from(req)?;
-        let req = utils::Encode::<WorldpayRefundRequest>::encode_to_string_of_json(&connector_req)
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let req =
+            ext_traits::Encode::<WorldpayRefundRequest>::encode_to_string_of_json(&connector_req)
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(req))
     }
 
@@ -593,24 +608,109 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
 
 #[async_trait::async_trait]
 impl api::IncomingWebhook for Worldpay {
-    fn get_webhook_object_reference_id(
+    fn get_webhook_source_verification_algorithm(
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<Box<dyn crypto::VerifySignature + Send>, errors::ConnectorError> {
+        Ok(Box::new(crypto::Sha256))
+    }
+
+    fn get_webhook_source_verification_signature(
+        &self,
+        request: &api::IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
+        let event_signature =
+            utils::get_header_key_value("Event-Signature", request.headers)?.split(',');
+        let sign_header = event_signature
+            .last()
+            .ok_or(errors::ConnectorError::WebhookSignatureNotFound)?;
+        let signature = sign_header
+            .split('/')
+            .last()
+            .ok_or(errors::ConnectorError::WebhookSignatureNotFound)?;
+        hex::decode(signature)
+            .into_report()
+            .change_context(errors::ConnectorError::WebhookResponseEncodingFailed)
+    }
+
+    async fn get_webhook_source_verification_merchant_secret(
+        &self,
+        db: &dyn StorageInterface,
+        merchant_id: &str,
+    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
+        let key = format!("wh_mer_sec_verification_{}_{}", self.id(), merchant_id);
+        let secret = db
+            .get_key(&key)
+            .await
+            .change_context(errors::ConnectorError::WebhookVerificationSecretNotFound)?;
+        Ok(secret)
+    }
+
+    fn get_webhook_source_verification_message(
+        &self,
+        request: &api::IncomingWebhookRequestDetails<'_>,
+        _merchant_id: &str,
+        secret: &[u8],
+    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
+        let secret_str = std::str::from_utf8(secret)
+            .into_report()
+            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+        let to_sign = format!(
+            "{}{}",
+            secret_str,
+            std::str::from_utf8(request.body)
+                .into_report()
+                .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?
+        );
+        Ok(to_sign.into_bytes())
+    }
+
+    fn get_webhook_object_reference_id(
+        &self,
+        request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
-        Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
+        let body: WorldpayWebhookTransactionId = request
+            .body
+            .parse_struct("WorldpayWebhookTransactionId")
+            .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
+        Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
+            types::api::PaymentIdType::ConnectorTransactionId(
+                body.event_details.transaction_reference,
+            ),
+        ))
     }
 
     fn get_webhook_event_type(
         &self,
-        _request: &api::IncomingWebhookRequestDetails<'_>,
+        request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api::IncomingWebhookEvent, errors::ConnectorError> {
-        Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
+        let body: WorldpayWebhookEventType = request
+            .body
+            .parse_struct("WorldpayWebhookEventType")
+            .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
+        match body.event_details.event_type {
+            EventType::SentForSettlement | EventType::Charged => {
+                Ok(api::IncomingWebhookEvent::PaymentIntentSuccess)
+            }
+            EventType::Error | EventType::Expired => {
+                Ok(api::IncomingWebhookEvent::PaymentIntentFailure)
+            }
+            _ => Err(errors::ConnectorError::WebhookEventTypeNotFound.into()),
+        }
     }
 
     fn get_webhook_resource_object(
         &self,
-        _request: &api::IncomingWebhookRequestDetails<'_>,
+        request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<serde_json::Value, errors::ConnectorError> {
-        Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
+        let body: WorldpayWebhookEventType = request
+            .body
+            .parse_struct("WorldpayWebhookEventType")
+            .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
+        let psync_body = WorldpayEventResponse::try_from(body)?;
+        let res_json = serde_json::to_value(psync_body)
+            .into_report()
+            .change_context(errors::ConnectorError::WebhookResponseEncodingFailed)?;
+        Ok(res_json)
     }
 }

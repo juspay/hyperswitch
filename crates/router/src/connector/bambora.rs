@@ -88,6 +88,18 @@ impl ConnectorCommon for Bambora {
 
 impl api::Payment for Bambora {}
 
+impl api::PaymentToken for Bambora {}
+
+impl
+    ConnectorIntegration<
+        api::PaymentMethodToken,
+        types::PaymentMethodTokenizationData,
+        types::PaymentsResponseData,
+    > for Bambora
+{
+    // Not Implemented (R)
+}
+
 impl api::PreVerify for Bambora {}
 impl ConnectorIntegration<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>
     for Bambora

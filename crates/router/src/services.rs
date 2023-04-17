@@ -6,7 +6,6 @@ pub mod logger;
 use std::sync::{atomic, Arc};
 
 use error_stack::{IntoReport, ResultExt};
-use futures::StreamExt;
 use redis_interface::{errors as redis_errors, PubsubInterface};
 
 pub use self::{api::*, encryption::*};
@@ -24,11 +23,13 @@ pub trait PubSubInterface {
         &self,
         channel: &str,
     ) -> errors::CustomResult<usize, redis_errors::RedisError>;
+
     async fn publish(
         &self,
         channel: &str,
         key: &str,
     ) -> errors::CustomResult<usize, redis_errors::RedisError>;
+
     async fn on_message(&self) -> errors::CustomResult<(), redis_errors::RedisError>;
 }
 
@@ -45,6 +46,7 @@ impl PubSubInterface for redis_interface::RedisConnectionPool {
             .into_report()
             .change_context(redis_errors::RedisError::SubscribeError)
     }
+
     #[inline]
     async fn publish(
         &self,
@@ -57,11 +59,13 @@ impl PubSubInterface for redis_interface::RedisConnectionPool {
             .into_report()
             .change_context(redis_errors::RedisError::SubscribeError)
     }
+
     #[inline]
     async fn on_message(&self) -> errors::CustomResult<(), redis_errors::RedisError> {
-        let mut message = self.subscriber.on_message();
-        while let Some((_, key)) = message.next().await {
-            let key = key
+        let mut rx = self.subscriber.on_message();
+        while let Ok(message) = rx.recv().await {
+            let key = message
+                .value
                 .as_string()
                 .ok_or::<redis_errors::RedisError>(redis_errors::RedisError::DeleteFailed)?;
 
