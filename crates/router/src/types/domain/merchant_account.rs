@@ -11,7 +11,7 @@ use storage_models::{
 
 use crate::{
     errors::{CustomResult, ValidationError},
-    types::domain::types::TypeEncryption,
+    types::domain::types::{self, AsyncLift, TypeEncryption},
 };
 
 #[derive(Clone, Debug, serde::Serialize)]
@@ -141,14 +141,12 @@ impl super::behaviour::Conversion for MerchantAccount {
                 redirect_to_merchant_with_http_post: item.redirect_to_merchant_with_http_post,
                 merchant_name: item
                     .merchant_name
-                    .async_map(|value| Encryptable::decrypt(value, key, GcmAes256 {}))
-                    .await
-                    .transpose()?,
+                    .async_lift(|inner| types::decrypt(inner, key))
+                    .await?,
                 merchant_details: item
                     .merchant_details
-                    .async_map(|value| Encryptable::decrypt(value, key, GcmAes256 {}))
-                    .await
-                    .transpose()?,
+                    .async_lift(|inner| types::decrypt(inner, key))
+                    .await?,
                 webhook_details: item.webhook_details,
                 sub_merchants_enabled: item.sub_merchants_enabled,
                 parent_merchant_id: item.parent_merchant_id,

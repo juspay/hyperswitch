@@ -20,7 +20,7 @@ use crate::{
         self, api,
         domain::{
             self, merchant_account as merchant_domain,
-            types::{get_key_and_algo, TypeEncryption},
+            types::{get_key_and_algo, AsyncLift, TypeEncryption},
         },
         storage,
         transformers::ForeignInto,
@@ -100,25 +100,32 @@ pub async fn create_merchant_account(
             .attach_printable("Invalid routing algorithm given")?;
     }
 
+    let encrypt_string = |inner: Option<masking::Secret<String>>| async {
+        inner
+            .async_map(|value| crypto::Encryptable::encrypt(value, &key, GcmAes256 {}))
+            .await
+            .transpose()
+    };
+
+    let encrypt_value = |inner: Option<masking::Secret<serde_json::Value>>| async {
+        inner
+            .async_map(|value| crypto::Encryptable::encrypt(value, &key, GcmAes256 {}))
+            .await
+            .transpose()
+    };
+
     let parent_merchant_id =
         get_parent_merchant(db, req.sub_merchants_enabled, req.parent_merchant_id).await?;
 
     let merchant_account = async {
         Ok(merchant_domain::MerchantAccount {
             merchant_id: req.merchant_id,
-            merchant_name: req
-                .merchant_name
-                .async_map(|inner| crypto::Encryptable::encrypt(inner, &key, GcmAes256 {}))
-                .await
-                .transpose()?,
+            merchant_name: req.merchant_name.async_lift(encrypt_string).await?,
             api_key: Some(
                 crypto::Encryptable::encrypt(api_key.peek().clone().into(), &key, GcmAes256 {})
                     .await?,
             ),
-            merchant_details: merchant_details
-                .async_map(|inner| crypto::Encryptable::encrypt(inner, &key, GcmAes256 {}))
-                .await
-                .transpose()?,
+            merchant_details: merchant_details.async_lift(encrypt_value).await?,
             return_url: req.return_url.map(|a| a.to_string()),
             webhook_details,
             routing_algorithm: req.routing_algorithm,
