@@ -69,7 +69,7 @@ pub enum CoinbasePaymentStatus {
     Expired,
     Unresolved,
     Resolved,
-    Cancelled,
+    Canceled,
     #[serde(rename = "PENDING REFUND")]
     PendingRefund,
     Refunded,
