@@ -225,6 +225,10 @@ pub trait SeleniumTest {
         url: &str,
         actions: Vec<Event<'_>>,
     ) -> Result<(), WebDriverError> {
+        let (email, pass) = (
+            &get_env("GMAIL_EMAIL").clone(),
+            &get_env("GMAIL_PASS").clone(),
+        );
         let default_actions = vec![
             Event::Trigger(Trigger::Goto(url)),
             Event::Trigger(Trigger::Click(By::Css("#gpay-btn button"))),
@@ -232,19 +236,19 @@ pub trait SeleniumTest {
             Event::RunIf(
                 Assert::IsPresent("Sign in"),
                 vec![
-                    Event::Trigger(Trigger::SendKeys(By::Id("identifierId"), "<Email>")),
+                    Event::Trigger(Trigger::SendKeys(By::Id("identifierId"), email)),
                     Event::Trigger(Trigger::ClickNth(By::Tag("button"), 2)),
                     Event::EitherOr(
                         Assert::IsPresent("Welcome"),
                         vec![
-                            Event::Trigger(Trigger::SendKeys(By::Name("Passwd"), "<Password>")),
+                            Event::Trigger(Trigger::SendKeys(By::Name("Passwd"), pass)),
                             Event::Trigger(Trigger::Sleep(2)),
                             Event::Trigger(Trigger::Click(By::Id("passwordNext"))),
                         ],
                         vec![
-                            Event::Trigger(Trigger::SendKeys(By::Id("identifierId"), "<Email>")),
+                            Event::Trigger(Trigger::SendKeys(By::Id("identifierId"), email)),
                             Event::Trigger(Trigger::ClickNth(By::Tag("button"), 2)),
-                            Event::Trigger(Trigger::SendKeys(By::Name("Passwd"), "<Password>")),
+                            Event::Trigger(Trigger::SendKeys(By::Name("Passwd"), pass)),
                             Event::Trigger(Trigger::Sleep(2)),
                             Event::Trigger(Trigger::Click(By::Id("passwordNext"))),
                         ],
@@ -276,17 +280,21 @@ pub trait SeleniumTest {
             ],
         )
         .await?;
+        let (email, pass) = (
+            &get_env("PYPL_EMAIL").clone(),
+            &get_env("PYPL_PASS").clone(),
+        );
         let mut pypl_actions = vec![
             Event::EitherOr(
                 Assert::IsPresent("Password"),
                 vec![
-                    Event::Trigger(Trigger::SendKeys(By::Id("password"), "<Password>")),
+                    Event::Trigger(Trigger::SendKeys(By::Id("password"), pass)),
                     Event::Trigger(Trigger::Click(By::Id("btnLogin"))),
                 ],
                 vec![
-                    Event::Trigger(Trigger::SendKeys(By::Id("email"), "<Email>")),
+                    Event::Trigger(Trigger::SendKeys(By::Id("email"), email)),
                     Event::Trigger(Trigger::Click(By::Id("btnNext"))),
-                    Event::Trigger(Trigger::SendKeys(By::Id("password"), "<Password>")),
+                    Event::Trigger(Trigger::SendKeys(By::Id("password"), pass)),
                     Event::Trigger(Trigger::Click(By::Id("btnLogin"))),
                 ],
             ),
@@ -450,4 +458,11 @@ pub fn handle_test_error(
             false
         }
     }
+}
+
+pub fn get_env(name: &str) -> String {
+    let value = env::var(name)
+        .expect(&format!("{name} not present"))
+        .clone();
+    value
 }
