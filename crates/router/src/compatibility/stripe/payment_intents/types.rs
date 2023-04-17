@@ -151,15 +151,18 @@ pub struct StripePaymentIntentRequest {
 impl TryFrom<StripePaymentIntentRequest> for payments::PaymentsRequest {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
     fn try_from(item: StripePaymentIntentRequest) -> errors::RouterResult<Self> {
-        let mandate_options_enum = item.payment_method_options.as_ref().and_then(|mandate| {
-            let StripePaymentMethodOptions::Card {
-                request_three_d_secure: _,
-                mandate_options,
-            }: StripePaymentMethodOptions = mandate.to_owned();
-            mandate_options
-        });
+        let (mandate_options, authentication_type) = match item.payment_method_options {
+            Some(pmo) => {
+                let StripePaymentMethodOptions::Card {
+                    request_three_d_secure,
+                    mandate_options,
+                }: StripePaymentMethodOptions = pmo;
+                (mandate_options, Some(request_three_d_secure.foreign_into()))
+            }
+            None => (None, None),
+        };
         let mandate_data: Option<payments::MandateData> =
-            (mandate_options_enum, item.currency.to_owned()).foreign_try_into()?;
+            (mandate_options, item.currency.to_owned()).foreign_try_into()?;
         let request = Ok(Self {
             payment_id: item.id.map(payments::PaymentIdType::PaymentIntentId),
             amount: item.amount.map(|amount| amount.into()),
@@ -200,14 +203,7 @@ impl TryFrom<StripePaymentIntentRequest> for payments::PaymentsRequest {
             statement_descriptor_suffix: item.statement_descriptor_suffix,
             metadata: item.metadata,
             client_secret: item.client_secret.map(|s| s.peek().clone()),
-            authentication_type: item.payment_method_options.map(|pmo| {
-                let StripePaymentMethodOptions::Card {
-                    request_three_d_secure,
-                    mandate_options: _,
-                }: StripePaymentMethodOptions = pmo;
-
-                request_three_d_secure.foreign_into()
-            }),
+            authentication_type,
             mandate_data,
             merchant_connector_details: item.merchant_connector_details,
             setup_future_usage: item.setup_future_usage,
@@ -544,29 +540,25 @@ impl ForeignTryFrom<(Option<MandateOption>, Option<String>)> for Option<payments
                     },
                 )
             })?;
-        Ok({
-            let mandate_data = mandate_options
-                .as_ref()
-                .map(|mandate| payments::MandateData {
-                    mandate_type: if mandate.mandate_type == Some("multi_use".to_string()) {
-                        payments::MandateType::MultiUse(None)
-                    } else {
-                        payments::MandateType::SingleUse(payments::MandateAmountData {
-                            amount: mandate.clone().amount.unwrap_or_default(),
-                            currency,
-                        })
-                    },
-                    customer_acceptance: payments::CustomerAcceptance {
-                        acceptance_type: payments::AcceptanceType::Online,
-                        accepted_at: mandate.clone().accepted_at,
-                        online: Some(payments::OnlineMandate {
-                            ip_address: mandate.clone().ip_address.unwrap_or_default(),
-                            user_agent: mandate.to_owned().user_agent.unwrap_or_default(),
-                        }),
-                    },
-                });
-            mandate_data
-        })
+        let mandate_data = mandate_options.map(|mandate| payments::MandateData {
+            mandate_type: if mandate.mandate_type == Some("multi_use".to_string()) {
+                payments::MandateType::MultiUse(None)
+            } else {
+                payments::MandateType::SingleUse(payments::MandateAmountData {
+                    amount: mandate.amount.unwrap_or_default(),
+                    currency,
+                })
+            },
+            customer_acceptance: payments::CustomerAcceptance {
+                acceptance_type: payments::AcceptanceType::Online,
+                accepted_at: mandate.accepted_at,
+                online: Some(payments::OnlineMandate {
+                    ip_address: mandate.ip_address.unwrap_or_default(),
+                    user_agent: mandate.user_agent.unwrap_or_default(),
+                }),
+            },
+        });
+        Ok(mandate_data)
     }
 }
 
