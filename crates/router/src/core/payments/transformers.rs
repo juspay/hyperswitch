@@ -1,6 +1,6 @@
 use std::{fmt::Debug, marker::PhantomData};
 
-use error_stack::ResultExt;
+use error_stack::{IntoReport, ResultExt};
 use router_env::{instrument, tracing};
 
 use super::{flows::Feature, PaymentAddress, PaymentData};
@@ -687,16 +687,14 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::CompleteAuthoriz
             .change_context(errors::ApiErrorResponse::InvalidDataValue {
                 field_name: "browser_info",
             })?;
-        let connector = api::ConnectorData::get_connector_by_name(
-            &additional_data.state.conf.connectors,
-            &additional_data.connector_name,
-            api::GetToken::Connector,
-        );
-        let connectors = match connector {
-            Ok(conn) => *conn.connector,
-            _ => Err(errors::ApiErrorResponse::ResourceIdNotFound)?,
-        };
 
+        let json_payload = payment_data
+            .connector_response
+            .encoded_data
+            .map(serde_json::to_value)
+            .transpose()
+            .into_report()
+            .change_context(errors::ApiErrorResponse::InternalServerError)?;
         Ok(Self {
             setup_future_usage: payment_data.payment_intent.setup_future_usage,
             mandate_id: payment_data.mandate_id.clone(),
@@ -710,11 +708,8 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::CompleteAuthoriz
             browser_info,
             email: payment_data.email,
             payment_method_data: payment_data.payment_method_data,
-            connector_transaction_id: Some(
-                connectors
-                    .connector_transaction_id(payment_data.payment_attempt.clone())?
-                    .ok_or(errors::ApiErrorResponse::ResourceIdNotFound)?,
-            ),
+            connector_transaction_id: payment_data.connector_response.connector_transaction_id,
+            payload: json_payload,
             connector_meta: payment_data.payment_attempt.connector_metadata,
         })
     }

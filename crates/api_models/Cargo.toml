@@ -9,6 +9,7 @@ errors = [
     "dep:actix-web",
     "dep:reqwest",
 ]
+multiple_mca = []
 
 [dependencies]
 actix-web = { version = "4.3.1", optional = true }
@@ -23,6 +24,7 @@ strum = { version = "0.24.1", features = ["derive"] }
 time = { version = "0.3.20", features = ["serde", "serde-well-known", "std"] }
 url = { version = "2.3.1", features = ["serde"] }
 utoipa = { version = "3.2.0", features = ["preserve_order"] }
+
 
 # First party crates
 common_utils = { version = "0.1.0", path = "../common_utils" }
