@@ -422,6 +422,7 @@ pub enum PaymentMethodType {
     ApplePay,
     Paypal,
     CryptoCurrency,
+    Ach,
 }
 
 #[derive(
@@ -448,6 +449,7 @@ pub enum PaymentMethod {
     Wallet,
     BankRedirect,
     Crypto,
+    BankDebit,
 }
 
 #[derive(

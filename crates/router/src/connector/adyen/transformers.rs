@@ -431,7 +431,8 @@ impl<'a> TryFrom<&types::PaymentsAuthorizeRouterData> for AdyenPaymentRequest<'a
             storage_models::enums::PaymentMethod::BankRedirect => {
                 get_bank_redirect_specific_payment_data(item)
             }
-            storage_models::enums::PaymentMethod::Crypto => {
+            storage_models::enums::PaymentMethod::Crypto
+            | storage_models::enums::PaymentMethod::BankDebit => {
                 Err(errors::ConnectorError::NotSupported {
                     payment_method: format!("{:?}", item.payment_method),
                     connector: "Adyen",
