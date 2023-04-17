@@ -691,7 +691,14 @@ pub async fn make_pm_data<'a, F: Clone, R>(
                 .to_owned()
                 .get_required_value("payment_method")?,
         );
-        redis_conn.get_key::<String>(&key).await.ok()
+
+        let hyperswitch_token_option = redis_conn
+            .get_key::<Option<String>>(&key)
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to fetch the token from redis")?;
+
+        hyperswitch_token_option.or(Some(token))
     } else {
         None
     };
@@ -1307,10 +1314,10 @@ pub fn get_business_details(
                     },
                 )?;
                 (
-                    business_country.unwrap_or(primary_business_details.country.to_owned()),
+                    business_country.unwrap_or_else(|| primary_business_details.country.to_owned()),
                     business_label
                         .map(ToString::to_string)
-                        .unwrap_or(primary_business_details.business.to_owned()),
+                        .unwrap_or_else(|| primary_business_details.business.to_owned()),
                 )
             } else {
                 // If primary business details are not present or more than one
