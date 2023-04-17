@@ -166,9 +166,9 @@ pub async fn files_delete(
     .await
 }
 
-/// Files - Create
+/// Files - Retrieve
 ///
-/// To create a file
+/// To retrieve a file
 #[utoipa::path(
     post,
     path = "/files/{file_id}",

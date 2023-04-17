@@ -28,7 +28,6 @@ pub enum Method {
 pub enum ContentType {
     Json,
     FormUrlEncoded,
-    TextPlain,
 }
 
 fn default_request_headers() -> [(String, String); 1] {
