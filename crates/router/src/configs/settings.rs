@@ -397,8 +397,8 @@ impl Settings {
         // 1. Defaults from the implementation of the `Default` trait.
         // 2. Values from config file. The config file accessed depends on the environment
         //    specified by the `RUN_ENV` environment variable. `RUN_ENV` can be one of
-        //    `Development`, `Sandbox` or `Production`. If nothing is specified for `RUN_ENV`,
-        //    `/config/Development.toml` file is read.
+        //    `development`, `sandbox` or `production`. If nothing is specified for `RUN_ENV`,
+        //    `/config/development.toml` file is read.
         // 3. Environment variables prefixed with `ROUTER` and each level separated by double
         //    underscores.
         //
