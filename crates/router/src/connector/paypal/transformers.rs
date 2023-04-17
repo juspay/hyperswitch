@@ -1,4 +1,3 @@
-use api_models::payments::BankRedirectData;
 use common_utils::errors::CustomResult;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
@@ -71,10 +70,6 @@ pub struct PaypalRedirectionRequest {
 pub enum PaymentSourceItem {
     Card(CardRequest),
     Paypal(PaypalRedirectionRequest),
-    IDeal(RedirectRequest),
-    Eps(RedirectRequest),
-    Giropay(RedirectRequest),
-    Sofort(RedirectRequest),
 }
 
 #[derive(Debug, Serialize)]
@@ -97,54 +92,6 @@ fn get_address_info(
         None => None,
     };
     Ok(address)
-}
-
-fn get_payment_source(
-    item: &types::PaymentsAuthorizeRouterData,
-    bank_redirection_data: &BankRedirectData,
-) -> Result<PaymentSourceItem, error_stack::Report<errors::ConnectorError>> {
-    match bank_redirection_data {
-        BankRedirectData::Eps {
-            billing_details,
-            bank_name: _,
-        } => Ok(PaymentSourceItem::Eps(RedirectRequest {
-            name: billing_details.billing_name.clone(),
-            country_code: api_models::enums::CountryCode::AT,
-            experience_context: ContextStruct {
-                return_url: item.request.complete_authorize_url.clone(),
-            },
-        })),
-        BankRedirectData::Giropay { billing_details } => {
-            Ok(PaymentSourceItem::Giropay(RedirectRequest {
-                name: billing_details.billing_name.clone(),
-                country_code: api_models::enums::CountryCode::DE,
-                experience_context: ContextStruct {
-                    return_url: item.request.complete_authorize_url.clone(),
-                },
-            }))
-        }
-        BankRedirectData::Ideal {
-            billing_details,
-            bank_name: _,
-        } => Ok(PaymentSourceItem::IDeal(RedirectRequest {
-            name: billing_details.billing_name.clone(),
-            country_code: api_models::enums::CountryCode::NL,
-            experience_context: ContextStruct {
-                return_url: item.request.complete_authorize_url.clone(),
-            },
-        })),
-        BankRedirectData::Sofort {
-            country,
-            preferred_language: _,
-            billing_details,
-        } => Ok(PaymentSourceItem::Sofort(RedirectRequest {
-            name: billing_details.billing_name.clone(),
-            country_code: *country,
-            experience_context: ContextStruct {
-                return_url: item.request.complete_authorize_url.clone(),
-            },
-        })),
-    }
 }
 
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaypalPaymentsRequest {
@@ -176,25 +123,6 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaypalPaymentsRequest {
                     number: Some(ccard.card_number.clone()),
                     security_code: Some(ccard.card_cvc.clone()),
                 }));
-
-                Ok(Self {
-                    intent,
-                    purchase_units,
-                    payment_source,
-                })
-            }
-            api::PaymentMethodData::BankRedirect(ref bank_redirection_data) => {
-                let intent = PaypalPaymentIntent::Capture;
-                let amount = OrderAmount {
-                    currency_code: item.request.currency,
-                    value: item.request.amount.to_string(),
-                };
-                let reference_id = item.attempt_id.clone();
-                let purchase_units = vec![PurchaseUnitRequest {
-                    reference_id,
-                    amount,
-                }];
-                let payment_source = Some(get_payment_source(item, bank_redirection_data)?);
 
                 Ok(Self {
                     intent,
@@ -356,7 +284,7 @@ pub struct PaypalOrdersResponse {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PaypalLinks {
-    href: Url,
+    href: Option<Url>,
     rel: String,
 }
 
@@ -475,7 +403,13 @@ impl<F, T>
             item.response.status,
             item.response.intent.clone(),
         ));
-        let link = item.response.links.last().unwrap().href.clone();
+        let mut link: Option<Url> = None;
+        let link_vec = item.response.links;
+        for item2 in link_vec.iter() {
+            if item2.rel == "payer-action" {
+                link = item2.href.clone();
+            }
+        }
         let connector_meta = serde_json::json!(PaypalMeta {
             authorize_id: None,
             order_id: item.response.id,
@@ -486,7 +420,10 @@ impl<F, T>
             status,
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::NoResponseId,
-                redirection_data: Some(services::RedirectForm::from((link, services::Method::Get))),
+                redirection_data: Some(services::RedirectForm::from((
+                    link.ok_or(errors::ConnectorError::ResponseDeserializationFailed)?,
+                    services::Method::Get,
+                ))),
                 mandate_reference: None,
                 connector_metadata: Some(connector_meta),
             }),

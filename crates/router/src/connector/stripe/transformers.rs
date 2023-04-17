@@ -508,7 +508,6 @@ fn get_bank_specific_data(
         payments::BankRedirectData::Sofort {
             country,
             preferred_language,
-            ..
         } => Some(BankSpecificData::Sofort {
             country: country.to_owned(),
             preferred_language: preferred_language.to_owned(),

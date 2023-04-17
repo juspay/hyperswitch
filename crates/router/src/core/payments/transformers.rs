@@ -551,7 +551,7 @@ impl api::ConnectorTransactionId for Paypal {
         &self,
         payment_attempt: storage::PaymentAttempt,
     ) -> Result<Option<String>, errors::ApiErrorResponse> {
-        let payment_method = payment_attempt.payment_method.unwrap();
+        let payment_method = payment_attempt.payment_method;
         let metadata = Self::connector_transaction_id(
             self,
             payment_method,
