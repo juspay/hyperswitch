@@ -582,6 +582,7 @@ pub enum Connector {
     Mollie,
     Multisafepay,
     Nuvei,
+    // Payeezy, As psync and rsync are not supported by this connector, it is added as template code for future usage
     Paypal,
     Payu,
     Rapyd,
@@ -640,6 +641,7 @@ pub enum RoutableConnectors {
     Multisafepay,
     Nuvei,
     Opennode,
+    // Payeezy, As psync and rsync are not supported by this connector, it is added as template code for future usage
     Paypal,
     Payu,
     Rapyd,
