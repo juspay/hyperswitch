@@ -285,6 +285,8 @@ pub enum ConnectorError {
     WebhookResponseEncodingFailed,
     #[error("Invalid Date/time format")]
     InvalidDateFormat,
+    #[error("Date Formatting Failed")]
+    DateFormattingFailed,
     #[error("Invalid Data format")]
     InvalidDataFormat { field_name: &'static str },
     #[error("Payment Method data / Payment Method Type / Payment Experience Mismatch ")]
@@ -432,6 +434,8 @@ pub enum WebhooksFlowError {
     DisputeCoreFailed,
     #[error("Webhook event creation failed")]
     WebhookEventCreationFailed,
+    #[error("Webhook event updation failed")]
+    WebhookEventUpdationFailed,
     #[error("Unable to fork webhooks flow for outgoing webhooks")]
     ForkFlowFailed,
     #[error("Webhook api call to merchant failed")]

@@ -306,6 +306,19 @@ fn validate_new_mandate_request(req: api::MandateValidationFields) -> RouterResu
         }))?
     }
 
+    let mandate_details = match mandate_data.mandate_type {
+        api_models::payments::MandateType::SingleUse(details) => Some(details),
+        api_models::payments::MandateType::MultiUse(details) => details,
+    };
+    mandate_details.and_then(|md| md.start_date.zip(md.end_date)).map(|(start_date, end_date)|
+        utils::when (start_date >= end_date, || {
+        Err(report!(errors::ApiErrorResponse::PreconditionFailed {
+            message: "`mandate_data.mandate_type.{multi_use|single_use}.start_date` should be greater than  \
+            `mandate_data.mandate_type.{multi_use|single_use}.end_date`"
+                .into()
+        }))
+    })).transpose()?;
+
     Ok(())
 }
 
@@ -1161,7 +1174,10 @@ pub fn generate_mandate(
                 api::MandateType::MultiUse(op_data) => match op_data {
                     Some(data) => new_mandate
                         .set_mandate_amount(Some(data.amount))
-                        .set_mandate_currency(Some(data.currency.foreign_into())),
+                        .set_mandate_currency(Some(data.currency.foreign_into()))
+                        .set_start_date(data.start_date)
+                        .set_end_date(data.end_date)
+                        .set_metadata(data.metadata),
                     None => &mut new_mandate,
                 }
                 .set_mandate_type(storage_enums::MandateType::MultiUse)
