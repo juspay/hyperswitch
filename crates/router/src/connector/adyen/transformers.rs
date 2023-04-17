@@ -704,10 +704,7 @@ fn get_sofort_extra_details(
                 ..
             } = b
             {
-                (
-                    Some(preferred_language.to_string()),
-                    Some(country.to_owned()),
-                )
+                (preferred_language.clone(), Some(country.to_owned()))
             } else {
                 (None, None)
             }

@@ -512,7 +512,7 @@ impl From<&PaymentMethodData> for AdditionalPaymentData {
 pub enum BankRedirectData {
     Eps {
         /// The billing details for bank redirection
-        billing_details: BankRedirectBilling,
+        billing_details: Option<BankRedirectBilling>,
 
         /// The hyperswitch bank code for eps
         #[schema(value_type = BankNames, example = "triodos_bank")]
@@ -520,13 +520,13 @@ pub enum BankRedirectData {
     },
     Giropay {
         /// The billing details for bank redirection
-        billing_details: BankRedirectBilling,
+        billing_details: Option<BankRedirectBilling>,
         bank_account_bic: Option<String>,
         bank_account_iban: Option<String>,
     },
     Ideal {
         /// The billing details for bank redirection
-        billing_details: BankRedirectBilling,
+        billing_details: Option<BankRedirectBilling>,
 
         /// The hyperswitch bank code for ideal
         #[schema(value_type = BankNames, example = "abn_amro")]
@@ -542,7 +542,7 @@ pub enum BankRedirectData {
 
         /// The preferred language
         #[schema(example = "en")]
-        preferred_language: String,
+        preferred_language: Option<String>,
     },
 }
 
