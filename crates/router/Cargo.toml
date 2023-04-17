@@ -22,6 +22,7 @@ kv_store = []
 accounts_cache = []
 openapi = ["olap", "oltp"]
 vergen = ["router_env/vergen"]
+multiple_mca = ["api_models/multiple_mca"]
 
 
 [dependencies]

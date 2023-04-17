@@ -18,7 +18,7 @@ use crate::{
     types::{
         self,
         api::{self, refunds},
-        storage::{self, enums, PaymentAttemptExt, ProcessTrackerExt},
+        storage::{self, enums, ProcessTrackerExt},
         transformers::{ForeignFrom, ForeignInto},
     },
     utils::{self, OptionExt},
@@ -120,8 +120,8 @@ pub async fn trigger_refund_to_gateway(
     creds_identifier: Option<String>,
 ) -> RouterResult<storage::Refund> {
     let routed_through = payment_attempt
-        .get_routed_through_connector()
-        .change_context(errors::ApiErrorResponse::InternalServerError)?
+        .connector
+        .clone()
         .ok_or(errors::ApiErrorResponse::InternalServerError)
         .into_report()
         .attach_printable("Failed to retrieve connector from payment attempt")?;
@@ -552,8 +552,8 @@ pub async fn validate_and_create_refund(
             .change_context(errors::ApiErrorResponse::MaximumRefundCount)?;
 
             let connector = payment_attempt
-                .get_routed_through_connector()
-                .change_context(errors::ApiErrorResponse::InternalServerError)?
+                .connector
+                .clone()
                 .ok_or(errors::ApiErrorResponse::InternalServerError)
                 .into_report()
                 .attach_printable("No connector populated in payment attempt")?;

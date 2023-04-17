@@ -275,7 +275,7 @@ fn get_id_based_on_intent(
             ),
         }
     }()
-    .ok_or(errors::ConnectorError::MissingConnectorTransactionID.into())
+    .ok_or_else(|| errors::ConnectorError::MissingConnectorTransactionID.into())
 }
 
 impl<F, T>

@@ -24,7 +24,9 @@ pub async fn start_process_tracker(
 ) -> CustomResult<(), errors::ProcessTrackerError> {
     match scheduler_flow {
         SchedulerFlow::Producer => producer::start_producer(state, scheduler_settings).await?,
-        SchedulerFlow::Consumer => consumer::start_consumer(state, scheduler_settings).await?,
+        SchedulerFlow::Consumer => {
+            consumer::start_consumer(state, scheduler_settings, workflows::runner_from_task).await?
+        }
         SchedulerFlow::Cleaner => {
             error!("This flow has not been implemented yet!");
         }

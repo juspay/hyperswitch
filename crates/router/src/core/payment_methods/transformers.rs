@@ -44,6 +44,7 @@ pub struct StoreCardResp {
 #[derive(Debug, Deserialize, Serialize)]
 pub struct StoreCardRespPayload {
     pub card_reference: String,
+    pub duplicate: Option<bool>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -87,7 +88,7 @@ pub struct AddCardRequest<'a> {
     pub nickname: Option<String>,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AddCardResponse {
     pub card_id: String,
@@ -124,6 +125,11 @@ pub struct DeleteCardResponse {
     pub external_id: Option<String>,
     pub card_isin: Option<Secret<String>>,
     pub status: String,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct PaymentMethodMetadata {
+    pub payment_method_tokenization: std::collections::HashMap<String, String>,
 }
 
 pub fn get_dotted_jwe(jwe: encryption::JweBody) -> String {
@@ -354,7 +360,7 @@ pub fn mk_add_card_response(
         expiry_year: Some(card.card_exp_year),
         card_token: Some(response.external_id.into()), // [#256]
         card_fingerprint: Some(response.card_fingerprint),
-        card_holder_name: None,
+        card_holder_name: card.card_holder_name,
     };
     api::PaymentMethodResponse {
         merchant_id: merchant_id.to_owned(),
@@ -596,7 +602,7 @@ pub fn get_card_detail(
         expiry_year: Some(response.card_exp_year),
         card_token: None,
         card_fingerprint: None,
-        card_holder_name: None,
+        card_holder_name: response.name_on_card,
     };
     Ok(card_detail)
 }
