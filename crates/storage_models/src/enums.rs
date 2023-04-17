@@ -614,7 +614,9 @@ pub enum MandateStatus {
 pub enum PaymentMethodType {
     Affirm,
     AfterpayClearpay,
+    AliPay,
     ApplePay,
+    BancontactCard,
     Blik,
     Credit,
     CryptoCurrency,
@@ -624,6 +626,8 @@ pub enum PaymentMethodType {
     GooglePay,
     Ideal,
     Klarna,
+    MBPay,
+    MobilePay,
     OnlineBankingCzechRepublic,
     OnlineBankingFinland,
     OnlineBankingPoland,

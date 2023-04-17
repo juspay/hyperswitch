@@ -411,7 +411,9 @@ pub enum PaymentExperience {
 pub enum PaymentMethodType {
     Affirm,
     AfterpayClearpay,
+    AliPay,
     ApplePay,
+    BancontactCard,
     Blik,
     Credit,
     CryptoCurrency,
@@ -421,6 +423,8 @@ pub enum PaymentMethodType {
     GooglePay,
     Ideal,
     Klarna,
+    MBPay,
+    MobilePay,
     OnlineBankingCzechRepublic,
     OnlineBankingFinland,
     OnlineBankingPoland,
@@ -690,6 +694,8 @@ pub enum BankNames {
     AmericanExpress,
     BankOfAmerica,
     Barclays,
+    #[serde(rename = "BLIK - PSP")]
+    BlikPSP,
     CapitalOne,
     Chase,
     Citi,
@@ -717,6 +723,10 @@ pub enum BankNames {
     Bank99Ag,
     BankhausCarlSpangler,
     BankhausSchelhammerUndSchatteraAg,
+    #[serde(rename = "Bank Millennium")]
+    BankMillennium,
+    #[serde(rename = "Bank PEKAO S.A.")]
+    BankPEKAOSA,
     BawagPskAg,
     BksBankAg,
     BrullKallmusBankAg,
@@ -737,24 +747,55 @@ pub enum BankNames {
     HypoBankBurgenlandAktiengesellschaft,
     #[serde(rename = "Komercní banka")]
     KomercniBanka,
+    #[serde(rename = "mBank - mTransfer")]
+    MBank,
     MarchfelderBank,
     OberbankAg,
     OsterreichischeArzteUndApothekerbank,
+    #[serde(rename = "Pay with ING")]
+    PayWithING,
+    #[serde(rename = "Płacę z iPKO")]
+    PlaceZIPKO,
+    #[serde(rename = "Płatność online kartą płatniczą")]
+    PlatnoscOnlineKartaPlatnicza,
     PosojilnicaBankEGen,
     #[serde(rename = "Poštová banka")]
     PostovaBanka,
     RaiffeisenBankengruppeOsterreich,
-    #[serde(rename = "Płatność online kartą płatniczą")]
-    PlatnoscOnlineKartaPlatnicza,
     SchelhammerCapitalBankAg,
     SchoellerbankAg,
     SpardaBankWien,
     SporoPay,
+    #[serde(rename = "Santander-Przelew24")]
+    SantanderPrzelew24,
     TatraPay,
     Viamo,
     VolksbankGruppe,
     VolkskreditbankAg,
     VrBankBraunau,
+    #[serde(rename = "Pay with Alior Bank")]
+    PayWithAliorBank,
+    #[serde(rename = "Banki Spółdzielcze")]
+    BankiSpoldzielcze,
+    #[serde(rename = "Pay with Inteligo")]
+    PayWithInteligo,
+    #[serde(rename = "BNP Paribas Poland")]
+    BNPParibasPoland,
+    #[serde(rename = "Bank Nowy S.A.")]
+    BankNowySA,
+    #[serde(rename = "Credit Agricole")]
+    CreditAgricole,
+    #[serde(rename = "Pay with BOŚ")]
+    PayWithBOS,
+    #[serde(rename = "Pay with CitiHandlowy")]
+    PayWithCitiHandlowy,
+    #[serde(rename = "Pay with Plus Bank")]
+    PayWithPlusBank,
+    #[serde(rename = "Toyota Bank")]
+    ToyotaBank,
+    VeloBank,
+    #[serde(rename = "e-transfer Pocztowy24")]
+    ETransferPocztowy24,
 }
 
 #[derive(
