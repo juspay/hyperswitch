@@ -829,7 +829,7 @@ pub struct NextAction {
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct NextStepsRequirements {
     pub ach_credit_transfer: AchTransfer,
-    pub receiver: RecieverDetails,
+    pub receiver: ReceiverDetails,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -841,7 +841,7 @@ pub struct AchTransfer {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
-pub struct RecieverDetails {
+pub struct ReceiverDetails {
     pub amount_received: i64,
     pub amount_charged: i64,
 }
