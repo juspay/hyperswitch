@@ -448,23 +448,41 @@ pub enum PayLaterData {
 #[derive(serde::Deserialize, serde::Serialize, Debug, Clone, ToSchema, Eq, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub enum BankDebitData {
+    /// Payment Method data for Ach bank debit
     AchBankDebit {
+        /// Billing details for bank debit
         billing_details: BankDebitBilling,
+        /// Account number for ach bank debit payment
+        #[schema(value_type = String, example = "000123456789")]
         account_number: Secret<String>,
+        /// Routing number for ach bank debit payment
+        #[schema(value_type = String, example = "110000000")]
         routing_number: Secret<String>,
     },
     SepaBankDebit {
+        /// Billing details for bank debit
         billing_details: BankDebitBilling,
+        /// International bank account number (iban) for SEPA
+        #[schema(value_type = String, example = "DE89370400440532013000")]
         iban: Secret<String>,
     },
     BecsBankDebit {
+        /// Billing details for bank debit
         billing_details: BankDebitBilling,
+        /// Account number for Becs payment method
+        #[schema(value_type = String, example = "000123456")]
         account_number: Secret<String>,
+        /// Bank-State-Branch (bsb) number
+        #[schema(value_type = String, example = "000000")]
         bsb_number: Secret<String>,
     },
     BacsBankDebit {
+        /// Billing details for bank debit
         billing_details: BankDebitBilling,
+        /// Account number for Bacs payment method
+        #[schema(value_type = String, example = "00012345")]
         account_number: Secret<String>,
+        /// Sort code for Bacs payment method
         sort_code: Secret<String>,
     },
 }
