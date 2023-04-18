@@ -325,9 +325,7 @@ pub struct SingleUseMandate {
     pub currency: api_enums::Currency,
 }
 
-#[derive(
-    Clone, Eq, PartialEq, Copy, Debug, Default, ToSchema, serde::Serialize, serde::Deserialize,
-)]
+#[derive(Clone, Eq, PartialEq, Debug, Default, ToSchema, serde::Serialize, serde::Deserialize)]
 pub struct MandateAmountData {
     /// The maximum amount to be debited for the mandate transaction
     #[schema(example = 6540)]
@@ -335,6 +333,19 @@ pub struct MandateAmountData {
     /// The currency for the transaction
     #[schema(value_type = Currency, example = "USD")]
     pub currency: api_enums::Currency,
+    /// Specifying start date of the mandate
+    #[schema(example = "2022-09-10T00:00:00Z")]
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    pub start_date: Option<PrimitiveDateTime>,
+    /// Specifying end date of the mandate
+    #[schema(example = "2023-09-10T23:59:59Z")]
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    pub end_date: Option<PrimitiveDateTime>,
+    /// Additional details required by mandate
+    #[schema(value_type = Option<Object>, example = r#"{
+        "frequency": "DAILY"
+    }"#)]
+    pub metadata: Option<pii::SecretSerdeValue>,
 }
 
 #[derive(Eq, PartialEq, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
@@ -559,6 +570,9 @@ pub enum BankRedirectData {
     },
     Przelewy24 {},
     Sofort {
+        /// The billing details for bank redirection
+        billing_details: BankRedirectBilling,
+
         /// The country for bank payment
         #[schema(value_type = Country, example = "US")]
         country: api_enums::CountryCode,
