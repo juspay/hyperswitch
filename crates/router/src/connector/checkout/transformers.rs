@@ -10,22 +10,9 @@ use crate::{
 };
 
 #[derive(Debug, Serialize)]
-pub struct TokenRequest {
-    #[serde(rename = "type")]
-    token_request_type: CheckoutTokenRequestType,
-    token_data: CheckoutTokenData,
-}
-
-#[derive(Debug, Serialize)]
 #[serde(rename_all = "lowercase")]
-pub enum CheckoutTokenRequestType {
-    Googlepay,
-    Applepay,
-}
-
-#[derive(Debug, Serialize)]
-#[serde(untagged)]
-pub enum CheckoutTokenData {
+#[serde(tag = "type", content = "token_data")]
+pub enum TokenRequest {
     Googlepay(CheckoutGooglePayData),
     Applepay(CheckoutApplePayData),
 }
@@ -33,25 +20,25 @@ pub enum CheckoutTokenData {
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CheckoutGooglePayData {
-    protocol_version: String,
-    signature: String,
-    signed_message: String,
+    protocol_version: pii::Secret<String>,
+    signature: pii::Secret<String>,
+    signed_message: pii::Secret<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct CheckoutApplePayData {
-    version: String,
-    data: String,
-    signature: String,
+    version: pii::Secret<String>,
+    data: pii::Secret<String>,
+    signature: pii::Secret<String>,
     header: CheckoutApplePayHeader,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CheckoutApplePayHeader {
-    ephemeral_public_key: String,
-    public_key_hash: String,
-    transaction_id: String,
+    ephemeral_public_key: pii::Secret<String>,
+    public_key_hash: pii::Secret<String>,
+    transaction_id: pii::Secret<String>,
 }
 
 impl TryFrom<&types::TokenizationRouterData> for TokenRequest {
@@ -62,18 +49,12 @@ impl TryFrom<&types::TokenizationRouterData> for TokenRequest {
                 api_models::payments::WalletData::GooglePay(_data) => {
                     let json_wallet_data: CheckoutGooglePayData =
                         wallet_data.get_wallet_token_as_json()?;
-                    Ok(Self {
-                        token_request_type: CheckoutTokenRequestType::Googlepay,
-                        token_data: CheckoutTokenData::Googlepay(json_wallet_data),
-                    })
+                    Ok(Self::Googlepay(json_wallet_data))
                 }
                 api_models::payments::WalletData::ApplePay(_data) => {
                     let json_wallet_data: CheckoutApplePayData =
                         wallet_data.get_wallet_token_as_json()?;
-                    Ok(Self {
-                        token_request_type: CheckoutTokenRequestType::Applepay,
-                        token_data: CheckoutTokenData::Applepay(json_wallet_data),
-                    })
+                    Ok(Self::Applepay(json_wallet_data))
                 }
                 _ => Err(errors::ConnectorError::NotImplemented(
                     "Payment Method".to_string(),

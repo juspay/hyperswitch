@@ -418,7 +418,6 @@ async fn should_fail_payment_for_incorrect_expiry_year() {
         )
         .await
         .unwrap();
-    println!("xxxx {:?}", response.clone().response.unwrap_err());
     assert_eq!(
         response.response.unwrap_err().code,
         "card_expired".to_string(),
