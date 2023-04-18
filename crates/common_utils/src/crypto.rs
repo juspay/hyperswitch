@@ -497,8 +497,6 @@ pub type OptionalEncryptableValue = Option<Encryptable<masking::Secret<serde_jso
 /// Type alias for `Option<Secret<serde_json::Value>>` used for `phone` field
 pub type OptionalSecretValue = Option<masking::Secret<serde_json::Value>>;
 
-
-
 #[cfg(test)]
 mod crypto_tests {
     #![allow(clippy::expect_used)]
