@@ -1,3 +1,33 @@
+#### 2023-04-18
+
+## New Features
+
+* **connector:**
+  *  [Shift4] add support for card 3DS payment (#828) (29999fe5)
+  *  [Nuvei] add support for card mandates (#818) (298a0a49)
+* **bank_redirects:**  modify api contract for sofort (#880) (fc2e4514)
+  *  add template code for connector forte (#854) 
+## Bug Fixes
+
+* **connector:**  [coinbase] make metadata as option parameter (#887) (f5728955)
+*  Update events table after notifying merchant (#871) (ba013026)
+* **stripe:**  remove cancel reason validation for stripe (#876) (fa44c1f6)
+
+## Enhancement
+
+* **payments:**  make TokenizationAction clonable (#895) 
+
+## Integration
+
+*  Frm integration with hyperswitch (#857) 
+
+## Refactors
+
+*  use lowercase names for run environment and config files (#801) (ffaa8da0)
+*  derive `Serialize` and `Deserialize` to `Country` enum (#882) (456c16fb)
+* **storage_models, errors:**  impl StorageErrorExt for error_stack::Result<T, errors::StorageError> (#886) (b4020294)
+* **router:**  KMS decrypt secrets when kms feature is enabled  (#868) (8905e663)
+
 # 0.5.6 2023-04-14
 
 ## Build System / Dependencies
