@@ -212,6 +212,10 @@ pub struct PaymentsRequest {
     /// Merchant connector details used to make payments.
     pub merchant_connector_details: Option<admin::MerchantConnectorDetailsWrap>,
 
+    /// Allowed Payment Method Types for a given PaymentIntent
+    #[schema(value_type = Option<Vec<PaymentMethodType>>)]
+    pub allowed_payment_method_types: Option<Vec<api_enums::PaymentMethodType>>,
+
     /// Business sub label for the payment
     pub business_sub_label: Option<String>,
 }
@@ -978,6 +982,10 @@ pub struct PaymentsResponse {
 
     /// The business_sub_label for this payment
     pub business_sub_label: Option<String>,
+
+    /// Allowed Payment Method Types for a given PaymentIntent
+    #[schema(value_type = Option<Vec<PaymentMethodType>>)]
+    pub allowed_payment_method_types: Option<Vec<api_enums::PaymentMethodType>>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, ToSchema)]
@@ -1238,6 +1246,10 @@ pub struct Metadata {
     pub data: pii::SecretSerdeValue,
     /// Payload coming in request as a metadata field
     pub payload: Option<pii::SecretSerdeValue>,
+
+    /// Allowed payment method types for a payment intent
+    #[schema(value_type = Option<Vec<PaymentMethodType>>)]
+    pub allowed_payment_method_types: Option<Vec<api_enums::PaymentMethodType>>,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
