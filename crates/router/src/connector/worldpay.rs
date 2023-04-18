@@ -714,3 +714,5 @@ impl api::IncomingWebhook for Worldpay {
         Ok(res_json)
     }
 }
+
+impl api::Validator<api::Global> for Worldpay {}

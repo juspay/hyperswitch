@@ -96,7 +96,18 @@ pub trait ConnectorCommonExt<Flow, Req, Resp>:
     }
 }
 
+pub trait Validator<T> {
+    fn validate_metadata(
+        &self,
+        _metadata: &serde_json::Value,
+    ) -> CustomResult<(), common_utils::errors::ValidationError> {
+        Ok(())
+    }
+}
+
 pub trait Router {}
+
+pub struct Global;
 
 pub trait Connector:
     Send
@@ -107,6 +118,7 @@ pub trait Connector:
     + IncomingWebhook
     + ConnectorAccessToken
     + ConnectorTransactionId
+    + Validator<Global>
 {
 }
 
@@ -122,7 +134,8 @@ impl<
             + Send
             + IncomingWebhook
             + ConnectorAccessToken
-            + ConnectorTransactionId,
+            + ConnectorTransactionId
+            + Validator<Global>,
     > Connector for T
 {
 }

@@ -762,3 +762,5 @@ impl services::ConnectorRedirectResponse for Checkout {
         Ok(connector_action)
     }
 }
+
+impl api::Validator<api::Global> for Checkout {}

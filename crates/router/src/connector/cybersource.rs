@@ -726,3 +726,5 @@ impl api::IncomingWebhook for Cybersource {
         Err(errors::ConnectorError::NotImplemented("cybersource".to_string()).into())
     }
 }
+
+impl api::Validator<api::Global> for Cybersource {}

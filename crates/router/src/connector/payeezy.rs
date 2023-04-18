@@ -528,3 +528,5 @@ impl api::IncomingWebhook for Payeezy {
         Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
     }
 }
+
+impl api::Validator<api::Global> for Payeezy {}

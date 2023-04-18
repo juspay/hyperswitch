@@ -708,3 +708,5 @@ impl api::IncomingWebhook for Payu {
         Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
     }
 }
+
+impl Validator<api::Global> for Payu {}

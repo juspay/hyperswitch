@@ -1091,3 +1091,5 @@ impl services::ConnectorRedirectResponse for Stripe {
             ))
     }
 }
+
+impl api::Validator<api::Global> for Stripe {}

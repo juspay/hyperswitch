@@ -701,3 +701,5 @@ impl api::IncomingWebhook for Fiserv {
         Err(errors::ConnectorError::NotImplemented("fiserv".to_string()).into())
     }
 }
+
+impl api::Validator<api::Global> for Fiserv {}

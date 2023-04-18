@@ -638,3 +638,5 @@ pub fn get_payment_flow(is_auto_capture: bool) -> bambora::PaymentFlow {
         bambora::PaymentFlow::Authorize
     }
 }
+
+impl api::Validator<api::Global> for Bambora {}

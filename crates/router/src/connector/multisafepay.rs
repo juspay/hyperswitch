@@ -461,3 +461,5 @@ impl api::IncomingWebhook for Multisafepay {
         Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
     }
 }
+
+impl api::Validator<api::Global> for Multisafepay {}

@@ -384,3 +384,5 @@ impl api::IncomingWebhook for Klarna {
         Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
     }
 }
+
+impl api::Validator<api::Global> for Klarna {}

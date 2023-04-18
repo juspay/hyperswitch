@@ -1427,6 +1427,18 @@ async fn filter_payment_mandate_based(
     Ok(recurring_filter)
 }
 
+fn filter_pm_metadata_based(
+    connector: &str,
+    pm_type: &api_enums::PaymentMethodType,
+    payment_intent: Option<&storage::PaymentIntent>,
+    payment_attempt: Option<&storage::PaymentAttempt>,
+) -> bool {
+    match (payment_intent, payment_attempt) {
+        (Some(payment_intent_inner), Some(payment_attempt_inner)) => true, // Implement this later
+        _ => true,
+    }
+}
+
 pub async fn list_customer_payment_method(
     state: &routes::AppState,
     merchant_account: storage::MerchantAccount,

@@ -705,3 +705,5 @@ impl api::IncomingWebhook for Braintree {
         Err(errors::ConnectorError::NotImplemented("braintree".to_string()).into())
     }
 }
+
+impl api::Validator<api::Global> for Braintree {}

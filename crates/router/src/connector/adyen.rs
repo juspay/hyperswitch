@@ -799,3 +799,5 @@ impl api::IncomingWebhook for Adyen {
         })
     }
 }
+
+impl api::Validator<api::Global> for Adyen {}

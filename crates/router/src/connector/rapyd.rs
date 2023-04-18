@@ -828,3 +828,5 @@ impl api::IncomingWebhook for Rapyd {
         Ok(res_json)
     }
 }
+
+impl api::Validator<api::Global> for Rapyd {}

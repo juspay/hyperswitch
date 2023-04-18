@@ -600,3 +600,5 @@ impl api::IncomingWebhook for Dlocal {
         Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
     }
 }
+
+impl api::Validator<api::Global> for Dlocal {}

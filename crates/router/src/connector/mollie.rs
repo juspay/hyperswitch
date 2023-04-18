@@ -476,3 +476,5 @@ impl services::ConnectorRedirectResponse for Mollie {
         Ok(payments::CallConnectorAction::Trigger)
     }
 }
+
+impl api::Validator<api::Global> for Mollie {}

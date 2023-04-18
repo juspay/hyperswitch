@@ -760,3 +760,5 @@ impl api::IncomingWebhook for Bluesnap {
         Ok(res_json)
     }
 }
+
+impl api::Validator<api::Global> for Bluesnap {}

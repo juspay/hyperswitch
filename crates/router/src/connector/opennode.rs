@@ -584,3 +584,5 @@ impl api::IncomingWebhook for Opennode {
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)
     }
 }
+
+impl api::Validator<api::Global> for Opennode {}

@@ -1010,3 +1010,5 @@ impl services::ConnectorRedirectResponse for Airwallex {
         }
     }
 }
+
+impl api::Validator<api::Global> for Airwallex {}

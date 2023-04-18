@@ -622,3 +622,5 @@ fn get_error_response(
             status_code,
         }))
 }
+
+impl api::Validator<api::Global> for Authorizedotnet {}

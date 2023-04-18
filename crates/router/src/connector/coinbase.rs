@@ -579,3 +579,5 @@ impl api::IncomingWebhook for Coinbase {
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)
     }
 }
+
+impl api::Validator<api::Global> for Coinbase {}

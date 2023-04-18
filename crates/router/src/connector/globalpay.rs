@@ -909,3 +909,5 @@ impl services::ConnectorRedirectResponse for Globalpay {
         ))
     }
 }
+
+impl api::Validator<api::Global> for Globalpay {}

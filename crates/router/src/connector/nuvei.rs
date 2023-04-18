@@ -972,3 +972,5 @@ impl services::ConnectorRedirectResponse for Nuvei {
         }
     }
 }
+
+impl api::Validator<api::Global> for Nuvei {}
