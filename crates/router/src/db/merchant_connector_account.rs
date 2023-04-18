@@ -16,6 +16,9 @@ use crate::{
     },
 };
 
+#[cfg(feature = "accounts_cache")]
+use super::cache;
+
 #[async_trait::async_trait]
 pub trait ConnectorAccessToken {
     async fn get_access_token(
@@ -219,7 +222,7 @@ impl MerchantConnectorAccountInterface for Store {
 
         #[cfg(feature = "accounts_cache")]
         {
-            super::cache::get_or_populate_redis(self, merchant_connector_id, find_call)
+            cache::get_or_populate_redis(self, merchant_connector_id, find_call)
                 .await?
                 .convert(self, merchant_id)
                 .await
@@ -307,7 +310,7 @@ impl MerchantConnectorAccountInterface for Store {
 
         #[cfg(feature = "accounts_cache")]
         {
-            super::cache::redact_cache(self, &_merchant_connector_id, update_call, None).await
+            cache::redact_cache(self, &_merchant_connector_id, update_call, None).await
         }
 
         #[cfg(not(feature = "accounts_cache"))]
