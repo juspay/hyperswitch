@@ -247,6 +247,7 @@ impl
         // encode only for for urlencoded things.
         let aci_req = utils::Encode::<aci::AciPaymentsRequest>::convert_and_url_encode(req)
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        println!("|-----=>{:#?}", aci_req);
         Ok(Some(aci_req))
     }
 

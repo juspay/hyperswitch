@@ -312,19 +312,24 @@ pub struct ErrorParameters {
 }
 
 fn method_data(redirection_data: AciRedirectionData) -> services::Method {
+    let mut three_ds: bool = false;
     // Check if method exists in 3DS
     if let Some(method_param) = redirection_data
         .parameters
         .iter()
         .find(|param| param.name == *"method")
     {
+        three_ds = true;
         // Parse the parameter value as Method enum
         if let Ok(method) = &method_param.value.parse::<services::Method>() {
             return *method;
         }
     }
-
-    redirection_data.method.unwrap_or(services::Method::Get)
+    if three_ds {
+        redirection_data.method.unwrap_or(services::Method::Get)
+    } else {
+        redirection_data.method.unwrap_or(services::Method::Post)
+    }
 }
 
 impl<F, T>
@@ -335,10 +340,32 @@ impl<F, T>
     fn try_from(
         item: types::ResponseRouterData<F, AciPaymentsResponse, T, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
-        let redirection_data = item
-            .response
-            .redirect
-            .map(|data| services::RedirectForm::from((data.clone().url, method_data(data))));
+        // let redirection_data = item.response.redirect.map(|data| services::RedirectForm {
+        //     endpoint: todo!(),
+        //     method: todo!(),
+        //     form_fields: todo!(),
+        // });
+
+        let redirection_data = item.response.redirect.map(|data| {
+            let mut params = item.response.redirect.as_ref().map(|data| {
+                data.parameters
+                    .iter()
+                    .map(|val| (format!("&{}={}", val.name, val.value)))
+            });
+            let endpoint = data.url.set_query(params);
+            let method = method_data(data.clone());
+            let form_fields = data
+                .parameters
+                .into_iter()
+                .map(|param| (param.name, param.value))
+                .collect();
+
+            services::RedirectForm {
+                endpoint,
+                method,
+                form_fields,
+            }
+        });
 
         Ok(Self {
             status: {

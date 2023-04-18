@@ -480,34 +480,19 @@ impl TryFrom<&payments::BankRedirectData> for StripeBillingAddress {
             payments::BankRedirectData::Eps {
                 billing_details, ..
             } => Ok(Self {
-                name: Some(
-                    billing_details
-                        .clone()
-                        .map(|details| details.billing_name)
-                        .unwrap_or_default(),
-                ),
+                name: Some(billing_details.billing_name.clone()),
                 ..Self::default()
             }),
             payments::BankRedirectData::Giropay {
                 billing_details, ..
             } => Ok(Self {
-                name: Some(
-                    billing_details
-                        .clone()
-                        .map(|details| details.billing_name)
-                        .unwrap_or_default(),
-                ),
+                name: Some(billing_details.billing_name.clone()),
                 ..Self::default()
             }),
             payments::BankRedirectData::Ideal {
                 billing_details, ..
             } => Ok(Self {
-                name: Some(
-                    billing_details
-                        .clone()
-                        .map(|details| details.billing_name)
-                        .unwrap_or_default(),
-                ),
+                name: Some(billing_details.billing_name.clone()),
                 ..Self::default()
             }),
             _ => Ok(Self::default()),
@@ -525,7 +510,7 @@ fn get_bank_specific_data(
             ..
         } => Some(BankSpecificData::Sofort {
             country: country.to_owned(),
-            preferred_language: preferred_language.clone().unwrap_or_default(),
+            preferred_language: preferred_language.to_owned(),
         }),
         _ => None,
     }
