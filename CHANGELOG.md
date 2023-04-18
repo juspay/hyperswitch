@@ -10,7 +10,7 @@
 ## Bug Fixes
 
 * **connector:**  [coinbase] make metadata as option parameter (#887) (f5728955)
-*  Update events table after notifying merchant (#871) (ba013026)
+*  Update events table after notifying merchant (#871) (013026)
 * **stripe:**  remove cancel reason validation for stripe (#876) (fa44c1f6)
 
 ## Enhancement
