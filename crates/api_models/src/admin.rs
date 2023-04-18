@@ -1,4 +1,7 @@
-use common_utils::{crypto::Encryptable, pii};
+use common_utils::{
+    crypto::{Encryptable, OptionalEncryptableName},
+    pii,
+};
 use masking::{Secret, StrongSecret};
 use serde::{Deserialize, Serialize};
 use url;
@@ -133,11 +136,11 @@ pub struct MerchantAccountResponse {
 
     /// Name of the Merchant Account
     #[schema(value_type = Option<String>,example = "NewAge Retailer")]
-    pub merchant_name: Option<Encryptable<Secret<String>>>,
+    pub merchant_name: OptionalEncryptableName,
 
     /// API key that will be used for server side API access
     #[schema(value_type = Option<String>, example = "Ah2354543543523")]
-    pub api_key: Option<Encryptable<Secret<String>>>,
+    pub api_key: OptionalEncryptableName,
 
     /// The URL to redirect after the completion of the operation
     #[schema(max_length = 255, example = "https://www.example.com/success")]

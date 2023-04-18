@@ -1,5 +1,5 @@
 use common_utils::{
-    crypto::{Encryptable, GcmAes256},
+    crypto::{Encryptable, GcmAes256, OptionalEncryptableName, OptionalEncryptableValue},
     ext_traits::AsyncExt,
     pii,
 };
@@ -12,7 +12,7 @@ use storage_models::{
 use crate::{
     db::StorageInterface,
     errors::{CustomResult, ValidationError},
-    types::domain::types::{self, TypeEncryption},
+    types::domain::types::{self, AsyncLift, TypeEncryption},
 };
 
 #[derive(Clone, Debug, serde::Serialize)]
@@ -23,8 +23,8 @@ pub struct MerchantAccount {
     pub enable_payment_response_hash: bool,
     pub payment_response_hash_key: Option<String>,
     pub redirect_to_merchant_with_http_post: bool,
-    pub merchant_name: Option<Encryptable<Secret<String>>>,
-    pub merchant_details: Option<Encryptable<Secret<serde_json::Value>>>,
+    pub merchant_name: OptionalEncryptableName,
+    pub merchant_details: OptionalEncryptableValue,
     pub webhook_details: Option<serde_json::Value>,
     pub sub_merchants_enabled: Option<bool>,
     pub parent_merchant_id: Option<String>,
@@ -39,8 +39,8 @@ pub struct MerchantAccount {
 #[derive(Debug)]
 pub enum MerchantAccountUpdate {
     Update {
-        merchant_name: Option<Encryptable<Secret<String>>>,
-        merchant_details: Option<Encryptable<Secret<serde_json::Value>>>,
+        merchant_name: OptionalEncryptableName,
+        merchant_details: OptionalEncryptableValue,
         return_url: Option<String>,
         webhook_details: Option<serde_json::Value>,
         sub_merchants_enabled: Option<bool>,
@@ -150,14 +150,12 @@ impl super::behaviour::Conversion for MerchantAccount {
                 redirect_to_merchant_with_http_post: item.redirect_to_merchant_with_http_post,
                 merchant_name: item
                     .merchant_name
-                    .async_map(|value| Encryptable::decrypt(value, &key, GcmAes256 {}))
-                    .await
-                    .transpose()?,
+                    .async_lift(|inner| types::decrypt(inner, &key))
+                    .await?,
                 merchant_details: item
                     .merchant_details
-                    .async_map(|value| Encryptable::decrypt(value, &key, GcmAes256 {}))
-                    .await
-                    .transpose()?,
+                    .async_lift(|inner| types::decrypt(inner, &key))
+                    .await?,
                 webhook_details: item.webhook_details,
                 sub_merchants_enabled: item.sub_merchants_enabled,
                 parent_merchant_id: item.parent_merchant_id,

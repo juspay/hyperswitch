@@ -183,7 +183,7 @@ impl MerchantConnectorAccountInterface for Store {
         .async_and_then(|item| async {
             item.convert(self, merchant_id)
                 .await
-                .change_context(errors::StorageError::DeserializationFailed)
+                .change_context(errors::StorageError::DecryptionError)
         })
         .await
     }
@@ -207,6 +207,7 @@ impl MerchantConnectorAccountInterface for Store {
             .map_err(Into::into)
             .into_report()
         };
+
         #[cfg(not(feature = "accounts_cache"))]
         {
             find_call()
@@ -236,7 +237,7 @@ impl MerchantConnectorAccountInterface for Store {
         let conn = connection::pg_connection_write(self).await?;
         t.construct_new()
             .await
-            .change_context(errors::StorageError::DeserializationFailed)?
+            .change_context(errors::StorageError::EncryptionError)?
             .insert(&conn)
             .await
             .map_err(Into::into)
@@ -245,7 +246,7 @@ impl MerchantConnectorAccountInterface for Store {
                 let merchant_id = item.merchant_id.clone();
                 item.convert(self, &merchant_id)
                     .await
-                    .change_context(errors::StorageError::DeserializationFailed)
+                    .change_context(errors::StorageError::DecryptionError)
             })
             .await
     }
@@ -269,7 +270,7 @@ impl MerchantConnectorAccountInterface for Store {
                     output.push(
                         item.convert(self, merchant_id)
                             .await
-                            .change_context(errors::StorageError::DeserializationFailed)?,
+                            .change_context(errors::StorageError::DecryptionError)?,
                     )
                 }
                 Ok(output)
@@ -290,7 +291,7 @@ impl MerchantConnectorAccountInterface for Store {
             let conn = connection::pg_connection_write(self).await?;
             Conversion::convert(this)
                 .await
-                .change_context(errors::StorageError::DeserializationFailed)?
+                .change_context(errors::StorageError::EncryptionError)?
                 .update(&conn, merchant_connector_account)
                 .await
                 .map_err(Into::into)
@@ -299,7 +300,7 @@ impl MerchantConnectorAccountInterface for Store {
                     let merchant_id = item.merchant_id.clone();
                     item.convert(self, &merchant_id)
                         .await
-                        .change_context(errors::StorageError::DeserializationFailed)
+                        .change_context(errors::StorageError::DecryptionError)
                 })
                 .await
         };
@@ -355,7 +356,7 @@ impl MerchantConnectorAccountInterface for MockDb {
         account
             .convert(self, merchant_id)
             .await
-            .change_context(errors::StorageError::DeserializationFailed)
+            .change_context(errors::StorageError::DecryptionError)
     }
 
     async fn find_by_merchant_connector_account_merchant_id_merchant_connector_id(
@@ -397,7 +398,7 @@ impl MerchantConnectorAccountInterface for MockDb {
         account
             .convert(self, &merchant_id)
             .await
-            .change_context(errors::StorageError::DeserializationFailed)
+            .change_context(errors::StorageError::DecryptionError)
     }
 
     async fn find_merchant_connector_account_by_merchant_id_and_disabled_list(

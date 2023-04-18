@@ -212,8 +212,7 @@ async fn get_master_enc_key(
 }
 
 #[inline]
-pub fn generate_aes256_key(
-) -> crate::core::errors::CustomResult<[u8; 32], common_utils::errors::CryptoError> {
+pub fn generate_aes256_key() -> errors::CustomResult<[u8; 32], common_utils::errors::CryptoError> {
     use ring::rand::SecureRandom;
 
     let rng = ring::rand::SystemRandom::new();

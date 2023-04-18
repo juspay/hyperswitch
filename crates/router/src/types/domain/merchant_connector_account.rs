@@ -74,11 +74,11 @@ impl behaviour::Conversion for MerchantConnectorAccount {
         db: &dyn StorageInterface,
         merchant_id: &str,
     ) -> CustomResult<Self, ValidationError> {
-        let key = types::get_merchant_enc_key(db, merchant_id).await.change_context(
-            ValidationError::InvalidValue {
+        let key = types::get_merchant_enc_key(db, merchant_id)
+            .await
+            .change_context(ValidationError::InvalidValue {
                 message: "Error while getting key from keystore".to_string(),
-            },
-        )?;
+            })?;
         Ok(Self {
             id: Some(other.id),
             merchant_id: other.merchant_id,

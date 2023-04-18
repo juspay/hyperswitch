@@ -64,14 +64,14 @@ impl MerchantAccountInterface for Store {
         merchant_account
             .construct_new()
             .await
-            .change_context(errors::StorageError::DeserializationFailed)?
+            .change_context(errors::StorageError::EncryptionError)?
             .insert(&conn)
             .await
             .map_err(Into::into)
             .into_report()?
             .convert(self, &merchant_id)
             .await
-            .change_context(errors::StorageError::DeserializationFailed)
+            .change_context(errors::StorageError::DecryptionError)
     }
 
     async fn find_merchant_account_by_merchant_id(
@@ -92,7 +92,7 @@ impl MerchantAccountInterface for Store {
                 .await?
                 .convert(self, merchant_id)
                 .await
-                .change_context(errors::StorageError::DeserializationFailed)
+                .change_context(errors::StorageError::DecryptionError)
         }
 
         #[cfg(feature = "accounts_cache")]
@@ -101,7 +101,7 @@ impl MerchantAccountInterface for Store {
                 .await?
                 .convert(self, merchant_id)
                 .await
-                .change_context(errors::StorageError::DeserializationFailed)
+                .change_context(errors::StorageError::DecryptionError)
         }
     }
 
@@ -115,7 +115,7 @@ impl MerchantAccountInterface for Store {
             let conn = connection::pg_connection_write(self).await?;
             Conversion::convert(this)
                 .await
-                .change_context(errors::StorageError::DeserializationFailed)?
+                .change_context(errors::StorageError::EncryptionError)?
                 .update(&conn, merchant_account.into())
                 .await
                 .map_err(Into::into)
@@ -123,7 +123,7 @@ impl MerchantAccountInterface for Store {
                 .async_and_then(|item| async {
                     item.convert(self, &_merchant_id)
                         .await
-                        .change_context(errors::StorageError::DeserializationFailed)
+                        .change_context(errors::StorageError::DecryptionError)
                 })
                 .await
         };
@@ -157,7 +157,7 @@ impl MerchantAccountInterface for Store {
             .async_and_then(|item| async {
                 item.convert(self, merchant_id)
                     .await
-                    .change_context(errors::StorageError::DeserializationFailed)
+                    .change_context(errors::StorageError::DecryptionError)
             })
             .await
         };
@@ -186,7 +186,7 @@ impl MerchantAccountInterface for Store {
                 let merchant_id = item.merchant_id.clone();
                 item.convert(self, &merchant_id)
                     .await
-                    .change_context(errors::StorageError::DeserializationFailed)
+                    .change_context(errors::StorageError::DecryptionError)
             })
             .await
     }
@@ -225,14 +225,14 @@ impl MerchantAccountInterface for MockDb {
         let mut accounts = self.merchant_accounts.lock().await;
         let account = Conversion::convert(merchant_account)
             .await
-            .change_context(errors::StorageError::SerializationFailed)?;
+            .change_context(errors::StorageError::EncryptionError)?;
         let merchant_id = account.merchant_id.clone();
         accounts.push(account.clone());
 
         account
             .convert(self, &merchant_id)
             .await
-            .change_context(errors::StorageError::SerializationFailed)
+            .change_context(errors::StorageError::DecryptionError)
     }
 
     #[allow(clippy::panic)]
@@ -248,7 +248,7 @@ impl MerchantAccountInterface for MockDb {
             .async_map(|a| async {
                 a.convert(self, merchant_id)
                     .await
-                    .change_context(errors::StorageError::DeserializationFailed)
+                    .change_context(errors::StorageError::DecryptionError)
             })
             .await
             .transpose()?;
