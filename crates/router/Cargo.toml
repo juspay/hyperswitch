@@ -71,7 +71,6 @@ serde_with = "2.3.1"
 signal-hook-tokio = { version = "0.3.1", features = ["futures-v0_3"] }
 signal-hook = "0.3.15"
 strum = { version = "0.24.1", features = ["derive"] }
-thirtyfour = "0.31.0"
 thiserror = "1.0.39"
 time = { version = "0.3.20", features = ["serde", "serde-well-known", "std"] }
 tokio = { version = "1.26.0", features = ["macros", "rt-multi-thread"] }
@@ -103,6 +102,7 @@ time = { version = "0.3.20", features = ["macros"] }
 tokio = "1.26.0"
 toml = "0.7.2"
 wiremock = "0.5"
+thirtyfour = "0.31.0"
 
 [[bin]]
 name = "router"

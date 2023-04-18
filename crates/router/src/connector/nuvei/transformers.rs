@@ -493,9 +493,7 @@ impl<F>
             &types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
         ),
     ) -> Result<Self, Self::Error> {
-        let item = data.2;
-        let redirect = data.1;
-        let payment_method = data.0;
+        let (payment_method, redirect, item) = data;
         let (billing_address, bank_id) = match (&payment_method, redirect) {
             (AlternativePaymentMethodType::Expresscheckout, _) => (
                 Some(BillingAddress {
@@ -1084,9 +1082,19 @@ fn build_error_response<T>(
     }
 }
 
+pub trait NuveiPaymentsGenericResponse {}
+
+impl NuveiPaymentsGenericResponse for api::Authorize {}
+impl NuveiPaymentsGenericResponse for api::CompleteAuthorize {}
+impl NuveiPaymentsGenericResponse for api::Void {}
+impl NuveiPaymentsGenericResponse for api::PSync {}
+impl NuveiPaymentsGenericResponse for api::Capture {}
+
 impl<F, T>
     TryFrom<types::ResponseRouterData<F, NuveiPaymentsResponse, T, types::PaymentsResponseData>>
     for types::RouterData<F, T, types::PaymentsResponseData>
+where
+    F: NuveiPaymentsGenericResponse,
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -1144,6 +1152,33 @@ impl<F, T>
                     },
                 })
             },
+            ..item.data
+        })
+    }
+}
+
+impl TryFrom<types::PaymentsInitResponseRouterData<NuveiPaymentsResponse>>
+    for types::PaymentsInitRouterData
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: types::PaymentsInitResponseRouterData<NuveiPaymentsResponse>,
+    ) -> Result<Self, Self::Error> {
+        let response = item.response;
+        let is_enrolled_for_3ds = response
+            .clone()
+            .payment_option
+            .and_then(|po| po.card)
+            .and_then(|c| c.three_d)
+            .and_then(|t| t.v2supported)
+            .map(utils::to_boolean)
+            .unwrap_or_default();
+        Ok(Self {
+            status: get_payment_status(&response),
+            response: Ok(types::PaymentsResponseData::ThreeDSEnrollmentResponse {
+                enrolled_v2: is_enrolled_for_3ds,
+                related_transaction_id: response.transaction_id,
+            }),
             ..item.data
         })
     }
