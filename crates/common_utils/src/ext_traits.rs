@@ -84,10 +84,12 @@ where
         Result<P, <P as TryFrom<&'e Self>>::Error>: ResultExt,
         <Result<P, <P as TryFrom<&'e Self>>::Error> as ResultExt>::Ok: Serialize,
     {
-        serde_json::to_string(&P::try_from(self).change_context(errors::ParsingError)?)
-            .into_report()
-            .change_context(errors::ParsingError)
-            .attach_printable_lazy(|| format!("Unable to convert {self:?} to a request"))
+        serde_json::to_string(
+            &P::try_from(self).change_context(errors::ParsingError::UnknownError)?,
+        )
+        .into_report()
+        .change_context(errors::ParsingError::UnknownError)
+        .attach_printable_lazy(|| format!("Unable to convert {self:?} to a request"))
     }
 
     fn convert_and_url_encode(&'e self) -> CustomResult<String, errors::ParsingError>
@@ -96,10 +98,12 @@ where
         Result<P, <P as TryFrom<&'e Self>>::Error>: ResultExt,
         <Result<P, <P as TryFrom<&'e Self>>::Error> as ResultExt>::Ok: Serialize,
     {
-        serde_urlencoded::to_string(&P::try_from(self).change_context(errors::ParsingError)?)
-            .into_report()
-            .change_context(errors::ParsingError)
-            .attach_printable_lazy(|| format!("Unable to convert {self:?} to a request"))
+        serde_urlencoded::to_string(
+            &P::try_from(self).change_context(errors::ParsingError::UnknownError)?,
+        )
+        .into_report()
+        .change_context(errors::ParsingError::UnknownError)
+        .attach_printable_lazy(|| format!("Unable to convert {self:?} to a request"))
     }
 
     // Check without two functions can we combine this
@@ -109,7 +113,7 @@ where
     {
         serde_urlencoded::to_string(self)
             .into_report()
-            .change_context(errors::ParsingError)
+            .change_context(errors::ParsingError::UnknownError)
             .attach_printable_lazy(|| format!("Unable to convert {self:?} to a request"))
     }
 
@@ -119,7 +123,7 @@ where
     {
         serde_json::to_string(self)
             .into_report()
-            .change_context(errors::ParsingError)
+            .change_context(errors::ParsingError::UnknownError)
             .attach_printable_lazy(|| format!("Unable to convert {self:?} to a request"))
     }
 
@@ -129,7 +133,7 @@ where
     {
         serde_json::to_value(self)
             .into_report()
-            .change_context(errors::ParsingError)
+            .change_context(errors::ParsingError::UnknownError)
             .attach_printable_lazy(|| format!("Unable to convert {self:?} to a value"))
     }
 
@@ -139,7 +143,7 @@ where
     {
         serde_json::to_vec(self)
             .into_report()
-            .change_context(errors::ParsingError)
+            .change_context(errors::ParsingError::UnknownError)
             .attach_printable_lazy(|| format!("Unable to convert {self:?} to a value"))
     }
 }
@@ -165,7 +169,7 @@ impl<T> BytesExt<T> for bytes::Bytes {
 
         serde_json::from_slice::<T>(self.chunk())
             .into_report()
-            .change_context(errors::ParsingError)
+            .change_context(errors::ParsingError::UnknownError)
             .attach_printable_lazy(|| {
                 let variable_type = std::any::type_name::<T>();
                 format!("Unable to parse {variable_type} from bytes {self:?}")
@@ -192,7 +196,7 @@ impl ByteSliceExt for [u8] {
     {
         serde_json::from_slice(self)
             .into_report()
-            .change_context(errors::ParsingError)
+            .change_context(errors::ParsingError::UnknownError)
             .attach_printable_lazy(|| format!("Unable to parse {type_name} from &[u8] {:?}", &self))
     }
 }
@@ -220,7 +224,7 @@ impl<T> ValueExt<T> for serde_json::Value {
         );
         serde_json::from_value::<T>(self)
             .into_report()
-            .change_context(errors::ParsingError)
+            .change_context(errors::ParsingError::UnknownError)
             .attach_printable_lazy(|| debug)
     }
 }
@@ -266,7 +270,7 @@ impl<T> StringExt<T> for String {
     {
         T::from_str(&self)
             .into_report()
-            .change_context(errors::ParsingError)
+            .change_context(errors::ParsingError::UnknownError)
             .attach_printable_lazy(|| format!("Invalid enum variant {self:?} for enum {enum_name}"))
     }
 
@@ -276,7 +280,7 @@ impl<T> StringExt<T> for String {
     {
         serde_json::from_str::<T>(self)
             .into_report()
-            .change_context(errors::ParsingError)
+            .change_context(errors::ParsingError::UnknownError)
             .attach_printable_lazy(|| {
                 format!("Unable to parse {type_name} from string {:?}", &self)
             })

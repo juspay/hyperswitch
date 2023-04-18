@@ -643,7 +643,7 @@ fn get_webhook_object_from_body(
         .notification_items
         .drain(..)
         .next()
-        .ok_or(errors::ParsingError)
+        .ok_or(errors::ParsingError::UnknownError)
         .into_report()?;
 
     Ok(item_object.notification_request_item)
