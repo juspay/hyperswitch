@@ -514,13 +514,20 @@ pub enum StripePaymentMethodOptions {
     },
 }
 
+#[derive(Eq, PartialEq, Debug, serde::Deserialize, serde::Serialize, Clone)]
+#[serde(rename_all = "snake_case")]
+pub enum StripeMandateType {
+    SingleUse,
+    MultiUse,
+}
+
 #[derive(PartialEq, Eq, Deserialize, Clone, Default, Debug)]
 pub struct MandateOption {
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub accepted_at: Option<time::PrimitiveDateTime>,
     pub user_agent: Option<String>,
     pub ip_address: Option<pii::Secret<String, common_utils::pii::IpAddress>>,
-    pub mandate_type: Option<String>,
+    pub mandate_type: Option<StripeMandateType>,
     pub amount: Option<i64>,
 }
 
@@ -542,13 +549,17 @@ impl ForeignTryFrom<(Option<MandateOption>, Option<String>)> for Option<payments
                 )
             })?;
         let mandate_data = mandate_options.map(|mandate| payments::MandateData {
-            mandate_type: if mandate.mandate_type == Some("multi_use".to_string()) {
-                payments::MandateType::MultiUse(None)
-            } else {
-                payments::MandateType::SingleUse(payments::MandateAmountData {
-                    amount: mandate.amount.unwrap_or_default(),
-                    currency,
-                })
+            mandate_type: match mandate.mandate_type {
+                Some(item) => match item {
+                    StripeMandateType::SingleUse => {
+                        payments::MandateType::SingleUse(payments::MandateAmountData {
+                            amount: mandate.amount.unwrap_or_default(),
+                            currency,
+                        })
+                    }
+                    StripeMandateType::MultiUse => payments::MandateType::MultiUse(None),
+                },
+                None => api_models::payments::MandateType::MultiUse(None),
             },
             customer_acceptance: payments::CustomerAcceptance {
                 acceptance_type: payments::AcceptanceType::Online,
