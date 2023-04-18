@@ -530,9 +530,9 @@ pub struct MandateOption {
     pub mandate_type: Option<StripeMandateType>,
     pub amount: Option<i64>,
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
-    pub start_date : Option<time::PrimitiveDateTime>,
+    pub start_date: Option<time::PrimitiveDateTime>,
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
-    pub end_date :  Option<time::PrimitiveDateTime>,
+    pub end_date: Option<time::PrimitiveDateTime>,
 }
 
 impl ForeignTryFrom<(Option<MandateOption>, Option<String>)> for Option<payments::MandateData> {
