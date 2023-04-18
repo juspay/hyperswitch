@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use url::Url;
 
 use crate::{
-    connector::utils::CardData,
+    connector::utils::{CardData, PaymentsCancelRequestData},
     consts,
     core::errors,
     services,
@@ -313,15 +313,8 @@ impl TryFrom<&types::PaymentsCancelRouterData> for NexinetsCaptureOrVoidRequest 
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsCancelRouterData) -> Result<Self, Self::Error> {
         Ok(Self {
-            initial_amount: item
-                .request
-                .amount
-                .ok_or(errors::ConnectorError::RequestEncodingFailed)?,
-            currency: item
-                .request
-                .currency
-                .ok_or(errors::ConnectorError::RequestEncodingFailed)?
-                .to_string(),
+            initial_amount: item.request.get_amount()?,
+            currency: item.request.get_currency()?.to_string(),
         })
     }
 }

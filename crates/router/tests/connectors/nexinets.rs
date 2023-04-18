@@ -33,26 +33,23 @@ impl utils::Connector for NexinetsTest {
     }
 }
 
-impl NexinetsTest {
-    fn get_payment_data() -> Option<PaymentsAuthorizeData> {
-        Some(PaymentsAuthorizeData {
-            currency: storage_models::enums::Currency::EUR,
-            payment_method_data: types::api::PaymentMethodData::Card(api::Card {
-                card_number: Secret::new(String::from("4012001038443335")),
-                ..utils::CCardType::default().0
-            }),
-            router_return_url: Some("https://google.com".to_string()),
-            ..utils::PaymentAuthorizeType::default().0
-        })
-    }
+fn payment_method_details() -> Option<PaymentsAuthorizeData> {
+    Some(PaymentsAuthorizeData {
+        currency: storage_models::enums::Currency::EUR,
+        payment_method_data: types::api::PaymentMethodData::Card(api::Card {
+            card_number: Secret::new("4012001038443335".to_string()),
+            ..utils::CCardType::default().0
+        }),
+        router_return_url: Some("https://google.com".to_string()),
+        ..utils::PaymentAuthorizeType::default().0
+    })
 }
-
 // Cards Positive Tests
 // Creates a payment using the manual capture flow (Non 3DS).
 #[actix_web::test]
 async fn should_only_authorize_payment() {
     let response = CONNECTOR
-        .authorize_payment(NexinetsTest::get_payment_data(), None)
+        .authorize_payment(payment_method_details(), None)
         .await
         .expect("Authorize payment response");
     assert_eq!(response.status, enums::AttemptStatus::Authorized);
@@ -62,7 +59,7 @@ async fn should_only_authorize_payment() {
 #[actix_web::test]
 async fn should_capture_authorized_payment() {
     let response = CONNECTOR
-        .authorize_payment(NexinetsTest::get_payment_data(), None)
+        .authorize_payment(payment_method_details(), None)
         .await
         .unwrap();
     assert_eq!(response.status, enums::AttemptStatus::Authorized);
@@ -85,7 +82,7 @@ async fn should_capture_authorized_payment() {
 #[actix_web::test]
 async fn should_partially_capture_authorized_payment() {
     let response = CONNECTOR
-        .authorize_payment(NexinetsTest::get_payment_data(), None)
+        .authorize_payment(payment_method_details(), None)
         .await
         .unwrap();
     assert_eq!(response.status, enums::AttemptStatus::Authorized);
@@ -109,7 +106,7 @@ async fn should_partially_capture_authorized_payment() {
 #[actix_web::test]
 async fn should_sync_authorized_payment() {
     let authorize_response = CONNECTOR
-        .authorize_payment(NexinetsTest::get_payment_data(), None)
+        .authorize_payment(payment_method_details(), None)
         .await
         .expect("Authorize payment response");
     let txn_id = utils::get_connector_transaction_id(authorize_response.response.clone())
@@ -135,7 +132,7 @@ async fn should_sync_authorized_payment() {
 #[actix_web::test]
 async fn should_void_authorized_payment() {
     let response = CONNECTOR
-        .authorize_payment(NexinetsTest::get_payment_data(), None)
+        .authorize_payment(payment_method_details(), None)
         .await
         .unwrap();
     assert_eq!(response.status, enums::AttemptStatus::Authorized);
@@ -163,7 +160,7 @@ async fn should_void_authorized_payment() {
 #[actix_web::test]
 async fn should_refund_manually_captured_payment() {
     let authorize_response = CONNECTOR
-        .authorize_payment(NexinetsTest::get_payment_data(), None)
+        .authorize_payment(payment_method_details(), None)
         .await
         .expect("Authorize payment response");
     let txn_id = utils::get_connector_transaction_id(authorize_response.response.clone()).unwrap();
@@ -206,7 +203,7 @@ async fn should_refund_manually_captured_payment() {
 #[actix_web::test]
 async fn should_partially_refund_manually_captured_payment() {
     let authorize_response = CONNECTOR
-        .authorize_payment(NexinetsTest::get_payment_data(), None)
+        .authorize_payment(payment_method_details(), None)
         .await
         .expect("Authorize payment response");
     let txn_id = utils::get_connector_transaction_id(authorize_response.response.clone()).unwrap();
@@ -250,7 +247,7 @@ async fn should_partially_refund_manually_captured_payment() {
 #[actix_web::test]
 async fn should_sync_manually_captured_refund() {
     let authorize_response = CONNECTOR
-        .authorize_payment(NexinetsTest::get_payment_data(), None)
+        .authorize_payment(payment_method_details(), None)
         .await
         .expect("Authorize payment response");
     let txn_id = utils::get_connector_transaction_id(authorize_response.response.clone()).unwrap();
@@ -319,7 +316,7 @@ async fn should_sync_manually_captured_refund() {
 #[actix_web::test]
 async fn should_make_payment() {
     let authorize_response = CONNECTOR
-        .make_payment(NexinetsTest::get_payment_data(), None)
+        .make_payment(payment_method_details(), None)
         .await
         .unwrap();
     assert_eq!(authorize_response.status, enums::AttemptStatus::Charged);
@@ -329,7 +326,7 @@ async fn should_make_payment() {
 #[actix_web::test]
 async fn should_sync_auto_captured_payment() {
     let cap_response = CONNECTOR
-        .make_payment(NexinetsTest::get_payment_data(), None)
+        .make_payment(payment_method_details(), None)
         .await
         .unwrap();
     assert_eq!(cap_response.status, enums::AttemptStatus::Charged);
@@ -355,7 +352,7 @@ async fn should_sync_auto_captured_payment() {
 #[actix_web::test]
 async fn should_refund_auto_captured_payment() {
     let captured_response = CONNECTOR
-        .make_payment(NexinetsTest::get_payment_data(), None)
+        .make_payment(payment_method_details(), None)
         .await
         .unwrap();
     assert_eq!(captured_response.status, enums::AttemptStatus::Charged);
@@ -385,7 +382,7 @@ async fn should_refund_auto_captured_payment() {
 #[actix_web::test]
 async fn should_partially_refund_succeeded_payment() {
     let captured_response = CONNECTOR
-        .make_payment(NexinetsTest::get_payment_data(), None)
+        .make_payment(payment_method_details(), None)
         .await
         .unwrap();
     assert_eq!(captured_response.status, enums::AttemptStatus::Charged);
@@ -415,7 +412,7 @@ async fn should_partially_refund_succeeded_payment() {
 #[actix_web::test]
 async fn should_refund_succeeded_payment_multiple_times() {
     let captured_response = CONNECTOR
-        .make_payment(NexinetsTest::get_payment_data(), None)
+        .make_payment(payment_method_details(), None)
         .await
         .unwrap();
     assert_eq!(captured_response.status, enums::AttemptStatus::Charged);
@@ -447,7 +444,7 @@ async fn should_refund_succeeded_payment_multiple_times() {
 #[actix_web::test]
 async fn should_sync_refund() {
     let captured_response = CONNECTOR
-        .make_payment(NexinetsTest::get_payment_data(), None)
+        .make_payment(payment_method_details(), None)
         .await
         .unwrap();
     assert_eq!(captured_response.status, enums::AttemptStatus::Charged);
@@ -615,7 +612,7 @@ async fn should_fail_payment_for_incorrect_expiry_year() {
 #[actix_web::test]
 async fn should_fail_void_payment_for_auto_capture() {
     let captured_response = CONNECTOR
-        .make_payment(NexinetsTest::get_payment_data(), None)
+        .make_payment(payment_method_details(), None)
         .await
         .unwrap();
     assert_eq!(captured_response.status, enums::AttemptStatus::Charged);
@@ -670,7 +667,7 @@ async fn should_fail_capture_for_invalid_payment() {
 #[actix_web::test]
 async fn should_fail_for_refund_amount_higher_than_payment_amount() {
     let captured_response = CONNECTOR
-        .make_payment(NexinetsTest::get_payment_data(), None)
+        .make_payment(payment_method_details(), None)
         .await
         .unwrap();
     assert_eq!(captured_response.status, enums::AttemptStatus::Charged);
