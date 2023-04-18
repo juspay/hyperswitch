@@ -372,6 +372,17 @@ pub struct MerchantConnectorCreate {
     /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
     #[schema(value_type = Option<Object>,max_length = 255,example = json!({ "city": "NY", "unit": "245" }))]
     pub metadata: Option<pii::SecretSerdeValue>,
+    /// contains the frm configs for the merchant connector
+    #[schema(example = json!([
+        {
+            "frm_enabled_pms" : ["card"],
+            "frm_enabled_pm_types" : ["credit"],
+            "frm_enabled_gateways" : ["stripe"],
+            "frm_action": "cancel_txn",
+            "frm_preferred_flow_type" : "pre"
+        }
+    ]))]
+    pub frm_configs: Option<FrmConfigs>,
 
     /// Business Country of the connector
     #[schema(example = "US")]
@@ -465,6 +476,18 @@ pub struct MerchantConnectorResponse {
     /// Business Sub label of the merchant
     #[schema(example = "chase")]
     pub business_sub_label: Option<String>,
+
+    /// contains the frm configs for the merchant connector
+    #[schema(example = json!([
+        {
+            "frm_enabled_pms" : ["card"],
+            "frm_enabled_pm_types" : ["credit"],
+            "frm_enabled_gateways" : ["stripe"],
+            "frm_action": "cancel_txn",
+            "frm_preferred_flow_type" : "pre"
+        }
+    ]))]
+    pub frm_configs: Option<FrmConfigs>,
 }
 
 /// Create a new Merchant Connector for the merchant account. The connector could be a payment processor / facilitator / acquirer or specialized services like Fraud / Accounting etc."
@@ -522,8 +545,30 @@ pub struct MerchantConnectorUpdate {
     /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
     #[schema(value_type = Option<Object>,max_length = 255,example = json!({ "city": "NY", "unit": "245" }))]
     pub metadata: Option<pii::SecretSerdeValue>,
+
+    /// contains the frm configs for the merchant connector
+    #[schema(example = json!([
+        {
+            "frm_enabled_pms" : ["card"],
+            "frm_enabled_pm_types" : ["credit"],
+            "frm_enabled_gateways" : ["stripe"],
+            "frm_action": "cancel_txn",
+            "frm_preferred_flow_type" : "pre"
+        }
+    ]))]
+    pub frm_configs: Option<FrmConfigs>,
 }
 
+///Details of FrmConfigs are mentioned here... it should be passed in payment connector create api call, and stored in merchant_connector_table
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub struct FrmConfigs {
+    pub frm_enabled_pms: Option<Vec<String>>,
+    pub frm_enabled_pm_types: Option<Vec<String>>,
+    pub frm_enabled_gateways: Option<Vec<String>>,
+    pub frm_action: api_enums::FrmAction, //What should be the action if FRM declines the txn (autorefund/cancel txn/manual review)
+    pub frm_preferred_flow_type: api_enums::FrmPreferredFlowTypes,
+}
 /// Details of all the payment methods enabled for the connector for the given merchant account
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]

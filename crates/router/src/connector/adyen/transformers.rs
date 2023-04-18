@@ -701,6 +701,7 @@ fn get_sofort_extra_details(
             if let api_models::payments::BankRedirectData::Sofort {
                 country,
                 preferred_language,
+                ..
             } = b
             {
                 (

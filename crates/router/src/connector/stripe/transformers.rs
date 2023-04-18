@@ -1,12 +1,9 @@
-use std::str::FromStr;
-
 use api_models::{self, enums as api_enums, payments};
 use base64::Engine;
 use common_utils::{fp_utils, pii::Email};
 use error_stack::{IntoReport, ResultExt};
 use masking::ExposeInterface;
 use serde::{Deserialize, Serialize};
-use strum::EnumString;
 use url::Url;
 use uuid::Uuid;
 
@@ -508,6 +505,7 @@ fn get_bank_specific_data(
         payments::BankRedirectData::Sofort {
             country,
             preferred_language,
+            ..
         } => Some(BankSpecificData::Sofort {
             country: country.to_owned(),
             preferred_language: preferred_language.to_owned(),
@@ -1207,37 +1205,18 @@ pub struct StripeRedirectResponse {
     pub source_type: Option<Secret<String>>,
 }
 
-#[derive(Debug, Serialize, Clone, Copy)]
+#[derive(Debug, Serialize)]
 pub struct CancelRequest {
-    cancellation_reason: Option<CancellationReason>,
+    cancellation_reason: Option<String>,
 }
 
 impl TryFrom<&types::PaymentsCancelRouterData> for CancelRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsCancelRouterData) -> Result<Self, Self::Error> {
-        let cancellation_reason = match &item.request.cancellation_reason {
-            Some(c) => Some(
-                CancellationReason::from_str(c)
-                    .into_report()
-                    .change_context(errors::ConnectorError::RequestEncodingFailed)?,
-            ),
-            None => None,
-        };
-
         Ok(Self {
-            cancellation_reason,
+            cancellation_reason: item.request.cancellation_reason.clone(),
         })
     }
-}
-
-#[derive(Debug, Serialize, Deserialize, Copy, Clone, EnumString)]
-#[serde(rename_all = "snake_case")]
-#[strum(serialize_all = "snake_case")]
-pub enum CancellationReason {
-    Duplicate,
-    Fraudulent,
-    RequestedByCustomer,
-    Abandoned,
 }
 
 #[derive(Deserialize, Debug, Clone, Eq, PartialEq)]

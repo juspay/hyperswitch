@@ -637,6 +637,7 @@ async fn decide_payment_method_tokenize_action(
     }
 }
 
+#[derive(Clone)]
 pub enum TokenizationAction {
     TokenizeInRouter,
     TokenizeInConnector,
@@ -866,19 +867,14 @@ pub async fn list_payments(
 ) -> RouterResponse<api::PaymentListResponse> {
     use futures::stream::StreamExt;
 
-    use crate::types::transformers::ForeignFrom;
+    use crate::{core::errors::utils::StorageErrorExt, types::transformers::ForeignFrom};
 
     helpers::validate_payment_list_request(&constraints)?;
     let merchant_id = &merchant.merchant_id;
     let payment_intents =
         helpers::filter_by_constraints(db, &constraints, merchant_id, merchant.storage_scheme)
             .await
-            .map_err(|err| {
-                errors::StorageErrorExt::to_not_found_response(
-                    err,
-                    errors::ApiErrorResponse::PaymentNotFound,
-                )
-            })?;
+            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
     let pi = futures::stream::iter(payment_intents)
         .filter_map(|pi| async {
