@@ -76,7 +76,7 @@ pub fn generate_id(length: usize, prefix: &str) -> String {
 pub trait ConnectorResponseExt: Sized {
     fn get_response(self) -> RouterResult<types::Response>;
     fn get_error_response(self) -> RouterResult<types::Response>;
-    fn get_response_inner<T: DeserializeOwned>(self, type_name: &str) -> RouterResult<T> {
+    fn get_response_inner<T: DeserializeOwned>(self, type_name: &'static str) -> RouterResult<T> {
         self.get_response()?
             .response
             .parse_struct(type_name)
