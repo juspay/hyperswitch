@@ -1428,13 +1428,13 @@ async fn filter_payment_mandate_based(
 }
 
 fn filter_pm_metadata_based(
-    connector: &str,
-    pm_type: &api_enums::PaymentMethodType,
+    _connector: &str,
+    _pm_type: &api_enums::PaymentMethodType,
     payment_intent: Option<&storage::PaymentIntent>,
     payment_attempt: Option<&storage::PaymentAttempt>,
 ) -> bool {
     match (payment_intent, payment_attempt) {
-        (Some(payment_intent_inner), Some(payment_attempt_inner)) => true, // Implement this later
+        (Some(_payment_intent_inner), Some(_payment_attempt_inner)) => true, // Implement this later
         _ => true,
     }
 }

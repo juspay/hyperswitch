@@ -5,6 +5,7 @@ mod transformers;
 use std::fmt::Debug;
 
 use ::common_utils::{errors::ReportSwitchExt, ext_traits::ByteSliceExt};
+use common_utils::ext_traits::ValueExt;
 use error_stack::{IntoReport, ResultExt};
 use serde_json::Value;
 
@@ -910,4 +911,35 @@ impl services::ConnectorRedirectResponse for Globalpay {
     }
 }
 
-impl api::Validator<api::Global> for Globalpay {}
+impl api::Validator<api::Global> for Globalpay {
+    fn validate_metadata(
+        &self,
+        payment_method_details: Option<(
+            api_models::enums::PaymentMethod,
+            api_models::enums::PaymentMethodType,
+        )>,
+        metadata: Value,
+    ) -> CustomResult<(), common_utils::errors::ValidationError> {
+        let _inner: transformers::GlobalPayMeta = metadata
+            .clone()
+            .parse_value("GlobalPayMeta")
+            .change_context(errors::ValidationError::InvalidValue {
+                message: "Failed to parse metadata".to_string(),
+            })?;
+
+        match payment_method_details {
+            Some((
+                api_models::enums::PaymentMethod::Wallet,
+                api_models::enums::PaymentMethodType::GooglePay,
+            )) => {
+                let _inner: api_models::payments::GpayTokenParameters = metadata
+                    .parse_value("GpayTokenParameters")
+                    .change_context(errors::ValidationError::InvalidValue {
+                        message: "Failed while getting google pay metadata".to_string(),
+                    })?;
+            }
+            _ => {} // No other validation currently required
+        }
+        Ok(())
+    }
+}

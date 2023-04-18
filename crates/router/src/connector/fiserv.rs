@@ -3,6 +3,7 @@ mod transformers;
 use std::fmt::Debug;
 
 use base64::Engine;
+use common_utils::ext_traits::ValueExt;
 use error_stack::ResultExt;
 use ring::hmac;
 use time::OffsetDateTime;
@@ -702,4 +703,20 @@ impl api::IncomingWebhook for Fiserv {
     }
 }
 
-impl api::Validator<api::Global> for Fiserv {}
+impl api::Validator<api::Global> for Fiserv {
+    fn validate_metadata(
+        &self,
+        _payment_method_details: Option<(
+            api_models::enums::PaymentMethod,
+            api_models::enums::PaymentMethodType,
+        )>,
+        metadata: serde_json::Value,
+    ) -> CustomResult<(), common_utils::errors::ValidationError> {
+        let _inner: transformers::SessionObject = metadata
+            .parse_value("SessionObject")
+            .change_context(errors::ValidationError::InvalidValue {
+                message: "Failed to validate metadata".to_string(),
+            })?;
+        Ok(())
+    }
+}

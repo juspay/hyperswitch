@@ -4,7 +4,10 @@ mod transformers;
 
 use std::fmt::Debug;
 
-use common_utils::{crypto, ext_traits::ByteSliceExt};
+use common_utils::{
+    crypto,
+    ext_traits::{ByteSliceExt, ValueExt},
+};
 use error_stack::{IntoReport, ResultExt};
 use storage_models::enums;
 use transformers as worldpay;
@@ -715,4 +718,22 @@ impl api::IncomingWebhook for Worldpay {
     }
 }
 
-impl api::Validator<api::Global> for Worldpay {}
+impl api::Validator<api::Global> for Worldpay {
+    fn validate_metadata(
+        &self,
+        payment_method: Option<(api::enums::PaymentMethod, api::enums::PaymentMethodType)>,
+        metadata: serde_json::Value,
+    ) -> CustomResult<(), common_utils::errors::ValidationError> {
+        match payment_method {
+            Some((api::enums::PaymentMethod::Wallet, api::enums::PaymentMethodType::GooglePay)) => {
+                let _inner: api_models::payments::GpayTokenParameters = metadata
+                    .parse_value("GpayTokenParameters")
+                    .change_context(errors::ValidationError::InvalidValue {
+                        message: "Failed while getting google pay metadata".to_string(),
+                    })?;
+            }
+            _ => {} // No other validation currently required
+        }
+        Ok(())
+    }
+}

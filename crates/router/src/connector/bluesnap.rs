@@ -3,7 +3,7 @@ mod transformers;
 use std::fmt::Debug;
 
 use base64::Engine;
-use common_utils::crypto;
+use common_utils::{crypto, ext_traits::ValueExt};
 use error_stack::{IntoReport, ResultExt};
 use transformers as bluesnap;
 
@@ -761,4 +761,22 @@ impl api::IncomingWebhook for Bluesnap {
     }
 }
 
-impl api::Validator<api::Global> for Bluesnap {}
+impl api::Validator<api::Global> for Bluesnap {
+    fn validate_metadata(
+        &self,
+        payment_method: Option<(api::enums::PaymentMethod, api::enums::PaymentMethodType)>,
+        metadata: serde_json::Value,
+    ) -> CustomResult<(), common_utils::errors::ValidationError> {
+        match payment_method {
+            Some((api::enums::PaymentMethod::Wallet, api::enums::PaymentMethodType::GooglePay)) => {
+                let _inner: api_models::payments::GpayTokenParameters = metadata
+                    .parse_value("GpayTokenParameters")
+                    .change_context(errors::ValidationError::InvalidValue {
+                        message: "Failed while getting google pay metadata".to_string(),
+                    })?;
+            }
+            _ => {} // No other validation currently required
+        }
+        Ok(())
+    }
+}

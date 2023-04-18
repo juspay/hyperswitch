@@ -99,7 +99,8 @@ pub trait ConnectorCommonExt<Flow, Req, Resp>:
 pub trait Validator<T> {
     fn validate_metadata(
         &self,
-        _metadata: &serde_json::Value,
+        _payment_method: Option<(api_enums::PaymentMethod, api_enums::PaymentMethodType)>,
+        _metadata: serde_json::Value,
     ) -> CustomResult<(), common_utils::errors::ValidationError> {
         Ok(())
     }
