@@ -15,6 +15,9 @@ use masking::{Secret, Strategy, WithType};
 
 use crate::{errors::ValidationError, validation::validate_email};
 
+/// A string constant representing a redacted or masked value.
+pub const REDACTED: &str = "Redacted";
+
 /// Type alias for serde_json value which has Secret Information
 pub type SecretSerdeValue = Secret<serde_json::Value>;
 
@@ -136,6 +139,9 @@ impl FromStr for Email {
     type Err = ValidationError;
 
     fn from_str(email: &str) -> Result<Self, Self::Err> {
+        if email.eq(REDACTED) {
+            return Ok(Self(Secret::new(email.to_string())));
+        }
         match validate_email(email) {
             Ok(_) => {
                 let secret: Secret<String> = Secret::new(email.to_string());
@@ -195,9 +201,10 @@ where
 mod pii_masking_strategy_tests {
     use std::str::FromStr;
 
-    use masking::Secret;
+    use masking::{ExposeInterface, Secret};
 
     use super::{CardNumber, ClientSecret, Email, IpAddress};
+    use crate::pii::REDACTED;
 
     #[test]
     fn test_valid_card_number_masking() {
@@ -258,6 +265,16 @@ mod pii_masking_strategy_tests {
         let email_check: Result<Email, crate::errors::ValidationError> =
             Email::from_str("example@abc@com");
         assert!(email_check.is_err());
+    }
+
+    #[test]
+    fn test_redacted_email() {
+        let email_result = Email::from_str(REDACTED);
+        assert!(email_result.is_ok());
+
+        let email = email_result.unwrap();
+        let secret_value = email.0.expose();
+        assert_eq!(secret_value.as_str(), REDACTED);
     }
 
     #[test]
