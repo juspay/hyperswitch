@@ -148,7 +148,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::enums::CardNetwork,
         api_models::enums::DisputeStage,
         api_models::enums::DisputeStatus,
-        api_models::enums::CountryCode,
+        api_models::enums::CountryAlpha2,
         api_models::admin::MerchantConnectorCreate,
         api_models::admin::PaymentMethodsEnabled,
         api_models::disputes::DisputeResponse,
