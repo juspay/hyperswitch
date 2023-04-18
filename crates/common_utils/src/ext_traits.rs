@@ -260,7 +260,7 @@ pub trait StringExt<T> {
     ///
     /// Convert `String` into type `<T>` (which being an `enum`)
     ///
-    fn parse_enum(self, enum_name: &str) -> CustomResult<T, errors::ParsingError>
+    fn parse_enum(self, enum_name: &'static str) -> CustomResult<T, errors::ParsingError>
     where
         T: std::str::FromStr,
         // Requirement for converting the `Err` variant of `FromStr` to `Report<Err>`
@@ -278,14 +278,14 @@ pub trait StringExt<T> {
 }
 
 impl<T> StringExt<T> for String {
-    fn parse_enum(self, enum_name: &str) -> CustomResult<T, errors::ParsingError>
+    fn parse_enum(self, enum_name: &'static str) -> CustomResult<T, errors::ParsingError>
     where
         T: std::str::FromStr,
         <T as std::str::FromStr>::Err: std::error::Error + Send + Sync + 'static,
     {
         T::from_str(&self)
             .into_report()
-            .change_context(errors::ParsingError::UnknownError)
+            .change_context(errors::ParsingError::EnumParseFailure(enum_name))
             .attach_printable_lazy(|| format!("Invalid enum variant {self:?} for enum {enum_name}"))
     }
 
