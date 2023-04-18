@@ -72,13 +72,17 @@ impl behaviour::Conversion for Address {
 
     async fn convert_back(
         other: Self::DstType,
-        _db: &dyn StorageInterface,
-        _merchant_id: &str,
+        db: &dyn StorageInterface,
+        merchant_id: &str,
     ) -> CustomResult<Self, ValidationError> {
-        let key = &[0];
+        let key = types::get_key_and_algo(db, merchant_id)
+            .await
+            .change_context(ValidationError::InvalidValue {
+                message: "Failed while getting key from key store".to_string(),
+            })?;
 
         async {
-            let inner_decrypt = |inner| types::decrypt(inner, key);
+            let inner_decrypt = |inner| types::decrypt(inner, &key);
             Ok(Self {
                 id: Some(other.id),
                 address_id: other.address_id,
