@@ -360,7 +360,5 @@ pub async fn get_payment_intent_payment_attempt(
         Ok((pi, pa))
     })()
     .await
-    .map_err(|error: error_stack::Report<errors::StorageError>| {
-        error.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
-    })
+    .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
 }

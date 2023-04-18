@@ -514,13 +514,13 @@ impl
         Ok(Some(
             services::RequestBuilder::new()
                 .method(services::Method::Post)
-                .url(&types::PaymentsComeplteAuthorizeType::get_url(
+                .url(&types::PaymentsCompleteAuthorizeType::get_url(
                     self, req, connectors,
                 )?)
-                .headers(types::PaymentsComeplteAuthorizeType::get_headers(
+                .headers(types::PaymentsCompleteAuthorizeType::get_headers(
                     self, req, connectors,
                 )?)
-                .body(types::PaymentsComeplteAuthorizeType::get_request_body(
+                .body(types::PaymentsCompleteAuthorizeType::get_request_body(
                     self, req,
                 )?)
                 .build(),

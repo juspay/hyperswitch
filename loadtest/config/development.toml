@@ -68,6 +68,7 @@ coinbase.base_url = "https://api.commerce.coinbase.com"
 cybersource.base_url = "https://apitest.cybersource.com/"
 dlocal.base_url = "https://sandbox.dlocal.com/"
 fiserv.base_url = "https://cert.api.fiservapps.com/"
+forte.base_url = "https://sandbox.forte.net/api/v3"
 globalpay.base_url = "https://apis.sandbox.globalpay.com/ucp/"
 intuit.base_url = "https://sandbox.api.intuit.com"
 klarna.base_url = "https://api-na.playground.klarna.com/"
@@ -101,6 +102,7 @@ cards = [
     "cybersource",
     "dlocal",
     "fiserv",
+    "forte",
     "globalpay",
     "intuit",
     "mollie",

@@ -183,8 +183,15 @@ where
 #[derive(Debug, Deserialize, Clone)]
 #[serde(default)]
 pub struct Secrets {
+    #[cfg(not(feature = "kms"))]
     pub jwt_secret: String,
+    #[cfg(not(feature = "kms"))]
     pub admin_api_key: String,
+
+    #[cfg(feature = "kms")]
+    pub kms_encrypted_jwt_secret: String,
+    #[cfg(feature = "kms")]
+    pub kms_encrypted_admin_api_key: String,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -286,6 +293,7 @@ pub struct Connectors {
     pub cybersource: ConnectorParams,
     pub dlocal: ConnectorParams,
     pub fiserv: ConnectorParams,
+    pub forte: ConnectorParams,
     pub globalpay: ConnectorParams,
     pub intuit: ConnectorParams,
     pub klarna: ConnectorParams,
@@ -390,8 +398,8 @@ impl Settings {
         // 1. Defaults from the implementation of the `Default` trait.
         // 2. Values from config file. The config file accessed depends on the environment
         //    specified by the `RUN_ENV` environment variable. `RUN_ENV` can be one of
-        //    `Development`, `Sandbox` or `Production`. If nothing is specified for `RUN_ENV`,
-        //    `/config/Development.toml` file is read.
+        //    `development`, `sandbox` or `production`. If nothing is specified for `RUN_ENV`,
+        //    `/config/development.toml` file is read.
         // 3. Environment variables prefixed with `ROUTER` and each level separated by double
         //    underscores.
         //

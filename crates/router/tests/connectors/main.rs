@@ -12,6 +12,7 @@ mod connector_auth;
 mod cybersource;
 mod dlocal;
 mod fiserv;
+mod forte;
 mod globalpay;
 mod intuit;
 mod mollie;

@@ -199,6 +199,7 @@ impl ConnectorData {
             "cybersource" => Ok(Box::new(&connector::Cybersource)),
             "dlocal" => Ok(Box::new(&connector::Dlocal)),
             "fiserv" => Ok(Box::new(&connector::Fiserv)),
+            // "forte" => Ok(Box::new(&connector::Forte)),
             "globalpay" => Ok(Box::new(&connector::Globalpay)),
             "intuit" => Ok(Box::new(&connector::Intuit)),
             "klarna" => Ok(Box::new(&connector::Klarna)),
