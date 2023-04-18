@@ -529,6 +529,10 @@ pub struct MandateOption {
     pub ip_address: Option<pii::Secret<String, common_utils::pii::IpAddress>>,
     pub mandate_type: Option<StripeMandateType>,
     pub amount: Option<i64>,
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    pub start_date : Option<time::PrimitiveDateTime>,
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    pub end_date :  Option<time::PrimitiveDateTime>,
 }
 
 impl ForeignTryFrom<(Option<MandateOption>, Option<String>)> for Option<payments::MandateData> {
@@ -555,6 +559,9 @@ impl ForeignTryFrom<(Option<MandateOption>, Option<String>)> for Option<payments
                         payments::MandateType::SingleUse(payments::MandateAmountData {
                             amount: mandate.amount.unwrap_or_default(),
                             currency,
+                            start_date: mandate.start_date,
+                            end_date: mandate.end_date,
+                            metadata: None,
                         })
                     }
                     StripeMandateType::MultiUse => payments::MandateType::MultiUse(None),
