@@ -8,13 +8,13 @@ use crate::{
 };
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
-pub struct NexinetsPaymentsRequest {
+pub struct FortePaymentsRequest {
     amount: i64,
-    card: NexinetsCard,
+    card: ForteCard,
 }
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
-pub struct NexinetsCard {
+pub struct ForteCard {
     name: Secret<String>,
     number: Secret<String, common_utils::pii::CardNumber>,
     expiry_month: Secret<String>,
@@ -23,12 +23,12 @@ pub struct NexinetsCard {
     complete: bool,
 }
 
-impl TryFrom<&types::PaymentsAuthorizeRouterData> for NexinetsPaymentsRequest {
+impl TryFrom<&types::PaymentsAuthorizeRouterData> for FortePaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         match item.request.payment_method_data.clone() {
             api::PaymentMethodData::Card(req_card) => {
-                let card = NexinetsCard {
+                let card = ForteCard {
                     name: req_card.card_holder_name,
                     number: req_card.card_number,
                     expiry_month: req_card.card_exp_month,
@@ -47,11 +47,11 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for NexinetsPaymentsRequest {
 }
 
 // Auth Struct
-pub struct NexinetsAuthType {
+pub struct ForteAuthType {
     pub(super) api_key: String,
 }
 
-impl TryFrom<&types::ConnectorAuthType> for NexinetsAuthType {
+impl TryFrom<&types::ConnectorAuthType> for ForteAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
@@ -63,44 +63,38 @@ impl TryFrom<&types::ConnectorAuthType> for NexinetsAuthType {
     }
 }
 // PaymentsResponse
-
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
-pub enum NexinetsPaymentStatus {
+pub enum FortePaymentStatus {
     Succeeded,
     Failed,
     #[default]
     Processing,
 }
 
-impl From<NexinetsPaymentStatus> for enums::AttemptStatus {
-    fn from(item: NexinetsPaymentStatus) -> Self {
+impl From<FortePaymentStatus> for enums::AttemptStatus {
+    fn from(item: FortePaymentStatus) -> Self {
         match item {
-            NexinetsPaymentStatus::Succeeded => Self::Charged,
-            NexinetsPaymentStatus::Failed => Self::Failure,
-            NexinetsPaymentStatus::Processing => Self::Authorizing,
+            FortePaymentStatus::Succeeded => Self::Charged,
+            FortePaymentStatus::Failed => Self::Failure,
+            FortePaymentStatus::Processing => Self::Authorizing,
         }
     }
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct NexinetsPaymentsResponse {
-    status: NexinetsPaymentStatus,
+pub struct FortePaymentsResponse {
+    status: FortePaymentStatus,
     id: String,
 }
 
 impl<F, T>
-    TryFrom<types::ResponseRouterData<F, NexinetsPaymentsResponse, T, types::PaymentsResponseData>>
+    TryFrom<types::ResponseRouterData<F, FortePaymentsResponse, T, types::PaymentsResponseData>>
     for types::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::ResponseRouterData<
-            F,
-            NexinetsPaymentsResponse,
-            T,
-            types::PaymentsResponseData,
-        >,
+        item: types::ResponseRouterData<F, FortePaymentsResponse, T, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             status: enums::AttemptStatus::from(item.response.status),
@@ -118,11 +112,11 @@ impl<F, T>
 // REFUND :
 // Type definition for RefundRequest
 #[derive(Default, Debug, Serialize)]
-pub struct NexinetsRefundRequest {
+pub struct ForteRefundRequest {
     pub amount: i64,
 }
 
-impl<F> TryFrom<&types::RefundsRouterData<F>> for NexinetsRefundRequest {
+impl<F> TryFrom<&types::RefundsRouterData<F>> for ForteRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
         Ok(Self {
@@ -193,7 +187,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
 }
 
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
-pub struct NexinetsErrorResponse {
+pub struct ForteErrorResponse {
     pub status_code: u16,
     pub code: String,
     pub message: String,
