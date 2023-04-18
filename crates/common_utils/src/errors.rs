@@ -11,6 +11,12 @@ pub type CustomResult<T, E> = error_stack::Result<T, E>;
 /// Parsing Errors
 #[derive(Debug, thiserror::Error)]
 pub enum ParsingError {
+    ///Failed to parse struct
+    #[error("Failed to parse struct {0}")]
+    StructParseFailure(&'static str),
+    /// Failed to encode data to given format
+    #[error("Failed to serialize to {0} format")]
+    EncodeError(&'static str),
     /// Failed to parse data
     #[error("Unknown error while parsing")]
     UnknownError,

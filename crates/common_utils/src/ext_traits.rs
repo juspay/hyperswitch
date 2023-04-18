@@ -88,7 +88,7 @@ where
             &P::try_from(self).change_context(errors::ParsingError::UnknownError)?,
         )
         .into_report()
-        .change_context(errors::ParsingError::UnknownError)
+        .change_context(errors::ParsingError::EncodeError("string"))
         .attach_printable_lazy(|| format!("Unable to convert {self:?} to a request"))
     }
 
@@ -102,7 +102,7 @@ where
             &P::try_from(self).change_context(errors::ParsingError::UnknownError)?,
         )
         .into_report()
-        .change_context(errors::ParsingError::UnknownError)
+        .change_context(errors::ParsingError::EncodeError("url-encoded"))
         .attach_printable_lazy(|| format!("Unable to convert {self:?} to a request"))
     }
 
@@ -113,7 +113,7 @@ where
     {
         serde_urlencoded::to_string(self)
             .into_report()
-            .change_context(errors::ParsingError::UnknownError)
+            .change_context(errors::ParsingError::EncodeError("url-encoded"))
             .attach_printable_lazy(|| format!("Unable to convert {self:?} to a request"))
     }
 
@@ -123,7 +123,7 @@ where
     {
         serde_json::to_string(self)
             .into_report()
-            .change_context(errors::ParsingError::UnknownError)
+            .change_context(errors::ParsingError::EncodeError("json"))
             .attach_printable_lazy(|| format!("Unable to convert {self:?} to a request"))
     }
 
@@ -133,7 +133,7 @@ where
     {
         serde_json::to_value(self)
             .into_report()
-            .change_context(errors::ParsingError::UnknownError)
+            .change_context(errors::ParsingError::EncodeError("json-value"))
             .attach_printable_lazy(|| format!("Unable to convert {self:?} to a value"))
     }
 
@@ -143,7 +143,7 @@ where
     {
         serde_json::to_vec(self)
             .into_report()
-            .change_context(errors::ParsingError::UnknownError)
+            .change_context(errors::ParsingError::EncodeError("byte-vec"))
             .attach_printable_lazy(|| format!("Unable to convert {self:?} to a value"))
     }
 }

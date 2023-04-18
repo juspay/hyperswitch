@@ -643,6 +643,7 @@ fn get_webhook_object_from_body(
         .notification_items
         .drain(..)
         .next()
+        // TODO: ParsingError doesn't seem to be an apt error for this case
         .ok_or(errors::ParsingError::UnknownError)
         .into_report()?;
 
