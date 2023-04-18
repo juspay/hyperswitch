@@ -9,6 +9,7 @@ impl PaymentIntents {
     pub fn server(state: routes::AppState) -> Scope {
         web::scope("/payment_intents")
             .app_data(web::Data::new(state))
+            .service(payment_intents_retrieve_with_gateway_creds)
             .service(payment_intents_create)
             .service(payment_intents_retrieve)
             .service(payment_intents_update)

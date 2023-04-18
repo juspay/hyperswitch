@@ -64,7 +64,7 @@ pub struct SessionRequest {
 #[serde(rename_all = "snake_case")]
 pub struct PaymentRequest {
     pub apple_pay_merchant_id: String,
-    pub country_code: String,
+    pub country_code: api_models::enums::CountryCode,
     pub currency_code: String,
     pub total: AmountInfo,
     pub merchant_capabilities: Vec<String>,

@@ -11,76 +11,78 @@ build = "src/build.rs"
 
 [features]
 default = ["kv_store", "stripe", "oltp", "olap", "accounts_cache"]
-kms = ["aws-config", "aws-sdk-kms"]
-basilisk = ["josekit", "kms"]
+kms = ["external_services/kms"]
+basilisk = ["kms"]
 stripe = ["dep:serde_qs"]
 sandbox = ["kms", "stripe", "basilisk"]
+production = ["kms", "stripe", "basilisk"]
 olap = []
 oltp = []
-production = []
 kv_store = []
 accounts_cache = []
 openapi = ["olap", "oltp"]
+vergen = ["router_env/vergen"]
+multiple_mca = ["api_models/multiple_mca"]
 
 
 [dependencies]
 actix = "0.13.0"
 actix-cors = "0.6.4"
 actix-rt = "2.8.0"
-actix-web = "4.3.0"
+actix-web = "4.3.1"
 async-bb8-diesel = { git = "https://github.com/juspay/async-bb8-diesel", rev = "9a71d142726dbc33f41c1fd935ddaa79841c7be5" }
-async-trait = "0.1.63"
-aws-config = { version = "0.54.1", optional = true }
-aws-sdk-kms = { version = "0.24.0", optional = true }
+async-trait = "0.1.66"
 base64 = "0.21.0"
 bb8 = "0.8"
 blake3 = "1.3.3"
-bytes = "1.3.0"
-clap = { version = "4.1.4", default-features = false, features = ["std", "derive", "help", "usage"] }
+bytes = "1.4.0"
+clap = { version = "4.1.8", default-features = false, features = ["std", "derive", "help", "usage"] }
 config = { version = "0.13.3", features = ["toml"] }
 crc32fast = "1.3.2"
-diesel = { version = "2.0.3", features = ["postgres", "serde_json", "time", "64-column-tables"] }
-dyn-clone = "1.0.10"
-encoding_rs = "0.8.31"
+diesel = { version = "2.0.3", features = ["postgres"] }
+dyn-clone = "1.0.11"
+encoding_rs = "0.8.32"
 error-stack = "0.3.1"
 frunk = "0.4.1"
 frunk_core = "0.4.1"
-futures = "0.3.25"
+futures = "0.3.27"
 hex = "0.4.3"
-http = "0.2.8"
-josekit = { version = "0.8.1", optional = true }
+http = "0.2.9"
+josekit = "0.8.2"
 jsonwebtoken = "8.2.0"
 literally = "0.1.3"
 maud = { version = "0.24", features = ["actix-web"] }
 mimalloc = { version = "0.1", optional = true }
 mime = "0.3.16"
+moka = { version = "0.10", features = ["future"] }
 nanoid = "0.4.0"
 num_cpus = "1.15.0"
-once_cell = "1.17.0"
+once_cell = "1.17.1"
 rand = "0.8.5"
 regex = "1.7.1"
 reqwest = { version = "0.11.14", features = ["json", "native-tls", "gzip"] }
 ring = "0.16.20"
-serde = { version = "1.0.152", features = ["derive"] }
-serde_json = "1.0.91"
-serde_path_to_error = "0.1.9"
-serde_qs = { version = "0.11.0", optional = true }
+serde = { version = "1.0.155", features = ["derive"] }
+serde_json = "1.0.94"
+serde_path_to_error = "0.1.10"
+serde_qs = { version = "0.12.0", optional = true }
 serde_urlencoded = "0.7.1"
-serde_with = "2.2.0"
+serde_with = "2.3.1"
 signal-hook-tokio = { version = "0.3.1", features = ["futures-v0_3"] }
-signal-hook = "0.3.14"
+signal-hook = "0.3.15"
 strum = { version = "0.24.1", features = ["derive"] }
-thiserror = "1.0.38"
-time = { version = "0.3.17", features = ["serde", "serde-well-known", "std"] }
-tokio = { version = "1.25.0", features = ["macros", "rt-multi-thread"] }
+thiserror = "1.0.39"
+time = { version = "0.3.20", features = ["serde", "serde-well-known", "std"] }
+tokio = { version = "1.26.0", features = ["macros", "rt-multi-thread"] }
 url = { version = "2.3.1", features = ["serde"] }
-utoipa = { version = "3.0.3", features = ["preserve_order", "time"] }
-utoipa-swagger-ui = { version = "3.0.2", features = ["actix-web"] }
-uuid = { version = "1.2.2", features = ["serde", "v4"] }
+utoipa = { version = "3.2.0", features = ["preserve_order", "time"] }
+utoipa-swagger-ui = { version = "3.1.1", features = ["actix-web"] }
+uuid = { version = "1.3.0", features = ["serde", "v4"] }
 
 # First party crates
-api_models = { version = "0.1.0", path = "../api_models" }
-common_utils = { version = "0.1.0", path = "../common_utils" }
+api_models = { version = "0.1.0", path = "../api_models", features = ["errors"] }
+common_utils = { version = "0.1.0", path = "../common_utils", features = ["signals", "async_ext"] }
+external_services = { version = "0.1.0", path = "../external_services" }
 masking = { version = "0.1.0", path = "../masking" }
 redis_interface = { version = "0.1.0", path = "../redis_interface" }
 router_derive = { version = "0.1.0", path = "../router_derive" }
@@ -88,17 +90,17 @@ router_env = { version = "0.1.0", path = "../router_env", features = ["log_extra
 storage_models = { version = "0.1.0", path = "../storage_models", features = ["kv_store"] }
 
 [build-dependencies]
-router_env = { version = "0.1.0", path = "../router_env", default-features = false, features = ["vergen"] }
+router_env = { version = "0.1.0", path = "../router_env", default-features = false }
 
 [dev-dependencies]
-actix-http = "3.3.0"
-awc = { version = "3.1.0", features = ["rustls"] }
+actix-http = "3.3.1"
+awc = { version = "3.1.1", features = ["rustls"] }
 derive_deref = "1.1.1"
 rand = "0.8.5"
 serial_test = "1.0.0"
-time = { version = "0.3.17", features = ["macros"] }
-tokio = "1.25.0"
-toml = "0.7.0"
+time = { version = "0.3.20", features = ["macros"] }
+tokio = "1.26.0"
+toml = "0.7.2"
 wiremock = "0.5"
 
 [[bin]]

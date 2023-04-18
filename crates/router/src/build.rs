@@ -4,5 +4,6 @@ fn main() {
     #[cfg(debug_assertions)]
     println!("cargo:rustc-env=RUST_MIN_STACK=4194304"); // 4 * 1024 * 1024 = 4 MiB
 
+    #[cfg(feature = "vergen")]
     router_env::vergen::generate_cargo_instructions();
 }

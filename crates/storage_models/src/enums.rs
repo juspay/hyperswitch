@@ -2,8 +2,10 @@
 pub mod diesel_exports {
     pub use super::{
         DbAttemptStatus as AttemptStatus, DbAuthenticationType as AuthenticationType,
-        DbCaptureMethod as CaptureMethod, DbConnectorType as ConnectorType, DbCurrency as Currency,
-        DbEventClass as EventClass, DbEventObjectType as EventObjectType, DbEventType as EventType,
+        DbCaptureMethod as CaptureMethod, DbConnectorType as ConnectorType,
+        DbCountryCode as CountryCode, DbCurrency as Currency, DbDisputeStage as DisputeStage,
+        DbDisputeStatus as DisputeStatus, DbEventClass as EventClass,
+        DbEventObjectType as EventObjectType, DbEventType as EventType,
         DbFutureUsage as FutureUsage, DbIntentStatus as IntentStatus,
         DbMandateStatus as MandateStatus, DbMandateType as MandateType,
         DbMerchantStorageScheme as MerchantStorageScheme,
@@ -12,6 +14,8 @@ pub mod diesel_exports {
         DbRefundType as RefundType,
     };
 }
+
+pub use common_enums::*;
 
 #[derive(
     Clone,
@@ -47,11 +51,13 @@ pub enum AttemptStatus {
     VoidFailed,
     AutoRefunded,
     PartialCharged,
+    Unresolved,
     #[default]
     Pending,
     Failure,
     PaymentMethodAwaited,
     ConfirmationAwaited,
+    DeviceDataCollectionPending,
 }
 
 #[derive(
@@ -273,6 +279,7 @@ pub enum Currency {
 pub enum EventClass {
     Payments,
     Refunds,
+    Disputes,
 }
 
 #[derive(
@@ -292,6 +299,7 @@ pub enum EventClass {
 pub enum EventObjectType {
     PaymentDetails,
     RefundDetails,
+    DisputeDetails,
 }
 
 #[derive(
@@ -311,8 +319,17 @@ pub enum EventObjectType {
 #[strum(serialize_all = "snake_case")]
 pub enum EventType {
     PaymentSucceeded,
+    PaymentProcessing,
+    ActionRequired,
     RefundSucceeded,
     RefundFailed,
+    DisputeOpened,
+    DisputeExpired,
+    DisputeAccepted,
+    DisputeCancelled,
+    DisputeChallenged,
+    DisputeWon,
+    DisputeLost,
 }
 
 #[derive(
@@ -337,6 +354,7 @@ pub enum IntentStatus {
     Cancelled,
     Processing,
     RequiresCustomerAction,
+    RequiresMerchantAction,
     RequiresPaymentMethod,
     #[default]
     RequiresConfirmation,
@@ -437,6 +455,7 @@ pub enum PaymentMethod {
     PayLater,
     Wallet,
     BankRedirect,
+    Crypto,
 }
 
 #[derive(
@@ -605,6 +624,7 @@ pub enum PaymentMethodType {
     GooglePay,
     ApplePay,
     Paypal,
+    CryptoCurrency,
 }
 
 #[derive(
@@ -705,4 +725,54 @@ pub enum PaymentExperience {
     OneClick,
     LinkWallet,
     InvokePaymentApp,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    Default,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    frunk::LabelledGeneric,
+)]
+#[router_derive::diesel_enum(storage_type = "pg_enum")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum DisputeStage {
+    PreDispute,
+    #[default]
+    Dispute,
+    PreArbitration,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    Default,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    frunk::LabelledGeneric,
+)]
+#[router_derive::diesel_enum(storage_type = "pg_enum")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum DisputeStatus {
+    #[default]
+    DisputeOpened,
+    DisputeExpired,
+    DisputeAccepted,
+    DisputeCancelled,
+    DisputeChallenged,
+    DisputeWon,
+    DisputeLost,
 }

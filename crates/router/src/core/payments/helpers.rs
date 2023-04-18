@@ -1,10 +1,15 @@
 use std::borrow::Cow;
 
-use common_utils::{ext_traits::AsyncExt, fp_utils};
+use base64::Engine;
+use common_utils::{
+    ext_traits::{AsyncExt, ByteSliceExt, ValueExt},
+    fp_utils,
+};
 // TODO : Evaluate all the helper functions ()
 use error_stack::{report, IntoReport, ResultExt};
-use masking::ExposeOptionInterface;
+use masking::{ExposeOptionInterface, PeekInterface};
 use router_env::{instrument, tracing};
+use storage_models::enums;
 use uuid::Uuid;
 
 use super::{
@@ -13,17 +18,18 @@ use super::{
 };
 use crate::{
     configs::settings::Server,
-    consts,
+    connection, consts,
     core::{
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         payment_methods::{cards, vault},
     },
     db::StorageInterface,
-    routes::AppState,
-    scheduler::{metrics, workflows::payment_sync},
+    routes::{metrics, AppState},
+    scheduler::{metrics as scheduler_metrics, workflows::payment_sync},
     services,
     types::{
-        api::{self, enums as api_enums, CustomerAcceptanceExt, MandateValidationFieldsExt},
+        self,
+        api::{self, admin, enums as api_enums, CustomerAcceptanceExt, MandateValidationFieldsExt},
         storage::{self, enums as storage_enums, ephemeral_key},
         transformers::ForeignInto,
     },
@@ -333,7 +339,7 @@ pub fn create_startpay_url(
     payment_intent: &storage::PaymentIntent,
 ) -> String {
     format!(
-        "{}/payments/start/{}/{}/{}",
+        "{}/payments/redirect/{}/{}/{}",
         server.base_url,
         payment_intent.payment_id,
         payment_intent.merchant_id,
@@ -342,15 +348,39 @@ pub fn create_startpay_url(
 }
 
 pub fn create_redirect_url(
-    server: &Server,
+    router_base_url: &String,
+    payment_attempt: &storage::PaymentAttempt,
+    connector_name: &String,
+    creds_identifier: Option<&str>,
+) -> String {
+    let creds_identifier_path = creds_identifier.map_or_else(String::new, |cd| format!("/{}", cd));
+    format!(
+        "{}/payments/{}/{}/redirect/response/{}",
+        router_base_url, payment_attempt.payment_id, payment_attempt.merchant_id, connector_name,
+    ) + &creds_identifier_path
+}
+
+pub fn create_webhook_url(
+    router_base_url: &String,
     payment_attempt: &storage::PaymentAttempt,
     connector_name: &String,
 ) -> String {
     format!(
-        "{}/payments/{}/{}/response/{}",
-        server.base_url, payment_attempt.payment_id, payment_attempt.merchant_id, connector_name
+        "{}/webhooks/{}/{}",
+        router_base_url, payment_attempt.merchant_id, connector_name
     )
 }
+pub fn create_complete_authorize_url(
+    router_base_url: &String,
+    payment_attempt: &storage::PaymentAttempt,
+    connector_name: &String,
+) -> String {
+    format!(
+        "{}/payments/{}/{}/redirect/complete/{}",
+        router_base_url, payment_attempt.payment_id, payment_attempt.merchant_id, connector_name
+    )
+}
+
 fn validate_recurring_mandate(req: api::MandateValidationFields) -> RouterResult<()> {
     req.mandate_id.check_value_present("mandate_id")?;
 
@@ -471,7 +501,7 @@ where
 
         match schedule_time {
             Some(stime) => {
-                metrics::TASKS_ADDED_COUNT.add(&metrics::CONTEXT, 1, &[]); // Metrics
+                scheduler_metrics::TASKS_ADDED_COUNT.add(&metrics::CONTEXT, 1, &[]); // Metrics
                 super::add_process_sync_task(&*state.store, payment_attempt, stime)
                     .await
                     .into_report()
@@ -494,13 +524,11 @@ where
 }
 
 #[instrument(skip_all)]
-pub(crate) async fn call_payment_method(
-    state: &AppState,
-    merchant_account: &storage::MerchantAccount,
+pub(crate) async fn get_payment_method_create_request(
     payment_method: Option<&api::PaymentMethodData>,
     payment_method_type: Option<storage_enums::PaymentMethod>,
-    maybe_customer: &Option<storage::Customer>,
-) -> RouterResult<api::PaymentMethodResponse> {
+    customer: &storage::Customer,
+) -> RouterResult<api::PaymentMethodCreate> {
     match payment_method {
         Some(pm_data) => match payment_method_type {
             Some(payment_method_type) => match pm_data {
@@ -511,42 +539,21 @@ pub(crate) async fn call_payment_method(
                         card_exp_year: card.card_exp_year.clone(),
                         card_holder_name: Some(card.card_holder_name.clone()),
                     };
-                    match maybe_customer {
-                        Some(customer) => {
-                            let customer_id = customer.customer_id.clone();
-                            let payment_method_request = api::PaymentMethodCreate {
-                                payment_method: payment_method_type.foreign_into(),
-                                payment_method_type: None,
-                                payment_method_issuer: card.card_issuer.clone(),
-                                payment_method_issuer_code: None,
-                                card: Some(card_detail),
-                                metadata: None,
-                                customer_id: Some(customer_id),
-                                card_network: card
-                                    .card_network
-                                    .as_ref()
-                                    .map(|card_network| card_network.to_string()),
-                            };
-                            let resp = cards::add_payment_method(
-                                state,
-                                payment_method_request,
-                                merchant_account,
-                            )
-                            .await
-                            .attach_printable("Error on adding payment method")?;
-                            match resp {
-                                crate::services::ApplicationResponse::Json(payment_method) => {
-                                    Ok(payment_method)
-                                }
-                                _ => Err(report!(errors::ApiErrorResponse::InternalServerError)
-                                    .attach_printable("Error on adding payment method")),
-                            }
-                        }
-                        None => Err(report!(errors::ApiErrorResponse::MissingRequiredField {
-                            field_name: "customer"
-                        })
-                        .attach_printable("Missing Customer Object")),
-                    }
+                    let customer_id = customer.customer_id.clone();
+                    let payment_method_request = api::PaymentMethodCreate {
+                        payment_method: payment_method_type.foreign_into(),
+                        payment_method_type: None,
+                        payment_method_issuer: card.card_issuer.clone(),
+                        payment_method_issuer_code: None,
+                        card: Some(card_detail),
+                        metadata: None,
+                        customer_id: Some(customer_id),
+                        card_network: card
+                            .card_network
+                            .as_ref()
+                            .map(|card_network| card_network.to_string()),
+                    };
+                    Ok(payment_method_request)
                 }
                 _ => {
                     let payment_method_request = api::PaymentMethodCreate {
@@ -556,20 +563,10 @@ pub(crate) async fn call_payment_method(
                         payment_method_issuer_code: None,
                         card: None,
                         metadata: None,
-                        customer_id: None,
+                        customer_id: Some(customer.customer_id.to_owned()),
                         card_network: None,
                     };
-                    let resp =
-                        cards::add_payment_method(state, payment_method_request, merchant_account)
-                            .await
-                            .attach_printable("Error on adding payment method")?;
-                    match resp {
-                        crate::services::ApplicationResponse::Json(payment_method) => {
-                            Ok(payment_method)
-                        }
-                        _ => Err(report!(errors::ApiErrorResponse::InternalServerError)
-                            .attach_printable("Error on adding payment method")),
-                    }
+                    Ok(payment_method_request)
                 }
             },
             None => Err(report!(errors::ApiErrorResponse::MissingRequiredField {
@@ -606,20 +603,13 @@ pub async fn get_customer_from_details<F: Clone>(
 }
 
 pub async fn get_connector_default(
-    state: &AppState,
-    request_connector: Option<&String>,
-) -> CustomResult<api::ConnectorCallType, errors::ApiErrorResponse> {
-    let connectors = &state.conf.connectors;
-    if let Some(connector_name) = request_connector {
-        let connector_data = api::ConnectorData::get_connector_by_name(
-            connectors,
-            connector_name,
-            api::GetToken::Connector,
-        )?;
-        Ok(api::ConnectorCallType::Single(connector_data))
-    } else {
-        Ok(api::ConnectorCallType::Routing)
-    }
+    _state: &AppState,
+    request_connector: Option<serde_json::Value>,
+) -> CustomResult<api::ConnectorChoice, errors::ApiErrorResponse> {
+    Ok(request_connector.map_or(
+        api::ConnectorChoice::Decide,
+        api::ConnectorChoice::StraightThrough,
+    ))
 }
 
 #[instrument(skip_all)]
@@ -651,6 +641,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R>(
                         ..storage::CustomerNew::default()
                     };
 
+                    metrics::CUSTOMER_CREATED.add(&metrics::CONTEXT, 1, &[]);
                     db.insert_customer(new_customer).await
                 }
             })
@@ -682,7 +673,6 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R>(
     ))
 }
 
-#[allow(clippy::too_many_arguments)]
 pub async fn make_pm_data<'a, F: Clone, R>(
     operation: BoxedOperation<'a, F, R>,
     state: &'a AppState,
@@ -690,13 +680,37 @@ pub async fn make_pm_data<'a, F: Clone, R>(
 ) -> RouterResult<(BoxedOperation<'a, F, R>, Option<api::PaymentMethodData>)> {
     let request = &payment_data.payment_method_data;
     let token = payment_data.token.clone();
+    let hyperswitch_token = if let Some(token) = token {
+        let redis_conn = connection::redis_connection(&state.conf).await;
+        let key = format!(
+            "pm_token_{}_{}_hyperswitch",
+            token,
+            payment_data
+                .payment_attempt
+                .payment_method
+                .to_owned()
+                .get_required_value("payment_method")?,
+        );
+
+        let hyperswitch_token_option = redis_conn
+            .get_key::<Option<String>>(&key)
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to fetch the token from redis")?;
+
+        hyperswitch_token_option.or(Some(token))
+    } else {
+        None
+    };
+
     let card_cvc = payment_data.card_cvc.clone();
 
     // TODO: Handle case where payment method and token both are present in request properly.
-    let payment_method = match (request, token) {
-        (_, Some(token)) => {
+    let payment_method = match (request, hyperswitch_token) {
+        (_, Some(hyperswitch_token)) => {
             let (pm, supplementary_data) = vault::Vault::get_payment_method_data_from_locker(
-                state, &token,
+                state,
+                &hyperswitch_token,
             )
             .await
             .attach_printable(
@@ -722,9 +736,10 @@ pub async fn make_pm_data<'a, F: Clone, R>(
                         let updated_pm = api::PaymentMethodData::Card(updated_card);
                         vault::Vault::store_payment_method_data_in_locker(
                             state,
-                            Some(token),
+                            Some(hyperswitch_token),
                             &updated_pm,
                             payment_data.payment_intent.customer_id.to_owned(),
+                            enums::PaymentMethod::Card,
                         )
                         .await?;
                         Some(updated_pm)
@@ -743,9 +758,10 @@ pub async fn make_pm_data<'a, F: Clone, R>(
                             let updated_pm = api::PaymentMethodData::Wallet(wallet_data);
                             vault::Vault::store_payment_method_data_in_locker(
                                 state,
-                                Some(token),
+                                Some(hyperswitch_token),
                                 &updated_pm,
                                 payment_data.payment_intent.customer_id.to_owned(),
+                                enums::PaymentMethod::Wallet,
                             )
                             .await?;
                             Some(updated_pm)
@@ -768,6 +784,7 @@ pub async fn make_pm_data<'a, F: Clone, R>(
                 None,
                 pm,
                 payment_data.payment_intent.customer_id.to_owned(),
+                enums::PaymentMethod::Card,
             )
             .await?;
             payment_data.token = Some(token);
@@ -775,12 +792,14 @@ pub async fn make_pm_data<'a, F: Clone, R>(
         }
         (pm @ Some(api::PaymentMethodData::PayLater(_)), _) => Ok(pm.to_owned()),
         (pm @ Some(api::PaymentMethodData::BankRedirect(_)), _) => Ok(pm.to_owned()),
+        (pm @ Some(api::PaymentMethodData::Crypto(_)), _) => Ok(pm.to_owned()),
         (pm_opt @ Some(pm @ api::PaymentMethodData::Wallet(_)), _) => {
             let token = vault::Vault::store_payment_method_data_in_locker(
                 state,
                 None,
                 pm,
                 payment_data.payment_intent.customer_id.to_owned(),
+                enums::PaymentMethod::Wallet,
             )
             .await?;
             payment_data.token = Some(token);
@@ -921,6 +940,7 @@ pub fn get_handle_response_url(
     connector: String,
 ) -> RouterResult<api::RedirectionResponse> {
     let payments_return_url = response.return_url.as_ref();
+
     let redirection_response = make_pg_redirect_response(payment_id, &response, connector);
 
     let return_url = make_merchant_url_with_response(
@@ -1158,9 +1178,11 @@ pub(crate) fn authenticate_client_secret(
     payment_intent_client_secret: Option<&String>,
 ) -> Result<(), errors::ApiErrorResponse> {
     match (request_client_secret, payment_intent_client_secret) {
-        (Some(req_cs), Some(pi_cs)) => utils::when(req_cs.ne(pi_cs), || {
+        (Some(req_cs), Some(pi_cs)) if req_cs != pi_cs => {
             Err(errors::ApiErrorResponse::ClientSecretInvalid)
-        }),
+        }
+        // If there is no client in payment intent, then it has expired
+        (Some(_), None) => Err(errors::ApiErrorResponse::ClientSecretExpired),
         _ => Ok(()),
     }
 }
@@ -1221,12 +1243,92 @@ pub(crate) async fn verify_client_secret(
                 .await
                 .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
 
-            authenticate_client_secret(Some(&cs), payment_intent.client_secret.as_ref())
-                .map_err(errors::ApiErrorResponse::from)?;
+            authenticate_client_secret(Some(&cs), payment_intent.client_secret.as_ref())?;
             Ok(payment_intent)
         })
         .await
         .transpose()
+}
+
+fn connector_needs_business_sub_label(connector_name: &str) -> bool {
+    let connectors_list = [api_models::enums::Connector::Cybersource];
+    connectors_list
+        .map(|connector| connector.to_string())
+        .contains(&connector_name.to_string())
+}
+
+/// Create the connector label
+/// {connector_name}_{country}_{business_label}
+pub fn get_connector_label(
+    business_country: api_models::enums::CountryCode,
+    business_label: &str,
+    business_sub_label: Option<&String>,
+    connector_name: &str,
+) -> String {
+    let mut connector_label = format!("{connector_name}_{business_country}_{business_label}");
+
+    // Business sub label is currently being used only for cybersource
+    // To ensure backwards compatibality, cybersource mca's created before this change
+    // will have the business_sub_label value as default.
+    //
+    // Even when creating the connector account, if no sub label is provided, default will be used
+    if connector_needs_business_sub_label(connector_name) {
+        if let Some(sub_label) = business_sub_label {
+            connector_label.push_str(&format!("_{sub_label}"));
+        } else {
+            connector_label.push_str("_default"); // For backwards compatibality
+        }
+    }
+
+    connector_label
+}
+
+/// Do lazy parsing of primary business details
+/// If both country and label are passed, no need to parse business details from merchant_account
+/// If any one is missing, get it from merchant_account
+/// If there is more than one label or country configured in merchant account, then
+/// passing business details for payment is mandatory to avoid ambiguity
+pub fn get_business_details(
+    business_country: Option<api_enums::CountryCode>,
+    business_label: Option<&String>,
+    merchant_account: &storage_models::merchant_account::MerchantAccount,
+) -> RouterResult<(api_enums::CountryCode, String)> {
+    let (business_country, business_label) = match business_country.zip(business_label) {
+        Some((business_country, business_label)) => {
+            (business_country.to_owned(), business_label.to_owned())
+        }
+        None => {
+            // Parse the primary business details from merchant account
+            let primary_business_details: Vec<api_models::admin::PrimaryBusinessDetails> =
+                merchant_account
+                    .primary_business_details
+                    .clone()
+                    .parse_value("PrimaryBusinessDetails")
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("failed to parse primary business details")?;
+
+            if primary_business_details.len() == 1 {
+                let primary_business_details = primary_business_details.first().ok_or(
+                    errors::ApiErrorResponse::MissingRequiredField {
+                        field_name: "primary_business_details",
+                    },
+                )?;
+                (
+                    business_country.unwrap_or_else(|| primary_business_details.country.to_owned()),
+                    business_label
+                        .map(ToString::to_string)
+                        .unwrap_or_else(|| primary_business_details.business.to_owned()),
+                )
+            } else {
+                // If primary business details are not present or more than one
+                Err(report!(errors::ApiErrorResponse::MissingRequiredField {
+                    field_name: "business_country, business_label"
+                }))?
+            }
+        }
+    };
+
+    Ok((business_country, business_label))
 }
 
 #[inline]
@@ -1243,5 +1345,138 @@ mod tests {
         let req_cs = Some("1".to_string());
         let pi_cs = Some("2".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), pi_cs.as_ref()).is_err())
+    }
+}
+
+// This function will be removed after moving this functionality to server_wrap and using cache instead of config
+pub async fn insert_merchant_connector_creds_to_config(
+    db: &dyn StorageInterface,
+    merchant_id: &str,
+    merchant_connector_details: admin::MerchantConnectorDetailsWrap,
+) -> RouterResult<()> {
+    if let Some(encoded_data) = merchant_connector_details.encoded_data {
+        match db
+            .insert_config(storage::ConfigNew {
+                key: format!(
+                    "mcd_{merchant_id}_{}",
+                    merchant_connector_details.creds_identifier
+                ),
+                config: encoded_data.peek().to_owned(),
+            })
+            .await
+        {
+            Ok(_) => Ok(()),
+            Err(err) => {
+                if err.current_context().is_db_unique_violation() {
+                    Ok(())
+                } else {
+                    Err(err
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Failed to insert connector_creds to config"))
+                }
+            }
+        }
+    } else {
+        Ok(())
+    }
+}
+
+pub enum MerchantConnectorAccountType {
+    DbVal(storage::MerchantConnectorAccount),
+    CacheVal(api_models::admin::MerchantConnectorDetails),
+}
+
+impl MerchantConnectorAccountType {
+    pub fn get_metadata(&self) -> Option<masking::Secret<serde_json::Value>> {
+        match self {
+            Self::DbVal(val) => val.metadata.to_owned(),
+            Self::CacheVal(val) => val.metadata.to_owned(),
+        }
+    }
+    pub fn get_connector_account_details(&self) -> serde_json::Value {
+        match self {
+            Self::DbVal(val) => val.connector_account_details.to_owned(),
+            Self::CacheVal(val) => val.connector_account_details.peek().to_owned(),
+        }
+    }
+}
+
+pub async fn get_merchant_connector_account(
+    db: &dyn StorageInterface,
+    merchant_id: &str,
+    connector_label: &str,
+    creds_identifier: Option<String>,
+) -> RouterResult<MerchantConnectorAccountType> {
+    match creds_identifier {
+        Some(creds_identifier) => {
+            let mca_config = db
+                .find_config_by_key(format!("mcd_{merchant_id}_{creds_identifier}").as_str())
+                .await
+                .map_err(|error| {
+                    error.to_not_found_response(
+                        errors::ApiErrorResponse::MerchantConnectorAccountNotFound,
+                    )
+                })?;
+
+            let cached_mca = consts::BASE64_ENGINE
+            .decode(mca_config.config.as_bytes())
+            .into_report()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable(
+                "Failed to decode merchant_connector_details sent in request and then put in cache",
+            )?
+            .parse_struct("MerchantConnectorDetails")
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable(
+                "Failed to parse merchant_connector_details sent in request and then put in cache",
+            )?;
+
+            Ok(MerchantConnectorAccountType::CacheVal(cached_mca))
+        }
+        None => db
+            .find_merchant_connector_account_by_merchant_id_connector_label(
+                merchant_id,
+                connector_label,
+            )
+            .await
+            .map(MerchantConnectorAccountType::DbVal)
+            .change_context(errors::ApiErrorResponse::MerchantConnectorAccountNotFound),
+    }
+}
+
+/// This function replaces the request and response type of routerdata with the
+/// request and response type passed
+/// # Arguments
+///
+/// * `router_data` - original router data
+/// * `request` - new request
+/// * `response` - new response
+pub fn router_data_type_conversion<F1, F2, Req1, Req2, Res1, Res2>(
+    router_data: types::RouterData<F1, Req1, Res1>,
+    request: Req2,
+    response: Result<Res2, types::ErrorResponse>,
+) -> types::RouterData<F2, Req2, Res2> {
+    types::RouterData {
+        flow: std::marker::PhantomData,
+        request,
+        response,
+        merchant_id: router_data.merchant_id,
+        address: router_data.address,
+        amount_captured: router_data.amount_captured,
+        auth_type: router_data.auth_type,
+        connector: router_data.connector,
+        connector_auth_type: router_data.connector_auth_type,
+        connector_meta_data: router_data.connector_meta_data,
+        description: router_data.description,
+        payment_id: router_data.payment_id,
+        payment_method: router_data.payment_method,
+        payment_method_id: router_data.payment_method_id,
+        return_url: router_data.return_url,
+        status: router_data.status,
+        attempt_id: router_data.attempt_id,
+        access_token: router_data.access_token,
+        session_token: router_data.session_token,
+        reference_id: None,
+        payment_method_token: router_data.payment_method_token,
     }
 }

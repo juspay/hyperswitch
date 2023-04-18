@@ -6,9 +6,12 @@ volumes:
   cargo_build_cache:
   p_cargo_build_cache:
   c_cargo_build_cache:
+  redisinsight_store:
+
 
 networks:
   router_net:
+
 
 services:
 
@@ -59,6 +62,10 @@ services:
     profiles:
       - monitoring
     restart: unless-stopped
+    environment:
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_BASIC_ENABLED=false
     volumes:
       - ./config/grafana.ini:/etc/grafana/grafana.ini
       - ./config/grafana-datasource.yaml:/etc/grafana/provisioning/datasources/datasource.yml
@@ -76,9 +83,30 @@ services:
       - POSTGRES_PASSWORD=db_pass
       - POSTGRES_DB=hyperswitch_db
 
+  migration_runner:
+    image: rust:1.65
+    command: "bash -c 'cargo install diesel_cli --no-default-features --features \"postgres\" && diesel migration --database-url postgres://db_user:db_pass@pg:5432/hyperswitch_db run'"
+    working_dir: /app
+    networks:
+      - router_net
+    volumes:
+      - ./:/app
+
+  hyperswitch-server-init:
+    image: rust:1.65
+    command: cargo build --bin router
+    working_dir: /app
+    networks:
+      - router_net
+    volumes:
+      - ./:/app
+      - cargo_cache:/cargo_cache
+      - cargo_build_cache:/cargo_build_cache
+    environment:
+      - CARGO_TARGET_DIR=/cargo_build_cache
   hyperswitch-server:
     image: rust:1.65
-    command: cargo run -- -f ./config/docker_compose.toml
+    command: /cargo_build_cache/debug/router -f ./config/docker_compose.toml
     working_dir: /app
     ports:
       - "8080:8080"
@@ -100,12 +128,18 @@ services:
       start_period: 20s
       timeout: 10s
 
+    depends_on:
+      hyperswitch-server-init:
+        condition: service_completed_successfully
+
   hyperswitch-producer:
     image: rust:1.65
     command: cargo run --bin scheduler -- -f ./config/docker_compose.toml
     working_dir: /app
     networks:
       - router_net
+    profiles:
+      - scheduler
     volumes:
       - ./:/app
       - cargo_cache:/cargo_cache
@@ -119,13 +153,15 @@ services:
         condition: service_healthy
     labels:
       logs: "promtail"
-    
+
   hyperswitch-consumer:
     image: rust:1.65
     command: cargo run --bin scheduler -- -f ./config/docker_compose.toml
     working_dir: /app
     networks:
       - router_net
+    profiles:
+      - scheduler
     volumes:
       - ./:/app
       - cargo_cache:/cargo_cache
@@ -136,22 +172,20 @@ services:
       - SCHEDULER_FLOW=consumer
     depends_on:
       hyperswitch-server:
-        condition: service_healthy
-    
+        condition: service_started
+
     labels:
       logs: "promtail"
-    
+
     healthcheck:
       test: (ps -e | grep scheduler) || exit 1
       interval: 120s
       retries: 3
       start_period: 30s
       timeout: 10s
-    
-    
 
   redis-queue:
-    image: redis:7    
+    image: redis:7
     deploy:
       replicas: ${REDIS_CLUSTER_COUNT:-3}
     command: redis-server /usr/local/etc/redis/redis.conf
@@ -171,23 +205,48 @@ services:
       - redis-queue
     networks:
       - router_net
-    command: "bash -c 'export COUNT=${REDIS_CLUSTER_COUNT:-3}\n
-      if [ $$COUNT -lt 3 ]\n
-      then\n
-      echo \"Minimum 3 nodes are needed for redis cluster\"\n
-      exit 1\n
-      fi\n
-      HOSTS=\"\"\n
-      for ((c=1; c<=$$COUNT;c++))\n
-      do\n
-      NODE=$COMPOSE_PROJECT_NAME-redis-queue-$$c:6379\n
-      echo $$NODE\n
-      HOSTS=\"$$HOSTS $$NODE\"\n
-      done\n
-      echo Creating a cluster with $$HOSTS\n
-      redis-cli --cluster create $$HOSTS --cluster-yes\n
-      '"
-  
+    command: "bash -c 'export COUNT=${REDIS_CLUSTER_COUNT:-3}
+
+      \ if [ $$COUNT -lt 3 ]
+
+      \ then
+
+      \ echo \"Minimum 3 nodes are needed for redis cluster\"
+
+      \ exit 1
+
+      \ fi
+
+      \ HOSTS=\"\"
+
+      \ for ((c=1; c<=$$COUNT;c++))
+
+      \ do
+
+      \ NODE=$COMPOSE_PROJECT_NAME-redis-queue-$$c:6379
+
+      \ echo $$NODE
+
+      \ HOSTS=\"$$HOSTS $$NODE\"
+
+      \ done
+
+      \ echo Creating a cluster with $$HOSTS
+
+      \ redis-cli --cluster create $$HOSTS --cluster-yes
+
+      \ '"
+
+  redis-insight:
+    image: redislabs/redisinsight:latest
+    networks:
+      - router_net
+    profiles:
+      - full_kv
+    ports:
+      - "8001:8001"
+    volumes:
+      - redisinsight_store:/db
   prometheus:
     image: prom/prometheus:latest
     networks:
@@ -199,7 +258,7 @@ services:
     ports:
       - "9090"
     restart: unless-stopped
-  
+
   tempo:
     image: grafana/tempo:latest
     command: -config.file=/etc/tempo.yaml
@@ -233,6 +292,6 @@ services:
     restart: unless-stopped
     depends_on:
       hyperswitch-server:
-        condition: service_healthy
+        condition: service_started
     labels:
       logs: "promtail"

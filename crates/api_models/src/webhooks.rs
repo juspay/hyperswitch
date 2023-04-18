@@ -2,21 +2,34 @@ use common_utils::custom_serde;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
-use crate::{enums as api_enums, payments, refunds};
+use crate::{disputes, enums as api_enums, payments, refunds};
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum IncomingWebhookEvent {
     PaymentIntentFailure,
     PaymentIntentSuccess,
+    PaymentIntentProcessing,
+    PaymentActionRequired,
+    EventNotSupported,
     RefundFailure,
     RefundSuccess,
+    DisputeOpened,
+    DisputeExpired,
+    DisputeAccepted,
+    DisputeCancelled,
+    DisputeChallenged,
+    // dispute has been successfully challenged by the merchant
+    DisputeWon,
+    // dispute has been unsuccessfully challenged
+    DisputeLost,
     EndpointVerification,
 }
 
 pub enum WebhookFlow {
     Payment,
     Refund,
+    Dispute,
     Subscription,
     ReturnResponse,
 }
@@ -26,23 +39,37 @@ impl From<IncomingWebhookEvent> for WebhookFlow {
         match evt {
             IncomingWebhookEvent::PaymentIntentFailure => Self::Payment,
             IncomingWebhookEvent::PaymentIntentSuccess => Self::Payment,
+            IncomingWebhookEvent::PaymentIntentProcessing => Self::Payment,
+            IncomingWebhookEvent::PaymentActionRequired => Self::Payment,
+            IncomingWebhookEvent::EventNotSupported => Self::Payment,
             IncomingWebhookEvent::RefundSuccess => Self::Refund,
             IncomingWebhookEvent::RefundFailure => Self::Refund,
+            IncomingWebhookEvent::DisputeOpened => Self::Dispute,
+            IncomingWebhookEvent::DisputeAccepted => Self::Dispute,
+            IncomingWebhookEvent::DisputeExpired => Self::Dispute,
+            IncomingWebhookEvent::DisputeCancelled => Self::Dispute,
+            IncomingWebhookEvent::DisputeChallenged => Self::Dispute,
+            IncomingWebhookEvent::DisputeWon => Self::Dispute,
+            IncomingWebhookEvent::DisputeLost => Self::Dispute,
             IncomingWebhookEvent::EndpointVerification => Self::ReturnResponse,
         }
     }
 }
 
-pub struct IncomingWebhookRequestDetails<'a> {
-    pub method: actix_web::http::Method,
-    pub headers: &'a actix_web::http::header::HeaderMap,
-    pub body: &'a [u8],
-}
-
 pub type MerchantWebhookConfig = std::collections::HashSet<IncomingWebhookEvent>;
 
+pub enum RefundIdType {
+    RefundId(String),
+    ConnectorRefundId(String),
+}
+
+pub enum ObjectReferenceId {
+    PaymentId(payments::PaymentIdType),
+    RefundId(RefundIdType),
+}
+
 pub struct IncomingWebhookDetails {
-    pub object_reference_id: String,
+    pub object_reference_id: ObjectReferenceId,
     pub resource_object: Vec<u8>,
 }
 
@@ -61,6 +88,7 @@ pub struct OutgoingWebhook {
 pub enum OutgoingWebhookContent {
     PaymentDetails(payments::PaymentsResponse),
     RefundDetails(refunds::RefundResponse),
+    DisputeDetails(Box<disputes::DisputeResponse>),
 }
 
 pub trait OutgoingWebhookType: Serialize + From<OutgoingWebhook> + Sync + Send {}

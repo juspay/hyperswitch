@@ -1,13 +1,14 @@
 pub mod types;
 
 use actix_web::{get, post, web, HttpRequest, HttpResponse};
+use error_stack::report;
 use router_env::{instrument, tracing};
 
 use crate::{
     compatibility::{stripe::errors, wrap},
     core::refunds,
     routes,
-    services::authentication as auth,
+    services::{api, authentication as auth},
     types::api::refunds as refund_types,
 };
 
@@ -15,10 +16,18 @@ use crate::{
 #[post("")]
 pub async fn refund_create(
     state: web::Data<routes::AppState>,
+    qs_config: web::Data<serde_qs::Config>,
     req: HttpRequest,
-    form_payload: web::Form<types::StripeCreateRefundRequest>,
+    form_payload: web::Bytes,
 ) -> HttpResponse {
-    let payload = form_payload.into_inner();
+    let payload: types::StripeCreateRefundRequest = match qs_config
+        .deserialize_bytes(&form_payload)
+        .map_err(|err| report!(errors::StripeErrorCode::from(err)))
+    {
+        Ok(p) => p,
+        Err(err) => return api::log_and_return_error_response(err),
+    };
+
     let create_refund_req: refund_types::RefundRequest = payload.into();
 
     wrap::compatibility_api_wrap::<
@@ -28,7 +37,7 @@ pub async fn refund_create(
         _,
         _,
         _,
-        types::StripeCreateRefundResponse,
+        types::StripeRefundResponse,
         errors::StripeErrorCode,
     >(
         state.get_ref(),
@@ -47,7 +56,10 @@ pub async fn refund_retrieve(
     req: HttpRequest,
     path: web::Path<String>,
 ) -> HttpResponse {
-    let refund_id = path.into_inner();
+    let refund_request = refund_types::RefundsRetrieveRequest {
+        refund_id: path.into_inner(),
+        merchant_connector_details: None,
+    };
     wrap::compatibility_api_wrap::<
         _,
         _,
@@ -55,17 +67,17 @@ pub async fn refund_retrieve(
         _,
         _,
         _,
-        types::StripeCreateRefundResponse,
+        types::StripeRefundResponse,
         errors::StripeErrorCode,
     >(
         state.get_ref(),
         &req,
-        refund_id,
-        |state, merchant_account, refund_id| {
+        refund_request,
+        |state, merchant_account, refund_request| {
             refunds::refund_response_wrapper(
                 state,
                 merchant_account,
-                refund_id,
+                refund_request,
                 refunds::refund_retrieve_core,
             )
         },
@@ -93,7 +105,7 @@ pub async fn refund_update(
         _,
         _,
         _,
-        types::StripeCreateRefundResponse,
+        types::StripeRefundResponse,
         errors::StripeErrorCode,
     >(
         state.get_ref(),

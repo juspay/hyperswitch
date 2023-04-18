@@ -28,7 +28,9 @@ pub struct Refund {
     pub refund_error_message: Option<String>,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub refund_arn: Option<String>,
+    #[serde(with = "common_utils::custom_serde::iso8601")]
     pub created_at: PrimitiveDateTime,
+    #[serde(with = "common_utils::custom_serde::iso8601")]
     pub updated_at: PrimitiveDateTime,
     pub description: Option<String>,
     pub attempt_id: String,
@@ -66,7 +68,9 @@ pub struct RefundNew {
     pub sent_to_gateway: bool,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub refund_arn: Option<String>,
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub created_at: Option<PrimitiveDateTime>,
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub modified_at: Option<PrimitiveDateTime>,
     pub description: Option<String>,
     pub attempt_id: String,

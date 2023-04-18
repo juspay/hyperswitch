@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 use utoipa::ToSchema;
 
-use crate::enums;
+use crate::{admin, enums};
 
 #[derive(Default, Debug, ToSchema, Clone, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -43,6 +43,23 @@ pub struct RefundRequest {
     /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
     #[schema(value_type  = Option<Object>, example = r#"{ "city": "NY", "unit": "245" }"#)]
     pub metadata: Option<pii::SecretSerdeValue>,
+
+    /// Merchant connector details used to make payments.
+    pub merchant_connector_details: Option<admin::MerchantConnectorDetailsWrap>,
+}
+
+#[derive(Default, Debug, ToSchema, Clone, Deserialize)]
+pub struct RefundsRetrieveRequest {
+    /// Unique Identifier for the Refund. This is to ensure idempotency for multiple partial refund initiated against the same payment. If the identifiers is not defined by the merchant, this filed shall be auto generated and provide in the API response. It is recommended to generate uuid(v4) as the refund_id.
+    #[schema(
+        max_length = 30,
+        min_length = 30,
+        example = "ref_mbabizu24mvu3mela5njyhpit4"
+    )]
+    pub refund_id: String,
+
+    /// Merchant connector details used to make payments.
+    pub merchant_connector_details: Option<admin::MerchantConnectorDetailsWrap>,
 }
 
 #[derive(Default, Debug, ToSchema, Clone, Deserialize)]
@@ -132,7 +149,9 @@ pub struct RefundListResponse {
 }
 
 /// The status for refunds
-#[derive(Debug, Eq, Clone, PartialEq, Default, Deserialize, Serialize, ToSchema)]
+#[derive(
+    Debug, Eq, Clone, Copy, PartialEq, Default, Deserialize, Serialize, ToSchema, strum::Display,
+)]
 #[serde(rename_all = "snake_case")]
 pub enum RefundStatus {
     Succeeded,

@@ -19,7 +19,6 @@ use crate::{enums as storage_enums, schema::merchant_account};
 pub struct MerchantAccount {
     pub id: i32,
     pub merchant_id: String,
-    pub api_key: Option<StrongSecret<String>>,
     pub return_url: Option<String>,
     pub enable_payment_response_hash: bool,
     pub payment_response_hash_key: Option<String>,
@@ -34,6 +33,8 @@ pub struct MerchantAccount {
     pub locker_id: Option<String>,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub routing_algorithm: Option<serde_json::Value>,
+    pub primary_business_details: serde_json::Value,
+    pub api_key: Option<StrongSecret<String>>,
 }
 
 #[derive(Clone, Debug, Default, Insertable, router_derive::DebugAsDisplay)]
@@ -41,7 +42,6 @@ pub struct MerchantAccount {
 pub struct MerchantAccountNew {
     pub merchant_id: String,
     pub merchant_name: Option<String>,
-    pub api_key: Option<StrongSecret<String>>,
     pub merchant_details: Option<serde_json::Value>,
     pub return_url: Option<String>,
     pub webhook_details: Option<serde_json::Value>,
@@ -54,13 +54,14 @@ pub struct MerchantAccountNew {
     pub locker_id: Option<String>,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub routing_algorithm: Option<serde_json::Value>,
+    pub primary_business_details: serde_json::Value,
+    pub api_key: Option<StrongSecret<String>>,
 }
 
 #[derive(Debug)]
 pub enum MerchantAccountUpdate {
     Update {
         merchant_name: Option<String>,
-        api_key: Option<StrongSecret<String>>,
         merchant_details: Option<serde_json::Value>,
         return_url: Option<String>,
         webhook_details: Option<serde_json::Value>,
@@ -73,6 +74,7 @@ pub enum MerchantAccountUpdate {
         locker_id: Option<String>,
         metadata: Option<pii::SecretSerdeValue>,
         routing_algorithm: Option<serde_json::Value>,
+        primary_business_details: Option<serde_json::Value>,
     },
     StorageSchemeUpdate {
         storage_scheme: storage_enums::MerchantStorageScheme,
@@ -83,7 +85,6 @@ pub enum MerchantAccountUpdate {
 #[diesel(table_name = merchant_account)]
 pub struct MerchantAccountUpdateInternal {
     merchant_name: Option<String>,
-    api_key: Option<StrongSecret<String>>,
     merchant_details: Option<serde_json::Value>,
     return_url: Option<String>,
     webhook_details: Option<serde_json::Value>,
@@ -97,6 +98,7 @@ pub struct MerchantAccountUpdateInternal {
     locker_id: Option<String>,
     metadata: Option<pii::SecretSerdeValue>,
     routing_algorithm: Option<serde_json::Value>,
+    primary_business_details: Option<serde_json::Value>,
 }
 
 impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
@@ -104,7 +106,6 @@ impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
         match merchant_account_update {
             MerchantAccountUpdate::Update {
                 merchant_name,
-                api_key,
                 merchant_details,
                 return_url,
                 webhook_details,
@@ -117,9 +118,9 @@ impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
                 publishable_key,
                 locker_id,
                 metadata,
+                primary_business_details,
             } => Self {
                 merchant_name,
-                api_key,
                 merchant_details,
                 return_url,
                 webhook_details,
@@ -132,6 +133,7 @@ impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
                 publishable_key,
                 locker_id,
                 metadata,
+                primary_business_details,
                 ..Default::default()
             },
             MerchantAccountUpdate::StorageSchemeUpdate { storage_scheme } => Self {

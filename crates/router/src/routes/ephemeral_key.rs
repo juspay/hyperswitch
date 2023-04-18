@@ -14,8 +14,10 @@ pub async fn ephemeral_key_create(
     req: HttpRequest,
     json_payload: web::Json<customers::CustomerId>,
 ) -> HttpResponse {
+    let flow = Flow::EphemeralKeyCreate;
     let payload = json_payload.into_inner();
     api::server_wrap(
+        flow,
         state.get_ref(),
         &req,
         payload,
@@ -33,8 +35,10 @@ pub async fn ephemeral_key_delete(
     req: HttpRequest,
     path: web::Path<String>,
 ) -> HttpResponse {
+    let flow = Flow::EphemeralKeyDelete;
     let payload = path.into_inner();
     api::server_wrap(
+        flow,
         state.get_ref(),
         &req,
         payload,

@@ -4,7 +4,7 @@ use masking::Secret;
 use serde::{Deserialize, Serialize};
 use time::{OffsetDateTime, PrimitiveDateTime};
 
-use crate::schema::address;
+use crate::{enums, schema::address};
 
 #[derive(Clone, Debug, Deserialize, Serialize, Insertable, router_derive::DebugAsDisplay)]
 #[diesel(table_name = address)]
@@ -12,7 +12,7 @@ use crate::schema::address;
 pub struct AddressNew {
     pub address_id: String,
     pub city: Option<String>,
-    pub country: Option<String>,
+    pub country: Option<enums::CountryCode>,
     pub line1: Option<Secret<String>>,
     pub line2: Option<Secret<String>>,
     pub line3: Option<Secret<String>>,
@@ -34,7 +34,7 @@ pub struct Address {
     #[serde(skip_serializing)]
     pub address_id: String,
     pub city: Option<String>,
-    pub country: Option<String>,
+    pub country: Option<enums::CountryCode>,
     pub line1: Option<Secret<String>>,
     pub line2: Option<Secret<String>>,
     pub line3: Option<Secret<String>>,
@@ -58,7 +58,7 @@ pub struct Address {
 pub enum AddressUpdate {
     Update {
         city: Option<String>,
-        country: Option<String>,
+        country: Option<enums::CountryCode>,
         line1: Option<Secret<String>>,
         line2: Option<Secret<String>>,
         line3: Option<Secret<String>>,
@@ -75,7 +75,7 @@ pub enum AddressUpdate {
 #[diesel(table_name = address)]
 pub struct AddressUpdateInternal {
     city: Option<String>,
-    country: Option<String>,
+    country: Option<enums::CountryCode>,
     line1: Option<Secret<String>>,
     line2: Option<Secret<String>>,
     line3: Option<Secret<String>>,

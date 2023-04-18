@@ -72,6 +72,7 @@ pub async fn setup_intents_retrieve(
         force_sync: true,
         connector: None,
         param: None,
+        merchant_connector_details: None,
     };
 
     let (auth_type, auth_flow) = match auth::get_auth_type_and_flow(req.headers()) {

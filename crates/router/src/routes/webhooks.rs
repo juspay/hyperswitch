@@ -15,9 +15,11 @@ pub async fn receive_incoming_webhook<W: api_types::OutgoingWebhookType>(
     body: web::Bytes,
     path: web::Path<(String, String)>,
 ) -> impl Responder {
+    let flow = Flow::IncomingWebhookReceive;
     let (merchant_id, connector_name) = path.into_inner();
 
     api::server_wrap(
+        flow,
         state.get_ref(),
         &req,
         body,

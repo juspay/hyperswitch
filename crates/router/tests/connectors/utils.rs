@@ -30,7 +30,6 @@ pub struct PaymentInfo {
     pub address: Option<PaymentAddress>,
     pub auth_type: Option<enums::AuthenticationType>,
     pub access_token: Option<AccessToken>,
-    pub router_return_url: Option<String>,
     pub connector_meta_data: Option<serde_json::Value>,
 }
 
@@ -360,7 +359,6 @@ pub trait ConnectorActions: Connector {
             payment_id: uuid::Uuid::new_v4().to_string(),
             attempt_id: uuid::Uuid::new_v4().to_string(),
             status: enums::AttemptStatus::default(),
-            router_return_url: info.clone().and_then(|a| a.router_return_url),
             auth_type: info
                 .clone()
                 .map_or(enums::AuthenticationType::NoThreeDs, |a| {
@@ -386,6 +384,7 @@ pub trait ConnectorActions: Connector {
             access_token: info.and_then(|a| a.access_token),
             session_token: None,
             reference_id: None,
+            payment_method_token: None,
         }
     }
 
@@ -399,6 +398,8 @@ pub trait ConnectorActions: Connector {
             }
             Ok(types::PaymentsResponseData::SessionResponse { .. }) => None,
             Ok(types::PaymentsResponseData::SessionTokenResponse { .. }) => None,
+            Ok(types::PaymentsResponseData::TokenizationResponse { .. }) => None,
+            Ok(types::PaymentsResponseData::TransactionUnresolvedResponse { .. }) => None,
             Err(_) => None,
         }
     }
@@ -486,8 +487,14 @@ impl Default for PaymentAuthorizeType {
             browser_info: Some(BrowserInfoType::default().0),
             order_details: None,
             email: None,
+            session_token: None,
+            enrolled_for_3ds: false,
+            related_transaction_id: None,
             payment_experience: None,
             payment_method_type: None,
+            router_return_url: None,
+            complete_authorize_url: None,
+            webhook_url: None,
         };
         Self(data)
     }
@@ -496,10 +503,11 @@ impl Default for PaymentAuthorizeType {
 impl Default for PaymentCaptureType {
     fn default() -> Self {
         Self(types::PaymentsCaptureData {
-            amount_to_capture: Some(100),
+            amount_to_capture: 100,
             currency: enums::Currency::USD,
             connector_transaction_id: "".to_string(),
-            amount: 100,
+            payment_amount: 100,
+            ..Default::default()
         })
     }
 }
@@ -540,6 +548,7 @@ impl Default for PaymentSyncType {
             ),
             encoded_data: None,
             capture_method: None,
+            connector_meta: None,
         };
         Self(data)
     }
@@ -570,6 +579,22 @@ pub fn get_connector_transaction_id(
         }
         Ok(types::PaymentsResponseData::SessionResponse { .. }) => None,
         Ok(types::PaymentsResponseData::SessionTokenResponse { .. }) => None,
+        Ok(types::PaymentsResponseData::TokenizationResponse { .. }) => None,
+        Ok(types::PaymentsResponseData::TransactionUnresolvedResponse { .. }) => None,
         Err(_) => None,
+    }
+}
+
+pub fn get_connector_metadata(
+    response: Result<types::PaymentsResponseData, types::ErrorResponse>,
+) -> Option<serde_json::Value> {
+    match response {
+        Ok(types::PaymentsResponseData::TransactionResponse {
+            resource_id: _,
+            redirection_data: _,
+            mandate_reference: _,
+            connector_metadata,
+        }) => connector_metadata,
+        _ => None,
     }
 }

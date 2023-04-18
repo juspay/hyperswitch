@@ -11,7 +11,9 @@ pub struct ConnectorResponseNew {
     pub payment_id: String,
     pub merchant_id: String,
     pub attempt_id: String,
+    #[serde(with = "common_utils::custom_serde::iso8601")]
     pub created_at: PrimitiveDateTime,
+    #[serde(with = "common_utils::custom_serde::iso8601")]
     pub modified_at: PrimitiveDateTime,
     pub connector_name: Option<String>,
     pub connector_transaction_id: Option<String>,
@@ -27,7 +29,9 @@ pub struct ConnectorResponse {
     pub payment_id: String,
     pub merchant_id: String,
     pub attempt_id: String,
+    #[serde(with = "common_utils::custom_serde::iso8601")]
     pub created_at: PrimitiveDateTime,
+    #[serde(with = "common_utils::custom_serde::iso8601")]
     pub modified_at: PrimitiveDateTime,
     pub connector_name: Option<String>,
     pub connector_transaction_id: Option<String>,

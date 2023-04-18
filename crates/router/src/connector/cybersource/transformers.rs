@@ -8,7 +8,11 @@ use crate::{
     consts,
     core::errors,
     pii::PeekInterface,
-    types::{self, api, storage::enums},
+    types::{
+        self,
+        api::{self, enums as api_enums},
+        storage::enums,
+    },
 };
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
@@ -76,7 +80,7 @@ pub struct BillTo {
     locality: String,
     administrative_area: Secret<String>,
     postal_code: Secret<String>,
-    country: String,
+    country: api_enums::CountryCode,
     email: Secret<String, pii::Email>,
     phone_number: Secret<String>,
 }
@@ -170,11 +174,7 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for CybersourcePaymentsRequest {
             },
             order_information: OrderInformationWithBill {
                 amount_details: Amount {
-                    total_amount: value
-                        .request
-                        .amount_to_capture
-                        .map(|amount| amount.to_string())
-                        .ok_or_else(utils::missing_field_err("amount_to_capture"))?,
+                    total_amount: value.request.amount_to_capture.to_string(),
                     ..Default::default()
                 },
                 ..Default::default()

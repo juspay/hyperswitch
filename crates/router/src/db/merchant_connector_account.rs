@@ -4,7 +4,7 @@ use masking::ExposeInterface;
 
 use super::{MockDb, Store};
 use crate::{
-    connection::pg_connection,
+    connection,
     core::errors::{self, CustomResult},
     services::logger,
     types::{self, storage},
@@ -98,7 +98,7 @@ impl ConnectorAccessToken for MockDb {
 
 #[async_trait::async_trait]
 pub trait MerchantConnectorAccountInterface {
-    async fn find_merchant_connector_account_by_merchant_id_connector(
+    async fn find_merchant_connector_account_by_merchant_id_connector_label(
         &self,
         merchant_id: &str,
         connector: &str,
@@ -136,16 +136,16 @@ pub trait MerchantConnectorAccountInterface {
 
 #[async_trait::async_trait]
 impl MerchantConnectorAccountInterface for Store {
-    async fn find_merchant_connector_account_by_merchant_id_connector(
+    async fn find_merchant_connector_account_by_merchant_id_connector_label(
         &self,
         merchant_id: &str,
-        connector: &str,
+        connector_label: &str,
     ) -> CustomResult<storage::MerchantConnectorAccount, errors::StorageError> {
-        let conn = pg_connection(&self.master_pool).await?;
+        let conn = connection::pg_connection_read(self).await?;
         storage::MerchantConnectorAccount::find_by_merchant_id_connector(
             &conn,
             merchant_id,
-            connector,
+            connector_label,
         )
         .await
         .map_err(Into::into)
@@ -158,7 +158,7 @@ impl MerchantConnectorAccountInterface for Store {
         merchant_connector_id: &str,
     ) -> CustomResult<storage::MerchantConnectorAccount, errors::StorageError> {
         let find_call = || async {
-            let conn = pg_connection(&self.master_pool).await?;
+            let conn = connection::pg_connection_read(self).await?;
             storage::MerchantConnectorAccount::find_by_merchant_id_merchant_connector_id(
                 &conn,
                 merchant_id,
@@ -175,7 +175,7 @@ impl MerchantConnectorAccountInterface for Store {
 
         #[cfg(feature = "accounts_cache")]
         {
-            super::cache::get_or_populate_cache(self, merchant_connector_id, find_call).await
+            super::cache::get_or_populate_redis(self, merchant_connector_id, find_call).await
         }
     }
 
@@ -183,7 +183,7 @@ impl MerchantConnectorAccountInterface for Store {
         &self,
         t: storage::MerchantConnectorAccountNew,
     ) -> CustomResult<storage::MerchantConnectorAccount, errors::StorageError> {
-        let conn = pg_connection(&self.master_pool).await?;
+        let conn = connection::pg_connection_write(self).await?;
         t.insert(&conn).await.map_err(Into::into).into_report()
     }
 
@@ -192,7 +192,7 @@ impl MerchantConnectorAccountInterface for Store {
         merchant_id: &str,
         get_disabled: bool,
     ) -> CustomResult<Vec<storage::MerchantConnectorAccount>, errors::StorageError> {
-        let conn = pg_connection(&self.master_pool).await?;
+        let conn = connection::pg_connection_read(self).await?;
         storage::MerchantConnectorAccount::find_by_merchant_id(&conn, merchant_id, get_disabled)
             .await
             .map_err(Into::into)
@@ -206,7 +206,7 @@ impl MerchantConnectorAccountInterface for Store {
     ) -> CustomResult<storage::MerchantConnectorAccount, errors::StorageError> {
         let _merchant_connector_id = this.merchant_connector_id.clone();
         let update_call = || async {
-            let conn = pg_connection(&self.master_pool).await?;
+            let conn = connection::pg_connection_write(self).await?;
             this.update(&conn, merchant_connector_account)
                 .await
                 .map_err(Into::into)
@@ -215,7 +215,7 @@ impl MerchantConnectorAccountInterface for Store {
 
         #[cfg(feature = "accounts_cache")]
         {
-            super::cache::redact_cache(self, &_merchant_connector_id, update_call).await
+            super::cache::redact_cache(self, &_merchant_connector_id, update_call, None).await
         }
 
         #[cfg(not(feature = "accounts_cache"))]
@@ -229,7 +229,7 @@ impl MerchantConnectorAccountInterface for Store {
         merchant_id: &str,
         merchant_connector_id: &str,
     ) -> CustomResult<bool, errors::StorageError> {
-        let conn = pg_connection(&self.master_pool).await?;
+        let conn = connection::pg_connection_write(self).await?;
         storage::MerchantConnectorAccount::delete_by_merchant_id_merchant_connector_id(
             &conn,
             merchant_id,
@@ -245,7 +245,7 @@ impl MerchantConnectorAccountInterface for Store {
 impl MerchantConnectorAccountInterface for MockDb {
     // safety: only used for testing
     #[allow(clippy::unwrap_used)]
-    async fn find_merchant_connector_account_by_merchant_id_connector(
+    async fn find_merchant_connector_account_by_merchant_id_connector_label(
         &self,
         merchant_id: &str,
         connector: &str,
@@ -290,6 +290,10 @@ impl MerchantConnectorAccountInterface for MockDb {
             connector_type: t
                 .connector_type
                 .unwrap_or(crate::types::storage::enums::ConnectorType::FinOperations),
+            connector_label: t.connector_label,
+            business_country: t.business_country,
+            business_label: t.business_label,
+            business_sub_label: t.business_sub_label,
         };
         accounts.push(account.clone());
         Ok(account)

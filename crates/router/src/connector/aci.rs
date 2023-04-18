@@ -51,6 +51,17 @@ impl api::PaymentVoid for Aci {}
 impl api::PaymentCapture for Aci {}
 impl api::PaymentSession for Aci {}
 impl api::ConnectorAccessToken for Aci {}
+impl api::PaymentToken for Aci {}
+
+impl
+    services::ConnectorIntegration<
+        api::PaymentMethodToken,
+        types::PaymentMethodTokenizationData,
+        types::PaymentsResponseData,
+    > for Aci
+{
+    // Not Implemented (R)
+}
 
 impl
     services::ConnectorIntegration<
@@ -103,13 +114,10 @@ impl
         req: &types::PaymentsSyncRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        let mut header = vec![
-            (
-                headers::CONTENT_TYPE.to_string(),
-                types::PaymentsSyncType::get_content_type(self).to_string(),
-            ),
-            (headers::X_ROUTER.to_string(), "test".to_string()),
-        ];
+        let mut header = vec![(
+            headers::CONTENT_TYPE.to_string(),
+            types::PaymentsSyncType::get_content_type(self).to_string(),
+        )];
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         header.append(&mut api_key);
         Ok(header)
@@ -147,6 +155,7 @@ impl
             services::RequestBuilder::new()
                 .method(services::Method::Get)
                 .url(&types::PaymentsSyncType::get_url(self, req, connectors)?)
+                .attach_default_headers()
                 .headers(types::PaymentsSyncType::get_headers(self, req, connectors)?)
                 .body(types::PaymentsSyncType::get_request_body(self, req)?)
                 .build(),
@@ -210,13 +219,10 @@ impl
         req: &types::PaymentsAuthorizeRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        let mut header = vec![
-            (
-                headers::CONTENT_TYPE.to_string(),
-                types::PaymentsAuthorizeType::get_content_type(self).to_string(),
-            ),
-            (headers::X_ROUTER.to_string(), "test".to_string()),
-        ];
+        let mut header = vec![(
+            headers::CONTENT_TYPE.to_string(),
+            types::PaymentsAuthorizeType::get_content_type(self).to_string(),
+        )];
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         header.append(&mut api_key);
         Ok(header)
@@ -259,10 +265,10 @@ impl
                 .url(&types::PaymentsAuthorizeType::get_url(
                     self, req, connectors,
                 )?)
+                .attach_default_headers()
                 .headers(types::PaymentsAuthorizeType::get_headers(
                     self, req, connectors,
                 )?)
-                .header(headers::X_ROUTER, "test")
                 .body(types::PaymentsAuthorizeType::get_request_body(self, req)?)
                 .build(),
         ))
@@ -321,13 +327,10 @@ impl
         req: &types::PaymentsCancelRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        let mut header = vec![
-            (
-                headers::CONTENT_TYPE.to_string(),
-                types::PaymentsAuthorizeType::get_content_type(self).to_string(),
-            ),
-            (headers::X_ROUTER.to_string(), "test".to_string()),
-        ];
+        let mut header = vec![(
+            headers::CONTENT_TYPE.to_string(),
+            types::PaymentsAuthorizeType::get_content_type(self).to_string(),
+        )];
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         header.append(&mut api_key);
         Ok(header)
@@ -363,6 +366,7 @@ impl
             services::RequestBuilder::new()
                 .method(services::Method::Post)
                 .url(&types::PaymentsVoidType::get_url(self, req, connectors)?)
+                .attach_default_headers()
                 .headers(types::PaymentsVoidType::get_headers(self, req, connectors)?)
                 .body(types::PaymentsVoidType::get_request_body(self, req)?)
                 .build(),
@@ -422,13 +426,10 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
         req: &types::RefundsRouterData<api::Execute>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        let mut header = vec![
-            (
-                headers::CONTENT_TYPE.to_string(),
-                types::RefundExecuteType::get_content_type(self).to_string(),
-            ),
-            (headers::X_ROUTER.to_string(), "test".to_string()),
-        ];
+        let mut header = vec![(
+            headers::CONTENT_TYPE.to_string(),
+            types::RefundExecuteType::get_content_type(self).to_string(),
+        )];
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         header.append(&mut api_key);
         Ok(header)
@@ -469,6 +470,7 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
             services::RequestBuilder::new()
                 .method(services::Method::Post)
                 .url(&types::RefundExecuteType::get_url(self, req, connectors)?)
+                .attach_default_headers()
                 .headers(types::RefundExecuteType::get_headers(
                     self, req, connectors,
                 )?)
@@ -527,7 +529,7 @@ impl api::IncomingWebhook for Aci {
     fn get_webhook_object_reference_id(
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<String, errors::ConnectorError> {
+    ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
         Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
     }
 
@@ -545,5 +547,3 @@ impl api::IncomingWebhook for Aci {
         Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
     }
 }
-
-impl services::ConnectorRedirectResponse for Aci {}

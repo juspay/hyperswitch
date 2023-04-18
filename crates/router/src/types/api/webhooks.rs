@@ -1,7 +1,6 @@
 pub use api_models::webhooks::{
-    IncomingWebhookDetails, IncomingWebhookEvent, IncomingWebhookRequestDetails,
-    MerchantWebhookConfig, OutgoingWebhook, OutgoingWebhookContent, OutgoingWebhookType,
-    WebhookFlow,
+    IncomingWebhookDetails, IncomingWebhookEvent, MerchantWebhookConfig, ObjectReferenceId,
+    OutgoingWebhook, OutgoingWebhookContent, OutgoingWebhookType, WebhookFlow,
 };
 use error_stack::ResultExt;
 
@@ -12,6 +11,13 @@ use crate::{
     services,
     utils::crypto,
 };
+
+pub struct IncomingWebhookRequestDetails<'a> {
+    pub method: actix_web::http::Method,
+    pub headers: &'a actix_web::http::header::HeaderMap,
+    pub body: &'a [u8],
+    pub query_params: String,
+}
 
 #[async_trait::async_trait]
 pub trait IncomingWebhook: ConnectorCommon + Sync {
@@ -118,7 +124,7 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
     fn get_webhook_object_reference_id(
         &self,
         _request: &IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<String, errors::ConnectorError>;
+    ) -> CustomResult<ObjectReferenceId, errors::ConnectorError>;
 
     fn get_webhook_event_type(
         &self,
@@ -136,5 +142,12 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
     ) -> CustomResult<services::api::ApplicationResponse<serde_json::Value>, errors::ConnectorError>
     {
         Ok(services::api::ApplicationResponse::StatusOk)
+    }
+
+    fn get_dispute_details(
+        &self,
+        _request: &IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<super::disputes::DisputePayload, errors::ConnectorError> {
+        Err(errors::ConnectorError::NotImplemented("get_dispute_details method".to_string()).into())
     }
 }

@@ -1,6 +1,7 @@
 use std::marker::PhantomData;
 
 use async_trait::async_trait;
+use common_utils::ext_traits::AsyncExt;
 use error_stack::ResultExt;
 use router_env::{instrument, tracing};
 
@@ -62,9 +63,10 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentData<F>, api::PaymentsCaptu
         helpers::validate_amount_to_capture(payment_intent.amount, request.amount_to_capture)?;
 
         payment_attempt = db
-            .find_payment_attempt_by_payment_id_merchant_id(
-                &payment_id,
+            .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
+                payment_intent.payment_id.as_str(),
                 merchant_id,
+                payment_intent.active_attempt_id.as_str(),
                 storage_scheme,
             )
             .await
@@ -116,6 +118,24 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentData<F>, api::PaymentsCaptu
         )
         .await?;
 
+        let creds_identifier = request
+            .merchant_connector_details
+            .as_ref()
+            .map(|mcd| mcd.creds_identifier.to_owned());
+        request
+            .merchant_connector_details
+            .to_owned()
+            .async_map(|mcd| async {
+                helpers::insert_merchant_connector_creds_to_config(
+                    db,
+                    merchant_account.merchant_id.as_str(),
+                    mcd,
+                )
+                .await
+            })
+            .await
+            .transpose()?;
+
         Ok((
             Box::new(self),
             payments::PaymentData {
@@ -139,6 +159,8 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentData<F>, api::PaymentsCaptu
                 connector_response,
                 sessions_token: vec![],
                 card_cvc: None,
+                creds_identifier,
+                pm_token: None,
             },
             None,
         ))

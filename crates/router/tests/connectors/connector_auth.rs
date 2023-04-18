@@ -1,3 +1,5 @@
+use std::env;
+
 use router::types::ConnectorAuthType;
 use serde::Deserialize;
 
@@ -10,26 +12,33 @@ pub(crate) struct ConnectorAuthentication {
     pub bambora: Option<BodyKey>,
     pub bluesnap: Option<BodyKey>,
     pub checkout: Option<BodyKey>,
+    pub coinbase: Option<HeaderKey>,
     pub cybersource: Option<SignatureKey>,
     pub dlocal: Option<SignatureKey>,
     pub fiserv: Option<SignatureKey>,
     pub globalpay: Option<HeaderKey>,
+    pub mollie: Option<HeaderKey>,
     pub multisafepay: Option<HeaderKey>,
     pub nuvei: Option<SignatureKey>,
+    pub opennode: Option<HeaderKey>,
+    pub payeezy: Option<SignatureKey>,
+    pub paypal: Option<BodyKey>,
     pub payu: Option<BodyKey>,
     pub rapyd: Option<BodyKey>,
     pub shift4: Option<HeaderKey>,
     pub stripe: Option<HeaderKey>,
     pub worldpay: Option<BodyKey>,
     pub worldline: Option<SignatureKey>,
+    pub trustpay: Option<SignatureKey>,
 }
 
 impl ConnectorAuthentication {
+    #[allow(clippy::expect_used)]
     pub(crate) fn new() -> Self {
-        #[allow(clippy::expect_used)]
+        let path = env::var("CONNECTOR_AUTH_FILE_PATH")
+            .expect("connector authentication file path not set");
         toml::from_str(
-            &std::fs::read_to_string("tests/connectors/auth.toml")
-                .expect("connector authentication config file not found"),
+            &std::fs::read_to_string(path).expect("connector authentication config file not found"),
         )
         .expect("Failed to read connector authentication config file")
     }

@@ -6,7 +6,7 @@ use crate::{
         errors::{ConnectorErrorExt, RouterResult},
         payments::{self, access_token, transformers, PaymentData},
     },
-    routes::AppState,
+    routes::{metrics, AppState},
     services,
     types::{self, api, storage},
 };
@@ -43,6 +43,14 @@ impl Feature<api::Void, types::PaymentsCancelData>
         call_connector_action: payments::CallConnectorAction,
         _merchant_account: &storage::MerchantAccount,
     ) -> RouterResult<Self> {
+        metrics::PAYMENT_CANCEL_COUNT.add(
+            &metrics::CONTEXT,
+            1,
+            &[metrics::request::add_attributes(
+                "connector",
+                connector.connector_name.to_string(),
+            )],
+        );
         self.decide_flow(
             state,
             connector,

@@ -15,7 +15,6 @@ use crate::{
         storage::{self, enums as storage_enums},
         transformers::ForeignInto,
     },
-    utils::OptionExt,
 };
 
 newtype!(
@@ -48,20 +47,19 @@ impl MandateResponseExt for MandateResponse {
             })?;
 
         let card = if payment_method.payment_method == storage_enums::PaymentMethod::Card {
-            let locker_id = merchant_account
-                .locker_id
-                .to_owned()
-                .get_required_value("locker_id")?;
-            let get_card_resp = payment_methods::cards::get_card_from_legacy_locker(
+            let card = payment_methods::cards::get_card_from_locker(
                 state,
-                &locker_id,
+                &payment_method.customer_id,
+                &payment_method.merchant_id,
                 &payment_method.payment_method_id,
+                merchant_account.locker_id.clone(),
             )
-            .await?;
-            let card_detail =
-                payment_methods::transformers::get_card_detail(&payment_method, get_card_resp.card)
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Failed while getting card details")?;
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Error getting card from card vault")?;
+            let card_detail = payment_methods::transformers::get_card_detail(&payment_method, card)
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed while getting card details")?;
             Some(MandateCardDetails::from(card_detail).into_inner())
         } else {
             None

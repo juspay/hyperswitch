@@ -1,5 +1,7 @@
+#[cfg(feature = "vergen")]
 use router_env as env;
 
+#[cfg(feature = "vergen")]
 #[tokio::test]
 async fn basic() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     println!("CARGO_PKG_VERSION : {:?}", env!("CARGO_PKG_VERSION"));
@@ -19,6 +21,7 @@ async fn basic() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     Ok(())
 }
 
+#[cfg(feature = "vergen")]
 #[tokio::test]
 async fn env_macro() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     println!("version : {:?}", env::version!());

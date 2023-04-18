@@ -1,6 +1,7 @@
 use std::marker::PhantomData;
 
 use async_trait::async_trait;
+use common_utils::ext_traits::AsyncExt;
 use error_stack::ResultExt;
 use router_derive;
 use router_env::{instrument, tracing};
@@ -55,9 +56,10 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsCancelRequest> 
             })?;
 
         let mut payment_attempt = db
-            .find_payment_attempt_by_payment_id_merchant_id(
-                &payment_id,
+            .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
+                payment_intent.payment_id.as_str(),
                 merchant_id,
+                payment_intent.active_attempt_id.as_str(),
                 storage_scheme,
             )
             .await
@@ -98,6 +100,24 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsCancelRequest> 
 
         payment_attempt.cancellation_reason = request.cancellation_reason.clone();
 
+        let creds_identifier = request
+            .merchant_connector_details
+            .as_ref()
+            .map(|mcd| mcd.creds_identifier.to_owned());
+        request
+            .merchant_connector_details
+            .to_owned()
+            .async_map(|mcd| async {
+                helpers::insert_merchant_connector_creds_to_config(
+                    db,
+                    merchant_account.merchant_id.as_str(),
+                    mcd,
+                )
+                .await
+            })
+            .await
+            .transpose()?;
+
         match payment_intent.status {
             status if status != enums::IntentStatus::RequiresCapture => {
                 Err(errors::ApiErrorResponse::InvalidRequestData {
@@ -129,6 +149,8 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsCancelRequest> 
                     connector_response,
                     sessions_token: vec![],
                     card_cvc: None,
+                    creds_identifier,
+                    pm_token: None,
                 },
                 None,
             )),
@@ -155,7 +177,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsCancelRequest> for 
     {
         let cancellation_reason = payment_data.payment_attempt.cancellation_reason.clone();
         payment_data.payment_attempt = db
-            .update_payment_attempt(
+            .update_payment_attempt_with_attempt_id(
                 payment_data.payment_attempt,
                 storage::PaymentAttemptUpdate::VoidUpdate {
                     status: enums::AttemptStatus::VoidInitiated,

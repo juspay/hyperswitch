@@ -4,17 +4,17 @@ host = "0.0.0.0"
 request_body_limit = 16_384 # Post request body is limited to 16k.
 
 [log.file]
-enabled = false             # Whether you want to store log in log files.
-path = "logs"               # Where to store log files.
-level = "DEBUG"             # What gets into log files.
+enabled = false # Whether you want to store log in log files.
+path = "logs"   # Where to store log files.
+level = "DEBUG" # What gets into log files.
 # rotation = "60"           # mins # current framework doesn't support configuring rotation. set to hourly rotation.
 
 [log.console]
-enabled = true              # Whether you want to see log in your terminal.
-level = "DEBUG"             # What you see in your terminal.
+enabled = true  # Whether you want to see log in your terminal.
+level = "DEBUG" # What you see in your terminal.
 
 [log.telemetry]
-enabled = false             # Whether tracing/telemetry is enabled.
+enabled = false # Whether tracing/telemetry is enabled.
 
 [master_database]
 username = "db_user"
@@ -52,6 +52,8 @@ locker_encryption_key1 = ""
 locker_encryption_key2 = ""
 locker_decryption_key1 = ""
 locker_decryption_key2 = ""
+vault_encryption_key = ""
+vault_private_key = ""
 
 [redis]
 host = "redis-queue"
@@ -76,19 +78,27 @@ bambora.base_url = "https://api.na.bambora.com"
 bluesnap.base_url = "https://sandbox.bluesnap.com/"
 braintree.base_url = "https://api.sandbox.braintreegateway.com/"
 checkout.base_url = "https://api.sandbox.checkout.com/"
+coinbase.base_url = "https://api.commerce.coinbase.com"
 cybersource.base_url = "https://apitest.cybersource.com/"
 dlocal.base_url = "https://sandbox.dlocal.com/"
 fiserv.base_url = "https://cert.api.fiservapps.com/"
 globalpay.base_url = "https://apis.sandbox.globalpay.com/ucp/"
 klarna.base_url = "https://api-na.playground.klarna.com/"
+mollie.base_url = "https://api.mollie.com/v2/"
 multisafepay.base_url = "https://testapi.multisafepay.com/"
 nuvei.base_url = "https://ppp-test.nuvei.com/"
+opennode.base_url = "https://dev-api.opennode.com"
+payeezy.base_url = "https://api-cert.payeezy.com/"
+paypal.base_url = "https://www.sandbox.paypal.com/"
 payu.base_url = "https://secure.snd.payu.com/"
 rapyd.base_url = "https://sandboxapi.rapyd.net"
 shift4.base_url = "https://api.shift4.com/"
 stripe.base_url = "https://api.stripe.com/"
 worldline.base_url = "https://eu.sandbox.api-ingenico.com/"
 worldpay.base_url = "https://try.access.worldpay.com/"
+trustpay.base_url = "https://test-tpgw.trustpay.eu/"
+trustpay.base_url_bank_redirects = "https://aapi.trustpay.eu/"
+
 
 [connectors.supported]
 wallets = ["klarna", "braintree", "applepay"]
@@ -101,15 +111,21 @@ cards = [
     "bluesnap",
     "braintree",
     "checkout",
+    "coinbase",
     "cybersource",
     "dlocal",
     "fiserv",
     "globalpay",
+    "mollie",
     "multisafepay",
     "nuvei",
+    "opennode",
+    "payeezy",
+    "paypal",
     "payu",
     "shift4",
     "stripe",
+    "trustpay",
     "worldline",
     "worldpay",
 ]

@@ -49,6 +49,8 @@ pub enum ApiErrorResponse {
     InvalidDataValue { field_name: &'static str },
     #[error(error_type = ErrorType::InvalidRequestError, code = "IR_08", message = "Client secret was not provided")]
     ClientSecretNotGiven,
+    #[error(error_type = ErrorType::InvalidRequestError, code = "IR_08", message = "Client secret has expired")]
+    ClientSecretExpired,
     #[error(error_type = ErrorType::InvalidRequestError, code = "IR_09", message = "The client_secret provided does not match the client_secret associated with the Payment")]
     ClientSecretInvalid,
     #[error(error_type = ErrorType::InvalidRequestError, code = "IR_10", message = "Customer has active mandate/subsciption")]
@@ -83,7 +85,8 @@ pub enum ApiErrorResponse {
     GenericUnauthorized { message: String },
     #[error(error_type = ErrorType::InvalidRequestError, code = "IR_19", message = "{message}")]
     NotSupported { message: String },
-
+    #[error(error_type = ErrorType::InvalidRequestError, code = "IR_20", message = "{flow} flow not supported by the {connector} connector")]
+    FlowNotSupported { flow: String, connector: String },
     #[error(error_type = ErrorType::ConnectorError, code = "CE_00", message = "{code}: {message}", ignore = "status_code")]
     ExternalConnectorError {
         code: String,
@@ -155,6 +158,12 @@ pub enum ApiErrorResponse {
     IncorrectConnectorNameGiven,
     #[error(error_type = ErrorType::ObjectNotFound, code = "HE_04", message = "Address does not exist in our records")]
     AddressNotFound,
+    #[error(error_type = ErrorType::ObjectNotFound, code = "HE_04", message = "Dispute does not exist in our records")]
+    DisputeNotFound { dispute_id: String },
+    #[error(error_type = ErrorType::InvalidRequestError, code = "HE_04", message = "Card with the provided iin does not exist")]
+    InvalidCardIin,
+    #[error(error_type = ErrorType::InvalidRequestError, code = "HE_04", message = "The provided card IIN length is invalid, please provide an iin with 6 or 8 digits")]
+    InvalidCardIinLength,
 }
 
 #[derive(Clone)]
@@ -199,9 +208,10 @@ impl actix_web::ResponseError for ApiErrorResponse {
             }
             Self::InvalidRequestUrl => StatusCode::NOT_FOUND, // 404
             Self::InvalidHttpMethod => StatusCode::METHOD_NOT_ALLOWED, // 405
-            Self::MissingRequiredField { .. } | Self::InvalidDataValue { .. } => {
-                StatusCode::BAD_REQUEST
-            } // 400
+            Self::MissingRequiredField { .. }
+            | Self::InvalidDataValue { .. }
+            | Self::InvalidCardIin
+            | Self::InvalidCardIinLength => StatusCode::BAD_REQUEST, // 400
             Self::InvalidDataFormat { .. } | Self::InvalidRequestData { .. } => {
                 StatusCode::UNPROCESSABLE_ENTITY
             } // 422
@@ -232,6 +242,7 @@ impl actix_web::ResponseError for ApiErrorResponse {
             | Self::MerchantConnectorAccountNotFound
             | Self::MandateNotFound
             | Self::ClientSecretNotGiven
+            | Self::ClientSecretExpired
             | Self::ClientSecretInvalid
             | Self::SuccessfulPaymentNotFound
             | Self::IncorrectConnectorNameGiven
@@ -239,11 +250,13 @@ impl actix_web::ResponseError for ApiErrorResponse {
             | Self::ConfigNotFound
             | Self::AddressNotFound
             | Self::NotSupported { .. }
+            | Self::FlowNotSupported { .. }
             | Self::ApiKeyNotFound => StatusCode::BAD_REQUEST, // 400
             Self::DuplicateMerchantAccount
             | Self::DuplicateMerchantConnectorAccount
             | Self::DuplicatePaymentMethod
-            | Self::DuplicateMandate => StatusCode::BAD_REQUEST, // 400
+            | Self::DuplicateMandate
+            | Self::DisputeNotFound { .. } => StatusCode::BAD_REQUEST, // 400
             Self::ReturnUrlUnavailable => StatusCode::SERVICE_UNAVAILABLE, // 503
             Self::PaymentNotSucceeded => StatusCode::BAD_REQUEST,          // 400
             Self::NotImplemented { .. } => StatusCode::NOT_IMPLEMENTED,    // 501
@@ -255,7 +268,6 @@ impl actix_web::ResponseError for ApiErrorResponse {
 
         actix_web::HttpResponseBuilder::new(self.status_code())
             .insert_header((header::CONTENT_TYPE, mime::APPLICATION_JSON))
-            .insert_header((header::VIA, "Juspay_Router"))
             .body(self.to_string())
     }
 }
@@ -311,7 +323,7 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
             Self::ClientSecretNotGiven => AER::BadRequest(ApiError::new(
                 "IR",
                 8,
-                "Client secret was not provided", None
+                "client_secret was not provided", None
             )),
             Self::ClientSecretInvalid => {
                 AER::BadRequest(ApiError::new("IR", 9, "The client_secret provided does not match the client_secret associated with the Payment", None))
@@ -339,7 +351,12 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
             Self::InvalidJwtToken => AER::Unauthorized(ApiError::new("IR", 17, "Access forbidden, invalid JWT token was used", None)),
             Self::GenericUnauthorized { message } => {
                 AER::Unauthorized(ApiError::new("IR", 18, message.to_string(), None))
-            }
+            },
+            Self::ClientSecretExpired => AER::BadRequest(ApiError::new(
+                "IR",
+                19,
+                "The provided client_secret has expired", None
+            )),
             Self::ExternalConnectorError {
                 code,
                 message,
@@ -424,7 +441,15 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
             }
             Self::NotSupported { message } => {
                 AER::BadRequest(ApiError::new("HE", 3, "Payment method type not supported", Some(Extra {reason: Some(message.to_owned()), ..Default::default()})))
-            }
+            },
+            Self::InvalidCardIin => AER::BadRequest(ApiError::new("HE", 3, "The provided card IIN does not exist", None)),
+            Self::InvalidCardIinLength  => AER::BadRequest(ApiError::new("HE", 3, "The provided card IIN length is invalid, please provide an IIN with 6 digits", None)),
+            Self::FlowNotSupported { flow, connector } => {
+                AER::BadRequest(ApiError::new("IR", 20, format!("{flow} flow not supported"), Some(Extra {connector: Some(connector.to_owned()), ..Default::default()}))) //FIXME: error message
+            },
+            Self::DisputeNotFound { .. } => {
+                AER::NotFound(ApiError::new("HE", 2, "Dispute does not exist in our records", None))
+            },
         }
     }
 }

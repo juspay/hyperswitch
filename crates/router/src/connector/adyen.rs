@@ -2,6 +2,7 @@ mod transformers;
 
 use std::fmt::Debug;
 
+use api_models::webhooks::IncomingWebhookEvent;
 use base64::Engine;
 use error_stack::{IntoReport, ResultExt};
 use router_env::{instrument, tracing};
@@ -11,15 +12,13 @@ use self::transformers as adyen;
 use crate::{
     configs::settings,
     consts,
-    core::{
-        errors::{self, CustomResult},
-        payments,
-    },
+    core::errors::{self, CustomResult},
     db::StorageInterface,
     headers, logger, services,
     types::{
         self,
         api::{self, ConnectorCommon},
+        transformers::ForeignFrom,
     },
     utils::{self, crypto, ByteSliceExt, BytesExt, OptionExt},
 };
@@ -36,8 +35,7 @@ impl ConnectorCommon for Adyen {
         &self,
         auth_type: &types::ConnectorAuthType,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        let auth: adyen::AdyenAuthType = auth_type
-            .try_into()
+        let auth = adyen::AdyenAuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(vec![(headers::X_API_KEY.to_string(), auth.api_key)])
     }
@@ -54,6 +52,17 @@ impl api::PaymentVoid for Adyen {}
 impl api::PaymentCapture for Adyen {}
 impl api::PreVerify for Adyen {}
 impl api::ConnectorAccessToken for Adyen {}
+impl api::PaymentToken for Adyen {}
+
+impl
+    services::ConnectorIntegration<
+        api::PaymentMethodToken,
+        types::PaymentMethodTokenizationData,
+        types::PaymentsResponseData,
+    > for Adyen
+{
+    // Not Implemented (R)
+}
 
 impl
     services::ConnectorIntegration<
@@ -99,13 +108,10 @@ impl
         req: &types::PaymentsCaptureRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        let mut header = vec![
-            (
-                headers::CONTENT_TYPE.to_string(),
-                self.common_get_content_type().to_string(),
-            ),
-            (headers::X_ROUTER.to_string(), "test".to_string()),
-        ];
+        let mut header = vec![(
+            headers::CONTENT_TYPE.to_string(),
+            self.common_get_content_type().to_string(),
+        )];
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         header.append(&mut api_key);
         Ok(header)
@@ -143,6 +149,7 @@ impl
             services::RequestBuilder::new()
                 .method(services::Method::Post)
                 .url(&types::PaymentsCaptureType::get_url(self, req, connectors)?)
+                .attach_default_headers()
                 .headers(types::PaymentsCaptureType::get_headers(
                     self, req, connectors,
                 )?)
@@ -193,13 +200,10 @@ impl
         req: &types::RouterData<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        let mut header = vec![
-            (
-                headers::CONTENT_TYPE.to_string(),
-                types::PaymentsSyncType::get_content_type(self).to_string(),
-            ),
-            (headers::X_ROUTER.to_string(), "test".to_string()),
-        ];
+        let mut header = vec![(
+            headers::CONTENT_TYPE.to_string(),
+            types::PaymentsSyncType::get_content_type(self).to_string(),
+        )];
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         header.append(&mut api_key);
         Ok(header)
@@ -272,8 +276,8 @@ impl
             services::RequestBuilder::new()
                 .method(services::Method::Post)
                 .url(&types::PaymentsSyncType::get_url(self, req, connectors)?)
+                .attach_default_headers()
                 .headers(types::PaymentsSyncType::get_headers(self, req, connectors)?)
-                .header(headers::X_ROUTER, "test")
                 .body(types::PaymentsSyncType::get_request_body(self, req)?)
                 .build(),
         ))
@@ -338,13 +342,10 @@ impl
             types::PaymentsResponseData,
         >,
     {
-        let mut header = vec![
-            (
-                headers::CONTENT_TYPE.to_string(),
-                types::PaymentsAuthorizeType::get_content_type(self).to_string(),
-            ),
-            (headers::X_ROUTER.to_string(), "test".to_string()),
-        ];
+        let mut header = vec![(
+            headers::CONTENT_TYPE.to_string(),
+            types::PaymentsAuthorizeType::get_content_type(self).to_string(),
+        )];
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         header.append(&mut api_key);
         Ok(header)
@@ -385,10 +386,10 @@ impl
                 .url(&types::PaymentsAuthorizeType::get_url(
                     self, req, connectors,
                 )?)
+                .attach_default_headers()
                 .headers(types::PaymentsAuthorizeType::get_headers(
                     self, req, connectors,
                 )?)
-                .header(headers::X_ROUTER, "test")
                 .body(types::PaymentsAuthorizeType::get_request_body(self, req)?)
                 .build(),
         ))
@@ -445,13 +446,10 @@ impl
         req: &types::PaymentsCancelRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        let mut header = vec![
-            (
-                headers::CONTENT_TYPE.to_string(),
-                types::PaymentsAuthorizeType::get_content_type(self).to_string(),
-            ),
-            (headers::X_ROUTER.to_string(), "test".to_string()),
-        ];
+        let mut header = vec![(
+            headers::CONTENT_TYPE.to_string(),
+            types::PaymentsAuthorizeType::get_content_type(self).to_string(),
+        )];
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         header.append(&mut api_key);
         Ok(header)
@@ -489,8 +487,8 @@ impl
             services::RequestBuilder::new()
                 .method(services::Method::Post)
                 .url(&types::PaymentsVoidType::get_url(self, req, connectors)?)
+                .attach_default_headers()
                 .headers(types::PaymentsVoidType::get_headers(self, req, connectors)?)
-                .header(headers::X_ROUTER, "test")
                 .body(types::PaymentsVoidType::get_request_body(self, req)?)
                 .build(),
         ))
@@ -543,13 +541,10 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
         req: &types::RefundsRouterData<api::Execute>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        let mut header = vec![
-            (
-                headers::CONTENT_TYPE.to_string(),
-                types::RefundExecuteType::get_content_type(self).to_string(),
-            ),
-            (headers::X_ROUTER.to_string(), "test".to_string()),
-        ];
+        let mut header = vec![(
+            headers::CONTENT_TYPE.to_string(),
+            types::RefundExecuteType::get_content_type(self).to_string(),
+        )];
         let mut api_header = self.get_auth_header(&req.connector_auth_type)?;
         header.append(&mut api_header);
         Ok(header)
@@ -588,6 +583,7 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
             services::RequestBuilder::new()
                 .method(services::Method::Post)
                 .url(&types::RefundExecuteType::get_url(self, req, connectors)?)
+                .attach_default_headers()
                 .headers(types::RefundExecuteType::get_headers(
                     self, req, connectors,
                 )?)
@@ -720,20 +716,41 @@ impl api::IncomingWebhook for Adyen {
     fn get_webhook_object_reference_id(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<String, errors::ConnectorError> {
+    ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
         let notif = get_webhook_object_from_body(request.body)
             .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
-
-        Ok(notif.psp_reference)
+        if adyen::is_transaction_event(&notif.event_code) {
+            return Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
+                api_models::payments::PaymentIdType::ConnectorTransactionId(notif.psp_reference),
+            ));
+        }
+        if adyen::is_refund_event(&notif.event_code) {
+            return Ok(api_models::webhooks::ObjectReferenceId::RefundId(
+                api_models::webhooks::RefundIdType::ConnectorRefundId(notif.psp_reference),
+            ));
+        }
+        if adyen::is_chargeback_event(&notif.event_code) {
+            return Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
+                api_models::payments::PaymentIdType::ConnectorTransactionId(
+                    notif
+                        .original_reference
+                        .ok_or(errors::ConnectorError::WebhookReferenceIdNotFound)?,
+                ),
+            ));
+        }
+        Err(errors::ConnectorError::WebhookReferenceIdNotFound).into_report()
     }
 
     fn get_webhook_event_type(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<api::IncomingWebhookEvent, errors::ConnectorError> {
+    ) -> CustomResult<IncomingWebhookEvent, errors::ConnectorError> {
         let notif = get_webhook_object_from_body(request.body)
             .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
-        Ok(notif.event_code.into())
+        Ok(IncomingWebhookEvent::foreign_from((
+            notif.event_code,
+            notif.additional_data.dispute_status,
+        )))
     }
 
     fn get_webhook_resource_object(
@@ -761,13 +778,24 @@ impl api::IncomingWebhook for Adyen {
             "[accepted]".to_string(),
         ))
     }
-}
 
-impl services::ConnectorRedirectResponse for Adyen {
-    fn get_flow_type(
+    fn get_dispute_details(
         &self,
-        _query_params: &str,
-    ) -> CustomResult<payments::CallConnectorAction, errors::ConnectorError> {
-        Ok(payments::CallConnectorAction::Trigger)
+        request: &api::IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<api::disputes::DisputePayload, errors::ConnectorError> {
+        let notif = get_webhook_object_from_body(request.body)
+            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+        Ok(api::disputes::DisputePayload {
+            amount: notif.amount.value.to_string(),
+            currency: notif.amount.currency,
+            dispute_stage: api_models::enums::DisputeStage::from(notif.event_code.clone()),
+            connector_dispute_id: notif.psp_reference,
+            connector_reason: notif.reason,
+            connector_reason_code: notif.additional_data.chargeback_reason_code,
+            challenge_required_by: notif.additional_data.defense_period_ends_at,
+            connector_status: notif.event_code.to_string(),
+            created_at: notif.event_date.clone(),
+            updated_at: notif.event_date,
+        })
     }
 }

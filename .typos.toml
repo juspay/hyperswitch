@@ -2,18 +2,21 @@
 check-filename = true
 
 [default.extend-identifiers]
+BA = "BA"  # Bosnia and Herzegovina country code
 flate2 = "flate2"
+FO = "FO"  # Faroe Islands (the) country code
 payment_vas = "payment_vas"
 PaymentVas = "PaymentVas"
 HypoNoeLbFurNiederosterreichUWien = "HypoNoeLbFurNiederosterreichUWien"
 hypo_noe_lb_fur_niederosterreich_u_wien = "hypo_noe_lb_fur_niederosterreich_u_wien"
+SOM = "SOM"  # Somalia country code
+THA = "THA"  # Thailand country code
 
 [default.extend-words]
 aci = "aci"                   # Name of a connector
 encrypter = "encrypter"       # Used by the `ring` crate
 nin = "nin"                   # National identification number, a field used by PayU connector
 substituters = "substituters" # Present in `flake.nix`
-FO = "FO"                     # Faroe Islands (the) country code
 
 [files]
 extend-exclude = [

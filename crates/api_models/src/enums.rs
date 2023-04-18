@@ -1,3 +1,4 @@
+pub use common_enums::*;
 use utoipa::ToSchema;
 
 #[derive(
@@ -33,11 +34,13 @@ pub enum AttemptStatus {
     VoidFailed,
     AutoRefunded,
     PartialCharged,
+    Unresolved,
     #[default]
     Pending,
     Failure,
     PaymentMethodAwaited,
     ConfirmationAwaited,
+    DeviceDataCollectionPending,
 }
 
 #[derive(
@@ -137,6 +140,7 @@ pub enum ConnectorType {
     serde::Serialize,
     strum::Display,
     strum::EnumString,
+    strum::EnumIter,
     ToSchema,
     frunk::LabelledGeneric,
 )]
@@ -264,8 +268,17 @@ pub enum Currency {
 #[strum(serialize_all = "snake_case")]
 pub enum EventType {
     PaymentSucceeded,
+    PaymentProcessing,
+    ActionRequired,
     RefundSucceeded,
     RefundFailed,
+    DisputeOpened,
+    DisputeExpired,
+    DisputeAccepted,
+    DisputeCancelled,
+    DisputeChallenged,
+    DisputeWon,
+    DisputeLost,
 }
 
 #[derive(
@@ -290,6 +303,7 @@ pub enum IntentStatus {
     Cancelled,
     Processing,
     RequiresCustomerAction,
+    RequiresMerchantAction,
     RequiresPaymentMethod,
     #[default]
     RequiresConfirmation,
@@ -407,6 +421,7 @@ pub enum PaymentMethodType {
     GooglePay,
     ApplePay,
     Paypal,
+    CryptoCurrency,
 }
 
 #[derive(
@@ -432,6 +447,7 @@ pub enum PaymentMethod {
     PayLater,
     Wallet,
     BankRedirect,
+    Crypto,
 }
 
 #[derive(
@@ -539,6 +555,7 @@ pub enum MandateStatus {
     strum::Display,
     strum::EnumString,
     frunk::LabelledGeneric,
+    Hash,
 )]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
@@ -551,27 +568,40 @@ pub enum Connector {
     Bluesnap,
     Braintree,
     Checkout,
+    Coinbase,
     Cybersource,
     #[default]
     Dummy,
+    Opennode,
     Bambora,
     Dlocal,
     Fiserv,
     Globalpay,
     Klarna,
+    Mollie,
     Multisafepay,
     Nuvei,
+    // Payeezy, As psync and rsync are not supported by this connector, it is added as template code for future usage
+    Paypal,
     Payu,
     Rapyd,
     Shift4,
     Stripe,
     Worldline,
     Worldpay,
+    Trustpay,
 }
 
 impl Connector {
-    pub fn supports_access_token(&self) -> bool {
-        matches!(self, Self::Airwallex | Self::Globalpay | Self::Payu)
+    pub fn supports_access_token(&self, payment_method: PaymentMethod) -> bool {
+        matches!(
+            (self, payment_method),
+            (Self::Airwallex, _)
+                | (Self::Globalpay, _)
+                | (Self::Paypal, _)
+                | (Self::Payu, _)
+                | (Self::Trustpay, PaymentMethod::BankRedirect)
+        )
     }
 }
 
@@ -598,19 +628,25 @@ pub enum RoutableConnectors {
     Bluesnap,
     Braintree,
     Checkout,
+    Coinbase,
     Cybersource,
     Dlocal,
     Fiserv,
     Globalpay,
     Klarna,
+    Mollie,
+    Multisafepay,
     Nuvei,
+    Opennode,
+    // Payeezy, As psync and rsync are not supported by this connector, it is added as template code for future usage
+    Paypal,
     Payu,
     Rapyd,
     Shift4,
     Stripe,
+    Trustpay,
     Worldline,
     Worldpay,
-    Multisafepay,
 }
 
 /// Wallets which support obtaining session object
@@ -734,8 +770,10 @@ impl From<AttemptStatus> for IntentStatus {
             AttemptStatus::PaymentMethodAwaited => Self::RequiresPaymentMethod,
 
             AttemptStatus::Authorized => Self::RequiresCapture,
-            AttemptStatus::AuthenticationPending => Self::RequiresCustomerAction,
-
+            AttemptStatus::AuthenticationPending | AttemptStatus::DeviceDataCollectionPending => {
+                Self::RequiresCustomerAction
+            }
+            AttemptStatus::Unresolved => Self::RequiresMerchantAction,
             AttemptStatus::PartialCharged
             | AttemptStatus::Started
             | AttemptStatus::AuthenticationSuccessful
@@ -754,4 +792,59 @@ impl From<AttemptStatus> for IntentStatus {
             AttemptStatus::Voided => Self::Cancelled,
         }
     }
+}
+
+#[derive(
+    Clone,
+    Default,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    frunk::LabelledGeneric,
+    ToSchema,
+)]
+pub enum DisputeStage {
+    PreDispute,
+    #[default]
+    Dispute,
+    PreArbitration,
+}
+
+#[derive(
+    Clone,
+    Debug,
+    Default,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    frunk::LabelledGeneric,
+    ToSchema,
+)]
+pub enum DisputeStatus {
+    #[default]
+    DisputeOpened,
+    DisputeExpired,
+    DisputeAccepted,
+    DisputeCancelled,
+    DisputeChallenged,
+    // dispute has been successfully challenged by the merchant
+    DisputeWon,
+    // dispute has been unsuccessfully challenged
+    DisputeLost,
+}
+
+#[derive(Debug, Eq, PartialEq, Clone, serde::Serialize, serde::Deserialize)]
+pub struct UnresolvedResponseReason {
+    pub code: String,
+    /// A message to merchant to give hint on next action he/she should do to resolve
+    pub message: String,
 }

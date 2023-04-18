@@ -352,7 +352,7 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for CaptureRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsCaptureRouterData) -> Result<Self, Self::Error> {
         Ok(Self {
-            amount: item.request.amount_to_capture,
+            amount: Some(item.request.amount_to_capture),
             receipt_email: None,
             statement_descriptor: None,
         })

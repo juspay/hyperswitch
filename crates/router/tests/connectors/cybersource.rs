@@ -42,7 +42,7 @@ fn get_default_payment_info() -> Option<utils::PaymentInfo> {
                     line2: Some(Secret::new("line2".to_string())),
                     city: Some("city".to_string()),
                     zip: Some(Secret::new("zip".to_string())),
-                    country: Some("IN".to_string()),
+                    country: Some(api_models::enums::CountryCode::IN),
                     ..Default::default()
                 }),
                 phone: Some(api::PhoneDetails {
@@ -103,7 +103,7 @@ async fn should_partially_capture_already_authorized_payment() {
         .authorize_and_capture_payment(
             get_default_payment_authorize_data(),
             Some(types::PaymentsCaptureData {
-                amount_to_capture: Some(50),
+                amount_to_capture: 50,
                 ..utils::PaymentCaptureType::default().0
             }),
             get_default_payment_info(),
@@ -122,8 +122,7 @@ async fn should_sync_payment() {
                 connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
                     "6699597903496176903954".to_string(),
                 ),
-                encoded_data: None,
-                capture_method: None,
+                ..Default::default()
             }),
             None,
         )

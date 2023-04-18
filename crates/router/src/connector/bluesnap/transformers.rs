@@ -114,10 +114,8 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for BluesnapCaptureRequest {
     fn try_from(item: &types::PaymentsCaptureRouterData) -> Result<Self, Self::Error> {
         let card_transaction_type = BluesnapTxnType::Capture;
         let transaction_id = item.request.connector_transaction_id.to_string();
-        let amount = utils::to_currency_base_unit_from_optional_amount(
-            item.request.amount_to_capture,
-            item.request.currency,
-        )?;
+        let amount =
+            utils::to_currency_base_unit(item.request.amount_to_capture, item.request.currency)?;
         Ok(Self {
             card_transaction_type,
             transaction_id,

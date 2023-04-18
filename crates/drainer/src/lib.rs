@@ -193,7 +193,7 @@ async fn drainer(
                         }
                         kv::Updateable::PaymentAttemptUpdate(a) => {
                             macro_util::handle_resp!(
-                                a.orig.update(&conn, a.update_data).await,
+                                a.orig.update_with_attempt_id(&conn, a.update_data).await,
                                 update_op,
                                 payment_attempt
                             )

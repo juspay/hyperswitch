@@ -241,9 +241,8 @@ pub struct RequestPaymentMethodTypes {
     /// List of currencies accepted or has the processing capabilities of the processor
     #[schema(example = json!(
         {
-        "enable_all":false,
-        "disable_only": ["INR", "CAD", "AED","JPY"],
-        "enable_only": ["EUR","USD"]
+            "type": "specific_accepted",
+            "list": ["USD", "INR"]
         }
     ))]
     pub accepted_currencies: Option<admin::AcceptedCurrencies>,
@@ -251,9 +250,8 @@ pub struct RequestPaymentMethodTypes {
     ///  List of Countries accepted or has the processing capabilities of the processor
     #[schema(example = json!(
         {
-            "enable_all":false,
-            "disable_only": ["FR", "DE","IN"],
-            "enable_only": ["UK","AU"]
+            "type": "specific_accepted",
+            "list": ["UK", "AU"]
         }
     ))]
     pub accepted_countries: Option<admin::AcceptedCountries>,
@@ -285,8 +283,8 @@ pub struct PaymentMethodListRequest {
     pub client_secret: Option<String>,
 
     /// The two-letter ISO currency code
-    #[schema(example = json!(["US", "UK", "IN"]))]
-    pub accepted_countries: Option<Vec<String>>,
+    #[schema(value_type = Option<Vec<Country>>, example = json!(["US", "UK", "IN"]))]
+    pub accepted_countries: Option<Vec<api_enums::CountryCode>>,
 
     /// The three-letter ISO currency code
     #[schema(value_type = Option<Vec<Currency>>,example = json!(["USD", "EUR"]))]
@@ -470,7 +468,7 @@ pub struct PaymentMethodDeleteResponse {
     pub deleted: bool,
 }
 
-#[derive(Debug, serde::Serialize, ToSchema)]
+#[derive(Debug, Clone, serde::Serialize, ToSchema)]
 pub struct CustomerPaymentMethod {
     /// Token for payment method in temporary card locker which gets refreshed often
     #[schema(example = "7ebf443f-a050-4067-84e5-e6f6d4800aef")]
@@ -545,12 +543,14 @@ pub struct TokenizePayloadRequest {
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct GetTokenizePayloadRequest {
     pub lookup_key: String,
+    pub service_name: String,
     pub get_value2: bool,
 }
 
-#[derive(Debug, serde::Serialize)]
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct DeleteTokenizeByTokenRequest {
     pub lookup_key: String,
+    pub service_name: String,
 }
 
 #[derive(Debug, serde::Serialize)] // Blocked: Yet to be implemented by `basilisk`

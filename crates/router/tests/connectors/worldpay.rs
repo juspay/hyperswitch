@@ -150,8 +150,7 @@ async fn should_sync_payment() {
                 connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
                     "112233".to_string(),
                 ),
-                encoded_data: None,
-                capture_method: None,
+                ..Default::default()
             }),
             None,
         )

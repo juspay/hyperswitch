@@ -32,10 +32,12 @@ pub async fn get_mandate(
     req: HttpRequest,
     path: web::Path<String>,
 ) -> HttpResponse {
+    let flow = Flow::MandatesRetrieve;
     let mandate_id = mandates::MandateId {
         mandate_id: path.into_inner(),
     };
     api::server_wrap(
+        flow,
         state.get_ref(),
         &req,
         mandate_id,
@@ -69,10 +71,12 @@ pub async fn revoke_mandate(
     req: HttpRequest,
     path: web::Path<String>,
 ) -> HttpResponse {
+    let flow = Flow::MandatesRevoke;
     let mandate_id = mandates::MandateId {
         mandate_id: path.into_inner(),
     };
     api::server_wrap(
+        flow,
         state.get_ref(),
         &req,
         mandate_id,

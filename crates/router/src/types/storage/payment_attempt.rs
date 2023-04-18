@@ -2,6 +2,12 @@ pub use storage_models::payment_attempt::{
     PaymentAttempt, PaymentAttemptNew, PaymentAttemptUpdate, PaymentAttemptUpdateInternal,
 };
 
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct RoutingData {
+    pub routed_through: Option<String>,
+    pub algorithm: Option<api_models::admin::RoutingAlgorithm>,
+}
+
 #[cfg(feature = "kv_store")]
 impl crate::utils::storage_partitioning::KvStorePartition for PaymentAttempt {}
 
@@ -28,9 +34,10 @@ mod tests {
 
         let payment_id = Uuid::new_v4().to_string();
         let current_time = common_utils::date_time::now();
+        let connector = types::Connector::Dummy.to_string();
         let payment_attempt = PaymentAttemptNew {
             payment_id: payment_id.clone(),
-            connector: Some(types::Connector::Dummy.to_string()),
+            connector: Some(connector),
             created_at: current_time.into(),
             modified_at: current_time.into(),
             ..PaymentAttemptNew::default()
@@ -56,14 +63,17 @@ mod tests {
 
         let current_time = common_utils::date_time::now();
         let payment_id = Uuid::new_v4().to_string();
+        let attempt_id = Uuid::new_v4().to_string();
         let merchant_id = Uuid::new_v4().to_string();
+        let connector = types::Connector::Dummy.to_string();
 
         let payment_attempt = PaymentAttemptNew {
             payment_id: payment_id.clone(),
             merchant_id: merchant_id.clone(),
-            connector: Some(types::Connector::Dummy.to_string()),
+            connector: Some(connector),
             created_at: current_time.into(),
             modified_at: current_time.into(),
+            attempt_id: attempt_id.clone(),
             ..PaymentAttemptNew::default()
         };
         state
@@ -74,9 +84,10 @@ mod tests {
 
         let response = state
             .store
-            .find_payment_attempt_by_payment_id_merchant_id(
+            .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
                 &payment_id,
                 &merchant_id,
+                &attempt_id,
                 enums::MerchantStorageScheme::PostgresOnly,
             )
             .await
@@ -96,15 +107,17 @@ mod tests {
         let uuid = uuid::Uuid::new_v4().to_string();
         let state = routes::AppState::with_storage(conf, StorageImpl::PostgresqlTest).await;
         let current_time = common_utils::date_time::now();
+        let connector = types::Connector::Dummy.to_string();
 
         let payment_attempt = PaymentAttemptNew {
             payment_id: uuid.clone(),
             merchant_id: "1".to_string(),
-            connector: Some(types::Connector::Dummy.to_string()),
+            connector: Some(connector),
             created_at: current_time.into(),
             modified_at: current_time.into(),
             // Adding a mandate_id
             mandate_id: Some("man_121212".to_string()),
+            attempt_id: uuid.clone(),
             ..PaymentAttemptNew::default()
         };
         state
@@ -115,9 +128,10 @@ mod tests {
 
         let response = state
             .store
-            .find_payment_attempt_by_payment_id_merchant_id(
+            .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
                 &uuid,
                 "1",
+                &uuid,
                 enums::MerchantStorageScheme::PostgresOnly,
             )
             .await

@@ -4,22 +4,30 @@ version = "0.1.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[features]
+errors = [
+    "dep:actix-web",
+    "dep:reqwest",
+]
+multiple_mca = []
 
 [dependencies]
-actix-web = "4.3.0"
+actix-web = { version = "4.3.1", optional = true }
 error-stack = "0.3.1"
 frunk = "0.4.1"
 frunk_core = "0.4.1"
 mime = "0.3.16"
-reqwest = "0.11.14"
-serde = { version = "1.0.152", features = ["derive"] }
-serde_json = "1.0.91"
+reqwest = { version = "0.11.14", optional = true }
+serde = { version = "1.0.155", features = ["derive"] }
+serde_json = "1.0.94"
 strum = { version = "0.24.1", features = ["derive"] }
-time = { version = "0.3.17", features = ["serde", "serde-well-known", "std"] }
+time = { version = "0.3.20", features = ["serde", "serde-well-known", "std"] }
 url = { version = "2.3.1", features = ["serde"] }
-utoipa = { version = "3.0.3", features = ["preserve_order"] }
+utoipa = { version = "3.2.0", features = ["preserve_order"] }
+
 
 # First party crates
 common_utils = { version = "0.1.0", path = "../common_utils" }
 masking = { version = "0.1.0", path = "../masking" }
 router_derive = { version = "0.1.0", path = "../router_derive" }
+common_enums = {path = "../common_enums"}

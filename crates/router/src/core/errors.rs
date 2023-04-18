@@ -154,8 +154,7 @@ impl From<ConfigError> for ApplicationError {
 
 fn error_response<T: Display>(err: &T) -> actix_web::HttpResponse {
     actix_web::HttpResponse::BadRequest()
-        .append_header(("Via", "Juspay_Router"))
-        .content_type("application/json")
+        .content_type(mime::APPLICATION_JSON)
         .body(format!(r#"{{ "error": {{ "message": "{err}" }} }}"#))
 }
 
@@ -222,6 +221,8 @@ pub enum ConnectorError {
     RequestEncodingFailed,
     #[error("Request encoding failed : {0}")]
     RequestEncodingFailedWithReason(String),
+    #[error("Parsing failed")]
+    ParsingFailed,
     #[error("Failed to deserialize connector response")]
     ResponseDeserializationFailed,
     #[error("Failed to execute a processing step: {0:?}")]
@@ -256,6 +257,8 @@ pub enum ConnectorError {
         connector: &'static str,
         payment_experience: String,
     },
+    #[error("{flow} flow not supported by {connector} connector")]
+    FlowNotSupported { flow: String, connector: String },
     #[error("Missing connector transaction ID")]
     MissingConnectorTransactionID,
     #[error("Missing connector refund ID")]
@@ -276,10 +279,16 @@ pub enum ConnectorError {
     WebhookEventTypeNotFound,
     #[error("Incoming webhook event resource object not found")]
     WebhookResourceObjectNotFound,
+    #[error("Could not respond to the incoming webhook event")]
+    WebhookResponseEncodingFailed,
     #[error("Invalid Date/time format")]
     InvalidDateFormat,
+    #[error("Invalid Data format")]
+    InvalidDataFormat { field_name: &'static str },
     #[error("Payment Method data / Payment Method Type / Payment Experience Mismatch ")]
     MismatchedPaymentData,
+    #[error("Failed to parse Wallet token")]
+    InvalidWalletToken,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -300,6 +309,20 @@ pub enum VaultError {
     MissingRequiredField { field_name: &'static str },
     #[error("The card vault returned an unexpected response: {0:?}")]
     UnexpectedResponseError(bytes::Bytes),
+    #[error("Failed to update in PMD table")]
+    UpdateInPaymentMethodDataTableFailed,
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum KmsError {
+    #[error("Failed to base64 decode input data")]
+    Base64DecodingFailed,
+    #[error("Failed to KMS decrypt input data")]
+    DecryptionFailed,
+    #[error("Missing plaintext KMS decryption output")]
+    MissingPlaintextDecryptionOutput,
+    #[error("Failed to UTF-8 decode decryption output")]
+    Utf8DecodingFailed,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -403,6 +426,8 @@ pub enum WebhooksFlowError {
     PaymentsCoreFailed,
     #[error("Refunds core flow failed")]
     RefundsCoreFailed,
+    #[error("Dispuste core flow failed")]
+    DisputeCoreFailed,
     #[error("Webhook event creation failed")]
     WebhookEventCreationFailed,
     #[error("Unable to fork webhooks flow for outgoing webhooks")]
@@ -413,4 +438,12 @@ pub enum WebhooksFlowError {
     NotReceivedByMerchant,
     #[error("Resource not found")]
     ResourceNotFound,
+    #[error("Webhook source verification failed")]
+    WebhookSourceVerificationFailed,
+    #[error("Webhook event object creation failed")]
+    WebhookEventObjectCreationFailed,
+    #[error("Not implemented")]
+    NotImplemented,
+    #[error("Dispute webhook status validation failed")]
+    DisputeWebhookValidationFailed,
 }

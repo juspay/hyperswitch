@@ -47,7 +47,7 @@ Below is a step-by-step tutorial for integrating a new connector.
 
 ```bash
 cd scripts
-sh add_connector.sh <connector-name>
+bash add_connector.sh <connector-name> <connector-base-url>
 ```
 
 For this tutorial `<connector-name>` would be `checkout`.

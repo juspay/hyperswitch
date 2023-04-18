@@ -1,6 +1,10 @@
-FROM rust:1.65 as builder
+FROM rust:slim as builder
+
+ARG RUN_ENV=Sandbox
+ARG EXTRA_FEATURES=""
+
 RUN apt-get update \
-    && apt-get install -y libpq-dev libssl-dev
+    && apt-get install -y libpq-dev libssl-dev pkg-config
 
 # Copying codebase from current dir to /router dir
 # and creating a fresh build
@@ -25,9 +29,13 @@ ENV CARGO_NET_RETRY=10
 ENV RUSTUP_MAX_RETRIES=10
 # Don't emit giant backtraces in the CI logs.
 ENV RUST_BACKTRACE="short"
+# Use cargo's sparse index protocol
+ENV CARGO_REGISTRIES_CRATES_IO_PROTOCOL="sparse"
 
 COPY . .
-RUN cargo build --release --features sandbox
+
+# Use bash variable substitution to convert environment name to lowercase
+RUN bash -c 'cargo build --release --features ${RUN_ENV@L} ${EXTRA_FEATURES}'
 
 
 

@@ -44,7 +44,7 @@ where
     /// Functionality, for specifically encoding `Self` into `String`
     /// after serialization by using `serde::Serialize`
     ///
-    fn encode(&'e self) -> CustomResult<String, errors::ParsingError>
+    fn url_encode(&'e self) -> CustomResult<String, errors::ParsingError>
     where
         Self: Serialize;
 
@@ -103,7 +103,7 @@ where
     }
 
     // Check without two functions can we combine this
-    fn encode(&'e self) -> CustomResult<String, errors::ParsingError>
+    fn url_encode(&'e self) -> CustomResult<String, errors::ParsingError>
     where
         Self: Serialize,
     {
@@ -176,24 +176,24 @@ impl<T> BytesExt<T> for bytes::Bytes {
 ///
 /// Extending functionalities of `[u8]` for performing parsing
 ///
-pub trait ByteSliceExt<T> {
+pub trait ByteSliceExt {
     ///
     /// Convert `[u8]` into type `<T>` by using `serde::Deserialize`
     ///
-    fn parse_struct<'de>(&'de self, type_name: &str) -> CustomResult<T, errors::ParsingError>
+    fn parse_struct<'de, T>(&'de self, type_name: &str) -> CustomResult<T, errors::ParsingError>
     where
         T: Deserialize<'de>;
 }
 
-impl<T> ByteSliceExt<T> for [u8] {
-    fn parse_struct<'de>(&'de self, type_name: &str) -> CustomResult<T, errors::ParsingError>
+impl ByteSliceExt for [u8] {
+    fn parse_struct<'de, T>(&'de self, type_name: &str) -> CustomResult<T, errors::ParsingError>
     where
         T: Deserialize<'de>,
     {
         serde_json::from_slice(self)
             .into_report()
             .change_context(errors::ParsingError)
-            .attach_printable_lazy(|| format!("Unable to parse {type_name} from &[u8]"))
+            .attach_printable_lazy(|| format!("Unable to parse {type_name} from &[u8] {:?}", &self))
     }
 }
 
@@ -277,14 +277,17 @@ impl<T> StringExt<T> for String {
         serde_json::from_str::<T>(self)
             .into_report()
             .change_context(errors::ParsingError)
-            .attach_printable_lazy(|| format!("Unable to parse {type_name} from string"))
+            .attach_printable_lazy(|| {
+                format!("Unable to parse {type_name} from string {:?}", &self)
+            })
     }
 }
 
 ///
 /// Extending functionalities of Wrapper types for idiomatic
 ///
-#[async_trait::async_trait]
+#[cfg(feature = "async_ext")]
+#[cfg_attr(feature = "async_ext", async_trait::async_trait)]
 pub trait AsyncExt<A, B> {
     /// Output type of the map function
     type WrappedSelf<T>;
@@ -305,7 +308,8 @@ pub trait AsyncExt<A, B> {
         Fut: futures::Future<Output = Self::WrappedSelf<B>> + Send;
 }
 
-#[async_trait::async_trait]
+#[cfg(feature = "async_ext")]
+#[cfg_attr(feature = "async_ext", async_trait::async_trait)]
 impl<A: Send, B, E: Send> AsyncExt<A, B> for Result<A, E> {
     type WrappedSelf<T> = Result<T, E>;
     async fn async_and_then<F, Fut>(self, func: F) -> Self::WrappedSelf<B>
@@ -331,7 +335,8 @@ impl<A: Send, B, E: Send> AsyncExt<A, B> for Result<A, E> {
     }
 }
 
-#[async_trait::async_trait]
+#[cfg(feature = "async_ext")]
+#[cfg_attr(feature = "async_ext", async_trait::async_trait)]
 impl<A: Send, B> AsyncExt<A, B> for Option<A> {
     type WrappedSelf<T> = Option<T>;
     async fn async_and_then<F, Fut>(self, func: F) -> Self::WrappedSelf<B>

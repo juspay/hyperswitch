@@ -1,9 +1,11 @@
 use std::marker::PhantomData;
 
+use api_models::enums::{DisputeStage, DisputeStatus};
+use common_utils::errors::CustomResult;
 use error_stack::ResultExt;
 use router_env::{instrument, tracing};
 
-use super::payments::PaymentAddress;
+use super::payments::{helpers, PaymentAddress};
 use crate::{
     consts,
     core::errors::{self, RouterResult},
@@ -25,18 +27,27 @@ pub async fn construct_refund_router_data<'a, F>(
     payment_intent: &'a storage::PaymentIntent,
     payment_attempt: &storage::PaymentAttempt,
     refund: &'a storage::Refund,
+    creds_identifier: Option<String>,
 ) -> RouterResult<types::RefundsRouterData<F>> {
     let db = &*state.store;
-    let merchant_connector_account = db
-        .find_merchant_connector_account_by_merchant_id_connector(
-            &merchant_account.merchant_id,
-            connector_id,
-        )
-        .await
-        .change_context(errors::ApiErrorResponse::MerchantAccountNotFound)?;
+
+    let connector_label = helpers::get_connector_label(
+        payment_intent.business_country,
+        &payment_intent.business_label,
+        None,
+        connector_id,
+    );
+
+    let merchant_connector_account = helpers::get_merchant_connector_account(
+        db,
+        merchant_account.merchant_id.as_str(),
+        &connector_label,
+        creds_identifier,
+    )
+    .await?;
 
     let auth_type: types::ConnectorAuthType = merchant_connector_account
-        .connector_account_details
+        .get_connector_account_details()
         .parse_value("ConnectorAuthType")
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
@@ -51,7 +62,7 @@ pub async fn construct_refund_router_data<'a, F>(
     let router_data = types::RouterData {
         flow: PhantomData,
         merchant_id: merchant_account.merchant_id.clone(),
-        connector: merchant_connector_account.connector_name,
+        connector: connector_id.to_string(),
         payment_id: payment_attempt.payment_id.clone(),
         attempt_id: payment_attempt.attempt_id.clone(),
         status,
@@ -59,12 +70,11 @@ pub async fn construct_refund_router_data<'a, F>(
         connector_auth_type: auth_type,
         description: None,
         return_url: payment_intent.return_url.clone(),
-        router_return_url: None,
         payment_method_id: payment_attempt.payment_method_id.clone(),
         // Does refund need shipping/billing address ?
         address: PaymentAddress::default(),
         auth_type: payment_attempt.authentication_type.unwrap_or_default(),
-        connector_meta_data: None,
+        connector_meta_data: merchant_connector_account.get_metadata(),
         amount_captured: payment_intent.amount_captured,
         request: types::RefundsData {
             refund_id: refund.refund_id.clone(),
@@ -84,6 +94,7 @@ pub async fn construct_refund_router_data<'a, F>(
         access_token: None,
         session_token: None,
         reference_id: None,
+        payment_method_token: None,
     };
 
     Ok(router_data)
@@ -124,7 +135,8 @@ mod tests {
 
     #[test]
     fn validate_id_length_constraint() {
-        let payment_id = "abcdefghijlkmnopqrstuvwzyzabcdefghijknlmnop".to_string(); //length = 43
+        let payment_id =
+            "abcdefghijlkmnopqrstuvwzyzabcdefghijknlmnopsjkdnfjsknfkjsdnfspoig".to_string(); //length = 65
 
         let result = validate_id(payment_id, "payment_id");
         assert!(result.is_err());
@@ -132,7 +144,7 @@ mod tests {
 
     #[test]
     fn validate_id_proper_response() {
-        let payment_id = "abcdefghijlkmnopqrst".to_string();
+        let payment_id = "abcdefghijlkmnopqrstjhbjhjhkhbhgcxdfxvmhb".to_string();
 
         let result = validate_id(payment_id.clone(), "payment_id");
         assert!(result.is_ok());
@@ -145,4 +157,68 @@ mod tests {
         let generated_id = generate_id(consts::ID_LENGTH, "ref");
         assert_eq!(generated_id.len(), consts::ID_LENGTH + 4)
     }
+}
+
+// Dispute Stage can move linearly from PreDispute -> Dispute -> PreArbitration
+pub fn validate_dispute_stage(
+    prev_dispute_stage: &DisputeStage,
+    dispute_stage: &DisputeStage,
+) -> bool {
+    match prev_dispute_stage {
+        DisputeStage::PreDispute => true,
+        DisputeStage::Dispute => !matches!(dispute_stage, DisputeStage::PreDispute),
+        DisputeStage::PreArbitration => matches!(dispute_stage, DisputeStage::PreArbitration),
+    }
+}
+
+//Dispute status can go from Opened -> (Expired | Accepted | Cancelled | Challenged -> (Won | Lost))
+pub fn validate_dispute_status(
+    prev_dispute_status: DisputeStatus,
+    dispute_status: DisputeStatus,
+) -> bool {
+    match prev_dispute_status {
+        DisputeStatus::DisputeOpened => true,
+        DisputeStatus::DisputeExpired => {
+            matches!(dispute_status, DisputeStatus::DisputeExpired)
+        }
+        DisputeStatus::DisputeAccepted => {
+            matches!(dispute_status, DisputeStatus::DisputeAccepted)
+        }
+        DisputeStatus::DisputeCancelled => {
+            matches!(dispute_status, DisputeStatus::DisputeCancelled)
+        }
+        DisputeStatus::DisputeChallenged => matches!(
+            dispute_status,
+            DisputeStatus::DisputeChallenged
+                | DisputeStatus::DisputeWon
+                | DisputeStatus::DisputeLost
+        ),
+        DisputeStatus::DisputeWon => matches!(dispute_status, DisputeStatus::DisputeWon),
+        DisputeStatus::DisputeLost => matches!(dispute_status, DisputeStatus::DisputeLost),
+    }
+}
+
+pub fn validate_dispute_stage_and_dispute_status(
+    prev_dispute_stage: DisputeStage,
+    prev_dispute_status: DisputeStatus,
+    dispute_stage: DisputeStage,
+    dispute_status: DisputeStatus,
+) -> CustomResult<(), errors::WebhooksFlowError> {
+    let dispute_stage_validation = validate_dispute_stage(&prev_dispute_stage, &dispute_stage);
+    let dispute_status_validation = if dispute_stage == prev_dispute_stage {
+        validate_dispute_status(prev_dispute_status, dispute_status)
+    } else {
+        true
+    };
+    common_utils::fp_utils::when(
+        !(dispute_stage_validation && dispute_status_validation),
+        || {
+            super::metrics::INCOMING_DISPUTE_WEBHOOK_VALIDATION_FAILURE_METRIC.add(
+                &super::metrics::CONTEXT,
+                1,
+                &[],
+            );
+            Err(errors::WebhooksFlowError::DisputeWebhookValidationFailed)?
+        },
+    )
 }

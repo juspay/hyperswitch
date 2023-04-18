@@ -1,6 +1,7 @@
 use api_models::enums as api_enums;
 use common_utils::ext_traits::ValueExt;
 use error_stack::ResultExt;
+use masking::Secret;
 use storage_models::enums as storage_enums;
 
 use crate::{
@@ -128,7 +129,11 @@ impl ForeignFrom<storage_enums::AttemptStatus> for storage_enums::IntentStatus {
             storage_enums::AttemptStatus::PaymentMethodAwaited => Self::RequiresPaymentMethod,
 
             storage_enums::AttemptStatus::Authorized => Self::RequiresCapture,
-            storage_enums::AttemptStatus::AuthenticationPending => Self::RequiresCustomerAction,
+            storage_enums::AttemptStatus::AuthenticationPending
+            | storage_enums::AttemptStatus::DeviceDataCollectionPending => {
+                Self::RequiresCustomerAction
+            }
+            storage_enums::AttemptStatus::Unresolved => Self::RequiresMerchantAction,
 
             storage_enums::AttemptStatus::PartialCharged
             | storage_enums::AttemptStatus::Started
@@ -156,6 +161,8 @@ impl ForeignTryFrom<api_enums::IntentStatus> for storage_enums::EventType {
     fn foreign_try_from(value: api_enums::IntentStatus) -> Result<Self, Self::Error> {
         match value {
             api_enums::IntentStatus::Succeeded => Ok(Self::PaymentSucceeded),
+            api_enums::IntentStatus::Processing => Ok(Self::PaymentProcessing),
+            api_enums::IntentStatus::RequiresMerchantAction => Ok(Self::ActionRequired),
             _ => Err(errors::ValidationError::IncorrectValueProvided {
                 field_name: "intent_status",
             }),
@@ -173,6 +180,22 @@ impl ForeignTryFrom<storage_enums::RefundStatus> for storage_enums::EventType {
             _ => Err(errors::ValidationError::IncorrectValueProvided {
                 field_name: "refund_status",
             }),
+        }
+    }
+}
+
+impl ForeignTryFrom<storage_enums::DisputeStatus> for storage_enums::EventType {
+    type Error = errors::ValidationError;
+
+    fn foreign_try_from(value: storage_enums::DisputeStatus) -> Result<Self, Self::Error> {
+        match value {
+            storage_enums::DisputeStatus::DisputeOpened => Ok(Self::DisputeOpened),
+            storage_enums::DisputeStatus::DisputeExpired => Ok(Self::DisputeExpired),
+            storage_enums::DisputeStatus::DisputeAccepted => Ok(Self::DisputeAccepted),
+            storage_enums::DisputeStatus::DisputeCancelled => Ok(Self::DisputeCancelled),
+            storage_enums::DisputeStatus::DisputeChallenged => Ok(Self::DisputeChallenged),
+            storage_enums::DisputeStatus::DisputeWon => Ok(Self::DisputeWon),
+            storage_enums::DisputeStatus::DisputeLost => Ok(Self::DisputeLost),
         }
     }
 }
@@ -246,6 +269,7 @@ impl ForeignFrom<api_enums::Currency> for storage_enums::Currency {
         frunk::labelled_convert_from(currency)
     }
 }
+
 impl ForeignFrom<storage_enums::Currency> for api_enums::Currency {
     fn foreign_from(currency: storage_enums::Currency) -> Self {
         frunk::labelled_convert_from(currency)
@@ -257,7 +281,7 @@ impl<'a> ForeignFrom<&'a api_types::Address> for storage::AddressUpdate {
         let address = address;
         Self::Update {
             city: address.address.as_ref().and_then(|a| a.city.clone()),
-            country: address.address.as_ref().and_then(|a| a.country.clone()),
+            country: address.address.as_ref().and_then(|a| a.country),
             line1: address.address.as_ref().and_then(|a| a.line1.clone()),
             line2: address.address.as_ref().and_then(|a| a.line2.clone()),
             line3: address.address.as_ref().and_then(|a| a.line3.clone()),
@@ -296,7 +320,7 @@ impl<'a> ForeignFrom<&'a storage::Address> for api_types::Address {
         Self {
             address: Some(api_types::AddressDetails {
                 city: address.city.clone(),
-                country: address.country.clone(),
+                country: address.country,
                 line1: address.line1.clone(),
                 line2: address.line2.clone(),
                 line3: address.line3.clone(),
@@ -310,33 +334,6 @@ impl<'a> ForeignFrom<&'a storage::Address> for api_types::Address {
                 country_code: address.country_code.clone(),
             }),
         }
-    }
-}
-
-impl ForeignTryFrom<storage::MerchantConnectorAccount> for api_models::admin::MerchantConnector {
-    type Error = error_stack::Report<errors::ApiErrorResponse>;
-    fn foreign_try_from(item: storage::MerchantConnectorAccount) -> Result<Self, Self::Error> {
-        let merchant_ca = item;
-
-        let payment_methods_enabled = match merchant_ca.payment_methods_enabled {
-            Some(val) => serde_json::Value::Array(val)
-                .parse_value("PaymentMethods")
-                .change_context(errors::ApiErrorResponse::InternalServerError)?,
-            None => None,
-        };
-
-        Ok(Self {
-            connector_type: merchant_ca.connector_type.foreign_into(),
-            connector_name: merchant_ca.connector_name,
-            merchant_connector_id: Some(merchant_ca.merchant_connector_id),
-            connector_account_details: Some(masking::Secret::new(
-                merchant_ca.connector_account_details,
-            )),
-            test_mode: merchant_ca.test_mode,
-            disabled: merchant_ca.disabled,
-            metadata: merchant_ca.metadata,
-            payment_methods_enabled,
-        })
     }
 }
 
@@ -433,5 +430,125 @@ impl ForeignFrom<api_models::api_keys::UpdateApiKeyRequest>
 impl ForeignFrom<storage_enums::AttemptStatus> for api_enums::AttemptStatus {
     fn foreign_from(status: storage_enums::AttemptStatus) -> Self {
         frunk::labelled_convert_from(status)
+    }
+}
+
+impl ForeignFrom<api_enums::DisputeStage> for storage_enums::DisputeStage {
+    fn foreign_from(status: api_enums::DisputeStage) -> Self {
+        frunk::labelled_convert_from(status)
+    }
+}
+
+impl ForeignFrom<api_enums::DisputeStatus> for storage_enums::DisputeStatus {
+    fn foreign_from(status: api_enums::DisputeStatus) -> Self {
+        frunk::labelled_convert_from(status)
+    }
+}
+
+impl ForeignFrom<storage_enums::DisputeStage> for api_enums::DisputeStage {
+    fn foreign_from(status: storage_enums::DisputeStage) -> Self {
+        frunk::labelled_convert_from(status)
+    }
+}
+
+impl ForeignFrom<storage_enums::DisputeStatus> for api_enums::DisputeStatus {
+    fn foreign_from(status: storage_enums::DisputeStatus) -> Self {
+        frunk::labelled_convert_from(status)
+    }
+}
+
+impl ForeignTryFrom<api_models::webhooks::IncomingWebhookEvent> for storage_enums::DisputeStatus {
+    type Error = errors::ValidationError;
+
+    fn foreign_try_from(
+        value: api_models::webhooks::IncomingWebhookEvent,
+    ) -> Result<Self, Self::Error> {
+        match value {
+            api_models::webhooks::IncomingWebhookEvent::DisputeOpened => Ok(Self::DisputeOpened),
+            api_models::webhooks::IncomingWebhookEvent::DisputeExpired => Ok(Self::DisputeExpired),
+            api_models::webhooks::IncomingWebhookEvent::DisputeAccepted => {
+                Ok(Self::DisputeAccepted)
+            }
+            api_models::webhooks::IncomingWebhookEvent::DisputeCancelled => {
+                Ok(Self::DisputeCancelled)
+            }
+            api_models::webhooks::IncomingWebhookEvent::DisputeChallenged => {
+                Ok(Self::DisputeChallenged)
+            }
+            api_models::webhooks::IncomingWebhookEvent::DisputeWon => Ok(Self::DisputeWon),
+            api_models::webhooks::IncomingWebhookEvent::DisputeLost => Ok(Self::DisputeLost),
+            _ => Err(errors::ValidationError::IncorrectValueProvided {
+                field_name: "incoming_webhook_event",
+            }),
+        }
+    }
+}
+
+impl ForeignFrom<storage::Dispute> for api_models::disputes::DisputeResponse {
+    fn foreign_from(dispute: storage::Dispute) -> Self {
+        Self {
+            dispute_id: dispute.dispute_id,
+            payment_id: dispute.payment_id,
+            attempt_id: dispute.attempt_id,
+            amount: dispute.amount,
+            currency: dispute.currency,
+            dispute_stage: dispute.dispute_stage.foreign_into(),
+            dispute_status: dispute.dispute_status.foreign_into(),
+            connector: dispute.connector,
+            connector_status: dispute.connector_status,
+            connector_dispute_id: dispute.connector_dispute_id,
+            connector_reason: dispute.connector_reason,
+            connector_reason_code: dispute.connector_reason_code,
+            challenge_required_by: dispute.challenge_required_by,
+            created_at: dispute.dispute_created_at,
+            updated_at: dispute.updated_at,
+            received_at: dispute.created_at.to_string(),
+        }
+    }
+}
+
+impl ForeignFrom<storage_models::cards_info::CardInfo>
+    for api_models::cards_info::CardInfoResponse
+{
+    fn foreign_from(item: storage_models::cards_info::CardInfo) -> Self {
+        Self {
+            card_iin: item.card_iin,
+            card_type: item.card_type,
+            card_sub_type: item.card_subtype,
+            card_network: item.card_network,
+            card_issuer: item.card_issuer,
+            card_issuing_country: item.card_issuing_country,
+        }
+    }
+}
+
+impl ForeignTryFrom<storage_models::merchant_connector_account::MerchantConnectorAccount>
+    for api_models::admin::MerchantConnectorResponse
+{
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
+    fn foreign_try_from(
+        item: storage_models::merchant_connector_account::MerchantConnectorAccount,
+    ) -> Result<Self, Self::Error> {
+        let payment_methods_enabled = match item.payment_methods_enabled {
+            Some(val) => serde_json::Value::Array(val)
+                .parse_value("PaymentMethods")
+                .change_context(errors::ApiErrorResponse::InternalServerError)?,
+            None => None,
+        };
+
+        Ok(Self {
+            connector_type: item.connector_type.foreign_into(),
+            connector_name: item.connector_name,
+            connector_label: item.connector_label,
+            merchant_connector_id: item.merchant_connector_id,
+            connector_account_details: Secret::new(item.connector_account_details),
+            test_mode: item.test_mode,
+            disabled: item.disabled,
+            payment_methods_enabled,
+            metadata: item.metadata,
+            business_country: item.business_country,
+            business_label: item.business_label,
+            business_sub_label: item.business_sub_label,
+        })
     }
 }

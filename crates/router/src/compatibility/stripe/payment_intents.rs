@@ -75,6 +75,7 @@ pub async fn payment_intents_retrieve(
         force_sync: true,
         connector: None,
         param: None,
+        merchant_connector_details: None,
     };
 
     let (auth_type, auth_flow) = match auth::get_auth_type_and_flow(req.headers()) {
@@ -102,6 +103,64 @@ pub async fn payment_intents_retrieve(
                 payments::PaymentStatus,
                 payload,
                 auth_flow,
+                payments::CallConnectorAction::Trigger,
+            )
+        },
+        &*auth_type,
+    )
+    .await
+}
+
+#[instrument(skip_all)]
+#[post("/sync")]
+pub async fn payment_intents_retrieve_with_gateway_creds(
+    state: web::Data<routes::AppState>,
+    qs_config: web::Data<serde_qs::Config>,
+    req: HttpRequest,
+    form_payload: web::Bytes,
+) -> HttpResponse {
+    let json_payload: payment_types::PaymentRetrieveBodyWithCredentials = match qs_config
+        .deserialize_bytes(&form_payload)
+        .map_err(|err| report!(errors::StripeErrorCode::from(err)))
+    {
+        Ok(p) => p,
+        Err(err) => return api::log_and_return_error_response(err),
+    };
+
+    let payload = payment_types::PaymentsRetrieveRequest {
+        resource_id: payment_types::PaymentIdType::PaymentIntentId(
+            json_payload.payment_id.to_string(),
+        ),
+        merchant_id: json_payload.merchant_id.clone(),
+        force_sync: json_payload.force_sync.unwrap_or(false),
+        merchant_connector_details: json_payload.merchant_connector_details.clone(),
+        ..Default::default()
+    };
+    let (auth_type, _auth_flow) = match auth::get_auth_type_and_flow(req.headers()) {
+        Ok(auth) => auth,
+        Err(err) => return api::log_and_return_error_response(report!(err)),
+    };
+
+    wrap::compatibility_api_wrap::<
+        _,
+        _,
+        _,
+        _,
+        _,
+        _,
+        types::StripePaymentIntentResponse,
+        errors::StripeErrorCode,
+    >(
+        state.get_ref(),
+        &req,
+        payload,
+        |state, merchant_account, req| {
+            payments::payments_core::<api_types::PSync, payment_types::PaymentsResponse, _, _, _>(
+                state,
+                merchant_account,
+                payments::PaymentStatus,
+                req,
+                api::AuthFlow::Merchant,
                 payments::CallConnectorAction::Trigger,
             )
         },

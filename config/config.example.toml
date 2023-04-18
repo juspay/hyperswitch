@@ -14,28 +14,30 @@ request_body_limit = 16_384
 # Proxy server configuration for connecting to payment gateways.
 # Don't define the fields if a Proxy isn't needed. Empty strings will cause failure.
 [proxy]
-# http_url = "http proxy url"
-# https_url = "https proxy url"
+# http_url = "http proxy url"   # Proxy all HTTP traffic via this proxy
+# https_url = "https proxy url" # Proxy all HTTPS traffic via this proxy
 
 # Main SQL data store credentials
 [master_database]
-username = "db_user"      # DB Username
-password = "db_pass"      # DB Password
-host = "localhost"        # DB Host
-port = 5432               # DB Port
-dbname = "hyperswitch_db" # Name of Database
-pool_size = 5             # Number of connections to keep open
-connection_timeout = 10   # Timeout for database connection in seconds
+username = "db_user"        # DB Username
+password = "db_pass"        # DB Password. Only applicable when KMS is disabled.
+host = "localhost"          # DB Host
+port = 5432                 # DB Port
+dbname = "hyperswitch_db"   # Name of Database
+pool_size = 5               # Number of connections to keep open
+connection_timeout = 10     # Timeout for database connection in seconds
+kms_encrypted_password = "" # Base64-encoded (KMS encrypted) ciphertext of the database password. Only applicable when KMS is enabled.
 
 # Replica SQL data store credentials
 [replica_database]
-username = "replica_user" # DB Username
-password = "replica_pass" # DB Password
-host = "localhost"        # DB Host
-port = 5432               # DB Port
-dbname = "hyperswitch_db" # Name of Database
-pool_size = 5             # Number of connections to keep open
-connection_timeout = 10   # Timeout for database connection in seconds
+username = "replica_user"   # DB Username
+password = "replica_pass"   # DB Password. Only applicable when KMS is disabled.
+host = "localhost"          # DB Host
+port = 5432                 # DB Port
+dbname = "hyperswitch_db"   # Name of Database
+pool_size = 5               # Number of connections to keep open
+connection_timeout = 10     # Timeout for database connection in seconds
+kms_encrypted_password = "" # Base64-encoded (KMS encrypted) ciphertext of the database password. Only applicable when KMS is enabled.
 
 # Redis credentials
 [redis]
@@ -59,6 +61,13 @@ file_name = "debug.log" # base name for log files.
 # levels can be "TRACE", "DEBUG", "INFO", "WARN", "ERROR", "OFF"
 # defaults to "WARN"
 level = "WARN"
+# sets the log level for one or more crates
+filtering_directive = "WARN,router=INFO,reqwest=INFO" 
+#                      ^^^^        ^^^^---------^^^^-- sets the log level for the
+#                      |                               router and reqwest crates to INFO.
+#                      |
+#                      |______________________________ sets the log level for all
+#                                                      other crates to WARN.
 
 # Logging configuration for console logging
 [log.console]
@@ -67,11 +76,20 @@ log_format = "default" # Log format. "default" or "json"
 # levels can be "TRACE", "DEBUG", "INFO", "WARN", "ERROR", "OFF"
 # defaults to "WARN"
 level = "DEBUG"
+# sets the log level for one or more crates
+filtering_directive = "WARN,router=INFO,reqwest=INFO" 
+#                      ^^^^        ^^^^---------^^^^-- sets the log level for the
+#                      |                               router and reqwest crates to INFO.
+#                      |
+#                      |______________________________ sets the log level for all
+#                                                      other crates to WARN.
 
-# Telemetry configuration for traces
+# Telemetry configuration for metrics and traces
 [log.telemetry]
-enabled = false     # boolean [true or false]
-sampling_rate = 0.1 # decimal rate between 0.0 - 1.0
+enabled = false                                       # boolean [true or false]
+sampling_rate = 0.1                                   # decimal rate between 0.0 - 1.0
+otel_exporter_otlp_endpoint = "http://localhost:4317" # endpoint to send metrics and traces to, can include port number
+otel_exporter_otlp_timeout = 5000                     # timeout (in milliseconds) for sending metrics and traces
 
 # This section provides some secret values.
 [secrets]
@@ -82,9 +100,11 @@ jwt_secret = "secret"        # JWT secret used for user authentication
 # PCI Compliant storage entity which stores payment method information
 # like card details
 [locker]
-host = ""          # Locker host
-mock_locker = true # Emulate a locker locally using Postgres
-basilisk_host = "" #Basilisk host
+host = ""                      # Locker host
+mock_locker = true             # Emulate a locker locally using Postgres
+basilisk_host = ""             # Basilisk host
+locker_setup = "legacy_locker" # With locker to use while in the deployed environment (eg. legacy_locker, basilisk_locker)
+locker_signing_key_id = "1"    # Key_id to sign basilisk hs locker
 
 [jwekey] # 4 priv/pub key pair
 locker_key_identifier1 = "" # key identifier for key rotation , should be same as basilisk
@@ -93,6 +113,8 @@ locker_encryption_key1 = "" # public key 1 in pem format, corresponding private 
 locker_encryption_key2 = "" # public key 2 in pem format, corresponding private key in basilisk
 locker_decryption_key1 = "" # private key 1 in pem format, corresponding public key in basilisk
 locker_decryption_key2 = "" # private key 2 in pem format, corresponding public key in basilisk
+vault_encryption_key = ""   # public key in pem format, corresponding private key in basilisk-hs
+vault_private_key = ""      # private key in pem format, corresponding public key in basilisk-hs
 
 
 # Refund configuration
@@ -108,10 +130,6 @@ outgoing_enabled = true
 validity = 1
 
 [api_keys]
-# Key ID for the KMS managed key used to decrypt the API key hashing key
-aws_key_id = ""
-# The AWS region for the KMS managed key used to decrypt the API key hashing key
-aws_region = ""
 # Base64-encoded (KMS encrypted) ciphertext of the API key hashing key
 kms_encrypted_hash_key = ""
 # Hex-encoded 32-byte long (64 characters long when hex-encoded) key used for calculating hashes of API keys
@@ -131,39 +149,50 @@ bambora.base_url = "https://api.na.bambora.com"
 bluesnap.base_url = "https://sandbox.bluesnap.com/"
 braintree.base_url = "https://api.sandbox.braintreegateway.com/"
 checkout.base_url = "https://api.sandbox.checkout.com/"
+coinbase.base_url = "https://api.commerce.coinbase.com"
 cybersource.base_url = "https://apitest.cybersource.com/"
 dlocal.base_url = "https://sandbox.dlocal.com/"
 fiserv.base_url = "https://cert.api.fiservapps.com/"
 globalpay.base_url = "https://apis.sandbox.globalpay.com/ucp/"
 klarna.base_url = "https://api-na.playground.klarna.com/"
+mollie.base_url = "https://api.mollie.com/v2/"
 multisafepay.base_url = "https://testapi.multisafepay.com/"
 nuvei.base_url = "https://ppp-test.nuvei.com/"
+opennode.base_url = "https://dev-api.opennode.com"
+payeezy.base_url = "https://api-cert.payeezy.com/"
+paypal.base_url = "https://www.sandbox.paypal.com/" 
 payu.base_url = "https://secure.snd.payu.com/"
 rapyd.base_url = "https://sandboxapi.rapyd.net"
 shift4.base_url = "https://api.shift4.com/"
 stripe.base_url = "https://api.stripe.com/"
 worldline.base_url = "https://eu.sandbox.api-ingenico.com/"
 worldpay.base_url = "https://try.access.worldpay.com/"
+trustpay.base_url = "https://test-tpgw.trustpay.eu/"
+trustpay.base_url_bank_redirects = "https://aapi.trustpay.eu/"
 
 # This data is used to call respective connectors for wallets and cards
 [connectors.supported]
 wallets = ["klarna", "braintree", "applepay"]
 cards = [
-    "stripe",
     "adyen",
     "authorizedotnet",
-    "checkout",
+    "coinbase",
     "braintree",
+    "checkout",
     "cybersource",
+    "mollie",
+    "paypal",
     "shift4",
+    "stripe",
     "worldpay",
-    "globalpay",
 ]
 
 # Scheduler settings provides a point to modify the behaviour of scheduler flow.
 # It defines the the streams/queues name and configuration as well as event selection variables
 [scheduler]
 stream = "SCHEDULER_STREAM"
+graceful_shutdown_interval = 60000 # Specifies how much time to wait while re-attempting shutdown for a service (in milliseconds)
+loop_interval = 5000               # Specifies how much time to wait before starting the defined behaviour of producer or consumer (in milliseconds)
 
 [scheduler.consumer]
 consumer_group = "SCHEDULER_GROUP"
@@ -185,10 +214,15 @@ max_read_count = 100           # Specifies the maximum number of entries that wo
 shutdown_interval = 1000       # Specifies how much time to wait, while waiting for threads to complete execution (in milliseconds)
 loop_interval = 500            # Specifies how much time to wait after checking all the possible streams in completed (in milliseconds)
 
-# Filteration logic for list payment method, allowing use to limit payment methods based on the requirement country and currency
+# Filtration logic for list payment method, allowing use to limit payment methods based on the requirement country and currency
 [pm_filters.stripe]
 #           ^--- This can be any connector (can be multiple)
 paypal = { currency = "USD,INR", country = "US" }
 # ^                       ^------- comma-separated values
 # ^------------------------------- any valid payment method type (can be multiple) (for cards this should be card_network)
 # If either currency or country isn't provided then, all possible values are accepted
+
+# KMS configuration. Only applicable when the `kms` feature flag is enabled.
+[kms]
+key_id = "" # The AWS key ID used by the KMS SDK for decrypting data.
+region = "" # The AWS region used by the KMS SDK for decrypting data.

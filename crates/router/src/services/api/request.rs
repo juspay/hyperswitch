@@ -30,6 +30,12 @@ pub enum ContentType {
     FormUrlEncoded,
 }
 
+fn default_request_headers() -> [(String, String); 1] {
+    use http::header;
+
+    [(header::VIA.to_string(), "HyperSwitch".into())]
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Request {
     pub url: String,
@@ -56,6 +62,10 @@ impl Request {
 
     pub fn set_body(&mut self, body: String) {
         self.payload = Some(body.into());
+    }
+
+    pub fn add_default_headers(&mut self) {
+        self.headers.extend(default_request_headers());
     }
 
     pub fn add_header(&mut self, header: &str, value: &str) {
@@ -106,6 +116,11 @@ impl RequestBuilder {
 
     pub fn method(mut self, method: Method) -> Self {
         self.method = method;
+        self
+    }
+
+    pub fn attach_default_headers(mut self) -> Self {
+        self.headers.extend(default_request_headers());
         self
     }
 

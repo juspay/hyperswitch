@@ -8,7 +8,7 @@ diesel::table! {
         id -> Int4,
         address_id -> Varchar,
         city -> Nullable<Varchar>,
-        country -> Nullable<Varchar>,
+        country -> Nullable<CountryCode>,
         line1 -> Nullable<Varchar>,
         line2 -> Nullable<Varchar>,
         line3 -> Nullable<Varchar>,
@@ -39,6 +39,26 @@ diesel::table! {
         created_at -> Timestamp,
         expires_at -> Nullable<Timestamp>,
         last_used -> Nullable<Timestamp>,
+    }
+}
+
+diesel::table! {
+    use diesel::sql_types::*;
+    use crate::enums::diesel_exports::*;
+
+    cards_info (card_iin) {
+        card_iin -> Varchar,
+        card_issuer -> Nullable<Text>,
+        card_network -> Nullable<Text>,
+        card_type -> Nullable<Text>,
+        card_subtype -> Nullable<Text>,
+        card_issuing_country -> Nullable<Text>,
+        bank_code_id -> Nullable<Varchar>,
+        bank_code -> Nullable<Varchar>,
+        country_code -> Nullable<Varchar>,
+        date_created -> Timestamp,
+        last_updated -> Nullable<Timestamp>,
+        last_updated_provider -> Nullable<Text>,
     }
 }
 
@@ -86,6 +106,33 @@ diesel::table! {
         description -> Nullable<Varchar>,
         created_at -> Timestamp,
         metadata -> Nullable<Json>,
+    }
+}
+
+diesel::table! {
+    use diesel::sql_types::*;
+    use crate::enums::diesel_exports::*;
+
+    dispute (id) {
+        id -> Int4,
+        dispute_id -> Varchar,
+        amount -> Varchar,
+        currency -> Varchar,
+        dispute_stage -> DisputeStage,
+        dispute_status -> DisputeStatus,
+        payment_id -> Varchar,
+        attempt_id -> Varchar,
+        merchant_id -> Varchar,
+        connector_status -> Varchar,
+        connector_dispute_id -> Varchar,
+        connector_reason -> Nullable<Varchar>,
+        connector_reason_code -> Nullable<Varchar>,
+        challenge_required_by -> Nullable<Varchar>,
+        dispute_created_at -> Nullable<Varchar>,
+        updated_at -> Nullable<Varchar>,
+        created_at -> Timestamp,
+        modified_at -> Timestamp,
+        connector -> Varchar,
     }
 }
 
@@ -162,7 +209,6 @@ diesel::table! {
     merchant_account (id) {
         id -> Int4,
         merchant_id -> Varchar,
-        api_key -> Nullable<Varchar>,
         return_url -> Nullable<Varchar>,
         enable_payment_response_hash -> Bool,
         payment_response_hash_key -> Nullable<Varchar>,
@@ -177,6 +223,8 @@ diesel::table! {
         locker_id -> Nullable<Varchar>,
         metadata -> Nullable<Jsonb>,
         routing_algorithm -> Nullable<Json>,
+        primary_business_details -> Json,
+        api_key -> Nullable<Varchar>,
     }
 }
 
@@ -195,6 +243,10 @@ diesel::table! {
         payment_methods_enabled -> Nullable<Array<Nullable<Json>>>,
         connector_type -> ConnectorType,
         metadata -> Nullable<Jsonb>,
+        connector_label -> Varchar,
+        business_country -> CountryCode,
+        business_label -> Varchar,
+        business_sub_label -> Nullable<Varchar>,
     }
 }
 
@@ -236,6 +288,8 @@ diesel::table! {
         payment_experience -> Nullable<Varchar>,
         payment_method_type -> Nullable<Varchar>,
         payment_method_data -> Nullable<Jsonb>,
+        business_sub_label -> Nullable<Varchar>,
+        straight_through_algorithm -> Nullable<Jsonb>,
     }
 }
 
@@ -266,6 +320,9 @@ diesel::table! {
         setup_future_usage -> Nullable<FutureUsage>,
         off_session -> Nullable<Bool>,
         client_secret -> Nullable<Varchar>,
+        active_attempt_id -> Varchar,
+        business_country -> CountryCode,
+        business_label -> Varchar,
     }
 }
 
@@ -366,9 +423,11 @@ diesel::table! {
 diesel::allow_tables_to_appear_in_same_query!(
     address,
     api_keys,
+    cards_info,
     configs,
     connector_response,
     customers,
+    dispute,
     events,
     locker_mock_up,
     mandate,

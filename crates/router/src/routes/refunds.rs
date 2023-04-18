@@ -30,7 +30,9 @@ pub async fn refunds_create(
     req: HttpRequest,
     json_payload: web::Json<refunds::RefundRequest>,
 ) -> HttpResponse {
+    let flow = Flow::RefundsCreate;
     api::server_wrap(
+        flow,
         state.get_ref(),
         &req,
         json_payload.into_inner(),
@@ -40,7 +42,7 @@ pub async fn refunds_create(
     .await
 }
 
-/// Refunds - Retrieve
+/// Refunds - Retrieve (GET)
 ///
 /// To retrieve the properties of a Refund. This may be used to get the status of a previously initiated payment or next action for an ongoing payment
 #[utoipa::path(
@@ -64,14 +66,59 @@ pub async fn refunds_retrieve(
     req: HttpRequest,
     path: web::Path<String>,
 ) -> HttpResponse {
-    let refund_id = path.into_inner();
+    let refund_request = refunds::RefundsRetrieveRequest {
+        refund_id: path.into_inner(),
+        merchant_connector_details: None,
+    };
+    let flow = Flow::RefundsRetrieve;
 
     api::server_wrap(
+        flow,
         state.get_ref(),
         &req,
-        refund_id,
-        |state, merchant_account, refund_id| {
-            refund_response_wrapper(state, merchant_account, refund_id, refund_retrieve_core)
+        refund_request,
+        |state, merchant_account, refund_request| {
+            refund_response_wrapper(
+                state,
+                merchant_account,
+                refund_request,
+                refund_retrieve_core,
+            )
+        },
+        &auth::ApiKeyAuth,
+    )
+    .await
+}
+
+/// Refunds - Retrieve (POST)
+///
+/// To retrieve the properties of a Refund. This may be used to get the status of a previously initiated payment or next action for an ongoing payment
+#[utoipa::path(
+    get,
+    path = "/refunds/sync",
+    responses(
+        (status = 200, description = "Refund retrieved", body = RefundResponse),
+        (status = 404, description = "Refund does not exist in our records")
+    ),
+    tag = "Refunds",
+    operation_id = "Retrieve a Refund",
+    security(("api_key" = []))
+)]
+#[instrument(skip_all, fields(flow = ?Flow::RefundsRetrieve))]
+// #[post("/sync")]
+pub async fn refunds_retrieve_with_body(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    json_payload: web::Json<refunds::RefundsRetrieveRequest>,
+) -> HttpResponse {
+    let flow = Flow::RefundsRetrieve;
+    api::server_wrap(
+        flow,
+        state.get_ref(),
+        &req,
+        json_payload.into_inner(),
+        |state, merchant_account, req| {
+            refund_response_wrapper(state, merchant_account, req, refund_retrieve_core)
         },
         &auth::ApiKeyAuth,
     )
@@ -104,8 +151,10 @@ pub async fn refunds_update(
     json_payload: web::Json<refunds::RefundUpdateRequest>,
     path: web::Path<String>,
 ) -> HttpResponse {
+    let flow = Flow::RefundsUpdate;
     let refund_id = path.into_inner();
     api::server_wrap(
+        flow,
         state.get_ref(),
         &req,
         json_payload.into_inner(),
@@ -148,7 +197,9 @@ pub async fn refunds_list(
     req: HttpRequest,
     payload: web::Query<api_models::refunds::RefundListRequest>,
 ) -> HttpResponse {
+    let flow = Flow::RefundsList;
     api::server_wrap(
+        flow,
         state.get_ref(),
         &req,
         payload.into_inner(),

@@ -29,11 +29,13 @@ pub async fn merchant_account_create(
     req: HttpRequest,
     json_payload: web::Json<admin::MerchantAccountCreate>,
 ) -> HttpResponse {
+    let flow = Flow::MerchantsAccountCreate;
     api::server_wrap(
+        flow,
         state.get_ref(),
         &req,
         json_payload.into_inner(),
-        |state, _, req| create_merchant_account(&*state.store, req),
+        |state, _, req| create_merchant_account(state, req),
         &auth::AdminApiAuth,
     )
     .await
@@ -60,11 +62,13 @@ pub async fn retrieve_merchant_account(
     req: HttpRequest,
     mid: web::Path<String>,
 ) -> HttpResponse {
+    let flow = Flow::MerchantsAccountRetrieve;
     let payload = web::Json(admin::MerchantId {
         merchant_id: mid.into_inner(),
     })
     .into_inner();
     api::server_wrap(
+        flow,
         state.get_ref(),
         &req,
         payload,
@@ -97,8 +101,10 @@ pub async fn update_merchant_account(
     mid: web::Path<String>,
     json_payload: web::Json<admin::MerchantAccountUpdate>,
 ) -> HttpResponse {
+    let flow = Flow::MerchantsAccountUpdate;
     let merchant_id = mid.into_inner();
     api::server_wrap(
+        flow,
         state.get_ref(),
         &req,
         json_payload.into_inner(),
@@ -130,11 +136,13 @@ pub async fn delete_merchant_account(
     req: HttpRequest,
     mid: web::Path<String>,
 ) -> HttpResponse {
+    let flow = Flow::MerchantsAccountDelete;
     let payload = web::Json(admin::MerchantId {
         merchant_id: mid.into_inner(),
     })
     .into_inner();
     api::server_wrap(
+        flow,
         state.get_ref(),
         &req,
         payload,
@@ -164,10 +172,12 @@ pub async fn payment_connector_create(
     state: web::Data<AppState>,
     req: HttpRequest,
     path: web::Path<String>,
-    json_payload: web::Json<admin::MerchantConnector>,
+    json_payload: web::Json<admin::MerchantConnectorCreate>,
 ) -> HttpResponse {
+    let flow = Flow::MerchantConnectorsCreate;
     let merchant_id = path.into_inner();
     api::server_wrap(
+        flow,
         state.get_ref(),
         &req,
         json_payload.into_inner(),
@@ -202,6 +212,7 @@ pub async fn payment_connector_retrieve(
     req: HttpRequest,
     path: web::Path<(String, String)>,
 ) -> HttpResponse {
+    let flow = Flow::MerchantConnectorsRetrieve;
     let (merchant_id, merchant_connector_id) = path.into_inner();
     let payload = web::Json(admin::MerchantConnectorId {
         merchant_id,
@@ -209,6 +220,7 @@ pub async fn payment_connector_retrieve(
     })
     .into_inner();
     api::server_wrap(
+        flow,
         state.get_ref(),
         &req,
         payload,
@@ -244,8 +256,10 @@ pub async fn payment_connector_list(
     req: HttpRequest,
     path: web::Path<String>,
 ) -> HttpResponse {
+    let flow = Flow::MerchantConnectorsList;
     let merchant_id = path.into_inner();
     api::server_wrap(
+        flow,
         state.get_ref(),
         &req,
         merchant_id,
@@ -280,10 +294,12 @@ pub async fn payment_connector_update(
     state: web::Data<AppState>,
     req: HttpRequest,
     path: web::Path<(String, String)>,
-    json_payload: web::Json<admin::MerchantConnector>,
+    json_payload: web::Json<api_models::admin::MerchantConnectorUpdate>,
 ) -> HttpResponse {
+    let flow = Flow::MerchantConnectorsUpdate;
     let (merchant_id, merchant_connector_id) = path.into_inner();
     api::server_wrap(
+        flow,
         state.get_ref(),
         &req,
         json_payload.into_inner(),
@@ -320,6 +336,7 @@ pub async fn payment_connector_delete(
     req: HttpRequest,
     path: web::Path<(String, String)>,
 ) -> HttpResponse {
+    let flow = Flow::MerchantConnectorsDelete;
     let (merchant_id, merchant_connector_id) = path.into_inner();
     let payload = web::Json(admin::MerchantConnectorId {
         merchant_id,
@@ -327,6 +344,7 @@ pub async fn payment_connector_delete(
     })
     .into_inner();
     api::server_wrap(
+        flow,
         state.get_ref(),
         &req,
         payload,
@@ -348,9 +366,11 @@ pub async fn merchant_account_toggle_kv(
     path: web::Path<String>,
     json_payload: web::Json<admin::ToggleKVRequest>,
 ) -> HttpResponse {
+    let flow = Flow::ConfigKeyUpdate;
     let payload = json_payload.into_inner();
     let merchant_id = path.into_inner();
     api::server_wrap(
+        flow,
         state.get_ref(),
         &req,
         (merchant_id, payload),
@@ -371,8 +391,10 @@ pub async fn merchant_account_kv_status(
     req: HttpRequest,
     path: web::Path<String>,
 ) -> HttpResponse {
+    let flow = Flow::ConfigKeyFetch;
     let merchant_id = path.into_inner();
     api::server_wrap(
+        flow,
         state.get_ref(),
         &req,
         merchant_id,

@@ -1,10 +1,10 @@
-use api_models::webhooks::IncomingWebhookEvent;
+use api_models::{enums::DisputeStage, webhooks::IncomingWebhookEvent};
 use masking::PeekInterface;
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils::RouterData,
+    connector::utils::PaymentsAuthorizeRequestData,
     consts,
     core::errors,
     pii::{self, Email, Secret},
@@ -13,6 +13,7 @@ use crate::{
         self,
         api::{self, enums as api_enums},
         storage::enums as storage_enums,
+        transformers::ForeignFrom,
     },
 };
 
@@ -58,7 +59,7 @@ pub struct ShopperName {
 #[serde(rename_all = "camelCase")]
 pub struct Address {
     city: Option<String>,
-    country: Option<String>,
+    country: Option<api_enums::CountryCode>,
     house_number_or_name: Option<Secret<String>>,
     postal_code: Option<Secret<String>>,
     state_or_province: Option<Secret<String>>,
@@ -95,7 +96,7 @@ pub struct AdyenPaymentRequest<'a> {
     telephone_number: Option<Secret<String>>,
     billing_address: Option<Address>,
     delivery_address: Option<Address>,
-    country_code: Option<String>,
+    country_code: Option<api_enums::CountryCode>,
     line_items: Option<Vec<LineItem>>,
 }
 
@@ -430,6 +431,14 @@ impl<'a> TryFrom<&types::PaymentsAuthorizeRouterData> for AdyenPaymentRequest<'a
             storage_models::enums::PaymentMethod::BankRedirect => {
                 get_bank_redirect_specific_payment_data(item)
             }
+            storage_models::enums::PaymentMethod::Crypto => {
+                Err(errors::ConnectorError::NotSupported {
+                    payment_method: format!("{:?}", item.payment_method),
+                    connector: "Adyen",
+                    payment_experience: api_models::enums::PaymentExperience::RedirectToUrl
+                        .to_string(),
+                })?
+            }
         }
     }
 }
@@ -495,7 +504,7 @@ fn get_address_info(address: Option<&api_models::payments::Address>) -> Option<A
     address.and_then(|add| {
         add.address.as_ref().map(|a| Address {
             city: a.city.clone(),
-            country: a.country.clone(),
+            country: a.country,
             house_number_or_name: a.line1.clone(),
             postal_code: a.zip.clone(),
             state_or_province: a.state.clone(),
@@ -547,13 +556,11 @@ fn get_shopper_name(item: &types::PaymentsAuthorizeRouterData) -> Option<Shopper
     })
 }
 
-fn get_country_code(item: &types::PaymentsAuthorizeRouterData) -> Option<String> {
-    let address = item
-        .address
+fn get_country_code(item: &types::PaymentsAuthorizeRouterData) -> Option<api_enums::CountryCode> {
+    item.address
         .billing
         .as_ref()
-        .and_then(|billing| billing.address.as_ref());
-    address.and_then(|address| address.country.clone())
+        .and_then(|billing| billing.address.as_ref().and_then(|address| address.country))
 }
 
 fn get_payment_method_data<'a>(
@@ -646,6 +653,11 @@ fn get_payment_method_data<'a>(
                 }
             }
         }
+        api::PaymentMethodData::Crypto(_) => Err(errors::ConnectorError::NotSupported {
+            payment_method: format!("{:?}", item.payment_method),
+            connector: "Adyen",
+            payment_experience: api_models::enums::PaymentExperience::RedirectToUrl.to_string(),
+        })?,
     }
 }
 
@@ -658,7 +670,7 @@ fn get_card_specific_payment_data<'a>(
     let recurring_processing_model = get_recurring_processing_model(item);
     let browser_info = get_browser_info(item);
     let additional_data = get_additional_data(item);
-    let return_url = item.get_return_url()?;
+    let return_url = item.request.get_return_url()?;
     let payment_method = get_payment_method_data(item)?;
     Ok(AdyenPaymentRequest {
         amount,
@@ -683,7 +695,7 @@ fn get_card_specific_payment_data<'a>(
 
 fn get_sofort_extra_details(
     item: &types::PaymentsAuthorizeRouterData,
-) -> (Option<String>, Option<String>) {
+) -> (Option<String>, Option<api_enums::CountryCode>) {
     match item.request.payment_method_data {
         api_models::payments::PaymentMethodData::BankRedirect(ref b) => {
             if let api_models::payments::BankRedirectData::Sofort {
@@ -693,7 +705,7 @@ fn get_sofort_extra_details(
             {
                 (
                     Some(preferred_language.to_string()),
-                    Some(country.to_string()),
+                    Some(country.to_owned()),
                 )
             } else {
                 (None, None)
@@ -711,7 +723,7 @@ fn get_bank_redirect_specific_payment_data<'a>(
     let recurring_processing_model = get_recurring_processing_model(item);
     let browser_info = get_browser_info(item);
     let additional_data = get_additional_data(item);
-    let return_url = item.get_return_url()?;
+    let return_url = item.request.get_return_url()?;
     let payment_method = get_payment_method_data(item)?;
     let (shopper_locale, country) = get_sofort_extra_details(item);
 
@@ -746,7 +758,7 @@ fn get_wallet_specific_payment_data<'a>(
     let payment_method = get_payment_method_data(item)?;
     let shopper_interaction = AdyenShopperInteraction::from(item);
     let recurring_processing_model = get_recurring_processing_model(item);
-    let return_url = item.get_return_url()?;
+    let return_url = item.request.get_return_url()?;
     Ok(AdyenPaymentRequest {
         amount,
         merchant_account: auth_type.merchant_account,
@@ -778,7 +790,7 @@ fn get_paylater_specific_payment_data<'a>(
     let payment_method = get_payment_method_data(item)?;
     let shopper_interaction = AdyenShopperInteraction::from(item);
     let recurring_processing_model = get_recurring_processing_model(item);
-    let return_url = item.get_return_url()?;
+    let return_url = item.request.get_return_url()?;
     let shopper_name = get_shopper_name(item);
     let shopper_email = item.request.email.clone();
     let billing_address = get_address_info(item.address.billing.as_ref());
@@ -996,10 +1008,7 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for AdyenCaptureRequest {
             reference: item.payment_id.to_string(),
             amount: Amount {
                 currency: item.request.currency.to_string(),
-                value: item
-                    .request
-                    .amount_to_capture
-                    .unwrap_or(item.request.amount),
+                value: item.request.amount_to_capture,
             },
         })
     }
@@ -1149,9 +1158,21 @@ pub struct ErrorResponse {
 // }
 
 #[derive(Debug, Deserialize)]
+pub enum DisputeStatus {
+    Undefended,
+    Pending,
+    Lost,
+    Accepted,
+    Won,
+}
+
+#[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AdyenAdditionalDataWH {
     pub hmac_signature: String,
+    pub dispute_status: Option<DisputeStatus>,
+    pub chargeback_reason_code: Option<String>,
+    pub defense_period_ends_at: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -1160,7 +1181,7 @@ pub struct AdyenAmountWH {
     pub currency: String,
 }
 
-#[derive(Debug, Deserialize, strum::Display)]
+#[derive(Clone, Debug, Deserialize, strum::Display)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 #[strum(serialize_all = "SCREAMING_SNAKE_CASE")]
 pub enum WebhookEventCode {
@@ -1168,15 +1189,73 @@ pub enum WebhookEventCode {
     Refund,
     CancelOrRefund,
     RefundFailed,
+    NotificationOfChargeback,
+    Chargeback,
+    ChargebackReversed,
+    SecondChargeback,
+    PrearbitrationWon,
+    PrearbitrationLost,
 }
 
-impl From<WebhookEventCode> for IncomingWebhookEvent {
+pub fn is_transaction_event(event_code: &WebhookEventCode) -> bool {
+    matches!(event_code, WebhookEventCode::Authorisation)
+}
+
+pub fn is_refund_event(event_code: &WebhookEventCode) -> bool {
+    matches!(
+        event_code,
+        WebhookEventCode::Refund
+            | WebhookEventCode::CancelOrRefund
+            | WebhookEventCode::RefundFailed
+    )
+}
+
+pub fn is_chargeback_event(event_code: &WebhookEventCode) -> bool {
+    matches!(
+        event_code,
+        WebhookEventCode::NotificationOfChargeback
+            | WebhookEventCode::Chargeback
+            | WebhookEventCode::ChargebackReversed
+            | WebhookEventCode::SecondChargeback
+            | WebhookEventCode::PrearbitrationWon
+            | WebhookEventCode::PrearbitrationLost
+    )
+}
+
+impl ForeignFrom<(WebhookEventCode, Option<DisputeStatus>)> for IncomingWebhookEvent {
+    fn foreign_from((code, status): (WebhookEventCode, Option<DisputeStatus>)) -> Self {
+        match (code, status) {
+            (WebhookEventCode::Authorisation, _) => Self::PaymentIntentSuccess,
+            (WebhookEventCode::Refund, _) => Self::RefundSuccess,
+            (WebhookEventCode::CancelOrRefund, _) => Self::RefundSuccess,
+            (WebhookEventCode::RefundFailed, _) => Self::RefundFailure,
+            (WebhookEventCode::NotificationOfChargeback, _) => Self::DisputeOpened,
+            (WebhookEventCode::Chargeback, None) => Self::DisputeLost,
+            (WebhookEventCode::Chargeback, Some(DisputeStatus::Won)) => Self::DisputeWon,
+            (WebhookEventCode::Chargeback, Some(DisputeStatus::Lost)) => Self::DisputeLost,
+            (WebhookEventCode::Chargeback, Some(_)) => Self::DisputeOpened,
+            (WebhookEventCode::ChargebackReversed, Some(DisputeStatus::Pending)) => {
+                Self::DisputeChallenged
+            }
+            (WebhookEventCode::ChargebackReversed, _) => Self::DisputeWon,
+            (WebhookEventCode::SecondChargeback, _) => Self::DisputeLost,
+            (WebhookEventCode::PrearbitrationWon, Some(DisputeStatus::Pending)) => {
+                Self::DisputeOpened
+            }
+            (WebhookEventCode::PrearbitrationWon, _) => Self::DisputeWon,
+            (WebhookEventCode::PrearbitrationLost, _) => Self::DisputeLost,
+        }
+    }
+}
+
+impl From<WebhookEventCode> for DisputeStage {
     fn from(code: WebhookEventCode) -> Self {
         match code {
-            WebhookEventCode::Authorisation => Self::PaymentIntentSuccess,
-            WebhookEventCode::Refund => Self::RefundSuccess,
-            WebhookEventCode::CancelOrRefund => Self::RefundSuccess,
-            WebhookEventCode::RefundFailed => Self::RefundFailure,
+            WebhookEventCode::NotificationOfChargeback => Self::PreDispute,
+            WebhookEventCode::SecondChargeback => Self::PreArbitration,
+            WebhookEventCode::PrearbitrationWon => Self::PreArbitration,
+            WebhookEventCode::PrearbitrationLost => Self::PreArbitration,
+            _ => Self::Dispute,
         }
     }
 }
@@ -1192,6 +1271,8 @@ pub struct AdyenNotificationRequestItemWH {
     pub merchant_account_code: String,
     pub merchant_reference: String,
     pub success: String,
+    pub reason: Option<String>,
+    pub event_date: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]

@@ -12,7 +12,7 @@ use crate::{
         errors::{self, RouterResult},
     },
     db::StorageInterface,
-    routes::{app::AppStateInfo, AppState},
+    routes::app::AppStateInfo,
     services::api,
     types::storage,
     utils::OptionExt,
@@ -32,6 +32,22 @@ where
 
 #[derive(Debug)]
 pub struct ApiKeyAuth;
+
+pub struct NoAuth;
+
+#[async_trait]
+impl<A> AuthenticateAndFetch<(), A> for NoAuth
+where
+    A: AppStateInfo + Sync,
+{
+    async fn authenticate_and_fetch(
+        &self,
+        _request_headers: &HeaderMap,
+        _state: &A,
+    ) -> RouterResult<()> {
+        Ok(())
+    }
+}
 
 #[async_trait]
 impl<A> AuthenticateAndFetch<storage::MerchantAccount, A> for ApiKeyAuth
@@ -55,9 +71,12 @@ where
         let api_key = api_keys::PlaintextApiKey::from(api_key);
         let hash_key = {
             let config = state.conf();
-            api_keys::HASH_KEY
-                .get_or_try_init(|| api_keys::get_hash_key(&config.api_keys))
-                .await?
+            api_keys::get_hash_key(
+                &config.api_keys,
+                #[cfg(feature = "kms")]
+                &config.kms,
+            )
+            .await?
         };
         let hashed_api_key = api_key.keyed_hash(hash_key.peek());
 
@@ -121,14 +140,17 @@ where
 pub struct MerchantIdAuth(pub String);
 
 #[async_trait]
-impl AuthenticateAndFetch<storage::MerchantAccount, AppState> for MerchantIdAuth {
+impl<A> AuthenticateAndFetch<storage::MerchantAccount, A> for MerchantIdAuth
+where
+    A: AppStateInfo + Sync,
+{
     async fn authenticate_and_fetch(
         &self,
         _request_headers: &HeaderMap,
-        state: &AppState,
+        state: &A,
     ) -> RouterResult<storage::MerchantAccount> {
         state
-            .store
+            .store()
             .find_merchant_account_by_merchant_id(self.0.as_ref())
             .await
             .map_err(|e| {
@@ -145,16 +167,19 @@ impl AuthenticateAndFetch<storage::MerchantAccount, AppState> for MerchantIdAuth
 pub struct PublishableKeyAuth;
 
 #[async_trait]
-impl AuthenticateAndFetch<storage::MerchantAccount, AppState> for PublishableKeyAuth {
+impl<A> AuthenticateAndFetch<storage::MerchantAccount, A> for PublishableKeyAuth
+where
+    A: AppStateInfo + Sync,
+{
     async fn authenticate_and_fetch(
         &self,
         request_headers: &HeaderMap,
-        state: &AppState,
+        state: &A,
     ) -> RouterResult<storage::MerchantAccount> {
         let publishable_key =
             get_api_key(request_headers).change_context(errors::ApiErrorResponse::Unauthorized)?;
         state
-            .store
+            .store()
             .find_merchant_account_by_publishable_key(publishable_key)
             .await
             .map_err(|e| {
@@ -234,6 +259,12 @@ impl ClientSecretFetch for PaymentMethodListRequest {
     }
 }
 
+impl ClientSecretFetch for api_models::cards_info::CardsInfoRequest {
+    fn get_client_secret(&self) -> Option<&String> {
+        self.client_secret.as_ref()
+    }
+}
+
 pub fn jwt_auth_or<'a, T, A: AppStateInfo>(
     default_auth: &'a dyn AuthenticateAndFetch<T, A>,
     headers: &HeaderMap,
@@ -247,10 +278,10 @@ where
     Box::new(default_auth)
 }
 
-pub fn get_auth_type_and_flow(
+pub fn get_auth_type_and_flow<A: AppStateInfo + Sync>(
     headers: &HeaderMap,
 ) -> RouterResult<(
-    Box<dyn AuthenticateAndFetch<storage::MerchantAccount, AppState>>,
+    Box<dyn AuthenticateAndFetch<storage::MerchantAccount, A>>,
     api::AuthFlow,
 )> {
     let api_key = get_api_key(headers)?;
@@ -295,11 +326,11 @@ where
     Ok((Box::new(ApiKeyAuth), api::AuthFlow::Merchant))
 }
 
-pub async fn is_ephemeral_auth(
+pub async fn is_ephemeral_auth<A: AppStateInfo + Sync>(
     headers: &HeaderMap,
     db: &dyn StorageInterface,
     customer_id: &str,
-) -> RouterResult<Box<dyn AuthenticateAndFetch<storage::MerchantAccount, AppState>>> {
+) -> RouterResult<Box<dyn AuthenticateAndFetch<storage::MerchantAccount, A>>> {
     let api_key = get_api_key(headers)?;
 
     if !api_key.starts_with("epk") {
@@ -359,4 +390,17 @@ pub fn strip_jwt_token(token: &str) -> RouterResult<&str> {
     token
         .strip_prefix("Bearer ")
         .ok_or_else(|| errors::ApiErrorResponse::InvalidJwtToken.into())
+}
+
+pub fn auth_type<'a, T, A>(
+    default_auth: &'a dyn AuthenticateAndFetch<T, A>,
+    jwt_auth_type: &'a dyn AuthenticateAndFetch<T, A>,
+    headers: &HeaderMap,
+) -> &'a dyn AuthenticateAndFetch<T, A>
+where
+{
+    if is_jwt_auth(headers) {
+        return jwt_auth_type;
+    }
+    default_auth
 }

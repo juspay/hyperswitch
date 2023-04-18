@@ -65,8 +65,8 @@ impl ProcessTrackerWorkflow for PaymentsSyncWorkflow {
                 let connector = payment_data
                     .payment_attempt
                     .connector
-                    .clone()
                     .ok_or(errors::ProcessTrackerError::MissingRequiredField)?;
+
                 retry_sync_task(
                     db,
                     connector,

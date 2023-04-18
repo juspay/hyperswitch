@@ -29,7 +29,9 @@ pub async fn customers_create(
     req: HttpRequest,
     json_payload: web::Json<customers::CustomerRequest>,
 ) -> HttpResponse {
+    let flow = Flow::CustomersCreate;
     api::server_wrap(
+        flow,
         state.get_ref(),
         &req,
         json_payload.into_inner(),
@@ -60,6 +62,7 @@ pub async fn customers_retrieve(
     req: HttpRequest,
     path: web::Path<String>,
 ) -> HttpResponse {
+    let flow = Flow::CustomersRetrieve;
     let payload = web::Json(customers::CustomerId {
         customer_id: path.into_inner(),
     })
@@ -72,6 +75,7 @@ pub async fn customers_retrieve(
         };
 
     api::server_wrap(
+        flow,
         state.get_ref(),
         &req,
         payload,
@@ -104,9 +108,11 @@ pub async fn customers_update(
     path: web::Path<String>,
     mut json_payload: web::Json<customers::CustomerRequest>,
 ) -> HttpResponse {
+    let flow = Flow::CustomersUpdate;
     let customer_id = path.into_inner();
     json_payload.customer_id = customer_id;
     api::server_wrap(
+        flow,
         state.get_ref(),
         &req,
         json_payload.into_inner(),
@@ -137,11 +143,13 @@ pub async fn customers_delete(
     req: HttpRequest,
     path: web::Path<String>,
 ) -> impl Responder {
+    let flow = Flow::CustomersCreate;
     let payload = web::Json(customers::CustomerId {
         customer_id: path.into_inner(),
     })
     .into_inner();
     api::server_wrap(
+        flow,
         state.get_ref(),
         &req,
         payload,
@@ -157,11 +165,13 @@ pub async fn get_customer_mandates(
     req: HttpRequest,
     path: web::Path<String>,
 ) -> impl Responder {
+    let flow = Flow::CustomersGetMandates;
     let customer_id = customers::CustomerId {
         customer_id: path.into_inner(),
     };
 
     api::server_wrap(
+        flow,
         state.get_ref(),
         &req,
         customer_id,

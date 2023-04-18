@@ -1,6 +1,21 @@
 name: Release branch manually
 
-on: workflow_dispatch
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Environment to create image for"
+        required: true
+        default: "Sandbox"
+        type: choice
+        options:
+          - Sandbox
+          - Production
+      multiple_mca:
+        description: "Whether to enable the multiple_mca feature"
+        required: true
+        default: false
+        type: boolean
 
 jobs:
   build:
@@ -17,10 +32,16 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USER }}
           password: ${{ secrets.DOCKERHUB_PASSWD }}
 
+      - name: Add multiple_mca feature if enabled
+        if: ${{ inputs.multiple_mca == true }}
+        run: echo "--features multiple_mca" >> EXTRA_FEATURES
+
       - name: Build and push router Docker image
         uses: docker/build-push-action@v4
         with:
           build-args: |
+            RUN_ENV=${{ inputs.environment }}
+            EXTRA_FEATURES=EXTRA_FEATURES
             BINARY=router
           context: .
           push: true
@@ -30,6 +51,7 @@ jobs:
         uses: docker/build-push-action@v4
         with:
           build-args: |
+            RUN_ENV=${{ inputs.environment }}
             BINARY=scheduler
             SCHEDULER_FLOW=Consumer
           context: .
@@ -40,6 +62,7 @@ jobs:
         uses: docker/build-push-action@v4
         with:
           build-args: |
+            RUN_ENV=${{ inputs.environment }}
             BINARY=scheduler
             SCHEDULER_FLOW=Producer
           context: .
@@ -50,6 +73,7 @@ jobs:
         uses: docker/build-push-action@v4
         with:
           build-args: |
+            RUN_ENV=${{ inputs.environment }}
             BINARY=drainer
           context: .
           push: true

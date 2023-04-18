@@ -2,7 +2,7 @@ use error_stack::IntoReport;
 
 use super::{MockDb, Store};
 use crate::{
-    connection::pg_connection,
+    connection,
     core::{
         customers::REDACTED,
         errors::{self, CustomResult},
@@ -50,7 +50,7 @@ impl CustomerInterface for Store {
         customer_id: &str,
         merchant_id: &str,
     ) -> CustomResult<Option<storage::Customer>, errors::StorageError> {
-        let conn = pg_connection(&self.master_pool).await?;
+        let conn = connection::pg_connection_read(self).await?;
         let maybe_customer = storage::Customer::find_optional_by_customer_id_merchant_id(
             &conn,
             customer_id,
@@ -75,7 +75,7 @@ impl CustomerInterface for Store {
         merchant_id: String,
         customer: storage::CustomerUpdate,
     ) -> CustomResult<storage::Customer, errors::StorageError> {
-        let conn = pg_connection(&self.master_pool).await?;
+        let conn = connection::pg_connection_write(self).await?;
         storage::Customer::update_by_customer_id_merchant_id(
             &conn,
             customer_id,
@@ -92,7 +92,7 @@ impl CustomerInterface for Store {
         customer_id: &str,
         merchant_id: &str,
     ) -> CustomResult<storage::Customer, errors::StorageError> {
-        let conn = pg_connection(&self.master_pool).await?;
+        let conn = connection::pg_connection_read(self).await?;
         let customer =
             storage::Customer::find_by_customer_id_merchant_id(&conn, customer_id, merchant_id)
                 .await
@@ -108,7 +108,7 @@ impl CustomerInterface for Store {
         &self,
         customer_data: storage::CustomerNew,
     ) -> CustomResult<storage::Customer, errors::StorageError> {
-        let conn = pg_connection(&self.master_pool).await?;
+        let conn = connection::pg_connection_write(self).await?;
         customer_data
             .insert(&conn)
             .await
@@ -121,7 +121,7 @@ impl CustomerInterface for Store {
         customer_id: &str,
         merchant_id: &str,
     ) -> CustomResult<bool, errors::StorageError> {
-        let conn = pg_connection(&self.master_pool).await?;
+        let conn = connection::pg_connection_write(self).await?;
         storage::Customer::delete_by_customer_id_merchant_id(&conn, customer_id, merchant_id)
             .await
             .map_err(Into::into)

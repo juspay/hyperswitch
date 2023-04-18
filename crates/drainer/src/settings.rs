@@ -2,6 +2,8 @@ use std::path::PathBuf;
 
 use common_utils::ext_traits::ConfigExt;
 use config::{Environment, File};
+#[cfg(feature = "kms")]
+use external_services::kms;
 use redis_interface as redis;
 pub use router_env::config::{Log, LogConsole, LogFile, LogTelemetry};
 use router_env::{env, logger};
@@ -10,7 +12,7 @@ use serde::Deserialize;
 use crate::errors;
 
 #[derive(clap::Parser, Default)]
-#[command(version = router_env::version!())]
+#[cfg_attr(feature = "vergen", command(version = router_env::version!()))]
 pub struct CmdLineConf {
     /// Config file.
     /// Application will look for "config/config.toml" if this option isn't specified.
@@ -25,17 +27,23 @@ pub struct Settings {
     pub redis: redis::RedisSettings,
     pub log: Log,
     pub drainer: DrainerSettings,
+    #[cfg(feature = "kms")]
+    pub kms: kms::KmsConfig,
 }
 
 #[derive(Debug, Deserialize, Clone)]
 #[serde(default)]
 pub struct Database {
     pub username: String,
+    #[cfg(not(feature = "kms"))]
     pub password: String,
     pub host: String,
     pub port: u16,
     pub dbname: String,
     pub pool_size: u32,
+    pub connection_timeout: u64,
+    #[cfg(feature = "kms")]
+    pub kms_encrypted_password: String,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -51,12 +59,16 @@ pub struct DrainerSettings {
 impl Default for Database {
     fn default() -> Self {
         Self {
-            username: String::default(),
-            password: String::default(),
+            username: String::new(),
+            #[cfg(not(feature = "kms"))]
+            password: String::new(),
             host: "localhost".into(),
             port: 5432,
-            dbname: String::default(),
+            dbname: String::new(),
             pool_size: 5,
+            connection_timeout: 10,
+            #[cfg(feature = "kms")]
+            kms_encrypted_password: String::new(),
         }
     }
 }
@@ -77,18 +89,6 @@ impl Database {
     fn validate(&self) -> Result<(), errors::DrainerError> {
         use common_utils::fp_utils::when;
 
-        when(self.username.is_default_or_empty(), || {
-            Err(errors::DrainerError::ConfigParsingError(
-                "database username must not be empty".into(),
-            ))
-        })?;
-
-        when(self.password.is_default_or_empty(), || {
-            Err(errors::DrainerError::ConfigParsingError(
-                "database user password must not be empty".into(),
-            ))
-        })?;
-
         when(self.host.is_default_or_empty(), || {
             Err(errors::DrainerError::ConfigParsingError(
                 "database host must not be empty".into(),
@@ -99,7 +99,31 @@ impl Database {
             Err(errors::DrainerError::ConfigParsingError(
                 "database name must not be empty".into(),
             ))
-        })
+        })?;
+
+        when(self.username.is_default_or_empty(), || {
+            Err(errors::DrainerError::ConfigParsingError(
+                "database user username must not be empty".into(),
+            ))
+        })?;
+
+        #[cfg(not(feature = "kms"))]
+        {
+            when(self.password.is_default_or_empty(), || {
+                Err(errors::DrainerError::ConfigParsingError(
+                    "database user password must not be empty".into(),
+                ))
+            })
+        }
+
+        #[cfg(feature = "kms")]
+        {
+            when(self.kms_encrypted_password.is_default_or_empty(), || {
+                Err(errors::DrainerError::ConfigParsingError(
+                    "database KMS encrypted password must not be empty".into(),
+                ))
+            })
+        }
     }
 }
 

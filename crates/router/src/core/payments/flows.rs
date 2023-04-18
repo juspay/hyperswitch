@@ -1,6 +1,7 @@
 pub mod authorize_flow;
 pub mod cancel_flow;
 pub mod capture_flow;
+pub mod complete_authorize_flow;
 pub mod psync_flow;
 pub mod session_flow;
 pub mod verfiy_flow;
@@ -8,7 +9,11 @@ pub mod verfiy_flow;
 use async_trait::async_trait;
 
 use crate::{
-    core::{errors::RouterResult, payments},
+    connector,
+    core::{
+        errors::{ConnectorError, CustomResult, RouterResult},
+        payments,
+    },
     routes::AppState,
     services,
     types::{self, api, storage},
@@ -49,4 +54,137 @@ pub trait Feature<F, T> {
         F: Clone,
         Self: Sized,
         dyn api::Connector: services::ConnectorIntegration<F, T, types::PaymentsResponseData>;
+
+    async fn add_payment_method_token<'a>(
+        &self,
+        _state: &AppState,
+        _connector: &api::ConnectorData,
+        _tokenization_action: &payments::TokenizationAction,
+    ) -> RouterResult<Option<String>>
+    where
+        F: Clone,
+        Self: Sized,
+        dyn api::Connector: services::ConnectorIntegration<F, T, types::PaymentsResponseData>,
+    {
+        Ok(None)
+    }
 }
+
+macro_rules! default_imp_for_complete_authorize{
+    ($($path:ident::$connector:ident),*)=> {
+        $(
+            impl api::PaymentsCompleteAuthorize for $path::$connector {}
+            impl
+            services::ConnectorIntegration<
+            api::CompleteAuthorize,
+            types::CompleteAuthorizeData,
+            types::PaymentsResponseData,
+        > for $path::$connector
+        {}
+    )*
+    };
+}
+
+default_imp_for_complete_authorize!(
+    connector::Aci,
+    connector::Adyen,
+    connector::Applepay,
+    connector::Authorizedotnet,
+    connector::Bambora,
+    connector::Bluesnap,
+    connector::Braintree,
+    connector::Checkout,
+    connector::Coinbase,
+    connector::Cybersource,
+    connector::Dlocal,
+    connector::Fiserv,
+    connector::Klarna,
+    connector::Multisafepay,
+    connector::Opennode,
+    connector::Payeezy,
+    connector::Payu,
+    connector::Rapyd,
+    connector::Shift4,
+    connector::Stripe,
+    connector::Trustpay,
+    connector::Worldline,
+    connector::Worldpay
+);
+
+macro_rules! default_imp_for_connector_redirect_response{
+    ($($path:ident::$connector:ident),*)=> {
+        $(
+            impl services::ConnectorRedirectResponse for $path::$connector {
+                fn get_flow_type(
+                    &self,
+                    _query_params: &str,
+                    _json_payload: Option<serde_json::Value>,
+                    _action: services::PaymentAction
+                ) -> CustomResult<payments::CallConnectorAction, ConnectorError> {
+                    Ok(payments::CallConnectorAction::Trigger)
+                }
+            }
+    )*
+    };
+}
+
+default_imp_for_connector_redirect_response!(
+    connector::Aci,
+    connector::Adyen,
+    connector::Applepay,
+    connector::Authorizedotnet,
+    connector::Bambora,
+    connector::Bluesnap,
+    connector::Braintree,
+    connector::Coinbase,
+    connector::Cybersource,
+    connector::Dlocal,
+    connector::Fiserv,
+    connector::Klarna,
+    connector::Multisafepay,
+    connector::Opennode,
+    connector::Payeezy,
+    connector::Payu,
+    connector::Rapyd,
+    connector::Shift4,
+    connector::Worldline,
+    connector::Worldpay
+);
+
+macro_rules! default_imp_for_connector_request_id{
+    ($($path:ident::$connector:ident),*)=> {
+        $(
+            impl api::ConnectorTransactionId for $path::$connector {}
+    )*
+    };
+}
+
+default_imp_for_connector_request_id!(
+    connector::Aci,
+    connector::Adyen,
+    connector::Airwallex,
+    connector::Applepay,
+    connector::Authorizedotnet,
+    connector::Bambora,
+    connector::Bluesnap,
+    connector::Braintree,
+    connector::Checkout,
+    connector::Coinbase,
+    connector::Cybersource,
+    connector::Dlocal,
+    connector::Fiserv,
+    connector::Globalpay,
+    connector::Klarna,
+    connector::Mollie,
+    connector::Multisafepay,
+    connector::Nuvei,
+    connector::Opennode,
+    connector::Payeezy,
+    connector::Payu,
+    connector::Rapyd,
+    connector::Shift4,
+    connector::Stripe,
+    connector::Trustpay,
+    connector::Worldline,
+    connector::Worldpay
+);

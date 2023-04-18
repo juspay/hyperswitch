@@ -1,6 +1,6 @@
 // ID generation
 pub(crate) const ID_LENGTH: usize = 20;
-pub(crate) const MAX_ID_LENGTH: usize = 24;
+pub(crate) const MAX_ID_LENGTH: usize = 64;
 #[rustfmt::skip]
 pub(crate) const ALPHABETS: [char; 62] = [
     '0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
