@@ -95,7 +95,6 @@ pub fn setup(
             config::LogFormat::Default => {
                 let logging_layer = fmt::layer()
                     .with_timer(fmt::time::time())
-                    // .with_span_events(fmt::format::FmtSpan::ACTIVE)
                     .pretty()
                     .with_writer(console_writer)
                     .with_filter(console_filter);

@@ -70,7 +70,7 @@ where
 
     tracing::Span::current()
         .record("payment_id", &format!("{}", validate_result.payment_id))
-        .record("merchant_id", &format!("{}", merchant_account.merchant_id));
+        .record("merchant_id", merchant_account.merchant_id.as_str());
 
     let (operation, mut payment_data, customer_details) = operation
         .to_get_tracker()?
