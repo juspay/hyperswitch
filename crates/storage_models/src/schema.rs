@@ -8,7 +8,7 @@ diesel::table! {
         id -> Int4,
         address_id -> Varchar,
         city -> Nullable<Varchar>,
-        country -> Nullable<CountryCode>,
+        country -> Nullable<CountryAlpha2>,
         line1 -> Nullable<Varchar>,
         line2 -> Nullable<Varchar>,
         line3 -> Nullable<Varchar>,
@@ -248,7 +248,7 @@ diesel::table! {
         metadata -> Nullable<Jsonb>,
         frm_configs -> Nullable<Jsonb>,
         connector_label -> Varchar,
-        business_country -> CountryCode,
+        business_country -> CountryAlpha2,
         business_label -> Varchar,
         business_sub_label -> Nullable<Varchar>,
     }
@@ -325,7 +325,7 @@ diesel::table! {
         off_session -> Nullable<Bool>,
         client_secret -> Nullable<Varchar>,
         active_attempt_id -> Varchar,
-        business_country -> CountryCode,
+        business_country -> CountryAlpha2,
         business_label -> Varchar,
     }
 }

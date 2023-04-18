@@ -35,7 +35,7 @@ pub struct PurchaseUnitRequest {
 pub struct Address {
     address_line_1: Option<Secret<String>>,
     postal_code: Option<Secret<String>>,
-    country_code: api_models::enums::CountryCode,
+    country_code: api_models::enums::CountryAlpha2,
 }
 
 #[derive(Debug, Serialize)]
