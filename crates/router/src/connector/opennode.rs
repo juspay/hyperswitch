@@ -586,3 +586,4 @@ impl api::IncomingWebhook for Opennode {
 }
 
 impl api::Validator<api::Global> for Opennode {}
+impl api::Validator<api::Authorize> for Opennode {}

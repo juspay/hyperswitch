@@ -797,3 +797,4 @@ impl api::IncomingWebhook for Worldline {
 }
 
 impl api::Validator<api::Global> for Worldline {}
+impl api::Validator<api::Authorize> for Worldline {}

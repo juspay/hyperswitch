@@ -602,3 +602,4 @@ impl api::IncomingWebhook for Dlocal {
 }
 
 impl api::Validator<api::Global> for Dlocal {}
+impl api::Validator<api::Authorize> for Dlocal {}

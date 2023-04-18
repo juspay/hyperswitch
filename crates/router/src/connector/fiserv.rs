@@ -720,3 +720,4 @@ impl api::Validator<api::Global> for Fiserv {
         Ok(())
     }
 }
+impl api::Validator<api::Authorize> for Fiserv {}

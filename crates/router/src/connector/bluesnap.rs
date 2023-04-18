@@ -769,7 +769,7 @@ impl api::Validator<api::Global> for Bluesnap {
     ) -> CustomResult<(), common_utils::errors::ValidationError> {
         match payment_method {
             Some((api::enums::PaymentMethod::Wallet, api::enums::PaymentMethodType::GooglePay)) => {
-                let _inner: api_models::payments::GpayTokenParameters = metadata
+                let _inner: api_models::payments::GpaySessionTokenData = metadata
                     .parse_value("GpayTokenParameters")
                     .change_context(errors::ValidationError::InvalidValue {
                         message: "Failed while getting google pay metadata".to_string(),
@@ -780,3 +780,4 @@ impl api::Validator<api::Global> for Bluesnap {
         Ok(())
     }
 }
+impl api::Validator<api::Authorize> for Bluesnap {}

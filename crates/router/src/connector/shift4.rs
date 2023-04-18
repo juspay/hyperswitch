@@ -549,3 +549,4 @@ impl api::IncomingWebhook for Shift4 {
 }
 
 impl api::Validator<api::Global> for Shift4 {}
+impl api::Validator<api::Authorize> for Shift4 {}

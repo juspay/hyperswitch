@@ -463,3 +463,4 @@ impl api::IncomingWebhook for Multisafepay {
 }
 
 impl api::Validator<api::Global> for Multisafepay {}
+impl api::Validator<api::Authorize> for Multisafepay {}

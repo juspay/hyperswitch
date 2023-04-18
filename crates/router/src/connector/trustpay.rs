@@ -787,3 +787,4 @@ impl services::ConnectorRedirectResponse for Trustpay {
 }
 
 impl api::Validator<api::Global> for Trustpay {}
+impl api::Validator<api::Authorize> for Trustpay {}

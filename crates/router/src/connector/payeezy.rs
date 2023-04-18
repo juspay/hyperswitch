@@ -530,3 +530,4 @@ impl api::IncomingWebhook for Payeezy {
 }
 
 impl api::Validator<api::Global> for Payeezy {}
+impl api::Validator<api::Authorize> for Payeezy {}

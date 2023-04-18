@@ -707,3 +707,5 @@ impl api::IncomingWebhook for Braintree {
 }
 
 impl api::Validator<api::Global> for Braintree {}
+
+impl api::Validator<api::Authorize> for Braintree {}

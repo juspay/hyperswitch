@@ -1,6 +1,7 @@
 use api_models::admin::PrimaryBusinessDetails;
 use common_utils::ext_traits::ValueExt;
 use error_stack::{report, FutureExt, IntoReport, ResultExt};
+use masking::ExposeInterface;
 use storage_models::{enums, merchant_account};
 use uuid::Uuid;
 
@@ -356,10 +357,11 @@ fn get_business_details_wrapper(
 }
 
 pub async fn create_payment_connector(
-    store: &dyn StorageInterface,
+    state: &AppState,
     req: api::MerchantConnectorCreate,
     merchant_id: &String,
 ) -> RouterResponse<api_models::admin::MerchantConnectorResponse> {
+    let store = &*state.store;
     let merchant_account = store
         .find_merchant_account_by_merchant_id(merchant_id)
         .await
@@ -375,11 +377,32 @@ pub async fn create_payment_connector(
         req.business_sub_label.as_ref(),
         &req.connector_name,
     );
+    let connector = api::ConnectorData::get_connector_by_name(
+        &state.conf.connectors,
+        &req.connector_name,
+        api::GetToken::Connector,
+    )?;
 
     let mut vec = Vec::new();
     let payment_methods_enabled = match req.payment_methods_enabled {
         Some(val) => {
             for pm in val.into_iter() {
+                // Global connector validator
+                pm.payment_method_types
+                    .iter()
+                    .flatten()
+                    .map(|req_pm_types| {
+                        api::Validator::<api::Global>::validate_metadata(
+                            *connector.connector,
+                            Some((pm.payment_method, req_pm_types.payment_method_type)),
+                            req.metadata.clone().map(|item| item.expose()).into(),
+                        )
+                    })
+                    .collect::<Result<Vec<_>, _>>()
+                    .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                        field_name: "metadata",
+                    })?;
+
                 let pm_value = utils::Encode::<api::PaymentMethodsEnabled>::encode_to_value(&pm)
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable(

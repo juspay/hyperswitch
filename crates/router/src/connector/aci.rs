@@ -549,3 +549,4 @@ impl api::IncomingWebhook for Aci {
 }
 
 impl api::Validator<api::Global> for Aci {}
+impl api::Validator<api::Authorize> for Aci {}

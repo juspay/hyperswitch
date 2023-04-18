@@ -386,3 +386,4 @@ impl api::IncomingWebhook for Klarna {
 }
 
 impl api::Validator<api::Global> for Klarna {}
+impl api::Validator<api::Authorize> for Klarna {}

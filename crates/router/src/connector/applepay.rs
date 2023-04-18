@@ -273,3 +273,4 @@ impl api::IncomingWebhook for Applepay {
 }
 
 impl api::Validator<api::Global> for Applepay {}
+impl api::Validator<api::Authorize> for Applepay {}

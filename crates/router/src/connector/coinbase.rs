@@ -581,3 +581,4 @@ impl api::IncomingWebhook for Coinbase {
 }
 
 impl api::Validator<api::Global> for Coinbase {}
+impl api::Validator<api::Authorize> for Coinbase {}

@@ -728,3 +728,4 @@ impl api::IncomingWebhook for Cybersource {
 }
 
 impl api::Validator<api::Global> for Cybersource {}
+impl api::Validator<api::Authorize> for Cybersource {}

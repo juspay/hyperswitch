@@ -792,3 +792,4 @@ impl services::ConnectorRedirectResponse for Paypal {
 }
 
 impl api::Validator<api::Global> for Paypal {}
+impl api::Validator<api::Authorize> for Paypal {}

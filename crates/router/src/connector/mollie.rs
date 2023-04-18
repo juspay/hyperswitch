@@ -478,3 +478,4 @@ impl services::ConnectorRedirectResponse for Mollie {
 }
 
 impl api::Validator<api::Global> for Mollie {}
+impl api::Validator<api::Authorize> for Mollie {}

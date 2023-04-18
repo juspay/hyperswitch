@@ -123,6 +123,7 @@ impl MandateValidationFieldsExt for MandateValidationFields {
 
 pub trait PaymentAuthorize:
     api::ConnectorIntegration<Authorize, types::PaymentsAuthorizeData, types::PaymentsResponseData>
+    + api_types::Validator<Authorize>
 {
 }
 

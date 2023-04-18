@@ -1428,14 +1428,28 @@ async fn filter_payment_mandate_based(
 }
 
 fn filter_pm_metadata_based(
-    _connector: &str,
-    _pm_type: &api_enums::PaymentMethodType,
+    connector: &str,
+    pm_type: api_enums::PaymentMethodType,
     payment_intent: Option<&storage::PaymentIntent>,
     payment_attempt: Option<&storage::PaymentAttempt>,
-) -> bool {
+) -> Option<()> {
     match (payment_intent, payment_attempt) {
-        (Some(_payment_intent_inner), Some(_payment_attempt_inner)) => true, // Implement this later
-        _ => true,
+        (Some(payment_intent_inner), Some(payment_attempt_inner)) => {
+            let connector = api::ConnectorData::get_connector_by_name(
+                &settings::Connectors::default(),
+                connector,
+                api::GetToken::Connector,
+            )
+            .ok()?;
+            let payment_method = payment_attempt_inner.payment_method;
+            api::Validator::<api::Authorize>::validate_metadata(
+                *connector.connector,
+                payment_method.map(|value| (value.foreign_into(), pm_type)),
+                payment_intent_inner.metadata.clone().expose_option().into(),
+            )
+            .ok()
+        } // Implement this later
+        _ => Some(()),
     }
 }
 
