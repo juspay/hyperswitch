@@ -434,9 +434,13 @@ impl
         req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        match req.payment_method {
-            storage_models::enums::PaymentMethod::BankTransfer => {
-                Ok(format!("{}{}", self.base_url(connectors), "v1/sources"))
+        match &req.request.payment_method_data {
+            api_models::payments::PaymentMethodData::BankTransfer(bank_transfer_data) => {
+                match bank_transfer_data {
+                    api_models::payments::BankTransferData::AchBankTransfer(_) => {
+                        Ok(format!("{}{}", self.base_url(connectors), "v1/sources"))
+                    }
+                }
             }
             _ => Ok(format!(
                 "{}{}",
@@ -450,11 +454,15 @@ impl
         &self,
         req: &types::PaymentsAuthorizeRouterData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        let request = match req.payment_method {
-            enums::PaymentMethod::BankTransfer => {
-                let req = stripe::StripeAchRequest::try_from(req)?;
-                utils::Encode::<stripe::StripeAchRequest>::url_encode(&req)
-                    .change_context(errors::ConnectorError::RequestEncodingFailed)?
+        let request = match &req.request.payment_method_data {
+            api_models::payments::PaymentMethodData::BankTransfer(bank_transfer_data) => {
+                match bank_transfer_data {
+                    api_models::payments::BankTransferData::AchBankTransfer(_) => {
+                        let req = stripe::StripeAchRequest::try_from(req)?;
+                        utils::Encode::<stripe::StripeAchRequest>::url_encode(&req)
+                            .change_context(errors::ConnectorError::RequestEncodingFailed)?
+                    }
+                }
             }
             _ => {
                 let req = stripe::PaymentIntentRequest::try_from(req)?;
@@ -490,19 +498,25 @@ impl
         data: &types::PaymentsAuthorizeRouterData,
         res: types::Response,
     ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
-        match data.payment_method {
-            enums::PaymentMethod::BankTransfer => {
-                let response: stripe::StripeSourceResponse = res
-                    .response
-                    .parse_struct("StripeSourceResponse")
-                    .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        match &data.request.payment_method_data {
+            api_models::payments::PaymentMethodData::BankTransfer(bank_transfer_data) => {
+                match bank_transfer_data {
+                    api_models::payments::BankTransferData::AchBankTransfer(_) => {
+                        let response: stripe::StripeSourceResponse = res
+                            .response
+                            .parse_struct("StripeSourceResponse")
+                            .change_context(
+                                errors::ConnectorError::ResponseDeserializationFailed,
+                            )?;
 
-                types::RouterData::try_from(types::ResponseRouterData {
-                    response,
-                    data: data.clone(),
-                    http_code: res.status_code,
-                })
-                .change_context(errors::ConnectorError::ResponseHandlingFailed)
+                        types::RouterData::try_from(types::ResponseRouterData {
+                            response,
+                            data: data.clone(),
+                            http_code: res.status_code,
+                        })
+                        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+                    }
+                }
             }
             _ => {
                 let response: stripe::PaymentIntentResponse = res

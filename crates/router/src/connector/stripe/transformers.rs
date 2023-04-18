@@ -654,13 +654,15 @@ fn create_stripe_payment_method(
             )
             .into()),
         },
-        payments::PaymentMethodData::AchBankTransfer(ach_bank_transfer_data) => Ok((
-            StripePaymentMethodData::AchBankTransfer(BankTransferData {
-                email: ach_bank_transfer_data.billing_details.email.to_owned(),
-            }),
-            StripePaymentMethodType::AchCreditTransfer,
-            StripeBillingAddress::default(),
-        )),
+        payments::PaymentMethodData::BankTransfer(bank_transfer_data) => match bank_transfer_data {
+            payments::BankTransferData::AchBankTransfer(ach_bank_transfer_data) => Ok((
+                StripePaymentMethodData::AchBankTransfer(BankTransferData {
+                    email: ach_bank_transfer_data.billing_details.email.to_owned(),
+                }),
+                StripePaymentMethodType::AchCreditTransfer,
+                StripeBillingAddress::default(),
+            )),
+        },
         _ => Err(errors::ConnectorError::NotImplemented(
             "stripe does not support this payment method".to_string(),
         )
@@ -878,7 +880,7 @@ pub struct PaymentIntentResponse {
 pub struct StripeSourceResponse {
     pub id: String,
     pub ach_credit_transfer: AchCreditTransferResponse,
-    pub receiver: AchRecieverDetails,
+    pub receiver: AchReceiverDetails,
 }
 
 #[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
@@ -890,7 +892,7 @@ pub struct AchCreditTransferResponse {
 }
 
 #[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
-pub struct AchRecieverDetails {
+pub struct AchReceiverDetails {
     pub amount_received: i64,
     pub amount_charged: i64,
 }
@@ -1627,11 +1629,13 @@ impl
                 connector: "Stripe",
                 payment_experience: api_models::enums::PaymentExperience::RedirectToUrl.to_string(),
             })?,
-            api::PaymentMethodData::AchBankTransfer(ach_bank_transfer_data) => {
-                Ok(Self::AchBankTransfer(BankTransferData {
-                    email: ach_bank_transfer_data.billing_details.email,
-                }))
-            }
+            api::PaymentMethodData::BankTransfer(bank_transfer_data) => match bank_transfer_data {
+                payments::BankTransferData::AchBankTransfer(ach_bank_transfer_data) => {
+                    Ok(Self::AchBankTransfer(BankTransferData {
+                        email: ach_bank_transfer_data.billing_details.email,
+                    }))
+                }
+            },
         }
     }
 }

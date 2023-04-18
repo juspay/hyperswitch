@@ -778,10 +778,10 @@ pub async fn make_pm_data<'a, F: Clone, R>(
                     }
                 }
 
-                Some(api::PaymentMethodData::AchBankTransfer(bank_transfer)) => {
+                Some(api::PaymentMethodData::BankTransfer(bank_transfer)) => {
                     payment_data.payment_attempt.payment_method =
                         Some(storage_enums::PaymentMethod::BankTransfer);
-                    let updated_pm = api::PaymentMethodData::AchBankTransfer(bank_transfer);
+                    let updated_pm = api::PaymentMethodData::BankTransfer(bank_transfer);
                     vault::Vault::store_payment_method_data_in_locker(
                         state,
                         Some(hyperswitch_token),
@@ -816,7 +816,7 @@ pub async fn make_pm_data<'a, F: Clone, R>(
         (pm @ Some(api::PaymentMethodData::PayLater(_)), _) => Ok(pm.to_owned()),
         (pm @ Some(api::PaymentMethodData::BankRedirect(_)), _) => Ok(pm.to_owned()),
         (pm @ Some(api::PaymentMethodData::Crypto(_)), _) => Ok(pm.to_owned()),
-        (pm_opt @ Some(pm @ api::PaymentMethodData::AchBankTransfer(_)), _) => {
+        (pm_opt @ Some(pm @ api::PaymentMethodData::BankTransfer(_)), _) => {
             let token = vault::Vault::store_payment_method_data_in_locker(
                 state,
                 None,

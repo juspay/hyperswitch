@@ -112,7 +112,7 @@ impl Vaultable for api::Card {
     }
 }
 
-impl Vaultable for api_models::payments::AchBankTransferData {
+impl Vaultable for api_models::payments::BankTransferData {
     fn get_value1(&self, _customer_id: Option<String>) -> CustomResult<String, errors::VaultError> {
         let value1 = api_models::payment_methods::TokenizedBankTransferValue1 {
             data: self.to_owned(),
@@ -213,8 +213,8 @@ impl Vaultable for api::PaymentMethodData {
         let value1 = match self {
             Self::Card(card) => VaultPaymentMethod::Card(card.get_value1(customer_id)?),
             Self::Wallet(wallet) => VaultPaymentMethod::Wallet(wallet.get_value1(customer_id)?),
-            Self::AchBankTransfer(ach_bank_transfer) => {
-                VaultPaymentMethod::BankTransfer(ach_bank_transfer.get_value1(customer_id)?)
+            Self::BankTransfer(bank_transfer) => {
+                VaultPaymentMethod::BankTransfer(bank_transfer.get_value1(customer_id)?)
             }
             _ => Err(errors::VaultError::PaymentMethodNotSupported)
                 .into_report()
@@ -230,8 +230,8 @@ impl Vaultable for api::PaymentMethodData {
         let value2 = match self {
             Self::Card(card) => VaultPaymentMethod::Card(card.get_value2(customer_id)?),
             Self::Wallet(wallet) => VaultPaymentMethod::Wallet(wallet.get_value2(customer_id)?),
-            Self::AchBankTransfer(ach_bank_transfer) => {
-                VaultPaymentMethod::BankTransfer(ach_bank_transfer.get_value2(customer_id)?)
+            Self::BankTransfer(bank_transfer) => {
+                VaultPaymentMethod::BankTransfer(bank_transfer.get_value2(customer_id)?)
             }
             _ => Err(errors::VaultError::PaymentMethodNotSupported)
                 .into_report()
@@ -271,8 +271,8 @@ impl Vaultable for api::PaymentMethodData {
                 VaultPaymentMethod::BankTransfer(mvalue2),
             ) => {
                 let (bank_transfer, supp_data) =
-                    api_models::payments::AchBankTransferData::from_values(mvalue1, mvalue2)?;
-                Ok((Self::AchBankTransfer(bank_transfer), supp_data))
+                    api_models::payments::BankTransferData::from_values(mvalue1, mvalue2)?;
+                Ok((Self::BankTransfer(bank_transfer), supp_data))
             }
             _ => Err(errors::VaultError::PaymentMethodNotSupported)
                 .into_report()

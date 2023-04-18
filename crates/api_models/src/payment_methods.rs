@@ -599,7 +599,7 @@ pub struct TokenizedWalletValue2 {
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct TokenizedBankTransferValue1 {
-    pub data: payments::AchBankTransferData,
+    pub data: payments::BankTransferData,
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]

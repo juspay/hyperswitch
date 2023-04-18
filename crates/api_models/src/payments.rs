@@ -463,7 +463,7 @@ pub enum PaymentMethodData {
     Wallet(WalletData),
     PayLater(PayLaterData),
     BankRedirect(BankRedirectData),
-    AchBankTransfer(AchBankTransferData),
+    BankTransfer(BankTransferData),
     Crypto(CryptoData),
 }
 
@@ -479,7 +479,7 @@ pub enum AdditionalPaymentData {
     },
     Wallet {},
     PayLater {},
-    AchBankTransfer {},
+    BankTransfer {},
     Crypto {},
 }
 
@@ -504,7 +504,7 @@ impl From<&PaymentMethodData> for AdditionalPaymentData {
             },
             PaymentMethodData::Wallet(_) => Self::Wallet {},
             PaymentMethodData::PayLater(_) => Self::PayLater {},
-            PaymentMethodData::AchBankTransfer(_) => Self::AchBankTransfer {},
+            PaymentMethodData::BankTransfer(_) => Self::BankTransfer {},
             PaymentMethodData::Crypto(_) => Self::Crypto {},
         }
     }
@@ -573,6 +573,12 @@ pub struct BankRedirectBilling {
     /// The name for which billing is issued
     #[schema(value_type = String, example = "John Doe")]
     pub billing_name: Secret<String>,
+}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum BankTransferData {
+    AchBankTransfer(AchBankTransferData),
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -659,15 +665,12 @@ pub struct CardResponse {
 pub enum PaymentMethodDataResponse {
     #[serde(rename = "card")]
     Card(CardResponse),
-    #[serde(rename(deserialize = "bank_transfer"))]
-    BankTransfer,
+    BankTransfer(BankTransferData),
     Wallet(WalletData),
     PayLater(PayLaterData),
     Paypal,
     BankRedirect(BankRedirectData),
     Crypto(CryptoData),
-    #[serde(rename = "ach_bank_transfer")]
-    AchBankTransfer(AchBankTransferData),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -1208,8 +1211,8 @@ impl From<PaymentMethodData> for PaymentMethodDataResponse {
             PaymentMethodData::BankRedirect(bank_redirect_data) => {
                 Self::BankRedirect(bank_redirect_data)
             }
-            PaymentMethodData::AchBankTransfer(ach_bank_transfer) => {
-                Self::AchBankTransfer(ach_bank_transfer)
+            PaymentMethodData::BankTransfer(bank_transfer_data) => {
+                Self::BankTransfer(bank_transfer_data)
             }
             PaymentMethodData::Crypto(crpto_data) => Self::Crypto(crpto_data),
         }

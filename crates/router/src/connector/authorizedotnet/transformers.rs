@@ -66,7 +66,7 @@ enum PaymentDetails {
     Paypal,
     #[serde(rename = "bankRedirect")]
     BankRedirect,
-    AchBankTransfer,
+    BankTransfer,
 }
 
 impl TryFrom<api_models::payments::PaymentMethodData> for PaymentDetails {
@@ -93,7 +93,7 @@ impl TryFrom<api_models::payments::PaymentMethodData> for PaymentDetails {
                 connector: "AuthorizeDotNet",
                 payment_experience: api_models::enums::PaymentExperience::RedirectToUrl.to_string(),
             })?,
-            api::PaymentMethodData::AchBankTransfer(_) => Ok(Self::AchBankTransfer),
+            api::PaymentMethodData::BankTransfer(_) => Ok(Self::BankTransfer),
         }
     }
 }
