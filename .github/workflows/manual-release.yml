@@ -6,11 +6,11 @@ on:
       environment:
         description: "Environment to create image for"
         required: true
-        default: "Sandbox"
+        default: "sandbox"
         type: choice
         options:
-          - Sandbox
-          - Production
+          - sandbox
+          - production
       multiple_mca:
         description: "Whether to enable the multiple_mca feature"
         required: true
@@ -53,7 +53,7 @@ jobs:
           build-args: |
             RUN_ENV=${{ inputs.environment }}
             BINARY=scheduler
-            SCHEDULER_FLOW=Consumer
+            SCHEDULER_FLOW=consumer
           context: .
           push: true
           tags: juspaydotin/orca-consumer:${{ github.sha }}
@@ -64,7 +64,7 @@ jobs:
           build-args: |
             RUN_ENV=${{ inputs.environment }}
             BINARY=scheduler
-            SCHEDULER_FLOW=Producer
+            SCHEDULER_FLOW=producer
           context: .
           push: true
           tags: juspaydotin/orca-producer:${{ github.sha }}
