@@ -142,7 +142,7 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
 }
 
 pub trait PaymentsAuthorizeRequestData {
-    fn is_auto_capture(&self) -> bool;
+    fn is_auto_capture(&self) -> Result<bool, Error>;
     fn get_email(&self) -> Result<Email, Error>;
     fn get_browser_info(&self) -> Result<types::BrowserInformation, Error>;
     fn get_card(&self) -> Result<api::Card, Error>;

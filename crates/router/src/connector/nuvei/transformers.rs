@@ -64,7 +64,7 @@ pub struct NuveiPaymentsRequest {
     pub amount: String,
     pub currency: String,
     /// This ID uniquely identifies your consumer/user in your system.
-    pub user_token_id: Option<Secret<String, Email>>,
+    pub user_token_id: Option<Email>,
     pub client_unique_id: String,
     pub transaction_type: TransactionType,
     pub is_rebilling: Option<String>,
