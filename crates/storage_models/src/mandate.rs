@@ -26,6 +26,9 @@ pub struct Mandate {
     pub amount_captured: Option<i64>,
     pub connector: String,
     pub connector_mandate_id: Option<String>,
+    pub start_date: Option<PrimitiveDateTime>,
+    pub end_date: Option<PrimitiveDateTime>,
+    pub metadata: Option<pii::SecretSerdeValue>,
 }
 
 #[derive(
@@ -50,6 +53,9 @@ pub struct MandateNew {
     pub amount_captured: Option<i64>,
     pub connector: String,
     pub connector_mandate_id: Option<String>,
+    pub start_date: Option<PrimitiveDateTime>,
+    pub end_date: Option<PrimitiveDateTime>,
+    pub metadata: Option<pii::SecretSerdeValue>,
 }
 
 #[derive(Debug)]

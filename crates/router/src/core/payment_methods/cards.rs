@@ -119,9 +119,7 @@ pub async fn update_customer_payment_method(
             payment_method_id,
         )
         .await
-        .map_err(|error| {
-            error.to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)
-        })?;
+        .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
     if pm.payment_method == enums::PaymentMethod::Card {
         delete_card_from_locker(
             state,
@@ -827,9 +825,7 @@ pub async fn list_payment_methods(
             false,
         )
         .await
-        .map_err(|error| {
-            error.to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
-        })?;
+        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
     logger::debug!(mca_before_filtering=?all_mcas);
 
@@ -1440,9 +1436,7 @@ pub async fn list_customer_payment_method(
             &merchant_account.merchant_id,
         )
         .await
-        .map_err(|err| {
-            err.to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)
-        })?;
+        .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
     //let mca = query::find_mca_by_merchant_id(conn, &merchant_account.merchant_id)?;
     if resp.is_empty() {
         return Err(error_stack::report!(
@@ -1745,9 +1739,7 @@ pub async fn retrieve_payment_method(
     let pm = db
         .find_payment_method(&pm.payment_method_id)
         .await
-        .map_err(|error| {
-            error.to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)
-        })?;
+        .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
     let card = if pm.payment_method == enums::PaymentMethod::Card {
         let card = get_card_from_locker(
             state,
@@ -1801,9 +1793,7 @@ pub async fn delete_payment_method(
             &payment_method_id,
         )
         .await
-        .map_err(|error| {
-            error.to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)
-        })?;
+        .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
 
     if pm.payment_method == enums::PaymentMethod::Card {
         let response =
