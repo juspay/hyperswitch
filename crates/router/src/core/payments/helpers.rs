@@ -32,7 +32,7 @@ use crate::{
         api::{self, admin, enums as api_enums, CustomerAcceptanceExt, MandateValidationFieldsExt},
         domain::{
             self, customer, merchant_account,
-            types::{get_merchant_enc_key, AsyncLift, TypeEncryption},
+            types::{self, AsyncLift, TypeEncryption},
         },
         storage::{self, enums as storage_enums, ephemeral_key},
         transformers::ForeignInto,
@@ -51,7 +51,7 @@ pub async fn get_address_for_payment_request(
     merchant_id: &str,
     customer_id: &Option<String>,
 ) -> CustomResult<Option<domain::address::Address>, errors::ApiErrorResponse> {
-    let key = get_merchant_enc_key(db, merchant_id.to_string())
+    let key = types::get_merchant_enc_key(db, merchant_id.to_string())
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed while getting key for encryption")?;
@@ -783,7 +783,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R>(
             Some(match customer_data {
                 Some(c) => Ok(c),
                 None => {
-                    let key = get_merchant_enc_key(db, merchant_id.to_string()).await?;
+                    let key = types::get_merchant_enc_key(db, merchant_id.to_string()).await?;
 
                     let encrypt = |inner: Option<masking::Secret<String>>| async {
                         inner

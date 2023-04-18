@@ -20,7 +20,7 @@ use crate::{
         self, api,
         domain::{
             self, merchant_account as merchant_domain, merchant_key_store,
-            types::{get_merchant_enc_key, AsyncLift, TypeEncryption},
+            types::{self, AsyncLift, TypeEncryption},
         },
         storage,
         transformers::ForeignInto,
@@ -186,7 +186,7 @@ pub async fn merchant_account_update(
     merchant_id: &String,
     req: api::MerchantAccountUpdate,
 ) -> RouterResponse<api::MerchantAccountResponse> {
-    let key = get_merchant_enc_key(db, merchant_id.clone())
+    let key = types::get_merchant_enc_key(db, merchant_id.clone())
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
@@ -330,7 +330,7 @@ pub async fn create_payment_connector(
     req: api::MerchantConnector,
     merchant_id: &String,
 ) -> RouterResponse<api::MerchantConnector> {
-    let key = get_merchant_enc_key(store, merchant_id.clone())
+    let key = types::get_merchant_enc_key(store, merchant_id.clone())
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
@@ -461,7 +461,7 @@ pub async fn update_payment_connector(
     merchant_connector_id: &str,
     req: api::MerchantConnector,
 ) -> RouterResponse<api::MerchantConnector> {
-    let key = get_merchant_enc_key(db, merchant_id)
+    let key = types::get_merchant_enc_key(db, merchant_id)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
