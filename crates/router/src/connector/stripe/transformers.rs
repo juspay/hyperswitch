@@ -709,13 +709,12 @@ fn create_stripe_payment_method(
 
             let stripe_pm_type = infer_stripe_pay_later_type(pm_type, pm_experience)?;
 
-            let billing_address =
-                StripeBillingAddress::try_from((pay_later_data, stripe_pm_type.clone()))?;
+            let billing_address = StripeBillingAddress::try_from((pay_later_data, stripe_pm_type))?;
 
             Ok((
                 StripePaymentMethodData::PayLater(StripePayLaterData {
-                    payment_method_types: stripe_pm_type.clone(),
-                    payment_method_data_type: stripe_pm_type.clone(),
+                    payment_method_types: stripe_pm_type,
+                    payment_method_data_type: stripe_pm_type,
                 }),
                 stripe_pm_type,
                 billing_address,
@@ -728,8 +727,8 @@ fn create_stripe_payment_method(
             let bank_name = get_bank_name(&pm_type, bank_redirect_data)?;
             Ok((
                 StripePaymentMethodData::BankRedirect(StripeBankRedirectData {
-                    payment_method_types: pm_type.clone(),
-                    payment_method_data_type: pm_type.clone(),
+                    payment_method_types: pm_type,
+                    payment_method_data_type: pm_type,
                     bank_name,
                     bank_specific_data,
                 }),
@@ -1212,10 +1211,8 @@ pub enum StripeNextActionResponse {
 impl StripeNextActionResponse {
     fn get_url(&self) -> Url {
         match self {
-            StripeNextActionResponse::RedirectToUrl(redirect_to_url) => {
-                redirect_to_url.url.to_owned()
-            }
-            StripeNextActionResponse::VerifyWithMicrodeposits(verify_with_microdeposits) => {
+            Self::RedirectToUrl(redirect_to_url) => redirect_to_url.url.to_owned(),
+            Self::VerifyWithMicrodeposits(verify_with_microdeposits) => {
                 verify_with_microdeposits.hosted_verification_url.to_owned()
             }
         }
@@ -1607,12 +1604,12 @@ impl
                 }
             })),
             api::PaymentMethodData::PayLater(_) => Ok(Self::PayLater(StripePayLaterData {
-                payment_method_types: pm_type.clone(),
+                payment_method_types: pm_type,
                 payment_method_data_type: pm_type,
             })),
             api::PaymentMethodData::BankRedirect(_) => {
                 Ok(Self::BankRedirect(StripeBankRedirectData {
-                    payment_method_types: pm_type.clone(),
+                    payment_method_types: pm_type,
                     payment_method_data_type: pm_type,
                     bank_name: None,
                     bank_specific_data: None,
