@@ -1,4 +1,4 @@
-#### 2023-04-18
+# 0.5.7 (2023-04-18)
 
 ## New Features
 
@@ -19,7 +19,7 @@
 
 ## Integration
 
-*  Frm integration with hyperswitch (#857) 
+*  Frm integration with hyperswitch (#857)
 
 ## Refactors
 
