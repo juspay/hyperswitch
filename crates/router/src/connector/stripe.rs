@@ -2,11 +2,10 @@ mod transformers;
 
 use std::{collections::HashMap, fmt::Debug};
 
+use common_utils::ext_traits::ValueExt;
 use error_stack::{IntoReport, ResultExt};
 use router_env::{instrument, tracing};
 use storage_models::enums;
-use time::serde::timestamp;
-
 
 use self::transformers as stripe;
 use super::utils::RefundsRequestData;
@@ -84,6 +83,113 @@ impl
     > for Stripe
 {
     // Not Implemented (R)
+}
+
+impl api::PaymentToken for Stripe {}
+
+impl
+    services::ConnectorIntegration<
+        api::PaymentMethodToken,
+        types::PaymentMethodTokenizationData,
+        types::PaymentsResponseData,
+    > for Stripe
+{
+    fn get_headers(
+        &self,
+        req: &types::TokenizationRouterData,
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+        let mut header = vec![(
+            headers::CONTENT_TYPE.to_string(),
+            types::TokenizationType::get_content_type(self).to_string(),
+        )];
+        let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
+        header.append(&mut api_key);
+        Ok(header)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(
+        &self,
+        _req: &types::TokenizationRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(format!("{}{}", self.base_url(connectors), "v1/tokens"))
+    }
+
+    fn get_request_body(
+        &self,
+        req: &types::TokenizationRouterData,
+    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+        let connector_request = stripe::TokenRequest::try_from(req)?;
+        let stripe_req = utils::Encode::<stripe::TokenRequest>::url_encode(&connector_request)
+            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+
+        Ok(Some(stripe_req))
+    }
+
+    fn build_request(
+        &self,
+        req: &types::TokenizationRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        Ok(Some(
+            services::RequestBuilder::new()
+                .method(services::Method::Post)
+                .url(&types::TokenizationType::get_url(self, req, connectors)?)
+                .attach_default_headers()
+                .headers(types::TokenizationType::get_headers(self, req, connectors)?)
+                .body(types::TokenizationType::get_request_body(self, req)?)
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        data: &types::TokenizationRouterData,
+        res: types::Response,
+    ) -> CustomResult<types::TokenizationRouterData, errors::ConnectorError>
+    where
+        types::PaymentsResponseData: Clone,
+    {
+        let response: stripe::StripeTokenResponse = res
+            .response
+            .parse_struct("StripeTokenResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        types::RouterData::try_from(types::ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+    }
+
+    fn get_error_response(
+        &self,
+        res: types::Response,
+    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
+        let response: stripe::ErrorResponse = res
+            .response
+            .parse_struct("ErrorResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        Ok(types::ErrorResponse {
+            status_code: res.status_code,
+            code: response
+                .error
+                .code
+                .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
+            message: response
+                .error
+                .message
+                .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
+            reason: None,
+        })
+    }
 }
 
 impl api::PreVerify for Stripe {}
@@ -450,9 +556,7 @@ impl
         req: &types::PaymentsCancelRouterData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
         let stripe_req = utils::Encode::<stripe::CancelRequest>::convert_and_url_encode(req)
-            .change_context(errors::ConnectorError::RequestEncodingFailedWithReason(
-                "Invalid cancellation reason".to_string(),
-            ))?;
+            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(stripe_req))
     }
 
@@ -923,40 +1027,70 @@ impl api::IncomingWebhook for Stripe {
             .parse_struct("StripeWebhookObjectId")
             .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
 
-        Ok(match details.data.object.object.as_str() {  
+        Ok(match details.data.object.object.as_str() {
             "payment_intent" => api_models::webhooks::ObjectReferenceId::PaymentId(
-                api_models::payments::PaymentIdType::ConnectorTransactionId(details.data.object.id)),
-            "dispute" => api_models::webhooks::ObjectReferenceId::PaymentId(
-                api_models::payments::PaymentIdType::PaymentIntentId(details.data.object.metadata.order_id),
+                api_models::payments::PaymentIdType::ConnectorTransactionId(details.data.object.id),
             ),
-            _=> Err(errors::ConnectorError::FailedToObtainAuthType)?
-        }
-        )
+            "dispute" => api_models::webhooks::ObjectReferenceId::PaymentId(
+                api_models::payments::PaymentIdType::ConnectorTransactionId(
+                    details
+                        .data
+                        .object
+                        .payment_intent
+                        .ok_or(errors::ConnectorError::WebhookReferenceIdNotFound)?,
+                ),
+            ),
+            _ => Err(errors::ConnectorError::FailedToObtainAuthType)?,
+        })
     }
 
     fn get_webhook_event_type(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api::IncomingWebhookEvent, errors::ConnectorError> {
-        let details: stripe::StripeWebhookObjectEventType = request
+        let details: stripe::StripeWebhookObjectId = request
+            .body
+            .parse_struct("StripeWebhookObjectId")
+            .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
+        let webhook_obj: stripe::StripeWebhookObjectEventType = request
             .body
             .parse_struct("StripeWebhookObjectEventType")
             .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
-
-        Ok(match details.event_type.as_str()  {
-            "payment_intent.payment_failed" => api::IncomingWebhookEvent::PaymentIntentFailure,
-            "payment_intent.succeeded" => api::IncomingWebhookEvent::PaymentIntentSuccess,
-            "charge.dispute.created" => api::IncomingWebhookEvent::DisputeOpened,
-            "charge.dispute.closed" => api:: IncomingWebhookEvent::DisputeCancelled,
-            "charge.dispute.updated" => { match details.data.object.status {
-                stripe::DisputeStatus::WarningNeedsResponse => api::IncomingWebhookEvent::DisputeOpened,
-                stripe::DisputeStatus::WarningClosed => api::IncomingWebhookEvent::DisputeCancelled,
-                stripe::DisputeStatus::WarningUnderReview => api::IncomingWebhookEvent::DisputeChallenged,
-                stripe::DisputeStatus::Won => api::IncomingWebhookEvent::DisputeWon,
-                stripe::DisputeStatus::Lost => api::IncomingWebhookEvent::DisputeLost,
-                _ => Err(errors::ConnectorError::WebhookEventTypeNotFound).into_report()?,
+        let dispute_payload = match details.data.object.object.as_str() {
+            "dispute" => {
+                let payload: transformers::DataObject = webhook_obj
+                    .data
+                    .parse_value("DisputeObject")
+                    .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
+                Some(payload)
             }
-        }
+            _ => None,
+        };
+        Ok(match webhook_obj.event_type {
+            stripe::WebhookEvenType::PaymentIntentFailed => {
+                api::IncomingWebhookEvent::PaymentIntentFailure
+            }
+            stripe::WebhookEvenType::PaymentIntentSucceed => {
+                api::IncomingWebhookEvent::PaymentIntentSuccess
+            }
+            stripe::WebhookEvenType::DisputeCreted => api::IncomingWebhookEvent::DisputeOpened,
+            stripe::WebhookEvenType::DisputeClosed => api::IncomingWebhookEvent::DisputeCancelled,
+            stripe::WebhookEvenType::DisputeUpdated => {
+                match dispute_payload.map(|payload| payload.object.status) {
+                    Some(stripe::DisputeStatus::WarningNeedsResponse) => {
+                        api::IncomingWebhookEvent::DisputeOpened
+                    }
+                    Some(stripe::DisputeStatus::WarningClosed) => {
+                        api::IncomingWebhookEvent::DisputeCancelled
+                    }
+                    Some(stripe::DisputeStatus::WarningUnderReview) => {
+                        api::IncomingWebhookEvent::DisputeChallenged
+                    }
+                    Some(stripe::DisputeStatus::Won) => api::IncomingWebhookEvent::DisputeWon,
+                    Some(stripe::DisputeStatus::Lost) => api::IncomingWebhookEvent::DisputeLost,
+                    _ => Err(errors::ConnectorError::WebhookEventTypeNotFound).into_report()?,
+                }
+            }
             _ => Err(errors::ConnectorError::WebhookEventTypeNotFound).into_report()?,
         })
     }
@@ -981,29 +1115,35 @@ impl api::IncomingWebhook for Stripe {
             .body
             .parse_struct("StripeWebhookObjectEventType")
             .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
+        let payload: transformers::DataObject = details
+            .data
+            .parse_value("DisputeObject")
+            .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
         Ok(api::disputes::DisputePayload {
-            amount: details.data.object.amount.to_string(),
-            currency: details.data.object.currency,
+            amount: payload.object.amount.to_string(),
+            currency: payload.object.currency,
             dispute_stage: api_models::enums::DisputeStage::Dispute,
-            connector_dispute_id: details.data.object.id,
-            connector_reason: Some(details.data.object.reason),
+            connector_dispute_id: payload.object.id,
+            connector_reason: Some(payload.object.reason),
             connector_reason_code: None,
-            challenge_required_by: Some(get_date_and_time(details.data.object.evidence_details.due_by)?),
-            connector_status: details.data.object.status.to_string(),
-            created_at: Some(get_date_and_time(details.data.object.created)?),
-            updated_at: None, 
+            challenge_required_by: Some(get_date_and_time(payload.object.evidence_details.due_by)?),
+            connector_status: payload.object.status.to_string(),
+            created_at: Some(get_date_and_time(payload.object.created)?),
+            updated_at: None,
         })
     }
 }
 
-pub fn get_date_and_time(timestamp: i64) -> CustomResult<String,errors::ConnectorError> {
+pub fn get_date_and_time(timestamp: i64) -> CustomResult<String, errors::ConnectorError> {
     let datetime = time::OffsetDateTime::from_unix_timestamp(timestamp)
         .map_err(|_| errors::ConnectorError::ResponseDeserializationFailed)?;
     let format = time::format_description::parse(
         "[year]-[month]-[day] [hour]:[minute]:[second] [offset_hour \
              sign:mandatory]:[offset_minute]:[offset_second]",
-    ).map_err(|_| errors::ConnectorError::ResponseDeserializationFailed)?;
-    let x = datetime.format(&format)
+    )
+    .map_err(|_| errors::ConnectorError::ResponseDeserializationFailed)?;
+    let x = datetime
+        .format(&format)
         .map_err(|_| errors::ConnectorError::ResponseDeserializationFailed)?;
     Ok(x)
 }

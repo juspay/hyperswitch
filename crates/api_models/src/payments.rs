@@ -201,8 +201,19 @@ pub struct PaymentsRequest {
     #[schema(value_type = Option<PaymentMethodType>, example = "google_pay")]
     pub payment_method_type: Option<api_enums::PaymentMethodType>,
 
+    /// Business country of the merchant for this payment
+    #[schema(example = "US")]
+    pub business_country: Option<api_enums::CountryCode>,
+
+    /// Business label of the merchant for this payment
+    #[schema(example = "food")]
+    pub business_label: Option<String>,
+
     /// Merchant connector details used to make payments.
     pub merchant_connector_details: Option<admin::MerchantConnectorDetailsWrap>,
+
+    /// Business sub label for the payment
+    pub business_sub_label: Option<String>,
 }
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, Copy, PartialEq, Eq)]
@@ -314,9 +325,7 @@ pub struct SingleUseMandate {
     pub currency: api_enums::Currency,
 }
 
-#[derive(
-    Clone, Eq, PartialEq, Copy, Debug, Default, ToSchema, serde::Serialize, serde::Deserialize,
-)]
+#[derive(Clone, Eq, PartialEq, Debug, Default, ToSchema, serde::Serialize, serde::Deserialize)]
 pub struct MandateAmountData {
     /// The maximum amount to be debited for the mandate transaction
     #[schema(example = 6540)]
@@ -324,6 +333,19 @@ pub struct MandateAmountData {
     /// The currency for the transaction
     #[schema(value_type = Currency, example = "USD")]
     pub currency: api_enums::Currency,
+    /// Specifying start date of the mandate
+    #[schema(example = "2022-09-10T00:00:00Z")]
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    pub start_date: Option<PrimitiveDateTime>,
+    /// Specifying end date of the mandate
+    #[schema(example = "2023-09-10T23:59:59Z")]
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    pub end_date: Option<PrimitiveDateTime>,
+    /// Additional details required by mandate
+    #[schema(value_type = Option<Object>, example = r#"{
+        "frequency": "DAILY"
+    }"#)]
+    pub metadata: Option<pii::SecretSerdeValue>,
 }
 
 #[derive(Eq, PartialEq, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
@@ -509,6 +531,9 @@ pub enum BankRedirectData {
         bank_name: api_enums::BankNames,
     },
     Sofort {
+        /// The billing details for bank redirection
+        billing_details: BankRedirectBilling,
+
         /// The country for bank payment
         #[schema(value_type = Country, example = "US")]
         country: api_enums::CountryCode,
@@ -940,6 +965,19 @@ pub struct PaymentsResponse {
     /// Payment Method Type
     #[schema(value_type = Option<PaymentMethodType>, example = "gpay")]
     pub payment_method_type: Option<api_enums::PaymentMethodType>,
+
+    /// The connector used for this payment along with the country and business details
+    #[schema(example = "stripe_US_food")]
+    pub connector_label: Option<String>,
+
+    /// The business country of merchant for this payment
+    pub business_country: api_enums::CountryCode,
+
+    /// The business label of merchant for this payment
+    pub business_label: String,
+
+    /// The business_sub_label for this payment
+    pub business_sub_label: Option<String>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, ToSchema)]
@@ -1198,6 +1236,8 @@ pub struct Metadata {
     #[schema(value_type = Object, example = r#"{ "city": "NY", "unit": "245" }"#)]
     #[serde(flatten)]
     pub data: pii::SecretSerdeValue,
+    /// Payload coming in request as a metadata field
+    pub payload: Option<pii::SecretSerdeValue>,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
@@ -1276,7 +1316,7 @@ pub struct GpayMetaData {
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct GpaySessionTokenData {
-    #[serde(rename = "gpay")]
+    #[serde(rename = "google_pay")]
     pub data: GpayMetaData,
 }
 

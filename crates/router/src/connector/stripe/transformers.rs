@@ -1,20 +1,20 @@
-use std::str::FromStr;
-
 use api_models::{self, enums as api_enums, payments};
+use base64::Engine;
 use common_utils::{fp_utils, pii::Email};
 use error_stack::{IntoReport, ResultExt};
 use masking::ExposeInterface;
 use serde::{Deserialize, Serialize};
-use strum::{EnumString, Display};
+use strum::Display;
 use url::Url;
-use utoipa::openapi::Object;
 use uuid::Uuid;
 
 use crate::{
+    consts,
     core::errors,
     pii::{self, ExposeOptionInterface, Secret},
     services,
     types::{self, api, storage::enums},
+    utils::OptionExt,
 };
 
 pub struct StripeAuthType {
@@ -130,6 +130,18 @@ pub struct StripePayLaterData {
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
+pub struct TokenRequest {
+    #[serde(flatten)]
+    pub token_data: StripePaymentMethodData,
+}
+
+#[derive(Debug, Eq, PartialEq, Deserialize)]
+pub struct StripeTokenResponse {
+    pub id: String,
+    pub object: String,
+}
+
+#[derive(Debug, Eq, PartialEq, Serialize)]
 #[serde(untagged)]
 pub enum StripeBankName {
     Eps {
@@ -192,8 +204,31 @@ pub struct StripeBankRedirectData {
 pub enum StripePaymentMethodData {
     Card(StripeCardData),
     PayLater(StripePayLaterData),
-    Wallet,
+    Wallet(StripeWallet),
     BankRedirect(StripeBankRedirectData),
+}
+
+#[derive(Debug, Eq, PartialEq, Serialize)]
+#[serde(untagged)]
+pub enum StripeWallet {
+    ApplepayToken(StripeApplePay),
+    ApplepayPayment(ApplepayPayment),
+}
+
+#[derive(Debug, Eq, PartialEq, Serialize)]
+pub struct StripeApplePay {
+    pub pk_token: String,
+    pub pk_token_instrument_name: String,
+    pub pk_token_payment_network: String,
+    pub pk_token_transaction_id: String,
+}
+
+#[derive(Debug, Eq, PartialEq, Serialize)]
+pub struct ApplepayPayment {
+    #[serde(rename = "payment_method_data[card][token]")]
+    pub token: String,
+    #[serde(rename = "payment_method_data[type]")]
+    pub payment_method_types: StripePaymentMethodType,
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize, Clone)]
@@ -207,6 +242,7 @@ pub enum StripePaymentMethodType {
     Giropay,
     Ideal,
     Sofort,
+    ApplePay,
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize, Clone)]
@@ -324,7 +360,7 @@ impl TryFrom<&api_models::enums::BankNames> for StripeBankNames {
 fn validate_shipping_address_against_payment_method(
     shipping_address: &StripeShippingAddress,
     payment_method: &StripePaymentMethodType,
-) -> Result<(), errors::ConnectorError> {
+) -> Result<(), error_stack::Report<errors::ConnectorError>> {
     if let StripePaymentMethodType::AfterpayClearpay = payment_method {
         fp_utils::when(shipping_address.name.is_none(), || {
             Err(errors::ConnectorError::MissingRequiredField {
@@ -470,6 +506,7 @@ fn get_bank_specific_data(
         payments::BankRedirectData::Sofort {
             country,
             preferred_language,
+            ..
         } => Some(BankSpecificData::Sofort {
             country: country.to_owned(),
             preferred_language: preferred_language.to_owned(),
@@ -489,7 +526,7 @@ fn create_stripe_payment_method(
         StripePaymentMethodType,
         StripeBillingAddress,
     ),
-    errors::ConnectorError,
+    error_stack::Report<errors::ConnectorError>,
 > {
     match payment_method_data {
         payments::PaymentMethodData::Card(card_details) => {
@@ -550,14 +587,38 @@ fn create_stripe_payment_method(
                 billing_address,
             ))
         }
+        payments::PaymentMethodData::Wallet(wallet_data) => match wallet_data {
+            payments::WalletData::ApplePay(applepay_data) => Ok((
+                StripePaymentMethodData::Wallet(StripeWallet::ApplepayToken(StripeApplePay {
+                    pk_token: String::from_utf8(
+                        consts::BASE64_ENGINE
+                            .decode(&applepay_data.payment_data)
+                            .into_report()
+                            .change_context(errors::ConnectorError::RequestEncodingFailed)?,
+                    )
+                    .into_report()
+                    .change_context(errors::ConnectorError::RequestEncodingFailed)?,
+                    pk_token_instrument_name: applepay_data.payment_method.pm_type.to_owned(),
+                    pk_token_payment_network: applepay_data.payment_method.network.to_owned(),
+                    pk_token_transaction_id: applepay_data.transaction_identifier.to_owned(),
+                })),
+                StripePaymentMethodType::ApplePay,
+                StripeBillingAddress::default(),
+            )),
+            _ => Err(errors::ConnectorError::NotImplemented(
+                "This wallet is not implemented for stripe".to_string(),
+            )
+            .into()),
+        },
         _ => Err(errors::ConnectorError::NotImplemented(
             "stripe does not support this payment method".to_string(),
-        )),
+        )
+        .into()),
     }
 }
 
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
-    type Error = errors::ConnectorError;
+    type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         let metadata_order_id = item.payment_id.to_string();
         let metadata_txn_id = format!("{}_{}_{}", item.merchant_id, item.payment_id, "1");
@@ -593,7 +654,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
             None => StripeShippingAddress::default(),
         };
 
-        let (payment_data, mandate, billing_address) = {
+        let (mut payment_data, mandate, billing_address) = {
             match item
                 .request
                 .mandate_id
@@ -618,6 +679,20 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
                 }
                 Some(mandate_id) => (None, Some(mandate_id), StripeBillingAddress::default()),
             }
+        };
+
+        payment_data = match item.request.payment_method_data {
+            payments::PaymentMethodData::Wallet(payments::WalletData::ApplePay(_)) => Some(
+                StripePaymentMethodData::Wallet(StripeWallet::ApplepayPayment(ApplepayPayment {
+                    token: item
+                        .payment_method_token
+                        .to_owned()
+                        .get_required_value("payment_token")
+                        .change_context(errors::ConnectorError::RequestEncodingFailed)?,
+                    payment_method_types: StripePaymentMethodType::Card,
+                })),
+            ),
+            _ => payment_data,
         };
 
         Ok(Self {
@@ -668,6 +743,21 @@ impl TryFrom<&types::VerifyRouterData> for SetupIntentRequest {
             payment_data,
             off_session: item.request.off_session,
             usage: item.request.setup_future_usage,
+        })
+    }
+}
+
+impl TryFrom<&types::TokenizationRouterData> for TokenRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &types::TokenizationRouterData) -> Result<Self, Self::Error> {
+        let payment_data = create_stripe_payment_method(
+            None,
+            None,
+            &item.request.payment_method_data,
+            item.auth_type,
+        )?;
+        Ok(Self {
+            token_data: payment_data.0,
         })
     }
 }
@@ -1120,37 +1210,18 @@ pub struct StripeRedirectResponse {
     pub source_type: Option<Secret<String>>,
 }
 
-#[derive(Debug, Serialize, Clone, Copy)]
+#[derive(Debug, Serialize)]
 pub struct CancelRequest {
-    cancellation_reason: Option<CancellationReason>,
+    cancellation_reason: Option<String>,
 }
 
 impl TryFrom<&types::PaymentsCancelRouterData> for CancelRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsCancelRouterData) -> Result<Self, Self::Error> {
-        let cancellation_reason = match &item.request.cancellation_reason {
-            Some(c) => Some(
-                CancellationReason::from_str(c)
-                    .into_report()
-                    .change_context(errors::ConnectorError::RequestEncodingFailed)?,
-            ),
-            None => None,
-        };
-
         Ok(Self {
-            cancellation_reason,
+            cancellation_reason: item.request.cancellation_reason.clone(),
         })
     }
-}
-
-#[derive(Debug, Serialize, Deserialize, Copy, Clone, EnumString)]
-#[serde(rename_all = "snake_case")]
-#[strum(serialize_all = "snake_case")]
-pub enum CancellationReason {
-    Duplicate,
-    Fraudulent,
-    RequestedByCustomer,
-    Abandoned,
 }
 
 #[derive(Deserialize, Debug, Clone, Eq, PartialEq)]
@@ -1186,6 +1257,23 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for CaptureRequest {
     fn try_from(item: &types::PaymentsCaptureRouterData) -> Result<Self, Self::Error> {
         Ok(Self {
             amount_to_capture: Some(item.request.amount_to_capture),
+        })
+    }
+}
+
+impl<F, T>
+    TryFrom<types::ResponseRouterData<F, StripeTokenResponse, T, types::PaymentsResponseData>>
+    for types::RouterData<F, T, types::PaymentsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: types::ResponseRouterData<F, StripeTokenResponse, T, types::PaymentsResponseData>,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            response: Ok(types::PaymentsResponseData::TokenizationResponse {
+                token: item.response.id,
+            }),
+            ..item.data
         })
     }
 }
@@ -1231,12 +1319,7 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for CaptureRequest {
 pub struct StripeWebhookDataObjectId {
     pub id: String,
     pub object: String,
-    pub metadata: MetaData,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct MetaData {
-    pub order_id: String,
+    pub payment_intent: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -1257,8 +1340,8 @@ pub struct StripeWebhookObjectResource {
 #[derive(Debug, Deserialize)]
 pub struct StripeWebhookObjectEventType {
     #[serde(rename = "type")]
-    pub event_type: String,
-    pub data: DataObject,
+    pub event_type: WebhookEvenType,
+    pub data: serde_json::Value,
 }
 
 #[derive(Debug, Deserialize, PartialEq)]
@@ -1277,6 +1360,44 @@ pub struct ObjectData {
     pub status: DisputeStatus,
 }
 
+#[derive(Debug, Deserialize)]
+pub enum WebhookEvenType {
+    #[serde(rename = "payment_intent.payment_failed")]
+    PaymentIntentFailed,
+    #[serde(rename = "payment_intent.succeeded")]
+    PaymentIntentSucceed,
+    #[serde(rename = "charge.dispute.updated")]
+    ChargeCaptured,
+    #[serde(rename = "charge.dispute.created")]
+    DisputeCreted,
+    #[serde(rename = "charge.dispute.closed")]
+    DisputeClosed,
+    #[serde(rename = "charge.dispute.updated")]
+    DisputeUpdated,
+    #[serde(rename = "charge.dispute.funds_reinstated")]
+    ChargeDisputeFundsReinstated,
+    #[serde(rename = "charge.dispute.funds_withdrawn")]
+    ChargeDisputeFundsWithdrawn,
+    #[serde(rename = "charge.expired")]
+    ChargeExpired,
+    #[serde(rename = "charge.failed")]
+    ChargeFailed,
+    #[serde(rename = "charge.pending")]
+    ChargePending,
+    #[serde(rename = "charge.succeeded")]
+    ChargeSucceeded,
+    #[serde(rename = "charge.updated")]
+    ChargeUpdated,
+    #[serde(rename = "payment_intent.canceled")]
+    PaymentIntentCanceled,
+    #[serde(rename = "payment_intent.created")]
+    PaymentIntentCreated,
+    #[serde(rename = "payment_intent.processing")]
+    PaymentIntentProcessing,
+    #[serde(rename = "payment_intent.requires_action")]
+    PaymentIntentRequiresAction,
+}
+
 #[derive(Debug, Serialize, Display, Deserialize, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub enum DisputeStatus {
@@ -1288,7 +1409,6 @@ pub enum DisputeStatus {
     NeedsResponse,
     UnderReview,
     ChargeRefunded,
-    Succeeded
 }
 
 #[derive(Debug, Deserialize, PartialEq)]
@@ -1308,7 +1428,7 @@ impl
         StripePaymentMethodType,
     )> for StripePaymentMethodData
 {
-    type Error = errors::ConnectorError;
+    type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         (pm_data, auth_type, pm_type): (
             api::PaymentMethodData,
@@ -1344,7 +1464,25 @@ impl
                     bank_specific_data: None,
                 }))
             }
-            api::PaymentMethodData::Wallet(_) => Ok(Self::Wallet),
+            api::PaymentMethodData::Wallet(wallet_data) => match wallet_data {
+                payments::WalletData::ApplePay(data) => {
+                    let wallet_info = StripeWallet::ApplepayToken(StripeApplePay {
+                        pk_token: String::from_utf8(
+                            consts::BASE64_ENGINE
+                                .decode(data.payment_data)
+                                .into_report()
+                                .change_context(errors::ConnectorError::RequestEncodingFailed)?,
+                        )
+                        .into_report()
+                        .change_context(errors::ConnectorError::RequestEncodingFailed)?,
+                        pk_token_instrument_name: data.payment_method.pm_type,
+                        pk_token_payment_network: data.payment_method.network,
+                        pk_token_transaction_id: data.transaction_identifier,
+                    });
+                    Ok(Self::Wallet(wallet_info))
+                }
+                _ => Err(errors::ConnectorError::InvalidWallet.into()),
+            },
             api::PaymentMethodData::Crypto(_) => Err(errors::ConnectorError::NotSupported {
                 payment_method: format!("{pm_type:?}"),
                 connector: "Stripe",

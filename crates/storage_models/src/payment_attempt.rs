@@ -15,7 +15,7 @@ pub struct PaymentAttempt {
     pub amount: i64,
     pub currency: Option<storage_enums::Currency>,
     pub save_to_locker: Option<bool>,
-    pub connector: Option<serde_json::Value>,
+    pub connector: Option<String>,
     pub error_message: Option<String>,
     pub offer_amount: Option<i64>,
     pub surcharge_amount: Option<i64>,
@@ -44,6 +44,8 @@ pub struct PaymentAttempt {
     pub payment_experience: Option<storage_enums::PaymentExperience>,
     pub payment_method_type: Option<storage_enums::PaymentMethodType>,
     pub payment_method_data: Option<serde_json::Value>,
+    pub business_sub_label: Option<String>,
+    pub straight_through_algorithm: Option<serde_json::Value>,
 }
 
 #[derive(
@@ -59,7 +61,7 @@ pub struct PaymentAttemptNew {
     pub currency: Option<storage_enums::Currency>,
     // pub auto_capture: Option<bool>,
     pub save_to_locker: Option<bool>,
-    pub connector: Option<serde_json::Value>,
+    pub connector: Option<String>,
     pub error_message: Option<String>,
     pub offer_amount: Option<i64>,
     pub surcharge_amount: Option<i64>,
@@ -88,6 +90,8 @@ pub struct PaymentAttemptNew {
     pub payment_experience: Option<storage_enums::PaymentExperience>,
     pub payment_method_type: Option<storage_enums::PaymentMethodType>,
     pub payment_method_data: Option<serde_json::Value>,
+    pub business_sub_label: Option<String>,
+    pub straight_through_algorithm: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -102,10 +106,12 @@ pub enum PaymentAttemptUpdate {
         payment_method_data: Option<serde_json::Value>,
         payment_method_type: Option<storage_enums::PaymentMethodType>,
         payment_experience: Option<storage_enums::PaymentExperience>,
+        business_sub_label: Option<String>,
     },
     UpdateTrackers {
         payment_token: Option<String>,
-        connector: Option<serde_json::Value>,
+        connector: Option<String>,
+        straight_through_algorithm: Option<serde_json::Value>,
     },
     AuthenticationTypeUpdate {
         authentication_type: storage_enums::AuthenticationType,
@@ -117,11 +123,13 @@ pub enum PaymentAttemptUpdate {
         authentication_type: Option<storage_enums::AuthenticationType>,
         payment_method: Option<storage_enums::PaymentMethod>,
         browser_info: Option<serde_json::Value>,
-        connector: Option<serde_json::Value>,
+        connector: Option<String>,
         payment_token: Option<String>,
         payment_method_data: Option<serde_json::Value>,
         payment_method_type: Option<storage_enums::PaymentMethodType>,
         payment_experience: Option<storage_enums::PaymentExperience>,
+        business_sub_label: Option<String>,
+        straight_through_algorithm: Option<serde_json::Value>,
     },
     VoidUpdate {
         status: storage_enums::AttemptStatus,
@@ -129,18 +137,19 @@ pub enum PaymentAttemptUpdate {
     },
     ResponseUpdate {
         status: storage_enums::AttemptStatus,
-        connector: Option<serde_json::Value>,
+        connector: Option<String>,
         connector_transaction_id: Option<String>,
         authentication_type: Option<storage_enums::AuthenticationType>,
         payment_method_id: Option<Option<String>>,
         mandate_id: Option<String>,
         connector_metadata: Option<serde_json::Value>,
+        payment_token: Option<String>,
         error_code: Option<Option<String>>,
         error_message: Option<Option<String>>,
     },
     UnresolvedResponseUpdate {
         status: storage_enums::AttemptStatus,
-        connector: Option<serde_json::Value>,
+        connector: Option<String>,
         connector_transaction_id: Option<String>,
         payment_method_id: Option<Option<String>>,
         error_code: Option<Option<String>>,
@@ -150,7 +159,7 @@ pub enum PaymentAttemptUpdate {
         status: storage_enums::AttemptStatus,
     },
     ErrorUpdate {
-        connector: Option<serde_json::Value>,
+        connector: Option<String>,
         status: storage_enums::AttemptStatus,
         error_code: Option<Option<String>>,
         error_message: Option<Option<String>>,
@@ -164,7 +173,7 @@ pub struct PaymentAttemptUpdateInternal {
     currency: Option<storage_enums::Currency>,
     status: Option<storage_enums::AttemptStatus>,
     connector_transaction_id: Option<String>,
-    connector: Option<serde_json::Value>,
+    connector: Option<String>,
     authentication_type: Option<storage_enums::AuthenticationType>,
     payment_method: Option<storage_enums::PaymentMethod>,
     error_message: Option<Option<String>>,
@@ -179,6 +188,8 @@ pub struct PaymentAttemptUpdateInternal {
     payment_method_data: Option<serde_json::Value>,
     payment_method_type: Option<storage_enums::PaymentMethodType>,
     payment_experience: Option<storage_enums::PaymentExperience>,
+    business_sub_label: Option<String>,
+    straight_through_algorithm: Option<serde_json::Value>,
 }
 
 impl PaymentAttemptUpdate {
@@ -220,6 +231,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 payment_method_data,
                 payment_method_type,
                 payment_experience,
+                business_sub_label,
             } => Self {
                 amount: Some(amount),
                 currency: Some(currency),
@@ -232,6 +244,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 payment_method_data,
                 payment_method_type,
                 payment_experience,
+                business_sub_label,
                 ..Default::default()
             },
             PaymentAttemptUpdate::AuthenticationTypeUpdate {
@@ -253,6 +266,8 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 payment_method_data,
                 payment_method_type,
                 payment_experience,
+                business_sub_label,
+                straight_through_algorithm,
             } => Self {
                 amount: Some(amount),
                 currency: Some(currency),
@@ -266,6 +281,8 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 payment_method_data,
                 payment_method_type,
                 payment_experience,
+                business_sub_label,
+                straight_through_algorithm,
                 ..Default::default()
             },
             PaymentAttemptUpdate::VoidUpdate {
@@ -284,6 +301,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 payment_method_id,
                 mandate_id,
                 connector_metadata,
+                payment_token,
                 error_code,
                 error_message,
             } => Self {
@@ -297,6 +315,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 connector_metadata,
                 error_code,
                 error_message,
+                payment_token,
                 ..Default::default()
             },
             PaymentAttemptUpdate::ErrorUpdate {
@@ -319,9 +338,11 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
             PaymentAttemptUpdate::UpdateTrackers {
                 payment_token,
                 connector,
+                straight_through_algorithm,
             } => Self {
                 payment_token,
                 connector,
+                straight_through_algorithm,
                 ..Default::default()
             },
             PaymentAttemptUpdate::UnresolvedResponseUpdate {

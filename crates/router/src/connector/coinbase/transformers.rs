@@ -18,8 +18,8 @@ pub struct LocalPrice {
 
 #[derive(Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
 pub struct Metadata {
-    pub customer_id: String,
-    pub customer_name: String,
+    pub customer_id: Option<String>,
+    pub customer_name: Option<String>,
 }
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
@@ -67,7 +67,7 @@ pub enum CoinbasePaymentStatus {
     Expired,
     Unresolved,
     Resolved,
-    Cancelled,
+    Canceled,
     #[serde(rename = "PENDING REFUND")]
     PendingRefund,
     Refunded,
@@ -133,7 +133,7 @@ impl<F, T>
             .data
             .timeline
             .last()
-            .ok_or_else(|| errors::ConnectorError::ResponseHandlingFailed)?
+            .ok_or(errors::ConnectorError::ResponseHandlingFailed)?
             .clone();
         let connector_id = types::ResponseId::ConnectorTransactionId(item.response.data.id);
         let attempt_status = timeline.status.clone();
@@ -315,7 +315,7 @@ pub struct CoinbasePaymentResponseData {
     pub pricing: HashMap<String, OverpaymentAbsoluteThreshold>,
     pub fee_rate: f64,
     pub logo_url: String,
-    pub metadata: Metadata,
+    pub metadata: Option<Metadata>,
     pub payments: Vec<PaymentElement>,
     pub resource: String,
     pub timeline: Vec<Timeline>,

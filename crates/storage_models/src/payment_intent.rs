@@ -34,6 +34,8 @@ pub struct PaymentIntent {
     pub off_session: Option<bool>,
     pub client_secret: Option<String>,
     pub active_attempt_id: String,
+    pub business_country: storage_enums::CountryCode,
+    pub business_label: String,
 }
 
 #[derive(
@@ -70,10 +72,12 @@ pub struct PaymentIntentNew {
     pub modified_at: Option<PrimitiveDateTime>,
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub last_synced: Option<PrimitiveDateTime>,
-    pub client_secret: Option<String>,
     pub setup_future_usage: Option<storage_enums::FutureUsage>,
     pub off_session: Option<bool>,
+    pub client_secret: Option<String>,
     pub active_attempt_id: String,
+    pub business_country: storage_enums::CountryCode,
+    pub business_label: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -110,6 +114,8 @@ pub enum PaymentIntentUpdate {
         shipping_address_id: Option<String>,
         billing_address_id: Option<String>,
         return_url: Option<String>,
+        business_country: Option<storage_enums::CountryCode>,
+        business_label: Option<String>,
     },
     PaymentAttemptUpdate {
         active_attempt_id: String,
@@ -134,6 +140,8 @@ pub struct PaymentIntentUpdateInternal {
     pub shipping_address_id: Option<String>,
     pub modified_at: Option<PrimitiveDateTime>,
     pub active_attempt_id: Option<String>,
+    pub business_country: Option<storage_enums::CountryCode>,
+    pub business_label: Option<String>,
 }
 
 impl PaymentIntentUpdate {
@@ -178,6 +186,8 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 shipping_address_id,
                 billing_address_id,
                 return_url,
+                business_country,
+                business_label,
             } => Self {
                 amount: Some(amount),
                 currency: Some(currency),
@@ -189,6 +199,8 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 billing_address_id,
                 modified_at: Some(common_utils::date_time::now()),
                 return_url,
+                business_country,
+                business_label,
                 ..Default::default()
             },
             PaymentIntentUpdate::MetadataUpdate { metadata } => Self {

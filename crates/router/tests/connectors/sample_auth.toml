@@ -74,8 +74,18 @@ key1 = "key1"
 [mollie]
 api_key = "API Key"
 
+[forte]
+api_key="API Key"
+
+
 [coinbase]
 api_key="API Key"
 
 [opennode]
 api_key="API Key"
+
+
+[payeezy]
+api_key = "api_key"
+key1 = "key1"
+api_secret = "secret"

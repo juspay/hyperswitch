@@ -25,6 +25,7 @@ use crate::{
 pub struct Coinbase;
 
 impl api::Payment for Coinbase {}
+impl api::PaymentToken for Coinbase {}
 impl api::PaymentSession for Coinbase {}
 impl api::ConnectorAccessToken for Coinbase {}
 impl api::PreVerify for Coinbase {}
@@ -96,6 +97,16 @@ impl ConnectorCommon for Coinbase {
             reason: response.reason,
         })
     }
+}
+
+impl
+    ConnectorIntegration<
+        api::PaymentMethodToken,
+        types::PaymentMethodTokenizationData,
+        types::PaymentsResponseData,
+    > for Coinbase
+{
+    // Not Implemented (R)
 }
 
 impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::PaymentsResponseData>

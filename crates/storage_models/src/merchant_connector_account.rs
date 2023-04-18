@@ -28,6 +28,11 @@ pub struct MerchantConnectorAccount {
     pub payment_methods_enabled: Option<Vec<serde_json::Value>>,
     pub connector_type: storage_enums::ConnectorType,
     pub metadata: Option<pii::SecretSerdeValue>,
+    pub frm_configs: Option<Secret<serde_json::Value>>, //Option<FrmConfigs>
+    pub connector_label: String,
+    pub business_country: storage_enums::CountryCode,
+    pub business_label: String,
+    pub business_sub_label: Option<String>,
 }
 
 #[derive(Clone, Debug, Default, Insertable, router_derive::DebugAsDisplay)]
@@ -42,6 +47,11 @@ pub struct MerchantConnectorAccountNew {
     pub merchant_connector_id: String,
     pub payment_methods_enabled: Option<Vec<serde_json::Value>>,
     pub metadata: Option<pii::SecretSerdeValue>,
+    pub frm_configs: Option<Secret<serde_json::Value>>,
+    pub connector_label: String,
+    pub business_country: storage_enums::CountryCode,
+    pub business_label: String,
+    pub business_sub_label: Option<String>,
 }
 
 #[derive(Debug)]
@@ -49,13 +59,13 @@ pub enum MerchantConnectorAccountUpdate {
     Update {
         merchant_id: Option<String>,
         connector_type: Option<storage_enums::ConnectorType>,
-        connector_name: Option<String>,
         connector_account_details: Option<Secret<serde_json::Value>>,
         test_mode: Option<bool>,
         disabled: Option<bool>,
         merchant_connector_id: Option<String>,
         payment_methods_enabled: Option<Vec<serde_json::Value>>,
         metadata: Option<pii::SecretSerdeValue>,
+        frm_configs: Option<Secret<serde_json::Value>>,
     },
 }
 #[derive(Clone, Debug, Default, AsChangeset, router_derive::DebugAsDisplay)]
@@ -63,13 +73,13 @@ pub enum MerchantConnectorAccountUpdate {
 pub struct MerchantConnectorAccountUpdateInternal {
     merchant_id: Option<String>,
     connector_type: Option<storage_enums::ConnectorType>,
-    connector_name: Option<String>,
     connector_account_details: Option<Secret<serde_json::Value>>,
     test_mode: Option<bool>,
     disabled: Option<bool>,
     merchant_connector_id: Option<String>,
     payment_methods_enabled: Option<Vec<serde_json::Value>>,
     metadata: Option<pii::SecretSerdeValue>,
+    frm_configs: Option<Secret<serde_json::Value>>,
 }
 
 impl From<MerchantConnectorAccountUpdate> for MerchantConnectorAccountUpdateInternal {
@@ -78,23 +88,23 @@ impl From<MerchantConnectorAccountUpdate> for MerchantConnectorAccountUpdateInte
             MerchantConnectorAccountUpdate::Update {
                 merchant_id,
                 connector_type,
-                connector_name,
                 connector_account_details,
                 test_mode,
                 disabled,
                 merchant_connector_id,
                 payment_methods_enabled,
                 metadata,
+                frm_configs,
             } => Self {
                 merchant_id,
                 connector_type,
-                connector_name,
                 connector_account_details,
                 test_mode,
                 disabled,
                 merchant_connector_id,
                 payment_methods_enabled,
                 metadata,
+                frm_configs,
             },
         }
     }

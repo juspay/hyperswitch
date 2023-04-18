@@ -25,6 +25,7 @@ pub struct Opennode;
 
 impl api::Payment for Opennode {}
 impl api::PaymentSession for Opennode {}
+impl api::PaymentToken for Opennode {}
 impl api::ConnectorAccessToken for Opennode {}
 impl api::PreVerify for Opennode {}
 impl api::PaymentAuthorize for Opennode {}
@@ -98,6 +99,16 @@ impl ConnectorCommon for Opennode {
             reason: response.reason,
         })
     }
+}
+
+impl
+    ConnectorIntegration<
+        api::PaymentMethodToken,
+        types::PaymentMethodTokenizationData,
+        types::PaymentsResponseData,
+    > for Opennode
+{
+    // Not Implemented (R)
 }
 
 impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::PaymentsResponseData>
@@ -554,9 +565,6 @@ impl api::IncomingWebhook for Opennode {
             }
             opennode::OpennodePaymentStatus::Processing => {
                 Ok(api::IncomingWebhookEvent::PaymentIntentProcessing)
-            }
-            opennode::OpennodePaymentStatus::Refunded => {
-                Ok(api::IncomingWebhookEvent::RefundSuccess)
             }
             _ => Ok(api::IncomingWebhookEvent::EventNotSupported),
         }
