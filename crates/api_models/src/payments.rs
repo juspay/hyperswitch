@@ -483,6 +483,7 @@ pub enum BankDebitData {
         #[schema(value_type = String, example = "00012345")]
         account_number: Secret<String>,
         /// Sort code for Bacs payment method
+        #[schema(value_type = String, example = "108800")]
         sort_code: Secret<String>,
     },
 }
