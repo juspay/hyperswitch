@@ -83,12 +83,7 @@ fn mk_applepay_session_request(
     let connector_metadata = router_data.connector_meta_data.clone();
 
     let applepay_metadata = connector_metadata
-        .clone()
         .parse_value::<payment_types::ApplepaySessionTokenData>("ApplepaySessionTokenData")
-        .change_context(errors::ConnectorError::NoConnectorMetaData)
-        .attach_printable(format!(
-            "cannot parse applepay metadata from the given value {connector_metadata:?}"
-        ))
         .change_context(errors::ApiErrorResponse::InvalidDataFormat {
             field_name: "connector_metadata".to_string(),
             expected_format: "applepay_metadata_format".to_string(),
