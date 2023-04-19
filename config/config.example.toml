@@ -93,8 +93,10 @@ otel_exporter_otlp_timeout = 5000                     # timeout (in milliseconds
 
 # This section provides some secret values.
 [secrets]
-admin_api_key = "test_admin" # admin API key for admin authentication
-jwt_secret = "secret"        # JWT secret used for user authentication
+admin_api_key = "test_admin"     # admin API key for admin authentication. Only applicable when KMS is disabled.
+kms_encrypted_admin_api_key = "" # Base64-encoded (KMS encrypted) ciphertext of the admin_api_key. Only applicable when KMS is enabled.
+jwt_secret = "secret"            # JWT secret used for user authentication. Only applicable when KMS is disabled.
+kms_encrypted_jwt_secret = ""    # Base64-encoded (KMS encrypted) ciphertext of the jwt_secret. Only applicable when KMS is enabled.
 
 # Locker settings contain details for accessing a card locker, a
 # PCI Compliant storage entity which stores payment method information
@@ -153,10 +155,12 @@ coinbase.base_url = "https://api.commerce.coinbase.com"
 cybersource.base_url = "https://apitest.cybersource.com/"
 dlocal.base_url = "https://sandbox.dlocal.com/"
 fiserv.base_url = "https://cert.api.fiservapps.com/"
+forte.base_url = "https://sandbox.forte.net/api/v3"
 globalpay.base_url = "https://apis.sandbox.globalpay.com/ucp/"
 klarna.base_url = "https://api-na.playground.klarna.com/"
 mollie.base_url = "https://api.mollie.com/v2/"
 multisafepay.base_url = "https://testapi.multisafepay.com/"
+nexinets.base_url = "https://apitest.payengine.de/v1"
 nuvei.base_url = "https://ppp-test.nuvei.com/"
 opennode.base_url = "https://dev-api.opennode.com"
 payeezy.base_url = "https://api-cert.payeezy.com/"
