@@ -3,15 +3,20 @@ use std::ops::Deref;
 use common_utils::{date_time, errors};
 use error_stack::report;
 use masking::{PeekInterface, StrongSecret};
+use serde::{
+    de::{self},
+    Deserialize, Serialize,
+};
 use time::{util::days_in_year_month, Date, Duration, PrimitiveDateTime, Time};
 
+#[derive(Serialize)]
 pub struct CardSecurityCode(StrongSecret<u16>);
 
 impl TryFrom<u16> for CardSecurityCode {
     type Error = error_stack::Report<errors::ValidationError>;
     fn try_from(csc: u16) -> Result<Self, Self::Error> {
-        if csc > 99 && csc < 10000 {
-            Ok(Self(StrongSecret::<u16>::new(csc)))
+        if (100..=9999).contains(&csc) {
+            Ok(Self(StrongSecret::new(csc)))
         } else {
             Err(report!(errors::ValidationError::InvalidValue {
                 message: "invalid card security code".to_string()
@@ -20,6 +25,17 @@ impl TryFrom<u16> for CardSecurityCode {
     }
 }
 
+impl<'de> Deserialize<'de> for CardSecurityCode {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let csc = u16::deserialize(deserializer)?;
+        csc.try_into().map_err(de::Error::custom)
+    }
+}
+
+#[derive(Serialize)]
 pub struct CardExpirationMonth(StrongSecret<u8>);
 
 impl CardExpirationMonth {
@@ -31,8 +47,8 @@ impl CardExpirationMonth {
 impl TryFrom<u8> for CardExpirationMonth {
     type Error = error_stack::Report<errors::ValidationError>;
     fn try_from(month: u8) -> Result<Self, Self::Error> {
-        if month >= 1 && month <= 12 {
-            Ok(Self(StrongSecret::<u8>::new(month)))
+        if (1..=12).contains(&month) {
+            Ok(Self(StrongSecret::new(month)))
         } else {
             Err(report!(errors::ValidationError::InvalidValue {
                 message: "invalid card expiration month".to_string()
@@ -41,6 +57,17 @@ impl TryFrom<u8> for CardExpirationMonth {
     }
 }
 
+impl<'de> Deserialize<'de> for CardExpirationMonth {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let month = u8::deserialize(deserializer)?;
+        month.try_into().map_err(de::Error::custom)
+    }
+}
+
+#[derive(Serialize)]
 pub struct CardExpirationYear(StrongSecret<u16>);
 
 impl CardExpirationYear {
@@ -57,7 +84,11 @@ impl CardExpirationYear {
 impl TryFrom<u16> for CardExpirationYear {
     type Error = error_stack::Report<errors::ValidationError>;
     fn try_from(year: u16) -> Result<Self, Self::Error> {
-        let curr_year = u16::try_from(date_time::now().year()).expect("valid year");
+        let curr_year = u16::try_from(date_time::now().year()).map_err(|_| {
+            report!(errors::ValidationError::InvalidValue {
+                message: "invalid year".to_string()
+            })
+        })?;
 
         if year >= curr_year {
             Ok(Self(StrongSecret::<u16>::new(year)))
@@ -69,27 +100,43 @@ impl TryFrom<u16> for CardExpirationYear {
     }
 }
 
+impl<'de> Deserialize<'de> for CardExpirationYear {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let year = u16::deserialize(deserializer)?;
+        year.try_into().map_err(de::Error::custom)
+    }
+}
+
+#[derive(Serialize, Deserialize)]
 pub struct CardExpiration {
     pub month: CardExpirationMonth,
     pub year: CardExpirationYear,
 }
 
 impl CardExpiration {
-    pub fn is_expired(&self) -> bool {
+    pub fn is_expired(&self) -> Result<bool, error_stack::Report<errors::ValidationError>> {
         let current_datetime_utc = date_time::now();
-        
-        // Panic Safety: struct CardExpirationMonth validates month  
-        let expiration_month = (*self.month.peek()).try_into().expect("valid month in range 1 to 12");
+
+        let expiration_month = (*self.month.peek()).try_into().map_err(|_| {
+            report!(errors::ValidationError::InvalidValue {
+                message: "invalid month".to_string()
+            })
+        })?;
 
         let expiration_year = *self.year.peek();
 
-        // card expiry day is last day of the expiration month
         let expiration_day = days_in_year_month(i32::from(expiration_year), expiration_month);
 
-        // Panic Safety: year, month, day validated
         let expiration_date =
             Date::from_calendar_date(i32::from(expiration_year), expiration_month, expiration_day)
-                .expect("valid date");
+                .map_err(|_| {
+                    report!(errors::ValidationError::InvalidValue {
+                        message: "error while constructing calendar date".to_string()
+                    })
+                })?;
 
         let expiration_time = Time::MIDNIGHT;
 
@@ -100,11 +147,7 @@ impl CardExpiration {
         // compensating time difference b/w local and utc timezone by adding a day
         expiration_datetime_utc = expiration_datetime_utc.saturating_add(Duration::days(1));
 
-        if current_datetime_utc > expiration_datetime_utc {
-            true
-        } else {
-            false
-        }
+        Ok(current_datetime_utc > expiration_datetime_utc)
     }
 
     pub fn get_month(&self) -> &CardExpirationMonth {
