@@ -63,6 +63,7 @@ impl api::PaymentSession for Checkout {}
 impl api::ConnectorAccessToken for Checkout {}
 impl api::AcceptDispute for Checkout {}
 impl api::PaymentToken for Checkout {}
+impl api::Dispute for Checkout {}
 
 impl
     services::ConnectorIntegration<
@@ -819,6 +820,17 @@ impl
     }
 }
 
+impl api::UploadFile for Checkout {}
+
+impl
+    services::ConnectorIntegration<
+        api::Upload,
+        types::UploadFileRequestData,
+        types::UploadFileResponse,
+    > for Checkout
+{
+}
+
 #[async_trait::async_trait]
 impl api::FileUpload for Checkout {
     fn validate_file_upload(
@@ -831,8 +843,8 @@ impl api::FileUpload for Checkout {
             api::FilePurpose::DisputeEvidence => {
                 let supported_file_types =
                     vec!["image/jpeg", "image/jpg", "image/png", "application/pdf"];
-                // 4 Megabytes (MB) = 4,194,304 Bytes (B)
-                if file_size > 4194304 {
+                // 4 Megabytes (MB)
+                if file_size > 4000000 {
                     Err(errors::ConnectorError::FileValidationFailed {
                         reason: "file_size exceeded the max file size of 4MB".to_owned(),
                     })?

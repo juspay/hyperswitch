@@ -47,7 +47,7 @@ pub trait StorageInterface:
     + dispute::DisputeInterface
     + ephemeral_key::EphemeralKeyInterface
     + events::EventInterface
-    + file::FileInterface
+    + file::FileMetadataInterface
     + locker_mock_up::LockerMockUpInterface
     + mandate::MandateInterface
     + merchant_account::MerchantAccountInterface

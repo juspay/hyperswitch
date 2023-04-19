@@ -308,7 +308,7 @@ pub struct Connectors {
     pub payu: ConnectorParams,
     pub rapyd: ConnectorParams,
     pub shift4: ConnectorParams,
-    pub stripe: ConnectorParams,
+    pub stripe: ConnectorParamsWithFileUploadUrl,
     pub worldline: ConnectorParams,
     pub worldpay: ConnectorParams,
     pub trustpay: ConnectorParamsWithMoreUrls,
@@ -328,6 +328,13 @@ pub struct ConnectorParams {
 pub struct ConnectorParamsWithMoreUrls {
     pub base_url: String,
     pub base_url_bank_redirects: String,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+#[serde(default)]
+pub struct ConnectorParamsWithFileUploadUrl {
+    pub base_url: String,
+    pub base_url_file_upload: String,
 }
 
 #[derive(Debug, Clone, Deserialize)]

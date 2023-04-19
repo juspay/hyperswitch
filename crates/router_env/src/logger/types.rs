@@ -174,6 +174,8 @@ pub enum Flow {
     DeleteFile,
     /// Retrieve File flow
     RetrieveFile,
+    /// Dispute Evidence submission flow
+    DisputesEvidenceSubmit,
 }
 
 ///

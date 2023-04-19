@@ -4,7 +4,7 @@ use router_env::{instrument, tracing};
 use super::generics;
 use crate::{
     file::{File, FileNew},
-    schema::files::dsl,
+    schema::file_metadata::dsl,
     PgPooledConn, StorageResult,
 };
 

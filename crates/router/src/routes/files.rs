@@ -170,7 +170,7 @@ pub async fn files_delete(
 ///
 /// To retrieve a file
 #[utoipa::path(
-    post,
+    get,
     path = "/files/{file_id}",
     params(
         ("file_id" = String, Path, description = "The identifier for file")

@@ -1,12 +1,12 @@
 use actix_web::{web, HttpRequest, HttpResponse};
-use api_models::disputes::DisputeListConstraints;
+use api_models::disputes as dispute_models;
 use router_env::{instrument, tracing, Flow};
 
 use super::app::AppState;
 use crate::{
     core::disputes,
     services::{api, authentication as auth},
-    types::api::disputes as dispute_types,
+    types::api::disputes::{self as dispute_types},
 };
 
 /// Diputes - Retrieve Dispute
@@ -73,7 +73,7 @@ pub async fn retrieve_dispute(
 pub async fn retrieve_disputes_list(
     state: web::Data<AppState>,
     req: HttpRequest,
-    payload: web::Query<DisputeListConstraints>,
+    payload: web::Query<dispute_models::DisputeListConstraints>,
 ) -> HttpResponse {
     let flow = Flow::DisputesList;
     let payload = payload.into_inner();
@@ -119,6 +119,37 @@ pub async fn accept_dispute(
         &req,
         dispute_id,
         disputes::accept_dispute,
+        auth::auth_type(&auth::ApiKeyAuth, &auth::JWTAuth, req.headers()),
+    )
+    .await
+}
+
+/// Diputes - Submit Dispute Evidence
+#[utoipa::path(
+    post,
+    path = "/disputes/evidence",
+    request_body=AcceptDisputeRequestData,
+    responses(
+        (status = 200, description = "The dispute evidence submitted successfully", body = AcceptDisputeResponse),
+        (status = 404, description = "Dispute does not exist in our records")
+    ),
+    tag = "Disputes",
+    operation_id = "Submit Dispute Evidence",
+    security(("api_key" = []))
+)]
+#[instrument(skip_all, fields(flow = ?Flow::DisputesEvidenceSubmit))]
+pub async fn submit_dispute_evidence(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    json_payload: web::Json<dispute_models::SubmitEvidenceRequest>,
+) -> HttpResponse {
+    let flow = Flow::DisputesEvidenceSubmit;
+    api::server_wrap(
+        flow,
+        state.get_ref(),
+        &req,
+        json_payload.into_inner(),
+        disputes::submit_evidence,
         auth::auth_type(&auth::ApiKeyAuth, &auth::JWTAuth, req.headers()),
     )
     .await

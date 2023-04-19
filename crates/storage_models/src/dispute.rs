@@ -17,7 +17,6 @@ pub struct DisputeNew {
     pub payment_id: String,
     pub attempt_id: String,
     pub merchant_id: String,
-    pub connector: String,
     pub connector_status: String,
     pub connector_dispute_id: String,
     pub connector_reason: Option<String>,
@@ -25,6 +24,7 @@ pub struct DisputeNew {
     pub challenge_required_by: Option<String>,
     pub dispute_created_at: Option<String>,
     pub updated_at: Option<String>,
+    pub connector: String,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, Identifiable, Queryable)]

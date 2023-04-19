@@ -28,6 +28,7 @@ pub enum Method {
 pub enum ContentType {
     Json,
     FormUrlEncoded,
+    FormData,
 }
 
 fn default_request_headers() -> [(String, String); 1] {
@@ -36,7 +37,7 @@ fn default_request_headers() -> [(String, String); 1] {
     [(header::VIA.to_string(), "HyperSwitch".into())]
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug)]
 pub struct Request {
     pub url: String,
     pub headers: Headers,
@@ -45,7 +46,7 @@ pub struct Request {
     pub content_type: Option<ContentType>,
     pub certificate: Option<String>,
     pub certificate_key: Option<String>,
-    pub file_data: Option<Vec<u8>>,
+    pub form_data: Option<reqwest::multipart::Form>,
 }
 
 impl Request {
@@ -58,7 +59,7 @@ impl Request {
             content_type: None,
             certificate: None,
             certificate_key: None,
-            file_data: None,
+            form_data: None,
         }
     }
 
@@ -87,8 +88,8 @@ impl Request {
         self.certificate = certificate_key;
     }
 
-    pub fn set_file_data(&mut self, file_data: Vec<u8>) {
-        self.file_data = Some(file_data);
+    pub fn set_form_data(&mut self, form_data: reqwest::multipart::Form) {
+        self.form_data = Some(form_data);
     }
 }
 
@@ -100,7 +101,7 @@ pub struct RequestBuilder {
     pub content_type: Option<ContentType>,
     pub certificate: Option<String>,
     pub certificate_key: Option<String>,
-    pub file_data: Option<Vec<u8>>,
+    pub form_data: Option<reqwest::multipart::Form>,
 }
 
 impl RequestBuilder {
@@ -113,7 +114,7 @@ impl RequestBuilder {
             content_type: None,
             certificate: None,
             certificate_key: None,
-            file_data: None,
+            form_data: None,
         }
     }
 
@@ -140,6 +141,11 @@ impl RequestBuilder {
     pub fn headers(mut self, headers: Vec<(String, String)>) -> Self {
         let mut h = headers.into_iter().map(|(h, v)| (h, v));
         self.headers.extend(&mut h);
+        self
+    }
+
+    pub fn form_data(mut self, form_data: Option<reqwest::multipart::Form>) -> Self {
+        self.form_data = form_data;
         self
     }
 
@@ -172,7 +178,7 @@ impl RequestBuilder {
             content_type: self.content_type,
             certificate: self.certificate,
             certificate_key: self.certificate_key,
-            file_data: self.file_data,
+            form_data: self.form_data,
         }
     }
 }

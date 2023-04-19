@@ -8,19 +8,19 @@ use crate::{
 };
 
 #[async_trait::async_trait]
-pub trait FileInterface {
-    async fn insert_file(
+pub trait FileMetadataInterface {
+    async fn insert_file_metadata(
         &self,
         file: storage::FileNew,
     ) -> CustomResult<storage::File, errors::StorageError>;
 
-    async fn find_file_by_merchant_id_file_id(
+    async fn find_file_metadata_by_merchant_id_file_id(
         &self,
         merchant_id: &str,
         file_id: &str,
     ) -> CustomResult<storage::File, errors::StorageError>;
 
-    async fn delete_file_by_merchant_id_file_id(
+    async fn delete_file_metadata_by_merchant_id_file_id(
         &self,
         merchant_id: &str,
         file_id: &str,
@@ -28,8 +28,8 @@ pub trait FileInterface {
 }
 
 #[async_trait::async_trait]
-impl FileInterface for Store {
-    async fn insert_file(
+impl FileMetadataInterface for Store {
+    async fn insert_file_metadata(
         &self,
         file: storage::FileNew,
     ) -> CustomResult<storage::File, errors::StorageError> {
@@ -37,7 +37,7 @@ impl FileInterface for Store {
         file.insert(&conn).await.map_err(Into::into).into_report()
     }
 
-    async fn find_file_by_merchant_id_file_id(
+    async fn find_file_metadata_by_merchant_id_file_id(
         &self,
         merchant_id: &str,
         file_id: &str,
@@ -49,7 +49,7 @@ impl FileInterface for Store {
             .into_report()
     }
 
-    async fn delete_file_by_merchant_id_file_id(
+    async fn delete_file_metadata_by_merchant_id_file_id(
         &self,
         merchant_id: &str,
         file_id: &str,
@@ -63,8 +63,8 @@ impl FileInterface for Store {
 }
 
 #[async_trait::async_trait]
-impl FileInterface for MockDb {
-    async fn insert_file(
+impl FileMetadataInterface for MockDb {
+    async fn insert_file_metadata(
         &self,
         _file: storage::FileNew,
     ) -> CustomResult<storage::File, errors::StorageError> {
@@ -72,7 +72,7 @@ impl FileInterface for MockDb {
         Err(errors::StorageError::MockDbError)?
     }
 
-    async fn find_file_by_merchant_id_file_id(
+    async fn find_file_metadata_by_merchant_id_file_id(
         &self,
         _merchant_id: &str,
         _file_id: &str,
@@ -81,7 +81,7 @@ impl FileInterface for MockDb {
         Err(errors::StorageError::MockDbError)?
     }
 
-    async fn delete_file_by_merchant_id_file_id(
+    async fn delete_file_metadata_by_merchant_id_file_id(
         &self,
         _merchant_id: &str,
         _file_id: &str,

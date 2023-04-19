@@ -155,6 +155,21 @@ impl super::settings::ConnectorParams {
     }
 }
 
+impl super::settings::ConnectorParamsWithFileUploadUrl {
+    pub fn validate(&self) -> Result<(), ApplicationError> {
+        common_utils::fp_utils::when(self.base_url.is_default_or_empty(), || {
+            Err(ApplicationError::InvalidConfigurationValueError(
+                "connector base URL must not be empty".into(),
+            ))
+        })?;
+        common_utils::fp_utils::when(self.base_url_file_upload.is_default_or_empty(), || {
+            Err(ApplicationError::InvalidConfigurationValueError(
+                "connector file upload base URL must not be empty".into(),
+            ))
+        })
+    }
+}
+
 impl super::settings::SchedulerSettings {
     pub fn validate(&self) -> Result<(), ApplicationError> {
         use common_utils::fp_utils::when;

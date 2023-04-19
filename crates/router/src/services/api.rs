@@ -81,6 +81,13 @@ pub trait ConnectorIntegration<T, Req, Resp>: ConnectorIntegrationAny<T, Req, Re
         Ok(None)
     }
 
+    fn get_request_form_data(
+        &self,
+        _req: &types::RouterData<T, Req, Resp>,
+    ) -> CustomResult<Option<reqwest::multipart::Form>, errors::ConnectorError> {
+        Ok(None)
+    }
+
     /// This module can be called before executing a payment flow where a pre-task is needed
     /// Eg: Some connectors requires one-time session token before making a payment, we can add the session token creation logic in this block
     async fn execute_pretasks(
@@ -308,6 +315,12 @@ async fn send_request(
             let client = client.post(url);
             match request.content_type {
                 Some(ContentType::Json) => client.json(&request.payload),
+
+                Some(ContentType::FormData) => client.multipart(
+                    request
+                        .form_data
+                        .unwrap_or_else(reqwest::multipart::Form::new),
+                ),
 
                 // Currently this is not used remove this if not required
                 // If using this then handle the serde_part
