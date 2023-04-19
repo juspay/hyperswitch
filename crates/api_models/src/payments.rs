@@ -595,8 +595,13 @@ pub struct BankRedirectBilling {
 
 #[derive(serde::Deserialize, serde::Serialize, Debug, Clone, ToSchema, Eq, PartialEq)]
 pub struct BankDebitBilling {
+    /// The billing name for bank debits
+    #[schema(value_type = String, example = "John Doe")]
     pub name: Secret<String>,
+    /// The billing email for bank debits
+    #[schema(value_type = String, example = "example@example.com")]
     pub email: Secret<String, pii::Email>,
+    /// The billing address for bank debits
     pub address: Option<AddressDetails>,
 }
 

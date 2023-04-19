@@ -546,9 +546,12 @@ impl TryFrom<(&api_models::payments::PayLaterData, StripePaymentMethodType)>
 
 impl From<&payments::BankDebitBilling> for StripeBillingAddress {
     fn from(item: &payments::BankDebitBilling) -> Self {
-        Self {
+        let res = Self {
             email: Some(item.email.to_owned()),
-            country: None,
+            country: item
+                .address
+                .as_ref()
+                .and_then(|address| address.country.to_owned()),
             name: Some(item.name.to_owned()),
             city: item
                 .address
@@ -562,7 +565,14 @@ impl From<&payments::BankDebitBilling> for StripeBillingAddress {
                 .address
                 .as_ref()
                 .and_then(|address| address.line2.to_owned()),
-        }
+            zip_code: item
+                .address
+                .as_ref()
+                .and_then(|address| address.zip.to_owned()),
+        };
+
+        crate::logger::debug!(hola = ?res);
+        res
     }
 }
 
@@ -1398,6 +1408,8 @@ pub struct StripeBillingAddress {
     pub address_line1: Option<Secret<String>>,
     #[serde(rename = "payment_method_data[billing_details][address][line2]")]
     pub address_line2: Option<Secret<String>>,
+    #[serde(rename = "payment_method_data[billing_details][address][postal_code]")]
+    pub zip_code: Option<Secret<String>>,
 }
 
 #[derive(Debug, Clone, serde::Deserialize, Eq, PartialEq)]
