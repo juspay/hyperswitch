@@ -71,10 +71,10 @@ pub struct Address {
 pub struct LineItem {
     amount_excluding_tax: Option<i64>,
     amount_including_tax: Option<i64>,
-    description: Option<String>,
+    description: Option<Vec<String>>,
     id: Option<String>,
     tax_amount: Option<i64>,
-    quantity: Option<u16>,
+    quantity: Option<Vec<u16>>,
 }
 
 #[derive(Debug, Serialize)]
@@ -518,12 +518,27 @@ fn get_line_items(item: &types::PaymentsAuthorizeRouterData) -> Vec<LineItem> {
     let line_item = LineItem {
         amount_including_tax: Some(item.request.amount),
         amount_excluding_tax: None,
-        description: order_details.map(|details| details.product_name.clone()),
+        description: order_details.map(|details|  {  
+            details
+            .iter()
+            .map(|v| {
+                v.product_name.clone()
+            })
+            .collect()
+            
+        }),
         // We support only one product details in payment request as of now, therefore hard coded the id.
         // If we begin to support multiple product details in future then this logic should be made to create ID dynamically
         id: Some(String::from("Items #1")),
         tax_amount: None,
-        quantity: order_details.map(|details| details.quantity),
+        quantity: order_details.map(|details| {
+            details
+            .iter()
+            .map(|v| {
+                v.quantity
+            })
+            .collect()
+        }),
     };
     vec![line_item]
 }

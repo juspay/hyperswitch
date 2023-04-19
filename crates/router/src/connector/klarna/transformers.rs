@@ -49,11 +49,26 @@ impl TryFrom<&types::PaymentsSessionRouterData> for KlarnaSessionRequest {
                 order_amount: request.amount,
                 locale: "en-US".to_string(),
                 order_lines: vec![OrderLines {
-                    name: order_details.product_name,
-                    quantity: order_details.quantity,
-                    unit_price: request.amount,
+                    name: order_details
+                                .iter()
+                                .map(|v| {
+                                    v.product_name.clone()
+                                })
+                                .collect(),
+                    quantity: order_details
+                                .iter()
+                                .map(|v| {
+                                    v.quantity
+                                })
+                                .collect(),
+                    unit_price: order_details
+                                .iter()
+                                .map(|v| {
+                                    v.amount
+                                })
+                                .collect(),
                     total_amount: request.amount,
-                }],
+                        }],
             }),
             None => Err(report!(errors::ConnectorError::MissingRequiredField {
                 field_name: "product_name",
@@ -94,9 +109,24 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for KlarnaPaymentsRequest {
                 purchase_currency: request.currency,
                 order_amount: request.amount,
                 order_lines: vec![OrderLines {
-                    name: order_details.product_name,
-                    quantity: order_details.quantity,
-                    unit_price: request.amount,
+                    name: order_details
+                                .iter()
+                                .map(|v| {
+                                    v.product_name.clone()
+                                })
+                                .collect(),
+                    quantity: order_details
+                                .iter()
+                                .map(|v| {
+                                    v.quantity
+                                })
+                                .collect(),
+                    unit_price: order_details
+                                .iter()
+                                .map(|v| {
+                                    v.amount
+                                })
+                                .collect(),
                     total_amount: request.amount,
                 }],
             }),
@@ -128,9 +158,9 @@ impl TryFrom<types::PaymentsResponseRouterData<KlarnaPaymentsResponse>>
 }
 #[derive(Debug, Serialize)]
 pub struct OrderLines {
-    name: String,
-    quantity: u16,
-    unit_price: i64,
+    name: Vec<String>,
+    quantity: Vec<u16>,
+    unit_price: Vec<i64>,
     total_amount: i64,
 }
 
