@@ -418,7 +418,7 @@ pub struct Charges {
 }
 
 impl Charges {
-    fn new() -> Self {
+    pub fn new() -> Self {
         Self {
             object: "list",
             data: vec![],
