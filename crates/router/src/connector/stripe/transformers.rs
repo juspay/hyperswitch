@@ -2,12 +2,9 @@ use std::str::FromStr;
 
 use api_models::{self, enums as api_enums, payments};
 use base64::Engine;
-use common_utils::{
-    fp_utils,
-    pii::{self},
-};
+use common_utils::{fp_utils, pii};
 use error_stack::{IntoReport, ResultExt};
-use masking::ExposeInterface;
+use masking::{ExposeInterface, ExposeOptionInterface, Secret};
 use serde::{Deserialize, Serialize};
 use strum::EnumString;
 use url::Url;
@@ -16,7 +13,6 @@ use uuid::Uuid;
 use crate::{
     consts,
     core::errors,
-    pii::{ExposeOptionInterface, Secret},
     services,
     types::{self, api, storage::enums},
     utils::OptionExt,
