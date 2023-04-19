@@ -1,10 +1,7 @@
-use std::collections::HashMap;
-
 use async_trait::async_trait;
 use common_utils::{ext_traits::ValueExt, pii};
 use error_stack::{report, ResultExt};
 use masking::ExposeInterface;
-use serde::{Deserialize, Serialize};
 
 use super::{ConstructFlowSpecificData, Feature};
 use crate::{
@@ -366,12 +363,48 @@ impl mandate::MandateBehaviour for types::PaymentsAuthorizeData {
     }
 }
 
-#[derive(Debug, Deserialize, Serialize)]
-pub struct CustomerMetadata {
-    pub connector_customer_map: HashMap<String, String>,
+pub async fn update_connector_customer_in_customers(
+    state: &AppState,
+    connector: &api::ConnectorData,
+    customer: &Option<storage::Customer>,
+    connector_customer_map: Option<serde_json::Map<String, serde_json::Value>>,
+    connector_cust_id: Option<String>,
+) -> RouterResult<Option<String>> {
+    let mut connector_customer = match connector_customer_map {
+        Some(cc) => cc,
+        None => serde_json::Map::new(),
+    };
+    connector_cust_id.clone().map(|cc| {
+        connector_customer.insert(
+            connector.connector_name.to_string(),
+            serde_json::Value::String(cc),
+        )
+    });
+    let db = &*state.store;
+    let update_customer = storage::CustomerUpdate::ConnectorCustomer {
+        connector_customer: Some(serde_json::Value::Object(connector_customer)),
+    };
+    match customer {
+        Some(customer) => {
+            db.update_customer_by_customer_id_merchant_id(
+                customer.customer_id.to_owned(),
+                customer.merchant_id.to_owned(),
+                update_customer,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to update CustomerConnector in customer")?;
+            Ok(connector_cust_id)
+        }
+        None => Ok(connector_cust_id),
+    }
 }
 
-type CreateCustomerCheck = (bool, Option<String>, Option<HashMap<String, String>>);
+type CreateCustomerCheck = (
+    bool,
+    Option<String>,
+    Option<serde_json::Map<String, serde_json::Value>>,
+);
 pub fn should_call_connector_create_customer(
     state: &AppState,
     connector: &api::ConnectorData,
@@ -385,22 +418,19 @@ pub fn should_call_connector_create_customer(
         .contains(&connector.connector_name);
     if connector_customer_filter {
         match customer {
-            Some(customer) => match &customer.metadata {
-                Some(metadata) => {
-                    let customer_meta_vec: CustomerMetadata = metadata
-                        .clone()
-                        .parse_value("CustomerMetadata")
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable(
-                            "Failed to deserialize metadata to CustomerMetadata struct",
-                        )?;
-                    let value = customer_meta_vec
-                        .connector_customer_map
-                        .get(&connector_name);
+            Some(customer) => match &customer.connector_customer {
+                Some(connector_customer) => {
+                    let connector_customer_map: serde_json::Map<String, serde_json::Value> =
+                        connector_customer
+                            .clone()
+                            .parse_value("Map<String, Value>")
+                            .change_context(errors::ApiErrorResponse::InternalServerError)
+                            .attach_printable("Failed to deserialize Value to CustomerConnector")?;
+                    let value = connector_customer_map.get(&connector_name);
                     Ok((
                         value.is_none(),
-                        value.cloned(),
-                        Some(customer_meta_vec.connector_customer_map),
+                        value.and_then(|val| val.as_str().map(|cust| cust.to_string())),
+                        Some(connector_customer_map),
                     ))
                 }
                 None => Ok((true, None, None)),
@@ -418,9 +448,9 @@ pub async fn create_connector_customer<F: Clone>(
     customer: &Option<storage::Customer>,
     router_data: &types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
 ) -> RouterResult<Option<String>> {
-    let (is_eligible, connector_customer_id, _metadata) =
+    let (is_eligible, connector_customer_id, connector_customer_map) =
         should_call_connector_create_customer(state, connector, customer)?;
-    logger::error!("createconn: {:?}{:?}", is_eligible, connector_customer_id);
+
     if is_eligible {
         let connector_integration: services::BoxedConnectorIntegration<
             '_,
@@ -469,8 +499,14 @@ pub async fn create_connector_customer<F: Clone>(
                 None
             }
         };
-        //FIXME: Insert customer id in customer table
-        Ok(connector_customer_id)
+        update_connector_customer_in_customers(
+            state,
+            connector,
+            customer,
+            connector_customer_map,
+            connector_customer_id,
+        )
+        .await
     } else {
         Ok(connector_customer_id)
     }

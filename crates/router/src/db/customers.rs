@@ -184,6 +184,7 @@ impl CustomerInterface for MockDb {
             description: customer_data.description,
             created_at: common_utils::date_time::now(),
             metadata: customer_data.metadata,
+            connector_customer: customer_data.connector_customer,
         };
         customers.push(customer.clone());
         Ok(customer)

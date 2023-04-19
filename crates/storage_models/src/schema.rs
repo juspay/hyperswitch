@@ -106,6 +106,7 @@ diesel::table! {
         description -> Nullable<Varchar>,
         created_at -> Timestamp,
         metadata -> Nullable<Json>,
+        connector_customer -> Nullable<Json>,
     }
 }
 

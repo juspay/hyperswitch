@@ -67,6 +67,7 @@ pub async fn create_customer(
         description: customer_data.description,
         phone_country_code: customer_data.phone_country_code,
         metadata: customer_data.metadata,
+        connector_customer: None,
     };
 
     let customer = match db.insert_customer(new_customer).await {
@@ -207,6 +208,7 @@ pub async fn delete_customer(
         description: Some(REDACTED.to_string()),
         phone_country_code: Some(REDACTED.to_string()),
         metadata: None,
+        connector_customer: None,
     };
     db.update_customer_by_customer_id_merchant_id(
         req.customer_id.clone(),
@@ -284,6 +286,7 @@ pub async fn update_customer(
                 phone_country_code: update_customer.phone_country_code,
                 metadata: update_customer.metadata,
                 description: update_customer.description,
+                connector_customer: None,
             },
         )
         .await
