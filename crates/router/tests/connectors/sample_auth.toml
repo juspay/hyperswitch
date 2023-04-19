@@ -94,6 +94,9 @@ api_key="API Key"
 [opennode]
 api_key="API Key"
 
+[nexinets]
+api_key = "api_key"
+key1 = "key1"
 
 [payeezy]
 api_key = "api_key"

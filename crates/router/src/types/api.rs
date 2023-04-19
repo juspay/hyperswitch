@@ -206,8 +206,8 @@ impl ConnectorData {
             "mollie" => Ok(Box::new(&connector::Mollie)),
             "multisafepay" => Ok(Box::new(&connector::Multisafepay)),
             "nuvei" => Ok(Box::new(&connector::Nuvei)),
-            "paypal" => Ok(Box::new(&connector::Paypal)),
             "opennode" => Ok(Box::new(&connector::Opennode)),
+            "paypal" => Ok(Box::new(&connector::Paypal)),
             // "payeezy" => Ok(Box::new(&connector::Payeezy)), As psync and rsync are not supported by this connector, it is added as template code for future usage
             "payu" => Ok(Box::new(&connector::Payu)),
             "rapyd" => Ok(Box::new(&connector::Rapyd)),

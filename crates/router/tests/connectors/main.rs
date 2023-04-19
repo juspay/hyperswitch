@@ -17,6 +17,7 @@ mod globalpay;
 mod intuit;
 mod mollie;
 mod multisafepay;
+mod nexinets;
 mod nuvei;
 mod opennode;
 mod payeezy;
