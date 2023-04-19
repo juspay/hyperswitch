@@ -55,11 +55,6 @@ pub struct BamboraPaymentsRequest {
     card: BamboraCard,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct BamboraRedirectionResponse {
-    pub cres: String,
-}
-
 fn get_browser_info(item: &types::PaymentsAuthorizeRouterData) -> Option<BamboraBrowserInfo> {
     if matches!(item.auth_type, enums::AuthenticationType::ThreeDs) {
         item.request
@@ -81,10 +76,6 @@ fn get_browser_info(item: &types::PaymentsAuthorizeRouterData) -> Option<Bambora
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct CresBambora {
-    cres: String,
-}
 impl TryFrom<&types::CompleteAuthorizeData> for BamboraThreedsContinueRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(value: &types::CompleteAuthorizeData) -> Result<Self, Self::Error> {
@@ -270,7 +261,7 @@ pub enum BamboraResponse {
     ThreeDsResponse(Box<Bambora3DsResponse>),
 }
 
-#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Default, Debug, Clone, Deserialize, PartialEq)]
 pub struct BamboraPaymentsResponse {
     #[serde(deserialize_with = "str_or_i32")]
     id: String,
@@ -323,7 +314,7 @@ pub struct CardResponse {
     pub(crate) cres: Option<common_utils::pii::SecretSerdeValue>,
 }
 
-#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Default, Debug, Clone, Deserialize, PartialEq)]
 pub struct CardData {
     name: Option<String>,
     expiry_month: Option<String>,
@@ -457,34 +448,34 @@ impl From<RefundStatus> for enums::RefundStatus {
     }
 }
 
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+#[derive(Default, Debug, Clone, Deserialize)]
 pub struct RefundResponse {
     #[serde(deserialize_with = "str_or_i32")]
-    id: String,
-    authorizing_merchant_id: i32,
+    pub id: String,
+    pub authorizing_merchant_id: i32,
     #[serde(deserialize_with = "str_or_i32")]
-    approved: String,
+    pub approved: String,
     #[serde(deserialize_with = "str_or_i32")]
-    message_id: String,
-    message: String,
-    auth_code: String,
-    created: String,
-    amount: f32,
-    order_number: String,
+    pub message_id: String,
+    pub message: String,
+    pub auth_code: String,
+    pub created: String,
+    pub amount: f32,
+    pub order_number: String,
     #[serde(rename = "type")]
-    payment_type: String,
-    comments: Option<String>,
-    batch_number: Option<String>,
-    total_refunds: Option<f32>,
-    total_completions: Option<f32>,
-    payment_method: String,
-    card: CardData,
-    billing: Option<AddressData>,
-    shipping: Option<AddressData>,
-    custom: CustomData,
-    adjusted_by: Option<Vec<AdjustedBy>>,
-    links: Vec<Links>,
-    risk_score: Option<f32>,
+    pub payment_type: String,
+    pub comments: Option<String>,
+    pub batch_number: Option<String>,
+    pub total_refunds: Option<f32>,
+    pub total_completions: Option<f32>,
+    pub payment_method: String,
+    pub card: CardData,
+    pub billing: Option<AddressData>,
+    pub shipping: Option<AddressData>,
+    pub custom: CustomData,
+    pub adjusted_by: Option<Vec<AdjustedBy>>,
+    pub links: Vec<Links>,
+    pub risk_score: Option<f32>,
 }
 
 impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
