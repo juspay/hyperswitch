@@ -1356,7 +1356,7 @@ pub struct ObjectData {
     pub currency: String,
     pub reason: String,
     pub created: i64,
-    pub evidence_details: EvidenceDeatils,
+    pub evidence_details: EvidenceDetails,
     pub status: DisputeStatus,
 }
 
@@ -1369,7 +1369,7 @@ pub enum WebhookEvenType {
     #[serde(rename = "charge.dispute.updated")]
     ChargeDisputeCaptured,
     #[serde(rename = "charge.dispute.created")]
-    DisputeCreted,
+    DisputeCreated,
     #[serde(rename = "charge.dispute.closed")]
     DisputeClosed,
     #[serde(rename = "charge.dispute.updated")]
@@ -1418,7 +1418,7 @@ pub enum DisputeStatus {
 }
 
 #[derive(Debug, Deserialize, PartialEq)]
-pub struct EvidenceDeatils {
+pub struct EvidenceDetails {
     pub due_by: i64,
 }
 

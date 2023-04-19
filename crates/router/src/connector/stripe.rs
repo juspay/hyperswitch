@@ -1073,7 +1073,7 @@ impl api::IncomingWebhook for Stripe {
             stripe::WebhookEvenType::PaymentIntentSucceed => {
                 api::IncomingWebhookEvent::PaymentIntentSuccess
             }
-            stripe::WebhookEvenType::DisputeCreted => api::IncomingWebhookEvent::DisputeOpened,
+            stripe::WebhookEvenType::DisputeCreated => api::IncomingWebhookEvent::DisputeOpened,
             stripe::WebhookEvenType::DisputeClosed => api::IncomingWebhookEvent::DisputeCancelled,
             stripe::WebhookEvenType::DisputeUpdated => {
                 match dispute_payload.map(|payload| payload.object.status) {
@@ -1142,10 +1142,10 @@ pub fn get_date_and_time(timestamp: i64) -> CustomResult<String, errors::Connect
              sign:mandatory]:[offset_minute]:[offset_second]",
     )
     .map_err(|_| errors::ConnectorError::ResponseDeserializationFailed)?;
-    let x = datetime
+    let data = datetime
         .format(&format)
         .map_err(|_| errors::ConnectorError::ResponseDeserializationFailed)?;
-    Ok(x)
+    Ok(data)
 }
 
 impl services::ConnectorRedirectResponse for Stripe {
