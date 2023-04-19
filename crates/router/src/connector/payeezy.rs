@@ -124,6 +124,18 @@ impl
     // Not Implemented (R)
 }
 
+impl api::ConnectorCustomer for Payeezy {}
+
+impl
+    ConnectorIntegration<
+        api::CreateConnectorCustomer,
+        types::ConnectorCustomerData,
+        types::PaymentsResponseData,
+    > for Payeezy
+{
+    // Not Implemented (R)
+}
+
 impl api::PaymentVoid for Payeezy {}
 
 impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsResponseData>

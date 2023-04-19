@@ -107,6 +107,18 @@ impl
     // Not Implemented (R)
 }
 
+impl api::ConnectorCustomer for Airwallex {}
+
+impl
+    ConnectorIntegration<
+        api::CreateConnectorCustomer,
+        types::ConnectorCustomerData,
+        types::PaymentsResponseData,
+    > for Airwallex
+{
+    // Not Implemented (R)
+}
+
 impl api::ConnectorAccessToken for Airwallex {}
 
 impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, types::AccessToken>

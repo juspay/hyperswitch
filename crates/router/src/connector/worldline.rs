@@ -155,6 +155,18 @@ impl
     // Not Implemented (R)
 }
 
+impl api::ConnectorCustomer for Worldline {}
+
+impl
+    ConnectorIntegration<
+        api::CreateConnectorCustomer,
+        types::ConnectorCustomerData,
+        types::PaymentsResponseData,
+    > for Worldline
+{
+    // Not Implemented (R)
+}
+
 impl api::PaymentVoid for Worldline {}
 
 impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsResponseData>

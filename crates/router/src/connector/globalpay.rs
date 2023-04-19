@@ -301,6 +301,18 @@ impl
     // Not Implemented (R)
 }
 
+impl api::ConnectorCustomer for Globalpay {}
+
+impl
+    ConnectorIntegration<
+        api::CreateConnectorCustomer,
+        types::ConnectorCustomerData,
+        types::PaymentsResponseData,
+    > for Globalpay
+{
+    // Not Implemented (R)
+}
+
 impl api::PreVerify for Globalpay {}
 impl ConnectorIntegration<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>
     for Globalpay

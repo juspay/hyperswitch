@@ -190,6 +190,18 @@ impl
     // Not Implemented (R)
 }
 
+impl api::ConnectorCustomer for Paypal {}
+
+impl
+    ConnectorIntegration<
+        api::CreateConnectorCustomer,
+        types::ConnectorCustomerData,
+        types::PaymentsResponseData,
+    > for Paypal
+{
+    // Not Implemented (R)
+}
+
 impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::PaymentsResponseData>
     for Paypal
 {

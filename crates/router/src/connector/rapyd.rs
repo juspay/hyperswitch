@@ -101,6 +101,18 @@ impl
     // Not Implemented (R)
 }
 
+impl api::ConnectorCustomer for Rapyd {}
+
+impl
+    services::ConnectorIntegration<
+        api::CreateConnectorCustomer,
+        types::ConnectorCustomerData,
+        types::PaymentsResponseData,
+    > for Rapyd
+{
+    // Not Implemented (R)
+}
+
 impl
     services::ConnectorIntegration<
         api::AccessTokenAuth,

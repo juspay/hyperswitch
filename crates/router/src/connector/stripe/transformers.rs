@@ -81,6 +81,8 @@ pub struct PaymentIntentRequest {
     pub return_url: String,
     pub confirm: bool,
     pub mandate: Option<String>,
+    pub payment_method: Option<String>,
+    pub customer: Option<String>,
     pub description: Option<String>,
     #[serde(flatten)]
     pub shipping: StripeShippingAddress,
@@ -102,6 +104,7 @@ pub struct SetupIntentRequest {
     pub metadata_txn_uuid: String,
     pub confirm: bool,
     pub usage: Option<enums::FutureUsage>,
+    pub customer: Option<String>,
     pub off_session: Option<bool>,
     #[serde(flatten)]
     pub payment_data: StripePaymentMethodData,
@@ -143,6 +146,23 @@ pub struct TokenRequest {
 pub struct StripeTokenResponse {
     pub id: String,
     pub object: String,
+}
+
+#[derive(Debug, Eq, PartialEq, Serialize)]
+pub struct CustomerRequest {
+    pub description: Option<String>,
+    pub email: Option<Secret<String, Email>>,
+    pub phone: Option<Secret<String>>,
+    pub name: Option<String>,
+}
+
+#[derive(Debug, Eq, PartialEq, Deserialize)]
+pub struct StripeCustomerResponse {
+    pub id: String,
+    pub description: Option<String>,
+    pub email: Option<Secret<String, Email>>,
+    pub phone: Option<Secret<String>>,
+    pub name: Option<String>,
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
@@ -657,7 +677,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
             None => StripeShippingAddress::default(),
         };
 
-        let (mut payment_data, mandate, billing_address) = {
+        let (mut payment_data, payment_method, billing_address) = {
             match item
                 .request
                 .mandate_id
@@ -720,8 +740,10 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
             billing: billing_address,
             capture_method: StripeCaptureMethod::from(item.request.capture_method),
             payment_data,
-            mandate,
+            mandate: None,
             payment_method_options: None,
+            payment_method,
+            customer: item.connector_customer.to_owned(),
         })
     }
 }
@@ -750,6 +772,7 @@ impl TryFrom<&types::VerifyRouterData> for SetupIntentRequest {
             off_session: item.request.off_session,
             usage: item.request.setup_future_usage,
             payment_method_options: None,
+            customer: item.connector_customer.to_owned(),
         })
     }
 }
@@ -765,6 +788,18 @@ impl TryFrom<&types::TokenizationRouterData> for TokenRequest {
         )?;
         Ok(Self {
             token_data: payment_data.0,
+        })
+    }
+}
+
+impl TryFrom<&types::ConnectorCustomerRouterData> for CustomerRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &types::ConnectorCustomerRouterData) -> Result<Self, Self::Error> {
+        Ok(Self {
+            description: item.request.description.to_owned(),
+            email: item.request.email.to_owned(),
+            phone: item.request.phone.to_owned(),
+            name: item.request.name.to_owned(),
         })
     }
 }
@@ -822,6 +857,7 @@ pub struct PaymentIntentResponse {
     pub client_secret: Secret<String>,
     pub created: i32,
     pub customer: Option<String>,
+    pub payment_method: Option<String>,
     pub description: Option<String>,
     pub statement_descriptor: Option<String>,
     pub statement_descriptor_suffix: Option<String>,
@@ -875,6 +911,7 @@ pub struct SetupIntentResponse {
     pub status: StripePaymentStatus, // Change to SetupStatus
     pub client_secret: Secret<String>,
     pub customer: Option<String>,
+    pub payment_method: Option<String>,
     pub statement_descriptor: Option<String>,
     pub statement_descriptor_suffix: Option<String>,
     pub metadata: StripeMetadata,
@@ -898,15 +935,6 @@ impl<F, T>
                     services::RedirectForm::from((response.url, services::Method::Get))
                 });
 
-        let mandate_reference =
-            item.response
-                .payment_method_options
-                .and_then(|payment_method_options| match payment_method_options {
-                    StripePaymentMethodOptions::Card {
-                        mandate_options, ..
-                    } => mandate_options.map(|mandate_options| mandate_options.reference),
-                    _ => None,
-                });
         //Note: we might have to call retrieve_setup_intent to get the network_transaction_id in case its not sent in PaymentIntentResponse
         // Or we identify the mandate txns before hand and always call SetupIntent in case of mandate payment call
         let network_txn_id = item.response.latest_attempt.and_then(|latest_attempt| {
@@ -930,7 +958,7 @@ impl<F, T>
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
                 redirection_data,
-                mandate_reference,
+                mandate_reference: item.response.payment_method,
                 connector_metadata: None,
                 network_txn_id,
             }),
@@ -1022,16 +1050,6 @@ impl<F, T>
                     services::RedirectForm::from((response.url, services::Method::Get))
                 });
 
-        let mandate_reference =
-            item.response
-                .payment_method_options
-                .and_then(|payment_method_options| match payment_method_options {
-                    StripePaymentMethodOptions::Card {
-                        mandate_options, ..
-                    } => mandate_options.map(|mandate_option| mandate_option.reference),
-                    _ => None,
-                });
-
         let network_txn_id = item.response.latest_attempt.and_then(|latest_attempt| {
             latest_attempt
                 .payment_method_options
@@ -1049,7 +1067,7 @@ impl<F, T>
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
                 redirection_data,
-                mandate_reference,
+                mandate_reference: item.response.payment_method,
                 connector_metadata: None,
                 network_txn_id,
             }),
@@ -1336,6 +1354,23 @@ impl<F, T>
         Ok(Self {
             response: Ok(types::PaymentsResponseData::TokenizationResponse {
                 token: item.response.id,
+            }),
+            ..item.data
+        })
+    }
+}
+
+impl<F, T>
+    TryFrom<types::ResponseRouterData<F, StripeCustomerResponse, T, types::PaymentsResponseData>>
+    for types::RouterData<F, T, types::PaymentsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: types::ResponseRouterData<F, StripeCustomerResponse, T, types::PaymentsResponseData>,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            response: Ok(types::PaymentsResponseData::ConnectorCustomerResponse {
+                connector_cust_id: item.response.id,
             }),
             ..item.data
         })

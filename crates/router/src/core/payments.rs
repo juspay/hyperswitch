@@ -482,6 +482,11 @@ where
         .add_payment_method_token(state, &connector, &tokenization_action)
         .await?;
 
+    let connector_customer = router_data
+        .create_connector_customer(state, &connector, customer)
+        .await?;
+    router_data.connector_customer = connector_customer;
+
     if let Some(payment_method_token) = pm_token {
         router_data.payment_method_token = Some(payment_method_token);
     };

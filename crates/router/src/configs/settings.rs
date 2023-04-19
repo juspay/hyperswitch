@@ -63,11 +63,32 @@ pub struct Settings {
     #[cfg(feature = "kms")]
     pub kms: kms::KmsConfig,
     pub tokenization: TokenizationConfig,
+    pub connector_customer: ConnectorCustomer,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
 #[serde(transparent)]
 pub struct TokenizationConfig(pub HashMap<String, PaymentMethodTokenFilter>);
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct ConnectorCustomer {
+    #[serde(deserialize_with = "connector_deser")]
+    pub connector_list: HashSet<api_models::enums::Connector>,
+}
+
+fn connector_deser<'a, D>(
+    deserializer: D,
+) -> Result<HashSet<api_models::enums::Connector>, D::Error>
+where
+    D: Deserializer<'a>,
+{
+    let value = <String>::deserialize(deserializer)?;
+    Ok(value
+        .trim()
+        .split(',')
+        .flat_map(api_models::enums::Connector::from_str)
+        .collect())
+}
 
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct PaymentMethodTokenFilter {

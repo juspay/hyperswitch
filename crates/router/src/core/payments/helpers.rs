@@ -1481,5 +1481,6 @@ pub fn router_data_type_conversion<F1, F2, Req1, Req2, Res1, Res2>(
         reference_id: None,
         payment_method_token: router_data.payment_method_token,
         customer_id: router_data.customer_id,
+        connector_customer: router_data.connector_customer,
     }
 }

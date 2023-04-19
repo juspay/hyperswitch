@@ -44,6 +44,17 @@ impl api::PaymentCapture for Authorizedotnet {}
 impl api::PaymentSession for Authorizedotnet {}
 impl api::ConnectorAccessToken for Authorizedotnet {}
 impl api::PaymentToken for Authorizedotnet {}
+impl api::ConnectorCustomer for Authorizedotnet {}
+
+impl
+    services::ConnectorIntegration<
+        api::CreateConnectorCustomer,
+        types::ConnectorCustomerData,
+        types::PaymentsResponseData,
+    > for Authorizedotnet
+{
+    // Not Implemented (R)
+}
 
 impl
     services::ConnectorIntegration<

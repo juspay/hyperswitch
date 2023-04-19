@@ -1,7 +1,10 @@
+use std::collections::HashMap;
+
 use async_trait::async_trait;
 use common_utils::{ext_traits::ValueExt, pii};
 use error_stack::{report, ResultExt};
 use masking::ExposeInterface;
+use serde::{Deserialize, Serialize};
 
 use super::{ConstructFlowSpecificData, Feature};
 use crate::{
@@ -95,6 +98,15 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
         tokenization_action: &payments::TokenizationAction,
     ) -> RouterResult<Option<String>> {
         add_payment_method_token(state, connector, tokenization_action, self).await
+    }
+
+    async fn create_connector_customer<'a>(
+        &self,
+        state: &AppState,
+        connector: &api::ConnectorData,
+        customer: &Option<storage::Customer>,
+    ) -> RouterResult<Option<String>> {
+        create_connector_customer(state, connector, customer, self).await
     }
 }
 
@@ -351,6 +363,129 @@ impl mandate::MandateBehaviour for types::PaymentsAuthorizeData {
 
     fn set_mandate_id(&mut self, new_mandate_id: api_models::payments::MandateIds) {
         self.mandate_id = Some(new_mandate_id);
+    }
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct CustomerMetadata {
+    pub connector_customer_map: HashMap<String, String>,
+}
+
+type CreateCustomerCheck = (bool, Option<String>, Option<HashMap<String, String>>);
+pub fn should_call_connector_create_customer(
+    state: &AppState,
+    connector: &api::ConnectorData,
+    customer: &Option<storage::Customer>,
+) -> RouterResult<CreateCustomerCheck> {
+    let connector_name = connector.connector_name.to_string();
+    let connector_customer_filter = state
+        .conf
+        .connector_customer
+        .connector_list
+        .contains(&connector.connector_name);
+    if connector_customer_filter {
+        match customer {
+            Some(customer) => match &customer.metadata {
+                Some(metadata) => {
+                    let customer_meta_vec: CustomerMetadata = metadata
+                        .clone()
+                        .parse_value("CustomerMetadata")
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable(
+                            "Failed to deserialize metadata to CustomerMetadata struct",
+                        )?;
+                    let value = customer_meta_vec
+                        .connector_customer_map
+                        .get(&connector_name);
+                    Ok((
+                        value.is_none(),
+                        value.cloned(),
+                        Some(customer_meta_vec.connector_customer_map),
+                    ))
+                }
+                None => Ok((true, None, None)),
+            },
+            None => Ok((false, None, None)),
+        }
+    } else {
+        Ok((false, None, None))
+    }
+}
+
+pub async fn create_connector_customer<F: Clone>(
+    state: &AppState,
+    connector: &api::ConnectorData,
+    customer: &Option<storage::Customer>,
+    router_data: &types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
+) -> RouterResult<Option<String>> {
+    let (is_eligible, connector_customer_id, _metadata) =
+        should_call_connector_create_customer(state, connector, customer)?;
+    logger::error!("createconn: {:?}{:?}", is_eligible, connector_customer_id);
+    if is_eligible {
+        let connector_integration: services::BoxedConnectorIntegration<
+            '_,
+            api::CreateConnectorCustomer,
+            types::ConnectorCustomerData,
+            types::PaymentsResponseData,
+        > = connector.connector.get_connector_integration();
+
+        let customer_response_data: Result<types::PaymentsResponseData, types::ErrorResponse> =
+            Err(types::ErrorResponse::default());
+
+        let customer_request_data =
+            types::ConnectorCustomerData::try_from(router_data.request.to_owned())?;
+
+        let customer_router_data = payments::helpers::router_data_type_conversion::<
+            _,
+            api::CreateConnectorCustomer,
+            _,
+            _,
+            _,
+            _,
+        >(
+            router_data.clone(),
+            customer_request_data,
+            customer_response_data,
+        );
+
+        let resp = services::execute_connector_processing_step(
+            state,
+            connector_integration,
+            &customer_router_data,
+            payments::CallConnectorAction::Trigger,
+        )
+        .await
+        .map_err(|error| error.to_payment_failed_response())?;
+
+        let connector_customer_id = match resp.response {
+            Ok(response) => match response {
+                types::PaymentsResponseData::ConnectorCustomerResponse { connector_cust_id } => {
+                    Some(connector_cust_id)
+                }
+                _ => None,
+            },
+            Err(err) => {
+                logger::debug!(payment_method_tokenization_error=?err);
+                None
+            }
+        };
+        //FIXME: Insert customer id in customer table
+        Ok(connector_customer_id)
+    } else {
+        Ok(connector_customer_id)
+    }
+}
+
+impl TryFrom<types::PaymentsAuthorizeData> for types::ConnectorCustomerData {
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
+
+    fn try_from(data: types::PaymentsAuthorizeData) -> Result<Self, Self::Error> {
+        Ok(Self {
+            email: data.email,
+            description: None,
+            phone: None,
+            name: None,
+        })
     }
 }
 

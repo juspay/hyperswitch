@@ -162,6 +162,18 @@ impl
     // Not Implemented (R)
 }
 
+impl api::ConnectorCustomer for Fiserv {}
+
+impl
+    ConnectorIntegration<
+        api::CreateConnectorCustomer,
+        types::ConnectorCustomerData,
+        types::PaymentsResponseData,
+    > for Fiserv
+{
+    // Not Implemented (R)
+}
+
 impl api::PreVerify for Fiserv {}
 
 #[allow(dead_code)]

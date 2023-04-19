@@ -181,6 +181,18 @@ impl
     // Not Implemented (R)
 }
 
+impl api::ConnectorCustomer for Braintree {}
+
+impl
+    services::ConnectorIntegration<
+        api::CreateConnectorCustomer,
+        types::ConnectorCustomerData,
+        types::PaymentsResponseData,
+    > for Braintree
+{
+    // Not Implemented (R)
+}
+
 impl api::PreVerify for Braintree {}
 
 #[allow(dead_code)]

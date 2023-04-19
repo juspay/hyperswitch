@@ -113,6 +113,7 @@ where
         session_token: None,
         reference_id: None,
         payment_method_token: payment_data.pm_token,
+        connector_customer: None,
     };
 
     Ok(router_data)

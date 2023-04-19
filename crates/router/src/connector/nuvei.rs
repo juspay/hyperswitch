@@ -84,6 +84,18 @@ impl
     // Not Implemented (R)
 }
 
+impl api::ConnectorCustomer for Nuvei {}
+
+impl
+    ConnectorIntegration<
+        api::CreateConnectorCustomer,
+        types::ConnectorCustomerData,
+        types::PaymentsResponseData,
+    > for Nuvei
+{
+    // Not Implemented (R)
+}
+
 impl api::PreVerify for Nuvei {}
 impl api::PaymentVoid for Nuvei {}
 impl api::PaymentSync for Nuvei {}

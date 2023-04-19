@@ -69,6 +69,20 @@ pub trait Feature<F, T> {
     {
         Ok(None)
     }
+
+    async fn create_connector_customer<'a>(
+        &self,
+        _state: &AppState,
+        _connector: &api::ConnectorData,
+        _customer: &Option<storage::Customer>,
+    ) -> RouterResult<Option<String>>
+    where
+        F: Clone,
+        Self: Sized,
+        dyn api::Connector: services::ConnectorIntegration<F, T, types::PaymentsResponseData>,
+    {
+        Ok(None)
+    }
 }
 
 macro_rules! default_imp_for_complete_authorize{
