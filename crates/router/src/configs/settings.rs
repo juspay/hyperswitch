@@ -298,6 +298,7 @@ pub struct Connectors {
     pub klarna: ConnectorParams,
     pub mollie: ConnectorParams,
     pub multisafepay: ConnectorParams,
+    pub nexinets: ConnectorParams,
     pub nuvei: ConnectorParams,
     pub opennode: ConnectorParams,
     pub payeezy: ConnectorParams,
