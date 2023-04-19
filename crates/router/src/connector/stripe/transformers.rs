@@ -101,6 +101,7 @@ pub struct SetupIntentRequest {
     pub off_session: Option<bool>,
     #[serde(flatten)]
     pub payment_data: StripePaymentMethodData,
+    pub return_url: Option<String>,
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
@@ -742,6 +743,11 @@ impl TryFrom<&types::VerifyRouterData> for SetupIntentRequest {
             payment_data,
             off_session: item.request.off_session,
             usage: item.request.setup_future_usage,
+            return_url: Some(item
+                .request
+                .return_url
+                .clone()
+                .unwrap_or_else(|| "https://juspay.in/".to_string()))
         })
     }
 }
