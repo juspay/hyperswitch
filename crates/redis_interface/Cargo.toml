@@ -12,8 +12,8 @@ async-trait = "0.1.68"
 error-stack = "0.3.1"
 fred = { version = "6.0.0", features = ["metrics", "partial-tracing"] }
 futures = "0.3"
-serde = { version = "1.0.155", features = ["derive"] }
-thiserror = "1.0.39"
+serde = { version = "1.0.160", features = ["derive"] }
+thiserror = "1.0.40"
 tokio = "1.26.0"
 
 # First party crates
