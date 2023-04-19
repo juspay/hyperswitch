@@ -29,7 +29,10 @@ pub async fn setup_intents_create(
         }
     };
 
-    let create_payment_req: payment_types::PaymentsRequest = payload.into();
+    let create_payment_req: payment_types::PaymentsRequest = match payload.try_into() {
+        Ok(req) => req,
+        Err(err) => return api::log_and_return_error_response(err),
+    };
 
     wrap::compatibility_api_wrap::<
         _,
@@ -127,7 +130,10 @@ pub async fn setup_intents_update(
         }
     };
 
-    let mut payload: payment_types::PaymentsRequest = stripe_payload.into();
+    let mut payload: payment_types::PaymentsRequest = match stripe_payload.try_into() {
+        Ok(req) => req,
+        Err(err) => return api::log_and_return_error_response(err),
+    };
     payload.payment_id = Some(api_types::PaymentIdType::PaymentIntentId(setup_id));
 
     let (auth_type, auth_flow) =
@@ -183,7 +189,10 @@ pub async fn setup_intents_confirm(
         }
     };
 
-    let mut payload: payment_types::PaymentsRequest = stripe_payload.into();
+    let mut payload: payment_types::PaymentsRequest = match stripe_payload.try_into() {
+        Ok(req) => req,
+        Err(err) => return api::log_and_return_error_response(err),
+    };
     payload.payment_id = Some(api_types::PaymentIdType::PaymentIntentId(setup_id));
     payload.confirm = Some(true);
 
