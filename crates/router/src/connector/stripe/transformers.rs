@@ -546,7 +546,7 @@ impl TryFrom<(&api_models::payments::PayLaterData, StripePaymentMethodType)>
 
 impl From<&payments::BankDebitBilling> for StripeBillingAddress {
     fn from(item: &payments::BankDebitBilling) -> Self {
-        let res = Self {
+        Self {
             email: Some(item.email.to_owned()),
             country: item
                 .address
@@ -569,10 +569,7 @@ impl From<&payments::BankDebitBilling> for StripeBillingAddress {
                 .address
                 .as_ref()
                 .and_then(|address| address.zip.to_owned()),
-        };
-
-        crate::logger::debug!(hola = ?res);
-        res
+        }
     }
 }
 
