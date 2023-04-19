@@ -1,6 +1,8 @@
 use common_utils::ext_traits::AsyncExt;
 use error_stack::{IntoReport, ResultExt};
 
+#[cfg(feature = "accounts_cache")]
+use super::cache;
 use super::{MockDb, Store};
 use crate::{
     connection,
@@ -13,9 +15,6 @@ use crate::{
         storage::{self},
     },
 };
-
-#[cfg(feature = "accounts_cache")]
-use super::cache;
 
 #[async_trait::async_trait]
 pub trait MerchantAccountInterface
