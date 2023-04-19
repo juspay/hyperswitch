@@ -204,6 +204,7 @@ impl ConnectorData {
             "cybersource" => Ok(Box::new(&connector::Cybersource)),
             "dlocal" => Ok(Box::new(&connector::Dlocal)),
             "fiserv" => Ok(Box::new(&connector::Fiserv)),
+            // "forte" => Ok(Box::new(&connector::Forte)),
             "globalpay" => Ok(Box::new(&connector::Globalpay)),
             "klarna" => Ok(Box::new(&connector::Klarna)),
             "mollie" => Ok(Box::new(&connector::Mollie)),
@@ -217,6 +218,7 @@ impl ConnectorData {
             "worldline" => Ok(Box::new(&connector::Worldline)),
             "worldpay" => Ok(Box::new(&connector::Worldpay)),
             "multisafepay" => Ok(Box::new(&connector::Multisafepay)),
+            // "nexinets" => Ok(Box::new(&connector::Nexinets)), added as template code for future use
             "paypal" => Ok(Box::new(&connector::Paypal)),
             "trustpay" => Ok(Box::new(&connector::Trustpay)),
             _ => Err(report!(errors::ConnectorError::InvalidConnectorName)
