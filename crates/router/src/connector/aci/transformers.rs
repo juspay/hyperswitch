@@ -53,11 +53,8 @@ pub struct AciCancelRequest {
 #[serde(untagged)]
 pub enum PaymentDetails {
     #[serde(rename = "card")]
-    AciCard(CardDetails),
-    Eps(BankRedirectionPMData),
-    Ideal(BankRedirectionPMData),
-    Giropay(BankRedirectionPMData),
-    Sofort(BankRedirectionPMData),
+    AciCard(Box<CardDetails>),
+    BankRedirect(Box<BankRedirectionPMData>),
     #[serde(rename = "bank")]
     Wallet,
     Klarna,
@@ -72,9 +69,9 @@ pub struct BankRedirectionPMData {
     #[serde(rename = "bankAccount.bankName")]
     bank_account_bank_name: Option<String>,
     #[serde(rename = "bankAccount.bic")]
-    bank_account_bic: Option<String>,
+    bank_account_bic: Option<Secret<String>>,
     #[serde(rename = "bankAccount.iban")]
-    bank_account_iban: Option<String>,
+    bank_account_iban: Option<Secret<String>>,
     shopper_result_url: Option<String>,
 }
 
@@ -135,58 +132,58 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for AciPaymentsRequest {
         >,
     ) -> Result<Self, Self::Error> {
         let payment_details: PaymentDetails = match item.request.payment_method_data.clone() {
-            api::PaymentMethodData::Card(ccard) => PaymentDetails::AciCard(CardDetails {
+            api::PaymentMethodData::Card(ccard) => PaymentDetails::AciCard(Box::new(CardDetails {
                 card_number: ccard.card_number,
                 card_holder: ccard.card_holder_name,
                 card_expiry_month: ccard.card_exp_month,
                 card_expiry_year: ccard.card_exp_year,
                 card_cvv: ccard.card_cvc,
-            }),
+            })),
             api::PaymentMethodData::PayLater(_) => PaymentDetails::Klarna,
             api::PaymentMethodData::Wallet(_) => PaymentDetails::Wallet,
             api::PaymentMethodData::BankRedirect(ref redirect_banking_data) => {
                 match redirect_banking_data {
                     api_models::payments::BankRedirectData::Eps { .. } => {
-                        PaymentDetails::Eps(BankRedirectionPMData {
+                        PaymentDetails::BankRedirect(Box::new(BankRedirectionPMData {
                             payment_brand: PaymentBrand::Eps,
                             bank_account_country: Some(api_models::enums::CountryCode::AT),
                             bank_account_bank_name: None,
                             bank_account_bic: None,
                             bank_account_iban: None,
                             shopper_result_url: item.request.router_return_url.clone(),
-                        })
+                        }))
                     }
                     api_models::payments::BankRedirectData::Giropay {
                         bank_account_bic,
                         bank_account_iban,
                         ..
-                    } => PaymentDetails::Giropay(BankRedirectionPMData {
+                    } => PaymentDetails::BankRedirect(Box::new(BankRedirectionPMData {
                         payment_brand: PaymentBrand::Giropay,
                         bank_account_country: Some(api_models::enums::CountryCode::DE),
                         bank_account_bank_name: None,
                         bank_account_bic: bank_account_bic.clone(),
                         bank_account_iban: bank_account_iban.clone(),
                         shopper_result_url: item.request.router_return_url.clone(),
-                    }),
+                    })),
                     api_models::payments::BankRedirectData::Ideal { bank_name, .. } => {
-                        PaymentDetails::Ideal(BankRedirectionPMData {
+                        PaymentDetails::BankRedirect(Box::new(BankRedirectionPMData {
                             payment_brand: PaymentBrand::Ideal,
                             bank_account_country: Some(api_models::enums::CountryCode::NL),
                             bank_account_bank_name: Some(bank_name.to_string()),
                             bank_account_bic: None,
                             bank_account_iban: None,
                             shopper_result_url: item.request.router_return_url.clone(),
-                        })
+                        }))
                     }
                     api_models::payments::BankRedirectData::Sofort { country, .. } => {
-                        PaymentDetails::Sofort(BankRedirectionPMData {
+                        PaymentDetails::BankRedirect(Box::new(BankRedirectionPMData {
                             payment_brand: PaymentBrand::Sofortueberweisung,
                             bank_account_country: Some(*country),
                             bank_account_bank_name: None,
                             bank_account_bic: None,
                             bank_account_iban: None,
                             shopper_result_url: item.request.router_return_url.clone(),
-                        })
+                        }))
                     }
                 }
             }
@@ -312,24 +309,18 @@ pub struct ErrorParameters {
 }
 
 fn method_data(redirection_data: AciRedirectionData) -> services::Method {
-    let mut three_ds: bool = false;
     // Check if method exists in 3DS
     if let Some(method_param) = redirection_data
         .parameters
         .iter()
         .find(|param| param.name == *"method")
     {
-        three_ds = true;
         // Parse the parameter value as Method enum
         if let Ok(method) = &method_param.value.parse::<services::Method>() {
             return *method;
         }
     }
-    if three_ds {
-        redirection_data.method.unwrap_or(services::Method::Get)
-    } else {
-        redirection_data.method.unwrap_or(services::Method::Post)
-    }
+    redirection_data.method.unwrap_or(services::Method::Post)
 }
 
 impl<F, T>
