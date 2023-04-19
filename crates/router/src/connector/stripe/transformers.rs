@@ -2,7 +2,7 @@ use std::str::FromStr;
 
 use api_models::{self, enums as api_enums, payments};
 use base64::Engine;
-use common_utils::{fp_utils, pii::Email};
+use common_utils::{pii::Email};
 use error_stack::{IntoReport, ResultExt};
 use masking::ExposeInterface;
 use serde::{Deserialize, Serialize};
@@ -363,31 +363,34 @@ fn validate_shipping_address_against_payment_method(
     shipping_address: &StripeShippingAddress,
     payment_method: &StripePaymentMethodType,
 ) -> Result<(), error_stack::Report<errors::ConnectorError>> {
+    let mut missing_fields: Vec<&'static str> = vec![];
+
     if let StripePaymentMethodType::AfterpayClearpay = payment_method {
-        fp_utils::when(shipping_address.name.is_none(), || {
-            Err(errors::ConnectorError::MissingRequiredField {
-                field_name: "shipping.address.first_name",
-            })
-        })?;
+        if shipping_address.name.is_none() {
+            missing_fields.push("shipping.address.first_name");
+        }
 
-        fp_utils::when(shipping_address.line1.is_none(), || {
-            Err(errors::ConnectorError::MissingRequiredField {
-                field_name: "shipping.address.line1",
-            })
-        })?;
+        if shipping_address.line1.is_none() {
+            missing_fields.push("shipping.address.line1");
+        }
 
-        fp_utils::when(shipping_address.country.is_none(), || {
-            Err(errors::ConnectorError::MissingRequiredField {
-                field_name: "shipping.address.country",
-            })
-        })?;
+        if shipping_address.country.is_none() {
+            missing_fields.push("shipping.address.country");
+        }
 
-        fp_utils::when(shipping_address.zip.is_none(), || {
-            Err(errors::ConnectorError::MissingRequiredField {
-                field_name: "shipping.address.zip",
-            })
-        })?;
+        if shipping_address.zip.is_none() {
+            missing_fields.push("shipping.address.zip");
+        }
     }
+
+    if missing_fields.len() > 0 {
+        return Err(error_stack::Report::<errors::ConnectorError>::new(
+            errors::ConnectorError::MissingRequiredFields {
+                field_names: missing_fields,
+            },
+        ));
+    }
+
     Ok(())
 }
 
@@ -1436,11 +1439,15 @@ impl
 #[cfg(test)]
 mod test_validate_shipping_address_against_payment_method {
     use api_models::enums::CountryCode;
+    use error_stack;
     use masking::Secret;
 
-    use crate::connector::stripe::transformers::{
-        validate_shipping_address_against_payment_method, StripePaymentMethodType,
-        StripeShippingAddress,
+    use crate::{
+        connector::stripe::transformers::{
+            validate_shipping_address_against_payment_method, StripePaymentMethodType,
+            StripeShippingAddress,
+        },
+        core::errors,
     };
 
     #[test]
@@ -1550,6 +1557,37 @@ mod test_validate_shipping_address_against_payment_method {
 
         // Assert
         assert_eq!(result.is_err(), true);
+    }
+
+    #[test]
+    fn should_return_error_when_missing_multiple_fields() {
+        // Arrange
+        let stripe_shipping_address = create_stripe_shipping_address(
+            Some("name".to_string()),
+            Some("line1".to_string()),
+            None,
+            None,
+        );
+        let payment_method = &StripePaymentMethodType::AfterpayClearpay;
+
+        //Act
+        let result = validate_shipping_address_against_payment_method(
+            &stripe_shipping_address,
+            &payment_method,
+        );
+
+        let expected_error = error_stack::Report::<errors::ConnectorError>::new(
+            errors::ConnectorError::MissingRequiredFields {
+                field_names: vec!["shipping.address.country", "shipping.address.zip"],
+            },
+        );
+
+        // Assert
+        assert_eq!(result.is_err(), true);
+        assert_eq!(
+            result.unwrap_err().current_context(),
+            expected_error.current_context()
+        );
     }
 
     fn create_stripe_shipping_address(

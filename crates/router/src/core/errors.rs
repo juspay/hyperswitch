@@ -289,6 +289,8 @@ pub enum ConnectorError {
     MismatchedPaymentData,
     #[error("Failed to parse Wallet token")]
     InvalidWalletToken,
+    #[error("Missing required fields")]
+    MissingRequiredFields{ field_names: Vec<&'static str> },
 }
 
 #[derive(Debug, thiserror::Error)]
