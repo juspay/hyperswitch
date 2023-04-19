@@ -12,7 +12,7 @@ use crate::{
     configs::settings,
     core::{
         api_keys,
-        errors::{self, RouterResult},
+        errors::{self, RouterResult}, payments::helpers::verify_client_secret,
     },
     db::StorageInterface,
     routes::app::AppStateInfo,
@@ -20,7 +20,7 @@ use crate::{
     types::storage,
     utils::OptionExt,
 };
-
+use time::Duration;
 #[async_trait]
 pub trait AuthenticateAndFetch<T, A>
 where
@@ -201,8 +201,10 @@ where
 }
 
 #[derive(Debug)]
-pub struct PublishableKeyAuth;
-
+pub struct PublishableKeyAuth{
+   pub client_secret:Option<String>
+}
+//Bug we will add the struct 
 #[async_trait]
 impl<A> AuthenticateAndFetch<storage::MerchantAccount, A> for PublishableKeyAuth
 where
@@ -213,9 +215,10 @@ where
         request_headers: &HeaderMap,
         state: &A,
     ) -> RouterResult<storage::MerchantAccount> {
+         use common_utils::fp_utils::when;
         let publishable_key =
             get_api_key(request_headers).change_context(errors::ApiErrorResponse::Unauthorized)?;
-        state
+        let m= state
             .store()
             .find_merchant_account_by_publishable_key(publishable_key)
             .await
@@ -225,7 +228,16 @@ where
                 } else {
                     e.change_context(errors::ApiErrorResponse::InternalServerError)
                 }
-            })
+            })?;
+        let db = &*state.store();
+        let mid=m.merchant_id.clone();
+        let payment_intent_struct=verify_client_secret(db,m.storage_scheme,self.client_secret.clone(),mid.as_str()).await?.ok_or(errors::ApiErrorResponse::Unauthorized)?;
+        let payment_intent_total_fulfillment_time=payment_intent_struct.created_at.saturating_add(Duration::seconds(m.intent_fulfillment_time.unwrap().into()));
+        let timestamp=common_utils::date_time::now(); 
+        when( timestamp>payment_intent_total_fulfillment_time, || {
+           Err(report!(errors::ApiErrorResponse::ClientSecretExpired))
+        })?;
+          return Ok(m);
     }
 }
 
@@ -326,7 +338,7 @@ pub fn get_auth_type_and_flow<A: AppStateInfo + Sync>(
     let api_key = get_api_key(headers)?;
 
     if api_key.starts_with("pk_") {
-        return Ok((Box::new(PublishableKeyAuth), api::AuthFlow::Client));
+        return Ok((Box::new(PublishableKeyAuth{client_secret:None}), api::AuthFlow::Client));
     }
     Ok((Box::new(ApiKeyAuth), api::AuthFlow::Merchant))
 }
@@ -346,13 +358,16 @@ where
     let api_key = get_api_key(headers)?;
 
     if api_key.starts_with("pk_") {
+        
+    println!("//////////????????????????????the client secret is cojming here check_client_secret_and_get_auth  api,,,,,,,,,,,,,,,,,,,,,,{}",api_key);
         payload
             .get_client_secret()
             .check_value_present("client_secret")
             .map_err(|_| errors::ApiErrorResponse::MissingRequiredField {
                 field_name: "client_secret",
             })?;
-        return Ok((Box::new(PublishableKeyAuth), api::AuthFlow::Client));
+        return Ok((Box::new(PublishableKeyAuth{client_secret:payload.get_client_secret().cloned()}), api::AuthFlow::Client));
+
     }
 
     if payload.get_client_secret().is_some() {

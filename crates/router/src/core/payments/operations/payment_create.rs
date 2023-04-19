@@ -32,6 +32,7 @@ use crate::{
 #[operation(ops = "all", flow = "authorize")]
 pub struct PaymentCreate;
 
+//BUG we are getting request here so if the field is not present already amed it there
 #[async_trait]
 impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for PaymentCreate {
     #[instrument(skip_all)]

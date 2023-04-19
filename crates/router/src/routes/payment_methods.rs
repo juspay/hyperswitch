@@ -75,7 +75,8 @@ pub async fn list_payment_method_api(
 ) -> HttpResponse {
     let flow = Flow::PaymentMethodsList;
     let payload = json_payload.into_inner();
-
+    //BUG the client secret traverses from here
+    println!("//////////????????????????????the client secret is cojming here in list payment method api,,,,,,,,,,,,,,,,,,,,,,");
     let (auth, _) = match auth::check_client_secret_and_get_auth(req.headers(), &payload) {
         Ok((auth, _auth_flow)) => (auth, _auth_flow),
         Err(e) => return api::log_and_return_error_response(e),
@@ -90,6 +91,8 @@ pub async fn list_payment_method_api(
         &*auth,
     )
     .await
+    //BUG check_client_secret_and_get_auth  verify client secret use publishable key to get merch
+    //ac call to get the payment intent
 }
 
 /// List payment methods for a Customer
