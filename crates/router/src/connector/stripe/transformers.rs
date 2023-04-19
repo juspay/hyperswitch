@@ -1367,7 +1367,7 @@ pub enum WebhookEvenType {
     #[serde(rename = "payment_intent.succeeded")]
     PaymentIntentSucceed,
     #[serde(rename = "charge.dispute.updated")]
-    ChargeCaptured,
+    ChargeDisputeCaptured,
     #[serde(rename = "charge.dispute.created")]
     DisputeCreted,
     #[serde(rename = "charge.dispute.closed")]
@@ -1384,10 +1384,14 @@ pub enum WebhookEvenType {
     ChargeFailed,
     #[serde(rename = "charge.pending")]
     ChargePending,
+    #[serde(rename = "charge.captured")]
+    ChargeCaptured,
     #[serde(rename = "charge.succeeded")]
     ChargeSucceeded,
     #[serde(rename = "charge.updated")]
     ChargeUpdated,
+    #[serde(rename = "charge.refunded")]
+    ChanrgeRefunded,
     #[serde(rename = "payment_intent.canceled")]
     PaymentIntentCanceled,
     #[serde(rename = "payment_intent.created")]
@@ -1396,6 +1400,8 @@ pub enum WebhookEvenType {
     PaymentIntentProcessing,
     #[serde(rename = "payment_intent.requires_action")]
     PaymentIntentRequiresAction,
+    #[serde(rename = "payment_intent.requires_action")]
+    PaymentIntentAmountCapturableUpdated,
 }
 
 #[derive(Debug, Serialize, Display, Deserialize, PartialEq)]
