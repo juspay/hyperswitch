@@ -172,7 +172,7 @@ pub async fn payment_connector_create(
     state: web::Data<AppState>,
     req: HttpRequest,
     path: web::Path<String>,
-    json_payload: web::Json<admin::MerchantConnector>,
+    json_payload: web::Json<admin::MerchantConnectorCreate>,
 ) -> HttpResponse {
     let flow = Flow::MerchantConnectorsCreate;
     let merchant_id = path.into_inner();
@@ -294,7 +294,7 @@ pub async fn payment_connector_update(
     state: web::Data<AppState>,
     req: HttpRequest,
     path: web::Path<(String, String)>,
-    json_payload: web::Json<admin::MerchantConnector>,
+    json_payload: web::Json<api_models::admin::MerchantConnectorUpdate>,
 ) -> HttpResponse {
     let flow = Flow::MerchantConnectorsUpdate;
     let (merchant_id, merchant_connector_id) = path.into_inner();

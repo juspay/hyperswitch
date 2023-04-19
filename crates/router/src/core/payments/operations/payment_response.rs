@@ -295,8 +295,8 @@ async fn payment_response_update_tracker<F: Clone, T>(
             Some(storage::PaymentAttemptUpdate::ErrorUpdate {
                 connector: None,
                 status: storage::enums::AttemptStatus::Failure,
-                error_message: Some(err.message),
-                error_code: Some(err.code),
+                error_message: Some(Some(err.message)),
+                error_code: Some(Some(err.code)),
             }),
             Some(storage::ConnectorResponseUpdate::ErrorUpdate {
                 connector_name: Some(router_data.connector.clone()),
@@ -324,6 +324,13 @@ async fn payment_response_update_tracker<F: Clone, T>(
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Could not parse the connector response")?;
 
+                // incase of success, update error code and error message
+                let error_status = if router_data.status == enums::AttemptStatus::Charged {
+                    Some(None)
+                } else {
+                    None
+                };
+
                 if router_data.status == enums::AttemptStatus::Charged {
                     metrics::SUCCESSFUL_PAYMENT.add(&metrics::CONTEXT, 1, &[]);
                 }
@@ -339,6 +346,9 @@ async fn payment_response_update_tracker<F: Clone, T>(
                         .clone()
                         .map(|mandate| mandate.mandate_id),
                     connector_metadata,
+                    payment_token: None,
+                    error_code: error_status.clone(),
+                    error_message: error_status,
                 };
 
                 let connector_response_update = storage::ConnectorResponseUpdate::ResponseUpdate {
@@ -353,9 +363,30 @@ async fn payment_response_update_tracker<F: Clone, T>(
                     Some(connector_response_update),
                 )
             }
-
+            types::PaymentsResponseData::TransactionUnresolvedResponse {
+                resource_id,
+                reason,
+            } => {
+                let connector_transaction_id = match resource_id {
+                    types::ResponseId::NoResponseId => None,
+                    types::ResponseId::ConnectorTransactionId(id)
+                    | types::ResponseId::EncodedData(id) => Some(id),
+                };
+                (
+                    Some(storage::PaymentAttemptUpdate::UnresolvedResponseUpdate {
+                        status: router_data.status,
+                        connector: None,
+                        connector_transaction_id,
+                        payment_method_id: Some(router_data.payment_method_id),
+                        error_code: Some(reason.clone().map(|cd| cd.code)),
+                        error_message: Some(reason.map(|cd| cd.message)),
+                    }),
+                    None,
+                )
+            }
             types::PaymentsResponseData::SessionResponse { .. } => (None, None),
             types::PaymentsResponseData::SessionTokenResponse { .. } => (None, None),
+            types::PaymentsResponseData::TokenizationResponse { .. } => (None, None),
         },
     };
 
@@ -367,9 +398,7 @@ async fn payment_response_update_tracker<F: Clone, T>(
                 storage_scheme,
             )
             .await
-            .map_err(|error| {
-                error.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
-            })?,
+            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?,
         None => payment_data.payment_attempt,
     };
 
@@ -381,9 +410,7 @@ async fn payment_response_update_tracker<F: Clone, T>(
                 storage_scheme,
             )
             .await
-            .map_err(|error| {
-                error.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
-            })?,
+            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?,
         None => payment_data.connector_response,
     };
 
@@ -412,7 +439,7 @@ async fn payment_response_update_tracker<F: Clone, T>(
             storage_scheme,
         )
         .await
-        .map_err(|error| error.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound))?;
+        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
     Ok(payment_data)
 }

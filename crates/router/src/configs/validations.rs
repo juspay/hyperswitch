@@ -6,17 +6,38 @@ impl super::settings::Secrets {
     pub fn validate(&self) -> Result<(), ApplicationError> {
         use common_utils::fp_utils::when;
 
-        when(self.jwt_secret.is_default_or_empty(), || {
-            Err(ApplicationError::InvalidConfigurationValueError(
-                "JWT secret must not be empty".into(),
-            ))
-        })?;
+        #[cfg(not(feature = "kms"))]
+        {
+            when(self.jwt_secret.is_default_or_empty(), || {
+                Err(ApplicationError::InvalidConfigurationValueError(
+                    "JWT secret must not be empty".into(),
+                ))
+            })?;
 
-        when(self.admin_api_key.is_default_or_empty(), || {
-            Err(ApplicationError::InvalidConfigurationValueError(
-                "admin API key must not be empty".into(),
-            ))
-        })
+            when(self.admin_api_key.is_default_or_empty(), || {
+                Err(ApplicationError::InvalidConfigurationValueError(
+                    "admin API key must not be empty".into(),
+                ))
+            })
+        }
+
+        #[cfg(feature = "kms")]
+        {
+            when(self.kms_encrypted_jwt_secret.is_default_or_empty(), || {
+                Err(ApplicationError::InvalidConfigurationValueError(
+                    "KMS encrypted JWT secret must not be empty".into(),
+                ))
+            })?;
+
+            when(
+                self.kms_encrypted_admin_api_key.is_default_or_empty(),
+                || {
+                    Err(ApplicationError::InvalidConfigurationValueError(
+                        "KMS encrypted admin API key must not be empty".into(),
+                    ))
+                },
+            )
+        }
     }
 }
 

@@ -28,6 +28,7 @@ impl api::Payment for Mollie {}
 impl api::PaymentSession for Mollie {}
 impl api::ConnectorAccessToken for Mollie {}
 impl api::PreVerify for Mollie {}
+impl api::PaymentToken for Mollie {}
 impl api::PaymentAuthorize for Mollie {}
 impl api::PaymentsCompleteAuthorize for Mollie {}
 impl api::PaymentSync for Mollie {}
@@ -97,6 +98,16 @@ impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::Payme
 impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, types::AccessToken>
     for Mollie
 {
+}
+
+impl
+    ConnectorIntegration<
+        api::PaymentMethodToken,
+        types::PaymentMethodTokenizationData,
+        types::PaymentsResponseData,
+    > for Mollie
+{
+    // Not Implemented (R)
 }
 
 impl ConnectorIntegration<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>

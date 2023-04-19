@@ -80,7 +80,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaypalPaymentsRequest {
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         match item.request.payment_method_data {
             api_models::payments::PaymentMethodData::Card(ref ccard) => {
-                let intent = match item.request.is_auto_capture() {
+                let intent = match item.request.is_auto_capture()? {
                     true => PaypalPaymentIntent::Capture,
                     false => PaypalPaymentIntent::Authorize,
                 };
@@ -275,7 +275,7 @@ fn get_id_based_on_intent(
             ),
         }
     }()
-    .ok_or(errors::ConnectorError::MissingConnectorTransactionID.into())
+    .ok_or_else(|| errors::ConnectorError::MissingConnectorTransactionID.into())
 }
 
 impl<F, T>

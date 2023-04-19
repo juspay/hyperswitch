@@ -27,7 +27,6 @@ use common_utils::errors::CustomResult;
 use error_stack::{IntoReport, ResultExt};
 use fred::interfaces::ClientLike;
 pub use fred::interfaces::PubsubInterface;
-use futures::StreamExt;
 use router_env::logger;
 
 pub use self::{commands::*, types::*};
@@ -55,10 +54,10 @@ impl std::ops::Deref for RedisClient {
 impl RedisClient {
     pub async fn new(
         config: fred::types::RedisConfig,
-        policy: fred::types::ReconnectPolicy,
+        reconnect_policy: fred::types::ReconnectPolicy,
     ) -> CustomResult<Self, errors::RedisError> {
-        let client = fred::prelude::RedisClient::new(config);
-        client.connect(Some(policy));
+        let client = fred::prelude::RedisClient::new(config, None, Some(reconnect_policy));
+        client.connect();
         client
             .wait_for_connect()
             .await
@@ -96,22 +95,22 @@ impl RedisConnectionPool {
         if !conf.use_legacy_version {
             config.version = fred::types::RespVersion::RESP3;
         }
-        config.tracing = true;
+        config.tracing = fred::types::TracingConfig::new(true);
         config.blocking = fred::types::Blocking::Error;
-        let policy = fred::types::ReconnectPolicy::new_constant(
+        let reconnect_policy = fred::types::ReconnectPolicy::new_constant(
             conf.reconnect_max_attempts,
             conf.reconnect_delay,
         );
 
-        let subscriber = RedisClient::new(config.clone(), policy.clone()).await?;
+        let subscriber = RedisClient::new(config.clone(), reconnect_policy.clone()).await?;
 
-        let publisher = RedisClient::new(config.clone(), policy.clone()).await?;
+        let publisher = RedisClient::new(config.clone(), reconnect_policy.clone()).await?;
 
-        let pool = fred::pool::RedisPool::new(config, conf.pool_size)
+        let pool = fred::pool::RedisPool::new(config, None, Some(reconnect_policy), conf.pool_size)
             .into_report()
             .change_context(errors::RedisError::RedisConnectionError)?;
 
-        let join_handles = pool.connect(Some(policy));
+        let join_handles = pool.connect();
         pool.wait_for_connect()
             .await
             .into_report()
@@ -140,17 +139,13 @@ impl RedisConnectionPool {
         }
     }
     pub async fn on_error(&self) {
-        self.pool
-            .on_error()
-            .for_each(|err| {
-                logger::error!("{err:?}");
-                if self.pool.state() == fred::types::ClientState::Disconnected {
-                    self.is_redis_available
-                        .store(false, atomic::Ordering::SeqCst);
-                }
-                futures::future::ready(())
-            })
-            .await;
+        while let Ok(redis_error) = self.pool.on_error().recv().await {
+            logger::error!(?redis_error, "Redis protocol or connection error");
+            if self.pool.state() == fred::types::ClientState::Disconnected {
+                self.is_redis_available
+                    .store(false, atomic::Ordering::SeqCst);
+            }
+        }
     }
 }
 

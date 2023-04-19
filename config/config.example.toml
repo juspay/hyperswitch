@@ -61,6 +61,13 @@ file_name = "debug.log" # base name for log files.
 # levels can be "TRACE", "DEBUG", "INFO", "WARN", "ERROR", "OFF"
 # defaults to "WARN"
 level = "WARN"
+# sets the log level for one or more crates
+filtering_directive = "WARN,router=INFO,reqwest=INFO" 
+#                      ^^^^        ^^^^---------^^^^-- sets the log level for the
+#                      |                               router and reqwest crates to INFO.
+#                      |
+#                      |______________________________ sets the log level for all
+#                                                      other crates to WARN.
 
 # Logging configuration for console logging
 [log.console]
@@ -69,16 +76,27 @@ log_format = "default" # Log format. "default" or "json"
 # levels can be "TRACE", "DEBUG", "INFO", "WARN", "ERROR", "OFF"
 # defaults to "WARN"
 level = "DEBUG"
+# sets the log level for one or more crates
+filtering_directive = "WARN,router=INFO,reqwest=INFO" 
+#                      ^^^^        ^^^^---------^^^^-- sets the log level for the
+#                      |                               router and reqwest crates to INFO.
+#                      |
+#                      |______________________________ sets the log level for all
+#                                                      other crates to WARN.
 
-# Telemetry configuration for traces
+# Telemetry configuration for metrics and traces
 [log.telemetry]
-enabled = false     # boolean [true or false]
-sampling_rate = 0.1 # decimal rate between 0.0 - 1.0
+enabled = false                                       # boolean [true or false]
+sampling_rate = 0.1                                   # decimal rate between 0.0 - 1.0
+otel_exporter_otlp_endpoint = "http://localhost:4317" # endpoint to send metrics and traces to, can include port number
+otel_exporter_otlp_timeout = 5000                     # timeout (in milliseconds) for sending metrics and traces
 
 # This section provides some secret values.
 [secrets]
-admin_api_key = "test_admin" # admin API key for admin authentication
-jwt_secret = "secret"        # JWT secret used for user authentication
+admin_api_key = "test_admin"     # admin API key for admin authentication. Only applicable when KMS is disabled.
+kms_encrypted_admin_api_key = "" # Base64-encoded (KMS encrypted) ciphertext of the admin_api_key. Only applicable when KMS is enabled.
+jwt_secret = "secret"            # JWT secret used for user authentication. Only applicable when KMS is disabled.
+kms_encrypted_jwt_secret = ""    # Base64-encoded (KMS encrypted) ciphertext of the jwt_secret. Only applicable when KMS is enabled.
 
 # Locker settings contain details for accessing a card locker, a
 # PCI Compliant storage entity which stores payment method information
@@ -133,14 +151,19 @@ bambora.base_url = "https://api.na.bambora.com"
 bluesnap.base_url = "https://sandbox.bluesnap.com/"
 braintree.base_url = "https://api.sandbox.braintreegateway.com/"
 checkout.base_url = "https://api.sandbox.checkout.com/"
+coinbase.base_url = "https://api.commerce.coinbase.com"
 cybersource.base_url = "https://apitest.cybersource.com/"
 dlocal.base_url = "https://sandbox.dlocal.com/"
 fiserv.base_url = "https://cert.api.fiservapps.com/"
+forte.base_url = "https://sandbox.forte.net/api/v3"
 globalpay.base_url = "https://apis.sandbox.globalpay.com/ucp/"
 klarna.base_url = "https://api-na.playground.klarna.com/"
 mollie.base_url = "https://api.mollie.com/v2/"
 multisafepay.base_url = "https://testapi.multisafepay.com/"
+nexinets.base_url = "https://apitest.payengine.de/v1"
 nuvei.base_url = "https://ppp-test.nuvei.com/"
+opennode.base_url = "https://dev-api.opennode.com"
+payeezy.base_url = "https://api-cert.payeezy.com/"
 paypal.base_url = "https://www.sandbox.paypal.com/" 
 payu.base_url = "https://secure.snd.payu.com/"
 rapyd.base_url = "https://sandboxapi.rapyd.net"
@@ -157,6 +180,7 @@ wallets = ["klarna", "braintree", "applepay"]
 cards = [
     "adyen",
     "authorizedotnet",
+    "coinbase",
     "braintree",
     "checkout",
     "cybersource",

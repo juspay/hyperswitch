@@ -3,7 +3,8 @@ use router_env::{instrument, tracing};
 
 use super::generics;
 use crate::{
-    payment_method::{PaymentMethod, PaymentMethodNew},
+    errors,
+    payment_method::{self, PaymentMethod, PaymentMethodNew},
     schema::payment_methods::dsl,
     PgPooledConn, StorageResult,
 };
@@ -96,5 +97,30 @@ impl PaymentMethod {
             None,
         )
         .await
+    }
+
+    pub async fn update_with_payment_method_id(
+        self,
+        conn: &PgPooledConn,
+        payment_method: payment_method::PaymentMethodUpdate,
+    ) -> StorageResult<Self> {
+        match generics::generic_update_with_unique_predicate_get_result::<
+            <Self as HasTable>::Table,
+            _,
+            _,
+            _,
+        >(
+            conn,
+            dsl::payment_method_id.eq(self.payment_method_id.to_owned()),
+            payment_method::PaymentMethodUpdateInternal::from(payment_method),
+        )
+        .await
+        {
+            Err(error) => match error.current_context() {
+                errors::DatabaseError::NoFieldsToUpdate => Ok(self),
+                _ => Err(error),
+            },
+            result => result,
+        }
     }
 }
