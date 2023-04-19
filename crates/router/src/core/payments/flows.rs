@@ -86,6 +86,7 @@ macro_rules! default_imp_for_complete_authorize{
 }
 
 default_imp_for_complete_authorize!(
+    connector::Bitpay,
     connector::Aci,
     connector::Adyen,
     connector::Applepay,
@@ -130,6 +131,7 @@ macro_rules! default_imp_for_connector_redirect_response{
 }
 
 default_imp_for_connector_redirect_response!(
+    connector::Bitpay,
     connector::Aci,
     connector::Adyen,
     connector::Applepay,
@@ -163,6 +165,7 @@ macro_rules! default_imp_for_connector_request_id{
 }
 
 default_imp_for_connector_request_id!(
+    connector::Bitpay,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,

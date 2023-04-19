@@ -5,6 +5,7 @@ mod adyen;
 mod airwallex;
 mod authorizedotnet;
 mod bambora;
+mod bitpay;
 mod bluesnap;
 mod checkout;
 mod coinbase;
