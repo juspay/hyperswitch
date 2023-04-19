@@ -1,4 +1,7 @@
-use common_utils::pii;
+use common_utils::{
+    crypto::{Encryptable, OptionalEncryptableName},
+    pii,
+};
 use masking::{Secret, StrongSecret};
 use serde::{Deserialize, Serialize};
 use url;
@@ -15,8 +18,8 @@ pub struct MerchantAccountCreate {
     pub merchant_id: String,
 
     /// Name of the Merchant Account
-    #[schema(example = "NewAge Retailer")]
-    pub merchant_name: Option<String>,
+    #[schema(value_type= Option<String>,example = "NewAge Retailer")]
+    pub merchant_name: Option<Secret<String>>,
 
     /// API key that will be used for server side API access
     #[schema(value_type = Option<String>, example = "Ah2354543543523")]
@@ -132,12 +135,12 @@ pub struct MerchantAccountResponse {
     pub merchant_id: String,
 
     /// Name of the Merchant Account
-    #[schema(example = "NewAge Retailer")]
-    pub merchant_name: Option<String>,
+    #[schema(value_type = Option<String>,example = "NewAge Retailer")]
+    pub merchant_name: OptionalEncryptableName,
 
     /// API key that will be used for server side API access
     #[schema(value_type = Option<String>, example = "Ah2354543543523")]
-    pub api_key: Option<StrongSecret<String>>,
+    pub api_key: OptionalEncryptableName,
 
     /// The URL to redirect after the completion of the operation
     #[schema(max_length = 255, example = "https://www.example.com/success")]
@@ -157,7 +160,7 @@ pub struct MerchantAccountResponse {
 
     /// Merchant related details
     #[schema(value_type = Option<MerchantDetails>)]
-    pub merchant_details: Option<serde_json::Value>,
+    pub merchant_details: Option<Encryptable<pii::SecretSerdeValue>>,
 
     /// Webhook related details
     #[schema(value_type = Option<WebhookDetails>)]

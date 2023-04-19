@@ -1,6 +1,6 @@
 use diesel::{backend::Backend, deserialize::FromSql, serialize::ToSql, sql_types, AsExpression};
 
-#[derive(Debug, AsExpression, Clone)]
+#[derive(Debug, AsExpression, Clone, serde::Serialize, serde::Deserialize)]
 #[diesel(sql_type = diesel::sql_types::Binary)]
 #[repr(transparent)]
 pub struct Encryption {

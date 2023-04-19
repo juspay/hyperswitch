@@ -212,8 +212,8 @@ diesel::table! {
         enable_payment_response_hash -> Bool,
         payment_response_hash_key -> Nullable<Varchar>,
         redirect_to_merchant_with_http_post -> Bool,
-        merchant_name -> Nullable<Text>,
-        merchant_details -> Nullable<Json>,
+        merchant_name -> Nullable<Binary>,
+        merchant_details -> Nullable<Binary>,
         webhook_details -> Nullable<Json>,
         sub_merchants_enabled -> Nullable<Bool>,
         parent_merchant_id -> Nullable<Varchar>,
@@ -222,7 +222,7 @@ diesel::table! {
         locker_id -> Nullable<Varchar>,
         metadata -> Nullable<Jsonb>,
         routing_algorithm -> Nullable<Json>,
-        api_key -> Nullable<Text>,
+        api_key -> Nullable<Binary>,
     }
 }
 
@@ -241,19 +241,6 @@ diesel::table! {
         payment_methods_enabled -> Nullable<Array<Nullable<Json>>>,
         connector_type -> ConnectorType,
         metadata -> Nullable<Jsonb>,
-    }
-}
-
-diesel::table! {
-    use diesel::sql_types::*;
-    use crate::enums::diesel_exports::*;
-
-    onboarding_data (id) {
-        id -> Int4,
-        user_id -> Varchar,
-        onboarding_step -> Int4,
-        created_at -> Timestamp,
-        last_modified -> Timestamp,
     }
 }
 
@@ -423,23 +410,6 @@ diesel::table! {
     }
 }
 
-diesel::table! {
-    use diesel::sql_types::*;
-    use crate::enums::diesel_exports::*;
-
-    users (id) {
-        id -> Int4,
-        user_id -> Varchar,
-        email -> Text,
-        name -> Varchar,
-        password -> Varchar,
-        merchant_id -> Nullable<Varchar>,
-        is_verified -> Bool,
-        created_at -> Timestamp,
-        last_modified -> Timestamp,
-    }
-}
-
 diesel::allow_tables_to_appear_in_same_query!(
     address,
     api_keys,
@@ -453,12 +423,10 @@ diesel::allow_tables_to_appear_in_same_query!(
     mandate,
     merchant_account,
     merchant_connector_account,
-    onboarding_data,
     payment_attempt,
     payment_intent,
     payment_methods,
     process_tracker,
     refund,
     reverse_lookup,
-    users,
 );

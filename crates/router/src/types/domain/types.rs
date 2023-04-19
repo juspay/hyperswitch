@@ -61,6 +61,41 @@ impl<
     }
 }
 
+#[async_trait]
+impl<
+        V: crypto::DecodeMessage + crypto::EncodeMessage + Send + 'static,
+        S: masking::Strategy<serde_json::Value> + Send,
+    > TypeEncryption<serde_json::Value, V, S>
+    for crypto::Encryptable<Secret<serde_json::Value, S>>
+{
+    async fn encrypt(
+        masked_data: Secret<serde_json::Value, S>,
+        key: &[u8],
+        crypt_algo: V,
+    ) -> CustomResult<Self, errors::CryptoError> {
+        let data = serde_json::to_vec(&masked_data.peek())
+            .into_report()
+            .change_context(errors::CryptoError::DecodingFailed)?;
+        let encrypted_data = crypt_algo.encode_message(key, &data)?;
+
+        Ok(Self::new(masked_data, encrypted_data))
+    }
+
+    async fn decrypt(
+        encrypted_data: Encryption,
+        key: &[u8],
+        crypt_algo: V,
+    ) -> CustomResult<Self, errors::CryptoError> {
+        let encrypted = encrypted_data.into_inner();
+        let decrypted_data = crypt_algo.decode_message(key, encrypted.clone())?;
+        let value: serde_json::Value = serde_json::from_slice(&decrypted_data)
+            .into_report()
+            .change_context(errors::CryptoError::DecodingFailed)?;
+
+        Ok(Self::new(value.into(), encrypted))
+    }
+}
+
 pub async fn get_key_and_algo(
     _db: &dyn crate::db::StorageInterface,
     _merchant_id: String,
