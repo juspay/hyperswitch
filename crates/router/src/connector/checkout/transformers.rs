@@ -683,11 +683,15 @@ pub fn is_refund_event(event_code: &CheckoutTxnType) -> bool {
 pub fn is_chargeback_event(event_code: &CheckoutTxnType) -> bool {
     matches!(
         event_code,
-        CheckoutTxnType::DisputeAccepted
+        CheckoutTxnType::DisputeReceived
+            | CheckoutTxnType::DisputeExpired
+            | CheckoutTxnType::DisputeAccepted
             | CheckoutTxnType::DisputeCanceled
             | CheckoutTxnType::DisputeEvidenceSubmitted
-            | CheckoutTxnType::DisputeReceived
-            | CheckoutTxnType::DisputeExpired
+            | CheckoutTxnType::DisputeEvidenceAcknowledgedByScheme
+            | CheckoutTxnType::DisputeEvidenceRequired
+            | CheckoutTxnType::DisputeArbitrationLost
+            | CheckoutTxnType::DisputeArbitrationWon
             | CheckoutTxnType::DisputeWon
             | CheckoutTxnType::DisputeLost
     )
@@ -698,14 +702,20 @@ pub struct CheckoutWebhookData {
     pub id: String,
     pub payment_id: Option<String>,
     pub action_id: Option<String>,
+    pub amount: i32,
+    pub currency: String,
+    pub evidence_required_by: Option<String>,
+    pub reason_code: Option<String>,
+    pub date: Option<String>,
 }
 #[derive(Debug, Deserialize)]
 pub struct CheckoutWebhookBody {
     #[serde(rename = "type")]
     pub txn_type: CheckoutTxnType,
     pub data: CheckoutWebhookData,
+    pub created_on: Option<String>,
 }
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, strum::Display, Clone)]
 #[serde(rename_all = "snake_case")]
 pub enum CheckoutTxnType {
     PaymentApproved,
@@ -717,6 +727,10 @@ pub enum CheckoutTxnType {
     DisputeAccepted,
     DisputeCanceled,
     DisputeEvidenceSubmitted,
+    DisputeEvidenceAcknowledgedByScheme,
+    DisputeEvidenceRequired,
+    DisputeArbitrationLost,
+    DisputeArbitrationWon,
     DisputeWon,
     DisputeLost,
 }
@@ -728,13 +742,31 @@ impl From<CheckoutTxnType> for api::IncomingWebhookEvent {
             CheckoutTxnType::PaymentDeclined => Self::PaymentIntentSuccess,
             CheckoutTxnType::PaymentRefunded => Self::RefundSuccess,
             CheckoutTxnType::PaymentRefundDeclined => Self::RefundFailure,
-            CheckoutTxnType::DisputeReceived => Self::DisputeOpened,
+            CheckoutTxnType::DisputeReceived | CheckoutTxnType::DisputeEvidenceRequired => {
+                Self::DisputeOpened
+            }
             CheckoutTxnType::DisputeExpired => Self::DisputeExpired,
             CheckoutTxnType::DisputeAccepted => Self::DisputeAccepted,
             CheckoutTxnType::DisputeCanceled => Self::DisputeCancelled,
-            CheckoutTxnType::DisputeEvidenceSubmitted => Self::DisputeChallenged,
-            CheckoutTxnType::DisputeWon => Self::DisputeWon,
-            CheckoutTxnType::DisputeLost => Self::DisputeLost,
+            CheckoutTxnType::DisputeEvidenceSubmitted
+            | CheckoutTxnType::DisputeEvidenceAcknowledgedByScheme => Self::DisputeChallenged,
+            CheckoutTxnType::DisputeWon | CheckoutTxnType::DisputeArbitrationWon => {
+                Self::DisputeWon
+            }
+            CheckoutTxnType::DisputeLost | CheckoutTxnType::DisputeArbitrationLost => {
+                Self::DisputeLost
+            }
+        }
+    }
+}
+
+impl From<CheckoutTxnType> for api_models::enums::DisputeStage {
+    fn from(code: CheckoutTxnType) -> Self {
+        match code {
+            CheckoutTxnType::DisputeArbitrationLost | CheckoutTxnType::DisputeArbitrationWon => {
+                Self::PreArbitration
+            }
+            _ => Self::Dispute,
         }
     }
 }

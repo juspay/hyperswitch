@@ -792,6 +792,28 @@ impl api::IncomingWebhook for Checkout {
 
         Ok(details.data)
     }
+
+    fn get_dispute_details(
+        &self,
+        request: &api::IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<api::disputes::DisputePayload, errors::ConnectorError> {
+        let dispute_details: checkout::CheckoutWebhookBody = request
+            .body
+            .parse_struct("CheckoutWebhookBody")
+            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+        Ok(api::disputes::DisputePayload {
+            amount: dispute_details.data.amount.to_string(),
+            currency: dispute_details.data.currency,
+            dispute_stage: api_models::enums::DisputeStage::from(dispute_details.txn_type.clone()),
+            connector_dispute_id: dispute_details.data.id,
+            connector_reason: None,
+            connector_reason_code: dispute_details.data.reason_code,
+            challenge_required_by: dispute_details.data.evidence_required_by,
+            connector_status: dispute_details.txn_type.to_string(),
+            created_at: dispute_details.created_on,
+            updated_at: dispute_details.data.date,
+        })
+    }
 }
 
 impl services::ConnectorRedirectResponse for Checkout {
