@@ -162,7 +162,9 @@ impl ForeignTryFrom<api_enums::IntentStatus> for storage_enums::EventType {
         match value {
             api_enums::IntentStatus::Succeeded => Ok(Self::PaymentSucceeded),
             api_enums::IntentStatus::Processing => Ok(Self::PaymentProcessing),
-            api_enums::IntentStatus::RequiresMerchantAction => Ok(Self::ActionRequired),
+            api_enums::IntentStatus::RequiresMerchantAction => Ok(Self::MerchantActionRequired),
+            api_enums::IntentStatus::RequiresCustomerAction => Ok(Self::CustomerActionRequired),
+            api_enums::IntentStatus::Failed => Ok(Self::PaymentFailed),
             _ => Err(errors::ValidationError::IncorrectValueProvided {
                 field_name: "intent_status",
             }),
