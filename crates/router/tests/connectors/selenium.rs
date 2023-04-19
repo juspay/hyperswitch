@@ -128,9 +128,9 @@ pub trait SeleniumTest {
                     Trigger::Goto(url) => {
                         driver.goto(url).await?;
                         let hs_base_url =
-                            env::var("HS_BASE_URL").unwrap_or("http://localhost:8080".to_string());
+                            env::var("HS_BASE_URL").unwrap_or("http://localhost:8080".to_string()); //Issue: #924
                         let hs_api_key =
-                            env::var("HS_API_KEY").expect("Hyperswitch user API key not present");
+                            env::var("HS_API_KEY").expect("Hyperswitch user API key not present"); //Issue: #924
                         driver
                             .add_cookie(new_cookie("hs_base_url", hs_base_url).clone())
                             .await?;
@@ -209,7 +209,7 @@ pub trait SeleniumTest {
         F: FnOnce(WebDriver) -> Fut + Send,
         Fut: Future<Output = Result<(), WebDriverError>> + Send,
     {
-        let _browser = env::var("HS_TEST_BROWSER").unwrap_or("chrome".to_string());
+        let _browser = env::var("HS_TEST_BROWSER").unwrap_or("chrome".to_string()); //Issue: #924
         Ok(())
     }
     async fn make_redirection_payment(
@@ -321,13 +321,13 @@ fn new_cookie(name: &str, value: String) -> Cookie<'_> {
 
 #[macro_export]
 macro_rules! tester_inner {
-    ($f:ident, $connector:expr) => {{
+    ($execute:ident, $webdriver:expr) => {{
         use std::{
             sync::{Arc, Mutex},
             thread,
         };
 
-        let c = $connector;
+        let driver = $webdriver;
 
         // we'll need the session_id from the thread
         // NOTE: even if it panics, so can't just return it
@@ -336,20 +336,22 @@ macro_rules! tester_inner {
         // run test in its own thread to catch panics
         let sid = session_id.clone();
         let res = thread::spawn(move || {
-            let rt = tokio::runtime::Builder::new_current_thread()
+            let runtime = tokio::runtime::Builder::new_current_thread()
                 .enable_all()
                 .build()
                 .unwrap();
-            let c = rt.block_on(c).expect("failed to construct test WebDriver");
-            *sid.lock().unwrap() = rt.block_on(c.session_id()).ok();
+            let driver = runtime
+                .block_on(driver)
+                .expect("failed to construct test WebDriver");
+            *sid.lock().unwrap() = runtime.block_on(driver.session_id()).ok();
             // make sure we close, even if an assertion fails
-            let client = c.clone();
-            let x = rt.block_on(async move {
-                let r = tokio::spawn($f(c)).await;
+            let client = driver.clone();
+            let x = runtime.block_on(async move {
+                let r = tokio::spawn($execute(driver)).await;
                 let _ = client.quit().await;
                 r
             });
-            drop(rt);
+            drop(runtime);
             x.expect("test panicked")
         })
         .join();
@@ -395,6 +397,7 @@ pub fn make_capabilities(s: &str) -> Capabilities {
 }
 fn get_chrome_profile_path() -> Result<String, WebDriverError> {
     env::var("CHROME_PROFILE_PATH").map_or_else(
+        //Issue: #924
         |_| -> Result<String, WebDriverError> {
             let exe = env::current_exe()?;
             let dir = exe.parent().expect("Executable must be in some directory");
@@ -414,6 +417,7 @@ fn get_chrome_profile_path() -> Result<String, WebDriverError> {
 }
 fn get_firefox_profile_path() -> Result<String, WebDriverError> {
     env::var("FIREFOX_PROFILE_PATH").map_or_else(
+        //Issue: #924
         |_| -> Result<String, WebDriverError> {
             let exe = env::current_exe()?;
             let dir = exe.parent().expect("Executable must be in some directory");
@@ -461,5 +465,5 @@ pub fn handle_test_error(
 }
 
 pub fn get_env(name: &str) -> String {
-    env::var(name).unwrap_or_else(|_| panic!("{name} not present"))
+    env::var(name).unwrap_or_else(|_| panic!("{name} not present")) //Issue: #924
 }
