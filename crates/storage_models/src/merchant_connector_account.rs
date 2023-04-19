@@ -32,6 +32,8 @@ pub struct MerchantConnectorAccount {
     pub business_country: storage_enums::CountryCode,
     pub business_label: String,
     pub business_sub_label: Option<String>,
+    pub created_at: time::PrimitiveDateTime,
+    pub modified_at: time::PrimitiveDateTime,
 }
 
 #[derive(Clone, Debug, Default, Insertable, router_derive::DebugAsDisplay)]
@@ -76,6 +78,7 @@ pub struct MerchantConnectorAccountUpdateInternal {
     merchant_connector_id: Option<String>,
     payment_methods_enabled: Option<Vec<serde_json::Value>>,
     metadata: Option<pii::SecretSerdeValue>,
+    modified_at: Option<time::PrimitiveDateTime>,
 }
 
 impl From<MerchantConnectorAccountUpdate> for MerchantConnectorAccountUpdateInternal {
@@ -99,6 +102,7 @@ impl From<MerchantConnectorAccountUpdate> for MerchantConnectorAccountUpdateInte
                 merchant_connector_id,
                 payment_methods_enabled,
                 metadata,
+                modified_at: Some(common_utils::date_time::now()),
             },
         }
     }
