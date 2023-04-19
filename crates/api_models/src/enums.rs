@@ -576,10 +576,12 @@ pub enum Connector {
     Bambora,
     Dlocal,
     Fiserv,
+    //Forte,
     Globalpay,
     Klarna,
     Mollie,
     Multisafepay,
+    // Nexinets, added as template code for future use
     Nuvei,
     // Payeezy, As psync and rsync are not supported by this connector, it is added as template code for future usage
     Paypal,
@@ -632,10 +634,12 @@ pub enum RoutableConnectors {
     Cybersource,
     Dlocal,
     Fiserv,
+    //Forte,
     Globalpay,
     Klarna,
     Mollie,
     Multisafepay,
+    // Nexinets, added as template code for future use
     Nuvei,
     Opennode,
     // Payeezy, As psync and rsync are not supported by this connector, it is added as template code for future usage
@@ -842,6 +846,40 @@ pub enum DisputeStatus {
     DisputeLost,
 }
 
+#[derive(
+    Clone,
+    Debug,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    frunk::LabelledGeneric,
+    ToSchema,
+)]
+#[strum(serialize_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
+pub enum FrmAction {
+    CancelTxn,
+    AutoRefund,
+    ManualReview,
+}
+
+#[derive(
+    Clone,
+    Debug,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    frunk::LabelledGeneric,
+    ToSchema,
+)]
+#[strum(serialize_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
+pub enum FrmPreferredFlowTypes {
+    Pre,
+    Post,
+}
 #[derive(Debug, Eq, PartialEq, Clone, serde::Serialize, serde::Deserialize)]
 pub struct UnresolvedResponseReason {
     pub code: String,
