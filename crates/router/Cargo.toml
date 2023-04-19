@@ -10,7 +10,7 @@ license = "Apache-2.0"
 build = "src/build.rs"
 
 [features]
-default = ["kv_store", "stripe", "oltp", "olap", "accounts_cache"]
+default = ["kv_store", "stripe", "oltp", "olap", "accounts_cache", "pii-encryption-script"]
 kms = ["external_services/kms"]
 basilisk = ["kms"]
 stripe = ["dep:serde_qs"]
@@ -23,6 +23,7 @@ accounts_cache = []
 openapi = ["olap", "oltp"]
 vergen = ["router_env/vergen"]
 multiple_mca = ["api_models/multiple_mca"]
+pii-encryption-script = []
 
 
 [dependencies]

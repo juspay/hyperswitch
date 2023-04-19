@@ -34,6 +34,8 @@ pub enum Subcommand {
     #[cfg(feature = "openapi")]
     /// Generate the OpenAPI specification file from code.
     GenerateOpenapiSpec,
+    #[cfg(feature = "pii-encryption-script")]
+    EncryptDatabase
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
