@@ -68,10 +68,12 @@ coinbase.base_url = "https://api.commerce.coinbase.com"
 cybersource.base_url = "https://apitest.cybersource.com/"
 dlocal.base_url = "https://sandbox.dlocal.com/"
 fiserv.base_url = "https://cert.api.fiservapps.com/"
+forte.base_url = "https://sandbox.forte.net/api/v3"
 globalpay.base_url = "https://apis.sandbox.globalpay.com/ucp/"
 klarna.base_url = "https://api-na.playground.klarna.com/"
 mollie.base_url = "https://api.mollie.com/v2/"
 multisafepay.base_url = "https://testapi.multisafepay.com/"
+nexinets.base_url = "https://apitest.payengine.de/v1"
 nuvei.base_url = "https://ppp-test.nuvei.com/"
 opennode.base_url = "https://dev-api.opennode.com"
 payeezy.base_url = "https://api-cert.payeezy.com/"
@@ -100,9 +102,11 @@ cards = [
     "cybersource",
     "dlocal",
     "fiserv",
+    "forte",
     "globalpay",
     "mollie",
     "multisafepay",
+    "nexinets",
     "nuvei",
     "opennode",
     "payeezy",

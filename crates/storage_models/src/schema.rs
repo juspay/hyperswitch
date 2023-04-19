@@ -200,6 +200,9 @@ diesel::table! {
         amount_captured -> Nullable<Int8>,
         connector -> Varchar,
         connector_mandate_id -> Nullable<Varchar>,
+        start_date -> Nullable<Timestamp>,
+        end_date -> Nullable<Timestamp>,
+        metadata -> Nullable<Jsonb>,
     }
 }
 
@@ -246,6 +249,7 @@ diesel::table! {
         payment_methods_enabled -> Nullable<Array<Nullable<Json>>>,
         connector_type -> ConnectorType,
         metadata -> Nullable<Jsonb>,
+        frm_configs -> Nullable<Jsonb>,
         connector_label -> Varchar,
         business_country -> CountryCode,
         business_label -> Varchar,
