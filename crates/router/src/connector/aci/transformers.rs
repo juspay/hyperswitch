@@ -340,29 +340,18 @@ impl<F, T>
     fn try_from(
         item: types::ResponseRouterData<F, AciPaymentsResponse, T, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
-        // let redirection_data = item.response.redirect.map(|data| services::RedirectForm {
-        //     endpoint: todo!(),
-        //     method: todo!(),
-        //     form_fields: todo!(),
-        // });
-
         let redirection_data = item.response.redirect.map(|data| {
-            let mut params = item.response.redirect.as_ref().map(|data| {
+            let form_fields = std::collections::HashMap::<_, _>::from_iter(
                 data.parameters
                     .iter()
-                    .map(|val| (format!("&{}={}", val.name, val.value)))
-            });
-            let endpoint = data.url.set_query(params);
-            let method = method_data(data.clone());
-            let form_fields = data
-                .parameters
-                .into_iter()
-                .map(|param| (param.name, param.value))
-                .collect();
+                    .map(|parameter| (parameter.clone().name, parameter.clone().value)),
+            );
+
+            let link = data.clone().url;
 
             services::RedirectForm {
-                endpoint,
-                method,
+                endpoint: link.to_string(),
+                method: method_data(data),
                 form_fields,
             }
         });
