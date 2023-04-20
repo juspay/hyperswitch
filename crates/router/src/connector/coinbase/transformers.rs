@@ -80,6 +80,7 @@ impl From<CoinbasePaymentStatus> for enums::AttemptStatus {
             CoinbasePaymentStatus::Expired => Self::Failure,
             CoinbasePaymentStatus::New => Self::AuthenticationPending,
             CoinbasePaymentStatus::Unresolved => Self::Unresolved,
+            CoinbasePaymentStatus::Canceled => Self::Voided,
             _ => Self::Pending,
         }
     }
