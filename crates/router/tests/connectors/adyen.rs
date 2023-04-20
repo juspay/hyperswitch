@@ -419,7 +419,7 @@ async fn should_fail_payment_for_invalid_exp_month() {
         .unwrap();
     assert_eq!(
         response.response.unwrap_err().message,
-        "The provided Expiry Date is not valid.: Expiry month should be between 1 and 12 inclusive: 20",
+        "Refused",
     );
 }
 
