@@ -6,9 +6,9 @@ pub mod diesel_exports {
         DbCountryCode as CountryCode, DbCurrency as Currency, DbDisputeStage as DisputeStage,
         DbDisputeStatus as DisputeStatus, DbEventClass as EventClass,
         DbEventObjectType as EventObjectType, DbEventType as EventType,
-        DbFileUploadProvider as FileUploadProvider, DbFutureUsage as FutureUsage,
-        DbIntentStatus as IntentStatus, DbMandateStatus as MandateStatus,
-        DbMandateType as MandateType, DbMerchantStorageScheme as MerchantStorageScheme,
+        DbFutureUsage as FutureUsage, DbIntentStatus as IntentStatus,
+        DbMandateStatus as MandateStatus, DbMandateType as MandateType,
+        DbMerchantStorageScheme as MerchantStorageScheme,
         DbPaymentMethodIssuerCode as PaymentMethodIssuerCode,
         DbProcessTrackerStatus as ProcessTrackerStatus, DbRefundStatus as RefundStatus,
         DbRefundType as RefundType,
@@ -775,26 +775,4 @@ pub enum DisputeStatus {
     DisputeChallenged,
     DisputeWon,
     DisputeLost,
-}
-
-#[derive(
-    Clone,
-    Copy,
-    Debug,
-    Eq,
-    PartialEq,
-    Default,
-    serde::Deserialize,
-    serde::Serialize,
-    strum::Display,
-    strum::EnumString,
-    frunk::LabelledGeneric,
-)]
-#[router_derive::diesel_enum(storage_type = "pg_enum")]
-#[serde(rename_all = "snake_case")]
-#[strum(serialize_all = "snake_case")]
-pub enum FileUploadProvider {
-    #[default]
-    Hyperswitch,
-    Stripe,
 }

@@ -1,1 +1,1 @@
-pub use storage_models::file::{File, FileNew};
+pub use storage_models::file::{FileMetadata, FileMetadataNew};

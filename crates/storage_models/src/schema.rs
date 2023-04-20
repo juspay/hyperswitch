@@ -165,7 +165,7 @@ diesel::table! {
         file_size -> Int4,
         file_type -> Varchar,
         provider_file_id -> Varchar,
-        file_upload_provider -> FileUploadProvider,
+        file_upload_provider -> Varchar,
         available -> Bool,
         created_at -> Timestamp,
     }

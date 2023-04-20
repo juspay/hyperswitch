@@ -1,6 +1,4 @@
 -- Your SQL goes here
-CREATE TYPE "FileUploadProvider" AS ENUM ('hyperswitch', 'stripe');
-
 CREATE TABLE file_metadata (
     id SERIAL PRIMARY KEY,
     file_id VARCHAR(64) NOT NULL,
@@ -9,7 +7,7 @@ CREATE TABLE file_metadata (
     file_size INTEGER NOT NULL,
     file_type VARCHAR(255) NOT NULL,
     provider_file_id VARCHAR(255) NOT NULL,
-    file_upload_provider "FileUploadProvider" NOT NULL,
+    file_upload_provider VARCHAR(255) NOT NULL,
     available BOOLEAN NOT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT now()::TIMESTAMP
 );

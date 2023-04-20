@@ -11,14 +11,14 @@ use crate::{
 pub trait FileMetadataInterface {
     async fn insert_file_metadata(
         &self,
-        file: storage::FileNew,
-    ) -> CustomResult<storage::File, errors::StorageError>;
+        file: storage::FileMetadataNew,
+    ) -> CustomResult<storage::FileMetadata, errors::StorageError>;
 
     async fn find_file_metadata_by_merchant_id_file_id(
         &self,
         merchant_id: &str,
         file_id: &str,
-    ) -> CustomResult<storage::File, errors::StorageError>;
+    ) -> CustomResult<storage::FileMetadata, errors::StorageError>;
 
     async fn delete_file_metadata_by_merchant_id_file_id(
         &self,
@@ -31,8 +31,8 @@ pub trait FileMetadataInterface {
 impl FileMetadataInterface for Store {
     async fn insert_file_metadata(
         &self,
-        file: storage::FileNew,
-    ) -> CustomResult<storage::File, errors::StorageError> {
+        file: storage::FileMetadataNew,
+    ) -> CustomResult<storage::FileMetadata, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
         file.insert(&conn).await.map_err(Into::into).into_report()
     }
@@ -41,9 +41,9 @@ impl FileMetadataInterface for Store {
         &self,
         merchant_id: &str,
         file_id: &str,
-    ) -> CustomResult<storage::File, errors::StorageError> {
+    ) -> CustomResult<storage::FileMetadata, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
-        storage::File::find_by_merchant_id_file_id(&conn, merchant_id, file_id)
+        storage::FileMetadata::find_by_merchant_id_file_id(&conn, merchant_id, file_id)
             .await
             .map_err(Into::into)
             .into_report()
@@ -55,7 +55,7 @@ impl FileMetadataInterface for Store {
         file_id: &str,
     ) -> CustomResult<bool, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
-        storage::File::delete_by_merchant_id_file_id(&conn, merchant_id, file_id)
+        storage::FileMetadata::delete_by_merchant_id_file_id(&conn, merchant_id, file_id)
             .await
             .map_err(Into::into)
             .into_report()
@@ -66,8 +66,8 @@ impl FileMetadataInterface for Store {
 impl FileMetadataInterface for MockDb {
     async fn insert_file_metadata(
         &self,
-        _file: storage::FileNew,
-    ) -> CustomResult<storage::File, errors::StorageError> {
+        _file: storage::FileMetadataNew,
+    ) -> CustomResult<storage::FileMetadata, errors::StorageError> {
         // TODO: Implement function for `MockDb`
         Err(errors::StorageError::MockDbError)?
     }
@@ -76,7 +76,7 @@ impl FileMetadataInterface for MockDb {
         &self,
         _merchant_id: &str,
         _file_id: &str,
-    ) -> CustomResult<storage::File, errors::StorageError> {
+    ) -> CustomResult<storage::FileMetadata, errors::StorageError> {
         // TODO: Implement function for `MockDb`
         Err(errors::StorageError::MockDbError)?
     }

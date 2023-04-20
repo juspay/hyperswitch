@@ -8,7 +8,7 @@ pub struct FileId {
     pub file_id: String,
 }
 
-#[derive(Debug, Clone, frunk::LabelledGeneric)]
+#[derive(Debug, Clone, frunk::LabelledGeneric, strum::Display)]
 pub enum FileUploadProvider {
     Hyperswitch,
     Stripe,
@@ -52,7 +52,6 @@ pub trait UploadFile:
 {
 }
 
-#[async_trait::async_trait]
 pub trait FileUpload: ConnectorCommon + Sync + UploadFile {
     fn validate_file_upload(
         &self,

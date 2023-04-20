@@ -115,8 +115,8 @@ pub async fn delete_file_using_file_id(
         .find_file_metadata_by_merchant_id_file_id(&merchant_account.merchant_id, &file_key)
         .await
         .change_context(errors::ApiErrorResponse::FileNotFound)?;
-    match file_metadata_object.file_upload_provider {
-        storage_models::enums::FileUploadProvider::Hyperswitch => {
+    match file_metadata_object.file_upload_provider.as_ref() {
+        "Hyperswitch" => {
             delete_file(
                 #[cfg(feature = "s3")]
                 state,
@@ -144,8 +144,8 @@ pub async fn retrieve_file_and_provider_file_id_from_file_id(
                 .find_file_metadata_by_merchant_id_file_id(&merchant_account.merchant_id, &file_key)
                 .await
                 .change_context(errors::ApiErrorResponse::FileNotFound)?;
-            match file_metadata_object.file_upload_provider {
-                storage_models::enums::FileUploadProvider::Hyperswitch => Ok((
+            match file_metadata_object.file_upload_provider.as_ref() {
+                "Hyperswitch" => Ok((
                     Some(
                         retrieve_file(
                             #[cfg(feature = "s3")]

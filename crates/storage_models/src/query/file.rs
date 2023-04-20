@@ -3,19 +3,19 @@ use router_env::{instrument, tracing};
 
 use super::generics;
 use crate::{
-    file::{File, FileNew},
+    file::{FileMetadata, FileMetadataNew},
     schema::file_metadata::dsl,
     PgPooledConn, StorageResult,
 };
 
-impl FileNew {
+impl FileMetadataNew {
     #[instrument(skip(conn))]
-    pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<File> {
+    pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<FileMetadata> {
         generics::generic_insert(conn, self).await
     }
 }
 
-impl File {
+impl FileMetadata {
     #[instrument(skip(conn))]
     pub async fn find_by_merchant_id_file_id(
         conn: &PgPooledConn,

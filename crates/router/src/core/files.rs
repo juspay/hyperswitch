@@ -13,7 +13,7 @@ use crate::{
     consts,
     routes::AppState,
     services::{self, ApplicationResponse},
-    types::{api, storage, transformers::ForeignInto},
+    types::{api, storage},
 };
 
 pub async fn files_create_core(
@@ -38,14 +38,14 @@ pub async fn files_create_core(
             file_key.clone(),
         )
         .await?;
-    let file_new = storage_models::file::FileNew {
+    let file_new = storage_models::file::FileMetadataNew {
         file_id: file_id.clone(),
         merchant_id: merchant_account.merchant_id,
         file_name: create_file_request.file_name,
         file_size: create_file_request.file_size,
         file_type: create_file_request.file_type.to_string(),
         provider_file_id,
-        file_upload_provider: file_upload_provider.foreign_into(),
+        file_upload_provider: file_upload_provider.to_string(),
         available: true,
     };
     state
