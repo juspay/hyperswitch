@@ -11,7 +11,7 @@ use crate::{
         payments::{self, access_token, helpers, transformers, PaymentData},
     },
     logger,
-    routes::{AppState},
+    routes::AppState,
     services,
     types::{
         self,
@@ -98,15 +98,15 @@ impl types::VerifyRouterData {
                 )
                 .await
                 .map_err(|err| err.to_verify_failed_response())?;
-            let pm_id = save_payment_method(
-                state,
-                connector,
-                resp.to_owned(),
-                maybe_customer,
-                merchant_account,
-            )
-            .await?;
-                Ok(mandate::mandate_procedure(state, resp, maybe_customer,pm_id).await?)
+                let pm_id = save_payment_method(
+                    state,
+                    connector,
+                    resp.to_owned(),
+                    maybe_customer,
+                    merchant_account,
+                )
+                .await?;
+                Ok(mandate::mandate_procedure(state, resp, maybe_customer, pm_id).await?)
             }
             _ => Ok(self.clone()),
         }
@@ -138,8 +138,6 @@ impl mandate::MandateBehaviour for types::VerifyRequestData {
         self.setup_mandate_details.as_ref()
     }
 }
-
-
 
 pub async fn add_payment_method_token<F: Clone>(
     state: &AppState,

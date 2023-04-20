@@ -1,16 +1,17 @@
-use api_models::{payments};
+use api_models::payments;
+use common_utils::{date_time, ext_traits::StringExt};
+use error_stack::ResultExt;
 use router_env::logger;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use common_utils::{date_time,  ext_traits::StringExt};
-use error_stack::{ResultExt};
+
 use crate::{
     compatibility::stripe::{payment_intents::types::Charges, refunds::types as stripe_refunds},
     consts,
     core::errors,
     pii::{self, PeekInterface},
     types::{
-        api::{self as api_types, enums as api_enums, admin},
+        api::{self as api_types, admin, enums as api_enums},
         transformers::{ForeignFrom, ForeignInto},
     },
 };
@@ -124,7 +125,6 @@ pub enum StripePaymentMethodOptions {
     },
 }
 
-
 #[derive(Default, Eq, PartialEq, Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "snake_case")]
 pub enum Request3DS {
@@ -152,9 +152,9 @@ pub struct MandateOption {
 }
 
 impl From<MandateOption> for payments::MandateData {
-    fn from(mandate_options: MandateOption) -> payments::MandateData {
+    fn from(mandate_options: MandateOption) -> Self {
         Self {
-            mandate_type:payments::MandateType::MultiUse(None),
+            mandate_type: payments::MandateType::MultiUse(None),
             customer_acceptance: payments::CustomerAcceptance {
                 acceptance_type: payments::AcceptanceType::Online,
                 accepted_at: mandate_options.accepted_at,
@@ -184,7 +184,7 @@ pub struct StripeSetupIntentRequest {
     pub statement_descriptor_suffix: Option<String>,
     pub metadata: Option<api_models::payments::Metadata>,
     pub client_secret: Option<pii::Secret<String>>,
-    pub payment_method_options : Option<StripePaymentMethodOptions>,
+    pub payment_method_options: Option<StripePaymentMethodOptions>,
     pub payment_method: Option<String>,
     pub merchant_connector_details: Option<admin::MerchantConnectorDetailsWrap>,
 }
@@ -198,7 +198,10 @@ impl TryFrom<StripeSetupIntentRequest> for payments::PaymentsRequest {
                     request_three_d_secure,
                     mandate_options,
                 }: StripePaymentMethodOptions = pmo;
-                (mandate_options.map(|mandate|payments::MandateData::from(mandate)), Some(request_three_d_secure.foreign_into()))
+                (
+                    mandate_options.map(payments::MandateData::from),
+                    Some(request_three_d_secure.foreign_into()),
+                )
             }
             None => (None, None),
         };
@@ -247,14 +250,8 @@ impl TryFrom<StripeSetupIntentRequest> for payments::PaymentsRequest {
             client_secret: item.client_secret.map(|s| s.peek().clone()),
             setup_future_usage: item.setup_future_usage,
             merchant_connector_details: item.merchant_connector_details,
-            // mandate_data: item.payment_method_options.map(|pmo| {
-            //     let StripePaymentMethodOptions::Card {
-            //         mandate_options,
-            //     } = pmo;
-            //     mandate_options.map(|mandate| (payments::MandateData::from(mandate)))
-            // }).unwrap_or_default(),
             authentication_type,
-            mandate_data:mandate_options,
+            mandate_data: mandate_options,
             ..Default::default()
         });
         request
@@ -360,11 +357,11 @@ pub struct StripeSetupIntentResponse {
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
     pub created: Option<time::PrimitiveDateTime>,
     pub customer: Option<String>,
-    pub refunds:  Option<Vec<stripe_refunds::StripeRefundResponse>>,
+    pub refunds: Option<Vec<stripe_refunds::StripeRefundResponse>>,
     pub mandate_id: Option<String>,
     pub next_action: Option<StripeNextAction>,
     pub last_payment_error: Option<LastPaymentError>,
-    pub charges: Charges
+    pub charges: Charges,
 }
 
 #[derive(Default, Eq, PartialEq, Serialize)]
@@ -391,7 +388,6 @@ pub struct StripePaymentMethod {
     livemode: bool,
 }
 
-
 impl From<payments::PaymentsResponse> for StripeSetupIntentResponse {
     fn from(resp: payments::PaymentsResponse) -> Self {
         Self {
@@ -403,29 +399,31 @@ impl From<payments::PaymentsResponse> for StripeSetupIntentResponse {
             customer: resp.customer_id,
             id: resp.payment_id,
             refunds: resp
-                     .refunds
-                     .map(|a| a.into_iter().map(Into::into).collect()),
+                .refunds
+                .map(|a| a.into_iter().map(Into::into).collect()),
             mandate_id: resp.mandate_id,
             next_action: into_stripe_next_action(resp.next_action, resp.return_url),
-            last_payment_error: resp.error_code.map(|code| -> LastPaymentError {LastPaymentError {
-                charge: None,
-                code: Some(code.to_owned()),
-                decline_code: None,
-                message: resp
-                    .error_message
-                    .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-                param: None,
-                payment_method: StripePaymentMethod {
-                    payment_method_id: "place_holder_id".to_string(),
-                    object: "payment_method",
-                    card: None,
-                    created: u64::try_from(date_time::now().assume_utc().unix_timestamp())
-                        .unwrap_or_default(),
-                    method_type: "card".to_string(),
-                    livemode: false,
-                },
-                error_type: code,
-            }})
+            last_payment_error: resp.error_code.map(|code| -> LastPaymentError {
+                LastPaymentError {
+                    charge: None,
+                    code: Some(code.to_owned()),
+                    decline_code: None,
+                    message: resp
+                        .error_message
+                        .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
+                    param: None,
+                    payment_method: StripePaymentMethod {
+                        payment_method_id: "place_holder_id".to_string(),
+                        object: "payment_method",
+                        card: None,
+                        created: u64::try_from(date_time::now().assume_utc().unix_timestamp())
+                            .unwrap_or_default(),
+                        method_type: "card".to_string(),
+                        livemode: false,
+                    },
+                    error_type: code,
+                }
+            }),
         }
     }
 }

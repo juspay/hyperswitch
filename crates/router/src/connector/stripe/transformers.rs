@@ -743,11 +743,12 @@ impl TryFrom<&types::VerifyRouterData> for SetupIntentRequest {
             payment_data,
             off_session: item.request.off_session,
             usage: item.request.setup_future_usage,
-            return_url: Some(item
-                .request
-                .return_url
-                .clone()
-                .unwrap_or_else(|| "https://juspay.in/".to_string()))
+            return_url: Some(
+                item.request
+                    .return_url
+                    .clone()
+                    .unwrap_or_else(|| "https://juspay.in/".to_string()),
+            ),
         })
     }
 }
