@@ -261,12 +261,18 @@ pub struct AccessToken {
     pub expires: i64,
 }
 
+#[derive(serde::Serialize, Debug, Clone)]
+pub struct MandateReference {
+    pub connector_mandate_id: Option<String>,
+    pub payment_method_id: Option<String>,
+}
+
 #[derive(Debug, Clone)]
 pub enum PaymentsResponseData {
     TransactionResponse {
         resource_id: ResponseId,
         redirection_data: Option<services::RedirectForm>,
-        mandate_reference: Option<String>,
+        mandate_reference: Option<MandateReference>,
         connector_metadata: Option<serde_json::Value>,
     },
     SessionResponse {

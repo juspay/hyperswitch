@@ -198,6 +198,10 @@ fn get_payment_response(
         pm.card
             .as_ref()
             .and_then(|card| card.brand_reference.to_owned())
+            .map(|id| types::MandateReference {
+                connector_mandate_id: Some(id),
+                payment_method_id: None,
+            })
     });
     match status {
         enums::AttemptStatus::Failure => Err(ErrorResponse {

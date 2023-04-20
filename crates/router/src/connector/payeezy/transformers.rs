@@ -338,7 +338,11 @@ impl<F, T>
         let mandate_reference = item
             .response
             .stored_credentials
-            .map(|credentials| credentials.cardbrand_original_transaction_id);
+            .map(|credentials| credentials.cardbrand_original_transaction_id)
+            .map(|id| types::MandateReference {
+                connector_mandate_id: Some(id),
+                payment_method_id: None,
+            });
         let status = enums::AttemptStatus::foreign_from((
             item.response.transaction_status,
             item.response.transaction_type,

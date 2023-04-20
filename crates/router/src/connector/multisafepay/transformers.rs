@@ -467,7 +467,11 @@ impl<F, T>
                     .response
                     .data
                     .payment_details
-                    .and_then(|payment_details| payment_details.recurring_id),
+                    .and_then(|payment_details| payment_details.recurring_id)
+                    .map(|id| types::MandateReference {
+                        connector_mandate_id: Some(id),
+                        payment_method_id: None,
+                    }),
                 connector_metadata: None,
             }),
             ..item.data

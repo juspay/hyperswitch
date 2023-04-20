@@ -2,6 +2,7 @@ pub mod access_token;
 pub mod flows;
 pub mod helpers;
 pub mod operations;
+pub mod tokenization;
 pub mod transformers;
 
 use std::{fmt::Debug, marker::PhantomData, time::Instant};
@@ -21,6 +22,7 @@ use self::{
     operations::{payment_complete_authorize, BoxedOperation, Operation},
 };
 use crate::{
+    configs::settings::PaymentMethodTypeTokenFilter,
     connection,
     core::{
         errors::{self, CustomResult, RouterResponse, RouterResult},
@@ -583,12 +585,36 @@ fn is_payment_method_tokenization_enabled_for_connector(
     state: &AppState,
     connector_name: &str,
     payment_method: &storage::enums::PaymentMethod,
+    payment_method_type: &Option<storage::enums::PaymentMethodType>,
 ) -> RouterResult<bool> {
     let connector_tokenization_filter = state.conf.tokenization.0.get(connector_name);
 
     Ok(connector_tokenization_filter
-        .map(|connector_filter| connector_filter.payment_method.contains(payment_method))
+        .map(|connector_filter| {
+            connector_filter
+                .payment_method
+                .clone()
+                .contains(payment_method)
+                && is_payment_method_type_allowed_for_connector(
+                    payment_method_type,
+                    connector_filter.payment_method_type.clone(),
+                )
+        })
         .unwrap_or(false))
+}
+
+fn is_payment_method_type_allowed_for_connector(
+    current_pm_type: &Option<storage::enums::PaymentMethodType>,
+    pm_type_filter: PaymentMethodTypeTokenFilter,
+) -> bool {
+    match current_pm_type {
+        Some(pm_type) => match pm_type_filter {
+            PaymentMethodTypeTokenFilter::AllAccepted => true,
+            PaymentMethodTypeTokenFilter::EnableOnly(enabled) => enabled.contains(pm_type),
+            PaymentMethodTypeTokenFilter::DisableOnly(disabled) => !disabled.contains(pm_type),
+        },
+        None => true, // Allow all types if payment_method_type is not present
+    }
 }
 
 async fn decide_payment_method_tokenize_action(
@@ -657,17 +683,22 @@ where
     let connector = payment_data.payment_attempt.connector.to_owned();
 
     let payment_data_and_tokenization_action = match connector {
+        Some(_) if payment_data.mandate_id.is_some() => {
+            (payment_data, TokenizationAction::SkipConnectorTokenization)
+        }
         Some(connector) if is_operation_confirm(&operation) => {
             let payment_method = &payment_data
                 .payment_attempt
                 .payment_method
                 .get_required_value("payment_method")?;
+            let payment_method_type = &payment_data.payment_attempt.payment_method_type;
 
             let is_connector_tokenization_enabled =
                 is_payment_method_tokenization_enabled_for_connector(
                     state,
                     &connector,
                     payment_method,
+                    payment_method_type,
                 )?;
 
             let payment_method_action = decide_payment_method_tokenize_action(

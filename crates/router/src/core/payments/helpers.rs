@@ -3,7 +3,7 @@ use std::borrow::Cow;
 use base64::Engine;
 use common_utils::{
     ext_traits::{AsyncExt, ByteSliceExt, ValueExt},
-    fp_utils,
+    fp_utils, pii,
 };
 // TODO : Evaluate all the helper functions ()
 use error_stack::{report, IntoReport, ResultExt};
@@ -179,7 +179,13 @@ pub async fn get_token_for_recurring_mandate(
         .locker_id
         .to_owned()
         .get_required_value("locker_id")?;
-    let _ = cards::get_lookup_key_from_locker(state, &token, &payment_method, &locker_id).await?;
+
+    if let storage_models::enums::PaymentMethod::Card = payment_method.payment_method {
+        let _ =
+            cards::get_lookup_key_from_locker(state, &token, &payment_method, &locker_id).await?;
+    } else {
+        return Ok((None, Some(payment_method.payment_method)));
+    }
 
     if let Some(payment_method_from_request) = req.payment_method {
         let pm: storage_enums::PaymentMethod = payment_method_from_request.foreign_into();
@@ -1135,7 +1141,7 @@ pub fn generate_mandate(
     setup_mandate_details: Option<api::MandateData>,
     customer: &Option<storage::Customer>,
     payment_method_id: String,
-    connector_mandate_id: Option<String>,
+    connector_mandate_id: Option<pii::SecretSerdeValue>,
 ) -> Option<storage::MandateNew> {
     match (setup_mandate_details, customer) {
         (Some(data), Some(cus)) => {

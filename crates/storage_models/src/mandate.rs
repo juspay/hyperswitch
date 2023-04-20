@@ -25,7 +25,7 @@ pub struct Mandate {
     pub mandate_currency: Option<storage_enums::Currency>,
     pub amount_captured: Option<i64>,
     pub connector: String,
-    pub connector_mandate_id: Option<String>,
+    pub connector_mandate_id: Option<pii::SecretSerdeValue>,
     pub start_date: Option<PrimitiveDateTime>,
     pub end_date: Option<PrimitiveDateTime>,
     pub metadata: Option<pii::SecretSerdeValue>,
@@ -52,7 +52,7 @@ pub struct MandateNew {
     pub mandate_currency: Option<storage_enums::Currency>,
     pub amount_captured: Option<i64>,
     pub connector: String,
-    pub connector_mandate_id: Option<String>,
+    pub connector_mandate_id: Option<pii::SecretSerdeValue>,
     pub start_date: Option<PrimitiveDateTime>,
     pub end_date: Option<PrimitiveDateTime>,
     pub metadata: Option<pii::SecretSerdeValue>,
@@ -67,7 +67,7 @@ pub enum MandateUpdate {
         amount_captured: Option<i64>,
     },
     ConnectorReferenceUpdate {
-        connector_mandate_id: Option<String>,
+        connector_mandate_id: Option<pii::SecretSerdeValue>,
     },
 }
 
@@ -82,7 +82,7 @@ pub struct SingleUseMandate {
 pub struct MandateUpdateInternal {
     mandate_status: Option<storage_enums::MandateStatus>,
     amount_captured: Option<i64>,
-    connector_mandate_id: Option<String>,
+    connector_mandate_id: Option<pii::SecretSerdeValue>,
 }
 
 impl From<MandateUpdate> for MandateUpdateInternal {

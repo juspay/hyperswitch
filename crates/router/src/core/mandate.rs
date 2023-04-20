@@ -1,3 +1,4 @@
+use common_utils::ext_traits::Encode;
 use error_stack::{report, ResultExt};
 use router_env::{instrument, logger, tracing};
 use storage_models::enums as storage_enums;
@@ -149,7 +150,7 @@ where
         None => {
             if resp.request.get_setup_mandate_details().is_some() {
                 resp.payment_method_id = pm_id.clone();
-                let mandate_reference = match resp.response.as_ref().ok() {
+                let mandate_details = match resp.response.as_ref().ok() {
                     Some(types::PaymentsResponseData::TransactionResponse {
                         mandate_reference,
                         ..
@@ -157,21 +158,35 @@ where
                     _ => None,
                 };
 
+                let mandate_ids = Some(masking::Secret::new(
+                    Encode::<types::MandateReference>::encode_to_value(&mandate_details)
+                        .change_context(errors::ApiErrorResponse::MandateNotFound)?,
+                ));
+
                 if let Some(new_mandate_data) = helpers::generate_mandate(
                     resp.merchant_id.clone(),
                     resp.connector.clone(),
                     resp.request.get_setup_mandate_details().map(Clone::clone),
                     maybe_customer,
                     pm_id.get_required_value("payment_method_id")?,
-                    mandate_reference,
+                    mandate_ids,
                 ) {
                     let connector = new_mandate_data.connector.clone();
                     logger::debug!("{:?}", new_mandate_data);
-                    resp.request
-                        .set_mandate_id(api_models::payments::MandateIds {
-                            mandate_id: new_mandate_data.mandate_id.clone(),
-                            connector_mandate_id: new_mandate_data.connector_mandate_id.clone(),
-                        });
+                    resp.request.set_mandate_id(
+                        new_mandate_data
+                            .clone()
+                            .connector_mandate_id
+                            .parse_value::<api_models::payments::ConnectorMandateId>(
+                                "ConnectorMandateId",
+                            )
+                            .change_context(errors::ApiErrorResponse::MandateNotFound)
+                            .map(|connector_id| api_models::payments::MandateIds {
+                                mandate_id: new_mandate_data.mandate_id.clone(),
+                                connector_mandate_id: connector_id.mandate_id,
+                                payment_method_id: connector_id.payment_method_id,
+                            })?,
+                    );
                     state
                         .store
                         .insert_mandate(new_mandate_data)

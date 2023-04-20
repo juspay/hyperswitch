@@ -191,9 +191,18 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                     .find_mandate_by_merchant_id_mandate_id(merchant_id, mandate_id)
                     .await
                     .change_context(errors::ApiErrorResponse::MandateNotFound);
-                Some(mandate.map(|mandate_obj| api_models::payments::MandateIds {
-                    mandate_id: mandate_obj.mandate_id,
-                    connector_mandate_id: mandate_obj.connector_mandate_id,
+                Some(mandate.and_then(|mandate_obj| {
+                    mandate_obj
+                        .connector_mandate_id
+                        .parse_value::<api_models::payments::ConnectorMandateId>(
+                            "ConnectorMandateId",
+                        )
+                        .change_context(errors::ApiErrorResponse::MandateNotFound)
+                        .map(|connector_id| api_models::payments::MandateIds {
+                            mandate_id: mandate_obj.mandate_id,
+                            connector_mandate_id: connector_id.mandate_id,
+                            payment_method_id: connector_id.payment_method_id,
+                        })
                 }))
             })
             .await

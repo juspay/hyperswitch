@@ -299,6 +299,7 @@ pub enum MandateTxnType {
 pub struct MandateIds {
     pub mandate_id: String,
     pub connector_mandate_id: Option<String>,
+    pub payment_method_id: Option<String>,
 }
 
 impl MandateIds {
@@ -306,8 +307,15 @@ impl MandateIds {
         Self {
             mandate_id,
             connector_mandate_id: None,
+            payment_method_id: None,
         }
     }
+}
+
+#[derive(Debug, serde::Deserialize)]
+pub struct ConnectorMandateId {
+    pub mandate_id: Option<String>,
+    pub payment_method_id: Option<String>,
 }
 
 #[derive(Default, Eq, PartialEq, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
