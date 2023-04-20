@@ -20,7 +20,7 @@ use crate::{
         api::customers::{self, CustomerRequestExt},
         domain::{
             self, customer, merchant_account,
-            types::{get_key_and_algo, AsyncLift, TypeEncryption},
+            types::{self, AsyncLift, TypeEncryption},
         },
         storage::{self, enums},
     },
@@ -40,7 +40,7 @@ pub async fn create_customer(
     let merchant_id = &merchant_account.merchant_id;
     customer_data.merchant_id = merchant_id.to_owned();
 
-    let key = get_key_and_algo(db, merchant_id.clone())
+    let key = types::get_merchant_enc_key(db, merchant_id.clone())
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed while getting encryption key")?;
@@ -214,7 +214,7 @@ pub async fn delete_customer(
         }?,
     };
 
-    let key = get_key_and_algo(&**db, merchant_account.merchant_id.clone())
+    let key = types::get_merchant_enc_key(&**db, merchant_account.merchant_id.clone())
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed while getting key for encryption")?;
@@ -300,7 +300,7 @@ pub async fn update_customer(
     .await
     .map_err(|err| err.to_not_found_response(errors::ApiErrorResponse::CustomerNotFound))?;
 
-    let key = get_key_and_algo(db, merchant_account.merchant_id.clone())
+    let key = types::get_merchant_enc_key(db, merchant_account.merchant_id.clone())
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed while getting key for encryption")?;

@@ -75,7 +75,7 @@ impl behaviour::Conversion for Address {
         db: &dyn StorageInterface,
         merchant_id: &str,
     ) -> CustomResult<Self, ValidationError> {
-        let key = types::get_key_and_algo(db, merchant_id)
+        let key = types::get_merchant_enc_key(db, merchant_id)
             .await
             .change_context(ValidationError::InvalidValue {
                 message: "Failed while getting key from key store".to_string(),
