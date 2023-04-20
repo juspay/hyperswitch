@@ -380,7 +380,7 @@ fn validate_shipping_address_against_payment_method(
         }
     }
 
-    if missing_fields.len() > 0 {
+    if !missing_fields.is_empty() {
         return Err(error_stack::Report::<errors::ConnectorError>::new(
             errors::ConnectorError::MissingRequiredFields {
                 field_names: missing_fields,
