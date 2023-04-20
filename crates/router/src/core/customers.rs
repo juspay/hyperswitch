@@ -1,5 +1,5 @@
 use common_utils::{
-    crypto::{self, Encryptable, GcmAes256},
+    crypto::{Encryptable, GcmAes256},
     ext_traits::{AsyncExt, ValueExt},
 };
 use error_stack::ResultExt;
@@ -47,14 +47,14 @@ pub async fn create_customer(
 
     let encrypt = |inner: Option<masking::Secret<String>>| async {
         inner
-            .async_map(|value| crypto::Encryptable::encrypt(value, &key, GcmAes256 {}))
+            .async_map(|value| types::encrypt(value, &key))
             .await
             .transpose()
     };
 
     let encrypt_email = |inner: Option<masking::Secret<String, pii::Email>>| async {
         inner
-            .async_map(|value| crypto::Encryptable::encrypt(value, &key, GcmAes256 {}))
+            .async_map(|value| types::encrypt(value, &key))
             .await
             .transpose()
     };
@@ -307,14 +307,14 @@ pub async fn update_customer(
 
     let encrypt = |inner: Option<masking::Secret<String>>| async {
         inner
-            .async_map(|value| crypto::Encryptable::encrypt(value, &key, GcmAes256 {}))
+            .async_map(|value| types::encrypt(value, &key))
             .await
             .transpose()
     };
 
     let encrypt_email = |inner: Option<masking::Secret<String, pii::Email>>| async {
         inner
-            .async_map(|value| crypto::Encryptable::encrypt(value, &key, GcmAes256 {}))
+            .async_map(|value| types::encrypt(value, &key))
             .await
             .transpose()
     };

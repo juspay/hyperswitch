@@ -1,5 +1,5 @@
 use common_utils::{
-    crypto::{self, GcmAes256, OptionalSecretValue},
+    crypto::OptionalSecretValue,
     date_time,
     ext_traits::{AsyncExt, ValueExt},
 };
@@ -21,7 +21,7 @@ use crate::{
         self, api,
         domain::{
             self, merchant_account as merchant_domain, merchant_key_store,
-            types::{self as domain_types, AsyncLift, TypeEncryption},
+            types::{self as domain_types, AsyncLift},
         },
         storage,
         transformers::ForeignInto,
@@ -104,7 +104,7 @@ pub async fn create_merchant_account(
 
     let key_store = merchant_key_store::MerchantKeyStore {
         merchant_id: req.merchant_id.clone(),
-        key: crypto::Encryptable::encrypt(key.to_vec().into(), master_key, GcmAes256 {})
+        key: domain_types::encrypt(key.to_vec().into(), master_key)
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to decrypt data from key store")?,
@@ -119,14 +119,14 @@ pub async fn create_merchant_account(
 
     let encrypt_string = |inner: Option<masking::Secret<String>>| async {
         inner
-            .async_map(|value| crypto::Encryptable::encrypt(value, &key, GcmAes256 {}))
+            .async_map(|value| domain_types::encrypt(value, &key))
             .await
             .transpose()
     };
 
     let encrypt_value = |inner: OptionalSecretValue| async {
         inner
-            .async_map(|value| crypto::Encryptable::encrypt(value, &key, GcmAes256 {}))
+            .async_map(|value| domain_types::encrypt(value, &key))
             .await
             .transpose()
     };
@@ -138,10 +138,7 @@ pub async fn create_merchant_account(
         Ok(merchant_domain::MerchantAccount {
             merchant_id: req.merchant_id,
             merchant_name: req.merchant_name.async_lift(encrypt_string).await?,
-            api_key: Some(
-                crypto::Encryptable::encrypt(api_key.peek().clone().into(), &key, GcmAes256 {})
-                    .await?,
-            ),
+            api_key: Some(domain_types::encrypt(api_key.peek().clone().into(), &key).await?),
             merchant_details: merchant_details.async_lift(encrypt_value).await?,
             return_url: req.return_url.map(|a| a.to_string()),
             webhook_details,
@@ -224,7 +221,7 @@ pub async fn merchant_account_update(
     let updated_merchant_account = storage::MerchantAccountUpdate::Update {
         merchant_name: req
             .merchant_name
-            .async_map(|inner| crypto::Encryptable::encrypt(inner.into(), &key, GcmAes256 {}))
+            .async_map(|inner| domain_types::encrypt(inner.into(), &key))
             .await
             .transpose()
             .change_context(errors::ApiErrorResponse::InternalServerError)?,
@@ -235,7 +232,7 @@ pub async fn merchant_account_update(
             .map(utils::Encode::<api::MerchantDetails>::encode_to_value)
             .transpose()
             .change_context(errors::ApiErrorResponse::InternalServerError)?
-            .async_map(|inner| crypto::Encryptable::encrypt(inner.into(), &key, GcmAes256 {}))
+            .async_map(|inner| domain_types::encrypt(inner.into(), &key))
             .await
             .transpose()
             .change_context(errors::ApiErrorResponse::InternalServerError)?,
@@ -382,14 +379,13 @@ pub async fn create_payment_connector(
         connector_type: req.connector_type.foreign_into(),
         connector_name: req.connector_name,
         merchant_connector_id: utils::generate_id(consts::ID_LENGTH, "mca"),
-        connector_account_details: crypto::Encryptable::encrypt(
+        connector_account_details: domain_types::encrypt(
             req.connector_account_details.ok_or(
                 errors::ApiErrorResponse::MissingRequiredField {
                     field_name: "connector_account_details",
                 },
             )?,
             &key,
-            GcmAes256 {},
         )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)?,
@@ -502,7 +498,7 @@ pub async fn update_payment_connector(
 
     let encrypt = |inner: Option<masking::Secret<serde_json::Value>>| async {
         inner
-            .async_map(|inner| crypto::Encryptable::encrypt(inner, &key, GcmAes256 {}))
+            .async_map(|inner| domain_types::encrypt(inner, &key))
             .await
             .transpose()
     };

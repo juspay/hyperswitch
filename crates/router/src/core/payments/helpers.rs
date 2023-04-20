@@ -32,7 +32,7 @@ use crate::{
         api::{self, admin, enums as api_enums, CustomerAcceptanceExt, MandateValidationFieldsExt},
         domain::{
             self, customer, merchant_account,
-            types::{self, AsyncLift, TypeEncryption},
+            types::{self, AsyncLift},
         },
         storage::{self, enums as storage_enums, ephemeral_key},
         transformers::ForeignInto,
@@ -58,7 +58,7 @@ pub async fn get_address_for_payment_request(
 
     let encrypt = |inner: Option<masking::Secret<String>>| async {
         inner
-            .async_map(|value| crypto::Encryptable::encrypt(value, &key, crypto::GcmAes256 {}))
+            .async_map(|value| types::encrypt(value, &key))
             .await
             .transpose()
     };
@@ -787,18 +787,14 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R>(
 
                     let encrypt = |inner: Option<masking::Secret<String>>| async {
                         inner
-                            .async_map(|value| {
-                                crypto::Encryptable::encrypt(value, &key, crypto::GcmAes256 {})
-                            })
+                            .async_map(|value| types::encrypt(value, &key))
                             .await
                             .transpose()
                     };
 
                     let encrypt_email = |inner: Option<masking::Secret<String, pii::Email>>| async {
                         inner
-                            .async_map(|value| {
-                                crypto::Encryptable::encrypt(value, &key, crypto::GcmAes256 {})
-                            })
+                            .async_map(|value| types::encrypt(value, &key))
                             .await
                             .transpose()
                     };
