@@ -10,7 +10,8 @@ use crate::{
     core::errors,
     pii::{self, PeekInterface},
     types::{
-        api::{self as api_types, enums as api_enums, admin}
+        api::{self as api_types, enums as api_enums, admin},
+        transformers::{ForeignFrom, ForeignInto},
     },
 };
 
@@ -118,8 +119,27 @@ impl From<Shipping> for payments::Address {
 #[serde(rename_all = "snake_case")]
 pub enum StripePaymentMethodOptions {
     Card {
+        request_three_d_secure: Option<Request3DS>,
         mandate_options: Option<MandateOption>,
     },
+}
+
+
+#[derive(Default, Eq, PartialEq, Serialize, Deserialize, Clone, Debug)]
+#[serde(rename_all = "snake_case")]
+pub enum Request3DS {
+    #[default]
+    Automatic,
+    Any,
+}
+
+impl ForeignFrom<Option<Request3DS>> for api_models::enums::AuthenticationType {
+    fn foreign_from(item: Option<Request3DS>) -> Self {
+        match item.unwrap_or_default() {
+            Request3DS::Automatic => Self::NoThreeDs,
+            Request3DS::Any => Self::ThreeDs,
+        }
+    }
 }
 
 #[derive(PartialEq, Eq, Deserialize, Clone, Default, Debug)]
@@ -172,9 +192,18 @@ pub struct StripeSetupIntentRequest {
 impl TryFrom<StripeSetupIntentRequest> for payments::PaymentsRequest {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
     fn try_from(item: StripeSetupIntentRequest) -> errors::RouterResult<Self> {
+        let (mandate_options, authentication_type) = match item.payment_method_options {
+            Some(pmo) => {
+                let StripePaymentMethodOptions::Card {
+                    request_three_d_secure,
+                    mandate_options,
+                }: StripePaymentMethodOptions = pmo;
+                (mandate_options.map(|mandate|payments::MandateData::from(mandate)), Some(request_three_d_secure.foreign_into()))
+            }
+            None => (None, None),
+        };
         let request = Ok(Self {
             amount: Some(api_types::Amount::Zero),
-          //  currency: Some(api_enums::Currency::default()),
             capture_method: None,
             amount_to_capture: None,
             confirm: item.confirm,
@@ -218,12 +247,14 @@ impl TryFrom<StripeSetupIntentRequest> for payments::PaymentsRequest {
             client_secret: item.client_secret.map(|s| s.peek().clone()),
             setup_future_usage: item.setup_future_usage,
             merchant_connector_details: item.merchant_connector_details,
-            mandate_data: item.payment_method_options.map(|pmo| {
-                let StripePaymentMethodOptions::Card {
-                    mandate_options,
-                } = pmo;
-                mandate_options.and_then(|mandate| (Some(payments::MandateData::from(mandate))))
-            }).unwrap_or_default(),
+            // mandate_data: item.payment_method_options.map(|pmo| {
+            //     let StripePaymentMethodOptions::Card {
+            //         mandate_options,
+            //     } = pmo;
+            //     mandate_options.map(|mandate| (payments::MandateData::from(mandate)))
+            // }).unwrap_or_default(),
+            authentication_type,
+            mandate_data:mandate_options,
             ..Default::default()
         });
         request
@@ -357,7 +388,7 @@ pub struct StripePaymentMethod {
     created: u64,
     #[serde(rename = "type")]
     method_type: String,
-    live_mode: bool,
+    livemode: bool,
 }
 
 
@@ -391,7 +422,7 @@ impl From<payments::PaymentsResponse> for StripeSetupIntentResponse {
                     created: u64::try_from(date_time::now().assume_utc().unix_timestamp())
                         .unwrap_or_default(),
                     method_type: "card".to_string(),
-                    live_mode: false,
+                    livemode: false,
                 },
                 error_type: code,
             }})

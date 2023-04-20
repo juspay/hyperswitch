@@ -388,7 +388,7 @@ impl From<payments::PaymentsResponse> for StripePaymentIntentResponse {
                     created: u64::try_from(date_time::now().assume_utc().unix_timestamp())
                         .unwrap_or_default(),
                     method_type: "card".to_string(),
-                    live_mode: false,
+                    livemode: false,
                 },
                 error_type: code,
             }),
@@ -405,7 +405,7 @@ pub struct StripePaymentMethod {
     created: u64,
     #[serde(rename = "type")]
     method_type: String,
-    live_mode: bool,
+    livemode: bool,
 }
 
 #[derive(Default, Eq, PartialEq, Serialize)]
