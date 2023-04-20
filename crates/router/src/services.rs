@@ -13,6 +13,7 @@ pub use self::{api::*, encryption::*};
 use crate::{
     async_spawn,
     cache::CONFIG_CACHE,
+    configs::settings
     connection::{diesel_make_pg_pool, PgPool},
     consts,
     core::errors,
