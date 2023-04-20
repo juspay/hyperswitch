@@ -1316,57 +1316,57 @@ impl<F, T>
 // }
 
 #[derive(Debug, Deserialize)]
-pub struct StripeWebhookDataObjectId {
-    pub id: String,
-    pub object: String,
-    pub payment_intent: Option<String>,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct StripeWebhookDataId {
-    pub object: StripeWebhookDataObjectId,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct StripeWebhookDataResource {
+pub struct WebhookEventDataResource {
     pub object: serde_json::Value,
 }
 
 #[derive(Debug, Deserialize)]
-pub struct StripeWebhookObjectResource {
-    pub data: StripeWebhookDataResource,
+pub struct WebhookEventObjectResource {
+    pub data: WebhookEventDataResource,
 }
 
 #[derive(Debug, Deserialize)]
-pub struct StripeWebhookObjectEventType {
+pub struct WebhookEvent {
     #[serde(rename = "type")]
-    pub event_type: WebhookEvenType,
-    pub data: serde_json::Value,
+    pub event_type: WebhookEventType,
+    #[serde(rename = "data")]
+    pub event_data: WebhookEventData,
 }
 
-#[derive(Debug, Deserialize, PartialEq)]
-pub struct DataObject {
-    pub object: ObjectData,
+#[derive(Debug, Deserialize)]
+pub struct WebhookEventData {
+    #[serde(rename = "object")]
+    pub event_object: WebhookEventObjectData,
 }
 
-#[derive(Debug, Deserialize, PartialEq)]
-pub struct ObjectData {
+#[derive(Debug, Deserialize)]
+pub struct WebhookEventObjectData {
     pub id: String,
+    pub object: WebhookEventObjectType,
     pub amount: i32,
     pub currency: String,
-    pub reason: String,
+    pub payment_intent: Option<String>,
+    pub reason: Option<String>,
     pub created: i64,
-    pub evidence_details: EvidenceDetails,
-    pub status: DisputeStatus,
+    pub evidence_details: Option<EvidenceDetails>,
+    pub status: Option<WebhookEventStatus>,
+}
+
+#[derive(Debug, Deserialize, strum::Display)]
+#[serde(rename_all = "snake_case")]
+pub enum WebhookEventObjectType {
+    PaymentIntent,
+    Dispute,
+    Charge,
 }
 
 #[derive(Debug, Deserialize)]
-pub enum WebhookEvenType {
+pub enum WebhookEventType {
     #[serde(rename = "payment_intent.payment_failed")]
     PaymentIntentFailed,
     #[serde(rename = "payment_intent.succeeded")]
     PaymentIntentSucceed,
-    #[serde(rename = "charge.dispute.updated")]
+    #[serde(rename = "charge.dispute.captured")]
     ChargeDisputeCaptured,
     #[serde(rename = "charge.dispute.created")]
     DisputeCreated,
@@ -1406,7 +1406,7 @@ pub enum WebhookEvenType {
 
 #[derive(Debug, Serialize, Display, Deserialize, PartialEq)]
 #[serde(rename_all = "snake_case")]
-pub enum DisputeStatus {
+pub enum WebhookEventStatus {
     WarningNeedsResponse,
     WarningClosed,
     WarningUnderReview,
@@ -1415,16 +1415,18 @@ pub enum DisputeStatus {
     NeedsResponse,
     UnderReview,
     ChargeRefunded,
+    Succeeded,
+    RequiresPaymentMethod,
+    RequiresConfirmation,
+    RequiresAction,
+    Processing,
+    RequiresCapture,
+    Canceled,
 }
 
 #[derive(Debug, Deserialize, PartialEq)]
 pub struct EvidenceDetails {
     pub due_by: i64,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct StripeWebhookObjectId {
-    pub data: StripeWebhookDataId,
 }
 
 impl
