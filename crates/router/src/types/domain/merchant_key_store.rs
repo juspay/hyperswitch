@@ -4,7 +4,6 @@ use common_utils::{
 };
 use error_stack::ResultExt;
 use masking::Secret;
-
 use time::PrimitiveDateTime;
 
 use crate::{
