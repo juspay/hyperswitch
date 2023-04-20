@@ -96,7 +96,7 @@ pub(crate) struct StoreConfig {
 
 impl Store {
     pub async fn new(
-        config: &crate::configs::settings::Settings,
+        config: &settings::Settings,
         test_transaction: bool,
         shut_down_signal: oneshot::Sender<()>,
     ) -> Self {
