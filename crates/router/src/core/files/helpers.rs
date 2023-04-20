@@ -115,12 +115,19 @@ pub async fn delete_file_using_file_id(
         .find_file_metadata_by_merchant_id_file_id(&merchant_account.merchant_id, &file_key)
         .await
         .change_context(errors::ApiErrorResponse::FileNotFound)?;
-    match file_metadata_object.file_upload_provider.as_ref() {
-        "Hyperswitch" => {
+    let (provider, provider_file_id) = match (
+        file_metadata_object.file_upload_provider,
+        file_metadata_object.provider_file_id,
+    ) {
+        (Some(provider), Some(provider_file_id)) => (provider, provider_file_id),
+        _ => Err(errors::ApiErrorResponse::FileNotFound)?,
+    };
+    match provider {
+        storage_models::enums::FileUploadProvider::Hyperswitch => {
             delete_file(
                 #[cfg(feature = "s3")]
                 state,
-                file_metadata_object.provider_file_id,
+                provider_file_id,
             )
             .await
         }
@@ -144,20 +151,27 @@ pub async fn retrieve_file_and_provider_file_id_from_file_id(
                 .find_file_metadata_by_merchant_id_file_id(&merchant_account.merchant_id, &file_key)
                 .await
                 .change_context(errors::ApiErrorResponse::FileNotFound)?;
-            match file_metadata_object.file_upload_provider.as_ref() {
-                "Hyperswitch" => Ok((
+            let (provider, provider_file_id) = match (
+                file_metadata_object.file_upload_provider,
+                file_metadata_object.provider_file_id,
+            ) {
+                (Some(provider), Some(provider_file_id)) => (provider, provider_file_id),
+                _ => Err(errors::ApiErrorResponse::FileNotFound)?,
+            };
+            match provider {
+                storage_models::enums::FileUploadProvider::Hyperswitch => Ok((
                     Some(
                         retrieve_file(
                             #[cfg(feature = "s3")]
                             state,
-                            file_metadata_object.provider_file_id.clone(),
+                            provider_file_id.clone(),
                         )
                         .await?,
                     ),
-                    Some(file_metadata_object.provider_file_id),
+                    Some(provider_file_id),
                 )),
                 //TODO: Handle Retrieve for other providers
-                _ => Ok((None, Some(file_metadata_object.provider_file_id))),
+                _ => Ok((None, Some(provider_file_id))),
             }
         }
     }

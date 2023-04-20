@@ -38,7 +38,6 @@ pub async fn files_create(
 
     let mut file_name: Option<String> = None;
     let mut file_content: Option<Vec<Bytes>> = None;
-    let mut option_file_type: Option<mime::Mime> = None;
 
     while let Ok(Some(mut field)) = payload.try_next().await {
         let content_disposition = field.content_disposition();
@@ -46,10 +45,9 @@ pub async fn files_create(
         // Parse the different parameters expected in the multipart request
         match field_name {
             Some("purpose") => {
-                option_purpose = transformers::get_file_purpose(&mut field).await;
+                option_purpose = helpers::get_file_purpose(&mut field).await;
             }
             Some("file") => {
-                option_file_type = field.content_type().cloned();
                 file_name = content_disposition.get_filename().map(String::from);
 
                 //Collect the file content and throw error if something fails
@@ -68,7 +66,7 @@ pub async fn files_create(
                 file_content = Some(file_data)
             }
             Some("dispute_id") => {
-                dispute_id = transformers::read_string(&mut field).await;
+                dispute_id = helpers::read_string(&mut field).await;
             }
             // Can ignore other params
             _ => (),
@@ -88,6 +86,17 @@ pub async fn files_create(
             return api::log_and_return_error_response(errors::ApiErrorResponse::MissingFile.into())
         }
     };
+    // Get file mime type using 'infer'
+    let option_file_mime_type =
+        infer::get(&file).map(|kind| kind.mime_type().parse::<mime::Mime>());
+    let file_type = match option_file_mime_type {
+        Some(Ok(mime)) => mime,
+        _ => {
+            return api::log_and_return_error_response(
+                errors::ApiErrorResponse::MissingFileContentType.into(),
+            )
+        }
+    };
     let file_size_result: Result<i32, _> = file.len().try_into();
     let file_size = match file_size_result {
         Ok(valid_file_size) => valid_file_size,
@@ -101,14 +110,6 @@ pub async fn files_create(
     if file_size <= 0 {
         return api::log_and_return_error_response(errors::ApiErrorResponse::MissingFile.into());
     }
-    let file_type = match option_file_type {
-        Some(valid_file_type) => valid_file_type,
-        None => {
-            return api::log_and_return_error_response(
-                errors::ApiErrorResponse::MissingFileContentType.into(),
-            )
-        }
-    };
     let create_file_request = files::CreateFileRequest {
         file,
         file_name,

@@ -70,17 +70,19 @@ pub async fn accept_dispute(
             dispute_id: req.dispute_id,
         })?;
     let dispute_id = dispute.dispute_id.clone();
-    if !(dispute.dispute_stage == storage_enums::DisputeStage::Dispute
-        && dispute.dispute_status == storage_enums::DisputeStatus::DisputeOpened)
-    {
-        metrics::ACCEPT_DISPUTE_STATUS_VALIDATION_FAILURE_METRIC.add(&metrics::CONTEXT, 1, &[]);
-        Err(errors::ApiErrorResponse::DisputeStatusValidationFailed {
+    common_utils::fp_utils::when(
+        !(dispute.dispute_stage == storage_enums::DisputeStage::Dispute
+            && dispute.dispute_status == storage_enums::DisputeStatus::DisputeOpened),
+        || {
+            metrics::ACCEPT_DISPUTE_STATUS_VALIDATION_FAILURE_METRIC.add(&metrics::CONTEXT, 1, &[]);
+            Err(errors::ApiErrorResponse::DisputeStatusValidationFailed {
             reason: format!(
                 "This dispute cannot be accepted because the dispute is in {} stage and has {} status",
                 dispute.dispute_stage, dispute.dispute_status
             ),
-        })?
-    }
+        })
+        },
+    )?;
     let payment_intent = db
         .find_payment_intent_by_payment_id_merchant_id(
             &dispute.payment_id,
@@ -167,21 +169,23 @@ pub async fn submit_evidence(
             dispute_id: req.dispute_id.clone(),
         })?;
     let dispute_id = dispute.dispute_id.clone();
-    if !(dispute.dispute_stage == storage_enums::DisputeStage::Dispute
-        && dispute.dispute_status == storage_enums::DisputeStatus::DisputeOpened)
-    {
-        metrics::EVIDENCE_SUBMISSION_DISPUTE_STATUS_VALIDATION_FAILURE_METRIC.add(
-            &metrics::CONTEXT,
-            1,
-            &[],
-        );
-        Err(errors::ApiErrorResponse::DisputeStatusValidationFailed {
-            reason: format!(
+    common_utils::fp_utils::when(
+        !(dispute.dispute_stage == storage_enums::DisputeStage::Dispute
+            && dispute.dispute_status == storage_enums::DisputeStatus::DisputeOpened),
+        || {
+            metrics::EVIDENCE_SUBMISSION_DISPUTE_STATUS_VALIDATION_FAILURE_METRIC.add(
+                &metrics::CONTEXT,
+                1,
+                &[],
+            );
+            Err(errors::ApiErrorResponse::DisputeStatusValidationFailed {
+                reason: format!(
                 "Evidence cannot be submitted because the dispute is in {} stage and has {} status",
                 dispute.dispute_stage, dispute.dispute_status
             ),
-        })?
-    }
+            })
+        },
+    )?;
     let submit_evidence_request_data =
         transformers::get_evidence_request_data(state, &merchant_account, req, &dispute).await?;
     let payment_intent = db

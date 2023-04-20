@@ -8,7 +8,7 @@ pub struct FileId {
     pub file_id: String,
 }
 
-#[derive(Debug, Clone, frunk::LabelledGeneric, strum::Display)]
+#[derive(Debug, Clone, frunk::LabelledGeneric)]
 pub enum FileUploadProvider {
     Hyperswitch,
     Stripe,

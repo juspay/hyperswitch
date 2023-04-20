@@ -164,8 +164,8 @@ diesel::table! {
         file_name -> Nullable<Varchar>,
         file_size -> Int4,
         file_type -> Varchar,
-        provider_file_id -> Varchar,
-        file_upload_provider -> Varchar,
+        provider_file_id -> Nullable<Varchar>,
+        file_upload_provider -> Nullable<Varchar>,
         available -> Bool,
         created_at -> Timestamp,
     }

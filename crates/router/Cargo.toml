@@ -92,6 +92,7 @@ storage_models = { version = "0.1.0", path = "../storage_models", features = ["k
 actix-multipart = "0.6.0"
 aws-sdk-s3 = "0.25.0"
 aws-config = "0.55.1"
+infer = "0.13.0"
 
 [build-dependencies]
 router_env = { version = "0.1.0", path = "../router_env", default-features = false }

@@ -3,7 +3,8 @@ use router_env::{instrument, tracing};
 
 use super::generics;
 use crate::{
-    file::{FileMetadata, FileMetadataNew},
+    errors,
+    file::{FileMetadata, FileMetadataNew, FileMetadataUpdate, FileMetadataUpdateInternal},
     schema::file_metadata::dsl,
     PgPooledConn, StorageResult,
 };
@@ -44,5 +45,31 @@ impl FileMetadata {
                 .and(dsl::file_id.eq(file_id.to_owned())),
         )
         .await
+    }
+
+    #[instrument(skip(conn))]
+    pub async fn update(
+        self,
+        conn: &PgPooledConn,
+        file_metadata: FileMetadataUpdate,
+    ) -> StorageResult<Self> {
+        match generics::generic_update_with_unique_predicate_get_result::<
+            <Self as HasTable>::Table,
+            _,
+            _,
+            _,
+        >(
+            conn,
+            dsl::file_id.eq(self.file_id.to_owned()),
+            FileMetadataUpdateInternal::from(file_metadata),
+        )
+        .await
+        {
+            Err(error) => match error.current_context() {
+                errors::DatabaseError::NoFieldsToUpdate => Ok(self),
+                _ => Err(error),
+            },
+            result => result,
+        }
     }
 }

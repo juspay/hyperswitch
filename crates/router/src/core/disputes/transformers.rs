@@ -1,7 +1,7 @@
 use common_utils::errors::CustomResult;
 
 use crate::{
-    core::{errors, files::transformers::retrieve_file_and_provider_file_id_from_file_id},
+    core::{errors, files::helpers::retrieve_file_and_provider_file_id_from_file_id},
     routes::AppState,
     types::SubmitEvidenceRequestData,
 };

@@ -25,6 +25,12 @@ pub trait FileMetadataInterface {
         merchant_id: &str,
         file_id: &str,
     ) -> CustomResult<bool, errors::StorageError>;
+
+    async fn update_file_metadata(
+        &self,
+        this: storage::FileMetadata,
+        file_metadata: storage::FileMetadataUpdate,
+    ) -> CustomResult<storage::FileMetadata, errors::StorageError>;
 }
 
 #[async_trait::async_trait]
@@ -60,6 +66,18 @@ impl FileMetadataInterface for Store {
             .map_err(Into::into)
             .into_report()
     }
+
+    async fn update_file_metadata(
+        &self,
+        this: storage::FileMetadata,
+        file_metadata: storage::FileMetadataUpdate,
+    ) -> CustomResult<storage::FileMetadata, errors::StorageError> {
+        let conn = connection::pg_connection_write(self).await?;
+        this.update(&conn, file_metadata)
+            .await
+            .map_err(Into::into)
+            .into_report()
+    }
 }
 
 #[async_trait::async_trait]
@@ -86,6 +104,15 @@ impl FileMetadataInterface for MockDb {
         _merchant_id: &str,
         _file_id: &str,
     ) -> CustomResult<bool, errors::StorageError> {
+        // TODO: Implement function for `MockDb`
+        Err(errors::StorageError::MockDbError)?
+    }
+
+    async fn update_file_metadata(
+        &self,
+        _this: storage::FileMetadata,
+        _file_metadata: storage::FileMetadataUpdate,
+    ) -> CustomResult<storage::FileMetadata, errors::StorageError> {
         // TODO: Implement function for `MockDb`
         Err(errors::StorageError::MockDbError)?
     }
