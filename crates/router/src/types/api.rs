@@ -23,6 +23,7 @@ use crate::{
     configs::settings::Connectors,
     connector, consts,
     core::errors::{self, CustomResult},
+    db,
     services::{ConnectorIntegration, ConnectorRedirectResponse},
     types::{self, api::enums as api_enums},
 };
@@ -96,11 +97,21 @@ pub trait ConnectorCommonExt<Flow, Req, Resp>:
     }
 }
 
-pub trait Validator<T> {
+#[async_trait::async_trait]
+pub trait Validator<T>: Sync {
     fn validate_metadata(
         &self,
         _payment_method: Option<(api_enums::PaymentMethod, api_enums::PaymentMethodType)>,
         _metadata: serde_json::Value,
+    ) -> CustomResult<(), common_utils::errors::ValidationError> {
+        Ok(())
+    }
+
+    async fn validate_payment_intent(
+        &self,
+        _db: &dyn db::StorageInterface,
+        _payment_method: Option<(api_enums::PaymentMethod, api_enums::PaymentMethodType)>,
+        _payment_intent: Option<&storage_models::payment_intent::PaymentIntent>,
     ) -> CustomResult<(), common_utils::errors::ValidationError> {
         Ok(())
     }

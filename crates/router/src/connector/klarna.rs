@@ -2,6 +2,7 @@ mod transformers;
 use std::fmt::Debug;
 
 use api_models::payments as api_payments;
+use common_utils::ext_traits::ValueExt;
 use error_stack::{IntoReport, ResultExt};
 use transformers as klarna;
 
@@ -386,4 +387,28 @@ impl api::IncomingWebhook for Klarna {
 }
 
 impl api::Validator<api::Global> for Klarna {}
-impl api::Validator<api::Authorize> for Klarna {}
+impl api::Validator<api::Authorize> for Klarna {
+    fn validate_metadata(
+        &self,
+        payment_method: Option<(api::enums::PaymentMethod, api::enums::PaymentMethodType)>,
+        metadata: serde_json::Value,
+    ) -> CustomResult<(), common_utils::errors::ValidationError> {
+        match payment_method {
+            Some((api::enums::PaymentMethod::PayLater, api::enums::PaymentMethodType::Klarna)) => {
+                let inner: api_payments::Metadata = metadata
+                    .parse_value("metadata")
+                    .change_context(errors::ValidationError::InvalidValue {
+                        message: "unable to parse metadata".to_string(),
+                    })?;
+                inner
+                    .order_details
+                    .ok_or(errors::ValidationError::InvalidValue {
+                        message: "order_details not present".to_string(),
+                    })?;
+            }
+            _ => {}
+        }
+
+        Ok(())
+    }
+}

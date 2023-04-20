@@ -4,7 +4,7 @@ use std::fmt::Debug;
 
 use api_models::webhooks::IncomingWebhookEvent;
 use base64::Engine;
-use common_utils::ext_traits::ValueExt;
+use common_utils::ext_traits::{AsyncExt, ValueExt};
 use error_stack::{IntoReport, ResultExt};
 use router_env::{instrument, tracing};
 use storage_models::enums as storage_enums;
@@ -822,4 +822,82 @@ impl api::Validator<api::Global> for Adyen {
     }
 }
 
-impl api::Validator<api::Authorize> for Adyen {}
+#[async_trait::async_trait]
+impl api::Validator<api::Authorize> for Adyen {
+    async fn validate_payment_intent(
+        &self,
+        db: &dyn StorageInterface,
+        payment_method: Option<(api::enums::PaymentMethod, api::enums::PaymentMethodType)>,
+        payment_intent: Option<&storage_models::payment_intent::PaymentIntent>,
+    ) -> CustomResult<(), common_utils::errors::ValidationError> {
+        match (payment_method, payment_intent) {
+            (
+                Some((api::enums::PaymentMethod::Wallet, api::enums::PaymentMethodType::ApplePay)),
+                Some(pa),
+            ) => {
+                pa.billing_address_id
+                    .clone()
+                    .ok_or(error_stack::report!(
+                        common_utils::errors::ValidationError::MissingRequiredField {
+                            field_name: "billing_address_id not found".to_string(),
+                        }
+                    ))
+                    .async_and_then(|address_id| async move {
+                        db.find_address(&address_id)
+                            .await
+                            .map_err(|err| {
+                                err.change_context(
+                                    common_utils::errors::ValidationError::MissingRequiredField {
+                                        field_name: "address not found".to_string(),
+                                    },
+                                )
+                            })
+                            .and_then(|value| {
+                                value.country_code.ok_or(error_stack::report!(
+                                    common_utils::errors::ValidationError::MissingRequiredField {
+                                        field_name: "country code not found".to_string(),
+                                    }
+                                ))
+                            })?;
+                        Ok(())
+                    })
+                    .await?;
+            }
+            (
+                Some((api::enums::PaymentMethod::PayLater, api::enums::PaymentMethodType::Affirm)),
+                Some(pa),
+            )
+            | (
+                Some((api::enums::PaymentMethod::PayLater, api::enums::PaymentMethodType::Klarna)),
+                Some(pa),
+            ) => {
+                pa.customer_id
+                    .clone()
+                    .ok_or(error_stack::report!(
+                        common_utils::errors::ValidationError::MissingRequiredField {
+                            field_name: "customer_id".to_string()
+                        }
+                    ))
+                    .async_and_then(|customer_id| async move {
+                        db.find_customer_by_customer_id_merchant_id(&customer_id, &pa.merchant_id)
+                            .await
+                            .map(|value| value.email)
+                            .change_context(
+                                common_utils::errors::ValidationError::MissingRequiredField {
+                                    field_name: "customer".to_string(),
+                                },
+                            )?
+                            .ok_or(error_stack::report!(
+                                common_utils::errors::ValidationError::MissingRequiredField {
+                                    field_name: "customer.email".to_string()
+                                }
+                            ))?;
+                        Ok(())
+                    })
+                    .await?;
+            }
+            _ => {}
+        }
+        Ok(())
+    }
+}

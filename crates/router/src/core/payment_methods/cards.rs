@@ -841,6 +841,7 @@ pub async fn list_payment_methods(
         };
 
         filter_payment_methods(
+            &*state.store,
             payment_methods,
             &mut req,
             &mut response,
@@ -1047,6 +1048,7 @@ pub async fn list_payment_methods(
 
 #[allow(clippy::too_many_arguments)]
 async fn filter_payment_methods(
+    db: &dyn db::StorageInterface,
     payment_methods: Vec<serde_json::Value>,
     req: &mut api::PaymentMethodListRequest,
     resp: &mut Vec<ResponsePaymentMethodIntermediate>,
@@ -1119,6 +1121,16 @@ async fn filter_payment_methods(
                             .map(|value| value.foreign_into()),
                     );
 
+                    let filter6 = filter_pm_metadata_based(
+                        db,
+                        &connector,
+                        payment_method_object.payment_method_type,
+                        payment_intent,
+                        payment_attempt,
+                    )
+                    .await
+                    .map_or(false, |_| true);
+
                     let connector = connector.clone();
 
                     let response_pm_type = ResponsePaymentMethodIntermediate::new(
@@ -1127,7 +1139,7 @@ async fn filter_payment_methods(
                         payment_method,
                     );
 
-                    if filter && filter2 && filter3 && filter4 && filter5 {
+                    if filter && filter2 && filter3 && filter4 && filter5 && filter6 {
                         resp.push(response_pm_type);
                     }
                 }
@@ -1427,7 +1439,8 @@ async fn filter_payment_mandate_based(
     Ok(recurring_filter)
 }
 
-fn filter_pm_metadata_based(
+async fn filter_pm_metadata_based(
+    db: &dyn db::StorageInterface,
     connector: &str,
     pm_type: api_enums::PaymentMethodType,
     payment_intent: Option<&storage::PaymentIntent>,
@@ -1447,6 +1460,15 @@ fn filter_pm_metadata_based(
                 payment_method.map(|value| (value.foreign_into(), pm_type)),
                 payment_intent_inner.metadata.clone().expose_option().into(),
             )
+            .ok()?;
+
+            api::Validator::<api::Authorize>::validate_payment_intent(
+                *connector.connector,
+                db,
+                payment_method.map(|value| (value.foreign_into(), pm_type)),
+                payment_intent,
+            )
+            .await
             .ok()
         } // Implement this later
         _ => Some(()),
