@@ -288,6 +288,19 @@ where
                         connector_name,
                     )
                 });
+                let parsed_metadata: Option<api_models::payments::Metadata> = payment_intent
+                    .metadata
+                    .clone()
+                    .map(|metadata_value| {
+                        metadata_value
+                            .parse_value("metadata")
+                            .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                                field_name: "metadata",
+                            })
+                            .attach_printable("unable to parse metadata")
+                    })
+                    .transpose()
+                    .unwrap_or_default();
                 services::ApplicationResponse::Json(
                     response
                         .set_payment_id(Some(payment_attempt.payment_id))
@@ -369,6 +382,10 @@ where
                         .set_business_country(payment_intent.business_country)
                         .set_business_label(payment_intent.business_label)
                         .set_business_sub_label(payment_attempt.business_sub_label)
+                        .set_allowed_payment_method_types(
+                            parsed_metadata
+                                .and_then(|metadata| metadata.allowed_payment_method_types),
+                        )
                         .to_owned(),
                 )
             }
