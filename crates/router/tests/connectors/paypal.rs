@@ -37,8 +37,8 @@ fn get_access_token() -> Option<AccessToken> {
     let connector = PaypalTest {};
 
     match connector.get_auth_token() {
-        ConnectorAuthType::Paypal { api_key, api_secret: _ } => Some(AccessToken {
-            token: api_key,
+        ConnectorAuthType::Paypal (_auth) => Some(AccessToken {
+            token: _auth.api_key,
             expires: 18600,
         }),
         _ => None,

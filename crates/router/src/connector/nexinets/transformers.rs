@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     connector::utils::PaymentsAuthorizeRequestData,
     core::errors,
-    types::{self, api, storage::enums},
+    types::{self, api, storage::enums, transformers::ForeignTryFrom},
 };
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
@@ -46,18 +46,12 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for NexinetsPaymentsRequest {
     }
 }
 
-// Auth Struct
-pub struct NexinetsAuthType {
-    pub(super) api_key: String,
-}
-
-impl TryFrom<&common_enums::ConnectorAuthType> for NexinetsAuthType {
+impl ForeignTryFrom<&common_enums::ConnectorAuthType> for common_enums::NexinetsAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(auth_type: &common_enums::ConnectorAuthType) -> Result<Self, Self::Error> {
+    fn foreign_try_from(auth_type: &common_enums::ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
-            common_enums::ConnectorAuthType::Nexinets { api_key } => Ok(Self {
-                api_key: api_key.to_string(),
-            }),
+            common_enums::ConnectorAuthType::Nexinets (connector_auth)=> 
+            Ok(connector_auth.clone()),
             _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
         }
     }

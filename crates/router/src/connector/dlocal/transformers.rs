@@ -9,7 +9,7 @@ use crate::{
     connector::utils::{AddressDetailsData, RouterData},
     core::errors,
     services,
-    types::{self, api, storage::enums},
+    types::{self, api, storage::enums, transformers::ForeignTryFrom},
 };
 
 #[derive(Debug, Default, Eq, PartialEq, Serialize)]
@@ -187,27 +187,13 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for DlocalPaymentsCaptureRequest
         })
     }
 }
-// Auth Struct
-pub struct DlocalAuthType {
-    pub(super) x_login: String,
-    pub(super) x_trans_key: String,
-    pub(super) secret: String,
-}
 
-impl TryFrom<&common_enums::ConnectorAuthType> for DlocalAuthType {
+impl ForeignTryFrom<&common_enums::ConnectorAuthType> for common_enums::DlocalAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(auth_type: &common_enums::ConnectorAuthType) -> Result<Self, Self::Error> {
-        if let common_enums::ConnectorAuthType::Dlocal {
-            x_login,
-            x_trans_key,
-            secret,
-        } = auth_type
+    fn foreign_try_from(auth_type: &common_enums::ConnectorAuthType) -> Result<Self, Self::Error> {
+        if let common_enums::ConnectorAuthType::Dlocal (connector_auth) = auth_type
         {
-            Ok(Self {
-                x_login: x_login.to_string(),
-                x_trans_key: x_trans_key.to_string(),
-                secret: secret.to_string(),
-            })
+            Ok(connector_auth.clone())
         } else {
             Err(errors::ConnectorError::FailedToObtainAuthType.into())
         }

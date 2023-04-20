@@ -11,7 +11,7 @@ use crate::{
     headers, services,
     types::{
         self,
-        api::{self, ConnectorCommon},
+        api::{self, ConnectorCommon}, transformers::{ForeignTryInto, ForeignTryFrom},
     },
     utils::{self, BytesExt},
 };
@@ -36,8 +36,8 @@ impl ConnectorCommon for Aci {
         &self,
         auth_type: &common_enums::ConnectorAuthType,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        let auth: aci::AciAuthType = auth_type
-            .try_into()
+        let auth: common_enums::AciAuthType = auth_type
+            .foreign_try_into()
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(vec![(headers::AUTHORIZATION.to_string(), auth.api_key)])
     }
@@ -132,7 +132,7 @@ impl
         req: &types::PaymentsSyncRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let auth = aci::AciAuthType::try_from(&req.connector_auth_type)?;
+        let auth = common_enums::AciAuthType::foreign_try_from(&req.connector_auth_type)?;
         Ok(format!(
             "{}{}{}{}{}",
             self.base_url(connectors),

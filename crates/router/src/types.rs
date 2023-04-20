@@ -429,9 +429,9 @@ impl TryFrom<ConnectorAuthType> for AccessTokenRequestData {
     type Error = errors::ApiErrorResponse;
     fn try_from(connector_auth: ConnectorAuthType) -> Result<Self, Self::Error> {
         match connector_auth {
-            ConnectorAuthType::Airwallex { app_id, key1 } => Ok(Self {
-                app_id: app_id,
-                id: Some(key1),
+            common_enums::ConnectorAuthType::Airwallex(_auth) => Ok(Self {
+                app_id: _auth.app_id,
+                id: Some(_auth.key1),
             }),
             // ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
             //     app_id: api_key,

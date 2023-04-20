@@ -13,7 +13,7 @@ use crate::{
         self,
         api::{self, enums as api_enums},
         storage::enums as storage_enums,
-        transformers::ForeignFrom,
+        transformers::{ForeignFrom, ForeignTryFrom},
     },
 };
 
@@ -318,11 +318,6 @@ pub struct AdyenRefundResponse {
     status: String,
 }
 
-pub struct AdyenAuthType {
-    pub(super) api_key: String,
-    pub(super) merchant_account: String,
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum PaymentType {
@@ -404,14 +399,11 @@ impl<'a> TryFrom<&api_enums::BankNames> for AdyenTestBankNames<'a> {
     }
 }
 
-impl TryFrom<&common_enums::ConnectorAuthType> for AdyenAuthType {
+impl ForeignTryFrom<&common_enums::ConnectorAuthType> for common_enums::AdyenAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(auth_type: &common_enums::ConnectorAuthType) -> Result<Self, Self::Error> {
-        if let common_enums::ConnectorAuthType::Adyen { adyen_api_key, adyen_account_id } = auth_type {
-            Ok(Self {
-                api_key: adyen_api_key.to_string(),
-                merchant_account: adyen_account_id.to_string(),
-            })
+    fn foreign_try_from(auth_type: &common_enums::ConnectorAuthType) -> Result<Self, Self::Error> {
+        if let common_enums::ConnectorAuthType::Adyen (connector_auth) = auth_type {
+            Ok(connector_auth.clone())
         } else {
             Err(errors::ConnectorError::FailedToObtainAuthType)?
         }
@@ -665,7 +657,7 @@ fn get_card_specific_payment_data<'a>(
     item: &types::PaymentsAuthorizeRouterData,
 ) -> Result<AdyenPaymentRequest<'a>, error_stack::Report<errors::ConnectorError>> {
     let amount = get_amount_data(item);
-    let auth_type = AdyenAuthType::try_from(&item.connector_auth_type)?;
+    let auth_type = common_enums::AdyenAuthType::foreign_try_from(&item.connector_auth_type)?;
     let shopper_interaction = AdyenShopperInteraction::from(item);
     let recurring_processing_model = get_recurring_processing_model(item);
     let browser_info = get_browser_info(item);
@@ -674,7 +666,7 @@ fn get_card_specific_payment_data<'a>(
     let payment_method = get_payment_method_data(item)?;
     Ok(AdyenPaymentRequest {
         amount,
-        merchant_account: auth_type.merchant_account,
+        merchant_account: auth_type.adyen_account_id,
         payment_method,
         reference: item.payment_id.to_string(),
         return_url,
@@ -719,7 +711,7 @@ fn get_bank_redirect_specific_payment_data<'a>(
     item: &types::PaymentsAuthorizeRouterData,
 ) -> Result<AdyenPaymentRequest<'a>, error_stack::Report<errors::ConnectorError>> {
     let amount = get_amount_data(item);
-    let auth_type = AdyenAuthType::try_from(&item.connector_auth_type)?;
+    let auth_type = common_enums::AdyenAuthType::foreign_try_from(&item.connector_auth_type)?;
     let shopper_interaction = AdyenShopperInteraction::from(item);
     let recurring_processing_model = get_recurring_processing_model(item);
     let browser_info = get_browser_info(item);
@@ -730,7 +722,7 @@ fn get_bank_redirect_specific_payment_data<'a>(
 
     Ok(AdyenPaymentRequest {
         amount,
-        merchant_account: auth_type.merchant_account,
+        merchant_account: auth_type.adyen_account_id,
         payment_method,
         reference: item.payment_id.to_string(),
         return_url,
@@ -753,7 +745,7 @@ fn get_wallet_specific_payment_data<'a>(
     item: &types::PaymentsAuthorizeRouterData,
 ) -> Result<AdyenPaymentRequest<'a>, error_stack::Report<errors::ConnectorError>> {
     let amount = get_amount_data(item);
-    let auth_type = AdyenAuthType::try_from(&item.connector_auth_type)?;
+    let auth_type = common_enums::AdyenAuthType::foreign_try_from(&item.connector_auth_type)?;
     let browser_info = get_browser_info(item);
     let additional_data = get_additional_data(item);
     let payment_method = get_payment_method_data(item)?;
@@ -762,7 +754,7 @@ fn get_wallet_specific_payment_data<'a>(
     let return_url = item.request.get_return_url()?;
     Ok(AdyenPaymentRequest {
         amount,
-        merchant_account: auth_type.merchant_account,
+        merchant_account: auth_type.adyen_account_id,
         payment_method,
         reference: item.payment_id.to_string(),
         return_url,
@@ -785,7 +777,7 @@ fn get_paylater_specific_payment_data<'a>(
     item: &types::PaymentsAuthorizeRouterData,
 ) -> Result<AdyenPaymentRequest<'a>, error_stack::Report<errors::ConnectorError>> {
     let amount = get_amount_data(item);
-    let auth_type = AdyenAuthType::try_from(&item.connector_auth_type)?;
+    let auth_type = common_enums::AdyenAuthType::foreign_try_from(&item.connector_auth_type)?;
     let browser_info = get_browser_info(item);
     let additional_data = get_additional_data(item);
     let payment_method = get_payment_method_data(item)?;
@@ -801,7 +793,7 @@ fn get_paylater_specific_payment_data<'a>(
     let telephone_number = get_telephone_number(item);
     Ok(AdyenPaymentRequest {
         amount,
-        merchant_account: auth_type.merchant_account,
+        merchant_account: auth_type.adyen_account_id,
         payment_method,
         reference: item.payment_id.to_string(),
         return_url,
@@ -823,9 +815,9 @@ fn get_paylater_specific_payment_data<'a>(
 impl TryFrom<&types::PaymentsCancelRouterData> for AdyenCancelRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsCancelRouterData) -> Result<Self, Self::Error> {
-        let auth_type = AdyenAuthType::try_from(&item.connector_auth_type)?;
+        let auth_type = common_enums::AdyenAuthType::foreign_try_from(&item.connector_auth_type)?;
         Ok(Self {
-            merchant_account: auth_type.merchant_account,
+            merchant_account: auth_type.adyen_account_id,
             reference: item.payment_id.to_string(),
         })
     }
@@ -1003,9 +995,9 @@ pub struct AdyenCaptureRequest {
 impl TryFrom<&types::PaymentsCaptureRouterData> for AdyenCaptureRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsCaptureRouterData) -> Result<Self, Self::Error> {
-        let auth_type = AdyenAuthType::try_from(&item.connector_auth_type)?;
+        let auth_type = common_enums::AdyenAuthType::foreign_try_from(&item.connector_auth_type)?;
         Ok(Self {
-            merchant_account: auth_type.merchant_account,
+            merchant_account: auth_type.adyen_account_id,
             reference: item.payment_id.to_string(),
             amount: Amount {
                 currency: item.request.currency.to_string(),
@@ -1091,9 +1083,9 @@ impl From<AdyenPaymentStatus> for enums::Status {
 impl<F> TryFrom<&types::RefundsRouterData<F>> for AdyenRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
-        let auth_type = AdyenAuthType::try_from(&item.connector_auth_type)?;
+        let auth_type = common_enums::AdyenAuthType::foreign_try_from(&item.connector_auth_type)?;
         Ok(Self {
-            merchant_account: auth_type.merchant_account,
+            merchant_account: auth_type.adyen_account_id,
             amount: Amount {
                 currency: item.request.currency.to_string(),
                 value: item.request.refund_amount,

@@ -12,7 +12,7 @@ use crate::{
     },
     core::errors,
     pii, services,
-    types::{self, api, storage::enums, transformers::ForeignFrom},
+    types::{self, api, storage::enums, transformers::{ForeignFrom, ForeignTryFrom}},
 };
 
 type Error = error_stack::Report<errors::ConnectorError>;
@@ -266,18 +266,11 @@ fn get_address_details(address_details: Option<&payments::AddressDetails>) -> Op
     })
 }
 
-// Auth Struct
-pub struct Shift4AuthType {
-    pub(super) api_key: String,
-}
-
-impl TryFrom<&common_enums::ConnectorAuthType> for Shift4AuthType {
+impl ForeignTryFrom<&common_enums::ConnectorAuthType> for common_enums::Shift4AuthType {
     type Error = Error;
-    fn try_from(item: &common_enums::ConnectorAuthType) -> Result<Self, Self::Error> {
-        if let common_enums::ConnectorAuthType::Shift4 { shift4_api_key } = item {
-            Ok(Self {
-                api_key: shift4_api_key.to_string(),
-            })
+    fn foreign_try_from(item: &common_enums::ConnectorAuthType) -> Result<Self, Self::Error> {
+        if let common_enums::ConnectorAuthType::Shift4 (connector_auth) = item {
+            Ok(connector_auth.clone())
         } else {
             Err(errors::ConnectorError::FailedToObtainAuthType)?
         }

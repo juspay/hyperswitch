@@ -16,7 +16,7 @@ use crate::{
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
-        ErrorResponse, Response,
+        ErrorResponse, Response, transformers::ForeignTryInto,
     },
     utils::{self, BytesExt},
 };
@@ -64,8 +64,8 @@ impl ConnectorCommon for Mollie {
         &self,
         auth_type: &common_enums::ConnectorAuthType,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        let auth: mollie::MollieAuthType = auth_type
-            .try_into()
+        let auth: common_enums::MollieAuthType = auth_type
+            .foreign_try_into()
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),

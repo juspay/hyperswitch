@@ -6,7 +6,7 @@ use crate::{
     connector::utils::{self, PaymentsCancelRequestData, PaymentsSyncRequestData, RouterData},
     core::errors,
     pii::{self, Secret},
-    types::{self, api, storage::enums},
+    types::{self, api, storage::enums, transformers::{ForeignFrom, ForeignTryFrom}},
 };
 
 #[derive(Debug, Serialize, Eq, PartialEq)]
@@ -101,7 +101,7 @@ pub enum TransactionInteractionPosConditionCode {
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for FiservPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
-        let auth: FiservAuthType = FiservAuthType::try_from(&item.connector_auth_type)?;
+        let auth: common_enums::FiservAuthType = common_enums::FiservAuthType::foreign_try_from(&item.connector_auth_type)?;
         let amount = Amount {
             total: utils::to_currency_base_unit(item.request.amount, item.request.currency)?,
             currency: item.request.currency.to_string(),
@@ -119,7 +119,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for FiservPaymentsRequest {
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
 
         let merchant_details = MerchantDetails {
-            merchant_id: auth.merchant_account,
+            merchant_id: auth.merchant_id,
             terminal_id: Some(session.terminal_id),
         };
 
@@ -158,26 +158,12 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for FiservPaymentsRequest {
     }
 }
 
-pub struct FiservAuthType {
-    pub(super) api_key: String,
-    pub(super) merchant_account: String,
-    pub(super) api_secret: String,
-}
-
-impl TryFrom<&common_enums::ConnectorAuthType> for FiservAuthType {
+impl ForeignTryFrom<&common_enums::ConnectorAuthType> for common_enums::FiservAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(auth_type: &common_enums::ConnectorAuthType) -> Result<Self, Self::Error> {
-        if let common_enums::ConnectorAuthType::Fiserv {
-            api_key,
-            merchant_id,
-            api_secret,
-        } = auth_type
+    fn foreign_try_from(auth_type: &common_enums::ConnectorAuthType) -> Result<Self, Self::Error> {
+        if let common_enums::ConnectorAuthType::Fiserv (connector_auth) = auth_type
         {
-            Ok(Self {
-                api_key: api_key.to_string(),
-                merchant_account: merchant_id.to_string(),
-                api_secret: api_secret.to_string(),
-            })
+            Ok(connector_auth.clone())
         } else {
             Err(errors::ConnectorError::FailedToObtainAuthType)?
         }
@@ -195,14 +181,14 @@ pub struct FiservCancelRequest {
 impl TryFrom<&types::PaymentsCancelRouterData> for FiservCancelRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsCancelRouterData) -> Result<Self, Self::Error> {
-        let auth: FiservAuthType = FiservAuthType::try_from(&item.connector_auth_type)?;
+        let auth: common_enums::FiservAuthType = common_enums::FiservAuthType::foreign_try_from(&item.connector_auth_type)?;
         let metadata = item.get_connector_meta()?;
         let session: SessionObject = metadata
             .parse_value("SessionObject")
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Self {
             merchant_details: MerchantDetails {
-                merchant_id: auth.merchant_account,
+                merchant_id: auth.merchant_id,
                 terminal_id: Some(session.terminal_id),
             },
             reference_transaction_details: ReferenceTransactionDetails {
@@ -380,7 +366,7 @@ pub struct SessionObject {
 impl TryFrom<&types::PaymentsCaptureRouterData> for FiservCaptureRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsCaptureRouterData) -> Result<Self, Self::Error> {
-        let auth: FiservAuthType = FiservAuthType::try_from(&item.connector_auth_type)?;
+        let auth: common_enums::FiservAuthType = common_enums::FiservAuthType::foreign_try_from(&item.connector_auth_type)?;
         let metadata = item
             .connector_meta_data
             .clone()
@@ -400,7 +386,7 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for FiservCaptureRequest {
                 reversal_reason_code: None,
             },
             merchant_details: MerchantDetails {
-                merchant_id: auth.merchant_account,
+                merchant_id: auth.merchant_id,
                 terminal_id: Some(session.terminal_id),
             },
             reference_transaction_details: ReferenceTransactionDetails {
@@ -420,10 +406,10 @@ pub struct FiservSyncRequest {
 impl TryFrom<&types::PaymentsSyncRouterData> for FiservSyncRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsSyncRouterData) -> Result<Self, Self::Error> {
-        let auth: FiservAuthType = FiservAuthType::try_from(&item.connector_auth_type)?;
+        let auth: common_enums::FiservAuthType = common_enums::FiservAuthType::foreign_try_from(&item.connector_auth_type)?;
         Ok(Self {
             merchant_details: MerchantDetails {
-                merchant_id: auth.merchant_account,
+                merchant_id: auth.merchant_id,
                 terminal_id: None,
             },
             reference_transaction_details: ReferenceTransactionDetails {
@@ -439,10 +425,10 @@ impl TryFrom<&types::PaymentsSyncRouterData> for FiservSyncRequest {
 impl TryFrom<&types::RefundSyncRouterData> for FiservSyncRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::RefundSyncRouterData) -> Result<Self, Self::Error> {
-        let auth: FiservAuthType = FiservAuthType::try_from(&item.connector_auth_type)?;
+        let auth: common_enums::FiservAuthType = common_enums::FiservAuthType::foreign_try_from(&item.connector_auth_type)?;
         Ok(Self {
             merchant_details: MerchantDetails {
-                merchant_id: auth.merchant_account,
+                merchant_id: auth.merchant_id,
                 terminal_id: None,
             },
             reference_transaction_details: ReferenceTransactionDetails {
@@ -467,7 +453,7 @@ pub struct FiservRefundRequest {
 impl<F> TryFrom<&types::RefundsRouterData<F>> for FiservRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
-        let auth: FiservAuthType = FiservAuthType::try_from(&item.connector_auth_type)?;
+        let auth: common_enums::FiservAuthType = common_enums::FiservAuthType::foreign_try_from(&item.connector_auth_type)?;
         let metadata = item
             .connector_meta_data
             .clone()
@@ -484,7 +470,7 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for FiservRefundRequest {
                 currency: item.request.currency.to_string(),
             },
             merchant_details: MerchantDetails {
-                merchant_id: auth.merchant_account,
+                merchant_id: auth.merchant_id,
                 terminal_id: Some(session.terminal_id),
             },
             reference_transaction_details: ReferenceTransactionDetails {

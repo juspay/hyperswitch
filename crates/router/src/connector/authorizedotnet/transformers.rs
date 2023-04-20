@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     connector::utils::RefundsRequestData,
     core::errors,
-    types::{self, api, storage::enums},
+    types::{self, api, storage::enums, transformers::ForeignTryFrom},
     utils::OptionExt,
 };
 
@@ -18,22 +18,13 @@ pub enum TransactionType {
     #[serde(rename = "voidTransaction")]
     Void,
 }
-#[derive(Debug, Serialize, PartialEq)]
-#[serde(rename_all = "camelCase")]
-struct MerchantAuthentication {
-    name: String,
-    transaction_key: String,
-}
 
-impl TryFrom<&common_enums::ConnectorAuthType> for MerchantAuthentication {
+impl ForeignTryFrom<&common_enums::ConnectorAuthType> for common_enums::AuthorizedotnetAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
 
-    fn try_from(auth_type: &common_enums::ConnectorAuthType) -> Result<Self, Self::Error> {
-        if let common_enums::ConnectorAuthType::Authorizedotnet { api_login_id, transaction_key } = auth_type {
-            Ok(Self {
-                name: api_login_id.clone(),
-                transaction_key: transaction_key.clone(),
-            })
+    fn foreign_try_from(auth_type: &common_enums::ConnectorAuthType) -> Result<Self, Self::Error> {
+        if let common_enums::ConnectorAuthType::Authorizedotnet (connector_auth) = auth_type {
+            Ok(connector_auth.clone())
         } else {
             Err(errors::ConnectorError::FailedToObtainAuthType)?
         }
@@ -122,14 +113,14 @@ struct TransactionVoidRequest {
 #[derive(Debug, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct AuthorizedotnetPaymentsRequest {
-    merchant_authentication: MerchantAuthentication,
+    merchant_authentication: common_enums::AuthorizedotnetAuthType,
     transaction_request: TransactionRequest,
 }
 
 #[derive(Debug, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct AuthorizedotnetPaymentCancelRequest {
-    merchant_authentication: MerchantAuthentication,
+    merchant_authentication: common_enums::AuthorizedotnetAuthType,
     transaction_request: TransactionVoidRequest,
 }
 
@@ -178,7 +169,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for CreateTransactionRequest {
             authorization_indicator_type,
         };
 
-        let merchant_authentication = MerchantAuthentication::try_from(&item.connector_auth_type)?;
+        let merchant_authentication = common_enums::AuthorizedotnetAuthType::foreign_try_from(&item.connector_auth_type)?;
 
         Ok(Self {
             create_transaction_request: AuthorizedotnetPaymentsRequest {
@@ -197,7 +188,7 @@ impl TryFrom<&types::PaymentsCancelRouterData> for CancelTransactionRequest {
             ref_trans_id: item.request.connector_transaction_id.to_string(),
         };
 
-        let merchant_authentication = MerchantAuthentication::try_from(&item.connector_auth_type)?;
+        let merchant_authentication = common_enums::AuthorizedotnetAuthType::foreign_try_from(&item.connector_auth_type)?;
 
         Ok(Self {
             create_transaction_request: AuthorizedotnetPaymentCancelRequest {
@@ -358,7 +349,7 @@ struct RefundTransactionRequest {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AuthorizedotnetRefundRequest {
-    merchant_authentication: MerchantAuthentication,
+    merchant_authentication: common_enums::AuthorizedotnetAuthType,
     transaction_request: RefundTransactionRequest,
 }
 
@@ -382,7 +373,7 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for CreateRefundRequest {
             })?
             .clone();
 
-        let merchant_authentication = MerchantAuthentication::try_from(&item.connector_auth_type)?;
+        let merchant_authentication = common_enums::AuthorizedotnetAuthType::foreign_try_from(&item.connector_auth_type)?;
 
         let transaction_request = RefundTransactionRequest {
             transaction_type: TransactionType::Refund,
@@ -458,7 +449,7 @@ impl<F> TryFrom<types::RefundsResponseRouterData<F, AuthorizedotnetRefundRespons
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TransactionDetails {
-    merchant_authentication: MerchantAuthentication,
+    merchant_authentication: common_enums::AuthorizedotnetAuthType,
     #[serde(rename = "transId")]
     transaction_id: Option<String>,
 }
@@ -473,7 +464,7 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for AuthorizedotnetCreateSyncReque
 
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
         let transaction_id = item.request.get_connector_refund_id()?;
-        let merchant_authentication = MerchantAuthentication::try_from(&item.connector_auth_type)?;
+        let merchant_authentication = common_enums::AuthorizedotnetAuthType::foreign_try_from(&item.connector_auth_type)?;
 
         let payload = Self {
             get_transaction_details_request: TransactionDetails {
@@ -506,7 +497,7 @@ impl TryFrom<&types::PaymentsSyncRouterData> for AuthorizedotnetCreateSyncReques
             .transpose()
             .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
 
-        let merchant_authentication = MerchantAuthentication::try_from(&item.connector_auth_type)?;
+        let merchant_authentication = common_enums::AuthorizedotnetAuthType::foreign_try_from(&item.connector_auth_type)?;
 
         let payload = Self {
             get_transaction_details_request: TransactionDetails {

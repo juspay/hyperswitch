@@ -4,7 +4,7 @@ use url::Url;
 use crate::{
     core::errors,
     pii, services,
-    types::{self, api, storage::enums, transformers::ForeignFrom},
+    types::{self, api, storage::enums, transformers::{ForeignFrom, ForeignTryFrom, ForeignTryInto}},
 };
 
 #[derive(Debug, Serialize)]
@@ -20,11 +20,6 @@ pub struct CardSource {
 #[serde(untagged)]
 pub enum Source {
     Card(CardSource),
-}
-
-pub struct CheckoutAuthType {
-    pub(super) api_key: String,
-    pub(super) processing_channel_id: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -52,14 +47,11 @@ pub struct CheckoutThreeDS {
     force_3ds: bool,
 }
 
-impl TryFrom<&common_enums::ConnectorAuthType> for CheckoutAuthType {
+impl ForeignTryFrom<&common_enums::ConnectorAuthType> for common_enums::CheckoutAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(auth_type: &common_enums::ConnectorAuthType) -> Result<Self, Self::Error> {
-        if let common_enums::ConnectorAuthType::Checkout { checkout_api_key, processing_channel_id } = auth_type {
-            Ok(Self {
-                api_key: checkout_api_key.to_string(),
-                processing_channel_id: processing_channel_id.to_string(),
-            })
+    fn foreign_try_from(auth_type: &common_enums::ConnectorAuthType) -> Result<Self, Self::Error> {
+        if let common_enums::ConnectorAuthType::Checkout (connector_auth) = auth_type {
+            Ok(connector_auth.clone())
         } else {
             Err(errors::ConnectorError::FailedToObtainAuthType.into())
         }
@@ -112,7 +104,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentsRequest {
             expiry_year: ccard.map(|x| x.card_exp_year.clone()),
         });
         let connector_auth = &item.connector_auth_type;
-        let auth_type: CheckoutAuthType = connector_auth.try_into()?;
+        let auth_type: common_enums::CheckoutAuthType = connector_auth.foreign_try_into()?;
         let processing_channel_id = auth_type.processing_channel_id;
         Ok(Self {
             source: source_var,
@@ -329,7 +321,7 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for PaymentCaptureRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsCaptureRouterData) -> Result<Self, Self::Error> {
         let connector_auth = &item.connector_auth_type;
-        let auth_type: CheckoutAuthType = connector_auth.try_into()?;
+        let auth_type: common_enums::CheckoutAuthType = connector_auth.foreign_try_into()?;
         let processing_channel_id = auth_type.processing_channel_id;
         Ok(Self {
             amount: Some(item.request.amount_to_capture),

@@ -15,29 +15,15 @@ use crate::{
     core::errors,
     pii::{self},
     services,
-    types::{self, api, storage::enums, BrowserInformation},
+    types::{self, api, storage::enums, BrowserInformation, transformers::ForeignTryFrom},
 };
 
-pub struct TrustpayAuthType {
-    pub(super) api_key: String,
-    pub(super) project_id: String,
-    pub(super) secret_key: String,
-}
-
-impl TryFrom<&common_enums::ConnectorAuthType> for TrustpayAuthType {
+impl ForeignTryFrom<&common_enums::ConnectorAuthType> for common_enums::TrustpayAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(auth_type: &common_enums::ConnectorAuthType) -> Result<Self, Self::Error> {
-        if let common_enums::ConnectorAuthType::TrustPay {
-            api_key,
-            project_id,
-            secret_key,
-        } = auth_type
+    fn foreign_try_from(auth_type: &common_enums::ConnectorAuthType) -> Result<Self, Self::Error> {
+        if let common_enums::ConnectorAuthType::TrustPay (connector_auth) = auth_type
         {
-            Ok(Self {
-                api_key: api_key.to_string(),
-                project_id: project_id.to_string(),
-                secret_key: secret_key.to_string(),
-            })
+            Ok(connector_auth.clone())
         } else {
             Err(errors::ConnectorError::FailedToObtainAuthType.into())
         }
@@ -249,7 +235,7 @@ fn get_bank_redirection_request_data(
     bank_redirection_data: &BankRedirectData,
     amount: String,
     return_url: String,
-    auth: TrustpayAuthType,
+    auth: common_enums::TrustpayAuthType,
 ) -> TrustpayPaymentsRequest {
     TrustpayPaymentsRequest::BankRedirectPaymentRequest(Box::new(PaymentRequestBankRedirect {
         payment_method: get_trustpay_payment_method(bank_redirection_data),
@@ -301,7 +287,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for TrustpayPaymentsRequest {
                 .ok()
                 .ok_or(errors::ConnectorError::RequestEncodingFailed)?
         );
-        let auth = TrustpayAuthType::try_from(&item.connector_auth_type)
+        let auth = common_enums::TrustpayAuthType::foreign_try_from(&item.connector_auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(match item.request.payment_method_data {
             api::PaymentMethodData::Card(ref ccard) => Ok(get_card_request_data(
@@ -831,7 +817,7 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for TrustpayRefundRequest {
         );
         match item.payment_method {
             storage_models::enums::PaymentMethod::BankRedirect => {
-                let auth = TrustpayAuthType::try_from(&item.connector_auth_type)
+                let auth = common_enums::TrustpayAuthType::foreign_try_from(&item.connector_auth_type)
                     .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
                 Ok(Self::BankRedirectRefund(Box::new(
                     TrustpayRefundRequestBankRedirect {

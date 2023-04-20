@@ -8,7 +8,7 @@ use crate::{
     core::errors,
     pii::{self, Secret},
     services,
-    types::{self, api, storage::enums},
+    types::{self, api, storage::enums, transformers::ForeignTryFrom},
 };
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq, Deserialize, Serialize)]
@@ -355,18 +355,11 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for MultisafepayPaymentsReques
     }
 }
 
-// Auth Struct
-pub struct MultisafepayAuthType {
-    pub(super) api_key: String,
-}
-
-impl TryFrom<&common_enums::ConnectorAuthType> for MultisafepayAuthType {
+impl ForeignTryFrom<&common_enums::ConnectorAuthType> for common_enums::MultisafepayAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(auth_type: &common_enums::ConnectorAuthType) -> Result<Self, Self::Error> {
-        if let common_enums::ConnectorAuthType::Multisafepay { api_key } = auth_type {
-            Ok(Self {
-                api_key: api_key.to_string(),
-            })
+    fn foreign_try_from(auth_type: &common_enums::ConnectorAuthType) -> Result<Self, Self::Error> {
+        if let common_enums::ConnectorAuthType::Multisafepay (connector_auth) = auth_type {
+            Ok(connector_auth.clone())
         } else {
             Err(errors::ConnectorError::FailedToObtainAuthType.into())
         }

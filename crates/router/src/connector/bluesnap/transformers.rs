@@ -101,20 +101,11 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for BluesnapCaptureRequest {
     }
 }
 
-// Auth Struct
-pub struct BluesnapAuthType {
-    pub(super) password: String,
-    pub(super) username: String,
-}
-
-impl TryFrom<&common_enums::ConnectorAuthType> for BluesnapAuthType {
+impl ForeignTryFrom<&common_enums::ConnectorAuthType> for common_enums::BluesnapAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(auth_type: &common_enums::ConnectorAuthType) -> Result<Self, Self::Error> {
-        if let common_enums::ConnectorAuthType::Bluesnap { password, username } = auth_type {
-            Ok(Self {
-                password: password.to_string(),
-                username: username.to_string(),
-            })
+    fn foreign_try_from(auth_type: &common_enums::ConnectorAuthType) -> Result<Self, Self::Error> {
+        if let common_enums::ConnectorAuthType::Bluesnap (connector_auth)  = auth_type {
+            Ok(connector_auth.clone())
         } else {
             Err(errors::ConnectorError::FailedToObtainAuthType.into())
         }

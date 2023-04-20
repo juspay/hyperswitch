@@ -17,7 +17,7 @@ use crate::{
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
-        ErrorResponse, Response,
+        ErrorResponse, Response, transformers::ForeignTryFrom,
     },
     utils::{self, BytesExt},
 };
@@ -34,7 +34,7 @@ where
         req: &types::RouterData<Flow, Request, Response>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        let auth = payeezy::PayeezyAuthType::try_from(&req.connector_auth_type)?;
+        let auth = common_enums::PayeezyAuthType::foreign_try_from(&req.connector_auth_type)?;
         let option_request_payload = self.get_request_body(req)?;
         let request_payload = option_request_payload.map_or("{}".to_string(), |s| s);
         let timestamp = std::time::SystemTime::now()

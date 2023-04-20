@@ -15,7 +15,7 @@ use crate::{
     consts,
     core::errors,
     services,
-    types::{self, api, storage::enums},
+    types::{self, api, storage::enums, transformers::ForeignTryFrom},
 };
 
 #[derive(Debug, Serialize, Default, Deserialize)]
@@ -323,7 +323,7 @@ impl TryFrom<&types::PaymentsAuthorizeSessionTokenRouterData> for NuveiSessionRe
     fn try_from(
         item: &types::PaymentsAuthorizeSessionTokenRouterData,
     ) -> Result<Self, Self::Error> {
-        let connector_meta: NuveiAuthType = NuveiAuthType::try_from(&item.connector_auth_type)?;
+        let connector_meta: common_enums::NuveiAuthType = common_enums::NuveiAuthType::foreign_try_from(&item.connector_auth_type)?;
         let merchant_id = connector_meta.merchant_id;
         let merchant_site_id = connector_meta.merchant_site_id;
         let client_request_id = item.attempt_id.clone();
@@ -616,7 +616,7 @@ impl TryFrom<NuveiPaymentRequestData> for NuveiPaymentsRequest {
         fp_utils::when(session_token.is_empty(), || {
             Err(errors::ConnectorError::FailedToObtainAuthType)
         })?;
-        let connector_meta: NuveiAuthType = NuveiAuthType::try_from(&request.connector_auth_type)?;
+        let connector_meta: common_enums::NuveiAuthType = common_enums::NuveiAuthType::foreign_try_from(&request.connector_auth_type)?;
         let merchant_id = connector_meta.merchant_id;
         let merchant_site_id = connector_meta.merchant_site_id;
         let client_request_id = request.client_request_id;
@@ -654,7 +654,7 @@ impl TryFrom<NuveiPaymentRequestData> for NuveiPaymentsRequest {
 impl TryFrom<NuveiPaymentRequestData> for NuveiPaymentFlowRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(request: NuveiPaymentRequestData) -> Result<Self, Self::Error> {
-        let connector_meta: NuveiAuthType = NuveiAuthType::try_from(&request.connector_auth_type)?;
+        let connector_meta: common_enums::NuveiAuthType = common_enums::NuveiAuthType::foreign_try_from(&request.connector_auth_type)?;
         let merchant_id = connector_meta.merchant_id;
         let merchant_site_id = connector_meta.merchant_site_id;
         let client_request_id = request.client_request_id;
@@ -748,27 +748,12 @@ impl TryFrom<&types::PaymentsCancelRouterData> for NuveiPaymentFlowRequest {
     }
 }
 
-// Auth Struct
-pub struct NuveiAuthType {
-    pub(super) merchant_id: String,
-    pub(super) merchant_site_id: String,
-    pub(super) merchant_secret: String,
-}
-
-impl TryFrom<&common_enums::ConnectorAuthType> for NuveiAuthType {
+impl ForeignTryFrom<&common_enums::ConnectorAuthType> for common_enums::NuveiAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(auth_type: &common_enums::ConnectorAuthType) -> Result<Self, Self::Error> {
-        if let common_enums::ConnectorAuthType::Nuvei {
-            merchant_id,
-            merchant_site_id,
-            merchant_secret,
-        } = auth_type
+    fn foreign_try_from(auth_type: &common_enums::ConnectorAuthType) -> Result<Self, Self::Error> {
+        if let common_enums::ConnectorAuthType::Nuvei (connector_auth) = auth_type
         {
-            Ok(Self {
-                merchant_id: merchant_id.to_string(),
-                merchant_site_id: merchant_site_id.to_string(),
-                merchant_secret: merchant_secret.to_string(),
-            })
+            Ok(connector_auth.clone())
         } else {
             Err(errors::ConnectorError::FailedToObtainAuthType)?
         }

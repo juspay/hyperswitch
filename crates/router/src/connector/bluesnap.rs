@@ -18,7 +18,7 @@ use crate::{
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
-        ErrorResponse, Response,
+        ErrorResponse, Response, transformers::ForeignTryInto,
     },
     utils::{self, BytesExt},
 };
@@ -61,8 +61,8 @@ impl ConnectorCommon for Bluesnap {
         &self,
         auth_type: &common_enums::ConnectorAuthType,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        let auth: bluesnap::BluesnapAuthType = auth_type
-            .try_into()
+        let auth: common_enums::BluesnapAuthType = auth_type
+            .foreign_try_into()
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         let encoded_api_key =
             consts::BASE64_ENGINE.encode(format!("{}:{}", auth.username, auth.password));

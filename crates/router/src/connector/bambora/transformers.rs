@@ -94,8 +94,8 @@ pub struct BamboraAuthType {
 impl TryFrom<&common_enums::ConnectorAuthType> for BamboraAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(auth_type: &common_enums::ConnectorAuthType) -> Result<Self, Self::Error> {
-        if let common_enums::ConnectorAuthType::Bambora { passcode, merchant_id } = auth_type {
-            let auth_key = format!("{merchant_id}:{passcode}");
+        if let common_enums::ConnectorAuthType::Bambora (connector_auth) = auth_type {
+            let auth_key = format!("{0}:{1}",connector_auth.merchant_id, connector_auth.passcode);
             let auth_header = format!("Passcode {}", consts::BASE64_ENGINE.encode(auth_key));
             Ok(Self {
                 api_key: auth_header,

@@ -6,7 +6,7 @@ use crate::{
     connector::utils::{PaymentsAuthorizeRequestData, RouterData},
     core::errors,
     services,
-    types::{self, api, storage::enums},
+    types::{self, api, storage::enums, transformers::ForeignTryFrom},
 };
 
 //TODO: Fill the struct with respective fields
@@ -27,20 +27,13 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for OpennodePaymentsRequest {
     }
 }
 
-//TODO: Fill the struct with respective fields
-// Auth Struct
-pub struct OpennodeAuthType {
-    pub(super) api_key: String,
-}
-
-impl TryFrom<&common_enums::ConnectorAuthType> for OpennodeAuthType {
+impl ForeignTryFrom<&common_enums::ConnectorAuthType> for common_enums::OpennodeAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(auth_type: &common_enums::ConnectorAuthType) -> Result<Self, Self::Error> {
-        match auth_type {
-            common_enums::ConnectorAuthType::Opennode { api_key } => Ok(Self {
-                api_key: api_key.to_string(),
-            }),
-            _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
+    fn foreign_try_from(auth_type: &common_enums::ConnectorAuthType) -> Result<Self, Self::Error> {
+        if let common_enums::ConnectorAuthType::Opennode(connector_auth) = auth_type {
+            Ok(connector_auth.clone())
+        } else {
+            Err(errors::ConnectorError::FailedToObtainAuthType)?
         }
     }
 }

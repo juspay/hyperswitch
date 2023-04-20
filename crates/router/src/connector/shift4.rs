@@ -19,7 +19,7 @@ use crate::{
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
-        ErrorResponse,
+        ErrorResponse, transformers::ForeignTryInto,
     },
     utils::{self, BytesExt},
 };
@@ -68,10 +68,10 @@ impl ConnectorCommon for Shift4 {
         &self,
         auth_type: &common_enums::ConnectorAuthType,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        let auth: shift4::Shift4AuthType = auth_type
-            .try_into()
+        let auth: common_enums::Shift4AuthType = auth_type
+            .foreign_try_into()
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-        Ok(vec![(headers::AUTHORIZATION.to_string(), auth.api_key)])
+        Ok(vec![(headers::AUTHORIZATION.to_string(), auth.shift4_api_key)])
     }
 
     fn build_error_response(

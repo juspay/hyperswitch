@@ -2,6 +2,7 @@ mod transformers;
 use std::fmt::Debug;
 
 use base64::Engine;
+use common_enums::RapydAuthType;
 use common_utils::{date_time, ext_traits::StringExt};
 use error_stack::{IntoReport, ResultExt};
 use rand::distributions::{Alphanumeric, DistString};
@@ -18,7 +19,7 @@ use crate::{
     types::{
         self,
         api::{self, ConnectorCommon},
-        ErrorResponse,
+        ErrorResponse, transformers::ForeignTryFrom,
     },
     utils::{self, crypto, ByteSliceExt, BytesExt},
 };
@@ -29,17 +30,15 @@ pub struct Rapyd;
 impl Rapyd {
     pub fn generate_signature(
         &self,
-        auth: &rapyd::RapydAuthType,
+        auth: &common_enums::RapydAuthType,
         http_method: &str,
         url_path: &str,
         body: &str,
         timestamp: &i64,
         salt: &str,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let rapyd::RapydAuthType {
-            access_key,
-            secret_key,
-        } = auth;
+        let access_key = auth.api_secret.clone();
+        let secret_key = auth.secret_key.clone();
         let to_sign =
             format!("{http_method}{url_path}{salt}{timestamp}{access_key}{secret_key}{body}");
         let key = hmac::Key::new(hmac::HMAC_SHA256, secret_key.as_bytes());
@@ -157,11 +156,11 @@ impl
         let rapyd_req = utils::Encode::<rapyd::RapydPaymentsRequest>::convert_and_encode(req)
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
 
-        let auth: rapyd::RapydAuthType = rapyd::RapydAuthType::try_from(&req.connector_auth_type)?;
+        let auth: common_enums::RapydAuthType = common_enums::RapydAuthType::foreign_try_from(&req.connector_auth_type)?;
         let signature =
             self.generate_signature(&auth, "post", "/v1/payments", &rapyd_req, &timestamp, &salt)?;
         let headers = vec![
-            ("access_key".to_string(), auth.access_key),
+            ("access_key".to_string(), auth.api_secret),
             ("salt".to_string(), salt),
             ("timestamp".to_string(), timestamp.to_string()),
             ("signature".to_string(), signature),
@@ -272,13 +271,13 @@ impl
         let timestamp = date_time::now_unix_timestamp();
         let salt = Alphanumeric.sample_string(&mut rand::thread_rng(), 12);
 
-        let auth: rapyd::RapydAuthType = rapyd::RapydAuthType::try_from(&req.connector_auth_type)?;
+        let auth: common_enums::RapydAuthType = common_enums::RapydAuthType::foreign_try_from(&req.connector_auth_type)?;
         let url_path = format!("/v1/payments/{}", req.request.connector_transaction_id);
         let signature =
             self.generate_signature(&auth, "delete", &url_path, "", &timestamp, &salt)?;
 
         let headers = vec![
-            ("access_key".to_string(), auth.access_key),
+            ("access_key".to_string(), auth.api_secret),
             ("salt".to_string(), salt),
             ("timestamp".to_string(), timestamp.to_string()),
             ("signature".to_string(), signature),
@@ -361,7 +360,7 @@ impl
         let timestamp = date_time::now_unix_timestamp();
         let salt = Alphanumeric.sample_string(&mut rand::thread_rng(), 12);
 
-        let auth: rapyd::RapydAuthType = rapyd::RapydAuthType::try_from(&req.connector_auth_type)?;
+        let auth: common_enums::RapydAuthType = common_enums::RapydAuthType::foreign_try_from(&req.connector_auth_type)?;
         let response_id = req.request.connector_transaction_id.clone();
         let url_path = format!(
             "/v1/payments/{}",
@@ -372,7 +371,7 @@ impl
         let signature = self.generate_signature(&auth, "get", &url_path, "", &timestamp, &salt)?;
 
         let headers = vec![
-            ("access_key".to_string(), auth.access_key),
+            ("access_key".to_string(), auth.api_secret),
             ("salt".to_string(), salt),
             ("timestamp".to_string(), timestamp.to_string()),
             ("signature".to_string(), signature),
@@ -456,7 +455,7 @@ impl
         let rapyd_req = utils::Encode::<rapyd::CaptureRequest>::convert_and_encode(req)
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
 
-        let auth: rapyd::RapydAuthType = rapyd::RapydAuthType::try_from(&req.connector_auth_type)?;
+        let auth: common_enums::RapydAuthType = common_enums::RapydAuthType::foreign_try_from(&req.connector_auth_type)?;
         let url_path = format!(
             "/v1/payments/{}/capture",
             req.request.connector_transaction_id
@@ -464,7 +463,7 @@ impl
         let signature =
             self.generate_signature(&auth, "post", &url_path, &rapyd_req, &timestamp, &salt)?;
         let headers = vec![
-            ("access_key".to_string(), auth.access_key),
+            ("access_key".to_string(), auth.api_secret),
             ("salt".to_string(), salt),
             ("timestamp".to_string(), timestamp.to_string()),
             ("signature".to_string(), signature),
@@ -582,11 +581,11 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
         let rapyd_req = utils::Encode::<rapyd::RapydRefundRequest>::convert_and_encode(req)
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
 
-        let auth: rapyd::RapydAuthType = rapyd::RapydAuthType::try_from(&req.connector_auth_type)?;
+        let auth: common_enums::RapydAuthType = common_enums::RapydAuthType::foreign_try_from(&req.connector_auth_type)?;
         let signature =
             self.generate_signature(&auth, "post", "/v1/refunds", &rapyd_req, &timestamp, &salt)?;
         let headers = vec![
-            ("access_key".to_string(), auth.access_key),
+            ("access_key".to_string(), auth.api_secret),
             ("salt".to_string(), salt),
             ("timestamp".to_string(), timestamp.to_string()),
             ("signature".to_string(), signature),
@@ -726,10 +725,10 @@ impl api::IncomingWebhook for Rapyd {
             .into_report()
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)
             .attach_printable("Could not convert secret to UTF-8")?;
-        let auth: transformers::RapydAuthType = stringify_auth
+        let auth: RapydAuthType = stringify_auth
             .parse_struct("RapydAuthType")
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
-        let access_key = auth.access_key;
+        let access_key = auth.api_secret;
         let secret_key = auth.secret_key;
         let body_string = String::from_utf8(request.body.to_vec())
             .into_report()
@@ -761,7 +760,7 @@ impl api::IncomingWebhook for Rapyd {
             .into_report()
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)
             .attach_printable("Could not convert secret to UTF-8")?;
-        let auth: transformers::RapydAuthType = stringify_auth
+        let auth: RapydAuthType = stringify_auth
             .parse_struct("RapydAuthType")
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
         let secret_key = auth.secret_key;

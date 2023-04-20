@@ -7,7 +7,7 @@ use crate::{
     core::errors,
     pii::Secret,
     services,
-    types::{self, api, storage::enums},
+    types::{self, api, storage::enums, transformers::ForeignTryFrom},
 };
 
 #[derive(Debug, Default, Eq, PartialEq, Serialize)]
@@ -39,18 +39,11 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for CoinbasePaymentsRequest {
     }
 }
 
-// Auth Struct
-pub struct CoinbaseAuthType {
-    pub(super) api_key: String,
-}
-
-impl TryFrom<&common_enums::ConnectorAuthType> for CoinbaseAuthType {
+impl ForeignTryFrom<&common_enums::ConnectorAuthType> for common_enums::CoinbaseAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(_auth_type: &common_enums::ConnectorAuthType) -> Result<Self, Self::Error> {
-        if let common_enums::ConnectorAuthType::Coinbase { api_key } = _auth_type {
-            Ok(Self {
-                api_key: api_key.to_string(),
-            })
+    fn foreign_try_from(_auth_type: &common_enums::ConnectorAuthType) -> Result<Self, Self::Error> {
+        if let common_enums::ConnectorAuthType::Coinbase(coinbase_auth) = _auth_type {
+            Ok(coinbase_auth.clone())
         } else {
             Err(errors::ConnectorError::FailedToObtainAuthType.into())
         }

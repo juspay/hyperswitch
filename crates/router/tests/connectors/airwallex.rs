@@ -37,7 +37,7 @@ impl Connector for AirwallexTest {
 
 fn get_access_token() -> Option<AccessToken> {
     match CONNECTOR.get_auth_token() {
-        common_enums::ConnectorAuthType::Airwallex { app_id, key1 } => Some(AccessToken {
+        common_enums::AirwallexAuthType { app_id, key1 } => Some(AccessToken {
             token: app_id,
             expires: key1.parse::<i64>().unwrap(),
         }),

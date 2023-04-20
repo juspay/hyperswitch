@@ -7,7 +7,7 @@ use crate::{
     core::errors,
     pii::{self, Secret},
     services,
-    types::{self, api, storage::enums, transformers::ForeignFrom},
+    types::{self, api, storage::enums, transformers::{ForeignFrom, ForeignTryFrom}},
     utils::OptionExt,
 };
 
@@ -135,20 +135,11 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for RapydPaymentsRequest {
     }
 }
 
-#[derive(Debug, Deserialize)]
-pub struct RapydAuthType {
-    pub access_key: String,
-    pub secret_key: String,
-}
-
-impl TryFrom<&common_enums::ConnectorAuthType> for RapydAuthType {
+impl ForeignTryFrom<&common_enums::ConnectorAuthType> for common_enums::RapydAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(auth_type: &common_enums::ConnectorAuthType) -> Result<Self, Self::Error> {
-        if let common_enums::ConnectorAuthType::Rapyd { api_secret, secret_key } = auth_type {
-            Ok(Self {
-                access_key: api_secret.to_string(),
-                secret_key: secret_key.to_string(),
-            })
+    fn foreign_try_from(auth_type: &common_enums::ConnectorAuthType) -> Result<Self, Self::Error> {
+        if let common_enums::ConnectorAuthType::Rapyd (connector_auth) = auth_type {
+            Ok(connector_auth.clone())
         } else {
             Err(errors::ConnectorError::FailedToObtainAuthType)?
         }

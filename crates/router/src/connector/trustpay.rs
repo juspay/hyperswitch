@@ -20,7 +20,7 @@ use crate::{
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
-        ErrorResponse, Response,
+        ErrorResponse, Response, transformers::ForeignTryFrom,
     },
     utils::{self, BytesExt},
 };
@@ -84,7 +84,7 @@ impl ConnectorCommon for Trustpay {
         &self,
         auth_type: &common_enums::ConnectorAuthType,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        let auth = trustpay::TrustpayAuthType::try_from(auth_type)
+        let auth = common_enums::TrustpayAuthType::foreign_try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(vec![(headers::X_API_KEY.to_string(), auth.api_key)])
     }
@@ -162,7 +162,7 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
         req: &types::RefreshTokenRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        let auth = trustpay::TrustpayAuthType::try_from(&req.connector_auth_type)
+        let auth = common_enums::TrustpayAuthType::foreign_try_from(&req.connector_auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         let auth_value = format!(
             "Basic {}",

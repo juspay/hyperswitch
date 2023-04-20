@@ -18,7 +18,7 @@ use crate::{
     headers, services,
     types::{
         self,
-        api::{self, ConnectorCommon},
+        api::{self, ConnectorCommon}, transformers::ForeignTryInto,
     },
     utils::{self, BytesExt},
 };
@@ -39,12 +39,12 @@ impl ConnectorCommon for Checkout {
         &self,
         auth_type: &common_enums::ConnectorAuthType,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        let auth: checkout::CheckoutAuthType = auth_type
-            .try_into()
+        let auth: common_enums::CheckoutAuthType = auth_type
+            .foreign_try_into()
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
-            format!("Bearer {}", auth.api_key),
+            format!("Bearer {}", auth.checkout_api_key),
         )])
     }
 

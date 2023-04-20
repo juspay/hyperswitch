@@ -144,17 +144,13 @@ pub struct BraintreeAuthType {
 impl TryFrom<&common_enums::ConnectorAuthType> for BraintreeAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &common_enums::ConnectorAuthType) -> Result<Self, Self::Error> {
-        if let common_enums::ConnectorAuthType::Braintree {
-            public_key,
-            merchant_id,
-            private_key,
-        } = item
+        if let common_enums::ConnectorAuthType::Braintree (connector_auth) = item
         {
-            let auth_key = format!("{public_key}:{private_key}");
+            let auth_key = format!("{0}:{1}", connector_auth.public_key, connector_auth.private_key);
             let auth_header = format!("Basic {}", consts::BASE64_ENGINE.encode(auth_key));
             Ok(Self {
                 auth_header,
-                merchant_id: merchant_id.to_owned(),
+                merchant_id: connector_auth.merchant_id.to_owned(),
             })
         } else {
             Err(errors::ConnectorError::FailedToObtainAuthType)?

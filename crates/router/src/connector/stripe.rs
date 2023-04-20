@@ -19,7 +19,7 @@ use crate::{
     headers, services,
     types::{
         self,
-        api::{self, ConnectorCommon},
+        api::{self, ConnectorCommon}, transformers::ForeignTryInto,
     },
     utils::{self, crypto, ByteSliceExt, BytesExt},
 };
@@ -45,12 +45,12 @@ impl ConnectorCommon for Stripe {
         &self,
         auth_type: &common_enums::ConnectorAuthType,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        let auth: stripe::StripeAuthType = auth_type
-            .try_into()
+        let auth: common_enums::StripeAuthType = auth_type
+            .foreign_try_into()
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
-            format!("Bearer {}", auth.api_key),
+            format!("Bearer {}", auth.stripe_api_key),
         )])
     }
 }

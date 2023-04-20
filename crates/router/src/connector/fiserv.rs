@@ -17,7 +17,7 @@ use crate::{
     services::{self, api::ConnectorIntegration},
     types::{
         self,
-        api::{self, ConnectorCommon, ConnectorCommonExt},
+        api::{self, ConnectorCommon, ConnectorCommonExt}, transformers::{ForeignTryFrom, ForeignTryInto},
     },
     utils::{self, BytesExt},
 };
@@ -28,12 +28,12 @@ pub struct Fiserv;
 impl Fiserv {
     pub fn generate_authorization_signature(
         &self,
-        auth: fiserv::FiservAuthType,
+        auth: common_enums::FiservAuthType,
         request_id: &str,
         payload: &str,
         timestamp: i128,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let fiserv::FiservAuthType {
+        let common_enums::FiservAuthType {
             api_key,
             api_secret,
             ..
@@ -57,8 +57,8 @@ where
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
         let timestamp = OffsetDateTime::now_utc().unix_timestamp_nanos() / 1_000_000;
-        let auth: fiserv::FiservAuthType =
-            fiserv::FiservAuthType::try_from(&req.connector_auth_type)?;
+        let auth: common_enums::FiservAuthType =
+            common_enums::FiservAuthType::foreign_try_from(&req.connector_auth_type)?;
         let mut auth_header = self.get_auth_header(&req.connector_auth_type)?;
 
         let fiserv_req = self
@@ -100,8 +100,8 @@ impl ConnectorCommon for Fiserv {
         &self,
         auth_type: &common_enums::ConnectorAuthType,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        let auth: fiserv::FiservAuthType = auth_type
-            .try_into()
+        let auth: common_enums::FiservAuthType = auth_type
+            .foreign_try_into()
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(vec![(headers::API_KEY.to_string(), auth.api_key)])
     }

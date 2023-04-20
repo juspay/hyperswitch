@@ -16,7 +16,7 @@ use crate::{
     consts,
     core::errors,
     services::{self, RedirectForm},
-    types::{self, api, storage::enums, ErrorResponse},
+    types::{self, api, storage::enums, ErrorResponse, transformers::ForeignTryFrom},
 };
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -101,19 +101,12 @@ impl TryFrom<&types::PaymentsCancelRouterData> for requests::GlobalpayCancelRequ
     }
 }
 
-pub struct GlobalpayAuthType {
-    pub app_id: String,
-    pub key: String,
-}
-
-impl TryFrom<&common_enums::ConnectorAuthType> for GlobalpayAuthType {
+impl ForeignTryFrom<&common_enums::ConnectorAuthType> for common_enums::GlobalpayAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(auth_type: &common_enums::ConnectorAuthType) -> Result<Self, Self::Error> {
+    fn foreign_try_from(auth_type: &common_enums::ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
-            common_enums::ConnectorAuthType::Globalpay { globalpay_app_key, globalpay_app_id } => Ok(Self {
-                app_id: globalpay_app_id.to_string(),
-                key: globalpay_app_key.to_string(),
-            }),
+            common_enums::ConnectorAuthType::Globalpay (connector_auth) => 
+            Ok(connector_auth.clone()),
             _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
         }
     }
@@ -134,12 +127,12 @@ impl TryFrom<&types::RefreshTokenRouterData> for GlobalpayRefreshTokenRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
 
     fn try_from(item: &types::RefreshTokenRouterData) -> Result<Self, Self::Error> {
-        let globalpay_auth = GlobalpayAuthType::try_from(&item.connector_auth_type)
+        let globalpay_auth = common_enums::GlobalpayAuthType::foreign_try_from(&item.connector_auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)
             .attach_printable("Could not convert connector_auth to globalpay_auth")?;
 
         let nonce = rand::distributions::Alphanumeric.sample_string(&mut rand::thread_rng(), 12);
-        let nonce_with_api_key = format!("{}{}", nonce, globalpay_auth.key);
+        let nonce_with_api_key = format!("{}{}", nonce, globalpay_auth.globalpay_app_key);
         let secret_vec = crypto::Sha512
             .generate_digest(nonce_with_api_key.as_bytes())
             .change_context(errors::ConnectorError::RequestEncodingFailed)
@@ -148,7 +141,7 @@ impl TryFrom<&types::RefreshTokenRouterData> for GlobalpayRefreshTokenRequest {
         let secret = hex::encode(secret_vec);
 
         Ok(Self {
-            app_id: globalpay_auth.app_id,
+            app_id: globalpay_auth.globalpay_app_id,
             nonce,
             secret,
             grant_type: "client_credentials".to_string(),

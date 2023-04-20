@@ -18,7 +18,7 @@ use crate::{
     services::{self, ConnectorIntegration},
     types::{
         self,
-        api::{self, ConnectorCommon, ConnectorCommonExt},
+        api::{self, ConnectorCommon, ConnectorCommonExt}, transformers::ForeignTryFrom,
     },
     utils::{self, BytesExt},
 };
@@ -34,14 +34,14 @@ impl Cybersource {
 
     pub fn generate_signature(
         &self,
-        auth: cybersource::CybersourceAuthType,
+        auth: common_enums::CybersourceAuthType,
         host: String,
         resource: &str,
         payload: &String,
         date: OffsetDateTime,
         http_method: services::Method,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let cybersource::CybersourceAuthType {
+        let common_enums::CybersourceAuthType {
             api_key,
             merchant_account,
             api_secret,
@@ -124,7 +124,7 @@ where
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
         let date = OffsetDateTime::now_utc();
         let cybersource_req = self.get_request_body(req)?;
-        let auth = cybersource::CybersourceAuthType::try_from(&req.connector_auth_type)?;
+        let auth = common_enums::CybersourceAuthType::foreign_try_from(&req.connector_auth_type)?;
         let merchant_account = auth.merchant_account.clone();
         let base_url = connectors.cybersource.base_url.as_str();
         let cybersource_host = Url::parse(base_url)

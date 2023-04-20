@@ -9,7 +9,7 @@ use crate::{
     },
     core::errors,
     pii,
-    types::{self, api, storage::enums as storage_enums, transformers::ForeignFrom},
+    types::{self, api, storage::enums as storage_enums, transformers::{ForeignFrom, ForeignTryFrom}},
 };
 
 #[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
@@ -157,20 +157,12 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, PaypalAuthUpdateResponse, T, typ
     }
 }
 
-#[derive(Debug)]
-pub struct PaypalAuthType {
-    pub(super) api_key: String,
-    pub(super) api_secret: String,
-}
-
-impl TryFrom<&common_enums::ConnectorAuthType> for PaypalAuthType {
+impl ForeignTryFrom<&common_enums::ConnectorAuthType> for common_enums::PaypalAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(auth_type: &common_enums::ConnectorAuthType) -> Result<Self, Self::Error> {
+    fn foreign_try_from(auth_type: &common_enums::ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
-            common_enums::ConnectorAuthType::Paypal { api_key, api_secret } => Ok(Self {
-                api_key: api_key.to_string(),
-                api_secret: api_secret.to_string(),
-            }),
+            common_enums::ConnectorAuthType::Paypal (connector_auth) => 
+            Ok(connector_auth.clone()),
             _ => Err(errors::ConnectorError::FailedToObtainAuthType)?,
         }
     }

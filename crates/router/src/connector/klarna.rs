@@ -14,7 +14,7 @@ use crate::{
     types::{
         self,
         api::{self, ConnectorCommon},
-        storage::enums as storage_enums,
+        storage::enums as storage_enums, transformers::ForeignTryInto,
     },
     utils::{self, BytesExt},
 };
@@ -39,10 +39,10 @@ impl ConnectorCommon for Klarna {
         &self,
         auth_type: &common_enums::ConnectorAuthType,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        let auth: klarna::KlarnaAuthType = auth_type
-            .try_into()
+        let auth: common_enums::KlarnaAuthType = auth_type
+            .foreign_try_into()
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-        Ok(vec![(headers::AUTHORIZATION.to_string(), auth.basic_token)])
+        Ok(vec![(headers::AUTHORIZATION.to_string(), auth.klarna_api_key)])
     }
 }
 

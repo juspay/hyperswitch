@@ -19,7 +19,7 @@ use crate::{
     types::{
         self,
         api::{self, CompleteAuthorize, ConnectorCommon, ConnectorCommonExt},
-        ErrorResponse, Response,
+        ErrorResponse, Response, transformers::ForeignTryInto,
     },
     utils::{self, BytesExt},
 };
@@ -143,8 +143,8 @@ impl ConnectorCommon for Paypal {
         &self,
         auth_type: &common_enums::ConnectorAuthType,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        let auth: paypal::PaypalAuthType = auth_type
-            .try_into()
+        let auth: common_enums::PaypalAuthType = auth_type
+            .foreign_try_into()
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(vec![(headers::AUTHORIZATION.to_string(), auth.api_key)])
     }
@@ -214,8 +214,8 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
         req: &types::RefreshTokenRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        let auth: paypal::PaypalAuthType = (&req.connector_auth_type)
-            .try_into()
+        let auth: common_enums::PaypalAuthType = (&req.connector_auth_type)
+            .foreign_try_into()
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
 
         let auth_id = format!("{}:{}", auth.api_secret, auth.api_key);

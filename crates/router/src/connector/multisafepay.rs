@@ -13,7 +13,7 @@ use crate::{
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
-        ErrorResponse, Response,
+        ErrorResponse, Response, transformers::{ForeignTryInto, ForeignTryFrom},
     },
     utils::{self, BytesExt},
 };
@@ -51,8 +51,8 @@ impl ConnectorCommon for Multisafepay {
         &self,
         auth_type: &common_enums::ConnectorAuthType,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        let auth: multisafepay::MultisafepayAuthType = auth_type
-            .try_into()
+        let auth: common_enums::MultisafepayAuthType = auth_type
+            .foreign_try_into()
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(vec![(headers::AUTHORIZATION.to_string(), auth.api_key)])
     }
@@ -130,7 +130,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let url = self.base_url(connectors);
-        let api_key = multisafepay::MultisafepayAuthType::try_from(&req.connector_auth_type)
+        let api_key = common_enums::MultisafepayAuthType::foreign_try_from(&req.connector_auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?
             .api_key;
         let ord_id = req.payment_id.clone();
@@ -214,7 +214,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let url = self.base_url(connectors);
-        let api_key = multisafepay::MultisafepayAuthType::try_from(&req.connector_auth_type)
+        let api_key = common_enums::MultisafepayAuthType::foreign_try_from(&req.connector_auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?
             .api_key;
         Ok(format!("{url}v1/json/orders?api_key={api_key}"))
@@ -304,7 +304,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let url = self.base_url(connectors);
-        let api_key = multisafepay::MultisafepayAuthType::try_from(&req.connector_auth_type)
+        let api_key = common_enums::MultisafepayAuthType::foreign_try_from(&req.connector_auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?
             .api_key;
         let ord_id = req.payment_id.clone();
@@ -387,7 +387,7 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let url = self.base_url(connectors);
-        let api_key = multisafepay::MultisafepayAuthType::try_from(&req.connector_auth_type)
+        let api_key = common_enums::MultisafepayAuthType::foreign_try_from(&req.connector_auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?
             .api_key;
         let ord_id = req.payment_id.clone();

@@ -13,7 +13,7 @@ use crate::{
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
-        ErrorResponse,
+        ErrorResponse, transformers::ForeignTryInto,
     },
     utils::{self, BytesExt},
 };
@@ -66,8 +66,8 @@ impl ConnectorCommon for Payu {
         &self,
         auth_type: &common_enums::ConnectorAuthType,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        let auth: payu::PayuAuthType = auth_type
-            .try_into()
+        let auth: common_enums::PayuAuthType = auth_type
+            .foreign_try_into()
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(vec![(headers::AUTHORIZATION.to_string(), auth.api_key)])
     }

@@ -12,21 +12,15 @@ use crate::{
     core::errors,
     pii::{self, ExposeOptionInterface, Secret},
     services,
-    types::{self, api, storage::enums},
+    types::{self, api, storage::enums, transformers::{ForeignFrom, ForeignTryFrom}},
     utils::OptionExt,
 };
 
-pub struct StripeAuthType {
-    pub(super) api_key: String,
-}
-
-impl TryFrom<&common_enums::ConnectorAuthType> for StripeAuthType {
+impl ForeignTryFrom<&common_enums::ConnectorAuthType> for common_enums::StripeAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &common_enums::ConnectorAuthType) -> Result<Self, Self::Error> {
-        if let common_enums::ConnectorAuthType::Stripe { stripe_api_key } = item {
-            Ok(Self {
-                api_key: stripe_api_key.to_string(),
-            })
+    fn foreign_try_from(item: &common_enums::ConnectorAuthType) -> Result<Self, Self::Error> {
+        if let common_enums::ConnectorAuthType::Stripe (connector_auth) = item {
+            Ok(connector_auth.clone())
         } else {
             Err(errors::ConnectorError::FailedToObtainAuthType.into())
         }

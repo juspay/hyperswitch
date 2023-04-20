@@ -5,6 +5,7 @@ use std::fmt::Debug;
 use common_utils::{crypto, ext_traits::ByteSliceExt};
 use error_stack::{IntoReport, ResultExt};
 use transformers as coinbase;
+use crate::types::transformers::ForeignTryFrom;
 
 use self::coinbase::CoinbaseWebhookDetails;
 use super::utils;
@@ -76,7 +77,7 @@ impl ConnectorCommon for Coinbase {
         &self,
         auth_type: &common_enums::ConnectorAuthType,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        let auth: coinbase::CoinbaseAuthType = coinbase::CoinbaseAuthType::try_from(auth_type)
+        let auth: common_enums::CoinbaseAuthType = common_enums::CoinbaseAuthType::foreign_try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(vec![(headers::X_CC_API_KEY.to_string(), auth.api_key)])
     }

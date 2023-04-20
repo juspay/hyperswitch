@@ -1,4 +1,5 @@
 use api_models::payments;
+use common_enums::connector_auth;
 use error_stack::IntoReport;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
@@ -8,7 +9,7 @@ use url::Url;
 use crate::{
     connector::utils::{self, AddressDetailsData, PaymentsAuthorizeRequestData, RouterData},
     core::errors,
-    services, types,
+    services, types::{self, transformers::ForeignTryFrom},
 };
 
 type Error = error_stack::Report<errors::ConnectorError>;
@@ -296,17 +297,11 @@ pub struct BankDetails {
     billing_email: String,
 }
 
-pub struct MollieAuthType {
-    pub(super) api_key: String,
-}
-
-impl TryFrom<&common_enums::ConnectorAuthType> for MollieAuthType {
+impl ForeignTryFrom<&common_enums::ConnectorAuthType> for common_enums::MollieAuthType {
     type Error = Error;
-    fn try_from(auth_type: &common_enums::ConnectorAuthType) -> Result<Self, Self::Error> {
-        if let common_enums::ConnectorAuthType::Mollie { api_key } = auth_type {
-            Ok(Self {
-                api_key: api_key.to_string(),
-            })
+    fn foreign_try_from(auth_type: &common_enums::ConnectorAuthType) -> Result<Self, Self::Error> {
+        if let common_enums::ConnectorAuthType::Mollie (connector_auth) = auth_type {
+            Ok(connector_auth.clone())
         } else {
             Err(errors::ConnectorError::FailedToObtainAuthType.into())
         }

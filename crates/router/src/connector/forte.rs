@@ -13,7 +13,7 @@ use crate::{
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
-        ErrorResponse, Response,
+        ErrorResponse, Response, transformers::ForeignTryFrom,
     },
     utils::{self, BytesExt},
 };
@@ -79,7 +79,7 @@ impl ConnectorCommon for Forte {
         &self,
         auth_type: &common_enums::ConnectorAuthType,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        let auth = forte::ForteAuthType::try_from(auth_type)
+        let auth = common_enums::ForteAuthType::foreign_try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(vec![(headers::AUTHORIZATION.to_string(), auth.api_key)])
     }

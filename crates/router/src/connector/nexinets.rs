@@ -13,7 +13,7 @@ use crate::{
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
-        ErrorResponse, Response,
+        ErrorResponse, Response, transformers::ForeignTryFrom,
     },
     utils::{self, BytesExt},
 };
@@ -69,7 +69,7 @@ impl ConnectorCommon for Nexinets {
         &self,
         auth_type: &common_enums::ConnectorAuthType,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        let auth = nexinets::NexinetsAuthType::try_from(auth_type)
+        let auth = common_enums::NexinetsAuthType::foreign_try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(vec![(headers::AUTHORIZATION.to_string(), auth.api_key)])
     }

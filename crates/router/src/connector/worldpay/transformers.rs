@@ -95,8 +95,8 @@ impl TryFrom<&common_enums::ConnectorAuthType> for WorldpayAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(auth_type: &common_enums::ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
-            common_enums::ConnectorAuthType::Worldpay { password, username } => {
-                let auth_key = format!("{username}:{password}");
+            common_enums::ConnectorAuthType::Worldpay (connector_auth) => {
+                let auth_key = format!("{0}:{1}", connector_auth.username, connector_auth.password);
                 let auth_header = format!("Basic {}", consts::BASE64_ENGINE.encode(auth_key));
                 Ok(Self {
                     api_key: auth_header,

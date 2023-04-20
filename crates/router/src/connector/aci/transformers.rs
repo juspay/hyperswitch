@@ -7,22 +7,14 @@ use serde::{Deserialize, Serialize};
 use super::result_codes::{FAILURE_CODES, PENDING_CODES, SUCCESSFUL_CODES};
 use crate::{
     core::errors,
-    types::{self, api, storage::enums},
+    types::{self, api, storage::enums, transformers::ForeignTryFrom},
 };
 
-pub struct AciAuthType {
-    pub api_key: String,
-    pub entity_id: String,
-}
-
-impl TryFrom<&common_enums::ConnectorAuthType> for AciAuthType {
+impl ForeignTryFrom<&common_enums::ConnectorAuthType> for common_enums::AciAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &common_enums::ConnectorAuthType) -> Result<Self, Self::Error> {
-        if let common_enums::ConnectorAuthType::Aci { api_key, entity_id } = item {
-            Ok(Self {
-                api_key: api_key.to_string(),
-                entity_id: entity_id.to_string(),
-            })
+    fn foreign_try_from(item: &common_enums::ConnectorAuthType) -> Result<Self, Self::Error> {
+        if let common_enums::ConnectorAuthType::Aci (connector_auth) = item {
+            Ok(connector_auth.clone())
         } else {
             Err(errors::ConnectorError::FailedToObtainAuthType)?
         }
@@ -118,7 +110,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for AciPaymentsRequest {
             })?,
         };
 
-        let auth = AciAuthType::try_from(&item.connector_auth_type)?;
+        let auth = common_enums::AciAuthType::foreign_try_from(&item.connector_auth_type)?;
         let aci_payment_request = Self {
             payment_method: payment_details,
             entity_id: auth.entity_id,
@@ -133,7 +125,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for AciPaymentsRequest {
 impl TryFrom<&types::PaymentsCancelRouterData> for AciCancelRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsCancelRouterData) -> Result<Self, Self::Error> {
-        let auth = AciAuthType::try_from(&item.connector_auth_type)?;
+        let auth = common_enums::AciAuthType::foreign_try_from(&item.connector_auth_type)?;
         let aci_payment_request = Self {
             entity_id: auth.entity_id,
             payment_type: AciPaymentType::Reversal,
@@ -241,7 +233,7 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for AciRefundRequest {
         let amount = item.request.refund_amount;
         let currency = item.request.currency;
         let payment_type = AciPaymentType::Refund;
-        let auth = AciAuthType::try_from(&item.connector_auth_type)?;
+        let auth = common_enums::AciAuthType::foreign_try_from(&item.connector_auth_type)?;
 
         Ok(Self {
             amount,

@@ -18,7 +18,7 @@ use crate::{
     types::{
         self,
         api::{self, ConnectorCommon},
-        transformers::ForeignFrom,
+        transformers::{ForeignFrom, ForeignTryFrom},
     },
     utils::{self, crypto, ByteSliceExt, BytesExt, OptionExt},
 };
@@ -35,9 +35,9 @@ impl ConnectorCommon for Adyen {
         &self,
         auth_type: &common_enums::ConnectorAuthType,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        let auth = adyen::AdyenAuthType::try_from(auth_type)
+        let auth = common_enums::AdyenAuthType::foreign_try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-        Ok(vec![(headers::X_API_KEY.to_string(), auth.api_key)])
+        Ok(vec![(headers::X_API_KEY.to_string(), auth.adyen_api_key)])
     }
 
     fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {

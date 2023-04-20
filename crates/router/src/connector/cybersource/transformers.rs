@@ -11,7 +11,7 @@ use crate::{
     types::{
         self,
         api::{self, enums as api_enums},
-        storage::enums,
+        storage::enums, transformers::ForeignTryFrom,
     },
 };
 
@@ -200,26 +200,12 @@ impl TryFrom<&types::RefundExecuteRouterData> for CybersourcePaymentsRequest {
     }
 }
 
-pub struct CybersourceAuthType {
-    pub(super) api_key: String,
-    pub(super) merchant_account: String,
-    pub(super) api_secret: String,
-}
-
-impl TryFrom<&common_enums::ConnectorAuthType> for CybersourceAuthType {
+impl ForeignTryFrom<&common_enums::ConnectorAuthType> for common_enums::CybersourceAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(auth_type: &common_enums::ConnectorAuthType) -> Result<Self, Self::Error> {
-        if let common_enums::ConnectorAuthType::Cybersource {
-            key,
-            merchant_account,
-            api_secret,
-        } = auth_type
+    fn foreign_try_from(auth_type: &common_enums::ConnectorAuthType) -> Result<Self, Self::Error> {
+        if let common_enums::ConnectorAuthType::Cybersource (connector_auth) = auth_type
         {
-            Ok(Self {
-                api_key: key.to_string(),
-                merchant_account: merchant_account.to_string(),
-                api_secret: api_secret.to_string(),
-            })
+            Ok(connector_auth.clone())
         } else {
             Err(errors::ConnectorError::FailedToObtainAuthType)?
         }

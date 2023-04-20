@@ -10,7 +10,7 @@ use crate::{
         self,
         api::{self, enums as api_enums},
         storage::enums,
-        transformers::ForeignFrom,
+        transformers::{ForeignFrom, ForeignTryFrom},
     },
 };
 
@@ -258,26 +258,12 @@ impl From<api_models::AddressDetails> for Shipping {
     }
 }
 
-pub struct AuthType {
-    pub api_key: String,
-    pub api_secret: String,
-    pub merchant_account_id: String,
-}
-
-impl TryFrom<&common_enums::ConnectorAuthType> for AuthType {
+impl ForeignTryFrom<&common_enums::ConnectorAuthType> for common_enums::WorldlineAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(auth_type: &common_enums::ConnectorAuthType) -> Result<Self, Self::Error> {
-        if let common_enums::ConnectorAuthType::Worldline {
-            api_key,
-            merchant_account_id,
-            api_secret,
-        } = auth_type
+    fn foreign_try_from(auth_type: &common_enums::ConnectorAuthType) -> Result<Self, Self::Error> {
+        if let common_enums::ConnectorAuthType::Worldline (connector_auth) = auth_type
         {
-            Ok(Self {
-                api_key: api_key.to_string(),
-                api_secret: api_secret.to_string(),
-                merchant_account_id: merchant_account_id.to_string(),
-            })
+            Ok(connector_auth.clone())
         } else {
             Err(errors::ConnectorError::FailedToObtainAuthType)?
         }

@@ -18,7 +18,7 @@ use crate::{
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
-        ErrorResponse, Response,
+        ErrorResponse, Response, transformers::ForeignTryFrom,
     },
     utils::{self, BytesExt},
 };
@@ -57,7 +57,7 @@ where
             .into_report()
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
 
-        let auth = dlocal::DlocalAuthType::try_from(&req.connector_auth_type)?;
+        let auth = common_enums::DlocalAuthType::foreign_try_from(&req.connector_auth_type)?;
         let sign_req: String = format!("{}{}{}", auth.x_login, date, dlocal_req);
         let authz = crypto::HmacSha256::sign_message(
             &crypto::HmacSha256,

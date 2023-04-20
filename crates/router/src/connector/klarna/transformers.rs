@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     core::errors,
-    types::{self, storage::enums},
+    types::{self, storage::enums, transformers::ForeignTryFrom},
 };
 
 #[derive(Default, Debug, Serialize)]
@@ -143,17 +143,11 @@ pub enum KlarnaSessionIntent {
     BuyAndTokenize,
 }
 
-pub struct KlarnaAuthType {
-    pub basic_token: String,
-}
-
-impl TryFrom<&common_enums::ConnectorAuthType> for KlarnaAuthType {
+impl ForeignTryFrom<&common_enums::ConnectorAuthType> for common_enums::KlarnaAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(auth_type: &common_enums::ConnectorAuthType) -> Result<Self, Self::Error> {
-        if let common_enums::ConnectorAuthType::Klarna { klarna_api_key } = auth_type {
-            Ok(Self {
-                basic_token: klarna_api_key.to_string(),
-            })
+    fn foreign_try_from(auth_type: &common_enums::ConnectorAuthType) -> Result<Self, Self::Error> {
+        if let common_enums::ConnectorAuthType::Klarna (connector_auth) = auth_type {
+            Ok(connector_auth.clone())
         } else {
             Err(errors::ConnectorError::FailedToObtainAuthType.into())
         }

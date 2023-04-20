@@ -33,9 +33,9 @@ impl Connector for Payu {
 fn get_access_token() -> Option<AccessToken> {
     let connector = Payu {};
     match connector.get_auth_token() {
-        ConnectorAuthType::Payu { api_key, merchant_pos_id } => Some(AccessToken {
-            token: api_key,
-            expires: merchant_pos_id.parse::<i64>().unwrap(),
+        ConnectorAuthType::Payu (_auth) => Some(AccessToken {
+            token: _auth.api_key,
+            expires: _auth.merchant_pos_id.parse::<i64>().unwrap(),
         }),
         _ => None,
     }

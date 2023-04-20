@@ -7,7 +7,7 @@ use crate::{
     consts,
     core::errors,
     pii::{self, Secret},
-    types::{self, api, storage::enums},
+    types::{self, api, storage::enums, transformers::ForeignTryFrom},
 };
 
 const WALLET_IDENTIFIER: &str = "PBL";
@@ -67,7 +67,7 @@ pub enum PayuWalletCode {
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for PayuPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
-        let auth_type = PayuAuthType::try_from(&item.connector_auth_type)?;
+        let auth_type = common_enums::PayuAuthType::foreign_try_from(&item.connector_auth_type)?;
         let payment_method = match item.request.payment_method_data.clone() {
             api::PaymentMethodData::Card(ccard) => Ok(PayuPaymentMethod {
                 pay_method: PayuPaymentMethodData::Card(PayuCard::Card {
@@ -130,20 +130,14 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PayuPaymentsRequest {
     }
 }
 
-pub struct PayuAuthType {
-    pub(super) api_key: String,
-    pub(super) merchant_pos_id: String,
-}
-
-impl TryFrom<&common_enums::ConnectorAuthType> for PayuAuthType {
+impl ForeignTryFrom<&common_enums::ConnectorAuthType> for common_enums::PayuAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(auth_type: &common_enums::ConnectorAuthType) -> Result<Self, Self::Error> {
-        match auth_type {
-            common_enums::ConnectorAuthType::Payu { api_key, merchant_pos_id } => Ok(Self {
-                api_key: api_key.to_string(),
-                merchant_pos_id: merchant_pos_id.to_string(),
-            }),
-            _ => Err(errors::ConnectorError::FailedToObtainAuthType)?,
+    fn foreign_try_from(auth_type: &common_enums::ConnectorAuthType) -> Result<Self, Self::Error> {
+        if let common_enums::ConnectorAuthType::Payu (connector_auth) = auth_type
+        {
+            Ok(connector_auth.clone())
+        } else {
+            Err(errors::ConnectorError::FailedToObtainAuthType)?
         }
     }
 }

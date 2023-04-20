@@ -50,7 +50,7 @@ impl ConnectorAuthentication {
 //-------
 impl From<Aci> for ConnectorAuthType {
     fn from(key: Aci) -> Self {
-        Self::Aci {
+        common_enums::AciAuthType {
             api_key: key.api_key,
             entity_id: key.entity_id,
         }
@@ -58,7 +58,7 @@ impl From<Aci> for ConnectorAuthType {
 }
 impl From<Adyen> for ConnectorAuthType {
     fn from(key: Adyen) -> Self {
-        Self::Adyen {
+        common_enums::AdyenAuthType {
             adyen_api_key: key.adyen_api_key,
             adyen_account_id: key.adyen_account_id,
         }
@@ -66,7 +66,7 @@ impl From<Adyen> for ConnectorAuthType {
 }
 impl From<Airwallex> for ConnectorAuthType {
     fn from(key: Airwallex) -> Self {
-        Self::Airwallex {
+        common_enums::AirwallexAuthType {
             app_id: key.app_id,
             key1: key.key1
         }
@@ -74,7 +74,7 @@ impl From<Airwallex> for ConnectorAuthType {
 }
 impl From<Authorizedotnet> for ConnectorAuthType {
     fn from(key: Authorizedotnet) -> Self {
-        Self::Authorizedotnet {
+        common_enums::AuthorizedotnetAuthType {
             api_login_id: key.api_login_id,
             transaction_key: key.transaction_key,
         }
@@ -82,7 +82,7 @@ impl From<Authorizedotnet> for ConnectorAuthType {
 }
 impl From<Bambora> for ConnectorAuthType {
     fn from(key: Bambora) -> Self {
-        Self::Bambora {
+        common_enums::BamboraAuthType {
             passcode: key.passcode,
             merchant_id: key.merchant_id,
         }
@@ -90,7 +90,7 @@ impl From<Bambora> for ConnectorAuthType {
 }
 impl From<Bluesnap> for ConnectorAuthType {
     fn from(key: Bluesnap) -> Self {
-        Self::Bluesnap {
+        common_enums::BluesnapAuthType {
             username: key.username,
             password: key.password,
         }
@@ -98,7 +98,7 @@ impl From<Bluesnap> for ConnectorAuthType {
 }
 impl From<Braintree> for ConnectorAuthType {
     fn from(key: Braintree) -> Self {
-        Self::Braintree {
+        common_enums::BraintreeAuthType {
             public_key: key.public_key,
             merchant_id: key.merchant_id,
             private_key: key.private_key,
@@ -107,7 +107,7 @@ impl From<Braintree> for ConnectorAuthType {
 }
 impl From<Checkout> for ConnectorAuthType {
     fn from(key: Checkout) -> Self {
-        Self::Checkout {
+        common_enums::CheckoutAuthType {
             checkout_api_key: key.checkout_api_key,
             processing_channel_id: key.processing_channel_id,
         }
@@ -115,15 +115,15 @@ impl From<Checkout> for ConnectorAuthType {
 }
 impl From<Coinbase> for ConnectorAuthType {
     fn from(key: Coinbase) -> Self {
-        Self::Coinbase {
+        common_enums::CoinbaseAuthType {
             api_key: key.api_key,
         }
     }
 }
 impl From<Cybersource> for ConnectorAuthType {
     fn from(key: Cybersource) -> Self {
-        Self::Cybersource {
-            key: key.key,
+        common_enums::CybersourceAuthType {
+            api_key: key.api_key,
             merchant_account: key.merchant_account,
             api_secret: key.api_secret,
         }
@@ -132,7 +132,7 @@ impl From<Cybersource> for ConnectorAuthType {
 
 impl From<Dlocal> for ConnectorAuthType {
     fn from(key: Dlocal) -> Self {
-        Self::Dlocal {
+        common_enums::DlocalAuthType {
             x_login: key.x_login,
             x_trans_key: key.x_trans_key,
             secret: key.secret,
@@ -141,7 +141,7 @@ impl From<Dlocal> for ConnectorAuthType {
 }
 impl From<Fiserv> for ConnectorAuthType {
     fn from(key: Fiserv) -> Self {
-        Self::Fiserv {
+        common_enums::FiservAuthType {
             api_key: key.api_key,
             merchant_id: key.merchant_id,
             api_secret: key.api_secret,
@@ -150,14 +150,14 @@ impl From<Fiserv> for ConnectorAuthType {
 }
 impl From<Forte> for ConnectorAuthType {
     fn from(key: Forte) -> Self {
-        Self::Forte {
+        common_enums::ForteAuthType {
             api_key: key.api_key,
         }
     }
 }
 impl From<Globalpay> for ConnectorAuthType {
     fn from(key: Globalpay) -> Self {
-        Self::Globalpay {
+        common_enums::GlobalpayAuthType {
             globalpay_app_id: key.globalpay_app_id,
             globalpay_app_key: key.globalpay_app_key,
         }
@@ -165,35 +165,35 @@ impl From<Globalpay> for ConnectorAuthType {
 }
 impl From<Klarna> for ConnectorAuthType {
     fn from(key: Klarna) -> Self {
-        Self::Klarna {
+        common_enums::KlarnaAuthType {
             klarna_api_key: key.klarna_api_key,
         }
     }
 }
 impl From<Mollie> for ConnectorAuthType {
     fn from(key: Mollie) -> Self {
-        Self::Mollie {
+        common_enums::MollieAuthType {
             api_key: key.api_key,
         }
     }
 }
 impl From<Multisafepay> for ConnectorAuthType {
     fn from(key: Multisafepay) -> Self {
-        Self::Multisafepay {
+        common_enums::MultisafepayAuthType {
             api_key: key.api_key,
         }
     }
 }
 impl From<Nexinets> for ConnectorAuthType {
     fn from(key: Nexinets) -> Self {
-        Self::Nexinets {
+        common_enums::NexinetsAuthType {
             api_key: key.api_key,
         }
     }
 }
 impl From<Nuvei> for ConnectorAuthType {
     fn from(key: Nuvei) -> Self {
-        Self::Nuvei {
+        common_enums::NuveiAuthType {
             merchant_id: key.merchant_id,
             merchant_site_id: key.merchant_site_id,
             merchant_secret: key.merchant_secret,
@@ -202,14 +202,14 @@ impl From<Nuvei> for ConnectorAuthType {
 }
 impl From<Opennode> for ConnectorAuthType {
     fn from(key: Opennode) -> Self {
-        Self::Opennode {
+        common_enums::OpennodeAuthType {
             api_key: key.api_key,
         }
     }
 }
 impl From<Payeezy> for ConnectorAuthType {
     fn from(key: Payeezy) -> Self {
-        Self::Payeezy {
+        common_enums::PayeezyAuthType {
             api_key: key.api_key,
             api_secret: key.api_secret,
             merchant_token: key.merchant_token,
@@ -218,7 +218,7 @@ impl From<Payeezy> for ConnectorAuthType {
 }
 impl From<Paypal> for ConnectorAuthType {
     fn from(key: Paypal) -> Self {
-        Self::Paypal {
+        common_enums::PaypalAuthType {
             api_key: key.api_key,
             api_secret: key.api_secret,
         }
@@ -226,7 +226,7 @@ impl From<Paypal> for ConnectorAuthType {
 }
 impl From<Payu> for ConnectorAuthType {
     fn from(key: Payu) -> Self {
-        Self::Payu {
+        common_enums::PayuAuthType {
             api_key: key.api_key,
             merchant_pos_id: key.merchant_pos_id,
         }
@@ -234,7 +234,7 @@ impl From<Payu> for ConnectorAuthType {
 }
 impl From<Rapyd> for ConnectorAuthType {
     fn from(key: Rapyd) -> Self {
-        Self::Rapyd {
+        common_enums::RapydAuthType {
             api_secret: key.api_secret,
             secret_key: key.secret_key,
         }
@@ -242,21 +242,21 @@ impl From<Rapyd> for ConnectorAuthType {
 }
 impl From<Shift4> for ConnectorAuthType {
     fn from(key: Shift4) -> Self {
-        Self::Shift4 {
+        common_enums::Shift4AuthType {
             shift4_api_key: key.shift4_api_key,
         }
     }
 }
 impl From<Stripe> for ConnectorAuthType {
     fn from(key: Stripe) -> Self {
-        Self::Stripe {
+        common_enums::StripeAuthType {
             stripe_api_key: key.stripe_api_key,
         }
     }
 }
 impl From<TrustPay> for ConnectorAuthType {
     fn from(key: TrustPay) -> Self {
-        Self::TrustPay {
+        common_enums::TrustpayAuthType {
             api_key: key.api_key,
             project_id: key.project_id,
             secret_key: key.secret_key,
@@ -265,7 +265,7 @@ impl From<TrustPay> for ConnectorAuthType {
 }
 impl From<Worldline> for ConnectorAuthType {
     fn from(key: Worldline) -> Self {
-        Self::Worldline {
+        common_enums::WorldlineAuthType {
             api_key: key.api_key,
             api_secret: key.api_secret,
             merchant_account_id: key.merchant_account_id,
@@ -274,7 +274,7 @@ impl From<Worldline> for ConnectorAuthType {
 }
 impl From<Worldpay> for ConnectorAuthType {
     fn from(key: Worldpay) -> Self {
-        Self::Worldpay {
+        common_enums::WorldpayAuthType {
             username: key.username,
             password: key.password,
         }
@@ -329,7 +329,7 @@ pub(crate) struct Coinbase {
 //TODO:need to check  
 #[derive(Debug, Deserialize, Clone)]
 pub(crate) struct Cybersource {
-    pub key: String,
+    pub api_key: String,
     pub merchant_account: String,
     pub api_secret: String,
 }
