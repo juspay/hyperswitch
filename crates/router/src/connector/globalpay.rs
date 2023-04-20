@@ -927,18 +927,16 @@ impl api::Validator<api::Global> for Globalpay {
                 message: "Failed to parse metadata".to_string(),
             })?;
 
-        match payment_method_details {
-            Some((
-                api_models::enums::PaymentMethod::Wallet,
-                api_models::enums::PaymentMethodType::GooglePay,
-            )) => {
-                let _inner: api_models::payments::GpaySessionTokenData = metadata
-                    .parse_value("GpayTokenParameters")
-                    .change_context(errors::ValidationError::InvalidValue {
-                        message: "Failed while getting google pay metadata".to_string(),
-                    })?;
-            }
-            _ => {} // No other validation currently required
+        if let Some((
+            api_models::enums::PaymentMethod::Wallet,
+            api_models::enums::PaymentMethodType::GooglePay,
+        )) = payment_method_details
+        {
+            let _inner: api_models::payments::GpaySessionTokenData = metadata
+                .parse_value("GpayTokenParameters")
+                .change_context(errors::ValidationError::InvalidValue {
+                    message: "Failed while getting google pay metadata".to_string(),
+                })?;
         }
         Ok(())
     }

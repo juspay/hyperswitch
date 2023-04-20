@@ -737,37 +737,34 @@ impl api::Validator<api::Authorize> for Cybersource {
         payment_method: Option<(api::enums::PaymentMethod, api::enums::PaymentMethodType)>,
         payment_intent: Option<&storage_models::payment_intent::PaymentIntent>,
     ) -> CustomResult<(), common_utils::errors::ValidationError> {
-        match (payment_method, payment_intent) {
-            (Some(_), Some(pa)) => {
-                pa.billing_address_id
-                    .clone()
-                    .ok_or(error_stack::report!(
-                        common_utils::errors::ValidationError::MissingRequiredField {
-                            field_name: "billing_address_id not found".to_string(),
-                        }
-                    ))
-                    .async_and_then(|address_id| async move {
-                        db.find_address(&address_id)
-                            .await
-                            .map_err(|err| {
-                                err.change_context(
-                                    common_utils::errors::ValidationError::MissingRequiredField {
-                                        field_name: "address not found".to_string(),
-                                    },
-                                )
-                            })
-                            .and_then(|value| {
-                                value.phone_number.ok_or(error_stack::report!(
-                                    common_utils::errors::ValidationError::MissingRequiredField {
-                                        field_name: "phone number not found".to_string(),
-                                    }
-                                ))
-                            })?;
-                        Ok(())
-                    })
-                    .await?;
-            }
-            _ => {}
+        if let (Some(_), Some(pa)) = (payment_method, payment_intent) {
+            pa.billing_address_id
+                .clone()
+                .ok_or(error_stack::report!(
+                    common_utils::errors::ValidationError::MissingRequiredField {
+                        field_name: "billing_address_id not found".to_string(),
+                    }
+                ))
+                .async_and_then(|address_id| async move {
+                    db.find_address(&address_id)
+                        .await
+                        .map_err(|err| {
+                            err.change_context(
+                                common_utils::errors::ValidationError::MissingRequiredField {
+                                    field_name: "address not found".to_string(),
+                                },
+                            )
+                        })
+                        .and_then(|value| {
+                            value.phone_number.ok_or(error_stack::report!(
+                                common_utils::errors::ValidationError::MissingRequiredField {
+                                    field_name: "phone number not found".to_string(),
+                                }
+                            ))
+                        })?;
+                    Ok(())
+                })
+                .await?;
         }
         Ok(())
     }

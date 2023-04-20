@@ -770,15 +770,14 @@ impl api::Validator<api::Global> for Checkout {
         payment_method: Option<(api::enums::PaymentMethod, api::enums::PaymentMethodType)>,
         metadata: serde_json::Value,
     ) -> CustomResult<(), common_utils::errors::ValidationError> {
-        match payment_method {
-            Some((api::enums::PaymentMethod::Wallet, api::enums::PaymentMethodType::GooglePay)) => {
-                let _inner: api_models::payments::GpaySessionTokenData = metadata
-                    .parse_value("GpayTokenParameters")
-                    .change_context(errors::ValidationError::InvalidValue {
-                        message: "Failed while getting google pay metadata".to_string(),
-                    })?;
-            }
-            _ => {} // No other validation currently required
+        if let Some((api::enums::PaymentMethod::Wallet, api::enums::PaymentMethodType::GooglePay)) =
+            payment_method
+        {
+            let _inner: api_models::payments::GpaySessionTokenData = metadata
+                .parse_value("GpayTokenParameters")
+                .change_context(errors::ValidationError::InvalidValue {
+                    message: "Failed while getting google pay metadata".to_string(),
+                })?;
         }
         Ok(())
     }
