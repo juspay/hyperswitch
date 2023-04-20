@@ -1,4 +1,6 @@
+use common_utils::custom_serde;
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
+use time::PrimitiveDateTime;
 
 use crate::{encryption::Encryption, schema::merchantkeystore};
 
@@ -16,6 +18,8 @@ use crate::{encryption::Encryption, schema::merchantkeystore};
 pub struct MerchantKeyStore {
     pub merchant_id: String,
     pub key: Encryption,
+    #[serde(with = "custom_serde::iso8601")]
+    pub created_at: PrimitiveDateTime,
 }
 
 #[derive(

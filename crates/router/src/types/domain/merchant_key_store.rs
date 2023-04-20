@@ -1,6 +1,11 @@
-use common_utils::crypto::{Encryptable, GcmAes256};
+use common_utils::{
+    crypto::{Encryptable, GcmAes256},
+    custom_serde,
+};
 use error_stack::ResultExt;
 use masking::Secret;
+
+use time::PrimitiveDateTime;
 
 use crate::{
     db::StorageInterface,
@@ -12,6 +17,8 @@ use crate::{
 pub struct MerchantKeyStore {
     pub merchant_id: String,
     pub key: Encryptable<Secret<Vec<u8>>>,
+    #[serde(with = "custom_serde::iso8601")]
+    pub created_at: PrimitiveDateTime,
 }
 
 #[async_trait::async_trait]
@@ -22,6 +29,7 @@ impl super::behaviour::Conversion for MerchantKeyStore {
         Ok(storage_models::merchant_key_store::MerchantKeyStore {
             key: self.key.into(),
             merchant_id: self.merchant_id,
+            created_at: self.created_at,
         })
     }
 
@@ -41,6 +49,7 @@ impl super::behaviour::Conversion for MerchantKeyStore {
                     message: "Failed while decrypting customer data".to_string(),
                 })?,
             merchant_id: item.merchant_id,
+            created_at: item.created_at,
         })
     }
 

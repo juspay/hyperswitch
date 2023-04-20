@@ -1,5 +1,6 @@
 use common_utils::{
     crypto::{self, GcmAes256, OptionalSecretValue},
+    date_time,
     ext_traits::{AsyncExt, ValueExt},
 };
 use error_stack::{report, FutureExt, IntoReport, ResultExt};
@@ -107,6 +108,7 @@ pub async fn create_merchant_account(
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to decrypt data from key store")?,
+        created_at: date_time::now(),
     };
 
     db.insert_merchant_key_store(key_store)
