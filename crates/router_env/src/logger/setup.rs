@@ -103,7 +103,7 @@ pub fn setup<Str: AsRef<str>>(
             config::LogFormat::Default => {
                 let logging_layer = fmt::layer()
                     .with_timer(fmt::time::time())
-                    .with_span_events(fmt::format::FmtSpan::ACTIVE)
+                    .with_span_events(fmt::format::FmtSpan::NONE)
                     .pretty()
                     .with_writer(console_writer);
 
