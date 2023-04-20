@@ -1,4 +1,4 @@
-#![allow(dead_code, clippy::unwrap_used, clippy::panic_in_result_fn)]
+#![allow(clippy::unwrap_used)]
 
 use cards::{CardExpiration, CardExpirationMonth, CardExpirationYear, CardSecurityCode};
 use common_utils::date_time;
@@ -20,6 +20,9 @@ fn test_card_security_code() {
 
     let derialized = serde_json::from_str::<CardSecurityCode>(&serialized).unwrap();
     assert_eq!(*derialized.peek(), 1234);
+
+    let invalid_deserialization = serde_json::from_str::<CardSecurityCode>("12");
+    assert!(invalid_deserialization.is_err());
 }
 
 #[test]
@@ -38,6 +41,9 @@ fn test_card_expiration_month() {
 
     let derialized = serde_json::from_str::<CardExpirationMonth>(&serialized).unwrap();
     assert_eq!(*derialized.peek(), 12);
+
+    let invalid_deserialization = serde_json::from_str::<CardExpirationMonth>("13");
+    assert!(invalid_deserialization.is_err());
 }
 
 #[test]
@@ -59,6 +65,9 @@ fn test_card_expiration_year() {
 
     let derialized = serde_json::from_str::<CardExpirationYear>(&serialized).unwrap();
     assert_eq!(*derialized.peek(), curr_year);
+
+    let invalid_deserialization = serde_json::from_str::<CardExpirationYear>("123");
+    assert!(invalid_deserialization.is_err());
 }
 
 #[test]
@@ -79,10 +88,15 @@ fn test_card_expiration() {
     assert!(invalid_card_exp.is_err());
 
     let serialized = serde_json::to_string(&card_exp).unwrap();
-    let expected_string = format!("{{\"month\":{},\"year\":{}}}", 3, curr_year + 1);
+    let expected_string = format!(r#"{{"month":{},"year":{}}}"#, 3, curr_year + 1);
     assert_eq!(serialized, expected_string);
 
     let derialized = serde_json::from_str::<CardExpiration>(&serialized).unwrap();
     assert_eq!(*derialized.get_month().peek(), 3);
     assert_eq!(*derialized.get_year().peek(), curr_year + 1);
+
+    let invalid_serialized_string = format!(r#"{{"month":{},"year":{}}}"#, 13, 123);
+    let invalid_deserialization =
+        serde_json::from_str::<CardExpiration>(&invalid_serialized_string);
+    assert!(invalid_deserialization.is_err());
 }
