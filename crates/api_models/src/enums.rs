@@ -422,6 +422,8 @@ pub enum PaymentMethodType {
     ApplePay,
     Paypal,
     Ach,
+    Sepa,
+    Bacs,
     CryptoCurrency,
 }
 

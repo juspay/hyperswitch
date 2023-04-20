@@ -268,34 +268,42 @@ where
                 services::ApplicationResponse::Form(form)
             } else {
                 let mut next_action_response = None;
-                if payment_intent.status == enums::IntentStatus::RequiresCustomerAction {
+                let bank_transfer_next_steps =
+                    if let Some(storage_models::enums::PaymentMethod::BankTransfer) =
+                        payment_attempt.payment_method
+                    {
+                        let bank_transfer_next_steps: NextStepsRequirements = payment_attempt
+                            .connector_metadata
+                            .to_owned()
+                            .get_required_value("connector_metadata")?
+                            .parse_value("NextStepsRequirements")
+                            .change_context(errors::ApiErrorResponse::InternalServerError)
+                            .attach_printable(
+                                "Failed to parse the Value to NextRequirements struct",
+                            )?;
+                        Some(bank_transfer_next_steps)
+                    } else {
+                        None
+                    };
+
+                if payment_intent.status == enums::IntentStatus::RequiresCustomerAction
+                    || bank_transfer_next_steps.is_some()
+                {
+                    let next_action_type = if bank_transfer_next_steps.is_some() {
+                        api::NextActionType::DisplayBankTransferInformation
+                    } else {
+                        api::NextActionType::RedirectToUrl
+                    };
                     next_action_response = Some(api::NextAction {
-                        next_action_type: api::NextActionType::RedirectToUrl,
+                        next_action_type,
                         redirect_to_url: Some(helpers::create_startpay_url(
                             server,
                             &payment_attempt,
                             &payment_intent,
                         )),
-                        bank_transfer_steps_and_charges_details: None,
-                    })
-                } else if payment_attempt
-                    .payment_method
-                    .get_required_value("payment_method")?
-                    == storage_models::enums::PaymentMethod::BankTransfer
-                {
-                    let other_next_steps: NextStepsRequirements = payment_attempt
-                        .connector_metadata
-                        .get_required_value("connector_metadata")?
-                        .parse_value("NextStepsRequirements")
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Failed to parse the Value to NextRequirements struct")?;
-
-                    next_action_response = Some(api::NextAction {
-                        next_action_type: api::NextActionType::DisplayBankTransferInformation,
-                        redirect_to_url: None,
-                        bank_transfer_steps_and_charges_details: Some(other_next_steps),
-                    })
-                }
+                        bank_transfer_steps_and_charges_details: bank_transfer_next_steps,
+                    });
+                };
                 let mut response: api::PaymentsResponse = Default::default();
                 let routed_through = payment_attempt.connector.clone();
 
@@ -542,6 +550,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             router_return_url,
             webhook_url,
             complete_authorize_url,
+            customer: None,
         })
     }
 }

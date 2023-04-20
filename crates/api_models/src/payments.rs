@@ -553,8 +553,25 @@ pub struct AchBankTransferData {
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+pub struct SepaBankTransferData {
+    pub billing_details: SepaAndBacsBillingDetails,
+    pub country: String,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+pub struct BacsBankTransferData {
+    pub billing_details: SepaAndBacsBillingDetails,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct AchBillingDetails {
     pub email: String,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+pub struct SepaAndBacsBillingDetails {
+    pub email: String,
+    pub name: String,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -579,6 +596,8 @@ pub struct BankRedirectBilling {
 #[serde(rename_all = "snake_case")]
 pub enum BankTransferData {
     AchBankTransfer(AchBankTransferData),
+    SepaBankTransfer(SepaBankTransferData),
+    BacsBankTransfer(BacsBankTransferData),
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -828,8 +847,32 @@ pub struct NextAction {
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct NextStepsRequirements {
-    pub ach_credit_transfer: AchTransfer,
+    #[serde(flatten)]
+    pub bank_transfer_instructions: BankTransferInstructions,
     pub receiver: ReceiverDetails,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum BankTransferInstructions {
+    AchCreditTransfer(AchTransfer),
+    SepaBankInstructions(SepaBankTransferInstructions),
+    BacsBankInstructions(BacsBankTransferInstructions),
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+pub struct SepaBankTransferInstructions {
+    pub account_holder_name: String,
+    pub bic: String,
+    pub country: String,
+    pub iban: String,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+pub struct BacsBankTransferInstructions {
+    pub account_holder_name: String,
+    pub account_number: String,
+    pub sort_code: String,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -841,9 +884,16 @@ pub struct AchTransfer {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
-pub struct ReceiverDetails {
-    pub amount_received: i64,
-    pub amount_charged: i64,
+#[serde(untagged)]
+pub enum ReceiverDetails {
+    AchReceiver {
+        amount_received: i64,
+        amount_charged: i64,
+    },
+    Receiver {
+        amount_received: i64,
+        amount_remaining: i64,
+    },
 }
 
 #[derive(Setter, Clone, Default, Debug, Eq, PartialEq, serde::Serialize, ToSchema)]

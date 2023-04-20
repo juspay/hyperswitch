@@ -495,6 +495,7 @@ impl Default for PaymentAuthorizeType {
             router_return_url: None,
             complete_authorize_url: None,
             webhook_url: None,
+            customer: None,
         };
         Self(data)
     }

@@ -57,6 +57,7 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
             router_return_url: None,
             webhook_url: None,
             complete_authorize_url: None,
+            customer: None,
         },
         response: Err(types::ErrorResponse::default()),
         payment_method_id: None,

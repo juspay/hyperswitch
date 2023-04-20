@@ -165,6 +165,7 @@ pub struct PaymentsAuthorizeData {
     pub related_transaction_id: Option<String>,
     pub payment_experience: Option<storage_enums::PaymentExperience>,
     pub payment_method_type: Option<storage_enums::PaymentMethodType>,
+    pub customer: Option<String>,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -478,6 +479,29 @@ impl From<&&mut PaymentsAuthorizeRouterData> for AuthorizeSessionTokenData {
             currency: data.request.currency,
             connector_transaction_id: data.payment_id.clone(),
             amount: data.request.amount,
+        }
+    }
+}
+
+impl From<&&mut PaymentsAuthorizeRouterData> for CompleteAuthorizeData {
+    fn from(data: &&mut PaymentsAuthorizeRouterData) -> Self {
+        Self {
+            payment_method_data: Some(data.request.payment_method_data.to_owned()),
+            amount: data.request.amount,
+            email: data.request.email.to_owned(),
+            currency: data.request.currency,
+            confirm: data.request.confirm,
+            statement_descriptor_suffix: data.request.statement_descriptor_suffix.to_owned(),
+            capture_method: data.request.capture_method,
+            setup_future_usage: data.request.setup_future_usage,
+            mandate_id: data.request.mandate_id.to_owned(),
+            off_session: data.request.off_session,
+            setup_mandate_details: data.request.setup_mandate_details.to_owned(),
+            payload: None,
+            browser_info: data.request.browser_info.to_owned(),
+            connector_transaction_id: data.request.related_transaction_id.to_owned(),
+            connector_meta: None,
+            customer_id: data.request.customer.to_owned(),
         }
     }
 }
