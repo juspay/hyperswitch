@@ -234,7 +234,7 @@ diesel::table! {
         id -> Int4,
         merchant_id -> Varchar,
         connector_name -> Varchar,
-        connector_account_details -> Json,
+        connector_account_details -> Binary,
         test_mode -> Nullable<Bool>,
         disabled -> Nullable<Bool>,
         merchant_connector_id -> Varchar,

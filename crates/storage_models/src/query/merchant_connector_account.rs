@@ -5,7 +5,7 @@ use super::generics;
 use crate::{
     errors,
     merchant_connector_account::{
-        MerchantConnectorAccount, MerchantConnectorAccountNew, MerchantConnectorAccountUpdate,
+        MerchantConnectorAccount, MerchantConnectorAccountNew,
         MerchantConnectorAccountUpdateInternal,
     },
     schema::merchant_connector_account::dsl,
@@ -24,12 +24,12 @@ impl MerchantConnectorAccount {
     pub async fn update(
         self,
         conn: &PgPooledConn,
-        merchant_connector_account: MerchantConnectorAccountUpdate,
+        merchant_connector_account: MerchantConnectorAccountUpdateInternal,
     ) -> StorageResult<Self> {
         match generics::generic_update_by_id::<<Self as HasTable>::Table, _, _, _>(
             conn,
             self.id,
-            MerchantConnectorAccountUpdateInternal::from(merchant_connector_account),
+            merchant_connector_account,
         )
         .await
         {

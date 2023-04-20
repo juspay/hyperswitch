@@ -122,7 +122,7 @@ impl<
     }
 }
 
-pub async fn get_key_and_algo(
+pub async fn get_merchant_enc_key(
     db: &dyn crate::db::StorageInterface,
     merchant_id: impl AsRef<str>,
 ) -> CustomResult<Vec<u8>, crate::core::errors::StorageError> {
