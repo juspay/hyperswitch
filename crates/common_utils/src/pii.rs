@@ -99,6 +99,26 @@ where
     }
 }
 
+/// Strategy for masking Email
+#[derive(Debug)]
+pub struct EmailStrategy;
+
+impl<T> Strategy<T> for EmailStrategy
+where
+    T: AsRef<str> + std::fmt::Debug,
+{
+    fn fmt(val: &T, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let val_str: &str = val.as_ref();
+
+        match Email::from_str(val_str) {
+            Ok(_email) => match val_str.split_once('@') {
+                Some((a, b)) => write!(f, "{}@{}", "*".repeat(a.len()), b),
+                None => WithType::fmt(val, f),
+            },
+            Err(..) => WithType::fmt(val, f),
+        }
+    }
+}
 /// Email address
 #[derive(
     serde::Serialize,
@@ -112,7 +132,7 @@ where
     AsExpression,
 )]
 #[diesel(sql_type = diesel::sql_types::Text)]
-pub struct Email(Secret<String>);
+pub struct Email(Secret<String, EmailStrategy>);
 
 impl<DB> FromSql<sql_types::Text, DB> for Email
 where
@@ -144,29 +164,12 @@ impl FromStr for Email {
         }
         match validate_email(email) {
             Ok(_) => {
-                let secret: Secret<String> = Secret::new(email.to_string());
+                let secret = Secret::<String, EmailStrategy>::new(email.to_string());
                 Ok(Self(secret))
             }
             Err(_) => Err(ValidationError::InvalidValue {
                 message: "Invalid email address format".into(),
             }),
-        }
-    }
-}
-
-impl<T> Strategy<T> for Email
-where
-    T: AsRef<str> + std::fmt::Debug,
-{
-    fn fmt(val: &T, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let val_str: &str = val.as_ref();
-
-        match Self::from_str(val_str) {
-            Ok(_email) => match val_str.split_once('@') {
-                Some((a, b)) => write!(f, "{}@{}", "*".repeat(a.len()), b),
-                None => WithType::fmt(val, f),
-            },
-            Err(..) => WithType::fmt(val, f),
         }
     }
 }
@@ -204,7 +207,7 @@ mod pii_masking_strategy_tests {
     use masking::{ExposeInterface, Secret};
 
     use super::{CardNumber, ClientSecret, Email, IpAddress};
-    use crate::pii::REDACTED;
+    use crate::pii::{EmailStrategy, REDACTED};
 
     #[test]
     fn test_valid_card_number_masking() {
@@ -237,19 +240,19 @@ mod pii_masking_strategy_tests {
 
     #[test]
     fn test_valid_email_masking() {
-        let secret: Secret<String, Email> = Secret::new("example@test.com".to_string());
+        let secret: Secret<String, EmailStrategy> = Secret::new("example@test.com".to_string());
         assert_eq!("*******@test.com", format!("{secret:?}"));
 
-        let secret: Secret<String, Email> = Secret::new("username@gmail.com".to_string());
+        let secret: Secret<String, EmailStrategy> = Secret::new("username@gmail.com".to_string());
         assert_eq!("********@gmail.com", format!("{secret:?}"));
     }
 
     #[test]
     fn test_invalid_email_masking() {
-        let secret: Secret<String, Email> = Secret::new("myemailgmail.com".to_string());
+        let secret: Secret<String, EmailStrategy> = Secret::new("myemailgmail.com".to_string());
         assert_eq!("*** alloc::string::String ***", format!("{secret:?}"));
 
-        let secret: Secret<String, Email> = Secret::new("myemail@gmail@com".to_string());
+        let secret: Secret<String, EmailStrategy> = Secret::new("myemail@gmail@com".to_string());
         assert_eq!("*** alloc::string::String ***", format!("{secret:?}"));
     }
 
