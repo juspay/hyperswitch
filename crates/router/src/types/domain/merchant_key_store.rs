@@ -10,7 +10,6 @@ use crate::{
 
 #[derive(Clone, Debug, serde::Serialize)]
 pub struct MerchantKeyStore {
-    pub id: Option<i32>,
     pub merchant_id: String,
     pub key: Encryptable<Secret<Vec<u8>>>,
 }
@@ -21,9 +20,6 @@ impl super::behaviour::Conversion for MerchantKeyStore {
     type NewDstType = storage_models::merchant_key_store::MerchantKeyStoreNew;
     async fn convert(self) -> CustomResult<Self::DstType, ValidationError> {
         Ok(storage_models::merchant_key_store::MerchantKeyStore {
-            id: self.id.ok_or(ValidationError::MissingRequiredField {
-                field_name: "id".to_string(),
-            })?,
             key: self.key.into(),
             merchant_id: self.merchant_id,
         })
@@ -39,7 +35,6 @@ impl super::behaviour::Conversion for MerchantKeyStore {
     {
         let key = &db.get_master_key();
         Ok(Self {
-            id: Some(item.id),
             key: Encryptable::decrypt(item.key, key, GcmAes256 {})
                 .await
                 .change_context(ValidationError::InvalidValue {

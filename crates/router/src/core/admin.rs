@@ -102,7 +102,6 @@ pub async fn create_merchant_account(
     }
 
     let key_store = merchant_key_store::MerchantKeyStore {
-        id: None,
         merchant_id: req.merchant_id.clone(),
         key: crypto::Encryptable::encrypt(key.to_vec().into(), master_key, GcmAes256 {})
             .await

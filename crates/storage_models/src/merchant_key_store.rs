@@ -12,8 +12,8 @@ use crate::{encryption::Encryption, schema::merchantkeystore};
     router_derive::DebugAsDisplay,
 )]
 #[diesel(table_name = merchantkeystore)]
+#[diesel(primary_key(merchant_id))]
 pub struct MerchantKeyStore {
-    pub id: i32,
     pub merchant_id: String,
     pub key: Encryption,
 }

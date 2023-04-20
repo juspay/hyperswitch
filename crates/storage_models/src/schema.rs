@@ -248,8 +248,7 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
-    merchantkeystore (id) {
-        id -> Int4,
+    merchantkeystore (merchant_id) {
         merchant_id -> Varchar,
         key -> Binary,
     }
