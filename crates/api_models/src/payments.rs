@@ -728,6 +728,23 @@ pub enum PaymentIdType {
     PaymentAttemptId(String),
 }
 
+impl std::fmt::Display for PaymentIdType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::PaymentIntentId(payment_id) => {
+                write!(f, "payment_intent_id = \"{payment_id}\"")
+            }
+            Self::ConnectorTransactionId(connector_transaction_id) => write!(
+                f,
+                "connector_transaction_id = \"{connector_transaction_id}\""
+            ),
+            Self::PaymentAttemptId(payment_attempt_id) => {
+                write!(f, "payment_attempt_id = \"{payment_attempt_id}\"")
+            }
+        }
+    }
+}
+
 impl Default for PaymentIdType {
     fn default() -> Self {
         Self::PaymentIntentId(Default::default())
