@@ -10,7 +10,7 @@ use crate::{
     core::errors,
     pii::{self, PeekInterface},
     types::{
-        api::{self as api_types, enums as api_enums}
+        api::{self as api_types, enums as api_enums, admin}
     },
 };
 
@@ -166,6 +166,7 @@ pub struct StripeSetupIntentRequest {
     pub client_secret: Option<pii::Secret<String>>,
     pub payment_method_options : Option<StripePaymentMethodOptions>,
     pub payment_method: Option<String>,
+    pub merchant_connector_details: Option<admin::MerchantConnectorDetailsWrap>,
 }
 
 impl TryFrom<StripeSetupIntentRequest> for payments::PaymentsRequest {
@@ -216,6 +217,7 @@ impl TryFrom<StripeSetupIntentRequest> for payments::PaymentsRequest {
             metadata: item.metadata,
             client_secret: item.client_secret.map(|s| s.peek().clone()),
             setup_future_usage: item.setup_future_usage,
+            merchant_connector_details: item.merchant_connector_details,
             mandate_data: item.payment_method_options.map(|pmo| {
                 let StripePaymentMethodOptions::Card {
                     mandate_options,
