@@ -63,8 +63,7 @@ async fn should_capture_authorized_payment() {
         .await
         .unwrap();
     assert_eq!(response.status, enums::AttemptStatus::Authorized);
-    let connector_payment_id =
-        utils::get_connector_transaction_id(response.response.clone()).unwrap_or_default();
+    let connector_payment_id = "".to_string();
     let connector_meta = utils::get_connector_metadata(response.response);
     let capture_data = types::PaymentsCaptureData {
         connector_meta,
@@ -163,7 +162,7 @@ async fn should_refund_manually_captured_payment() {
         .authorize_payment(payment_method_details(), None)
         .await
         .expect("Authorize payment response");
-    let txn_id = utils::get_connector_transaction_id(authorize_response.response.clone()).unwrap();
+    let txn_id = "".to_string();
     let capture_connector_meta = utils::get_connector_metadata(authorize_response.response);
     let capture_response = CONNECTOR
         .capture_payment(
@@ -206,7 +205,7 @@ async fn should_partially_refund_manually_captured_payment() {
         .authorize_payment(payment_method_details(), None)
         .await
         .expect("Authorize payment response");
-    let txn_id = utils::get_connector_transaction_id(authorize_response.response.clone()).unwrap();
+    let txn_id = "".to_string();
     let capture_connector_meta = utils::get_connector_metadata(authorize_response.response);
     let capture_response = CONNECTOR
         .capture_payment(
@@ -250,7 +249,7 @@ async fn should_sync_manually_captured_refund() {
         .authorize_payment(payment_method_details(), None)
         .await
         .expect("Authorize payment response");
-    let txn_id = utils::get_connector_transaction_id(authorize_response.response.clone()).unwrap();
+    let txn_id = "".to_string();
     let capture_connector_meta = utils::get_connector_metadata(authorize_response.response);
     let capture_response = CONNECTOR
         .capture_payment(
@@ -641,13 +640,16 @@ async fn should_fail_void_payment_for_auto_capture() {
 // Captures a payment using invalid connector payment id.
 #[actix_web::test]
 async fn should_fail_capture_for_invalid_payment() {
-    let connector_payment_id = "12345678".to_string();
+    let connector_payment_id = "".to_string();
     let capture_response = CONNECTOR
         .capture_payment(
             connector_payment_id,
             Some(types::PaymentsCaptureData {
                 connector_meta: Some(
-                    serde_json::json!({"transaction_id" : "transaction_usmh41hymb".to_string()}),
+                    serde_json::json!({"transaction_id" : "transaction_usmh41hymb",
+                        "order_id" : "tjil1ymxsz",
+                        "psync_flow" : "PREAUTH"
+                    }),
                 ),
                 amount_to_capture: 50,
                 currency: storage_models::enums::Currency::EUR,

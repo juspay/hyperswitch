@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use url::Url;
 
 use crate::{
-    connector::utils::{CardData, PaymentsCancelRequestData},
+    connector::utils::{to_connector_meta, CardData, PaymentsCancelRequestData},
     consts,
     core::errors,
     services,
@@ -152,6 +152,7 @@ pub enum NexinetsPaymentStatus {
     Declined,
     InProgress,
     Expired,
+    Aborted,
 }
 
 impl ForeignFrom<(NexinetsPaymentStatus, NexinetsTransactionType)> for enums::AttemptStatus {
@@ -164,7 +165,8 @@ impl ForeignFrom<(NexinetsPaymentStatus, NexinetsTransactionType)> for enums::At
             },
             NexinetsPaymentStatus::Declined
             | NexinetsPaymentStatus::Failure
-            | NexinetsPaymentStatus::Expired => match method {
+            | NexinetsPaymentStatus::Expired
+            | NexinetsPaymentStatus::Aborted => match method {
                 NexinetsTransactionType::Preauth => Self::AuthorizationFailed,
                 NexinetsTransactionType::Debit | NexinetsTransactionType::Capture => {
                     Self::CaptureFailed
@@ -176,7 +178,7 @@ impl ForeignFrom<(NexinetsPaymentStatus, NexinetsTransactionType)> for enums::At
                 _ => Self::Pending,
             },
             NexinetsPaymentStatus::Pending => Self::AuthenticationPending,
-            _ => Self::Pending,
+            NexinetsPaymentStatus::InProgress => Self::Pending,
         }
     }
 }
@@ -223,10 +225,9 @@ pub struct NexinetsTransaction {
     pub status: NexinetsPaymentStatus,
 }
 
-#[derive(Default, Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum NexinetsTransactionType {
-    #[default]
     Preauth,
     Debit,
     Capture,
@@ -236,6 +237,8 @@ pub enum NexinetsTransactionType {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct NexinetsPaymentsMetadata {
     pub transaction_id: Option<String>,
+    pub order_id: Option<String>,
+    pub psync_flow: NexinetsTransactionType,
 }
 
 impl<F, T>
@@ -263,6 +266,8 @@ impl<F, T>
         };
         let connector_metadata = serde_json::to_value(NexinetsPaymentsMetadata {
             transaction_id: Some(transaction.transaction_id.clone()),
+            order_id: Some(item.response.order_id.clone()),
+            psync_flow: item.response.transaction_type.clone(),
         })
         .into_report()
         .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
@@ -270,13 +275,20 @@ impl<F, T>
             .response
             .redirect_url
             .map(|url| services::RedirectForm::from((url, services::Method::Get)));
+        let resource_id = match item.response.transaction_type.clone() {
+            NexinetsTransactionType::Preauth => types::ResponseId::NoResponseId,
+            NexinetsTransactionType::Debit => {
+                types::ResponseId::ConnectorTransactionId(transaction.transaction_id.clone())
+            }
+            _ => Err(errors::ConnectorError::ResponseHandlingFailed)?,
+        };
         Ok(Self {
             status: enums::AttemptStatus::foreign_from((
                 transaction.status.clone(),
                 item.response.transaction_type,
             )),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(item.response.order_id),
+                resource_id,
                 redirection_data,
                 mandate_reference: None,
                 connector_metadata: Some(connector_metadata),
@@ -322,7 +334,7 @@ impl TryFrom<&types::PaymentsCancelRouterData> for NexinetsCaptureOrVoidRequest 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NexinetsPaymentResponse {
-    pub transaction_id: Option<String>,
+    pub transaction_id: String,
     pub status: NexinetsPaymentStatus,
     pub order: NexinetsOrder,
     #[serde(rename = "type")]
@@ -337,19 +349,27 @@ impl<F, T>
     fn try_from(
         item: types::ResponseRouterData<F, NexinetsPaymentResponse, T, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
-        let transaction_id = item.response.transaction_id;
-        let connector_metadata = serde_json::to_value(NexinetsPaymentsMetadata { transaction_id })
-            .into_report()
-            .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
+        let transaction_id = Some(item.response.transaction_id.clone());
+        let connector_metadata = serde_json::to_value(NexinetsPaymentsMetadata {
+            transaction_id,
+            order_id: Some(item.response.order.order_id),
+            psync_flow: item.response.transaction_type.clone(),
+        })
+        .into_report()
+        .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
+        let resource_id = match item.response.transaction_type.clone() {
+            NexinetsTransactionType::Debit | NexinetsTransactionType::Capture => {
+                types::ResponseId::ConnectorTransactionId(item.response.transaction_id)
+            }
+            _ => types::ResponseId::NoResponseId,
+        };
         Ok(Self {
             status: enums::AttemptStatus::foreign_from((
                 item.response.status,
                 item.response.transaction_type,
             )),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(
-                    item.response.order.order_id,
-                ),
+                resource_id,
                 redirection_data: None,
                 mandate_reference: None,
                 connector_metadata: Some(connector_metadata),
@@ -508,4 +528,16 @@ fn get_card_details(req_card: &api_models::payments::Card) -> NexinetsPaymentDet
         expiry_year: req_card.clone().get_card_expiry_year_2_digit(),
         verification: req_card.card_cvc.clone(),
     })
+}
+
+pub fn get_meta_data_and_order_id(
+    meta: Option<serde_json::Value>,
+) -> Result<(NexinetsPaymentsMetadata, String), error_stack::Report<errors::ConnectorError>> {
+    let nexinets_meta: NexinetsPaymentsMetadata = to_connector_meta(meta)?;
+    let order_id = nexinets_meta.order_id.clone().ok_or(
+        errors::ConnectorError::MissingConnectorRelatedTransactionID {
+            id: "order_id".to_string(),
+        },
+    )?;
+    Ok((nexinets_meta, order_id))
 }
