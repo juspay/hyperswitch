@@ -114,6 +114,14 @@ impl From<Shipping> for payments::Address {
     }
 }
 
+#[derive(PartialEq, Eq, Deserialize, Clone, Debug)]
+#[serde(rename_all = "snake_case")]
+pub enum StripePaymentMethodOptions {
+    Card {
+        mandate_options: Option<MandateOption>,
+    },
+}
+
 #[derive(PartialEq, Eq, Deserialize, Clone, Default, Debug)]
 pub struct MandateOption {
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
@@ -124,7 +132,7 @@ pub struct MandateOption {
 }
 
 impl From<MandateOption> for payments::MandateData {
-    fn from(mandate_options: MandateOption) -> Self {
+    fn from(mandate_options: MandateOption) -> payments::MandateData {
         Self {
             mandate_type:payments::MandateType::MultiUse(None),
             customer_acceptance: payments::CustomerAcceptance {
@@ -156,7 +164,7 @@ pub struct StripeSetupIntentRequest {
     pub statement_descriptor_suffix: Option<String>,
     pub metadata: Option<api_models::payments::Metadata>,
     pub client_secret: Option<pii::Secret<String>>,
-    pub mandate_data : Option<MandateOption>,
+    pub payment_method_options : Option<StripePaymentMethodOptions>,
     pub payment_method: Option<String>,
     pub merchant_connector_details: Option<admin::MerchantConnectorDetailsWrap>,
 }
@@ -208,9 +216,14 @@ impl TryFrom<StripeSetupIntentRequest> for payments::PaymentsRequest {
             statement_descriptor_suffix: item.statement_descriptor_suffix,
             metadata: item.metadata,
             client_secret: item.client_secret.map(|s| s.peek().clone()),
-            mandate_data: item.mandate_data.and_then(|mandate| Some(payments::MandateData::from(mandate))),
             setup_future_usage: item.setup_future_usage,
             merchant_connector_details: item.merchant_connector_details,
+            mandate_data: item.payment_method_options.map(|pmo| {
+                let StripePaymentMethodOptions::Card {
+                    mandate_options,
+                } = pmo;
+                mandate_options.and_then(|mandate| (Some(payments::MandateData::from(mandate))))
+            }).unwrap_or_default(),
             ..Default::default()
         });
         request

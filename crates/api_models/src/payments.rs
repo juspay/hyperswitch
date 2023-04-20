@@ -266,7 +266,6 @@ pub struct VerifyRequest {
     pub off_session: Option<bool>,
     pub client_secret: Option<String>,
     pub merchant_connector_details: Option<admin::MerchantConnectorDetailsWrap>,
-    pub return_url: Option<url::Url>,
 }
 
 impl From<PaymentsRequest> for VerifyRequest {
@@ -286,7 +285,6 @@ impl From<PaymentsRequest> for VerifyRequest {
             setup_future_usage: item.setup_future_usage,
             off_session: item.off_session,
             merchant_connector_details: item.merchant_connector_details,
-            return_url: item.return_url,
         }
     }
 }
