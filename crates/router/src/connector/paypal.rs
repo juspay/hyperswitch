@@ -494,24 +494,19 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         req: &types::PaymentsSyncRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
+        let paypal_meta: PaypalMeta = to_connector_meta(req.request.connector_meta.clone())?;
         match req.payment_method {
-            storage_models::enums::PaymentMethod::Wallet => {
-                let paypal_meta: PaypalMeta =
-                    to_connector_meta(req.request.connector_meta.clone())?;
-                Ok(format!(
-                    "{}v2/checkout/orders/{}",
-                    self.base_url(connectors),
-                    paypal_meta.order_id
-                ))
-            }
+            storage_models::enums::PaymentMethod::Wallet => Ok(format!(
+                "{}v2/checkout/orders/{}",
+                self.base_url(connectors),
+                paypal_meta.order_id
+            )),
             _ => {
                 let capture_id = req
                     .request
                     .connector_transaction_id
                     .get_connector_transaction_id()
                     .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
-                let paypal_meta: PaypalMeta =
-                    to_connector_meta(req.request.connector_meta.clone())?;
                 let psync_url = match paypal_meta.psync_flow {
                     transformers::PaypalPaymentIntent::Authorize => format!(
                         "v2/payments/authorizations/{}",
