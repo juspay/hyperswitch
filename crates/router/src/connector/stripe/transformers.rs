@@ -219,8 +219,9 @@ pub struct StripeBankRedirectData {
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
-#[serde(untagged)]
+#[serde(tag = "payment_method_data[type]")]
 pub enum BankDebitData {
+    #[serde(rename = "us_bank_account")]
     Ach {
         #[serde(rename = "payment_method_data[us_bank_account][account_holder_type]")]
         account_holder_type: String,
@@ -229,16 +230,19 @@ pub enum BankDebitData {
         #[serde(rename = "payment_method_data[us_bank_account][routing_number]")]
         routing_number: Secret<String>,
     },
+    #[serde(rename = "sepa_debit")]
     Sepa {
         #[serde(rename = "payment_method_data[sepa_debit][iban]")]
         iban: Secret<String>,
     },
+    #[serde(rename = "au_becs_debit")]
     Becs {
         #[serde(rename = "payment_method_data[au_becs_debit][account_number]")]
         account_number: Secret<String>,
         #[serde(rename = "payment_method_data[au_becs_debit][bsb_number]")]
         bsb_number: Secret<String>,
     },
+    #[serde(rename = "bacs_debit")]
     Bacs {
         #[serde(rename = "payment_method_data[bacs_debit][account_number]")]
         account_number: Secret<String>,
@@ -251,8 +255,6 @@ pub enum BankDebitData {
 pub struct StripeBankDebitData {
     #[serde(rename = "payment_method_types[]")]
     pub payment_method_types: StripePaymentMethodType,
-    #[serde(rename = "payment_method_data[type]")]
-    pub payment_method_data_type: StripePaymentMethodType,
     #[serde(flatten)]
     pub bank_specific_data: BankDebitData,
 }
@@ -767,7 +769,6 @@ fn create_stripe_payment_method(
 
             let pm_data = StripePaymentMethodData::BankDebit(StripeBankDebitData {
                 payment_method_types: pm_type,
-                payment_method_data_type: pm_type,
                 bank_specific_data: bank_debit_data,
             });
 
@@ -1644,7 +1645,6 @@ impl
 
                 Ok(Self::BankDebit(StripeBankDebitData {
                     payment_method_types: pm_type,
-                    payment_method_data_type: pm_type,
                     bank_specific_data: bank_data,
                 }))
             }
