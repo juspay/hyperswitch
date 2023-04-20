@@ -242,7 +242,7 @@ pub enum ConnectorError {
     #[error("Missing required field: {field_name}")]
     MissingRequiredField { field_name: &'static str },
     #[error("Missing required fields: [field_names]")]
-    MissingRequiredFields{ field_names: Vec<&'static str> },
+    MissingRequiredFields { field_names: Vec<&'static str> },
     #[error("Failed to obtain authentication type")]
     FailedToObtainAuthType,
     #[error("Failed to obtain certificate")]

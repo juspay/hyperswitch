@@ -1,6 +1,6 @@
 use api_models::{self, enums as api_enums, payments};
 use base64::Engine;
-use common_utils::{pii::Email};
+use common_utils::pii::Email;
 use error_stack::{IntoReport, ResultExt};
 use masking::ExposeInterface;
 use serde::{Deserialize, Serialize};
@@ -1417,6 +1417,9 @@ impl
 
 #[cfg(test)]
 mod test_validate_shipping_address_against_payment_method {
+    use api_models::enums::CountryCode;
+    use masking::Secret;
+
     use crate::{
         connector::stripe::transformers::{
             validate_shipping_address_against_payment_method, StripePaymentMethodType,
@@ -1424,8 +1427,6 @@ mod test_validate_shipping_address_against_payment_method {
         },
         core::errors,
     };
-    use api_models::enums::CountryCode;
-    use masking::Secret;
 
     #[test]
     fn should_return_ok() {
@@ -1570,11 +1571,11 @@ mod test_validate_shipping_address_against_payment_method {
         // Assert
         assert_eq!(result.is_err(), true);
         let missing_fields = get_missing_fields(result.unwrap_err().current_context()).to_owned();
-        for field in  missing_fields{
+        for field in missing_fields {
             assert!(expected_missing_field_names.contains(&field));
         }
     }
-    
+
     fn get_missing_fields(connector_error: &errors::ConnectorError) -> Vec<&'static str> {
         if let errors::ConnectorError::MissingRequiredFields { field_names } = connector_error {
             return field_names.to_vec();
