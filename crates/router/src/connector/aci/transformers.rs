@@ -320,6 +320,7 @@ fn method_data(redirection_data: AciRedirectionData) -> services::Method {
             return *method;
         }
     }
+    // Default case: When optional method returns None, we default to Post (as per docs)
     redirection_data.method.unwrap_or(services::Method::Post)
 }
 
@@ -339,7 +340,8 @@ impl<F, T>
             );
 
             let link = data.clone().url;
-
+            // If method is Get, parameters are appended to URL
+            // If method is post, we http Post the method to URL
             services::RedirectForm {
                 endpoint: link.to_string(),
                 method: method_data(data),
