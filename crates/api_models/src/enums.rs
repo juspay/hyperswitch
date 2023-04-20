@@ -409,19 +409,34 @@ pub enum PaymentExperience {
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum PaymentMethodType {
-    Credit,
-    Debit,
-    Giropay,
-    Ideal,
-    Sofort,
-    Eps,
-    Klarna,
     Affirm,
     AfterpayClearpay,
-    GooglePay,
+    AliPay,
     ApplePay,
-    Paypal,
+    BancontactCard,
+    Blik,
+    Credit,
     CryptoCurrency,
+    Debit,
+    Eps,
+    Giropay,
+    GooglePay,
+    Ideal,
+    Klarna,
+    MbWay,
+    MobilePay,
+    OnlineBankingCzechRepublic,
+    OnlineBankingFinland,
+    OnlineBankingPoland,
+    OnlineBankingSlovakia,
+    PayBright,
+    Paypal,
+    Przelewy24,
+    Sofort,
+    Swish,
+    Trustly,
+    Walley,
+    WeChatPay,
 }
 
 #[derive(
@@ -684,6 +699,8 @@ pub enum BankNames {
     AmericanExpress,
     BankOfAmerica,
     Barclays,
+    #[serde(rename = "BLIK - PSP")]
+    BlikPSP,
     CapitalOne,
     Chase,
     Citi,
@@ -711,13 +728,21 @@ pub enum BankNames {
     Bank99Ag,
     BankhausCarlSpangler,
     BankhausSchelhammerUndSchatteraAg,
+    #[serde(rename = "Bank Millennium")]
+    BankMillennium,
+    #[serde(rename = "Bank PEKAO S.A.")]
+    BankPEKAOSA,
     BawagPskAg,
     BksBankAg,
     BrullKallmusBankAg,
     BtvVierLanderBank,
     CapitalBankGraweGruppeAg,
+    #[serde(rename = "Česká spořitelna")]
+    CeskaSporitelna,
     Dolomitenbank,
     EasybankAg,
+    #[serde(rename = "ePlatby VÚB")]
+    EPlatbyVUB,
     ErsteBankUndSparkassen,
     HypoAlpeadriabankInternationalAg,
     HypoNoeLbFurNiederosterreichUWien,
@@ -725,17 +750,57 @@ pub enum BankNames {
     HypoTirolBankAg,
     HypoVorarlbergBankAg,
     HypoBankBurgenlandAktiengesellschaft,
+    #[serde(rename = "Komercní banka")]
+    KomercniBanka,
+    #[serde(rename = "mBank - mTransfer")]
+    MBank,
     MarchfelderBank,
     OberbankAg,
     OsterreichischeArzteUndApothekerbank,
+    #[serde(rename = "Pay with ING")]
+    PayWithING,
+    #[serde(rename = "Płacę z iPKO")]
+    PlaceZIPKO,
+    #[serde(rename = "Płatność online kartą płatniczą")]
+    PlatnoscOnlineKartaPlatnicza,
     PosojilnicaBankEGen,
+    #[serde(rename = "Poštová banka")]
+    PostovaBanka,
     RaiffeisenBankengruppeOsterreich,
     SchelhammerCapitalBankAg,
     SchoellerbankAg,
     SpardaBankWien,
+    SporoPay,
+    #[serde(rename = "Santander-Przelew24")]
+    SantanderPrzelew24,
+    TatraPay,
+    Viamo,
     VolksbankGruppe,
     VolkskreditbankAg,
     VrBankBraunau,
+    #[serde(rename = "Pay with Alior Bank")]
+    PayWithAliorBank,
+    #[serde(rename = "Banki Spółdzielcze")]
+    BankiSpoldzielcze,
+    #[serde(rename = "Pay with Inteligo")]
+    PayWithInteligo,
+    #[serde(rename = "BNP Paribas Poland")]
+    BNPParibasPoland,
+    #[serde(rename = "Bank Nowy S.A.")]
+    BankNowySA,
+    #[serde(rename = "Credit Agricole")]
+    CreditAgricole,
+    #[serde(rename = "Pay with BOŚ")]
+    PayWithBOS,
+    #[serde(rename = "Pay with CitiHandlowy")]
+    PayWithCitiHandlowy,
+    #[serde(rename = "Pay with Plus Bank")]
+    PayWithPlusBank,
+    #[serde(rename = "Toyota Bank")]
+    ToyotaBank,
+    VeloBank,
+    #[serde(rename = "e-transfer Pocztowy24")]
+    ETransferPocztowy24,
 }
 
 #[derive(

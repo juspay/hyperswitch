@@ -454,6 +454,8 @@ pub enum PayLaterData {
         #[schema(value_type = String)]
         billing_name: Secret<String>,
     },
+    PayBright {},
+    Walley {},
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -510,6 +512,26 @@ impl From<&PaymentMethodData> for AdditionalPaymentData {
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum BankRedirectData {
+    BancontactCard {
+        /// The card number
+        #[schema(value_type = String, example = "4242424242424242")]
+        card_number: Secret<String, pii::CardNumber>,
+        /// The card's expiry month
+        #[schema(value_type = String, example = "24")]
+        card_exp_month: Secret<String>,
+
+        /// The card's expiry year
+        #[schema(value_type = String, example = "24")]
+        card_exp_year: Secret<String>,
+
+        /// The card holder's name
+        #[schema(value_type = String, example = "John Test")]
+        card_holder_name: Secret<String>,
+    },
+    Blik {
+        // Blik Code
+        blik_code: String,
+    },
     Eps {
         /// The billing details for bank redirection
         billing_details: BankRedirectBilling,
@@ -530,6 +552,23 @@ pub enum BankRedirectData {
         #[schema(value_type = BankNames, example = "abn_amro")]
         bank_name: api_enums::BankNames,
     },
+    OnlineBankingCzechRepublic {
+        // Issuer banks
+        issuer: api_enums::BankNames,
+    },
+    OnlineBankingFinland {
+        // Shopper Email
+        email: Option<Secret<String, pii::Email>>,
+    },
+    OnlineBankingPoland {
+        // Issuer banks
+        issuer: api_enums::BankNames,
+    },
+    OnlineBankingSlovakia {
+        // Issuer value corresponds to the bank
+        issuer: api_enums::BankNames,
+    },
+    Przelewy24 {},
     Sofort {
         /// The billing details for bank redirection
         billing_details: BankRedirectBilling,
@@ -542,6 +581,8 @@ pub enum BankRedirectData {
         #[schema(example = "en")]
         preferred_language: String,
     },
+    Swish {},
+    Trustly {},
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -565,14 +606,21 @@ pub struct BankRedirectBilling {
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum WalletData {
-    /// The wallet data for Google pay
-    GooglePay(GooglePayWalletData),
+    /// The wallet data for Ali Pay redirect
+    AliPay(AliPayRedirection),
     /// The wallet data for Apple pay
     ApplePay(ApplePayWalletData),
-    /// The wallet data for Paypal
-    PaypalSdk(PayPalWalletData),
+    /// The wallet data for Google pay
+    GooglePay(GooglePayWalletData),
+    MbWay(Box<MbWayRedirection>),
+    /// The wallet data for MobilePay redirect
+    MobilePay(Box<MobilePayRedirection>),
     /// This is for paypal redirection
     PaypalRedirect(PaypalRedirection),
+    /// The wallet data for Paypal
+    PaypalSdk(PayPalWalletData),
+    /// The wallet data for WeChat Pay Redirection
+    WeChatPayRedirect(Box<WeChatPayRedirection>),
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -589,7 +637,22 @@ pub struct GooglePayWalletData {
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct WeChatPayRedirection {}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct PaypalRedirection {}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct AliPayRedirection {}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct MobilePayRedirection {}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct MbWayRedirection {
+    /// Telephone number of the shopper. Should be Portuguese phone number.
+    pub telephone_number: Secret<String>,
+}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct GooglePayPaymentMethodInfo {
