@@ -378,12 +378,6 @@ impl
         types::PaymentsResponseData: Clone,
     {
         let id = data.request.connector_transaction_id.clone();
-        // let response: stripe::PaymentIntentSyncResponse = res
-        //     .response
-        //     .parse_struct("PaymentIntentSyncResponse")
-        //     .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        //
-        //
         let response: transformers::PaymentIntentSyncResponse =
             match id.get_connector_transaction_id() {
                 Ok(x) if x.starts_with("set") => res

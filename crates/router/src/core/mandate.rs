@@ -148,7 +148,6 @@ where
         }
         None => {
             if resp.request.get_setup_mandate_details().is_some() {
-                println!("{:#?}", resp.response);
                 resp.payment_method_id = pm_id.clone();
                 let mandate_reference = match resp.response.as_ref().ok() {
                     Some(types::PaymentsResponseData::TransactionResponse {
