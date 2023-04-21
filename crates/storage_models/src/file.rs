@@ -22,7 +22,6 @@ pub struct FileMetadataNew {
 #[diesel(table_name = file_metadata, primary_key(file_id, merchant_id))]
 pub struct FileMetadata {
     #[serde(skip_serializing)]
-    pub id: i32,
     pub file_id: String,
     pub merchant_id: String,
     pub file_name: Option<String>,

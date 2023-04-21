@@ -8,6 +8,7 @@ use super::{
     metrics,
 };
 use crate::{
+    core::{payments, utils},
     routes::AppState,
     services,
     types::{
@@ -110,7 +111,7 @@ pub async fn accept_dispute(
         AcceptDisputeRequestData,
         AcceptDisputeResponse,
     > = connector_data.connector.get_connector_integration();
-    let router_data = super::utils::construct_accept_dispute_router_data(
+    let router_data = utils::construct_accept_dispute_router_data(
         state,
         &payment_intent,
         &payment_attempt,
@@ -122,7 +123,7 @@ pub async fn accept_dispute(
         state,
         connector_integration,
         &router_data,
-        super::payments::CallConnectorAction::Trigger,
+        payments::CallConnectorAction::Trigger,
     )
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -216,7 +217,7 @@ pub async fn submit_evidence(
         SubmitEvidenceRequestData,
         SubmitEvidenceResponse,
     > = connector_data.connector.get_connector_integration();
-    let router_data = super::utils::construct_submit_evidence_router_data(
+    let router_data = utils::construct_submit_evidence_router_data(
         state,
         &payment_intent,
         &payment_attempt,
@@ -229,7 +230,7 @@ pub async fn submit_evidence(
         state,
         connector_integration,
         &router_data,
-        super::payments::CallConnectorAction::Trigger,
+        payments::CallConnectorAction::Trigger,
     )
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)

@@ -4,7 +4,7 @@ use common_utils::errors::CustomResult;
 use error_stack::{IntoReport, ResultExt};
 use futures::TryStreamExt;
 
-use crate::{core::errors, logger, routes};
+use crate::{core::errors, routes};
 
 async fn get_aws_client(state: &routes::AppState) -> Client {
     let region_provider =
@@ -28,11 +28,11 @@ pub async fn upload_file_to_s3(
         .body(file.into())
         .send()
         .await;
-    match upload_res {
-        Ok(_) => Ok(()),
-        Err(error) => Err(errors::ApiErrorResponse::InternalServerError.into())
-            .attach_printable(format!("{}{}", "File upload to S3 failed: ", error)),
-    }
+    upload_res
+        .into_report()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("File upload to S3 failed")?;
+    Ok(())
 }
 
 pub async fn delete_file_from_s3(
@@ -48,11 +48,11 @@ pub async fn delete_file_from_s3(
         .key(file_key)
         .send()
         .await;
-    match delete_res {
-        Ok(_) => Ok(()),
-        Err(error) => Err(errors::ApiErrorResponse::InternalServerError.into())
-            .attach_printable(format!("{}{}", "File delete from S3 failed: ", error)),
-    }
+    delete_res
+        .into_report()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("File delete from S3 failed")?;
+    Ok(())
 }
 
 pub async fn retrieve_file_from_s3(
@@ -68,21 +68,17 @@ pub async fn retrieve_file_from_s3(
         .key(file_key)
         .send()
         .await;
-    let mut object = match get_res {
-        Ok(valid_res) => valid_res,
-        Err(error) => Err(errors::ApiErrorResponse::InternalServerError.into())
-            .attach_printable(format!("{}{}", "File retrieve from S3 failed: ", error))?,
-    };
+    let mut object = get_res
+        .into_report()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("File retrieve from S3 failed")?;
     let mut received_data: Vec<u8> = Vec::new();
     while let Some(bytes) = object
         .body
         .try_next()
         .await
-        .map_err(|err| {
-            logger::error!(%err, "Failed reading file data from S3");
-            errors::ApiErrorResponse::InternalServerError
-        })
         .into_report()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Invalid file data received from S3")?
     {
         received_data.extend_from_slice(&bytes); // Collect the bytes in the Vec

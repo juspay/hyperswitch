@@ -98,8 +98,10 @@ pub async fn validate_file_upload(
                         }
                         .into())
                     }
-                    _ => Err(errors::ApiErrorResponse::InternalServerError.into())
-                        .attach_printable("File validation failed")?,
+                    //We are using parent error and ignoring this
+                    _error => Err(err
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("File validation failed"))?,
                 },
             }
         }

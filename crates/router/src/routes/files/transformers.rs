@@ -78,17 +78,13 @@ pub async fn get_create_file_request(
             .attach_printable("Missing / Invalid file in the request")?
     }
     // Get file mime type using 'infer'
-    let option_file_mime_type =
-        infer::get(&file).map(|kind| kind.mime_type().parse::<mime::Mime>());
-    let file_type = match option_file_mime_type {
-        Some(Ok(mime)) => mime,
-        Some(Err(err)) => Err(errors::ApiErrorResponse::MissingFileContentType)
-            .into_report()
-            .attach_printable(format!("{}{}", "File content type error: ", err))?,
-        None => Err(errors::ApiErrorResponse::MissingFileContentType)
-            .into_report()
-            .attach_printable("File content type not found / valid")?,
-    };
+    let kind = infer::get(&file).ok_or(errors::ApiErrorResponse::MissingFileContentType)?;
+    let file_type = kind
+        .mime_type()
+        .parse::<mime::Mime>()
+        .into_report()
+        .change_context(errors::ApiErrorResponse::MissingFileContentType)
+        .attach_printable("File content type error")?;
     Ok(CreateFileRequest {
         file,
         file_name,

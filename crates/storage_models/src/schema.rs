@@ -159,7 +159,6 @@ diesel::table! {
     use crate::enums::diesel_exports::*;
 
     file_metadata (file_id, merchant_id) {
-        id -> Int4,
         file_id -> Varchar,
         merchant_id -> Varchar,
         file_name -> Nullable<Varchar>,

@@ -107,8 +107,8 @@ pub async fn files_retrieve_core(
     let content_type = file_metadata_object
         .file_type
         .parse::<mime::Mime>()
-        .map_err(|_| errors::ApiErrorResponse::InternalServerError)
         .into_report()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to parse file content type")?;
     Ok(ApplicationResponse::FileData((
         received_data
