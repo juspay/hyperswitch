@@ -89,7 +89,17 @@ impl types::VerifyRouterData {
                 )
                 .await
                 .map_err(|err| err.to_verify_failed_response())?;
-                Ok(mandate::mandate_procedure(state, resp, maybe_customer, None).await?)
+
+                let pm_id = super::authorize_flow::save_payment_method(
+                    state,
+                    connector,
+                    resp.to_owned(),
+                    maybe_customer,
+                    _merchant_account,
+                )
+                .await?;
+
+                Ok(mandate::mandate_procedure(state, resp, maybe_customer, pm_id).await?)
             }
             _ => Ok(self.clone()),
         }
