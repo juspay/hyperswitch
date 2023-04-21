@@ -51,7 +51,7 @@ pub struct CardRequest {
 #[derive(Debug, Serialize)]
 pub struct RedirectRequest {
     name: Secret<String>,
-    country_code: api_models::enums::CountryCode,
+    country_code: api_models::enums::CountryAlpha2,
     experience_context: ContextStruct,
 }
 
