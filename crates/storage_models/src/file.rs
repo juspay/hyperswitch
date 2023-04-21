@@ -19,7 +19,7 @@ pub struct FileMetadataNew {
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, Identifiable, Queryable)]
-#[diesel(table_name = file_metadata)]
+#[diesel(table_name = file_metadata, primary_key(file_id, merchant_id))]
 pub struct FileMetadata {
     #[serde(skip_serializing)]
     pub id: i32,

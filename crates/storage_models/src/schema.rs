@@ -157,7 +157,7 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
-    file_metadata (id) {
+    file_metadata (file_id, merchant_id) {
         id -> Int4,
         file_id -> Varchar,
         merchant_id -> Varchar,

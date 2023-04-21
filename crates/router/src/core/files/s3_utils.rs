@@ -83,7 +83,7 @@ pub async fn retrieve_file_from_s3(
             errors::ApiErrorResponse::InternalServerError
         })
         .into_report()
-        .attach_printable("Invalid file data recieved from S3")?
+        .attach_printable("Invalid file data received from S3")?
     {
         received_data.extend_from_slice(&bytes); // Collect the bytes in the Vec
     }
