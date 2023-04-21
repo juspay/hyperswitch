@@ -185,6 +185,9 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for AciPaymentsRequest {
                             shopper_result_url: item.request.router_return_url.clone(),
                         }))
                     }
+                    _ => Err(errors::ConnectorError::NotImplemented(
+                        "Payment method".to_string(),
+                    ))?,
                 }
             }
             api::PaymentMethodData::Crypto(_) => Err(errors::ConnectorError::NotSupported {
