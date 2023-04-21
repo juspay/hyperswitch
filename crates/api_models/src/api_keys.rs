@@ -136,8 +136,8 @@ pub struct UpdateApiKeyRequest {
 pub struct RevokeApiKeyResponse {
     /// The identifier for the API Key.
     #[schema(max_length = 64, example = "5hEEqkgJUyuxgSKGArHA4mWSnX")]
+    pub merchant_id: String,
     pub key_id: String,
-
     /// Indicates whether the API key was revoked or not.
     #[schema(example = "true")]
     pub revoked: bool,
