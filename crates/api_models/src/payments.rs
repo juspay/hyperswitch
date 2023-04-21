@@ -462,13 +462,57 @@ pub enum PayLaterData {
     Walley {},
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(serde::Deserialize, serde::Serialize, Debug, Clone, ToSchema, Eq, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum BankDebitData {
+    /// Payment Method data for Ach bank debit
+    AchBankDebit {
+        /// Billing details for bank debit
+        billing_details: BankDebitBilling,
+        /// Account number for ach bank debit payment
+        #[schema(value_type = String, example = "000123456789")]
+        account_number: Secret<String>,
+        /// Routing number for ach bank debit payment
+        #[schema(value_type = String, example = "110000000")]
+        routing_number: Secret<String>,
+    },
+    SepaBankDebit {
+        /// Billing details for bank debit
+        billing_details: BankDebitBilling,
+        /// International bank account number (iban) for SEPA
+        #[schema(value_type = String, example = "DE89370400440532013000")]
+        iban: Secret<String>,
+    },
+    BecsBankDebit {
+        /// Billing details for bank debit
+        billing_details: BankDebitBilling,
+        /// Account number for Becs payment method
+        #[schema(value_type = String, example = "000123456")]
+        account_number: Secret<String>,
+        /// Bank-State-Branch (bsb) number
+        #[schema(value_type = String, example = "000000")]
+        bsb_number: Secret<String>,
+    },
+    BacsBankDebit {
+        /// Billing details for bank debit
+        billing_details: BankDebitBilling,
+        /// Account number for Bacs payment method
+        #[schema(value_type = String, example = "00012345")]
+        account_number: Secret<String>,
+        /// Sort code for Bacs payment method
+        #[schema(value_type = String, example = "108800")]
+        sort_code: Secret<String>,
+    },
+}
+
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum PaymentMethodData {
     Card(Card),
     Wallet(WalletData),
     PayLater(PayLaterData),
     BankRedirect(BankRedirectData),
+    BankDebit(BankDebitData),
     Crypto(CryptoData),
 }
 
@@ -485,6 +529,7 @@ pub enum AdditionalPaymentData {
     Wallet {},
     PayLater {},
     Crypto {},
+    BankDebit {},
 }
 
 impl From<&PaymentMethodData> for AdditionalPaymentData {
@@ -509,6 +554,7 @@ impl From<&PaymentMethodData> for AdditionalPaymentData {
             PaymentMethodData::Wallet(_) => Self::Wallet {},
             PaymentMethodData::PayLater(_) => Self::PayLater {},
             PaymentMethodData::Crypto(_) => Self::Crypto {},
+            PaymentMethodData::BankDebit(_) => Self::BankDebit {},
         }
     }
 }
@@ -608,6 +654,18 @@ pub struct BankRedirectBilling {
     /// The name for which billing is issued
     #[schema(value_type = String, example = "John Doe")]
     pub billing_name: Secret<String>,
+}
+
+#[derive(serde::Deserialize, serde::Serialize, Debug, Clone, ToSchema, Eq, PartialEq)]
+pub struct BankDebitBilling {
+    /// The billing name for bank debits
+    #[schema(value_type = String, example = "John Doe")]
+    pub name: Secret<String>,
+    /// The billing email for bank debits
+    #[schema(value_type = String, example = "example@example.com")]
+    pub email: Secret<String, pii::Email>,
+    /// The billing address for bank debits
+    pub address: Option<AddressDetails>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -725,6 +783,7 @@ pub enum PaymentMethodDataResponse {
     Paypal,
     BankRedirect(BankRedirectData),
     Crypto(CryptoData),
+    BankDebit(BankDebitData),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -1140,7 +1199,7 @@ pub struct PaymentListResponse {
     pub data: Vec<PaymentsResponse>,
 }
 
-#[derive(Setter, Clone, Default, Debug, Eq, PartialEq, serde::Serialize)]
+#[derive(Setter, Clone, Default, Debug, serde::Serialize)]
 pub struct VerifyResponse {
     pub verify_id: Option<String>,
     pub merchant_id: Option<String>,
@@ -1265,6 +1324,7 @@ impl From<PaymentMethodData> for PaymentMethodDataResponse {
                 Self::BankRedirect(bank_redirect_data)
             }
             PaymentMethodData::Crypto(crpto_data) => Self::Crypto(crpto_data),
+            PaymentMethodData::BankDebit(bank_debit_data) => Self::BankDebit(bank_debit_data),
         }
     }
 }
