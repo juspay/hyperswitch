@@ -1,6 +1,4 @@
-use api_models::{
-    enums::DisputeStage, payments::PaymentMethodData, webhooks::IncomingWebhookEvent,
-};
+use api_models::{enums::DisputeStage, webhooks::IncomingWebhookEvent};
 use masking::PeekInterface;
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
