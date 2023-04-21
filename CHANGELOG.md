@@ -22,9 +22,9 @@
 *  support gpay and applepay session response for all connectors (#839) (d23e14c5)
 *  add relevant ids for payment calls & make json logs  (#908) (93b69e74)
 * **router:**
-  *  add support for filtering PaymentMethodTypes at a session (#883) (465933ba)
+  *  add support for filtering PaymentMethodTypes at a session (#883) (465933)
   *  add new payment methods for Bank redirects, BNPL and wallet (#864) (304081cb)
-* **date_time:**  add `created_at` and `modified_at` to merchant related tables (#925) (1f151ba1)
+* **date_time:**  add `created_at` and `modified_at` to merchant related tables (#925) (1f151)
 
 ## Bug Fixes
 
