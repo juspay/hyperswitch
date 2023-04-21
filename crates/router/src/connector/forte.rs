@@ -2,13 +2,16 @@ mod transformers;
 
 use std::fmt::Debug;
 
+use base64::Engine;
 use error_stack::{IntoReport, ResultExt};
 use transformers as forte;
 
+use super::utils::RefundsRequestData;
 use crate::{
     configs::settings,
+    consts,
     core::errors::{self, CustomResult},
-    headers,
+    headers, logger,
     services::{self, ConnectorIntegration},
     types::{
         self,
@@ -20,6 +23,39 @@ use crate::{
 
 #[derive(Debug, Clone)]
 pub struct Forte;
+
+impl Forte {
+    pub fn get_authorization_headers(
+        &self,
+        auth: forte::ForteAuthType,
+    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+        let forte::ForteAuthType {
+            api_access_id,
+            organization_id,
+            location_id: _,
+            api_secret_key,
+        } = auth;
+
+        let raw_basic_token = format!("{api_access_id}:{api_secret_key}");
+        let basic_token = format!("Basic {}", consts::BASE64_ENGINE.encode(raw_basic_token));
+        Ok(vec![
+            (headers::AUTHORIZATION.to_string(), basic_token),
+            ("X-Forte-Auth-Organization-Id".to_string(), organization_id),
+        ])
+    }
+    pub fn get_organization_id_and_location_id(
+        &self,
+        auth: forte::ForteAuthType,
+    ) -> CustomResult<(String, String), errors::ConnectorError> {
+        let forte::ForteAuthType {
+            api_access_id: _,
+            organization_id,
+            location_id,
+            api_secret_key: _,
+        } = auth;
+        Ok((organization_id, location_id))
+    }
+}
 
 impl api::Payment for Forte {}
 impl api::PaymentSession for Forte {}
@@ -52,13 +88,11 @@ where
         req: &types::RouterData<Flow, Request, Response>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        let mut header = vec![(
-            headers::CONTENT_TYPE.to_string(),
-            types::PaymentsAuthorizeType::get_content_type(self).to_string(),
-        )];
-        let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
-        header.append(&mut api_key);
-        Ok(header)
+        let auth: forte::ForteAuthType = forte::ForteAuthType::try_from(&req.connector_auth_type)?;
+        let content_type = ConnectorCommon::common_get_content_type(self);
+        let mut common_headers = self.get_authorization_headers(auth)?;
+        common_headers.push((headers::CONTENT_TYPE.to_string(), content_type.to_string()));
+        Ok(common_headers)
     }
 }
 
@@ -79,25 +113,37 @@ impl ConnectorCommon for Forte {
         &self,
         auth_type: &types::ConnectorAuthType,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        let auth = forte::ForteAuthType::try_from(auth_type)
+        let auth: forte::ForteAuthType = auth_type
+            .try_into()
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-        Ok(vec![(headers::AUTHORIZATION.to_string(), auth.api_key)])
+        let auth_headers = self.get_authorization_headers(auth)?;
+        Ok(auth_headers)
     }
-
     fn build_error_response(
         &self,
         res: Response,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let response: forte::ForteErrorResponse =
-            res.response
-                .parse_struct("ForteErrorResponse")
-                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-
+        let response: forte::ForteErrorResponse = res
+            .response
+            .parse_struct("Forte ErrorResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        let message = response
+            .response
+            .response_desc
+            .split("]:")
+            .last()
+            .unwrap_or_default()
+            .trim()
+            .to_owned();
+        let code = response
+            .response
+            .response_code
+            .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?;
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code: response.code,
-            message: response.message,
-            reason: response.reason,
+            code,
+            message,
+            reason: None,
         })
     }
 }
@@ -134,20 +180,25 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
 
     fn get_url(
         &self,
-        _req: &types::PaymentsAuthorizeRouterData,
-        _connectors: &settings::Connectors,
+        req: &types::PaymentsAuthorizeRouterData,
+        connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        let auth: forte::ForteAuthType = forte::ForteAuthType::try_from(&req.connector_auth_type)?;
+        let (organization_id, location_id) = self.get_organization_id_and_location_id(auth)?;
+        Ok(format!(
+            "{}/organizations/{}/locations/{}/transactions",
+            self.base_url(connectors),
+            organization_id,
+            location_id
+        ))
     }
 
     fn get_request_body(
         &self,
         req: &types::PaymentsAuthorizeRouterData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        let req_obj = forte::FortePaymentsRequest::try_from(req)?;
-        let forte_req =
-            utils::Encode::<forte::FortePaymentsRequest>::encode_to_string_of_json(&req_obj)
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let forte_req = utils::Encode::<forte::FortePaymentsRequest>::convert_and_encode(req)
+            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(forte_req))
     }
 
@@ -162,7 +213,6 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
                 .url(&types::PaymentsAuthorizeType::get_url(
                     self, req, connectors,
                 )?)
-                .attach_default_headers()
                 .headers(types::PaymentsAuthorizeType::get_headers(
                     self, req, connectors,
                 )?)
@@ -178,14 +228,13 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
         let response: forte::FortePaymentsResponse = res
             .response
-            .parse_struct("Forte PaymentsAuthorizeResponse")
+            .parse_struct("Forte AuthorizeResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
         })
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
     fn get_error_response(
@@ -213,10 +262,23 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
 
     fn get_url(
         &self,
-        _req: &types::PaymentsSyncRouterData,
-        _connectors: &settings::Connectors,
+        req: &types::PaymentsSyncRouterData,
+        connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        let auth: forte::ForteAuthType = forte::ForteAuthType::try_from(&req.connector_auth_type)?;
+        let (organization_id, location_id) = self.get_organization_id_and_location_id(auth)?;
+        let txn_id = req
+            .request
+            .connector_transaction_id
+            .get_connector_transaction_id()
+            .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
+        Ok(format!(
+            "{}/organizations/{}/locations/{}/transactions/{}",
+            self.base_url(connectors),
+            organization_id,
+            location_id,
+            txn_id
+        ))
     }
 
     fn build_request(
@@ -228,18 +290,16 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
             services::RequestBuilder::new()
                 .method(services::Method::Get)
                 .url(&types::PaymentsSyncType::get_url(self, req, connectors)?)
-                .attach_default_headers()
                 .headers(types::PaymentsSyncType::get_headers(self, req, connectors)?)
                 .build(),
         ))
     }
-
     fn handle_response(
         &self,
         data: &types::PaymentsSyncRouterData,
         res: Response,
     ) -> CustomResult<types::PaymentsSyncRouterData, errors::ConnectorError> {
-        let response: forte::FortePaymentsResponse = res
+        let response: forte::FortePaymentsSyncResponse = res
             .response
             .parse_struct("forte PaymentsSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
@@ -248,7 +308,6 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
             data: data.clone(),
             http_code: res.status_code,
         })
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
     fn get_error_response(
@@ -276,17 +335,28 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
 
     fn get_url(
         &self,
-        _req: &types::PaymentsCaptureRouterData,
-        _connectors: &settings::Connectors,
+        req: &types::PaymentsCaptureRouterData,
+        connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        let auth: forte::ForteAuthType = forte::ForteAuthType::try_from(&req.connector_auth_type)?;
+        let (organization_id, location_id) = self.get_organization_id_and_location_id(auth)?;
+        Ok(format!(
+            "{}/organizations/{}/locations/{}/transactions",
+            self.base_url(connectors),
+            organization_id,
+            location_id
+        ))
     }
 
     fn get_request_body(
         &self,
-        _req: &types::PaymentsCaptureRouterData,
+        req: &types::PaymentsCaptureRouterData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_request_body method".to_string()).into())
+        let connector_req = forte::ForteCaptureRequest::try_from(req)?;
+        let forte_req =
+            utils::Encode::<forte::ForteCaptureRequest>::encode_to_string_of_json(&connector_req)
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        Ok(Some(forte_req))
     }
 
     fn build_request(
@@ -296,12 +366,12 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         Ok(Some(
             services::RequestBuilder::new()
-                .method(services::Method::Post)
+                .method(services::Method::Put)
                 .url(&types::PaymentsCaptureType::get_url(self, req, connectors)?)
-                .attach_default_headers()
                 .headers(types::PaymentsCaptureType::get_headers(
                     self, req, connectors,
                 )?)
+                .body(types::PaymentsCaptureType::get_request_body(self, req)?)
                 .build(),
         ))
     }
@@ -311,16 +381,16 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         data: &types::PaymentsCaptureRouterData,
         res: Response,
     ) -> CustomResult<types::PaymentsCaptureRouterData, errors::ConnectorError> {
-        let response: forte::FortePaymentsResponse = res
+        let response: forte::ForteCaptureResponse = res
             .response
             .parse_struct("Forte PaymentsCaptureResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        logger::debug!(fortepayments_create_response=?response);
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
         })
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
     fn get_error_response(
@@ -330,10 +400,84 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         self.build_error_response(res)
     }
 }
-
 impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsResponseData>
     for Forte
 {
+    fn get_headers(
+        &self,
+        req: &types::PaymentsCancelRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(
+        &self,
+        req: &types::PaymentsCancelRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        let auth: forte::ForteAuthType = forte::ForteAuthType::try_from(&req.connector_auth_type)?;
+        let (organization_id, location_id) = self.get_organization_id_and_location_id(auth)?;
+        Ok(format!(
+            "{}/organizations/{}/locations/{}/transactions/{}",
+            self.base_url(connectors),
+            organization_id,
+            location_id,
+            req.request.connector_transaction_id
+        ))
+    }
+    fn get_request_body(
+        &self,
+        req: &types::PaymentsCancelRouterData,
+    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+        let connector_req = forte::ForteCancelRequest::try_from(req)?;
+        let forte_req =
+            utils::Encode::<forte::ForteCaptureRequest>::encode_to_string_of_json(&connector_req)
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        Ok(Some(forte_req))
+    }
+
+    fn build_request(
+        &self,
+        req: &types::PaymentsCancelRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        Ok(Some(
+            services::RequestBuilder::new()
+                .method(services::Method::Put)
+                .url(&types::PaymentsVoidType::get_url(self, req, connectors)?)
+                .headers(types::PaymentsVoidType::get_headers(self, req, connectors)?)
+                .body(types::PaymentsVoidType::get_request_body(self, req)?)
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        data: &types::PaymentsCancelRouterData,
+        res: Response,
+    ) -> CustomResult<types::PaymentsCancelRouterData, errors::ConnectorError> {
+        let response: forte::ForteCancelResponse = res
+            .response
+            .parse_struct("forte CancelResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        types::RouterData::try_from(types::ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res)
+    }
 }
 
 impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsResponseData> for Forte {
@@ -351,20 +495,25 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
 
     fn get_url(
         &self,
-        _req: &types::RefundsRouterData<api::Execute>,
-        _connectors: &settings::Connectors,
+        req: &types::RefundsRouterData<api::Execute>,
+        connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        let auth: forte::ForteAuthType = forte::ForteAuthType::try_from(&req.connector_auth_type)?;
+        let (organization_id, location_id) = self.get_organization_id_and_location_id(auth)?;
+        Ok(format!(
+            "{}/organizations/{}/locations/{}/transactions",
+            self.base_url(connectors),
+            organization_id,
+            location_id
+        ))
     }
 
     fn get_request_body(
         &self,
         req: &types::RefundsRouterData<api::Execute>,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        let req_obj = forte::ForteRefundRequest::try_from(req)?;
-        let forte_req =
-            utils::Encode::<forte::ForteRefundRequest>::encode_to_string_of_json(&req_obj)
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let forte_req = utils::Encode::<forte::ForteRefundRequest>::convert_and_encode(req)
+            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(forte_req))
     }
 
@@ -376,7 +525,6 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         let request = services::RequestBuilder::new()
             .method(services::Method::Post)
             .url(&types::RefundExecuteType::get_url(self, req, connectors)?)
-            .attach_default_headers()
             .headers(types::RefundExecuteType::get_headers(
                 self, req, connectors,
             )?)
@@ -393,13 +541,12 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         let response: forte::RefundResponse = res
             .response
             .parse_struct("forte RefundResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
         })
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
     fn get_error_response(
@@ -425,10 +572,18 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
 
     fn get_url(
         &self,
-        _req: &types::RefundSyncRouterData,
-        _connectors: &settings::Connectors,
+        req: &types::RefundSyncRouterData,
+        connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        let auth: forte::ForteAuthType = forte::ForteAuthType::try_from(&req.connector_auth_type)?;
+        let (organization_id, location_id) = self.get_organization_id_and_location_id(auth)?;
+        Ok(format!(
+            "{}/organizations/{}/locations/{}/transactions/{}",
+            self.base_url(connectors),
+            organization_id,
+            location_id,
+            req.request.get_connector_refund_id()?
+        ))
     }
 
     fn build_request(
@@ -440,9 +595,7 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
             services::RequestBuilder::new()
                 .method(services::Method::Get)
                 .url(&types::RefundSyncType::get_url(self, req, connectors)?)
-                .attach_default_headers()
                 .headers(types::RefundSyncType::get_headers(self, req, connectors)?)
-                .body(types::RefundSyncType::get_request_body(self, req)?)
                 .build(),
         ))
     }
@@ -452,7 +605,7 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         data: &types::RefundSyncRouterData,
         res: Response,
     ) -> CustomResult<types::RefundSyncRouterData, errors::ConnectorError> {
-        let response: forte::RefundResponse = res
+        let response: forte::RefundSyncResponse = res
             .response
             .parse_struct("forte RefundSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
@@ -461,7 +614,6 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
             data: data.clone(),
             http_code: res.status_code,
         })
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
     fn get_error_response(

@@ -283,6 +283,14 @@ static CARD_REGEX: Lazy<HashMap<CardIssuer, Result<Regex, regex::Error>>> = Lazy
         CardIssuer::Maestro,
         Regex::new(r"^(5018|5020|5038|5893|6304|6759|6761|6762|6763)[0-9]{8,15}$"),
     );
+    map.insert(
+        CardIssuer::DinersClub,
+        Regex::new(r"^3(?:0[0-5]|[68][0-9])[0-9]{11}$"),
+    );
+    map.insert(
+        CardIssuer::JCB,
+        Regex::new(r"^(3(?:088|096|112|158|337|5(?:2[89]|[3-8][0-9]))\d{12})$"),
+    );
     map
 });
 
@@ -293,6 +301,8 @@ pub enum CardIssuer {
     Maestro,
     Visa,
     Discover,
+    DinersClub,
+    JCB,
 }
 
 pub trait CardData {
