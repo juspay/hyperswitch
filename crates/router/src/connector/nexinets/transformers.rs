@@ -514,6 +514,9 @@ fn get_payment_details_and_product(
             api_models::payments::BankRedirectData::Sofort { .. } => {
                 Ok((None, NexinetsProduct::Sofort))
             }
+            _ => Err(errors::ConnectorError::NotImplemented(
+                "Payment methods".to_string(),
+            ))?,
         },
         _ => Err(errors::ConnectorError::NotImplemented(
             "Payment methods".to_string(),
