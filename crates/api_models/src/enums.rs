@@ -409,11 +409,14 @@ pub enum PaymentExperience {
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum PaymentMethodType {
+    Ach,
     Affirm,
     AfterpayClearpay,
     AliPay,
     ApplePay,
+    Bacs,
     BancontactCard,
+    Becs,
     Blik,
     Credit,
     CryptoCurrency,
@@ -432,6 +435,7 @@ pub enum PaymentMethodType {
     PayBright,
     Paypal,
     Przelewy24,
+    Sepa,
     Sofort,
     Swish,
     Trustly,
@@ -463,6 +467,7 @@ pub enum PaymentMethod {
     Wallet,
     BankRedirect,
     Crypto,
+    BankDebit,
 }
 
 #[derive(
