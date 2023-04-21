@@ -29,7 +29,10 @@ use crate::{
     },
     db, logger,
     pii::prelude::*,
-    routes::{self, metrics},
+    routes::{
+        self,
+        metrics::{self, request},
+    },
     services,
     types::{
         api::{self, PaymentMethodCreateExt},
@@ -162,7 +165,7 @@ pub async fn add_card_to_locker(
     merchant_account: &merchant_account::MerchantAccount,
 ) -> errors::CustomResult<api::PaymentMethodResponse, errors::VaultError> {
     metrics::STORED_TO_LOCKER.add(&metrics::CONTEXT, 1, &[]);
-    metrics::request::record_operation_time(
+    request::record_operation_time(
         async {
             match state.conf.locker.locker_setup {
                 settings::LockerSetup::BasiliskLocker => {
@@ -191,7 +194,7 @@ pub async fn get_card_from_locker(
 ) -> errors::RouterResult<payment_methods::Card> {
     metrics::GET_FROM_LOCKER.add(&metrics::CONTEXT, 1, &[]);
 
-    metrics::request::record_operation_time(
+    request::record_operation_time(
         async {
             match state.conf.locker.locker_setup {
                 settings::LockerSetup::LegacyLocker => {
@@ -227,7 +230,7 @@ pub async fn delete_card_from_locker(
 ) -> errors::RouterResult<payment_methods::DeleteCardResp> {
     metrics::DELETE_FROM_LOCKER.add(&metrics::CONTEXT, 1, &[]);
 
-    metrics::request::record_operation_time(
+    request::record_operation_time(
         async {
             match state.conf.locker.locker_setup {
                 settings::LockerSetup::LegacyLocker => {
