@@ -46,7 +46,8 @@ pub async fn create_merchant_account(
     let master_key = db.get_master_key();
 
     let key = services::generate_aes256_key()
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Unable to generate aes 256 key")?;
 
     let publishable_key = Some(create_merchant_publishable_key());
 
@@ -194,7 +195,8 @@ pub async fn merchant_account_update(
 ) -> RouterResponse<api::MerchantAccountResponse> {
     let key = domain_types::get_merchant_enc_key(db, merchant_id.clone())
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Unable to get data from merchant key store")?;
 
     if &req.merchant_id != merchant_id {
         Err(report!(errors::ValidationError::IncorrectValueProvided {
@@ -218,24 +220,41 @@ pub async fn merchant_account_update(
             .attach_printable("Invalid routing algorithm given")?;
     }
 
+    let encrypt_string = |inner: Option<masking::Secret<String>>| async {
+        inner
+            .async_map(|value| domain_types::encrypt(value, &key))
+            .await
+            .transpose()
+    };
+
+    let encrypt_value = |inner: OptionalSecretValue| async {
+        inner
+            .async_map(|value| domain_types::encrypt(value, &key))
+            .await
+            .transpose()
+    };
+
     let updated_merchant_account = storage::MerchantAccountUpdate::Update {
         merchant_name: req
             .merchant_name
-            .async_map(|inner| domain_types::encrypt(inner.into(), &key))
+            .map(masking::Secret::new)
+            .async_lift(encrypt_string)
             .await
-            .transpose()
-            .change_context(errors::ApiErrorResponse::InternalServerError)?,
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Unable to encrypt merchant name")?,
 
         merchant_details: req
             .merchant_details
             .as_ref()
             .map(utils::Encode::<api::MerchantDetails>::encode_to_value)
             .transpose()
-            .change_context(errors::ApiErrorResponse::InternalServerError)?
-            .async_map(|inner| domain_types::encrypt(inner.into(), &key))
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Unable to convert merchant_details to a value")?
+            .map(masking::Secret::new)
+            .async_lift(encrypt_value)
             .await
-            .transpose()
-            .change_context(errors::ApiErrorResponse::InternalServerError)?,
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Unable to encrypt merchant details")?,
 
         return_url: req.return_url.map(|a| a.to_string()),
 
@@ -338,7 +357,8 @@ pub async fn create_payment_connector(
 ) -> RouterResponse<api::MerchantConnector> {
     let key = domain_types::get_merchant_enc_key(store, merchant_id.clone())
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Unable to get key from merchant key store")?;
 
     let _merchant_account = store
         .find_merchant_account_by_merchant_id(merchant_id)
@@ -388,7 +408,8 @@ pub async fn create_payment_connector(
             &key,
         )
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)?,
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Unable to encrypt connector account details")?,
         payment_methods_enabled,
         test_mode: req.test_mode,
         disabled: req.disabled,
@@ -468,7 +489,8 @@ pub async fn update_payment_connector(
 ) -> RouterResponse<api::MerchantConnector> {
     let key = domain_types::get_merchant_enc_key(db, merchant_id)
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Unable to get key from merchant key store")?;
 
     let _merchant_account = db
         .find_merchant_account_by_merchant_id(merchant_id)
@@ -512,7 +534,8 @@ pub async fn update_payment_connector(
             .connector_account_details
             .async_lift(encrypt)
             .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)?,
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Unable to encrypt connector_account_details")?,
         payment_methods_enabled,
         test_mode: req.test_mode,
         disabled: req.disabled,
