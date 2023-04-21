@@ -106,6 +106,7 @@ pub struct PaymentIntentRequest {
     pub payment_data: Option<StripePaymentMethodData>,
     pub capture_method: StripeCaptureMethod,
     pub payment_method_options: Option<StripePaymentMethodOptions>, // For mandate txns using network_txns_id, needs to be validated
+    pub setup_future_usage: Option<enums::FutureUsage>,
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
@@ -922,6 +923,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
             payment_method,
             customer: item.connector_customer.to_owned(),
             setup_mandate_details,
+            setup_future_usage: item.request.setup_future_usage,
         })
     }
 }
