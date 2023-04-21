@@ -5,10 +5,11 @@ use common_utils::{
     ext_traits::AsyncExt,
 };
 use error_stack::{IntoReport, ResultExt};
-use masking::{PeekInterface, Secret};
+use masking::{ExposeInterface, PeekInterface, Secret};
+use router_env::{instrument, tracing};
 use storage_models::encryption::Encryption;
 
-use crate::core::errors as core_errors;
+use crate::routes::metrics::{request, DECRYPTION_TIME, ENCRYPTION_TIME};
 
 #[async_trait]
 pub trait TypeEncryption<
@@ -35,6 +36,7 @@ impl<
         S: masking::Strategy<String> + Send,
     > TypeEncryption<String, V, S> for crypto::Encryptable<Secret<String, S>>
 {
+    #[instrument(skip_all)]
     async fn encrypt(
         masked_data: Secret<String, S>,
         key: &[u8],
@@ -45,6 +47,7 @@ impl<
         Ok(Self::new(masked_data, encrypted_data))
     }
 
+    #[instrument(skip_all)]
     async fn decrypt(
         encrypted_data: Encryption,
         key: &[u8],
@@ -68,6 +71,7 @@ impl<
     > TypeEncryption<serde_json::Value, V, S>
     for crypto::Encryptable<Secret<serde_json::Value, S>>
 {
+    #[instrument(skip_all)]
     async fn encrypt(
         masked_data: Secret<serde_json::Value, S>,
         key: &[u8],
@@ -81,6 +85,7 @@ impl<
         Ok(Self::new(masked_data, encrypted_data))
     }
 
+    #[instrument(skip_all)]
     async fn decrypt(
         encrypted_data: Encryption,
         key: &[u8],
@@ -96,11 +101,47 @@ impl<
     }
 }
 
-pub async fn get_key_and_algo(
-    _db: &dyn crate::db::StorageInterface,
-    _merchant_id: String,
-) -> CustomResult<Vec<u8>, core_errors::StorageError> {
-    Ok(Vec::new())
+#[async_trait]
+impl<
+        V: crypto::DecodeMessage + crypto::EncodeMessage + Send + 'static,
+        S: masking::Strategy<Vec<u8>> + Send,
+    > TypeEncryption<Vec<u8>, V, S> for crypto::Encryptable<Secret<Vec<u8>, S>>
+{
+    #[instrument(skip_all)]
+    async fn encrypt(
+        masked_data: Secret<Vec<u8>, S>,
+        key: &[u8],
+        crypt_algo: V,
+    ) -> CustomResult<Self, errors::CryptoError> {
+        let encrypted_data = crypt_algo.encode_message(key, masked_data.peek())?;
+
+        Ok(Self::new(masked_data, encrypted_data))
+    }
+
+    #[instrument(skip_all)]
+    async fn decrypt(
+        encrypted_data: Encryption,
+        key: &[u8],
+        crypt_algo: V,
+    ) -> CustomResult<Self, errors::CryptoError> {
+        let encrypted = encrypted_data.into_inner();
+        let decrypted_data = crypt_algo.decode_message(key, encrypted.clone())?;
+
+        Ok(Self::new(decrypted_data.into(), encrypted))
+    }
+}
+
+pub async fn get_merchant_enc_key(
+    db: &dyn crate::db::StorageInterface,
+    merchant_id: impl AsRef<str>,
+) -> CustomResult<Vec<u8>, crate::core::errors::StorageError> {
+    let merchant_id = merchant_id.as_ref();
+    let key = db
+        .get_merchant_key_store_by_merchant_id(merchant_id)
+        .await?
+        .key
+        .into_inner();
+    Ok(key.expose())
 }
 
 pub trait Lift<U> {
@@ -149,6 +190,21 @@ impl<U, V: Lift<U> + Lift<U, SelfWrapper<U> = V> + Send> AsyncLift<U> for V {
     }
 }
 
+pub(crate) async fn encrypt<E: Clone, S>(
+    inner: Secret<E, S>,
+    key: &[u8],
+) -> CustomResult<crypto::Encryptable<Secret<E, S>>, errors::CryptoError>
+where
+    S: masking::Strategy<E>,
+    crypto::Encryptable<Secret<E, S>>: TypeEncryption<E, crypto::GcmAes256, S>,
+{
+    request::record_operation_time(
+        crypto::Encryptable::encrypt(inner, key, crypto::GcmAes256 {}),
+        &ENCRYPTION_TIME,
+    )
+    .await
+}
+
 pub(crate) async fn decrypt<T: Clone, S: masking::Strategy<T>>(
     inner: Option<Encryption>,
     key: &[u8],
@@ -156,8 +212,10 @@ pub(crate) async fn decrypt<T: Clone, S: masking::Strategy<T>>(
 where
     crypto::Encryptable<Secret<T, S>>: TypeEncryption<T, crypto::GcmAes256, S>,
 {
-    inner
-        .async_map(|item| crypto::Encryptable::decrypt(item, key, crypto::GcmAes256 {}))
-        .await
-        .transpose()
+    request::record_operation_time(
+        inner.async_map(|item| crypto::Encryptable::decrypt(item, key, crypto::GcmAes256 {})),
+        &DECRYPTION_TIME,
+    )
+    .await
+    .transpose()
 }

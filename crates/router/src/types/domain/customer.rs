@@ -7,7 +7,10 @@ use storage_models::{customers::CustomerUpdateInternal, encryption::Encryption};
 use time::PrimitiveDateTime;
 
 use super::types::{self, AsyncLift};
-use crate::errors::{CustomResult, ValidationError};
+use crate::{
+    db::StorageInterface,
+    errors::{CustomResult, ValidationError},
+};
 
 #[derive(Clone, Debug)]
 pub struct Customer {
@@ -44,14 +47,22 @@ impl super::behaviour::Conversion for Customer {
         })
     }
 
-    async fn convert_back(item: Self::DstType) -> CustomResult<Self, ValidationError>
+    async fn convert_back(
+        item: Self::DstType,
+        db: &dyn StorageInterface,
+        merchant_id: &str,
+    ) -> CustomResult<Self, ValidationError>
     where
         Self: Sized,
     {
-        let key = &[0]; // To be replaced by key fetched from Store
+        let key = types::get_merchant_enc_key(db, merchant_id)
+            .await
+            .change_context(ValidationError::InvalidValue {
+                message: "Failed while getting key from key store".to_string(),
+            })?;
         async {
-            let inner_decrypt = |inner| types::decrypt(inner, key);
-            let inner_decrypt_email = |inner| types::decrypt(inner, key);
+            let inner_decrypt = |inner| types::decrypt(inner, &key);
+            let inner_decrypt_email = |inner| types::decrypt(inner, &key);
             Ok(Self {
                 id: Some(item.id),
                 customer_id: item.customer_id,

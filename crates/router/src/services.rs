@@ -6,6 +6,8 @@ pub mod logger;
 use std::sync::{atomic, Arc};
 
 use error_stack::{IntoReport, ResultExt};
+#[cfg(feature = "kms")]
+use external_services::kms;
 use futures::StreamExt;
 use redis_interface::{errors as redis_errors, PubsubInterface};
 
@@ -80,6 +82,7 @@ pub struct Store {
     pub redis_conn: Arc<redis_interface::RedisConnectionPool>,
     #[cfg(feature = "kv_store")]
     pub(crate) config: StoreConfig,
+    pub master_key: Vec<u8>,
 }
 
 #[cfg(feature = "kv_store")]
@@ -108,6 +111,13 @@ impl Store {
             redis_clone.on_error().await;
         });
 
+        let master_enc_key = get_master_enc_key(
+            config,
+            #[cfg(feature = "kms")]
+            &config.kms,
+        )
+        .await;
+
         Self {
             master_pool: diesel_make_pg_pool(
                 &config.master_database,
@@ -130,6 +140,7 @@ impl Store {
                 drainer_stream_name: config.drainer.stream_name.clone(),
                 drainer_num_partitions: config.drainer.num_partitions,
             },
+            master_key: master_enc_key,
         }
     }
 
@@ -176,4 +187,38 @@ impl Store {
             .await
             .change_context(crate::core::errors::StorageError::KVError)
     }
+}
+
+#[allow(clippy::expect_used)]
+async fn get_master_enc_key(
+    conf: &crate::configs::settings::Settings,
+    #[cfg(feature = "kms")] kms_config: &kms::KmsConfig,
+) -> Vec<u8> {
+    #[cfg(feature = "kms")]
+    let master_enc_key = hex::decode(
+        kms::get_kms_client(kms_config)
+            .await
+            .decrypt(&conf.secrets.master_enc_key)
+            .await
+            .expect("Failed to decrypt master enc key"),
+    )
+    .expect("Failed to decode from hex");
+
+    #[cfg(not(feature = "kms"))]
+    let master_enc_key =
+        hex::decode(&conf.secrets.master_enc_key).expect("Failed to decode from hex");
+
+    master_enc_key
+}
+
+#[inline]
+pub fn generate_aes256_key() -> errors::CustomResult<[u8; 32], common_utils::errors::CryptoError> {
+    use ring::rand::SecureRandom;
+
+    let rng = ring::rand::SystemRandom::new();
+    let mut key: [u8; 256 / 8] = [0_u8; 256 / 8];
+    rng.fill(&mut key)
+        .into_report()
+        .change_context(common_utils::errors::CryptoError::EncodingFailed)?;
+    Ok(key)
 }

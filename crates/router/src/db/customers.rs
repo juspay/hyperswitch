@@ -72,9 +72,9 @@ impl CustomerInterface for Store {
             .map_err(Into::into)
             .into_report()?
             .async_map(|c| async {
-                c.convert()
+                c.convert(self, merchant_id)
                     .await
-                    .change_context(errors::StorageError::DeserializationFailed)
+                    .change_context(errors::StorageError::DecryptionError)
             })
             .await
             .transpose()?;
@@ -107,9 +107,10 @@ impl CustomerInterface for Store {
         .map_err(Into::into)
         .into_report()
         .async_and_then(|c| async {
-            c.convert()
+            let merchant_id = c.merchant_id.clone();
+            c.convert(self, &merchant_id)
                 .await
-                .change_context(errors::StorageError::DeserializationFailed)
+                .change_context(errors::StorageError::DecryptionError)
         })
         .await
     }
@@ -126,9 +127,10 @@ impl CustomerInterface for Store {
                 .map_err(Into::into)
                 .into_report()
                 .async_and_then(|c| async {
-                    c.convert()
+                    let merchant_id = c.merchant_id.clone();
+                    c.convert(self, &merchant_id)
                         .await
-                        .change_context(errors::StorageError::DeserializationFailed)
+                        .change_context(errors::StorageError::DecryptionError)
                 })
                 .await?;
         match customer.name {
@@ -147,15 +149,16 @@ impl CustomerInterface for Store {
         customer_data
             .construct_new()
             .await
-            .change_context(errors::StorageError::DeserializationFailed)?
+            .change_context(errors::StorageError::EncryptionError)?
             .insert(&conn)
             .await
             .map_err(Into::into)
             .into_report()
             .async_and_then(|c| async {
-                c.convert()
+                let merchant_id = c.merchant_id.clone();
+                c.convert(self, &merchant_id)
                     .await
-                    .change_context(errors::StorageError::DeserializationFailed)
+                    .change_context(errors::StorageError::DecryptionError)
             })
             .await
     }
@@ -190,9 +193,10 @@ impl CustomerInterface for MockDb {
             .cloned();
         customer
             .async_map(|c| async {
-                c.convert()
+                let merchant_id = c.merchant_id.clone();
+                c.convert(self, &merchant_id)
                     .await
-                    .change_context(errors::StorageError::DeserializationFailed)
+                    .change_context(errors::StorageError::DecryptionError)
             })
             .await
             .transpose()
@@ -226,13 +230,15 @@ impl CustomerInterface for MockDb {
 
         let customer = Conversion::convert(customer_data)
             .await
-            .change_context(errors::StorageError::SerializationFailed)?;
+            .change_context(errors::StorageError::EncryptionError)?;
+
+        let merchant_id = customer.merchant_id.clone();
         customers.push(customer.clone());
 
         customer
-            .convert()
+            .convert(self, &merchant_id)
             .await
-            .change_context(errors::StorageError::DeserializationFailed)
+            .change_context(errors::StorageError::DecryptionError)
     }
 
     async fn delete_customer_by_customer_id_merchant_id(

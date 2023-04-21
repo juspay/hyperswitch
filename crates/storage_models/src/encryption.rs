@@ -1,4 +1,9 @@
-use diesel::{backend::Backend, deserialize::FromSql, serialize::ToSql, sql_types, AsExpression};
+use diesel::{
+    backend::Backend,
+    deserialize::{self, FromSql, Queryable},
+    serialize::ToSql,
+    sql_types, AsExpression,
+};
 
 #[derive(Debug, AsExpression, Clone, serde::Serialize, serde::Deserialize)]
 #[diesel(sql_type = diesel::sql_types::Binary)]
@@ -49,5 +54,16 @@ where
         out: &mut diesel::serialize::Output<'b, '_, DB>,
     ) -> diesel::serialize::Result {
         self.get_inner().to_sql(out)
+    }
+}
+
+impl<DB> Queryable<sql_types::Binary, DB> for Encryption
+where
+    DB: Backend,
+    Vec<u8>: FromSql<sql_types::Binary, DB>,
+{
+    type Row = Vec<u8>;
+    fn build(row: Self::Row) -> deserialize::Result<Self> {
+        Ok(Self { inner: row })
     }
 }

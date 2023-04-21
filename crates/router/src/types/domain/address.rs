@@ -12,6 +12,7 @@ use super::{
     behaviour,
     types::{self, AsyncLift},
 };
+use crate::db::StorageInterface;
 
 #[derive(Clone, Debug, serde::Serialize)]
 pub struct Address {
@@ -69,11 +70,19 @@ impl behaviour::Conversion for Address {
         })
     }
 
-    async fn convert_back(other: Self::DstType) -> CustomResult<Self, ValidationError> {
-        let key = &[0];
+    async fn convert_back(
+        other: Self::DstType,
+        db: &dyn StorageInterface,
+        merchant_id: &str,
+    ) -> CustomResult<Self, ValidationError> {
+        let key = types::get_merchant_enc_key(db, merchant_id)
+            .await
+            .change_context(ValidationError::InvalidValue {
+                message: "Failed while getting key from key store".to_string(),
+            })?;
 
         async {
-            let inner_decrypt = |inner| types::decrypt(inner, key);
+            let inner_decrypt = |inner| types::decrypt(inner, &key);
             Ok(Self {
                 id: Some(other.id),
                 address_id: other.address_id,

@@ -56,10 +56,11 @@ impl AddressInterface for Store {
             .map_err(Into::into)
             .into_report()
             .async_and_then(|address| async {
+                let merchant_id = address.merchant_id.clone();
                 address
-                    .convert()
+                    .convert(self, &merchant_id)
                     .await
-                    .change_context(errors::StorageError::DeserializationFailed)
+                    .change_context(errors::StorageError::DecryptionError)
             })
             .await
     }
@@ -75,10 +76,11 @@ impl AddressInterface for Store {
             .map_err(Into::into)
             .into_report()
             .async_and_then(|address| async {
+                let merchant_id = address.merchant_id.clone();
                 address
-                    .convert()
+                    .convert(self, &merchant_id)
                     .await
-                    .change_context(errors::StorageError::DeserializationFailed)
+                    .change_context(errors::StorageError::DecryptionError)
             })
             .await
     }
@@ -91,16 +93,17 @@ impl AddressInterface for Store {
         address
             .construct_new()
             .await
-            .change_context(errors::StorageError::DeserializationFailed)?
+            .change_context(errors::StorageError::EncryptionError)?
             .insert(&conn)
             .await
             .map_err(Into::into)
             .into_report()
             .async_and_then(|address| async {
+                let merchant_id = address.merchant_id.clone();
                 address
-                    .convert()
+                    .convert(self, &merchant_id)
                     .await
-                    .change_context(errors::StorageError::DeserializationFailed)
+                    .change_context(errors::StorageError::DecryptionError)
             })
             .await
     }
@@ -124,11 +127,12 @@ impl AddressInterface for Store {
         .async_and_then(|addresses| async {
             let mut output = Vec::with_capacity(addresses.len());
             for address in addresses.into_iter() {
+                let merchant_id = address.merchant_id.clone();
                 output.push(
                     address
-                        .convert()
+                        .convert(self, &merchant_id)
                         .await
-                        .change_context(errors::StorageError::DeserializationFailed)?,
+                        .change_context(errors::StorageError::DecryptionError)?,
                 )
             }
             Ok(output)
