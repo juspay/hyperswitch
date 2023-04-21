@@ -189,5 +189,6 @@ default_imp_for_connector_request_id!(
     connector::Stripe,
     connector::Trustpay,
     connector::Worldline,
-    connector::Worldpay
+    connector::Worldpay,
+    connector::Zen
 );

@@ -9,7 +9,7 @@ use uuid::Uuid;
 
 use self::transformers::{ZenPaymentStatus, ZenWebhookTxnType};
 
-use super::utils::{RefundsRequestData};
+use super::utils::RefundsRequestData;
 use crate::{
     configs::settings,
     core::{
@@ -38,6 +38,7 @@ impl api::PaymentAuthorize for Zen {}
 impl api::PaymentSync for Zen {}
 impl api::PaymentCapture for Zen {}
 impl api::PaymentVoid for Zen {}
+impl api::PaymentToken for Zen {}
 impl api::Refund for Zen {}
 impl api::RefundExecute for Zen {}
 impl api::RefundSync for Zen {}
@@ -100,6 +101,16 @@ impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::Payme
     for Zen
 {
     //TODO: implement sessions flow
+}
+
+impl
+    ConnectorIntegration<
+        api::PaymentMethodToken,
+        types::PaymentMethodTokenizationData,
+        types::PaymentsResponseData,
+    > for Zen
+{
+    // Not Implemented (R)
 }
 
 impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, types::AccessToken>
