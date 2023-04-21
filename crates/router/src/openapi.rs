@@ -140,7 +140,6 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::enums::AuthenticationType,
         api_models::enums::Connector,
         api_models::enums::PaymentMethod,
-        api_models::enums::SupportedWallets,
         api_models::enums::PaymentMethodIssuerCode,
         api_models::enums::MandateStatus,
         api_models::enums::PaymentExperience,

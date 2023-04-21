@@ -64,7 +64,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BamboraPaymentsRequest {
                     expiry_year: req_card.card_exp_year,
                     cvd: req_card.card_cvc,
                     three_d_secure: three_ds,
-                    complete: item.request.is_auto_capture(),
+                    complete: item.request.is_auto_capture()?,
                 };
                 Ok(Self {
                     amount: item.request.amount,

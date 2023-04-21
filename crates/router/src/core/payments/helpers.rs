@@ -53,9 +53,7 @@ pub async fn get_address_for_payment_request(
                 Some(id) => Some(
                     db.update_address(id.to_owned(), address.foreign_into())
                         .await
-                        .map_err(|err| {
-                            err.to_not_found_response(errors::ApiErrorResponse::AddressNotFound)
-                        })?,
+                        .to_not_found_response(errors::ApiErrorResponse::AddressNotFound)?,
                 ),
                 None => {
                     // generate a new address here
@@ -84,9 +82,9 @@ pub async fn get_address_for_payment_request(
             }
         }
         None => match address_id {
-            Some(id) => Some(db.find_address(id).await).transpose().map_err(|err| {
-                err.to_not_found_response(errors::ApiErrorResponse::AddressNotFound)
-            })?,
+            Some(id) => Some(db.find_address(id).await)
+                .transpose()
+                .to_not_found_response(errors::ApiErrorResponse::AddressNotFound)?,
             None => None,
         },
     })
@@ -148,7 +146,7 @@ pub async fn get_token_for_recurring_mandate(
     let mandate = db
         .find_mandate_by_merchant_id_mandate_id(&merchant_account.merchant_id, mandate_id.as_str())
         .await
-        .map_err(|error| error.to_not_found_response(errors::ApiErrorResponse::MandateNotFound))?;
+        .to_not_found_response(errors::ApiErrorResponse::MandateNotFound)?;
 
     let customer = req.customer_id.clone().get_required_value("customer_id")?;
 
@@ -174,9 +172,7 @@ pub async fn get_token_for_recurring_mandate(
     let payment_method = db
         .find_payment_method(payment_method_id.as_str())
         .await
-        .map_err(|error| {
-            error.to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)
-        })?;
+        .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
 
     let token = Uuid::new_v4().to_string();
     let locker_id = merchant_account
@@ -305,6 +301,19 @@ fn validate_new_mandate_request(req: api::MandateValidationFields) -> RouterResu
                 .into()
         }))?
     }
+
+    let mandate_details = match mandate_data.mandate_type {
+        api_models::payments::MandateType::SingleUse(details) => Some(details),
+        api_models::payments::MandateType::MultiUse(details) => details,
+    };
+    mandate_details.and_then(|md| md.start_date.zip(md.end_date)).map(|(start_date, end_date)|
+        utils::when (start_date >= end_date, || {
+        Err(report!(errors::ApiErrorResponse::PreconditionFailed {
+            message: "`mandate_data.mandate_type.{multi_use|single_use}.start_date` should be greater than  \
+            `mandate_data.mandate_type.{multi_use|single_use}.end_date`"
+                .into()
+        }))
+    })).transpose()?;
 
     Ok(())
 }
@@ -1162,7 +1171,10 @@ pub fn generate_mandate(
                 api::MandateType::MultiUse(op_data) => match op_data {
                     Some(data) => new_mandate
                         .set_mandate_amount(Some(data.amount))
-                        .set_mandate_currency(Some(data.currency.foreign_into())),
+                        .set_mandate_currency(Some(data.currency.foreign_into()))
+                        .set_start_date(data.start_date)
+                        .set_end_date(data.end_date)
+                        .set_metadata(data.metadata),
                     None => &mut new_mandate,
                 }
                 .set_mandate_type(storage_enums::MandateType::MultiUse)
@@ -1413,11 +1425,9 @@ pub async fn get_merchant_connector_account(
             let mca_config = db
                 .find_config_by_key(format!("mcd_{merchant_id}_{creds_identifier}").as_str())
                 .await
-                .map_err(|error| {
-                    error.to_not_found_response(
-                        errors::ApiErrorResponse::MerchantConnectorAccountNotFound,
-                    )
-                })?;
+                .to_not_found_response(
+                    errors::ApiErrorResponse::MerchantConnectorAccountNotFound,
+                )?;
 
             let cached_mca = consts::BASE64_ENGINE
             .decode(mca_config.config.as_bytes())

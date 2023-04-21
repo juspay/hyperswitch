@@ -106,6 +106,7 @@ diesel::table! {
         description -> Nullable<Varchar>,
         created_at -> Timestamp,
         metadata -> Nullable<Json>,
+        modified_at -> Timestamp,
     }
 }
 
@@ -199,6 +200,9 @@ diesel::table! {
         amount_captured -> Nullable<Int8>,
         connector -> Varchar,
         connector_mandate_id -> Nullable<Varchar>,
+        start_date -> Nullable<Timestamp>,
+        end_date -> Nullable<Timestamp>,
+        metadata -> Nullable<Jsonb>,
     }
 }
 
@@ -225,6 +229,8 @@ diesel::table! {
         routing_algorithm -> Nullable<Json>,
         primary_business_details -> Json,
         api_key -> Nullable<Varchar>,
+        created_at -> Timestamp,
+        modified_at -> Timestamp,
     }
 }
 
@@ -243,10 +249,13 @@ diesel::table! {
         payment_methods_enabled -> Nullable<Array<Nullable<Json>>>,
         connector_type -> ConnectorType,
         metadata -> Nullable<Jsonb>,
+        frm_configs -> Nullable<Jsonb>,
         connector_label -> Varchar,
         business_country -> CountryCode,
         business_label -> Varchar,
         business_sub_label -> Nullable<Varchar>,
+        created_at -> Timestamp,
+        modified_at -> Timestamp,
     }
 }
 
