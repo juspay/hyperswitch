@@ -456,6 +456,7 @@ pub enum PaymentMethod {
     Wallet,
     BankRedirect,
     Crypto,
+    BankDebit,
 }
 
 #[derive(
@@ -612,11 +613,14 @@ pub enum MandateStatus {
 #[strum(serialize_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
 pub enum PaymentMethodType {
+    Ach,
     Affirm,
     AfterpayClearpay,
     AliPay,
     ApplePay,
+    Bacs,
     BancontactCard,
+    Becs,
     Blik,
     Credit,
     CryptoCurrency,
@@ -635,6 +639,7 @@ pub enum PaymentMethodType {
     PayBright,
     Paypal,
     Przelewy24,
+    Sepa,
     Sofort,
     Swish,
     Trustly,
