@@ -642,7 +642,7 @@ pub struct CryptoData {}
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct SofortBilling {
     /// The country associated with the billing
-    #[schema(example = "US")]
+    #[schema(value_type = CountryAlpha2, example = "US")]
     pub billing_country: String,
 }
 
@@ -1446,7 +1446,7 @@ pub struct GpayAllowedPaymentMethods {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct GpayTransactionInfo {
     /// The country code
-    #[schema(value_type = CountryAlpha2)]
+    #[schema(value_type = CountryAlpha2, example = "US")]
     pub country_code: api_enums::CountryAlpha2,
     /// The currency code
     pub currency_code: String,
@@ -1594,7 +1594,7 @@ pub struct ApplePaySessionResponse {
 #[derive(Debug, Clone, serde::Serialize, ToSchema, serde::Deserialize)]
 pub struct ApplePayPaymentRequest {
     /// The code for country
-    #[schema(value_type = CountryAlpha2)]
+    #[schema(value_type = CountryAlpha2, example = "US")]
     pub country_code: api_enums::CountryAlpha2,
     /// The code for currency
     pub currency_code: String,

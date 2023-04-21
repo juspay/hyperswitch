@@ -385,7 +385,7 @@ pub struct MerchantConnectorCreate {
     pub frm_configs: Option<FrmConfigs>,
 
     /// Business Country of the connector
-    #[schema(example = "US")]
+    #[schema(value_type = CountryAlpha2, example = "US")]
     #[cfg(feature = "multiple_mca")]
     pub business_country: api_enums::CountryAlpha2,
     #[cfg(not(feature = "multiple_mca"))]
@@ -466,7 +466,7 @@ pub struct MerchantConnectorResponse {
     pub metadata: Option<pii::SecretSerdeValue>,
 
     /// Business Country of the connector
-    #[schema(example = "US")]
+    #[schema(value_type = CountryAlpha2, example = "US")]
     pub business_country: api_enums::CountryAlpha2,
 
     ///Business Type of the merchant

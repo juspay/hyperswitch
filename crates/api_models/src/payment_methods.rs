@@ -102,11 +102,11 @@ pub struct PaymentMethodResponse {
     pub payment_method_id: String,
 
     /// The type of payment method use for the payment.
-    #[schema(value_type = PaymentMethodType,example = "card")]
+    #[schema(value_type = PaymentMethodType, example = "card")]
     pub payment_method: api_enums::PaymentMethod,
 
     /// This is a sub-category of payment method.
-    #[schema(value_type = Option<PaymentMethodType>,example = "credit")]
+    #[schema(value_type = Option<PaymentMethodType>, example = "credit")]
     pub payment_method_type: Option<api_enums::PaymentMethodType>,
 
     /// Card details from card locker
@@ -122,15 +122,15 @@ pub struct PaymentMethodResponse {
     pub installment_payment_enabled: bool,
 
     /// Type of payment experience enabled with the connector
-    #[schema(value_type = Option<Vec<PaymentExperience>>,example = json!(["redirect_to_url"]))]
+    #[schema(value_type = Option<Vec<PaymentExperience>>, example = json!(["redirect_to_url"]))]
     pub payment_experience: Option<Vec<api_enums::PaymentExperience>>,
 
     /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
-    #[schema(value_type = Option<Object>,example = json!({ "city": "NY", "unit": "245" }))]
+    #[schema(value_type = Option<Object>, example = json!({ "city": "NY", "unit": "245" }))]
     pub metadata: Option<pii::SecretSerdeValue>,
 
     ///  A timestamp (ISO 8601 code) that determines when the customer was created
-    #[schema(value_type = Option<PrimitiveDateTime>,example = "2023-01-18T11:04:09.922Z")]
+    #[schema(value_type = Option<PrimitiveDateTime>, example = "2023-01-18T11:04:09.922Z")]
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub created: Option<time::PrimitiveDateTime>,
 }
