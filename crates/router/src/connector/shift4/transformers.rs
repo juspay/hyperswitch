@@ -198,7 +198,7 @@ fn get_bank_redirect_request<T>(
     redirect_data: &payments::BankRedirectData,
 ) -> Result<Shift4PaymentsRequest, Error> {
     let submit_for_settlement = item.request.is_auto_capture()?;
-    let method_type = PaymentMethodType::from(redirect_data);
+    let method_type = PaymentMethodType::try_from(redirect_data)?;
     let billing = get_billing(item)?;
     let payment_method = Some(PaymentMethod {
         method_type,
@@ -218,13 +218,15 @@ fn get_bank_redirect_request<T>(
     )))
 }
 
-impl From<&payments::BankRedirectData> for PaymentMethodType {
-    fn from(value: &payments::BankRedirectData) -> Self {
+impl TryFrom<&payments::BankRedirectData> for PaymentMethodType {
+    type Error = Error;
+    fn try_from(value: &payments::BankRedirectData) -> Result<Self, Self::Error> {
         match value {
-            payments::BankRedirectData::Eps { .. } => Self::Eps,
-            payments::BankRedirectData::Giropay { .. } => Self::Giropay,
-            payments::BankRedirectData::Ideal { .. } => Self::Ideal,
-            payments::BankRedirectData::Sofort { .. } => Self::Sofort,
+            payments::BankRedirectData::Eps { .. } => Ok(Self::Eps),
+            payments::BankRedirectData::Giropay { .. } => Ok(Self::Giropay),
+            payments::BankRedirectData::Ideal { .. } => Ok(Self::Ideal),
+            payments::BankRedirectData::Sofort { .. } => Ok(Self::Sofort),
+            _ => Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into()),
         }
     }
 }

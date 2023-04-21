@@ -35,6 +35,8 @@ pub struct MerchantAccount {
     pub routing_algorithm: Option<serde_json::Value>,
     pub primary_business_details: serde_json::Value,
     pub api_key: Option<StrongSecret<String>>,
+    pub created_at: time::PrimitiveDateTime,
+    pub modified_at: time::PrimitiveDateTime,
 }
 
 #[derive(Clone, Debug, Default, Insertable, router_derive::DebugAsDisplay)]
@@ -99,6 +101,7 @@ pub struct MerchantAccountUpdateInternal {
     metadata: Option<pii::SecretSerdeValue>,
     routing_algorithm: Option<serde_json::Value>,
     primary_business_details: Option<serde_json::Value>,
+    modified_at: Option<time::PrimitiveDateTime>,
 }
 
 impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
@@ -134,6 +137,7 @@ impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
                 locker_id,
                 metadata,
                 primary_business_details,
+                modified_at: Some(common_utils::date_time::now()),
                 ..Default::default()
             },
             MerchantAccountUpdate::StorageSchemeUpdate { storage_scheme } => Self {
