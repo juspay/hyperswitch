@@ -37,6 +37,8 @@ pub type PaymentsSessionRouterData =
 pub type RefundsRouterData<F> = RouterData<F, RefundsData, RefundsResponseData>;
 pub type RefundExecuteRouterData = RouterData<api::Execute, RefundsData, RefundsResponseData>;
 pub type RefundSyncRouterData = RouterData<api::RSync, RefundsData, RefundsResponseData>;
+pub type TokenizationRouterData =
+    RouterData<api::PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>;
 
 pub type RefreshTokenRouterData =
     RouterData<api::AccessTokenAuth, AccessTokenRequestData, AccessToken>;
@@ -49,15 +51,23 @@ pub type PaymentsSyncResponseRouterData<R> =
     ResponseRouterData<api::PSync, R, PaymentsSyncData, PaymentsResponseData>;
 pub type PaymentsSessionResponseRouterData<R> =
     ResponseRouterData<api::Session, R, PaymentsSessionData, PaymentsResponseData>;
+pub type PaymentsInitResponseRouterData<R> =
+    ResponseRouterData<api::InitPayment, R, PaymentsAuthorizeData, PaymentsResponseData>;
 pub type PaymentsCaptureResponseRouterData<R> =
     ResponseRouterData<api::Capture, R, PaymentsCaptureData, PaymentsResponseData>;
+pub type TokenizationResponseRouterData<R> = ResponseRouterData<
+    api::PaymentMethodToken,
+    R,
+    PaymentMethodTokenizationData,
+    PaymentsResponseData,
+>;
 
 pub type RefundsResponseRouterData<F, R> =
     ResponseRouterData<F, R, RefundsData, RefundsResponseData>;
 
 pub type PaymentsAuthorizeType =
     dyn services::ConnectorIntegration<api::Authorize, PaymentsAuthorizeData, PaymentsResponseData>;
-pub type PaymentsComeplteAuthorizeType = dyn services::ConnectorIntegration<
+pub type PaymentsCompleteAuthorizeType = dyn services::ConnectorIntegration<
     api::CompleteAuthorize,
     CompleteAuthorizeData,
     PaymentsResponseData,
@@ -80,6 +90,12 @@ pub type PaymentsSessionType =
     dyn services::ConnectorIntegration<api::Session, PaymentsSessionData, PaymentsResponseData>;
 pub type PaymentsVoidType =
     dyn services::ConnectorIntegration<api::Void, PaymentsCancelData, PaymentsResponseData>;
+
+pub type TokenizationType = dyn services::ConnectorIntegration<
+    api::PaymentMethodToken,
+    PaymentMethodTokenizationData,
+    PaymentsResponseData,
+>;
 
 pub type RefundExecuteType =
     dyn services::ConnectorIntegration<api::Execute, RefundsData, RefundsResponseData>;
@@ -110,6 +126,7 @@ pub struct RouterData<Flow, Request, Response> {
     pub access_token: Option<AccessToken>,
     pub session_token: Option<String>,
     pub reference_id: Option<String>,
+    pub payment_method_token: Option<String>,
 
     /// Contains flow-specific data required to construct a request and send it to the connector.
     pub request: Request,
@@ -150,10 +167,10 @@ pub struct PaymentsAuthorizeData {
 
 #[derive(Debug, Clone, Default)]
 pub struct PaymentsCaptureData {
-    pub amount_to_capture: Option<i64>,
+    pub amount_to_capture: i64,
     pub currency: storage_enums::Currency,
     pub connector_transaction_id: String,
-    pub amount: i64,
+    pub payment_amount: i64,
     pub connector_meta: Option<serde_json::Value>,
 }
 
@@ -163,6 +180,11 @@ pub struct AuthorizeSessionTokenData {
     pub currency: storage_enums::Currency,
     pub connector_transaction_id: String,
     pub amount: i64,
+}
+
+#[derive(Debug, Clone)]
+pub struct PaymentMethodTokenizationData {
+    pub payment_method_data: payments::PaymentMethodData,
 }
 
 #[derive(Debug, Clone)]
@@ -179,6 +201,7 @@ pub struct CompleteAuthorizeData {
     pub mandate_id: Option<api_models::payments::MandateIds>,
     pub off_session: Option<bool>,
     pub setup_mandate_details: Option<payments::MandateData>,
+    pub payload: Option<serde_json::Value>,
     pub browser_info: Option<BrowserInformation>,
     pub connector_transaction_id: Option<String>,
     pub connector_meta: Option<serde_json::Value>,
@@ -253,6 +276,18 @@ pub enum PaymentsResponseData {
     },
     SessionTokenResponse {
         session_token: String,
+    },
+    TransactionUnresolvedResponse {
+        resource_id: ResponseId,
+        //to add more info on cypto response, like `unresolved` reason(overpaid, underpaid, delayed)
+        reason: Option<api::enums::UnresolvedResponseReason>,
+    },
+    TokenizationResponse {
+        token: String,
+    },
+    ThreeDSEnrollmentResponse {
+        enrolled_v2: bool,
+        related_transaction_id: Option<String>,
     },
 }
 
@@ -475,6 +510,7 @@ impl<F1, F2, T1, T2> From<(&&mut RouterData<F1, T1, PaymentsResponseData>, T2)>
             payment_id: data.payment_id.clone(),
             session_token: data.session_token.clone(),
             reference_id: data.reference_id.clone(),
+            payment_method_token: None,
         }
     }
 }

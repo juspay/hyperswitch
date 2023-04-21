@@ -52,6 +52,17 @@ impl api::PaymentVoid for Adyen {}
 impl api::PaymentCapture for Adyen {}
 impl api::PreVerify for Adyen {}
 impl api::ConnectorAccessToken for Adyen {}
+impl api::PaymentToken for Adyen {}
+
+impl
+    services::ConnectorIntegration<
+        api::PaymentMethodToken,
+        types::PaymentMethodTokenizationData,
+        types::PaymentsResponseData,
+    > for Adyen
+{
+    // Not Implemented (R)
+}
 
 impl
     services::ConnectorIntegration<
@@ -180,6 +191,8 @@ impl
     }
 }
 
+/// Payment Sync can be useful only incase of Redirect flow.
+/// For payments which doesn't involve redrection we have to rely on webhooks.
 impl
     services::ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>
     for Adyen

@@ -15,15 +15,30 @@ pub mod validation;
 
 /// Date-time utilities.
 pub mod date_time {
-    use std::num::NonZeroU8;
+    use std::{marker::PhantomData, num::NonZeroU8};
 
+    use masking::{Deserialize, Serialize};
+    #[cfg(feature = "async_ext")]
+    use time::Instant;
     use time::{
-        format_description::well_known::iso8601::{Config, EncodedConfig, Iso8601, TimePrecision},
-        Instant, OffsetDateTime, PrimitiveDateTime,
+        format_description::{
+            well_known::iso8601::{Config, EncodedConfig, Iso8601, TimePrecision},
+            FormatItem,
+        },
+        OffsetDateTime, PrimitiveDateTime,
     };
     /// Struct to represent milliseconds in time sensitive data fields
     #[derive(Debug)]
     pub struct Milliseconds(i32);
+
+    /// Enum to represent date formats
+    #[derive(Debug)]
+    pub enum DateFormat {
+        /// Format the date in 20191105081132 format
+        YYYYMMDDHHmmss,
+        /// Format the date in 20191105 format
+        YYYYMMDD,
+    }
 
     /// Create a new [`PrimitiveDateTime`] with the current date and time in UTC.
     pub fn now() -> PrimitiveDateTime {
@@ -42,6 +57,7 @@ pub mod date_time {
     }
 
     /// Calculate execution time for a async block in milliseconds
+    #[cfg(feature = "async_ext")]
     pub async fn time_it<T, Fut: futures::Future<Output = T>, F: FnOnce() -> Fut>(
         block: F,
     ) -> (T, f64) {
@@ -50,10 +66,13 @@ pub mod date_time {
         (result, start.elapsed().as_seconds_f64() * 1000f64)
     }
 
-    /// Return the current date and time in UTC with the format YYYYMMDDHHmmss Eg: 20191105081132
-    pub fn date_as_yyyymmddhhmmss() -> Result<String, time::error::Format> {
-        let format = time::macros::format_description!("[year repr:full][month padding:zero repr:numerical][day padding:zero][hour padding:zero repr:24][minute padding:zero][second padding:zero]");
-        now().format(&format)
+    /// Return the given date and time in UTC with the given format Eg: format: YYYYMMDDHHmmss Eg: 20191105081132
+    pub fn format_date(
+        date: PrimitiveDateTime,
+        format: DateFormat,
+    ) -> Result<String, time::error::Format> {
+        let format = <&[FormatItem<'_>]>::from(format);
+        date.format(&format)
     }
 
     /// Return the current date and time in UTC with the format [year]-[month]-[day]T[hour]:[minute]:[second].mmmZ Eg: 2023-02-15T13:33:18.898Z
@@ -64,6 +83,98 @@ pub mod date_time {
             })
             .encode();
         now().assume_utc().format(&Iso8601::<ISO_CONFIG>)
+    }
+
+    impl From<DateFormat> for &[FormatItem<'_>] {
+        fn from(format: DateFormat) -> Self {
+            match format {
+                DateFormat::YYYYMMDDHHmmss => time::macros::format_description!("[year repr:full][month padding:zero repr:numerical][day padding:zero][hour padding:zero repr:24][minute padding:zero][second padding:zero]"),
+                DateFormat::YYYYMMDD => time::macros::format_description!("[year repr:full][month padding:zero repr:numerical][day padding:zero]"),
+            }
+        }
+    }
+
+    /// Format the date in 05112019 format
+    #[derive(Debug, Clone)]
+    pub struct DDMMYYYY;
+    /// Format the date in 20191105 format
+    #[derive(Debug, Clone)]
+    pub struct YYYYMMDD;
+    /// Format the date in 20191105081132 format
+    #[derive(Debug, Clone)]
+    pub struct YYYYMMDDHHmmss;
+
+    /// To serialize the date in Dateformats like YYYYMMDDHHmmss, YYYYMMDD, DDMMYYYY
+    #[derive(Debug, Deserialize, Clone)]
+    pub struct DateTime<T: TimeStrategy> {
+        inner: PhantomData<T>,
+        value: PrimitiveDateTime,
+    }
+
+    impl<T: TimeStrategy> From<PrimitiveDateTime> for DateTime<T> {
+        fn from(value: PrimitiveDateTime) -> Self {
+            Self {
+                inner: PhantomData,
+                value,
+            }
+        }
+    }
+
+    /// Time strategy for the Date, Eg: YYYYMMDDHHmmss, YYYYMMDD, DDMMYYYY
+    pub trait TimeStrategy {
+        /// Stringify the date as per the Time strategy
+        fn fmt(input: &PrimitiveDateTime, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result;
+    }
+
+    impl<T: TimeStrategy> Serialize for DateTime<T> {
+        fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+        where
+            S: serde::Serializer,
+        {
+            serializer.collect_str(self)
+        }
+    }
+
+    impl<T: TimeStrategy> std::fmt::Display for DateTime<T> {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            T::fmt(&self.value, f)
+        }
+    }
+
+    impl TimeStrategy for DDMMYYYY {
+        fn fmt(input: &PrimitiveDateTime, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            let year = input.year();
+            #[allow(clippy::as_conversions)]
+            let month = input.month() as u8;
+            let day = input.day();
+            let output = format!("{day:02}{month:02}{year}");
+            f.write_str(&output)
+        }
+    }
+
+    impl TimeStrategy for YYYYMMDD {
+        fn fmt(input: &PrimitiveDateTime, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            let year = input.year();
+            #[allow(clippy::as_conversions)]
+            let month: u8 = input.month() as u8;
+            let day = input.day();
+            let output = format!("{year}{month:02}{day:02}");
+            f.write_str(&output)
+        }
+    }
+
+    impl TimeStrategy for YYYYMMDDHHmmss {
+        fn fmt(input: &PrimitiveDateTime, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            let year = input.year();
+            #[allow(clippy::as_conversions)]
+            let month = input.month() as u8;
+            let day = input.day();
+            let hour = input.hour();
+            let minute = input.minute();
+            let second = input.second();
+            let output = format!("{year}{month:02}{day:02}{hour:02}{minute:02}{second:02}");
+            f.write_str(&output)
+        }
     }
 }
 

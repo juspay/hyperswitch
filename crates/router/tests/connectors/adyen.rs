@@ -147,7 +147,7 @@ async fn should_partially_capture_authorized_payment() {
                 enums::CaptureMethod::Manual,
             ),
             Some(types::PaymentsCaptureData {
-                amount_to_capture: Some(50),
+                amount_to_capture: 50,
                 ..utils::PaymentCaptureType::default().0
             }),
             AdyenTest::get_payment_info(),
@@ -417,10 +417,7 @@ async fn should_fail_payment_for_invalid_exp_month() {
         )
         .await
         .unwrap();
-    assert_eq!(
-        response.response.unwrap_err().message,
-        "The provided Expiry Date is not valid.: Expiry month should be between 1 and 12 inclusive: 20",
-    );
+    assert_eq!(response.response.unwrap_err().message, "Refused",);
 }
 
 // Creates a payment with incorrect expiry year.

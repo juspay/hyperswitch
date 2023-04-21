@@ -12,9 +12,10 @@ use std::{
 use actix_web::{body, HttpRequest, HttpResponse, Responder};
 use common_utils::errors::ReportSwitchExt;
 use error_stack::{report, IntoReport, Report, ResultExt};
-use masking::ExposeOptionInterface;
+use masking::{ExposeOptionInterface, PeekInterface};
 use router_env::{instrument, tracing, Tag};
 use serde::Serialize;
+use serde_json::json;
 
 use self::request::{ContentType, HeaderExt, RequestBuilderExt};
 pub use self::request::{Method, Request, RequestBuilder};
@@ -27,7 +28,7 @@ use crate::{
     logger,
     routes::{app::AppStateInfo, metrics, AppState},
     services::authentication as auth,
-    types::{self, api, storage, ErrorResponse},
+    types::{self, api, ErrorResponse},
 };
 
 pub type BoxedConnectorIntegration<'a, T, Req, Resp> =
@@ -311,7 +312,13 @@ async fn send_request(
                 // Currently this is not used remove this if not required
                 // If using this then handle the serde_part
                 Some(ContentType::FormUrlEncoded) => {
-                    let url_encoded_payload = serde_urlencoded::to_string(&request.payload)
+                    let payload = match request.payload.clone() {
+                        Some(req) => serde_json::from_str(req.peek())
+                            .into_report()
+                            .change_context(errors::ApiClientError::UrlEncodingFailed)?,
+                        _ => json!(r#""#),
+                    };
+                    let url_encoded_payload = serde_urlencoded::to_string(&payload)
                         .into_report()
                         .change_context(errors::ApiClientError::UrlEncodingFailed)
                         .attach_printable_lazy(|| {
@@ -445,19 +452,6 @@ pub enum PaymentAction {
 #[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct ApplicationRedirectResponse {
     pub url: String,
-}
-
-impl From<&storage::PaymentAttempt> for ApplicationRedirectResponse {
-    fn from(payment_attempt: &storage::PaymentAttempt) -> Self {
-        Self {
-            url: format!(
-                "/payments/start/{}/{}/{}",
-                &payment_attempt.payment_id,
-                &payment_attempt.merchant_id,
-                &payment_attempt.attempt_id
-            ),
-        }
-    }
 }
 
 #[derive(Debug, Eq, PartialEq, Clone, serde::Serialize, serde::Deserialize)]

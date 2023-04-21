@@ -17,7 +17,6 @@ pub struct IncomingWebhookRequestDetails<'a> {
     pub headers: &'a actix_web::http::header::HeaderMap,
     pub body: &'a [u8],
     pub query_params: String,
-    pub query_params_json: &'a [u8],
 }
 
 #[async_trait::async_trait]

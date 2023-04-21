@@ -150,6 +150,18 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
 
 impl api::Payment for Fiserv {}
 
+impl api::PaymentToken for Fiserv {}
+
+impl
+    ConnectorIntegration<
+        api::PaymentMethodToken,
+        types::PaymentMethodTokenizationData,
+        types::PaymentsResponseData,
+    > for Fiserv
+{
+    // Not Implemented (R)
+}
+
 impl api::PreVerify for Fiserv {}
 
 #[allow(dead_code)]

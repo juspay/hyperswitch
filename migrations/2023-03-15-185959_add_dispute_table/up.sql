@@ -23,7 +23,7 @@ CREATE TABLE dispute (
     modified_at TIMESTAMP NOT NULL DEFAULT now()::TIMESTAMP
 );
 
-CREATE UNIQUE INDEX dispute_id_index ON dispute (dispute_id);
+CREATE UNIQUE INDEX merchant_id_dispute_id_index ON dispute (merchant_id, dispute_id);
 
 CREATE UNIQUE INDEX merchant_id_payment_id_connector_dispute_id_index ON dispute (merchant_id, payment_id, connector_dispute_id);
 

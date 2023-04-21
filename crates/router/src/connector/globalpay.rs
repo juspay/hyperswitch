@@ -18,7 +18,10 @@ use self::{
 use crate::{
     configs::settings,
     connector::utils as conn_utils,
-    core::errors::{self, CustomResult},
+    core::{
+        errors::{self, CustomResult},
+        payments,
+    },
     db, headers,
     services::{self, ConnectorIntegration},
     types::{
@@ -149,14 +152,14 @@ impl
         Ok(Some(
             services::RequestBuilder::new()
                 .method(services::Method::Post)
-                .url(&types::PaymentsComeplteAuthorizeType::get_url(
+                .url(&types::PaymentsCompleteAuthorizeType::get_url(
                     self, req, connectors,
                 )?)
                 .attach_default_headers()
-                .headers(types::PaymentsComeplteAuthorizeType::get_headers(
+                .headers(types::PaymentsCompleteAuthorizeType::get_headers(
                     self, req, connectors,
                 )?)
-                .body(types::PaymentsComeplteAuthorizeType::get_request_body(
+                .body(types::PaymentsCompleteAuthorizeType::get_request_body(
                     self, req,
                 )?)
                 .build(),
@@ -285,6 +288,18 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
 }
 
 impl api::Payment for Globalpay {}
+
+impl api::PaymentToken for Globalpay {}
+
+impl
+    ConnectorIntegration<
+        api::PaymentMethodToken,
+        types::PaymentMethodTokenizationData,
+        types::PaymentsResponseData,
+    > for Globalpay
+{
+    // Not Implemented (R)
+}
 
 impl api::PreVerify for Globalpay {}
 impl ConnectorIntegration<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>
@@ -868,5 +883,29 @@ impl api::IncomingWebhook for Globalpay {
             .into_report()
             .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
         Ok(res_json)
+    }
+}
+
+impl services::ConnectorRedirectResponse for Globalpay {
+    fn get_flow_type(
+        &self,
+        query_params: &str,
+        _json_payload: Option<Value>,
+        _action: services::PaymentAction,
+    ) -> CustomResult<payments::CallConnectorAction, errors::ConnectorError> {
+        let query = serde_urlencoded::from_str::<response::GlobalpayRedirectResponse>(query_params)
+            .into_report()
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        Ok(query.status.map_or(
+            payments::CallConnectorAction::Trigger,
+            |status| match status {
+                response::GlobalpayPaymentStatus::Captured => {
+                    payments::CallConnectorAction::StatusUpdate(
+                        storage_models::enums::AttemptStatus::from(status),
+                    )
+                }
+                _ => payments::CallConnectorAction::Trigger,
+            },
+        ))
     }
 }

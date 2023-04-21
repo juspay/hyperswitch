@@ -286,7 +286,8 @@ impl<T> StringExt<T> for String {
 ///
 /// Extending functionalities of Wrapper types for idiomatic
 ///
-#[async_trait::async_trait]
+#[cfg(feature = "async_ext")]
+#[cfg_attr(feature = "async_ext", async_trait::async_trait)]
 pub trait AsyncExt<A, B> {
     /// Output type of the map function
     type WrappedSelf<T>;
@@ -307,7 +308,8 @@ pub trait AsyncExt<A, B> {
         Fut: futures::Future<Output = Self::WrappedSelf<B>> + Send;
 }
 
-#[async_trait::async_trait]
+#[cfg(feature = "async_ext")]
+#[cfg_attr(feature = "async_ext", async_trait::async_trait)]
 impl<A: Send, B, E: Send> AsyncExt<A, B> for Result<A, E> {
     type WrappedSelf<T> = Result<T, E>;
     async fn async_and_then<F, Fut>(self, func: F) -> Self::WrappedSelf<B>
@@ -333,7 +335,8 @@ impl<A: Send, B, E: Send> AsyncExt<A, B> for Result<A, E> {
     }
 }
 
-#[async_trait::async_trait]
+#[cfg(feature = "async_ext")]
+#[cfg_attr(feature = "async_ext", async_trait::async_trait)]
 impl<A: Send, B> AsyncExt<A, B> for Option<A> {
     type WrappedSelf<T> = Option<T>;
     async fn async_and_then<F, Fut>(self, func: F) -> Self::WrappedSelf<B>

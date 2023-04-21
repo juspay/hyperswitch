@@ -468,7 +468,7 @@ pub struct PaymentMethodDeleteResponse {
     pub deleted: bool,
 }
 
-#[derive(Debug, serde::Serialize, ToSchema)]
+#[derive(Debug, Clone, serde::Serialize, ToSchema)]
 pub struct CustomerPaymentMethod {
     /// Token for payment method in temporary card locker which gets refreshed often
     #[schema(example = "7ebf443f-a050-4067-84e5-e6f6d4800aef")]

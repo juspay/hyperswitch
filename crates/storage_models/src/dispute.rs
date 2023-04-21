@@ -17,6 +17,7 @@ pub struct DisputeNew {
     pub payment_id: String,
     pub attempt_id: String,
     pub merchant_id: String,
+    pub connector: String,
     pub connector_status: String,
     pub connector_dispute_id: String,
     pub connector_reason: Option<String>,
@@ -50,6 +51,7 @@ pub struct Dispute {
     pub created_at: PrimitiveDateTime,
     #[serde(with = "custom_serde::iso8601")]
     pub modified_at: PrimitiveDateTime,
+    pub connector: String,
 }
 
 #[derive(Debug)]
