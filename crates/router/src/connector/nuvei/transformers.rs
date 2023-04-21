@@ -610,6 +610,12 @@ impl<F>
                     Some(redirect),
                     item,
                 )),
+                _ => Err(errors::ConnectorError::NotSupported {
+                    payment_method: "Bank Redirect".to_string(),
+                    connector: "Nuvei",
+                    payment_experience: "RedirectToUrl".to_string(),
+                }
+                .into()),
             },
             _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
         }?;

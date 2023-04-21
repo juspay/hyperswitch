@@ -6,6 +6,8 @@
 - [ ] Enhancement
 - [ ] Refactoring
 - [ ] Dependency updates
+- [ ] Documentation
+- [ ] CI/CD
 
 ## Description
 <!-- Describe your changes in detail -->
@@ -13,6 +15,7 @@
 
 ### Additional Changes
 
+- [ ] This PR modifies the API contract
 - [ ] This PR modifies the database schema
 - [ ] This PR modifies application configuration/environment variables
 
