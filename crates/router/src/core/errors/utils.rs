@@ -1,20 +1,16 @@
 use crate::{core::errors, logger};
 
-pub trait StorageErrorExt<T> {
+pub trait StorageErrorExt<T, E> {
     #[track_caller]
-    fn to_not_found_response(
-        self,
-        not_found_response: errors::ApiErrorResponse,
-    ) -> error_stack::Result<T, errors::ApiErrorResponse>;
+    fn to_not_found_response(self, not_found_response: E) -> error_stack::Result<T, E>;
 
     #[track_caller]
-    fn to_duplicate_response(
-        self,
-        duplicate_response: errors::ApiErrorResponse,
-    ) -> error_stack::Result<T, errors::ApiErrorResponse>;
+    fn to_duplicate_response(self, duplicate_response: E) -> error_stack::Result<T, E>;
 }
 
-impl<T> StorageErrorExt<T> for error_stack::Result<T, errors::StorageError> {
+impl<T> StorageErrorExt<T, errors::ApiErrorResponse>
+    for error_stack::Result<T, errors::StorageError>
+{
     #[track_caller]
     fn to_not_found_response(
         self,

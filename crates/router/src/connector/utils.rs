@@ -140,7 +140,6 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
             .and_then(|a| a.address.as_ref())
             .ok_or_else(missing_field_err("shipping.address"))
     }
-
     fn get_payment_method_token(&self) -> Result<String, Error> {
         self.payment_method_token
             .clone()
