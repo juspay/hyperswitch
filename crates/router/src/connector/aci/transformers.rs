@@ -278,19 +278,7 @@ pub struct AciPaymentsResponse {
 pub struct AciRedirectionData {
     method: Option<services::Method>,
     parameters: Vec<Parameters>,
-    preconditions: Option<Vec<PreConditions>>,
     url: Url,
-}
-
-#[derive(Clone, Debug, Deserialize, PartialEq, Eq)]
-#[serde(rename_all = "camelCase")]
-pub struct PreConditions {
-    origin: String,
-    wait_until: String,
-    description: String,
-    method: services::Method,
-    url: String,
-    parameters: Parameters,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq)]
@@ -314,22 +302,6 @@ pub struct ErrorParameters {
     pub(super) message: String,
 }
 
-fn method_data(redirection_data: AciRedirectionData) -> services::Method {
-    // Check if method exists in 3DS
-    if let Some(method_param) = redirection_data
-        .parameters
-        .iter()
-        .find(|param| param.name == *"method")
-    {
-        // Parse the parameter value as Method enum
-        if let Ok(method) = &method_param.value.parse::<services::Method>() {
-            return *method;
-        }
-    }
-    // Default case: When optional method returns None, we default to Post (as per docs)
-    redirection_data.method.unwrap_or(services::Method::Post)
-}
-
 impl<F, T>
     TryFrom<types::ResponseRouterData<F, AciPaymentsResponse, T, types::PaymentsResponseData>>
     for types::RouterData<F, T, types::PaymentsResponseData>
@@ -346,11 +318,14 @@ impl<F, T>
             );
 
             let link = data.clone().url;
+
             // If method is Get, parameters are appended to URL
             // If method is post, we http Post the method to URL
             services::RedirectForm {
                 endpoint: link.to_string(),
-                method: method_data(data),
+                // Handles method for Bank redirects currently.
+                // 3DS response have method within preconditions. That would require replacing below line with a function.
+                method: data.method.unwrap_or(services::Method::Post),
                 form_fields,
             }
         });
