@@ -307,8 +307,8 @@ pub struct MandateIds {
 
 #[derive(Eq, PartialEq, Debug, serde::Deserialize, serde::Serialize, Clone)]
 pub enum MandateReferenceId {
-    ConnectorMandateId(String),
-    NetworkMandateId(String),
+    ConnectorMandateId(String), // mandate_id send by connector
+    NetworkMandateId(String), // network_txns_id send by Issuer to connector, Used for PG agnostic mandate txns
 }
 
 impl MandateIds {

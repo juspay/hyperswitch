@@ -172,7 +172,23 @@ where
                     resp.request
                         .set_mandate_id(api_models::payments::MandateIds {
                             mandate_id: new_mandate_data.mandate_id.clone(),
-                            mandate_reference_id: None, //This is not used further in case needed please handle
+                            mandate_reference_id: new_mandate_data
+                                .connector_mandate_id
+                                .clone()
+                                .map_or(
+                                    new_mandate_data.network_transaction_id.clone().map(|id| {
+                                        api_models::payments::MandateReferenceId::NetworkMandateId(
+                                            id,
+                                        )
+                                    }),
+                                    |connector_id| {
+                                        Some(
+                                    api_models::payments::MandateReferenceId::ConnectorMandateId(
+                                        connector_id,
+                                    ),
+                                )
+                                    },
+                                ),
                         });
                     state
                         .store

@@ -3,7 +3,7 @@ use error_stack::ResultExt;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils::RefundsRequestData,
+    connector::utils::{CardData, RefundsRequestData},
     core::errors,
     types::{self, api, storage::enums},
     utils::OptionExt,
@@ -98,14 +98,7 @@ fn get_pm_and_subsequent_auth_detail(
                 api::PaymentMethodData::Card(ref ccard) => {
                     let payment_details = PaymentDetails::CreditCard(CreditCardDetails {
                         card_number: ccard.card_number.clone(),
-                        // expiration_date: format!("{expiry_year}-{expiry_month}").into(),
-                        expiration_date: ccard
-                            .card_exp_month
-                            .clone()
-                            .zip(ccard.card_exp_year.clone())
-                            .map(|(expiry_month, expiry_year)| {
-                                format!("{expiry_year}-{expiry_month}")
-                            }),
+                        expiration_date: ccard.get_expiry_date_as_yyyymm("-"),
                         card_code: None,
                     });
                     Ok((payment_details, processing_options, subseuent_auth_info))
@@ -124,13 +117,7 @@ fn get_pm_and_subsequent_auth_detail(
                     PaymentDetails::CreditCard(CreditCardDetails {
                         card_number: ccard.card_number.clone(),
                         // expiration_date: format!("{expiry_year}-{expiry_month}").into(),
-                        expiration_date: ccard
-                            .card_exp_month
-                            .clone()
-                            .zip(ccard.card_exp_year.clone())
-                            .map(|(expiry_month, expiry_year)| {
-                                format!("{expiry_year}-{expiry_month}")
-                            }),
+                        expiration_date: ccard.get_expiry_date_as_yyyymm("-"),
                         card_code: Some(ccard.card_cvc.clone()),
                     }),
                     None,

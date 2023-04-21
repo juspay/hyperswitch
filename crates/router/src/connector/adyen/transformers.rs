@@ -6,7 +6,7 @@ use reqwest::Url;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils::{missing_field_err, PaymentsAuthorizeRequestData},
+    connector::utils::{self, CardData, PaymentsAuthorizeRequestData, RouterData},
     consts,
     core::errors,
     pii::{self, Email, Secret},
@@ -513,7 +513,7 @@ pub struct AdyenCard {
     expiry_year: Secret<String>,
     cvc: Option<Secret<String>>,
     brand: Option<CardBrand>, //Mandatory for mandate using network_txns_id
-    network_payment_reference: Option<String>, //
+    network_payment_reference: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -767,10 +767,7 @@ fn get_recurring_processing_model(
 ) -> Result<RecurringDetails, Error> {
     match item.request.setup_future_usage {
         Some(storage_enums::FutureUsage::OffSession) => {
-            let customer_id = item
-                .customer_id
-                .to_owned()
-                .ok_or_else(missing_field_err("customer_id"))?;
+            let customer_id = item.get_customer_id()?;
             let shopper_reference = format!("{}_{}", item.merchant_id, customer_id);
             Ok((
                 Some(AdyenRecurringModel::UnscheduledCardOnFile),
@@ -900,6 +897,18 @@ impl<'a> TryFrom<&api::Card> for AdyenPaymentMethod<'a> {
             network_payment_reference: None,
         };
         Ok(AdyenPaymentMethod::AdyenCard(Box::new(adyen_card)))
+    }
+}
+
+impl TryFrom<&utils::CardIssuer> for CardBrand {
+    type Error = Error;
+    fn try_from(card_issuer: &utils::CardIssuer) -> Result<Self, Self::Error> {
+        match card_issuer {
+            utils::CardIssuer::AmericanExpress => Ok(Self::Amex),
+            utils::CardIssuer::Master => Ok(Self::MC),
+            utils::CardIssuer::Visa => Ok(Self::Visa),
+            _ => Err(errors::ConnectorError::NotImplemented("CardBrand".to_string()).into()),
+        }
     }
 }
 
@@ -1106,13 +1115,15 @@ impl<'a> TryFrom<(&types::PaymentsAuthorizeRouterData, MandateReferenceId)>
             MandateReferenceId::NetworkMandateId(network_mandate_id) => {
                 match item.request.payment_method_data {
                     api::PaymentMethodData::Card(ref card) => {
+                        let card_issuer = card.get_card_issuer()?;
+                        let brand = CardBrand::try_from(&card_issuer)?;
                         let adyen_card = AdyenCard {
                             payment_type: PaymentType::Scheme,
                             number: card.card_number.clone(),
                             expiry_month: card.card_exp_month.clone(),
                             expiry_year: card.card_exp_year.clone(),
                             cvc: None,
-                            brand: Some(CardBrand::Visa), //Fixme
+                            brand: Some(brand),
                             network_payment_reference: Some(network_mandate_id),
                         };
                         Ok(AdyenPaymentMethod::AdyenCard(Box::new(adyen_card)))
