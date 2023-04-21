@@ -256,7 +256,6 @@ pub async fn consumer_operation_handler<E>(
     consumer_operation_counter.fetch_add(1, atomic::Ordering::Release);
     let start_time = std_time::Instant::now();
 
-
     match consumer::consumer_operations(&state, &settings, workflow_selector).await {
         Ok(_) => (),
         Err(err) => error_handler_fun(err),

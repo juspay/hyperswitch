@@ -88,6 +88,28 @@ pub struct AddressUpdateInternal {
     modified_at: PrimitiveDateTime,
 }
 
+impl AddressUpdateInternal {
+    pub fn create_address(self, source: Address) -> Address {
+        let _address_update_internal = self;
+        Address {
+            city: _address_update_internal.city,
+            country: _address_update_internal.country,
+            line1: _address_update_internal.line1,
+            line2: _address_update_internal.line2,
+            line3: _address_update_internal.line3,
+            state: _address_update_internal.state,
+            zip: _address_update_internal.zip,
+            first_name: _address_update_internal.first_name,
+            last_name: _address_update_internal.last_name,
+            phone_number: _address_update_internal.phone_number,
+            country_code: _address_update_internal.country_code,
+            modified_at: _address_update_internal.modified_at,
+
+            ..source
+        }
+    }
+}
+
 impl From<AddressUpdate> for AddressUpdateInternal {
     fn from(address_update: AddressUpdate) -> Self {
         match address_update {

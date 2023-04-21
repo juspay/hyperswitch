@@ -1,4 +1,5 @@
 use error_stack::IntoReport;
+use storage_models::address::AddressUpdateInternal;
 
 use super::{MockDb, Store};
 use crate::{
@@ -91,38 +92,88 @@ impl AddressInterface for Store {
 
 #[async_trait::async_trait]
 impl AddressInterface for MockDb {
+    #[allow(clippy::unwrap_used)]
     async fn find_address(
         &self,
         _address_id: &str,
     ) -> CustomResult<storage::Address, errors::StorageError> {
-        // [#172]: Implement function for `MockDb`
-        Err(errors::StorageError::MockDbError)?
+        let addresses = self.addresses.lock().await;
+        Ok(addresses
+            .iter()
+            .find(|address| address.address_id == _address_id)
+            .unwrap()
+            .clone())
     }
 
+    #[allow(clippy::unwrap_used)]
     async fn update_address(
         &self,
         _address_id: String,
         _address: storage::AddressUpdate,
     ) -> CustomResult<storage::Address, errors::StorageError> {
-        // [#172]: Implement function for `MockDb`
-        Err(errors::StorageError::MockDbError)?
+        let mut addresses = self.addresses.lock().await;
+        let address = addresses
+            .iter_mut()
+            .find(|address| address.address_id == _address_id)
+            .unwrap();
+
+        let address_updated = AddressUpdateInternal::from(_address).create_address(address.clone());
+        *address = address_updated.clone();
+        Ok(address_updated)
     }
 
+    #[allow(clippy::unwrap_used)]
     async fn insert_address(
         &self,
         _address: storage::AddressNew,
     ) -> CustomResult<storage::Address, errors::StorageError> {
-        // [#172]: Implement function for `MockDb`
-        Err(errors::StorageError::MockDbError)?
+        let mut addresses = self.addresses.lock().await;
+        let now = common_utils::date_time::now();
+
+        let address = storage::Address {
+            #[allow(clippy::as_conversions)]
+            id: addresses.len() as i32,
+            address_id: _address.address_id,
+            city: _address.city,
+            country: _address.country,
+            line1: _address.line1,
+            line2: _address.line2,
+            line3: _address.line3,
+            state: _address.state,
+            zip: _address.zip,
+            first_name: _address.first_name,
+            last_name: _address.last_name,
+            phone_number: _address.phone_number,
+            country_code: _address.country_code,
+            created_at: now,
+            modified_at: now,
+            customer_id: _address.customer_id,
+            merchant_id: _address.merchant_id,
+        };
+
+        addresses.push(address.clone());
+
+        Ok(address)
     }
 
+    #[allow(clippy::unwrap_used)]
     async fn update_address_by_merchant_id_customer_id(
         &self,
         _customer_id: &str,
         _merchant_id: &str,
         _address: storage::AddressUpdate,
     ) -> CustomResult<Vec<storage::Address>, errors::StorageError> {
-        // [#172]: Implement function for `MockDb`
-        Err(errors::StorageError::MockDbError)?
+        let addresses = self.addresses.lock().await;
+
+        let address = addresses
+            .iter()
+            .find(|address| {
+                address.customer_id == _customer_id && address.merchant_id == _merchant_id
+            })
+            .cloned()
+            .map(|address| vec![address])
+            .unwrap();
+
+        Ok(address)
     }
 }
