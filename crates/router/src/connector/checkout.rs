@@ -700,11 +700,8 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
 }
 
 impl
-    services::ConnectorIntegration<
-        api::Accept,
-        types::AcceptDisputeRequestData,
-        types::AcceptDisputeResponse,
-    > for Checkout
+    ConnectorIntegration<api::Accept, types::AcceptDisputeRequestData, types::AcceptDisputeResponse>
+    for Checkout
 {
     fn get_headers(
         &self,
@@ -801,12 +798,8 @@ impl
 
 impl api::UploadFile for Checkout {}
 
-impl
-    services::ConnectorIntegration<
-        api::Upload,
-        types::UploadFileRequestData,
-        types::UploadFileResponse,
-    > for Checkout
+impl ConnectorIntegration<api::Upload, types::UploadFileRequestData, types::UploadFileResponse>
+    for Checkout
 {
 }
 
