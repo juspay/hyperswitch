@@ -471,6 +471,16 @@ pub struct MerchantConnectorResponse {
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct MerchantConnectorUpdate {
+    // Field added for backwards compatibility
+    /// Name of the Connector
+    #[schema(example = "stripe")]
+    pub connector_name: Option<String>,
+
+    // Field added for backwards compatibility
+    /// Unique ID of the connector
+    #[schema(example = "mca_5apGeP94tMts6rg3U3kR")]
+    pub merchant_connector_id: Option<String>,
+
     /// Type of the Connector for the financial use case. Could range from Payments to Accounting to Banking.
     #[schema(value_type = ConnectorType, example = "payment_processor")]
     pub connector_type: api_enums::ConnectorType,
