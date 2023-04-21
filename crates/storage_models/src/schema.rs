@@ -106,6 +106,7 @@ diesel::table! {
         description -> Nullable<Varchar>,
         created_at -> Timestamp,
         metadata -> Nullable<Json>,
+        modified_at -> Timestamp,
     }
 }
 
@@ -246,6 +247,8 @@ diesel::table! {
         routing_algorithm -> Nullable<Json>,
         primary_business_details -> Json,
         api_key -> Nullable<Varchar>,
+        created_at -> Timestamp,
+        modified_at -> Timestamp,
     }
 }
 
@@ -269,6 +272,8 @@ diesel::table! {
         business_country -> CountryCode,
         business_label -> Varchar,
         business_sub_label -> Nullable<Varchar>,
+        created_at -> Timestamp,
+        modified_at -> Timestamp,
     }
 }
 
