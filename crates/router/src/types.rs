@@ -51,6 +51,8 @@ pub type PaymentsSyncResponseRouterData<R> =
     ResponseRouterData<api::PSync, R, PaymentsSyncData, PaymentsResponseData>;
 pub type PaymentsSessionResponseRouterData<R> =
     ResponseRouterData<api::Session, R, PaymentsSessionData, PaymentsResponseData>;
+pub type PaymentsInitResponseRouterData<R> =
+    ResponseRouterData<api::InitPayment, R, PaymentsAuthorizeData, PaymentsResponseData>;
 pub type PaymentsCaptureResponseRouterData<R> =
     ResponseRouterData<api::Capture, R, PaymentsCaptureData, PaymentsResponseData>;
 pub type TokenizationResponseRouterData<R> = ResponseRouterData<
@@ -283,6 +285,10 @@ pub enum PaymentsResponseData {
     },
     TokenizationResponse {
         token: String,
+    },
+    ThreeDSEnrollmentResponse {
+        enrolled_v2: bool,
+        related_transaction_id: Option<String>,
     },
 }
 
