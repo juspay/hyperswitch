@@ -577,9 +577,6 @@ impl api::IncomingWebhook for Opennode {
             opennode::OpennodePaymentStatus::Processing => {
                 Ok(api::IncomingWebhookEvent::PaymentIntentProcessing)
             }
-            opennode::OpennodePaymentStatus::Refunded => {
-                Ok(api::IncomingWebhookEvent::RefundSuccess)
-            }
             _ => Ok(api::IncomingWebhookEvent::EventNotSupported),
         }
     }

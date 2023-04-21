@@ -33,6 +33,7 @@ pub struct Customer {
     pub created_at: PrimitiveDateTime,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub connector_customer: Option<serde_json::Value>,
+    pub modified_at: PrimitiveDateTime,
 }
 
 #[derive(Debug)]
@@ -61,6 +62,7 @@ pub struct CustomerUpdateInternal {
     phone_country_code: Option<String>,
     metadata: Option<pii::SecretSerdeValue>,
     connector_customer: Option<serde_json::Value>,
+    modified_at: Option<PrimitiveDateTime>,
 }
 
 impl From<CustomerUpdate> for CustomerUpdateInternal {
@@ -82,9 +84,11 @@ impl From<CustomerUpdate> for CustomerUpdateInternal {
                 phone_country_code,
                 metadata,
                 connector_customer,
+                modified_at: Some(common_utils::date_time::now()),
             },
             CustomerUpdate::ConnectorCustomer { connector_customer } => Self {
                 connector_customer,
+                modified_at: Some(common_utils::date_time::now()),
                 ..Default::default()
             },
         }

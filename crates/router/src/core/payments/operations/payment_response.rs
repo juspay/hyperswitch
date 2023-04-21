@@ -399,9 +399,7 @@ async fn payment_response_update_tracker<F: Clone, T>(
                 storage_scheme,
             )
             .await
-            .map_err(|error| {
-                error.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
-            })?,
+            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?,
         None => payment_data.payment_attempt,
     };
 
@@ -413,9 +411,7 @@ async fn payment_response_update_tracker<F: Clone, T>(
                 storage_scheme,
             )
             .await
-            .map_err(|error| {
-                error.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
-            })?,
+            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?,
         None => payment_data.connector_response,
     };
 
@@ -444,7 +440,7 @@ async fn payment_response_update_tracker<F: Clone, T>(
             storage_scheme,
         )
         .await
-        .map_err(|error| error.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound))?;
+        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
     Ok(payment_data)
 }

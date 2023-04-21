@@ -199,6 +199,8 @@ impl MerchantAccountInterface for MockDb {
             locker_id: merchant_account.locker_id,
             metadata: merchant_account.metadata,
             primary_business_details: merchant_account.primary_business_details,
+            created_at: common_utils::date_time::now(),
+            modified_at: common_utils::date_time::now(),
         };
         accounts.push(account.clone());
         Ok(account)

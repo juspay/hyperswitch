@@ -98,7 +98,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for MolliePaymentsRequest {
         let payment_method_data = match item.request.capture_method.unwrap_or_default() {
             enums::CaptureMethod::Automatic => match item.request.payment_method_data {
                 api_models::payments::PaymentMethodData::BankRedirect(ref redirect_data) => {
-                    get_payment_method_for_bank_redirect(item, redirect_data)
+                    PaymentMethodData::try_from(redirect_data)
                 }
                 api_models::payments::PaymentMethodData::Wallet(ref wallet_data) => {
                     get_payment_method_for_wallet(item, wallet_data)
@@ -135,22 +135,22 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for MolliePaymentsRequest {
     }
 }
 
-fn get_payment_method_for_bank_redirect(
-    _item: &types::PaymentsAuthorizeRouterData,
-    redirect_data: &api_models::payments::BankRedirectData,
-) -> Result<PaymentMethodData, Error> {
-    let payment_method_data = match redirect_data {
-        api_models::payments::BankRedirectData::Eps { .. } => PaymentMethodData::Eps,
-        api_models::payments::BankRedirectData::Giropay { .. } => PaymentMethodData::Giropay,
-        api_models::payments::BankRedirectData::Ideal { .. } => {
-            PaymentMethodData::Ideal(Box::new(IdealMethodData {
-                // To do if possible this should be from the payment request
-                issuer: None,
-            }))
+impl TryFrom<&api_models::payments::BankRedirectData> for PaymentMethodData {
+    type Error = Error;
+    fn try_from(value: &api_models::payments::BankRedirectData) -> Result<Self, Self::Error> {
+        match value {
+            api_models::payments::BankRedirectData::Eps { .. } => Ok(Self::Eps),
+            api_models::payments::BankRedirectData::Giropay { .. } => Ok(Self::Giropay),
+            api_models::payments::BankRedirectData::Ideal { .. } => {
+                Ok(Self::Ideal(Box::new(IdealMethodData {
+                    // To do if possible this should be from the payment request
+                    issuer: None,
+                })))
+            }
+            api_models::payments::BankRedirectData::Sofort { .. } => Ok(Self::Sofort),
+            _ => Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into()),
         }
-        api_models::payments::BankRedirectData::Sofort { .. } => PaymentMethodData::Sofort,
-    };
-    Ok(payment_method_data)
+    }
 }
 
 fn get_payment_method_for_wallet(
