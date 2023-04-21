@@ -117,8 +117,10 @@ impl types::PaymentsAuthorizeRouterData {
                     .execute_pretasks(self, state)
                     .await
                     .map_err(|error| error.to_payment_failed_response())?;
+                logger::debug!(completed_pre_tasks=?true);
                 if self.should_proceed_with_authorize() {
                     self.decide_authentication_type();
+                    logger::debug!(auth_type=?self.auth_type);
                     let resp = services::execute_connector_processing_step(
                         state,
                         connector_integration,
