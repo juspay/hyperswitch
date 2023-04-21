@@ -1,3 +1,45 @@
+# 0.5.8 (2023-04-21)
+
+## Chores
+
+*  fix error message for deserialization (#885) (e4d0dd0a)
+
+## Continuous Integration
+
+* **manual-release:**  fix `EXTRA_FEATURES` not being passed correctly (#912) (9c9c52f9)
+
+## Documentation Changes
+
+* **dashboard:**  add button that links to dashboard (#934) (96f9e806)
+
+## New Features
+
+* **core:**  [Stripe] add bank debits payment method to stripe (#906) (f624eb52)
+* **connector:**
+  *  [Nuvei] add support for bank redirect Eps, Sofort, Giropay, Ideal (#870) (c1a25b30)
+  *  [Checkout] add GooglePay, ApplePay and Webhooks support  (#875) (3fce1407)
+  *  [paypal] add PayPal wallet support for Paypal (#893) (a475a76)
+*  support gpay and applepay session response for all connectors (#839) (d23e14c5)
+*  add relevant ids for payment calls & make json logs  (#908) (93b69e74)
+* **router:**
+  *  add support for filtering PaymentMethodTypes at a session (#883) (465933ba)
+  *  add new payment methods for Bank redirects, BNPL and wallet (#864) (304081cb)
+* **date_time:**  add `created_at` and `modified_at` to merchant related tables (#925) (1f151ba1)
+
+## Bug Fixes
+
+* **connector-template:**  Address unused import and mismatched types in connector-template (#910) (891683e0)
+* **connector:**
+  *  [coinbase] update cancel status on user cancelling the payment (#922) (22cee8cd)
+  *  fix adyen unit test (#931) (afeb8319)
+
+## Other Changes
+
+* **try_local_system:**  replace Postman collection links with development collection (#937) (ccc0c3f9)
+* **pr-template:**  add API contract changes and update contributing docs with recent labels (#936) (3e2a7eae)
+* **errors:**  make StorageErrorExt generic on errors (#928) (e161d92c)
+* Changelog for release v0.5.7 (#907) (573a4d38)
+
 # 0.5.7 (2023-04-18)
 
 ## New Features
