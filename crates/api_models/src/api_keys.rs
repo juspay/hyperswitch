@@ -137,7 +137,7 @@ pub struct RevokeApiKeyResponse {
     /// The identifier for the Merchant Account.
     #[schema(max_length = 64, example = "y3oqhf46pyzuxjbcn2giaqnb44")]
     pub merchant_id: String,
-    
+
     /// The identifier for the API Key.
     #[schema(max_length = 64, example = "5hEEqkgJUyuxgSKGArHA4mWSnX")]
     pub key_id: String,
