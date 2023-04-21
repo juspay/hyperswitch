@@ -162,6 +162,8 @@ pub enum ApiErrorResponse {
     DisputeNotFound { dispute_id: String },
     #[error(error_type = ErrorType::ObjectNotFound, code = "HE_04", message = "File does not exist in our records")]
     FileNotFound,
+    #[error(error_type = ErrorType::ObjectNotFound, code = "HE_04", message = "File not available")]
+    FileNotAvailable,
     #[error(error_type = ErrorType::InvalidRequestError, code = "HE_04", message = "Dispute status validation failed")]
     DisputeStatusValidationFailed { reason: String },
     #[error(error_type = ErrorType::InvalidRequestError, code = "HE_04", message = "Card with the provided iin does not exist")]
@@ -170,13 +172,13 @@ pub enum ApiErrorResponse {
     InvalidCardIinLength,
     #[error(error_type = ErrorType::ValidationError, code = "HE_03", message = "File validation failed")]
     FileValidationFailed { reason: String },
-    #[error(error_type = ErrorType::InvalidRequestError, code = "HE_04", message = "File not found in the request")]
+    #[error(error_type = ErrorType::InvalidRequestError, code = "HE_04", message = "File not found / valid in the request")]
     MissingFile,
     #[error(error_type = ErrorType::InvalidRequestError, code = "HE_04", message = "Dispute id not found in the request")]
     MissingDisputeId,
     #[error(error_type = ErrorType::InvalidRequestError, code = "HE_04", message = "File purpose not found in the request or is invalid")]
     MissingFilePurpose,
-    #[error(error_type = ErrorType::InvalidRequestError, code = "HE_04", message = "File content type not found")]
+    #[error(error_type = ErrorType::InvalidRequestError, code = "HE_04", message = "File content type not found / valid")]
     MissingFileContentType,
 }
 
@@ -277,7 +279,8 @@ impl actix_web::ResponseError for ApiErrorResponse {
             | Self::MissingFileContentType
             | Self::MissingFilePurpose
             | Self::MissingDisputeId
-            | Self::FileNotFound => StatusCode::BAD_REQUEST, // 400
+            | Self::FileNotFound
+            | Self::FileNotAvailable => StatusCode::BAD_REQUEST, // 400
             Self::ReturnUrlUnavailable => StatusCode::SERVICE_UNAVAILABLE, // 503
             Self::PaymentNotSucceeded => StatusCode::BAD_REQUEST,          // 400
             Self::NotImplemented { .. } => StatusCode::NOT_IMPLEMENTED,    // 501
@@ -471,8 +474,11 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
             Self::DisputeNotFound { .. } => {
                 AER::NotFound(ApiError::new("HE", 2, "Dispute does not exist in our records", None))
             }
-            Self::FileNotFound { .. } => {
+            Self::FileNotFound => {
                 AER::NotFound(ApiError::new("HE", 2, "File does not exist in our records", None))
+            }
+            Self::FileNotAvailable => {
+                AER::NotFound(ApiError::new("HE", 2, "File not available", None))
             }
             Self::DisputeStatusValidationFailed { .. } => {
                 AER::BadRequest(ApiError::new("HE", 2, "Dispute status validation failed", None))

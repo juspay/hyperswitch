@@ -125,7 +125,8 @@ pub async fn accept_dispute(
         super::payments::CallConnectorAction::Trigger,
     )
     .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)?;
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed while calling accept dispute connector api")?;
     let accept_dispute_response =
         response
             .response
@@ -223,8 +224,7 @@ pub async fn submit_evidence(
         &dispute,
         submit_evidence_request_data,
     )
-    .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)?;
+    .await?;
     let response = services::execute_connector_processing_step(
         state,
         connector_integration,
@@ -232,7 +232,8 @@ pub async fn submit_evidence(
         super::payments::CallConnectorAction::Trigger,
     )
     .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)?;
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed while calling submit evidence connector api")?;
     let submit_evidence_response =
         response
             .response

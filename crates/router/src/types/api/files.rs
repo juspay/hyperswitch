@@ -10,7 +10,7 @@ pub struct FileId {
 
 #[derive(Debug, Clone, frunk::LabelledGeneric)]
 pub enum FileUploadProvider {
-    Hyperswitch,
+    Router,
     Stripe,
 }
 

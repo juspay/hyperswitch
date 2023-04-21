@@ -795,6 +795,6 @@ pub enum DisputeStatus {
 #[strum(serialize_all = "snake_case")]
 pub enum FileUploadProvider {
     #[default]
-    Hyperswitch,
+    Router,
     Stripe,
 }

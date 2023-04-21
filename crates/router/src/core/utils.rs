@@ -344,7 +344,7 @@ pub async fn construct_upload_file_router_data<'a>(
     state: &'a AppState,
     payment_intent: &'a storage::PaymentIntent,
     payment_attempt: &storage::PaymentAttempt,
-    merchant_account: storage::MerchantAccount,
+    merchant_account: &storage::MerchantAccount,
     create_file_request: &types::api::CreateFileRequest,
     connector_id: &str,
     file_key: String,

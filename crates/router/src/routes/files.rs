@@ -1,11 +1,11 @@
 use actix_multipart::Multipart;
-use actix_web::{web, web::Bytes, HttpRequest, HttpResponse};
-use futures::{StreamExt, TryStreamExt};
+use actix_web::{web, HttpRequest, HttpResponse};
 use router_env::{instrument, tracing, Flow};
+pub mod transformers;
 
 use super::app::AppState;
 use crate::{
-    core::{errors, files::*},
+    core::files::*,
     services::{api, authentication as auth},
     types::api::files,
 };
@@ -29,94 +29,13 @@ use crate::{
 pub async fn files_create(
     state: web::Data<AppState>,
     req: HttpRequest,
-    mut payload: Multipart,
+    payload: Multipart,
 ) -> HttpResponse {
     let flow = Flow::CreateFile;
-
-    let mut option_purpose: Option<files::FilePurpose> = None;
-    let mut dispute_id: Option<String> = None;
-
-    let mut file_name: Option<String> = None;
-    let mut file_content: Option<Vec<Bytes>> = None;
-
-    while let Ok(Some(mut field)) = payload.try_next().await {
-        let content_disposition = field.content_disposition();
-        let field_name = content_disposition.get_name();
-        // Parse the different parameters expected in the multipart request
-        match field_name {
-            Some("purpose") => {
-                option_purpose = helpers::get_file_purpose(&mut field).await;
-            }
-            Some("file") => {
-                file_name = content_disposition.get_filename().map(String::from);
-
-                //Collect the file content and throw error if something fails
-                let mut file_data = Vec::new();
-                let mut stream = field.into_stream();
-                while let Some(chunk) = stream.next().await {
-                    match chunk {
-                        Ok(bytes) => file_data.push(bytes),
-                        Err(_) => {
-                            return api::log_and_return_error_response(
-                                errors::ApiErrorResponse::InternalServerError.into(),
-                            )
-                        }
-                    }
-                }
-                file_content = Some(file_data)
-            }
-            Some("dispute_id") => {
-                dispute_id = helpers::read_string(&mut field).await;
-            }
-            // Can ignore other params
-            _ => (),
-        }
-    }
-    let purpose = match option_purpose {
-        Some(valid_purpose) => valid_purpose,
-        None => {
-            return api::log_and_return_error_response(
-                errors::ApiErrorResponse::MissingFilePurpose.into(),
-            )
-        }
-    };
-    let file = match file_content {
-        Some(valid_file_content) => valid_file_content.concat().to_vec(),
-        None => {
-            return api::log_and_return_error_response(errors::ApiErrorResponse::MissingFile.into())
-        }
-    };
-    // Get file mime type using 'infer'
-    let option_file_mime_type =
-        infer::get(&file).map(|kind| kind.mime_type().parse::<mime::Mime>());
-    let file_type = match option_file_mime_type {
-        Some(Ok(mime)) => mime,
-        _ => {
-            return api::log_and_return_error_response(
-                errors::ApiErrorResponse::MissingFileContentType.into(),
-            )
-        }
-    };
-    let file_size_result: Result<i32, _> = file.len().try_into();
-    let file_size = match file_size_result {
-        Ok(valid_file_size) => valid_file_size,
-        _ => {
-            return api::log_and_return_error_response(
-                errors::ApiErrorResponse::InternalServerError.into(),
-            )
-        }
-    };
-    // Check if empty file and throw error
-    if file_size <= 0 {
-        return api::log_and_return_error_response(errors::ApiErrorResponse::MissingFile.into());
-    }
-    let create_file_request = files::CreateFileRequest {
-        file,
-        file_name,
-        file_size,
-        file_type,
-        purpose,
-        dispute_id,
+    let create_file_request_result = transformers::get_create_file_request(payload).await;
+    let create_file_request = match create_file_request_result {
+        Ok(valid_request) => valid_request,
+        Err(err) => return api::log_and_return_error_response(err),
     };
     api::server_wrap(
         flow,

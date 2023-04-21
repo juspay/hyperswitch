@@ -194,6 +194,8 @@ pub enum StripeErrorCode {
     MissingDisputeId,
     #[error(error_type = StripeErrorType::HyperswitchError, code = "", message = "File does not exists in our records")]
     FileNotFound,
+    #[error(error_type = StripeErrorType::HyperswitchError, code = "", message = "File not available")]
+    FileNotAvailable,
     // [#216]: https://github.com/juspay/hyperswitch/issues/216
     // Implement the remaining stripe error codes
 
@@ -487,6 +489,7 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
             errors::ApiErrorResponse::MissingFileContentType => Self::MissingFileContentType,
             errors::ApiErrorResponse::MissingDisputeId => Self::MissingDisputeId,
             errors::ApiErrorResponse::FileNotFound => Self::FileNotFound,
+            errors::ApiErrorResponse::FileNotAvailable => Self::FileNotAvailable,
             errors::ApiErrorResponse::NotSupported { .. } => Self::InternalServerError,
         }
     }
@@ -541,7 +544,8 @@ impl actix_web::ResponseError for StripeErrorCode {
             | Self::MissingFileContentType
             | Self::MissingFilePurpose
             | Self::MissingDisputeId
-            | Self::FileNotFound => StatusCode::BAD_REQUEST,
+            | Self::FileNotFound
+            | Self::FileNotAvailable => StatusCode::BAD_REQUEST,
             Self::RefundFailed
             | Self::InternalServerError
             | Self::MandateActive

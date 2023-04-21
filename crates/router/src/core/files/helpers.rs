@@ -1,12 +1,12 @@
 use actix_multipart::Field;
 use common_utils::errors::CustomResult;
-use error_stack::ResultExt;
+use error_stack::{IntoReport, ResultExt};
 use futures::TryStreamExt;
 
 use crate::{
     core::{
         errors::{self, StorageErrorExt},
-        payments, utils,
+        files, payments, utils,
     },
     routes::AppState,
     services,
@@ -36,9 +36,9 @@ pub async fn upload_file(
     file: Vec<u8>,
 ) -> CustomResult<(), errors::ApiErrorResponse> {
     #[cfg(feature = "s3")]
-    return super::s3_utils::upload_file_to_s3(state, file_key, file).await;
+    return files::s3_utils::upload_file_to_s3(state, file_key, file).await;
     #[cfg(not(feature = "s3"))]
-    return super::fs_utils::save_file_to_fs(file_key, file);
+    return files::fs_utils::save_file_to_fs(file_key, file);
 }
 
 pub async fn delete_file(
@@ -46,9 +46,9 @@ pub async fn delete_file(
     file_key: String,
 ) -> CustomResult<(), errors::ApiErrorResponse> {
     #[cfg(feature = "s3")]
-    return super::s3_utils::delete_file_from_s3(state, file_key).await;
+    return files::s3_utils::delete_file_from_s3(state, file_key).await;
     #[cfg(not(feature = "s3"))]
-    return super::fs_utils::delete_file_from_fs(file_key);
+    return files::fs_utils::delete_file_from_fs(file_key);
 }
 
 pub async fn retrieve_file(
@@ -56,9 +56,9 @@ pub async fn retrieve_file(
     file_key: String,
 ) -> CustomResult<Vec<u8>, errors::ApiErrorResponse> {
     #[cfg(feature = "s3")]
-    return super::s3_utils::retrieve_file_from_s3(state, file_key).await;
+    return files::s3_utils::retrieve_file_from_s3(state, file_key).await;
     #[cfg(not(feature = "s3"))]
-    return super::fs_utils::retrieve_file_from_fs(file_key);
+    return files::fs_utils::retrieve_file_from_fs(file_key);
 }
 
 pub async fn validate_file_upload(
@@ -98,7 +98,8 @@ pub async fn validate_file_upload(
                         }
                         .into())
                     }
-                    _ => Err(errors::ApiErrorResponse::InternalServerError.into()),
+                    _ => Err(errors::ApiErrorResponse::InternalServerError.into())
+                        .attach_printable("File validation failed")?,
                 },
             }
         }
@@ -118,12 +119,15 @@ pub async fn delete_file_using_file_id(
     let (provider, provider_file_id) = match (
         file_metadata_object.file_upload_provider,
         file_metadata_object.provider_file_id,
+        file_metadata_object.available,
     ) {
-        (Some(provider), Some(provider_file_id)) => (provider, provider_file_id),
-        _ => Err(errors::ApiErrorResponse::FileNotFound)?,
+        (Some(provider), Some(provider_file_id), true) => (provider, provider_file_id),
+        _ => Err(errors::ApiErrorResponse::FileNotAvailable)
+            .into_report()
+            .attach_printable("File not available")?,
     };
     match provider {
-        storage_models::enums::FileUploadProvider::Hyperswitch => {
+        storage_models::enums::FileUploadProvider::Router => {
             delete_file(
                 #[cfg(feature = "s3")]
                 state,
@@ -131,8 +135,8 @@ pub async fn delete_file_using_file_id(
             )
             .await
         }
-        _ => Err(errors::ApiErrorResponse::NotImplemented {
-            message: errors::api_error_response::NotImplementedMessage::Default,
+        _ => Err(errors::ApiErrorResponse::NotSupported {
+            message: "Not Supported if provider is not Router".to_owned(),
         }
         .into()),
     }
@@ -159,7 +163,7 @@ pub async fn retrieve_file_and_provider_file_id_from_file_id(
                 _ => Err(errors::ApiErrorResponse::FileNotFound)?,
             };
             match provider {
-                storage_models::enums::FileUploadProvider::Hyperswitch => Ok((
+                storage_models::enums::FileUploadProvider::Router => Ok((
                     Some(
                         retrieve_file(
                             #[cfg(feature = "s3")]
@@ -177,6 +181,7 @@ pub async fn retrieve_file_and_provider_file_id_from_file_id(
     }
 }
 
+//Upload file to connector if it supports / store it in S3 and return file_upload_provider, provider_file_id accordingly
 pub async fn upload_and_get_provider_provider_file_id(
     state: &AppState,
     merchant_account: &storage::merchant_account::MerchantAccount,
@@ -228,13 +233,14 @@ pub async fn upload_and_get_provider_provider_file_id(
                     state,
                     &payment_intent,
                     &payment_attempt,
-                    merchant_account.clone(),
+                    merchant_account,
                     create_file_request,
                     &dispute.connector,
                     file_key,
                 )
                 .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)?;
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed constructing the upload file router data")?;
                 let response = services::execute_connector_processing_step(
                     state,
                     connector_integration,
@@ -242,7 +248,8 @@ pub async fn upload_and_get_provider_provider_file_id(
                     payments::CallConnectorAction::Trigger,
                 )
                 .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)?;
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed while calling upload file connector api")?;
                 let upload_file_response = response.response.map_err(|err| {
                     errors::ApiErrorResponse::ExternalConnectorError {
                         code: err.code,
@@ -264,7 +271,7 @@ pub async fn upload_and_get_provider_provider_file_id(
                     create_file_request.file.clone(),
                 )
                 .await?;
-                Ok((file_key, api::FileUploadProvider::Hyperswitch))
+                Ok((file_key, api::FileUploadProvider::Router))
             }
         }
     }

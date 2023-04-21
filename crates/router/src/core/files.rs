@@ -43,8 +43,7 @@ pub async fn files_create_core(
         .insert_file_metadata(file_new)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Unable to insert file")?;
-    // Check if file upload should be done to connector / self
+        .attach_printable("Unable to insert file_metadata")?;
     let (provider_file_id, file_upload_provider) =
         helpers::upload_and_get_provider_provider_file_id(
             state,
@@ -64,7 +63,9 @@ pub async fn files_create_core(
         .update_file_metadata(file_metadata_object, update_file_metadata)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable_lazy(|| format!("Unable to update file with file_id: {}", file_id))?;
+        .attach_printable_lazy(|| {
+            format!("Unable to update file_metadata with file_id: {}", file_id)
+        })?;
     Ok(services::api::ApplicationResponse::Json(
         files::CreateFileResponse { file_id },
     ))
@@ -81,7 +82,7 @@ pub async fn files_delete_core(
         .delete_file_metadata_by_merchant_id_file_id(&merchant_account.merchant_id, &req.file_id)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Unable to delete file")?;
+        .attach_printable("Unable to delete file_metadata")?;
     Ok(ApplicationResponse::StatusOk)
 }
 
@@ -94,7 +95,8 @@ pub async fn files_retrieve_core(
         .store
         .find_file_metadata_by_merchant_id_file_id(&merchant_account.merchant_id, &req.file_id)
         .await
-        .change_context(errors::ApiErrorResponse::FileNotFound)?;
+        .change_context(errors::ApiErrorResponse::FileNotFound)
+        .attach_printable("Unable to retrieve file_metadata")?;
     let (received_data, _provider_file_id) =
         helpers::retrieve_file_and_provider_file_id_from_file_id(
             state,
@@ -109,7 +111,10 @@ pub async fn files_retrieve_core(
         .into_report()
         .attach_printable("Failed to parse file content type")?;
     Ok(ApplicationResponse::FileData((
-        received_data.ok_or(errors::ApiErrorResponse::FileNotFound)?,
+        received_data
+            .ok_or(errors::ApiErrorResponse::FileNotAvailable)
+            .into_report()
+            .attach_printable("File data not found")?,
         content_type,
     )))
 }
