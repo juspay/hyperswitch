@@ -202,7 +202,7 @@ pub struct PaymentsRequest {
     pub payment_method_type: Option<api_enums::PaymentMethodType>,
 
     /// Business country of the merchant for this payment
-    #[schema(example = "US")]
+    #[schema(value_type = CountryAlpha2, example = "US")]
     pub business_country: Option<api_enums::CountryAlpha2>,
 
     /// Business label of the merchant for this payment
@@ -439,7 +439,7 @@ pub enum PayLaterData {
         #[schema(value_type = String)]
         billing_email: Secret<String, pii::Email>,
         // The billing country code
-        #[schema(value_type = CountryAlpha2)]
+        #[schema(value_type = CountryAlpha2, example = "US")]
         billing_country: api_enums::CountryAlpha2,
     },
     /// For Klarna Sdk as PayLater Option
@@ -854,7 +854,7 @@ pub struct AddressDetails {
     pub city: Option<String>,
 
     /// The two-letter ISO country code for the address
-    #[schema(value_type = Option<CountryAlpha2>, max_length = 2, min_length = 2, example = "US")]
+    #[schema(value_type = Option<CountryAlpha2>, example = "US")]
     pub country: Option<api_enums::CountryAlpha2>,
 
     /// The first line of the address
