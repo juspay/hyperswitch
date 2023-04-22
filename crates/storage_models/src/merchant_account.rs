@@ -59,7 +59,7 @@ pub struct MerchantAccountNew {
     pub routing_algorithm: Option<serde_json::Value>,
     pub primary_business_details: serde_json::Value,
     pub api_key: Option<StrongSecret<String>>,
-    pub intent_fulfillment_time: Option<i32>, //BUG either vallue or 15 mins
+    pub intent_fulfillment_time: Option<i32>,
 }
 
 #[derive(Debug)]
@@ -106,8 +106,6 @@ pub struct MerchantAccountUpdateInternal {
     primary_business_details: Option<serde_json::Value>,
     modified_at: Option<time::PrimitiveDateTime>,
     intent_fulfillment_time:Option<i32>
-        //BUG either vallue or 15 mins
-
 }
 
 impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {

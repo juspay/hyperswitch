@@ -75,7 +75,6 @@ pub struct MerchantAccountCreate {
     #[cfg(not(feature = "multiple_mca"))]
     #[schema(value_type = Option<PrimaryBusinessDetails>)]
     pub primary_business_details: Option<Vec<PrimaryBusinessDetails>>,
-    //BUG something related to response and request is handeled here
     pub intent_fulfillment_time: Option<i32>,
 }
 

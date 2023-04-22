@@ -789,9 +789,8 @@ pub async fn list_payment_methods(
 
     let payment_intent = helpers::verify_client_secret(
         db,
-        merchant_account.storage_scheme,
+        &merchant_account,
         req.client_secret.clone(),
-        &merchant_account.merchant_id,
     )
     .await?;
 

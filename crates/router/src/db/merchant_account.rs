@@ -201,7 +201,6 @@ impl MerchantAccountInterface for MockDb {
             primary_business_details: merchant_account.primary_business_details,
             created_at: common_utils::date_time::now(),
             modified_at: common_utils::date_time::now(),
-            //BUG
             intent_fulfillment_time: merchant_account.intent_fulfillment_time,
         };
         accounts.push(account.clone());

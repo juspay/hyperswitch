@@ -30,9 +30,8 @@ pub async fn retrieve_card_info(
     verify_iin_length(&request.card_iin)?;
     helpers::verify_client_secret(
         db,
-        merchant_account.storage_scheme,
+        &merchant_account,
         request.client_secret,
-        &merchant_account.merchant_id,
     )
     .await?;
 

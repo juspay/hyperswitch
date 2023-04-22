@@ -36,7 +36,6 @@ impl ForeignTryFrom<storage::MerchantAccount> for MerchantAccountResponse {
             metadata: item.metadata,
             locker_id: item.locker_id,
             primary_business_details,
-            //BUG from here I guess we are getting response
             intent_fulfillment_time: item.intent_fulfillment_time,
         })
     }

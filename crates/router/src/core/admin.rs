@@ -13,7 +13,6 @@ use crate::{
         payments::helpers,
     },
     db::StorageInterface,
-    logger,
     routes::AppState,
     services::api as service_api,
     types::{
@@ -129,17 +128,6 @@ pub async fn create_merchant_account(
             })
             .attach_printable("Invalid routing algorithm given")?;
     }
-    //BUG initializing the intent_fulfillment_time here for newly created merch
-    let intent_fulfillment_time = match req.intent_fulfillment_time {
-        Some(val) => {
-            logger::error!(
-                "///////////////////////The intent_fulfillment_time is {}",
-                val
-            );
-            val
-        }
-        None => 900,
-    };
 
     let merchant_account = storage::MerchantAccountNew {
         merchant_id: req.merchant_id,
@@ -163,8 +151,7 @@ pub async fn create_merchant_account(
         locker_id: req.locker_id,
         metadata: req.metadata,
         primary_business_details,
-        //BUG pass the value here  for intent_fulfillment_timem
-        intent_fulfillment_time: Some(intent_fulfillment_time),
+        intent_fulfillment_time: req.intent_fulfillment_time,
     };
 
     let merchant_account = db
@@ -198,7 +185,6 @@ pub async fn get_merchant_account(
         )?,
     ))
 }
-//BUG update intent_fulfillment_time here too
 pub async fn merchant_account_update(
     db: &dyn StorageInterface,
     merchant_id: &String,
@@ -272,8 +258,7 @@ pub async fn merchant_account_update(
         metadata: req.metadata,
         publishable_key: None,
         primary_business_details,
-        //BUG intent_fulfillment_time must be added here to insure peace update
-        intent_fulfillment_time: None,
+        intent_fulfillment_time: req.intent_fulfillment_time,
     };
 
     let response = db
