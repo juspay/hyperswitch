@@ -18,7 +18,7 @@ pub fn generate_cargo_instructions() {
         .cargo_opt_level()
         .cargo_target_triple()
         .git_commit_timestamp()
-        .git_describe(true, true)
+        .git_describe(true, true, None)
         .git_sha(true)
         .rustc_semver()
         .rustc_commit_hash()

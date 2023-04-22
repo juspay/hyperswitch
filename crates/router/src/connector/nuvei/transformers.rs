@@ -1,6 +1,7 @@
+use api_models::payments;
 use common_utils::{
     crypto::{self, GenerateDigest},
-    date_time,
+    date_time, fp_utils,
     pii::Email,
 };
 use error_stack::{IntoReport, ResultExt};
@@ -9,11 +10,14 @@ use reqwest::Url;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils::{self, PaymentsAuthorizeRequestData, PaymentsCancelRequestData, RouterData},
+    connector::utils::{
+        self, AddressDetailsData, MandateData, PaymentsAuthorizeRequestData,
+        PaymentsCancelRequestData, RouterData,
+    },
     consts,
     core::errors,
     services,
-    types::{self, api, storage::enums},
+    types::{self, api, storage::enums, transformers::ForeignTryFrom},
 };
 
 #[derive(Debug, Serialize, Default, Deserialize)]
@@ -22,12 +26,17 @@ pub struct NuveiMeta {
 }
 
 #[derive(Debug, Serialize, Default, Deserialize)]
+pub struct NuveiMandateMeta {
+    pub frequency: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NuveiSessionRequest {
     pub merchant_id: String,
     pub merchant_site_id: String,
     pub client_request_id: String,
-    pub time_stamp: String,
+    pub time_stamp: date_time::DateTime<date_time::YYYYMMDDHHmmss>,
     pub checksum: String,
 }
 
@@ -45,6 +54,7 @@ pub struct NuveiSessionResponse {
     pub client_request_id: String,
 }
 
+#[serde_with::skip_serializing_none]
 #[derive(Debug, Serialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct NuveiPaymentsRequest {
@@ -54,10 +64,12 @@ pub struct NuveiPaymentsRequest {
     pub merchant_site_id: String,
     pub client_request_id: String,
     pub amount: String,
-    pub currency: String,
-    pub user_token_id: String,
+    pub currency: storage_models::enums::Currency,
+    /// This ID uniquely identifies your consumer/user in your system.
+    pub user_token_id: Option<Secret<String, Email>>,
     pub client_unique_id: String,
     pub transaction_type: TransactionType,
+    pub is_rebilling: Option<String>,
     pub payment_option: PaymentOption,
     pub checksum: String,
     pub billing_address: Option<BillingAddress>,
@@ -76,6 +88,7 @@ pub struct NuveiInitPaymentRequest {
     pub checksum: String,
 }
 
+/// Handles payment request for capture, void and refund flows
 #[derive(Debug, Serialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct NuveiPaymentFlowRequest {
@@ -84,7 +97,7 @@ pub struct NuveiPaymentFlowRequest {
     pub merchant_site_id: String,
     pub client_request_id: String,
     pub amount: String,
-    pub currency: String,
+    pub currency: storage_models::enums::Currency,
     pub related_transaction_id: Option<String>,
     pub checksum: String,
 }
@@ -102,6 +115,7 @@ pub enum TransactionType {
     Sale,
 }
 
+#[serde_with::skip_serializing_none]
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PaymentOption {
@@ -113,25 +127,69 @@ pub struct PaymentOption {
     pub billing_address: Option<BillingAddress>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum NuveiBIC {
+    #[serde(rename = "ABNANL2A")]
+    Abnamro,
+    #[serde(rename = "ASNBNL21")]
+    ASNBank,
+    #[serde(rename = "BUNQNL2A")]
+    Bunq,
+    #[serde(rename = "INGBNL2A")]
+    Ing,
+    #[serde(rename = "KNABNL2H")]
+    Knab,
+    #[serde(rename = "RABONL2U")]
+    Rabobank,
+    #[serde(rename = "RBRBNL21")]
+    RegioBank,
+    #[serde(rename = "SNSBNL2A")]
+    SNSBank,
+    #[serde(rename = "TRIONL2U")]
+    TriodosBank,
+    #[serde(rename = "FVLBNL22")]
+    VanLanschotBankiers,
+    #[serde(rename = "MOYONL21")]
+    Moneyou,
+}
+
+#[serde_with::skip_serializing_none]
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AlternativePaymentMethod {
     pub payment_method: AlternativePaymentMethodType,
+    #[serde(rename = "BIC")]
+    pub bank_id: Option<NuveiBIC>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum AlternativePaymentMethodType {
     #[default]
-    ApmgwExpresscheckout,
+    #[serde(rename = "apmgw_expresscheckout")]
+    Expresscheckout,
+    #[serde(rename = "apmgw_Giropay")]
+    Giropay,
+    #[serde(rename = "apmgw_Sofort")]
+    Sofort,
+    #[serde(rename = "apmgw_iDeal")]
+    Ideal,
+    #[serde(rename = "apmgw_EPS")]
+    Eps,
 }
 
+#[serde_with::skip_serializing_none]
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct BillingAddress {
-    pub email: Secret<String, Email>,
+    pub email: Option<Secret<String, Email>>,
+    pub first_name: Option<Secret<String>>,
+    pub last_name: Option<Secret<String>>,
     pub country: api_models::enums::CountryCode,
 }
 
+#[serde_with::skip_serializing_none]
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Card {
@@ -173,6 +231,7 @@ pub enum ExternalTokenProvider {
     ApplePay,
 }
 
+#[serde_with::skip_serializing_none]
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ThreeD {
@@ -229,7 +288,11 @@ pub struct BrowserDetails {
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct V2AdditionalParams {
-    pub challenge_window_size: String,
+    pub challenge_window_size: Option<String>,
+    /// Recurring Expiry in format YYYYMMDD. REQUIRED if isRebilling = 0, We recommend setting rebillExpiry to a value of no more than 5 years from the date of the initial transaction processing date.
+    pub rebill_expiry: Option<String>,
+    /// Recurring Frequency in days
+    pub rebill_frequency: Option<String>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -309,9 +372,7 @@ impl TryFrom<&types::PaymentsAuthorizeSessionTokenRouterData> for NuveiSessionRe
         let merchant_id = connector_meta.merchant_id;
         let merchant_site_id = connector_meta.merchant_site_id;
         let client_request_id = item.attempt_id.clone();
-        let time_stamp = date_time::date_as_yyyymmddhhmmss()
-            .into_report()
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let time_stamp = date_time::DateTime::<date_time::YYYYMMDDHHmmss>::from(date_time::now());
         let merchant_secret = connector_meta.merchant_secret;
         Ok(Self {
             merchant_id: merchant_id.clone(),
@@ -322,7 +383,7 @@ impl TryFrom<&types::PaymentsAuthorizeSessionTokenRouterData> for NuveiSessionRe
                 merchant_id,
                 merchant_site_id,
                 client_request_id,
-                time_stamp,
+                time_stamp.to_string(),
                 merchant_secret,
             ])?,
         })
@@ -348,6 +409,155 @@ impl<F, T>
     }
 }
 
+#[derive(Debug, Default)]
+pub struct NuveiCardDetails {
+    card: payments::Card,
+    three_d: Option<ThreeD>,
+}
+impl TryFrom<payments::GooglePayWalletData> for NuveiPaymentsRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(gpay_data: payments::GooglePayWalletData) -> Result<Self, Self::Error> {
+        Ok(Self {
+            payment_option: PaymentOption {
+                card: Some(Card {
+                    external_token: Some(ExternalToken {
+                        external_token_provider: ExternalTokenProvider::GooglePay,
+                        mobile_token: common_utils::ext_traits::Encode::<
+                            payments::GooglePayWalletData,
+                        >::encode_to_string_of_json(
+                            &gpay_data
+                        )
+                        .change_context(errors::ConnectorError::RequestEncodingFailed)?,
+                    }),
+                    ..Default::default()
+                }),
+                ..Default::default()
+            },
+            ..Default::default()
+        })
+    }
+}
+impl From<payments::ApplePayWalletData> for NuveiPaymentsRequest {
+    fn from(apple_pay_data: payments::ApplePayWalletData) -> Self {
+        Self {
+            payment_option: PaymentOption {
+                card: Some(Card {
+                    external_token: Some(ExternalToken {
+                        external_token_provider: ExternalTokenProvider::ApplePay,
+                        mobile_token: apple_pay_data.payment_data,
+                    }),
+                    ..Default::default()
+                }),
+                ..Default::default()
+            },
+            ..Default::default()
+        }
+    }
+}
+
+impl TryFrom<api_models::enums::BankNames> for NuveiBIC {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(bank: api_models::enums::BankNames) -> Result<Self, Self::Error> {
+        match bank {
+            api_models::enums::BankNames::AbnAmro => Ok(Self::Abnamro),
+            api_models::enums::BankNames::AsnBank => Ok(Self::ASNBank),
+            api_models::enums::BankNames::Bunq => Ok(Self::Bunq),
+            api_models::enums::BankNames::Ing => Ok(Self::Ing),
+            api_models::enums::BankNames::Knab => Ok(Self::Knab),
+            api_models::enums::BankNames::Rabobank => Ok(Self::Rabobank),
+            api_models::enums::BankNames::SnsBank => Ok(Self::SNSBank),
+            api_models::enums::BankNames::TriodosBank => Ok(Self::TriodosBank),
+            api_models::enums::BankNames::VanLanschot => Ok(Self::VanLanschotBankiers),
+            api_models::enums::BankNames::Moneyou => Ok(Self::Moneyou),
+            _ => Err(errors::ConnectorError::FlowNotSupported {
+                flow: bank.to_string(),
+                connector: "Nuvei".to_string(),
+            }
+            .into()),
+        }
+    }
+}
+
+impl<F>
+    ForeignTryFrom<(
+        AlternativePaymentMethodType,
+        Option<payments::BankRedirectData>,
+        &types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
+    )> for NuveiPaymentsRequest
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn foreign_try_from(
+        data: (
+            AlternativePaymentMethodType,
+            Option<payments::BankRedirectData>,
+            &types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
+        ),
+    ) -> Result<Self, Self::Error> {
+        let (payment_method, redirect, item) = data;
+        let (billing_address, bank_id) = match (&payment_method, redirect) {
+            (AlternativePaymentMethodType::Expresscheckout, _) => (
+                Some(BillingAddress {
+                    email: Some(item.request.get_email()?),
+                    country: item.get_billing_country()?,
+                    ..Default::default()
+                }),
+                None,
+            ),
+            (AlternativePaymentMethodType::Giropay, _) => (
+                Some(BillingAddress {
+                    email: Some(item.request.get_email()?),
+                    country: item.get_billing_country()?,
+                    ..Default::default()
+                }),
+                None,
+            ),
+            (AlternativePaymentMethodType::Sofort, _) | (AlternativePaymentMethodType::Eps, _) => {
+                let address = item.get_billing_address()?;
+                (
+                    Some(BillingAddress {
+                        first_name: Some(address.get_first_name()?.clone()),
+                        last_name: Some(address.get_last_name()?.clone()),
+                        email: Some(item.request.get_email()?),
+                        country: item.get_billing_country()?,
+                    }),
+                    None,
+                )
+            }
+            (
+                AlternativePaymentMethodType::Ideal,
+                Some(payments::BankRedirectData::Ideal { bank_name, .. }),
+            ) => {
+                let address = item.get_billing_address()?;
+                (
+                    Some(BillingAddress {
+                        first_name: Some(address.get_first_name()?.clone()),
+                        last_name: Some(address.get_last_name()?.clone()),
+                        email: Some(item.request.get_email()?),
+                        country: item.get_billing_country()?,
+                    }),
+                    Some(NuveiBIC::try_from(bank_name)?),
+                )
+            }
+            _ => Err(errors::ConnectorError::NotSupported {
+                payment_method: "Bank Redirect".to_string(),
+                connector: "Nuvei",
+                payment_experience: "Redirection".to_string(),
+            })?,
+        };
+        Ok(Self {
+            payment_option: PaymentOption {
+                alternative_payment_method: Some(AlternativePaymentMethod {
+                    payment_method,
+                    bank_id,
+                }),
+                ..Default::default()
+            },
+            billing_address,
+            ..Default::default()
+        })
+    }
+}
+
 impl<F>
     TryFrom<(
         &types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
@@ -362,63 +572,16 @@ impl<F>
         ),
     ) -> Result<Self, Self::Error> {
         let item = data.0;
-        let session_token = data.1;
-        if session_token.is_empty() {
-            return Err(errors::ConnectorError::MissingRequiredField {
-                field_name: "session_token",
-            }
-            .into());
-        }
-        let connector_meta: NuveiAuthType = NuveiAuthType::try_from(&item.connector_auth_type)?;
-        let merchant_id = connector_meta.merchant_id;
-        let merchant_site_id = connector_meta.merchant_site_id;
-        let client_request_id = item.attempt_id.clone();
-        let time_stamp = date_time::date_as_yyyymmddhhmmss()
-            .into_report()
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        let merchant_secret = connector_meta.merchant_secret;
         let request_data = match item.request.payment_method_data.clone() {
             api::PaymentMethodData::Card(card) => get_card_info(item, &card),
             api::PaymentMethodData::Wallet(wallet) => match wallet {
-                api_models::payments::WalletData::GooglePay(gpay_data) => Ok(Self {
-                    payment_option: PaymentOption {
-                        card: Some(Card {
-                            external_token: Some(ExternalToken {
-                                external_token_provider: ExternalTokenProvider::GooglePay,
-                                mobile_token: gpay_data.tokenization_data.token,
-                            }),
-                            ..Default::default()
-                        }),
-                        ..Default::default()
-                    },
-                    ..Default::default()
-                }),
-                api_models::payments::WalletData::ApplePay(apple_data) => Ok(Self {
-                    payment_option: PaymentOption {
-                        card: Some(Card {
-                            external_token: Some(ExternalToken {
-                                external_token_provider: ExternalTokenProvider::ApplePay,
-                                mobile_token: apple_data.payment_data,
-                            }),
-                            ..Default::default()
-                        }),
-                        ..Default::default()
-                    },
-                    ..Default::default()
-                }),
-                api_models::payments::WalletData::PaypalRedirect(_) => Ok(Self {
-                    payment_option: PaymentOption {
-                        alternative_payment_method: Some(AlternativePaymentMethod {
-                            payment_method: AlternativePaymentMethodType::ApmgwExpresscheckout,
-                        }),
-                        ..Default::default()
-                    },
-                    billing_address: Some(BillingAddress {
-                        email: item.request.get_email()?,
-                        country: item.get_billing_country()?,
-                    }),
-                    ..Default::default()
-                }),
+                payments::WalletData::GooglePay(gpay_data) => Self::try_from(gpay_data),
+                payments::WalletData::ApplePay(apple_pay_data) => Ok(Self::from(apple_pay_data)),
+                payments::WalletData::PaypalRedirect(_) => Self::foreign_try_from((
+                    AlternativePaymentMethodType::Expresscheckout,
+                    None,
+                    item,
+                )),
                 _ => Err(errors::ConnectorError::NotSupported {
                     payment_method: "Wallet".to_string(),
                     connector: "Nuvei",
@@ -426,224 +589,309 @@ impl<F>
                 }
                 .into()),
             },
+            api::PaymentMethodData::BankRedirect(redirect) => match redirect {
+                payments::BankRedirectData::Eps { .. } => Self::foreign_try_from((
+                    AlternativePaymentMethodType::Eps,
+                    Some(redirect),
+                    item,
+                )),
+                payments::BankRedirectData::Giropay { .. } => Self::foreign_try_from((
+                    AlternativePaymentMethodType::Giropay,
+                    Some(redirect),
+                    item,
+                )),
+                payments::BankRedirectData::Ideal { .. } => Self::foreign_try_from((
+                    AlternativePaymentMethodType::Ideal,
+                    Some(redirect),
+                    item,
+                )),
+                payments::BankRedirectData::Sofort { .. } => Self::foreign_try_from((
+                    AlternativePaymentMethodType::Sofort,
+                    Some(redirect),
+                    item,
+                )),
+                _ => Err(errors::ConnectorError::NotSupported {
+                    payment_method: "Bank Redirect".to_string(),
+                    connector: "Nuvei",
+                    payment_experience: "RedirectToUrl".to_string(),
+                }
+                .into()),
+            },
             _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
         }?;
+        let request = Self::try_from(NuveiPaymentRequestData {
+            amount: utils::to_currency_base_unit(item.request.amount, item.request.currency)?,
+            currency: item.request.currency,
+            connector_auth_type: item.connector_auth_type.clone(),
+            client_request_id: item.attempt_id.clone(),
+            session_token: data.1,
+            capture_method: item.request.capture_method,
+            ..Default::default()
+        })?;
         Ok(Self {
-            merchant_id: merchant_id.clone(),
-            merchant_site_id: merchant_site_id.clone(),
-            client_request_id: client_request_id.clone(),
-            amount: item.request.amount.clone().to_string(),
-            currency: item.request.currency.clone().to_string(),
-            transaction_type: item
-                .request
-                .capture_method
-                .map(TransactionType::from)
-                .unwrap_or_default(),
-            time_stamp: time_stamp.clone(),
-            session_token,
-            checksum: encode_payload(vec![
-                merchant_id,
-                merchant_site_id,
-                client_request_id,
-                item.request.amount.to_string(),
-                item.request.currency.to_string(),
-                time_stamp,
-                merchant_secret,
-            ])?,
-            ..request_data
+            is_rebilling: request_data.is_rebilling,
+            user_token_id: request_data.user_token_id,
+            related_transaction_id: request_data.related_transaction_id,
+            payment_option: request_data.payment_option,
+            billing_address: request_data.billing_address,
+            ..request
         })
     }
 }
+
 fn get_card_info<F>(
     item: &types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
-    card_details: &api_models::payments::Card,
+    card_details: &payments::Card,
 ) -> Result<NuveiPaymentsRequest, error_stack::Report<errors::ConnectorError>> {
     let browser_info = item.request.get_browser_info()?;
-    let related_transaction_id = if item.request.enrolled_for_3ds {
+    let related_transaction_id = if item.is_three_ds() {
         item.request.related_transaction_id.clone()
     } else {
         None
     };
-    let three_d = if item.request.enrolled_for_3ds {
-        Some(ThreeD {
-            browser_details: Some(BrowserDetails {
-                accept_header: browser_info.accept_header,
-                ip: browser_info.ip_address,
-                java_enabled: browser_info.java_enabled.to_string().to_uppercase(),
-                java_script_enabled: browser_info.java_script_enabled.to_string().to_uppercase(),
-                language: browser_info.language,
-                color_depth: browser_info.color_depth,
-                screen_height: browser_info.screen_height,
-                screen_width: browser_info.screen_width,
-                time_zone: browser_info.time_zone,
-                user_agent: browser_info.user_agent,
-            }),
-            notification_url: item.request.complete_authorize_url.clone(),
-            merchant_url: item.return_url.clone(),
-            platform_type: Some(PlatformType::Browser),
-            method_completion_ind: Some(MethodCompletion::Unavailable),
+    let connector_mandate_id = &item.request.connector_mandate_id();
+    if connector_mandate_id.is_some() {
+        Ok(NuveiPaymentsRequest {
+            related_transaction_id,
+            is_rebilling: Some("1".to_string()), // In case of second installment, rebilling should be 1
+            user_token_id: Some(item.request.get_email()?),
+            payment_option: PaymentOption {
+                user_payment_option_id: connector_mandate_id.clone(),
+                ..Default::default()
+            },
             ..Default::default()
         })
     } else {
-        None
-    };
-    let card = card_details.clone();
-    Ok(NuveiPaymentsRequest {
-        related_transaction_id,
-        payment_option: PaymentOption {
+        let (is_rebilling, additional_params, user_token_id) =
+            match item.request.setup_mandate_details.clone() {
+                Some(mandate_data) => {
+                    let details = match mandate_data.mandate_type {
+                        payments::MandateType::SingleUse(details) => details,
+                        payments::MandateType::MultiUse(details) => {
+                            details.ok_or(errors::ConnectorError::MissingRequiredField {
+                                field_name: "mandate_data.mandate_type.multi_use",
+                            })?
+                        }
+                    };
+                    let mandate_meta: NuveiMandateMeta =
+                        utils::to_connector_meta_from_secret(Some(details.get_metadata()?))?;
+                    (
+                        Some("0".to_string()), // In case of first installment, rebilling should be 0
+                        Some(V2AdditionalParams {
+                            rebill_expiry: Some(
+                                details.get_end_date(date_time::DateFormat::YYYYMMDD)?,
+                            ),
+                            rebill_frequency: Some(mandate_meta.frequency),
+                            challenge_window_size: None,
+                        }),
+                        Some(item.request.get_email()?),
+                    )
+                }
+                _ => (None, None, None),
+            };
+        let three_d = if item.is_three_ds() {
+            Some(ThreeD {
+                browser_details: Some(BrowserDetails {
+                    accept_header: browser_info.accept_header,
+                    ip: browser_info.ip_address,
+                    java_enabled: browser_info.java_enabled.to_string().to_uppercase(),
+                    java_script_enabled: browser_info
+                        .java_script_enabled
+                        .to_string()
+                        .to_uppercase(),
+                    language: browser_info.language,
+                    color_depth: browser_info.color_depth,
+                    screen_height: browser_info.screen_height,
+                    screen_width: browser_info.screen_width,
+                    time_zone: browser_info.time_zone,
+                    user_agent: browser_info.user_agent,
+                }),
+                v2_additional_params: additional_params,
+                notification_url: item.request.complete_authorize_url.clone(),
+                merchant_url: item.return_url.clone(),
+                platform_type: Some(PlatformType::Browser),
+                method_completion_ind: Some(MethodCompletion::Unavailable),
+                ..Default::default()
+            })
+        } else {
+            None
+        };
+
+        Ok(NuveiPaymentsRequest {
+            related_transaction_id,
+            is_rebilling,
+            user_token_id,
+            payment_option: PaymentOption::from(NuveiCardDetails {
+                card: card_details.clone(),
+                three_d,
+            }),
+            ..Default::default()
+        })
+    }
+}
+impl From<NuveiCardDetails> for PaymentOption {
+    fn from(card_details: NuveiCardDetails) -> Self {
+        let card = card_details.card;
+        Self {
             card: Some(Card {
                 card_number: Some(card.card_number),
                 card_holder_name: Some(card.card_holder_name),
                 expiration_month: Some(card.card_exp_month),
                 expiration_year: Some(card.card_exp_year),
-                three_d,
+                three_d: card_details.three_d,
                 cvv: Some(card.card_cvc),
                 ..Default::default()
             }),
             ..Default::default()
-        },
-        ..Default::default()
-    })
+        }
+    }
 }
 
-impl<F>
-    TryFrom<(
-        &types::RouterData<F, types::CompleteAuthorizeData, types::PaymentsResponseData>,
-        String,
-    )> for NuveiPaymentsRequest
-{
+impl TryFrom<(&types::PaymentsCompleteAuthorizeRouterData, String)> for NuveiPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        data: (
-            &types::RouterData<F, types::CompleteAuthorizeData, types::PaymentsResponseData>,
-            String,
-        ),
+        data: (&types::PaymentsCompleteAuthorizeRouterData, String),
     ) -> Result<Self, Self::Error> {
         let item = data.0;
-        let session_token = data.1;
-        if session_token.is_empty() {
-            return Err(errors::ConnectorError::MissingRequiredField {
-                field_name: "session_token",
-            }
-            .into());
-        }
-        let connector_meta: NuveiAuthType = NuveiAuthType::try_from(&item.connector_auth_type)?;
-        let merchant_id = connector_meta.merchant_id;
-        let merchant_site_id = connector_meta.merchant_site_id;
-        let client_request_id = item.attempt_id.clone();
-        let time_stamp = date_time::date_as_yyyymmddhhmmss()
-            .into_report()
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        let merchant_secret = connector_meta.merchant_secret;
         let request_data = match item.request.payment_method_data.clone() {
             Some(api::PaymentMethodData::Card(card)) => Ok(Self {
-                related_transaction_id: item.request.connector_transaction_id.clone(),
-                payment_option: PaymentOption {
-                    card: Some(Card {
-                        card_number: Some(card.card_number),
-                        card_holder_name: Some(card.card_holder_name),
-                        expiration_month: Some(card.card_exp_month),
-                        expiration_year: Some(card.card_exp_year),
-                        cvv: Some(card.card_cvc),
-                        ..Default::default()
-                    }),
-                    ..Default::default()
-                },
+                payment_option: PaymentOption::from(NuveiCardDetails {
+                    card,
+                    three_d: None,
+                }),
                 ..Default::default()
             }),
             _ => Err(errors::ConnectorError::NotImplemented(
                 "Payment methods".to_string(),
             )),
         }?;
+        let request = Self::try_from(NuveiPaymentRequestData {
+            amount: utils::to_currency_base_unit(item.request.amount, item.request.currency)?,
+            currency: item.request.currency,
+            connector_auth_type: item.connector_auth_type.clone(),
+            client_request_id: item.attempt_id.clone(),
+            session_token: data.1,
+            capture_method: item.request.capture_method,
+            ..Default::default()
+        })?;
+        Ok(Self {
+            related_transaction_id: request_data.related_transaction_id,
+            payment_option: request_data.payment_option,
+            ..request
+        })
+    }
+}
+
+impl TryFrom<NuveiPaymentRequestData> for NuveiPaymentsRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(request: NuveiPaymentRequestData) -> Result<Self, Self::Error> {
+        let session_token = request.session_token;
+        fp_utils::when(session_token.is_empty(), || {
+            Err(errors::ConnectorError::FailedToObtainAuthType)
+        })?;
+        let connector_meta: NuveiAuthType = NuveiAuthType::try_from(&request.connector_auth_type)?;
+        let merchant_id = connector_meta.merchant_id;
+        let merchant_site_id = connector_meta.merchant_site_id;
+        let client_request_id = request.client_request_id;
+        let time_stamp =
+            date_time::format_date(date_time::now(), date_time::DateFormat::YYYYMMDDHHmmss)
+                .into_report()
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let merchant_secret = connector_meta.merchant_secret;
         Ok(Self {
             merchant_id: merchant_id.clone(),
             merchant_site_id: merchant_site_id.clone(),
             client_request_id: client_request_id.clone(),
-            amount: item.request.amount.clone().to_string(),
-            currency: item.request.currency.clone().to_string(),
-            transaction_type: item
-                .request
+            time_stamp: time_stamp.clone(),
+            session_token,
+            transaction_type: request
                 .capture_method
                 .map(TransactionType::from)
                 .unwrap_or_default(),
-            time_stamp: time_stamp.clone(),
-            session_token,
             checksum: encode_payload(vec![
                 merchant_id,
                 merchant_site_id,
                 client_request_id,
-                item.request.amount.to_string(),
-                item.request.currency.to_string(),
+                request.amount.clone(),
+                request.currency.clone().to_string(),
                 time_stamp,
                 merchant_secret,
             ])?,
-            ..request_data
+            amount: request.amount,
+            currency: request.currency,
+            ..Default::default()
         })
     }
+}
+
+impl TryFrom<NuveiPaymentRequestData> for NuveiPaymentFlowRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(request: NuveiPaymentRequestData) -> Result<Self, Self::Error> {
+        let connector_meta: NuveiAuthType = NuveiAuthType::try_from(&request.connector_auth_type)?;
+        let merchant_id = connector_meta.merchant_id;
+        let merchant_site_id = connector_meta.merchant_site_id;
+        let client_request_id = request.client_request_id;
+        let time_stamp =
+            date_time::format_date(date_time::now(), date_time::DateFormat::YYYYMMDDHHmmss)
+                .into_report()
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let merchant_secret = connector_meta.merchant_secret;
+        Ok(Self {
+            merchant_id: merchant_id.clone(),
+            merchant_site_id: merchant_site_id.clone(),
+            client_request_id: client_request_id.clone(),
+            time_stamp: time_stamp.clone(),
+            checksum: encode_payload(vec![
+                merchant_id,
+                merchant_site_id,
+                client_request_id,
+                request.amount.clone(),
+                request.currency.clone().to_string(),
+                request.related_transaction_id.clone().unwrap_or_default(),
+                time_stamp,
+                merchant_secret,
+            ])?,
+            amount: request.amount,
+            currency: request.currency,
+            related_transaction_id: request.related_transaction_id,
+        })
+    }
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct NuveiPaymentRequestData {
+    pub amount: String,
+    pub currency: storage_models::enums::Currency,
+    pub related_transaction_id: Option<String>,
+    pub client_request_id: String,
+    pub connector_auth_type: types::ConnectorAuthType,
+    pub session_token: String,
+    pub capture_method: Option<storage_models::enums::CaptureMethod>,
 }
 
 impl TryFrom<&types::PaymentsCaptureRouterData> for NuveiPaymentFlowRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsCaptureRouterData) -> Result<Self, Self::Error> {
-        let connector_meta: NuveiAuthType = NuveiAuthType::try_from(&item.connector_auth_type)?;
-        let merchant_id = connector_meta.merchant_id;
-        let merchant_site_id = connector_meta.merchant_site_id;
-        let client_request_id = item.attempt_id.clone();
-        let time_stamp = date_time::date_as_yyyymmddhhmmss()
-            .into_report()
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        let merchant_secret = connector_meta.merchant_secret;
-        Ok(Self {
-            merchant_id: merchant_id.clone(),
-            merchant_site_id: merchant_site_id.clone(),
-            client_request_id: client_request_id.clone(),
-            amount: item.request.amount_to_capture.clone().to_string(),
-            currency: item.request.currency.clone().to_string(),
+        Self::try_from(NuveiPaymentRequestData {
+            client_request_id: item.attempt_id.clone(),
+            connector_auth_type: item.connector_auth_type.clone(),
+            amount: item.request.amount_to_capture.to_string(),
+            currency: item.request.currency,
             related_transaction_id: Some(item.request.connector_transaction_id.clone()),
-            time_stamp: time_stamp.clone(),
-            checksum: encode_payload(vec![
-                merchant_id,
-                merchant_site_id,
-                client_request_id,
-                item.request.amount_to_capture.to_string(),
-                item.request.currency.to_string(),
-                item.request.connector_transaction_id.clone(),
-                time_stamp,
-                merchant_secret,
-            ])?,
+            ..Default::default()
         })
     }
 }
-
 impl TryFrom<&types::RefundExecuteRouterData> for NuveiPaymentFlowRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::RefundExecuteRouterData) -> Result<Self, Self::Error> {
-        let connector_meta: NuveiAuthType = NuveiAuthType::try_from(&item.connector_auth_type)?;
-        let merchant_id = connector_meta.merchant_id;
-        let merchant_site_id = connector_meta.merchant_site_id;
-        let client_request_id = item.attempt_id.clone();
-        let time_stamp = date_time::date_as_yyyymmddhhmmss()
-            .into_report()
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        let merchant_secret = connector_meta.merchant_secret;
-        Ok(Self {
-            merchant_id: merchant_id.clone(),
-            merchant_site_id: merchant_site_id.clone(),
-            client_request_id: client_request_id.clone(),
-            amount: item.request.amount.clone().to_string(),
-            currency: item.request.currency.clone().to_string(),
+        Self::try_from(NuveiPaymentRequestData {
+            client_request_id: item.attempt_id.clone(),
+            connector_auth_type: item.connector_auth_type.clone(),
+            amount: item.request.amount.to_string(),
+            currency: item.request.currency,
             related_transaction_id: Some(item.request.connector_transaction_id.clone()),
-            time_stamp: time_stamp.clone(),
-            checksum: encode_payload(vec![
-                merchant_id,
-                merchant_site_id,
-                client_request_id,
-                item.request.amount.to_string(),
-                item.request.currency.to_string(),
-                item.request.connector_transaction_id.clone(),
-                time_stamp,
-                merchant_secret,
-            ])?,
+            ..Default::default()
         })
     }
 }
@@ -661,34 +909,13 @@ impl TryFrom<&types::PaymentsSyncRouterData> for NuveiPaymentSyncRequest {
 impl TryFrom<&types::PaymentsCancelRouterData> for NuveiPaymentFlowRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsCancelRouterData) -> Result<Self, Self::Error> {
-        let connector_meta: NuveiAuthType = NuveiAuthType::try_from(&item.connector_auth_type)?;
-        let merchant_id = connector_meta.merchant_id;
-        let merchant_site_id = connector_meta.merchant_site_id;
-        let client_request_id = item.attempt_id.clone();
-        let time_stamp = date_time::date_as_yyyymmddhhmmss()
-            .into_report()
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        let merchant_secret = connector_meta.merchant_secret;
-        let amount = item.request.get_amount()?.to_string();
-        let currency = item.request.get_currency()?.to_string();
-        Ok(Self {
-            merchant_id: merchant_id.clone(),
-            merchant_site_id: merchant_site_id.clone(),
-            client_request_id: client_request_id.clone(),
-            amount: amount.clone(),
-            currency: currency.clone(),
+        Self::try_from(NuveiPaymentRequestData {
+            client_request_id: item.attempt_id.clone(),
+            connector_auth_type: item.connector_auth_type.clone(),
+            amount: item.request.get_amount()?.to_string(),
+            currency: item.request.get_currency()?,
             related_transaction_id: Some(item.request.connector_transaction_id.clone()),
-            time_stamp: time_stamp.clone(),
-            checksum: encode_payload(vec![
-                merchant_id,
-                merchant_site_id,
-                client_request_id,
-                amount,
-                currency,
-                item.request.connector_transaction_id.clone(),
-                time_stamp,
-                merchant_secret,
-            ])?,
+            ..Default::default()
         })
     }
 }
@@ -813,14 +1040,11 @@ fn get_payment_status(response: &NuveiPaymentsResponse) -> enums::AttemptStatus 
             NuveiTransactionStatus::Declined | NuveiTransactionStatus::Error => {
                 match response.transaction_type {
                     Some(NuveiTransactionType::Auth) => enums::AttemptStatus::AuthorizationFailed,
-                    Some(NuveiTransactionType::Sale) | Some(NuveiTransactionType::Settle) => {
-                        enums::AttemptStatus::Failure
-                    }
                     Some(NuveiTransactionType::Void) => enums::AttemptStatus::VoidFailed,
                     Some(NuveiTransactionType::Auth3D) => {
                         enums::AttemptStatus::AuthenticationFailed
                     }
-                    _ => enums::AttemptStatus::Pending,
+                    _ => enums::AttemptStatus::Failure,
                 }
             }
             NuveiTransactionStatus::Processing => enums::AttemptStatus::Pending,
@@ -833,16 +1057,58 @@ fn get_payment_status(response: &NuveiPaymentsResponse) -> enums::AttemptStatus 
     }
 }
 
+fn build_error_response<T>(
+    response: &NuveiPaymentsResponse,
+    http_code: u16,
+) -> Option<Result<T, types::ErrorResponse>> {
+    match response.status {
+        NuveiPaymentStatus::Error => Some(get_error_response(
+            response.err_code,
+            &response.reason,
+            http_code,
+        )),
+        _ => {
+            let err = Some(get_error_response(
+                response.gw_error_code,
+                &response.gw_error_reason,
+                http_code,
+            ));
+            match response.transaction_status {
+                Some(NuveiTransactionStatus::Error) => err,
+                _ => match response
+                    .gw_error_reason
+                    .as_ref()
+                    .map(|r| r.eq("Missing argument"))
+                {
+                    Some(true) => err,
+                    _ => None,
+                },
+            }
+        }
+    }
+}
+
+pub trait NuveiPaymentsGenericResponse {}
+
+impl NuveiPaymentsGenericResponse for api::Authorize {}
+impl NuveiPaymentsGenericResponse for api::CompleteAuthorize {}
+impl NuveiPaymentsGenericResponse for api::Void {}
+impl NuveiPaymentsGenericResponse for api::PSync {}
+impl NuveiPaymentsGenericResponse for api::Capture {}
+
 impl<F, T>
     TryFrom<types::ResponseRouterData<F, NuveiPaymentsResponse, T, types::PaymentsResponseData>>
     for types::RouterData<F, T, types::PaymentsResponseData>
+where
+    F: NuveiPaymentsGenericResponse,
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         item: types::ResponseRouterData<F, NuveiPaymentsResponse, T, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         let redirection_data = match item.data.payment_method {
-            storage_models::enums::PaymentMethod::Wallet => item
+            storage_models::enums::PaymentMethod::Wallet
+            | storage_models::enums::PaymentMethod::BankRedirect => item
                 .response
                 .payment_option
                 .as_ref()
@@ -865,58 +1131,59 @@ impl<F, T>
         let response = item.response;
         Ok(Self {
             status: get_payment_status(&response),
-            response: match response.status {
-                NuveiPaymentStatus::Error => {
-                    get_error_response(response.err_code, response.reason, item.http_code)
-                }
-                _ => match response.transaction_status {
-                    Some(NuveiTransactionStatus::Error) => get_error_response(
-                        response.gw_error_code,
-                        response.gw_error_reason,
-                        item.http_code,
-                    ),
-                    _ => Ok(types::PaymentsResponseData::TransactionResponse {
-                        resource_id: response
-                            .transaction_id
-                            .map_or(response.order_id, Some) // For paypal there will be no transaction_id, only order_id will be present
-                            .map(types::ResponseId::ConnectorTransactionId)
-                            .ok_or(errors::ConnectorError::MissingConnectorTransactionID)?,
-                        redirection_data,
-                        mandate_reference: None,
-                        // we don't need to save session token for capture, void flow so ignoring if it is not present
-                        connector_metadata: if let Some(token) = response.session_token {
-                            Some(
-                                serde_json::to_value(NuveiMeta {
-                                    session_token: token,
-                                })
-                                .into_report()
-                                .change_context(errors::ConnectorError::ResponseHandlingFailed)?,
-                            )
-                        } else {
-                            None
-                        },
-                    }),
-                },
+            response: if let Some(err) = build_error_response(&response, item.http_code) {
+                err
+            } else {
+                Ok(types::PaymentsResponseData::TransactionResponse {
+                    resource_id: response
+                        .transaction_id
+                        .map_or(response.order_id, Some) // For paypal there will be no transaction_id, only order_id will be present
+                        .map(types::ResponseId::ConnectorTransactionId)
+                        .ok_or(errors::ConnectorError::MissingConnectorTransactionID)?,
+                    redirection_data,
+                    mandate_reference: response
+                        .payment_option
+                        .and_then(|po| po.user_payment_option_id),
+                    // we don't need to save session token for capture, void flow so ignoring if it is not present
+                    connector_metadata: if let Some(token) = response.session_token {
+                        Some(
+                            serde_json::to_value(NuveiMeta {
+                                session_token: token,
+                            })
+                            .into_report()
+                            .change_context(errors::ConnectorError::ResponseHandlingFailed)?,
+                        )
+                    } else {
+                        None
+                    },
+                })
             },
             ..item.data
         })
     }
 }
 
-impl<F, T> TryFrom<types::ResponseRouterData<F, NuveiACSResponse, T, types::PaymentsResponseData>>
-    for types::RouterData<F, T, types::PaymentsResponseData>
+impl TryFrom<types::PaymentsInitResponseRouterData<NuveiPaymentsResponse>>
+    for types::PaymentsInitRouterData
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::ResponseRouterData<F, NuveiACSResponse, T, types::PaymentsResponseData>,
+        item: types::PaymentsInitResponseRouterData<NuveiPaymentsResponse>,
     ) -> Result<Self, Self::Error> {
+        let response = item.response;
+        let is_enrolled_for_3ds = response
+            .clone()
+            .payment_option
+            .and_then(|po| po.card)
+            .and_then(|c| c.three_d)
+            .and_then(|t| t.v2supported)
+            .map(utils::to_boolean)
+            .unwrap_or_default();
         Ok(Self {
-            status: enums::AttemptStatus::AuthenticationFailed,
-            response: Err(types::ErrorResponse {
-                code: consts::NO_ERROR_CODE.to_string(),
-                message: "Authentication Failed".to_string(),
-                reason: None,
-                status_code: item.http_code,
+            status: get_payment_status(&response),
+            response: Ok(types::PaymentsResponseData::ThreeDSEnrollmentResponse {
+                enrolled_v2: is_enrolled_for_3ds,
+                related_transaction_id: response.transaction_id,
             }),
             ..item.data
         })
@@ -985,11 +1252,11 @@ fn get_refund_response(
         .unwrap_or(enums::RefundStatus::Failure);
     match response.status {
         NuveiPaymentStatus::Error => {
-            get_error_response(response.err_code, response.reason, http_code)
+            get_error_response(response.err_code, &response.reason, http_code)
         }
         _ => match response.transaction_status {
             Some(NuveiTransactionStatus::Error) => {
-                get_error_response(response.gw_error_code, response.gw_error_reason, http_code)
+                get_error_response(response.gw_error_code, &response.gw_error_reason, http_code)
             }
             _ => Ok(types::RefundsResponseData {
                 connector_refund_id: txn_id,
@@ -1001,14 +1268,16 @@ fn get_refund_response(
 
 fn get_error_response<T>(
     error_code: Option<i64>,
-    error_msg: Option<String>,
+    error_msg: &Option<String>,
     http_code: u16,
 ) -> Result<T, types::ErrorResponse> {
     Err(types::ErrorResponse {
         code: error_code
             .map(|c| c.to_string())
             .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
-        message: error_msg.unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
+        message: error_msg
+            .clone()
+            .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
         reason: None,
         status_code: http_code,
     })

@@ -270,7 +270,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
                 data: data.clone(),
                 http_code: res.status_code,
             },
-            get_payment_flow(data.request.is_auto_capture()),
+            get_payment_flow(data.request.is_auto_capture()?),
         ))
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
@@ -443,7 +443,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
                 data: data.clone(),
                 http_code: res.status_code,
             },
-            get_payment_flow(data.request.is_auto_capture()),
+            get_payment_flow(data.request.is_auto_capture()?),
         ))
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
