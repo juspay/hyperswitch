@@ -81,7 +81,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Co
         helpers::authenticate_client_secret(
             request.client_secret.as_ref(),
             &payment_intent,
-            merchant_account.intent_fulfillment_time
+            merchant_account.intent_fulfillment_time,
         )?;
 
         let browser_info = request

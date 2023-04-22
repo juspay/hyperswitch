@@ -12,7 +12,7 @@ use crate::{
     configs::settings,
     core::{
         api_keys,
-        errors::{self, RouterResult}
+        errors::{self, RouterResult},
     },
     db::StorageInterface,
     routes::app::AppStateInfo,
@@ -200,8 +200,8 @@ where
 }
 
 #[derive(Debug)]
-pub struct PublishableKeyAuth{
-   pub client_secret:Option<String>
+pub struct PublishableKeyAuth {
+    pub client_secret: Option<String>,
 }
 
 #[async_trait]
@@ -215,19 +215,19 @@ where
         state: &A,
     ) -> RouterResult<storage::MerchantAccount> {
         let publishable_key =
-        get_api_key(request_headers).change_context(errors::ApiErrorResponse::Unauthorized)?;
-    let m= state
-        .store()
-        .find_merchant_account_by_publishable_key(publishable_key)
-        .await
-        .map_err(|e| {
-            if e.current_context().is_db_not_found() {
-                e.change_context(errors::ApiErrorResponse::Unauthorized)
-            } else {
-                e.change_context(errors::ApiErrorResponse::InternalServerError)
-            }
-        })?;
-      return Ok(m);
+            get_api_key(request_headers).change_context(errors::ApiErrorResponse::Unauthorized)?;
+        let m = state
+            .store()
+            .find_merchant_account_by_publishable_key(publishable_key)
+            .await
+            .map_err(|e| {
+                if e.current_context().is_db_not_found() {
+                    e.change_context(errors::ApiErrorResponse::Unauthorized)
+                } else {
+                    e.change_context(errors::ApiErrorResponse::InternalServerError)
+                }
+            })?;
+        return Ok(m);
     }
 }
 
@@ -328,7 +328,12 @@ pub fn get_auth_type_and_flow<A: AppStateInfo + Sync>(
     let api_key = get_api_key(headers)?;
 
     if api_key.starts_with("pk_") {
-        return Ok((Box::new(PublishableKeyAuth{client_secret:None}), api::AuthFlow::Client));
+        return Ok((
+            Box::new(PublishableKeyAuth {
+                client_secret: None,
+            }),
+            api::AuthFlow::Client,
+        ));
     }
     Ok((Box::new(ApiKeyAuth), api::AuthFlow::Merchant))
 }
@@ -348,14 +353,18 @@ where
     let api_key = get_api_key(headers)?;
 
     if api_key.starts_with("pk_") {
-            payload
+        payload
             .get_client_secret()
             .check_value_present("client_secret")
             .map_err(|_| errors::ApiErrorResponse::MissingRequiredField {
                 field_name: "client_secret",
             })?;
-        return Ok((Box::new(PublishableKeyAuth{client_secret:payload.get_client_secret().cloned()}), api::AuthFlow::Client));
-
+        return Ok((
+            Box::new(PublishableKeyAuth {
+                client_secret: payload.get_client_secret().cloned(),
+            }),
+            api::AuthFlow::Client,
+        ));
     }
 
     if payload.get_client_secret().is_some() {

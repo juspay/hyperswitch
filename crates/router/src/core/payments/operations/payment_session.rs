@@ -87,7 +87,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsSessionRequest>
         helpers::authenticate_client_secret(
             Some(&request.client_secret),
             &payment_intent,
-            merchant_account.intent_fulfillment_time
+            merchant_account.intent_fulfillment_time,
         )?;
 
         let shipping_address = helpers::get_address_for_payment_request(

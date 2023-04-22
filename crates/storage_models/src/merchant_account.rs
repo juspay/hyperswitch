@@ -37,7 +37,7 @@ pub struct MerchantAccount {
     pub api_key: Option<StrongSecret<String>>,
     pub created_at: time::PrimitiveDateTime,
     pub modified_at: time::PrimitiveDateTime,
-    pub intent_fulfillment_time:Option<i32>
+    pub intent_fulfillment_time: Option<i32>,
 }
 
 #[derive(Clone, Debug, Default, Insertable, router_derive::DebugAsDisplay)]
@@ -105,7 +105,7 @@ pub struct MerchantAccountUpdateInternal {
     routing_algorithm: Option<serde_json::Value>,
     primary_business_details: Option<serde_json::Value>,
     modified_at: Option<time::PrimitiveDateTime>,
-    intent_fulfillment_time:Option<i32>
+    intent_fulfillment_time: Option<i32>,
 }
 
 impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {

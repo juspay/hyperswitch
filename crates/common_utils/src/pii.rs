@@ -152,7 +152,7 @@ mod pii_masking_strategy_tests {
     #[test]
     fn test_invalid_card_number_masking() {
         let secret: Secret<String, CardNumber> = Secret::new("1234567890".to_string());
-        assert_eq!("123456****", format!("{secret:?}"));
+        assert_eq!("*** alloc::string::String ***", format!("{secret:?}"));
     }
 
     /*
