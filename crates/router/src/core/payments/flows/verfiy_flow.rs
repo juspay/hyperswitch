@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 
-use super::{ConstructFlowSpecificData, Feature};
+use super::{authorize_flow, ConstructFlowSpecificData, Feature};
 use crate::{
     core::{
         errors::{ConnectorErrorExt, RouterResult},
@@ -90,7 +90,7 @@ impl types::VerifyRouterData {
                 .await
                 .map_err(|err| err.to_verify_failed_response())?;
 
-                let pm_id = super::authorize_flow::save_payment_method(
+                let pm_id = authorize_flow::save_payment_method(
                     state,
                     connector,
                     resp.to_owned(),
