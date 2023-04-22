@@ -50,7 +50,7 @@ pub async fn refund_create(
 }
 
 #[instrument(skip_all)]
-#[get("/{refund_id}")]
+#[post("/sync")]
 pub async fn refund_retrieve_with_gateway_creds(
     state: web::Data<routes::AppState>,
     qs_config: web::Data<serde_qs::Config>,
