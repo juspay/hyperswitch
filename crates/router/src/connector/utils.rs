@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use api_models::payments;
+use api_models::payments::{self, OrderDetails};
 use base64::Engine;
 use common_utils::{
     date_time,
@@ -151,6 +151,7 @@ pub trait PaymentsAuthorizeRequestData {
     fn is_auto_capture(&self) -> Result<bool, Error>;
     fn get_email(&self) -> Result<Secret<String, Email>, Error>;
     fn get_browser_info(&self) -> Result<types::BrowserInformation, Error>;
+    fn get_order_details(&self) -> Result<OrderDetails, Error>;
     fn get_card(&self) -> Result<api::Card, Error>;
     fn get_return_url(&self) -> Result<String, Error>;
     fn connector_mandate_id(&self) -> Option<String>;
@@ -174,6 +175,12 @@ impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
             .clone()
             .ok_or_else(missing_field_err("browser_info"))
     }
+    fn get_order_details(&self) -> Result<OrderDetails, Error> {
+        self.order_details
+            .clone()
+            .ok_or_else(missing_field_err("order_details"))
+    }
+
     fn get_card(&self) -> Result<api::Card, Error> {
         match self.payment_method_data.clone() {
             api::PaymentMethodData::Card(card) => Ok(card),
@@ -266,9 +273,6 @@ impl PaymentsCancelRequestData for PaymentsCancelData {
 
 pub trait RefundsRequestData {
     fn get_connector_refund_id(&self) -> Result<String, Error>;
-
-    //By default amount will be in cents, this method will convert the amount to refund to dollars. Eg: 991 cents to 9.91 dollars
-    fn get_refund_amount_in_dollars(&self) -> String;
 }
 
 impl RefundsRequestData for types::RefundsData {
@@ -277,10 +281,6 @@ impl RefundsRequestData for types::RefundsData {
             .clone()
             .get_required_value("connector_refund_id")
             .change_context(errors::ConnectorError::MissingConnectorTransactionID)
-    }
-    fn get_refund_amount_in_dollars(&self) -> String {
-        #[allow(clippy::as_conversions)]
-        (self.refund_amount as f32 / 100.0).to_string()
     }
 }
 

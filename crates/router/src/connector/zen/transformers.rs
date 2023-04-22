@@ -1,6 +1,6 @@
 use std::net::IpAddr;
 
-use masking::{PeekInterface, Secret};
+use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -27,10 +27,6 @@ impl TryFrom<&types::ConnectorAuthType> for ZenAuthType {
             Err(errors::ConnectorError::FailedToObtainAuthType.into())
         }
     }
-}
-#[derive(Debug, Deserialize)]
-pub struct ZenTerminalID {
-    pub terminal_id: String,
 }
 
 #[derive(Debug, Serialize, Eq, PartialEq)]
@@ -87,10 +83,6 @@ pub struct ZenBrowserDetails {
 #[derive(Debug, Serialize, Eq, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub enum ZenPaymentTypes {
-    AuthCheckToken,
-    AuthCheck,
-    General,
-    Unscheduled,
     Onetime,
 }
 
@@ -107,7 +99,7 @@ pub struct ZenCardDetails {
 pub struct ZenItemObject {
     name: String,
     price: String,
-    quantity: u32,
+    quantity: u16,
     line_amount_total: String,
 }
 
@@ -115,6 +107,15 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for ZenPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         let browser_info = item.request.get_browser_info()?;
+        let order_details = item.request.get_order_details()?;
+
+        let window_size = match (browser_info.screen_height, browser_info.screen_width) {
+            (250, 400) => "01".to_string(),
+            (390, 400) => "02".to_string(),
+            (500, 600) => "03".to_string(),
+            (600, 400) => "04".to_string(),
+            _ => "05".to_string(),
+        };
         let browser_details = ZenBrowserDetails {
             color_depth: browser_info.color_depth.to_string(),
             java_enabled: browser_info.java_enabled,
@@ -123,7 +124,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for ZenPaymentsRequest {
             screen_width: browser_info.screen_width.to_string(),
             timezone: browser_info.time_zone.to_string(),
             accept_header: browser_info.accept_header,
-            window_size: "05".to_string(), //todo get this from frontend in browser info,
+            window_size,
             user_agent: browser_info.user_agent,
         };
         let (payment_specific_data, payment_channel) =
@@ -136,8 +137,8 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for ZenPaymentsRequest {
                             number: ccard.card_number.clone(),
                             expiry_date: Secret::new(format!(
                                 "{}{}",
-                                ccard.card_exp_month.peek(),
-                                ccard.get_card_expiry_year_2_digit().peek()
+                                ccard.card_exp_month.clone().expose(),
+                                ccard.get_card_expiry_year_2_digit().expose()
                             )),
                             cvv: ccard.card_cvc,
                         },
@@ -164,16 +165,12 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for ZenPaymentsRequest {
                     },
                 )?,
             },
-            custom_ipn_url: item.request.webhook_url.clone().ok_or(
-                errors::ConnectorError::MissingRequiredField {
-                    field_name: "item.request.webhook_url",
-                },
-            )?,
+            custom_ipn_url: item.request.get_webhook_url()?,
             items: vec![ZenItemObject {
-                name: "test_item".to_string(),
-                price: "65.4".to_string(),
-                quantity: 1,
-                line_amount_total: "65.4".to_string(),
+                name: order_details.product_name.clone(),
+                price: "65.40".to_string(),
+                quantity: order_details.quantity,
+                line_amount_total: "65.40".to_string(),
             }],
         })
     }
@@ -197,7 +194,8 @@ impl ForeignTryFrom<(ZenPaymentStatus, Option<ZenActions>)> for enums::AttemptSt
     fn foreign_try_from(item: (ZenPaymentStatus, Option<ZenActions>)) -> Result<Self, Self::Error> {
         let (item_txn_status, item_action_status) = item;
         Ok(match item_txn_status {
-            ZenPaymentStatus::Authorized => Self::Authorized,
+            // Payment has been authorized at connector end, They will send webhook when it gets accepted
+            ZenPaymentStatus::Authorized => Self::Pending,
             ZenPaymentStatus::Accepted => Self::Charged,
             ZenPaymentStatus::Pending => {
                 item_action_status.map_or(Self::Pending, |action| match action {
@@ -269,9 +267,6 @@ impl<F, T>
     }
 }
 
-//TODO: Fill the struct with respective fields
-// REFUND :
-// Type definition for RefundRequest
 #[derive(Default, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ZenRefundRequest {
@@ -285,15 +280,16 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for ZenRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
         Ok(Self {
-            amount: item.request.refund_amount.to_string(),
+            amount: utils::to_currency_base_unit(
+                item.request.refund_amount,
+                item.request.currency,
+            )?,
             transaction_id: item.request.connector_transaction_id.clone(),
             currency: item.request.currency,
             merchant_transaction_id: item.request.refund_id.clone(),
         })
     }
 }
-
-// Type definition for Refund Response
 
 #[allow(dead_code)]
 #[derive(Debug, Serialize, Default, Deserialize, Clone)]
@@ -309,8 +305,8 @@ pub enum RefundStatus {
 impl From<RefundStatus> for enums::RefundStatus {
     fn from(item: RefundStatus) -> Self {
         match item {
-            RefundStatus::Authorized | RefundStatus::Accepted => Self::Success,
-            RefundStatus::Pending => Self::Pending,
+            RefundStatus::Accepted => Self::Success,
+            RefundStatus::Pending | RefundStatus::Authorized => Self::Pending,
             RefundStatus::Rejected => Self::Failure,
         }
     }

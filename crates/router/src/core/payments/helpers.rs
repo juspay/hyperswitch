@@ -370,13 +370,13 @@ pub fn create_redirect_url(
 }
 
 pub fn create_webhook_url(
-    _router_base_url: &String,
+    router_base_url: &String,
     payment_attempt: &storage::PaymentAttempt,
     connector_name: &String,
 ) -> String {
     format!(
-        "https://8615-122-179-30-41.in.ngrok.io/webhooks/{}/{}",
-        payment_attempt.merchant_id, connector_name
+        "{}/webhooks/{}/{}",
+        router_base_url, payment_attempt.merchant_id, connector_name
     )
 }
 pub fn create_complete_authorize_url(

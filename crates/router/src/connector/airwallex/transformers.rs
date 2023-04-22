@@ -25,7 +25,7 @@ impl TryFrom<&types::PaymentsInitRouterData> for AirwallexIntentRequest {
     fn try_from(item: &types::PaymentsInitRouterData) -> Result<Self, Self::Error> {
         Ok(Self {
             request_id: Uuid::new_v4().to_string(),
-            amount: item.request.amount.to_string(),
+            amount: utils::to_currency_base_unit(item.request.amount, item.request.currency)?,
             currency: item.request.currency,
             merchant_order_id: item.payment_id.clone(),
         })
