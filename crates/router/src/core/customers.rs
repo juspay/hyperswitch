@@ -36,7 +36,9 @@ pub async fn create_customer(
             .peek()
             .clone()
             .parse_value("AddressDetails")
-            .change_context(errors::ApiErrorResponse::AddressNotFound)?;
+            .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "address",
+            })?;
         db.insert_address(storage::AddressNew {
             city: customer_address.city,
             country: customer_address.country,
