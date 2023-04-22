@@ -30,7 +30,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for {{project-name | downcase 
                     expiry_month: req_card.card_exp_month,
                     expiry_year: req_card.card_exp_year,
                     cvc: req_card.card_cvc,
-                    complete: item.request.is_auto_capture(),
+                    complete: item.request.is_auto_capture()?,
                 };
                 Ok(Self {
                     amount: item.request.amount,
@@ -38,7 +38,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for {{project-name | downcase 
                 })
             }
             _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
-        }    
+        }
     }
 }
 

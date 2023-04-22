@@ -44,6 +44,7 @@ pub struct StoreCardResp {
 #[derive(Debug, Deserialize, Serialize)]
 pub struct StoreCardRespPayload {
     pub card_reference: String,
+    pub duplicate: Option<bool>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -87,7 +88,7 @@ pub struct AddCardRequest<'a> {
     pub nickname: Option<String>,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AddCardResponse {
     pub card_id: String,
@@ -126,8 +127,9 @@ pub struct DeleteCardResponse {
     pub status: String,
 }
 
-pub fn basilisk_hs_key_id() -> &'static str {
-    "1"
+#[derive(Debug, Deserialize, Serialize)]
+pub struct PaymentMethodMetadata {
+    pub payment_method_tokenization: std::collections::HashMap<String, String>,
 }
 
 pub fn get_dotted_jwe(jwe: encryption::JweBody) -> String {
@@ -172,12 +174,17 @@ pub async fn get_decrypted_response_payload(
     let private_key = jwekey.vault_private_key.to_owned();
 
     let jwt = get_dotted_jwe(jwe_body);
-    let key_id = basilisk_hs_key_id();
     let alg = jwe::RSA_OAEP;
-    let jwe_decrypted = encryption::decrypt_jwe(&jwt, key_id, key_id, private_key, alg)
-        .await
-        .change_context(errors::VaultError::SaveCardFailed)
-        .attach_printable("Jwe Decryption failed for JweBody for vault")?;
+
+    let jwe_decrypted = encryption::decrypt_jwe(
+        &jwt,
+        encryption::KeyIdCheck::SkipKeyIdCheck,
+        private_key,
+        alg,
+    )
+    .await
+    .change_context(errors::VaultError::SaveCardFailed)
+    .attach_printable("Jwe Decryption failed for JweBody for vault")?;
 
     let jws = jwe_decrypted
         .parse_struct("JwsBody")
@@ -282,7 +289,7 @@ pub async fn mk_add_card_request_hs(
     #[cfg(not(feature = "kms"))]
     let private_key = jwekey.vault_private_key.to_owned();
 
-    let jws = encryption::jws_sign_payload(&payload, basilisk_hs_key_id(), private_key)
+    let jws = encryption::jws_sign_payload(&payload, &locker.locker_signing_key_id, private_key)
         .await
         .change_context(errors::VaultError::RequestEncodingFailed)?;
 
@@ -353,7 +360,7 @@ pub fn mk_add_card_response(
         expiry_year: Some(card.card_exp_year),
         card_token: Some(response.external_id.into()), // [#256]
         card_fingerprint: Some(response.card_fingerprint),
-        card_holder_name: None,
+        card_holder_name: card.card_holder_name,
     };
     api::PaymentMethodResponse {
         merchant_id: merchant_id.to_owned(),
@@ -435,7 +442,7 @@ pub async fn mk_get_card_request_hs(
     #[cfg(not(feature = "kms"))]
     let private_key = jwekey.vault_private_key.to_owned();
 
-    let jws = encryption::jws_sign_payload(&payload, basilisk_hs_key_id(), private_key)
+    let jws = encryption::jws_sign_payload(&payload, &locker.locker_signing_key_id, private_key)
         .await
         .change_context(errors::VaultError::RequestEncodingFailed)?;
 
@@ -527,7 +534,7 @@ pub async fn mk_delete_card_request_hs(
     #[cfg(not(feature = "kms"))]
     let private_key = jwekey.vault_private_key.to_owned();
 
-    let jws = encryption::jws_sign_payload(&payload, basilisk_hs_key_id(), private_key)
+    let jws = encryption::jws_sign_payload(&payload, &locker.locker_signing_key_id, private_key)
         .await
         .change_context(errors::VaultError::RequestEncodingFailed)?;
 
@@ -563,7 +570,7 @@ pub fn mk_delete_card_request<'a>(
     let mut url = locker.host.to_owned();
     url.push_str("/card/deleteCard");
     let mut request = services::Request::new(services::Method::Post, &url);
-    request.add_header(headers::X_ROUTER, "test");
+    request.add_default_headers();
     request.add_header(headers::CONTENT_TYPE, "application/x-www-form-urlencoded");
 
     request.set_body(body);
@@ -595,7 +602,7 @@ pub fn get_card_detail(
         expiry_year: Some(response.card_exp_year),
         card_token: None,
         card_fingerprint: None,
-        card_holder_name: None,
+        card_holder_name: response.name_on_card,
     };
     Ok(card_detail)
 }
@@ -611,7 +618,7 @@ pub fn mk_crud_locker_request(
     let mut url = locker.basilisk_host.to_owned();
     url.push_str(path);
     let mut request = services::Request::new(services::Method::Post, &url);
-    request.add_header(headers::X_ROUTER, "test");
+    request.add_default_headers();
     request.add_header(headers::CONTENT_TYPE, "application/json");
     request.set_body(body.to_string());
     Ok(request)

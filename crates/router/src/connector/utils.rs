@@ -1,7 +1,9 @@
 use std::collections::HashMap;
 
+use api_models::payments;
 use base64::Engine;
 use common_utils::{
+    date_time,
     errors::ReportSwitchExt,
     pii::{self, Email},
 };
@@ -50,6 +52,7 @@ pub trait RouterData {
     fn get_billing_country(&self) -> Result<api_models::enums::CountryCode, Error>;
     fn get_billing_phone(&self) -> Result<&api::PhoneDetails, Error>;
     fn get_description(&self) -> Result<String, Error>;
+    fn get_return_url(&self) -> Result<String, Error>;
     fn get_billing_address(&self) -> Result<&api::AddressDetails, Error>;
     fn get_shipping_address(&self) -> Result<&api::AddressDetails, Error>;
     fn get_connector_meta(&self) -> Result<pii::SecretSerdeValue, Error>;
@@ -58,6 +61,7 @@ pub trait RouterData {
     where
         T: serde::de::DeserializeOwned;
     fn is_three_ds(&self) -> bool;
+    fn get_payment_method_token(&self) -> Result<String, Error>;
 }
 
 impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Response> {
@@ -88,6 +92,11 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
         self.description
             .clone()
             .ok_or_else(missing_field_err("description"))
+    }
+    fn get_return_url(&self) -> Result<String, Error> {
+        self.return_url
+            .clone()
+            .ok_or_else(missing_field_err("return_url"))
     }
     fn get_billing_address(&self) -> Result<&api::AddressDetails, Error> {
         self.address
@@ -131,19 +140,31 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
             .and_then(|a| a.address.as_ref())
             .ok_or_else(missing_field_err("shipping.address"))
     }
+    fn get_payment_method_token(&self) -> Result<String, Error> {
+        self.payment_method_token
+            .clone()
+            .ok_or_else(missing_field_err("payment_method_token"))
+    }
 }
 
 pub trait PaymentsAuthorizeRequestData {
-    fn is_auto_capture(&self) -> bool;
+    fn is_auto_capture(&self) -> Result<bool, Error>;
     fn get_email(&self) -> Result<Secret<String, Email>, Error>;
     fn get_browser_info(&self) -> Result<types::BrowserInformation, Error>;
     fn get_card(&self) -> Result<api::Card, Error>;
     fn get_return_url(&self) -> Result<String, Error>;
+    fn connector_mandate_id(&self) -> Option<String>;
+    fn is_mandate_payment(&self) -> bool;
+    fn get_webhook_url(&self) -> Result<String, Error>;
 }
 
 impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
-    fn is_auto_capture(&self) -> bool {
-        self.capture_method == Some(storage_models::enums::CaptureMethod::Automatic)
+    fn is_auto_capture(&self) -> Result<bool, Error> {
+        match self.capture_method {
+            Some(storage_models::enums::CaptureMethod::Automatic) | None => Ok(true),
+            Some(storage_models::enums::CaptureMethod::Manual) => Ok(false),
+            Some(_) => Err(errors::ConnectorError::CaptureMethodNotSupported.into()),
+        }
     }
     fn get_email(&self) -> Result<Secret<String, Email>, Error> {
         self.email.clone().ok_or_else(missing_field_err("email"))
@@ -164,16 +185,52 @@ impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
             .clone()
             .ok_or_else(missing_field_err("return_url"))
     }
+    fn connector_mandate_id(&self) -> Option<String> {
+        self.mandate_id
+            .as_ref()
+            .and_then(|mandate_ids| mandate_ids.connector_mandate_id.clone())
+    }
+    fn is_mandate_payment(&self) -> bool {
+        self.setup_mandate_details.is_some()
+            || self
+                .mandate_id
+                .as_ref()
+                .and_then(|mandate_ids| mandate_ids.connector_mandate_id.as_ref())
+                .is_some()
+    }
+    fn get_webhook_url(&self) -> Result<String, Error> {
+        self.router_return_url
+            .clone()
+            .ok_or_else(missing_field_err("webhook_url"))
+    }
+}
+
+pub trait PaymentsCompleteAuthorizeRequestData {
+    fn is_auto_capture(&self) -> Result<bool, Error>;
+}
+
+impl PaymentsCompleteAuthorizeRequestData for types::CompleteAuthorizeData {
+    fn is_auto_capture(&self) -> Result<bool, Error> {
+        match self.capture_method {
+            Some(storage_models::enums::CaptureMethod::Automatic) | None => Ok(true),
+            Some(storage_models::enums::CaptureMethod::Manual) => Ok(false),
+            Some(_) => Err(errors::ConnectorError::CaptureMethodNotSupported.into()),
+        }
+    }
 }
 
 pub trait PaymentsSyncRequestData {
-    fn is_auto_capture(&self) -> bool;
+    fn is_auto_capture(&self) -> Result<bool, Error>;
     fn get_connector_transaction_id(&self) -> CustomResult<String, errors::ValidationError>;
 }
 
 impl PaymentsSyncRequestData for types::PaymentsSyncData {
-    fn is_auto_capture(&self) -> bool {
-        self.capture_method == Some(storage_models::enums::CaptureMethod::Automatic)
+    fn is_auto_capture(&self) -> Result<bool, Error> {
+        match self.capture_method {
+            Some(storage_models::enums::CaptureMethod::Automatic) | None => Ok(true),
+            Some(storage_models::enums::CaptureMethod::Manual) => Ok(false),
+            Some(_) => Err(errors::ConnectorError::CaptureMethodNotSupported.into()),
+        }
     }
     fn get_connector_transaction_id(&self) -> CustomResult<String, errors::ValidationError> {
         match self.connector_transaction_id.clone() {
@@ -247,7 +304,11 @@ pub enum CardIssuer {
 pub trait CardData {
     fn get_card_expiry_year_2_digit(&self) -> Secret<String>;
     fn get_card_issuer(&self) -> Result<CardIssuer, Error>;
-    fn get_card_expiry_month_year_2_digit_with_delimiter(&self, delimiter: String) -> String;
+    fn get_card_expiry_month_year_2_digit_with_delimiter(
+        &self,
+        delimiter: String,
+    ) -> Secret<String>;
+    fn get_expiry_date_as_yyyymm(&self, delimiter: &str) -> Secret<String>;
 }
 
 impl CardData for api::Card {
@@ -263,14 +324,29 @@ impl CardData for api::Card {
             .map(|card| card.split_whitespace().collect());
         get_card_issuer(card.peek().clone().as_str())
     }
-    fn get_card_expiry_month_year_2_digit_with_delimiter(&self, delimiter: String) -> String {
+    fn get_card_expiry_month_year_2_digit_with_delimiter(
+        &self,
+        delimiter: String,
+    ) -> Secret<String> {
         let year = self.get_card_expiry_year_2_digit();
-        format!(
+        Secret::new(format!(
             "{}{}{}",
             self.card_exp_month.peek().clone(),
             delimiter,
             year.peek()
-        )
+        ))
+    }
+    fn get_expiry_date_as_yyyymm(&self, delimiter: &str) -> Secret<String> {
+        let mut x = self.card_exp_year.peek().clone();
+        if x.len() == 2 {
+            x = format!("20{}", x);
+        }
+        Secret::new(format!(
+            "{}{}{}",
+            x,
+            delimiter,
+            self.card_exp_month.peek().clone()
+        ))
     }
 }
 
@@ -395,6 +471,27 @@ impl AddressDetailsData for api::AddressDetails {
     }
 }
 
+pub trait MandateData {
+    fn get_end_date(&self, format: date_time::DateFormat) -> Result<String, Error>;
+    fn get_metadata(&self) -> Result<pii::SecretSerdeValue, Error>;
+}
+
+impl MandateData for payments::MandateAmountData {
+    fn get_end_date(&self, format: date_time::DateFormat) -> Result<String, Error> {
+        let date = self.end_date.ok_or_else(missing_field_err(
+            "mandate_data.mandate_type.{multi_use|single_use}.end_date",
+        ))?;
+        date_time::format_date(date, format)
+            .into_report()
+            .change_context(errors::ConnectorError::DateFormattingFailed)
+    }
+    fn get_metadata(&self) -> Result<pii::SecretSerdeValue, Error> {
+        self.metadata.clone().ok_or_else(missing_field_err(
+            "mandate_data.mandate_type.{multi_use|single_use}.metadata",
+        ))
+    }
+}
+
 pub fn get_header_key_value<'a>(
     key: &str,
     headers: &'a actix_web::http::header::HeaderMap,
@@ -453,15 +550,6 @@ impl common_utils::errors::ErrorSwitch<errors::ConnectorError> for errors::Parsi
     fn switch(&self) -> errors::ConnectorError {
         errors::ConnectorError::ParsingFailed
     }
-}
-
-pub fn to_string<T>(data: &T) -> Result<String, Error>
-where
-    T: serde::Serialize,
-{
-    serde_json::to_string(data)
-        .into_report()
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
 }
 
 pub fn base64_decode(data: String) -> Result<Vec<u8>, Error> {

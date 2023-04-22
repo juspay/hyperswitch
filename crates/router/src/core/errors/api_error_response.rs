@@ -158,6 +158,8 @@ pub enum ApiErrorResponse {
     IncorrectConnectorNameGiven,
     #[error(error_type = ErrorType::ObjectNotFound, code = "HE_04", message = "Address does not exist in our records")]
     AddressNotFound,
+    #[error(error_type = ErrorType::ObjectNotFound, code = "HE_04", message = "Dispute does not exist in our records")]
+    DisputeNotFound { dispute_id: String },
     #[error(error_type = ErrorType::InvalidRequestError, code = "HE_04", message = "Card with the provided iin does not exist")]
     InvalidCardIin,
     #[error(error_type = ErrorType::InvalidRequestError, code = "HE_04", message = "The provided card IIN length is invalid, please provide an iin with 6 or 8 digits")]
@@ -253,7 +255,8 @@ impl actix_web::ResponseError for ApiErrorResponse {
             Self::DuplicateMerchantAccount
             | Self::DuplicateMerchantConnectorAccount
             | Self::DuplicatePaymentMethod
-            | Self::DuplicateMandate => StatusCode::BAD_REQUEST, // 400
+            | Self::DuplicateMandate
+            | Self::DisputeNotFound { .. } => StatusCode::BAD_REQUEST, // 400
             Self::ReturnUrlUnavailable => StatusCode::SERVICE_UNAVAILABLE, // 503
             Self::PaymentNotSucceeded => StatusCode::BAD_REQUEST,          // 400
             Self::NotImplemented { .. } => StatusCode::NOT_IMPLEMENTED,    // 501
@@ -263,12 +266,8 @@ impl actix_web::ResponseError for ApiErrorResponse {
     fn error_response(&self) -> actix_web::HttpResponse {
         use actix_web::http::header;
 
-        use crate::consts;
-
         actix_web::HttpResponseBuilder::new(self.status_code())
             .insert_header((header::CONTENT_TYPE, mime::APPLICATION_JSON))
-            .insert_header((header::STRICT_TRANSPORT_SECURITY, consts::HSTS_HEADER_VALUE))
-            .insert_header((header::VIA, "Juspay_Router"))
             .body(self.to_string())
     }
 }
@@ -447,7 +446,10 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
             Self::InvalidCardIinLength  => AER::BadRequest(ApiError::new("HE", 3, "The provided card IIN length is invalid, please provide an IIN with 6 digits", None)),
             Self::FlowNotSupported { flow, connector } => {
                 AER::BadRequest(ApiError::new("IR", 20, format!("{flow} flow not supported"), Some(Extra {connector: Some(connector.to_owned()), ..Default::default()}))) //FIXME: error message
-            }
+            },
+            Self::DisputeNotFound { .. } => {
+                AER::NotFound(ApiError::new("HE", 2, "Dispute does not exist in our records", None))
+            },
         }
     }
 }

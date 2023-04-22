@@ -9,20 +9,22 @@ errors = [
     "dep:actix-web",
     "dep:reqwest",
 ]
+multiple_mca = []
 
 [dependencies]
 actix-web = { version = "4.3.1", optional = true }
 error-stack = "0.3.1"
 frunk = "0.4.1"
 frunk_core = "0.4.1"
-mime = "0.3.16"
-reqwest = { version = "0.11.14", optional = true }
-serde = { version = "1.0.155", features = ["derive"] }
-serde_json = "1.0.94"
+mime = "0.3.17"
+reqwest = { version = "0.11.16", optional = true }
+serde = { version = "1.0.160", features = ["derive"] }
+serde_json = "1.0.96"
 strum = { version = "0.24.1", features = ["derive"] }
 time = { version = "0.3.20", features = ["serde", "serde-well-known", "std"] }
 url = { version = "2.3.1", features = ["serde"] }
-utoipa = { version = "3.2.0", features = ["preserve_order"] }
+utoipa = { version = "3.3.0", features = ["preserve_order"] }
+
 
 # First party crates
 common_utils = { version = "0.1.0", path = "../common_utils" }

@@ -3,6 +3,7 @@ pub mod api_keys;
 pub mod cards_info;
 pub mod configs;
 pub mod customers;
+pub mod disputes;
 pub mod errors;
 pub mod mandate;
 pub mod metrics;

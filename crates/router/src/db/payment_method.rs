@@ -25,6 +25,12 @@ pub trait PaymentMethodInterface {
         m: storage::PaymentMethodNew,
     ) -> CustomResult<storage::PaymentMethod, errors::StorageError>;
 
+    async fn update_payment_method(
+        &self,
+        payment_method: storage::PaymentMethod,
+        payment_method_update: storage::PaymentMethodUpdate,
+    ) -> CustomResult<storage::PaymentMethod, errors::StorageError>;
+
     async fn delete_payment_method_by_merchant_id_payment_method_id(
         &self,
         merchant_id: &str,
@@ -51,6 +57,19 @@ impl PaymentMethodInterface for Store {
     ) -> CustomResult<storage::PaymentMethod, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
         m.insert(&conn).await.map_err(Into::into).into_report()
+    }
+
+    async fn update_payment_method(
+        &self,
+        payment_method: storage::PaymentMethod,
+        payment_method_update: storage::PaymentMethodUpdate,
+    ) -> CustomResult<storage::PaymentMethod, errors::StorageError> {
+        let conn = connection::pg_connection_write(self).await?;
+        payment_method
+            .update_with_payment_method_id(&conn, payment_method_update)
+            .await
+            .map_err(Into::into)
+            .into_report()
     }
 
     async fn find_payment_method_by_customer_id_merchant_id_list(
@@ -113,6 +132,15 @@ impl PaymentMethodInterface for MockDb {
         &self,
         _merchant_id: &str,
         _payment_method_id: &str,
+    ) -> CustomResult<storage::PaymentMethod, errors::StorageError> {
+        // [#172]: Implement function for `MockDb`
+        Err(errors::StorageError::MockDbError)?
+    }
+
+    async fn update_payment_method(
+        &self,
+        _payment_method: storage::PaymentMethod,
+        _payment_method_update: storage::PaymentMethodUpdate,
     ) -> CustomResult<storage::PaymentMethod, errors::StorageError> {
         // [#172]: Implement function for `MockDb`
         Err(errors::StorageError::MockDbError)?

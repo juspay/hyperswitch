@@ -68,11 +68,12 @@ enum PaymentDetails {
     BankRedirect,
 }
 
-impl From<api_models::payments::PaymentMethodData> for PaymentDetails {
-    fn from(value: api_models::payments::PaymentMethodData) -> Self {
+impl TryFrom<api_models::payments::PaymentMethodData> for PaymentDetails {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(value: api_models::payments::PaymentMethodData) -> Result<Self, Self::Error> {
         match value {
             api::PaymentMethodData::Card(ref ccard) => {
-                Self::CreditCard(CreditCardDetails {
+                Ok(Self::CreditCard(CreditCardDetails {
                     card_number: ccard.card_number.clone(),
                     // expiration_date: format!("{expiry_year}-{expiry_month}").into(),
                     expiration_date: ccard
@@ -81,11 +82,19 @@ impl From<api_models::payments::PaymentMethodData> for PaymentDetails {
                         .zip(ccard.card_exp_year.clone())
                         .map(|(expiry_month, expiry_year)| format!("{expiry_year}-{expiry_month}")),
                     card_code: Some(ccard.card_cvc.clone()),
-                })
+                }))
             }
-            api::PaymentMethodData::PayLater(_) => Self::Klarna,
-            api::PaymentMethodData::Wallet(_) => Self::Wallet,
-            api::PaymentMethodData::BankRedirect(_) => Self::BankRedirect,
+            api::PaymentMethodData::PayLater(_) => Ok(Self::Klarna),
+            api::PaymentMethodData::Wallet(_) => Ok(Self::Wallet),
+            api::PaymentMethodData::BankRedirect(_) => Ok(Self::BankRedirect),
+            api::PaymentMethodData::Crypto(_) | api::PaymentMethodData::BankDebit(_) => {
+                Err(errors::ConnectorError::NotSupported {
+                    payment_method: format!("{value:?}"),
+                    connector: "AuthorizeDotNet",
+                    payment_experience: api_models::enums::PaymentExperience::RedirectToUrl
+                        .to_string(),
+                })?
+            }
         }
     }
 }
@@ -159,7 +168,7 @@ impl From<enums::CaptureMethod> for AuthorizationType {
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for CreateTransactionRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
-        let payment_details = item.request.payment_method_data.clone().into();
+        let payment_details = PaymentDetails::try_from(item.request.payment_method_data.clone())?;
         let authorization_indicator_type =
             item.request.capture_method.map(|c| AuthorizationIndicator {
                 authorization_indicator: c.into(),
