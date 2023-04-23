@@ -8,7 +8,6 @@ use transformers as zen;
 use uuid::Uuid;
 
 use self::transformers::{ZenPaymentStatus, ZenWebhookTxnType};
-
 use super::utils::RefundsRequestData;
 use crate::{
     configs::settings,
@@ -95,7 +94,7 @@ impl ConnectorCommon for Zen {
 
     fn build_error_response(
         &self,
-        res: types::Response,
+        res: Response,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         let response: zen::ZenErrorResponse = res
             .response
