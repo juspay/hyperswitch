@@ -101,7 +101,6 @@ macro_rules! default_imp_for_complete_authorize{
 default_imp_for_complete_authorize!(
     connector::Aci,
     connector::Adyen,
-    connector::Applepay,
     connector::Authorizedotnet,
     connector::Bambora,
     connector::Bluesnap,
@@ -145,7 +144,6 @@ macro_rules! default_imp_for_connector_redirect_response{
 default_imp_for_connector_redirect_response!(
     connector::Aci,
     connector::Adyen,
-    connector::Applepay,
     connector::Authorizedotnet,
     connector::Bambora,
     connector::Bluesnap,
@@ -179,7 +177,6 @@ default_imp_for_connector_request_id!(
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
-    connector::Applepay,
     connector::Authorizedotnet,
     connector::Bambora,
     connector::Bluesnap,
@@ -226,7 +223,6 @@ default_imp_for_pre_processing_steps!(
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
-    connector::Applepay,
     connector::Authorizedotnet,
     connector::Bambora,
     connector::Bluesnap,
