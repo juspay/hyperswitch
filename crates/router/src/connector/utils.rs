@@ -206,7 +206,7 @@ impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
                 .is_some()
     }
     fn get_webhook_url(&self) -> Result<String, Error> {
-        self.router_return_url
+        self.webhook_url
             .clone()
             .ok_or_else(missing_field_err("webhook_url"))
     }

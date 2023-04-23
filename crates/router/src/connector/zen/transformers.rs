@@ -110,12 +110,13 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for ZenPaymentsRequest {
         let order_details = item.request.get_order_details()?;
 
         let window_size = match (browser_info.screen_height, browser_info.screen_width) {
-            (250, 400) => "01".to_string(),
-            (390, 400) => "02".to_string(),
-            (500, 600) => "03".to_string(),
-            (600, 400) => "04".to_string(),
-            _ => "05".to_string(),
-        };
+            (250, 400) => "01",
+            (390, 400) => "02",
+            (500, 600) => "03",
+            (600, 400) => "04",
+            _ => "05",
+        }
+        .to_string();
         let browser_details = ZenBrowserDetails {
             color_depth: browser_info.color_depth.to_string(),
             java_enabled: browser_info.java_enabled,
@@ -132,6 +133,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for ZenPaymentsRequest {
                 api::PaymentMethodData::Card(ccard) => Ok((
                     ZenPaymentData {
                         browser_details,
+                        //Connector Specific for cards
                         payment_type: ZenPaymentTypes::Onetime,
                         card: ZenCardDetails {
                             number: ccard.card_number.clone(),
@@ -145,6 +147,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for ZenPaymentsRequest {
                         descriptor: item.get_description()?.chars().take(24).collect(),
                         return_verify_url: item.request.router_return_url.clone(),
                     },
+                    //Connector Specific for cards
                     ZenPaymentChannels::PclCard,
                 )),
                 _ => Err(errors::ConnectorError::NotImplemented(
@@ -377,6 +380,13 @@ pub enum ZenWebhookTxnType {
     TrtRefund,
 }
 
-//TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
-pub struct ZenErrorResponse {}
+pub struct ZenErrorResponse {
+    pub error: ZenErrorBody,
+}
+
+#[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
+pub struct ZenErrorBody {
+    pub message: String,
+    pub code: String,
+}
