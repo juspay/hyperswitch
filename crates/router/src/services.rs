@@ -8,7 +8,6 @@ use std::sync::{atomic, Arc};
 use error_stack::{IntoReport, ResultExt};
 #[cfg(feature = "kms")]
 use external_services::kms;
-use futures::StreamExt;
 use redis_interface::{errors as redis_errors, PubsubInterface};
 
 pub use self::{api::*, encryption::*};

@@ -109,6 +109,7 @@ pub async fn create_customer(
             metadata: customer_data.metadata,
             id: None,
             created_at: common_utils::date_time::now(),
+            modified_at: common_utils::date_time::now(),
         })
     }
     .await

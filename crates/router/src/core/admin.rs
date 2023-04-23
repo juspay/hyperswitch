@@ -7,7 +7,7 @@ use common_utils::{
 use error_stack::{report, FutureExt, IntoReport, ResultExt};
 use masking::PeekInterface;
 use masking::Secret; //PeekInterface
-use storage_models::{enums, merchant_account};
+use storage_models::enums;
 use uuid::Uuid;
 
 use crate::{
@@ -26,8 +26,8 @@ use crate::{
             self, merchant_account as merchant_domain, merchant_key_store,
             types::{self as domain_types, AsyncLift},
         },
-        storage::{self, MerchantAccount},
-        transformers::{ForeignInto, ForeignTryFrom, ForeignTryInto},
+        storage::{self},
+        transformers::ForeignInto,
     },
     utils::{self, OptionExt},
 };
@@ -157,11 +157,9 @@ pub async fn create_merchant_account(
 
     db.insert_merchant_key_store(key_store)
         .await
-        .map_err(|error| {
-            error.to_duplicate_response(errors::ApiErrorResponse::DuplicateMerchantAccount)
-        })?;
+        .to_duplicate_response(errors::ApiErrorResponse::DuplicateMerchantAccount)?;
 
-    let encrypt_string = |inner: Option<masking::Secret<String>>| async {
+    let encrypt_string = |inner: Option<Secret<String>>| async {
         inner
             .async_map(|value| domain_types::encrypt(value, &key))
             .await
@@ -198,7 +196,9 @@ pub async fn create_merchant_account(
             locker_id: req.locker_id,
             metadata: req.metadata,
             storage_scheme: storage_models::enums::MerchantStorageScheme::PostgresOnly,
-            primary_busniess_details,
+            primary_business_details,
+            created_at: date_time::now(),
+            modified_at: date_time::now(),
             id: None,
         })
     }
@@ -208,11 +208,12 @@ pub async fn create_merchant_account(
     let merchant_account = db
         .insert_merchant(merchant_account)
         .await
-        .map_err(|error| {
-            error.to_duplicate_response(errors::ApiErrorResponse::DuplicateMerchantAccount)
-        })?;
+        .to_duplicate_response(errors::ApiErrorResponse::DuplicateMerchantAccount)?;
     Ok(service_api::ApplicationResponse::Json(
-        merchant_account.into(),
+        merchant_account
+            .try_into()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed while generating response")?,
     ))
 }
 
@@ -226,7 +227,10 @@ pub async fn get_merchant_account(
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
     Ok(service_api::ApplicationResponse::Json(
-        merchant_account.into(),
+        merchant_account
+            .try_into()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to construct response")?,
     ))
 }
 
@@ -262,7 +266,7 @@ pub async fn merchant_account_update(
             .attach_printable("Invalid routing algorithm given")?;
     }
 
-    let encrypt_string = |inner: Option<masking::Secret<String>>| async {
+    let encrypt_string = |inner: Option<Secret<String>>| async {
         inner
             .async_map(|value| domain_types::encrypt(value, &key))
             .await
@@ -340,7 +344,12 @@ pub async fn merchant_account_update(
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
-    Ok(service_api::ApplicationResponse::Json(response.into()))
+    Ok(service_api::ApplicationResponse::Json(
+        response
+            .try_into()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed while generating response")?,
+    ))
 }
 
 pub async fn merchant_account_delete(
@@ -396,7 +405,7 @@ async fn validate_merchant_id<S: Into<String>>(
 
 fn get_business_details_wrapper(
     request: &api::MerchantConnectorCreate,
-    _merchant_account: &MerchantAccount,
+    _merchant_account: &domain::merchant_account::MerchantAccount,
 ) -> RouterResult<(enums::CountryCode, String)> {
     #[cfg(feature = "multiple_mca")]
     {
@@ -509,7 +518,8 @@ pub async fn create_payment_connector(
         .await
         .to_duplicate_response(errors::ApiErrorResponse::DuplicateMerchantConnectorAccount)?;
 
-    let mca_response = ForeignTryFrom::foreign_try_from(mca)?;
+    let mca_response = mca.try_into()?;
+    // let mca_response = ForeignTryFrom::foreign_try_from(mca)?;
 
     Ok(service_api::ApplicationResponse::Json(mca_response))
 }
@@ -591,7 +601,7 @@ pub async fn update_payment_connector(
             .collect::<Vec<serde_json::Value>>()
     });
 
-    let encrypt = |inner: Option<masking::Secret<serde_json::Value>>| async {
+    let encrypt = |inner: Option<Secret<serde_json::Value>>| async {
         inner
             .async_map(|inner| domain_types::encrypt(inner, &key))
             .await
@@ -607,6 +617,25 @@ pub async fn update_payment_connector(
         }
         None => None,
     };
+
+    let payment_connector = storage::MerchantConnectorAccountUpdate::Update {
+        merchant_id: None,
+        connector_type: Some(req.connector_type.foreign_into()),
+        connector_name: None,
+        merchant_connector_id: None,
+        connector_account_details: req
+            .connector_account_details
+            .async_lift(encrypt)
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed while encrypting data")?,
+        test_mode: mca.test_mode,
+        disabled: mca.disabled,
+        payment_methods_enabled,
+        metadata: req.metadata,
+        frm_configs,
+    };
+
     let updated_mca = db
         .update_merchant_connector_account(mca, payment_connector.into())
         .await
@@ -615,16 +644,8 @@ pub async fn update_payment_connector(
             format!("Failed while updating MerchantConnectorAccount: id: {merchant_connector_id}")
         })?;
 
-    let response = api::MerchantConnector {
-        connector_type: updated_mca.connector_type.foreign_into(),
-        connector_name: updated_mca.connector_name,
-        merchant_connector_id: Some(updated_mca.merchant_connector_id),
-        connector_account_details: Some(updated_mca.connector_account_details.into_inner()),
-        test_mode: updated_mca.test_mode,
-        disabled: updated_mca.disabled,
-        payment_methods_enabled: updated_pm_enabled,
-        metadata: updated_mca.metadata,
-    };
+    let response = updated_mca.try_into()?;
+
     Ok(service_api::ApplicationResponse::Json(response))
 }
 

@@ -7,12 +7,7 @@ pub use api_models::admin::{
 };
 use common_utils::ext_traits::ValueExt;
 
-use crate::types::domain::merchant_account;
-
-use crate::{
-    core::errors,
-    types::{storage, transformers::ForeignTryFrom},
-};
+use crate::{core::errors, types::domain::merchant_account};
 
 impl TryFrom<merchant_account::MerchantAccount> for MerchantAccountResponse {
     type Error = error_stack::Report<errors::ParsingError>;

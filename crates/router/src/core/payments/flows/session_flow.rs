@@ -14,7 +14,7 @@ use crate::{
     routes::{self, metrics},
     services,
     types::{
-        self, api, storage
+        self, api,
         domain::{customer, merchant_account},
     },
     utils::{self, OptionExt},

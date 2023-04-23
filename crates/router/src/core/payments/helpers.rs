@@ -2,7 +2,7 @@ use std::borrow::Cow;
 
 use base64::Engine;
 use common_utils::{
-    ext_traits::{AsyncExt, ByteSliceExt},
+    ext_traits::{AsyncExt, ByteSliceExt, ValueExt},
     fp_utils, generate_id,
 };
 // TODO : Evaluate all the helper functions ()
@@ -29,7 +29,6 @@ use crate::{
     scheduler::{metrics as scheduler_metrics, workflows::payment_sync},
     services,
     types::{
-        self,
         api::{self, admin, enums as api_enums, CustomerAcceptanceExt, MandateValidationFieldsExt},
         domain::{
             self, customer, merchant_account,
@@ -37,6 +36,7 @@ use crate::{
         },
         storage::{self, enums as storage_enums, ephemeral_key},
         transformers::ForeignInto,
+        ErrorResponse, RouterData,
     },
     utils::{
         self,
@@ -135,9 +135,7 @@ pub async fn get_address_for_payment_request(
                     Some(
                         db.update_address(id.to_owned(), address_update)
                             .await
-                            .map_err(|err| {
-                                err.to_not_found_response(errors::ApiErrorResponse::AddressNotFound)
-                            })?,
+                            .to_not_found_response(errors::ApiErrorResponse::AddressNotFound)?,
                     )
                 }
                 None => {
@@ -786,6 +784,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R>(
                             created_at: common_utils::date_time::now(),
                             id: None,
                             metadata: None,
+                            modified_at: common_utils::date_time::now(),
                         })
                     }
                     .await
@@ -1447,7 +1446,7 @@ pub fn get_connector_label(
 pub fn get_business_details(
     business_country: Option<api_enums::CountryCode>,
     business_label: Option<&String>,
-    merchant_account: &storage_models::merchant_account::MerchantAccount,
+    merchant_account: &domain::merchant_account::MerchantAccount,
 ) -> RouterResult<(api_enums::CountryCode, String)> {
     let (business_country, business_label) = match business_country.zip(business_label) {
         Some((business_country, business_label)) => {
@@ -1606,11 +1605,11 @@ pub async fn get_merchant_connector_account(
 /// * `request` - new request
 /// * `response` - new response
 pub fn router_data_type_conversion<F1, F2, Req1, Req2, Res1, Res2>(
-    router_data: types::RouterData<F1, Req1, Res1>,
+    router_data: RouterData<F1, Req1, Res1>,
     request: Req2,
-    response: Result<Res2, types::ErrorResponse>,
-) -> types::RouterData<F2, Req2, Res2> {
-    types::RouterData {
+    response: Result<Res2, ErrorResponse>,
+) -> RouterData<F2, Req2, Res2> {
+    RouterData {
         flow: std::marker::PhantomData,
         request,
         response,

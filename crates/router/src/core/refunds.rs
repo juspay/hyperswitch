@@ -19,7 +19,7 @@ use crate::{
         self,
         api::{self, refunds},
         domain::merchant_account,
-        storage::{self, enums, PaymentAttemptExt, ProcessTrackerExt},
+        storage::{self, enums, ProcessTrackerExt},
         transformers::{ForeignFrom, ForeignInto},
     },
     utils::{self, OptionExt},

@@ -34,6 +34,9 @@ pub struct MerchantAccount {
     pub metadata: Option<pii::SecretSerdeValue>,
     pub routing_algorithm: Option<serde_json::Value>,
     pub api_key: Option<Encryptable<Secret<String>>>,
+    pub primary_business_details: serde_json::Value,
+    pub created_at: time::PrimitiveDateTime,
+    pub modified_at: time::PrimitiveDateTime,
 }
 
 #[derive(Debug)]
@@ -52,6 +55,7 @@ pub enum MerchantAccountUpdate {
         locker_id: Option<String>,
         metadata: Option<pii::SecretSerdeValue>,
         routing_algorithm: Option<serde_json::Value>,
+        primary_business_details: Option<serde_json::Value>,
     },
     StorageSchemeUpdate {
         storage_scheme: enums::MerchantStorageScheme,
@@ -75,6 +79,7 @@ impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
                 publishable_key,
                 locker_id,
                 metadata,
+                primary_business_details,
             } => Self {
                 merchant_name: merchant_name.map(Encryption::from),
                 merchant_details: merchant_details.map(Encryption::from),
@@ -89,6 +94,7 @@ impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
                 publishable_key,
                 locker_id,
                 metadata,
+                primary_business_details,
                 ..Default::default()
             },
             MerchantAccountUpdate::StorageSchemeUpdate { storage_scheme } => Self {
@@ -124,6 +130,9 @@ impl super::behaviour::Conversion for MerchantAccount {
             metadata: self.metadata,
             routing_algorithm: self.routing_algorithm,
             api_key: self.api_key.map(|api_key| api_key.into()),
+            primary_business_details: self.primary_business_details,
+            created_at: self.created_at,
+            modified_at: self.modified_at,
         })
     }
 
@@ -169,6 +178,9 @@ impl super::behaviour::Conversion for MerchantAccount {
                     .async_map(|value| Encryptable::decrypt(value, &key, GcmAes256 {}))
                     .await
                     .transpose()?,
+                primary_business_details: item.primary_business_details,
+                created_at: item.created_at,
+                modified_at: item.modified_at,
             })
         }
         .await
@@ -194,6 +206,7 @@ impl super::behaviour::Conversion for MerchantAccount {
             metadata: self.metadata,
             routing_algorithm: self.routing_algorithm,
             api_key: self.api_key.map(Encryption::from),
+            primary_business_details: self.primary_business_details,
         })
     }
 }

@@ -17,7 +17,6 @@ use crate::{
         self,
         api::{self, PaymentMethodCreateExt},
         domain::{customer, merchant_account},
-        storage,
     },
     utils::OptionExt,
 };
@@ -172,8 +171,8 @@ pub async fn save_payment_method<F: Clone, FData>(
     state: &AppState,
     connector: &api::ConnectorData,
     resp: types::RouterData<F, FData, types::PaymentsResponseData>,
-    maybe_customer: &Option<storage::Customer>,
-    merchant_account: &storage::MerchantAccount,
+    maybe_customer: &Option<customer::Customer>,
+    merchant_account: &types::domain::merchant_account::MerchantAccount,
 ) -> RouterResult<Option<String>>
 where
     FData: mandate::MandateBehaviour,
@@ -277,7 +276,7 @@ where
 
 pub async fn save_in_locker(
     state: &AppState,
-    merchant_account: &storage::MerchantAccount,
+    merchant_account: &merchant_account::MerchantAccount,
     payment_method_request: api::PaymentMethodCreate,
 ) -> RouterResult<(api_models::payment_methods::PaymentMethodResponse, bool)> {
     payment_method_request.validate()?;

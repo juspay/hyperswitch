@@ -470,7 +470,7 @@ impl PaymentCreate {
     #[instrument(skip_all)]
     fn make_payment_intent(
         payment_id: &str,
-        merchant_account: &storage::MerchantAccount,
+        merchant_account: &types::domain::merchant_account::MerchantAccount,
         money: (api::Amount, enums::Currency),
         request: &api::PaymentsRequest,
         shipping_address_id: Option<String>,

@@ -16,8 +16,8 @@ use crate::{
     types::{
         self, api,
         domain::{customer, merchant_account},
-        storage::{self, enums, PaymentAttemptExt},
-        transformers::{ForeignFrom, ForeignInto, ForeignTryFrom},
+        storage::{self, enums},
+        transformers::{ForeignFrom, ForeignInto},
     },
     utils::{OptionExt, ValueExt},
 };

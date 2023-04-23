@@ -4,13 +4,13 @@ use super::errors::{self, RouterResponse, StorageErrorExt};
 use crate::{
     routes::AppState,
     services,
-    types::{api::disputes, storage, transformers::ForeignFrom},
+    types::{api::disputes, domain::merchant_account, transformers::ForeignFrom},
 };
 
 #[instrument(skip(state))]
 pub async fn retrieve_dispute(
     state: &AppState,
-    merchant_account: storage::MerchantAccount,
+    merchant_account: merchant_account::MerchantAccount,
     req: disputes::DisputeId,
 ) -> RouterResponse<api_models::disputes::DisputeResponse> {
     let dispute = state
@@ -27,7 +27,7 @@ pub async fn retrieve_dispute(
 #[instrument(skip(state))]
 pub async fn retrieve_disputes_list(
     state: &AppState,
-    merchant_account: storage::MerchantAccount,
+    merchant_account: merchant_account::MerchantAccount,
     constraints: api_models::disputes::DisputeListConstraints,
 ) -> RouterResponse<Vec<api_models::disputes::DisputeResponse>> {
     let disputes = state

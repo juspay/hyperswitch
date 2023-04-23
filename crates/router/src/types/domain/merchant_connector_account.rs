@@ -28,6 +28,13 @@ pub struct MerchantConnectorAccount {
     pub payment_methods_enabled: Option<Vec<serde_json::Value>>,
     pub connector_type: enums::ConnectorType,
     pub metadata: Option<pii::SecretSerdeValue>,
+    pub frm_configs: Option<Secret<serde_json::Value>>, //Option<FrmConfigs>
+    pub connector_label: String,
+    pub business_country: enums::CountryCode,
+    pub business_label: String,
+    pub business_sub_label: Option<String>,
+    pub created_at: time::PrimitiveDateTime,
+    pub modified_at: time::PrimitiveDateTime,
 }
 
 #[derive(Debug)]
@@ -42,6 +49,7 @@ pub enum MerchantConnectorAccountUpdate {
         merchant_connector_id: Option<String>,
         payment_methods_enabled: Option<Vec<serde_json::Value>>,
         metadata: Option<pii::SecretSerdeValue>,
+        frm_configs: Option<Secret<serde_json::Value>>,
     },
 }
 
@@ -65,6 +73,13 @@ impl behaviour::Conversion for MerchantConnectorAccount {
                 payment_methods_enabled: self.payment_methods_enabled,
                 connector_type: self.connector_type,
                 metadata: self.metadata,
+                frm_configs: self.frm_configs,
+                business_country: self.business_country,
+                business_label: self.business_label,
+                connector_label: self.connector_label,
+                business_sub_label: self.business_sub_label,
+                created_at: self.created_at,
+                modified_at: self.modified_at,
             },
         )
     }
@@ -98,6 +113,14 @@ impl behaviour::Conversion for MerchantConnectorAccount {
             payment_methods_enabled: other.payment_methods_enabled,
             connector_type: other.connector_type,
             metadata: other.metadata,
+
+            frm_configs: other.frm_configs,
+            business_country: other.business_country,
+            business_label: other.business_label,
+            connector_label: other.connector_label,
+            business_sub_label: other.business_sub_label,
+            created_at: other.created_at,
+            modified_at: other.modified_at,
         })
     }
 
@@ -112,6 +135,11 @@ impl behaviour::Conversion for MerchantConnectorAccount {
             payment_methods_enabled: self.payment_methods_enabled,
             connector_type: Some(self.connector_type),
             metadata: self.metadata,
+            frm_configs: self.frm_configs,
+            business_country: self.business_country,
+            business_label: self.business_label,
+            connector_label: self.connector_label,
+            business_sub_label: self.business_sub_label,
         })
     }
 }
@@ -129,6 +157,7 @@ impl From<MerchantConnectorAccountUpdate> for MerchantConnectorAccountUpdateInte
                 merchant_connector_id,
                 payment_methods_enabled,
                 metadata,
+                frm_configs,
             } => Self {
                 merchant_id,
                 connector_type,
@@ -139,6 +168,8 @@ impl From<MerchantConnectorAccountUpdate> for MerchantConnectorAccountUpdateInte
                 merchant_connector_id,
                 payment_methods_enabled,
                 metadata,
+                frm_configs,
+                modified_at: Some(common_utils::date_time::now()),
             },
         }
     }

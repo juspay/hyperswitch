@@ -395,9 +395,7 @@ impl MerchantConnectorAccountInterface for MockDb {
             payment_methods_enabled: t.payment_methods_enabled,
             metadata: t.metadata,
             frm_configs: t.frm_configs,
-            connector_type: t
-                .connector_type
-                .unwrap_or(crate::types::storage::enums::ConnectorType::FinOperations),
+            connector_type: t.connector_type,
             connector_label: t.connector_label,
             business_country: t.business_country,
             business_label: t.business_label,

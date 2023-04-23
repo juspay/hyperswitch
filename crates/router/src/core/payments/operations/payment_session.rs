@@ -18,7 +18,7 @@ use crate::{
     pii::Secret,
     routes::AppState,
     types::{
-        api::{self, enums as api_enums, PaymentIdTypeExt},
+        api::{self, PaymentIdTypeExt},
         domain::{customer as domain, merchant_account},
         storage::{self, enums as storage_enums},
     },

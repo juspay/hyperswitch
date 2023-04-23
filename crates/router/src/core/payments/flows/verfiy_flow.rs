@@ -74,7 +74,7 @@ impl types::VerifyRouterData {
         maybe_customer: &Option<customer::Customer>,
         confirm: Option<bool>,
         call_connector_action: payments::CallConnectorAction,
-        merchant_account: &merchant_account::MerchantAccount,
+        _merchant_account: &merchant_account::MerchantAccount,
     ) -> RouterResult<Self> {
         match confirm {
             Some(true) => {

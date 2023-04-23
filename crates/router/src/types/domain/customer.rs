@@ -24,6 +24,7 @@ pub struct Customer {
     pub description: Option<String>,
     pub created_at: PrimitiveDateTime,
     pub metadata: Option<pii::SecretSerdeValue>,
+    pub modified_at: PrimitiveDateTime,
 }
 
 #[async_trait::async_trait]
@@ -44,6 +45,7 @@ impl super::behaviour::Conversion for Customer {
             description: self.description,
             created_at: self.created_at,
             metadata: self.metadata,
+            modified_at: self.modified_at,
         })
     }
 
@@ -74,6 +76,7 @@ impl super::behaviour::Conversion for Customer {
                 description: item.description,
                 created_at: item.created_at,
                 metadata: item.metadata,
+                modified_at: item.modified_at,
             })
         }
         .await
@@ -125,6 +128,7 @@ impl From<CustomerUpdate> for CustomerUpdateInternal {
                 description,
                 phone_country_code,
                 metadata,
+                modified_at: Some(common_utils::date_time::now()),
             },
         }
     }
