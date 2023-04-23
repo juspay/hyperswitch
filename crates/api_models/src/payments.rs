@@ -1375,13 +1375,15 @@ pub struct OrderDetails {
     pub product_name: String,
     /// The quantity of the product to be purchased
     #[schema(example = 1)]
-    pub quantity: u16,
+    pub quantity: u16, 
+    /// the amount per quantity of product
+    pub amount : i64,
 }
 
 #[derive(Default, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 pub struct Metadata {
     /// Information about the product and quantity for specific connectors. (e.g. Klarna)
-    pub order_details: Option<OrderDetails>,
+    pub order_details: Option<Vec<OrderDetails>>,
     /// Any other metadata that is to be provided
     #[schema(value_type = Object, example = r#"{ "city": "NY", "unit": "245" }"#)]
     #[serde(flatten)]
