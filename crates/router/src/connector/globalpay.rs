@@ -18,7 +18,10 @@ use self::{
 use crate::{
     configs::settings,
     connector::utils as conn_utils,
-    core::errors::{self, CustomResult},
+    core::{
+        errors::{self, CustomResult},
+        payments,
+    },
     db, headers,
     services::{self, ConnectorIntegration},
     types::{
@@ -149,13 +152,14 @@ impl
         Ok(Some(
             services::RequestBuilder::new()
                 .method(services::Method::Post)
-                .url(&types::PaymentsComeplteAuthorizeType::get_url(
+                .url(&types::PaymentsCompleteAuthorizeType::get_url(
                     self, req, connectors,
                 )?)
-                .headers(types::PaymentsComeplteAuthorizeType::get_headers(
+                .attach_default_headers()
+                .headers(types::PaymentsCompleteAuthorizeType::get_headers(
                     self, req, connectors,
                 )?)
-                .body(types::PaymentsComeplteAuthorizeType::get_request_body(
+                .body(types::PaymentsCompleteAuthorizeType::get_request_body(
                     self, req,
                 )?)
                 .build(),
@@ -228,6 +232,7 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
             services::RequestBuilder::new()
                 .method(services::Method::Post)
                 .url(&types::RefreshTokenType::get_url(self, req, connectors)?)
+                .attach_default_headers()
                 .headers(types::RefreshTokenType::get_headers(self, req, connectors)?)
                 .body(types::RefreshTokenType::get_request_body(self, req)?)
                 .build(),
@@ -284,6 +289,18 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
 
 impl api::Payment for Globalpay {}
 
+impl api::PaymentToken for Globalpay {}
+
+impl
+    ConnectorIntegration<
+        api::PaymentMethodToken,
+        types::PaymentMethodTokenizationData,
+        types::PaymentsResponseData,
+    > for Globalpay
+{
+    // Not Implemented (R)
+}
+
 impl api::PreVerify for Globalpay {}
 impl ConnectorIntegration<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>
     for Globalpay
@@ -328,6 +345,7 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
             services::RequestBuilder::new()
                 .method(services::Method::Post)
                 .url(&types::PaymentsVoidType::get_url(self, req, connectors)?)
+                .attach_default_headers()
                 .headers(types::PaymentsVoidType::get_headers(self, req, connectors)?)
                 .body(types::PaymentsVoidType::get_request_body(self, req)?)
                 .build(),
@@ -411,6 +429,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
             services::RequestBuilder::new()
                 .method(services::Method::Get)
                 .url(&types::PaymentsSyncType::get_url(self, req, connectors)?)
+                .attach_default_headers()
                 .headers(types::PaymentsSyncType::get_headers(self, req, connectors)?)
                 .build(),
         ))
@@ -489,6 +508,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
             services::RequestBuilder::new()
                 .method(services::Method::Post)
                 .url(&types::PaymentsCaptureType::get_url(self, req, connectors)?)
+                .attach_default_headers()
                 .headers(types::PaymentsCaptureType::get_headers(
                     self, req, connectors,
                 )?)
@@ -577,6 +597,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
                 .url(&types::PaymentsAuthorizeType::get_url(
                     self, req, connectors,
                 )?)
+                .attach_default_headers()
                 .headers(types::PaymentsAuthorizeType::get_headers(
                     self, req, connectors,
                 )?)
@@ -663,6 +684,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         let request = services::RequestBuilder::new()
             .method(services::Method::Post)
             .url(&types::RefundExecuteType::get_url(self, req, connectors)?)
+            .attach_default_headers()
             .headers(types::RefundExecuteType::get_headers(
                 self, req, connectors,
             )?)
@@ -739,6 +761,7 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
             services::RequestBuilder::new()
                 .method(services::Method::Get)
                 .url(&types::RefundSyncType::get_url(self, req, connectors)?)
+                .attach_default_headers()
                 .headers(types::RefundSyncType::get_headers(self, req, connectors)?)
                 .body(types::RefundSyncType::get_request_body(self, req)?)
                 .build(),
@@ -860,5 +883,29 @@ impl api::IncomingWebhook for Globalpay {
             .into_report()
             .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
         Ok(res_json)
+    }
+}
+
+impl services::ConnectorRedirectResponse for Globalpay {
+    fn get_flow_type(
+        &self,
+        query_params: &str,
+        _json_payload: Option<Value>,
+        _action: services::PaymentAction,
+    ) -> CustomResult<payments::CallConnectorAction, errors::ConnectorError> {
+        let query = serde_urlencoded::from_str::<response::GlobalpayRedirectResponse>(query_params)
+            .into_report()
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        Ok(query.status.map_or(
+            payments::CallConnectorAction::Trigger,
+            |status| match status {
+                response::GlobalpayPaymentStatus::Captured => {
+                    payments::CallConnectorAction::StatusUpdate(
+                        storage_models::enums::AttemptStatus::from(status),
+                    )
+                }
+                _ => payments::CallConnectorAction::Trigger,
+            },
+        ))
     }
 }

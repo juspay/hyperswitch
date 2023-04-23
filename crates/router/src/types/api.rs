@@ -15,8 +15,8 @@ use std::{fmt::Debug, str::FromStr};
 use error_stack::{report, IntoReport, ResultExt};
 
 pub use self::{
-    admin::*, api_keys::*, configs::*, customers::*, payment_methods::*, payments::*, refunds::*,
-    webhooks::*,
+    admin::*, api_keys::*, configs::*, customers::*, disputes::*, payment_methods::*, payments::*,
+    refunds::*, webhooks::*,
 };
 use super::ErrorResponse;
 use crate::{
@@ -33,6 +33,15 @@ pub struct AccessTokenAuth;
 pub trait ConnectorAccessToken:
     ConnectorIntegration<AccessTokenAuth, types::AccessTokenRequestData, types::AccessToken>
 {
+}
+
+pub trait ConnectorTransactionId: ConnectorCommon + Sync {
+    fn connector_transaction_id(
+        &self,
+        payment_attempt: storage_models::payment_attempt::PaymentAttempt,
+    ) -> Result<Option<String>, errors::ApiErrorResponse> {
+        Ok(payment_attempt.connector_transaction_id)
+    }
 }
 
 pub trait ConnectorCommon {
@@ -90,7 +99,14 @@ pub trait ConnectorCommonExt<Flow, Req, Resp>:
 pub trait Router {}
 
 pub trait Connector:
-    Send + Refund + Payment + Debug + ConnectorRedirectResponse + IncomingWebhook + ConnectorAccessToken
+    Send
+    + Refund
+    + Payment
+    + Debug
+    + ConnectorRedirectResponse
+    + IncomingWebhook
+    + ConnectorAccessToken
+    + ConnectorTransactionId
 {
 }
 
@@ -105,7 +121,8 @@ impl<
             + ConnectorRedirectResponse
             + Send
             + IncomingWebhook
-            + ConnectorAccessToken,
+            + ConnectorAccessToken
+            + ConnectorTransactionId,
     > Connector for T
 {
 }
@@ -114,11 +131,14 @@ type BoxedConnector = Box<&'static (dyn Connector + Sync)>;
 
 // Normal flow will call the connector and follow the flow specific operations (capture, authorize)
 // SessionTokenFromMetadata will avoid calling the connector instead create the session token ( for sdk )
+#[derive(Clone, Eq, PartialEq)]
 pub enum GetToken {
-    Metadata,
+    GpayMetadata,
+    ApplePayMetadata,
     Connector,
 }
 
+#[derive(Clone)]
 pub struct ConnectorData {
     pub connector: BoxedConnector,
     pub connector_name: types::Connector,
@@ -131,6 +151,7 @@ pub enum ConnectorChoice {
     Decide,
 }
 
+#[derive(Clone)]
 pub enum ConnectorCallType {
     Multiple(Vec<ConnectorData>),
     Single(ConnectorData),
@@ -169,19 +190,22 @@ impl ConnectorData {
             "aci" => Ok(Box::new(&connector::Aci)),
             "adyen" => Ok(Box::new(&connector::Adyen)),
             "airwallex" => Ok(Box::new(&connector::Airwallex)),
-            "applepay" => Ok(Box::new(&connector::Applepay)),
             "authorizedotnet" => Ok(Box::new(&connector::Authorizedotnet)),
             "bambora" => Ok(Box::new(&connector::Bambora)),
             "bluesnap" => Ok(Box::new(&connector::Bluesnap)),
             "braintree" => Ok(Box::new(&connector::Braintree)),
             "checkout" => Ok(Box::new(&connector::Checkout)),
+            "coinbase" => Ok(Box::new(&connector::Coinbase)),
             "cybersource" => Ok(Box::new(&connector::Cybersource)),
             "dlocal" => Ok(Box::new(&connector::Dlocal)),
             "fiserv" => Ok(Box::new(&connector::Fiserv)),
+            // "forte" => Ok(Box::new(&connector::Forte)),
             "globalpay" => Ok(Box::new(&connector::Globalpay)),
             "klarna" => Ok(Box::new(&connector::Klarna)),
             "mollie" => Ok(Box::new(&connector::Mollie)),
             "nuvei" => Ok(Box::new(&connector::Nuvei)),
+            "opennode" => Ok(Box::new(&connector::Opennode)),
+            // "payeezy" => Ok(Box::new(&connector::Payeezy)), As psync and rsync are not supported by this connector, it is added as template code for future usage
             "payu" => Ok(Box::new(&connector::Payu)),
             "rapyd" => Ok(Box::new(&connector::Rapyd)),
             "shift4" => Ok(Box::new(&connector::Shift4)),
@@ -189,6 +213,8 @@ impl ConnectorData {
             "worldline" => Ok(Box::new(&connector::Worldline)),
             "worldpay" => Ok(Box::new(&connector::Worldpay)),
             "multisafepay" => Ok(Box::new(&connector::Multisafepay)),
+            // "nexinets" => Ok(Box::new(&connector::Nexinets)), added as template code for future use
+            "paypal" => Ok(Box::new(&connector::Paypal)),
             "trustpay" => Ok(Box::new(&connector::Trustpay)),
             _ => Err(report!(errors::ConnectorError::InvalidConnectorName)
                 .attach_printable(format!("invalid connector name: {connector_name}")))

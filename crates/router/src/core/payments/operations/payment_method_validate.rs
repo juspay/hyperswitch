@@ -125,8 +125,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::VerifyRequest> for Paym
 
         connector_response = match db
             .insert_connector_response(
-                PaymentCreate::make_connector_response(&payment_attempt)
-                    .change_context(errors::ApiErrorResponse::InternalServerError)?,
+                PaymentCreate::make_connector_response(&payment_attempt),
                 storage_scheme,
             )
             .await
@@ -177,6 +176,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::VerifyRequest> for Paym
                 sessions_token: vec![],
                 card_cvc: None,
                 creds_identifier,
+                pm_token: None,
             },
             Some(payments::CustomerDetails {
                 customer_id: request.customer_id.clone(),
@@ -221,11 +221,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::VerifyRequest> for PaymentM
                 storage_scheme,
             )
             .await
-            .map_err(|err| {
-                err.to_not_found_response(errors::ApiErrorResponse::VerificationFailed {
-                    data: None,
-                })
-            })?;
+            .to_not_found_response(errors::ApiErrorResponse::VerificationFailed { data: None })?;
 
         Ok((Box::new(self), payment_data))
     }

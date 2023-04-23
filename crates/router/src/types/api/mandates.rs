@@ -43,9 +43,7 @@ impl MandateResponseExt for MandateResponse {
         let payment_method = db
             .find_payment_method(&mandate.payment_method_id)
             .await
-            .map_err(|error| {
-                error.to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)
-            })?;
+            .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
 
         let card = if payment_method.payment_method == storage_enums::PaymentMethod::Card {
             let card = payment_methods::cards::get_card_from_locker(

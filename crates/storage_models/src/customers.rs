@@ -30,6 +30,7 @@ pub struct Customer {
     pub description: Option<String>,
     pub created_at: PrimitiveDateTime,
     pub metadata: Option<pii::SecretSerdeValue>,
+    pub modified_at: PrimitiveDateTime,
 }
 
 #[derive(Clone, Debug, Default, AsChangeset, router_derive::DebugAsDisplay)]
@@ -41,4 +42,5 @@ pub struct CustomerUpdateInternal {
     pub description: Option<String>,
     pub phone_country_code: Option<String>,
     pub metadata: Option<pii::SecretSerdeValue>,
+    pub modified_at: Option<PrimitiveDateTime>,
 }

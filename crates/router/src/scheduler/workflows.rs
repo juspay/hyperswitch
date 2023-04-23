@@ -1,9 +1,13 @@
 use async_trait::async_trait;
-use router_env::{instrument, tracing};
 use serde::{Deserialize, Serialize};
 use strum::EnumString;
 
-use crate::{core::errors, routes::AppState, scheduler::consumer, types::storage};
+use crate::{
+    core::errors,
+    routes::AppState,
+    types::storage,
+    utils::{OptionExt, StringExt},
+};
 pub mod payment_sync;
 pub mod refund_router;
 pub mod tokenized_data;
@@ -23,17 +27,19 @@ macro_rules! runners {
             pub struct $body;
         } )*
 
-        #[instrument(skip(state))]
-        pub async fn perform_workflow_execution<'a>(state: &AppState, process: storage::ProcessTracker, runner: PTRunner)
-        where
-        {
-            match runner {
-                $( PTRunner::$body => {
-                    let flow = &$body;
-                    consumer::run_executor(state, process, flow).await
 
+        pub fn runner_from_task(task: &storage::ProcessTracker) -> Result<Option<Box<dyn ProcessTrackerWorkflow>>, errors::ProcessTrackerError> {
+            let runner = task.runner.clone().get_required_value("runner")?;
+            let runner: Option<PTRunner> = runner.parse_enum("PTRunner").ok();
+            Ok(match runner {
+                $( Some( PTRunner::$body ) => {
+                    Some(Box::new($body))
                 } ,)*
-            }
+                None => {
+                    None
+                }
+            })
+
         }
     };
 }
@@ -48,6 +54,11 @@ runners! {
     RefundWorkflowRouter,
     DeleteTokenizeDataWorkflow
 }
+
+pub type WorkflowSelectorFn =
+    fn(
+        &storage::ProcessTracker,
+    ) -> Result<Option<Box<dyn ProcessTrackerWorkflow>>, errors::ProcessTrackerError>;
 
 #[async_trait]
 pub trait ProcessTrackerWorkflow: Send + Sync {

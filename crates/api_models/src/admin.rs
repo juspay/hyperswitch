@@ -69,6 +69,15 @@ pub struct MerchantAccountCreate {
     /// An identifier for the vault used to store payment method information.
     #[schema(example = "locker_abc123")]
     pub locker_id: Option<String>,
+
+    ///Default business details for connector routing
+    #[cfg(feature = "multiple_mca")]
+    #[schema(value_type = PrimaryBusinessDetails)]
+    pub primary_business_details: Vec<PrimaryBusinessDetails>,
+
+    #[cfg(not(feature = "multiple_mca"))]
+    #[schema(value_type = Option<PrimaryBusinessDetails>)]
+    pub primary_business_details: Option<Vec<PrimaryBusinessDetails>>,
 }
 
 #[derive(Clone, Debug, Deserialize, ToSchema)]
@@ -126,6 +135,9 @@ pub struct MerchantAccountUpdate {
     /// An identifier for the vault used to store payment method information.
     #[schema(example = "locker_abc123")]
     pub locker_id: Option<String>,
+
+    ///Default business details for connector routing
+    pub primary_business_details: Option<Vec<PrimaryBusinessDetails>>,
 }
 
 #[derive(Clone, Debug, ToSchema, Serialize)]
@@ -189,6 +201,9 @@ pub struct MerchantAccountResponse {
     /// An identifier for the vault used to store payment method information.
     #[schema(example = "locker_abc123")]
     pub locker_id: Option<String>,
+    ///Default business details for connector routing
+    #[schema(value_type = Vec<PrimaryBusinessDetails>)]
+    pub primary_business_details: Vec<PrimaryBusinessDetails>,
 }
 
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
@@ -237,6 +252,13 @@ pub struct MerchantDetails {
 #[serde(tag = "type", content = "data", rename_all = "snake_case")]
 pub enum RoutingAlgorithm {
     Single(api_enums::RoutableConnectors),
+}
+
+#[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct PrimaryBusinessDetails {
+    pub country: api_enums::CountryCode,
+    pub business: String,
 }
 
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
@@ -295,13 +317,18 @@ pub struct MerchantConnectorId {
 /// Create a new Merchant Connector for the merchant account. The connector could be a payment processor / facilitator / acquirer or specialized services like Fraud / Accounting etc."
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
-pub struct MerchantConnector {
+pub struct MerchantConnectorCreate {
     /// Type of the Connector for the financial use case. Could range from Payments to Accounting to Banking.
     #[schema(value_type = ConnectorType, example = "payment_processor")]
     pub connector_type: api_enums::ConnectorType,
     /// Name of the Connector
     #[schema(example = "stripe")]
     pub connector_name: String,
+    // /// Connector label for specific country and Business
+    #[serde(skip_deserializing)]
+    #[schema(example = "stripe_US_travel")]
+    pub connector_label: String,
+
     /// Unique ID of the connector
     #[schema(example = "mca_5apGeP94tMts6rg3U3kR")]
     pub merchant_connector_id: Option<String>,
@@ -348,8 +375,203 @@ pub struct MerchantConnector {
     /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
     #[schema(value_type = Option<Object>,max_length = 255,example = json!({ "city": "NY", "unit": "245" }))]
     pub metadata: Option<pii::SecretSerdeValue>,
+    /// contains the frm configs for the merchant connector
+    #[schema(example = json!([
+        {
+            "frm_enabled_pms" : ["card"],
+            "frm_enabled_pm_types" : ["credit"],
+            "frm_enabled_gateways" : ["stripe"],
+            "frm_action": "cancel_txn",
+            "frm_preferred_flow_type" : "pre"
+        }
+    ]))]
+    pub frm_configs: Option<FrmConfigs>,
+
+    /// Business Country of the connector
+    #[schema(example = "US")]
+    #[cfg(feature = "multiple_mca")]
+    pub business_country: api_enums::CountryCode,
+    #[cfg(not(feature = "multiple_mca"))]
+    pub business_country: Option<api_enums::CountryCode>,
+
+    ///Business Type of the merchant
+    #[schema(example = "travel")]
+    #[cfg(feature = "multiple_mca")]
+    pub business_label: String,
+    #[cfg(not(feature = "multiple_mca"))]
+    pub business_label: Option<String>,
+
+    /// Business Sub label of the merchant
+    #[schema(example = "chase")]
+    pub business_sub_label: Option<String>,
 }
 
+/// Response of creating a new Merchant Connector for the merchant account."
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub struct MerchantConnectorResponse {
+    /// Type of the Connector for the financial use case. Could range from Payments to Accounting to Banking.
+    #[schema(value_type = ConnectorType, example = "payment_processor")]
+    pub connector_type: api_enums::ConnectorType,
+    /// Name of the Connector
+    #[schema(example = "stripe")]
+    pub connector_name: String,
+    // /// Connector label for specific country and Business
+    #[serde(skip_deserializing)]
+    #[schema(example = "stripe_US_travel")]
+    pub connector_label: String,
+
+    /// Unique ID of the connector
+    #[schema(example = "mca_5apGeP94tMts6rg3U3kR")]
+    pub merchant_connector_id: String,
+    /// Account details of the Connector. You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Useful for storing additional, structured information on an object.
+    #[schema(value_type = Option<Object>,example = json!({ "auth_type": "HeaderKey","api_key": "Basic MyVerySecretApiKey" }))]
+    pub connector_account_details: pii::SecretSerdeValue,
+    /// A boolean value to indicate if the connector is in Test mode. By default, its value is false.
+    #[schema(default = false, example = false)]
+    pub test_mode: Option<bool>,
+    /// A boolean value to indicate if the connector is disabled. By default, its value is false.
+    #[schema(default = false, example = false)]
+    pub disabled: Option<bool>,
+    /// Refers to the Parent Merchant ID if the merchant being created is a sub-merchant
+    #[schema(example = json!([
+        {
+            "payment_method": "wallet",
+            "payment_method_types": [
+                "upi_collect",
+                "upi_intent"
+            ],
+            "payment_method_issuers": [
+                "labore magna ipsum",
+                "aute"
+            ],
+            "payment_schemes": [
+                "Discover",
+                "Discover"
+            ],
+            "accepted_currencies": {
+                "type": "enable_only",
+                "list": ["USD", "EUR"]
+            },
+            "accepted_countries": {
+                "type": "disable_only",
+                "list": ["FR", "DE","IN"]
+            },
+            "minimum_amount": 1,
+            "maximum_amount": 68607706,
+            "recurring_enabled": true,
+            "installment_payment_enabled": true
+        }
+    ]))]
+    pub payment_methods_enabled: Option<Vec<PaymentMethodsEnabled>>,
+    /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
+    #[schema(value_type = Option<Object>,max_length = 255,example = json!({ "city": "NY", "unit": "245" }))]
+    pub metadata: Option<pii::SecretSerdeValue>,
+
+    /// Business Country of the connector
+    #[schema(example = "US")]
+    pub business_country: api_enums::CountryCode,
+
+    ///Business Type of the merchant
+    #[schema(example = "travel")]
+    pub business_label: String,
+
+    /// Business Sub label of the merchant
+    #[schema(example = "chase")]
+    pub business_sub_label: Option<String>,
+
+    /// contains the frm configs for the merchant connector
+    #[schema(example = json!([
+        {
+            "frm_enabled_pms" : ["card"],
+            "frm_enabled_pm_types" : ["credit"],
+            "frm_enabled_gateways" : ["stripe"],
+            "frm_action": "cancel_txn",
+            "frm_preferred_flow_type" : "pre"
+        }
+    ]))]
+    pub frm_configs: Option<FrmConfigs>,
+}
+
+/// Create a new Merchant Connector for the merchant account. The connector could be a payment processor / facilitator / acquirer or specialized services like Fraud / Accounting etc."
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub struct MerchantConnectorUpdate {
+    /// Type of the Connector for the financial use case. Could range from Payments to Accounting to Banking.
+    #[schema(value_type = ConnectorType, example = "payment_processor")]
+    pub connector_type: api_enums::ConnectorType,
+
+    /// Account details of the Connector. You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Useful for storing additional, structured information on an object.
+    #[schema(value_type = Option<Object>,example = json!({ "auth_type": "HeaderKey","api_key": "Basic MyVerySecretApiKey" }))]
+    pub connector_account_details: Option<pii::SecretSerdeValue>,
+
+    /// A boolean value to indicate if the connector is in Test mode. By default, its value is false.
+    #[schema(default = false, example = false)]
+    pub test_mode: Option<bool>,
+
+    /// A boolean value to indicate if the connector is disabled. By default, its value is false.
+    #[schema(default = false, example = false)]
+    pub disabled: Option<bool>,
+
+    /// Refers to the Parent Merchant ID if the merchant being created is a sub-merchant
+    #[schema(example = json!([
+        {
+            "payment_method": "wallet",
+            "payment_method_types": [
+                "upi_collect",
+                "upi_intent"
+            ],
+            "payment_method_issuers": [
+                "labore magna ipsum",
+                "aute"
+            ],
+            "payment_schemes": [
+                "Discover",
+                "Discover"
+            ],
+            "accepted_currencies": {
+                "type": "enable_only",
+                "list": ["USD", "EUR"]
+            },
+            "accepted_countries": {
+                "type": "disable_only",
+                "list": ["FR", "DE","IN"]
+            },
+            "minimum_amount": 1,
+            "maximum_amount": 68607706,
+            "recurring_enabled": true,
+            "installment_payment_enabled": true
+        }
+    ]))]
+    pub payment_methods_enabled: Option<Vec<PaymentMethodsEnabled>>,
+
+    /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
+    #[schema(value_type = Option<Object>,max_length = 255,example = json!({ "city": "NY", "unit": "245" }))]
+    pub metadata: Option<pii::SecretSerdeValue>,
+
+    /// contains the frm configs for the merchant connector
+    #[schema(example = json!([
+        {
+            "frm_enabled_pms" : ["card"],
+            "frm_enabled_pm_types" : ["credit"],
+            "frm_enabled_gateways" : ["stripe"],
+            "frm_action": "cancel_txn",
+            "frm_preferred_flow_type" : "pre"
+        }
+    ]))]
+    pub frm_configs: Option<FrmConfigs>,
+}
+
+///Details of FrmConfigs are mentioned here... it should be passed in payment connector create api call, and stored in merchant_connector_table
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub struct FrmConfigs {
+    pub frm_enabled_pms: Option<Vec<String>>,
+    pub frm_enabled_pm_types: Option<Vec<String>>,
+    pub frm_enabled_gateways: Option<Vec<String>>,
+    pub frm_action: api_enums::FrmAction, //What should be the action if FRM declines the txn (autorefund/cancel txn/manual review)
+    pub frm_preferred_flow_type: api_enums::FrmPreferredFlowTypes,
+}
 /// Details of all the payment methods enabled for the connector for the given merchant account
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]

@@ -10,7 +10,7 @@ use ::common_utils::{
 use error_stack::{IntoReport, ResultExt};
 use transformers as nuvei;
 
-use super::utils::{self, to_boolean, RouterData};
+use super::utils::{self, RouterData};
 use crate::{
     configs::settings,
     core::{
@@ -71,6 +71,19 @@ impl ConnectorCommon for Nuvei {
 }
 
 impl api::Payment for Nuvei {}
+
+impl api::PaymentToken for Nuvei {}
+
+impl
+    ConnectorIntegration<
+        api::PaymentMethodToken,
+        types::PaymentMethodTokenizationData,
+        types::PaymentsResponseData,
+    > for Nuvei
+{
+    // Not Implemented (R)
+}
+
 impl api::PreVerify for Nuvei {}
 impl api::PaymentVoid for Nuvei {}
 impl api::PaymentSync for Nuvei {}
@@ -135,13 +148,14 @@ impl
         Ok(Some(
             services::RequestBuilder::new()
                 .method(services::Method::Post)
-                .url(&types::PaymentsComeplteAuthorizeType::get_url(
+                .url(&types::PaymentsCompleteAuthorizeType::get_url(
                     self, req, connectors,
                 )?)
-                .headers(types::PaymentsComeplteAuthorizeType::get_headers(
+                .attach_default_headers()
+                .headers(types::PaymentsCompleteAuthorizeType::get_headers(
                     self, req, connectors,
                 )?)
-                .body(types::PaymentsComeplteAuthorizeType::get_request_body(
+                .body(types::PaymentsCompleteAuthorizeType::get_request_body(
                     self, req,
                 )?)
                 .build(),
@@ -218,6 +232,7 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
         let request = services::RequestBuilder::new()
             .method(services::Method::Post)
             .url(&types::PaymentsVoidType::get_url(self, req, connectors)?)
+            .attach_default_headers()
             .headers(types::PaymentsVoidType::get_headers(self, req, connectors)?)
             .body(types::PaymentsVoidType::get_request_body(self, req)?)
             .build();
@@ -300,6 +315,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
             services::RequestBuilder::new()
                 .method(services::Method::Post)
                 .url(&types::PaymentsSyncType::get_url(self, req, connectors)?)
+                .attach_default_headers()
                 .headers(types::PaymentsSyncType::get_headers(self, req, connectors)?)
                 .body(types::PaymentsSyncType::get_request_body(self, req)?)
                 .build(),
@@ -378,6 +394,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
             services::RequestBuilder::new()
                 .method(services::Method::Post)
                 .url(&types::PaymentsCaptureType::get_url(self, req, connectors)?)
+                .attach_default_headers()
                 .headers(types::PaymentsCaptureType::get_headers(
                     self, req, connectors,
                 )?)
@@ -469,35 +486,42 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         )
         .await?;
         router_data.session_token = resp.session_token;
-        let (enrolled_for_3ds, related_transaction_id) = match router_data.auth_type {
-            storage_models::enums::AuthenticationType::ThreeDs => {
-                let integ: Box<
-                    &(dyn ConnectorIntegration<
-                        InitPayment,
-                        types::PaymentsAuthorizeData,
-                        types::PaymentsResponseData,
-                    > + Send
-                          + Sync
-                          + 'static),
-                > = Box::new(&Self);
-                let init_data = &types::PaymentsInitRouterData::from((
-                    &router_data,
-                    router_data.request.clone(),
-                ));
-                let init_resp = services::execute_connector_processing_step(
-                    app_state,
-                    integ,
-                    init_data,
-                    payments::CallConnectorAction::Trigger,
-                )
-                .await?;
+        let (enrolled_for_3ds, related_transaction_id) =
+            match (router_data.auth_type, router_data.payment_method) {
                 (
-                    init_resp.request.enrolled_for_3ds,
-                    init_resp.request.related_transaction_id,
-                )
-            }
-            storage_models::enums::AuthenticationType::NoThreeDs => (false, None),
-        };
+                    storage_models::enums::AuthenticationType::ThreeDs,
+                    storage_models::enums::PaymentMethod::Card,
+                ) => {
+                    let integ: Box<
+                        &(dyn ConnectorIntegration<
+                            InitPayment,
+                            types::PaymentsAuthorizeData,
+                            types::PaymentsResponseData,
+                        > + Send
+                              + Sync
+                              + 'static),
+                    > = Box::new(&Self);
+                    let init_data = &types::PaymentsInitRouterData::from((
+                        &router_data,
+                        router_data.request.clone(),
+                    ));
+                    let init_resp = services::execute_connector_processing_step(
+                        app_state,
+                        integ,
+                        init_data,
+                        payments::CallConnectorAction::Trigger,
+                    )
+                    .await?;
+                    match init_resp.response {
+                        Ok(types::PaymentsResponseData::ThreeDSEnrollmentResponse {
+                            enrolled_v2,
+                            related_transaction_id,
+                        }) => (enrolled_v2, related_transaction_id),
+                        _ => (false, None),
+                    }
+                }
+                _ => (false, None),
+            };
 
         router_data.request.enrolled_for_3ds = enrolled_for_3ds;
         router_data.request.related_transaction_id = related_transaction_id;
@@ -526,6 +550,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
                 .url(&types::PaymentsAuthorizeType::get_url(
                     self, req, connectors,
                 )?)
+                .attach_default_headers()
                 .headers(types::PaymentsAuthorizeType::get_headers(
                     self, req, connectors,
                 )?)
@@ -611,6 +636,7 @@ impl
                 .url(&types::PaymentsPreAuthorizeType::get_url(
                     self, req, connectors,
                 )?)
+                .attach_default_headers()
                 .headers(types::PaymentsPreAuthorizeType::get_headers(
                     self, req, connectors,
                 )?)
@@ -690,6 +716,7 @@ impl ConnectorIntegration<InitPayment, types::PaymentsAuthorizeData, types::Paym
             services::RequestBuilder::new()
                 .method(services::Method::Post)
                 .url(&types::PaymentsInitType::get_url(self, req, connectors)?)
+                .attach_default_headers()
                 .headers(types::PaymentsInitType::get_headers(self, req, connectors)?)
                 .body(types::PaymentsInitType::get_request_body(self, req)?)
                 .build(),
@@ -705,28 +732,12 @@ impl ConnectorIntegration<InitPayment, types::PaymentsAuthorizeData, types::Paym
             .response
             .parse_struct("NuveiPaymentsResponse")
             .switch()?;
-        let response_data = types::RouterData::try_from(types::ResponseRouterData {
-            response: response.clone(),
+        types::RouterData::try_from(types::ResponseRouterData {
+            response,
             data: data.clone(),
             http_code: res.status_code,
         })
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
-        let is_enrolled_for_3ds = response
-            .clone()
-            .payment_option
-            .and_then(|po| po.card)
-            .and_then(|c| c.three_d)
-            .and_then(|t| t.v2supported)
-            .map(to_boolean)
-            .unwrap_or_default();
-        Ok(types::RouterData {
-            request: types::PaymentsAuthorizeData {
-                enrolled_for_3ds: is_enrolled_for_3ds,
-                related_transaction_id: response.transaction_id,
-                ..response_data.request
-            },
-            ..response_data
-        })
+        .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
     fn get_error_response(
@@ -781,6 +792,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         let request = services::RequestBuilder::new()
             .method(services::Method::Post)
             .url(&types::RefundExecuteType::get_url(self, req, connectors)?)
+            .attach_default_headers()
             .headers(types::RefundExecuteType::get_headers(
                 self, req, connectors,
             )?)
@@ -854,10 +866,9 @@ impl api::IncomingWebhook for Nuvei {
         _merchant_id: &str,
         secret: &[u8],
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
-        let body: nuvei::NuveiWebhookDetails = request
-            .query_params_json
-            .parse_struct("NuveiWebhookDetails")
-            .switch()?;
+        let body = serde_urlencoded::from_str::<nuvei::NuveiWebhookDetails>(&request.query_params)
+            .into_report()
+            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
         let secret_str = std::str::from_utf8(secret)
             .into_report()
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
@@ -879,10 +890,10 @@ impl api::IncomingWebhook for Nuvei {
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
-        let body: nuvei::NuveiWebhookTransactionId = request
-            .query_params_json
-            .parse_struct("NuveiWebhookTransactionId")
-            .switch()?;
+        let body =
+            serde_urlencoded::from_str::<nuvei::NuveiWebhookTransactionId>(&request.query_params)
+                .into_report()
+                .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
         Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
             types::api::PaymentIdType::ConnectorTransactionId(body.ppp_transaction_id),
         ))
@@ -892,10 +903,10 @@ impl api::IncomingWebhook for Nuvei {
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api::IncomingWebhookEvent, errors::ConnectorError> {
-        let body: nuvei::NuveiWebhookDataStatus = request
-            .query_params_json
-            .parse_struct("NuveiWebhookDataStatus")
-            .switch()?;
+        let body =
+            serde_urlencoded::from_str::<nuvei::NuveiWebhookDataStatus>(&request.query_params)
+                .into_report()
+                .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
         match body.status {
             nuvei::NuveiWebhookStatus::Approved => {
                 Ok(api::IncomingWebhookEvent::PaymentIntentSuccess)
@@ -911,10 +922,9 @@ impl api::IncomingWebhook for Nuvei {
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<serde_json::Value, errors::ConnectorError> {
-        let body: nuvei::NuveiWebhookDetails = request
-            .query_params_json
-            .parse_struct("NuveiWebhookDetails")
-            .switch()?;
+        let body = serde_urlencoded::from_str::<nuvei::NuveiWebhookDetails>(&request.query_params)
+            .into_report()
+            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
         let payment_response = nuvei::NuveiPaymentsResponse::from(body);
         Encode::<nuvei::NuveiPaymentsResponse>::encode_to_value(&payment_response).switch()
     }

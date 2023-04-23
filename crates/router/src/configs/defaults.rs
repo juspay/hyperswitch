@@ -31,10 +31,16 @@ impl Default for super::settings::Database {
 impl Default for super::settings::Secrets {
     fn default() -> Self {
         Self {
+            #[cfg(not(feature = "kms"))]
             jwt_secret: "secret".into(),
+            #[cfg(not(feature = "kms"))]
             admin_api_key: "test_admin".into(),
             master_enc_key: "73ad7bbbbc640c845a150f67d058b279849370cd2c1f3c67c4dd6c869213e13a"
                 .into(),
+            #[cfg(feature = "kms")]
+            kms_encrypted_jwt_secret: "".into(),
+            #[cfg(feature = "kms")]
+            kms_encrypted_admin_api_key: "".into(),
         }
     }
 }
@@ -46,6 +52,7 @@ impl Default for super::settings::Locker {
             mock_locker: true,
             basilisk_host: "localhost".into(),
             locker_setup: super::settings::LockerSetup::LegacyLocker,
+            locker_signing_key_id: "1".into(),
         }
     }
 }
@@ -91,6 +98,8 @@ impl Default for super::settings::SchedulerSettings {
             stream: "SCHEDULER_STREAM".into(),
             producer: super::settings::ProducerSettings::default(),
             consumer: super::settings::ConsumerSettings::default(),
+            graceful_shutdown_interval: 60000,
+            loop_interval: 5000,
         }
     }
 }

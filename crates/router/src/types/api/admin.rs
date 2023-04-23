@@ -1,17 +1,27 @@
 pub use api_models::admin::{
     MerchantAccountCreate, MerchantAccountDeleteResponse, MerchantAccountResponse,
-    MerchantAccountUpdate, MerchantConnector, MerchantConnectorDeleteResponse,
+    MerchantAccountUpdate, MerchantConnectorCreate, MerchantConnectorDeleteResponse,
     MerchantConnectorDetails, MerchantConnectorDetailsWrap, MerchantConnectorId, MerchantDetails,
     MerchantId, PaymentMethodsEnabled, RoutingAlgorithm, ToggleKVRequest, ToggleKVResponse,
     WebhookDetails,
 };
+use common_utils::ext_traits::ValueExt;
 
 use crate::types::domain::merchant_account;
 
-impl From<merchant_account::MerchantAccount> for MerchantAccountResponse {
-    fn from(value: merchant_account::MerchantAccount) -> Self {
-        let item = value;
-        Self {
+use crate::{
+    core::errors,
+    types::{storage, transformers::ForeignTryFrom},
+};
+
+impl TryFrom<merchant_account::MerchantAccount> for MerchantAccountResponse {
+    type Error = error_stack::Report<errors::ParsingError>;
+    fn try_from(item: merchant_account::MerchantAccount) -> Result<Self, Self::Error> {
+        let primary_business_details: Vec<api_models::admin::PrimaryBusinessDetails> = item
+            .primary_business_details
+            .parse_value("primary_business_details")?;
+
+        Ok(Self {
             merchant_id: item.merchant_id,
             merchant_name: item.merchant_name,
             api_key: item.api_key,
@@ -27,6 +37,7 @@ impl From<merchant_account::MerchantAccount> for MerchantAccountResponse {
             publishable_key: item.publishable_key,
             metadata: item.metadata,
             locker_id: item.locker_id,
-        }
+            primary_business_details,
+        })
     }
 }

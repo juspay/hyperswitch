@@ -1,6 +1,7 @@
 use api_models::enums as api_enums;
 use common_utils::{crypto::Encryptable, ext_traits::ValueExt};
 use error_stack::ResultExt;
+use masking::{PeekInterface, Secret};
 use storage_models::enums as storage_enums;
 
 use super::domain;
@@ -129,7 +130,11 @@ impl ForeignFrom<storage_enums::AttemptStatus> for storage_enums::IntentStatus {
             storage_enums::AttemptStatus::PaymentMethodAwaited => Self::RequiresPaymentMethod,
 
             storage_enums::AttemptStatus::Authorized => Self::RequiresCapture,
-            storage_enums::AttemptStatus::AuthenticationPending => Self::RequiresCustomerAction,
+            storage_enums::AttemptStatus::AuthenticationPending
+            | storage_enums::AttemptStatus::DeviceDataCollectionPending => {
+                Self::RequiresCustomerAction
+            }
+            storage_enums::AttemptStatus::Unresolved => Self::RequiresMerchantAction,
 
             storage_enums::AttemptStatus::PartialCharged
             | storage_enums::AttemptStatus::Started
@@ -157,6 +162,8 @@ impl ForeignTryFrom<api_enums::IntentStatus> for storage_enums::EventType {
     fn foreign_try_from(value: api_enums::IntentStatus) -> Result<Self, Self::Error> {
         match value {
             api_enums::IntentStatus::Succeeded => Ok(Self::PaymentSucceeded),
+            api_enums::IntentStatus::Processing => Ok(Self::PaymentProcessing),
+            api_enums::IntentStatus::RequiresMerchantAction => Ok(Self::ActionRequired),
             _ => Err(errors::ValidationError::IncorrectValueProvided {
                 field_name: "intent_status",
             }),
@@ -470,11 +477,9 @@ impl ForeignTryFrom<api_models::webhooks::IncomingWebhookEvent> for storage_enum
     }
 }
 
-impl ForeignTryFrom<storage::Dispute> for api_models::disputes::DisputeResponse {
-    type Error = errors::ValidationError;
-
-    fn foreign_try_from(dispute: storage::Dispute) -> Result<Self, Self::Error> {
-        Ok(Self {
+impl ForeignFrom<storage::Dispute> for api_models::disputes::DisputeResponse {
+    fn foreign_from(dispute: storage::Dispute) -> Self {
+        Self {
             dispute_id: dispute.dispute_id,
             payment_id: dispute.payment_id,
             attempt_id: dispute.attempt_id,
@@ -482,6 +487,7 @@ impl ForeignTryFrom<storage::Dispute> for api_models::disputes::DisputeResponse 
             currency: dispute.currency,
             dispute_stage: dispute.dispute_stage.foreign_into(),
             dispute_status: dispute.dispute_status.foreign_into(),
+            connector: dispute.connector,
             connector_status: dispute.connector_status,
             connector_dispute_id: dispute.connector_dispute_id,
             connector_reason: dispute.connector_reason,
@@ -490,7 +496,7 @@ impl ForeignTryFrom<storage::Dispute> for api_models::disputes::DisputeResponse 
             created_at: dispute.dispute_created_at,
             updated_at: dispute.updated_at,
             received_at: dispute.created_at.to_string(),
-        })
+        }
     }
 }
 
@@ -506,5 +512,50 @@ impl ForeignFrom<storage_models::cards_info::CardInfo>
             card_issuer: item.card_issuer,
             card_issuing_country: item.card_issuing_country,
         }
+    }
+}
+
+impl ForeignTryFrom<storage_models::merchant_connector_account::MerchantConnectorAccount>
+    for api_models::admin::MerchantConnectorResponse
+{
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
+    fn foreign_try_from(
+        item: storage_models::merchant_connector_account::MerchantConnectorAccount,
+    ) -> Result<Self, Self::Error> {
+        let payment_methods_enabled = match item.payment_methods_enabled {
+            Some(val) => serde_json::Value::Array(val)
+                .parse_value("PaymentMethods")
+                .change_context(errors::ApiErrorResponse::InternalServerError)?,
+            None => None,
+        };
+        let frm_configs = match item.frm_configs {
+            Some(frm_value) => {
+                let configs_for_frm : api_models::admin::FrmConfigs = frm_value
+                    .peek()
+                    .clone()
+                    .parse_value("FrmConfigs")
+                    .change_context(errors::ApiErrorResponse::InvalidDataFormat {
+                        field_name: "frm_configs".to_string(),
+                        expected_format: "\"frm_configs\" : { \"frm_enabled_pms\" : [\"card\"], \"frm_enabled_pm_types\" : [\"credit\"], \"frm_enabled_gateways\" : [\"stripe\"], \"frm_action\": \"cancel_txn\", \"frm_preferred_flow_type\" : \"pre\" }".to_string(),
+                    })?;
+                Some(configs_for_frm)
+            }
+            None => None,
+        };
+        Ok(Self {
+            connector_type: item.connector_type.foreign_into(),
+            connector_name: item.connector_name,
+            connector_label: item.connector_label,
+            merchant_connector_id: item.merchant_connector_id,
+            connector_account_details: Secret::new(item.connector_account_details),
+            test_mode: item.test_mode,
+            disabled: item.disabled,
+            payment_methods_enabled,
+            metadata: item.metadata,
+            business_country: item.business_country,
+            business_label: item.business_label,
+            business_sub_label: item.business_sub_label,
+            frm_configs,
+        })
     }
 }

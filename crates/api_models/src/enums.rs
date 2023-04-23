@@ -34,11 +34,13 @@ pub enum AttemptStatus {
     VoidFailed,
     AutoRefunded,
     PartialCharged,
+    Unresolved,
     #[default]
     Pending,
     Failure,
     PaymentMethodAwaited,
     ConfirmationAwaited,
+    DeviceDataCollectionPending,
 }
 
 #[derive(
@@ -266,6 +268,8 @@ pub enum Currency {
 #[strum(serialize_all = "snake_case")]
 pub enum EventType {
     PaymentSucceeded,
+    PaymentProcessing,
+    ActionRequired,
     RefundSucceeded,
     RefundFailed,
     DisputeOpened,
@@ -299,6 +303,7 @@ pub enum IntentStatus {
     Cancelled,
     Processing,
     RequiresCustomerAction,
+    RequiresMerchantAction,
     RequiresPaymentMethod,
     #[default]
     RequiresConfirmation,
@@ -404,18 +409,38 @@ pub enum PaymentExperience {
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum PaymentMethodType {
-    Credit,
-    Debit,
-    Giropay,
-    Ideal,
-    Sofort,
-    Eps,
-    Klarna,
+    Ach,
     Affirm,
     AfterpayClearpay,
-    GooglePay,
+    AliPay,
     ApplePay,
+    Bacs,
+    BancontactCard,
+    Becs,
+    Blik,
+    Credit,
+    CryptoCurrency,
+    Debit,
+    Eps,
+    Giropay,
+    GooglePay,
+    Ideal,
+    Klarna,
+    MbWay,
+    MobilePay,
+    OnlineBankingCzechRepublic,
+    OnlineBankingFinland,
+    OnlineBankingPoland,
+    OnlineBankingSlovakia,
+    PayBright,
     Paypal,
+    Przelewy24,
+    Sepa,
+    Sofort,
+    Swish,
+    Trustly,
+    Walley,
+    WeChatPay,
 }
 
 #[derive(
@@ -441,6 +466,8 @@ pub enum PaymentMethod {
     PayLater,
     Wallet,
     BankRedirect,
+    Crypto,
+    BankDebit,
 }
 
 #[derive(
@@ -561,17 +588,23 @@ pub enum Connector {
     Bluesnap,
     Braintree,
     Checkout,
+    Coinbase,
     Cybersource,
     #[default]
     Dummy,
+    Opennode,
     Bambora,
     Dlocal,
     Fiserv,
+    //Forte,
     Globalpay,
     Klarna,
     Mollie,
     Multisafepay,
+    // Nexinets, added as template code for future use
     Nuvei,
+    // Payeezy, As psync and rsync are not supported by this connector, it is added as template code for future usage
+    Paypal,
     Payu,
     Rapyd,
     Shift4,
@@ -587,6 +620,7 @@ impl Connector {
             (self, payment_method),
             (Self::Airwallex, _)
                 | (Self::Globalpay, _)
+                | (Self::Paypal, _)
                 | (Self::Payu, _)
                 | (Self::Trustpay, PaymentMethod::BankRedirect)
         )
@@ -616,14 +650,20 @@ pub enum RoutableConnectors {
     Bluesnap,
     Braintree,
     Checkout,
+    Coinbase,
     Cybersource,
     Dlocal,
     Fiserv,
+    //Forte,
     Globalpay,
     Klarna,
     Mollie,
     Multisafepay,
+    // Nexinets, added as template code for future use
     Nuvei,
+    Opennode,
+    // Payeezy, As psync and rsync are not supported by this connector, it is added as template code for future usage
+    Paypal,
     Payu,
     Rapyd,
     Shift4,
@@ -631,16 +671,6 @@ pub enum RoutableConnectors {
     Trustpay,
     Worldline,
     Worldpay,
-}
-
-/// Wallets which support obtaining session object
-#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
-#[serde(rename_all = "snake_case")]
-pub enum SupportedWallets {
-    Paypal,
-    ApplePay,
-    Klarna,
-    Gpay,
 }
 
 /// Name of banks supported by Hyperswitch
@@ -664,6 +694,8 @@ pub enum BankNames {
     AmericanExpress,
     BankOfAmerica,
     Barclays,
+    #[serde(rename = "BLIK - PSP")]
+    BlikPSP,
     CapitalOne,
     Chase,
     Citi,
@@ -691,13 +723,21 @@ pub enum BankNames {
     Bank99Ag,
     BankhausCarlSpangler,
     BankhausSchelhammerUndSchatteraAg,
+    #[serde(rename = "Bank Millennium")]
+    BankMillennium,
+    #[serde(rename = "Bank PEKAO S.A.")]
+    BankPEKAOSA,
     BawagPskAg,
     BksBankAg,
     BrullKallmusBankAg,
     BtvVierLanderBank,
     CapitalBankGraweGruppeAg,
+    #[serde(rename = "Česká spořitelna")]
+    CeskaSporitelna,
     Dolomitenbank,
     EasybankAg,
+    #[serde(rename = "ePlatby VÚB")]
+    EPlatbyVUB,
     ErsteBankUndSparkassen,
     HypoAlpeadriabankInternationalAg,
     HypoNoeLbFurNiederosterreichUWien,
@@ -705,17 +745,57 @@ pub enum BankNames {
     HypoTirolBankAg,
     HypoVorarlbergBankAg,
     HypoBankBurgenlandAktiengesellschaft,
+    #[serde(rename = "Komercní banka")]
+    KomercniBanka,
+    #[serde(rename = "mBank - mTransfer")]
+    MBank,
     MarchfelderBank,
     OberbankAg,
     OsterreichischeArzteUndApothekerbank,
+    #[serde(rename = "Pay with ING")]
+    PayWithING,
+    #[serde(rename = "Płacę z iPKO")]
+    PlaceZIPKO,
+    #[serde(rename = "Płatność online kartą płatniczą")]
+    PlatnoscOnlineKartaPlatnicza,
     PosojilnicaBankEGen,
+    #[serde(rename = "Poštová banka")]
+    PostovaBanka,
     RaiffeisenBankengruppeOsterreich,
     SchelhammerCapitalBankAg,
     SchoellerbankAg,
     SpardaBankWien,
+    SporoPay,
+    #[serde(rename = "Santander-Przelew24")]
+    SantanderPrzelew24,
+    TatraPay,
+    Viamo,
     VolksbankGruppe,
     VolkskreditbankAg,
     VrBankBraunau,
+    #[serde(rename = "Pay with Alior Bank")]
+    PayWithAliorBank,
+    #[serde(rename = "Banki Spółdzielcze")]
+    BankiSpoldzielcze,
+    #[serde(rename = "Pay with Inteligo")]
+    PayWithInteligo,
+    #[serde(rename = "BNP Paribas Poland")]
+    BNPParibasPoland,
+    #[serde(rename = "Bank Nowy S.A.")]
+    BankNowySA,
+    #[serde(rename = "Credit Agricole")]
+    CreditAgricole,
+    #[serde(rename = "Pay with BOŚ")]
+    PayWithBOS,
+    #[serde(rename = "Pay with CitiHandlowy")]
+    PayWithCitiHandlowy,
+    #[serde(rename = "Pay with Plus Bank")]
+    PayWithPlusBank,
+    #[serde(rename = "Toyota Bank")]
+    ToyotaBank,
+    VeloBank,
+    #[serde(rename = "e-transfer Pocztowy24")]
+    ETransferPocztowy24,
 }
 
 #[derive(
@@ -754,8 +834,10 @@ impl From<AttemptStatus> for IntentStatus {
             AttemptStatus::PaymentMethodAwaited => Self::RequiresPaymentMethod,
 
             AttemptStatus::Authorized => Self::RequiresCapture,
-            AttemptStatus::AuthenticationPending => Self::RequiresCustomerAction,
-
+            AttemptStatus::AuthenticationPending | AttemptStatus::DeviceDataCollectionPending => {
+                Self::RequiresCustomerAction
+            }
+            AttemptStatus::Unresolved => Self::RequiresMerchantAction,
             AttemptStatus::PartialCharged
             | AttemptStatus::Started
             | AttemptStatus::AuthenticationSuccessful
@@ -822,4 +904,45 @@ pub enum DisputeStatus {
     DisputeWon,
     // dispute has been unsuccessfully challenged
     DisputeLost,
+}
+
+#[derive(
+    Clone,
+    Debug,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    frunk::LabelledGeneric,
+    ToSchema,
+)]
+#[strum(serialize_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
+pub enum FrmAction {
+    CancelTxn,
+    AutoRefund,
+    ManualReview,
+}
+
+#[derive(
+    Clone,
+    Debug,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    frunk::LabelledGeneric,
+    ToSchema,
+)]
+#[strum(serialize_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
+pub enum FrmPreferredFlowTypes {
+    Pre,
+    Post,
+}
+#[derive(Debug, Eq, PartialEq, Clone, serde::Serialize, serde::Deserialize)]
+pub struct UnresolvedResponseReason {
+    pub code: String,
+    /// A message to merchant to give hint on next action he/she should do to resolve
+    pub message: String,
 }

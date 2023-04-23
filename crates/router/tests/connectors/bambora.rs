@@ -75,7 +75,7 @@ async fn should_partially_capture_authorized_payment() {
         .authorize_and_capture_payment(
             get_default_payment_authorize_data(),
             Some(types::PaymentsCaptureData {
-                amount_to_capture: Some(50),
+                amount_to_capture: 50,
                 ..utils::PaymentCaptureType::default().0
             }),
             None,
@@ -101,7 +101,7 @@ async fn should_sync_authorized_payment() {
                     txn_id.unwrap(),
                 ),
                 encoded_data: None,
-                capture_method: None,
+                capture_method: Some(storage_models::enums::CaptureMethod::Manual),
                 connector_meta: None,
             }),
             None,

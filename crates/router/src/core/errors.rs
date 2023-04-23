@@ -157,14 +157,8 @@ impl From<ConfigError> for ApplicationError {
 }
 
 fn error_response<T: Display>(err: &T) -> actix_web::HttpResponse {
-    use actix_web::http::header;
-
-    use crate::consts;
-
     actix_web::HttpResponse::BadRequest()
-        .append_header((header::STRICT_TRANSPORT_SECURITY, consts::HSTS_HEADER_VALUE))
-        .append_header((header::VIA, "Juspay_Router"))
-        .content_type("application/json")
+        .content_type(mime::APPLICATION_JSON)
         .body(format!(r#"{{ "error": {{ "message": "{err}" }} }}"#))
 }
 
@@ -269,6 +263,8 @@ pub enum ConnectorError {
     },
     #[error("{flow} flow not supported by {connector} connector")]
     FlowNotSupported { flow: String, connector: String },
+    #[error("Capture method not supported")]
+    CaptureMethodNotSupported,
     #[error("Missing connector transaction ID")]
     MissingConnectorTransactionID,
     #[error("Missing connector refund ID")]
@@ -293,6 +289,8 @@ pub enum ConnectorError {
     WebhookResponseEncodingFailed,
     #[error("Invalid Date/time format")]
     InvalidDateFormat,
+    #[error("Date Formatting Failed")]
+    DateFormattingFailed,
     #[error("Invalid Data format")]
     InvalidDataFormat { field_name: &'static str },
     #[error("Payment Method data / Payment Method Type / Payment Experience Mismatch ")]
@@ -319,6 +317,8 @@ pub enum VaultError {
     MissingRequiredField { field_name: &'static str },
     #[error("The card vault returned an unexpected response: {0:?}")]
     UnexpectedResponseError(bytes::Bytes),
+    #[error("Failed to update in PMD table")]
+    UpdateInPaymentMethodDataTableFailed,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -438,6 +438,8 @@ pub enum WebhooksFlowError {
     DisputeCoreFailed,
     #[error("Webhook event creation failed")]
     WebhookEventCreationFailed,
+    #[error("Webhook event updation failed")]
+    WebhookEventUpdationFailed,
     #[error("Unable to fork webhooks flow for outgoing webhooks")]
     ForkFlowFailed,
     #[error("Webhook api call to merchant failed")]

@@ -13,42 +13,6 @@ use crate::{
     types::{self, api as api_types, domain::merchant_account, transformers::ForeignInto},
 };
 
-/// This function replaces the request and response type of routerdata with the
-/// request and response type passed
-/// # Arguments
-///
-/// * `router_data` - original router data
-/// * `request` - new request
-/// * `response` - new response
-pub fn router_data_type_conversion<F1, F2, Req1, Req2, Res1, Res2>(
-    router_data: types::RouterData<F1, Req1, Res1>,
-    request: Req2,
-    response: Result<Res2, types::ErrorResponse>,
-) -> types::RouterData<F2, Req2, Res2> {
-    types::RouterData {
-        flow: std::marker::PhantomData,
-        request,
-        response,
-        merchant_id: router_data.merchant_id,
-        address: router_data.address,
-        amount_captured: router_data.amount_captured,
-        auth_type: router_data.auth_type,
-        connector: router_data.connector,
-        connector_auth_type: router_data.connector_auth_type,
-        connector_meta_data: router_data.connector_meta_data,
-        description: router_data.description,
-        payment_id: router_data.payment_id,
-        payment_method: router_data.payment_method,
-        payment_method_id: router_data.payment_method_id,
-        return_url: router_data.return_url,
-        status: router_data.status,
-        attempt_id: router_data.attempt_id,
-        access_token: router_data.access_token,
-        session_token: router_data.session_token,
-        reference_id: None,
-    }
-}
-
 pub fn update_router_data_with_access_token_result<F, Req, Res>(
     add_access_token_result: &types::AddAccessTokenResult,
     router_data: &mut types::RouterData<F, Req, Res>,
@@ -115,12 +79,18 @@ pub async fn add_access_token<
 
                 let refresh_token_response_data: Result<types::AccessToken, types::ErrorResponse> =
                     Err(types::ErrorResponse::default());
-                let refresh_token_router_data =
-                    router_data_type_conversion::<_, api_types::AccessTokenAuth, _, _, _, _>(
-                        cloned_router_data,
-                        refresh_token_request_data,
-                        refresh_token_response_data,
-                    );
+                let refresh_token_router_data = payments::helpers::router_data_type_conversion::<
+                    _,
+                    api_types::AccessTokenAuth,
+                    _,
+                    _,
+                    _,
+                    _,
+                >(
+                    cloned_router_data,
+                    refresh_token_request_data,
+                    refresh_token_response_data,
+                );
                 refresh_connector_auth(
                     state,
                     connector,

@@ -106,6 +106,7 @@ diesel::table! {
         description -> Nullable<Varchar>,
         created_at -> Timestamp,
         metadata -> Nullable<Json>,
+        modified_at -> Timestamp,
     }
 }
 
@@ -132,6 +133,7 @@ diesel::table! {
         updated_at -> Nullable<Varchar>,
         created_at -> Timestamp,
         modified_at -> Timestamp,
+        connector -> Varchar,
     }
 }
 
@@ -198,6 +200,9 @@ diesel::table! {
         amount_captured -> Nullable<Int8>,
         connector -> Varchar,
         connector_mandate_id -> Nullable<Varchar>,
+        start_date -> Nullable<Timestamp>,
+        end_date -> Nullable<Timestamp>,
+        metadata -> Nullable<Jsonb>,
     }
 }
 
@@ -223,6 +228,9 @@ diesel::table! {
         metadata -> Nullable<Jsonb>,
         routing_algorithm -> Nullable<Json>,
         api_key -> Nullable<Bytea>,
+        primary_business_details -> Json,
+        created_at -> Timestamp,
+        modified_at -> Timestamp,
     }
 }
 
@@ -241,6 +249,13 @@ diesel::table! {
         payment_methods_enabled -> Nullable<Array<Nullable<Json>>>,
         connector_type -> ConnectorType,
         metadata -> Nullable<Jsonb>,
+        frm_configs -> Nullable<Jsonb>,
+        connector_label -> Varchar,
+        business_country -> CountryCode,
+        business_label -> Varchar,
+        business_sub_label -> Nullable<Varchar>,
+        created_at -> Timestamp,
+        modified_at -> Timestamp,
     }
 }
 
@@ -268,7 +283,7 @@ diesel::table! {
         amount -> Int8,
         currency -> Nullable<Currency>,
         save_to_locker -> Nullable<Bool>,
-        connector -> Nullable<Jsonb>,
+        connector -> Nullable<Varchar>,
         error_message -> Nullable<Text>,
         offer_amount -> Nullable<Int8>,
         surcharge_amount -> Nullable<Int8>,
@@ -293,6 +308,8 @@ diesel::table! {
         payment_experience -> Nullable<Varchar>,
         payment_method_type -> Nullable<Varchar>,
         payment_method_data -> Nullable<Jsonb>,
+        business_sub_label -> Nullable<Varchar>,
+        straight_through_algorithm -> Nullable<Jsonb>,
     }
 }
 
@@ -324,6 +341,8 @@ diesel::table! {
         off_session -> Nullable<Bool>,
         client_secret -> Nullable<Varchar>,
         active_attempt_id -> Varchar,
+        business_country -> CountryCode,
+        business_label -> Varchar,
     }
 }
 

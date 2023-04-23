@@ -31,6 +31,9 @@ pub struct MerchantAccount {
     pub metadata: Option<pii::SecretSerdeValue>,
     pub routing_algorithm: Option<serde_json::Value>,
     pub api_key: Option<Encryption>,
+    pub primary_business_details: serde_json::Value,
+    pub created_at: time::PrimitiveDateTime,
+    pub modified_at: time::PrimitiveDateTime,
 }
 
 #[derive(Clone, Debug, Default, Insertable, router_derive::DebugAsDisplay)]
@@ -51,6 +54,30 @@ pub struct MerchantAccountNew {
     pub metadata: Option<pii::SecretSerdeValue>,
     pub routing_algorithm: Option<serde_json::Value>,
     pub api_key: Option<Encryption>,
+    pub primary_business_details: serde_json::Value,
+}
+
+#[derive(Debug)]
+pub enum MerchantAccountUpdate {
+    Update {
+        merchant_name: Option<String>,
+        merchant_details: Option<serde_json::Value>,
+        return_url: Option<String>,
+        webhook_details: Option<serde_json::Value>,
+        sub_merchants_enabled: Option<bool>,
+        parent_merchant_id: Option<String>,
+        enable_payment_response_hash: Option<bool>,
+        payment_response_hash_key: Option<String>,
+        redirect_to_merchant_with_http_post: Option<bool>,
+        publishable_key: Option<String>,
+        locker_id: Option<String>,
+        metadata: Option<pii::SecretSerdeValue>,
+        routing_algorithm: Option<serde_json::Value>,
+        primary_business_details: Option<serde_json::Value>,
+    },
+    StorageSchemeUpdate {
+        storage_scheme: storage_enums::MerchantStorageScheme,
+    },
 }
 
 #[derive(Clone, Debug, Default, AsChangeset, router_derive::DebugAsDisplay)]
@@ -70,4 +97,6 @@ pub struct MerchantAccountUpdateInternal {
     pub locker_id: Option<String>,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub routing_algorithm: Option<serde_json::Value>,
+    pub primary_business_details: Option<serde_json::Value>,
+    pub modified_at: Option<time::PrimitiveDateTime>,
 }

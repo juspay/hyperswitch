@@ -3,6 +3,7 @@
 use error_stack::report;
 use once_cell::sync::Lazy;
 use regex::Regex;
+#[cfg(feature = "logs")]
 use router_env::logger;
 
 use crate::errors::{CustomResult, ValidationError};
@@ -15,8 +16,9 @@ pub fn validate_email(email: &str) -> CustomResult<(), ValidationError> {
             r"^(?i)[a-z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+$",
         ) {
             Ok(regex) => Some(regex),
-            Err(error) => {
-                logger::error!(?error);
+            Err(_error) => {
+                #[cfg(feature = "logs")]
+                logger::error!(?_error);
                 None
             }
         }

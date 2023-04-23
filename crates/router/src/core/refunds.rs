@@ -24,7 +24,6 @@ use crate::{
     },
     utils::{self, OptionExt},
 };
-
 // ********************************************** REFUND EXECUTE **********************************************
 
 #[instrument(skip_all)]
@@ -121,8 +120,8 @@ pub async fn trigger_refund_to_gateway(
     creds_identifier: Option<String>,
 ) -> RouterResult<storage::Refund> {
     let routed_through = payment_attempt
-        .get_routed_through_connector()
-        .change_context(errors::ApiErrorResponse::InternalServerError)?
+        .connector
+        .clone()
         .ok_or(errors::ApiErrorResponse::InternalServerError)
         .into_report()
         .attach_printable("Failed to retrieve connector from payment attempt")?;
@@ -279,7 +278,7 @@ pub async fn refund_retrieve_core(
             merchant_account.storage_scheme,
         )
         .await
-        .map_err(|error| error.to_not_found_response(errors::ApiErrorResponse::RefundNotFound))?;
+        .to_not_found_response(errors::ApiErrorResponse::RefundNotFound)?;
 
     let payment_id = refund.payment_id.as_str();
     payment_intent = db
@@ -289,7 +288,7 @@ pub async fn refund_retrieve_core(
             merchant_account.storage_scheme,
         )
         .await
-        .map_err(|error| error.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound))?;
+        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
     payment_attempt = db
         .find_payment_attempt_by_connector_transaction_id_payment_id_merchant_id(
@@ -299,7 +298,7 @@ pub async fn refund_retrieve_core(
             merchant_account.storage_scheme,
         )
         .await
-        .map_err(|error| error.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound))?;
+        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
     let creds_identifier = request
         .merchant_connector_details
@@ -444,7 +443,7 @@ pub async fn refund_update_core(
             merchant_account.storage_scheme,
         )
         .await
-        .map_err(|error| error.to_not_found_response(errors::ApiErrorResponse::RefundNotFound))?;
+        .to_not_found_response(errors::ApiErrorResponse::RefundNotFound)?;
 
     let response = db
         .update_refund(
@@ -553,8 +552,8 @@ pub async fn validate_and_create_refund(
             .change_context(errors::ApiErrorResponse::MaximumRefundCount)?;
 
             let connector = payment_attempt
-                .get_routed_through_connector()
-                .change_context(errors::ApiErrorResponse::InternalServerError)?
+                .connector
+                .clone()
                 .ok_or(errors::ApiErrorResponse::InternalServerError)
                 .into_report()
                 .attach_printable("No connector populated in payment attempt")?;
@@ -583,9 +582,7 @@ pub async fn validate_and_create_refund(
             refund = db
                 .insert_refund(refund_create_req, merchant_account.storage_scheme)
                 .await
-                .map_err(|error| {
-                    error.to_duplicate_response(errors::ApiErrorResponse::DuplicateRefundRequest)
-                })?;
+                .to_duplicate_response(errors::ApiErrorResponse::DuplicateRefundRequest)?;
             schedule_refund_execution(
                 state,
                 refund,
@@ -821,9 +818,7 @@ pub async fn trigger_refund_execute_workflow(
     let merchant_account = db
         .find_merchant_account_by_merchant_id(&refund_core.merchant_id)
         .await
-        .map_err(|error| {
-            error.to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
-        })?;
+        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
     let refund = db
         .find_refund_by_internal_reference_id_merchant_id(
@@ -832,15 +827,13 @@ pub async fn trigger_refund_execute_workflow(
             merchant_account.storage_scheme,
         )
         .await
-        .map_err(|error| error.to_not_found_response(errors::ApiErrorResponse::RefundNotFound))?;
+        .to_not_found_response(errors::ApiErrorResponse::RefundNotFound)?;
     match (&refund.sent_to_gateway, &refund.refund_status) {
         (false, enums::RefundStatus::Pending) => {
             let merchant_account = db
                 .find_merchant_account_by_merchant_id(&refund.merchant_id)
                 .await
-                .map_err(|error| {
-                    error.to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
-                })?;
+                .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
             let payment_attempt = db
                 .find_payment_attempt_by_connector_transaction_id_payment_id_merchant_id(
@@ -850,9 +843,7 @@ pub async fn trigger_refund_execute_workflow(
                     merchant_account.storage_scheme,
                 )
                 .await
-                .map_err(|error| {
-                    error.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
-                })?;
+                .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
             let payment_intent = db
                 .find_payment_intent_by_payment_id_merchant_id(
@@ -861,9 +852,7 @@ pub async fn trigger_refund_execute_workflow(
                     merchant_account.storage_scheme,
                 )
                 .await
-                .map_err(|error| {
-                    error.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
-                })?;
+                .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
             //trigger refund request to gateway
             let updated_refund = trigger_refund_to_gateway(

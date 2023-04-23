@@ -66,6 +66,7 @@ pub trait Operation<F: Clone, T>: Send + std::fmt::Debug {
     }
 }
 
+#[derive(Clone)]
 pub struct ValidateResult<'a> {
     pub merchant_id: &'a str,
     pub payment_id: api::PaymentIdType,

@@ -112,10 +112,10 @@ where
         NewDstType = storage::MerchantConnectorAccountNew,
     >,
 {
-    async fn find_merchant_connector_account_by_merchant_id_connector(
+    async fn find_merchant_connector_account_by_merchant_id_connector_label(
         &self,
         merchant_id: &str,
-        connector: &str,
+        connector_label: &str,
     ) -> CustomResult<
         domain::merchant_connector_account::MerchantConnectorAccount,
         errors::StorageError,
@@ -165,10 +165,10 @@ where
 
 #[async_trait::async_trait]
 impl MerchantConnectorAccountInterface for Store {
-    async fn find_merchant_connector_account_by_merchant_id_connector(
+    async fn find_merchant_connector_account_by_merchant_id_connector_label(
         &self,
         merchant_id: &str,
-        connector: &str,
+        connector_label: &str,
     ) -> CustomResult<
         domain::merchant_connector_account::MerchantConnectorAccount,
         errors::StorageError,
@@ -177,7 +177,7 @@ impl MerchantConnectorAccountInterface for Store {
         storage::MerchantConnectorAccount::find_by_merchant_id_connector(
             &conn,
             merchant_id,
-            connector,
+            connector_label,
         )
         .await
         .map_err(Into::into)
@@ -339,7 +339,7 @@ impl MerchantConnectorAccountInterface for Store {
 impl MerchantConnectorAccountInterface for MockDb {
     // safety: only used for testing
     #[allow(clippy::unwrap_used)]
-    async fn find_merchant_connector_account_by_merchant_id_connector(
+    async fn find_merchant_connector_account_by_merchant_id_connector_label(
         &self,
         merchant_id: &str,
         connector: &str,
@@ -394,7 +394,16 @@ impl MerchantConnectorAccountInterface for MockDb {
             merchant_connector_id: t.merchant_connector_id,
             payment_methods_enabled: t.payment_methods_enabled,
             metadata: t.metadata,
-            connector_type: t.connector_type,
+            frm_configs: t.frm_configs,
+            connector_type: t
+                .connector_type
+                .unwrap_or(crate::types::storage::enums::ConnectorType::FinOperations),
+            connector_label: t.connector_label,
+            business_country: t.business_country,
+            business_label: t.business_label,
+            business_sub_label: t.business_sub_label,
+            created_at: common_utils::date_time::now(),
+            modified_at: common_utils::date_time::now(),
         };
         accounts.push(account.clone());
         account
