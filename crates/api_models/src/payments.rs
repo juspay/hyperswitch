@@ -681,6 +681,8 @@ pub enum PaymentIdType {
     ConnectorTransactionId(String),
     /// The identifier for payment attempt
     PaymentAttemptId(String),
+    /// The identifier for preprocessing step
+    PreprocessingId(String),
 }
 
 impl Default for PaymentIdType {

@@ -90,6 +90,9 @@ pub struct PaymentMethodToken;
 #[derive(Debug, Clone)]
 pub struct Verify;
 
+#[derive(Debug, Clone)]
+pub struct PreProcessing;
+
 pub(crate) trait PaymentIdTypeExt {
     fn get_payment_intent_id(&self) -> errors::CustomResult<String, errors::ValidationError>;
 }
@@ -98,13 +101,13 @@ impl PaymentIdTypeExt for PaymentIdType {
     fn get_payment_intent_id(&self) -> errors::CustomResult<String, errors::ValidationError> {
         match self {
             Self::PaymentIntentId(id) => Ok(id.clone()),
-            Self::ConnectorTransactionId(_) | Self::PaymentAttemptId(_) => {
-                Err(errors::ValidationError::IncorrectValueProvided {
-                    field_name: "payment_id",
-                })
-                .into_report()
-                .attach_printable("Expected payment intent ID but got connector transaction ID")
-            }
+            Self::ConnectorTransactionId(_)
+            | Self::PaymentAttemptId(_)
+            | Self::PreprocessingId(_) => Err(errors::ValidationError::IncorrectValueProvided {
+                field_name: "payment_id",
+            })
+            .into_report()
+            .attach_printable("Expected payment intent ID but got connector transaction ID"),
         }
     }
 }
@@ -174,7 +177,16 @@ pub trait PaymentToken:
 }
 
 pub trait Customers:
-    api::ConnectorIntegration<Customer, types::CompleteAuthorizeData, types::PaymentsResponseData>
+    api::ConnectorIntegration<Customer, types::CustomerData, types::PaymentsResponseData>
+{
+}
+
+pub trait PaymentsPreProcessing:
+    api::ConnectorIntegration<
+    PreProcessing,
+    types::PaymentsPreProcessingData,
+    types::PaymentsResponseData,
+>
 {
 }
 
@@ -188,6 +200,7 @@ pub trait Payment:
     + PreVerify
     + PaymentSession
     + PaymentToken
+    + PaymentsPreProcessing
 {
 }
 

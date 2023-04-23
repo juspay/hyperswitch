@@ -35,7 +35,7 @@ pub enum WebhookFlow {
     Dispute,
     Subscription,
     ReturnResponse,
-    Custom,
+    BankTransfer,
 }
 
 impl From<IncomingWebhookEvent> for WebhookFlow {
@@ -56,8 +56,8 @@ impl From<IncomingWebhookEvent> for WebhookFlow {
             IncomingWebhookEvent::DisputeWon => Self::Dispute,
             IncomingWebhookEvent::DisputeLost => Self::Dispute,
             IncomingWebhookEvent::EndpointVerification => Self::ReturnResponse,
-            IncomingWebhookEvent::SourceChargeable => Self::Custom,
-            IncomingWebhookEvent::SourceTransactionCreated => Self::Custom,
+            IncomingWebhookEvent::SourceChargeable => Self::BankTransfer,
+            IncomingWebhookEvent::SourceTransactionCreated => Self::BankTransfer,
             IncomingWebhookEvent::ChargeSucceeded => Self::Payment,
         }
     }

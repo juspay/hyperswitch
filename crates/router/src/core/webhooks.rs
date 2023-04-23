@@ -219,6 +219,14 @@ async fn get_payment_attempt_from_object_reference_id(
             )
             .await
             .change_context(errors::WebhooksFlowError::ResourceNotFound),
+        api::ObjectReferenceId::PaymentId(api::PaymentIdType::PreprocessingId(ref id)) => db
+            .find_payment_attempt_by_preprocessing_id_merchant_id(
+                id,
+                &merchant_account.merchant_id,
+                merchant_account.storage_scheme,
+            )
+            .await
+            .change_context(errors::WebhooksFlowError::ResourceNotFound),
         _ => Err(errors::WebhooksFlowError::ResourceNotFound).into_report(),
     }
 }
@@ -358,14 +366,11 @@ async fn disputes_incoming_webhook_flow<W: api::OutgoingWebhookType>(
     }
 }
 
-async fn custom_webhook_flow<W: api::OutgoingWebhookType>(
+async fn bank_transfer_webhook_flow<W: api::OutgoingWebhookType>(
     state: AppState,
     merchant_account: storage::MerchantAccount,
     webhook_details: api::IncomingWebhookDetails,
     source_verified: bool,
-    _connector: &(dyn api::Connector + Sync),
-    _request_details: &api::IncomingWebhookRequestDetails<'_>,
-    _event_type: api_models::webhooks::IncomingWebhookEvent,
 ) -> CustomResult<(), errors::WebhooksFlowError> {
     let response = if source_verified {
         let payment_attempt = get_payment_attempt_from_object_reference_id(
@@ -380,12 +385,22 @@ async fn custom_webhook_flow<W: api::OutgoingWebhookType>(
             )),
             merchant_id: Some(merchant_account.merchant_id.to_owned()),
             payment_token: payment_attempt.payment_token,
+            currency: Some(
+                payment_attempt
+                    .currency
+                    .get_required_value("currency")
+                    .change_context(errors::WebhooksFlowError::MissingRequiredField {
+                        field_name: "currency",
+                    })?
+                    .foreign_into(),
+            ),
+            amount: Some(payment_attempt.amount.into()),
             ..Default::default()
         };
-        payments::payments_core::<api::CompleteAuthorize, api::PaymentsResponse, _, _, _>(
+        payments::payments_core::<api::Authorize, api::PaymentsResponse, _, _, _>(
             &state,
             merchant_account.to_owned(),
-            payments::operations::payment_complete_authorize::CompleteAuthorize,
+            payments::PaymentConfirm,
             request,
             services::api::AuthFlow::Merchant,
             payments::CallConnectorAction::Trigger,
@@ -665,18 +680,15 @@ pub async fn webhooks_core<W: api::OutgoingWebhookType>(
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Incoming webhook flow for disputes failed")?,
 
-            api::WebhookFlow::Custom => custom_webhook_flow::<W>(
+            api::WebhookFlow::BankTransfer => bank_transfer_webhook_flow::<W>(
                 state.clone(),
                 merchant_account,
                 webhook_details,
                 source_verified,
-                *connector,
-                &request_details,
-                event_type,
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Incoming custom webhook flow failed")?,
+            .attach_printable("Incoming bank-transfer webhook flow failed")?,
 
             api::WebhookFlow::ReturnResponse => {}
 

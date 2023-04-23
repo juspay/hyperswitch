@@ -90,10 +90,6 @@ impl types::PaymentsCompleteAuthorizeRouterData {
             types::CompleteAuthorizeData,
             types::PaymentsResponseData,
         > = connector.connector.get_connector_integration();
-        connector_integration
-            .execute_pretasks(self, state)
-            .await
-            .map_err(|error| error.to_payment_failed_response())?;
         let resp = services::execute_connector_processing_step(
             state,
             connector_integration,

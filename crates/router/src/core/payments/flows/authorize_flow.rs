@@ -93,6 +93,14 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
     ) -> RouterResult<Option<String>> {
         add_payment_method_token(state, connector, tokenization_action, self).await
     }
+
+    async fn preprocessing_steps<'a>(
+        self,
+        state: &AppState,
+        connector: &api::ConnectorData,
+    ) -> RouterResult<Self> {
+        authorize_preprocessing_steps(state, &self, true, connector).await
+    }
 }
 
 impl types::PaymentsAuthorizeRouterData {
@@ -365,6 +373,55 @@ impl mandate::MandateBehaviour for types::PaymentsAuthorizeData {
     }
 }
 
+pub async fn authorize_preprocessing_steps<F: Clone>(
+    state: &AppState,
+    router_data: &types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
+    confirm: bool,
+    connector: &api::ConnectorData,
+) -> RouterResult<types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>> {
+    if confirm {
+        let connector_integration: services::BoxedConnectorIntegration<
+            '_,
+            api::PreProcessing,
+            types::PaymentsPreProcessingData,
+            types::PaymentsResponseData,
+        > = connector.connector.get_connector_integration();
+
+        let preprocessing_request_data =
+            types::PaymentsPreProcessingData::try_from(router_data.request.to_owned())?;
+
+        let preprocessing_response_data: Result<types::PaymentsResponseData, types::ErrorResponse> =
+            Err(types::ErrorResponse::default());
+
+        let preprocessing_router_data =
+            payments::helpers::router_data_type_conversion::<_, api::PreProcessing, _, _, _, _>(
+                router_data.clone(),
+                preprocessing_request_data,
+                preprocessing_response_data,
+            );
+
+        let resp = services::execute_connector_processing_step(
+            state,
+            connector_integration,
+            &preprocessing_router_data,
+            payments::CallConnectorAction::Trigger,
+        )
+        .await
+        .map_err(|error| error.to_payment_failed_response())?;
+
+        let authorize_router_data =
+            payments::helpers::router_data_type_conversion::<_, F, _, _, _, _>(
+                resp.clone(),
+                router_data.request.to_owned(),
+                resp.response,
+            );
+
+        Ok(authorize_router_data)
+    } else {
+        Ok(router_data.clone())
+    }
+}
+
 pub async fn add_payment_method_token<F: Clone>(
     state: &AppState,
     connector: &api::ConnectorData,
@@ -429,6 +486,17 @@ impl TryFrom<types::PaymentsAuthorizeData> for types::PaymentMethodTokenizationD
     fn try_from(data: types::PaymentsAuthorizeData) -> Result<Self, Self::Error> {
         Ok(Self {
             payment_method_data: data.payment_method_data,
+        })
+    }
+}
+
+impl TryFrom<types::PaymentsAuthorizeData> for types::PaymentsPreProcessingData {
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
+
+    fn try_from(data: types::PaymentsAuthorizeData) -> Result<Self, Self::Error> {
+        Ok(Self {
+            email: data.email,
+            currency: Some(data.currency),
         })
     }
 }

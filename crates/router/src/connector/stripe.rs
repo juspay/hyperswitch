@@ -84,6 +84,116 @@ impl
     // Not Implemented (R)
 }
 
+impl api::PaymentsPreProcessing for Stripe {}
+
+impl
+    services::ConnectorIntegration<
+        api::PreProcessing,
+        types::PaymentsPreProcessingData,
+        types::PaymentsResponseData,
+    > for Stripe
+{
+    fn get_headers(
+        &self,
+        req: &types::PaymentsPreProcessingRouterData,
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+        let mut header = vec![(
+            headers::CONTENT_TYPE.to_string(),
+            types::PaymentsPreProcessingType::get_content_type(self).to_string(),
+        )];
+        let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
+        header.append(&mut api_key);
+        Ok(header)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(
+        &self,
+        _req: &types::PaymentsPreProcessingRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(format!("{}{}", self.base_url(connectors), "v1/sources"))
+    }
+
+    fn get_request_body(
+        &self,
+        req: &types::PaymentsPreProcessingRouterData,
+    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+        let req = stripe::StripeAchSourceRequest::try_from(req)?;
+        let pre_processing_request =
+            utils::Encode::<stripe::StripeAchSourceRequest>::url_encode(&req)
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+
+        Ok(Some(pre_processing_request))
+    }
+
+    fn build_request(
+        &self,
+        req: &types::PaymentsPreProcessingRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        Ok(Some(
+            services::RequestBuilder::new()
+                .method(services::Method::Post)
+                .url(&types::PaymentsPreProcessingType::get_url(
+                    self, req, connectors,
+                )?)
+                .attach_default_headers()
+                .headers(types::PaymentsPreProcessingType::get_headers(
+                    self, req, connectors,
+                )?)
+                .body(types::PaymentsPreProcessingType::get_request_body(
+                    self, req,
+                )?)
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        data: &types::PaymentsPreProcessingRouterData,
+        res: types::Response,
+    ) -> CustomResult<types::PaymentsPreProcessingRouterData, errors::ConnectorError> {
+        let response: stripe::StripeSourceResponse = res
+            .response
+            .parse_struct("StripeSourceResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        types::RouterData::try_from(types::ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+    }
+
+    fn get_error_response(
+        &self,
+        res: types::Response,
+    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
+        let response: stripe::ErrorResponse = res
+            .response
+            .parse_struct("ErrorResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        Ok(types::ErrorResponse {
+            status_code: res.status_code,
+            code: response
+                .error
+                .code
+                .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
+            message: response
+                .error
+                .message
+                .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
+            reason: None,
+        })
+    }
+}
+
 impl api::PaymentToken for Stripe {}
 
 impl
@@ -404,6 +514,7 @@ impl
     }
 }
 
+#[async_trait::async_trait]
 impl
     services::ConnectorIntegration<
         api::Authorize,
@@ -438,7 +549,7 @@ impl
             api_models::payments::PaymentMethodData::BankTransfer(bank_transfer_data) => {
                 match bank_transfer_data {
                     api_models::payments::BankTransferData::AchBankTransfer(_) => {
-                        Ok(format!("{}{}", self.base_url(connectors), "v1/sources"))
+                        Ok(format!("{}{}", self.base_url(connectors), "v1/charges"))
                     }
                 }
             }
@@ -454,23 +565,61 @@ impl
         &self,
         req: &types::PaymentsAuthorizeRouterData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        let request = match &req.request.payment_method_data {
+        match &req.request.payment_method_data {
             api_models::payments::PaymentMethodData::BankTransfer(bank_transfer_data) => {
                 match bank_transfer_data {
                     api_models::payments::BankTransferData::AchBankTransfer(_) => {
-                        let req = stripe::StripeAchRequest::try_from(req)?;
-                        utils::Encode::<stripe::StripeAchRequest>::url_encode(&req)
-                            .change_context(errors::ConnectorError::RequestEncodingFailed)?
+                        let req = stripe::ChargesRequest::try_from(req)?;
+                        let request = utils::Encode::<stripe::ChargesRequest>::url_encode(&req)
+                            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+                        Ok(Some(request))
                     }
                 }
             }
             _ => {
                 let req = stripe::PaymentIntentRequest::try_from(req)?;
-                utils::Encode::<stripe::PaymentIntentRequest>::url_encode(&req)
-                    .change_context(errors::ConnectorError::RequestEncodingFailed)?
+                let request = utils::Encode::<stripe::PaymentIntentRequest>::url_encode(&req)
+                    .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+                Ok(Some(request))
             }
-        };
-        Ok(Some(request))
+        }
+    }
+
+    async fn execute_pretasks(
+        &self,
+        router_data: &mut types::PaymentsAuthorizeRouterData,
+        app_state: &crate::routes::AppState,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        match &router_data.request.payment_method_data {
+            api_models::payments::PaymentMethodData::BankTransfer(_) => {
+                let integ: Box<
+                    &(dyn services::ConnectorIntegration<
+                        api::Customer,
+                        types::CustomerData,
+                        types::PaymentsResponseData,
+                    > + Send
+                          + Sync
+                          + 'static),
+                > = Box::new(&Self);
+
+                let customer_data = &types::CustomerRouterData::from((
+                    &router_data,
+                    types::CustomerData::from(&router_data),
+                ));
+
+                let resp = services::execute_connector_processing_step(
+                    app_state,
+                    integ,
+                    customer_data,
+                    payments::CallConnectorAction::Trigger,
+                )
+                .await?;
+
+                router_data.request.customer_id = resp.customer_id;
+                Ok(())
+            }
+            _ => Ok(()),
+        }
     }
 
     fn build_request(
@@ -502,9 +651,9 @@ impl
             api_models::payments::PaymentMethodData::BankTransfer(bank_transfer_data) => {
                 match bank_transfer_data {
                     api_models::payments::BankTransferData::AchBankTransfer(_) => {
-                        let response: stripe::StripeSourceResponse = res
+                        let response: stripe::ChargesResponse = res
                             .response
-                            .parse_struct("StripeSourceResponse")
+                            .parse_struct("ChargesResponse")
                             .change_context(
                                 errors::ConnectorError::ResponseDeserializationFailed,
                             )?;
@@ -556,14 +705,11 @@ impl
         })
     }
 }
+
 impl api::Customers for Stripe {}
 
-impl
-    services::ConnectorIntegration<
-        api::Customer,
-        types::CompleteAuthorizeData,
-        types::PaymentsResponseData,
-    > for Stripe
+impl services::ConnectorIntegration<api::Customer, types::CustomerData, types::PaymentsResponseData>
+    for Stripe
 {
     fn get_headers(
         &self,
@@ -625,145 +771,6 @@ impl
         let response: stripe::CustomerResponse = res
             .response
             .parse_struct("CustomerResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-
-        types::RouterData::try_from(types::ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        })
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
-    }
-
-    fn get_error_response(
-        &self,
-        res: types::Response,
-    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
-        let response: stripe::ErrorResponse = res
-            .response
-            .parse_struct("ErrorResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        Ok(types::ErrorResponse {
-            status_code: res.status_code,
-            code: response
-                .error
-                .code
-                .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
-            message: response
-                .error
-                .message
-                .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-            reason: None,
-        })
-    }
-}
-
-impl api::PaymentsCompleteAuthorize for Stripe {}
-
-#[async_trait::async_trait]
-impl
-    services::ConnectorIntegration<
-        api::CompleteAuthorize,
-        types::CompleteAuthorizeData,
-        types::PaymentsResponseData,
-    > for Stripe
-{
-    fn get_headers(
-        &self,
-        req: &types::PaymentsCompleteAuthorizeRouterData,
-        _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        let mut header = vec![(
-            headers::CONTENT_TYPE.to_string(),
-            types::PaymentsCompleteAuthorizeType::get_content_type(self).to_string(),
-        )];
-        let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
-        header.append(&mut api_key);
-        Ok(header)
-    }
-
-    fn get_content_type(&self) -> &'static str {
-        self.common_get_content_type()
-    }
-
-    fn get_url(
-        &self,
-        _req: &types::PaymentsCompleteAuthorizeRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!("{}v1/charges", self.base_url(connectors)))
-    }
-
-    async fn execute_pretasks(
-        &self,
-        router_data: &mut types::PaymentsCompleteAuthorizeRouterData,
-        app_state: &crate::routes::AppState,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        let integ: Box<
-            &(dyn services::ConnectorIntegration<
-                api::Customer,
-                types::CompleteAuthorizeData,
-                types::PaymentsResponseData,
-            > + Send
-                  + Sync
-                  + 'static),
-        > = Box::new(&Self);
-
-        let complete_authorize_data =
-            &types::CustomerRouterData::from((&router_data, router_data.request.to_owned()));
-
-        let resp = services::execute_connector_processing_step(
-            app_state,
-            integ,
-            complete_authorize_data,
-            payments::CallConnectorAction::Trigger,
-        )
-        .await?;
-
-        router_data.request.customer_id = resp.reference_id;
-        Ok(())
-    }
-
-    fn get_request_body(
-        &self,
-        req: &types::PaymentsCompleteAuthorizeRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        let req = stripe::ChargesRequest::try_from(req)?;
-        let request = utils::Encode::<stripe::ChargesRequest>::url_encode(&req)
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(request))
-    }
-
-    fn build_request(
-        &self,
-        req: &types::PaymentsCompleteAuthorizeRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        Ok(Some(
-            services::RequestBuilder::new()
-                .method(services::Method::Post)
-                .url(&types::PaymentsCompleteAuthorizeType::get_url(
-                    self, req, connectors,
-                )?)
-                .attach_default_headers()
-                .headers(types::PaymentsCompleteAuthorizeType::get_headers(
-                    self, req, connectors,
-                )?)
-                .body(types::PaymentsCompleteAuthorizeType::get_request_body(
-                    self, req,
-                )?)
-                .build(),
-        ))
-    }
-
-    fn handle_response(
-        &self,
-        data: &types::PaymentsCompleteAuthorizeRouterData,
-        res: types::Response,
-    ) -> CustomResult<types::PaymentsCompleteAuthorizeRouterData, errors::ConnectorError> {
-        let response: stripe::ChargesResponse = res
-            .response
-            .parse_struct("ChargesResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
         types::RouterData::try_from(types::ResponseRouterData {
@@ -1311,9 +1318,15 @@ impl api::IncomingWebhook for Stripe {
             .parse_struct("StripeWebhookObjectId")
             .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
 
-        Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
-            api_models::payments::PaymentIdType::ConnectorTransactionId(details.data.object.id),
-        ))
+        if details.data.object.object.eq("source") {
+            Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
+                api_models::payments::PaymentIdType::PreprocessingId(details.data.object.id),
+            ))
+        } else {
+            Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
+                api_models::payments::PaymentIdType::ConnectorTransactionId(details.data.object.id),
+            ))
+        }
     }
 
     fn get_webhook_event_type(

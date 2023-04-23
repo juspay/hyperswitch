@@ -91,6 +91,7 @@ impl WorldlineTest {
             router_return_url: None,
             webhook_url: None,
             complete_authorize_url: None,
+            customer_id: None,
         })
     }
 }

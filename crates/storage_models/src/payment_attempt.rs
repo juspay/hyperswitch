@@ -46,6 +46,7 @@ pub struct PaymentAttempt {
     pub payment_method_data: Option<serde_json::Value>,
     pub business_sub_label: Option<String>,
     pub straight_through_algorithm: Option<serde_json::Value>,
+    pub preprocessing_step_id: Option<String>,
 }
 
 #[derive(
@@ -92,6 +93,7 @@ pub struct PaymentAttemptNew {
     pub payment_method_data: Option<serde_json::Value>,
     pub business_sub_label: Option<String>,
     pub straight_through_algorithm: Option<serde_json::Value>,
+    pub preprocessing_step_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -146,6 +148,7 @@ pub enum PaymentAttemptUpdate {
         payment_token: Option<String>,
         error_code: Option<Option<String>>,
         error_message: Option<Option<String>>,
+        preprocessing_step_id: Option<String>,
     },
     UnresolvedResponseUpdate {
         status: storage_enums::AttemptStatus,
@@ -190,6 +193,7 @@ pub struct PaymentAttemptUpdateInternal {
     payment_experience: Option<storage_enums::PaymentExperience>,
     business_sub_label: Option<String>,
     straight_through_algorithm: Option<serde_json::Value>,
+    preprocessing_step_id: Option<String>,
 }
 
 impl PaymentAttemptUpdate {
@@ -212,6 +216,10 @@ impl PaymentAttemptUpdate {
             browser_info: pa_update.browser_info.or(source.browser_info),
             modified_at: common_utils::date_time::now(),
             payment_token: pa_update.payment_token.or(source.payment_token),
+            connector_metadata: pa_update.connector_metadata.or(source.connector_metadata),
+            preprocessing_step_id: pa_update
+                .preprocessing_step_id
+                .or(source.preprocessing_step_id),
             ..source
         }
     }
@@ -304,6 +312,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 payment_token,
                 error_code,
                 error_message,
+                preprocessing_step_id,
             } => Self {
                 status: Some(status),
                 connector,
@@ -316,6 +325,8 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 error_code,
                 error_message,
                 payment_token,
+
+                preprocessing_step_id,
                 ..Default::default()
             },
             PaymentAttemptUpdate::ErrorUpdate {

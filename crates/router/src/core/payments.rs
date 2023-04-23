@@ -117,10 +117,12 @@ where
         .await?;
 
     if let Some(connector_details) = connector {
-        operation
-            .to_domain()?
-            .add_task_to_process_tracker(state, &payment_data.payment_attempt)
-            .await?;
+        if should_add_task_to_process_tracker(&payment_data)? {
+            operation
+                .to_domain()?
+                .add_task_to_process_tracker(state, &payment_data.payment_attempt)
+                .await?;
+        }
 
         payment_data = match connector_details {
             api::ConnectorCallType::Single(connector) => {
@@ -471,7 +473,7 @@ where
         .add_access_token(state, &connector, merchant_account)
         .await?;
 
-    let should_continue_payment = access_token::update_router_data_with_access_token_result(
+    let mut should_continue_payment = access_token::update_router_data_with_access_token_result(
         &add_access_token_result,
         &mut router_data,
         &call_connector_action,
@@ -483,6 +485,24 @@ where
 
     if let Some(payment_method_token) = pm_token {
         router_data.payment_method_token = Some(payment_method_token);
+    };
+
+    router_data = match payment_data
+        .payment_method_data
+        .as_ref()
+        .get_required_value("payment_method_data")?
+    {
+        api_models::payments::PaymentMethodData::BankTransfer(
+            api_models::payments::BankTransferData::AchBankTransfer(_),
+        ) => {
+            if payment_data.payment_attempt.preprocessing_step_id.is_none() {
+                should_continue_payment = false;
+                router_data.preprocessing_steps(state, &connector).await?
+            } else {
+                router_data
+            }
+        }
+        _ => router_data,
     };
 
     let router_data_res = if should_continue_payment {
@@ -856,7 +876,6 @@ pub fn should_delete_pm_from_locker(status: storage_enums::IntentStatus) -> bool
     !matches!(
         status,
         storage_models::enums::IntentStatus::RequiresCustomerAction
-            | storage_models::enums::IntentStatus::Processing
     )
 }
 
@@ -1123,4 +1142,24 @@ pub fn decide_connector(
     routing_data.routed_through = Some(connector_name);
 
     Ok(api::ConnectorCallType::Single(connector_data))
+}
+
+pub fn should_add_task_to_process_tracker<F: Clone>(
+    payment_data: &PaymentData<F>,
+) -> RouterResult<bool> {
+    let pm = payment_data
+        .payment_attempt
+        .payment_method
+        .get_required_value("payment_method")?;
+    let connector = payment_data
+        .payment_attempt
+        .connector
+        .clone()
+        .get_required_value("connector")?;
+    let add_task_check = if matches!(pm, storage_enums::PaymentMethod::BankTransfer) {
+        !connector.eq("stripe")
+    } else {
+        true
+    };
+    Ok(add_task_check)
 }

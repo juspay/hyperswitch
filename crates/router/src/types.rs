@@ -22,12 +22,13 @@ use crate::{core::errors, services};
 
 pub type PaymentsAuthorizeRouterData =
     RouterData<api::Authorize, PaymentsAuthorizeData, PaymentsResponseData>;
+pub type PaymentsPreProcessingRouterData =
+    RouterData<api::PreProcessing, PaymentsPreProcessingData, PaymentsResponseData>;
 pub type PaymentsAuthorizeSessionTokenRouterData =
     RouterData<api::AuthorizeSessionToken, AuthorizeSessionTokenData, PaymentsResponseData>;
 pub type PaymentsCompleteAuthorizeRouterData =
     RouterData<api::CompleteAuthorize, CompleteAuthorizeData, PaymentsResponseData>;
-pub type CustomerRouterData =
-    RouterData<api::Customer, CompleteAuthorizeData, PaymentsResponseData>;
+pub type CustomerRouterData = RouterData<api::Customer, CustomerData, PaymentsResponseData>;
 pub type PaymentsInitRouterData =
     RouterData<api::InitPayment, PaymentsAuthorizeData, PaymentsResponseData>;
 pub type PaymentsSyncRouterData = RouterData<api::PSync, PaymentsSyncData, PaymentsResponseData>;
@@ -67,6 +68,11 @@ pub type RefundsResponseRouterData<F, R> =
 
 pub type PaymentsAuthorizeType =
     dyn services::ConnectorIntegration<api::Authorize, PaymentsAuthorizeData, PaymentsResponseData>;
+pub type PaymentsPreProcessingType = dyn services::ConnectorIntegration<
+    api::PreProcessing,
+    PaymentsPreProcessingData,
+    PaymentsResponseData,
+>;
 pub type PaymentsCompleteAuthorizeType = dyn services::ConnectorIntegration<
     api::CompleteAuthorize,
     CompleteAuthorizeData,
@@ -83,7 +89,7 @@ pub type PaymentsInitType = dyn services::ConnectorIntegration<
     PaymentsResponseData,
 >;
 pub type CustomerType =
-    dyn services::ConnectorIntegration<api::Customer, CompleteAuthorizeData, PaymentsResponseData>;
+    dyn services::ConnectorIntegration<api::Customer, CustomerData, PaymentsResponseData>;
 pub type PaymentsSyncType =
     dyn services::ConnectorIntegration<api::PSync, PaymentsSyncData, PaymentsResponseData>;
 pub type PaymentsCaptureType =
@@ -128,7 +134,9 @@ pub struct RouterData<Flow, Request, Response> {
     pub access_token: Option<AccessToken>,
     pub session_token: Option<String>,
     pub reference_id: Option<String>,
+    pub customer_id: Option<String>,
     pub payment_method_token: Option<String>,
+    pub preprocessing_id: Option<String>,
 
     /// Contains flow-specific data required to construct a request and send it to the connector.
     pub request: Request,
@@ -165,6 +173,7 @@ pub struct PaymentsAuthorizeData {
     pub related_transaction_id: Option<String>,
     pub payment_experience: Option<storage_enums::PaymentExperience>,
     pub payment_method_type: Option<storage_enums::PaymentMethodType>,
+    pub customer_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -190,6 +199,12 @@ pub struct PaymentMethodTokenizationData {
 }
 
 #[derive(Debug, Clone)]
+pub struct PaymentsPreProcessingData {
+    pub email: Option<masking::Secret<String, Email>>,
+    pub currency: Option<storage_enums::Currency>,
+}
+
+#[derive(Debug, Clone)]
 pub struct CompleteAuthorizeData {
     pub payment_method_data: Option<payments::PaymentMethodData>,
     pub amount: i64,
@@ -208,6 +223,12 @@ pub struct CompleteAuthorizeData {
     pub connector_transaction_id: Option<String>,
     pub connector_meta: Option<serde_json::Value>,
     pub customer_id: Option<String>,
+}
+
+#[derive(Debug, Clone)]
+pub struct CustomerData {
+    pub email: Option<masking::Secret<String, Email>>,
+    pub preprocessing_id: Option<String>,
 }
 
 #[derive(Debug, Default, Clone)]
@@ -287,6 +308,10 @@ pub enum PaymentsResponseData {
     },
     TokenizationResponse {
         token: String,
+    },
+    PreProcessingResponse {
+        pre_processing_id: String,
+        connector_metadata: Option<serde_json::Value>,
     },
 }
 
@@ -482,6 +507,15 @@ impl From<&&mut PaymentsAuthorizeRouterData> for AuthorizeSessionTokenData {
     }
 }
 
+impl From<&&mut PaymentsAuthorizeRouterData> for CustomerData {
+    fn from(data: &&mut PaymentsAuthorizeRouterData) -> Self {
+        Self {
+            email: data.request.email.to_owned(),
+            preprocessing_id: data.preprocessing_id.to_owned(),
+        }
+    }
+}
+
 impl<F1, F2, T1, T2> From<(&&mut RouterData<F1, T1, PaymentsResponseData>, T2)>
     for RouterData<F2, T2, PaymentsResponseData>
 {
@@ -510,6 +544,8 @@ impl<F1, F2, T1, T2> From<(&&mut RouterData<F1, T1, PaymentsResponseData>, T2)>
             session_token: data.session_token.clone(),
             reference_id: data.reference_id.clone(),
             payment_method_token: None,
+            preprocessing_id: None,
+            customer_id: None,
         }
     }
 }

@@ -95,6 +95,8 @@ pub async fn construct_refund_router_data<'a, F>(
         session_token: None,
         reference_id: None,
         payment_method_token: None,
+        preprocessing_id: None,
+        customer_id: None,
     };
 
     Ok(router_data)

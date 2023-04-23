@@ -55,6 +55,13 @@ pub trait PaymentAttemptInterface {
         merchant_id: &str,
         storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<types::PaymentAttempt, errors::StorageError>;
+
+    async fn find_payment_attempt_by_preprocessing_id_merchant_id(
+        &self,
+        preprocessing_id: &str,
+        merchant_id: &str,
+        storage_scheme: enums::MerchantStorageScheme,
+    ) -> CustomResult<types::PaymentAttempt, errors::StorageError>;
 }
 
 #[cfg(not(feature = "kv_store"))]
@@ -169,6 +176,25 @@ mod storage {
             .map_err(Into::into)
             .into_report()
         }
+
+        async fn find_payment_attempt_by_preprocessing_id_merchant_id(
+            &self,
+            preprocessing_id: &str,
+            merchant_id: &str,
+            _storage_scheme: enums::MerchantStorageScheme,
+        ) -> CustomResult<PaymentAttempt, errors::StorageError> {
+            let conn = connection::pg_connection_read(self).await?;
+
+            PaymentAttempt::find_by_merchant_id_preprocessing_id(
+                &conn,
+                merchant_id,
+                preprocessing_id,
+            )
+            .await
+            .map_err(Into::into)
+            .into_report()
+        }
+
         async fn find_payment_attempt_by_attempt_id_merchant_id(
             &self,
             merchant_id: &str,
@@ -201,6 +227,16 @@ impl PaymentAttemptInterface for MockDb {
     async fn find_payment_attempt_by_attempt_id_merchant_id(
         &self,
         _attempt_id: &str,
+        _merchant_id: &str,
+        _storage_scheme: enums::MerchantStorageScheme,
+    ) -> CustomResult<types::PaymentAttempt, errors::StorageError> {
+        // [#172]: Implement function for `MockDb`
+        Err(errors::StorageError::MockDbError)?
+    }
+
+    async fn find_payment_attempt_by_preprocessing_id_merchant_id(
+        &self,
+        _preprocessing_id: &str,
         _merchant_id: &str,
         _storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<types::PaymentAttempt, errors::StorageError> {
@@ -265,6 +301,7 @@ impl PaymentAttemptInterface for MockDb {
             payment_method_data: payment_attempt.payment_method_data,
             business_sub_label: payment_attempt.business_sub_label,
             straight_through_algorithm: payment_attempt.straight_through_algorithm,
+            preprocessing_step_id: payment_attempt.preprocessing_step_id,
         };
         payment_attempts.push(payment_attempt.clone());
         Ok(payment_attempt)
@@ -400,6 +437,7 @@ mod storage {
                         straight_through_algorithm: payment_attempt
                             .straight_through_algorithm
                             .clone(),
+                        preprocessing_step_id: payment_attempt.preprocessing_step_id.clone(),
                     };
 
                     let field = format!("pa_{}", created_attempt.attempt_id);
@@ -471,6 +509,7 @@ mod storage {
                 enums::MerchantStorageScheme::RedisKv => {
                     let key = format!("{}_{}", this.merchant_id, this.payment_id);
                     let old_connector_transaction_id = &this.connector_transaction_id;
+                    let old_preprocessing_id = &this.preprocessing_step_id;
                     let updated_attempt = payment_attempt.clone().apply_changeset(this.clone());
                     // Check for database presence as well Maybe use a read replica here ?
                     let redis_value = serde_json::to_string(&updated_attempt)
@@ -506,6 +545,32 @@ mod storage {
                                     this.merchant_id.as_str(),
                                     updated_attempt.attempt_id.as_str(),
                                     connector_transaction_id.as_str(),
+                                )
+                                .await?;
+                            }
+                        }
+                        (_, _) => {}
+                    }
+
+                    match (old_preprocessing_id, &updated_attempt.preprocessing_step_id) {
+                        (None, Some(preprocessing_id)) => {
+                            add_preprocessing_id_to_reverse_lookup(
+                                self,
+                                key.as_str(),
+                                this.merchant_id.as_str(),
+                                updated_attempt.attempt_id.as_str(),
+                                preprocessing_id.as_str(),
+                            )
+                            .await?;
+                        }
+                        (Some(old_preprocessing_id), Some(preprocessing_id)) => {
+                            if old_preprocessing_id.ne(preprocessing_id) {
+                                add_preprocessing_id_to_reverse_lookup(
+                                    self,
+                                    key.as_str(),
+                                    this.merchant_id.as_str(),
+                                    updated_attempt.attempt_id.as_str(),
+                                    preprocessing_id.as_str(),
                                 )
                                 .await?;
                             }
@@ -658,6 +723,41 @@ mod storage {
             }
         }
 
+        async fn find_payment_attempt_by_preprocessing_id_merchant_id(
+            &self,
+            preprocessing_id: &str,
+            merchant_id: &str,
+            storage_scheme: enums::MerchantStorageScheme,
+        ) -> CustomResult<PaymentAttempt, errors::StorageError> {
+            let database_call = || async {
+                let conn = connection::pg_connection_read(self).await?;
+                PaymentAttempt::find_by_merchant_id_preprocessing_id(
+                    &conn,
+                    merchant_id,
+                    preprocessing_id,
+                )
+                .await
+                .map_err(Into::into)
+                .into_report()
+            };
+            match storage_scheme {
+                enums::MerchantStorageScheme::PostgresOnly => database_call().await,
+                enums::MerchantStorageScheme::RedisKv => {
+                    let lookup_id = format!("{merchant_id}_{preprocessing_id}");
+                    let lookup = self.get_lookup_by_lookup_id(&lookup_id).await?;
+                    let key = &lookup.pk_id;
+
+                    db_utils::try_redis_get_else_try_database_get(
+                        self.redis_conn()
+                            .map_err(Into::<errors::StorageError>::into)?
+                            .get_hash_field_and_deserialize(key, &lookup.sk_id, "PaymentAttempt"),
+                        database_call,
+                    )
+                    .await
+                }
+            }
+        }
+
         async fn find_payment_attempt_by_payment_id_merchant_id_attempt_id(
             &self,
             payment_id: &str,
@@ -708,6 +808,28 @@ mod storage {
         let field = format!("pa_{}", updated_attempt_attempt_id);
         ReverseLookupNew {
             lookup_id: format!("{}_{}", merchant_id, connector_transaction_id),
+            pk_id: key.to_owned(),
+            sk_id: field.clone(),
+            source: "payment_attempt".to_string(),
+        }
+        .insert(&conn)
+        .await
+        .map_err(Into::<errors::StorageError>::into)
+        .into_report()
+    }
+
+    #[inline]
+    async fn add_preprocessing_id_to_reverse_lookup(
+        store: &Store,
+        key: &str,
+        merchant_id: &str,
+        updated_attempt_attempt_id: &str,
+        preprocessing_id: &str,
+    ) -> CustomResult<ReverseLookup, errors::StorageError> {
+        let conn = connection::pg_connection_write(store).await?;
+        let field = format!("pa_{}", updated_attempt_attempt_id);
+        ReverseLookupNew {
+            lookup_id: format!("{}_{}", merchant_id, preprocessing_id),
             pk_id: key.to_owned(),
             sk_id: field.clone(),
             source: "payment_attempt".to_string(),

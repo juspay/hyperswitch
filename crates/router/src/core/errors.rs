@@ -452,4 +452,6 @@ pub enum WebhooksFlowError {
     NotImplemented,
     #[error("Dispute webhook status validation failed")]
     DisputeWebhookValidationFailed,
+    #[error("Missing required field: {field_name}")]
+    MissingRequiredField { field_name: &'static str },
 }
