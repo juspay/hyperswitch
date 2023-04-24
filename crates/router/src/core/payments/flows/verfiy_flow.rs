@@ -135,8 +135,8 @@ impl mandate::MandateBehaviour for types::VerifyRequestData {
         self.mandate_id.as_ref()
     }
 
-    fn set_mandate_id(&mut self, new_mandate_id: api_models::payments::MandateIds) {
-        self.mandate_id = Some(new_mandate_id);
+    fn set_mandate_id(&mut self, new_mandate_id: Option<api_models::payments::MandateIds>) {
+        self.mandate_id = new_mandate_id;
     }
 
     fn get_payment_method_data(&self) -> api_models::payments::PaymentMethodData {

@@ -1,6 +1,6 @@
 use api_models::{self, enums as api_enums, payments};
 use base64::Engine;
-use common_utils::{ext_traits::ByteSliceExt, fp_utils, pii::{self,Email}};
+use common_utils::{ext_traits::ByteSliceExt, fp_utils, pii};
 use error_stack::{IntoReport, ResultExt};
 use masking::{ExposeInterface, ExposeOptionInterface, Secret};
 use serde::{Deserialize, Serialize};

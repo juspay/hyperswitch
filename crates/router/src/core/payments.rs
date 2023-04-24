@@ -609,13 +609,13 @@ fn is_payment_method_tokenization_enabled_for_connector(
 
 fn is_payment_method_type_allowed_for_connector(
     current_pm_type: &Option<storage::enums::PaymentMethodType>,
-    pm_type_filter: PaymentMethodTypeTokenFilter,
+    pm_type_filter: Option<PaymentMethodTypeTokenFilter>,
 ) -> bool {
-    match current_pm_type {
-        Some(pm_type) => match pm_type_filter {
+    match current_pm_type.clone().zip(pm_type_filter) {
+        Some((pm_type, type_filter)) => match type_filter {
             PaymentMethodTypeTokenFilter::AllAccepted => true,
-            PaymentMethodTypeTokenFilter::EnableOnly(enabled) => enabled.contains(pm_type),
-            PaymentMethodTypeTokenFilter::DisableOnly(disabled) => !disabled.contains(pm_type),
+            PaymentMethodTypeTokenFilter::EnableOnly(enabled) => enabled.contains(&pm_type),
+            PaymentMethodTypeTokenFilter::DisableOnly(disabled) => !disabled.contains(&pm_type),
         },
         None => true, // Allow all types if payment_method_type is not present
     }

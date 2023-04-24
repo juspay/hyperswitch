@@ -2,7 +2,6 @@ use std::{collections::HashMap, env, path::MAIN_SEPARATOR, time::Duration};
 
 use actix_web::cookie::SameSite;
 use async_trait::async_trait;
-use futures::Future;
 use thirtyfour::{components::SelectElement, prelude::*, WebDriver};
 
 pub enum Event<'a> {
@@ -42,6 +41,8 @@ pub enum Assert<'a> {
     IsPresent(&'a str),
 }
 
+pub static CHEKOUT_BASE_URL: &str = "https://hs-payments-test.netlify.app";
+pub static CHEKOUT_DOMAIN: &str = "hs-payments-test.netlify.app";
 #[async_trait]
 pub trait SeleniumTest {
     async fn complete_actions(
@@ -204,14 +205,6 @@ pub trait SeleniumTest {
         Ok(())
     }
 
-    async fn process_payment<F, Fut>(&self, _f: F) -> Result<(), WebDriverError>
-    where
-        F: FnOnce(WebDriver) -> Fut + Send,
-        Fut: Future<Output = Result<(), WebDriverError>> + Send,
-    {
-        let _browser = env::var("HS_TEST_BROWSER").unwrap_or("chrome".to_string()); //Issue: #924
-        Ok(())
-    }
     async fn make_redirection_payment(
         &self,
         c: WebDriver,
@@ -231,7 +224,7 @@ pub trait SeleniumTest {
         );
         let default_actions = vec![
             Event::Trigger(Trigger::Goto(url)),
-            Event::Trigger(Trigger::Click(By::Css("#gpay-btn button"))),
+            Event::Trigger(Trigger::Click(By::Css(".gpay-button"))),
             Event::Trigger(Trigger::SwitchTab(Position::Next)),
             Event::RunIf(
                 Assert::IsPresent("Sign in"),
@@ -314,7 +307,7 @@ async fn is_text_present(driver: &WebDriver, key: &str) -> WebDriverResult<bool>
 fn new_cookie(name: &str, value: String) -> Cookie<'_> {
     let mut base_url_cookie = Cookie::new(name, value);
     base_url_cookie.set_same_site(Some(SameSite::Lax));
-    base_url_cookie.set_domain("hs-payment-tests.w3spaces.com");
+    base_url_cookie.set_domain(CHEKOUT_DOMAIN);
     base_url_cookie.set_path("/");
     base_url_cookie
 }
@@ -362,13 +355,17 @@ macro_rules! tester_inner {
 
 #[macro_export]
 macro_rules! tester {
-    ($f:ident, $endpoint:expr) => {{
+    ($f:ident) => {{
         use $crate::tester_inner;
-
-        let url = make_url($endpoint);
-        let caps = make_capabilities($endpoint);
+        let browser = get_browser();
+        let url = make_url(&browser);
+        let caps = make_capabilities(&browser);
         tester_inner!($f, WebDriver::new(url, caps));
     }};
+}
+
+pub fn get_browser() -> String {
+    env::var("HS_TEST_BROWSER").unwrap_or("firefox".to_string()) //Issue: #924
 }
 
 pub fn make_capabilities(s: &str) -> Capabilities {

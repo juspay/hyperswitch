@@ -158,10 +158,13 @@ where
                     _ => None,
                 };
 
-                let mandate_ids = Some(masking::Secret::new(
-                    Encode::<types::MandateReference>::encode_to_value(&mandate_details)
-                        .change_context(errors::ApiErrorResponse::MandateNotFound)?,
-                ));
+                let mandate_ids = mandate_details
+                    .map(|md| {
+                        Encode::<types::MandateReference>::encode_to_value(&md)
+                            .change_context(errors::ApiErrorResponse::MandateNotFound)
+                            .map(masking::Secret::new)
+                    })
+                    .transpose()?;
 
                 if let Some(new_mandate_data) = helpers::generate_mandate(
                     resp.merchant_id.clone(),
@@ -177,15 +180,19 @@ where
                         new_mandate_data
                             .clone()
                             .connector_mandate_id
-                            .parse_value::<api_models::payments::ConnectorMandateId>(
-                                "ConnectorMandateId",
-                            )
-                            .change_context(errors::ApiErrorResponse::MandateNotFound)
+                            .map(|ids| {
+                                Some(ids)
+                                    .parse_value::<api_models::payments::ConnectorMandateId>(
+                                        "ConnectorMandateId",
+                                    )
+                                    .change_context(errors::ApiErrorResponse::MandateNotFound)
+                            })
+                            .transpose()?
                             .map(|connector_id| api_models::payments::MandateIds {
                                 mandate_id: new_mandate_data.mandate_id.clone(),
                                 connector_mandate_id: connector_id.mandate_id,
                                 payment_method_id: connector_id.payment_method_id,
-                            })?,
+                            }),
                     );
                     state
                         .store
@@ -209,7 +216,7 @@ pub trait MandateBehaviour {
     fn get_amount(&self) -> i64;
     fn get_setup_future_usage(&self) -> Option<storage_models::enums::FutureUsage>;
     fn get_mandate_id(&self) -> Option<&api_models::payments::MandateIds>;
-    fn set_mandate_id(&mut self, new_mandate_id: api_models::payments::MandateIds);
+    fn set_mandate_id(&mut self, new_mandate_id: Option<api_models::payments::MandateIds>);
     fn get_payment_method_data(&self) -> api_models::payments::PaymentMethodData;
     fn get_setup_mandate_details(&self) -> Option<&api_models::payments::MandateData>;
 }

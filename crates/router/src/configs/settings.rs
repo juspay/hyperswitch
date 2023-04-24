@@ -73,7 +73,7 @@ pub struct TokenizationConfig(pub HashMap<String, PaymentMethodTokenFilter>);
 pub struct PaymentMethodTokenFilter {
     #[serde(deserialize_with = "pm_deser")]
     pub payment_method: HashSet<storage_models::enums::PaymentMethod>,
-    pub payment_method_type: PaymentMethodTypeTokenFilter,
+    pub payment_method_type: Option<PaymentMethodTypeTokenFilter>,
     pub long_lived_token: bool,
 }
 

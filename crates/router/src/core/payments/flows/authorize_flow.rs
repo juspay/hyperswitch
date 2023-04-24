@@ -8,13 +8,10 @@ use crate::{
         mandate,
         payments::{self, access_token, tokenization, transformers, PaymentData},
     },
+    logger,
     routes::{metrics, AppState},
     services,
-    types::{
-        self,
-        api::{self},
-        storage,
-    },
+    types::{self, api, storage},
 };
 
 #[async_trait]
@@ -193,8 +190,8 @@ impl mandate::MandateBehaviour for types::PaymentsAuthorizeData {
         self.setup_mandate_details.as_ref()
     }
 
-    fn set_mandate_id(&mut self, new_mandate_id: api_models::payments::MandateIds) {
-        self.mandate_id = Some(new_mandate_id);
+    fn set_mandate_id(&mut self, new_mandate_id: Option<api_models::payments::MandateIds>) {
+        self.mandate_id = new_mandate_id;
     }
 }
 
