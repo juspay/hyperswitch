@@ -5,7 +5,6 @@ use crate::{
     connector_auth,
     utils::{self, ConnectorActions},
 };
-
 #[derive(Clone, Copy)]
 struct CheckoutTest;
 impl ConnectorActions for CheckoutTest {}
