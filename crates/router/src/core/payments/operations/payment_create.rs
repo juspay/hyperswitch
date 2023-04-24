@@ -20,6 +20,7 @@ use crate::{
     types::{
         self,
         api::{self, PaymentIdTypeExt},
+        domain::{customer as domain, merchant_account},
         storage::{
             self,
             enums::{self, IntentStatus},
@@ -41,7 +42,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         payment_id: &api::PaymentIdType,
         request: &api::PaymentsRequest,
         mandate_type: Option<api::MandateTxnType>,
-        merchant_account: &storage::MerchantAccount,
+        merchant_account: &merchant_account::MerchantAccount,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsRequest>,
         PaymentData<F>,
@@ -111,10 +112,8 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 storage_scheme,
             )
             .await
-            .map_err(|err| {
-                err.to_duplicate_response(errors::ApiErrorResponse::DuplicatePayment {
-                    payment_id: payment_id.clone(),
-                })
+            .to_duplicate_response(errors::ApiErrorResponse::DuplicatePayment {
+                payment_id: payment_id.clone(),
             })?;
 
         payment_intent = db
@@ -131,10 +130,8 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 storage_scheme,
             )
             .await
-            .map_err(|err| {
-                err.to_duplicate_response(errors::ApiErrorResponse::DuplicatePayment {
-                    payment_id: payment_id.clone(),
-                })
+            .to_duplicate_response(errors::ApiErrorResponse::DuplicatePayment {
+                payment_id: payment_id.clone(),
             })?;
         connector_response = db
             .insert_connector_response(
@@ -142,10 +139,8 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 storage_scheme,
             )
             .await
-            .map_err(|err| {
-                err.to_duplicate_response(errors::ApiErrorResponse::DuplicatePayment {
-                    payment_id: payment_id.clone(),
-                })
+            .to_duplicate_response(errors::ApiErrorResponse::DuplicatePayment {
+                payment_id: payment_id.clone(),
             })?;
 
         let mandate_id = request
@@ -201,8 +196,8 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 setup_mandate,
                 token,
                 address: PaymentAddress {
-                    shipping: shipping_address.as_ref().map(|a| a.foreign_into()),
-                    billing: billing_address.as_ref().map(|a| a.foreign_into()),
+                    shipping: shipping_address.as_ref().map(|a| a.into()),
+                    billing: billing_address.as_ref().map(|a| a.into()),
                 },
                 confirm: request.confirm,
                 payment_method_data: request.payment_method_data.clone(),
@@ -237,7 +232,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentCreate {
     ) -> CustomResult<
         (
             BoxedOperation<'a, F, api::PaymentsRequest>,
-            Option<storage::Customer>,
+            Option<domain::Customer>,
         ),
         errors::StorageError,
     > {
@@ -275,7 +270,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentCreate {
 
     async fn get_connector<'a>(
         &'a self,
-        _merchant_account: &storage::MerchantAccount,
+        _merchant_account: &merchant_account::MerchantAccount,
         state: &AppState,
         request: &api::PaymentsRequest,
     ) -> CustomResult<api::ConnectorChoice, errors::ApiErrorResponse> {
@@ -291,7 +286,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
         db: &dyn StorageInterface,
         _payment_id: &api::PaymentIdType,
         mut payment_data: PaymentData<F>,
-        _customer: Option<storage::Customer>,
+        _customer: Option<domain::Customer>,
         storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<(BoxedOperation<'b, F, api::PaymentsRequest>, PaymentData<F>)>
     where
@@ -330,9 +325,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
                 storage_scheme,
             )
             .await
-            .map_err(|error| {
-                error.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
-            })?;
+            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
         let customer_id = payment_data.payment_intent.customer_id.clone();
         payment_data.payment_intent = db
@@ -348,9 +341,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
                 storage_scheme,
             )
             .await
-            .map_err(|error| {
-                error.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
-            })?;
+            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
         // payment_data.mandate_id = response.and_then(|router_data| router_data.request.mandate_id);
 
@@ -366,7 +357,7 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest> for PaymentCreate
     fn validate_request<'a, 'b>(
         &'b self,
         request: &api::PaymentsRequest,
-        merchant_account: &'a storage::MerchantAccount,
+        merchant_account: &'a merchant_account::MerchantAccount,
     ) -> RouterResult<(
         BoxedOperation<'b, F, api::PaymentsRequest>,
         operations::ValidateResult<'a>,
@@ -479,7 +470,7 @@ impl PaymentCreate {
     #[instrument(skip_all)]
     fn make_payment_intent(
         payment_id: &str,
-        merchant_account: &storage::MerchantAccount,
+        merchant_account: &types::domain::merchant_account::MerchantAccount,
         money: (api::Amount, enums::Currency),
         request: &api::PaymentsRequest,
         shipping_address_id: Option<String>,
@@ -495,7 +486,13 @@ impl PaymentCreate {
         let metadata = request
             .metadata
             .as_ref()
-            .map(Encode::<api_models::payments::Metadata>::encode_to_value)
+            .map(|metadata| {
+                let transformed_metadata = api_models::payments::Metadata {
+                    allowed_payment_method_types: request.allowed_payment_method_types.clone(),
+                    ..metadata.clone()
+                };
+                Encode::<api_models::payments::Metadata>::encode_to_value(&transformed_metadata)
+            })
             .transpose()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Encoding Metadata to value failed")?;

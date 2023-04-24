@@ -17,8 +17,8 @@ use crate::{
     routes::AppState,
     types::{
         api::{self, PaymentIdTypeExt},
-        storage::{self, enums as storage_enums},
-        transformers::ForeignInto,
+        domain::{customer as domain, merchant_account},
+        storage::enums as storage_enums,
     },
     utils::OptionExt,
 };
@@ -36,7 +36,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsStartRequest> f
         payment_id: &api::PaymentIdType,
         _request: &api::PaymentsStartRequest,
         _mandate_type: Option<api::MandateTxnType>,
-        merchant_account: &storage::MerchantAccount,
+        merchant_account: &merchant_account::MerchantAccount,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsStartRequest>,
         PaymentData<F>,
@@ -54,9 +54,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsStartRequest> f
         payment_intent = db
             .find_payment_intent_by_payment_id_merchant_id(&payment_id, merchant_id, storage_scheme)
             .await
-            .map_err(|error| {
-                error.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
-            })?;
+            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
         helpers::validate_payment_status_against_not_allowed_statuses(
             &payment_intent.status,
@@ -75,9 +73,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsStartRequest> f
                 storage_scheme,
             )
             .await
-            .map_err(|error| {
-                error.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
-            })?;
+            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
         currency = payment_attempt.currency.get_required_value("currency")?;
         amount = payment_attempt.amount.into();
@@ -134,8 +130,8 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsStartRequest> f
                 setup_mandate: None,
                 token: None,
                 address: PaymentAddress {
-                    shipping: shipping_address.as_ref().map(|a| a.foreign_into()),
-                    billing: billing_address.as_ref().map(|a| a.foreign_into()),
+                    shipping: shipping_address.as_ref().map(|a| a.into()),
+                    billing: billing_address.as_ref().map(|a| a.into()),
                 },
                 confirm: Some(payment_attempt.confirm),
                 payment_attempt,
@@ -160,7 +156,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsStartRequest> for P
         _db: &dyn StorageInterface,
         _payment_id: &api::PaymentIdType,
         payment_data: PaymentData<F>,
-        _customer: Option<storage::Customer>,
+        _customer: Option<domain::Customer>,
         _storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> RouterResult<(
         BoxedOperation<'b, F, api::PaymentsStartRequest>,
@@ -178,7 +174,7 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsStartRequest> for PaymentS
     fn validate_request<'a, 'b>(
         &'b self,
         request: &api::PaymentsStartRequest,
-        merchant_account: &'a storage::MerchantAccount,
+        merchant_account: &'a merchant_account::MerchantAccount,
     ) -> RouterResult<(
         BoxedOperation<'b, F, api::PaymentsStartRequest>,
         operations::ValidateResult<'a>,
@@ -220,7 +216,7 @@ where
     ) -> CustomResult<
         (
             BoxedOperation<'a, F, api::PaymentsStartRequest>,
-            Option<storage::Customer>,
+            Option<domain::Customer>,
         ),
         errors::StorageError,
     > {
@@ -249,7 +245,7 @@ where
 
     async fn get_connector<'a>(
         &'a self,
-        _merchant_account: &storage::MerchantAccount,
+        _merchant_account: &merchant_account::MerchantAccount,
         state: &AppState,
         _request: &api::PaymentsStartRequest,
     ) -> CustomResult<api::ConnectorChoice, errors::ApiErrorResponse> {

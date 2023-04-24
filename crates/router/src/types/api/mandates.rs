@@ -12,6 +12,7 @@ use crate::{
     routes::AppState,
     types::{
         api,
+        domain::merchant_account,
         storage::{self, enums as storage_enums},
         transformers::ForeignInto,
     },
@@ -27,7 +28,7 @@ pub(crate) trait MandateResponseExt: Sized {
     async fn from_db_mandate(
         state: &AppState,
         mandate: storage::Mandate,
-        merchant_account: &storage::MerchantAccount,
+        merchant_account: &merchant_account::MerchantAccount,
     ) -> RouterResult<Self>;
 }
 
@@ -36,15 +37,13 @@ impl MandateResponseExt for MandateResponse {
     async fn from_db_mandate(
         state: &AppState,
         mandate: storage::Mandate,
-        merchant_account: &storage::MerchantAccount,
+        merchant_account: &merchant_account::MerchantAccount,
     ) -> RouterResult<Self> {
         let db = &*state.store;
         let payment_method = db
             .find_payment_method(&mandate.payment_method_id)
             .await
-            .map_err(|error| {
-                error.to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)
-            })?;
+            .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
 
         let card = if payment_method.payment_method == storage_enums::PaymentMethod::Card {
             let card = payment_methods::cards::get_card_from_locker(

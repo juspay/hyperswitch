@@ -28,6 +28,7 @@ use crate::{
     routes::AppState,
     types::{
         self, api,
+        domain::{customer as domain, merchant_account},
         storage::{self, enums},
         PaymentsResponseData,
     },
@@ -78,7 +79,7 @@ pub trait ValidateRequest<F, R> {
     fn validate_request<'a, 'b>(
         &'b self,
         request: &R,
-        merchant_account: &'a storage::MerchantAccount,
+        merchant_account: &'a merchant_account::MerchantAccount,
     ) -> RouterResult<(BoxedOperation<'b, F, R>, ValidateResult<'a>)>;
 }
 
@@ -91,7 +92,7 @@ pub trait GetTracker<F, D, R>: Send {
         payment_id: &api::PaymentIdType,
         request: &R,
         mandate_type: Option<api::MandateTxnType>,
-        merchant_account: &storage::MerchantAccount,
+        merchant_account: &merchant_account::MerchantAccount,
     ) -> RouterResult<(BoxedOperation<'a, F, R>, D, Option<CustomerDetails>)>;
 }
 
@@ -104,7 +105,7 @@ pub trait Domain<F: Clone, R>: Send + Sync {
         payment_data: &mut PaymentData<F>,
         request: Option<CustomerDetails>,
         merchant_id: &str,
-    ) -> CustomResult<(BoxedOperation<'a, F, R>, Option<storage::Customer>), errors::StorageError>;
+    ) -> CustomResult<(BoxedOperation<'a, F, R>, Option<domain::Customer>), errors::StorageError>;
 
     #[allow(clippy::too_many_arguments)]
     async fn make_pm_data<'a>(
@@ -124,7 +125,7 @@ pub trait Domain<F: Clone, R>: Send + Sync {
 
     async fn get_connector<'a>(
         &'a self,
-        merchant_account: &storage::MerchantAccount,
+        merchant_account: &merchant_account::MerchantAccount,
         state: &AppState,
         request: &R,
     ) -> CustomResult<api::ConnectorChoice, errors::ApiErrorResponse>;
@@ -137,7 +138,7 @@ pub trait UpdateTracker<F, D, Req>: Send {
         db: &dyn StorageInterface,
         payment_id: &api::PaymentIdType,
         payment_data: D,
-        customer: Option<storage::Customer>,
+        customer: Option<domain::Customer>,
         storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<(BoxedOperation<'b, F, Req>, D)>
     where
@@ -174,7 +175,7 @@ where
     ) -> CustomResult<
         (
             BoxedOperation<'a, F, api::PaymentsRetrieveRequest>,
-            Option<storage::Customer>,
+            Option<domain::Customer>,
         ),
         errors::StorageError,
     > {
@@ -192,7 +193,7 @@ where
 
     async fn get_connector<'a>(
         &'a self,
-        _merchant_account: &storage::MerchantAccount,
+        _merchant_account: &merchant_account::MerchantAccount,
         state: &AppState,
         _request: &api::PaymentsRetrieveRequest,
     ) -> CustomResult<api::ConnectorChoice, errors::ApiErrorResponse> {
@@ -229,7 +230,7 @@ where
     ) -> CustomResult<
         (
             BoxedOperation<'a, F, api::PaymentsCaptureRequest>,
-            Option<storage::Customer>,
+            Option<domain::Customer>,
         ),
         errors::StorageError,
     > {
@@ -259,7 +260,7 @@ where
 
     async fn get_connector<'a>(
         &'a self,
-        _merchant_account: &storage::MerchantAccount,
+        _merchant_account: &merchant_account::MerchantAccount,
         state: &AppState,
         _request: &api::PaymentsCaptureRequest,
     ) -> CustomResult<api::ConnectorChoice, errors::ApiErrorResponse> {
@@ -283,7 +284,7 @@ where
     ) -> CustomResult<
         (
             BoxedOperation<'a, F, api::PaymentsCancelRequest>,
-            Option<storage::Customer>,
+            Option<domain::Customer>,
         ),
         errors::StorageError,
     > {
@@ -314,7 +315,7 @@ where
 
     async fn get_connector<'a>(
         &'a self,
-        _merchant_account: &storage::MerchantAccount,
+        _merchant_account: &merchant_account::MerchantAccount,
         state: &AppState,
         _request: &api::PaymentsCancelRequest,
     ) -> CustomResult<api::ConnectorChoice, errors::ApiErrorResponse> {

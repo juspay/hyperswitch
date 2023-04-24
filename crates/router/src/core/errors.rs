@@ -71,6 +71,10 @@ pub enum StorageError {
     CustomerRedacted,
     #[error("Deserialization failure")]
     DeserializationFailed,
+    #[error("Error while encrypting data")]
+    EncryptionError,
+    #[error("Error while decrypting data from database")]
+    DecryptionError,
     #[error("RedisError: {0:?}")]
     RedisError(error_stack::Report<RedisError>),
 }
@@ -259,6 +263,8 @@ pub enum ConnectorError {
     },
     #[error("{flow} flow not supported by {connector} connector")]
     FlowNotSupported { flow: String, connector: String },
+    #[error("Capture method not supported")]
+    CaptureMethodNotSupported,
     #[error("Missing connector transaction ID")]
     MissingConnectorTransactionID,
     #[error("Missing connector refund ID")]
@@ -283,6 +289,8 @@ pub enum ConnectorError {
     WebhookResponseEncodingFailed,
     #[error("Invalid Date/time format")]
     InvalidDateFormat,
+    #[error("Date Formatting Failed")]
+    DateFormattingFailed,
     #[error("Invalid Data format")]
     InvalidDataFormat { field_name: &'static str },
     #[error("Payment Method data / Payment Method Type / Payment Experience Mismatch ")]
@@ -430,6 +438,8 @@ pub enum WebhooksFlowError {
     DisputeCoreFailed,
     #[error("Webhook event creation failed")]
     WebhookEventCreationFailed,
+    #[error("Webhook event updation failed")]
+    WebhookEventUpdationFailed,
     #[error("Unable to fork webhooks flow for outgoing webhooks")]
     ForkFlowFailed,
     #[error("Webhook api call to merchant failed")]

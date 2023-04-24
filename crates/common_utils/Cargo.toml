@@ -13,40 +13,43 @@ signals = [
     "dep:signal-hook",
     "dep:tokio",
     "dep:router_env",
-    "dep:futures"
-]
-async_ext = [
     "dep:futures",
-    "dep:async-trait"
 ]
-logs = [
-    "dep:router_env"
-]
+async_ext = ["dep:futures", "dep:async-trait"]
+logs = ["dep:router_env"]
 
 [dependencies]
-async-trait = { version = "0.1.66", optional = true }
+async-trait = { version = "0.1.68", optional = true }
 bytes = "1.4.0"
 error-stack = "0.3.1"
-futures = { version = "0.3.27", optional = true }
+futures = { version = "0.3.28", optional = true }
 hex = "0.4.3"
 nanoid = "0.4.0"
 once_cell = "1.17.1"
 rand = "0.8.5"
-regex = "1.7.1"
-ring = "0.16.20"
-serde = { version = "1.0.155", features = ["derive"] }
-serde_json = "1.0.94"
+ring = { version = "0.16.20", features = ["std"] }
+regex = "1.7.3"
+serde = { version = "1.0.160", features = ["derive"] }
+serde_json = "1.0.96"
 serde_urlencoded = "0.7.1"
-signal-hook-tokio = { version = "0.3.1", features = ["futures-v0_3"], optional = true }
+signal-hook-tokio = { version = "0.3.1", features = [
+    "futures-v0_3",
+], optional = true }
 signal-hook = { version = "0.3.15", optional = true }
-tokio = { version = "1.26.0", features = ["macros", "rt-multi-thread"], optional = true }
-thiserror = "1.0.39"
+tokio = { version = "1.27.0", features = [
+    "macros",
+    "rt-multi-thread",
+], optional = true }
+thiserror = "1.0.40"
 time = { version = "0.3.20", features = ["serde", "serde-well-known", "std"] }
 md5 = "0.7.0"
 
 # First party crates
 masking = { version = "0.1.0", path = "../masking" }
-router_env = { version = "0.1.0", path = "../router_env", features = ["log_extra_implicit_fields", "log_custom_entries_to_extra"], optional = true }
+router_env = { version = "0.1.0", path = "../router_env", features = [
+    "log_extra_implicit_fields",
+    "log_custom_entries_to_extra",
+], optional = true }
 
 [dev-dependencies]
 fake = "2.5.0"

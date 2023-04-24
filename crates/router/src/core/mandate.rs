@@ -14,6 +14,7 @@ use crate::{
             customers,
             mandates::{self, MandateResponseExt},
         },
+        domain::{customer, merchant_account},
         storage,
         transformers::ForeignInto,
     },
@@ -23,14 +24,14 @@ use crate::{
 #[instrument(skip(state))]
 pub async fn get_mandate(
     state: &AppState,
-    merchant_account: storage::MerchantAccount,
+    merchant_account: merchant_account::MerchantAccount,
     req: mandates::MandateId,
 ) -> RouterResponse<mandates::MandateResponse> {
     let mandate = state
         .store
         .find_mandate_by_merchant_id_mandate_id(&merchant_account.merchant_id, &req.mandate_id)
         .await
-        .map_err(|error| error.to_not_found_response(errors::ApiErrorResponse::MandateNotFound))?;
+        .to_not_found_response(errors::ApiErrorResponse::MandateNotFound)?;
     Ok(services::ApplicationResponse::Json(
         mandates::MandateResponse::from_db_mandate(state, mandate, &merchant_account).await?,
     ))
@@ -39,7 +40,7 @@ pub async fn get_mandate(
 #[instrument(skip(db))]
 pub async fn revoke_mandate(
     db: &dyn StorageInterface,
-    merchant_account: storage::MerchantAccount,
+    merchant_account: merchant_account::MerchantAccount,
     req: mandates::MandateId,
 ) -> RouterResponse<mandates::MandateRevokedResponse> {
     let mandate = db
@@ -51,7 +52,7 @@ pub async fn revoke_mandate(
             },
         )
         .await
-        .map_err(|error| error.to_not_found_response(errors::ApiErrorResponse::MandateNotFound))?;
+        .to_not_found_response(errors::ApiErrorResponse::MandateNotFound)?;
 
     Ok(services::ApplicationResponse::Json(
         mandates::MandateRevokedResponse {
@@ -64,7 +65,7 @@ pub async fn revoke_mandate(
 #[instrument(skip(state))]
 pub async fn get_customer_mandates(
     state: &AppState,
-    merchant_account: storage::MerchantAccount,
+    merchant_account: merchant_account::MerchantAccount,
     req: customers::CustomerId,
 ) -> RouterResponse<Vec<mandates::MandateResponse>> {
     let mandates = state
@@ -96,7 +97,7 @@ pub async fn get_customer_mandates(
 pub async fn mandate_procedure<F, FData>(
     state: &AppState,
     mut resp: types::RouterData<F, FData, types::PaymentsResponseData>,
-    maybe_customer: &Option<storage::Customer>,
+    maybe_customer: &Option<customer::Customer>,
     pm_id: Option<String>,
 ) -> errors::RouterResult<types::RouterData<F, FData, types::PaymentsResponseData>>
 where
@@ -176,11 +177,7 @@ where
                         .store
                         .insert_mandate(new_mandate_data)
                         .await
-                        .map_err(|err| {
-                            err.to_duplicate_response(
-                                errors::ApiErrorResponse::DuplicateRefundRequest,
-                            )
-                        })?;
+                        .to_duplicate_response(errors::ApiErrorResponse::DuplicateRefundRequest)?;
                     metrics::MANDATE_COUNT.add(
                         &metrics::CONTEXT,
                         1,

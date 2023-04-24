@@ -16,7 +16,7 @@ use crate::{
     types::{
         self,
         api::{self, PaymentMethodCreateExt},
-        storage,
+        domain::{customer, merchant_account},
     },
     utils::OptionExt,
 };
@@ -33,7 +33,7 @@ impl
         &self,
         state: &AppState,
         connector_id: &str,
-        merchant_account: &storage::MerchantAccount,
+        merchant_account: &merchant_account::MerchantAccount,
     ) -> RouterResult<
         types::RouterData<
             api::Authorize,
@@ -50,16 +50,15 @@ impl
         .await
     }
 }
-
 #[async_trait]
 impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAuthorizeRouterData {
     async fn decide_flows<'a>(
         mut self,
         state: &AppState,
         connector: &api::ConnectorData,
-        customer: &Option<storage::Customer>,
+        customer: &Option<customer::Customer>,
         call_connector_action: payments::CallConnectorAction,
-        merchant_account: &storage::MerchantAccount,
+        merchant_account: &merchant_account::MerchantAccount,
     ) -> RouterResult<Self> {
         let resp = self
             .decide_flow(
@@ -81,7 +80,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
         &self,
         state: &AppState,
         connector: &api::ConnectorData,
-        merchant_account: &storage::MerchantAccount,
+        merchant_account: &merchant_account::MerchantAccount,
     ) -> RouterResult<types::AddAccessTokenResult> {
         access_token::add_access_token(state, connector, merchant_account, self).await
     }
@@ -101,10 +100,10 @@ impl types::PaymentsAuthorizeRouterData {
         &'b mut self,
         state: &'a AppState,
         connector: &api::ConnectorData,
-        maybe_customer: &Option<storage::Customer>,
+        maybe_customer: &Option<customer::Customer>,
         confirm: Option<bool>,
         call_connector_action: payments::CallConnectorAction,
-        merchant_account: &storage::MerchantAccount,
+        merchant_account: &merchant_account::MerchantAccount,
     ) -> RouterResult<Self> {
         match confirm {
             Some(true) => {
@@ -118,26 +117,32 @@ impl types::PaymentsAuthorizeRouterData {
                     .execute_pretasks(self, state)
                     .await
                     .map_err(|error| error.to_payment_failed_response())?;
-                self.decide_authentication_type();
-                let resp = services::execute_connector_processing_step(
-                    state,
-                    connector_integration,
-                    self,
-                    call_connector_action,
-                )
-                .await
-                .map_err(|error| error.to_payment_failed_response())?;
+                logger::debug!(completed_pre_tasks=?true);
+                if self.should_proceed_with_authorize() {
+                    self.decide_authentication_type();
+                    logger::debug!(auth_type=?self.auth_type);
+                    let resp = services::execute_connector_processing_step(
+                        state,
+                        connector_integration,
+                        self,
+                        call_connector_action,
+                    )
+                    .await
+                    .map_err(|error| error.to_payment_failed_response())?;
 
-                let pm_id = save_payment_method(
-                    state,
-                    connector,
-                    resp.to_owned(),
-                    maybe_customer,
-                    merchant_account,
-                )
-                .await?;
+                    let pm_id = save_payment_method(
+                        state,
+                        connector,
+                        resp.to_owned(),
+                        maybe_customer,
+                        merchant_account,
+                    )
+                    .await?;
 
-                Ok(mandate::mandate_procedure(state, resp, maybe_customer, pm_id).await?)
+                    Ok(mandate::mandate_procedure(state, resp, maybe_customer, pm_id).await?)
+                } else {
+                    Ok(self.clone())
+                }
             }
             _ => Ok(self.clone()),
         }
@@ -150,14 +155,24 @@ impl types::PaymentsAuthorizeRouterData {
             self.auth_type = storage_models::enums::AuthenticationType::NoThreeDs
         }
     }
+
+    /// to decide if we need to proceed with authorize or not, Eg: If any of the pretask returns `redirection_response` then we should not proceed with authorize call
+    fn should_proceed_with_authorize(&self) -> bool {
+        match &self.response {
+            Ok(types::PaymentsResponseData::TransactionResponse {
+                redirection_data, ..
+            }) => !redirection_data.is_some(),
+            _ => true,
+        }
+    }
 }
 
 pub async fn save_payment_method<F: Clone, FData>(
     state: &AppState,
     connector: &api::ConnectorData,
     resp: types::RouterData<F, FData, types::PaymentsResponseData>,
-    maybe_customer: &Option<storage::Customer>,
-    merchant_account: &storage::MerchantAccount,
+    maybe_customer: &Option<customer::Customer>,
+    merchant_account: &types::domain::merchant_account::MerchantAccount,
 ) -> RouterResult<Option<String>>
 where
     FData: mandate::MandateBehaviour,
@@ -261,7 +276,7 @@ where
 
 pub async fn save_in_locker(
     state: &AppState,
-    merchant_account: &storage::MerchantAccount,
+    merchant_account: &merchant_account::MerchantAccount,
     payment_method_request: api::PaymentMethodCreate,
 ) -> RouterResult<(api_models::payment_methods::PaymentMethodResponse, bool)> {
     payment_method_request.validate()?;

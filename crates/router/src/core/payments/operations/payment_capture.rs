@@ -15,8 +15,8 @@ use crate::{
     routes::AppState,
     types::{
         api::{self, PaymentIdTypeExt},
-        storage::{self, enums},
-        transformers::ForeignInto,
+        domain::{customer as domain, merchant_account},
+        storage::enums,
     },
     utils::OptionExt,
 };
@@ -36,7 +36,7 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentData<F>, api::PaymentsCaptu
         payment_id: &api::PaymentIdType,
         request: &api::PaymentsCaptureRequest,
         _mandate_type: Option<api::MandateTxnType>,
-        merchant_account: &storage::MerchantAccount,
+        merchant_account: &merchant_account::MerchantAccount,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsCaptureRequest>,
         payments::PaymentData<F>,
@@ -54,9 +54,7 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentData<F>, api::PaymentsCaptu
         payment_intent = db
             .find_payment_intent_by_payment_id_merchant_id(&payment_id, merchant_id, storage_scheme)
             .await
-            .map_err(|error| {
-                error.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
-            })?;
+            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
         helpers::validate_status(payment_intent.status)?;
 
@@ -70,9 +68,7 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentData<F>, api::PaymentsCaptu
                 storage_scheme,
             )
             .await
-            .map_err(|error| {
-                error.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
-            })?;
+            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
         payment_attempt
             .amount_to_capture
@@ -96,9 +92,7 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentData<F>, api::PaymentsCaptu
                 storage_scheme,
             )
             .await
-            .map_err(|error| {
-                error.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
-            })?;
+            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
         let shipping_address = helpers::get_address_for_payment_request(
             db,
@@ -150,8 +144,8 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentData<F>, api::PaymentsCaptu
                 setup_mandate: None,
                 token: None,
                 address: payments::PaymentAddress {
-                    shipping: shipping_address.as_ref().map(|a| a.foreign_into()),
-                    billing: billing_address.as_ref().map(|a| a.foreign_into()),
+                    shipping: shipping_address.as_ref().map(|a| a.into()),
+                    billing: billing_address.as_ref().map(|a| a.into()),
                 },
                 confirm: None,
                 payment_method_data: None,
@@ -177,7 +171,7 @@ impl<F: Clone> UpdateTracker<F, payments::PaymentData<F>, api::PaymentsCaptureRe
         _db: &dyn StorageInterface,
         _payment_id: &api::PaymentIdType,
         payment_data: payments::PaymentData<F>,
-        _customer: Option<storage::Customer>,
+        _customer: Option<domain::Customer>,
         _storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<(
         BoxedOperation<'b, F, api::PaymentsCaptureRequest>,
@@ -195,7 +189,7 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsCaptureRequest> for Paymen
     fn validate_request<'a, 'b>(
         &'b self,
         request: &api::PaymentsCaptureRequest,
-        merchant_account: &'a storage::MerchantAccount,
+        merchant_account: &'a merchant_account::MerchantAccount,
     ) -> RouterResult<(
         BoxedOperation<'b, F, api::PaymentsCaptureRequest>,
         operations::ValidateResult<'a>,

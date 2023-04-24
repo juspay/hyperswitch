@@ -20,6 +20,7 @@ use crate::{
     types::{
         self,
         api::{self, enums as api_enums, PaymentIdTypeExt},
+        domain::{customer as domain, merchant_account},
         storage::{self, enums as storage_enums},
         transformers::ForeignInto,
     },
@@ -35,7 +36,7 @@ impl<F: Send + Clone> ValidateRequest<F, api::VerifyRequest> for PaymentMethodVa
     fn validate_request<'a, 'b>(
         &'b self,
         request: &api::VerifyRequest,
-        merchant_account: &'a types::storage::MerchantAccount,
+        merchant_account: &'a merchant_account::MerchantAccount,
     ) -> RouterResult<(
         BoxedOperation<'b, F, api::VerifyRequest>,
         operations::ValidateResult<'a>,
@@ -68,7 +69,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::VerifyRequest> for Paym
         payment_id: &api::PaymentIdType,
         request: &api::VerifyRequest,
         _mandate_type: Option<api::MandateTxnType>,
-        merchant_account: &storage::MerchantAccount,
+        merchant_account: &merchant_account::MerchantAccount,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::VerifyRequest>,
         PaymentData<F>,
@@ -196,7 +197,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::VerifyRequest> for PaymentM
         db: &dyn StorageInterface,
         _payment_id: &api::PaymentIdType,
         mut payment_data: PaymentData<F>,
-        _customer: Option<storage::Customer>,
+        _customer: Option<domain::Customer>,
         storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> RouterResult<(BoxedOperation<'b, F, api::VerifyRequest>, PaymentData<F>)>
     where
@@ -220,11 +221,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::VerifyRequest> for PaymentM
                 storage_scheme,
             )
             .await
-            .map_err(|err| {
-                err.to_not_found_response(errors::ApiErrorResponse::VerificationFailed {
-                    data: None,
-                })
-            })?;
+            .to_not_found_response(errors::ApiErrorResponse::VerificationFailed { data: None })?;
 
         Ok((Box::new(self), payment_data))
     }
@@ -247,7 +244,7 @@ where
     ) -> CustomResult<
         (
             BoxedOperation<'a, F, api::VerifyRequest>,
-            Option<storage::Customer>,
+            Option<domain::Customer>,
         ),
         errors::StorageError,
     > {
@@ -276,7 +273,7 @@ where
 
     async fn get_connector<'a>(
         &'a self,
-        _merchant_account: &storage::MerchantAccount,
+        _merchant_account: &merchant_account::MerchantAccount,
         state: &AppState,
         _request: &api::VerifyRequest,
     ) -> CustomResult<api::ConnectorChoice, errors::ApiErrorResponse> {

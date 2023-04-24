@@ -16,8 +16,8 @@ use crate::{
     routes::AppState,
     types::{
         api::{self, PaymentIdTypeExt},
-        storage::{self, enums, Customer},
-        transformers::ForeignInto,
+        domain::{customer as domain, merchant_account},
+        storage::{self, enums},
     },
     utils::OptionExt,
 };
@@ -35,7 +35,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsCancelRequest> 
         payment_id: &api::PaymentIdType,
         request: &api::PaymentsCancelRequest,
         _mandate_type: Option<api::MandateTxnType>,
-        merchant_account: &storage::MerchantAccount,
+        merchant_account: &merchant_account::MerchantAccount,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsCancelRequest>,
         PaymentData<F>,
@@ -51,9 +51,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsCancelRequest> 
         let payment_intent = db
             .find_payment_intent_by_payment_id_merchant_id(&payment_id, merchant_id, storage_scheme)
             .await
-            .map_err(|error| {
-                error.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
-            })?;
+            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
         let mut payment_attempt = db
             .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
@@ -63,9 +61,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsCancelRequest> 
                 storage_scheme,
             )
             .await
-            .map_err(|error| {
-                error.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
-            })?;
+            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
         let shipping_address = helpers::get_address_for_payment_request(
             db,
@@ -92,9 +88,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsCancelRequest> 
                 storage_scheme,
             )
             .await
-            .map_err(|error| {
-                error.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
-            })?;
+            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
         let currency = payment_attempt.currency.get_required_value("currency")?;
         let amount = payment_attempt.amount.into();
 
@@ -139,8 +133,8 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsCancelRequest> 
                     setup_mandate: None,
                     token: None,
                     address: PaymentAddress {
-                        shipping: shipping_address.as_ref().map(|a| a.foreign_into()),
-                        billing: billing_address.as_ref().map(|a| a.foreign_into()),
+                        shipping: shipping_address.as_ref().map(|a| a.into()),
+                        billing: billing_address.as_ref().map(|a| a.into()),
                     },
                     confirm: None,
                     payment_method_data: None,
@@ -166,7 +160,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsCancelRequest> for 
         db: &dyn StorageInterface,
         _payment_id: &api::PaymentIdType,
         mut payment_data: PaymentData<F>,
-        _customer: Option<Customer>,
+        _customer: Option<domain::Customer>,
         storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<(
         BoxedOperation<'b, F, api::PaymentsCancelRequest>,
@@ -186,7 +180,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsCancelRequest> for 
                 storage_scheme,
             )
             .await
-            .map_err(|err| err.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound))?;
+            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
         Ok((Box::new(self), payment_data))
     }
@@ -197,7 +191,7 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsCancelRequest> for Payment
     fn validate_request<'a, 'b>(
         &'b self,
         request: &api::PaymentsCancelRequest,
-        merchant_account: &'a storage::MerchantAccount,
+        merchant_account: &'a merchant_account::MerchantAccount,
     ) -> RouterResult<(
         BoxedOperation<'b, F, api::PaymentsCancelRequest>,
         operations::ValidateResult<'a>,

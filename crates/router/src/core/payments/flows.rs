@@ -16,7 +16,10 @@ use crate::{
     },
     routes::AppState,
     services,
-    types::{self, api, storage},
+    types::{
+        self, api,
+        domain::{customer, merchant_account},
+    },
 };
 
 #[async_trait]
@@ -25,7 +28,7 @@ pub trait ConstructFlowSpecificData<F, Req, Res> {
         &self,
         state: &AppState,
         connector_id: &str,
-        merchant_account: &storage::MerchantAccount,
+        merchant_account: &merchant_account::MerchantAccount,
     ) -> RouterResult<types::RouterData<F, Req, Res>>;
 }
 
@@ -35,9 +38,9 @@ pub trait Feature<F, T> {
         self,
         state: &AppState,
         connector: &api::ConnectorData,
-        maybe_customer: &Option<storage::Customer>,
+        maybe_customer: &Option<customer::Customer>,
         call_connector_action: payments::CallConnectorAction,
-        merchant_account: &storage::MerchantAccount,
+        merchant_account: &merchant_account::MerchantAccount,
     ) -> RouterResult<Self>
     where
         Self: Sized,
@@ -48,7 +51,7 @@ pub trait Feature<F, T> {
         &self,
         state: &AppState,
         connector: &api::ConnectorData,
-        merchant_account: &storage::MerchantAccount,
+        merchant_account: &merchant_account::MerchantAccount,
     ) -> RouterResult<types::AddAccessTokenResult>
     where
         F: Clone,
@@ -88,7 +91,6 @@ macro_rules! default_imp_for_complete_authorize{
 default_imp_for_complete_authorize!(
     connector::Aci,
     connector::Adyen,
-    connector::Applepay,
     connector::Authorizedotnet,
     connector::Bambora,
     connector::Bluesnap,
@@ -98,13 +100,14 @@ default_imp_for_complete_authorize!(
     connector::Cybersource,
     connector::Dlocal,
     connector::Fiserv,
+    connector::Forte,
     connector::Klarna,
     connector::Multisafepay,
+    connector::Nexinets,
     connector::Opennode,
     connector::Payeezy,
     connector::Payu,
     connector::Rapyd,
-    connector::Shift4,
     connector::Stripe,
     connector::Trustpay,
     connector::Worldline,
@@ -131,7 +134,6 @@ macro_rules! default_imp_for_connector_redirect_response{
 default_imp_for_connector_redirect_response!(
     connector::Aci,
     connector::Adyen,
-    connector::Applepay,
     connector::Authorizedotnet,
     connector::Bambora,
     connector::Bluesnap,
@@ -140,8 +142,10 @@ default_imp_for_connector_redirect_response!(
     connector::Cybersource,
     connector::Dlocal,
     connector::Fiserv,
+    connector::Forte,
     connector::Klarna,
     connector::Multisafepay,
+    connector::Nexinets,
     connector::Opennode,
     connector::Payeezy,
     connector::Payu,
@@ -163,7 +167,6 @@ default_imp_for_connector_request_id!(
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
-    connector::Applepay,
     connector::Authorizedotnet,
     connector::Bambora,
     connector::Bluesnap,
@@ -173,10 +176,12 @@ default_imp_for_connector_request_id!(
     connector::Cybersource,
     connector::Dlocal,
     connector::Fiserv,
+    connector::Forte,
     connector::Globalpay,
     connector::Klarna,
     connector::Mollie,
     connector::Multisafepay,
+    connector::Nexinets,
     connector::Nuvei,
     connector::Opennode,
     connector::Payeezy,

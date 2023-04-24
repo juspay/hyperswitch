@@ -9,7 +9,10 @@ use crate::{
     },
     routes::AppState,
     services,
-    types::{self, api, storage},
+    types::{
+        self, api,
+        domain::{customer, merchant_account},
+    },
 };
 
 #[async_trait]
@@ -20,7 +23,7 @@ impl ConstructFlowSpecificData<api::Verify, types::VerifyRequestData, types::Pay
         &self,
         state: &AppState,
         connector_id: &str,
-        merchant_account: &storage::MerchantAccount,
+        merchant_account: &merchant_account::MerchantAccount,
     ) -> RouterResult<types::VerifyRouterData> {
         transformers::construct_payment_router_data::<api::Verify, types::VerifyRequestData>(
             state,
@@ -38,9 +41,9 @@ impl Feature<api::Verify, types::VerifyRequestData> for types::VerifyRouterData 
         self,
         state: &AppState,
         connector: &api::ConnectorData,
-        customer: &Option<storage::Customer>,
+        customer: &Option<customer::Customer>,
         call_connector_action: payments::CallConnectorAction,
-        merchant_account: &storage::MerchantAccount,
+        merchant_account: &merchant_account::MerchantAccount,
     ) -> RouterResult<Self> {
         self.decide_flow(
             state,
@@ -57,7 +60,7 @@ impl Feature<api::Verify, types::VerifyRequestData> for types::VerifyRouterData 
         &self,
         state: &AppState,
         connector: &api::ConnectorData,
-        merchant_account: &storage::MerchantAccount,
+        merchant_account: &merchant_account::MerchantAccount,
     ) -> RouterResult<types::AddAccessTokenResult> {
         access_token::add_access_token(state, connector, merchant_account, self).await
     }
@@ -68,10 +71,10 @@ impl types::VerifyRouterData {
         &'b self,
         state: &'a AppState,
         connector: &api::ConnectorData,
-        maybe_customer: &Option<storage::Customer>,
+        maybe_customer: &Option<customer::Customer>,
         confirm: Option<bool>,
         call_connector_action: payments::CallConnectorAction,
-        _merchant_account: &storage::MerchantAccount,
+        _merchant_account: &merchant_account::MerchantAccount,
     ) -> RouterResult<Self> {
         match confirm {
             Some(true) => {

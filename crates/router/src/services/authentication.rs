@@ -3,10 +3,13 @@ use api_models::{payment_methods::PaymentMethodListRequest, payments::PaymentsRe
 use async_trait::async_trait;
 use common_utils::date_time;
 use error_stack::{report, IntoReport, ResultExt};
+#[cfg(feature = "kms")]
+use external_services::kms;
 use jsonwebtoken::{decode, Algorithm, DecodingKey, Validation};
-use masking::PeekInterface;
+use masking::{PeekInterface, StrongSecret};
 
 use crate::{
+    configs::settings,
     core::{
         api_keys,
         errors::{self, RouterResult},
@@ -14,7 +17,7 @@ use crate::{
     db::StorageInterface,
     routes::app::AppStateInfo,
     services::api,
-    types::storage,
+    types::domain::merchant_account,
     utils::OptionExt,
 };
 
@@ -50,7 +53,7 @@ where
 }
 
 #[async_trait]
-impl<A> AuthenticateAndFetch<storage::MerchantAccount, A> for ApiKeyAuth
+impl<A> AuthenticateAndFetch<merchant_account::MerchantAccount, A> for ApiKeyAuth
 where
     A: AppStateInfo + Sync,
 {
@@ -58,7 +61,7 @@ where
         &self,
         request_headers: &HeaderMap,
         state: &A,
-    ) -> RouterResult<storage::MerchantAccount> {
+    ) -> RouterResult<merchant_account::MerchantAccount> {
         let api_key = get_api_key(request_headers)
             .change_context(errors::ApiErrorResponse::Unauthorized)?
             .trim();
@@ -112,6 +115,31 @@ where
     }
 }
 
+static ADMIN_API_KEY: tokio::sync::OnceCell<StrongSecret<String>> =
+    tokio::sync::OnceCell::const_new();
+
+pub async fn get_admin_api_key(
+    secrets: &settings::Secrets,
+    #[cfg(feature = "kms")] kms_config: &kms::KmsConfig,
+) -> RouterResult<&'static StrongSecret<String>> {
+    ADMIN_API_KEY
+        .get_or_try_init(|| async {
+            #[cfg(feature = "kms")]
+            let admin_api_key = kms::get_kms_client(kms_config)
+                .await
+                .decrypt(&secrets.kms_encrypted_admin_api_key)
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to KMS decrypt admin API key")?;
+
+            #[cfg(not(feature = "kms"))]
+            let admin_api_key = secrets.admin_api_key.clone();
+
+            Ok(StrongSecret::new(admin_api_key))
+        })
+        .await
+}
+
 #[derive(Debug)]
 pub struct AdminApiAuth;
 
@@ -125,13 +153,22 @@ where
         request_headers: &HeaderMap,
         state: &A,
     ) -> RouterResult<()> {
-        let admin_api_key =
+        let request_admin_api_key =
             get_api_key(request_headers).change_context(errors::ApiErrorResponse::Unauthorized)?;
         let conf = state.conf();
-        if admin_api_key != conf.secrets.admin_api_key {
+
+        let admin_api_key = get_admin_api_key(
+            &conf.secrets,
+            #[cfg(feature = "kms")]
+            &conf.kms,
+        )
+        .await?;
+
+        if request_admin_api_key != admin_api_key.peek() {
             Err(report!(errors::ApiErrorResponse::Unauthorized)
                 .attach_printable("Admin Authentication Failure"))?;
         }
+
         Ok(())
     }
 }
@@ -140,7 +177,7 @@ where
 pub struct MerchantIdAuth(pub String);
 
 #[async_trait]
-impl<A> AuthenticateAndFetch<storage::MerchantAccount, A> for MerchantIdAuth
+impl<A> AuthenticateAndFetch<merchant_account::MerchantAccount, A> for MerchantIdAuth
 where
     A: AppStateInfo + Sync,
 {
@@ -148,7 +185,7 @@ where
         &self,
         _request_headers: &HeaderMap,
         state: &A,
-    ) -> RouterResult<storage::MerchantAccount> {
+    ) -> RouterResult<merchant_account::MerchantAccount> {
         state
             .store()
             .find_merchant_account_by_merchant_id(self.0.as_ref())
@@ -167,7 +204,7 @@ where
 pub struct PublishableKeyAuth;
 
 #[async_trait]
-impl<A> AuthenticateAndFetch<storage::MerchantAccount, A> for PublishableKeyAuth
+impl<A> AuthenticateAndFetch<merchant_account::MerchantAccount, A> for PublishableKeyAuth
 where
     A: AppStateInfo + Sync,
 {
@@ -175,7 +212,7 @@ where
         &self,
         request_headers: &HeaderMap,
         state: &A,
-    ) -> RouterResult<storage::MerchantAccount> {
+    ) -> RouterResult<merchant_account::MerchantAccount> {
         let publishable_key =
             get_api_key(request_headers).change_context(errors::ApiErrorResponse::Unauthorized)?;
         state
@@ -213,7 +250,9 @@ where
     ) -> RouterResult<()> {
         let mut token = get_jwt(request_headers)?;
         token = strip_jwt_token(token)?;
-        decode_jwt::<JwtAuthPayloadFetchUnit>(token, state).map(|_| ())
+        decode_jwt::<JwtAuthPayloadFetchUnit>(token, state)
+            .await
+            .map(|_| ())
     }
 }
 
@@ -223,7 +262,7 @@ struct JwtAuthPayloadFetchMerchantAccount {
 }
 
 #[async_trait]
-impl<A> AuthenticateAndFetch<storage::MerchantAccount, A> for JWTAuth
+impl<A> AuthenticateAndFetch<merchant_account::MerchantAccount, A> for JWTAuth
 where
     A: AppStateInfo + Sync,
 {
@@ -231,10 +270,10 @@ where
         &self,
         request_headers: &HeaderMap,
         state: &A,
-    ) -> RouterResult<storage::MerchantAccount> {
+    ) -> RouterResult<merchant_account::MerchantAccount> {
         let mut token = get_jwt(request_headers)?;
         token = strip_jwt_token(token)?;
-        let payload = decode_jwt::<JwtAuthPayloadFetchMerchantAccount>(token, state)?;
+        let payload = decode_jwt::<JwtAuthPayloadFetchMerchantAccount>(token, state).await?;
         state
             .store()
             .find_merchant_account_by_merchant_id(&payload.merchant_id)
@@ -281,7 +320,7 @@ where
 pub fn get_auth_type_and_flow<A: AppStateInfo + Sync>(
     headers: &HeaderMap,
 ) -> RouterResult<(
-    Box<dyn AuthenticateAndFetch<storage::MerchantAccount, A>>,
+    Box<dyn AuthenticateAndFetch<merchant_account::MerchantAccount, A>>,
     api::AuthFlow,
 )> {
     let api_key = get_api_key(headers)?;
@@ -296,13 +335,13 @@ pub fn check_client_secret_and_get_auth<T>(
     headers: &HeaderMap,
     payload: &impl ClientSecretFetch,
 ) -> RouterResult<(
-    Box<dyn AuthenticateAndFetch<storage::MerchantAccount, T>>,
+    Box<dyn AuthenticateAndFetch<merchant_account::MerchantAccount, T>>,
     api::AuthFlow,
 )>
 where
     T: AppStateInfo,
-    ApiKeyAuth: AuthenticateAndFetch<storage::MerchantAccount, T>,
-    PublishableKeyAuth: AuthenticateAndFetch<storage::MerchantAccount, T>,
+    ApiKeyAuth: AuthenticateAndFetch<merchant_account::MerchantAccount, T>,
+    PublishableKeyAuth: AuthenticateAndFetch<merchant_account::MerchantAccount, T>,
 {
     let api_key = get_api_key(headers)?;
 
@@ -330,7 +369,7 @@ pub async fn is_ephemeral_auth<A: AppStateInfo + Sync>(
     headers: &HeaderMap,
     db: &dyn StorageInterface,
     customer_id: &str,
-) -> RouterResult<Box<dyn AuthenticateAndFetch<storage::MerchantAccount, A>>> {
+) -> RouterResult<Box<dyn AuthenticateAndFetch<merchant_account::MerchantAccount, A>>> {
     let api_key = get_api_key(headers)?;
 
     if !api_key.starts_with("epk") {
@@ -353,12 +392,44 @@ pub fn is_jwt_auth(headers: &HeaderMap) -> bool {
     headers.get(crate::headers::AUTHORIZATION).is_some()
 }
 
-pub fn decode_jwt<T>(token: &str, state: &impl AppStateInfo) -> RouterResult<T>
+static JWT_SECRET: tokio::sync::OnceCell<StrongSecret<String>> = tokio::sync::OnceCell::const_new();
+
+pub async fn get_jwt_secret(
+    secrets: &settings::Secrets,
+    #[cfg(feature = "kms")] kms_config: &kms::KmsConfig,
+) -> RouterResult<&'static StrongSecret<String>> {
+    JWT_SECRET
+        .get_or_try_init(|| async {
+            #[cfg(feature = "kms")]
+            let jwt_secret = kms::get_kms_client(kms_config)
+                .await
+                .decrypt(&secrets.kms_encrypted_jwt_secret)
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to KMS decrypt JWT secret")?;
+
+            #[cfg(not(feature = "kms"))]
+            let jwt_secret = secrets.jwt_secret.clone();
+
+            Ok(StrongSecret::new(jwt_secret))
+        })
+        .await
+}
+
+pub async fn decode_jwt<T>(token: &str, state: &impl AppStateInfo) -> RouterResult<T>
 where
     T: serde::de::DeserializeOwned,
 {
     let conf = state.conf();
-    let secret = conf.secrets.jwt_secret.as_bytes();
+    let secret = get_jwt_secret(
+        &conf.secrets,
+        #[cfg(feature = "kms")]
+        &conf.kms,
+    )
+    .await?
+    .peek()
+    .as_bytes();
+
     let key = DecodingKey::from_secret(secret);
     decode::<T>(token, &key, &Validation::new(Algorithm::HS256))
         .map(|decoded| decoded.claims)

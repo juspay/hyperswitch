@@ -9,7 +9,7 @@ use std::{fmt::Debug, marker::PhantomData, time::Instant};
 use api_models::payments::Metadata;
 use error_stack::{IntoReport, ResultExt};
 use futures::future::join_all;
-use router_env::tracing;
+use router_env::{instrument, tracing};
 use time;
 
 pub use self::operations::{
@@ -33,18 +33,20 @@ use crate::{
     services,
     types::{
         self, api,
+        domain::{customer, merchant_account},
         storage::{self, enums as storage_enums},
     },
     utils::{Encode, OptionExt, ValueExt},
 };
 
+#[instrument(skip_all, fields(payment_id, merchant_id))]
 pub async fn payments_operation_core<F, Req, Op, FData>(
     state: &AppState,
-    merchant_account: storage::MerchantAccount,
+    merchant_account: merchant_account::MerchantAccount,
     operation: Op,
     req: Req,
     call_connector_action: CallConnectorAction,
-) -> RouterResult<(PaymentData<F>, Req, Option<storage::Customer>)>
+) -> RouterResult<(PaymentData<F>, Req, Option<customer::Customer>)>
 where
     F: Send + Clone + Sync,
     Op: Operation<F, Req> + Send + Sync,
@@ -63,11 +65,13 @@ where
 {
     let operation: BoxedOperation<'_, F, Req> = Box::new(operation);
 
+    tracing::Span::current().record("merchant_id", merchant_account.merchant_id.as_str());
+
     let (operation, validate_result) = operation
         .to_validate_request()?
         .validate_request(&req, &merchant_account)?;
 
-    tracing::Span::current().record("payment_id", &format!("{:?}", validate_result.payment_id));
+    tracing::Span::current().record("payment_id", &format!("{}", validate_result.payment_id));
 
     let (operation, mut payment_data, customer_details) = operation
         .to_get_tracker()?
@@ -174,7 +178,7 @@ where
 #[allow(clippy::too_many_arguments)]
 pub async fn payments_core<F, Res, Req, Op, FData>(
     state: &AppState,
-    merchant_account: storage::MerchantAccount,
+    merchant_account: merchant_account::MerchantAccount,
     operation: Op,
     req: Req,
     auth_flow: services::AuthFlow,
@@ -236,7 +240,7 @@ pub trait PaymentRedirectFlow: Sync {
     async fn call_payment_flow(
         &self,
         state: &AppState,
-        merchant_account: storage::MerchantAccount,
+        merchant_account: merchant_account::MerchantAccount,
         req: PaymentsRedirectResponseData,
         connector_action: CallConnectorAction,
     ) -> RouterResponse<api::PaymentsResponse>;
@@ -246,7 +250,7 @@ pub trait PaymentRedirectFlow: Sync {
     fn generate_response(
         &self,
         payments_response: api_models::payments::PaymentsResponse,
-        merchant_account: storage_models::merchant_account::MerchantAccount,
+        merchant_account: types::domain::merchant_account::MerchantAccount,
         payment_id: String,
         connector: String,
     ) -> RouterResult<api::RedirectionResponse>;
@@ -255,7 +259,7 @@ pub trait PaymentRedirectFlow: Sync {
     async fn handle_payments_redirect_response(
         &self,
         state: &AppState,
-        merchant_account: storage::MerchantAccount,
+        merchant_account: merchant_account::MerchantAccount,
         req: PaymentsRedirectResponseData,
     ) -> RouterResponse<api::RedirectionResponse> {
         let connector = req.connector.clone().get_required_value("connector")?;
@@ -309,7 +313,7 @@ impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
     async fn call_payment_flow(
         &self,
         state: &AppState,
-        merchant_account: storage::MerchantAccount,
+        merchant_account: merchant_account::MerchantAccount,
         req: PaymentsRedirectResponseData,
         connector_action: CallConnectorAction,
     ) -> RouterResponse<api::PaymentsResponse> {
@@ -320,6 +324,7 @@ impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
                 order_details: None,
                 data: masking::Secret::new("{}".into()),
                 payload: Some(req.json_payload.unwrap_or(serde_json::json!({})).into()),
+                allowed_payment_method_types: None,
             }),
             ..Default::default()
         };
@@ -341,7 +346,7 @@ impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
     fn generate_response(
         &self,
         payments_response: api_models::payments::PaymentsResponse,
-        merchant_account: storage_models::merchant_account::MerchantAccount,
+        merchant_account: types::domain::merchant_account::MerchantAccount,
         payment_id: String,
         connector: String,
     ) -> RouterResult<api::RedirectionResponse> {
@@ -388,7 +393,7 @@ impl PaymentRedirectFlow for PaymentRedirectSync {
     async fn call_payment_flow(
         &self,
         state: &AppState,
-        merchant_account: storage::MerchantAccount,
+        merchant_account: merchant_account::MerchantAccount,
         req: PaymentsRedirectResponseData,
         connector_action: CallConnectorAction,
     ) -> RouterResponse<api::PaymentsResponse> {
@@ -419,7 +424,7 @@ impl PaymentRedirectFlow for PaymentRedirectSync {
     fn generate_response(
         &self,
         payments_response: api_models::payments::PaymentsResponse,
-        merchant_account: storage_models::merchant_account::MerchantAccount,
+        merchant_account: types::domain::merchant_account::MerchantAccount,
         payment_id: String,
         connector: String,
     ) -> RouterResult<api::RedirectionResponse> {
@@ -439,11 +444,11 @@ impl PaymentRedirectFlow for PaymentRedirectSync {
 #[allow(clippy::too_many_arguments)]
 pub async fn call_connector_service<F, Op, Req>(
     state: &AppState,
-    merchant_account: &storage::MerchantAccount,
+    merchant_account: &merchant_account::MerchantAccount,
     connector: api::ConnectorData,
     _operation: &Op,
     payment_data: &PaymentData<F>,
-    customer: &Option<storage::Customer>,
+    customer: &Option<customer::Customer>,
     call_connector_action: CallConnectorAction,
     tokenization_action: TokenizationAction,
 ) -> RouterResult<types::RouterData<F, Req, types::PaymentsResponseData>>
@@ -509,11 +514,11 @@ where
 
 pub async fn call_multiple_connectors_service<F, Op, Req>(
     state: &AppState,
-    merchant_account: &storage::MerchantAccount,
+    merchant_account: &merchant_account::MerchantAccount,
     connectors: Vec<api::ConnectorData>,
     _operation: &Op,
     mut payment_data: PaymentData<F>,
-    customer: &Option<storage::Customer>,
+    customer: &Option<customer::Customer>,
 ) -> RouterResult<PaymentData<F>>
 where
     Op: Debug,
@@ -635,6 +640,7 @@ async fn decide_payment_method_tokenize_action(
     }
 }
 
+#[derive(Clone)]
 pub enum TokenizationAction {
     TokenizeInRouter,
     TokenizeInConnector,
@@ -859,24 +865,19 @@ pub fn is_operation_confirm<Op: Debug>(operation: &Op) -> bool {
 #[cfg(feature = "olap")]
 pub async fn list_payments(
     db: &dyn StorageInterface,
-    merchant: storage::MerchantAccount,
+    merchant: merchant_account::MerchantAccount,
     constraints: api::PaymentListConstraints,
 ) -> RouterResponse<api::PaymentListResponse> {
     use futures::stream::StreamExt;
 
-    use crate::types::transformers::ForeignFrom;
+    use crate::{core::errors::utils::StorageErrorExt, types::transformers::ForeignFrom};
 
     helpers::validate_payment_list_request(&constraints)?;
     let merchant_id = &merchant.merchant_id;
     let payment_intents =
         helpers::filter_by_constraints(db, &constraints, merchant_id, merchant.storage_scheme)
             .await
-            .map_err(|err| {
-                errors::StorageErrorExt::to_not_found_response(
-                    err,
-                    errors::ApiErrorResponse::PaymentNotFound,
-                )
-            })?;
+            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
     let pi = futures::stream::iter(payment_intents)
         .filter_map(|pi| async {
@@ -958,7 +959,7 @@ pub async fn get_connector_choice<F, Req>(
     operation: &BoxedOperation<'_, F, Req>,
     state: &AppState,
     req: &Req,
-    merchant_account: &storage::MerchantAccount,
+    merchant_account: &merchant_account::MerchantAccount,
     payment_data: &mut PaymentData<F>,
 ) -> RouterResult<Option<api::ConnectorCallType>>
 where
@@ -1000,7 +1001,7 @@ where
 
 pub fn connector_selection<F>(
     state: &AppState,
-    merchant_account: &storage::MerchantAccount,
+    merchant_account: &merchant_account::MerchantAccount,
     payment_data: &mut PaymentData<F>,
     request_straight_through: Option<serde_json::Value>,
 ) -> RouterResult<api::ConnectorCallType>
@@ -1047,7 +1048,7 @@ where
 
 pub fn decide_connector(
     state: &AppState,
-    merchant_account: &storage::MerchantAccount,
+    merchant_account: &merchant_account::MerchantAccount,
     request_straight_through: Option<api::RoutingAlgorithm>,
     routing_data: &mut storage::RoutingData,
 ) -> RouterResult<api::ConnectorCallType> {

@@ -7,7 +7,7 @@ use crate::{
     core::errors::{self, RouterResult},
     newtype,
     pii::PeekInterface,
-    types::storage,
+    types::domain::customer as domain,
     utils::{self, ValidateCall},
 };
 
@@ -34,8 +34,8 @@ impl CustomerRequestExt for CustomerRequest {
     }
 }
 
-impl From<storage::Customer> for CustomerResponse {
-    fn from(cust: storage::Customer) -> Self {
+impl From<domain::Customer> for CustomerResponse {
+    fn from(cust: domain::Customer) -> Self {
         customers::CustomerResponse {
             customer_id: cust.customer_id,
             name: cust.name,

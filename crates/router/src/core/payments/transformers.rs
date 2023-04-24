@@ -15,6 +15,7 @@ use crate::{
     services::{self, RedirectForm},
     types::{
         self, api,
+        domain::{customer, merchant_account},
         storage::{self, enums},
         transformers::{ForeignFrom, ForeignInto},
     },
@@ -26,7 +27,7 @@ pub async fn construct_payment_router_data<'a, F, T>(
     state: &'a AppState,
     payment_data: PaymentData<F>,
     connector_id: &str,
-    merchant_account: &storage::MerchantAccount,
+    merchant_account: &merchant_account::MerchantAccount,
 ) -> RouterResult<types::RouterData<F, T, types::PaymentsResponseData>>
 where
     T: TryFrom<PaymentAdditionalData<'a, F>>,
@@ -121,7 +122,7 @@ where
     fn generate_response(
         req: Option<Req>,
         data: D,
-        customer: Option<storage::Customer>,
+        customer: Option<customer::Customer>,
         auth_flow: services::AuthFlow,
         server: &Server,
         operation: Op,
@@ -136,7 +137,7 @@ where
     fn generate_response(
         req: Option<Req>,
         payment_data: PaymentData<F>,
-        customer: Option<storage::Customer>,
+        customer: Option<customer::Customer>,
         auth_flow: services::AuthFlow,
         server: &Server,
         operation: Op,
@@ -166,7 +167,7 @@ where
     fn generate_response(
         _req: Option<Req>,
         payment_data: PaymentData<F>,
-        _customer: Option<storage::Customer>,
+        _customer: Option<customer::Customer>,
         _auth_flow: services::AuthFlow,
         _server: &Server,
         _operation: Op,
@@ -192,7 +193,7 @@ where
     fn generate_response(
         _req: Option<Req>,
         data: PaymentData<F>,
-        customer: Option<storage::Customer>,
+        customer: Option<customer::Customer>,
         _auth_flow: services::AuthFlow,
         _server: &Server,
         _operation: Op,
@@ -207,7 +208,7 @@ where
                 .and_then(|cus| cus.email.as_ref().map(|s| s.to_owned())),
             name: customer
                 .as_ref()
-                .and_then(|cus| cus.name.as_ref().map(|s| s.to_owned().into())),
+                .and_then(|cus| cus.name.as_ref().map(|s| s.to_owned())),
             phone: customer
                 .as_ref()
                 .and_then(|cus| cus.phone.as_ref().map(|s| s.to_owned())),
@@ -236,7 +237,7 @@ pub fn payments_to_payments_response<R, Op>(
     payment_intent: storage::PaymentIntent,
     refunds: Vec<storage::Refund>,
     payment_method_data: Option<api::PaymentMethodData>,
-    customer: Option<storage::Customer>,
+    customer: Option<customer::Customer>,
     auth_flow: services::AuthFlow,
     address: PaymentAddress,
     server: &Server,
@@ -288,6 +289,19 @@ where
                         connector_name,
                     )
                 });
+                let parsed_metadata: Option<api_models::payments::Metadata> = payment_intent
+                    .metadata
+                    .clone()
+                    .map(|metadata_value| {
+                        metadata_value
+                            .parse_value("metadata")
+                            .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                                field_name: "metadata",
+                            })
+                            .attach_printable("unable to parse metadata")
+                    })
+                    .transpose()
+                    .unwrap_or_default();
                 services::ApplicationResponse::Json(
                     response
                         .set_payment_id(Some(payment_attempt.payment_id))
@@ -309,7 +323,7 @@ where
                         .set_name(
                             customer
                                 .as_ref()
-                                .and_then(|cus| cus.name.as_ref().map(|s| s.to_owned().into())),
+                                .and_then(|cus| cus.name.as_ref().map(|s| s.to_owned())),
                         )
                         .set_phone(
                             customer
@@ -369,6 +383,10 @@ where
                         .set_business_country(payment_intent.business_country)
                         .set_business_label(payment_intent.business_label)
                         .set_business_sub_label(payment_attempt.business_sub_label)
+                        .set_allowed_payment_method_types(
+                            parsed_metadata
+                                .and_then(|metadata| metadata.allowed_payment_method_types),
+                        )
                         .to_owned(),
                 )
             }
@@ -400,7 +418,7 @@ where
                 .and_then(|cus| cus.email.as_ref().map(|s| s.to_owned())),
             name: customer
                 .as_ref()
-                .and_then(|cus| cus.name.as_ref().map(|s| s.to_owned().into())),
+                .and_then(|cus| cus.name.as_ref().map(|s| s.to_owned())),
             phone: customer
                 .as_ref()
                 .and_then(|cus| cus.phone.as_ref().map(|s| s.to_owned())),
@@ -551,7 +569,12 @@ impl api::ConnectorTransactionId for Paypal {
         &self,
         payment_attempt: storage::PaymentAttempt,
     ) -> Result<Option<String>, errors::ApiErrorResponse> {
-        let metadata = Self::connector_transaction_id(self, &payment_attempt.connector_metadata);
+        let payment_method = payment_attempt.payment_method;
+        let metadata = Self::connector_transaction_id(
+            self,
+            payment_method,
+            &payment_attempt.connector_metadata,
+        );
         match metadata {
             Ok(data) => Ok(data),
             _ => Err(errors::ApiErrorResponse::ResourceIdNotFound),
@@ -560,7 +583,7 @@ impl api::ConnectorTransactionId for Paypal {
 }
 
 impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCaptureData {
-    type Error = errors::ApiErrorResponse;
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
 
     fn try_from(additional_data: PaymentAdditionalData<'_, F>) -> Result<Self, Self::Error> {
         let payment_data = additional_data.payment_data;
@@ -568,12 +591,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCaptureD
             &additional_data.state.conf.connectors,
             &additional_data.connector_name,
             api::GetToken::Connector,
-        );
-        let connectors = match connector {
-            Ok(conn) => *conn.connector,
-            _ => Err(errors::ApiErrorResponse::ResourceIdNotFound)?,
-        };
-
+        )?;
         let amount_to_capture: i64 = payment_data
             .payment_attempt
             .amount_to_capture
@@ -581,7 +599,8 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCaptureD
         Ok(Self {
             amount_to_capture,
             currency: payment_data.currency,
-            connector_transaction_id: connectors
+            connector_transaction_id: connector
+                .connector
                 .connector_transaction_id(payment_data.payment_attempt.clone())?
                 .ok_or(errors::ApiErrorResponse::ResourceIdNotFound)?,
             payment_amount: payment_data.amount.into(),
@@ -591,7 +610,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCaptureD
 }
 
 impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCancelData {
-    type Error = errors::ApiErrorResponse;
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
 
     fn try_from(additional_data: PaymentAdditionalData<'_, F>) -> Result<Self, Self::Error> {
         let payment_data = additional_data.payment_data;
@@ -599,15 +618,12 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCancelDa
             &additional_data.state.conf.connectors,
             &additional_data.connector_name,
             api::GetToken::Connector,
-        );
-        let connectors = match connector {
-            Ok(conn) => *conn.connector,
-            _ => Err(errors::ApiErrorResponse::ResourceIdNotFound)?,
-        };
+        )?;
         Ok(Self {
             amount: Some(payment_data.amount.into()),
             currency: Some(payment_data.currency),
-            connector_transaction_id: connectors
+            connector_transaction_id: connector
+                .connector
                 .connector_transaction_id(payment_data.payment_attempt.clone())?
                 .ok_or(errors::ApiErrorResponse::ResourceIdNotFound)?,
             cancellation_reason: payment_data.payment_attempt.cancellation_reason,
@@ -676,6 +692,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::CompleteAuthoriz
         let browser_info: Option<types::BrowserInformation> = payment_data
             .payment_attempt
             .browser_info
+            .clone()
             .map(|b| b.parse_value("BrowserInformation"))
             .transpose()
             .change_context(errors::ApiErrorResponse::InvalidDataValue {

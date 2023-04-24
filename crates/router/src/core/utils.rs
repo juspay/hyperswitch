@@ -12,6 +12,7 @@ use crate::{
     routes::AppState,
     types::{
         self,
+        domain::merchant_account,
         storage::{self, enums},
     },
     utils::{generate_id, OptionExt, ValueExt},
@@ -22,7 +23,7 @@ use crate::{
 pub async fn construct_refund_router_data<'a, F>(
     state: &'a AppState,
     connector_id: &str,
-    merchant_account: &storage::MerchantAccount,
+    merchant_account: &merchant_account::MerchantAccount,
     money: (i64, enums::Currency),
     payment_intent: &'a storage::PaymentIntent,
     payment_attempt: &storage::PaymentAttempt,

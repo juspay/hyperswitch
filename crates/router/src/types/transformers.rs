@@ -1,9 +1,10 @@
 use api_models::enums as api_enums;
-use common_utils::ext_traits::ValueExt;
+use common_utils::{crypto::Encryptable, ext_traits::ValueExt};
 use error_stack::ResultExt;
-use masking::Secret;
+use masking::PeekInterface;
 use storage_models::enums as storage_enums;
 
+use super::domain;
 use crate::{
     core::errors,
     types::{api as api_types, storage},
@@ -276,25 +277,6 @@ impl ForeignFrom<storage_enums::Currency> for api_enums::Currency {
     }
 }
 
-impl<'a> ForeignFrom<&'a api_types::Address> for storage::AddressUpdate {
-    fn foreign_from(address: &api_types::Address) -> Self {
-        let address = address;
-        Self::Update {
-            city: address.address.as_ref().and_then(|a| a.city.clone()),
-            country: address.address.as_ref().and_then(|a| a.country),
-            line1: address.address.as_ref().and_then(|a| a.line1.clone()),
-            line2: address.address.as_ref().and_then(|a| a.line2.clone()),
-            line3: address.address.as_ref().and_then(|a| a.line3.clone()),
-            state: address.address.as_ref().and_then(|a| a.state.clone()),
-            zip: address.address.as_ref().and_then(|a| a.zip.clone()),
-            first_name: address.address.as_ref().and_then(|a| a.first_name.clone()),
-            last_name: address.address.as_ref().and_then(|a| a.last_name.clone()),
-            phone_number: address.phone.as_ref().and_then(|a| a.number.clone()),
-            country_code: address.phone.as_ref().and_then(|a| a.country_code.clone()),
-        }
-    }
-}
-
 impl ForeignFrom<storage::Config> for api_types::Config {
     fn foreign_from(config: storage::Config) -> Self {
         let config = config;
@@ -314,28 +296,57 @@ impl<'a> ForeignFrom<&'a api_types::ConfigUpdate> for storage::ConfigUpdate {
     }
 }
 
-impl<'a> ForeignFrom<&'a storage::Address> for api_types::Address {
-    fn foreign_from(address: &storage::Address) -> Self {
+impl<'a> From<&'a domain::address::Address> for api_types::Address {
+    fn from(address: &domain::address::Address) -> Self {
         let address = address;
         Self {
             address: Some(api_types::AddressDetails {
                 city: address.city.clone(),
                 country: address.country,
-                line1: address.line1.clone(),
-                line2: address.line2.clone(),
-                line3: address.line3.clone(),
-                state: address.state.clone(),
-                zip: address.zip.clone(),
-                first_name: address.first_name.clone(),
-                last_name: address.last_name.clone(),
+                line1: address.line1.clone().map(Encryptable::into_inner),
+                line2: address.line2.clone().map(Encryptable::into_inner),
+                line3: address.line3.clone().map(Encryptable::into_inner),
+                state: address.state.clone().map(Encryptable::into_inner),
+                zip: address.zip.clone().map(Encryptable::into_inner),
+                first_name: address.first_name.clone().map(Encryptable::into_inner),
+                last_name: address.last_name.clone().map(Encryptable::into_inner),
             }),
             phone: Some(api_types::PhoneDetails {
-                number: address.phone_number.clone(),
+                number: address.phone_number.clone().map(Encryptable::into_inner),
                 country_code: address.country_code.clone(),
             }),
         }
     }
 }
+
+// impl TryFrom<domain::merchant_connector_account::MerchantConnectorAccount>
+//     for api_models::admin::MerchantConnector
+// {
+//     type Error = error_stack::Report<errors::ApiErrorResponse>;
+//     fn try_from(
+//         item: domain::merchant_connector_account::MerchantConnectorAccount,
+//     ) -> Result<Self, Self::Error> {
+//         let merchant_ca = item;
+
+//         let payment_methods_enabled = match merchant_ca.payment_methods_enabled {
+//             Some(val) => serde_json::Value::Array(val)
+//                 .parse_value("PaymentMethods")
+//                 .change_context(errors::ApiErrorResponse::InternalServerError)?,
+//             None => None,
+//         };
+
+//         Ok(Self {
+//             connector_type: merchant_ca.connector_type.foreign_into(),
+//             connector_name: merchant_ca.connector_name,
+//             merchant_connector_id: Some(merchant_ca.merchant_connector_id),
+//             connector_account_details: Some(merchant_ca.connector_account_details.into_inner()),
+//             test_mode: merchant_ca.test_mode,
+//             disabled: merchant_ca.disabled,
+//             metadata: merchant_ca.metadata,
+//             payment_methods_enabled,
+//         })
+//     }
+// }
 
 impl ForeignFrom<api_models::enums::PaymentMethodType>
     for storage_models::enums::PaymentMethodType
@@ -350,24 +361,6 @@ impl ForeignFrom<storage_models::enums::PaymentMethodType>
 {
     fn foreign_from(payment_method_type: storage_models::enums::PaymentMethodType) -> Self {
         frunk::labelled_convert_from(payment_method_type)
-    }
-}
-
-impl ForeignFrom<api_models::payments::AddressDetails> for storage_models::address::AddressNew {
-    fn foreign_from(item: api_models::payments::AddressDetails) -> Self {
-        let address = item;
-        Self {
-            city: address.city,
-            country: address.country,
-            line1: address.line1,
-            line2: address.line2,
-            line3: address.line3,
-            state: address.state,
-            zip: address.zip,
-            first_name: address.first_name,
-            last_name: address.last_name,
-            ..Default::default()
-        }
     }
 }
 
@@ -522,12 +515,12 @@ impl ForeignFrom<storage_models::cards_info::CardInfo>
     }
 }
 
-impl ForeignTryFrom<storage_models::merchant_connector_account::MerchantConnectorAccount>
+impl TryFrom<domain::merchant_connector_account::MerchantConnectorAccount>
     for api_models::admin::MerchantConnectorResponse
 {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
-    fn foreign_try_from(
-        item: storage_models::merchant_connector_account::MerchantConnectorAccount,
+    fn try_from(
+        item: domain::merchant_connector_account::MerchantConnectorAccount,
     ) -> Result<Self, Self::Error> {
         let payment_methods_enabled = match item.payment_methods_enabled {
             Some(val) => serde_json::Value::Array(val)
@@ -535,13 +528,26 @@ impl ForeignTryFrom<storage_models::merchant_connector_account::MerchantConnecto
                 .change_context(errors::ApiErrorResponse::InternalServerError)?,
             None => None,
         };
-
+        let frm_configs = match item.frm_configs {
+            Some(frm_value) => {
+                let configs_for_frm : api_models::admin::FrmConfigs = frm_value
+                    .peek()
+                    .clone()
+                    .parse_value("FrmConfigs")
+                    .change_context(errors::ApiErrorResponse::InvalidDataFormat {
+                        field_name: "frm_configs".to_string(),
+                        expected_format: "\"frm_configs\" : { \"frm_enabled_pms\" : [\"card\"], \"frm_enabled_pm_types\" : [\"credit\"], \"frm_enabled_gateways\" : [\"stripe\"], \"frm_action\": \"cancel_txn\", \"frm_preferred_flow_type\" : \"pre\" }".to_string(),
+                    })?;
+                Some(configs_for_frm)
+            }
+            None => None,
+        };
         Ok(Self {
             connector_type: item.connector_type.foreign_into(),
             connector_name: item.connector_name,
             connector_label: item.connector_label,
             merchant_connector_id: item.merchant_connector_id,
-            connector_account_details: Secret::new(item.connector_account_details),
+            connector_account_details: item.connector_account_details.into_inner(),
             test_mode: item.test_mode,
             disabled: item.disabled,
             payment_methods_enabled,
@@ -549,6 +555,7 @@ impl ForeignTryFrom<storage_models::merchant_connector_account::MerchantConnecto
             business_country: item.business_country,
             business_label: item.business_label,
             business_sub_label: item.business_sub_label,
+            frm_configs,
         })
     }
 }
