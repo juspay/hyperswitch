@@ -50,25 +50,13 @@ impl TryFrom<&types::PaymentsSessionRouterData> for KlarnaSessionRequest {
                 locale: "en-US".to_string(),
                 order_lines: vec![OrderLines {
                     name: order_details
-                                .iter()
-                                .map(|v| {
-                                    v.product_name.clone()
-                                })
-                                .collect(),
-                    quantity: order_details
-                                .iter()
-                                .map(|v| {
-                                    v.quantity
-                                })
-                                .collect(),
-                    unit_price: order_details
-                                .iter()
-                                .map(|v| {
-                                    v.amount
-                                })
-                                .collect(),
+                        .iter()
+                        .map(|v| v.product_name.clone())
+                        .collect(),
+                    quantity: order_details.iter().map(|v| v.quantity).collect(),
+                    unit_price: order_details.iter().map(|v| v.amount).collect(),
                     total_amount: request.amount,
-                        }],
+                }],
             }),
             None => Err(report!(errors::ConnectorError::MissingRequiredField {
                 field_name: "product_name",
@@ -110,23 +98,11 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for KlarnaPaymentsRequest {
                 order_amount: request.amount,
                 order_lines: vec![OrderLines {
                     name: order_details
-                                .iter()
-                                .map(|v| {
-                                    v.product_name.clone()
-                                })
-                                .collect(),
-                    quantity: order_details
-                                .iter()
-                                .map(|v| {
-                                    v.quantity
-                                })
-                                .collect(),
-                    unit_price: order_details
-                                .iter()
-                                .map(|v| {
-                                    v.amount
-                                })
-                                .collect(),
+                        .iter()
+                        .map(|v| v.product_name.clone())
+                        .collect(),
+                    quantity: order_details.iter().map(|v| v.quantity).collect(),
+                    unit_price: order_details.iter().map(|v| v.amount).collect(),
                     total_amount: request.amount,
                 }],
             }),

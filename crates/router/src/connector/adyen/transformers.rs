@@ -788,27 +788,13 @@ fn get_line_items(item: &types::PaymentsAuthorizeRouterData) -> Vec<LineItem> {
     let line_item = LineItem {
         amount_including_tax: Some(item.request.amount),
         amount_excluding_tax: Some(item.request.amount),
-        description: order_details.map(|details|  {  
-            details
-            .iter()
-            .map(|v| {
-                v.product_name.clone()
-            })
-            .collect()
-            
-        }),
+        description: order_details
+            .map(|details| details.iter().map(|v| v.product_name.clone()).collect()),
         // We support only one product details in payment request as of now, therefore hard coded the id.
         // If we begin to support multiple product details in future then this logic should be made to create ID dynamically
         id: Some(String::from("Items #1")),
         tax_amount: None,
-        quantity: order_details.map(|details| {
-            details
-            .iter()
-            .map(|v| {
-                v.quantity
-            })
-            .collect()
-        }),
+        quantity: order_details.map(|details| details.iter().map(|v| v.quantity).collect()),
     };
     vec![line_item]
 }
