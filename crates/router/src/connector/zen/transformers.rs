@@ -247,16 +247,17 @@ impl<F, T>
     fn try_from(
         item: types::ResponseRouterData<F, ZenPaymentsResponse, T, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
-        let (redirection_data, action) = item
-            .response
-            .merchant_action
-            .map(|merchant_action| {
-                (
-                    services::RedirectForm::from((merchant_action.data.redirect_url, Method::Get)),
-                    merchant_action.action,
-                )
-            })
-            .unzip();
+        let redirection_data_action = item.response.merchant_action.map(|merchant_action| {
+            (
+                services::RedirectForm::from((merchant_action.data.redirect_url, Method::Get)),
+                merchant_action.action,
+            )
+        });
+        let (redirection_data, action) = match redirection_data_action {
+            Some((redirect_form, action)) => (Some(redirect_form), Some(action)),
+            None => (None, None),
+        };
+
         Ok(Self {
             status: enums::AttemptStatus::foreign_try_from((item.response.status, action))?,
             response: Ok(types::PaymentsResponseData::TransactionResponse {
