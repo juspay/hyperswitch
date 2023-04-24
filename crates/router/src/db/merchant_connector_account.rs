@@ -300,6 +300,8 @@ impl MerchantConnectorAccountInterface for MockDb {
             business_country: t.business_country,
             business_label: t.business_label,
             business_sub_label: t.business_sub_label,
+            created_at: common_utils::date_time::now(),
+            modified_at: common_utils::date_time::now(),
         };
         accounts.push(account.clone());
         Ok(account)
