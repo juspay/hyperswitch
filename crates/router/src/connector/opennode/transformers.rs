@@ -97,7 +97,7 @@ impl<F, T>
         >,
     ) -> Result<Self, Self::Error> {
         let form_fields = HashMap::new();
-        let redirection_data = services::RedirectForm {
+        let redirection_data = services::RedirectForm::Form {
             endpoint: item.response.data.hosted_checkout_url.to_string(),
             method: services::Method::Get,
             form_fields,

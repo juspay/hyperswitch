@@ -4,7 +4,7 @@
 use futures::StreamExt;
 #[cfg(not(target_os = "windows"))]
 use router_env::logger;
-pub use tokio::sync::oneshot;
+use tokio::sync::mpsc;
 
 ///
 /// This functions is meant to run in parallel to the application.
@@ -18,7 +18,8 @@ pub async fn signal_handler(mut sig: signal_hook_tokio::Signals, sender: oneshot
             signal_hook::low_level::signal_name(signal)
         );
         match signal {
-            signal_hook::consts::SIGTERM | signal_hook::consts::SIGINT => match sender.send(()) {
+            signal_hook::consts::SIGTERM | signal_hook::consts::SIGINT => match sender.try_send(())
+            {
                 Ok(_) => {
                     logger::info!("Request for force shutdown received")
                 }

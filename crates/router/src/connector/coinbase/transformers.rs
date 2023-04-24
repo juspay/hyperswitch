@@ -80,6 +80,7 @@ impl From<CoinbasePaymentStatus> for enums::AttemptStatus {
             CoinbasePaymentStatus::Expired => Self::Failure,
             CoinbasePaymentStatus::New => Self::AuthenticationPending,
             CoinbasePaymentStatus::Unresolved => Self::Unresolved,
+            CoinbasePaymentStatus::Canceled => Self::Voided,
             _ => Self::Pending,
         }
     }
@@ -123,7 +124,7 @@ impl<F, T>
         >,
     ) -> Result<Self, Self::Error> {
         let form_fields = HashMap::new();
-        let redirection_data = services::RedirectForm {
+        let redirection_data = services::RedirectForm::Form {
             endpoint: item.response.data.hosted_url.to_string(),
             method: services::Method::Get,
             form_fields,
