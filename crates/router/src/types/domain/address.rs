@@ -82,7 +82,8 @@ impl behaviour::Conversion for Address {
             })?;
 
         async {
-            let inner_decrypt = |inner| types::decrypt(inner, &key);
+            let modified_at = other.modified_at.assume_utc().unix_timestamp();
+            let inner_decrypt = |inner| types::decrypt(inner, &key, modified_at);
             Ok(Self {
                 id: Some(other.id),
                 address_id: other.address_id,

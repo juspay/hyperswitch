@@ -42,11 +42,16 @@ impl super::behaviour::Conversion for MerchantKeyStore {
     {
         let key = &db.get_master_key();
         Ok(Self {
-            key: Encryptable::decrypt(item.key, key, GcmAes256 {})
-                .await
-                .change_context(ValidationError::InvalidValue {
-                    message: "Failed while decrypting customer data".to_string(),
-                })?,
+            key: Encryptable::decrypt(
+                item.key,
+                key,
+                GcmAes256 {},
+                common_utils::date_time::now_unix_timestamp(),
+            )
+            .await
+            .change_context(ValidationError::InvalidValue {
+                message: "Failed while decrypting customer data".to_string(),
+            })?,
             merchant_id: item.merchant_id,
             created_at: item.created_at,
         })

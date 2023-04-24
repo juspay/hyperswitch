@@ -40,27 +40,11 @@ async fn main() -> ApplicationResult<()> {
     {
         use router::{configs::settings::Subcommand, db::StorageInterface};
         if let Some(Subcommand::EncryptDatabase) = cmd_line.subcommand {
-            let store = router::services::Store::new(&conf, false).await;
-
-            router::scripts::pii_encryption::crate_merchant_key_store(&store)
-                .await
-                .expect("Failed while generating merchant key store");
+            let mut store = router::services::Store::new(&conf, false).await;
 
             router::scripts::pii_encryption::encrypt_merchant_account_fields(&store)
                 .await
                 .expect("Failed while encrypting merchant account");
-
-            router::scripts::pii_encryption::encrypt_merchant_connector_account_fields(&store)
-                .await
-                .expect("Failed while encrypting merchant connector account");
-
-            router::scripts::pii_encryption::encrypt_customer_fields(&store)
-                .await
-                .expect("Failed while encrypting customer");
-
-            router::scripts::pii_encryption::encrypt_address_fields(&store)
-                .await
-                .expect("Failed while encrypting address");
 
             store.close().await;
             return Ok(());

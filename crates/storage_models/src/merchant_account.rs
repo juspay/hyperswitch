@@ -85,6 +85,7 @@ pub enum MerchantAccountUpdate {
 pub struct MerchantAccountUpdateInternal {
     pub merchant_name: Option<Encryption>,
     pub merchant_details: Option<Encryption>,
+    pub api_key: Option<Encryption>,
     pub return_url: Option<String>,
     pub webhook_details: Option<serde_json::Value>,
     pub sub_merchants_enabled: Option<bool>,

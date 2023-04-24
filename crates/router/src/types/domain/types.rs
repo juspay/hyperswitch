@@ -11,6 +11,8 @@ use storage_models::encryption::Encryption;
 
 use crate::routes::metrics::{request, DECRYPTION_TIME, ENCRYPTION_TIME};
 
+const TIMESTAMP: i64 = 1414141;
+
 #[async_trait]
 pub trait TypeEncryption<
     T,
@@ -27,6 +29,7 @@ pub trait TypeEncryption<
         encrypted_data: Encryption,
         key: &[u8],
         crypt_algo: V,
+        timestamp: i64,
     ) -> CustomResult<Self, errors::CryptoError>;
 }
 
@@ -52,10 +55,15 @@ impl<
         encrypted_data: Encryption,
         key: &[u8],
         crypt_algo: V,
+        timestamp: i64,
     ) -> CustomResult<Self, errors::CryptoError> {
         let encrypted = encrypted_data.into_inner();
         let decrypted_data = crypt_algo.decode_message(key, encrypted.clone())?;
-        let value: String = std::str::from_utf8(&decrypted_data)
+        let data = (timestamp < TIMESTAMP)
+            .then_some(decrypted_data)
+            .unwrap_or(encrypted.clone());
+
+        let value: String = std::str::from_utf8(&data)
             .into_report()
             .change_context(errors::CryptoError::DecodingFailed)?
             .to_string();
@@ -90,10 +98,15 @@ impl<
         encrypted_data: Encryption,
         key: &[u8],
         crypt_algo: V,
+        timestamp: i64,
     ) -> CustomResult<Self, errors::CryptoError> {
         let encrypted = encrypted_data.into_inner();
         let decrypted_data = crypt_algo.decode_message(key, encrypted.clone())?;
-        let value: serde_json::Value = serde_json::from_slice(&decrypted_data)
+        let data = (timestamp < TIMESTAMP)
+            .then_some(decrypted_data)
+            .unwrap_or(encrypted.clone());
+
+        let value: serde_json::Value = serde_json::from_slice(&data)
             .into_report()
             .change_context(errors::CryptoError::DecodingFailed)?;
 
@@ -123,11 +136,15 @@ impl<
         encrypted_data: Encryption,
         key: &[u8],
         crypt_algo: V,
+        timestamp: i64,
     ) -> CustomResult<Self, errors::CryptoError> {
         let encrypted = encrypted_data.into_inner();
         let decrypted_data = crypt_algo.decode_message(key, encrypted.clone())?;
+        let data = (timestamp < TIMESTAMP)
+            .then_some(decrypted_data)
+            .unwrap_or(encrypted.clone());
 
-        Ok(Self::new(decrypted_data.into(), encrypted))
+        Ok(Self::new(data.into(), encrypted))
     }
 }
 
@@ -208,12 +225,15 @@ where
 pub(crate) async fn decrypt<T: Clone, S: masking::Strategy<T>>(
     inner: Option<Encryption>,
     key: &[u8],
+    timestamp: i64,
 ) -> CustomResult<Option<crypto::Encryptable<Secret<T, S>>>, errors::CryptoError>
 where
     crypto::Encryptable<Secret<T, S>>: TypeEncryption<T, crypto::GcmAes256, S>,
 {
     request::record_operation_time(
-        inner.async_map(|item| crypto::Encryptable::decrypt(item, key, crypto::GcmAes256 {})),
+        inner.async_map(|item| {
+            crypto::Encryptable::decrypt(item, key, crypto::GcmAes256 {}, timestamp)
+        }),
         &DECRYPTION_TIME,
     )
     .await

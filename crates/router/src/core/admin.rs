@@ -337,6 +337,7 @@ pub async fn merchant_account_update(
         metadata: req.metadata,
         publishable_key: None,
         primary_business_details,
+        api_key: None,
     };
 
     let response = db

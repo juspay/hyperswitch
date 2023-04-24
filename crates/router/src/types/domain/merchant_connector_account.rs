@@ -94,6 +94,8 @@ impl behaviour::Conversion for MerchantConnectorAccount {
             .change_context(ValidationError::InvalidValue {
                 message: "Error while getting key from keystore".to_string(),
             })?;
+        let modified_at = other.modified_at.assume_utc().unix_timestamp();
+
         Ok(Self {
             id: Some(other.id),
             merchant_id: other.merchant_id,
@@ -102,6 +104,7 @@ impl behaviour::Conversion for MerchantConnectorAccount {
                 other.connector_account_details,
                 &key,
                 GcmAes256 {},
+                modified_at,
             )
             .await
             .change_context(ValidationError::InvalidValue {

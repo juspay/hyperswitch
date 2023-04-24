@@ -39,6 +39,7 @@ pub struct MerchantAccount {
     pub modified_at: time::PrimitiveDateTime,
 }
 
+#[allow(clippy::large_enum_variant)]
 #[derive(Debug)]
 pub enum MerchantAccountUpdate {
     Update {
@@ -56,6 +57,7 @@ pub enum MerchantAccountUpdate {
         metadata: Option<pii::SecretSerdeValue>,
         routing_algorithm: Option<serde_json::Value>,
         primary_business_details: Option<serde_json::Value>,
+        api_key: OptionalEncryptableName,
     },
     StorageSchemeUpdate {
         storage_scheme: enums::MerchantStorageScheme,
@@ -80,9 +82,11 @@ impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
                 locker_id,
                 metadata,
                 primary_business_details,
+                api_key,
             } => Self {
                 merchant_name: merchant_name.map(Encryption::from),
                 merchant_details: merchant_details.map(Encryption::from),
+                api_key: api_key.map(Encryption::from),
                 return_url,
                 webhook_details,
                 routing_algorithm,
@@ -150,6 +154,7 @@ impl super::behaviour::Conversion for MerchantAccount {
                 message: "Failed while getting key from key store".to_string(),
             })?;
         async {
+            let modified_at = item.modified_at.assume_utc().unix_timestamp();
             Ok(Self {
                 id: Some(item.id),
                 merchant_id: item.merchant_id,
@@ -159,11 +164,11 @@ impl super::behaviour::Conversion for MerchantAccount {
                 redirect_to_merchant_with_http_post: item.redirect_to_merchant_with_http_post,
                 merchant_name: item
                     .merchant_name
-                    .async_lift(|inner| types::decrypt(inner, &key))
+                    .async_lift(|inner| types::decrypt(inner, &key, modified_at))
                     .await?,
                 merchant_details: item
                     .merchant_details
-                    .async_lift(|inner| types::decrypt(inner, &key))
+                    .async_lift(|inner| types::decrypt(inner, &key, modified_at))
                     .await?,
                 webhook_details: item.webhook_details,
                 sub_merchants_enabled: item.sub_merchants_enabled,
@@ -175,7 +180,7 @@ impl super::behaviour::Conversion for MerchantAccount {
                 routing_algorithm: item.routing_algorithm,
                 api_key: item
                     .api_key
-                    .async_map(|value| Encryptable::decrypt(value, &key, GcmAes256 {}))
+                    .async_map(|value| Encryptable::decrypt(value, &key, GcmAes256 {}, modified_at))
                     .await
                     .transpose()?,
                 primary_business_details: item.primary_business_details,

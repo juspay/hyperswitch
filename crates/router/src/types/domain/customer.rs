@@ -63,8 +63,10 @@ impl super::behaviour::Conversion for Customer {
                 message: "Failed while getting key from key store".to_string(),
             })?;
         async {
-            let inner_decrypt = |inner| types::decrypt(inner, &key);
-            let inner_decrypt_email = |inner| types::decrypt(inner, &key);
+            let modified_at = item.modified_at.assume_utc().unix_timestamp();
+
+            let inner_decrypt = |inner| types::decrypt(inner, &key, modified_at);
+            let inner_decrypt_email = |inner| types::decrypt(inner, &key, modified_at);
             Ok(Self {
                 id: Some(item.id),
                 customer_id: item.customer_id,
