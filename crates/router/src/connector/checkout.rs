@@ -4,8 +4,10 @@ mod transformers;
 
 use std::fmt::Debug;
 
-use common_utils::ext_traits::ValueExt;
-use common_utils::{crypto, ext_traits::ByteSliceExt};
+use common_utils::{
+    crypto,
+    ext_traits::{ByteSliceExt, ValueExt},
+};
 use error_stack::{IntoReport, ResultExt};
 
 use self::transformers as checkout;

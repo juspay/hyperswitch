@@ -499,3 +499,6 @@ impl api::IncomingWebhook for Nexinets {
         Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
     }
 }
+
+impl api::Validator<api::Authorize> for Nexinets {}
+impl api::Validator<api::Global> for Nexinets {}

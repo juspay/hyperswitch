@@ -495,3 +495,6 @@ impl api::IncomingWebhook for Forte {
         Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
     }
 }
+
+impl api::Validator<api::Authorize> for Forte {}
+impl api::Validator<api::Global> for Forte {}

@@ -1481,6 +1481,7 @@ async fn filter_pm_metadata_based(
                 api::GetToken::Connector,
             )
             .ok()?;
+
             let payment_method = payment_attempt_inner.payment_method;
             api::Validator::<api::Authorize>::validate_metadata(
                 *connector.connector,

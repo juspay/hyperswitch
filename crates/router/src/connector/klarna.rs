@@ -393,20 +393,19 @@ impl api::Validator<api::Authorize> for Klarna {
         payment_method: Option<(api::enums::PaymentMethod, api::enums::PaymentMethodType)>,
         metadata: serde_json::Value,
     ) -> CustomResult<(), common_utils::errors::ValidationError> {
-        if let Some((api::enums::PaymentMethod::PayLater, api::enums::PaymentMethodType::Klarna)) =
-            payment_method
-        {
-            let inner: api_payments::Metadata = metadata.parse_value("metadata").change_context(
-                errors::ValidationError::InvalidValue {
-                    message: "unable to parse metadata".to_string(),
-                },
-            )?;
-            inner
-                .order_details
-                .ok_or(errors::ValidationError::InvalidValue {
-                    message: "order_details not present".to_string(),
-                })?;
-        }
+        router_env::logger::warn!(?payment_method);
+        let inner: api_payments::Metadata = metadata.parse_value("metadata").change_context(
+            errors::ValidationError::InvalidValue {
+                message: "unable to parse metadata".to_string(),
+            },
+        )?;
+        router_env::logger::warn!(?inner);
+
+        inner
+            .order_details
+            .ok_or(errors::ValidationError::InvalidValue {
+                message: "order_details not present".to_string(),
+            })?;
 
         Ok(())
     }
