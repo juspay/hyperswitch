@@ -51,3 +51,19 @@ macro_rules! async_spawn {
         tokio::spawn(async move { $t });
     };
 }
+
+#[macro_export]
+macro_rules! missing_fields {
+    [$(($option:expr, $missing_field:expr)), *] => {
+        {
+            let mut missing_fields = Vec::new();
+            $(
+                if $option.is_none() {
+                    missing_fields.push($missing_field);
+                }
+
+            )*
+            missing_fields
+        }
+    };
+}

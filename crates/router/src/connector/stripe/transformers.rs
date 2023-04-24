@@ -10,6 +10,7 @@ use uuid::Uuid;
 use crate::{
     consts,
     core::errors,
+    missing_fields,
     pii::{self, ExposeOptionInterface, Secret},
     services,
     types::{self, api, storage::enums},
@@ -360,31 +361,20 @@ fn validate_shipping_address_against_payment_method(
     shipping_address: &StripeShippingAddress,
     payment_method: &StripePaymentMethodType,
 ) -> Result<(), error_stack::Report<errors::ConnectorError>> {
-    let mut missing_fields: Vec<&'static str> = vec![];
-
     if let StripePaymentMethodType::AfterpayClearpay = payment_method {
-        if shipping_address.name.is_none() {
-            missing_fields.push("shipping.address.first_name");
-        }
+        let missing_fields = missing_fields!(
+            (shipping_address.name, "shipping.address.first_name"),
+            (shipping_address.line1, "shipping.address.line1"),
+            (shipping_address.country, "shipping.address.country"),
+            (shipping_address.zip, "shipping.address.zip")
+        );
 
-        if shipping_address.line1.is_none() {
-            missing_fields.push("shipping.address.line1");
+        if !missing_fields.is_empty() {
+            return Err(errors::ConnectorError::MissingRequiredFields {
+                field_names: missing_fields,
+            })
+            .into_report();
         }
-
-        if shipping_address.country.is_none() {
-            missing_fields.push("shipping.address.country");
-        }
-
-        if shipping_address.zip.is_none() {
-            missing_fields.push("shipping.address.zip");
-        }
-    }
-
-    if !missing_fields.is_empty() {
-        return Err(errors::ConnectorError::MissingRequiredFields {
-            field_names: missing_fields,
-        })
-        .into_report();
     }
 
     Ok(())
