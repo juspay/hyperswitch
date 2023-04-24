@@ -5,9 +5,7 @@ use std::fmt::Debug;
 use error_stack::{IntoReport, ResultExt};
 use transformers as nexinets;
 
-use self::transformers::{
-    get_meta_data_and_order_id, NexinetsCaptureOrVoidRequest, NexinetsPaymentsMetadata,
-};
+use self::transformers::get_order_id;
 use crate::{
     configs::settings,
     connector::utils::to_connector_meta,
@@ -43,7 +41,7 @@ impl Nexinets {
         &self,
         connector_meta: &Option<serde_json::Value>,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        let meta: NexinetsPaymentsMetadata = to_connector_meta(connector_meta.clone())?;
+        let meta: nexinets::NexinetsPaymentsMetadata = to_connector_meta(connector_meta.clone())?;
         Ok(meta.transaction_id)
     }
 }
@@ -242,17 +240,17 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         req: &types::PaymentsSyncRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let (nexinets_meta, order_id) =
-            get_meta_data_and_order_id(req.request.connector_meta.clone())?;
-        let transaction_id = match nexinets_meta.psync_flow {
+        let meta: nexinets::NexinetsPaymentsMetadata =
+            to_connector_meta(req.request.connector_meta.clone())?;
+        let order_id = get_order_id(meta.clone())?;
+        let transaction_id = match meta.psync_flow {
             transformers::NexinetsTransactionType::Debit
             | transformers::NexinetsTransactionType::Capture => req
                 .request
                 .connector_transaction_id
-                .clone()
                 .get_connector_transaction_id()
                 .change_context(errors::ConnectorError::MissingConnectorTransactionID)?,
-            _ => nexinets_meta.transaction_id.ok_or(
+            _ => meta.transaction_id.ok_or(
                 errors::ConnectorError::MissingConnectorRelatedTransactionID {
                     id: "transaction_id".to_string(),
                 },
@@ -323,9 +321,10 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         req: &types::PaymentsCaptureRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let (nexinets_meta, order_id) =
-            get_meta_data_and_order_id(req.request.connector_meta.clone())?;
-        let transaction_id = nexinets_meta.transaction_id.ok_or(
+        let meta: nexinets::NexinetsPaymentsMetadata =
+            to_connector_meta(req.request.connector_meta.clone())?;
+        let order_id = get_order_id(meta.clone())?;
+        let transaction_id = meta.transaction_id.ok_or(
             errors::ConnectorError::MissingConnectorRelatedTransactionID {
                 id: "transaction_id".to_string(),
             },
@@ -340,10 +339,12 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         &self,
         req: &types::PaymentsCaptureRouterData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        let connector_req = NexinetsCaptureOrVoidRequest::try_from(req)?;
+        let connector_req = nexinets::NexinetsCaptureOrVoidRequest::try_from(req)?;
         let nexinets_req =
-            utils::Encode::<NexinetsCaptureOrVoidRequest>::encode_to_string_of_json(&connector_req)
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+            utils::Encode::<nexinets::NexinetsCaptureOrVoidRequest>::encode_to_string_of_json(
+                &connector_req,
+            )
+            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(nexinets_req))
     }
 
@@ -409,9 +410,10 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
         req: &types::PaymentsCancelRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let (nexinets_meta, order_id) =
-            get_meta_data_and_order_id(req.request.connector_meta.clone())?;
-        let transaction_id = nexinets_meta.transaction_id.ok_or(
+        let meta: nexinets::NexinetsPaymentsMetadata =
+            to_connector_meta(req.request.connector_meta.clone())?;
+        let order_id = get_order_id(meta.clone())?;
+        let transaction_id = meta.transaction_id.ok_or(
             errors::ConnectorError::MissingConnectorRelatedTransactionID {
                 id: "transaction_id".to_string(),
             },
@@ -426,10 +428,12 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
         &self,
         req: &types::PaymentsCancelRouterData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        let connector_req = NexinetsCaptureOrVoidRequest::try_from(req)?;
+        let connector_req = nexinets::NexinetsCaptureOrVoidRequest::try_from(req)?;
         let nexinets_req =
-            utils::Encode::<NexinetsCaptureOrVoidRequest>::encode_to_string_of_json(&connector_req)
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+            utils::Encode::<nexinets::NexinetsCaptureOrVoidRequest>::encode_to_string_of_json(
+                &connector_req,
+            )
+            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(nexinets_req))
     }
 
@@ -492,7 +496,9 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         req: &types::RefundsRouterData<api::Execute>,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let (_, order_id) = get_meta_data_and_order_id(req.request.connector_metadata.clone())?;
+        let meta: nexinets::NexinetsPaymentsMetadata =
+            to_connector_meta(req.request.connector_metadata.clone())?;
+        let order_id = get_order_id(meta)?;
         Ok(format!(
             "{}/orders/{order_id}/transactions/{}/refund",
             self.base_url(connectors),
@@ -574,8 +580,10 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
             .request
             .connector_refund_id
             .clone()
-            .ok_or(errors::ConnectorError::RequestEncodingFailed)?;
-        let (_, order_id) = get_meta_data_and_order_id(req.request.connector_metadata.clone())?;
+            .ok_or(errors::ConnectorError::MissingConnectorRefundID)?;
+        let meta: nexinets::NexinetsPaymentsMetadata =
+            to_connector_meta(req.request.connector_metadata.clone())?;
+        let order_id = get_order_id(meta)?;
         Ok(format!(
             "{}/orders/{order_id}/transactions/{transaction_id}",
             self.base_url(connectors)

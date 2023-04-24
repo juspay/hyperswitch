@@ -587,10 +587,7 @@ impl api::ConnectorTransactionId for Nexinets {
         payment_attempt: storage::PaymentAttempt,
     ) -> Result<Option<String>, errors::ApiErrorResponse> {
         let metadata = Self::connector_transaction_id(self, &payment_attempt.connector_metadata);
-        match metadata {
-            Ok(data) => Ok(data),
-            _ => Err(errors::ApiErrorResponse::ResourceIdNotFound),
-        }
+        metadata.map_err(|_| errors::ApiErrorResponse::ResourceIdNotFound)
     }
 }
 

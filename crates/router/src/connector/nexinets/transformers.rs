@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use url::Url;
 
 use crate::{
-    connector::utils::{to_connector_meta, CardData, PaymentsCancelRequestData},
+    connector::utils::{CardData, PaymentsCancelRequestData},
     consts,
     core::errors,
     services,
@@ -17,7 +17,7 @@ use crate::{
 #[serde(rename_all = "camelCase")]
 pub struct NexinetsPaymentsRequest {
     initial_amount: i64,
-    currency: String,
+    currency: enums::Currency,
     channel: NexinetsChannel,
     product: NexinetsProduct,
     payment: Option<NexinetsPaymentDetails>,
@@ -113,7 +113,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for NexinetsPaymentsRequest {
             get_payment_details_and_product(&item.request.payment_method_data)?;
         Ok(Self {
             initial_amount: item.request.amount,
-            currency: item.request.currency.to_string(),
+            currency: item.request.currency,
             channel: NexinetsChannel::Ecom,
             product,
             payment,
@@ -130,14 +130,15 @@ pub struct NexinetsAuthType {
 impl TryFrom<&types::ConnectorAuthType> for NexinetsAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
-        if let types::ConnectorAuthType::BodyKey { api_key, key1 } = auth_type {
-            let auth_key = format!("{key1}:{api_key}");
-            let auth_header = format!("Basic {}", consts::BASE64_ENGINE.encode(auth_key));
-            Ok(Self {
-                api_key: auth_header,
-            })
-        } else {
-            Err(errors::ConnectorError::FailedToObtainAuthType)?
+        match auth_type {
+            types::ConnectorAuthType::BodyKey { api_key, key1 } => {
+                let auth_key = format!("{key1}:{api_key}");
+                let auth_header = format!("Basic {}", consts::BASE64_ENGINE.encode(auth_key));
+                Ok(Self {
+                    api_key: auth_header,
+                })
+            }
+            _ => Err(errors::ConnectorError::FailedToObtainAuthType)?,
         }
     }
 }
@@ -221,7 +222,7 @@ pub struct NexinetsTransaction {
     pub transaction_id: String,
     #[serde(rename = "type")]
     pub transaction_type: NexinetsTransactionType,
-    pub currency: String,
+    pub currency: enums::Currency,
     pub status: NexinetsPaymentStatus,
 }
 
@@ -234,7 +235,7 @@ pub enum NexinetsTransactionType {
     Cancel,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct NexinetsPaymentsMetadata {
     pub transaction_id: Option<String>,
     pub order_id: Option<String>,
@@ -302,7 +303,7 @@ impl<F, T>
 #[serde(rename_all = "camelCase")]
 pub struct NexinetsCaptureOrVoidRequest {
     pub initial_amount: i64,
-    pub currency: String,
+    pub currency: enums::Currency,
 }
 
 #[derive(Debug, Deserialize)]
@@ -316,7 +317,7 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for NexinetsCaptureOrVoidRequest
     fn try_from(item: &types::PaymentsCaptureRouterData) -> Result<Self, Self::Error> {
         Ok(Self {
             initial_amount: item.request.amount_to_capture,
-            currency: item.request.currency.to_string(),
+            currency: item.request.currency,
         })
     }
 }
@@ -326,7 +327,7 @@ impl TryFrom<&types::PaymentsCancelRouterData> for NexinetsCaptureOrVoidRequest 
     fn try_from(item: &types::PaymentsCancelRouterData) -> Result<Self, Self::Error> {
         Ok(Self {
             initial_amount: item.request.get_amount()?,
-            currency: item.request.get_currency()?.to_string(),
+            currency: item.request.get_currency()?,
         })
     }
 }
@@ -385,7 +386,7 @@ impl<F, T>
 #[serde(rename_all = "camelCase")]
 pub struct NexinetsRefundRequest {
     pub initial_amount: i64,
-    pub currency: String,
+    pub currency: enums::Currency,
 }
 
 impl<F> TryFrom<&types::RefundsRouterData<F>> for NexinetsRefundRequest {
@@ -393,7 +394,7 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for NexinetsRefundRequest {
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
         Ok(Self {
             initial_amount: item.request.refund_amount,
-            currency: item.request.currency.to_string(),
+            currency: item.request.currency,
         })
     }
 }
@@ -528,19 +529,18 @@ fn get_card_details(req_card: &api_models::payments::Card) -> NexinetsPaymentDet
     NexinetsPaymentDetails::Card(NexiCardDetails {
         card_number: req_card.card_number.clone(),
         expiry_month: req_card.card_exp_month.clone(),
-        expiry_year: req_card.clone().get_card_expiry_year_2_digit(),
+        expiry_year: req_card.get_card_expiry_year_2_digit(),
         verification: req_card.card_cvc.clone(),
     })
 }
 
-pub fn get_meta_data_and_order_id(
-    meta: Option<serde_json::Value>,
-) -> Result<(NexinetsPaymentsMetadata, String), error_stack::Report<errors::ConnectorError>> {
-    let nexinets_meta: NexinetsPaymentsMetadata = to_connector_meta(meta)?;
-    let order_id = nexinets_meta.order_id.clone().ok_or(
+pub fn get_order_id(
+    meta: NexinetsPaymentsMetadata,
+) -> Result<String, error_stack::Report<errors::ConnectorError>> {
+    let order_id = meta.order_id.ok_or(
         errors::ConnectorError::MissingConnectorRelatedTransactionID {
             id: "order_id".to_string(),
         },
     )?;
-    Ok((nexinets_meta, order_id))
+    Ok(order_id)
 }

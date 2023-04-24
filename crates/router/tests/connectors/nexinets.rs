@@ -85,8 +85,7 @@ async fn should_partially_capture_authorized_payment() {
         .await
         .unwrap();
     assert_eq!(response.status, enums::AttemptStatus::Authorized);
-    let connector_payment_id =
-        utils::get_connector_transaction_id(response.response.clone()).unwrap_or_default();
+    let connector_payment_id = "".to_string();
     let connector_meta = utils::get_connector_metadata(response.response);
     let capture_data = types::PaymentsCaptureData {
         connector_meta,
@@ -108,8 +107,7 @@ async fn should_sync_authorized_payment() {
         .authorize_payment(payment_method_details(), None)
         .await
         .expect("Authorize payment response");
-    let txn_id = utils::get_connector_transaction_id(authorize_response.response.clone())
-        .unwrap_or_default();
+    let txn_id = "".to_string();
     let connector_meta = utils::get_connector_metadata(authorize_response.response);
     let response = CONNECTOR
         .psync_retry_till_status_matches(
@@ -135,8 +133,7 @@ async fn should_void_authorized_payment() {
         .await
         .unwrap();
     assert_eq!(response.status, enums::AttemptStatus::Authorized);
-    let connector_payment_id =
-        utils::get_connector_transaction_id(response.response.clone()).unwrap_or_default();
+    let connector_payment_id = "".to_string();
     let connector_meta = utils::get_connector_metadata(response.response);
     let response = CONNECTOR
         .void_payment(
@@ -166,7 +163,7 @@ async fn should_refund_manually_captured_payment() {
     let capture_connector_meta = utils::get_connector_metadata(authorize_response.response);
     let capture_response = CONNECTOR
         .capture_payment(
-            txn_id.clone(),
+            txn_id,
             Some(types::PaymentsCaptureData {
                 currency: storage_models::enums::Currency::EUR,
                 connector_meta: capture_connector_meta,
