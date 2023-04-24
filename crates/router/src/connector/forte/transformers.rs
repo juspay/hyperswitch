@@ -120,21 +120,16 @@ pub struct ForteAuthType {
 impl TryFrom<&types::ConnectorAuthType> for ForteAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
-        if let types::ConnectorAuthType::MultiAuthKey {
-            api_key,
-            key1,
-            api_secret,
-            key2,
-        } = auth_type
-        {
-            Ok(Self {
-                api_access_id: api_key.to_string(),
-                organization_id: format!("org_{}", key1),
-                location_id: format!("loc_{}", key2),
-                api_secret_key: api_secret.to_string(),
-            })
-        } else {
-            Err(errors::ConnectorError::FailedToObtainAuthType)?
+        match auth_type{
+            types::ConnectorAuthType::MultiAuthKey{ api_key, key1, api_secret, key2 } => {
+                Ok(Self {
+                            api_access_id: api_key.to_string(),
+                            organization_id: format!("org_{}", key1),
+                            location_id: format!("loc_{}", key2),
+                            api_secret_key: api_secret.to_string(),
+                        })
+            }
+            _ => Err(errors::ConnectorError::FailedToObtainAuthType)?,
         }
     }
 }
