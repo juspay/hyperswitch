@@ -295,6 +295,8 @@ pub enum ConnectorError {
     InvalidWalletToken,
     #[error("Missing Connector Related Transaction ID")]
     MissingConnectorRelatedTransactionID { id: String },
+    #[error("File Validation failed")]
+    FileValidationFailed { reason: String },
 }
 
 #[derive(Debug, thiserror::Error)]

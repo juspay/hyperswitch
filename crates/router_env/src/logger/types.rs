@@ -168,6 +168,14 @@ pub enum Flow {
     DisputesList,
     /// Cards Info flow
     CardsInfo,
+    /// Create File flow
+    CreateFile,
+    /// Delete File flow
+    DeleteFile,
+    /// Retrieve File flow
+    RetrieveFile,
+    /// Dispute Evidence submission flow
+    DisputesEvidenceSubmit,
 }
 
 ///
