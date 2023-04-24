@@ -3,7 +3,7 @@ use common_utils::fp_utils;
 use error_stack::ResultExt;
 use router_derive;
 
-use super::{Operation, PostUpdateTracker};
+use super::{Flow, Operation, PostUpdateTracker};
 use crate::{
     core::{
         errors::{self, RouterResult, StorageErrorExt},
@@ -28,7 +28,7 @@ use crate::{
 pub struct PaymentResponse;
 
 #[async_trait]
-impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthorizeData>
+impl<F: Flow> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthorizeData>
     for PaymentResponse
 {
     async fn update_tracker<'b>(
@@ -79,7 +79,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthorizeData
 }
 
 #[async_trait]
-impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for PaymentResponse {
+impl<F: Flow> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for PaymentResponse {
     async fn update_tracker<'b>(
         &'b self,
         db: &dyn StorageInterface,
@@ -97,9 +97,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
 }
 
 #[async_trait]
-impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSessionData>
-    for PaymentResponse
-{
+impl<F: Flow> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSessionData> for PaymentResponse {
     async fn update_tracker<'b>(
         &'b self,
         db: &dyn StorageInterface,
@@ -138,9 +136,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSessionData>
 }
 
 #[async_trait]
-impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCaptureData>
-    for PaymentResponse
-{
+impl<F: Flow> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCaptureData> for PaymentResponse {
     async fn update_tracker<'b>(
         &'b self,
         db: &dyn StorageInterface,
@@ -179,7 +175,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCaptureData>
 }
 
 #[async_trait]
-impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCancelData> for PaymentResponse {
+impl<F: Flow> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCancelData> for PaymentResponse {
     async fn update_tracker<'b>(
         &'b self,
         db: &dyn StorageInterface,
@@ -219,7 +215,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCancelData> f
 }
 
 #[async_trait]
-impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::VerifyRequestData> for PaymentResponse {
+impl<F: Flow> PostUpdateTracker<F, PaymentData<F>, types::VerifyRequestData> for PaymentResponse {
     async fn update_tracker<'b>(
         &'b self,
         db: &dyn StorageInterface,
@@ -264,7 +260,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::VerifyRequestData> fo
 }
 
 #[async_trait]
-impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData>
+impl<F: Flow> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData>
     for PaymentResponse
 {
     async fn update_tracker<'b>(
@@ -283,7 +279,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData
     }
 }
 
-async fn payment_response_update_tracker<F: Clone, T>(
+async fn payment_response_update_tracker<F: Flow, T>(
     db: &dyn StorageInterface,
     _payment_id: &api::PaymentIdType,
     mut payment_data: PaymentData<F>,

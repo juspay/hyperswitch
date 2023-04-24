@@ -1,3 +1,4 @@
+use crate::core::payments::operations;
 mod transformers;
 
 use std::fmt::Debug;
@@ -47,7 +48,8 @@ impl Fiserv {
     }
 }
 
-impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Fiserv
+impl<Flow: operations::Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response>
+    for Fiserv
 where
     Self: ConnectorIntegration<Flow, Request, Response>,
 {

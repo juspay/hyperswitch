@@ -3,8 +3,8 @@ use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils::{PaymentsAuthorizeRequestData, RouterData},
-    core::errors,
+    connector::utils::PaymentsAuthorizeRequestData,
+    core::{errors, payments::operations::Flow},
     services,
     types::{self, api, storage::enums},
 };
@@ -83,7 +83,7 @@ pub struct OpennodePaymentsResponse {
     data: OpennodePaymentsResponseData,
 }
 
-impl<F, T>
+impl<F: Flow, T>
     TryFrom<types::ResponseRouterData<F, OpennodePaymentsResponse, T, types::PaymentsResponseData>>
     for types::RouterData<F, T, types::PaymentsResponseData>
 {
@@ -138,7 +138,7 @@ pub struct OpennodeRefundRequest {
     pub amount: i64,
 }
 
-impl<F> TryFrom<&types::RefundsRouterData<F>> for OpennodeRefundRequest {
+impl<F: Flow> TryFrom<&types::RefundsRouterData<F>> for OpennodeRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
         Ok(Self {

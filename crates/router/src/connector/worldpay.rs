@@ -1,3 +1,4 @@
+use crate::core::payments::operations;
 mod requests;
 mod response;
 mod transformers;
@@ -28,7 +29,8 @@ use crate::{
 #[derive(Debug, Clone)]
 pub struct Worldpay;
 
-impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Worldpay
+impl<Flow: operations::Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response>
+    for Worldpay
 where
     Self: ConnectorIntegration<Flow, Request, Response>,
 {

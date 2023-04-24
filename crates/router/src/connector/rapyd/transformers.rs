@@ -4,7 +4,7 @@ use url::Url;
 
 use crate::{
     consts,
-    core::errors,
+    core::{errors, payments::operations::Flow},
     pii::{self, Secret},
     services,
     types::{self, api, storage::enums, transformers::ForeignFrom},
@@ -244,7 +244,7 @@ pub struct RapydRefundRequest {
     pub currency: Option<enums::Currency>,
 }
 
-impl<F> TryFrom<&types::RefundsRouterData<F>> for RapydRefundRequest {
+impl<F: Flow> TryFrom<&types::RefundsRouterData<F>> for RapydRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
         Ok(Self {
@@ -359,7 +359,7 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for CaptureRequest {
     }
 }
 
-impl<F, T>
+impl<F: Flow, T>
     TryFrom<types::ResponseRouterData<F, RapydPaymentsResponse, T, types::PaymentsResponseData>>
     for types::RouterData<F, T, types::PaymentsResponseData>
 {

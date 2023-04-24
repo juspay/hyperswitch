@@ -7,7 +7,7 @@ use storage_models::enums;
 use super::{requests::*, response::*};
 use crate::{
     consts,
-    core::errors,
+    core::{errors, payments::operations::Flow},
     types::{self, api},
 };
 
@@ -164,7 +164,7 @@ impl TryFrom<types::PaymentsResponseRouterData<WorldpayPaymentsResponse>>
     }
 }
 
-impl<F> TryFrom<&types::RefundsRouterData<F>> for WorldpayRefundRequest {
+impl<F: Flow> TryFrom<&types::RefundsRouterData<F>> for WorldpayRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
         Ok(Self {

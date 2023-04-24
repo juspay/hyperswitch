@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     connector::utils::RefundsRequestData,
-    core::errors,
+    core::{errors, payments::operations::Flow},
     types::{self, api, storage::enums},
     utils::OptionExt,
 };
@@ -282,7 +282,7 @@ pub struct AuthorizedotnetPaymentsResponse {
     pub messages: ResponseMessages,
 }
 
-impl<F, T>
+impl<F: Flow, T>
     TryFrom<
         types::ResponseRouterData<
             F,
@@ -372,7 +372,7 @@ pub struct CreateRefundRequest {
     create_transaction_request: AuthorizedotnetRefundRequest,
 }
 
-impl<F> TryFrom<&types::RefundsRouterData<F>> for CreateRefundRequest {
+impl<F: Flow> TryFrom<&types::RefundsRouterData<F>> for CreateRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
         let payment_details = item
@@ -427,7 +427,7 @@ pub struct AuthorizedotnetRefundResponse {
     pub messages: ResponseMessages,
 }
 
-impl<F> TryFrom<types::RefundsResponseRouterData<F, AuthorizedotnetRefundResponse>>
+impl<F: Flow> TryFrom<types::RefundsResponseRouterData<F, AuthorizedotnetRefundResponse>>
     for types::RefundsRouterData<F>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
@@ -471,7 +471,7 @@ pub struct AuthorizedotnetCreateSyncRequest {
     get_transaction_details_request: TransactionDetails,
 }
 
-impl<F> TryFrom<&types::RefundsRouterData<F>> for AuthorizedotnetCreateSyncRequest {
+impl<F: Flow> TryFrom<&types::RefundsRouterData<F>> for AuthorizedotnetCreateSyncRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
 
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
@@ -591,7 +591,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, AuthorizedotnetSyncRes
     }
 }
 
-impl<F, Req>
+impl<F: Flow, Req>
     TryFrom<
         types::ResponseRouterData<F, AuthorizedotnetSyncResponse, Req, types::PaymentsResponseData>,
     > for types::RouterData<F, Req, types::PaymentsResponseData>

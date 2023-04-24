@@ -6,8 +6,8 @@ use storage_models::enums;
 use url::Url;
 
 use crate::{
-    connector::utils::{self, AddressDetailsData, PaymentsAuthorizeRequestData, RouterData},
-    core::errors,
+    connector::utils::{self, AddressDetailsData, PaymentsAuthorizeRequestData},
+    core::{errors, payments::operations::Flow},
     services, types,
 };
 
@@ -313,7 +313,7 @@ impl TryFrom<&types::ConnectorAuthType> for MollieAuthType {
     }
 }
 
-impl<F, T>
+impl<F: Flow, T>
     TryFrom<types::ResponseRouterData<F, MolliePaymentsResponse, T, types::PaymentsResponseData>>
     for types::RouterData<F, T, types::PaymentsResponseData>
 {
@@ -346,7 +346,7 @@ pub struct MollieRefundRequest {
     description: Option<String>,
 }
 
-impl<F> TryFrom<&types::RefundsRouterData<F>> for MollieRefundRequest {
+impl<F: Flow> TryFrom<&types::RefundsRouterData<F>> for MollieRefundRequest {
     type Error = Error;
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
         let amount = Amount {
@@ -400,12 +400,12 @@ impl From<MollieRefundStatus> for enums::RefundStatus {
     }
 }
 
-impl<T> TryFrom<types::RefundsResponseRouterData<T, RefundResponse>>
-    for types::RefundsRouterData<T>
+impl<F: Flow> TryFrom<types::RefundsResponseRouterData<F, RefundResponse>>
+    for types::RefundsRouterData<F>
 {
     type Error = Error;
     fn try_from(
-        item: types::RefundsResponseRouterData<T, RefundResponse>,
+        item: types::RefundsResponseRouterData<F, RefundResponse>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             response: Ok(types::RefundsResponseData {

@@ -8,7 +8,7 @@ use crate::{
     core::{
         errors::{self, ConnectorErrorExt, RouterResult},
         mandate, payment_methods,
-        payments::{self, access_token, helpers, transformers, PaymentData},
+        payments::{self, access_token, helpers, operations::Flow, transformers, PaymentData},
     },
     logger,
     routes::{metrics, AppState},
@@ -167,7 +167,7 @@ impl types::PaymentsAuthorizeRouterData {
     }
 }
 
-pub async fn save_payment_method<F: Clone, FData>(
+pub async fn save_payment_method<F: Flow, FData>(
     state: &AppState,
     connector: &api::ConnectorData,
     resp: types::RouterData<F, FData, types::PaymentsResponseData>,
@@ -367,7 +367,7 @@ impl mandate::MandateBehaviour for types::PaymentsAuthorizeData {
     }
 }
 
-pub async fn add_payment_method_token<F: Clone>(
+pub async fn add_payment_method_token<F: Flow>(
     state: &AppState,
     connector: &api::ConnectorData,
     tokenization_action: &payments::TokenizationAction,

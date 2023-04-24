@@ -23,7 +23,7 @@ use crate::{
     configs::settings::Connectors,
     core::{
         errors::{self, CustomResult},
-        payments,
+        payments::{self, operations::Flow},
     },
     logger,
     routes::{app::AppStateInfo, metrics, AppState},
@@ -34,24 +34,27 @@ use crate::{
 pub type BoxedConnectorIntegration<'a, T, Req, Resp> =
     Box<&'a (dyn ConnectorIntegration<T, Req, Resp> + Send + Sync)>;
 
-pub trait ConnectorIntegrationAny<T, Req, Resp>: Send + Sync + 'static {
-    fn get_connector_integration(&self) -> BoxedConnectorIntegration<'_, T, Req, Resp>;
+pub trait ConnectorIntegrationAny<F: Flow, Req, Resp>: Send + Sync + 'static {
+    fn get_connector_integration(&self) -> BoxedConnectorIntegration<'_, F, Req, Resp>;
 }
 
-impl<S, T, Req, Resp> ConnectorIntegrationAny<T, Req, Resp> for S
+impl<S, F, Req, Resp> ConnectorIntegrationAny<F, Req, Resp> for S
 where
-    S: ConnectorIntegration<T, Req, Resp> + Send + Sync,
+    F: Flow,
+    S: ConnectorIntegration<F, Req, Resp> + Send + Sync,
 {
-    fn get_connector_integration(&self) -> BoxedConnectorIntegration<'_, T, Req, Resp> {
+    fn get_connector_integration(&self) -> BoxedConnectorIntegration<'_, F, Req, Resp> {
         Box::new(self)
     }
 }
 
 #[async_trait::async_trait]
-pub trait ConnectorIntegration<T, Req, Resp>: ConnectorIntegrationAny<T, Req, Resp> + Sync {
+pub trait ConnectorIntegration<F: Flow, Req, Resp>:
+    ConnectorIntegrationAny<F, Req, Resp> + Sync
+{
     fn get_headers(
         &self,
-        _req: &types::RouterData<T, Req, Resp>,
+        _req: &types::RouterData<F, Req, Resp>,
         _connectors: &Connectors,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
         Ok(vec![])
@@ -68,7 +71,7 @@ pub trait ConnectorIntegration<T, Req, Resp>: ConnectorIntegrationAny<T, Req, Re
 
     fn get_url(
         &self,
-        _req: &types::RouterData<T, Req, Resp>,
+        _req: &types::RouterData<F, Req, Resp>,
         _connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(String::new())
@@ -76,7 +79,7 @@ pub trait ConnectorIntegration<T, Req, Resp>: ConnectorIntegrationAny<T, Req, Re
 
     fn get_request_body(
         &self,
-        _req: &types::RouterData<T, Req, Resp>,
+        _req: &types::RouterData<F, Req, Resp>,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
         Ok(None)
     }
@@ -85,7 +88,7 @@ pub trait ConnectorIntegration<T, Req, Resp>: ConnectorIntegrationAny<T, Req, Re
     /// Eg: Some connectors requires one-time session token before making a payment, we can add the session token creation logic in this block
     async fn execute_pretasks(
         &self,
-        _router_data: &mut types::RouterData<T, Req, Resp>,
+        _router_data: &mut types::RouterData<F, Req, Resp>,
         _app_state: &AppState,
     ) -> CustomResult<(), errors::ConnectorError> {
         Ok(())
@@ -95,7 +98,7 @@ pub trait ConnectorIntegration<T, Req, Resp>: ConnectorIntegrationAny<T, Req, Re
     /// Eg: Some connectors require payment sync to happen immediately after the authorize call to complete the transaction, we can add that logic in this block
     async fn execute_posttasks(
         &self,
-        _router_data: &mut types::RouterData<T, Req, Resp>,
+        _router_data: &mut types::RouterData<F, Req, Resp>,
         _app_state: &AppState,
     ) -> CustomResult<(), errors::ConnectorError> {
         Ok(())
@@ -103,7 +106,7 @@ pub trait ConnectorIntegration<T, Req, Resp>: ConnectorIntegrationAny<T, Req, Re
 
     fn build_request(
         &self,
-        req: &types::RouterData<T, Req, Resp>,
+        req: &types::RouterData<F, Req, Resp>,
         _connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         metrics::UNIMPLEMENTED_FLOW.add(
@@ -119,11 +122,10 @@ pub trait ConnectorIntegration<T, Req, Resp>: ConnectorIntegrationAny<T, Req, Re
 
     fn handle_response(
         &self,
-        data: &types::RouterData<T, Req, Resp>,
+        data: &types::RouterData<F, Req, Resp>,
         _res: types::Response,
-    ) -> CustomResult<types::RouterData<T, Req, Resp>, errors::ConnectorError>
+    ) -> CustomResult<types::RouterData<F, Req, Resp>, errors::ConnectorError>
     where
-        T: Clone,
         Req: Clone,
         Resp: Clone,
     {
@@ -139,14 +141,14 @@ pub trait ConnectorIntegration<T, Req, Resp>: ConnectorIntegrationAny<T, Req, Re
 
     fn get_certificate(
         &self,
-        _req: &types::RouterData<T, Req, Resp>,
+        _req: &types::RouterData<F, Req, Resp>,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
         Ok(None)
     }
 
     fn get_certificate_key(
         &self,
-        _req: &types::RouterData<T, Req, Resp>,
+        _req: &types::RouterData<F, Req, Resp>,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
         Ok(None)
     }
@@ -156,19 +158,15 @@ pub trait ConnectorIntegration<T, Req, Resp>: ConnectorIntegrationAny<T, Req, Re
 pub async fn execute_connector_processing_step<
     'b,
     'a,
-    T: 'static,
+    F: Flow + 'static,
     Req: Debug + Clone + 'static,
     Resp: Debug + Clone + 'static,
 >(
     state: &'b AppState,
-    connector_integration: BoxedConnectorIntegration<'a, T, Req, Resp>,
-    req: &'b types::RouterData<T, Req, Resp>,
+    connector_integration: BoxedConnectorIntegration<'a, F, Req, Resp>,
+    req: &'b types::RouterData<F, Req, Resp>,
     call_connector_action: payments::CallConnectorAction,
-) -> CustomResult<types::RouterData<T, Req, Resp>, errors::ConnectorError>
-where
-    T: Clone + Debug,
-    // BoxedConnectorIntegration<T, Req, Resp>: 'b,
-{
+) -> CustomResult<types::RouterData<F, Req, Resp>, errors::ConnectorError> {
     // If needed add an error stack as follows
     // connector_integration.build_request(req).attach_printable("Failed to build request");
     let mut router_data = req.clone();
@@ -192,14 +190,7 @@ where
                 1,
                 &[
                     metrics::request::add_attributes("connector", req.connector.to_string()),
-                    metrics::request::add_attributes(
-                        "flow",
-                        std::any::type_name::<T>()
-                            .split("::")
-                            .last()
-                            .unwrap_or_default()
-                            .to_string(),
-                    ),
+                    metrics::request::add_attributes("flow", format!("{:?}", F::default())),
                 ],
             );
             match connector_integration

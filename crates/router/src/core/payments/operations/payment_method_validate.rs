@@ -1,5 +1,3 @@
-use std::marker::PhantomData;
-
 use async_trait::async_trait;
 use common_utils::{date_time, errors::CustomResult, ext_traits::AsyncExt};
 use error_stack::ResultExt;
@@ -12,7 +10,7 @@ use crate::{
     consts,
     core::{
         errors::{self, RouterResult, StorageErrorExt},
-        payments::{self, helpers, operations, Operation, PaymentData},
+        payments::{self, helpers, operations, Flow, Operation, PaymentData},
         utils as core_utils,
     },
     db::StorageInterface,
@@ -30,7 +28,7 @@ use crate::{
 #[operation(ops = "all", flow = "verify")]
 pub struct PaymentMethodValidate;
 
-impl<F: Send + Clone> ValidateRequest<F, api::VerifyRequest> for PaymentMethodValidate {
+impl<F: Flow> ValidateRequest<F, api::VerifyRequest> for PaymentMethodValidate {
     #[instrument(skip_all)]
     fn validate_request<'a, 'b>(
         &'b self,
@@ -60,7 +58,7 @@ impl<F: Send + Clone> ValidateRequest<F, api::VerifyRequest> for PaymentMethodVa
 }
 
 #[async_trait]
-impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::VerifyRequest> for PaymentMethodValidate {
+impl<F: Flow> GetTracker<F, PaymentData<F>, api::VerifyRequest> for PaymentMethodValidate {
     #[instrument(skip_all)]
     async fn get_trackers<'a>(
         &'a self,
@@ -156,7 +154,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::VerifyRequest> for Paym
         Ok((
             Box::new(self),
             PaymentData {
-                flow: PhantomData,
+                flow: F::default(),
                 payment_intent,
                 payment_attempt,
                 /// currency and amount are irrelevant in this scenario
@@ -189,7 +187,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::VerifyRequest> for Paym
 }
 
 #[async_trait]
-impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::VerifyRequest> for PaymentMethodValidate {
+impl<F: Flow> UpdateTracker<F, PaymentData<F>, api::VerifyRequest> for PaymentMethodValidate {
     #[instrument(skip_all)]
     async fn update_trackers<'b>(
         &'b self,
@@ -229,7 +227,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::VerifyRequest> for PaymentM
 #[async_trait]
 impl<F, Op> Domain<F, api::VerifyRequest> for Op
 where
-    F: Clone + Send,
+    F: Flow,
     Op: Send + Sync + Operation<F, api::VerifyRequest>,
     for<'a> &'a Op: Operation<F, api::VerifyRequest>,
 {

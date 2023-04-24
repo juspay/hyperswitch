@@ -1,3 +1,4 @@
+use crate::core::payments::operations;
 mod transformers;
 
 use std::fmt::Debug;
@@ -36,7 +37,8 @@ impl api::Refund for Opennode {}
 impl api::RefundExecute for Opennode {}
 impl api::RefundSync for Opennode {}
 
-impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Opennode
+impl<Flow: operations::Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response>
+    for Opennode
 where
     Self: ConnectorIntegration<Flow, Request, Response>,
 {

@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     connector::utils,
-    core::errors,
+    core::{errors, payments::operations::Flow},
     pii::{self, Secret},
     types::{self, api, storage::enums, transformers::ForeignTryFrom},
 };
@@ -200,7 +200,7 @@ pub struct ProcessingInfoResponse {
     network_transaction_id: Option<String>,
 }
 
-impl<F, T>
+impl<F: Flow, T>
     TryFrom<types::ResponseRouterData<F, BluesnapPaymentsResponse, T, types::PaymentsResponseData>>
     for types::RouterData<F, T, types::PaymentsResponseData>
 {
@@ -237,7 +237,7 @@ pub struct BluesnapRefundRequest {
     reason: Option<String>,
 }
 
-impl<F> TryFrom<&types::RefundsRouterData<F>> for BluesnapRefundRequest {
+impl<F: Flow> TryFrom<&types::RefundsRouterData<F>> for BluesnapRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
         Ok(Self {

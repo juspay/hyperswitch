@@ -8,6 +8,7 @@ pub mod verfiy_flow;
 
 use async_trait::async_trait;
 
+use super::operations::Flow;
 use crate::{
     connector,
     core::{
@@ -20,7 +21,7 @@ use crate::{
 };
 
 #[async_trait]
-pub trait ConstructFlowSpecificData<F, Req, Res> {
+pub trait ConstructFlowSpecificData<F: Flow, Req, Res> {
     async fn construct_router_data<'a>(
         &self,
         state: &AppState,
@@ -30,7 +31,7 @@ pub trait ConstructFlowSpecificData<F, Req, Res> {
 }
 
 #[async_trait]
-pub trait Feature<F, T> {
+pub trait Feature<F: Flow, T> {
     async fn decide_flows<'a>(
         self,
         state: &AppState,
@@ -41,7 +42,6 @@ pub trait Feature<F, T> {
     ) -> RouterResult<Self>
     where
         Self: Sized,
-        F: Clone,
         dyn api::Connector: services::ConnectorIntegration<F, T, types::PaymentsResponseData>;
 
     async fn add_access_token<'a>(
@@ -51,7 +51,6 @@ pub trait Feature<F, T> {
         merchant_account: &storage::MerchantAccount,
     ) -> RouterResult<types::AddAccessTokenResult>
     where
-        F: Clone,
         Self: Sized,
         dyn api::Connector: services::ConnectorIntegration<F, T, types::PaymentsResponseData>;
 
@@ -62,7 +61,6 @@ pub trait Feature<F, T> {
         _tokenization_action: &payments::TokenizationAction,
     ) -> RouterResult<Option<String>>
     where
-        F: Clone,
         Self: Sized,
         dyn api::Connector: services::ConnectorIntegration<F, T, types::PaymentsResponseData>,
     {

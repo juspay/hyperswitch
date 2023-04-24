@@ -1,5 +1,5 @@
 #![allow(dead_code)]
-
+use crate::core::payments::operations;
 mod transformers;
 
 use std::fmt::Debug;
@@ -29,7 +29,8 @@ use crate::{
 #[derive(Debug, Clone)]
 pub struct Checkout;
 
-impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Checkout
+impl<Flow: operations::Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response>
+    for Checkout
 where
     Self: ConnectorIntegration<Flow, Request, Response>,
 {

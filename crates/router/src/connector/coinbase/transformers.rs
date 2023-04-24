@@ -3,8 +3,8 @@ use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils::{self, AddressDetailsData, PaymentsAuthorizeRequestData, RouterData},
-    core::errors,
+    connector::utils::{self, AddressDetailsData, PaymentsAuthorizeRequestData},
+    core::{errors, payments::operations::Flow},
     pii::Secret,
     services,
     types::{self, api, storage::enums},
@@ -110,7 +110,7 @@ pub struct CoinbasePaymentsResponse {
     data: CoinbasePaymentResponseData,
 }
 
-impl<F, T>
+impl<F: Flow, T>
     TryFrom<types::ResponseRouterData<F, CoinbasePaymentsResponse, T, types::PaymentsResponseData>>
     for types::RouterData<F, T, types::PaymentsResponseData>
 {
@@ -169,7 +169,7 @@ impl<F, T>
 #[derive(Default, Debug, Serialize)]
 pub struct CoinbaseRefundRequest {}
 
-impl<F> TryFrom<&types::RefundsRouterData<F>> for CoinbaseRefundRequest {
+impl<F: Flow> TryFrom<&types::RefundsRouterData<F>> for CoinbaseRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(_item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
         Err(errors::ConnectorError::NotImplemented("try_from RefundsRouterData".to_string()).into())

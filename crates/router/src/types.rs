@@ -10,15 +10,16 @@ pub mod api;
 pub mod storage;
 pub mod transformers;
 
-use std::marker::PhantomData;
-
 pub use api_models::enums::Connector;
 use common_utils::{pii, pii::Email};
 use error_stack::{IntoReport, ResultExt};
 
 use self::{api::payments, storage::enums as storage_enums};
 pub use crate::core::payments::PaymentAddress;
-use crate::{core::errors, services};
+use crate::{
+    core::{errors, payments::operations::Flow},
+    services,
+};
 
 pub type PaymentsAuthorizeRouterData =
     RouterData<api::Authorize, PaymentsAuthorizeData, PaymentsResponseData>;
@@ -108,8 +109,8 @@ pub type RefreshTokenType =
 pub type VerifyRouterData = RouterData<api::Verify, VerifyRequestData, PaymentsResponseData>;
 
 #[derive(Debug, Clone)]
-pub struct RouterData<Flow, Request, Response> {
-    pub flow: PhantomData<Flow>,
+pub struct RouterData<F: Flow, Request, Response> {
+    pub flow: F,
     pub merchant_id: String,
     pub connector: String,
     pub payment_id: String,
@@ -367,9 +368,9 @@ pub struct ConnectorResponse {
     pub return_url: Option<String>,
     pub three_ds_form: Option<services::RedirectForm>,
 }
-pub struct ResponseRouterData<Flow, R, Request, Response> {
+pub struct ResponseRouterData<F: Flow, R, Request, Response> {
     pub response: R,
-    pub data: RouterData<Flow, Request, Response>,
+    pub data: RouterData<F, Request, Response>,
     pub http_code: u16,
 }
 
@@ -483,14 +484,14 @@ impl From<&&mut PaymentsAuthorizeRouterData> for AuthorizeSessionTokenData {
     }
 }
 
-impl<F1, F2, T1, T2> From<(&&mut RouterData<F1, T1, PaymentsResponseData>, T2)>
+impl<F1: Flow, F2: Flow, T1, T2> From<(&&mut RouterData<F1, T1, PaymentsResponseData>, T2)>
     for RouterData<F2, T2, PaymentsResponseData>
 {
     fn from(item: (&&mut RouterData<F1, T1, PaymentsResponseData>, T2)) -> Self {
         let data = item.0;
         let request = item.1;
         Self {
-            flow: PhantomData,
+            flow: F2::default(),
             request,
             merchant_id: data.merchant_id.clone(),
             connector: data.connector.clone(),

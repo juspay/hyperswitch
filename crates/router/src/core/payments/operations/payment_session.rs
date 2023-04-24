@@ -1,5 +1,3 @@
-use std::marker::PhantomData;
-
 use api_models::admin::PaymentMethodsEnabled;
 use async_trait::async_trait;
 use common_utils::ext_traits::{AsyncExt, ValueExt};
@@ -7,7 +5,7 @@ use error_stack::ResultExt;
 use router_derive::PaymentOperation;
 use router_env::{instrument, tracing};
 
-use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
+use super::{BoxedOperation, Domain, Flow, GetTracker, Operation, UpdateTracker, ValidateRequest};
 use crate::{
     core::{
         errors::{self, RouterResult, StorageErrorExt},
@@ -30,9 +28,7 @@ use crate::{
 pub struct PaymentSession;
 
 #[async_trait]
-impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsSessionRequest>
-    for PaymentSession
-{
+impl<F: Flow> GetTracker<F, PaymentData<F>, api::PaymentsSessionRequest> for PaymentSession {
     #[instrument(skip_all)]
     async fn get_trackers<'a>(
         &'a self,
@@ -153,7 +149,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsSessionRequest>
         Ok((
             Box::new(self),
             PaymentData {
-                flow: PhantomData,
+                flow: F::default(),
                 payment_intent,
                 payment_attempt,
                 currency,
@@ -182,7 +178,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsSessionRequest>
 }
 
 #[async_trait]
-impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsSessionRequest> for PaymentSession {
+impl<F: Flow> UpdateTracker<F, PaymentData<F>, api::PaymentsSessionRequest> for PaymentSession {
     #[instrument(skip_all)]
     async fn update_trackers<'b>(
         &'b self,
@@ -196,7 +192,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsSessionRequest> for
         PaymentData<F>,
     )>
     where
-        F: 'b + Send,
+        F: 'b + Flow,
     {
         let metadata = payment_data.payment_intent.metadata.clone();
         payment_data.payment_intent = match metadata {
@@ -215,7 +211,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsSessionRequest> for
     }
 }
 
-impl<F: Send + Clone> ValidateRequest<F, api::PaymentsSessionRequest> for PaymentSession {
+impl<F: Flow> ValidateRequest<F, api::PaymentsSessionRequest> for PaymentSession {
     #[instrument(skip_all)]
     fn validate_request<'a, 'b>(
         &'b self,
@@ -241,7 +237,7 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsSessionRequest> for Paymen
 }
 
 #[async_trait]
-impl<F: Clone + Send, Op: Send + Sync + Operation<F, api::PaymentsSessionRequest>>
+impl<F: Flow, Op: Send + Sync + Operation<F, api::PaymentsSessionRequest>>
     Domain<F, api::PaymentsSessionRequest> for Op
 where
     for<'a> &'a Op: Operation<F, api::PaymentsSessionRequest>,

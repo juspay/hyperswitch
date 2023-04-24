@@ -1,3 +1,4 @@
+use crate::core::payments::operations;
 mod transformers;
 
 use std::fmt::Debug;
@@ -9,7 +10,7 @@ use crate::{
     configs::settings,
     core::{
         errors::{self, CustomResult},
-        payments,
+        payments::{self},
     },
     headers,
     services::{self, ConnectorIntegration},
@@ -38,7 +39,8 @@ impl api::Refund for Mollie {}
 impl api::RefundExecute for Mollie {}
 impl api::RefundSync for Mollie {}
 
-impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Mollie
+impl<Flow: operations::Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response>
+    for Mollie
 where
     Self: ConnectorIntegration<Flow, Request, Response>,
 {

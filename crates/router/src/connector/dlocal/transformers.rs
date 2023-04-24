@@ -6,8 +6,8 @@ use serde::{Deserialize, Serialize};
 use url::Url;
 
 use crate::{
-    connector::utils::{AddressDetailsData, RouterData},
-    core::errors,
+    connector::utils::AddressDetailsData,
+    core::{errors, payments::operations::Flow},
     services,
     types::{self, api, storage::enums},
 };
@@ -250,7 +250,7 @@ pub struct DlocalPaymentsResponse {
     three_dsecure: Option<ThreeDSecureResData>,
 }
 
-impl<F, T>
+impl<F: Flow, T>
     TryFrom<types::ResponseRouterData<F, DlocalPaymentsResponse, T, types::PaymentsResponseData>>
     for types::RouterData<F, T, types::PaymentsResponseData>
 {
@@ -286,7 +286,7 @@ pub struct DlocalPaymentsSyncResponse {
     id: String,
 }
 
-impl<F, T>
+impl<F: Flow, T>
     TryFrom<
         types::ResponseRouterData<F, DlocalPaymentsSyncResponse, T, types::PaymentsResponseData>,
     > for types::RouterData<F, T, types::PaymentsResponseData>
@@ -319,7 +319,7 @@ pub struct DlocalPaymentsCaptureResponse {
     id: String,
 }
 
-impl<F, T>
+impl<F: Flow, T>
     TryFrom<
         types::ResponseRouterData<F, DlocalPaymentsCaptureResponse, T, types::PaymentsResponseData>,
     > for types::RouterData<F, T, types::PaymentsResponseData>
@@ -351,7 +351,7 @@ pub struct DlocalPaymentsCancelResponse {
     id: String,
 }
 
-impl<F, T>
+impl<F: Flow, T>
     TryFrom<
         types::ResponseRouterData<F, DlocalPaymentsCancelResponse, T, types::PaymentsResponseData>,
     > for types::RouterData<F, T, types::PaymentsResponseData>
@@ -387,7 +387,7 @@ pub struct RefundRequest {
     pub id: String,
 }
 
-impl<F> TryFrom<&types::RefundsRouterData<F>> for RefundRequest {
+impl<F: Flow> TryFrom<&types::RefundsRouterData<F>> for RefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
         let amount_to_refund = item.request.refund_amount.to_string();

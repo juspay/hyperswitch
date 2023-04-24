@@ -1,3 +1,4 @@
+use crate::core::payments::operations;
 mod transformers;
 
 use std::fmt::Debug;
@@ -21,7 +22,7 @@ use crate::{
 #[derive(Debug, Clone)]
 pub struct Payu;
 
-impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Payu
+impl<Flow: operations::Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Payu
 where
     Self: ConnectorIntegration<Flow, Request, Response>,
 {

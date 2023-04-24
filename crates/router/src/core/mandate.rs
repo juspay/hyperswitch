@@ -2,7 +2,7 @@ use error_stack::{report, ResultExt};
 use router_env::{instrument, logger, tracing};
 use storage_models::enums as storage_enums;
 
-use super::payments::helpers;
+use super::payments::{helpers, operations::Flow};
 use crate::{
     core::errors::{self, RouterResponse, StorageErrorExt},
     db::StorageInterface,
@@ -93,7 +93,7 @@ pub async fn get_customer_mandates(
     }
 }
 
-pub async fn mandate_procedure<F, FData>(
+pub async fn mandate_procedure<F: Flow, FData>(
     state: &AppState,
     mut resp: types::RouterData<F, FData, types::PaymentsResponseData>,
     maybe_customer: &Option<storage::Customer>,

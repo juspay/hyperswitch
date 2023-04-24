@@ -2,6 +2,7 @@ pub use api_models::refunds::{
     RefundRequest, RefundResponse, RefundStatus, RefundType, RefundUpdateRequest,
     RefundsRetrieveRequest,
 };
+use router_derive::Flow;
 
 use super::ConnectorCommon;
 use crate::{
@@ -21,9 +22,9 @@ impl ForeignFrom<storage_enums::RefundStatus> for RefundStatus {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Default, Clone, Flow)]
 pub struct Execute;
-#[derive(Debug, Clone)]
+#[derive(Debug, Default, Clone, Flow)]
 pub struct RSync;
 
 pub trait RefundExecute:

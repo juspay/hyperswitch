@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     connector::utils,
     consts,
-    core::errors,
+    core::{errors, payments::operations::Flow},
     types::{self, api, storage::enums},
 };
 
@@ -199,7 +199,7 @@ impl From<BraintreePaymentStatus> for enums::AttemptStatus {
     }
 }
 
-impl<F, T>
+impl<F: Flow, T>
     TryFrom<types::ResponseRouterData<F, BraintreePaymentsResponse, T, types::PaymentsResponseData>>
     for types::RouterData<F, T, types::PaymentsResponseData>
 {
@@ -227,7 +227,7 @@ impl<F, T>
     }
 }
 
-impl<F, T>
+impl<F: Flow, T>
     TryFrom<
         types::ResponseRouterData<F, BraintreeSessionTokenResponse, T, types::PaymentsResponseData>,
     > for types::RouterData<F, T, types::PaymentsResponseData>
@@ -302,7 +302,7 @@ pub struct Amount {
     amount: Option<String>,
 }
 
-impl<F> TryFrom<&types::RefundsRouterData<F>> for BraintreeRefundRequest {
+impl<F: Flow> TryFrom<&types::RefundsRouterData<F>> for BraintreeRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(_item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
         Ok(Self {

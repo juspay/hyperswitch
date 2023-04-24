@@ -8,9 +8,8 @@ use url::Url;
 use crate::{
     connector::utils::{
         to_connector_meta, PaymentsAuthorizeRequestData, PaymentsCompleteAuthorizeRequestData,
-        RouterData,
     },
-    core::errors,
+    core::{errors, payments::operations::Flow},
     pii, services,
     types::{self, api, storage::enums, transformers::ForeignFrom},
 };
@@ -48,12 +47,12 @@ pub struct Shift4Non3DSRequest {
     description: Option<String>,
     payment_method: Option<PaymentMethod>,
     captured: bool,
-    flow: Option<Flow>,
+    flow: Option<ShiftFlow>,
 }
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct Flow {
+pub struct ShiftFlow {
     pub return_url: Option<String>,
 }
 
@@ -109,12 +108,13 @@ pub enum CardPayment {
     CardToken(String),
 }
 
-impl<T> TryFrom<&types::RouterData<T, types::PaymentsAuthorizeData, types::PaymentsResponseData>>
+impl<F: Flow>
+    TryFrom<&types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>>
     for Shift4PaymentsRequest
 {
     type Error = Error;
     fn try_from(
-        item: &types::RouterData<T, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
+        item: &types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         match &item.request.payment_method_data {
             api::PaymentMethodData::Card(ccard) => get_card_payment_request(item, ccard),
@@ -126,12 +126,13 @@ impl<T> TryFrom<&types::RouterData<T, types::PaymentsAuthorizeData, types::Payme
     }
 }
 
-impl<T> TryFrom<&types::RouterData<T, types::CompleteAuthorizeData, types::PaymentsResponseData>>
+impl<F: Flow>
+    TryFrom<&types::RouterData<F, types::CompleteAuthorizeData, types::PaymentsResponseData>>
     for Shift4PaymentsRequest
 {
     type Error = Error;
     fn try_from(
-        item: &types::RouterData<T, types::CompleteAuthorizeData, types::PaymentsResponseData>,
+        item: &types::RouterData<F, types::CompleteAuthorizeData, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         match &item.request.payment_method_data {
             Some(api::PaymentMethodData::Card(_)) => {
@@ -152,8 +153,8 @@ impl<T> TryFrom<&types::RouterData<T, types::CompleteAuthorizeData, types::Payme
     }
 }
 
-fn get_card_payment_request<T>(
-    item: &types::RouterData<T, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
+fn get_card_payment_request<F: Flow>(
+    item: &types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
     card: &api_models::payments::Card,
 ) -> Result<Shift4PaymentsRequest, Error> {
     let submit_for_settlement = item.request.is_auto_capture()?;
@@ -193,8 +194,8 @@ fn get_card_payment_request<T>(
     }
 }
 
-fn get_bank_redirect_request<T>(
-    item: &types::RouterData<T, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
+fn get_bank_redirect_request<F: Flow>(
+    item: &types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
     redirect_data: &payments::BankRedirectData,
 ) -> Result<Shift4PaymentsRequest, Error> {
     let submit_for_settlement = item.request.is_auto_capture()?;
@@ -231,16 +232,16 @@ impl TryFrom<&payments::BankRedirectData> for PaymentMethodType {
     }
 }
 
-fn get_flow<T>(
-    item: &types::RouterData<T, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
-) -> Flow {
-    Flow {
+fn get_flow<F: Flow>(
+    item: &types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
+) -> ShiftFlow {
+    ShiftFlow {
         return_url: item.request.router_return_url.clone(),
     }
 }
 
-fn get_billing<T>(
-    item: &types::RouterData<T, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
+fn get_billing<F: Flow>(
+    item: &types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
 ) -> Result<Option<Billing>, Error> {
     let billing_address = item
         .address
@@ -418,7 +419,7 @@ pub struct Shift4CardToken {
     pub id: String,
 }
 
-impl<F>
+impl<F: Flow>
     TryFrom<
         types::ResponseRouterData<
             F,
@@ -468,7 +469,7 @@ impl<F>
     }
 }
 
-impl<T, F>
+impl<T, F: Flow>
     TryFrom<types::ResponseRouterData<F, Shift4NonThreeDsResponse, T, types::PaymentsResponseData>>
     for types::RouterData<F, T, types::PaymentsResponseData>
 {
@@ -515,7 +516,7 @@ pub struct Shift4RefundRequest {
     amount: i64,
 }
 
-impl<F> TryFrom<&types::RefundsRouterData<F>> for Shift4RefundRequest {
+impl<F: Flow> TryFrom<&types::RefundsRouterData<F>> for Shift4RefundRequest {
     type Error = Error;
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
         Ok(Self {

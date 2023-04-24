@@ -462,3 +462,17 @@ pub fn operation_derive(input: proc_macro::TokenStream) -> proc_macro::TokenStre
     let input = syn::parse_macro_input!(input as syn::DeriveInput);
     macros::operation_derive_inner(input).unwrap_or_else(|err| err.to_compile_error().into())
 }
+
+/// Derives the Marker trait `crate::core::payments::operations::Flow` on a type.
+#[proc_macro_derive(Flow)]
+pub fn derive_flow(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    let input = syn::parse_macro_input!(input as syn::DeriveInput);
+
+    let name = input.ident;
+
+    let expanded = quote::quote! {
+        impl crate::core::payments::operations::Flow for #name {}
+    };
+
+    proc_macro::TokenStream::from(expanded)
+}

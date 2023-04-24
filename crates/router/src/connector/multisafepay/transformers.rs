@@ -4,8 +4,8 @@ use serde::{Deserialize, Serialize};
 use url::Url;
 
 use crate::{
-    connector::utils::{self, AddressDetailsData, CardData, RouterData},
-    core::errors,
+    connector::utils::{self, AddressDetailsData, CardData},
+    core::{errors, payments::operations::Flow},
     pii::{self, Secret},
     services,
     types::{self, api, storage::enums},
@@ -429,7 +429,7 @@ pub struct MultisafepayPaymentsResponse {
     pub data: Data,
 }
 
-impl<F, T>
+impl<F: Flow, T>
     TryFrom<
         types::ResponseRouterData<F, MultisafepayPaymentsResponse, T, types::PaymentsResponseData>,
     > for types::RouterData<F, T, types::PaymentsResponseData>
@@ -486,7 +486,7 @@ pub struct MultisafepayRefundRequest {
     pub checkout_data: Option<ShoppingCart>,
 }
 
-impl<F> TryFrom<&types::RefundsRouterData<F>> for MultisafepayRefundRequest {
+impl<F: Flow> TryFrom<&types::RefundsRouterData<F>> for MultisafepayRefundRequest {
     type Error = error_stack::Report<errors::ParsingError>;
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
         Ok(Self {

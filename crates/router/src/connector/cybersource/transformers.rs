@@ -4,9 +4,9 @@ use masking::Secret;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils::{self, AddressDetailsData, PhoneDetailsData, RouterData},
+    connector::utils::{self, AddressDetailsData, PhoneDetailsData},
     consts,
-    core::errors,
+    core::{errors, payments::operations::Flow},
     pii::PeekInterface,
     types::{
         self,
@@ -283,7 +283,7 @@ pub struct CybersourceErrorInformation {
     message: String,
 }
 
-impl<F, T>
+impl<F: Flow, T>
     TryFrom<(
         types::ResponseRouterData<F, CybersourcePaymentsResponse, T, types::PaymentsResponseData>,
         bool,
@@ -345,7 +345,7 @@ fn get_payment_status(is_capture: bool, status: enums::AttemptStatus) -> enums::
     status
 }
 
-impl<F, T>
+impl<F: Flow, T>
     TryFrom<(
         types::ResponseRouterData<
             F,
@@ -408,7 +408,7 @@ pub struct CybersourceRefundRequest {
     order_information: OrderInformation,
 }
 
-impl<F> TryFrom<&types::RefundsRouterData<F>> for CybersourceRefundRequest {
+impl<F: Flow> TryFrom<&types::RefundsRouterData<F>> for CybersourceRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
         Ok(Self {

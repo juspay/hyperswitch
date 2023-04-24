@@ -1,11 +1,9 @@
-use std::marker::PhantomData;
-
 use api_models::enums::{DisputeStage, DisputeStatus};
 use common_utils::errors::CustomResult;
 use error_stack::ResultExt;
 use router_env::{instrument, tracing};
 
-use super::payments::{helpers, PaymentAddress};
+use super::payments::{helpers, operations::Flow, PaymentAddress};
 use crate::{
     consts,
     core::errors::{self, RouterResult},
@@ -19,7 +17,7 @@ use crate::{
 
 #[instrument(skip_all)]
 #[allow(clippy::too_many_arguments)]
-pub async fn construct_refund_router_data<'a, F>(
+pub async fn construct_refund_router_data<'a, F: Flow>(
     state: &'a AppState,
     connector_id: &str,
     merchant_account: &storage::MerchantAccount,
@@ -60,7 +58,7 @@ pub async fn construct_refund_router_data<'a, F>(
         .get_required_value("payment_method_type")?;
 
     let router_data = types::RouterData {
-        flow: PhantomData,
+        flow: F::default(),
         merchant_id: merchant_account.merchant_id.clone(),
         connector: connector_id.to_string(),
         payment_id: payment_attempt.payment_id.clone(),

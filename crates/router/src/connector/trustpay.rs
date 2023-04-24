@@ -1,3 +1,4 @@
+use crate::core::payments::operations;
 mod transformers;
 
 use std::fmt::Debug;
@@ -28,7 +29,8 @@ use crate::{
 #[derive(Debug, Clone)]
 pub struct Trustpay;
 
-impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Trustpay
+impl<Flow: operations::Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response>
+    for Trustpay
 where
     Self: ConnectorIntegration<Flow, Request, Response>,
 {

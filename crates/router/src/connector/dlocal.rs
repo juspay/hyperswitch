@@ -1,3 +1,4 @@
+use crate::core::payments::operations;
 mod transformers;
 
 use std::fmt::Debug;
@@ -39,7 +40,8 @@ impl api::Refund for Dlocal {}
 impl api::RefundExecute for Dlocal {}
 impl api::RefundSync for Dlocal {}
 
-impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Dlocal
+impl<Flow: operations::Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response>
+    for Dlocal
 where
     Self: ConnectorIntegration<Flow, Request, Response>,
 {

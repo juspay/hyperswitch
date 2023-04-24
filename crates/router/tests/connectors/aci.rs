@@ -1,10 +1,8 @@
-use std::marker::PhantomData;
-
 use masking::Secret;
 use router::{
     configs::settings::Settings,
     connector::aci,
-    core::payments,
+    core::payments::{self, operations},
     db::StorageImpl,
     routes, services,
     types::{self, storage::enums, PaymentAddress},
@@ -18,7 +16,7 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
         .expect("Missing ACI connector authentication configuration");
 
     types::RouterData {
-        flow: PhantomData,
+        flow: Default::default(),
         merchant_id: String::from("aci"),
         connector: "aci".to_string(),
         payment_id: uuid::Uuid::new_v4().to_string(),
@@ -73,13 +71,13 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
     }
 }
 
-fn construct_refund_router_data<F>() -> types::RefundsRouterData<F> {
+fn construct_refund_router_data<F: operations::Flow>() -> types::RefundsRouterData<F> {
     let auth = ConnectorAuthentication::new()
         .aci
         .expect("Missing ACI connector authentication configuration");
 
     types::RouterData {
-        flow: PhantomData,
+        flow: Default::default(),
         merchant_id: String::from("aci"),
         connector: "aci".to_string(),
         payment_id: uuid::Uuid::new_v4().to_string(),

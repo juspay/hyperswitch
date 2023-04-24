@@ -1,3 +1,4 @@
+use crate::core::payments::operations;
 mod transformers;
 use std::fmt::Debug;
 
@@ -106,7 +107,8 @@ impl Paypal {
     }
 }
 
-impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Paypal
+impl<Flow: operations::Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response>
+    for Paypal
 where
     Self: ConnectorIntegration<Flow, Request, Response>,
 {

@@ -1,5 +1,3 @@
-use std::marker::PhantomData;
-
 use async_trait::async_trait;
 use error_stack::ResultExt;
 use router_derive::PaymentOperation;
@@ -9,7 +7,7 @@ use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, Valida
 use crate::{
     core::{
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
-        payments::{helpers, operations, CustomerDetails, PaymentAddress, PaymentData},
+        payments::{helpers, operations, CustomerDetails, Flow, PaymentAddress, PaymentData},
     },
     db::StorageInterface,
     pii,
@@ -28,7 +26,7 @@ use crate::{
 pub struct PaymentStart;
 
 #[async_trait]
-impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsStartRequest> for PaymentStart {
+impl<F: Flow> GetTracker<F, PaymentData<F>, api::PaymentsStartRequest> for PaymentStart {
     #[instrument(skip_all)]
     async fn get_trackers<'a>(
         &'a self,
@@ -120,7 +118,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsStartRequest> f
         Ok((
             Box::new(self),
             PaymentData {
-                flow: PhantomData,
+                flow: F::default(),
                 payment_intent,
                 currency,
                 amount,
@@ -149,7 +147,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsStartRequest> f
 }
 
 #[async_trait]
-impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsStartRequest> for PaymentStart {
+impl<F: Flow> UpdateTracker<F, PaymentData<F>, api::PaymentsStartRequest> for PaymentStart {
     #[instrument(skip_all)]
     async fn update_trackers<'b>(
         &'b self,
@@ -169,7 +167,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsStartRequest> for P
     }
 }
 
-impl<F: Send + Clone> ValidateRequest<F, api::PaymentsStartRequest> for PaymentStart {
+impl<F: Flow> ValidateRequest<F, api::PaymentsStartRequest> for PaymentStart {
     #[instrument(skip_all)]
     fn validate_request<'a, 'b>(
         &'b self,
@@ -201,7 +199,7 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsStartRequest> for PaymentS
 }
 
 #[async_trait]
-impl<F: Clone + Send, Op: Send + Sync + Operation<F, api::PaymentsStartRequest>>
+impl<F: Flow, Op: Send + Sync + Operation<F, api::PaymentsStartRequest>>
     Domain<F, api::PaymentsStartRequest> for Op
 where
     for<'a> &'a Op: Operation<F, api::PaymentsStartRequest>,

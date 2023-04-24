@@ -12,9 +12,9 @@ use super::{
     response::{GlobalpayPaymentStatus, GlobalpayPaymentsResponse, GlobalpayRefreshTokenResponse},
 };
 use crate::{
-    connector::utils::{self, PaymentsAuthorizeRequestData, RouterData, WalletData},
+    connector::utils::{self, PaymentsAuthorizeRequestData, WalletData},
     consts,
-    core::errors,
+    core::{errors, payments::operations::Flow},
     services::{self, RedirectForm},
     types::{self, api, storage::enums, ErrorResponse},
 };
@@ -218,7 +218,7 @@ fn get_payment_response(
     }
 }
 
-impl<F, T>
+impl<F: Flow, T>
     TryFrom<types::ResponseRouterData<F, GlobalpayPaymentsResponse, T, types::PaymentsResponseData>>
     for types::RouterData<F, T, types::PaymentsResponseData>
 {
@@ -259,7 +259,7 @@ impl<F, T>
     }
 }
 
-impl<F, T>
+impl<F: Flow, T>
     TryFrom<types::ResponseRouterData<F, GlobalpayRefreshTokenResponse, T, types::AccessToken>>
     for types::RouterData<F, T, types::AccessToken>
 {
@@ -277,7 +277,7 @@ impl<F, T>
     }
 }
 
-impl<F> TryFrom<&types::RefundsRouterData<F>> for requests::GlobalpayRefundRequest {
+impl<F: Flow> TryFrom<&types::RefundsRouterData<F>> for requests::GlobalpayRefundRequest {
     type Error = Error;
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
         Ok(Self {

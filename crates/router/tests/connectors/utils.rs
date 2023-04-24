@@ -1,11 +1,11 @@
-use std::{fmt::Debug, marker::PhantomData, time::Duration};
+use std::{fmt::Debug, time::Duration};
 
 use async_trait::async_trait;
 use error_stack::Report;
 use masking::Secret;
 use router::{
     configs::settings::Settings,
-    core::{errors, errors::ConnectorError, payments},
+    core::{errors, errors::ConnectorError, payments, payments::operations::Flow},
     db::StorageImpl,
     routes, services,
     types::{self, api, storage::enums, AccessToken, PaymentAddress, RouterData},
@@ -347,13 +347,13 @@ pub trait ConnectorActions: Connector {
         Err(errors::ConnectorError::ProcessingStepFailed(None).into())
     }
 
-    fn generate_data<Flow, Req: From<Req>, Res>(
+    fn generate_data<F: Flow, Req: From<Req>, Res>(
         &self,
         req: Req,
         info: Option<PaymentInfo>,
-    ) -> RouterData<Flow, Req, Res> {
+    ) -> RouterData<F, Req, Res> {
         RouterData {
-            flow: PhantomData,
+            flow: Default::default(),
             merchant_id: self.get_name(),
             connector: self.get_name(),
             payment_id: uuid::Uuid::new_v4().to_string(),
@@ -407,13 +407,13 @@ pub trait ConnectorActions: Connector {
 }
 
 async fn call_connector<
-    T: Debug + Clone + 'static,
+    F: Flow + 'static,
     Req: Debug + Clone + 'static,
     Resp: Debug + Clone + 'static,
 >(
-    request: RouterData<T, Req, Resp>,
-    integration: services::BoxedConnectorIntegration<'_, T, Req, Resp>,
-) -> Result<RouterData<T, Req, Resp>, Report<ConnectorError>> {
+    request: RouterData<F, Req, Resp>,
+    integration: services::BoxedConnectorIntegration<'_, F, Req, Resp>,
+) -> Result<RouterData<F, Req, Resp>, Report<ConnectorError>> {
     let conf = Settings::new().unwrap();
     let state = routes::AppState::with_storage(conf, StorageImpl::PostgresqlTest).await;
     services::api::execute_connector_processing_step(

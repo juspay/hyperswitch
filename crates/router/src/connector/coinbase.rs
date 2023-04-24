@@ -1,3 +1,4 @@
+use crate::core::payments::operations;
 mod transformers;
 
 use std::fmt::Debug;
@@ -37,7 +38,8 @@ impl api::Refund for Coinbase {}
 impl api::RefundExecute for Coinbase {}
 impl api::RefundSync for Coinbase {}
 
-impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Coinbase
+impl<Flow: operations::Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response>
+    for Coinbase
 where
     Self: ConnectorIntegration<Flow, Request, Response>,
 {

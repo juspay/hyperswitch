@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     connector::utils::AccessTokenRequestInfo,
     consts,
-    core::errors,
+    core::{errors, payments::operations::Flow},
     pii::{self, Secret},
     types::{self, api, storage::enums},
 };
@@ -183,7 +183,7 @@ pub struct PayuPaymentsResponse {
     pub ext_order_id: Option<String>,
 }
 
-impl<F, T>
+impl<F: Flow, T>
     TryFrom<types::ResponseRouterData<F, PayuPaymentsResponse, T, types::PaymentsResponseData>>
     for types::RouterData<F, T, types::PaymentsResponseData>
 {
@@ -227,7 +227,7 @@ pub struct PayuPaymentsCaptureResponse {
     status: PayuPaymentStatusData,
 }
 
-impl<F, T>
+impl<F: Flow, T>
     TryFrom<
         types::ResponseRouterData<F, PayuPaymentsCaptureResponse, T, types::PaymentsResponseData>,
     > for types::RouterData<F, T, types::PaymentsResponseData>
@@ -280,7 +280,8 @@ pub struct PayuAuthUpdateResponse {
     pub grant_type: String,
 }
 
-impl<F, T> TryFrom<types::ResponseRouterData<F, PayuAuthUpdateResponse, T, types::AccessToken>>
+impl<F: Flow, T>
+    TryFrom<types::ResponseRouterData<F, PayuAuthUpdateResponse, T, types::AccessToken>>
     for types::RouterData<F, T, types::AccessToken>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
@@ -305,7 +306,7 @@ pub struct PayuPaymentsCancelResponse {
     pub status: PayuPaymentStatusData,
 }
 
-impl<F, T>
+impl<F: Flow, T>
     TryFrom<
         types::ResponseRouterData<F, PayuPaymentsCancelResponse, T, types::PaymentsResponseData>,
     > for types::RouterData<F, T, types::PaymentsResponseData>
@@ -430,7 +431,7 @@ pub struct PayuPaymentsSyncResponse {
     properties: Option<Vec<PayuOrderResponseProperty>>,
 }
 
-impl<F, T>
+impl<F: Flow, T>
     TryFrom<types::ResponseRouterData<F, PayuPaymentsSyncResponse, T, types::PaymentsResponseData>>
     for types::RouterData<F, T, types::PaymentsResponseData>
 {
@@ -478,7 +479,7 @@ pub struct PayuRefundRequest {
     refund: PayuRefundRequestData,
 }
 
-impl<F> TryFrom<&types::RefundsRouterData<F>> for PayuRefundRequest {
+impl<F: Flow> TryFrom<&types::RefundsRouterData<F>> for PayuRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
         Ok(Self {

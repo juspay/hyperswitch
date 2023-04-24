@@ -13,6 +13,7 @@ pub mod webhooks;
 use std::{fmt::Debug, str::FromStr};
 
 use error_stack::{report, IntoReport, ResultExt};
+use router_derive::Flow;
 
 pub use self::{
     admin::*, api_keys::*, configs::*, customers::*, disputes::*, payment_methods::*, payments::*,
@@ -24,10 +25,9 @@ use crate::{
     connector, consts,
     core::errors::{self, CustomResult},
     services::{ConnectorIntegration, ConnectorRedirectResponse},
-    types::{self, api::enums as api_enums},
+    types::{self, api::enums as api_enums, Flow},
 };
-
-#[derive(Clone, Debug)]
+#[derive(Debug, Default, Clone, Flow)]
 pub struct AccessTokenAuth;
 
 pub trait ConnectorAccessToken:
@@ -83,13 +83,13 @@ pub trait ConnectorCommon {
 }
 
 /// Extended trait for connector common to allow functions with generic type
-pub trait ConnectorCommonExt<Flow, Req, Resp>:
-    ConnectorCommon + ConnectorIntegration<Flow, Req, Resp>
+pub trait ConnectorCommonExt<F: Flow, Req, Resp>:
+    ConnectorCommon + ConnectorIntegration<F, Req, Resp>
 {
     /// common header builder when every request for the connector have same headers
     fn build_headers(
         &self,
-        _req: &types::RouterData<Flow, Req, Resp>,
+        _req: &types::RouterData<F, Req, Resp>,
         _connectors: &Connectors,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
         Ok(Vec::new())

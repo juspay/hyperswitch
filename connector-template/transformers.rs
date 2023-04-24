@@ -111,7 +111,7 @@ pub struct {{project-name | downcase | pascal_case}}RefundRequest {
     pub amount: i64
 }
 
-impl<F> TryFrom<&types::RefundsRouterData<F>> for {{project-name | downcase | pascal_case}}RefundRequest {
+impl<F: Flow>TryFrom<&types::RefundsRouterData<F>> for {{project-name | downcase | pascal_case}}RefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self,Self::Error> {
         Ok(Self {

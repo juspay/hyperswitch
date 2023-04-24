@@ -1,3 +1,4 @@
+use crate::core::payments::operations;
 mod transformers;
 
 use std::fmt::Debug;
@@ -21,7 +22,8 @@ use crate::{
 #[derive(Debug, Clone)]
 pub struct Multisafepay;
 
-impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Multisafepay
+impl<Flow: operations::Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response>
+    for Multisafepay
 where
     Self: ConnectorIntegration<Flow, Request, Response>,
 {

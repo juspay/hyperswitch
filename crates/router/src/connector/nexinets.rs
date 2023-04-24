@@ -1,3 +1,4 @@
+use crate::core::payments::operations;
 mod transformers;
 
 use std::fmt::Debug;
@@ -33,7 +34,8 @@ impl api::Refund for Nexinets {}
 impl api::RefundExecute for Nexinets {}
 impl api::RefundSync for Nexinets {}
 
-impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Nexinets
+impl<Flow: operations::Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response>
+    for Nexinets
 where
     Self: ConnectorIntegration<Flow, Request, Response>,
 {

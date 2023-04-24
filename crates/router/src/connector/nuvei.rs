@@ -1,3 +1,4 @@
+use crate::core::payments::operations;
 mod transformers;
 
 use std::fmt::Debug;
@@ -10,7 +11,7 @@ use ::common_utils::{
 use error_stack::{IntoReport, ResultExt};
 use transformers as nuvei;
 
-use super::utils::{self, RouterData};
+use super::utils::{self};
 use crate::{
     configs::settings,
     core::{
@@ -32,7 +33,8 @@ use crate::{
 #[derive(Debug, Clone)]
 pub struct Nuvei;
 
-impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Nuvei
+impl<Flow: operations::Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response>
+    for Nuvei
 where
     Self: ConnectorIntegration<Flow, Request, Response>,
 {

@@ -4,7 +4,7 @@ pub mod helpers;
 pub mod operations;
 pub mod transformers;
 
-use std::{fmt::Debug, marker::PhantomData, time::Instant};
+use std::{fmt::Debug, time::Instant};
 
 use api_models::payments::Metadata;
 use error_stack::{IntoReport, ResultExt};
@@ -18,7 +18,7 @@ pub use self::operations::{
 };
 use self::{
     flows::{ConstructFlowSpecificData, Feature},
-    operations::{payment_complete_authorize, BoxedOperation, Operation},
+    operations::{payment_complete_authorize, BoxedOperation, Flow, Operation},
 };
 use crate::{
     connection,
@@ -47,7 +47,7 @@ pub async fn payments_operation_core<F, Req, Op, FData>(
     call_connector_action: CallConnectorAction,
 ) -> RouterResult<(PaymentData<F>, Req, Option<storage::Customer>)>
 where
-    F: Send + Clone + Sync,
+    F: Flow + Sync,
     Op: Operation<F, Req> + Send + Sync,
 
     // To create connector flow specific interface data
@@ -184,7 +184,7 @@ pub async fn payments_core<F, Res, Req, Op, FData>(
     call_connector_action: CallConnectorAction,
 ) -> RouterResponse<Res>
 where
-    F: Send + Clone + Sync,
+    F: Flow + Sync,
     FData: Send + Sync,
     Op: Operation<F, Req> + Send + Sync + Clone,
     Req: Debug,
@@ -453,7 +453,7 @@ pub async fn call_connector_service<F, Op, Req>(
 ) -> RouterResult<types::RouterData<F, Req, types::PaymentsResponseData>>
 where
     Op: Debug + Sync,
-    F: Send + Clone + Sync,
+    F: Flow + Sync,
     Req: Send + Sync,
 
     // To create connector flow specific interface data
@@ -521,7 +521,7 @@ pub async fn call_multiple_connectors_service<F, Op, Req>(
 ) -> RouterResult<PaymentData<F>>
 where
     Op: Debug,
-    F: Send + Clone,
+    F: Flow + Sync,
 
     // To create connector flow specific interface data
     PaymentData<F>: ConstructFlowSpecificData<F, Req, types::PaymentsResponseData>,
@@ -656,7 +656,7 @@ pub async fn get_connector_tokenization_action<F, Req>(
     validate_result: &operations::ValidateResult<'_>,
 ) -> RouterResult<(PaymentData<F>, TokenizationAction)>
 where
-    F: Send + Clone,
+    F: Flow,
 {
     let connector = payment_data.payment_attempt.connector.to_owned();
 
@@ -745,9 +745,9 @@ pub struct PaymentAddress {
 #[derive(Clone)]
 pub struct PaymentData<F>
 where
-    F: Clone,
+    F: Flow,
 {
-    pub flow: PhantomData<F>,
+    pub flow: F,
     pub payment_intent: storage::PaymentIntent,
     pub payment_attempt: storage::PaymentAttempt,
     pub connector_response: storage::ConnectorResponse,
@@ -783,7 +783,7 @@ pub fn if_not_create_change_operation<'a, Op, F>(
     current: &'a Op,
 ) -> BoxedOperation<'_, F, api::PaymentsRequest>
 where
-    F: Send + Clone,
+    F: Flow,
     Op: Operation<F, api::PaymentsRequest> + Send + Sync,
     &'a Op: Operation<F, api::PaymentsRequest>,
 {
@@ -799,7 +799,7 @@ where
     }
 }
 
-pub fn is_confirm<'a, F: Clone + Send, R, Op>(
+pub fn is_confirm<'a, F: Flow, R, Op>(
     operation: &'a Op,
     confirm: Option<bool>,
 ) -> BoxedOperation<'_, F, R>
@@ -816,7 +816,7 @@ where
     }
 }
 
-pub fn should_call_connector<Op: Debug, F: Clone>(
+pub fn should_call_connector<Op: Debug, F: Flow>(
     operation: &Op,
     payment_data: &PaymentData<F>,
 ) -> bool {
@@ -942,7 +942,7 @@ pub fn update_straight_through_routing<F>(
     request_straight_through: serde_json::Value,
 ) -> CustomResult<(), errors::ParsingError>
 where
-    F: Send + Clone,
+    F: Flow,
 {
     let _: api::RoutingAlgorithm = request_straight_through
         .clone()
@@ -962,7 +962,7 @@ pub async fn get_connector_choice<F, Req>(
     payment_data: &mut PaymentData<F>,
 ) -> RouterResult<Option<api::ConnectorCallType>>
 where
-    F: Send + Clone,
+    F: Flow,
 {
     let connector_choice = operation
         .to_domain()?
@@ -1005,7 +1005,7 @@ pub fn connector_selection<F>(
     request_straight_through: Option<serde_json::Value>,
 ) -> RouterResult<api::ConnectorCallType>
 where
-    F: Send + Clone,
+    F: Flow,
 {
     let mut routing_data = storage::RoutingData {
         routed_through: payment_data.payment_attempt.connector.clone(),

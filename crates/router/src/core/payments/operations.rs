@@ -9,6 +9,7 @@ pub mod payment_session;
 pub mod payment_start;
 pub mod payment_status;
 pub mod payment_update;
+use std::fmt::Debug;
 
 use async_trait::async_trait;
 use error_stack::{report, ResultExt};
@@ -35,7 +36,9 @@ use crate::{
 
 pub type BoxedOperation<'a, F, T> = Box<dyn Operation<F, T> + Send + Sync + 'a>;
 
-pub trait Operation<F: Clone, T>: Send + std::fmt::Debug {
+pub trait Flow: Clone + Debug + Send + Default {}
+
+pub trait Operation<F: Flow, T>: Send + Debug {
     fn to_validate_request(&self) -> RouterResult<&(dyn ValidateRequest<F, T> + Send + Sync)> {
         Err(report!(errors::ApiErrorResponse::InternalServerError))
             .attach_printable_lazy(|| format!("validate request interface not found for {self:?}"))
@@ -96,7 +99,7 @@ pub trait GetTracker<F, D, R>: Send {
 }
 
 #[async_trait]
-pub trait Domain<F: Clone, R>: Send + Sync {
+pub trait Domain<F: Flow, R>: Send + Sync {
     /// This will fetch customer details, (this operation is flow specific)
     async fn get_or_create_customer_details<'a>(
         &'a self,
@@ -155,11 +158,11 @@ pub trait PostUpdateTracker<F, D, R>: Send {
         storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<D>
     where
-        F: 'b + Send;
+        F: 'b + Flow;
 }
 
 #[async_trait]
-impl<F: Clone + Send, Op: Send + Sync + Operation<F, api::PaymentsRetrieveRequest>>
+impl<F: Flow, Op: Send + Sync + Operation<F, api::PaymentsRetrieveRequest>>
     Domain<F, api::PaymentsRetrieveRequest> for Op
 where
     for<'a> &'a Op: Operation<F, api::PaymentsRetrieveRequest>,
@@ -214,7 +217,7 @@ where
 }
 
 #[async_trait]
-impl<F: Clone + Send, Op: Send + Sync + Operation<F, api::PaymentsCaptureRequest>>
+impl<F: Flow, Op: Send + Sync + Operation<F, api::PaymentsCaptureRequest>>
     Domain<F, api::PaymentsCaptureRequest> for Op
 where
     for<'a> &'a Op: Operation<F, api::PaymentsCaptureRequest>,
@@ -268,7 +271,7 @@ where
 }
 
 #[async_trait]
-impl<F: Clone + Send, Op: Send + Sync + Operation<F, api::PaymentsCancelRequest>>
+impl<F: Flow, Op: Send + Sync + Operation<F, api::PaymentsCancelRequest>>
     Domain<F, api::PaymentsCancelRequest> for Op
 where
     for<'a> &'a Op: Operation<F, api::PaymentsCancelRequest>,

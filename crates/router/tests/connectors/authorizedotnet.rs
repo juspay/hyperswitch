@@ -1,16 +1,14 @@
-use std::marker::PhantomData;
+use crate::connector_auth::ConnectorAuthentication;
 
 use masking::Secret;
 use router::{
     configs::settings::Settings,
     connector::Authorizedotnet,
-    core::payments,
+    core::payments::{self, operations},
     db::StorageImpl,
     routes, services,
     types::{self, storage::enums, PaymentAddress},
 };
-
-use crate::connector_auth::ConnectorAuthentication;
 
 fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
     let auth = ConnectorAuthentication::new()
@@ -18,7 +16,7 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
         .expect("Missing Authorize.net connector authentication configuration");
 
     types::RouterData {
-        flow: PhantomData,
+        flow: Default::default(),
         merchant_id: String::from("authorizedotnet"),
         connector: "authorizedotnet".to_string(),
         payment_id: uuid::Uuid::new_v4().to_string(),
@@ -73,13 +71,13 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
     }
 }
 
-fn construct_refund_router_data<F>() -> types::RefundsRouterData<F> {
+fn construct_refund_router_data<F: operations::Flow>() -> types::RefundsRouterData<F> {
     let auth = ConnectorAuthentication::new()
         .authorizedotnet
         .expect("Missing Authorize.net connector authentication configuration");
 
     types::RouterData {
-        flow: PhantomData,
+        flow: Default::default(),
         connector_meta_data: None,
         merchant_id: String::from("authorizedotnet"),
         connector: "authorizedotnet".to_string(),

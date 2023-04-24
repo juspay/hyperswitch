@@ -5,7 +5,7 @@ use uuid::Uuid;
 
 use crate::{
     connector::utils,
-    core::errors,
+    core::{errors, payments::operations::Flow},
     pii::{self, Secret},
     services,
     types::{self, api, storage::enums},
@@ -122,7 +122,8 @@ pub struct AirwallexAuthUpdateResponse {
     token: String,
 }
 
-impl<F, T> TryFrom<types::ResponseRouterData<F, AirwallexAuthUpdateResponse, T, types::AccessToken>>
+impl<F: Flow, T>
+    TryFrom<types::ResponseRouterData<F, AirwallexAuthUpdateResponse, T, types::AccessToken>>
     for types::RouterData<F, T, types::AccessToken>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
@@ -317,7 +318,7 @@ fn get_redirection_form(
     })
 }
 
-impl<F, T>
+impl<F: Flow, T>
     TryFrom<types::ResponseRouterData<F, AirwallexPaymentsResponse, T, types::PaymentsResponseData>>
     for types::RouterData<F, T, types::PaymentsResponseData>
 {
@@ -395,7 +396,7 @@ pub struct AirwallexRefundRequest {
     payment_intent_id: String,
 }
 
-impl<F> TryFrom<&types::RefundsRouterData<F>> for AirwallexRefundRequest {
+impl<F: Flow> TryFrom<&types::RefundsRouterData<F>> for AirwallexRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
         Ok(Self {

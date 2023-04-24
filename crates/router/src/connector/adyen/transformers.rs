@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     connector::utils::PaymentsAuthorizeRequestData,
     consts,
-    core::errors,
+    core::{errors, payments::operations::Flow},
     pii::{self, Email, Secret},
     services,
     types::{
@@ -1341,7 +1341,7 @@ pub fn get_redirection_response(
     Ok((status, error, payments_response_data))
 }
 
-impl<F, Req>
+impl<F: Flow, Req>
     TryFrom<(
         types::ResponseRouterData<F, AdyenPaymentResponse, Req, types::PaymentsResponseData>,
         bool,
@@ -1468,7 +1468,7 @@ impl From<AdyenPaymentStatus> for enums::Status {
 }
 */
 // Refund Request Transform
-impl<F> TryFrom<&types::RefundsRouterData<F>> for AdyenRefundRequest {
+impl<F: Flow> TryFrom<&types::RefundsRouterData<F>> for AdyenRefundRequest {
     type Error = Error;
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
         let auth_type = AdyenAuthType::try_from(&item.connector_auth_type)?;
@@ -1485,7 +1485,7 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for AdyenRefundRequest {
 }
 
 // Refund Response Transform
-impl<F> TryFrom<types::RefundsResponseRouterData<F, AdyenRefundResponse>>
+impl<F: Flow> TryFrom<types::RefundsResponseRouterData<F, AdyenRefundResponse>>
     for types::RefundsRouterData<F>
 {
     type Error = Error;

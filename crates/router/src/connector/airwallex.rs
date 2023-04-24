@@ -1,3 +1,4 @@
+use crate::core::payments::operations;
 mod transformers;
 
 use std::fmt::Debug;
@@ -27,7 +28,8 @@ use crate::{
 #[derive(Debug, Clone)]
 pub struct Airwallex;
 
-impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Airwallex
+impl<Flow: operations::Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response>
+    for Airwallex
 where
     Self: ConnectorIntegration<Flow, Request, Response>,
 {

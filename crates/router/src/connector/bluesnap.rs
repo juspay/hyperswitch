@@ -1,3 +1,4 @@
+use crate::core::payments::operations;
 mod transformers;
 
 use std::fmt::Debug;
@@ -26,7 +27,8 @@ use crate::{
 #[derive(Debug, Clone)]
 pub struct Bluesnap;
 
-impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Bluesnap
+impl<Flow: operations::Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response>
+    for Bluesnap
 where
     Self: ConnectorIntegration<Flow, Request, Response>,
 {

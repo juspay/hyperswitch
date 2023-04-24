@@ -11,6 +11,7 @@ pub use api_models::payments::{
 };
 use error_stack::{IntoReport, ResultExt};
 use masking::PeekInterface;
+use router_derive::Flow;
 use time::PrimitiveDateTime;
 
 use crate::{
@@ -59,31 +60,31 @@ impl CustomerAcceptanceExt for CustomerAcceptance {
 impl super::Router for PaymentsRequest {}
 
 // Core related api layer.
-#[derive(Debug, Clone)]
+#[derive(Debug, Default, Clone, Flow)]
 pub struct Authorize;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Default, Clone, Flow)]
 pub struct AuthorizeSessionToken;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Default, Clone, Flow)]
 pub struct CompleteAuthorize;
-#[derive(Debug, Clone)]
+#[derive(Debug, Default, Clone, Flow)]
 pub struct InitPayment;
-#[derive(Debug, Clone)]
+#[derive(Debug, Default, Clone, Flow)]
 pub struct Capture;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Default, Clone, Flow)]
 pub struct PSync;
-#[derive(Debug, Clone)]
+#[derive(Debug, Default, Clone, Flow)]
 pub struct Void;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Default, Clone, Flow)]
 pub struct Session;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Default, Clone, Flow)]
 pub struct PaymentMethodToken;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Default, Clone, Flow)]
 pub struct Verify;
 
 pub(crate) trait PaymentIdTypeExt {

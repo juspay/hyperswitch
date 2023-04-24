@@ -13,7 +13,7 @@ use storage_models::enums;
 use uuid::Uuid;
 
 use super::{
-    operations::{BoxedOperation, Operation, PaymentResponse},
+    operations::{BoxedOperation, Flow, Operation, PaymentResponse},
     CustomerDetails, PaymentData,
 };
 use crate::{
@@ -526,7 +526,7 @@ where
 
 pub fn response_operation<'a, F, R>() -> BoxedOperation<'a, F, R>
 where
-    F: Send + Clone,
+    F: Flow,
     PaymentResponse: Operation<F, R>,
 {
     Box::new(PaymentResponse)
@@ -590,7 +590,7 @@ pub(crate) async fn get_payment_method_create_request(
     }
 }
 
-pub async fn get_customer_from_details<F: Clone>(
+pub async fn get_customer_from_details<F: Flow>(
     db: &dyn StorageInterface,
     customer_id: Option<String>,
     merchant_id: &str,
@@ -622,7 +622,7 @@ pub async fn get_connector_default(
 }
 
 #[instrument(skip_all)]
-pub async fn create_customer_if_not_exist<'a, F: Clone, R>(
+pub async fn create_customer_if_not_exist<'a, F: Flow, R>(
     operation: BoxedOperation<'a, F, R>,
     db: &dyn StorageInterface,
     payment_data: &mut PaymentData<F>,
@@ -682,7 +682,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R>(
     ))
 }
 
-pub async fn make_pm_data<'a, F: Clone, R>(
+pub async fn make_pm_data<'a, F: Flow, R>(
     operation: BoxedOperation<'a, F, R>,
     state: &'a AppState,
     payment_data: &mut PaymentData<F>,
@@ -1462,13 +1462,13 @@ pub async fn get_merchant_connector_account(
 /// * `router_data` - original router data
 /// * `request` - new request
 /// * `response` - new response
-pub fn router_data_type_conversion<F1, F2, Req1, Req2, Res1, Res2>(
+pub fn router_data_type_conversion<F1: Flow, F2: Flow, Req1, Req2, Res1, Res2>(
     router_data: types::RouterData<F1, Req1, Res1>,
     request: Req2,
     response: Result<Res2, types::ErrorResponse>,
 ) -> types::RouterData<F2, Req2, Res2> {
     types::RouterData {
-        flow: std::marker::PhantomData,
+        flow: F2::default(),
         request,
         response,
         merchant_id: router_data.merchant_id,

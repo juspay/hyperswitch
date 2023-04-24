@@ -3,8 +3,8 @@ use error_stack::ResultExt;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils::{self, PaymentsCancelRequestData, PaymentsSyncRequestData, RouterData},
-    core::errors,
+    connector::utils::{self, PaymentsCancelRequestData, PaymentsSyncRequestData},
+    core::{errors, payments::operations::Flow},
     pii::{self, Secret},
     types::{self, api, storage::enums},
 };
@@ -298,7 +298,7 @@ pub struct TransactionProcessingDetails {
     transaction_id: String,
 }
 
-impl<F, T>
+impl<F: Flow, T>
     TryFrom<types::ResponseRouterData<F, FiservPaymentsResponse, T, types::PaymentsResponseData>>
     for types::RouterData<F, T, types::PaymentsResponseData>
 {
@@ -323,7 +323,8 @@ impl<F, T>
     }
 }
 
-impl<F, T> TryFrom<types::ResponseRouterData<F, FiservSyncResponse, T, types::PaymentsResponseData>>
+impl<F: Flow, T>
+    TryFrom<types::ResponseRouterData<F, FiservSyncResponse, T, types::PaymentsResponseData>>
     for types::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
@@ -464,7 +465,7 @@ pub struct FiservRefundRequest {
     reference_transaction_details: ReferenceTransactionDetails,
 }
 
-impl<F> TryFrom<&types::RefundsRouterData<F>> for FiservRefundRequest {
+impl<F: Flow> TryFrom<&types::RefundsRouterData<F>> for FiservRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
         let auth: FiservAuthType = FiservAuthType::try_from(&item.connector_auth_type)?;

@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     connector::utils::PaymentsAuthorizeRequestData,
-    core::errors,
+    core::{errors, payments::operations::Flow},
     types::{self, api, storage::enums},
 };
 
@@ -89,7 +89,7 @@ pub struct NexinetsPaymentsResponse {
     id: String,
 }
 
-impl<F, T>
+impl<F: Flow, T>
     TryFrom<types::ResponseRouterData<F, NexinetsPaymentsResponse, T, types::PaymentsResponseData>>
     for types::RouterData<F, T, types::PaymentsResponseData>
 {
@@ -122,7 +122,7 @@ pub struct NexinetsRefundRequest {
     pub amount: i64,
 }
 
-impl<F> TryFrom<&types::RefundsRouterData<F>> for NexinetsRefundRequest {
+impl<F: Flow> TryFrom<&types::RefundsRouterData<F>> for NexinetsRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
         Ok(Self {

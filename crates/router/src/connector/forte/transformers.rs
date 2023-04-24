@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     connector::utils::PaymentsAuthorizeRequestData,
-    core::errors,
+    core::{errors, payments::operations::Flow},
     types::{self, api, storage::enums},
 };
 
@@ -88,7 +88,7 @@ pub struct FortePaymentsResponse {
     id: String,
 }
 
-impl<F, T>
+impl<F: Flow, T>
     TryFrom<types::ResponseRouterData<F, FortePaymentsResponse, T, types::PaymentsResponseData>>
     for types::RouterData<F, T, types::PaymentsResponseData>
 {
@@ -116,7 +116,7 @@ pub struct ForteRefundRequest {
     pub amount: i64,
 }
 
-impl<F> TryFrom<&types::RefundsRouterData<F>> for ForteRefundRequest {
+impl<F: Flow> TryFrom<&types::RefundsRouterData<F>> for ForteRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
         Ok(Self {

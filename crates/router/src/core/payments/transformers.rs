@@ -1,4 +1,4 @@
-use std::{fmt::Debug, marker::PhantomData};
+use std::fmt::Debug;
 
 use error_stack::{IntoReport, ResultExt};
 use router_env::{instrument, tracing};
@@ -9,7 +9,7 @@ use crate::{
     connector::Paypal,
     core::{
         errors::{self, RouterResponse, RouterResult},
-        payments::{self, helpers},
+        payments::{self, helpers, Flow},
     },
     routes::AppState,
     services::{self, RedirectForm},
@@ -31,7 +31,7 @@ pub async fn construct_payment_router_data<'a, F, T>(
 where
     T: TryFrom<PaymentAdditionalData<'a, F>>,
     types::RouterData<F, T, types::PaymentsResponseData>: Feature<F, T>,
-    F: Clone,
+    F: Flow + Sync,
     error_stack::Report<errors::ApiErrorResponse>:
         From<<T as TryFrom<PaymentAdditionalData<'a, F>>>::Error>,
 {
@@ -84,7 +84,7 @@ where
     };
 
     router_data = types::RouterData {
-        flow: PhantomData,
+        flow: F::default(),
         merchant_id: merchant_account.merchant_id.clone(),
         connector: connector_id.to_owned(),
         payment_id: payment_data.payment_attempt.payment_id.clone(),
@@ -130,7 +130,7 @@ where
 
 impl<F, Req, Op> ToResponse<Req, PaymentData<F>, Op> for api::PaymentsResponse
 where
-    F: Clone,
+    F: Flow,
     Op: Debug,
 {
     fn generate_response(
@@ -160,7 +160,7 @@ where
 impl<F, Req, Op> ToResponse<Req, PaymentData<F>, Op> for api::PaymentsSessionResponse
 where
     Self: From<Req>,
-    F: Clone,
+    F: Flow,
     Op: Debug,
 {
     fn generate_response(
@@ -186,7 +186,7 @@ where
 impl<F, Req, Op> ToResponse<Req, PaymentData<F>, Op> for api::VerifyResponse
 where
     Self: From<Req>,
-    F: Clone,
+    F: Flow,
     Op: Debug,
 {
     fn generate_response(
@@ -459,14 +459,14 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
 #[derive(Clone)]
 pub struct PaymentAdditionalData<'a, F>
 where
-    F: Clone,
+    F: Flow,
 {
     router_base_url: String,
     connector_name: String,
     payment_data: PaymentData<F>,
     state: &'a AppState,
 }
-impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthorizeData {
+impl<F: Flow> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthorizeData {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
 
     fn try_from(additional_data: PaymentAdditionalData<'_, F>) -> Result<Self, Self::Error> {
@@ -544,7 +544,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
     }
 }
 
-impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSyncData {
+impl<F: Flow> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSyncData {
     type Error = errors::ApiErrorResponse;
 
     fn try_from(additional_data: PaymentAdditionalData<'_, F>) -> Result<Self, Self::Error> {
@@ -581,7 +581,7 @@ impl api::ConnectorTransactionId for Paypal {
     }
 }
 
-impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCaptureData {
+impl<F: Flow> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCaptureData {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
 
     fn try_from(additional_data: PaymentAdditionalData<'_, F>) -> Result<Self, Self::Error> {
@@ -608,7 +608,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCaptureD
     }
 }
 
-impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCancelData {
+impl<F: Flow> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCancelData {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
 
     fn try_from(additional_data: PaymentAdditionalData<'_, F>) -> Result<Self, Self::Error> {
@@ -631,7 +631,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCancelDa
     }
 }
 
-impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSessionData {
+impl<F: Flow> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSessionData {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
 
     fn try_from(additional_data: PaymentAdditionalData<'_, F>) -> Result<Self, Self::Error> {
@@ -663,7 +663,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSessionD
     }
 }
 
-impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::VerifyRequestData {
+impl<F: Flow> TryFrom<PaymentAdditionalData<'_, F>> for types::VerifyRequestData {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
 
     fn try_from(additional_data: PaymentAdditionalData<'_, F>) -> Result<Self, Self::Error> {
@@ -683,7 +683,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::VerifyRequestDat
     }
 }
 
-impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::CompleteAuthorizeData {
+impl<F: Flow> TryFrom<PaymentAdditionalData<'_, F>> for types::CompleteAuthorizeData {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
 
     fn try_from(additional_data: PaymentAdditionalData<'_, F>) -> Result<Self, Self::Error> {

@@ -3,6 +3,7 @@ use std::fmt::Debug;
 use common_utils::ext_traits::AsyncExt;
 use error_stack::{IntoReport, ResultExt};
 
+use super::operations::Flow;
 use crate::{
     core::{
         errors::{self, RouterResult},
@@ -13,7 +14,7 @@ use crate::{
     types::{self, api as api_types, storage, transformers::ForeignInto},
 };
 
-pub fn update_router_data_with_access_token_result<F, Req, Res>(
+pub fn update_router_data_with_access_token_result<F: Flow, Req, Res>(
     add_access_token_result: &types::AddAccessTokenResult,
     router_data: &mut types::RouterData<F, Req, Res>,
     call_connector_action: &payments::CallConnectorAction,
@@ -44,7 +45,7 @@ pub fn update_router_data_with_access_token_result<F, Req, Res>(
 }
 
 pub async fn add_access_token<
-    F: Clone + 'static,
+    F: Flow + 'static,
     Req: Debug + Clone + 'static,
     Res: Debug + Clone + 'static,
 >(

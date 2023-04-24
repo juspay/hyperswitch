@@ -1,3 +1,4 @@
+use crate::core::payments::operations;
 mod transformers;
 
 use std::fmt::Debug;
@@ -43,7 +44,8 @@ impl
 {
 }
 
-impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Forte
+impl<Flow: operations::Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response>
+    for Forte
 where
     Self: ConnectorIntegration<Flow, Request, Response>,
 {
