@@ -206,6 +206,7 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
                 .headers(types::RefreshTokenType::get_headers(self, req, connectors)?)
                 .url(&types::RefreshTokenType::get_url(self, req, connectors)?)
                 .body(types::RefreshTokenType::get_request_body(self, req)?)
+                .attach_default_headers()
                 .content_type(ContentType::FormUrlEncoded)
                 .build(),
         );
@@ -312,6 +313,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
                     self, req, connectors,
                 )?)
                 .body(self.get_request_body(req)?)
+                .attach_default_headers()
                 .build(),
         ))
     }
@@ -382,6 +384,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
                 .method(services::Method::Get)
                 .url(&types::PaymentsSyncType::get_url(self, req, connectors)?)
                 .headers(types::PaymentsSyncType::get_headers(self, req, connectors)?)
+                .attach_default_headers()
                 .build(),
         ))
     }
@@ -463,6 +466,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
                     self, req, connectors,
                 )?)
                 .body(self.get_request_body(req)?)
+                .attach_default_headers()
                 .build(),
         ))
     }
@@ -530,6 +534,7 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
                 .url(&types::PaymentsVoidType::get_url(self, req, connectors)?)
                 .headers(types::PaymentsVoidType::get_headers(self, req, connectors)?)
                 .body(types::PaymentsVoidType::get_request_body(self, req)?)
+                .attach_default_headers()
                 .build(),
         ))
     }
@@ -607,6 +612,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
                 self, req, connectors,
             )?)
             .body(self.get_request_body(req)?)
+            .attach_default_headers()
             .build();
         Ok(Some(request))
     }
@@ -673,6 +679,7 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
                 .url(&types::RefundSyncType::get_url(self, req, connectors)?)
                 .headers(types::RefundSyncType::get_headers(self, req, connectors)?)
                 .body(types::RefundSyncType::get_request_body(self, req)?)
+                .attach_default_headers()
                 .build(),
         ))
     }

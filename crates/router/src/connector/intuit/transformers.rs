@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::{
+    connector::utils::PaymentsAuthorizeRequestData,
     core::errors,
     pii::{self, Secret},
     types::{self, api, storage::enums},
@@ -124,14 +125,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for IntuitPaymentsRequest {
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         match item.request.payment_method_data {
             api::PaymentMethodData::Card(ref ccard) => {
-                let submit_for_settlement = match item.request.capture_method {
-                    Some(enums::CaptureMethod::Automatic) => Ok(true),
-                    Some(enums::CaptureMethod::Manual) => Ok(false),
-                    _ => Err(errors::ConnectorError::FlowNotSupported {
-                        flow: item.request.capture_method.unwrap_or_default().to_string(),
-                        connector: "intuit".to_string(),
-                    }),
-                }?;
+                let submit_for_settlement = item.request.is_auto_capture()?;
                 Ok(Self {
                     amount: item.request.amount.to_string(),
                     currency: item.request.currency,
