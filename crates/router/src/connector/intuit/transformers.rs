@@ -83,8 +83,8 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, IntuitAuthUpdateResponse, T, typ
                 token: item.response.access_token,
                 expires: item.response.expires_in,
                 refresh_token: Some(item.response.refresh_token),
-                created_at: Some(time::OffsetDateTime::now_utc().unix_timestamp()),
-                refresh_token_epires: Some(item.response.x_refresh_token_expires_in),
+                refresh_token_created_at: Some(time::OffsetDateTime::now_utc().unix_timestamp()),
+                refresh_token_expires: Some(item.response.x_refresh_token_expires_in),
             }),
             ..item.data
         })

@@ -266,9 +266,9 @@ pub struct AccessToken {
     pub refresh_token: Option<String>,
     // Expiration time in seconds. eg: 3600 for 60 minutes
     // This will be used as ttl in redis, So that expired token will be removed automatically
-    pub refresh_token_epires: Option<i64>,
+    pub refresh_token_expires: Option<i64>,
     // Token created time in UNIX EPOCH timestamp
-    pub created_at: Option<i64>,
+    pub refresh_token_created_at: Option<i64>,
 }
 
 #[derive(Debug, Clone)]

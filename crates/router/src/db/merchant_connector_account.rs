@@ -65,9 +65,9 @@ impl ConnectorAccessToken for Store {
             Encode::<types::AccessToken>::encode_to_string_of_json(&access_token)
                 .change_context(errors::StorageError::SerializationFailed)?;
         let expiration = access_token
-            .refresh_token_epires
-            .map_or(access_token.expires, |refresh_token_epires| {
-                refresh_token_epires
+            .refresh_token_expires
+            .map_or(access_token.expires, |refresh_token_expires| {
+                refresh_token_expires
             });
         self.redis_conn()
             .map_err(Into::<errors::StorageError>::into)?

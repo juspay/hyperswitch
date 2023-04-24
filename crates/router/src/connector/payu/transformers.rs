@@ -291,9 +291,9 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, PayuAuthUpdateResponse, T, types
             response: Ok(types::AccessToken {
                 token: item.response.access_token,
                 expires: item.response.expires_in,
-                created_at: None,
+                refresh_token_created_at: None,
                 refresh_token: None,
-                refresh_token_epires: None,
+                refresh_token_expires: None,
             }),
             ..item.data
         })

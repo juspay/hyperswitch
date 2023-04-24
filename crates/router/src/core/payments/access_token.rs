@@ -54,7 +54,7 @@ pub fn update_router_data_with_access_token_result<F, Req, Res>(
 /// This flow also involves access token. But the main difference is, to get a new access
 /// token refresh token has to be exchanged. Usually refresh token will have longer validity
 /// than access token. In Refresh token flow we use the refresh token expiry as TTL of
-/// AccessToken and this validity can be found in refresh_token_epires field of AccessToken.
+/// AccessToken and this validity can be found in refresh_token_expires field of AccessToken.
 /// Eventhough the refresh token has longer validity, once access token got expired a new
 /// access token will be generated using AccessTokenAuth flow
 pub async fn add_access_token<
@@ -141,7 +141,7 @@ pub fn is_new_access_token_required(old_access_token: Option<&types::AccessToken
     match old_access_token {
         Some(access_token) => {
             // Access token is present
-            match access_token.created_at {
+            match access_token.refresh_token_created_at {
                 // If access_token is present along with created_at, then the current time should not exceed the expiration time
                 Some(created_at) => {
                     let now = time::OffsetDateTime::now_utc().unix_timestamp();
