@@ -116,6 +116,7 @@ pub struct SetupIntentRequest {
     pub confirm: bool,
     pub usage: Option<enums::FutureUsage>,
     pub off_session: Option<bool>,
+    pub return_url: Option<String>,
     #[serde(flatten)]
     pub payment_data: StripePaymentMethodData,
 }
@@ -920,6 +921,7 @@ impl TryFrom<&types::VerifyRouterData> for SetupIntentRequest {
             metadata_txn_id,
             metadata_txn_uuid,
             payment_data,
+            return_url: item.return_url.clone(),
             off_session: item.request.off_session,
             usage: item.request.setup_future_usage,
         })
@@ -1036,6 +1038,50 @@ impl std::ops::Deref for PaymentIntentSyncResponse {
 
     fn deref(&self) -> &Self::Target {
         &self.payment_intent_fields
+    }
+}
+
+#[derive(Deserialize)]
+pub struct SetupIntentSyncResponse {
+    #[serde(flatten)]
+    setup_intent_fields: SetupIntentResponse,
+    pub last_payment_error: Option<LastPaymentError>,
+}
+
+impl std::ops::Deref for SetupIntentSyncResponse {
+    type Target = SetupIntentResponse;
+
+    fn deref(&self) -> &Self::Target {
+        &self.setup_intent_fields
+    }
+}
+
+impl From<SetupIntentSyncResponse> for PaymentIntentSyncResponse {
+    fn from(value: SetupIntentSyncResponse) -> Self {
+        Self {
+            payment_intent_fields: value.setup_intent_fields.into(),
+            last_payment_error: value.last_payment_error,
+        }
+    }
+}
+
+impl From<SetupIntentResponse> for PaymentIntentResponse {
+    fn from(value: SetupIntentResponse) -> Self {
+        Self {
+            id: value.id,
+            object: value.object,
+            status: value.status,
+            client_secret: value.client_secret,
+            customer: value.customer,
+            description: None,
+            statement_descriptor: value.statement_descriptor,
+            statement_descriptor_suffix: value.statement_descriptor_suffix,
+            metadata: value.metadata,
+            next_action: value.next_action,
+            payment_method_options: value.payment_method_options,
+            last_payment_error: None,
+            ..Default::default()
+        }
     }
 }
 
