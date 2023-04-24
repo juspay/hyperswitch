@@ -1,7 +1,6 @@
 use api_models::{self, enums as api_enums, payments};
 use base64::Engine;
-use common_utils::pii::Email;
-use common_utils::{errors::CustomResult, fp_utils, pii};
+use common_utils::{errors::CustomResult, pii};
 use error_stack::{IntoReport, ResultExt};
 use masking::{ExposeInterface, ExposeOptionInterface, Secret};
 use serde::{Deserialize, Serialize};
@@ -12,7 +11,6 @@ use crate::{
     consts,
     core::errors,
     get_keys_of_option_nones,
-    pii::{self, ExposeOptionInterface, Secret},
     services,
     types::{self, api, storage::enums},
     utils::OptionExt,
@@ -1980,3 +1978,4 @@ mod test_validate_shipping_address_against_payment_method {
             phone: Some(Secret::new(String::from("pbone number"))),
         }
     }
+}

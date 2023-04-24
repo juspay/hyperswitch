@@ -39,7 +39,7 @@ pub async fn signal_handler(mut sig: signal_hook_tokio::Signals, sender: oneshot
 /// It will send a signal to the receiver when a SIGTERM or SIGINT is received
 ///
 #[cfg(target_os = "windows")]
-pub async fn signal_handler(_sig: DummySignal, _sender: oneshot::Sender<()>) {}
+pub async fn signal_handler(_sig: DummySignal, _sender: mpsc::Sender<()>) {}
 
 ///
 /// This function is used to generate a list of signals that the signal_handler should listen for
