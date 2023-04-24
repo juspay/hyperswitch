@@ -12,6 +12,7 @@ use router::{
         self, api, storage::enums, AccessToken, AccessTokenRequestData, PaymentAddress, RouterData,
     },
 };
+use tokio::sync::oneshot;
 use wiremock::{Mock, MockServer};
 
 pub trait Connector {
@@ -51,9 +52,13 @@ pub trait ConnectorActions: Connector {
             },
             payment_info,
         );
-        let state =
-            routes::AppState::with_storage(Settings::new().unwrap(), StorageImpl::PostgresqlTest)
-                .await;
+        let tx: oneshot::Sender<()> = oneshot::channel().0;
+        let state = routes::AppState::with_storage(
+            Settings::new().unwrap(),
+            StorageImpl::PostgresqlTest,
+            tx,
+        )
+        .await;
         integration.execute_pretasks(&mut request, &state).await?;
         call_connector(request, integration).await
     }
@@ -72,9 +77,13 @@ pub trait ConnectorActions: Connector {
             },
             payment_info,
         );
-        let state =
-            routes::AppState::with_storage(Settings::new().unwrap(), StorageImpl::PostgresqlTest)
-                .await;
+        let tx: oneshot::Sender<()> = oneshot::channel().0;
+        let state = routes::AppState::with_storage(
+            Settings::new().unwrap(),
+            StorageImpl::PostgresqlTest,
+            tx,
+        )
+        .await;
         integration.execute_pretasks(&mut request, &state).await?;
         call_connector(request, integration).await
     }
@@ -426,7 +435,8 @@ async fn call_connector<
     integration: services::BoxedConnectorIntegration<'_, T, Req, Resp>,
 ) -> Result<RouterData<T, Req, Resp>, Report<ConnectorError>> {
     let conf = Settings::new().unwrap();
-    let state = routes::AppState::with_storage(conf, StorageImpl::PostgresqlTest).await;
+    let tx: oneshot::Sender<()> = oneshot::channel().0;
+    let state = routes::AppState::with_storage(conf, StorageImpl::PostgresqlTest, tx).await;
     services::api::execute_connector_processing_step(
         &state,
         integration,
