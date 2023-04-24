@@ -2,6 +2,7 @@ use api_models::admin::PrimaryBusinessDetails;
 use common_utils::ext_traits::ValueExt;
 use error_stack::{report, FutureExt, IntoReport, ResultExt};
 use masking::ExposeInterface;
+use masking::Secret; //PeekInterface
 use storage_models::{enums, merchant_account};
 use uuid::Uuid;
 
@@ -156,9 +157,7 @@ pub async fn create_merchant_account(
     let merchant_account = db
         .insert_merchant(merchant_account)
         .await
-        .map_err(|error| {
-            error.to_duplicate_response(errors::ApiErrorResponse::DuplicateMerchantAccount)
-        })?;
+        .to_duplicate_response(errors::ApiErrorResponse::DuplicateMerchantAccount)?;
 
     Ok(service_api::ApplicationResponse::Json(
         ForeignTryFrom::foreign_try_from(merchant_account).change_context(
@@ -176,9 +175,7 @@ pub async fn get_merchant_account(
     let merchant_account = db
         .find_merchant_account_by_merchant_id(&req.merchant_id)
         .await
-        .map_err(|error| {
-            error.to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
-        })?;
+        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
     Ok(service_api::ApplicationResponse::Json(
         ForeignTryFrom::foreign_try_from(merchant_account).change_context(
@@ -267,9 +264,7 @@ pub async fn merchant_account_update(
     let response = db
         .update_specific_fields_in_merchant(merchant_id, updated_merchant_account)
         .await
-        .map_err(|error| {
-            error.to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
-        })?;
+        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
     Ok(service_api::ApplicationResponse::Json(
         ForeignTryFrom::foreign_try_from(response).change_context(
@@ -287,9 +282,7 @@ pub async fn merchant_account_delete(
     let is_deleted = db
         .delete_merchant_account_by_merchant_id(&merchant_id)
         .await
-        .map_err(|error| {
-            error.to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
-        })?;
+        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
     let response = api::MerchantAccountDeleteResponse {
         merchant_id,
         deleted: is_deleted,
@@ -330,9 +323,7 @@ async fn validate_merchant_id<S: Into<String>>(
 ) -> RouterResult<MerchantAccount> {
     db.find_merchant_account_by_merchant_id(&merchant_id.into())
         .await
-        .map_err(|error| {
-            error.to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
-        })
+        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
 }
 
 fn get_business_details_wrapper(
@@ -365,9 +356,7 @@ pub async fn create_payment_connector(
     let merchant_account = store
         .find_merchant_account_by_merchant_id(merchant_id)
         .await
-        .map_err(|error| {
-            error.to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
-        })?;
+        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
     let (business_country, business_label) = get_business_details_wrapper(&req, &merchant_account)?;
 
@@ -424,7 +413,15 @@ pub async fn create_payment_connector(
             field_name: "connector_account_details".to_string(),
             expected_format: "auth_type and api_key".to_string(),
         })?;
-
+    let frm_configs = match req.frm_configs {
+        Some(frm_value) => {
+            let configs_for_frm_value: serde_json::Value =
+                utils::Encode::<api_models::admin::FrmConfigs>::encode_to_value(&frm_value)
+                    .change_context(errors::ApiErrorResponse::ConfigNotFound)?;
+            Some(Secret::new(configs_for_frm_value))
+        }
+        None => None,
+    };
     let merchant_connector_account = storage::MerchantConnectorAccountNew {
         merchant_id: Some(merchant_id.to_string()),
         connector_type: Some(req.connector_type.foreign_into()),
@@ -435,6 +432,7 @@ pub async fn create_payment_connector(
         test_mode: req.test_mode,
         disabled: req.disabled,
         metadata: req.metadata,
+        frm_configs,
         connector_label: connector_label.clone(),
         business_country,
         business_label,
@@ -444,9 +442,7 @@ pub async fn create_payment_connector(
     let mca = store
         .insert_merchant_connector_account(merchant_connector_account)
         .await
-        .map_err(|error| {
-            error.to_duplicate_response(errors::ApiErrorResponse::DuplicateMerchantConnectorAccount)
-        })?;
+        .to_duplicate_response(errors::ApiErrorResponse::DuplicateMerchantConnectorAccount)?;
 
     let mca_response = ForeignTryFrom::foreign_try_from(mca)?;
 
@@ -461,9 +457,7 @@ pub async fn retrieve_payment_connector(
     let _merchant_account = store
         .find_merchant_account_by_merchant_id(&merchant_id)
         .await
-        .map_err(|error| {
-            error.to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
-        })?;
+        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
     let mca = store
         .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
@@ -471,9 +465,7 @@ pub async fn retrieve_payment_connector(
             &merchant_connector_id,
         )
         .await
-        .map_err(|error| {
-            error.to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound)
-        })?;
+        .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound)?;
 
     Ok(service_api::ApplicationResponse::Json(
         ForeignTryFrom::foreign_try_from(mca)?,
@@ -488,16 +480,12 @@ pub async fn list_payment_connectors(
     store
         .find_merchant_account_by_merchant_id(&merchant_id)
         .await
-        .map_err(|err| {
-            err.to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
-        })?;
+        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
     let merchant_connector_accounts = store
         .find_merchant_connector_account_by_merchant_id_and_disabled_list(&merchant_id, true)
         .await
-        .map_err(|error| {
-            error.to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound)
-        })?;
+        .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound)?;
     let mut response = vec![];
 
     // The can be eliminated once [#79711](https://github.com/rust-lang/rust/issues/79711) is stabilized
@@ -517,9 +505,7 @@ pub async fn update_payment_connector(
     let _merchant_account = db
         .find_merchant_account_by_merchant_id(merchant_id)
         .await
-        .map_err(|error| {
-            error.to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
-        })?;
+        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
     let mca = db
         .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
@@ -527,9 +513,7 @@ pub async fn update_payment_connector(
             merchant_connector_id,
         )
         .await
-        .map_err(|error| {
-            error.to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound)
-        })?;
+        .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound)?;
 
     let payment_methods_enabled = req.payment_methods_enabled.map(|pm_enabled| {
         pm_enabled
@@ -539,7 +523,15 @@ pub async fn update_payment_connector(
             })
             .collect::<Vec<serde_json::Value>>()
     });
-
+    let frm_configs = match req.frm_configs.as_ref() {
+        Some(frm_value) => {
+            let configs_for_frm_value: serde_json::Value =
+                utils::Encode::<api_models::admin::FrmConfigs>::encode_to_value(&frm_value)
+                    .change_context(errors::ApiErrorResponse::ConfigNotFound)?;
+            Some(Secret::new(configs_for_frm_value))
+        }
+        None => None,
+    };
     let payment_connector = storage::MerchantConnectorAccountUpdate::Update {
         merchant_id: Some(merchant_id.to_string()),
         connector_type: Some(req.connector_type.foreign_into()),
@@ -549,6 +541,7 @@ pub async fn update_payment_connector(
         test_mode: req.test_mode,
         disabled: req.disabled,
         metadata: req.metadata,
+        frm_configs,
     };
 
     let updated_mca = db
@@ -572,9 +565,7 @@ pub async fn delete_payment_connector(
     let _merchant_account = db
         .find_merchant_account_by_merchant_id(&merchant_id)
         .await
-        .map_err(|error| {
-            error.to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
-        })?;
+        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
     let is_deleted = db
         .delete_merchant_connector_account_by_merchant_id_merchant_connector_id(
@@ -582,9 +573,7 @@ pub async fn delete_payment_connector(
             &merchant_connector_id,
         )
         .await
-        .map_err(|error| {
-            error.to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound)
-        })?;
+        .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound)?;
     let response = api::MerchantConnectorDeleteResponse {
         merchant_id,
         merchant_connector_id,
@@ -602,9 +591,7 @@ pub async fn kv_for_merchant(
     let merchant_account = db
         .find_merchant_account_by_merchant_id(&merchant_id)
         .await
-        .map_err(|error| {
-            error.to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
-        })?;
+        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
     let updated_merchant_account = match (enable, merchant_account.storage_scheme) {
         (true, enums::MerchantStorageScheme::RedisKv)
@@ -654,9 +641,7 @@ pub async fn check_merchant_account_kv_status(
     let merchant_account = db
         .find_merchant_account_by_merchant_id(&merchant_id)
         .await
-        .map_err(|error| {
-            error.to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
-        })?;
+        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
     let kv_status = matches!(
         merchant_account.storage_scheme,

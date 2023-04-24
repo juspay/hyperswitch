@@ -10,7 +10,7 @@ use ::common_utils::{
 use error_stack::{IntoReport, ResultExt};
 use transformers as nuvei;
 
-use super::utils::{self, to_boolean, RouterData};
+use super::utils::{self, RouterData};
 use crate::{
     configs::settings,
     core::{
@@ -148,14 +148,14 @@ impl
         Ok(Some(
             services::RequestBuilder::new()
                 .method(services::Method::Post)
-                .url(&types::PaymentsComeplteAuthorizeType::get_url(
+                .url(&types::PaymentsCompleteAuthorizeType::get_url(
                     self, req, connectors,
                 )?)
                 .attach_default_headers()
-                .headers(types::PaymentsComeplteAuthorizeType::get_headers(
+                .headers(types::PaymentsCompleteAuthorizeType::get_headers(
                     self, req, connectors,
                 )?)
-                .body(types::PaymentsComeplteAuthorizeType::get_request_body(
+                .body(types::PaymentsCompleteAuthorizeType::get_request_body(
                     self, req,
                 )?)
                 .build(),
@@ -486,35 +486,42 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         )
         .await?;
         router_data.session_token = resp.session_token;
-        let (enrolled_for_3ds, related_transaction_id) = match router_data.auth_type {
-            storage_models::enums::AuthenticationType::ThreeDs => {
-                let integ: Box<
-                    &(dyn ConnectorIntegration<
-                        InitPayment,
-                        types::PaymentsAuthorizeData,
-                        types::PaymentsResponseData,
-                    > + Send
-                          + Sync
-                          + 'static),
-                > = Box::new(&Self);
-                let init_data = &types::PaymentsInitRouterData::from((
-                    &router_data,
-                    router_data.request.clone(),
-                ));
-                let init_resp = services::execute_connector_processing_step(
-                    app_state,
-                    integ,
-                    init_data,
-                    payments::CallConnectorAction::Trigger,
-                )
-                .await?;
+        let (enrolled_for_3ds, related_transaction_id) =
+            match (router_data.auth_type, router_data.payment_method) {
                 (
-                    init_resp.request.enrolled_for_3ds,
-                    init_resp.request.related_transaction_id,
-                )
-            }
-            storage_models::enums::AuthenticationType::NoThreeDs => (false, None),
-        };
+                    storage_models::enums::AuthenticationType::ThreeDs,
+                    storage_models::enums::PaymentMethod::Card,
+                ) => {
+                    let integ: Box<
+                        &(dyn ConnectorIntegration<
+                            InitPayment,
+                            types::PaymentsAuthorizeData,
+                            types::PaymentsResponseData,
+                        > + Send
+                              + Sync
+                              + 'static),
+                    > = Box::new(&Self);
+                    let init_data = &types::PaymentsInitRouterData::from((
+                        &router_data,
+                        router_data.request.clone(),
+                    ));
+                    let init_resp = services::execute_connector_processing_step(
+                        app_state,
+                        integ,
+                        init_data,
+                        payments::CallConnectorAction::Trigger,
+                    )
+                    .await?;
+                    match init_resp.response {
+                        Ok(types::PaymentsResponseData::ThreeDSEnrollmentResponse {
+                            enrolled_v2,
+                            related_transaction_id,
+                        }) => (enrolled_v2, related_transaction_id),
+                        _ => (false, None),
+                    }
+                }
+                _ => (false, None),
+            };
 
         router_data.request.enrolled_for_3ds = enrolled_for_3ds;
         router_data.request.related_transaction_id = related_transaction_id;
@@ -725,28 +732,12 @@ impl ConnectorIntegration<InitPayment, types::PaymentsAuthorizeData, types::Paym
             .response
             .parse_struct("NuveiPaymentsResponse")
             .switch()?;
-        let response_data = types::RouterData::try_from(types::ResponseRouterData {
-            response: response.clone(),
+        types::RouterData::try_from(types::ResponseRouterData {
+            response,
             data: data.clone(),
             http_code: res.status_code,
         })
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
-        let is_enrolled_for_3ds = response
-            .clone()
-            .payment_option
-            .and_then(|po| po.card)
-            .and_then(|c| c.three_d)
-            .and_then(|t| t.v2supported)
-            .map(to_boolean)
-            .unwrap_or_default();
-        Ok(types::RouterData {
-            request: types::PaymentsAuthorizeData {
-                enrolled_for_3ds: is_enrolled_for_3ds,
-                related_transaction_id: response.transaction_id,
-                ..response_data.request
-            },
-            ..response_data
-        })
+        .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
     fn get_error_response(

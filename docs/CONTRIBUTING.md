@@ -45,6 +45,7 @@ Please join us!
   - [Calls for participation](#calls-for-participation)
   - [Metadata](#metadata)
   - [Priority](#priority)
+  - [RFCs](#rfcs)
   - [Status](#status)
 
 ## Code of Conduct
@@ -489,6 +490,8 @@ The area label describes the area relevant to this issue or PR.
 - **A-core**: This issue/PR concerns the core flows.
 - **A-dependencies**: The issue/PR concerns one or more of our dependencies.
 - **A-drainer**: The issue/PR concerns the drainer code.
+- **A-errors**: The issue/PR concerns error messages, error structure or error
+  logging.
 - **A-framework**: The issue/PR concerns code to interact with other systems or
   services such as database, Redis, connector APIs, etc.
 - **A-infra**: This issue/PR concerns deployments, Dockerfiles, Docker Compose
@@ -520,6 +523,7 @@ The area label describes the area relevant to this issue or PR.
 The metadata label describes additional metadata that are important for sandbox
 or production deployments of our application.
 
+- **M-api-contract-changes**: This PR involves API contract changes.
 - **M-configuration-changes**: This PR involves configuration changes.
 - **M-database-changes**: This PR involves database schema changes.
 
@@ -528,6 +532,12 @@ or production deployments of our application.
 - **P-low**: This is a low priority issue.
 - **P-medium**: This is not `P-low` or `P-high`.
 - **P-high**: This is a high priority issue and must be addressed quickly.
+
+### RFCs
+
+- **RFC-in-progress**: This RFC involves active discussion regarding substantial
+  design changes.
+- **RFC-resolved**: This RFC has been resolved.
 
 ### Status
 

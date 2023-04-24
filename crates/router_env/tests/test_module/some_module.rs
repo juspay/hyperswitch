@@ -2,7 +2,7 @@ use logger::instrument;
 use router_env as logger;
 
 #[instrument(skip_all)]
-pub async fn fn_with_colon(val: i32) -> () {
+pub async fn fn_with_colon(val: i32) {
     let a = 13;
     let b = 31;
 
@@ -24,7 +24,7 @@ pub async fn fn_with_colon(val: i32) -> () {
 }
 
 #[instrument(fields(val3 = "abc"), skip_all)]
-pub async fn fn_without_colon(val: i32) -> () {
+pub async fn fn_without_colon(val: i32) {
     let a = 13;
     let b = 31;
 

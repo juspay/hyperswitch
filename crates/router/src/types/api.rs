@@ -156,9 +156,10 @@ type BoxedConnector = Box<&'static (dyn Connector + Sync)>;
 
 // Normal flow will call the connector and follow the flow specific operations (capture, authorize)
 // SessionTokenFromMetadata will avoid calling the connector instead create the session token ( for sdk )
-#[derive(Clone)]
+#[derive(Clone, Eq, PartialEq)]
 pub enum GetToken {
-    Metadata,
+    GpayMetadata,
+    ApplePayMetadata,
     Connector,
 }
 
@@ -214,7 +215,6 @@ impl ConnectorData {
             "aci" => Ok(Box::new(&connector::Aci)),
             "adyen" => Ok(Box::new(&connector::Adyen)),
             "airwallex" => Ok(Box::new(&connector::Airwallex)),
-            "applepay" => Ok(Box::new(&connector::Applepay)),
             "authorizedotnet" => Ok(Box::new(&connector::Authorizedotnet)),
             "bambora" => Ok(Box::new(&connector::Bambora)),
             "bluesnap" => Ok(Box::new(&connector::Bluesnap)),
@@ -224,6 +224,7 @@ impl ConnectorData {
             "cybersource" => Ok(Box::new(&connector::Cybersource)),
             "dlocal" => Ok(Box::new(&connector::Dlocal)),
             "fiserv" => Ok(Box::new(&connector::Fiserv)),
+            // "forte" => Ok(Box::new(&connector::Forte)),
             "globalpay" => Ok(Box::new(&connector::Globalpay)),
             "klarna" => Ok(Box::new(&connector::Klarna)),
             "mollie" => Ok(Box::new(&connector::Mollie)),
@@ -237,6 +238,7 @@ impl ConnectorData {
             "worldline" => Ok(Box::new(&connector::Worldline)),
             "worldpay" => Ok(Box::new(&connector::Worldpay)),
             "multisafepay" => Ok(Box::new(&connector::Multisafepay)),
+            // "nexinets" => Ok(Box::new(&connector::Nexinets)), added as template code for future use
             "paypal" => Ok(Box::new(&connector::Paypal)),
             "trustpay" => Ok(Box::new(&connector::Trustpay)),
             _ => Err(report!(errors::ConnectorError::InvalidConnectorName)
