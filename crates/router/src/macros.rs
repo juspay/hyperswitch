@@ -53,17 +53,16 @@ macro_rules! async_spawn {
 }
 
 #[macro_export]
-macro_rules! missing_fields {
-    [$(($option:expr, $missing_field:expr)), *] => {
+macro_rules! get_keys_of_option_nones {
+    [$(($key:expr, $option:expr)), *] => {
         {
-            let mut missing_fields = Vec::new();
+            let mut keys = Vec::new();
             $(
                 if $option.is_none() {
-                    missing_fields.push($missing_field);
+                    keys.push($key);
                 }
-
             )*
-            missing_fields
+            keys
         }
     };
 }

@@ -10,7 +10,7 @@ use uuid::Uuid;
 use crate::{
     consts,
     core::errors,
-    missing_fields,
+    get_keys_of_option_nones,
     pii::{self, ExposeOptionInterface, Secret},
     services,
     types::{self, api, storage::enums},
@@ -362,11 +362,11 @@ fn validate_shipping_address_against_payment_method(
     payment_method: &StripePaymentMethodType,
 ) -> Result<(), error_stack::Report<errors::ConnectorError>> {
     if let StripePaymentMethodType::AfterpayClearpay = payment_method {
-        let missing_fields = missing_fields!(
-            (shipping_address.name, "shipping.address.first_name"),
-            (shipping_address.line1, "shipping.address.line1"),
-            (shipping_address.country, "shipping.address.country"),
-            (shipping_address.zip, "shipping.address.zip")
+        let missing_fields = get_keys_of_option_nones!(
+            ("shipping.address.first_name", shipping_address.name),
+            ("shipping.address.line1", shipping_address.line1),
+            ("shipping.address.country", shipping_address.country),
+            ("shipping.address.zip", shipping_address.zip)
         );
 
         if !missing_fields.is_empty() {
