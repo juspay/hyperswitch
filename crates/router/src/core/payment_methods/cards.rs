@@ -1140,6 +1140,7 @@ async fn filter_payment_methods(
                     let filter6 = filter_pm_metadata_based(
                         db,
                         &connector,
+                        payment_methods_enabled.payment_method,
                         payment_method_object.payment_method_type,
                         payment_intent,
                         payment_attempt,
@@ -1469,12 +1470,13 @@ async fn filter_payment_mandate_based(
 async fn filter_pm_metadata_based(
     db: &dyn db::StorageInterface,
     connector: &str,
-    pm_type: api_enums::PaymentMethodType,
+    pm_type: api_enums::PaymentMethod,
+    pm_sub_type: api_enums::PaymentMethodType,
     payment_intent: Option<&storage::PaymentIntent>,
     payment_attempt: Option<&storage::PaymentAttempt>,
 ) -> Option<()> {
     match (payment_intent, payment_attempt) {
-        (Some(payment_intent_inner), Some(payment_attempt_inner)) => {
+        (Some(payment_intent_inner), Some(_payment_attempt_inner)) => {
             let connector = api::ConnectorData::get_connector_by_name(
                 &settings::Connectors::default(),
                 connector,
@@ -1482,10 +1484,9 @@ async fn filter_pm_metadata_based(
             )
             .ok()?;
 
-            let payment_method = payment_attempt_inner.payment_method;
             api::Validator::<api::Authorize>::validate_metadata(
                 *connector.connector,
-                payment_method.map(|value| (value.foreign_into(), pm_type)),
+                Some((pm_type, pm_sub_type)),
                 payment_intent_inner.metadata.clone().expose_option().into(),
             )
             .ok()?;
@@ -1493,7 +1494,7 @@ async fn filter_pm_metadata_based(
             api::Validator::<api::Authorize>::validate_payment_intent(
                 *connector.connector,
                 db,
-                payment_method.map(|value| (value.foreign_into(), pm_type)),
+                Some((pm_type, pm_sub_type)),
                 payment_intent,
             )
             .await
