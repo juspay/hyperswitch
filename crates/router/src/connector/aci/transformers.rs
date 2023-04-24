@@ -50,7 +50,6 @@ pub struct AciCancelRequest {
 }
 
 #[derive(Debug, Clone, Serialize)]
-#[serde(untagged)]
 pub enum PaymentDetails {
     #[serde(rename = "card")]
     AciCard(Box<CardDetails>),
@@ -124,13 +123,7 @@ pub enum AciPaymentType {
 
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for AciPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: &types::RouterData<
-            api::Authorize,
-            types::PaymentsAuthorizeData,
-            types::PaymentsResponseData,
-        >,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         let payment_details: PaymentDetails = match item.request.payment_method_data.clone() {
             api::PaymentMethodData::Card(ccard) => PaymentDetails::AciCard(Box::new(CardDetails {
                 card_number: ccard.card_number,
@@ -311,23 +304,8 @@ impl<F, T>
         item: types::ResponseRouterData<F, AciPaymentsResponse, T, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         let redirection_data = item.response.redirect.map(|data| {
-            let form_fields = std::collections::HashMap::<_, _>::from_iter(
-                data.parameters
-                    .iter()
-                    .map(|parameter| (parameter.clone().name, parameter.clone().value)),
-            );
-
-            let link = data.clone().url;
-
-            // If method is Get, parameters are appended to URL
-            // If method is post, we http Post the method to URL
-            services::RedirectForm {
-                endpoint: link.to_string(),
-                // Handles method for Bank redirects currently.
-                // 3DS response have method within preconditions. That would require replacing below line with a function.
-                method: data.method.unwrap_or(services::Method::Post),
-                form_fields,
-            }
+            // default method is POST if in case method is not present in the response
+            services::RedirectForm::from((data.url, data.method.unwrap_or(services::Method::Post)))
         });
 
         Ok(Self {
