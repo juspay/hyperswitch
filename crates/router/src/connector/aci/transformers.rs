@@ -50,6 +50,7 @@ pub struct AciCancelRequest {
 }
 
 #[derive(Debug, Clone, Serialize)]
+#[serde(untagged)]
 pub enum PaymentDetails {
     #[serde(rename = "card")]
     AciCard(Box<CardDetails>),
