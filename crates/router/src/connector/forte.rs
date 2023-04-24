@@ -29,31 +29,15 @@ impl Forte {
         &self,
         auth: forte::ForteAuthType,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        let forte::ForteAuthType {
-            api_access_id,
-            organization_id,
-            location_id: _,
-            api_secret_key,
-        } = auth;
-
-        let raw_basic_token = format!("{api_access_id}:{api_secret_key}");
+        let raw_basic_token = format!("{}:{}", auth.api_access_id, auth.api_secret_key);
         let basic_token = format!("Basic {}", consts::BASE64_ENGINE.encode(raw_basic_token));
         Ok(vec![
             (headers::AUTHORIZATION.to_string(), basic_token),
-            ("X-Forte-Auth-Organization-Id".to_string(), organization_id),
+            (
+                "X-Forte-Auth-Organization-Id".to_string(),
+                auth.organization_id,
+            ),
         ])
-    }
-    pub fn get_organization_id_and_location_id(
-        &self,
-        auth: forte::ForteAuthType,
-    ) -> CustomResult<(String, String), errors::ConnectorError> {
-        let forte::ForteAuthType {
-            api_access_id: _,
-            organization_id,
-            location_id,
-            api_secret_key: _,
-        } = auth;
-        Ok((organization_id, location_id))
     }
 }
 
@@ -184,12 +168,11 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let auth: forte::ForteAuthType = forte::ForteAuthType::try_from(&req.connector_auth_type)?;
-        let (organization_id, location_id) = self.get_organization_id_and_location_id(auth)?;
         Ok(format!(
             "{}/organizations/{}/locations/{}/transactions",
             self.base_url(connectors),
-            organization_id,
-            location_id
+            auth.organization_id,
+            auth.location_id
         ))
     }
 
@@ -266,7 +249,6 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let auth: forte::ForteAuthType = forte::ForteAuthType::try_from(&req.connector_auth_type)?;
-        let (organization_id, location_id) = self.get_organization_id_and_location_id(auth)?;
         let txn_id = req
             .request
             .connector_transaction_id
@@ -275,8 +257,8 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         Ok(format!(
             "{}/organizations/{}/locations/{}/transactions/{}",
             self.base_url(connectors),
-            organization_id,
-            location_id,
+            auth.organization_id,
+            auth.location_id,
             txn_id
         ))
     }
@@ -339,12 +321,11 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let auth: forte::ForteAuthType = forte::ForteAuthType::try_from(&req.connector_auth_type)?;
-        let (organization_id, location_id) = self.get_organization_id_and_location_id(auth)?;
         Ok(format!(
             "{}/organizations/{}/locations/{}/transactions",
             self.base_url(connectors),
-            organization_id,
-            location_id
+            auth.organization_id,
+            auth.location_id
         ))
     }
 
@@ -421,12 +402,11 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let auth: forte::ForteAuthType = forte::ForteAuthType::try_from(&req.connector_auth_type)?;
-        let (organization_id, location_id) = self.get_organization_id_and_location_id(auth)?;
         Ok(format!(
             "{}/organizations/{}/locations/{}/transactions/{}",
             self.base_url(connectors),
-            organization_id,
-            location_id,
+            auth.organization_id,
+            auth.location_id,
             req.request.connector_transaction_id
         ))
     }
@@ -499,12 +479,11 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let auth: forte::ForteAuthType = forte::ForteAuthType::try_from(&req.connector_auth_type)?;
-        let (organization_id, location_id) = self.get_organization_id_and_location_id(auth)?;
         Ok(format!(
             "{}/organizations/{}/locations/{}/transactions",
             self.base_url(connectors),
-            organization_id,
-            location_id
+            auth.organization_id,
+            auth.location_id
         ))
     }
 
@@ -576,12 +555,11 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let auth: forte::ForteAuthType = forte::ForteAuthType::try_from(&req.connector_auth_type)?;
-        let (organization_id, location_id) = self.get_organization_id_and_location_id(auth)?;
         Ok(format!(
             "{}/organizations/{}/locations/{}/transactions/{}",
             self.base_url(connectors),
-            organization_id,
-            location_id,
+            auth.organization_id,
+            auth.location_id,
             req.request.get_connector_refund_id()?
         ))
     }

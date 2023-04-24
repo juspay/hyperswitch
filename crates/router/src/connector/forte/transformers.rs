@@ -11,7 +11,6 @@ use crate::{
 };
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-#[serde(rename_all = "snake_case")]
 pub struct FortePaymentsRequest {
     action: String,
     authorization_amount: f64,
@@ -20,14 +19,12 @@ pub struct FortePaymentsRequest {
     card: Card,
 }
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
-#[serde(rename_all = "snake_case")]
 pub struct BillingAddress {
     first_name: Secret<String>,
     last_name: Secret<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-#[serde(rename_all = "snake_case")]
 pub struct Card {
     card_type: ForteCardType,
     name_on_card: Secret<String>,
@@ -78,17 +75,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for FortePaymentsRequest {
                     false => "authorize",
                 }
                 .to_string();
-                let card_issuer = ccard.get_card_issuer();
-
-                let card_type = match card_issuer {
-                    Ok(issuer) => ForteCardType::try_from(issuer)?,
-                    Err(_) => Err(errors::ConnectorError::NotSupported {
-                        payment_method: api::enums::PaymentMethod::Card.to_string(),
-                        connector: "Forte",
-                        payment_experience: api::enums::PaymentExperience::RedirectToUrl
-                            .to_string(),
-                    })?,
-                };
+                let card_type = ForteCardType::try_from(ccard.get_card_issuer()?)?;
                 let address = item.get_billing_address()?;
                 let card = Card {
                     card_type,
@@ -107,17 +94,16 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for FortePaymentsRequest {
                         .parse::<f64>()
                         .ok()
                         .ok_or_else(|| errors::ConnectorError::RequestEncodingFailed)?;
-                let subtotal_amount = authorization_amount;
                 Ok(Self {
                     action,
                     authorization_amount,
-                    subtotal_amount,
+                    subtotal_amount: authorization_amount,
                     billing_address,
                     card,
                 })
             }
             _ => Err(errors::ConnectorError::NotImplemented(
-                "Payment Methods".to_string(),
+                "Payment Method".to_string(),
             ))?,
         }
     }
@@ -190,7 +176,6 @@ impl ForeignFrom<(ForteResponseCode, ForteAction)> for enums::AttemptStatus {
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
-#[serde(rename_all = "snake_case")]
 pub struct CardResponse {
     name_on_card: String,
     last_4_account_number: String,
@@ -225,7 +210,6 @@ pub enum ForteAction {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-#[serde(rename_all = "snake_case")]
 pub struct FortePaymentsResponse {
     transaction_id: String,
     location_id: String,
@@ -272,7 +256,6 @@ impl<F, T>
 //PsyncResponse
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-#[serde(rename_all = "snake_case")]
 pub struct FortePaymentsSyncResponse {
     transaction_id: String,
     location_id: String,
@@ -318,7 +301,6 @@ impl<F, T>
 // Capture
 
 #[derive(Default, Debug, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
 pub struct ForteCaptureRequest {
     action: String,
     transaction_id: String,
@@ -328,20 +310,19 @@ pub struct ForteCaptureRequest {
 impl TryFrom<&types::PaymentsCaptureRouterData> for ForteCaptureRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsCaptureRouterData) -> Result<Self, Self::Error> {
-        let trn_id = &item.request.connector_transaction_id;
+        let trn_id = item.request.connector_transaction_id.clone();
         let connector_auth_id: ForteMeta =
             utils::to_connector_meta(item.request.connector_meta.clone())?;
         let auth_code = connector_auth_id.auth_id;
         Ok(Self {
             action: "capture".to_string(),
-            transaction_id: trn_id.to_string(),
+            transaction_id: trn_id,
             authorization_code: auth_code,
         })
     }
 }
 
 #[derive(Default, Debug, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
 pub struct CaptureResponseStatus {
     environment: String,
     response_type: String,
@@ -351,7 +332,6 @@ pub struct CaptureResponseStatus {
 }
 // Capture Response
 #[derive(Default, Debug, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
 pub struct ForteCaptureResponse {
     transaction_id: String,
     original_transaction_id: String,
@@ -421,7 +401,6 @@ pub struct CancelResponseStatus {
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
-#[serde(rename_all = "snake_case")]
 pub struct ForteCancelResponse {
     transaction_id: String,
     location_id: String,
@@ -471,7 +450,7 @@ pub struct ForteRefundRequest {
 impl<F> TryFrom<&types::RefundsRouterData<F>> for ForteRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
-        let trn_id = &item.request.connector_transaction_id;
+        let trn_id = item.request.connector_transaction_id.clone();
         let connector_auth_id: ForteMeta =
             utils::to_connector_meta(item.request.connector_metadata.clone())?;
         let auth_code = connector_auth_id.auth_id;
@@ -483,7 +462,7 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for ForteRefundRequest {
         Ok(Self {
             action: "reverse".to_string(),
             authorization_amount,
-            original_transaction_id: trn_id.to_string(),
+            original_transaction_id: trn_id,
             authorization_code: auth_code,
         })
     }
@@ -491,15 +470,17 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for ForteRefundRequest {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum RefundStatus {
+    Complete,
     Ready,
-    Pending,
+    Failed,
 }
 
 impl From<RefundStatus> for enums::RefundStatus {
     fn from(item: RefundStatus) -> Self {
         match item {
-            RefundStatus::Ready => Self::Success,
-            RefundStatus::Pending => Self::Pending,
+            RefundStatus::Complete => Self::Success,
+            RefundStatus::Ready => Self::Pending,
+            RefundStatus::Failed => Self::Failure,
         }
     }
 }
@@ -523,7 +504,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
     ) -> Result<Self, Self::Error> {
         let refund_status = match item.response.response.response_code {
             ForteResponseCode::A01 => RefundStatus::Ready,
-            _ => RefundStatus::Pending,
+            _ => RefundStatus::Failed,
         };
         Ok(Self {
             response: Ok(types::RefundsResponseData {
@@ -537,8 +518,8 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct RefundSyncResponse {
+    status: RefundStatus,
     transaction_id: String,
-    response: ResponseStatus,
 }
 
 impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundSyncResponse>>
@@ -548,14 +529,10 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundSyncResponse>>
     fn try_from(
         item: types::RefundsResponseRouterData<api::RSync, RefundSyncResponse>,
     ) -> Result<Self, Self::Error> {
-        let refund_status = match item.response.response.response_code {
-            ForteResponseCode::A01 => RefundStatus::Ready,
-            _ => RefundStatus::Pending,
-        };
         Ok(Self {
             response: Ok(types::RefundsResponseData {
                 connector_refund_id: item.response.transaction_id,
-                refund_status: enums::RefundStatus::from(refund_status),
+                refund_status: enums::RefundStatus::from(item.response.status),
             }),
             ..item.data
         })
@@ -563,7 +540,6 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundSyncResponse>>
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
-#[serde(rename_all = "snake_case")]
 pub struct ErrorResponseStatus {
     pub environment: String,
     pub response_type: Option<String>,
