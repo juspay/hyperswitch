@@ -275,16 +275,22 @@ where
                     if let Some(storage_models::enums::PaymentMethod::BankTransfer) =
                         payment_attempt.payment_method
                     {
-                        let bank_transfer_next_steps: NextStepsRequirements = payment_attempt
-                            .connector_metadata
-                            .to_owned()
-                            .get_required_value("connector_metadata")?
-                            .parse_value("NextStepsRequirements")
-                            .change_context(errors::ApiErrorResponse::InternalServerError)
-                            .attach_printable(
-                                "Failed to parse the Value to NextRequirements struct",
-                            )?;
-                        Some(bank_transfer_next_steps)
+                        let bank_transfer_next_steps: Option<NextStepsRequirements> =
+                            payment_attempt
+                                .connector_metadata
+                                .to_owned()
+                                .map(|metadata| {
+                                    metadata
+                                        .parse_value("NextStepsRequirements")
+                                        .change_context(
+                                            errors::ApiErrorResponse::InternalServerError,
+                                        )
+                                        .attach_printable(
+                                            "Failed to parse the Value to NextRequirements struct",
+                                        )
+                                })
+                                .transpose()?;
+                        bank_transfer_next_steps
                     } else {
                         None
                     };
