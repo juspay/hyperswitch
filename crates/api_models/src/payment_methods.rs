@@ -196,6 +196,7 @@ pub struct ResponsePaymentMethodTypes {
 
     /// The list of banks enabled, if applicable for a payment method type
     pub bank_names: Option<Vec<BankCodeResponse>>,
+    pub bank_transfers: Option<BankTransferTypes>,
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -206,6 +207,11 @@ pub struct ResponsePaymentMethodsEnabled {
 
     /// The list of payment method types enabled for a connector account
     pub payment_method_types: Vec<ResponsePaymentMethodTypes>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, PartialEq, Eq)]
+pub struct BankTransferTypes {
+    pub eligible_connectors: Vec<String>,
 }
 
 #[derive(Clone, Debug)]
