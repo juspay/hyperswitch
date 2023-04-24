@@ -120,15 +120,18 @@ pub struct ForteAuthType {
 impl TryFrom<&types::ConnectorAuthType> for ForteAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
-        match auth_type{
-            types::ConnectorAuthType::MultiAuthKey{ api_key, key1, api_secret, key2 } => {
-                Ok(Self {
-                            api_access_id: api_key.to_string(),
-                            organization_id: format!("org_{}", key1),
-                            location_id: format!("loc_{}", key2),
-                            api_secret_key: api_secret.to_string(),
-                        })
-            }
+        match auth_type {
+            types::ConnectorAuthType::MultiAuthKey {
+                api_key,
+                key1,
+                api_secret,
+                key2,
+            } => Ok(Self {
+                api_access_id: api_key.to_string(),
+                organization_id: format!("org_{}", key1),
+                location_id: format!("loc_{}", key2),
+                api_secret_key: api_secret.to_string(),
+            }),
             _ => Err(errors::ConnectorError::FailedToObtainAuthType)?,
         }
     }
@@ -183,7 +186,21 @@ pub enum ForteResponseCode {
     A01,
     A05,
     A06,
+    U13,
+    U14,
     U18,
+    U20,
+}
+
+impl From<ForteResponseCode> for enums::AttemptStatus {
+    fn from(item: ForteResponseCode) -> Self {
+        match item {
+            ForteResponseCode::A01 | ForteResponseCode::A05 | ForteResponseCode::A06 => {
+                Self::Pending
+            }
+            _ => Self::Failure,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -317,16 +334,16 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for ForteCaptureRequest {
     }
 }
 
-#[derive(Default, Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct CaptureResponseStatus {
     environment: String,
     response_type: String,
-    response_code: String,
+    response_code: ForteResponseCode,
     response_desc: String,
     authorization_code: String,
 }
 // Capture Response
-#[derive(Default, Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct ForteCaptureResponse {
     transaction_id: String,
     original_transaction_id: String,
@@ -342,12 +359,8 @@ impl TryFrom<types::PaymentsCaptureResponseRouterData<ForteCaptureResponse>>
     fn try_from(
         item: types::PaymentsCaptureResponseRouterData<ForteCaptureResponse>,
     ) -> Result<Self, Self::Error> {
-        let capture_status = match item.response.response.response_code.as_str() {
-            "A01" => FortePaymentStatus::Complete,
-            _ => FortePaymentStatus::Failed,
-        };
         Ok(Self {
-            status: enums::AttemptStatus::from(capture_status),
+            status: enums::AttemptStatus::from(item.response.response.response_code),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(
                     item.response.transaction_id,
@@ -386,16 +399,16 @@ impl TryFrom<&types::PaymentsCancelRouterData> for ForteCancelRequest {
     }
 }
 
-#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct CancelResponseStatus {
     environment: String,
     response_type: String,
-    response_code: String,
+    response_code: ForteResponseCode,
     response_desc: String,
     authorization_code: String,
 }
 
-#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ForteCancelResponse {
     transaction_id: String,
     location_id: String,
@@ -413,13 +426,9 @@ impl<F, T>
     fn try_from(
         item: types::ResponseRouterData<F, ForteCancelResponse, T, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
-        let payment_status = match item.response.response.response_code.as_str() {
-            "A01" => FortePaymentStatus::Voided,
-            _ => FortePaymentStatus::Failed,
-        };
         let transaction_id = &item.response.transaction_id;
         Ok(Self {
-            status: enums::AttemptStatus::from(payment_status),
+            status: enums::AttemptStatus::from(item.response.response.response_code),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(transaction_id.to_string()),
                 redirection_data: None,
@@ -479,6 +488,16 @@ impl From<RefundStatus> for enums::RefundStatus {
         }
     }
 }
+impl From<ForteResponseCode> for enums::RefundStatus {
+    fn from(item: ForteResponseCode) -> Self {
+        match item {
+            ForteResponseCode::A01 | ForteResponseCode::A05 | ForteResponseCode::A06 => {
+                Self::Pending
+            }
+            _ => Self::Failure,
+        }
+    }
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RefundResponse {
@@ -497,14 +516,10 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
     fn try_from(
         item: types::RefundsResponseRouterData<api::Execute, RefundResponse>,
     ) -> Result<Self, Self::Error> {
-        let refund_status = match item.response.response.response_code {
-            ForteResponseCode::A01 => RefundStatus::Ready,
-            _ => RefundStatus::Failed,
-        };
         Ok(Self {
             response: Ok(types::RefundsResponseData {
                 connector_refund_id: item.response.transaction_id,
-                refund_status: enums::RefundStatus::from(refund_status),
+                refund_status: enums::RefundStatus::from(item.response.response.response_code),
             }),
             ..item.data
         })
