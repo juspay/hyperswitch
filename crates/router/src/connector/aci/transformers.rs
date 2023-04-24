@@ -305,8 +305,21 @@ impl<F, T>
         item: types::ResponseRouterData<F, AciPaymentsResponse, T, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         let redirection_data = item.response.redirect.map(|data| {
-            // default method is POST if in case method is not present in the response
-            services::RedirectForm::from((data.url, data.method.unwrap_or(services::Method::Post)))
+            let form_fields = std::collections::HashMap::<_, _>::from_iter(
+                data.parameters
+                    .iter()
+                    .map(|parameter| (parameter.name.clone(), parameter.value.clone())),
+            );
+
+            // If method is Get, parameters are appended to URL
+            // If method is post, we http Post the method to URL
+            services::RedirectForm {
+                endpoint: data.url.to_string(),
+                // Handles method for Bank redirects currently.
+                // 3DS response have method within preconditions. That would require replacing below line with a function.
+                method: data.method.unwrap_or(services::Method::Post),
+                form_fields,
+            }
         });
 
         Ok(Self {
