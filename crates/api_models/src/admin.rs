@@ -75,7 +75,9 @@ pub struct MerchantAccountCreate {
     #[cfg(not(feature = "multiple_mca"))]
     #[schema(value_type = Option<PrimaryBusinessDetails>)]
     pub primary_business_details: Option<Vec<PrimaryBusinessDetails>>,
-    pub intent_fulfillment_time: Option<i32>,
+    ///Will be used to expire client secret after certain amount of time to be supplied in seconds
+    ///(900) for 15 mins
+    pub intent_fulfillment_time: Option<i64>,
 }
 
 #[derive(Clone, Debug, Deserialize, ToSchema)]
@@ -136,7 +138,10 @@ pub struct MerchantAccountUpdate {
 
     ///Default business details for connector routing
     pub primary_business_details: Option<Vec<PrimaryBusinessDetails>>,
-    pub intent_fulfillment_time: Option<i32>,
+
+    ///Will be used to expire client secret after certain amount of time to be supplied in seconds
+    ///(900) for 15 mins
+    pub intent_fulfillment_time: Option<i64>,
 }
 
 #[derive(Clone, Debug, ToSchema, Serialize)]
@@ -203,7 +208,10 @@ pub struct MerchantAccountResponse {
     ///Default business details for connector routing
     #[schema(value_type = Vec<PrimaryBusinessDetails>)]
     pub primary_business_details: Vec<PrimaryBusinessDetails>,
-    pub intent_fulfillment_time: Option<i32>,
+    
+    ///Will be used to expire client secret after certain amount of time to be supplied in seconds
+    ///(900) for 15 mins
+    pub intent_fulfillment_time: Option<i64>,
 }
 
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]

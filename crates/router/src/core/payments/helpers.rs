@@ -1186,13 +1186,12 @@ pub fn generate_mandate(
     }
 }
 
-// A function to manually authenticate the client secret
+// A function to manually authenticate the client secret with intent fulfillment time
 pub(crate) fn authenticate_client_secret(
     request_client_secret: Option<&String>,
     payment_intent: &payment_intent::PaymentIntent,
-    merchant_intent_fulfillment_time: Option<i32>,
+    merchant_intent_fulfillment_time: Option<i64>,
 ) -> Result<(), errors::ApiErrorResponse> {
-    const DEFAULT_FULFILLMENT_TIME: i32 = 20;
     match (request_client_secret, &payment_intent.client_secret) {
         (Some(req_cs), Some(pi_cs)) => {
             if req_cs != pi_cs {
@@ -1201,10 +1200,7 @@ pub(crate) fn authenticate_client_secret(
                 //This is done to check whether the merchant_account's intent fulfillment time has expired or not
                 let payment_intent_total_fulfillment_time = payment_intent
                     .created_at
-                    .saturating_add(Duration::seconds(match merchant_intent_fulfillment_time {
-                        Some(intent_fulfillment_time) => intent_fulfillment_time.into(),
-                        None => DEFAULT_FULFILLMENT_TIME.into(),
-                    }));
+                    .saturating_add(Duration::seconds(merchant_intent_fulfillment_time.unwrap_or(consts::DEFAULT_FULFILLMENT_TIME)));
                 let current_timestamp = common_utils::date_time::now();
                 fp_utils::when(
                     current_timestamp > payment_intent_total_fulfillment_time,
@@ -1255,7 +1251,7 @@ pub(crate) fn validate_pm_or_token_given(
 }
 
 // A function to perform database lookup and then verify the client secret
-pub(crate) async fn verify_client_secret(
+pub(crate) async fn verify_payment_intent_time_and_client_secret(
     db: &dyn StorageInterface,
     merchant_account: &merchant_account::MerchantAccount,
     client_secret: Option<String>,

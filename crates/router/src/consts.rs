@@ -12,6 +12,9 @@ pub(crate) const ALPHABETS: [char; 62] = [
 /// API client request timeout (in seconds)
 pub const REQUEST_TIME_OUT: u64 = 30;
 
+///Payment intent fulfillment default timeout (in seconds)
+pub const DEFAULT_FULFILLMENT_TIME: i64 = 900;
+
 // String literals
 pub(crate) const NO_ERROR_MESSAGE: &str = "No error message";
 pub(crate) const NO_ERROR_CODE: &str = "No error code";

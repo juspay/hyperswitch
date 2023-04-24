@@ -788,7 +788,7 @@ pub async fn list_payment_methods(
     let pm_config_mapping = &state.conf.pm_filters;
 
     let payment_intent =
-        helpers::verify_client_secret(db, &merchant_account, req.client_secret.clone()).await?;
+        helpers::verify_payment_intent_time_and_client_secret(db, &merchant_account, req.client_secret.clone()).await?;
 
     let address = payment_intent
         .as_ref()

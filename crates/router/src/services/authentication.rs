@@ -216,7 +216,7 @@ where
     ) -> RouterResult<storage::MerchantAccount> {
         let publishable_key =
             get_api_key(request_headers).change_context(errors::ApiErrorResponse::Unauthorized)?;
-        let m = state
+           state
             .store()
             .find_merchant_account_by_publishable_key(publishable_key)
             .await
@@ -226,8 +226,7 @@ where
                 } else {
                     e.change_context(errors::ApiErrorResponse::InternalServerError)
                 }
-            })?;
-        return Ok(m);
+            })
     }
 }
 

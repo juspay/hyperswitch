@@ -1,3 +1,3 @@
--- Your SQL goes here
+-- ADD -> ADD COLUMN
 
-ALTER TABLE merchant_account ADD IF NOT EXISTS intent_fulfillment_time INT;
+ALTER TABLE merchant_account ADD COLUMN IF NOT EXISTS intent_fulfillment_time BIGINT;

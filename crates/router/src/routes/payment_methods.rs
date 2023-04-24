@@ -89,7 +89,6 @@ pub async fn list_payment_method_api(
         &*auth,
     )
     .await
-    //ac call to get the payment intent
 }
 
 /// List payment methods for a Customer
