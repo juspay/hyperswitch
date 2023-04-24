@@ -68,6 +68,19 @@ pub trait Feature<F, T> {
     {
         Ok(None)
     }
+
+    async fn preprocessing_steps<'a>(
+        self,
+        _state: &AppState,
+        _connector: &api::ConnectorData,
+    ) -> RouterResult<Self>
+    where
+        F: Clone,
+        Self: Sized,
+        dyn api::Connector: services::ConnectorIntegration<F, T, types::PaymentsResponseData>,
+    {
+        Ok(self)
+    }
 }
 
 macro_rules! default_imp_for_complete_authorize{
@@ -88,7 +101,6 @@ macro_rules! default_imp_for_complete_authorize{
 default_imp_for_complete_authorize!(
     connector::Aci,
     connector::Adyen,
-    connector::Applepay,
     connector::Authorizedotnet,
     connector::Bambora,
     connector::Bluesnap,
@@ -101,10 +113,12 @@ default_imp_for_complete_authorize!(
     connector::Forte,
     connector::Klarna,
     connector::Multisafepay,
+    connector::Nexinets,
     connector::Opennode,
     connector::Payeezy,
     connector::Payu,
     connector::Rapyd,
+    connector::Stripe,
     connector::Trustpay,
     connector::Worldline,
     connector::Worldpay
@@ -130,7 +144,6 @@ macro_rules! default_imp_for_connector_redirect_response{
 default_imp_for_connector_redirect_response!(
     connector::Aci,
     connector::Adyen,
-    connector::Applepay,
     connector::Authorizedotnet,
     connector::Bambora,
     connector::Bluesnap,
@@ -142,6 +155,7 @@ default_imp_for_connector_redirect_response!(
     connector::Forte,
     connector::Klarna,
     connector::Multisafepay,
+    connector::Nexinets,
     connector::Opennode,
     connector::Payeezy,
     connector::Payu,
@@ -163,7 +177,6 @@ default_imp_for_connector_request_id!(
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
-    connector::Applepay,
     connector::Authorizedotnet,
     connector::Bambora,
     connector::Bluesnap,
@@ -178,6 +191,7 @@ default_imp_for_connector_request_id!(
     connector::Klarna,
     connector::Mollie,
     connector::Multisafepay,
+    connector::Nexinets,
     connector::Nuvei,
     connector::Opennode,
     connector::Payeezy,
@@ -185,6 +199,52 @@ default_imp_for_connector_request_id!(
     connector::Rapyd,
     connector::Shift4,
     connector::Stripe,
+    connector::Trustpay,
+    connector::Worldline,
+    connector::Worldpay
+);
+
+macro_rules! default_imp_for_pre_processing_steps{
+    ($($path:ident::$connector:ident),*)=> {
+        $(
+            impl api::PaymentsPreProcessing for $path::$connector {}
+            impl
+            services::ConnectorIntegration<
+            api::PreProcessing,
+            types::PaymentsPreProcessingData,
+            types::PaymentsResponseData,
+        > for $path::$connector
+        {}
+    )*
+    };
+}
+
+default_imp_for_pre_processing_steps!(
+    connector::Aci,
+    connector::Adyen,
+    connector::Airwallex,
+    connector::Authorizedotnet,
+    connector::Bambora,
+    connector::Bluesnap,
+    connector::Braintree,
+    connector::Checkout,
+    connector::Coinbase,
+    connector::Cybersource,
+    connector::Dlocal,
+    connector::Fiserv,
+    connector::Forte,
+    connector::Globalpay,
+    connector::Klarna,
+    connector::Mollie,
+    connector::Multisafepay,
+    connector::Nexinets,
+    connector::Nuvei,
+    connector::Opennode,
+    connector::Payeezy,
+    connector::Paypal,
+    connector::Payu,
+    connector::Rapyd,
+    connector::Shift4,
     connector::Trustpay,
     connector::Worldline,
     connector::Worldpay

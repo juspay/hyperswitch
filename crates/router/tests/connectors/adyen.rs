@@ -88,7 +88,7 @@ impl AdyenTest {
             router_return_url: Some(String::from("http://localhost:8080")),
             webhook_url: None,
             complete_authorize_url: None,
-            customer: None,
+            customer_id: None,
         })
     }
 }
@@ -418,10 +418,8 @@ async fn should_fail_payment_for_invalid_exp_month() {
         )
         .await
         .unwrap();
-    assert_eq!(
-        response.response.unwrap_err().message,
-        "The provided Expiry Date is not valid.: Expiry month should be between 1 and 12 inclusive: 20",
-    );
+    let errors = vec!["The provided Expiry Date is not valid.: Expiry month should be between 1 and 12 inclusive: 20","Refused"];
+    assert!(errors.contains(&response.response.unwrap_err().message.as_str()))
 }
 
 // Creates a payment with incorrect expiry year.

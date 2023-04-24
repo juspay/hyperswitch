@@ -88,12 +88,16 @@ impl TryFrom<api_models::payments::PaymentMethodData> for PaymentDetails {
             api::PaymentMethodData::PayLater(_) => Ok(Self::Klarna),
             api::PaymentMethodData::Wallet(_) => Ok(Self::Wallet),
             api::PaymentMethodData::BankRedirect(_) => Ok(Self::BankRedirect),
-            api::PaymentMethodData::Crypto(_) => Err(errors::ConnectorError::NotSupported {
-                payment_method: format!("{value:?}"),
-                connector: "AuthorizeDotNet",
-                payment_experience: api_models::enums::PaymentExperience::RedirectToUrl.to_string(),
-            })?,
-            api::PaymentMethodData::BankTransfer(_) => Ok(Self::BankTransfer),
+            api::PaymentMethodData::Crypto(_)
+            | api::PaymentMethodData::BankDebit(_)
+            | api::PaymentMethodData::BankTransfer(_) => {
+                Err(errors::ConnectorError::NotSupported {
+                    payment_method: format!("{value:?}"),
+                    connector: "AuthorizeDotNet",
+                    payment_experience: api_models::enums::PaymentExperience::RedirectToUrl
+                        .to_string(),
+                })?
+            }
         }
     }
 }
