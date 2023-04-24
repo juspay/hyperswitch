@@ -1,5 +1,3 @@
-use std::num::TryFromIntError;
-
 use actix_multipart::Multipart;
 use actix_web::web::Bytes;
 use common_utils::errors::CustomResult;
@@ -9,6 +7,7 @@ use futures::{StreamExt, TryStreamExt};
 use crate::{
     core::{errors, files::helpers},
     types::api::files::{self, CreateFileRequest},
+    utils::OptionExt,
 };
 
 pub async fn get_create_file_request(
@@ -51,12 +50,7 @@ pub async fn get_create_file_request(
             _ => (),
         }
     }
-    let purpose = match option_purpose {
-        Some(valid_purpose) => valid_purpose,
-        None => Err(errors::ApiErrorResponse::MissingFilePurpose)
-            .into_report()
-            .attach_printable("Missing file purpose in the request")?,
-    };
+    let purpose = option_purpose.get_required_value("purpose")?;
     let file = match file_content {
         Some(valid_file_content) => valid_file_content.concat().to_vec(),
         None => Err(errors::ApiErrorResponse::MissingFile)
@@ -64,13 +58,12 @@ pub async fn get_create_file_request(
             .attach_printable("Missing / Invalid file in the request")?,
     };
     //Get and validate file size
-    let file_size_result: Result<i32, TryFromIntError> = file.len().try_into();
-    let file_size = match file_size_result {
-        Ok(valid_file_size) => valid_file_size,
-        Err(err) => Err(errors::ApiErrorResponse::InternalServerError)
-            .into_report()
-            .attach_printable(format!("{}{}", "File size error: ", err))?,
-    };
+    let file_size: i32 = file
+        .len()
+        .try_into()
+        .into_report()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("File size error")?;
     // Check if empty file and throw error
     if file_size <= 0 {
         Err(errors::ApiErrorResponse::MissingFile)

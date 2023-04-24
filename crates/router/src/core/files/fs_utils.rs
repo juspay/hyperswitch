@@ -7,11 +7,11 @@ use std::{
 use common_utils::errors::CustomResult;
 use error_stack::{IntoReport, ResultExt};
 
-use crate::core::errors;
+use crate::{core::errors, env};
 
 pub fn get_file_path(file_key: String) -> PathBuf {
     let mut file_path = PathBuf::new();
-    file_path.push(crate::env::workspace_path());
+    file_path.push(env::workspace_path());
     file_path.push("files");
     file_path.push(file_key);
     file_path
