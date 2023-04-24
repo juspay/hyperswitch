@@ -1,6 +1,6 @@
 use api_models::{self, enums as api_enums, payments};
 use base64::Engine;
-use common_utils::{fp_utils, pii};
+use common_utils::{errors::CustomResult, fp_utils, pii};
 use error_stack::{IntoReport, ResultExt};
 use masking::{ExposeInterface, ExposeOptionInterface, Secret};
 use serde::{Deserialize, Serialize};
@@ -1680,4 +1680,122 @@ impl
             })?,
         }
     }
+}
+
+pub fn construct_file_upload_request(
+    file_upload_router_data: types::UploadFileRouterData,
+) -> CustomResult<reqwest::multipart::Form, errors::ConnectorError> {
+    let request = file_upload_router_data.request;
+    let mut multipart = reqwest::multipart::Form::new();
+    multipart = multipart.text("purpose", "dispute_evidence");
+    let file_data = reqwest::multipart::Part::bytes(request.file)
+        .file_name(request.file_key)
+        .mime_str(request.file_type.as_ref())
+        .map_err(|_| errors::ConnectorError::RequestEncodingFailed)?;
+    multipart = multipart.part("file", file_data);
+    Ok(multipart)
+}
+
+#[derive(Debug, Deserialize)]
+pub struct FileUploadResponse {
+    #[serde(rename = "id")]
+    pub file_id: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct Evidence {
+    #[serde(rename = "evidence[access_activity_log]")]
+    pub access_activity_log: Option<String>,
+    #[serde(rename = "evidence[billing_address]")]
+    pub billing_address: Option<String>,
+    #[serde(rename = "evidence[cancellation_policy]")]
+    pub cancellation_policy: Option<String>,
+    #[serde(rename = "evidence[cancellation_policy_disclosure]")]
+    pub cancellation_policy_disclosure: Option<String>,
+    #[serde(rename = "evidence[cancellation_rebuttal]")]
+    pub cancellation_rebuttal: Option<String>,
+    #[serde(rename = "evidence[customer_communication]")]
+    pub customer_communication: Option<String>,
+    #[serde(rename = "evidence[customer_email_address]")]
+    pub customer_email_address: Option<String>,
+    #[serde(rename = "evidence[customer_name]")]
+    pub customer_name: Option<String>,
+    #[serde(rename = "evidence[customer_purchase_ip]")]
+    pub customer_purchase_ip: Option<String>,
+    #[serde(rename = "evidence[customer_signature]")]
+    pub customer_signature: Option<String>,
+    #[serde(rename = "evidence[product_description]")]
+    pub product_description: Option<String>,
+    #[serde(rename = "evidence[receipt]")]
+    pub receipt: Option<String>,
+    #[serde(rename = "evidence[refund_policy]")]
+    pub refund_policy: Option<String>,
+    #[serde(rename = "evidence[refund_policy_disclosure]")]
+    pub refund_policy_disclosure: Option<String>,
+    #[serde(rename = "evidence[refund_refusal_explanation]")]
+    pub refund_refusal_explanation: Option<String>,
+    #[serde(rename = "evidence[service_date]")]
+    pub service_date: Option<String>,
+    #[serde(rename = "evidence[service_documentation]")]
+    pub service_documentation: Option<String>,
+    #[serde(rename = "evidence[shipping_address]")]
+    pub shipping_address: Option<String>,
+    #[serde(rename = "evidence[shipping_carrier]")]
+    pub shipping_carrier: Option<String>,
+    #[serde(rename = "evidence[shipping_date]")]
+    pub shipping_date: Option<String>,
+    #[serde(rename = "evidence[shipping_documentation]")]
+    pub shipping_documentation: Option<String>,
+    #[serde(rename = "evidence[shipping_tracking_number]")]
+    pub shipping_tracking_number: Option<String>,
+    #[serde(rename = "evidence[uncategorized_file]")]
+    pub uncategorized_file: Option<String>,
+    #[serde(rename = "evidence[uncategorized_text]")]
+    pub uncategorized_text: Option<String>,
+    pub submit: bool,
+}
+
+impl TryFrom<&types::SubmitEvidenceRouterData> for Evidence {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &types::SubmitEvidenceRouterData) -> Result<Self, Self::Error> {
+        let submit_evidence_request_data = item.request.clone();
+        Ok(Self {
+            access_activity_log: submit_evidence_request_data.access_activity_log,
+            billing_address: submit_evidence_request_data.billing_address,
+            cancellation_policy: submit_evidence_request_data.cancellation_policy_provider_file_id,
+            cancellation_policy_disclosure: submit_evidence_request_data
+                .cancellation_policy_disclosure,
+            cancellation_rebuttal: submit_evidence_request_data.cancellation_rebuttal,
+            customer_communication: submit_evidence_request_data
+                .customer_communication_provider_file_id,
+            customer_email_address: submit_evidence_request_data.customer_email_address,
+            customer_name: submit_evidence_request_data.customer_name,
+            customer_purchase_ip: submit_evidence_request_data.customer_purchase_ip,
+            customer_signature: submit_evidence_request_data.customer_signature_provider_file_id,
+            product_description: submit_evidence_request_data.product_description,
+            receipt: submit_evidence_request_data.receipt_provider_file_id,
+            refund_policy: submit_evidence_request_data.refund_policy_provider_file_id,
+            refund_policy_disclosure: submit_evidence_request_data.refund_policy_disclosure,
+            refund_refusal_explanation: submit_evidence_request_data.refund_refusal_explanation,
+            service_date: submit_evidence_request_data.service_date,
+            service_documentation: submit_evidence_request_data
+                .service_documentation_provider_file_id,
+            shipping_address: submit_evidence_request_data.shipping_address,
+            shipping_carrier: submit_evidence_request_data.shipping_carrier,
+            shipping_date: submit_evidence_request_data.shipping_date,
+            shipping_documentation: submit_evidence_request_data
+                .shipping_documentation_provider_file_id,
+            shipping_tracking_number: submit_evidence_request_data.shipping_tracking_number,
+            uncategorized_file: submit_evidence_request_data.uncategorized_file_provider_file_id,
+            uncategorized_text: submit_evidence_request_data.uncategorized_text,
+            submit: true,
+        })
+    }
+}
+
+#[derive(Debug, Deserialize)]
+pub struct DisputeObj {
+    #[serde(rename = "id")]
+    pub dispute_id: String,
+    pub status: String,
 }

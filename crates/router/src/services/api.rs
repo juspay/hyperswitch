@@ -81,6 +81,13 @@ pub trait ConnectorIntegration<T, Req, Resp>: ConnectorIntegrationAny<T, Req, Re
         Ok(None)
     }
 
+    fn get_request_form_data(
+        &self,
+        _req: &types::RouterData<T, Req, Resp>,
+    ) -> CustomResult<Option<reqwest::multipart::Form>, errors::ConnectorError> {
+        Ok(None)
+    }
+
     /// This module can be called before executing a payment flow where a pre-task is needed
     /// Eg: Some connectors requires one-time session token before making a payment, we can add the session token creation logic in this block
     async fn execute_pretasks(
@@ -309,6 +316,12 @@ async fn send_request(
             match request.content_type {
                 Some(ContentType::Json) => client.json(&request.payload),
 
+                Some(ContentType::FormData) => client.multipart(
+                    request
+                        .form_data
+                        .unwrap_or_else(reqwest::multipart::Form::new),
+                ),
+
                 // Currently this is not used remove this if not required
                 // If using this then handle the serde_part
                 Some(ContentType::FormUrlEncoded) => {
@@ -336,11 +349,9 @@ async fn send_request(
             }
         }
 
-        Method::Put => {
-            client
-                .put(url)
-                .body(request.payload.expose_option().unwrap_or_default()) // If payload needs processing the body cannot have default
-        }
+        Method::Put => client
+            .put(url)
+            .body(request.payload.expose_option().unwrap_or_default()), // If payload needs processing the body cannot have default
         Method::Delete => client.delete(url),
     }
     .add_headers(headers)
@@ -367,7 +378,7 @@ async fn handle_response(
             logger::info!(?response);
             let status_code = response.status().as_u16();
             match status_code {
-                200..=202 | 302 => {
+                200..=202 | 302 | 204 => {
                     logger::debug!(response=?response);
                     // If needed add log line
                     // logger:: error!( error_parsing_response=?err);
@@ -441,6 +452,7 @@ pub enum ApplicationResponse<R> {
     TextPlain(String),
     JsonForRedirection(api::RedirectionResponse),
     Form(RedirectForm),
+    FileData((Vec<u8>, mime::Mime)),
 }
 
 #[derive(Debug, Eq, PartialEq)]
@@ -556,6 +568,9 @@ where
         },
         Ok(ApplicationResponse::StatusOk) => http_response_ok(),
         Ok(ApplicationResponse::TextPlain(text)) => http_response_plaintext(text),
+        Ok(ApplicationResponse::FileData((file_data, content_type))) => {
+            http_response_file_data(file_data, content_type)
+        }
         Ok(ApplicationResponse::JsonForRedirection(response)) => {
             match serde_json::to_string(&response) {
                 Ok(res) => http_redirect_response(res, response),
@@ -603,6 +618,13 @@ pub fn http_response_json<T: body::MessageBody + 'static>(response: T) -> HttpRe
 
 pub fn http_response_plaintext<T: body::MessageBody + 'static>(res: T) -> HttpResponse {
     HttpResponse::Ok().content_type(mime::TEXT_PLAIN).body(res)
+}
+
+pub fn http_response_file_data<T: body::MessageBody + 'static>(
+    res: T,
+    content_type: mime::Mime,
+) -> HttpResponse {
+    HttpResponse::Ok().content_type(content_type).body(res)
 }
 
 pub fn http_response_ok() -> HttpResponse {
