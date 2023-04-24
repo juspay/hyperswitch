@@ -38,17 +38,15 @@ async fn main() -> ApplicationResult<()> {
 
     #[cfg(feature = "pii-encryption-script")]
     {
-        use router::{configs::settings::Subcommand, db::StorageInterface};
-        if let Some(Subcommand::EncryptDatabase) = cmd_line.subcommand {
-            let mut store = router::services::Store::new(&conf, false).await;
+        use router::db::StorageInterface;
+        let mut store = router::services::Store::new(&conf, false).await;
 
-            router::scripts::pii_encryption::encrypt_merchant_account_fields(&store)
-                .await
-                .expect("Failed while encrypting merchant account");
+        #[allow(clippy::expect_used)]
+        router::scripts::pii_encryption::encrypt_merchant_account_fields(&store)
+            .await
+            .expect("Failed while encrypting merchant account");
 
-            store.close().await;
-            return Ok(());
-        }
+        store.close().await;
     }
 
     logger::info!("Application started [{:?}] [{:?}]", conf.server, conf.log);
