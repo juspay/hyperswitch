@@ -79,6 +79,7 @@ cards = [
     "trustpay",
     "worldline",
     "worldpay",
+    "zen",
 ]
 
 [refund]
@@ -127,6 +128,9 @@ worldline.base_url = "https://eu.sandbox.api-ingenico.com/"
 worldpay.base_url = "https://try.access.worldpay.com/"
 trustpay.base_url = "https://test-tpgw.trustpay.eu/"
 trustpay.base_url_bank_redirects = "https://aapi.trustpay.eu/"
+
+[connectors.zen]
+base_url = "https://api.zen-test.com/"
 
 [scheduler]
 stream = "SCHEDULER_STREAM"
