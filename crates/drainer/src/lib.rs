@@ -7,10 +7,11 @@ pub mod settings;
 mod utils;
 use std::sync::{atomic, Arc};
 
-use common_utils::signals::{get_allowed_signals, oneshot};
+use common_utils::signals::get_allowed_signals;
 pub use env as logger;
 use error_stack::{IntoReport, ResultExt};
 use storage_models::kv;
+use tokio::sync::mpsc;
 
 use crate::{connection::pg_connection, services::Store};
 
@@ -35,14 +36,15 @@ pub async fn start_drainer(
             .change_context(errors::DrainerError::SignalError(
                 "Failed while getting allowed signals".to_string(),
             ))?;
-    let (tx, mut rx) = oneshot::channel();
+
+    let (tx, mut rx) = mpsc::channel(1);
     let handle = signal.handle();
     let task_handle = tokio::spawn(common_utils::signals::signal_handler(signal, tx));
 
     let active_tasks = Arc::new(atomic::AtomicU64::new(0));
     'event: loop {
         match rx.try_recv() {
-            Err(oneshot::error::TryRecvError::Empty) => {
+            Err(mpsc::error::TryRecvError::Empty) => {
                 if utils::is_stream_available(stream_index, store.clone()).await {
                     tokio::spawn(drainer_handler(
                         store.clone(),
@@ -59,17 +61,17 @@ pub async fn start_drainer(
                 )
                 .await;
             }
-            Ok(()) | Err(oneshot::error::TryRecvError::Closed) => {
+            Ok(()) | Err(mpsc::error::TryRecvError::Disconnected) => {
                 logger::info!("Awaiting shutdown!");
                 metrics::SHUTDOWN_SIGNAL_RECEIVED.add(&metrics::CONTEXT, 1, &[]);
                 let shutdown_started = tokio::time::Instant::now();
+                rx.close();
                 loop {
                     if active_tasks.load(atomic::Ordering::Acquire) == 0 {
                         logger::info!("Terminating drainer");
                         metrics::SUCCESSFUL_SHUTDOWN.add(&metrics::CONTEXT, 1, &[]);
                         let shutdown_ended = shutdown_started.elapsed().as_secs_f64() * 1000f64;
                         metrics::CLEANUP_TIME.record(&metrics::CONTEXT, shutdown_ended, &[]);
-
                         break 'event;
                     }
                     shutdown_interval.tick().await;
