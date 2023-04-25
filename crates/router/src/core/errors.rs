@@ -293,6 +293,8 @@ pub enum ConnectorError {
     MismatchedPaymentData,
     #[error("Failed to parse Wallet token")]
     InvalidWalletToken,
+    #[error("File Validation failed")]
+    FileValidationFailed { reason: String },
 }
 
 #[derive(Debug, thiserror::Error)]
