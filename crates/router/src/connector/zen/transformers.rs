@@ -1,6 +1,6 @@
 use std::net::IpAddr;
 
-use masking::{ExposeInterface, Secret};
+use masking::Secret;
 use serde::{Deserialize, Serialize};
 
 use crate::{
