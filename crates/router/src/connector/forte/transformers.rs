@@ -17,7 +17,7 @@ pub struct FortePaymentsRequest {
     billing_address: BillingAddress,
     card: Card,
 }
-#[derive(Default, Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct BillingAddress {
     first_name: Secret<String>,
     last_name: Secret<String>,
@@ -166,7 +166,7 @@ impl ForeignFrom<(ForteResponseCode, ForteAction)> for enums::AttemptStatus {
     }
 }
 
-#[derive(Default, Debug, Clone, Deserialize)]
+#[derive(Debug, Deserialize)]
 pub struct CardResponse {
     pub name_on_card: Secret<String>,
     pub last_4_account_number: String,
@@ -207,8 +207,8 @@ pub struct ResponseStatus {
     pub cvv_result: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
 pub enum ForteAction {
     Sale,
     Authorize,
@@ -227,7 +227,7 @@ pub struct FortePaymentsResponse {
     pub response: ResponseStatus,
 }
 
-#[derive(Debug, Serialize, Default, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct ForteMeta {
     pub auth_id: String,
 }
@@ -305,7 +305,7 @@ impl<F, T>
 
 // Capture
 
-#[derive(Default, Debug, Serialize)]
+#[derive(Debug, Serialize)]
 pub struct ForteCaptureRequest {
     action: String,
     transaction_id: String,
@@ -372,7 +372,7 @@ impl TryFrom<types::PaymentsCaptureResponseRouterData<ForteCaptureResponse>>
 
 //Cancel
 
-#[derive(Default, Debug, Serialize)]
+#[derive(Debug, Serialize)]
 pub struct ForteCancelRequest {
     action: String,
     authorization_code: String,
@@ -460,8 +460,8 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for ForteRefundRequest {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
-#[serde(rename_all = "snake_case")]
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "lowercase")]
 pub enum RefundStatus {
     Complete,
     Ready,
@@ -515,7 +515,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
     }
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Deserialize)]
 pub struct RefundSyncResponse {
     status: RefundStatus,
     transaction_id: String,
@@ -538,7 +538,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundSyncResponse>>
     }
 }
 
-#[derive(Default, Debug, Clone, Deserialize)]
+#[derive(Debug, Deserialize)]
 pub struct ErrorResponseStatus {
     pub environment: String,
     pub response_type: Option<String>,
@@ -546,7 +546,7 @@ pub struct ErrorResponseStatus {
     pub response_desc: String,
 }
 
-#[derive(Default, Debug, Deserialize)]
+#[derive(Debug, Deserialize)]
 pub struct ForteErrorResponse {
     pub response: ErrorResponseStatus,
 }
