@@ -9,7 +9,6 @@ use transformers as nmi;
 use self::transformers::NmiCaptureRequest;
 use crate::{
     configs::settings,
-    connector::nmi::transformers::{get_query_info, get_refund_status},
     core::errors::{self, CustomResult},
     services::{self, ConnectorIntegration},
     types::{
@@ -551,17 +550,10 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         data: &types::RefundsRouterData<api::RSync>,
         res: types::Response,
     ) -> CustomResult<types::RefundsRouterData<api::RSync>, errors::ConnectorError> {
-        let query_response = String::from_utf8(res.response.to_vec())
-            .into_report()
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        let response = get_query_info(query_response)?;
-        let refund_status = get_refund_status(response.1)?;
-        Ok(types::RefundSyncRouterData {
-            response: Ok(types::RefundsResponseData {
-                connector_refund_id: response.0,
-                refund_status,
-            }),
-            ..data.clone()
+        types::RouterData::try_from(types::ResponseRouterData {
+            response: res.clone(),
+            data: data.clone(),
+            http_code: res.status_code,
         })
     }
 
