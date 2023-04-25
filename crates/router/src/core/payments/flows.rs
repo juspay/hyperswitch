@@ -86,6 +86,7 @@ macro_rules! default_imp_for_complete_authorize{
 }
 
 default_imp_for_complete_authorize!(
+    connector::Iatapay,
     connector::Aci,
     connector::Adyen,
     connector::Authorizedotnet,
@@ -129,6 +130,7 @@ macro_rules! default_imp_for_connector_redirect_response{
 }
 
 default_imp_for_connector_redirect_response!(
+    connector::Iatapay,
     connector::Aci,
     connector::Adyen,
     connector::Authorizedotnet,
@@ -160,6 +162,7 @@ macro_rules! default_imp_for_connector_request_id{
 }
 
 default_imp_for_connector_request_id!(
+    connector::Iatapay,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -208,6 +211,7 @@ macro_rules! default_imp_for_accept_dispute{
 }
 
 default_imp_for_accept_dispute!(
+    connector::Iatapay,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -256,6 +260,7 @@ macro_rules! default_imp_for_file_upload{
 }
 
 default_imp_for_file_upload!(
+    connector::Iatapay,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -302,6 +307,7 @@ macro_rules! default_imp_for_submit_evidence{
 }
 
 default_imp_for_submit_evidence!(
+    connector::Iatapay,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,

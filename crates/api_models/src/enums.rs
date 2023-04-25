@@ -592,6 +592,7 @@ pub enum Connector {
     Cybersource,
     #[default]
     Dummy,
+    Iatapay,
     Opennode,
     Bambora,
     Dlocal,
@@ -624,6 +625,7 @@ impl Connector {
                 | (Self::Paypal, _)
                 | (Self::Payu, _)
                 | (Self::Trustpay, PaymentMethod::BankRedirect)
+                | (Self::Iatapay, _)
         )
     }
     pub fn supports_file_storage_module(&self) -> bool {
@@ -646,6 +648,7 @@ impl Connector {
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum RoutableConnectors {
+    Iatapay,
     Aci,
     Adyen,
     Airwallex,
