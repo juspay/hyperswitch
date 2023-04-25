@@ -703,7 +703,7 @@ async fn authorize_verify_select<Op>(
 where
     Op: Sync
         + Clone
-        + std::fmt::Debug
+        + std::fmt::Display
         + payments::operations::Operation<api_types::Authorize, api_models::payments::PaymentsRequest>
         + payments::operations::Operation<api_types::Verify, api_models::payments::PaymentsRequest>,
 {

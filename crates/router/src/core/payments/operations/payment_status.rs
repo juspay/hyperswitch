@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use common_utils::ext_traits::AsyncExt;
 use error_stack::ResultExt;
-use router_derive::PaymentOperation;
+use router_derive::{PaymentOperation, ZDisplay};
 use router_env::{instrument, tracing};
 
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
@@ -20,7 +20,7 @@ use crate::{
     utils::OptionExt,
 };
 
-#[derive(Debug, Clone, Copy, PaymentOperation)]
+#[derive(Clone, Copy, PaymentOperation, ZDisplay)]
 #[operation(ops = "all", flow = "sync")]
 pub struct PaymentStatus;
 

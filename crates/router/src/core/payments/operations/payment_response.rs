@@ -20,7 +20,7 @@ use crate::{
     utils,
 };
 
-#[derive(Debug, Clone, Copy, router_derive::PaymentOperation)]
+#[derive(Clone, Copy, router_derive::PaymentOperation, router_derive::ZDisplay)]
 #[operation(
     ops = "post_tracker",
     flow = "syncdata,authorizedata,canceldata,capturedata,completeauthorizedata,verifydata,sessiondata"

@@ -20,7 +20,7 @@ use crate::{
     utils::OptionExt,
 };
 
-#[derive(Debug, Clone, Copy, router_derive::PaymentOperation)]
+#[derive(Clone, Copy, router_derive::PaymentOperation, router_derive::ZDisplay)]
 #[operation(ops = "all", flow = "cancel")]
 pub struct PaymentCancel;
 

@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use error_stack::ResultExt;
 use masking::ExposeOptionInterface;
-use router_derive::PaymentOperation;
+use router_derive::{PaymentOperation, ZDisplay};
 use router_env::{instrument, tracing};
 
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
@@ -22,7 +22,7 @@ use crate::{
     utils::{self, OptionExt},
 };
 
-#[derive(Debug, Clone, Copy, PaymentOperation)]
+#[derive(Clone, Copy, PaymentOperation, ZDisplay)]
 #[operation(ops = "all", flow = "authorize")]
 pub struct CompleteAuthorize;
 

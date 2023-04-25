@@ -489,7 +489,7 @@ pub async fn add_domain_task_to_pt<Op>(
     payment_attempt: &storage::PaymentAttempt,
 ) -> CustomResult<(), errors::ApiErrorResponse>
 where
-    Op: std::fmt::Debug,
+    Op: std::fmt::Display,
 {
     if check_if_operation_confirm(operation) {
         let connector_name = payment_attempt
@@ -1126,8 +1126,8 @@ pub fn hmac_sha256_sorted_query_params(
     Ok(hex::encode(signature))
 }
 
-pub fn check_if_operation_confirm<Op: std::fmt::Debug>(operations: Op) -> bool {
-    format!("{operations:?}") == "PaymentConfirm"
+pub fn check_if_operation_confirm<Op: std::fmt::Display>(operations: Op) -> bool {
+    operations.to_string().eq("PaymentConfirm")
 }
 
 pub fn generate_mandate(

@@ -4,7 +4,10 @@ pub mod helpers;
 pub mod operations;
 pub mod transformers;
 
-use std::{fmt::Debug, time::Instant};
+use std::{
+    fmt::{Debug, Display},
+    time::Instant,
+};
 
 use api_models::payments::Metadata;
 use error_stack::{IntoReport, ResultExt};
@@ -219,8 +222,8 @@ where
     )
 }
 
-fn is_start_pay<Op: Debug>(operation: &Op) -> bool {
-    format!("{operation:?}").eq("PaymentStart")
+fn is_start_pay<Op: Display>(operation: &Op) -> bool {
+    operation.to_string().eq("PaymentStart")
 }
 
 #[derive(Clone, Debug)]
@@ -452,7 +455,7 @@ pub async fn call_connector_service<F, Op, Req>(
     tokenization_action: TokenizationAction,
 ) -> RouterResult<types::RouterData<F, Req, types::PaymentsResponseData>>
 where
-    Op: Debug + Sync,
+    Op: Display + Sync,
     F: Flow + Sync,
     Req: Send + Sync,
 
@@ -520,7 +523,7 @@ pub async fn call_multiple_connectors_service<F, Op, Req>(
     customer: &Option<storage::Customer>,
 ) -> RouterResult<PaymentData<F>>
 where
-    Op: Debug,
+    Op: Display,
     F: Flow + Sync,
 
     // To create connector flow specific interface data
@@ -816,11 +819,11 @@ where
     }
 }
 
-pub fn should_call_connector<Op: Debug, F: Flow>(
+pub fn should_call_connector<Op: Display, F: Flow>(
     operation: &Op,
     payment_data: &PaymentData<F>,
 ) -> bool {
-    match format!("{operation:?}").as_str() {
+    match operation.to_string().as_str() {
         "PaymentConfirm" => true,
         "PaymentStart" => {
             !matches!(
@@ -857,8 +860,8 @@ pub fn should_call_connector<Op: Debug, F: Flow>(
     }
 }
 
-pub fn is_operation_confirm<Op: Debug>(operation: &Op) -> bool {
-    matches!(format!("{operation:?}").as_str(), "PaymentConfirm")
+pub fn is_operation_confirm<Op: Display>(operation: &Op) -> bool {
+    matches!(operation.to_string().as_str(), "PaymentConfirm")
 }
 
 #[cfg(feature = "olap")]

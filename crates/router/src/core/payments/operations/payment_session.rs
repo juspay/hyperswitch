@@ -2,7 +2,7 @@ use api_models::admin::PaymentMethodsEnabled;
 use async_trait::async_trait;
 use common_utils::ext_traits::{AsyncExt, ValueExt};
 use error_stack::ResultExt;
-use router_derive::PaymentOperation;
+use router_derive::{PaymentOperation, ZDisplay};
 use router_env::{instrument, tracing};
 
 use super::{BoxedOperation, Domain, Flow, GetTracker, Operation, UpdateTracker, ValidateRequest};
@@ -23,7 +23,7 @@ use crate::{
     utils::OptionExt,
 };
 
-#[derive(Debug, Clone, Copy, PaymentOperation)]
+#[derive(Clone, Copy, PaymentOperation, ZDisplay)]
 #[operation(ops = "all", flow = "session")]
 pub struct PaymentSession;
 

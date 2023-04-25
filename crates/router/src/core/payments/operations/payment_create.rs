@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use common_utils::ext_traits::{AsyncExt, Encode};
 use error_stack::{self, ResultExt};
-use router_derive::PaymentOperation;
+use router_derive::{PaymentOperation, ZDisplay};
 use router_env::{instrument, tracing};
 use uuid::Uuid;
 
@@ -26,7 +26,7 @@ use crate::{
     },
     utils::OptionExt,
 };
-#[derive(Debug, Clone, Copy, PaymentOperation)]
+#[derive(Clone, Copy, PaymentOperation, ZDisplay)]
 #[operation(ops = "all", flow = "authorize")]
 pub struct PaymentCreate;
 

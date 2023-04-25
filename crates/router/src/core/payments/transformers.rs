@@ -1,4 +1,4 @@
-use std::fmt::Debug;
+use std::fmt::Display;
 
 use error_stack::{IntoReport, ResultExt};
 use router_env::{instrument, tracing};
@@ -116,7 +116,7 @@ where
 pub trait ToResponse<Req, D, Op>
 where
     Self: Sized,
-    Op: Debug,
+    Op: Display,
 {
     fn generate_response(
         req: Option<Req>,
@@ -131,7 +131,7 @@ where
 impl<F, Req, Op> ToResponse<Req, PaymentData<F>, Op> for api::PaymentsResponse
 where
     F: Flow,
-    Op: Debug,
+    Op: Display,
 {
     fn generate_response(
         req: Option<Req>,
@@ -161,7 +161,7 @@ impl<F, Req, Op> ToResponse<Req, PaymentData<F>, Op> for api::PaymentsSessionRes
 where
     Self: From<Req>,
     F: Flow,
-    Op: Debug,
+    Op: Display,
 {
     fn generate_response(
         _req: Option<Req>,
@@ -187,7 +187,7 @@ impl<F, Req, Op> ToResponse<Req, PaymentData<F>, Op> for api::VerifyResponse
 where
     Self: From<Req>,
     F: Flow,
-    Op: Debug,
+    Op: Display,
 {
     fn generate_response(
         _req: Option<Req>,
@@ -244,7 +244,7 @@ pub fn payments_to_payments_response<R, Op>(
     operation: Op,
 ) -> RouterResponse<api::PaymentsResponse>
 where
-    Op: Debug,
+    Op: Display,
 {
     let currency = payment_attempt
         .currency

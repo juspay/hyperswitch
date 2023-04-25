@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use common_utils::{date_time, errors::CustomResult, ext_traits::AsyncExt};
 use error_stack::ResultExt;
-use router_derive::PaymentOperation;
+use router_derive::{PaymentOperation, ZDisplay};
 use router_env::{instrument, tracing};
 use uuid::Uuid;
 
@@ -24,7 +24,7 @@ use crate::{
     utils,
 };
 
-#[derive(Debug, Clone, Copy, PaymentOperation)]
+#[derive(Clone, Copy, PaymentOperation, ZDisplay)]
 #[operation(ops = "all", flow = "verify")]
 pub struct PaymentMethodValidate;
 

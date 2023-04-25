@@ -9,7 +9,7 @@ pub mod payment_session;
 pub mod payment_start;
 pub mod payment_status;
 pub mod payment_update;
-use std::fmt::{Debug, Display};
+use std::fmt::Display;
 
 use async_trait::async_trait;
 use error_stack::{report, ResultExt};
@@ -38,33 +38,32 @@ pub type BoxedOperation<'a, F, T> = Box<dyn Operation<F, T> + Send + Sync + 'a>;
 
 pub trait Flow: Clone + Send + Default + Display {}
 
-pub trait Operation<F: Flow, T>: Send + Debug {
+pub trait Operation<F: Flow, T>: Send + Display {
     fn to_validate_request(&self) -> RouterResult<&(dyn ValidateRequest<F, T> + Send + Sync)> {
         Err(report!(errors::ApiErrorResponse::InternalServerError))
-            .attach_printable_lazy(|| format!("validate request interface not found for {self:?}"))
+            .attach_printable_lazy(|| format!("validate request interface not found for {self}"))
     }
     fn to_get_tracker(
         &self,
     ) -> RouterResult<&(dyn GetTracker<F, PaymentData<F>, T> + Send + Sync)> {
         Err(report!(errors::ApiErrorResponse::InternalServerError))
-            .attach_printable_lazy(|| format!("get tracker interface not found for {self:?}"))
+            .attach_printable_lazy(|| format!("get tracker interface not found for {self}"))
     }
     fn to_domain(&self) -> RouterResult<&dyn Domain<F, T>> {
         Err(report!(errors::ApiErrorResponse::InternalServerError))
-            .attach_printable_lazy(|| format!("domain interface not found for {self:?}"))
+            .attach_printable_lazy(|| format!("domain interface not found for {self}"))
     }
     fn to_update_tracker(
         &self,
     ) -> RouterResult<&(dyn UpdateTracker<F, PaymentData<F>, T> + Send + Sync)> {
         Err(report!(errors::ApiErrorResponse::InternalServerError))
-            .attach_printable_lazy(|| format!("update tracker interface not found for {self:?}"))
+            .attach_printable_lazy(|| format!("update tracker interface not found for {self}"))
     }
     fn to_post_update_tracker(
         &self,
     ) -> RouterResult<&(dyn PostUpdateTracker<F, PaymentData<F>, T> + Send + Sync)> {
-        Err(report!(errors::ApiErrorResponse::InternalServerError)).attach_printable_lazy(|| {
-            format!("post connector update tracker not found for {self:?}")
-        })
+        Err(report!(errors::ApiErrorResponse::InternalServerError))
+            .attach_printable_lazy(|| format!("post connector update tracker not found for {self}"))
     }
 }
 
