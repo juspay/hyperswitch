@@ -504,9 +504,9 @@ pub async fn create_connector_customer<F: Clone>(
 
         let connector_customer_id = match resp.response {
             Ok(response) => match response {
-                types::PaymentsResponseData::ConnectorCustomerResponse { connector_cust_id } => {
-                    Some(connector_cust_id)
-                }
+                types::PaymentsResponseData::ConnectorCustomerResponse {
+                    connector_customer_id,
+                } => Some(connector_customer_id),
                 _ => None,
             },
             Err(err) => {

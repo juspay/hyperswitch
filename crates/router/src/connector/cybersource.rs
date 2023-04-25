@@ -179,17 +179,6 @@ impl api::PaymentCapture for Cybersource {}
 impl api::PreVerify for Cybersource {}
 impl api::ConnectorAccessToken for Cybersource {}
 impl api::PaymentToken for Cybersource {}
-impl api::ConnectorCustomer for Cybersource {}
-
-impl
-    ConnectorIntegration<
-        api::CreateConnectorCustomer,
-        types::ConnectorCustomerData,
-        types::PaymentsResponseData,
-    > for Cybersource
-{
-    // Not Implemented (R)
-}
 
 impl
     ConnectorIntegration<

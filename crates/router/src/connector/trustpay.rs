@@ -124,18 +124,6 @@ impl
     // Not Implemented (R)
 }
 
-impl api::ConnectorCustomer for Trustpay {}
-
-impl
-    ConnectorIntegration<
-        api::CreateConnectorCustomer,
-        types::ConnectorCustomerData,
-        types::PaymentsResponseData,
-    > for Trustpay
-{
-    // Not Implemented (R)
-}
-
 impl api::PreVerify for Trustpay {}
 impl ConnectorIntegration<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>
     for Trustpay

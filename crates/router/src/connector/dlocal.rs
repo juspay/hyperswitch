@@ -26,7 +26,6 @@ use crate::{
 #[derive(Debug, Clone)]
 pub struct Dlocal;
 
-impl api::ConnectorCustomer for Dlocal {}
 impl api::Payment for Dlocal {}
 impl api::PaymentToken for Dlocal {}
 impl api::PaymentSession for Dlocal {}
@@ -112,16 +111,6 @@ impl ConnectorCommon for Dlocal {
             reason: response.param,
         })
     }
-}
-
-impl
-    ConnectorIntegration<
-        api::CreateConnectorCustomer,
-        types::ConnectorCustomerData,
-        types::PaymentsResponseData,
-    > for Dlocal
-{
-    // Not Implemented (R)
 }
 
 impl

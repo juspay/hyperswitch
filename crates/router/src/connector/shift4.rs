@@ -117,18 +117,6 @@ impl
     // Not Implemented (R)
 }
 
-impl api::ConnectorCustomer for Shift4 {}
-
-impl
-    ConnectorIntegration<
-        api::CreateConnectorCustomer,
-        types::ConnectorCustomerData,
-        types::PaymentsResponseData,
-    > for Shift4
-{
-    // Not Implemented (R)
-}
-
 impl api::ConnectorAccessToken for Shift4 {}
 
 impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, types::AccessToken>

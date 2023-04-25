@@ -24,7 +24,6 @@ use crate::{
 #[derive(Debug, Clone)]
 pub struct Mollie;
 
-impl api::ConnectorCustomer for Mollie {}
 impl api::Payment for Mollie {}
 impl api::PaymentSession for Mollie {}
 impl api::ConnectorAccessToken for Mollie {}
@@ -105,16 +104,6 @@ impl
     ConnectorIntegration<
         api::PaymentMethodToken,
         types::PaymentMethodTokenizationData,
-        types::PaymentsResponseData,
-    > for Mollie
-{
-    // Not Implemented (R)
-}
-
-impl
-    ConnectorIntegration<
-        api::CreateConnectorCustomer,
-        types::ConnectorCustomerData,
         types::PaymentsResponseData,
     > for Mollie
 {

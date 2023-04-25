@@ -312,7 +312,7 @@ pub enum PaymentsResponseData {
     },
 
     ConnectorCustomerResponse {
-        connector_cust_id: String,
+        connector_customer_id: String,
     },
 
     ThreeDSEnrollmentResponse {

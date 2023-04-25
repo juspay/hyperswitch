@@ -88,18 +88,6 @@ impl
     // Not Implemented (R)
 }
 
-impl api::ConnectorCustomer for Multisafepay {}
-
-impl
-    ConnectorIntegration<
-        api::CreateConnectorCustomer,
-        types::ConnectorCustomerData,
-        types::PaymentsResponseData,
-    > for Multisafepay
-{
-    // Not Implemented (R)
-}
-
 impl api::PreVerify for Multisafepay {}
 impl ConnectorIntegration<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>
     for Multisafepay

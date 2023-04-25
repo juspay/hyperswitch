@@ -1490,7 +1490,7 @@ pub enum StripePaymentMethodOptions {
     Card {
         mandate_options: Option<StripeMandateOptions>,
         network_transaction_id: Option<String>,
-        mit_exemption: Option<MITExemption>, // To be used for MIT mandate txns
+        mit_exemption: Option<MitExemption>, // To be used for MIT mandate txns
     },
     Klarna {},
     Affirm {},
@@ -1510,7 +1510,7 @@ pub enum StripePaymentMethodOptions {
 }
 
 #[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
-pub struct MITExemption {
+pub struct MitExemption {
     pub network_transaction_id: String,
 }
 
@@ -1567,7 +1567,7 @@ impl<F, T>
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             response: Ok(types::PaymentsResponseData::ConnectorCustomerResponse {
-                connector_cust_id: item.response.id,
+                connector_customer_id: item.response.id,
             }),
             ..item.data
         })

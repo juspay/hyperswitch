@@ -126,6 +126,52 @@ default_imp_for_complete_authorize!(
     connector::Worldpay
 );
 
+macro_rules! default_imp_for_create_customer{
+    ($($path:ident::$connector:ident),*)=> {
+        $(
+            impl api::ConnectorCustomer for $path::$connector {}
+            impl
+            services::ConnectorIntegration<
+            api::CreateConnectorCustomer,
+            types::ConnectorCustomerData,
+            types::PaymentsResponseData,
+        > for $path::$connector
+        {}
+    )*
+    };
+}
+
+default_imp_for_create_customer!(
+    connector::Aci,
+    connector::Adyen,
+    connector::Airwallex,
+    connector::Authorizedotnet,
+    connector::Bambora,
+    connector::Bluesnap,
+    connector::Braintree,
+    connector::Checkout,
+    connector::Coinbase,
+    connector::Cybersource,
+    connector::Dlocal,
+    connector::Fiserv,
+    connector::Forte,
+    connector::Globalpay,
+    connector::Klarna,
+    connector::Mollie,
+    connector::Multisafepay,
+    connector::Nexinets,
+    connector::Nuvei,
+    connector::Opennode,
+    connector::Payeezy,
+    connector::Paypal,
+    connector::Payu,
+    connector::Rapyd,
+    connector::Shift4,
+    connector::Trustpay,
+    connector::Worldline,
+    connector::Worldpay
+);
+
 macro_rules! default_imp_for_connector_redirect_response{
     ($($path:ident::$connector:ident),*)=> {
         $(

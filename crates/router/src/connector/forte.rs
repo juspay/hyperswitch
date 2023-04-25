@@ -33,17 +33,6 @@ impl api::Refund for Forte {}
 impl api::RefundExecute for Forte {}
 impl api::RefundSync for Forte {}
 impl api::PaymentToken for Forte {}
-impl api::ConnectorCustomer for Forte {}
-
-impl
-    ConnectorIntegration<
-        api::CreateConnectorCustomer,
-        types::ConnectorCustomerData,
-        types::PaymentsResponseData,
-    > for Forte
-{
-    // Not Implemented (R)
-}
 
 impl
     ConnectorIntegration<

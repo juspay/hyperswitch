@@ -110,18 +110,6 @@ impl
     // Not Implemented (R)
 }
 
-impl api::ConnectorCustomer for Payu {}
-
-impl
-    ConnectorIntegration<
-        api::CreateConnectorCustomer,
-        types::ConnectorCustomerData,
-        types::PaymentsResponseData,
-    > for Payu
-{
-    // Not Implemented (R)
-}
-
 impl api::PaymentVoid for Payu {}
 
 impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsResponseData>

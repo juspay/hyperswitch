@@ -104,18 +104,6 @@ impl
     // Not Implemented (R)
 }
 
-impl api::ConnectorCustomer for Nexinets {}
-
-impl
-    ConnectorIntegration<
-        api::CreateConnectorCustomer,
-        types::ConnectorCustomerData,
-        types::PaymentsResponseData,
-    > for Nexinets
-{
-    // Not Implemented (R)
-}
-
 impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::PaymentsResponseData>
     for Nexinets
 {

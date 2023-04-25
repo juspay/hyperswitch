@@ -36,7 +36,6 @@ impl api::PaymentVoid for Coinbase {}
 impl api::Refund for Coinbase {}
 impl api::RefundExecute for Coinbase {}
 impl api::RefundSync for Coinbase {}
-impl api::ConnectorCustomer for Coinbase {}
 
 impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Coinbase
 where
@@ -98,16 +97,6 @@ impl ConnectorCommon for Coinbase {
             reason: response.reason,
         })
     }
-}
-
-impl
-    ConnectorIntegration<
-        api::CreateConnectorCustomer,
-        types::ConnectorCustomerData,
-        types::PaymentsResponseData,
-    > for Coinbase
-{
-    // Not Implemented (R)
 }
 
 impl

@@ -97,18 +97,6 @@ impl
     // Not Implemented (R)
 }
 
-impl api::ConnectorCustomer for Bambora {}
-
-impl
-    ConnectorIntegration<
-        api::CreateConnectorCustomer,
-        types::ConnectorCustomerData,
-        types::PaymentsResponseData,
-    > for Bambora
-{
-    // Not Implemented (R)
-}
-
 impl api::PreVerify for Bambora {}
 impl ConnectorIntegration<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>
     for Bambora

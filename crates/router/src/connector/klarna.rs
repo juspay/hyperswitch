@@ -55,17 +55,6 @@ impl api::PaymentCapture for Klarna {}
 impl api::PaymentSession for Klarna {}
 impl api::ConnectorAccessToken for Klarna {}
 impl api::PaymentToken for Klarna {}
-impl api::ConnectorCustomer for Klarna {}
-
-impl
-    services::ConnectorIntegration<
-        api::CreateConnectorCustomer,
-        types::ConnectorCustomerData,
-        types::PaymentsResponseData,
-    > for Klarna
-{
-    // Not Implemented (R)
-}
 
 impl
     services::ConnectorIntegration<

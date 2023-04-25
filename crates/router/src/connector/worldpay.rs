@@ -107,18 +107,6 @@ impl
     // Not Implemented (R)
 }
 
-impl api::ConnectorCustomer for Worldpay {}
-
-impl
-    ConnectorIntegration<
-        api::CreateConnectorCustomer,
-        types::ConnectorCustomerData,
-        types::PaymentsResponseData,
-    > for Worldpay
-{
-    // Not Implemented (R)
-}
-
 impl api::PaymentVoid for Worldpay {}
 
 impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsResponseData>
