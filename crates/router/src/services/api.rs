@@ -190,7 +190,7 @@ pub async fn execute_connector_processing_step<
                 1,
                 &[
                     metrics::request::add_attributes("connector", req.connector.to_string()),
-                    metrics::request::add_attributes("flow", format!("{:?}", F::default())),
+                    metrics::request::add_attributes("flow", F::default().to_string()),
                 ],
             );
             match connector_integration

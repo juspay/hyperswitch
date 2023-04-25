@@ -463,16 +463,43 @@ pub fn operation_derive(input: proc_macro::TokenStream) -> proc_macro::TokenStre
     macros::operation_derive_inner(input).unwrap_or_else(|err| err.to_compile_error().into())
 }
 
-/// Derives the Marker trait `crate::core::payments::operations::Flow` on a type.
+/// Derives the Marker trait `crate::core::payments::operations::Flow` on a type and implements ZDisplay.
 #[proc_macro_derive(Flow)]
 pub fn derive_flow(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let input = syn::parse_macro_input!(input as syn::DeriveInput);
 
     let name = input.ident;
 
-    let expanded = quote::quote! {
+    let mut expanded = quote::quote! {
         impl crate::core::payments::operations::Flow for #name {}
     };
 
+    let zdisplay_impl = token_stream_for_zdisplay(name);
+
+    expanded.extend(zdisplay_impl);
+
     proc_macro::TokenStream::from(expanded)
+}
+
+/// Derives the Display trait on a type. It is meant to be used only on Unit structs.
+#[proc_macro_derive(ZDisplay)]
+pub fn derive_display_on_zero(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    let input = syn::parse_macro_input!(input as syn::DeriveInput);
+
+    let name = input.ident;
+
+    let expanded = token_stream_for_zdisplay(name);
+
+    proc_macro::TokenStream::from(expanded)
+}
+
+fn token_stream_for_zdisplay(name: syn::Ident) -> proc_macro2::TokenStream {
+    let name_string = name.to_string();
+    quote::quote! {
+        impl std::fmt::Display for #name {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                write!(f, #name_string)
+            }
+        }
+    }
 }

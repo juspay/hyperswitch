@@ -9,7 +9,7 @@ pub mod payment_session;
 pub mod payment_start;
 pub mod payment_status;
 pub mod payment_update;
-use std::fmt::Debug;
+use std::fmt::{Debug, Display};
 
 use async_trait::async_trait;
 use error_stack::{report, ResultExt};
@@ -36,7 +36,7 @@ use crate::{
 
 pub type BoxedOperation<'a, F, T> = Box<dyn Operation<F, T> + Send + Sync + 'a>;
 
-pub trait Flow: Clone + Debug + Send + Default {}
+pub trait Flow: Clone + Send + Default + Display {}
 
 pub trait Operation<F: Flow, T>: Send + Debug {
     fn to_validate_request(&self) -> RouterResult<&(dyn ValidateRequest<F, T> + Send + Sync)> {

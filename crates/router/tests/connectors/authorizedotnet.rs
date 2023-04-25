@@ -1,5 +1,3 @@
-use crate::connector_auth::ConnectorAuthentication;
-
 use masking::Secret;
 use router::{
     configs::settings::Settings,
@@ -9,6 +7,8 @@ use router::{
     routes, services,
     types::{self, storage::enums, PaymentAddress},
 };
+
+use crate::connector_auth::ConnectorAuthentication;
 
 fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
     let auth = ConnectorAuthentication::new()
