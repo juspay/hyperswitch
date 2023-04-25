@@ -62,6 +62,8 @@ pub struct Settings {
     pub api_keys: ApiKeys,
     #[cfg(feature = "kms")]
     pub kms: kms::KmsConfig,
+    #[cfg(feature = "s3")]
+    pub file_upload_config: FileUploadConfig,
     pub tokenization: TokenizationConfig,
 }
 
@@ -183,8 +185,15 @@ where
 #[derive(Debug, Deserialize, Clone)]
 #[serde(default)]
 pub struct Secrets {
+    #[cfg(not(feature = "kms"))]
     pub jwt_secret: String,
+    #[cfg(not(feature = "kms"))]
     pub admin_api_key: String,
+
+    #[cfg(feature = "kms")]
+    pub kms_encrypted_jwt_secret: String,
+    #[cfg(feature = "kms")]
+    pub kms_encrypted_admin_api_key: String,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -286,20 +295,24 @@ pub struct Connectors {
     pub cybersource: ConnectorParams,
     pub dlocal: ConnectorParams,
     pub fiserv: ConnectorParams,
+    pub forte: ConnectorParams,
     pub globalpay: ConnectorParams,
     pub klarna: ConnectorParams,
     pub mollie: ConnectorParams,
     pub multisafepay: ConnectorParams,
+    pub nexinets: ConnectorParams,
     pub nuvei: ConnectorParams,
     pub opennode: ConnectorParams,
+    pub payeezy: ConnectorParams,
     pub paypal: ConnectorParams,
     pub payu: ConnectorParams,
     pub rapyd: ConnectorParams,
     pub shift4: ConnectorParams,
-    pub stripe: ConnectorParams,
+    pub stripe: ConnectorParamsWithFileUploadUrl,
+    pub trustpay: ConnectorParamsWithMoreUrls,
     pub worldline: ConnectorParams,
     pub worldpay: ConnectorParams,
-    pub trustpay: ConnectorParamsWithMoreUrls,
+    pub zen: ConnectorParams,
 
     // Keep this field separate from the remaining fields
     pub supported: SupportedConnectors,
@@ -316,6 +329,13 @@ pub struct ConnectorParams {
 pub struct ConnectorParamsWithMoreUrls {
     pub base_url: String,
     pub base_url_bank_redirects: String,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+#[serde(default)]
+pub struct ConnectorParamsWithFileUploadUrl {
+    pub base_url: String,
+    pub base_url_file_upload: String,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -377,6 +397,16 @@ pub struct ApiKeys {
     pub hash_key: String,
 }
 
+#[cfg(feature = "s3")]
+#[derive(Debug, Deserialize, Clone, Default)]
+#[serde(default)]
+pub struct FileUploadConfig {
+    /// The AWS region to send file uploads
+    pub region: String,
+    /// The AWS s3 bucket to send file uploads
+    pub bucket_name: String,
+}
+
 impl Settings {
     pub fn new() -> ApplicationResult<Self> {
         Self::with_config_path(None)
@@ -388,8 +418,8 @@ impl Settings {
         // 1. Defaults from the implementation of the `Default` trait.
         // 2. Values from config file. The config file accessed depends on the environment
         //    specified by the `RUN_ENV` environment variable. `RUN_ENV` can be one of
-        //    `Development`, `Sandbox` or `Production`. If nothing is specified for `RUN_ENV`,
-        //    `/config/Development.toml` file is read.
+        //    `development`, `sandbox` or `production`. If nothing is specified for `RUN_ENV`,
+        //    `/config/development.toml` file is read.
         // 3. Environment variables prefixed with `ROUTER` and each level separated by double
         //    underscores.
         //
@@ -455,7 +485,8 @@ impl Settings {
         self.kms
             .validate()
             .map_err(|error| ApplicationError::InvalidConfigurationValueError(error.into()))?;
-
+        #[cfg(feature = "s3")]
+        self.file_upload_config.validate()?;
         Ok(())
     }
 }

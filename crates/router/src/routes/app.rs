@@ -1,8 +1,9 @@
 use actix_web::{web, Scope};
+use tokio::sync::oneshot;
 
 use super::health::*;
 #[cfg(feature = "olap")]
-use super::{admin::*, api_keys::*};
+use super::{admin::*, api_keys::*, disputes::*, files::*};
 #[cfg(any(feature = "olap", feature = "oltp"))]
 use super::{configs::*, customers::*, mandates::*, payments::*, payouts::*, refunds::*};
 #[cfg(feature = "oltp")]
@@ -40,11 +41,15 @@ impl AppStateInfo for AppState {
 }
 
 impl AppState {
-    pub async fn with_storage(conf: Settings, storage_impl: StorageImpl) -> Self {
+    pub async fn with_storage(
+        conf: Settings,
+        storage_impl: StorageImpl,
+        shut_down_signal: oneshot::Sender<()>,
+    ) -> Self {
         let testable = storage_impl == StorageImpl::PostgresqlTest;
         let store: Box<dyn StorageInterface> = match storage_impl {
             StorageImpl::Postgresql | StorageImpl::PostgresqlTest => {
-                Box::new(Store::new(&conf, testable).await)
+                Box::new(Store::new(&conf, testable, shut_down_signal).await)
             }
             StorageImpl::Mock => Box::new(MockDb::new(&conf).await),
         };
@@ -56,8 +61,8 @@ impl AppState {
         }
     }
 
-    pub async fn new(conf: Settings) -> Self {
-        Self::with_storage(conf, StorageImpl::Postgresql).await
+    pub async fn new(conf: Settings, shut_down_signal: oneshot::Sender<()>) -> Self {
+        Self::with_storage(conf, StorageImpl::Postgresql, shut_down_signal).await
     }
 }
 
@@ -109,21 +114,21 @@ impl Payments {
                     web::resource("/{payment_id}/capture").route(web::post().to(payments_capture)),
                 )
                 .service(
-                    web::resource("/start/{payment_id}/{merchant_id}/{attempt_id}")
+                    web::resource("/redirect/{payment_id}/{merchant_id}/{attempt_id}")
                         .route(web::get().to(payments_start)),
                 )
                 .service(
                     web::resource(
-                        "/{payment_id}/{merchant_id}/response/{connector}/{creds_identifier}",
+                        "/{payment_id}/{merchant_id}/redirect/response/{connector}/{creds_identifier}",
                     )
                     .route(web::get().to(payments_redirect_response_with_creds_identifier)),
                 )
                 .service(
-                    web::resource("/{payment_id}/{merchant_id}/response/{connector}")
+                    web::resource("/{payment_id}/{merchant_id}/redirect/response/{connector}")
                         .route(web::get().to(payments_redirect_response)),
                 )
                 .service(
-                    web::resource("/{payment_id}/{merchant_id}/complete/{connector}")
+                    web::resource("/{payment_id}/{merchant_id}/redirect/complete/{connector}")
                         .route(web::get().to(payments_complete_authorize))
                         .route(web::post().to(payments_complete_authorize)),
                 );
@@ -380,6 +385,20 @@ impl ApiKeys {
     }
 }
 
+pub struct Disputes;
+
+#[cfg(feature = "olap")]
+impl Disputes {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/disputes")
+            .app_data(web::Data::new(state))
+            .service(web::resource("/list").route(web::get().to(retrieve_disputes_list)))
+            .service(web::resource("/accept/{dispute_id}").route(web::post().to(accept_dispute)))
+            .service(web::resource("/evidence").route(web::post().to(submit_dispute_evidence)))
+            .service(web::resource("/{dispute_id}").route(web::get().to(retrieve_dispute)))
+    }
+}
+
 pub struct Cards;
 
 impl Cards {
@@ -387,5 +406,21 @@ impl Cards {
         web::scope("/cards")
             .app_data(web::Data::new(state))
             .service(web::resource("/{bin}").route(web::get().to(card_iin_info)))
+    }
+}
+
+pub struct Files;
+
+#[cfg(feature = "olap")]
+impl Files {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/files")
+            .app_data(web::Data::new(state))
+            .service(web::resource("").route(web::post().to(files_create)))
+            .service(
+                web::resource("/{file_id}")
+                    .route(web::delete().to(files_delete))
+                    .route(web::get().to(files_retrieve)),
+            )
     }
 }

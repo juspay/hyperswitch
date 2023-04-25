@@ -2,6 +2,7 @@ use std::marker::PhantomData;
 
 use async_trait::async_trait;
 use error_stack::ResultExt;
+use masking::ExposeOptionInterface;
 use router_derive::PaymentOperation;
 use router_env::{instrument, tracing};
 
@@ -45,7 +46,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Co
         let db = &*state.store;
         let merchant_id = &merchant_account.merchant_id;
         let storage_scheme = merchant_account.storage_scheme;
-        let (mut payment_intent, mut payment_attempt, currency, amount, connector_response);
+        let (mut payment_intent, mut payment_attempt, currency, amount);
 
         let payment_id = payment_id
             .get_payment_intent_id()
@@ -54,9 +55,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Co
         payment_intent = db
             .find_payment_intent_by_payment_id_merchant_id(&payment_id, merchant_id, storage_scheme)
             .await
-            .map_err(|error| {
-                error.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
-            })?;
+            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
         payment_intent.setup_future_usage = request
             .setup_future_usage
             .map(ForeignInto::foreign_into)
@@ -101,9 +100,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Co
                 storage_scheme,
             )
             .await
-            .map_err(|error| {
-                error.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
-            })?;
+            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
         let token = token.or_else(|| payment_attempt.payment_token.clone());
 
@@ -154,7 +151,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Co
         )
         .await?;
 
-        connector_response = db
+        let mut connector_response = db
             .find_connector_response_by_payment_id_merchant_id_attempt_id(
                 &payment_attempt.payment_id,
                 &payment_attempt.merchant_id,
@@ -162,9 +159,14 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Co
                 storage_scheme,
             )
             .await
-            .map_err(|error| {
-                error.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
-            })?;
+            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+
+        connector_response.encoded_data = request.metadata.clone().and_then(|secret_metadata| {
+            secret_metadata
+                .payload
+                .expose_option()
+                .map(|exposed_payload| exposed_payload.to_string())
+        });
 
         payment_intent.shipping_address_id = shipping_address.clone().map(|i| i.address_id);
         payment_intent.billing_address_id = billing_address.clone().map(|i| i.address_id);

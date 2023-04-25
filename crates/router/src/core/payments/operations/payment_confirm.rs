@@ -55,9 +55,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         payment_intent = db
             .find_payment_intent_by_payment_id_merchant_id(&payment_id, merchant_id, storage_scheme)
             .await
-            .map_err(|error| {
-                error.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
-            })?;
+            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
         payment_intent.setup_future_usage = request
             .setup_future_usage
@@ -103,9 +101,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 storage_scheme,
             )
             .await
-            .map_err(|error| {
-                error.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
-            })?;
+            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
         let token = token.or_else(|| payment_attempt.payment_token.clone());
 
@@ -166,9 +162,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 storage_scheme,
             )
             .await
-            .map_err(|error| {
-                error.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
-            })?;
+            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
         payment_intent.shipping_address_id = shipping_address.clone().map(|i| i.address_id);
         payment_intent.billing_address_id = billing_address.clone().map(|i| i.address_id);
@@ -318,17 +312,10 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
         let payment_method = payment_data.payment_attempt.payment_method;
         let browser_info = payment_data.payment_attempt.browser_info.clone();
 
-        let (intent_status, attempt_status) = match payment_data.payment_attempt.authentication_type
-        {
-            Some(storage_enums::AuthenticationType::NoThreeDs) => (
-                storage_enums::IntentStatus::Processing,
-                storage_enums::AttemptStatus::Pending,
-            ),
-            _ => (
-                storage_enums::IntentStatus::RequiresCustomerAction,
-                storage_enums::AttemptStatus::AuthenticationPending,
-            ),
-        };
+        let (intent_status, attempt_status) = (
+            storage_enums::IntentStatus::Processing,
+            storage_enums::AttemptStatus::Pending,
+        );
 
         let connector = payment_data.payment_attempt.connector.clone();
         let straight_through_algorithm = payment_data
@@ -371,9 +358,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
                 storage_scheme,
             )
             .await
-            .map_err(|error| {
-                error.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
-            })?;
+            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
         let (shipping_address, billing_address) = (
             payment_data.payment_intent.shipping_address_id.clone(),
@@ -404,9 +389,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
                 storage_scheme,
             )
             .await
-            .map_err(|error| {
-                error.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
-            })?;
+            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
         Ok((Box::new(self), payment_data))
     }

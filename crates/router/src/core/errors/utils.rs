@@ -1,45 +1,45 @@
 use crate::{core::errors, logger};
 
-pub trait StorageErrorExt {
+pub trait StorageErrorExt<T, E> {
     #[track_caller]
-    fn to_not_found_response(
-        self,
-        not_found_response: errors::ApiErrorResponse,
-    ) -> error_stack::Report<errors::ApiErrorResponse>;
+    fn to_not_found_response(self, not_found_response: E) -> error_stack::Result<T, E>;
 
     #[track_caller]
-    fn to_duplicate_response(
-        self,
-        duplicate_response: errors::ApiErrorResponse,
-    ) -> error_stack::Report<errors::ApiErrorResponse>;
+    fn to_duplicate_response(self, duplicate_response: E) -> error_stack::Result<T, E>;
 }
 
-impl StorageErrorExt for error_stack::Report<errors::StorageError> {
+impl<T> StorageErrorExt<T, errors::ApiErrorResponse>
+    for error_stack::Result<T, errors::StorageError>
+{
     #[track_caller]
     fn to_not_found_response(
         self,
         not_found_response: errors::ApiErrorResponse,
-    ) -> error_stack::Report<errors::ApiErrorResponse> {
-        if self.current_context().is_db_not_found() {
-            return self.change_context(not_found_response);
-        }
-        match self.current_context() {
-            errors::StorageError::CustomerRedacted => {
-                self.change_context(errors::ApiErrorResponse::CustomerRedacted)
+    ) -> error_stack::Result<T, errors::ApiErrorResponse> {
+        self.map_err(|err| {
+            if err.current_context().is_db_not_found() {
+                return err.change_context(not_found_response);
+            };
+            match err.current_context() {
+                errors::StorageError::CustomerRedacted => {
+                    err.change_context(errors::ApiErrorResponse::CustomerRedacted)
+                }
+                _ => err.change_context(errors::ApiErrorResponse::InternalServerError),
             }
-            _ => self.change_context(errors::ApiErrorResponse::InternalServerError),
-        }
+        })
     }
 
     fn to_duplicate_response(
         self,
         duplicate_response: errors::ApiErrorResponse,
-    ) -> error_stack::Report<errors::ApiErrorResponse> {
-        if self.current_context().is_db_unique_violation() {
-            self.change_context(duplicate_response)
-        } else {
-            self.change_context(errors::ApiErrorResponse::InternalServerError)
-        }
+    ) -> error_stack::Result<T, errors::ApiErrorResponse> {
+        self.map_err(|err| {
+            if err.current_context().is_db_unique_violation() {
+                err.change_context(duplicate_response)
+            } else {
+                err.change_context(errors::ApiErrorResponse::InternalServerError)
+            }
+        })
     }
 }
 

@@ -25,11 +25,12 @@ pub mod utils;
 
 use actix_web::{
     body::MessageBody,
-    dev::{Server, ServiceFactory, ServiceRequest},
+    dev::{Server, ServerHandle, ServiceFactory, ServiceRequest},
     middleware::ErrorHandlers,
 };
 use http::StatusCode;
 use routes::AppState;
+use tokio::sync::{mpsc, oneshot};
 
 pub use self::env::logger;
 use crate::{
@@ -45,11 +46,14 @@ static ALLOC: mimalloc::MiMalloc = mimalloc::MiMalloc;
 pub mod headers {
     pub const ACCEPT: &str = "Accept";
     pub const API_KEY: &str = "API-KEY";
+    pub const APIKEY: &str = "apikey";
     pub const X_CC_API_KEY: &str = "X-CC-Api-Key";
     pub const AUTHORIZATION: &str = "Authorization";
     pub const CONTENT_TYPE: &str = "Content-Type";
     pub const DATE: &str = "Date";
+    pub const NONCE: &str = "nonce";
     pub const TIMESTAMP: &str = "Timestamp";
+    pub const TOKEN: &str = "token";
     pub const X_API_KEY: &str = "X-API-KEY";
     pub const X_API_VERSION: &str = "X-ApiVersion";
     pub const X_MERCHANT_ID: &str = "X-Merchant-Id";
@@ -115,7 +119,9 @@ pub fn mk_app(
     {
         server_app = server_app
             .service(routes::MerchantAccount::server(state.clone()))
-            .service(routes::ApiKeys::server(state.clone()));
+            .service(routes::ApiKeys::server(state.clone()))
+            .service(routes::Files::server(state.clone()))
+            .service(routes::Disputes::server(state.clone()));
     }
 
     #[cfg(feature = "stripe")]
@@ -136,7 +142,8 @@ pub fn mk_app(
 pub async fn start_server(conf: settings::Settings) -> ApplicationResult<(Server, AppState)> {
     logger::debug!(startup_config=?conf);
     let server = conf.server.clone();
-    let state = routes::AppState::new(conf).await;
+    let (tx, rx) = oneshot::channel();
+    let state = routes::AppState::new(conf, tx).await;
     // Cloning to close connections before shutdown
     let app_state = state.clone();
     let request_body_limit = server.request_body_limit;
@@ -145,8 +152,38 @@ pub async fn start_server(conf: settings::Settings) -> ApplicationResult<(Server
         .workers(server.workers)
         .shutdown_timeout(server.shutdown_timeout)
         .run();
-
+    tokio::spawn(receiver_for_error(rx, server.handle()));
     Ok((server, app_state))
+}
+
+pub async fn receiver_for_error(rx: oneshot::Receiver<()>, mut server: impl Stop) {
+    match rx.await {
+        Ok(_) => {
+            logger::error!("The redis server failed ");
+            server.stop_server().await;
+        }
+        Err(err) => {
+            logger::error!("Channel receiver error{err}");
+        }
+    }
+}
+
+#[async_trait::async_trait]
+pub trait Stop {
+    async fn stop_server(&mut self);
+}
+
+#[async_trait::async_trait]
+impl Stop for ServerHandle {
+    async fn stop_server(&mut self) {
+        let _ = self.stop(true).await;
+    }
+}
+#[async_trait::async_trait]
+impl Stop for mpsc::Sender<()> {
+    async fn stop_server(&mut self) {
+        let _ = self.send(()).await.map_err(|err| logger::error!("{err}"));
+    }
 }
 
 pub fn get_application_builder(
