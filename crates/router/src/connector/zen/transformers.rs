@@ -46,6 +46,8 @@ pub struct ZenPaymentsRequest {
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum ZenPaymentChannels {
     PclCard,
+    PclGooglepay,
+    PclApplepay,
 }
 
 #[derive(Debug, Serialize)]
@@ -61,7 +63,10 @@ pub struct ZenPaymentData {
     browser_details: ZenBrowserDetails,
     #[serde(rename = "type")]
     payment_type: ZenPaymentTypes,
-    card: ZenCardDetails,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    token: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    card: Option<ZenCardDetails>,
     descriptor: String,
     return_verify_url: Option<String>,
 }
@@ -84,6 +89,7 @@ pub struct ZenBrowserDetails {
 #[serde(rename_all = "snake_case")]
 pub enum ZenPaymentTypes {
     Onetime,
+    ExternalPaymentToken,
 }
 
 #[derive(Debug, Serialize)]
@@ -135,7 +141,8 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for ZenPaymentsRequest {
                         browser_details,
                         //Connector Specific for cards
                         payment_type: ZenPaymentTypes::Onetime,
-                        card: ZenCardDetails {
+                        token: None,
+                        card: Some(ZenCardDetails {
                             number: ccard.card_number.clone(),
                             expiry_date: Secret::new(format!(
                                 "{}{}",
@@ -143,13 +150,42 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for ZenPaymentsRequest {
                                 ccard.get_card_expiry_year_2_digit().expose()
                             )),
                             cvv: ccard.card_cvc,
-                        },
+                        }),
                         descriptor: item.get_description()?.chars().take(24).collect(),
                         return_verify_url: item.request.router_return_url.clone(),
                     },
                     //Connector Specific for cards
                     ZenPaymentChannels::PclCard,
                 )),
+                api::PaymentMethodData::Wallet(wallet_data) => match wallet_data {
+                    api_models::payments::WalletData::GooglePay(data) => Ok((
+                        ZenPaymentData {
+                            browser_details,
+                            //Connector Specific for wallet
+                            payment_type: ZenPaymentTypes::ExternalPaymentToken,
+                            token: Some(data.tokenization_data.token),
+                            card: None,
+                            descriptor: item.get_description()?.chars().take(24).collect(),
+                            return_verify_url: item.request.router_return_url.clone(),
+                        },
+                        ZenPaymentChannels::PclGooglepay,
+                    )),
+                    api_models::payments::WalletData::ApplePay(data) => Ok((
+                        ZenPaymentData {
+                            browser_details,
+                            //Connector Specific for wallet
+                            payment_type: ZenPaymentTypes::ExternalPaymentToken,
+                            token: Some(data.payment_data),
+                            card: None,
+                            descriptor: item.get_description()?.chars().take(24).collect(),
+                            return_verify_url: item.request.router_return_url.clone(),
+                        },
+                        ZenPaymentChannels::PclApplepay,
+                    )),
+                    _ => Err(errors::ConnectorError::NotImplemented(
+                        "payment method".to_string(),
+                    )),
+                },
                 _ => Err(errors::ConnectorError::NotImplemented(
                     "payment method".to_string(),
                 )),
