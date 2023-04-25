@@ -625,6 +625,9 @@ impl Connector {
                 | (Self::Trustpay, PaymentMethod::BankRedirect)
         )
     }
+    pub fn supports_file_storage_module(&self) -> bool {
+        matches!(self, Self::Stripe)
+    }
 }
 
 #[derive(

@@ -18,3 +18,11 @@ counter_metric!(
     INCOMING_DISPUTE_WEBHOOK_MERCHANT_NOTIFIED_METRIC,
     GLOBAL_METER
 ); // No. of incoming dispute webhooks which are notified to merchant
+counter_metric!(
+    ACCEPT_DISPUTE_STATUS_VALIDATION_FAILURE_METRIC,
+    GLOBAL_METER
+); //No. of status validation fialures while accpeting a dispute
+counter_metric!(
+    EVIDENCE_SUBMISSION_DISPUTE_STATUS_VALIDATION_FAILURE_METRIC,
+    GLOBAL_METER
+); //No. of status validation fialures while submitting evidence for a dispute
