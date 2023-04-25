@@ -146,7 +146,7 @@ pub struct RefundListRequest {
 pub struct RefundListResponse {
     /// The number of refunds included in the list
     pub size: usize,
-    /// The List of refund reponse object
+    /// The List of refund response object
     pub data: Vec<RefundResponse>,
 }
 
