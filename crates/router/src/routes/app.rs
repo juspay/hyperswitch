@@ -1,6 +1,10 @@
+#[cfg(all(not(feature = "external_access_dc"), feature = "dummy_connector"))]
+use actix_web::guard;
 use actix_web::{web, Scope};
 use tokio::sync::oneshot;
 
+#[cfg(feature = "dummy_connector")]
+use super::dummy_connector::*;
 use super::health::*;
 #[cfg(feature = "olap")]
 use super::{admin::*, api_keys::*, disputes::*, files::*};
@@ -73,6 +77,23 @@ impl Health {
         web::scope("")
             .app_data(web::Data::new(state))
             .service(web::resource("/health").route(web::get().to(health)))
+    }
+}
+
+#[cfg(feature = "dummy_connector")]
+pub struct DummyConnector;
+
+#[cfg(feature = "dummy_connector")]
+impl DummyConnector {
+    pub fn server(state: AppState) -> Scope {
+        let mut route = web::scope("/dummy_connector").app_data(web::Data::new(state));
+        #[cfg(not(feature = "external_access_dc"))]
+        {
+            route = route.guard(guard::Host("localhost"));
+        }
+        route =
+            route.service(web::resource("/payment").route(web::post().to(dummy_connector_payment)));
+        route
     }
 }
 

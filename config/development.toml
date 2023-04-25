@@ -193,3 +193,8 @@ region = ""
 [tokenization]
 stripe = { long_lived_token = false, payment_method = "wallet"}
 checkout = { long_lived_token = false, payment_method = "wallet"}
+
+[dummy_connector]
+payment_ttl = 172800
+payment_duration = 1000
+payment_tolerance = 100

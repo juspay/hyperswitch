@@ -65,11 +65,21 @@ pub struct Settings {
     #[cfg(feature = "s3")]
     pub file_upload_config: FileUploadConfig,
     pub tokenization: TokenizationConfig,
+    #[cfg(feature = "dummy_connector")]
+    pub dummy_connector: DummyConnector,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
 #[serde(transparent)]
 pub struct TokenizationConfig(pub HashMap<String, PaymentMethodTokenFilter>);
+
+#[cfg(feature = "dummy_connector")]
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct DummyConnector {
+    pub payment_ttl: i64,
+    pub payment_duration: u64,
+    pub payment_tolerance: u64,
+}
 
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct PaymentMethodTokenFilter {
