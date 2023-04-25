@@ -5,7 +5,6 @@ use std::fmt::Debug;
 use error_stack::{IntoReport, ResultExt};
 use transformers as nexinets;
 
-use self::transformers::get_order_id;
 use crate::{
     configs::settings,
     connector::utils::to_connector_meta,
@@ -242,7 +241,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
     ) -> CustomResult<String, errors::ConnectorError> {
         let meta: nexinets::NexinetsPaymentsMetadata =
             to_connector_meta(req.request.connector_meta.clone())?;
-        let order_id = get_order_id(meta.clone())?;
+        let order_id = nexinets::get_order_id(&meta)?;
         let transaction_id = match meta.psync_flow {
             transformers::NexinetsTransactionType::Debit
             | transformers::NexinetsTransactionType::Capture => req
@@ -250,11 +249,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
                 .connector_transaction_id
                 .get_connector_transaction_id()
                 .change_context(errors::ConnectorError::MissingConnectorTransactionID)?,
-            _ => meta.transaction_id.ok_or(
-                errors::ConnectorError::MissingConnectorRelatedTransactionID {
-                    id: "transaction_id".to_string(),
-                },
-            )?,
+            _ => nexinets::get_transaction_id(&meta)?,
         };
         Ok(format!(
             "{}/orders/{order_id}/transactions/{transaction_id}",
@@ -323,12 +318,8 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
     ) -> CustomResult<String, errors::ConnectorError> {
         let meta: nexinets::NexinetsPaymentsMetadata =
             to_connector_meta(req.request.connector_meta.clone())?;
-        let order_id = get_order_id(meta.clone())?;
-        let transaction_id = meta.transaction_id.ok_or(
-            errors::ConnectorError::MissingConnectorRelatedTransactionID {
-                id: "transaction_id".to_string(),
-            },
-        )?;
+        let order_id = nexinets::get_order_id(&meta)?;
+        let transaction_id = nexinets::get_transaction_id(&meta)?;
         Ok(format!(
             "{}/orders/{order_id}/transactions/{transaction_id}/capture",
             self.base_url(connectors)
@@ -412,12 +403,8 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
     ) -> CustomResult<String, errors::ConnectorError> {
         let meta: nexinets::NexinetsPaymentsMetadata =
             to_connector_meta(req.request.connector_meta.clone())?;
-        let order_id = get_order_id(meta.clone())?;
-        let transaction_id = meta.transaction_id.ok_or(
-            errors::ConnectorError::MissingConnectorRelatedTransactionID {
-                id: "transaction_id".to_string(),
-            },
-        )?;
+        let order_id = nexinets::get_order_id(&meta)?;
+        let transaction_id = nexinets::get_transaction_id(&meta)?;
         Ok(format!(
             "{}/orders/{order_id}/transactions/{transaction_id}/cancel",
             self.base_url(connectors),
@@ -498,7 +485,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
     ) -> CustomResult<String, errors::ConnectorError> {
         let meta: nexinets::NexinetsPaymentsMetadata =
             to_connector_meta(req.request.connector_metadata.clone())?;
-        let order_id = get_order_id(meta)?;
+        let order_id = nexinets::get_order_id(&meta)?;
         Ok(format!(
             "{}/orders/{order_id}/transactions/{}/refund",
             self.base_url(connectors),
@@ -583,7 +570,7 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
             .ok_or(errors::ConnectorError::MissingConnectorRefundID)?;
         let meta: nexinets::NexinetsPaymentsMetadata =
             to_connector_meta(req.request.connector_metadata.clone())?;
-        let order_id = get_order_id(meta)?;
+        let order_id = nexinets::get_order_id(&meta)?;
         Ok(format!(
             "{}/orders/{order_id}/transactions/{transaction_id}",
             self.base_url(connectors)

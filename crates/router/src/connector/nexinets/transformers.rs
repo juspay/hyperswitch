@@ -535,12 +535,23 @@ fn get_card_details(req_card: &api_models::payments::Card) -> NexinetsPaymentDet
 }
 
 pub fn get_order_id(
-    meta: NexinetsPaymentsMetadata,
+    meta: &NexinetsPaymentsMetadata,
 ) -> Result<String, error_stack::Report<errors::ConnectorError>> {
-    let order_id = meta.order_id.ok_or(
+    let order_id = meta.order_id.clone().ok_or(
         errors::ConnectorError::MissingConnectorRelatedTransactionID {
             id: "order_id".to_string(),
         },
     )?;
     Ok(order_id)
+}
+
+pub fn get_transaction_id(
+    meta: &NexinetsPaymentsMetadata,
+) -> Result<String, error_stack::Report<errors::ConnectorError>> {
+    let transaction_id = meta.transaction_id.clone().ok_or(
+        errors::ConnectorError::MissingConnectorRelatedTransactionID {
+            id: "transaction_id".to_string(),
+        },
+    )?;
+    Ok(transaction_id)
 }
