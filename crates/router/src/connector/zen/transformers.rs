@@ -29,7 +29,7 @@ impl TryFrom<&types::ConnectorAuthType> for ZenAuthType {
     }
 }
 
-#[derive(Debug, Serialize, Eq, PartialEq)]
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ZenPaymentsRequest {
     merchant_transaction_id: String,
@@ -42,20 +42,20 @@ pub struct ZenPaymentsRequest {
     items: Vec<ZenItemObject>,
 }
 
-#[derive(Debug, Serialize, Eq, PartialEq)]
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum ZenPaymentChannels {
     PclCard,
 }
 
-#[derive(Debug, Serialize, Eq, PartialEq)]
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ZenCustomerDetails {
     email: Secret<String, pii::Email>,
     ip: IpAddr,
 }
 
-#[derive(Debug, Serialize, Eq, PartialEq)]
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ZenPaymentData {
     browser_details: ZenBrowserDetails,
@@ -66,7 +66,7 @@ pub struct ZenPaymentData {
     return_verify_url: Option<String>,
 }
 
-#[derive(Debug, Serialize, Eq, PartialEq, frunk::LabelledGeneric)]
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ZenBrowserDetails {
     color_depth: String,
@@ -80,13 +80,13 @@ pub struct ZenBrowserDetails {
     user_agent: String,
 }
 
-#[derive(Debug, Serialize, Eq, PartialEq)]
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ZenPaymentTypes {
     Onetime,
 }
 
-#[derive(Debug, Serialize, Eq, PartialEq)]
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ZenCardDetails {
     number: Secret<String, pii::CardNumber>,
@@ -94,7 +94,7 @@ pub struct ZenCardDetails {
     cvv: Secret<String>,
 }
 
-#[derive(Debug, Serialize, Eq, PartialEq)]
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ZenItemObject {
     name: String,
@@ -154,10 +154,12 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for ZenPaymentsRequest {
                     "payment method".to_string(),
                 )),
             }?;
+        let order_amount =
+            utils::to_currency_base_unit(item.request.amount, item.request.currency)?;
         Ok(Self {
             merchant_transaction_id: item.payment_id.clone(),
             payment_channel,
-            amount: utils::to_currency_base_unit(item.request.amount, item.request.currency)?,
+            amount: order_amount.clone(),
             currency: item.request.currency,
             payment_specific_data,
             customer: ZenCustomerDetails {
@@ -170,18 +172,17 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for ZenPaymentsRequest {
             },
             custom_ipn_url: item.request.get_webhook_url()?,
             items: vec![ZenItemObject {
-                name: order_details.product_name.clone(),
-                price: "65.40".to_string(),
-                quantity: order_details.quantity,
-                line_amount_total: "65.40".to_string(),
+                name: order_details.product_name,
+                price: order_amount.clone(),
+                quantity: 1,
+                line_amount_total: order_amount,
             }],
         })
     }
 }
 
 // PaymentsResponse
-//TODO: Append the remaining status flags
-#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, strum::Display)]
+#[derive(Debug, Default, Deserialize, Clone, PartialEq, strum::Display)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum ZenPaymentStatus {
     Authorized,
@@ -211,29 +212,26 @@ impl ForeignTryFrom<(ZenPaymentStatus, Option<ZenActions>)> for enums::AttemptSt
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ZenPaymentsResponse {
     status: ZenPaymentStatus,
     id: String,
-    redirect_url: Option<String>,
-    #[serde(rename = "type")]
-    transaction_type: String,
     merchant_action: Option<ZenMerchantAction>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ZenMerchantAction {
     action: ZenActions,
     data: ZenMerchantActionData,
 }
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum ZenActions {
     Redirect,
 }
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ZenMerchantActionData {
     redirect_url: url::Url,
@@ -296,7 +294,7 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for ZenRefundRequest {
 }
 
 #[allow(dead_code)]
-#[derive(Debug, Serialize, Default, Deserialize, Clone)]
+#[derive(Debug, Default, Deserialize)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum RefundStatus {
     Authorized,
@@ -316,12 +314,9 @@ impl From<RefundStatus> for enums::RefundStatus {
     }
 }
 
-//TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+#[derive(Default, Debug, Deserialize)]
 pub struct RefundResponse {
     id: String,
-    #[serde(rename = "type")]
-    transaction_type: String,
     status: RefundStatus,
 }
 
@@ -364,14 +359,32 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
 #[derive(Debug, Clone, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct ZenWebhookBody {
-    #[serde(rename = "type")]
-    pub transaction_type: ZenWebhookTxnType,
-    pub transaction_id: String,
     pub merchant_transaction_id: String,
     pub amount: String,
     pub currency: String,
     pub status: ZenPaymentStatus,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct ZenWebhookSignature {
     pub hash: String,
+}
+
+#[derive(Debug, Clone, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct ZenWebhookObjectReference {
+    #[serde(rename = "type")]
+    pub transaction_type: ZenWebhookTxnType,
+    pub transaction_id: String,
+}
+
+#[derive(Debug, Clone, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct ZenWebhookEventType {
+    #[serde(rename = "type")]
+    pub transaction_type: ZenWebhookTxnType,
+    pub transaction_id: String,
+    pub status: ZenPaymentStatus,
 }
 
 #[derive(Debug, Clone, Deserialize, PartialEq)]
@@ -381,12 +394,12 @@ pub enum ZenWebhookTxnType {
     TrtRefund,
 }
 
-#[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Deserialize)]
 pub struct ZenErrorResponse {
     pub error: ZenErrorBody,
 }
 
-#[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Deserialize)]
 pub struct ZenErrorBody {
     pub message: String,
     pub code: String,

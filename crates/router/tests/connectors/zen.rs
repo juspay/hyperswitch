@@ -1,3 +1,4 @@
+use api_models::payments::OrderDetails;
 use masking::Secret;
 use router::types::{self, api, storage::enums};
 
@@ -36,6 +37,7 @@ static CONNECTOR: ZenTest = ZenTest {};
 
 // Cards Positive Tests
 // Creates a payment using the manual capture flow (Non 3DS).
+#[ignore = "Connector triggers 3DS payment on test card"]
 #[actix_web::test]
 async fn should_only_authorize_payment() {
     let response = CONNECTOR
@@ -46,6 +48,7 @@ async fn should_only_authorize_payment() {
 }
 
 // Captures a payment using the manual capture flow (Non 3DS).
+#[ignore = "Connector triggers 3DS payment on test card and capture is not supported"]
 #[actix_web::test]
 async fn should_capture_authorized_payment() {
     let response = CONNECTOR
@@ -56,6 +59,7 @@ async fn should_capture_authorized_payment() {
 }
 
 // Partially captures a payment using the manual capture flow (Non 3DS).
+#[ignore = "Connector triggers 3DS payment on test card and capture is not supported"]
 #[actix_web::test]
 async fn should_partially_capture_authorized_payment() {
     let response = CONNECTOR
@@ -73,6 +77,7 @@ async fn should_partially_capture_authorized_payment() {
 }
 
 // Synchronizes a payment using the manual capture flow (Non 3DS).
+#[ignore = "Connector triggers 3DS payment on test card"]
 #[actix_web::test]
 async fn should_sync_authorized_payment() {
     let authorize_response = CONNECTOR
@@ -99,6 +104,7 @@ async fn should_sync_authorized_payment() {
 }
 
 // Voids a payment using the manual capture flow (Non 3DS).
+#[ignore = "Connector triggers 3DS payment on test card and void is not supported"]
 #[actix_web::test]
 async fn should_void_authorized_payment() {
     let response = CONNECTOR
@@ -117,6 +123,7 @@ async fn should_void_authorized_payment() {
 }
 
 // Refunds a payment using the manual capture flow (Non 3DS).
+#[ignore = "Connector triggers 3DS payment on test card and capture is not supported"]
 #[actix_web::test]
 async fn should_refund_manually_captured_payment() {
     let response = CONNECTOR
@@ -130,6 +137,7 @@ async fn should_refund_manually_captured_payment() {
 }
 
 // Partially refunds a payment using the manual capture flow (Non 3DS).
+#[ignore = "Connector triggers 3DS payment on test card and capture is not supported"]
 #[actix_web::test]
 async fn should_partially_refund_manually_captured_payment() {
     let response = CONNECTOR
@@ -151,6 +159,7 @@ async fn should_partially_refund_manually_captured_payment() {
 }
 
 // Synchronizes a refund using the manual capture flow (Non 3DS).
+#[ignore = "Connector triggers 3DS payment on test card and capture is not supported"]
 #[actix_web::test]
 async fn should_sync_manually_captured_refund() {
     let refund_response = CONNECTOR
@@ -173,6 +182,7 @@ async fn should_sync_manually_captured_refund() {
 }
 
 // Creates a payment using the automatic capture flow (Non 3DS).
+#[ignore = "Connector triggers 3DS payment on test card"]
 #[actix_web::test]
 async fn should_make_payment() {
     let authorize_response = CONNECTOR.make_payment(None, None).await.unwrap();
@@ -180,6 +190,7 @@ async fn should_make_payment() {
 }
 
 // Synchronizes a payment using the automatic capture flow (Non 3DS).
+#[ignore = "Connector triggers 3DS payment on test card"]
 #[actix_web::test]
 async fn should_sync_auto_captured_payment() {
     let authorize_response = CONNECTOR.make_payment(None, None).await.unwrap();
@@ -205,6 +216,7 @@ async fn should_sync_auto_captured_payment() {
 }
 
 // Refunds a payment using the automatic capture flow (Non 3DS).
+#[ignore = "Connector triggers 3DS payment on test card"]
 #[actix_web::test]
 async fn should_refund_auto_captured_payment() {
     let response = CONNECTOR
@@ -218,6 +230,7 @@ async fn should_refund_auto_captured_payment() {
 }
 
 // Partially refunds a payment using the automatic capture flow (Non 3DS).
+#[ignore = "Connector triggers 3DS payment on test card"]
 #[actix_web::test]
 async fn should_partially_refund_succeeded_payment() {
     let refund_response = CONNECTOR
@@ -238,6 +251,7 @@ async fn should_partially_refund_succeeded_payment() {
 }
 
 // Creates multiple refunds against a payment using the automatic capture flow (Non 3DS).
+#[ignore = "Connector triggers 3DS payment on test card"]
 #[actix_web::test]
 async fn should_refund_succeeded_payment_multiple_times() {
     CONNECTOR
@@ -253,6 +267,7 @@ async fn should_refund_succeeded_payment_multiple_times() {
 }
 
 // Synchronizes a refund using the automatic capture flow (Non 3DS).
+#[ignore = "Connector triggers 3DS payment on test card"]
 #[actix_web::test]
 async fn should_sync_refund() {
     let refund_response = CONNECTOR
@@ -285,6 +300,12 @@ async fn should_fail_payment_for_incorrect_card_number() {
                     card_number: Secret::new("1234567891011".to_string()),
                     ..utils::CCardType::default().0
                 }),
+                order_details: Some(OrderDetails {
+                    product_name: "test".to_string(),
+                    quantity: 1,
+                }),
+                email: Some(Secret::new("test@gmail.com".to_string())),
+                webhook_url: Some("https://1635-116-74-253-164.ngrok-free.app".to_string()),
                 ..utils::PaymentAuthorizeType::default().0
             }),
             None,
@@ -292,8 +313,14 @@ async fn should_fail_payment_for_incorrect_card_number() {
         .await
         .unwrap();
     assert_eq!(
-        response.response.unwrap_err().message,
-        "Your card number is incorrect.".to_string(),
+        response
+            .response
+            .unwrap_err()
+            .message
+            .split_once(';')
+            .unwrap()
+            .0,
+        "Request data doesn't pass validation".to_string(),
     );
 }
 
@@ -307,6 +334,12 @@ async fn should_fail_payment_for_empty_card_number() {
                     card_number: Secret::new(String::from("")),
                     ..utils::CCardType::default().0
                 }),
+                order_details: Some(OrderDetails {
+                    product_name: "test".to_string(),
+                    quantity: 1,
+                }),
+                email: Some(Secret::new("test@gmail.com".to_string())),
+                webhook_url: Some("https://1635-116-74-253-164.ngrok-free.app".to_string()),
                 ..utils::PaymentAuthorizeType::default().0
             }),
             None,
@@ -315,8 +348,8 @@ async fn should_fail_payment_for_empty_card_number() {
         .unwrap();
     let x = response.response.unwrap_err();
     assert_eq!(
-        x.message,
-        "You passed an empty string for 'payment_method_data[card][number]'.",
+        x.message.split_once(';').unwrap().0,
+        "Request data doesn't pass validation",
     );
 }
 
@@ -330,6 +363,12 @@ async fn should_fail_payment_for_incorrect_cvc() {
                     card_cvc: Secret::new("12345".to_string()),
                     ..utils::CCardType::default().0
                 }),
+                order_details: Some(OrderDetails {
+                    product_name: "test".to_string(),
+                    quantity: 1,
+                }),
+                email: Some(Secret::new("test@gmail.com".to_string())),
+                webhook_url: Some("https://1635-116-74-253-164.ngrok-free.app".to_string()),
                 ..utils::PaymentAuthorizeType::default().0
             }),
             None,
@@ -337,8 +376,14 @@ async fn should_fail_payment_for_incorrect_cvc() {
         .await
         .unwrap();
     assert_eq!(
-        response.response.unwrap_err().message,
-        "Your card's security code is invalid.".to_string(),
+        response
+            .response
+            .unwrap_err()
+            .message
+            .split_once(';')
+            .unwrap()
+            .0,
+        "Request data doesn't pass validation".to_string(),
     );
 }
 
@@ -352,6 +397,12 @@ async fn should_fail_payment_for_invalid_exp_month() {
                     card_exp_month: Secret::new("20".to_string()),
                     ..utils::CCardType::default().0
                 }),
+                order_details: Some(OrderDetails {
+                    product_name: "test".to_string(),
+                    quantity: 1,
+                }),
+                email: Some(Secret::new("test@gmail.com".to_string())),
+                webhook_url: Some("https://1635-116-74-253-164.ngrok-free.app".to_string()),
                 ..utils::PaymentAuthorizeType::default().0
             }),
             None,
@@ -359,8 +410,14 @@ async fn should_fail_payment_for_invalid_exp_month() {
         .await
         .unwrap();
     assert_eq!(
-        response.response.unwrap_err().message,
-        "Your card's expiration month is invalid.".to_string(),
+        response
+            .response
+            .unwrap_err()
+            .message
+            .split_once(';')
+            .unwrap()
+            .0,
+        "Request data doesn't pass validation".to_string(),
     );
 }
 
@@ -374,6 +431,12 @@ async fn should_fail_payment_for_incorrect_expiry_year() {
                     card_exp_year: Secret::new("2000".to_string()),
                     ..utils::CCardType::default().0
                 }),
+                order_details: Some(OrderDetails {
+                    product_name: "test".to_string(),
+                    quantity: 1,
+                }),
+                email: Some(Secret::new("test@gmail.com".to_string())),
+                webhook_url: Some("https://1635-116-74-253-164.ngrok-free.app".to_string()),
                 ..utils::PaymentAuthorizeType::default().0
             }),
             None,
@@ -381,12 +444,19 @@ async fn should_fail_payment_for_incorrect_expiry_year() {
         .await
         .unwrap();
     assert_eq!(
-        response.response.unwrap_err().message,
-        "Your card's expiration year is invalid.".to_string(),
+        response
+            .response
+            .unwrap_err()
+            .message
+            .split_once(';')
+            .unwrap()
+            .0,
+        "Request data doesn't pass validation".to_string(),
     );
 }
 
 // Voids a payment using automatic capture flow (Non 3DS).
+#[ignore = "Connector triggers 3DS payment on test card and void is not supported"]
 #[actix_web::test]
 async fn should_fail_void_payment_for_auto_capture() {
     let authorize_response = CONNECTOR.make_payment(None, None).await.unwrap();
@@ -404,6 +474,7 @@ async fn should_fail_void_payment_for_auto_capture() {
 }
 
 // Captures a payment using invalid connector payment id.
+#[ignore = "Connector triggers 3DS payment on test card and capture is not supported"]
 #[actix_web::test]
 async fn should_fail_capture_for_invalid_payment() {
     let capture_response = CONNECTOR
@@ -417,6 +488,7 @@ async fn should_fail_capture_for_invalid_payment() {
 }
 
 // Refunds a payment with refund amount higher than payment amount.
+#[ignore = "Connector triggers 3DS payment on test card"]
 #[actix_web::test]
 async fn should_fail_for_refund_amount_higher_than_payment_amount() {
     let response = CONNECTOR

@@ -197,13 +197,11 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
             .response
             .parse_struct("Zen PaymentsAuthorizeResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        types::ResponseRouterData {
+        types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
-        }
-        .try_into()
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+        })
     }
 
     fn get_error_response(
@@ -241,9 +239,8 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
             .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
 
         Ok(format!(
-            "{}v1/transactions/{}",
+            "{}v1/transactions/{payment_id}",
             self.base_url(connectors),
-            payment_id
         ))
     }
 
@@ -275,7 +272,6 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
             data: data.clone(),
             http_code: res.status_code,
         })
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
     fn get_error_response(
@@ -355,13 +351,11 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
             .response
             .parse_struct("zen RefundResponse")
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        types::ResponseRouterData {
+        types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
-        }
-        .try_into()
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+        })
     }
 
     fn get_error_response(
@@ -421,13 +415,11 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
             .response
             .parse_struct("zen RefundSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        types::ResponseRouterData {
+        types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
-        }
-        .try_into()
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+        })
     }
 
     fn get_error_response(
@@ -451,9 +443,9 @@ impl api::IncomingWebhook for Zen {
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
-        let webhook_body: zen::ZenWebhookBody = request
+        let webhook_body: zen::ZenWebhookSignature = request
             .body
-            .parse_struct("ZenWebhookBody")
+            .parse_struct("ZenWebhookSignature")
             .change_context(errors::ConnectorError::WebhookSignatureNotFound)?;
         let signature = webhook_body.hash;
         hex::decode(signature)
@@ -522,9 +514,9 @@ impl api::IncomingWebhook for Zen {
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
-        let webhook_body: zen::ZenWebhookBody = request
+        let webhook_body: zen::ZenWebhookObjectReference = request
             .body
-            .parse_struct("ZenWebhookBody")
+            .parse_struct("ZenWebhookObjectReference")
             .change_context(errors::ConnectorError::WebhookSignatureNotFound)?;
         Ok(match &webhook_body.transaction_type {
             ZenWebhookTxnType::TrtPurchase => api_models::webhooks::ObjectReferenceId::PaymentId(
@@ -542,9 +534,9 @@ impl api::IncomingWebhook for Zen {
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api::IncomingWebhookEvent, errors::ConnectorError> {
-        let details: zen::ZenWebhookBody = request
+        let details: zen::ZenWebhookEventType = request
             .body
-            .parse_struct("ZenWebhookBody")
+            .parse_struct("ZenWebhookEventType")
             .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
 
         Ok(match &details.transaction_type {
