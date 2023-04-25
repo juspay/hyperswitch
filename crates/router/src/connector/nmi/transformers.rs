@@ -250,12 +250,10 @@ impl
                 enums::AttemptStatus::CaptureInitiated,
             ),
             Response::Declined | Response::Error => (
-                Err(types::ErrorResponse {
-                    code: item.response.response_code,
-                    message: item.response.responsetext,
-                    reason: None,
-                    status_code: item.http_code,
-                }),
+                Err(types::ErrorResponse::foreign_from((
+                    item.response,
+                    item.http_code,
+                ))),
                 enums::AttemptStatus::CaptureFailed,
             ),
         };
@@ -289,7 +287,7 @@ impl TryFrom<&types::PaymentsCancelRouterData> for NmiCancelRequest {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq)]
+#[derive(Debug, Deserialize)]
 pub enum Response {
     #[serde(alias = "1")]
     Approved,
@@ -299,7 +297,7 @@ pub enum Response {
     Error,
 }
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Debug, Deserialize)]
 pub struct StandardResponse {
     pub response: Response,
     pub responsetext: String,
