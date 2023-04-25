@@ -18,6 +18,7 @@ pub use self::operations::{
 };
 use self::{
     flows::{ConstructFlowSpecificData, Feature},
+    helpers::authenticate_client_secret,
     operations::{payment_complete_authorize, BoxedOperation, Operation},
 };
 use crate::{
@@ -30,9 +31,10 @@ use crate::{
     logger, pii,
     routes::AppState,
     scheduler::utils as pt_utils,
-    services,
+    services::{self, api::Authenticate},
     types::{
-        self, api,
+        self,
+        api::{self},
         storage::{self, enums as storage_enums},
     },
     utils::{Encode, OptionExt, ValueExt},
@@ -48,6 +50,7 @@ pub async fn payments_operation_core<F, Req, Op, FData>(
 ) -> RouterResult<(PaymentData<F>, Req, Option<storage::Customer>)>
 where
     F: Send + Clone + Sync,
+    Req: Authenticate,
     Op: Operation<F, Req> + Send + Sync,
 
     // To create connector flow specific interface data
@@ -82,6 +85,12 @@ where
             &merchant_account,
         )
         .await?;
+    let payment_intent = &payment_data.payment_intent;
+    authenticate_client_secret(
+        req.get_client_secret(),
+        payment_intent,
+        merchant_account.intent_fulfillment_time,
+    )?;
 
     let (operation, customer) = operation
         .to_domain()?
@@ -187,7 +196,7 @@ where
     F: Send + Clone + Sync,
     FData: Send + Sync,
     Op: Operation<F, Req> + Send + Sync + Clone,
-    Req: Debug,
+    Req: Debug + Authenticate,
     Res: transformers::ToResponse<Req, PaymentData<F>, Op>,
     // To create connector flow specific interface data
     PaymentData<F>: ConstructFlowSpecificData<F, FData, types::PaymentsResponseData>,

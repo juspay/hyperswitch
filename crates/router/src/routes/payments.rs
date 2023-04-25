@@ -443,9 +443,7 @@ pub async fn payments_connector_session(
                 payments::CallConnectorAction::Trigger,
             )
         },
-        &auth::PublishableKeyAuth {
-            client_secret: None,
-        },
+        &auth::PublishableKeyAuth,
     )
     .await
 }

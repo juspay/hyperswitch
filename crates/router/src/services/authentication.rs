@@ -200,9 +200,7 @@ where
 }
 
 #[derive(Debug)]
-pub struct PublishableKeyAuth {
-    pub client_secret: Option<String>,
-}
+pub struct PublishableKeyAuth;
 
 #[async_trait]
 impl<A> AuthenticateAndFetch<storage::MerchantAccount, A> for PublishableKeyAuth
@@ -327,12 +325,7 @@ pub fn get_auth_type_and_flow<A: AppStateInfo + Sync>(
     let api_key = get_api_key(headers)?;
 
     if api_key.starts_with("pk_") {
-        return Ok((
-            Box::new(PublishableKeyAuth {
-                client_secret: None,
-            }),
-            api::AuthFlow::Client,
-        ));
+        return Ok((Box::new(PublishableKeyAuth), api::AuthFlow::Client));
     }
     Ok((Box::new(ApiKeyAuth), api::AuthFlow::Merchant))
 }
@@ -358,12 +351,7 @@ where
             .map_err(|_| errors::ApiErrorResponse::MissingRequiredField {
                 field_name: "client_secret",
             })?;
-        return Ok((
-            Box::new(PublishableKeyAuth {
-                client_secret: payload.get_client_secret().cloned(),
-            }),
-            api::AuthFlow::Client,
-        ));
+        return Ok((Box::new(PublishableKeyAuth), api::AuthFlow::Client));
     }
 
     if payload.get_client_secret().is_some() {
