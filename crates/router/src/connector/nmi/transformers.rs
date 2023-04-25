@@ -473,7 +473,7 @@ impl TryFrom<types::PaymentsSyncResponseRouterData<types::Response>>
     ) -> Result<Self, Self::Error> {
         let response = SyncResponse::try_from(item.response.response.to_vec())?;
         Ok(Self {
-            status: enums::AttemptStatus::from(response.transaction.condition),
+            status: enums::AttemptStatus::from(NmiStatus::from(response.transaction.condition)),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(
                     response.transaction.transaction_id,
@@ -610,7 +610,8 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, types::Response>>
         item: types::RefundsResponseRouterData<api::RSync, types::Response>,
     ) -> Result<Self, Self::Error> {
         let response = SyncResponse::try_from(item.response.response.to_vec())?;
-        let refund_status = enums::RefundStatus::from(response.transaction.condition);
+        let refund_status =
+            enums::RefundStatus::from(NmiStatus::from(response.transaction.condition));
         Ok(Self {
             response: Ok(types::RefundsResponseData {
                 connector_refund_id: response.transaction.transaction_id,
@@ -636,13 +637,32 @@ impl From<NmiStatus> for enums::RefundStatus {
     }
 }
 
+impl From<String> for NmiStatus {
+    fn from(value: String) -> Self {
+        match value.as_str() {
+            "abandoned" => Self::Abandoned,
+            "canceled" => Self::Cancelled,
+            "in_progress" => Self::InProgress,
+            "pendingsettlement" => Self::Pendingsettlement,
+            "complete" => Self::Complete,
+            "failed" => Self::Failed,
+            "unknown" => Self::Unknown,
+            // Other than above values only pending is possible, since value is a string handling this as default
+            _ => Self::Pending,
+        }
+    }
+}
+
 #[derive(Debug, Deserialize)]
 pub struct SyncTransactionResponse {
+    #[serde(rename = "transaction_id")]
     transaction_id: String,
-    condition: NmiStatus,
+    #[serde(rename = "condition")]
+    condition: String,
 }
 
 #[derive(Debug, Deserialize)]
 struct SyncResponse {
+    #[serde(rename = "transaction")]
     transaction: SyncTransactionResponse,
 }
