@@ -44,6 +44,7 @@ pub struct ZenPaymentsRequest {
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+#[allow(clippy::enum_variant_names)]
 pub enum ZenPaymentChannels {
     PclCard,
     PclGooglepay,
