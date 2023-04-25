@@ -56,7 +56,7 @@ macro_rules! async_spawn {
 macro_rules! get_keys_of_option_nones {
     [$(($key:literal, $option:expr)),+] => {
         {
-            let mut keys = Vec::new();
+            let mut keys: Vec<&'static str> = Vec::new();
             $(
                 if $option.is_none() {
                     keys.push($key);
