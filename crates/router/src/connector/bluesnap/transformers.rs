@@ -51,9 +51,16 @@ pub struct BluesnapGooglePayObject {
 }
 
 #[derive(Debug, Serialize, Eq, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct BluesnapApplePayObject {
+    token: api_models::payments::ApplePayWalletData,
+}
+
+#[derive(Debug, Serialize, Eq, PartialEq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum BluesnapWalletTypes {
     GooglePay,
+    ApplePay,
 }
 
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for BluesnapPaymentsRequest {
@@ -74,13 +81,26 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BluesnapPaymentsRequest {
                 api_models::payments::WalletData::GooglePay(payment_method_data) => {
                     let gpay_object = Encode::<BluesnapGooglePayObject>::encode_to_string_of_json(
                         &BluesnapGooglePayObject {
-                            payment_method_data: payment_method_data.clone(),
+                            payment_method_data,
                         },
                     )
                     .change_context(errors::ConnectorError::RequestEncodingFailed)?;
                     Ok(PaymentMethodDetails::Wallet(BluesnapWallet {
                         wallet_type: BluesnapWalletTypes::GooglePay,
                         encoded_payment_token: consts::BASE64_ENGINE.encode(gpay_object),
+                    }))
+                }
+                api_models::payments::WalletData::ApplePay(payment_method_data) => {
+                    let apple_pay_object =
+                        Encode::<BluesnapApplePayObject>::encode_to_string_of_json(
+                            &BluesnapApplePayObject {
+                                token: payment_method_data,
+                            },
+                        )
+                        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+                    Ok(PaymentMethodDetails::Wallet(BluesnapWallet {
+                        wallet_type: BluesnapWalletTypes::ApplePay,
+                        encoded_payment_token: consts::BASE64_ENGINE.encode(apple_pay_object),
                     }))
                 }
                 _ => Err(errors::ConnectorError::NotImplemented(
