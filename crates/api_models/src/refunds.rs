@@ -144,8 +144,9 @@ pub struct RefundListRequest {
 
 #[derive(Debug, Clone, Eq, PartialEq, Deserialize, Serialize, ToSchema)]
 pub struct RefundListResponse {
-    /// The list of refund response
+    /// The number of refunds included in the list
     pub size: usize,
+    /// The List of refund reponse object
     pub data: Vec<RefundResponse>,
 }
 
