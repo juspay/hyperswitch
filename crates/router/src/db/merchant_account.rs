@@ -201,6 +201,7 @@ impl MerchantAccountInterface for MockDb {
             primary_business_details: merchant_account.primary_business_details,
             created_at: common_utils::date_time::now(),
             modified_at: common_utils::date_time::now(),
+            frm_routing_algorithm: merchant_account.frm_routing_algorithm,
         };
         accounts.push(account.clone());
         Ok(account)

@@ -231,6 +231,7 @@ diesel::table! {
         api_key -> Nullable<Varchar>,
         created_at -> Timestamp,
         modified_at -> Timestamp,
+        frm_routing_algorithm -> Nullable<Json>,
     }
 }
 

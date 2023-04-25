@@ -151,6 +151,7 @@ pub async fn create_merchant_account(
         locker_id: req.locker_id,
         metadata: req.metadata,
         primary_business_details,
+        frm_routing_algorithm: req.frm_routing_algorithm,
     };
 
     let merchant_account = db
@@ -258,6 +259,7 @@ pub async fn merchant_account_update(
         metadata: req.metadata,
         publishable_key: None,
         primary_business_details,
+        frm_routing_algorithm: req.frm_routing_algorithm,
     };
 
     let response = db
