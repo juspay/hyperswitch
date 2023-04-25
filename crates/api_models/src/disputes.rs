@@ -122,6 +122,10 @@ pub struct SubmitEvidenceRequest {
     pub shipping_documentation: Option<String>,
     /// Tracking number of shipped product
     pub shipping_tracking_number: Option<String>,
+    /// File Id showing two distinct transactions when customer claims a payment was charged twice
+    pub invoice_showing_distinct_transactions: Option<String>,
+    /// File Id of recurring transaction agreement
+    pub recurring_transaction_agreement: Option<String>,
     /// Any additional supporting file
     pub uncategorized_file: Option<String>,
     /// Any additional evidence statements

@@ -626,7 +626,7 @@ impl Connector {
         )
     }
     pub fn supports_file_storage_module(&self) -> bool {
-        matches!(self, Self::Stripe)
+        matches!(self, Self::Stripe | Self::Checkout)
     }
 }
 

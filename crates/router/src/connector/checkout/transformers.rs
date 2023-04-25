@@ -1,3 +1,4 @@
+use common_utils::errors::CustomResult;
 use error_stack::IntoReport;
 use serde::{Deserialize, Serialize};
 use url::Url;
@@ -774,4 +775,75 @@ impl From<CheckoutTxnType> for api_models::enums::DisputeStage {
 #[derive(Debug, Deserialize)]
 pub struct CheckoutWebhookObjectResource {
     pub data: serde_json::Value,
+}
+
+pub fn construct_file_upload_request(
+    file_upload_router_data: types::UploadFileRouterData,
+) -> CustomResult<reqwest::multipart::Form, errors::ConnectorError> {
+    let request = file_upload_router_data.request;
+    let mut multipart = reqwest::multipart::Form::new();
+    multipart = multipart.text("purpose", "dispute_evidence");
+    let file_data = reqwest::multipart::Part::bytes(request.file)
+        .file_name(format!(
+            "{}.{}",
+            request.file_key,
+            request
+                .file_type
+                .to_string()
+                .split('/')
+                .last()
+                .unwrap_or_default()
+                .to_owned()
+        ))
+        .mime_str(request.file_type.as_ref())
+        .map_err(|_| errors::ConnectorError::RequestEncodingFailed)?;
+    multipart = multipart.part("file", file_data);
+    Ok(multipart)
+}
+
+#[derive(Debug, Deserialize)]
+pub struct FileUploadResponse {
+    #[serde(rename = "id")]
+    pub file_id: String,
+}
+
+#[derive(Default, Debug, Serialize)]
+pub struct Evidence {
+    pub proof_of_delivery_or_service_file: Option<String>,
+    pub proof_of_delivery_or_service_text: Option<String>,
+    pub invoice_or_receipt_file: Option<String>,
+    pub invoice_or_receipt_text: Option<String>,
+    pub invoice_showing_distinct_transactions_file: Option<String>,
+    pub invoice_showing_distinct_transactions_text: Option<String>,
+    pub customer_communication_file: Option<String>,
+    pub customer_communication_text: Option<String>,
+    pub refund_or_cancellation_policy_file: Option<String>,
+    pub refund_or_cancellation_policy_text: Option<String>,
+    pub recurring_transaction_agreement_file: Option<String>,
+    pub recurring_transaction_agreement_text: Option<String>,
+    pub additional_evidence_file: Option<String>,
+    pub additional_evidence_text: Option<String>,
+}
+
+impl TryFrom<&types::SubmitEvidenceRouterData> for Evidence {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &types::SubmitEvidenceRouterData) -> Result<Self, Self::Error> {
+        let submit_evidence_request_data = item.request.clone();
+        Ok(Self {
+            proof_of_delivery_or_service_file: submit_evidence_request_data
+                .shipping_documentation_provider_file_id,
+            invoice_or_receipt_file: submit_evidence_request_data.receipt_provider_file_id,
+            invoice_showing_distinct_transactions_file: submit_evidence_request_data
+                .invoice_showing_distinct_transactions_provider_file_id,
+            customer_communication_file: submit_evidence_request_data
+                .customer_communication_provider_file_id,
+            refund_or_cancellation_policy_file: submit_evidence_request_data
+                .refund_policy_provider_file_id,
+            recurring_transaction_agreement_file: submit_evidence_request_data
+                .recurring_transaction_agreement_provider_file_id,
+            additional_evidence_file: submit_evidence_request_data
+                .uncategorized_file_provider_file_id,
+            ..Default::default()
+        })
+    }
 }
