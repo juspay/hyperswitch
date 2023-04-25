@@ -8,9 +8,8 @@ use url::Url;
 use uuid::Uuid;
 
 use crate::{
-    consts,
+    collect_missing_value_keys, consts,
     core::errors,
-    get_keys_of_option_nones,
     services,
     types::{self, api, storage::enums},
     utils::OptionExt,
@@ -430,7 +429,7 @@ fn validate_shipping_address_against_payment_method(
     payment_method: &StripePaymentMethodType,
 ) -> Result<(), error_stack::Report<errors::ConnectorError>> {
     if let StripePaymentMethodType::AfterpayClearpay = payment_method {
-        let missing_fields = get_keys_of_option_nones!(
+        let missing_fields = collect_missing_value_keys!(
             ("shipping.address.first_name", shipping_address.name),
             ("shipping.address.line1", shipping_address.line1),
             ("shipping.address.country", shipping_address.country),
@@ -1794,6 +1793,7 @@ pub struct DisputeObj {
 
 #[cfg(test)]
 mod test_validate_shipping_address_against_payment_method {
+    #![allow(clippy::unwrap_used)]
     use api_models::enums::CountryCode;
     use masking::Secret;
 
@@ -1820,11 +1820,11 @@ mod test_validate_shipping_address_against_payment_method {
         //Act
         let result = validate_shipping_address_against_payment_method(
             &stripe_shipping_address,
-            &payment_method,
+            payment_method,
         );
 
         // Assert
-        assert_eq!(result.is_ok(), true);
+        assert!(result.is_ok());
     }
 
     #[test]
@@ -1842,11 +1842,11 @@ mod test_validate_shipping_address_against_payment_method {
         //Act
         let result = validate_shipping_address_against_payment_method(
             &stripe_shipping_address,
-            &payment_method,
+            payment_method,
         );
 
         // Assert
-        assert_eq!(result.is_err(), true);
+        assert!(result.is_err());
         let missing_fields = get_missing_fields(result.unwrap_err().current_context()).to_owned();
         assert_eq!(missing_fields.len(), 1);
         assert_eq!(missing_fields[0], "shipping.address.first_name");
@@ -1867,11 +1867,11 @@ mod test_validate_shipping_address_against_payment_method {
         //Act
         let result = validate_shipping_address_against_payment_method(
             &stripe_shipping_address,
-            &payment_method,
+            payment_method,
         );
 
         // Assert
-        assert_eq!(result.is_err(), true);
+        assert!(result.is_err());
         let missing_fields = get_missing_fields(result.unwrap_err().current_context()).to_owned();
         assert_eq!(missing_fields.len(), 1);
         assert_eq!(missing_fields[0], "shipping.address.line1");
@@ -1892,11 +1892,11 @@ mod test_validate_shipping_address_against_payment_method {
         //Act
         let result = validate_shipping_address_against_payment_method(
             &stripe_shipping_address,
-            &payment_method,
+            payment_method,
         );
 
         // Assert
-        assert_eq!(result.is_err(), true);
+        assert!(result.is_err());
         let missing_fields = get_missing_fields(result.unwrap_err().current_context()).to_owned();
         assert_eq!(missing_fields.len(), 1);
         assert_eq!(missing_fields[0], "shipping.address.country");
@@ -1916,11 +1916,11 @@ mod test_validate_shipping_address_against_payment_method {
         //Act
         let result = validate_shipping_address_against_payment_method(
             &stripe_shipping_address,
-            &payment_method,
+            payment_method,
         );
 
         // Assert
-        assert_eq!(result.is_err(), true);
+        assert!(result.is_err());
         let missing_fields = get_missing_fields(result.unwrap_err().current_context()).to_owned();
         assert_eq!(missing_fields.len(), 1);
         assert_eq!(missing_fields[0], "shipping.address.zip");
@@ -1942,11 +1942,11 @@ mod test_validate_shipping_address_against_payment_method {
         //Act
         let result = validate_shipping_address_against_payment_method(
             &stripe_shipping_address,
-            &payment_method,
+            payment_method,
         );
 
         // Assert
-        assert_eq!(result.is_err(), true);
+        assert!(result.is_err());
         let missing_fields = get_missing_fields(result.unwrap_err().current_context()).to_owned();
         for field in missing_fields {
             assert!(expected_missing_field_names.contains(&field));
@@ -1968,10 +1968,10 @@ mod test_validate_shipping_address_against_payment_method {
         zip: Option<String>,
     ) -> StripeShippingAddress {
         StripeShippingAddress {
-            name: name.map(|x| Secret::new(x)),
-            line1: line1.map(|x| Secret::new(x)),
-            country: country,
-            zip: zip.map(|x| Secret::new(x)),
+            name: name.map(Secret::new),
+            line1: line1.map(Secret::new),
+            country,
+            zip: zip.map(Secret::new),
             city: Some(String::from("city")),
             line2: Some(Secret::new(String::from("line2"))),
             state: Some(Secret::new(String::from("state"))),

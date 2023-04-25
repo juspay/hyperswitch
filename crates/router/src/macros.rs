@@ -53,7 +53,7 @@ macro_rules! async_spawn {
 }
 
 #[macro_export]
-macro_rules! get_keys_of_option_nones {
+macro_rules! collect_missing_value_keys {
     [$(($key:literal, $option:expr)),+] => {
         {
             let mut keys: Vec<&'static str> = Vec::new();

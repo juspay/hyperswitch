@@ -11,7 +11,7 @@ use tokio::sync::mpsc;
 /// It will send a signal to the receiver when a SIGTERM or SIGINT is received
 ///
 #[cfg(not(target_os = "windows"))]
-pub async fn signal_handler(mut sig: signal_hook_tokio::Signals, sender: oneshot::Sender<()>) {
+pub async fn signal_handler(mut sig: signal_hook_tokio::Signals, sender: mpsc::Sender<()>) {
     if let Some(signal) = sig.next().await {
         logger::info!(
             "Received signal: {:?}",
