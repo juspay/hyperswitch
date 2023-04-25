@@ -150,7 +150,7 @@ impl ConnectorIntegration<api::Verify, types::VerifyRequestData, types::Payments
     ) -> CustomResult<types::VerifyRouterData, errors::ConnectorError> {
         let response: nmi::StandardResponse = serde_urlencoded::from_bytes(&res.response)
             .into_report()
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -221,7 +221,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
         let response: nmi::StandardResponse = serde_urlencoded::from_bytes(&res.response)
             .into_report()
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -354,7 +354,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
     ) -> CustomResult<types::PaymentsCaptureRouterData, errors::ConnectorError> {
         let response: nmi::StandardResponse = serde_urlencoded::from_bytes(&res.response)
             .into_report()
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -421,7 +421,7 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
     ) -> CustomResult<types::PaymentsCancelRouterData, errors::ConnectorError> {
         let response: nmi::StandardResponse = serde_urlencoded::from_bytes(&res.response)
             .into_report()
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
