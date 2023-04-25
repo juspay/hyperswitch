@@ -40,6 +40,7 @@ impl Refunds {
             .service(refund_create)
             .service(refund_retrieve)
             .service(refund_update)
+            .service(refund_retrieve_with_gateway_creds)
     }
 }
 

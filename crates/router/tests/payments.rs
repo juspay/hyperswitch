@@ -13,6 +13,7 @@ use router::{
     },
 };
 use time::macros::datetime;
+use tokio::sync::oneshot;
 use uuid::Uuid;
 
 // setting the connector in environment variables doesn't work when run in parallel. Neither does passing the paymentid
@@ -273,8 +274,8 @@ fn connector_list() {
 async fn payments_create_core() {
     use configs::settings::Settings;
     let conf = Settings::new().expect("invalid settings");
-
-    let state = routes::AppState::with_storage(conf, StorageImpl::PostgresqlTest).await;
+    let tx: oneshot::Sender<()> = oneshot::channel().0;
+    let state = routes::AppState::with_storage(conf, StorageImpl::PostgresqlTest, tx).await;
 
     let merchant_account = state
         .store
@@ -420,8 +421,8 @@ async fn payments_create_core() {
 async fn payments_create_core_adyen_no_redirect() {
     use crate::configs::settings::Settings;
     let conf = Settings::new().expect("invalid settings");
-
-    let state = routes::AppState::with_storage(conf, StorageImpl::PostgresqlTest).await;
+    let tx: oneshot::Sender<()> = oneshot::channel().0;
+    let state = routes::AppState::with_storage(conf, StorageImpl::PostgresqlTest, tx).await;
 
     let customer_id = format!("cust_{}", Uuid::new_v4());
     let merchant_id = "arunraj".to_string();
