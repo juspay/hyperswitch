@@ -626,11 +626,11 @@ pub async fn refund_list(
         .into_iter()
         .map(ForeignInto::foreign_into)
         .collect();
-    utils::when(data.is_empty(), || {
-        Err(errors::ApiErrorResponse::RefundNotFound)
-    })?;
     Ok(services::ApplicationResponse::Json(
-        api_models::refunds::RefundListResponse { data },
+        api_models::refunds::RefundListResponse {
+            size: data.len(),
+            data,
+        },
     ))
 }
 

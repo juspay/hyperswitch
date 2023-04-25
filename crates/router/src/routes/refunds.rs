@@ -183,7 +183,6 @@ pub async fn refunds_update(
     ),
     responses(
         (status = 200, description = "List of refunds", body = RefundListResponse),
-        (status = 404, description = "Refund does not exist in our records")
     ),
     tag = "Refunds",
     operation_id = "List all Refunds",
