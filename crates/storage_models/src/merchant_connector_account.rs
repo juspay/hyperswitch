@@ -28,11 +28,11 @@ pub struct MerchantConnectorAccount {
     pub payment_methods_enabled: Option<Vec<serde_json::Value>>,
     pub connector_type: storage_enums::ConnectorType,
     pub metadata: Option<pii::SecretSerdeValue>,
-    pub frm_configs: Option<Secret<serde_json::Value>>, //Option<FrmConfigs>
     pub connector_label: String,
     pub business_country: storage_enums::CountryCode,
     pub business_label: String,
     pub business_sub_label: Option<String>,
+    pub frm_configs: Option<Secret<serde_json::Value>>,
     pub created_at: time::PrimitiveDateTime,
     pub modified_at: time::PrimitiveDateTime,
 }
@@ -49,11 +49,11 @@ pub struct MerchantConnectorAccountNew {
     pub merchant_connector_id: String,
     pub payment_methods_enabled: Option<Vec<serde_json::Value>>,
     pub metadata: Option<pii::SecretSerdeValue>,
-    pub frm_configs: Option<Secret<serde_json::Value>>,
     pub connector_label: String,
     pub business_country: storage_enums::CountryCode,
     pub business_label: String,
     pub business_sub_label: Option<String>,
+    pub frm_configs: Option<Secret<serde_json::Value>>,
 }
 
 #[derive(Debug)]
