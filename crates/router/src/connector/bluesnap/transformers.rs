@@ -1,10 +1,14 @@
+use base64::Engine;
+use error_stack::ResultExt;
 use serde::{Deserialize, Serialize};
 
 use crate::{
     connector::utils,
+    consts,
     core::errors,
     pii::{self, Secret},
     types::{self, api, storage::enums, transformers::ForeignTryFrom},
+    utils::Encode,
 };
 
 #[derive(Debug, Serialize, PartialEq)]
@@ -21,7 +25,7 @@ pub struct BluesnapPaymentsRequest {
 #[serde(rename_all = "camelCase")]
 pub enum PaymentMethodDetails {
     CreditCard(Card),
-    Wallet(BluesnapWallet)
+    Wallet(BluesnapWallet),
 }
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
@@ -41,9 +45,15 @@ pub struct BluesnapWallet {
 }
 
 #[derive(Debug, Serialize, Eq, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct BluesnapGooglePayObject {
+    payment_method_data: api_models::payments::GooglePayWalletData,
+}
+
+#[derive(Debug, Serialize, Eq, PartialEq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-pub enum BluesnapWalletTypes{
-    GooglePay
+pub enum BluesnapWalletTypes {
+    GooglePay,
 }
 
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for BluesnapPaymentsRequest {
@@ -61,14 +71,22 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BluesnapPaymentsRequest {
                 security_code: ccard.card_cvc,
             })),
             api::PaymentMethodData::Wallet(wallet_data) => match wallet_data {
-                api_models::payments::WalletData::GooglePay(data) => Ok(PaymentMethodDetails::Wallet(BluesnapWallet{
-                    wallet_type: BluesnapWalletTypes::GooglePay,
-                    encoded_payment_token: data.tokenization_data.token,
-                })),
+                api_models::payments::WalletData::GooglePay(payment_method_data) => {
+                    let gpay_object = Encode::<BluesnapGooglePayObject>::encode_to_string_of_json(
+                        &BluesnapGooglePayObject {
+                            payment_method_data: payment_method_data.clone(),
+                        },
+                    )
+                    .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+                    Ok(PaymentMethodDetails::Wallet(BluesnapWallet {
+                        wallet_type: BluesnapWalletTypes::GooglePay,
+                        encoded_payment_token: consts::BASE64_ENGINE.encode(gpay_object),
+                    }))
+                }
                 _ => Err(errors::ConnectorError::NotImplemented(
                     "Wallets".to_string(),
                 )),
-            }
+            },
             _ => Err(errors::ConnectorError::NotImplemented(
                 "payment method".to_string(),
             )),
