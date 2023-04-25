@@ -6,9 +6,9 @@ use base64::Engine;
 use error_stack::{IntoReport, ResultExt};
 use transformers as forte;
 
-use super::utils::RefundsRequestData;
 use crate::{
     configs::settings,
+    connector::utils::{PaymentsSyncRequestData, RefundsRequestData},
     consts,
     core::errors::{self, CustomResult},
     headers,
@@ -232,10 +232,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let auth: forte::ForteAuthType = forte::ForteAuthType::try_from(&req.connector_auth_type)?;
-        let txn_id = req
-            .request
-            .connector_transaction_id
-            .get_connector_transaction_id()
+        let txn_id = PaymentsSyncRequestData::get_connector_transaction_id(&req.request)
             .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
         Ok(format!(
             "{}/organizations/{}/locations/{}/transactions/{}",

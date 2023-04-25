@@ -14,7 +14,6 @@ use crate::{
 pub struct FortePaymentsRequest {
     action: ForteAction,
     authorization_amount: f64,
-    subtotal_amount: f64,
     billing_address: BillingAddress,
     card: Card,
 }
@@ -92,7 +91,6 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for FortePaymentsRequest {
                 Ok(Self {
                     action,
                     authorization_amount,
-                    subtotal_amount: authorization_amount,
                     billing_address,
                     card,
                 })
@@ -156,9 +154,9 @@ impl From<FortePaymentStatus> for enums::AttemptStatus {
 }
 
 impl ForeignFrom<(ForteResponseCode, ForteAction)> for enums::AttemptStatus {
-    fn foreign_from(item: (ForteResponseCode, ForteAction)) -> Self {
-        match item.0 {
-            ForteResponseCode::A01 => match item.1 {
+    fn foreign_from((response_code, action): (ForteResponseCode, ForteAction)) -> Self {
+        match response_code {
+            ForteResponseCode::A01 => match action {
                 ForteAction::Authorize => Self::Authorized,
                 ForteAction::Sale => Self::Pending,
             },
@@ -170,7 +168,7 @@ impl ForeignFrom<(ForteResponseCode, ForteAction)> for enums::AttemptStatus {
 
 #[derive(Default, Debug, Clone, Deserialize, PartialEq)]
 pub struct CardResponse {
-    name_on_card: String,
+    name_on_card: Secret<String>,
     last_4_account_number: String,
     masked_account_number: String,
     card_type: String,

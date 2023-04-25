@@ -102,6 +102,7 @@ async fn should_capture_authorized_payment() {
         )
         .await
         .expect("Capture payment response");
+    //Status of the Payments is always in Pending State, Forte has to settle the sandbox transaction manually
     assert_eq!(response.status, enums::AttemptStatus::Pending);
 }
 
@@ -126,6 +127,7 @@ async fn should_partially_capture_authorized_payment() {
         )
         .await
         .expect("Capture payment response");
+    //Status of the Payments is always in Pending State, Forte has to settle the sandbox transactions manually
     assert_eq!(response.status, enums::AttemptStatus::Pending);
 }
 
@@ -177,6 +179,7 @@ async fn should_void_authorized_payment() {
         )
         .await
         .expect("Void payment response");
+    //Forte doesnot send status in response, so setting it to pending so later it will be synced
     assert_eq!(response.status, enums::AttemptStatus::Pending);
 }
 
@@ -285,11 +288,12 @@ async fn should_sync_manually_captured_refund() {
 // Creates a payment using the automatic capture flow (Non 3DS).
 #[actix_web::test]
 async fn should_make_payment() {
-    let authorize_response = CONNECTOR
+    let response = CONNECTOR
         .make_payment(get_payment_data(), get_default_payment_info())
         .await
         .unwrap();
-    assert_eq!(authorize_response.status, enums::AttemptStatus::Pending);
+    //Status of the Payments is always in Pending State, Forte has to settle the sandbox transaction manually
+    assert_eq!(response.status, enums::AttemptStatus::Pending);
 }
 
 // Synchronizes a payment using the automatic capture flow (Non 3DS).
@@ -317,6 +321,7 @@ async fn should_sync_auto_captured_payment() {
         )
         .await
         .unwrap();
+    //Status of the Payments is always in Pending State, Forte has to settle the sandbox transaction manually
     assert_eq!(response.status, enums::AttemptStatus::Pending,);
 }
 
