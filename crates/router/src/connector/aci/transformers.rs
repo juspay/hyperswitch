@@ -313,7 +313,7 @@ impl<F, T>
 
             // If method is Get, parameters are appended to URL
             // If method is post, we http Post the method to URL
-            services::RedirectForm {
+            services::RedirectForm::Form {
                 endpoint: data.url.to_string(),
                 // Handles method for Bank redirects currently.
                 // 3DS response have method within preconditions. That would require replacing below line with a function.
