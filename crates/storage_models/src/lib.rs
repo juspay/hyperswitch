@@ -10,6 +10,7 @@ pub mod enums;
 pub mod ephemeral_key;
 pub mod errors;
 pub mod events;
+pub mod file;
 #[cfg(feature = "kv_store")]
 pub mod kv;
 pub mod locker_mock_up;
