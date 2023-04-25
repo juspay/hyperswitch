@@ -12,7 +12,7 @@ use crate::{
     services,
     types::{
         self, api,
-        domain::{self, merchant_account},
+        domain::{self},
     },
 };
 
@@ -66,7 +66,7 @@ pub async fn retrieve_file(
 
 pub async fn validate_file_upload(
     state: &AppState,
-    merchant_account: merchant_account::MerchantAccount,
+    merchant_account: domain::MerchantAccount,
     create_file_request: api::CreateFileRequest,
 ) -> CustomResult<(), errors::ApiErrorResponse> {
     //File Validation based on the purpose of file upload
@@ -114,7 +114,7 @@ pub async fn validate_file_upload(
 pub async fn delete_file_using_file_id(
     state: &AppState,
     file_key: String,
-    merchant_account: &merchant_account::MerchantAccount,
+    merchant_account: &domain::MerchantAccount,
 ) -> CustomResult<(), errors::ApiErrorResponse> {
     let file_metadata_object = state
         .store
@@ -150,7 +150,7 @@ pub async fn delete_file_using_file_id(
 pub async fn retrieve_file_and_provider_file_id_from_file_id(
     state: &AppState,
     file_id: Option<String>,
-    merchant_account: &domain::merchant_account::MerchantAccount,
+    merchant_account: &domain::MerchantAccount,
 ) -> CustomResult<(Option<Vec<u8>>, Option<String>), errors::ApiErrorResponse> {
     match file_id {
         None => Ok((None, None)),
@@ -189,7 +189,7 @@ pub async fn retrieve_file_and_provider_file_id_from_file_id(
 //Upload file to connector if it supports / store it in S3 and return file_upload_provider, provider_file_id accordingly
 pub async fn upload_and_get_provider_provider_file_id(
     state: &AppState,
-    merchant_account: &merchant_account::MerchantAccount,
+    merchant_account: &domain::MerchantAccount,
     create_file_request: &api::CreateFileRequest,
     file_key: String,
 ) -> CustomResult<(String, api::FileUploadProvider), errors::ApiErrorResponse> {

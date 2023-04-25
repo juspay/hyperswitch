@@ -11,8 +11,7 @@ use crate::{
     core::errors::{self, RouterResult},
     routes::AppState,
     types::{
-        self,
-        domain::merchant_account,
+        self, domain,
         storage::{self, enums},
     },
     utils::{generate_id, OptionExt, ValueExt},
@@ -23,7 +22,7 @@ use crate::{
 pub async fn construct_refund_router_data<'a, F>(
     state: &'a AppState,
     connector_id: &str,
-    merchant_account: &merchant_account::MerchantAccount,
+    merchant_account: &domain::MerchantAccount,
     money: (i64, enums::Currency),
     payment_intent: &'a storage::PaymentIntent,
     payment_attempt: &storage::PaymentAttempt,
@@ -229,7 +228,7 @@ pub async fn construct_accept_dispute_router_data<'a>(
     state: &'a AppState,
     payment_intent: &'a storage::PaymentIntent,
     payment_attempt: &storage::PaymentAttempt,
-    merchant_account: &merchant_account::MerchantAccount,
+    merchant_account: &domain::MerchantAccount,
     dispute: &storage::Dispute,
 ) -> RouterResult<types::AcceptDisputeRouterData> {
     let db = &*state.store;
@@ -288,7 +287,7 @@ pub async fn construct_submit_evidence_router_data<'a>(
     state: &'a AppState,
     payment_intent: &'a storage::PaymentIntent,
     payment_attempt: &storage::PaymentAttempt,
-    merchant_account: &merchant_account::MerchantAccount,
+    merchant_account: &domain::MerchantAccount,
     dispute: &storage::Dispute,
     submit_evidence_request_data: types::SubmitEvidenceRequestData,
 ) -> RouterResult<types::SubmitEvidenceRouterData> {
@@ -345,7 +344,7 @@ pub async fn construct_upload_file_router_data<'a>(
     state: &'a AppState,
     payment_intent: &'a storage::PaymentIntent,
     payment_attempt: &storage::PaymentAttempt,
-    merchant_account: &merchant_account::MerchantAccount,
+    merchant_account: &domain::MerchantAccount,
     create_file_request: &types::api::CreateFileRequest,
     connector_id: &str,
     file_key: String,

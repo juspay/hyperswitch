@@ -9,8 +9,8 @@ use crate::{
     core::errors::{self, CustomResult},
     types::{
         domain::{
+            self,
             behaviour::{Conversion, ReverseConversion},
-            merchant_account,
         },
         storage,
     },
@@ -19,35 +19,35 @@ use crate::{
 #[async_trait::async_trait]
 pub trait MerchantAccountInterface
 where
-    merchant_account::MerchantAccount:
+    domain::MerchantAccount:
         Conversion<DstType = storage::MerchantAccount, NewDstType = storage::MerchantAccountNew>,
 {
     async fn insert_merchant(
         &self,
-        merchant_account: merchant_account::MerchantAccount,
-    ) -> CustomResult<merchant_account::MerchantAccount, errors::StorageError>;
+        merchant_account: domain::MerchantAccount,
+    ) -> CustomResult<domain::MerchantAccount, errors::StorageError>;
 
     async fn find_merchant_account_by_merchant_id(
         &self,
         merchant_id: &str,
-    ) -> CustomResult<merchant_account::MerchantAccount, errors::StorageError>;
+    ) -> CustomResult<domain::MerchantAccount, errors::StorageError>;
 
     async fn update_merchant(
         &self,
-        this: merchant_account::MerchantAccount,
+        this: domain::MerchantAccount,
         merchant_account: storage::MerchantAccountUpdate,
-    ) -> CustomResult<merchant_account::MerchantAccount, errors::StorageError>;
+    ) -> CustomResult<domain::MerchantAccount, errors::StorageError>;
 
     async fn update_specific_fields_in_merchant(
         &self,
         merchant_id: &str,
         merchant_account: storage::MerchantAccountUpdate,
-    ) -> CustomResult<merchant_account::MerchantAccount, errors::StorageError>;
+    ) -> CustomResult<domain::MerchantAccount, errors::StorageError>;
 
     async fn find_merchant_account_by_publishable_key(
         &self,
         publishable_key: &str,
-    ) -> CustomResult<merchant_account::MerchantAccount, errors::StorageError>;
+    ) -> CustomResult<domain::MerchantAccount, errors::StorageError>;
 
     async fn delete_merchant_account_by_merchant_id(
         &self,
@@ -59,8 +59,8 @@ where
 impl MerchantAccountInterface for Store {
     async fn insert_merchant(
         &self,
-        merchant_account: merchant_account::MerchantAccount,
-    ) -> CustomResult<merchant_account::MerchantAccount, errors::StorageError> {
+        merchant_account: domain::MerchantAccount,
+    ) -> CustomResult<domain::MerchantAccount, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
         let merchant_id = merchant_account.merchant_id.clone();
         merchant_account
@@ -79,7 +79,7 @@ impl MerchantAccountInterface for Store {
     async fn find_merchant_account_by_merchant_id(
         &self,
         merchant_id: &str,
-    ) -> CustomResult<merchant_account::MerchantAccount, errors::StorageError> {
+    ) -> CustomResult<domain::MerchantAccount, errors::StorageError> {
         let fetch_func = || async {
             let conn = connection::pg_connection_read(self).await?;
             storage::MerchantAccount::find_by_merchant_id(&conn, merchant_id)
@@ -109,9 +109,9 @@ impl MerchantAccountInterface for Store {
 
     async fn update_merchant(
         &self,
-        this: merchant_account::MerchantAccount,
+        this: domain::MerchantAccount,
         merchant_account: storage::MerchantAccountUpdate,
-    ) -> CustomResult<merchant_account::MerchantAccount, errors::StorageError> {
+    ) -> CustomResult<domain::MerchantAccount, errors::StorageError> {
         let _merchant_id = this.merchant_id.clone();
         let update_func = || async {
             let conn = connection::pg_connection_write(self).await?;
@@ -145,7 +145,7 @@ impl MerchantAccountInterface for Store {
         &self,
         merchant_id: &str,
         merchant_account: storage::MerchantAccountUpdate,
-    ) -> CustomResult<merchant_account::MerchantAccount, errors::StorageError> {
+    ) -> CustomResult<domain::MerchantAccount, errors::StorageError> {
         let update_func = || async {
             let conn = connection::pg_connection_write(self).await?;
             storage::MerchantAccount::update_with_specific_fields(
@@ -178,7 +178,7 @@ impl MerchantAccountInterface for Store {
     async fn find_merchant_account_by_publishable_key(
         &self,
         publishable_key: &str,
-    ) -> CustomResult<merchant_account::MerchantAccount, errors::StorageError> {
+    ) -> CustomResult<domain::MerchantAccount, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
         storage::MerchantAccount::find_by_publishable_key(&conn, publishable_key)
             .await
@@ -222,8 +222,8 @@ impl MerchantAccountInterface for MockDb {
     #[allow(clippy::panic)]
     async fn insert_merchant(
         &self,
-        merchant_account: merchant_account::MerchantAccount,
-    ) -> CustomResult<merchant_account::MerchantAccount, errors::StorageError> {
+        merchant_account: domain::MerchantAccount,
+    ) -> CustomResult<domain::MerchantAccount, errors::StorageError> {
         let mut accounts = self.merchant_accounts.lock().await;
         let account = Conversion::convert(merchant_account)
             .await
@@ -241,9 +241,9 @@ impl MerchantAccountInterface for MockDb {
     async fn find_merchant_account_by_merchant_id(
         &self,
         merchant_id: &str,
-    ) -> CustomResult<merchant_account::MerchantAccount, errors::StorageError> {
+    ) -> CustomResult<domain::MerchantAccount, errors::StorageError> {
         let accounts = self.merchant_accounts.lock().await;
-        let account: Option<merchant_account::MerchantAccount> = accounts
+        let account: Option<domain::MerchantAccount> = accounts
             .iter()
             .find(|account| account.merchant_id == merchant_id)
             .cloned()
@@ -264,9 +264,9 @@ impl MerchantAccountInterface for MockDb {
 
     async fn update_merchant(
         &self,
-        _this: merchant_account::MerchantAccount,
+        _this: domain::MerchantAccount,
         _merchant_account: storage::MerchantAccountUpdate,
-    ) -> CustomResult<merchant_account::MerchantAccount, errors::StorageError> {
+    ) -> CustomResult<domain::MerchantAccount, errors::StorageError> {
         // [#172]: Implement function for `MockDb`
         Err(errors::StorageError::MockDbError)?
     }
@@ -275,7 +275,7 @@ impl MerchantAccountInterface for MockDb {
         &self,
         _merchant_id: &str,
         _merchant_account: storage::MerchantAccountUpdate,
-    ) -> CustomResult<merchant_account::MerchantAccount, errors::StorageError> {
+    ) -> CustomResult<domain::MerchantAccount, errors::StorageError> {
         // [#TODO]: Implement function for `MockDb`
         Err(errors::StorageError::MockDbError)?
     }
@@ -283,7 +283,7 @@ impl MerchantAccountInterface for MockDb {
     async fn find_merchant_account_by_publishable_key(
         &self,
         _publishable_key: &str,
-    ) -> CustomResult<merchant_account::MerchantAccount, errors::StorageError> {
+    ) -> CustomResult<domain::MerchantAccount, errors::StorageError> {
         // [#172]: Implement function for `MockDb`
         Err(errors::StorageError::MockDbError)?
     }

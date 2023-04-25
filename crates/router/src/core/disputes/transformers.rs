@@ -3,12 +3,15 @@ use common_utils::errors::CustomResult;
 use crate::{
     core::{errors, files::helpers::retrieve_file_and_provider_file_id_from_file_id},
     routes::AppState,
-    types::{domain::merchant_account, SubmitEvidenceRequestData},
+    types::{
+        domain::{self},
+        SubmitEvidenceRequestData,
+    },
 };
 
 pub async fn get_evidence_request_data(
     state: &AppState,
-    merchant_account: &merchant_account::MerchantAccount,
+    merchant_account: &domain::MerchantAccount,
     evidence_request: api_models::disputes::SubmitEvidenceRequest,
     dispute: &storage_models::dispute::Dispute,
 ) -> CustomResult<SubmitEvidenceRequestData, errors::ApiErrorResponse> {

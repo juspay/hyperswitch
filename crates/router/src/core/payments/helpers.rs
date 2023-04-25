@@ -31,7 +31,7 @@ use crate::{
     types::{
         api::{self, admin, enums as api_enums, CustomerAcceptanceExt, MandateValidationFieldsExt},
         domain::{
-            self, customer, merchant_account,
+            self,
             types::{self, AsyncLift},
         },
         storage::{self, enums as storage_enums, ephemeral_key},
@@ -51,7 +51,7 @@ pub async fn get_address_for_payment_request(
     address_id: Option<&str>,
     merchant_id: &str,
     customer_id: &Option<String>,
-) -> CustomResult<Option<domain::address::Address>, errors::ApiErrorResponse> {
+) -> CustomResult<Option<domain::Address>, errors::ApiErrorResponse> {
     let key = types::get_merchant_enc_key(db, merchant_id.to_string())
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -149,7 +149,7 @@ pub async fn get_address_for_payment_request(
                     Some(
                         db.insert_address(
                             async {
-                                Ok(domain::address::Address {
+                                Ok(domain::Address {
                                     phone_number: address
                                         .phone
                                         .as_ref()
@@ -205,7 +205,7 @@ pub async fn get_address_for_payment_request(
 pub async fn get_address_by_id(
     db: &dyn StorageInterface,
     address_id: Option<String>,
-) -> CustomResult<Option<domain::address::Address>, errors::ApiErrorResponse> {
+) -> CustomResult<Option<domain::Address>, errors::ApiErrorResponse> {
     match address_id {
         None => Ok(None),
         Some(address_id) => Ok(db.find_address(&address_id).await.ok()),
@@ -216,7 +216,7 @@ pub async fn get_token_pm_type_mandate_details(
     state: &AppState,
     request: &api::PaymentsRequest,
     mandate_type: Option<api::MandateTxnType>,
-    merchant_account: &merchant_account::MerchantAccount,
+    merchant_account: &domain::MerchantAccount,
 ) -> RouterResult<(
     Option<String>,
     Option<storage_enums::PaymentMethod>,
@@ -250,7 +250,7 @@ pub async fn get_token_pm_type_mandate_details(
 pub async fn get_token_for_recurring_mandate(
     state: &AppState,
     req: &api::PaymentsRequest,
-    merchant_account: &merchant_account::MerchantAccount,
+    merchant_account: &domain::MerchantAccount,
 ) -> RouterResult<(Option<String>, Option<storage_enums::PaymentMethod>)> {
     let db = &*state.store;
     let mandate_id = req.mandate_id.clone().get_required_value("mandate_id")?;
@@ -648,7 +648,7 @@ where
 pub(crate) async fn get_payment_method_create_request(
     payment_method: Option<&api::PaymentMethodData>,
     payment_method_type: Option<storage_enums::PaymentMethod>,
-    customer: &customer::Customer,
+    customer: &domain::Customer,
 ) -> RouterResult<api::PaymentMethodCreate> {
     match payment_method {
         Some(pm_data) => match payment_method_type {
@@ -707,7 +707,7 @@ pub async fn get_customer_from_details<F: Clone>(
     customer_id: Option<String>,
     merchant_id: &str,
     payment_data: &mut PaymentData<F>,
-) -> CustomResult<Option<customer::Customer>, errors::StorageError> {
+) -> CustomResult<Option<domain::Customer>, errors::StorageError> {
     match customer_id {
         None => Ok(None),
         Some(c_id) => {
@@ -744,7 +744,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R>(
     payment_data: &mut PaymentData<F>,
     req: Option<CustomerDetails>,
     merchant_id: &str,
-) -> CustomResult<(BoxedOperation<'a, F, R>, Option<customer::Customer>), errors::StorageError> {
+) -> CustomResult<(BoxedOperation<'a, F, R>, Option<domain::Customer>), errors::StorageError> {
     let req = req
         .get_required_value("customer")
         .change_context(errors::StorageError::ValueNotFound("customer".to_owned()))?;
@@ -773,7 +773,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R>(
                     };
 
                     let new_customer = async {
-                        Ok(customer::Customer {
+                        Ok(domain::Customer {
                             customer_id: customer_id.to_string(),
                             merchant_id: merchant_id.to_string(),
                             name: req.name.async_lift(encrypt).await?,
@@ -1087,7 +1087,7 @@ pub(super) fn validate_payment_list_request(
 
 pub fn get_handle_response_url(
     payment_id: String,
-    merchant_account: &merchant_account::MerchantAccount,
+    merchant_account: &domain::MerchantAccount,
     response: api::PaymentsResponse,
     connector: String,
 ) -> RouterResult<api::RedirectionResponse> {
@@ -1106,7 +1106,7 @@ pub fn get_handle_response_url(
 }
 
 pub fn make_merchant_url_with_response(
-    merchant_account: &merchant_account::MerchantAccount,
+    merchant_account: &domain::MerchantAccount,
     redirection_response: api::PgRedirectResponse,
     request_return_url: Option<&String>,
 ) -> RouterResult<String> {
@@ -1198,7 +1198,7 @@ pub fn make_pg_redirect_response(
 
 pub fn make_url_with_signature(
     redirect_url: &str,
-    merchant_account: &merchant_account::MerchantAccount,
+    merchant_account: &domain::MerchantAccount,
 ) -> RouterResult<api::RedirectionResponse> {
     let mut url = url::Url::parse(redirect_url)
         .into_report()
@@ -1276,7 +1276,7 @@ pub fn generate_mandate(
     merchant_id: String,
     connector: String,
     setup_mandate_details: Option<api::MandateData>,
-    customer: &Option<customer::Customer>,
+    customer: &Option<domain::Customer>,
     payment_method_id: String,
     connector_mandate_id: Option<String>,
 ) -> Option<storage::MandateNew> {
@@ -1446,7 +1446,7 @@ pub fn get_connector_label(
 pub fn get_business_details(
     business_country: Option<api_enums::CountryCode>,
     business_label: Option<&String>,
-    merchant_account: &domain::merchant_account::MerchantAccount,
+    merchant_account: &domain::MerchantAccount,
 ) -> RouterResult<(api_enums::CountryCode, String)> {
     let (business_country, business_label) = match business_country.zip(business_label) {
         Some((business_country, business_label)) => {
@@ -1537,7 +1537,7 @@ pub async fn insert_merchant_connector_creds_to_config(
 }
 
 pub enum MerchantConnectorAccountType {
-    DbVal(domain::merchant_connector_account::MerchantConnectorAccount),
+    DbVal(domain::MerchantConnectorAccount),
     CacheVal(api_models::admin::MerchantConnectorDetails),
 }
 

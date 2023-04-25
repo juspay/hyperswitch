@@ -11,8 +11,7 @@ use crate::{
     newtype,
     routes::AppState,
     types::{
-        api,
-        domain::merchant_account,
+        api, domain,
         storage::{self, enums as storage_enums},
         transformers::ForeignInto,
     },
@@ -28,7 +27,7 @@ pub(crate) trait MandateResponseExt: Sized {
     async fn from_db_mandate(
         state: &AppState,
         mandate: storage::Mandate,
-        merchant_account: &merchant_account::MerchantAccount,
+        merchant_account: &domain::MerchantAccount,
     ) -> RouterResult<Self>;
 }
 
@@ -37,7 +36,7 @@ impl MandateResponseExt for MandateResponse {
     async fn from_db_mandate(
         state: &AppState,
         mandate: storage::Mandate,
-        merchant_account: &merchant_account::MerchantAccount,
+        merchant_account: &domain::MerchantAccount,
     ) -> RouterResult<Self> {
         let db = &*state.store;
         let payment_method = db

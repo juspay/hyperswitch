@@ -296,8 +296,8 @@ impl<'a> ForeignFrom<&'a api_types::ConfigUpdate> for storage::ConfigUpdate {
     }
 }
 
-impl<'a> From<&'a domain::address::Address> for api_types::Address {
-    fn from(address: &domain::address::Address) -> Self {
+impl<'a> From<&'a domain::Address> for api_types::Address {
+    fn from(address: &domain::Address) -> Self {
         let address = address;
         Self {
             address: Some(api_types::AddressDetails {
@@ -319,12 +319,12 @@ impl<'a> From<&'a domain::address::Address> for api_types::Address {
     }
 }
 
-// impl TryFrom<domain::merchant_connector_account::MerchantConnectorAccount>
+// impl TryFrom<domain::MerchantConnectorAccount>
 //     for api_models::admin::MerchantConnector
 // {
 //     type Error = error_stack::Report<errors::ApiErrorResponse>;
 //     fn try_from(
-//         item: domain::merchant_connector_account::MerchantConnectorAccount,
+//         item: domain::MerchantConnectorAccount,
 //     ) -> Result<Self, Self::Error> {
 //         let merchant_ca = item;
 
@@ -521,13 +521,9 @@ impl ForeignFrom<storage_models::cards_info::CardInfo>
     }
 }
 
-impl TryFrom<domain::merchant_connector_account::MerchantConnectorAccount>
-    for api_models::admin::MerchantConnectorResponse
-{
+impl TryFrom<domain::MerchantConnectorAccount> for api_models::admin::MerchantConnectorResponse {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
-    fn try_from(
-        item: domain::merchant_connector_account::MerchantConnectorAccount,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(item: domain::MerchantConnectorAccount) -> Result<Self, Self::Error> {
         let payment_methods_enabled = match item.payment_methods_enabled {
             Some(val) => serde_json::Value::Array(val)
                 .parse_value("PaymentMethods")

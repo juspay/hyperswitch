@@ -8,10 +8,7 @@ use crate::{
     },
     routes::AppState,
     services,
-    types::{
-        self, api,
-        domain::{customer, merchant_account},
-    },
+    types::{self, api, domain},
 };
 
 #[async_trait]
@@ -22,7 +19,7 @@ impl ConstructFlowSpecificData<api::PSync, types::PaymentsSyncData, types::Payme
         &self,
         state: &AppState,
         connector_id: &str,
-        merchant_account: &merchant_account::MerchantAccount,
+        merchant_account: &domain::MerchantAccount,
     ) -> RouterResult<
         types::RouterData<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>,
     > {
@@ -44,9 +41,9 @@ impl Feature<api::PSync, types::PaymentsSyncData>
         self,
         state: &AppState,
         connector: &api::ConnectorData,
-        customer: &Option<customer::Customer>,
+        customer: &Option<domain::Customer>,
         call_connector_action: payments::CallConnectorAction,
-        _merchant_account: &merchant_account::MerchantAccount,
+        _merchant_account: &domain::MerchantAccount,
     ) -> RouterResult<Self> {
         self.decide_flow(
             state,
@@ -62,7 +59,7 @@ impl Feature<api::PSync, types::PaymentsSyncData>
         &self,
         state: &AppState,
         connector: &api::ConnectorData,
-        merchant_account: &merchant_account::MerchantAccount,
+        merchant_account: &domain::MerchantAccount,
     ) -> RouterResult<types::AddAccessTokenResult> {
         access_token::add_access_token(state, connector, merchant_account, self).await
     }
@@ -73,7 +70,7 @@ impl types::PaymentsSyncRouterData {
         &'b self,
         state: &'a AppState,
         connector: &api::ConnectorData,
-        _maybe_customer: &Option<customer::Customer>,
+        _maybe_customer: &Option<domain::Customer>,
         _confirm: Option<bool>,
         call_connector_action: payments::CallConnectorAction,
     ) -> RouterResult<Self> {

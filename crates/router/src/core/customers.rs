@@ -19,7 +19,7 @@ use crate::{
     types::{
         api::customers::{self, CustomerRequestExt},
         domain::{
-            self, customer, merchant_account,
+            self,
             types::{self, AsyncLift, TypeEncryption},
         },
         storage::{self, enums},
@@ -32,7 +32,7 @@ pub const REDACTED: &str = "Redacted";
 #[instrument(skip(db))]
 pub async fn create_customer(
     db: &dyn StorageInterface,
-    merchant_account: merchant_account::MerchantAccount,
+    merchant_account: domain::MerchantAccount,
     customer_data: customers::CustomerRequest,
 ) -> RouterResponse<customers::CustomerResponse> {
     let mut customer_data = customer_data.validate()?;
@@ -67,7 +67,7 @@ pub async fn create_customer(
             .change_context(errors::ApiErrorResponse::AddressNotFound)?;
 
         let address = async {
-            Ok(domain::address::Address {
+            Ok(domain::Address {
                 city: customer_address.city,
                 country: customer_address.country,
                 line1: customer_address.line1.async_lift(encrypt).await?,
@@ -98,7 +98,7 @@ pub async fn create_customer(
     }
 
     let new_customer = async {
-        Ok(customer::Customer {
+        Ok(domain::Customer {
             customer_id: customer_id.to_string(),
             merchant_id: merchant_id.to_string(),
             name: customer_data.name.async_lift(encrypt).await?,
@@ -142,7 +142,7 @@ pub async fn create_customer(
 #[instrument(skip(db))]
 pub async fn retrieve_customer(
     db: &dyn StorageInterface,
-    merchant_account: merchant_account::MerchantAccount,
+    merchant_account: domain::MerchantAccount,
     req: customers::CustomerId,
 ) -> RouterResponse<customers::CustomerResponse> {
     let response = db
@@ -156,7 +156,7 @@ pub async fn retrieve_customer(
 #[instrument(skip_all)]
 pub async fn delete_customer(
     state: &AppState,
-    merchant_account: merchant_account::MerchantAccount,
+    merchant_account: domain::MerchantAccount,
     req: customers::CustomerId,
 ) -> RouterResponse<customers::CustomerDeleteResponse> {
     let db = &state.store;
@@ -285,7 +285,7 @@ pub async fn delete_customer(
 #[instrument(skip(db))]
 pub async fn update_customer(
     db: &dyn StorageInterface,
-    merchant_account: merchant_account::MerchantAccount,
+    merchant_account: domain::MerchantAccount,
     update_customer: customers::CustomerRequest,
 ) -> RouterResponse<customers::CustomerResponse> {
     let update_customer = update_customer.validate()?;

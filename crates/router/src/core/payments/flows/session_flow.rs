@@ -13,10 +13,7 @@ use crate::{
     headers,
     routes::{self, metrics},
     services,
-    types::{
-        self, api,
-        domain::{customer, merchant_account},
-    },
+    types::{self, api, domain},
     utils::{self, OptionExt},
 };
 
@@ -29,7 +26,7 @@ impl
         &self,
         state: &routes::AppState,
         connector_id: &str,
-        merchant_account: &merchant_account::MerchantAccount,
+        merchant_account: &domain::MerchantAccount,
     ) -> RouterResult<types::PaymentsSessionRouterData> {
         transformers::construct_payment_router_data::<api::Session, types::PaymentsSessionData>(
             state,
@@ -47,9 +44,9 @@ impl Feature<api::Session, types::PaymentsSessionData> for types::PaymentsSessio
         self,
         state: &routes::AppState,
         connector: &api::ConnectorData,
-        customer: &Option<customer::Customer>,
+        customer: &Option<domain::Customer>,
         call_connector_action: payments::CallConnectorAction,
-        _merchant_account: &merchant_account::MerchantAccount,
+        _merchant_account: &domain::MerchantAccount,
     ) -> RouterResult<Self> {
         metrics::SESSION_TOKEN_CREATED.add(
             &metrics::CONTEXT,
@@ -73,7 +70,7 @@ impl Feature<api::Session, types::PaymentsSessionData> for types::PaymentsSessio
         &self,
         state: &routes::AppState,
         connector: &api::ConnectorData,
-        merchant_account: &merchant_account::MerchantAccount,
+        merchant_account: &domain::MerchantAccount,
     ) -> RouterResult<types::AddAccessTokenResult> {
         access_token::add_access_token(state, connector, merchant_account, self).await
     }
@@ -277,7 +274,7 @@ impl types::PaymentsSessionRouterData {
         &'b self,
         state: &'a routes::AppState,
         connector: &api::ConnectorData,
-        _customer: &Option<customer::Customer>,
+        _customer: &Option<domain::Customer>,
         _confirm: Option<bool>,
         call_connector_action: payments::CallConnectorAction,
     ) -> RouterResult<Self> {
