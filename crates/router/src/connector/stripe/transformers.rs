@@ -838,6 +838,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
             },
             None => StripeShippingAddress::default(),
         };
+        let mut payment_method_options = None;
 
         let (mut payment_data, payment_method, billing_address) = {
             match item
@@ -848,6 +849,18 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
             {
                 Some(api_models::payments::MandateReferenceId::ConnectorMandateId(mandate_id)) => {
                     (None, Some(mandate_id), StripeBillingAddress::default())
+                }
+                Some(api_models::payments::MandateReferenceId::NetworkMandateId(
+                    network_transaction_id,
+                )) => {
+                    payment_method_options = Some(StripePaymentMethodOptions::Card {
+                        mandate_options: None,
+                        network_transaction_id: None,
+                        mit_exemption: Some(MitExemption {
+                            network_transaction_id,
+                        }),
+                    });
+                    (None, None, StripeBillingAddress::default())
                 }
                 _ => {
                     let (payment_method_data, payment_method_type, billing_address) =
@@ -919,7 +932,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
             capture_method: StripeCaptureMethod::from(item.request.capture_method),
             payment_data,
             mandate: None,
-            payment_method_options: None,
+            payment_method_options,
             payment_method,
             customer: item.connector_customer.to_owned(),
             setup_mandate_details,
