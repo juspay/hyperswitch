@@ -157,6 +157,7 @@ pub trait PaymentsAuthorizeRequestData {
     fn connector_mandate_id(&self) -> Option<String>;
     fn is_mandate_payment(&self) -> bool;
     fn get_webhook_url(&self) -> Result<String, Error>;
+    fn get_router_return_url(&self) -> Result<String, Error>;
 }
 
 impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
@@ -207,6 +208,11 @@ impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
     }
     fn get_webhook_url(&self) -> Result<String, Error> {
         self.webhook_url
+            .clone()
+            .ok_or_else(missing_field_err("webhook_url"))
+    }
+    fn get_router_return_url(&self) -> Result<String, Error> {
+        self.router_return_url
             .clone()
             .ok_or_else(missing_field_err("webhook_url"))
     }
