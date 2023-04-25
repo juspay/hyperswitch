@@ -45,6 +45,7 @@ impl
     > for Forte
 {
 }
+pub const AUTH_ORG_ID_HEADER: &str = "X-Forte-Auth-Organization-Id";
 
 impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Forte
 where
@@ -84,7 +85,6 @@ impl ConnectorCommon for Forte {
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         let raw_basic_token = format!("{}:{}", auth.api_access_id, auth.api_secret_key);
         let basic_token = format!("Basic {}", consts::BASE64_ENGINE.encode(raw_basic_token));
-        pub const AUTH_ORG_ID_HEADER: &str = "X-Forte-Auth-Organization-Id";
         Ok(vec![
             (headers::AUTHORIZATION.to_string(), basic_token),
             (AUTH_ORG_ID_HEADER.to_string(), auth.organization_id),
