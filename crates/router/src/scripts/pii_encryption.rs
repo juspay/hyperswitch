@@ -75,10 +75,16 @@ pub async fn encrypt_merchant_account_fields(
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
+    for mer in merchants.iter() {
+        let key = services::generate_aes256_key()
+            .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
+        crate_merchant_key_store(state, &mer.merchant_id, key.to_vec()).await?;
+    }
     let mut domain_merchants = Vec::with_capacity(merchants.len());
-    for m in merchants.into_iter() {
-        let merchant_id = m.merchant_id.clone();
-        let domain_merchant: merchant_account::MerchantAccount = m
+    for mf in merchants.into_iter() {
+        let merchant_id = mf.merchant_id.clone();
+        let domain_merchant: merchant_account::MerchantAccount = mf
             .convert(state, &merchant_id)
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)?;
@@ -86,31 +92,14 @@ pub async fn encrypt_merchant_account_fields(
     }
     for m in domain_merchants {
         let merchant_id = m.merchant_id.clone();
-        let key = services::generate_aes256_key()
-            .change_context(errors::ApiErrorResponse::InternalServerError)?;
-
-        crate_merchant_key_store(state, &merchant_id, key.to_vec()).await?;
-
         let updated_merchant_account = storage::MerchantAccountUpdate::Update {
-            merchant_name: m
-                .merchant_name
-                .clone()
-                .async_map(|name| types::encrypt(name.into_inner(), &key))
-                .await
-                .transpose()
-                .change_context(errors::ApiErrorResponse::InternalServerError)?,
-            merchant_details: m
-                .merchant_details
-                .clone()
-                .async_map(|details| types::encrypt(details.into_inner(), &key))
-                .await
-                .transpose()
-                .change_context(errors::ApiErrorResponse::InternalServerError)?,
+            merchant_name: m.merchant_name.clone(),
+            merchant_details: m.merchant_details.clone(),
             return_url: None,
             webhook_details: None,
             sub_merchants_enabled: None,
             parent_merchant_id: None,
-            api_key: None,
+            api_key: m.api_key.clone(),
             primary_business_details: None,
             enable_payment_response_hash: None,
             payment_response_hash_key: None,
@@ -124,9 +113,10 @@ pub async fn encrypt_merchant_account_fields(
             .update_merchant(m, updated_merchant_account)
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)?;
-        encrypt_merchant_connector_account_fields(state, &key, &merchant_id).await?;
-        encrypt_customer_fields(state, &key, &merchant_id).await?;
-        encrypt_address_fields(state, &key, &merchant_id).await?;
+        encrypt_merchant_connector_account_fields(state, &merchant_id).await?;
+        encrypt_customer_fields(state, &merchant_id).await?;
+        encrypt_address_fields(state, &merchant_id).await?;
+        crate::logger::error!("Done for {}", merchant_id);
     }
 
     Ok(())
@@ -134,7 +124,6 @@ pub async fn encrypt_merchant_account_fields(
 
 pub async fn encrypt_merchant_connector_account_fields(
     state: &Store,
-    key: &[u8],
     merchant_id: &str,
 ) -> CustomResult<(), errors::ApiErrorResponse> {
     let conn = connection::pg_connection_write(state)
@@ -177,11 +166,7 @@ pub async fn encrypt_merchant_connector_account_fields(
             merchant_connector_id: None,
             payment_methods_enabled: None,
             metadata: None,
-            connector_account_details: Some(
-                types::encrypt(m.connector_account_details.clone().into_inner(), key)
-                    .await
-                    .change_context(errors::ApiErrorResponse::InternalServerError)?,
-            ),
+            connector_account_details: Some(m.connector_account_details.clone()),
         };
         state
             .update_merchant_connector_account(m, updated_merchant_connector_account.into())
@@ -193,7 +178,6 @@ pub async fn encrypt_merchant_connector_account_fields(
 
 pub async fn encrypt_customer_fields(
     state: &Store,
-    key: &[u8],
     merchant_id: &str,
 ) -> CustomResult<(), errors::ApiErrorResponse> {
     let conn = connection::pg_connection_write(state)
@@ -227,35 +211,17 @@ pub async fn encrypt_customer_fields(
 
     for m in domain_merchants {
         let update_customer = storage::CustomerUpdate::Update {
-            name: m
-                .name
-                .clone()
-                .async_map(|name| types::encrypt(name.into_inner(), key))
-                .await
-                .transpose()
-                .change_context(errors::ApiErrorResponse::InternalServerError)?,
-            email: m
-                .email
-                .clone()
-                .async_map(|name| types::encrypt(name.into_inner(), key))
-                .await
-                .transpose()
-                .change_context(errors::ApiErrorResponse::InternalServerError)?,
-            phone: m
-                .phone
-                .clone()
-                .async_map(|name| types::encrypt(name.into_inner(), key))
-                .await
-                .transpose()
-                .change_context(errors::ApiErrorResponse::InternalServerError)?,
+            name: m.name.clone(),
+            email: m.email.clone(),
+            phone: m.phone.clone(),
             description: None,
             metadata: None,
             phone_country_code: None,
         };
         state
             .update_customer_by_customer_id_merchant_id(
-                m.merchant_id.to_string(),
                 m.customer_id.to_string(),
+                m.merchant_id.to_string(),
                 update_customer,
             )
             .await
@@ -266,7 +232,6 @@ pub async fn encrypt_customer_fields(
 
 pub async fn encrypt_address_fields(
     state: &Store,
-    key: &[u8],
     merchant_id: &str,
 ) -> CustomResult<(), errors::ApiErrorResponse> {
     let conn = connection::pg_connection_write(state)
@@ -300,68 +265,14 @@ pub async fn encrypt_address_fields(
 
     for m in domain_merchants {
         let update_address = storage::address::AddressUpdate::Update {
-            line1: m
-                .line1
-                .clone()
-                .async_map(|name| types::encrypt(name.into_inner(), key))
-                .await
-                .transpose()
-                .change_context(errors::ApiErrorResponse::InternalServerError)?,
-            line2: m
-                .line2
-                .clone()
-                .async_map(|name| types::encrypt(name.into_inner(), key))
-                .await
-                .transpose()
-                .change_context(errors::ApiErrorResponse::InternalServerError)?,
-
-            line3: m
-                .line3
-                .clone()
-                .async_map(|name| types::encrypt(name.into_inner(), key))
-                .await
-                .transpose()
-                .change_context(errors::ApiErrorResponse::InternalServerError)?,
-
-            state: m
-                .state
-                .clone()
-                .async_map(|name| types::encrypt(name.into_inner(), key))
-                .await
-                .transpose()
-                .change_context(errors::ApiErrorResponse::InternalServerError)?,
-
-            zip: m
-                .zip
-                .clone()
-                .async_map(|name| types::encrypt(name.into_inner(), key))
-                .await
-                .transpose()
-                .change_context(errors::ApiErrorResponse::InternalServerError)?,
-
-            first_name: m
-                .first_name
-                .clone()
-                .async_map(|name| types::encrypt(name.into_inner(), key))
-                .await
-                .transpose()
-                .change_context(errors::ApiErrorResponse::InternalServerError)?,
-
-            last_name: m
-                .last_name
-                .clone()
-                .async_map(|name| types::encrypt(name.into_inner(), key))
-                .await
-                .transpose()
-                .change_context(errors::ApiErrorResponse::InternalServerError)?,
-
-            phone_number: m
-                .phone_number
-                .clone()
-                .async_map(|name| types::encrypt(name.into_inner(), key))
-                .await
-                .transpose()
-                .change_context(errors::ApiErrorResponse::InternalServerError)?,
+            line1: m.line1.clone(),
+            line2: m.line2.clone(),
+            line3: m.line3.clone(),
+            state: m.state.clone(),
+            zip: m.zip.clone(),
+            first_name: m.first_name.clone(),
+            last_name: m.last_name.clone(),
+            phone_number: m.phone_number.clone(),
             city: None,
             country: None,
             country_code: None,

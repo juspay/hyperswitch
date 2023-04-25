@@ -99,6 +99,7 @@ impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
                 locker_id,
                 metadata,
                 primary_business_details,
+                modified_at: Some(common_utils::date_time::now()),
                 ..Default::default()
             },
             MerchantAccountUpdate::StorageSchemeUpdate { storage_scheme } => Self {
@@ -180,9 +181,8 @@ impl super::behaviour::Conversion for MerchantAccount {
                 routing_algorithm: item.routing_algorithm,
                 api_key: item
                     .api_key
-                    .async_map(|value| Encryptable::decrypt(value, &key, GcmAes256 {}, modified_at))
-                    .await
-                    .transpose()?,
+                    .async_lift(|value| types::decrypt(value, &key, modified_at))
+                    .await?,
                 primary_business_details: item.primary_business_details,
                 created_at: item.created_at,
                 modified_at: item.modified_at,

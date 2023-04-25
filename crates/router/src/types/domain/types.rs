@@ -11,7 +11,7 @@ use storage_models::encryption::Encryption;
 
 use crate::routes::metrics::{request, DECRYPTION_TIME, ENCRYPTION_TIME};
 
-const TIMESTAMP: i64 = 1414141;
+pub const TIMESTAMP: i64 = 1682425530;
 
 #[async_trait]
 pub trait TypeEncryption<
@@ -58,10 +58,21 @@ impl<
         timestamp: i64,
     ) -> CustomResult<Self, errors::CryptoError> {
         let encrypted = encrypted_data.into_inner();
-        let decrypted_data = crypt_algo.decode_message(key, encrypted.clone())?;
-        let data = (timestamp < TIMESTAMP)
-            .then_some(decrypted_data)
-            .unwrap_or(encrypted.clone());
+
+        crate::logger::error!("const TIMESTAMP {}, modified_at {}", TIMESTAMP, timestamp);
+        let (data, encrypted) = if timestamp < TIMESTAMP {
+            (
+                encrypted.clone(),
+                crypt_algo.encode_message(key, &encrypted)?,
+            )
+        } else {
+            (
+                crypt_algo.decode_message(key, encrypted.clone())?,
+                encrypted,
+            )
+        };
+
+        crate::logger::error!("data - {:?}, encrypted - {:?}", data, encrypted,);
 
         let value: String = std::str::from_utf8(&data)
             .into_report()
@@ -101,10 +112,20 @@ impl<
         timestamp: i64,
     ) -> CustomResult<Self, errors::CryptoError> {
         let encrypted = encrypted_data.into_inner();
-        let decrypted_data = crypt_algo.decode_message(key, encrypted.clone())?;
-        let data = (timestamp < TIMESTAMP)
-            .then_some(decrypted_data)
-            .unwrap_or(encrypted.clone());
+        crate::logger::error!("const TIMESTAMP {}, modified_at {}", TIMESTAMP, timestamp);
+        let (data, encrypted) = if timestamp < TIMESTAMP {
+            (
+                encrypted.clone(),
+                crypt_algo.encode_message(key, &encrypted)?,
+            )
+        } else {
+            (
+                crypt_algo.decode_message(key, encrypted.clone())?,
+                encrypted,
+            )
+        };
+
+        crate::logger::error!("data - {:?}, encrypted - {:?}", data, encrypted);
 
         let value: serde_json::Value = serde_json::from_slice(&data)
             .into_report()
@@ -139,11 +160,18 @@ impl<
         timestamp: i64,
     ) -> CustomResult<Self, errors::CryptoError> {
         let encrypted = encrypted_data.into_inner();
-        let decrypted_data = crypt_algo.decode_message(key, encrypted.clone())?;
-        let data = (timestamp < TIMESTAMP)
-            .then_some(decrypted_data)
-            .unwrap_or(encrypted.clone());
 
+        let (data, encrypted) = if timestamp < TIMESTAMP {
+            (
+                encrypted.clone(),
+                crypt_algo.encode_message(key, &encrypted)?,
+            )
+        } else {
+            (
+                crypt_algo.decode_message(key, encrypted.clone())?,
+                encrypted,
+            )
+        };
         Ok(Self::new(data.into(), encrypted))
     }
 }

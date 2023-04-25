@@ -46,6 +46,8 @@ async fn main() -> ApplicationResult<()> {
             .await
             .expect("Failed while encrypting merchant account");
 
+        crate::logger::error!("Done with everything");
+
         store.close().await;
     }
 
