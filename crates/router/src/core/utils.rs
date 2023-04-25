@@ -452,15 +452,7 @@ pub async fn construct_defend_dispute_router_data<'a>(
             dispute_id: dispute.dispute_id.clone(),
             connector_dispute_id: dispute.connector_dispute_id.clone(),
         },
-        response: Err(ErrorResponse {
-            code: errors::ApiErrorResponse::NotImplemented {
-                message: errors::api_error_response::NotImplementedMessage::Default,
-            }
-            .error_code(),
-            message: "NotImplemented".to_owned(),
-            reason: None,
-            status_code: http::StatusCode::INTERNAL_SERVER_ERROR.as_u16(),
-        }),
+        response: Err(ErrorResponse::get_not_implemented()),
         access_token: None,
         session_token: None,
         reference_id: None,

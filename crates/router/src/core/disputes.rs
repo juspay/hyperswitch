@@ -274,8 +274,8 @@ pub async fn submit_evidence(
             valid_defend_response.dispute_status,
             valid_defend_response.connector_status,
         )),
-        Err(err) => match err.message.as_ref() {
-            "NotImplemented" => Ok((
+        Err(err) => match err.code.as_ref() {
+            "IR_00" => Ok((
                 submit_evidence_response.dispute_status,
                 submit_evidence_response.connector_status,
             )),

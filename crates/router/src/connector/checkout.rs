@@ -963,11 +963,9 @@ impl
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!(
-            "{}{}{}{}",
+            "{}disputes/{}/evidence",
             self.base_url(connectors),
-            "disputes/",
             req.request.connector_dispute_id,
-            "/evidence"
         ))
     }
 
@@ -1071,11 +1069,9 @@ impl
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!(
-            "{}{}{}{}",
+            "{}disputes/{}/evidence",
             self.base_url(connectors),
-            "disputes/",
             req.request.connector_dispute_id,
-            "/evidence"
         ))
     }
 
