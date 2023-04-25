@@ -288,6 +288,19 @@ where
                         connector_name,
                     )
                 });
+                let parsed_metadata: Option<api_models::payments::Metadata> = payment_intent
+                    .metadata
+                    .clone()
+                    .map(|metadata_value| {
+                        metadata_value
+                            .parse_value("metadata")
+                            .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                                field_name: "metadata",
+                            })
+                            .attach_printable("unable to parse metadata")
+                    })
+                    .transpose()
+                    .unwrap_or_default();
                 services::ApplicationResponse::Json(
                     response
                         .set_payment_id(Some(payment_attempt.payment_id))
@@ -369,6 +382,10 @@ where
                         .set_business_country(payment_intent.business_country)
                         .set_business_label(payment_intent.business_label)
                         .set_business_sub_label(payment_attempt.business_sub_label)
+                        .set_allowed_payment_method_types(
+                            parsed_metadata
+                                .and_then(|metadata| metadata.allowed_payment_method_types),
+                        )
                         .to_owned(),
                 )
             }
@@ -551,7 +568,12 @@ impl api::ConnectorTransactionId for Paypal {
         &self,
         payment_attempt: storage::PaymentAttempt,
     ) -> Result<Option<String>, errors::ApiErrorResponse> {
-        let metadata = Self::connector_transaction_id(self, &payment_attempt.connector_metadata);
+        let payment_method = payment_attempt.payment_method;
+        let metadata = Self::connector_transaction_id(
+            self,
+            payment_method,
+            &payment_attempt.connector_metadata,
+        );
         match metadata {
             Ok(data) => Ok(data),
             _ => Err(errors::ApiErrorResponse::ResourceIdNotFound),
@@ -560,7 +582,7 @@ impl api::ConnectorTransactionId for Paypal {
 }
 
 impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCaptureData {
-    type Error = errors::ApiErrorResponse;
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
 
     fn try_from(additional_data: PaymentAdditionalData<'_, F>) -> Result<Self, Self::Error> {
         let payment_data = additional_data.payment_data;
@@ -568,12 +590,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCaptureD
             &additional_data.state.conf.connectors,
             &additional_data.connector_name,
             api::GetToken::Connector,
-        );
-        let connectors = match connector {
-            Ok(conn) => *conn.connector,
-            _ => Err(errors::ApiErrorResponse::ResourceIdNotFound)?,
-        };
-
+        )?;
         let amount_to_capture: i64 = payment_data
             .payment_attempt
             .amount_to_capture
@@ -581,7 +598,8 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCaptureD
         Ok(Self {
             amount_to_capture,
             currency: payment_data.currency,
-            connector_transaction_id: connectors
+            connector_transaction_id: connector
+                .connector
                 .connector_transaction_id(payment_data.payment_attempt.clone())?
                 .ok_or(errors::ApiErrorResponse::ResourceIdNotFound)?,
             payment_amount: payment_data.amount.into(),
@@ -591,7 +609,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCaptureD
 }
 
 impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCancelData {
-    type Error = errors::ApiErrorResponse;
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
 
     fn try_from(additional_data: PaymentAdditionalData<'_, F>) -> Result<Self, Self::Error> {
         let payment_data = additional_data.payment_data;
@@ -599,15 +617,12 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCancelDa
             &additional_data.state.conf.connectors,
             &additional_data.connector_name,
             api::GetToken::Connector,
-        );
-        let connectors = match connector {
-            Ok(conn) => *conn.connector,
-            _ => Err(errors::ApiErrorResponse::ResourceIdNotFound)?,
-        };
+        )?;
         Ok(Self {
             amount: Some(payment_data.amount.into()),
             currency: Some(payment_data.currency),
-            connector_transaction_id: connectors
+            connector_transaction_id: connector
+                .connector
                 .connector_transaction_id(payment_data.payment_attempt.clone())?
                 .ok_or(errors::ApiErrorResponse::ResourceIdNotFound)?,
             cancellation_reason: payment_data.payment_attempt.cancellation_reason,
@@ -676,6 +691,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::CompleteAuthoriz
         let browser_info: Option<types::BrowserInformation> = payment_data
             .payment_attempt
             .browser_info
+            .clone()
             .map(|b| b.parse_value("BrowserInformation"))
             .transpose()
             .change_context(errors::ApiErrorResponse::InvalidDataValue {
@@ -685,7 +701,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::CompleteAuthoriz
         let json_payload = payment_data
             .connector_response
             .encoded_data
-            .map(serde_json::to_value)
+            .map(|s| serde_json::from_str::<serde_json::Value>(&s))
             .transpose()
             .into_report()
             .change_context(errors::ApiErrorResponse::InternalServerError)?;

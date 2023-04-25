@@ -226,7 +226,7 @@ dependencies = [
  "serde_urlencoded",
  "smallvec",
  "socket2",
- "time",
+ "time 0.3.20",
  "url",
 ]
 
@@ -338,7 +338,7 @@ dependencies = [
  "serde",
  "serde_json",
  "strum",
- "time",
+ "time 0.3.20",
  "url",
  "utoipa",
 ]
@@ -550,7 +550,7 @@ dependencies = [
  "http",
  "hyper",
  "ring",
- "time",
+ "time 0.3.20",
  "tokio",
  "tower",
  "tracing",
@@ -709,7 +709,7 @@ dependencies = [
  "percent-encoding",
  "regex",
  "sha2",
- "time",
+ "time 0.3.20",
  "tracing",
 ]
 
@@ -816,7 +816,7 @@ dependencies = [
  "itoa",
  "num-integer",
  "ryu",
- "time",
+ "time 0.3.20",
 ]
 
 [[package]]
@@ -1099,9 +1099,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4e3c5919066adf22df73762e50cffcde3a758f2a848b113b586d1f86728b673b"
 dependencies = [
  "iana-time-zone",
+ "js-sys",
  "num-integer",
  "num-traits",
  "serde",
+ "time 0.1.43",
+ "wasm-bindgen",
  "winapi",
 ]
 
@@ -1191,7 +1194,7 @@ dependencies = [
  "signal-hook",
  "signal-hook-tokio",
  "thiserror",
- "time",
+ "time 0.3.20",
  "tokio",
 ]
 
@@ -1242,7 +1245,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e859cd57d0710d9e06c381b550c06e76992472a8c6d527aecd2fc673dcc231fb"
 dependencies = [
  "percent-encoding",
- "time",
+ "time 0.3.20",
  "version_check",
 ]
 
@@ -1482,7 +1485,7 @@ dependencies = [
  "pq-sys",
  "r2d2",
  "serde_json",
- "time",
+ "time 0.3.20",
 ]
 
 [[package]]
@@ -1660,6 +1663,28 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4d68f517805463f3a896a9d29c1d6ff09d3579ded64a7201b4069f8f9c0d52fd"
 dependencies = [
  "rand 0.8.5",
+]
+
+[[package]]
+name = "fantoccini"
+version = "0.19.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "65f0fbe245d714b596ba5802b46f937f5ce68dcae0f32f9a70b5c3b04d3c6f64"
+dependencies = [
+ "base64 0.13.1",
+ "cookie",
+ "futures-core",
+ "futures-util",
+ "http",
+ "hyper",
+ "hyper-rustls",
+ "mime",
+ "serde",
+ "serde_json",
+ "time 0.3.20",
+ "tokio",
+ "url",
+ "webdriver",
 ]
 
 [[package]]
@@ -2308,7 +2333,7 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror",
- "time",
+ "time 0.3.20",
 ]
 
 [[package]]
@@ -2767,7 +2792,7 @@ dependencies = [
 [[package]]
 name = "opentelemetry"
 version = "0.18.0"
-source = "git+https://github.com/open-telemetry/opentelemetry-rust/?rev=44b90202fd744598db8b0ace5b8f0bad7ec45658#44b90202fd744598db8b0ace5b8f0bad7ec45658"
+source = "git+https://github.com/open-telemetry/opentelemetry-rust?rev=44b90202fd744598db8b0ace5b8f0bad7ec45658#44b90202fd744598db8b0ace5b8f0bad7ec45658"
 dependencies = [
  "opentelemetry_api",
  "opentelemetry_sdk",
@@ -2776,7 +2801,7 @@ dependencies = [
 [[package]]
 name = "opentelemetry-otlp"
 version = "0.11.0"
-source = "git+https://github.com/open-telemetry/opentelemetry-rust/?rev=44b90202fd744598db8b0ace5b8f0bad7ec45658#44b90202fd744598db8b0ace5b8f0bad7ec45658"
+source = "git+https://github.com/open-telemetry/opentelemetry-rust?rev=44b90202fd744598db8b0ace5b8f0bad7ec45658#44b90202fd744598db8b0ace5b8f0bad7ec45658"
 dependencies = [
  "async-trait",
  "futures",
@@ -2793,7 +2818,7 @@ dependencies = [
 [[package]]
 name = "opentelemetry-proto"
 version = "0.1.0"
-source = "git+https://github.com/open-telemetry/opentelemetry-rust/?rev=44b90202fd744598db8b0ace5b8f0bad7ec45658#44b90202fd744598db8b0ace5b8f0bad7ec45658"
+source = "git+https://github.com/open-telemetry/opentelemetry-rust?rev=44b90202fd744598db8b0ace5b8f0bad7ec45658#44b90202fd744598db8b0ace5b8f0bad7ec45658"
 dependencies = [
  "futures",
  "futures-util",
@@ -2805,7 +2830,7 @@ dependencies = [
 [[package]]
 name = "opentelemetry_api"
 version = "0.18.0"
-source = "git+https://github.com/open-telemetry/opentelemetry-rust/?rev=44b90202fd744598db8b0ace5b8f0bad7ec45658#44b90202fd744598db8b0ace5b8f0bad7ec45658"
+source = "git+https://github.com/open-telemetry/opentelemetry-rust?rev=44b90202fd744598db8b0ace5b8f0bad7ec45658#44b90202fd744598db8b0ace5b8f0bad7ec45658"
 dependencies = [
  "fnv",
  "futures-channel",
@@ -2820,7 +2845,7 @@ dependencies = [
 [[package]]
 name = "opentelemetry_sdk"
 version = "0.18.0"
-source = "git+https://github.com/open-telemetry/opentelemetry-rust/?rev=44b90202fd744598db8b0ace5b8f0bad7ec45658#44b90202fd744598db8b0ace5b8f0bad7ec45658"
+source = "git+https://github.com/open-telemetry/opentelemetry-rust?rev=44b90202fd744598db8b0ace5b8f0bad7ec45658#44b90202fd744598db8b0ace5b8f0bad7ec45658"
 dependencies = [
  "async-trait",
  "crossbeam-channel",
@@ -3486,8 +3511,9 @@ dependencies = [
  "signal-hook-tokio",
  "storage_models",
  "strum",
+ "thirtyfour",
  "thiserror",
- "time",
+ "time 0.3.20",
  "tokio",
  "toml 0.7.3",
  "url",
@@ -3526,7 +3552,7 @@ dependencies = [
  "serde_json",
  "serde_path_to_error",
  "strum",
- "time",
+ "time 0.3.20",
  "tokio",
  "tracing",
  "tracing-actix-web",
@@ -3813,6 +3839,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "serde_repr"
+version = "0.1.12"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bcec881020c684085e55a25f7fd888954d56609ef363479dc5a1305eb0d40cab"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.15",
+]
+
+[[package]]
 name = "serde_spanned"
 version = "0.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3846,7 +3883,7 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_with_macros",
- "time",
+ "time 0.3.20",
 ]
 
 [[package]]
@@ -3977,7 +4014,7 @@ dependencies = [
  "num-bigint",
  "num-traits",
  "thiserror",
- "time",
+ "time 0.3.20",
 ]
 
 [[package]]
@@ -4046,7 +4083,16 @@ dependencies = [
  "serde_json",
  "strum",
  "thiserror",
- "time",
+ "time 0.3.20",
+]
+
+[[package]]
+name = "stringmatch"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6aadc0801d92f0cdc26127c67c4b8766284f52a5ba22894f285e3101fa57d05d"
+dependencies = [
+ "regex",
 ]
 
 [[package]]
@@ -4140,6 +4186,44 @@ dependencies = [
 ]
 
 [[package]]
+name = "thirtyfour"
+version = "0.31.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "72fc70ad9624071cdd96d034676b84b504bfeb4bee1580df1324c99373ea0ca7"
+dependencies = [
+ "async-trait",
+ "base64 0.13.1",
+ "chrono",
+ "cookie",
+ "fantoccini",
+ "futures",
+ "http",
+ "log",
+ "parking_lot",
+ "serde",
+ "serde_json",
+ "serde_repr",
+ "stringmatch",
+ "thirtyfour-macros",
+ "thiserror",
+ "tokio",
+ "url",
+ "urlparse",
+]
+
+[[package]]
+name = "thirtyfour-macros"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9cae91d1c7c61ec65817f1064954640ee350a50ae6548ff9a1bdd2489d6ffbb0"
+dependencies = [
+ "proc-macro-error",
+ "proc-macro2",
+ "quote",
+ "syn 1.0.109",
+]
+
+[[package]]
 name = "thiserror"
 version = "1.0.40"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4167,6 +4251,16 @@ checksum = "3fdd6f064ccff2d6567adcb3873ca630700f00b5ad3f060c25b5dcfd9a4ce152"
 dependencies = [
  "cfg-if",
  "once_cell",
+]
+
+[[package]]
+name = "time"
+version = "0.1.43"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ca8a50ef2360fbd1eeb0ecd46795a87a19024eb4b53c5dc916ca1fd95fe62438"
+dependencies = [
+ "libc",
+ "winapi",
 ]
 
 [[package]]
@@ -4438,7 +4532,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "09d48f71a791638519505cefafe162606f706c25592e4bde4d97600c0195312e"
 dependencies = [
  "crossbeam-channel",
- "time",
+ "time 0.3.20",
  "tracing-subscriber",
 ]
 
@@ -4590,6 +4684,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "unicode-segmentation"
+version = "1.10.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1dd624098567895118886609431a7c3b8f516e41d30e0643f03d94592a147e36"
+
+[[package]]
 name = "unicode-width"
 version = "0.1.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4618,6 +4718,12 @@ name = "urlencoding"
 version = "2.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e8db7427f936968176eaa7cdf81b7f98b980b18495ec28f1b5791ac3bfe3eea9"
+
+[[package]]
+name = "urlparse"
+version = "0.7.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "110352d4e9076c67839003c7788d8604e24dcded13e0b375af3efaa8cf468517"
 
 [[package]]
 name = "utoipa"
@@ -4691,7 +4797,7 @@ dependencies = [
  "git2",
  "rustc_version",
  "rustversion",
- "time",
+ "time 0.3.20",
 ]
 
 [[package]]
@@ -4827,6 +4933,25 @@ checksum = "e33b99f4b23ba3eec1a53ac264e35a755f00e966e0065077d6027c0f575b0b97"
 dependencies = [
  "js-sys",
  "wasm-bindgen",
+]
+
+[[package]]
+name = "webdriver"
+version = "0.46.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9973cb72c8587d5ad5efdb91e663d36177dc37725e6c90ca86c626b0cc45c93f"
+dependencies = [
+ "base64 0.13.1",
+ "bytes",
+ "cookie",
+ "http",
+ "log",
+ "serde",
+ "serde_derive",
+ "serde_json",
+ "time 0.3.20",
+ "unicode-segmentation",
+ "url",
 ]
 
 [[package]]
