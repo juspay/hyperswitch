@@ -92,7 +92,6 @@ impl AddressInterface for Store {
 
 #[async_trait::async_trait]
 impl AddressInterface for MockDb {
-    #[allow(clippy::unwrap_used)]
     async fn find_address(
         &self,
         address_id: &str,
@@ -113,7 +112,6 @@ impl AddressInterface for MockDb {
         }
     }
 
-    #[allow(clippy::unwrap_used)]
     async fn update_address(
         &self,
         address_id: String,
@@ -141,7 +139,6 @@ impl AddressInterface for MockDb {
         }
     }
 
-    #[allow(clippy::unwrap_used)]
     async fn insert_address(
         &self,
         address_new: storage::AddressNew,
@@ -175,7 +172,6 @@ impl AddressInterface for MockDb {
         Ok(address)
     }
 
-    #[allow(clippy::unwrap_used)]
     async fn update_address_by_merchant_id_customer_id(
         &self,
         customer_id: &str,
@@ -196,7 +192,7 @@ impl AddressInterface for MockDb {
                 *a = address_updated.clone();
                 address_updated
             }) {
-            Some(address) => Ok(vec![address.clone()]),
+            Some(address) => Ok(vec![address]),
             None => {
                 return Err(
                     errors::StorageError::ValueNotFound("address not found".to_string()).into(),
