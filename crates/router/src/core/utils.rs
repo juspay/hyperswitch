@@ -13,8 +13,8 @@ use crate::{
     types::{
         self,
         storage::{self, enums},
-        ErrorResponse,
         transformers::ForeignFrom,
+        ErrorResponse,
     },
     utils::{generate_id, OptionExt, ValueExt},
 };
@@ -61,6 +61,8 @@ pub async fn construct_payout_router_data<'a>(
     let router_data = types::RouterData {
         flow: PhantomData,
         merchant_id: merchant_account.merchant_id.to_owned(),
+        customer_id: None,
+        connector_customer: None,
         connector: connector_id.to_string(),
         payment_id: "".to_string(),                      //FIXME
         attempt_id: "".to_string(),                      //FIXME

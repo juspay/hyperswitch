@@ -1,4 +1,4 @@
-DROP TABLE payout_create;
-DROP TABLE payouts;
+DROP TABLE PAYOUT_CREATE;
+DROP TABLE PAYOUTS;
 DROP TYPE "PayoutStatus";
 DROP TYPE "PayoutType";

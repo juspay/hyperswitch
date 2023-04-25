@@ -34,7 +34,6 @@ pub type PaymentsCaptureRouterData =
 pub type PaymentsCancelRouterData = RouterData<api::Void, PaymentsCancelData, PaymentsResponseData>;
 pub type PaymentsSessionRouterData =
     RouterData<api::Session, PaymentsSessionData, PaymentsResponseData>;
-pub type PayoutsRouterData = RouterData<api::Payout, PayoutsData, PayoutsResponseData>;
 pub type RefundsRouterData<F> = RouterData<F, RefundsData, RefundsResponseData>;
 pub type RefundExecuteRouterData = RouterData<api::Execute, RefundsData, RefundsResponseData>;
 pub type RefundSyncRouterData = RouterData<api::RSync, RefundsData, RefundsResponseData>;
@@ -156,6 +155,8 @@ pub type UploadFileRouterData = RouterData<api::Upload, UploadFileRequestData, U
 
 pub type DefendDisputeRouterData =
     RouterData<api::Defend, DefendDisputeRequestData, DefendDisputeResponse>;
+
+pub type PayoutsRouterData = RouterData<api::Payout, PayoutsData, PayoutsResponseData>;
 
 #[derive(Debug, Clone)]
 pub struct RouterData<Flow, Request, Response> {

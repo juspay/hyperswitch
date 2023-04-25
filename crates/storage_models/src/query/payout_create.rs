@@ -5,18 +5,19 @@ use router_env::{instrument, tracing};
 use super::generics;
 use crate::{
     errors,
-    payouts::{Payouts, PayoutsNew, PayoutsUpdate, PayoutsUpdateInternal},
-    schema::payouts::dsl,
+    payout_create::{PayoutCreate, PayoutCreateNew, PayoutCreateUpdate, PayoutCreateUpdateInternal},
+    schema::payout_create::dsl,
     PgPooledConn, StorageResult,
 };
 
-impl PayoutsNew {
+impl PayoutCreateNew {
     #[instrument(skip(conn))]
-    pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<Payouts> {
+    pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<PayoutCreate> {
         generics::generic_insert(conn, self).await
     }
 }
-impl Payouts {
+
+impl PayoutCreate {
     pub async fn find_by_merchant_id_payout_id(
         conn: &PgPooledConn,
         merchant_id: &str,
@@ -57,14 +58,14 @@ impl Payouts {
         conn: &PgPooledConn,
         merchant_id: &str,
         payout_id: &str,
-        payout: PayoutsUpdate,
+        payout: PayoutCreateUpdate,
     ) -> StorageResult<Self> {
         generics::generic_update_with_results::<<Self as HasTable>::Table, _, _, _>(
             conn,
             dsl::merchant_id
                 .eq(merchant_id.to_owned())
                 .and(dsl::payout_id.eq(payout_id.to_owned())),
-                PayoutsUpdateInternal::from(payout),
+            PayoutCreateUpdateInternal::from(payout),
         )
         .await?
         .first()

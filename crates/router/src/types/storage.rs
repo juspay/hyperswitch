@@ -16,6 +16,7 @@ pub mod merchant_connector_account;
 pub mod payment_attempt;
 pub mod payment_intent;
 pub mod payment_method;
+pub mod payout_create;
 pub mod payouts;
 pub mod process_tracker;
 pub mod reverse_lookup;
@@ -30,5 +31,5 @@ pub use self::{
     address::*, api_keys::*, cards_info::*, configs::*, connector_response::*, customers::*,
     dispute::*, events::*, file::*, locker_mock_up::*, mandate::*, merchant_account::*,
     merchant_connector_account::*, payment_attempt::*, payment_intent::*, payment_method::*,
-    payouts::*, process_tracker::*, refund::*, reverse_lookup::*,
+    payout_create::*, payouts::*, process_tracker::*, refund::*, reverse_lookup::*,
 };

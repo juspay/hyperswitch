@@ -965,7 +965,8 @@ pub struct UnresolvedResponseReason {
     pub message: String,
 }
 
-//Payout
+// Payout
+// #[cfg(feature = "payouts")]
 #[derive(
     Clone,
     Copy,
@@ -983,13 +984,15 @@ pub struct UnresolvedResponseReason {
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum PayoutStatus {
-    #[default]
-    Created,
     Pending,
     Success,
     Failed,
+    Cancelled,
+    #[default]
+    RequiresFulfillment,
 }
 
+// #[cfg(feature = "payouts")]
 #[derive(
     Clone,
     Copy,
@@ -1010,4 +1013,37 @@ pub enum PayoutType {
     #[default]
     Card,
     Bank,
+}
+
+// #[cfg(feature = "payouts")]
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+    frunk::LabelledGeneric,
+)]
+#[serde(rename_all = "PascalCase")]
+#[strum(serialize_all = "PascalCase")]
+pub enum EntityType {
+    /// Adyen
+    #[default]
+    Individual,
+    Company,
+    NonProfit,
+    PublicSector,
+
+    /// Wise
+    #[strum(serialize = "lowercase")]
+    #[serde(rename = "lowercase")]
+    Business,
+    Personal,
 }
