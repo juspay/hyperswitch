@@ -1444,8 +1444,8 @@ pub async fn list_customer_payment_method(
         ));
     }
     let mut customer_pms = Vec::new();
-    let parent_payment_method_token = generate_id(consts::ID_LENGTH, "token");
     for pm in resp.into_iter() {
+        let parent_payment_method_token = generate_id(consts::ID_LENGTH, "token");
         let hyperswitch_token = generate_id(consts::ID_LENGTH, "token");
         let card = if pm.payment_method == enums::PaymentMethod::Card {
             let locker_id = merchant_account
