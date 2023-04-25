@@ -4,7 +4,9 @@ use masking::Secret;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils::{self, CardData, PaymentsAuthorizeRequestData, RouterData},
+    connector::utils::{
+        self, BrowserInformationData, CardData, PaymentsAuthorizeRequestData, RouterData,
+    },
     core::errors,
     pii,
     services::{self, Method},
@@ -115,6 +117,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for ZenPaymentsRequest {
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         let browser_info = item.request.get_browser_info()?;
         let order_details = item.request.get_order_details()?;
+        let ip = browser_info.get_ip_address()?;
 
         let window_size = match (browser_info.screen_height, browser_info.screen_width) {
             (250, 400) => "01",
@@ -197,11 +200,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for ZenPaymentsRequest {
             payment_specific_data,
             customer: ZenCustomerDetails {
                 email: item.request.get_email()?,
-                ip: browser_info.ip_address.ok_or(
-                    errors::ConnectorError::MissingRequiredField {
-                        field_name: "browser_info.ip_address",
-                    },
-                )?,
+                ip,
             },
             custom_ipn_url: item.request.get_webhook_url()?,
             items: vec![ZenItemObject {

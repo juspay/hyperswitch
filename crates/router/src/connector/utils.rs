@@ -218,6 +218,16 @@ impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
     }
 }
 
+pub trait BrowserInformationData {
+    fn get_ip_address(&self) -> Result<std::net::IpAddr, Error>;
+}
+
+impl BrowserInformationData for types::BrowserInformation {
+    fn get_ip_address(&self) -> Result<std::net::IpAddr, Error> {
+        self.ip_address.ok_or_else(missing_field_err("ip_address"))
+    }
+}
+
 pub trait PaymentsCompleteAuthorizeRequestData {
     fn is_auto_capture(&self) -> Result<bool, Error>;
 }
