@@ -209,6 +209,10 @@ pub struct MerchantAccountResponse {
     ///Default business details for connector routing
     #[schema(value_type = Vec<PrimaryBusinessDetails>)]
     pub primary_business_details: Vec<PrimaryBusinessDetails>,
+
+    /// The frm routing algorithm to be used to process the incoming request from merchant to outgoing payment FRM.
+    #[schema(value_type = Option<RoutingAlgorithm>, max_length = 255, example = "custom")]
+    pub frm_routing_algorithm: Option<serde_json::Value>,
 }
 
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
