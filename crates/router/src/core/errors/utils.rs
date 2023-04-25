@@ -123,7 +123,7 @@ impl ConnectorErrorExt for error_stack::Report<errors::ConnectorError> {
         let data = match error {
             errors::ConnectorError::ProcessingStepFailed(Some(bytes)) => {
                 let response_str = std::str::from_utf8(bytes);
-                match response_str {
+                let error_response = match response_str {
                     Ok(s) => serde_json::from_str(s)
                         .map_err(|err| logger::error!(%err, "Failed to convert response to JSON"))
                         .ok(),
@@ -131,14 +131,20 @@ impl ConnectorErrorExt for error_stack::Report<errors::ConnectorError> {
                         logger::error!(%err, "Failed to convert response to UTF8 string");
                         None
                     }
+                };
+                errors::ApiErrorResponse::PaymentAuthorizationFailed {
+                    data: error_response,
                 }
+            }
+            errors::ConnectorError::MissingRequiredField { field_name } => {
+                errors::ApiErrorResponse::MissingRequiredField { field_name }
             }
             _ => {
                 logger::error!(%error,"Verify flow failed");
-                None
+                errors::ApiErrorResponse::PaymentAuthorizationFailed { data: None }
             }
         };
-        self.change_context(errors::ApiErrorResponse::PaymentAuthorizationFailed { data })
+        self.change_context(data)
     }
 }
 

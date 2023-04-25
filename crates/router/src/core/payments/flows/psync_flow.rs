@@ -4,6 +4,7 @@ use super::{ConstructFlowSpecificData, Feature};
 use crate::{
     core::{
         errors::{ConnectorErrorExt, RouterResult},
+        mandate,
         payments::{self, access_token, transformers, PaymentData},
     },
     routes::AppState,
@@ -89,6 +90,14 @@ impl types::PaymentsSyncRouterData {
         .await
         .map_err(|error| error.to_payment_failed_response())?;
 
+        // When connector requires redirection for mandate creation it can update the connector mandate_id during Psync
+        mandate::update_connector_mandate_id(
+            state,
+            resp.merchant_id.clone(),
+            resp.request.mandate_id.clone(),
+            resp.response.clone(),
+        )
+        .await?;
         Ok(resp)
     }
 }

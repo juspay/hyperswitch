@@ -81,7 +81,101 @@ impl
         types::PaymentsResponseData,
     > for Adyen
 {
-    // Issue: #173
+    fn get_headers(
+        &self,
+        req: &types::VerifyRouterData,
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+        let mut header = vec![(
+            headers::CONTENT_TYPE.to_string(),
+            types::PaymentsVerifyType::get_content_type(self).to_string(),
+        )];
+        let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
+        header.append(&mut api_key);
+        Ok(header)
+    }
+
+    fn get_url(
+        &self,
+        _req: &types::VerifyRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(format!("{}{}", self.base_url(connectors), "v68/payments"))
+    }
+    fn get_request_body(
+        &self,
+        req: &types::VerifyRouterData,
+    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+        let authorize_req = types::PaymentsAuthorizeRouterData::from((
+            req,
+            types::PaymentsAuthorizeData::from(req),
+        ));
+        let connector_req = adyen::AdyenPaymentRequest::try_from(&authorize_req)?;
+        let adyen_req = utils::Encode::<adyen::AdyenPaymentRequest<'_>>::encode_to_string_of_json(
+            &connector_req,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        Ok(Some(adyen_req))
+    }
+    fn build_request(
+        &self,
+        req: &types::VerifyRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        Ok(Some(
+            services::RequestBuilder::new()
+                .method(services::Method::Post)
+                .url(&types::PaymentsVerifyType::get_url(self, req, connectors)?)
+                .attach_default_headers()
+                .headers(types::PaymentsVerifyType::get_headers(
+                    self, req, connectors,
+                )?)
+                .body(types::PaymentsVerifyType::get_request_body(self, req)?)
+                .build(),
+        ))
+    }
+    fn handle_response(
+        &self,
+        data: &types::VerifyRouterData,
+        res: types::Response,
+    ) -> CustomResult<
+        types::RouterData<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>,
+        errors::ConnectorError,
+    >
+    where
+        api::Verify: Clone,
+        types::VerifyRequestData: Clone,
+        types::PaymentsResponseData: Clone,
+    {
+        let response: adyen::AdyenPaymentResponse = res
+            .response
+            .parse_struct("AdyenPaymentResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        types::RouterData::try_from((
+            types::ResponseRouterData {
+                response,
+                data: data.clone(),
+                http_code: res.status_code,
+            },
+            false,
+        ))
+        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+    }
+    fn get_error_response(
+        &self,
+        res: types::Response,
+    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
+        let response: adyen::ErrorResponse = res
+            .response
+            .parse_struct("ErrorResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        Ok(types::ErrorResponse {
+            status_code: res.status_code,
+            code: response.error_code,
+            message: response.message,
+            reason: None,
+        })
+    }
 }
 
 impl api::PaymentSession for Adyen {}

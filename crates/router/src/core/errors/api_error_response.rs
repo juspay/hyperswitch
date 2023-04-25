@@ -142,6 +142,8 @@ pub enum ApiErrorResponse {
     ResourceIdNotFound,
     #[error(error_type = ErrorType::ObjectNotFound, code = "HE_02", message = "Mandate does not exist in our records")]
     MandateNotFound,
+    #[error(error_type = ErrorType::ObjectNotFound, code = "HE_02", message = "Failed to update mandate")]
+    MandateUpdateFailed,
     #[error(error_type = ErrorType::ObjectNotFound, code = "HE_02", message = "API Key does not exist in our records")]
     ApiKeyNotFound,
     #[error(error_type = ErrorType::ValidationError, code = "HE_03", message = "Return URL is not configured and not passed in payments request")]
@@ -230,7 +232,9 @@ impl actix_web::ResponseError for ApiErrorResponse {
             | Self::PaymentUnexpectedState { .. }
             | Self::MandateValidationFailed { .. } => StatusCode::BAD_REQUEST, // 400
 
-            Self::InternalServerError => StatusCode::INTERNAL_SERVER_ERROR, // 500
+            Self::MandateUpdateFailed | Self::InternalServerError => {
+                StatusCode::INTERNAL_SERVER_ERROR
+            } // 500
             Self::DuplicateRefundRequest | Self::DuplicatePayment { .. } => StatusCode::BAD_REQUEST, // 400
             Self::RefundNotFound
             | Self::CustomerNotFound
@@ -378,8 +382,8 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
             Self::RefundFailed { data } => AER::BadRequest(ApiError::new("CE", 6, "Refund failed while processing with connector. Retry refund", Some(Extra { data: data.clone(), ..Default::default()}))),
             Self::VerificationFailed { data } => {
                 AER::BadRequest(ApiError::new("CE", 7, "Verification failed while processing with connector. Retry operation", Some(Extra { data: data.clone(), ..Default::default()})))
-            }
-            Self::InternalServerError => {
+            },
+            Self::MandateUpdateFailed | Self::InternalServerError => {
                 AER::InternalServerError(ApiError::new("HE", 0, "Something went wrong", None))
             }
             Self::DuplicateRefundRequest => AER::BadRequest(ApiError::new("HE", 1, "Duplicate refund request. Refund already attempted with the refund ID", None)),

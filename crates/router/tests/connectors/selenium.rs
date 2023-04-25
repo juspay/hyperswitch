@@ -143,12 +143,14 @@ pub trait SeleniumTest {
                         let ele = driver.query(by).first().await?;
                         ele.wait_until().displayed().await?;
                         ele.wait_until().clickable().await?;
+                        ele.wait_until().enabled().await?;
                         ele.click().await?;
                     }
                     Trigger::ClickNth(by, n) => {
                         let ele = driver.query(by).all().await?.into_iter().nth(n).unwrap();
                         ele.wait_until().displayed().await?;
                         ele.wait_until().clickable().await?;
+                        ele.wait_until().enabled().await?;
                         ele.click().await?;
                     }
                     Trigger::Find(by) => {

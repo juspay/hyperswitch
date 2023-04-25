@@ -250,7 +250,13 @@ async fn get_tracker_for_sync<
             currency,
             amount,
             email: None,
-            mandate_id: None,
+            mandate_id: payment_attempt.mandate_id.clone().map(|id| {
+                api_models::payments::MandateIds {
+                    mandate_id: id,
+                    connector_mandate_id: None,
+                    payment_method_id: None,
+                }
+            }),
             setup_mandate: None,
             token: None,
             address: PaymentAddress {

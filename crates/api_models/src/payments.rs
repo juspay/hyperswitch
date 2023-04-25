@@ -316,9 +316,9 @@ impl MandateIds {
     }
 }
 
-#[derive(Debug, serde::Deserialize)]
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct ConnectorMandateId {
-    pub mandate_id: Option<String>,
+    pub connector_mandate_id: Option<String>,
     pub payment_method_id: Option<String>,
 }
 

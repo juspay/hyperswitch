@@ -2,6 +2,7 @@
 
 mod aci;
 mod adyen;
+mod adyen_ui;
 mod airwallex;
 mod authorizedotnet;
 mod bambora;

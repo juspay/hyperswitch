@@ -544,6 +544,7 @@ impl Default for BrowserInfoType {
 impl Default for PaymentSyncType {
     fn default() -> Self {
         let data = types::PaymentsSyncData {
+            mandate_id: None,
             connector_transaction_id: types::ResponseId::ConnectorTransactionId(
                 "12345".to_string(),
             ),

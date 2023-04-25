@@ -293,6 +293,8 @@ pub enum ConnectorError {
     MismatchedPaymentData,
     #[error("Failed to parse Wallet token")]
     InvalidWalletToken,
+    #[error("Connector Mandate Id not Present")]
+    ConnectorMandateIdNotPresent,
 }
 
 #[derive(Debug, thiserror::Error)]

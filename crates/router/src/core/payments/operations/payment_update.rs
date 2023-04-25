@@ -200,7 +200,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                         .change_context(errors::ApiErrorResponse::MandateNotFound)
                         .map(|connector_id| api_models::payments::MandateIds {
                             mandate_id: mandate_obj.mandate_id,
-                            connector_mandate_id: connector_id.mandate_id,
+                            connector_mandate_id: connector_id.connector_mandate_id,
                             payment_method_id: connector_id.payment_method_id,
                         })
                 }))
