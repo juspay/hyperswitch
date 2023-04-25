@@ -10,21 +10,21 @@ use crate::{
     types::{self, api, storage::enums, transformers::ForeignFrom},
 };
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize)]
 pub struct FortePaymentsRequest {
-    action: String,
+    action: ForteAction,
     authorization_amount: f64,
     subtotal_amount: f64,
     billing_address: BillingAddress,
     card: Card,
 }
-#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct BillingAddress {
     first_name: Secret<String>,
     last_name: Secret<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize)]
 pub struct Card {
     card_type: ForteCardType,
     name_on_card: Secret<String>,
@@ -56,7 +56,7 @@ impl TryFrom<utils::CardIssuer> for ForteCardType {
             utils::CardIssuer::DinersClub => Ok(Self::DinersClub),
             utils::CardIssuer::JCB => Ok(Self::Jcb),
             _ => Err(errors::ConnectorError::NotSupported {
-                payment_method: api::enums::PaymentMethod::Card.to_string(),
+                payment_method: issuer.to_string(),
                 connector: "Forte",
                 payment_experience: api::enums::PaymentExperience::RedirectToUrl.to_string(),
             }
@@ -71,10 +71,9 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for FortePaymentsRequest {
         match item.request.payment_method_data {
             api_models::payments::PaymentMethodData::Card(ref ccard) => {
                 let action = match item.request.is_auto_capture()? {
-                    true => "sale",
-                    false => "authorize",
-                }
-                .to_string();
+                    true => ForteAction::Sale,
+                    false => ForteAction::Authorize,
+                };
                 let card_type = ForteCardType::try_from(ccard.get_card_issuer()?)?;
                 let address = item.get_billing_address()?;
                 let card = Card {
@@ -89,11 +88,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for FortePaymentsRequest {
                     first_name: address.get_first_name()?.to_owned(),
                     last_name: address.get_last_name()?.to_owned(),
                 };
-                let authorization_amount =
-                    utils::to_currency_base_unit(item.request.amount, item.request.currency)?
-                        .parse::<f64>()
-                        .ok()
-                        .ok_or_else(|| errors::ConnectorError::RequestEncodingFailed)?;
+                let authorization_amount = utils::to_currency_base_unit_asf64(item.request.amount)?;
                 Ok(Self {
                     action,
                     authorization_amount,
@@ -173,7 +168,7 @@ impl ForeignFrom<(ForteResponseCode, ForteAction)> for enums::AttemptStatus {
     }
 }
 
-#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Default, Debug, Clone, Deserialize, PartialEq)]
 pub struct CardResponse {
     name_on_card: String,
     last_4_account_number: String,
@@ -181,7 +176,7 @@ pub struct CardResponse {
     card_type: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ForteResponseCode {
     A01,
     A05,
@@ -203,7 +198,7 @@ impl From<ForteResponseCode> for enums::AttemptStatus {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ResponseStatus {
     environment: String,
     response_type: String,
@@ -214,24 +209,24 @@ pub struct ResponseStatus {
     cvv_result: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ForteAction {
     Sale,
     Authorize,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct FortePaymentsResponse {
-    transaction_id: String,
-    location_id: String,
-    action: ForteAction,
-    authorization_amount: Option<f64>,
-    authorization_code: String,
-    entered_by: String,
-    billing_address: Option<BillingAddress>,
-    card: Option<CardResponse>,
-    response: ResponseStatus,
+    pub transaction_id: String,
+    pub location_id: String,
+    pub action: ForteAction,
+    pub authorization_amount: Option<f64>,
+    pub authorization_code: String,
+    pub entered_by: String,
+    pub billing_address: Option<BillingAddress>,
+    pub card: Option<CardResponse>,
+    pub response: ResponseStatus,
 }
 
 #[derive(Debug, Serialize, Default, Deserialize)]
@@ -267,18 +262,18 @@ impl<F, T>
 
 //PsyncResponse
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct FortePaymentsSyncResponse {
-    transaction_id: String,
-    location_id: String,
-    status: FortePaymentStatus,
-    action: ForteAction,
-    authorization_amount: Option<f64>,
-    authorization_code: String,
-    entered_by: String,
-    billing_address: Option<BillingAddress>,
-    card: Option<CardResponse>,
-    response: ResponseStatus,
+    pub transaction_id: String,
+    pub location_id: String,
+    pub status: FortePaymentStatus,
+    pub action: ForteAction,
+    pub authorization_amount: Option<f64>,
+    pub authorization_code: String,
+    pub entered_by: String,
+    pub billing_address: Option<BillingAddress>,
+    pub card: Option<CardResponse>,
+    pub response: ResponseStatus,
 }
 
 impl<F, T>
@@ -312,7 +307,7 @@ impl<F, T>
 
 // Capture
 
-#[derive(Default, Debug, Serialize, Deserialize)]
+#[derive(Default, Debug, Serialize)]
 pub struct ForteCaptureRequest {
     action: String,
     transaction_id: String,
@@ -343,13 +338,13 @@ pub struct CaptureResponseStatus {
     authorization_code: String,
 }
 // Capture Response
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Deserialize)]
 pub struct ForteCaptureResponse {
-    transaction_id: String,
-    original_transaction_id: String,
-    entered_by: String,
-    authorization_code: String,
-    response: CaptureResponseStatus,
+    pub transaction_id: String,
+    pub original_transaction_id: String,
+    pub entered_by: String,
+    pub authorization_code: String,
+    pub response: CaptureResponseStatus,
 }
 
 impl TryFrom<types::PaymentsCaptureResponseRouterData<ForteCaptureResponse>>
@@ -379,7 +374,7 @@ impl TryFrom<types::PaymentsCaptureResponseRouterData<ForteCaptureResponse>>
 
 //Cancel
 
-#[derive(Default, Debug, Serialize, Deserialize)]
+#[derive(Default, Debug, Serialize)]
 pub struct ForteCancelRequest {
     action: String,
     authorization_code: String,
@@ -399,7 +394,7 @@ impl TryFrom<&types::PaymentsCancelRouterData> for ForteCancelRequest {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CancelResponseStatus {
     environment: String,
     response_type: String,
@@ -408,14 +403,14 @@ pub struct CancelResponseStatus {
     authorization_code: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct ForteCancelResponse {
-    transaction_id: String,
-    location_id: String,
-    action: String,
-    authorization_code: String,
-    entered_by: String,
-    response: CancelResponseStatus,
+    pub transaction_id: String,
+    pub location_id: String,
+    pub action: String,
+    pub authorization_code: String,
+    pub entered_by: String,
+    pub response: CancelResponseStatus,
 }
 
 impl<F, T>
@@ -458,11 +453,7 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for ForteRefundRequest {
         let connector_auth_id: ForteMeta =
             utils::to_connector_meta(item.request.connector_metadata.clone())?;
         let auth_code = connector_auth_id.auth_id;
-        let authorization_amount =
-            utils::to_currency_base_unit(item.request.amount, item.request.currency)?
-                .parse::<f64>()
-                .ok()
-                .ok_or_else(|| errors::ConnectorError::RequestEncodingFailed)?;
+        let authorization_amount = utils::to_currency_base_unit_asf64(item.request.amount)?;
         Ok(Self {
             action: "reverse".to_string(),
             authorization_amount,
@@ -473,6 +464,7 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for ForteRefundRequest {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "snake_case")]
 pub enum RefundStatus {
     Complete,
     Ready,
@@ -499,14 +491,14 @@ impl From<ForteResponseCode> for enums::RefundStatus {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct RefundResponse {
-    transaction_id: String,
-    original_transaction_id: String,
-    action: String,
-    authorization_amount: Option<f64>,
-    authorization_code: String,
-    response: ResponseStatus,
+    pub transaction_id: String,
+    pub original_transaction_id: String,
+    pub action: String,
+    pub authorization_amount: Option<f64>,
+    pub authorization_code: String,
+    pub response: ResponseStatus,
 }
 
 impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
@@ -549,7 +541,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundSyncResponse>>
     }
 }
 
-#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Default, Debug, Clone, Deserialize)]
 pub struct ErrorResponseStatus {
     pub environment: String,
     pub response_type: Option<String>,
@@ -557,7 +549,7 @@ pub struct ErrorResponseStatus {
     pub response_desc: String,
 }
 
-#[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Default, Debug, Deserialize)]
 pub struct ForteErrorResponse {
     pub response: ErrorResponseStatus,
 }
