@@ -490,20 +490,14 @@ impl api::IncomingWebhook for Zen {
         request: &api::IncomingWebhookRequestDetails<'_>,
         merchant_id: &str,
     ) -> CustomResult<bool, errors::ConnectorError> {
-        let algorithm = self
-            .get_webhook_source_verification_algorithm(request)
-            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
+        let algorithm = self.get_webhook_source_verification_algorithm(request)?;
 
-        let signature = self
-            .get_webhook_source_verification_signature(request)
-            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
+        let signature = self.get_webhook_source_verification_signature(request)?;
         let mut secret = self
             .get_webhook_source_verification_merchant_secret(db, merchant_id)
-            .await
-            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
-        let mut message = self
-            .get_webhook_source_verification_message(request, merchant_id, &secret)
-            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
+            .await?;
+        let mut message =
+            self.get_webhook_source_verification_message(request, merchant_id, &secret)?;
         message.append(&mut secret);
         algorithm
             .verify_signature(&secret, &signature, &message)
@@ -543,12 +537,12 @@ impl api::IncomingWebhook for Zen {
             ZenWebhookTxnType::TrtPurchase => match &details.status {
                 ZenPaymentStatus::Rejected => api::IncomingWebhookEvent::PaymentIntentFailure,
                 ZenPaymentStatus::Accepted => api::IncomingWebhookEvent::PaymentIntentSuccess,
-                _ => Err(errors::ConnectorError::WebhookEventTypeNotFound).into_report()?,
+                _ => Err(errors::ConnectorError::WebhookEventTypeNotFound)?,
             },
             ZenWebhookTxnType::TrtRefund => match &details.status {
                 ZenPaymentStatus::Rejected => api::IncomingWebhookEvent::RefundFailure,
                 ZenPaymentStatus::Accepted => api::IncomingWebhookEvent::RefundSuccess,
-                _ => Err(errors::ConnectorError::WebhookEventTypeNotFound).into_report()?,
+                _ => Err(errors::ConnectorError::WebhookEventTypeNotFound)?,
             },
         })
     }
