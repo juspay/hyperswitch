@@ -497,7 +497,7 @@ impl<F>
         let (billing_address, bank_id) = match (&payment_method, redirect) {
             (AlternativePaymentMethodType::Expresscheckout, _) => (
                 Some(BillingAddress {
-                    email: Some(item.request.get_email()?),
+                    email: item.request.get_email()?,
                     country: item.get_billing_country()?,
                     ..Default::default()
                 }),
@@ -505,7 +505,7 @@ impl<F>
             ),
             (AlternativePaymentMethodType::Giropay, _) => (
                 Some(BillingAddress {
-                    email: Some(item.request.get_email()?),
+                    email: item.request.get_email()?,
                     country: item.get_billing_country()?,
                     ..Default::default()
                 }),
@@ -517,7 +517,7 @@ impl<F>
                     Some(BillingAddress {
                         first_name: Some(address.get_first_name()?.clone()),
                         last_name: Some(address.get_last_name()?.clone()),
-                        email: Some(item.request.get_email()?),
+                        email: item.request.get_email()?,
                         country: item.get_billing_country()?,
                     }),
                     None,
@@ -532,7 +532,7 @@ impl<F>
                     Some(BillingAddress {
                         first_name: Some(address.get_first_name()?.clone()),
                         last_name: Some(address.get_last_name()?.clone()),
-                        email: Some(item.request.get_email()?),
+                        email: item.request.get_email()?,
                         country: item.get_billing_country()?,
                     }),
                     Some(NuveiBIC::try_from(bank_name)?),
