@@ -116,6 +116,7 @@ impl behaviour::Conversion for Address {
                 message: "id present while creating a new database entry".to_string(),
             })
         })?;
+        let now = date_time::now();
         Ok(Self::NewDstType {
             address_id: self.address_id,
             city: self.city,
@@ -131,6 +132,8 @@ impl behaviour::Conversion for Address {
             country_code: self.country_code,
             customer_id: self.customer_id,
             merchant_id: self.merchant_id,
+            created_at: now,
+            modified_at: now,
         })
     }
 }

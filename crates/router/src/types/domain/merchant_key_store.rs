@@ -1,6 +1,6 @@
 use common_utils::{
     crypto::{Encryptable, GcmAes256},
-    custom_serde,
+    custom_serde, date_time,
 };
 use error_stack::ResultExt;
 use masking::Secret;
@@ -56,6 +56,7 @@ impl super::behaviour::Conversion for MerchantKeyStore {
         Ok(storage_models::merchant_key_store::MerchantKeyStoreNew {
             merchant_id: self.merchant_id,
             key: self.key.into(),
+            created_at: date_time::now(),
         })
     }
 }
