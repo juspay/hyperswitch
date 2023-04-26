@@ -8,13 +8,13 @@ use crate::services;
 
 #[derive(Debug, Display, Clone, PartialEq, Eq)]
 pub enum Flow {
-    PaymentCreate,
+    DummyPaymentCreate,
 }
 
 impl FlowMetric for Flow {}
 
 #[derive(Debug, serde::Serialize, Eq, PartialEq, serde::Deserialize)]
-pub struct DummyConnectorPaymentsRequest {
+pub struct DummyConnectorPaymentRequest {
     pub amount: i64,
     pub payment_method_data: DummyConnectorPaymentMethodData,
 }
@@ -76,14 +76,14 @@ impl std::fmt::Display for DummyConnectorTransactionStatus {
 }
 
 #[derive(Default, Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct DummyConnectorPaymentsResponse {
+pub struct DummyConnectorPaymentResponse {
     pub status: String,
     pub id: String,
     pub amount: i64,
     pub payment_method_type: String,
 }
 
-impl DummyConnectorPaymentsResponse {
+impl DummyConnectorPaymentResponse {
     pub fn new(status: String, id: String, amount: i64, payment_method_type: String) -> Self {
         Self {
             status,

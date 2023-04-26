@@ -1,5 +1,3 @@
-#[cfg(all(not(feature = "external_access_dc"), feature = "dummy_connector"))]
-use actix_web::guard;
 use actix_web::{web, Scope};
 use tokio::sync::oneshot;
 
@@ -89,7 +87,7 @@ impl DummyConnector {
         let mut route = web::scope("/dummy_connector").app_data(web::Data::new(state));
         #[cfg(not(feature = "external_access_dc"))]
         {
-            route = route.guard(guard::Host("localhost"));
+            route = route.guard(actix_web::guard::Host("localhost"));
         }
         route =
             route.service(web::resource("/payment").route(web::post().to(dummy_connector_payment)));
