@@ -1,17 +1,16 @@
 use std::borrow::Cow;
 
-use base64::Engine;
 use common_utils::{
     ext_traits::{AsyncExt, ByteSliceExt, ValueExt},
     fp_utils,
 };
 // TODO : Evaluate all the helper functions ()
 use error_stack::{report, IntoReport, ResultExt};
+use josekit::jwe;
 use masking::{ExposeOptionInterface, PeekInterface};
 use router_env::{instrument, tracing};
 use storage_models::enums;
 use uuid::Uuid;
-use josekit::jwe;
 
 use super::{
     operations::{BoxedOperation, Operation, PaymentResponse},
@@ -1430,17 +1429,17 @@ pub async fn get_merchant_connector_account(
                     errors::ApiErrorResponse::MerchantConnectorAccountNotFound,
                 )?;
 
-                #[cfg(feature = "kms")]
-                let private_key = kms::get_kms_client(kms_config)
-                    .await
-                    .decrypt(state.conf.jwekey.tunnel_private_key.to_owned())
-                    .await
-                    .change_context(errors::VaultError::SaveCardFailed)
-                    .attach_printable("Error getting private key for signing jws")?;
+            #[cfg(feature = "kms")]
+            let private_key = kms::get_kms_client(kms_config)
+                .await
+                .decrypt(state.conf.jwekey.tunnel_private_key.to_owned())
+                .await
+                .change_context(errors::VaultError::SaveCardFailed)
+                .attach_printable("Error getting private key for signing jws")?;
 
-                #[cfg(not(feature = "kms"))]
-                let private_key = state.conf.jwekey.tunnel_private_key.to_owned();
-                println!("private key {}",private_key);
+            #[cfg(not(feature = "kms"))]
+            let private_key = state.conf.jwekey.tunnel_private_key.to_owned();
+            println!("private key {}", private_key);
 
             let decrypted_mca = services::decrypt_jwe(mca_config.config.as_str(), services::KeyIdCheck::SkipKeyIdCheck, private_key, jwe::RSA_OAEP_256)
                                      .await
