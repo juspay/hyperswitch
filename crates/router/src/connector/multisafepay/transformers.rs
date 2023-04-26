@@ -204,7 +204,7 @@ impl TryFrom<utils::CardIssuer> for Gateway {
             utils::CardIssuer::Discover => Ok(Self::Discover),
             utils::CardIssuer::Visa => Ok(Self::Visa),
             _ => Err(errors::ConnectorError::NotSupported {
-                message: api::enums::PaymentMethod::Card.to_string(),
+                message: issuer.to_string(),
                 connector: "Multisafe pay",
                 payment_experience: api::enums::PaymentExperience::RedirectToUrl.to_string(),
             }

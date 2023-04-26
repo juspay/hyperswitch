@@ -38,7 +38,7 @@ impl TryFrom<utils::CardIssuer> for PayeezyCardType {
             utils::CardIssuer::Discover => Ok(Self::Discover),
             utils::CardIssuer::Visa => Ok(Self::Visa),
             _ => Err(errors::ConnectorError::NotSupported {
-                message: api::enums::PaymentMethod::Card.to_string(),
+                message: issuer.to_string(),
                 connector: "Payeezy",
                 payment_experience: api::enums::PaymentExperience::RedirectToUrl.to_string(),
             }
