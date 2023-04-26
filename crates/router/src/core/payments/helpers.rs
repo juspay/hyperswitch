@@ -1198,14 +1198,14 @@ pub(crate) fn authenticate_client_secret(
                 Err(errors::ApiErrorResponse::ClientSecretInvalid)
             } else {
                 //This is done to check whether the merchant_account's intent fulfillment time has expired or not
-                let payment_intent_total_fulfillment_time =
+                let payment_intent_fulfillment_deadline =
                     payment_intent.created_at.saturating_add(Duration::seconds(
                         merchant_intent_fulfillment_time
                             .unwrap_or(consts::DEFAULT_FULFILLMENT_TIME),
                     ));
                 let current_timestamp = common_utils::date_time::now();
                 fp_utils::when(
-                    current_timestamp > payment_intent_total_fulfillment_time,
+                    current_timestamp > payment_intent_fulfillment_deadline,
                     || Err(errors::ApiErrorResponse::ClientSecretExpired),
                 )
             }
