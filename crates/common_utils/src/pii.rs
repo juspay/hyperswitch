@@ -274,10 +274,10 @@ mod pii_masking_strategy_tests {
     fn test_redacted_email() {
         let email_result = Email::from_str(REDACTED);
         assert!(email_result.is_ok());
-
-        let email = email_result.unwrap();
-        let secret_value = email.0.expose();
-        assert_eq!(secret_value.as_str(), REDACTED);
+        if let Ok(email) = email_result {
+            let secret_value = email.0.expose();
+            assert_eq!(secret_value.as_str(), REDACTED);
+        }
     }
 
     #[test]
