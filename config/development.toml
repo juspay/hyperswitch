@@ -178,9 +178,33 @@ ideal = { country = "NL", currency = "EUR" }
 
 [pm_filters.braintree]
 paypal = { currency = "AUD,BRL,CAD,CNY,CZK,DKK,EUR,HKD,HUF,ILS,JPY,MYR,MXN,TWD,NZD,NOK,PHP,PLN,GBP,RUB,SGD,SEK,CHF,THB,USD" }
+credit={absent_impl = "ManualCapture"}
+debit={absent_impl = "ManualCapture"}
 
 [pm_filters.klarna]
 klarna = { country = "AU,AT,BE,CA,CZ,DK,FI,FR,DE,GR,IE,IT,NL,NZ,NO,PL,PT,ES,SE,CH,GB,US", currency = "AUD,EUR,EUR,CAD,CZK,DKK,EUR,EUR,EUR,EUR,EUR,EUR,EUR,NZD,NOK,PLN,EUR,EUR,SEK,CHF,GBP,USD" }
+credit={absent_impl = "ManualCapture"}
+debit={absent_impl = "ManualCapture"}
+
+[pm_filters.zen]
+credit={absent_impl ="ManualCapture"}
+debit={absent_impl ="ManualCapture"}
+
+[pm_filters.aci]
+credit={absent_impl = "ManualCapture"}
+debit={absent_impl = "ManualCapture"}
+
+[pm_filters.mollie]
+credit={absent_impl = "ManualCapture"}
+debit={absent_impl = "ManualCapture"}
+
+[pm_filters.multisafepay]
+credit={absent_impl = "ManualCapture"}
+debit={absent_impl = "ManualCapture"}
+
+[pm_filters.trustpay]
+credit={absent_impl = "ManualCapture"}
+debit={absent_impl = "ManualCapture"}
 
 [pm_filters.authorizedotnet]
 google_pay = { currency = "CHF,DKK,EUR,GBP,NOK,PLN,SEK,USD,AUD,NZD,CAD" }
@@ -197,3 +221,4 @@ region = ""
 [tokenization]
 stripe = { long_lived_token = false, payment_method = "wallet"}
 checkout = { long_lived_token = false, payment_method = "wallet"}
+        #ACI,BrainTree,Klarna,Mollie,MultisafePay,Trustpay,Zen

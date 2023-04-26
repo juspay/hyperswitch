@@ -42,6 +42,11 @@ pub enum CountryCode {
 }
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
+pub enum AbsentImpl {
+    ManualCapture,
+}
+
+#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 pub enum CountryAlpha2 {
     AF,
     AX,
