@@ -193,3 +193,7 @@ region = ""
 [tokenization]
 stripe = { long_lived_token = false, payment_method = "wallet"}
 checkout = { long_lived_token = false, payment_method = "wallet"}
+
+[pm_filters.forte]
+credit = {currency = "USD"}
+debit = {currency = "USD"}

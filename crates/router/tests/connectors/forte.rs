@@ -675,7 +675,7 @@ async fn should_throw_not_implemented_for_unsupported_issuer() {
     assert_eq!(
         *response.unwrap_err().current_context(),
         router::core::errors::ConnectorError::NotSupported {
-            payment_method: "Maestro".to_string(),
+            message: "Maestro".to_string(),
             connector: "Forte",
             payment_experience: api::enums::PaymentExperience::RedirectToUrl.to_string(),
         }

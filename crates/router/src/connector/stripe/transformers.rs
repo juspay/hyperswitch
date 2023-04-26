@@ -416,7 +416,7 @@ impl TryFrom<&api_models::enums::BankNames> for StripeBankNames {
             api_models::enums::BankNames::VolkskreditbankAg => Self::VolkskreditbankAg,
             api_models::enums::BankNames::VrBankBraunau => Self::VrBankBraunau,
             _ => Err(errors::ConnectorError::NotSupported {
-                payment_method: api_enums::PaymentMethod::BankRedirect.to_string(),
+                message: api_enums::PaymentMethod::BankRedirect.to_string(),
                 connector: "Stripe",
                 payment_experience: api_enums::PaymentExperience::RedirectToUrl.to_string(),
             })?,
@@ -468,14 +468,14 @@ fn infer_stripe_pay_later_type(
                 Ok(StripePaymentMethodType::AfterpayClearpay)
             }
             _ => Err(errors::ConnectorError::NotSupported {
-                payment_method: pm_type.to_string(),
+                message: pm_type.to_string(),
                 connector: "stripe",
                 payment_experience: experience.to_string(),
             }),
         }
     } else {
         Err(errors::ConnectorError::NotSupported {
-            payment_method: pm_type.to_string(),
+            message: pm_type.to_string(),
             connector: "stripe",
             payment_experience: experience.to_string(),
         })
@@ -1674,7 +1674,7 @@ impl
                 }))
             }
             api::PaymentMethodData::Crypto(_) => Err(errors::ConnectorError::NotSupported {
-                payment_method: format!("{pm_type:?}"),
+                message: format!("{pm_type:?}"),
                 connector: "Stripe",
                 payment_experience: api_models::enums::PaymentExperience::RedirectToUrl.to_string(),
             })?,

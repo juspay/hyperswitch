@@ -89,7 +89,7 @@ impl TryFrom<api_models::payments::PaymentMethodData> for PaymentDetails {
             api::PaymentMethodData::BankRedirect(_) => Ok(Self::BankRedirect),
             api::PaymentMethodData::Crypto(_) | api::PaymentMethodData::BankDebit(_) => {
                 Err(errors::ConnectorError::NotSupported {
-                    payment_method: format!("{value:?}"),
+                    message: format!("{value:?}"),
                     connector: "AuthorizeDotNet",
                     payment_experience: api_models::enums::PaymentExperience::RedirectToUrl
                         .to_string(),

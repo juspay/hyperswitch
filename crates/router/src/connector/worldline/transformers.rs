@@ -130,7 +130,7 @@ impl TryFrom<utils::CardIssuer> for Gateway {
             utils::CardIssuer::Discover => Ok(Self::Discover),
             utils::CardIssuer::Visa => Ok(Self::Visa),
             _ => Err(errors::ConnectorError::NotSupported {
-                payment_method: api_enums::PaymentMethod::Card.to_string(),
+                message: api_enums::PaymentMethod::Card.to_string(),
                 connector: "worldline",
                 payment_experience: api_enums::PaymentExperience::RedirectToUrl.to_string(),
             }

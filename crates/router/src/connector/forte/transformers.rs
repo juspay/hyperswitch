@@ -55,7 +55,7 @@ impl TryFrom<utils::CardIssuer> for ForteCardType {
             utils::CardIssuer::DinersClub => Ok(Self::DinersClub),
             utils::CardIssuer::JCB => Ok(Self::Jcb),
             _ => Err(errors::ConnectorError::NotSupported {
-                payment_method: issuer.to_string(),
+                message: issuer.to_string(),
                 connector: "Forte",
                 payment_experience: api::enums::PaymentExperience::RedirectToUrl.to_string(),
             }
@@ -69,6 +69,14 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for FortePaymentsRequest {
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         match item.request.payment_method_data {
             api_models::payments::PaymentMethodData::Card(ref ccard) => {
+                if item.request.currency != enums::Currency::USD {
+                    Err(errors::ConnectorError::NotSupported {
+                        message: item.request.currency.to_string(),
+                        connector: "Forte",
+                        payment_experience: api::enums::PaymentExperience::RedirectToUrl
+                            .to_string(),
+                    })?
+                }
                 let action = match item.request.is_auto_capture()? {
                     true => ForteAction::Sale,
                     false => ForteAction::Authorize,
