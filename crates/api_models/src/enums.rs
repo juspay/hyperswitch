@@ -563,7 +563,7 @@ pub enum Connector {
     Aci,
     Adyen,
     Airwallex,
-    Applepay,
+    ApplePay,
     Authorizedotnet,
     Bluesnap,
     Braintree,

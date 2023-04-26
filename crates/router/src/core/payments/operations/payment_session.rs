@@ -386,7 +386,9 @@ where
             for wallet in given_wallets {
                 let (connector_name, connector_type) = match wallet {
                     api_enums::SupportedWallets::Gpay => ("adyen", api::GetToken::Metadata),
-                    api_enums::SupportedWallets::ApplePay => ("applepay", api::GetToken::Connector),
+                    api_enums::SupportedWallets::ApplePay => {
+                        ("apple_pay", api::GetToken::Connector)
+                    }
                     api_enums::SupportedWallets::Paypal => ("braintree", api::GetToken::Connector),
                     api_enums::SupportedWallets::Klarna => ("klarna", api::GetToken::Connector),
                 };

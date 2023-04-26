@@ -22,7 +22,7 @@ pub struct Applepay;
 
 impl ConnectorCommon for Applepay {
     fn id(&self) -> &'static str {
-        "applepay"
+        "apple_pay"
     }
 
     fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
