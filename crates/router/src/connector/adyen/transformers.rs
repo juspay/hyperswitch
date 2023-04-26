@@ -1485,7 +1485,7 @@ pub fn get_redirection_response(
                     .map(|(key, value)| (key.to_string(), value.to_string())),
             )
         });
-        services::RedirectForm {
+        services::RedirectForm::Form {
             endpoint: url.to_string(),
             method: response.action.method.unwrap_or(services::Method::Get),
             form_fields,

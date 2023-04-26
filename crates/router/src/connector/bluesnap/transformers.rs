@@ -1,10 +1,14 @@
+use base64::Engine;
+use error_stack::ResultExt;
 use serde::{Deserialize, Serialize};
 
 use crate::{
     connector::utils,
+    consts,
     core::errors,
     pii::{self, Secret},
     types::{self, api, storage::enums, transformers::ForeignTryFrom},
+    utils::Encode,
 };
 
 #[derive(Debug, Serialize, PartialEq)]
@@ -21,6 +25,7 @@ pub struct BluesnapPaymentsRequest {
 #[serde(rename_all = "camelCase")]
 pub enum PaymentMethodDetails {
     CreditCard(Card),
+    Wallet(BluesnapWallet),
 }
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
@@ -30,6 +35,32 @@ pub struct Card {
     expiration_month: Secret<String>,
     expiration_year: Secret<String>,
     security_code: Secret<String>,
+}
+
+#[derive(Debug, Serialize, Eq, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct BluesnapWallet {
+    wallet_type: BluesnapWalletTypes,
+    encoded_payment_token: String,
+}
+
+#[derive(Debug, Serialize, Eq, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct BluesnapGooglePayObject {
+    payment_method_data: api_models::payments::GooglePayWalletData,
+}
+
+#[derive(Debug, Serialize, Eq, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct BluesnapApplePayObject {
+    token: api_models::payments::ApplePayWalletData,
+}
+
+#[derive(Debug, Serialize, Eq, PartialEq)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum BluesnapWalletTypes {
+    GooglePay,
+    ApplePay,
 }
 
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for BluesnapPaymentsRequest {
@@ -46,6 +77,36 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BluesnapPaymentsRequest {
                 expiration_year: ccard.card_exp_year.clone(),
                 security_code: ccard.card_cvc,
             })),
+            api::PaymentMethodData::Wallet(wallet_data) => match wallet_data {
+                api_models::payments::WalletData::GooglePay(payment_method_data) => {
+                    let gpay_object = Encode::<BluesnapGooglePayObject>::encode_to_string_of_json(
+                        &BluesnapGooglePayObject {
+                            payment_method_data,
+                        },
+                    )
+                    .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+                    Ok(PaymentMethodDetails::Wallet(BluesnapWallet {
+                        wallet_type: BluesnapWalletTypes::GooglePay,
+                        encoded_payment_token: consts::BASE64_ENGINE.encode(gpay_object),
+                    }))
+                }
+                api_models::payments::WalletData::ApplePay(payment_method_data) => {
+                    let apple_pay_object =
+                        Encode::<BluesnapApplePayObject>::encode_to_string_of_json(
+                            &BluesnapApplePayObject {
+                                token: payment_method_data,
+                            },
+                        )
+                        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+                    Ok(PaymentMethodDetails::Wallet(BluesnapWallet {
+                        wallet_type: BluesnapWalletTypes::ApplePay,
+                        encoded_payment_token: consts::BASE64_ENGINE.encode(apple_pay_object),
+                    }))
+                }
+                _ => Err(errors::ConnectorError::NotImplemented(
+                    "Wallets".to_string(),
+                )),
+            },
             _ => Err(errors::ConnectorError::NotImplemented(
                 "payment method".to_string(),
             )),

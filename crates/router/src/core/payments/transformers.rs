@@ -707,7 +707,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::CompleteAuthoriz
         let json_payload = payment_data
             .connector_response
             .encoded_data
-            .map(serde_json::to_value)
+            .map(|s| serde_json::from_str::<serde_json::Value>(&s))
             .transpose()
             .into_report()
             .change_context(errors::ApiErrorResponse::InternalServerError)?;

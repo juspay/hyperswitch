@@ -159,6 +159,23 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
+    file_metadata (file_id, merchant_id) {
+        file_id -> Varchar,
+        merchant_id -> Varchar,
+        file_name -> Nullable<Varchar>,
+        file_size -> Int4,
+        file_type -> Varchar,
+        provider_file_id -> Nullable<Varchar>,
+        file_upload_provider -> Nullable<Varchar>,
+        available -> Bool,
+        created_at -> Timestamp,
+    }
+}
+
+diesel::table! {
+    use diesel::sql_types::*;
+    use crate::enums::diesel_exports::*;
+
     locker_mock_up (id) {
         id -> Int4,
         card_id -> Varchar,
@@ -439,6 +456,7 @@ diesel::allow_tables_to_appear_in_same_query!(
     customers,
     dispute,
     events,
+    file_metadata,
     locker_mock_up,
     mandate,
     merchant_account,

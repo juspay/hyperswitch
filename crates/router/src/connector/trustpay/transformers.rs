@@ -558,11 +558,13 @@ fn handle_cards_response(
         response.redirect_url.clone(),
     )?;
     let form_fields = response.redirect_params.unwrap_or_default();
-    let redirection_data = response.redirect_url.map(|url| services::RedirectForm {
-        endpoint: url.to_string(),
-        method: services::Method::Post,
-        form_fields,
-    });
+    let redirection_data = response
+        .redirect_url
+        .map(|url| services::RedirectForm::Form {
+            endpoint: url.to_string(),
+            method: services::Method::Post,
+            form_fields,
+        });
     let error = if msg.is_some() {
         Some(types::ErrorResponse {
             code: response.payment_status,
