@@ -668,7 +668,9 @@ pub trait ConnectorRedirectResponse {
 }
 
 pub trait Authenticate {
-    fn get_client_secret(&self) -> Option<&String>;
+    fn get_client_secret(&self) -> Option<&String> {
+        None
+    }
 }
 
 impl Authenticate for api_models::payments::PaymentsRequest {
@@ -682,31 +684,17 @@ impl Authenticate for api_models::payment_methods::PaymentMethodListRequest {
         self.client_secret.as_ref()
     }
 }
-impl Authenticate for api_models::payments::PaymentsRetrieveRequest {
-    fn get_client_secret(&self) -> Option<&String> {
-        None
-    }
-}
-impl Authenticate for api_models::payments::PaymentsCancelRequest {
-    fn get_client_secret(&self) -> Option<&String> {
-        None
-    }
-}
-impl Authenticate for api_models::payments::PaymentsCaptureRequest {
-    fn get_client_secret(&self) -> Option<&String> {
-        None
-    }
-}
-impl Authenticate for api_models::payments::PaymentsStartRequest {
-    fn get_client_secret(&self) -> Option<&String> {
-        None
-    }
-}
+
 impl Authenticate for api_models::payments::PaymentsSessionRequest {
     fn get_client_secret(&self) -> Option<&String> {
         Some(&self.client_secret)
     }
 }
+
+impl Authenticate for api_models::payments::PaymentsRetrieveRequest {}
+impl Authenticate for api_models::payments::PaymentsCancelRequest {}
+impl Authenticate for api_models::payments::PaymentsCaptureRequest {}
+impl Authenticate for api_models::payments::PaymentsStartRequest {}
 
 pub fn build_redirection_form(form: &RedirectForm) -> maud::Markup {
     use maud::PreEscaped;

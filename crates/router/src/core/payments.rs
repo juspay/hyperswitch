@@ -85,10 +85,9 @@ where
             &merchant_account,
         )
         .await?;
-    let payment_intent = &payment_data.payment_intent;
     authenticate_client_secret(
         req.get_client_secret(),
-        payment_intent,
+        &payment_data.payment_intent,
         merchant_account.intent_fulfillment_time,
     )?;
 

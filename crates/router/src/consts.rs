@@ -13,7 +13,7 @@ pub(crate) const ALPHABETS: [char; 62] = [
 pub const REQUEST_TIME_OUT: u64 = 30;
 
 ///Payment intent fulfillment default timeout (in seconds)
-pub const DEFAULT_FULFILLMENT_TIME: i64 = 900;
+pub const DEFAULT_FULFILLMENT_TIME: i64 = 15 * 60;
 
 // String literals
 pub(crate) const NO_ERROR_MESSAGE: &str = "No error message";
