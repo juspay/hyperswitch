@@ -53,9 +53,9 @@ pub struct NmiPaymentsRequest {
 #[derive(Debug, Serialize)]
 #[serde(untagged)]
 pub enum PaymentMethod {
-    Card(CardData),
-    GPay(GooglePayData),
-    ApplePay(ApplePayData),
+    Card(Box<CardData>),
+    GPay(Box<GooglePayData>),
+    ApplePay(Box<ApplePayData>),
 }
 
 #[derive(Debug, Serialize)]
@@ -135,7 +135,7 @@ impl From<&api_models::payments::Card> for PaymentMethod {
             ccexp,
             cvv: card.card_cvc.clone(),
         };
-        Self::Card(card)
+        Self::Card(Box::new(card))
     }
 }
 
@@ -144,7 +144,7 @@ impl From<&api_models::payments::GooglePayWalletData> for PaymentMethod {
         let gpay_data = GooglePayData {
             googlepay_payment_data: wallet_data.tokenization_data.token.clone(),
         };
-        Self::GPay(gpay_data)
+        Self::GPay(Box::new(gpay_data))
     }
 }
 
@@ -153,7 +153,7 @@ impl From<&api_models::payments::ApplePayWalletData> for PaymentMethod {
         let apple_pay_data = ApplePayData {
             applepay_payment_data: wallet_data.payment_data.clone(),
         };
-        Self::ApplePay(apple_pay_data)
+        Self::ApplePay(Box::new(apple_pay_data))
     }
 }
 
