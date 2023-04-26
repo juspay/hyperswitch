@@ -4,6 +4,7 @@ pub mod configs;
 pub mod customers;
 pub mod disputes;
 pub mod enums;
+pub mod files;
 pub mod mandates;
 pub mod payment_methods;
 pub mod payments;
@@ -15,8 +16,8 @@ use std::{fmt::Debug, str::FromStr};
 use error_stack::{report, IntoReport, ResultExt};
 
 pub use self::{
-    admin::*, api_keys::*, configs::*, customers::*, disputes::*, payment_methods::*, payments::*,
-    refunds::*, webhooks::*,
+    admin::*, api_keys::*, configs::*, customers::*, disputes::*, files::*, payment_methods::*,
+    payments::*, refunds::*, webhooks::*,
 };
 use super::ErrorResponse;
 use crate::{
@@ -106,6 +107,8 @@ pub trait Connector:
     + ConnectorRedirectResponse
     + IncomingWebhook
     + ConnectorAccessToken
+    + Dispute
+    + FileUpload
     + ConnectorTransactionId
 {
 }
@@ -122,6 +125,8 @@ impl<
             + Send
             + IncomingWebhook
             + ConnectorAccessToken
+            + Dispute
+            + FileUpload
             + ConnectorTransactionId,
     > Connector for T
 {
@@ -131,9 +136,10 @@ type BoxedConnector = Box<&'static (dyn Connector + Sync)>;
 
 // Normal flow will call the connector and follow the flow specific operations (capture, authorize)
 // SessionTokenFromMetadata will avoid calling the connector instead create the session token ( for sdk )
-#[derive(Clone)]
+#[derive(Clone, Eq, PartialEq)]
 pub enum GetToken {
-    Metadata,
+    GpayMetadata,
+    ApplePayMetadata,
     Connector,
 }
 
@@ -189,7 +195,6 @@ impl ConnectorData {
             "aci" => Ok(Box::new(&connector::Aci)),
             "adyen" => Ok(Box::new(&connector::Adyen)),
             "airwallex" => Ok(Box::new(&connector::Airwallex)),
-            "applepay" => Ok(Box::new(&connector::Applepay)),
             "authorizedotnet" => Ok(Box::new(&connector::Authorizedotnet)),
             "bambora" => Ok(Box::new(&connector::Bambora)),
             "bluesnap" => Ok(Box::new(&connector::Bluesnap)),
@@ -216,6 +221,7 @@ impl ConnectorData {
             // "nexinets" => Ok(Box::new(&connector::Nexinets)), added as template code for future use
             "paypal" => Ok(Box::new(&connector::Paypal)),
             "trustpay" => Ok(Box::new(&connector::Trustpay)),
+            "zen" => Ok(Box::new(&connector::Zen)),
             _ => Err(report!(errors::ConnectorError::InvalidConnectorName)
                 .attach_printable(format!("invalid connector name: {connector_name}")))
             .change_context(errors::ApiErrorResponse::InternalServerError),

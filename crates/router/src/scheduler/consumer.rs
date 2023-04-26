@@ -5,12 +5,13 @@ use std::{
     sync::{self, atomic},
 };
 
-use common_utils::signals::{get_allowed_signals, oneshot};
+use common_utils::signals::get_allowed_signals;
 use error_stack::{IntoReport, ResultExt};
 use futures::future;
 use redis_interface::{RedisConnectionPool, RedisEntryId};
 use router_env::{instrument, tracing};
 use time::PrimitiveDateTime;
+use tokio::sync::mpsc;
 use uuid::Uuid;
 
 use super::{
@@ -37,6 +38,7 @@ pub async fn start_consumer(
     state: &AppState,
     settings: sync::Arc<settings::SchedulerSettings>,
     workflow_selector: workflows::WorkflowSelectorFn,
+    (tx, mut rx): (mpsc::Sender<()>, mpsc::Receiver<()>),
 ) -> CustomResult<(), errors::ProcessTrackerError> {
     use std::time::Duration;
 
@@ -58,13 +60,12 @@ pub async fn start_consumer(
         })
         .into_report()
         .attach_printable("Failed while creating a signals handler")?;
-    let (sx, mut rx) = oneshot::channel();
     let handle = signal.handle();
-    let task_handle = tokio::spawn(common_utils::signals::signal_handler(signal, sx));
+    let task_handle = tokio::spawn(common_utils::signals::signal_handler(signal, tx));
 
     loop {
         match rx.try_recv() {
-            Err(oneshot::error::TryRecvError::Empty) => {
+            Err(mpsc::error::TryRecvError::Empty) => {
                 interval.tick().await;
 
                 // A guard from env to disable the consumer
@@ -82,11 +83,11 @@ pub async fn start_consumer(
                     workflow_selector,
                 ));
             }
-            Ok(()) | Err(oneshot::error::TryRecvError::Closed) => {
+            Ok(()) | Err(mpsc::error::TryRecvError::Disconnected) => {
                 logger::debug!("Awaiting shutdown!");
+                rx.close();
                 shutdown_interval.tick().await;
                 let active_tasks = consumer_operation_counter.load(atomic::Ordering::Acquire);
-
                 match active_tasks {
                     0 => {
                         logger::info!("Terminating consumer");
