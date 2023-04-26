@@ -97,7 +97,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for IatapayPaymentsRequest {
             country: "DE".to_string(),
             locale: "en-GB".to_string(),
             redirect_urls: get_redirect_url(item),
-            notification_url: "https://enqomrzd84n3c.x.pipedream.net/".to_string(),
+            notification_url: "https://enymh9hvh5dxd.x.pipedream.net/".to_string(),
             departure_date: "2023-12-24".to_string(),
         };
         println!("## payload => {:?}", payload);
@@ -221,9 +221,15 @@ impl<F, T>
 //TODO: Fill the struct with respective fields
 // REFUND :
 // Type definition for RefundRequest
-#[derive(Default, Debug, Serialize)]
+#[derive(Default, Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[serde(rename_all = "camelCase")]
 pub struct IatapayRefundRequest {
+    pub merchant_id: String,
+    pub merchant_refund_id: String,
     pub amount: i64,
+    pub currency: String,
+    pub bank_transfer_description: Option<String>,
+    pub notification_url: String,
 }
 
 impl<F> TryFrom<&types::RefundsRouterData<F>> for IatapayRefundRequest {
@@ -231,6 +237,14 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for IatapayRefundRequest {
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
         Ok(Self {
             amount: item.request.amount,
+            merchant_id: "6E3120000".to_string(),
+            merchant_refund_id: match item.request.connector_refund_id.clone() {
+                Some(val) => val,
+                None => item.request.refund_id.clone(),
+            },
+            currency: item.request.currency.to_string(),
+            bank_transfer_description: item.request.reason.clone(),
+            notification_url: "https://enymh9hvh5dxd.x.pipedream.net/".to_string(),
         })
     }
 }
@@ -238,30 +252,51 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for IatapayRefundRequest {
 // Type definition for Refund Response
 
 #[allow(dead_code)]
-#[derive(Debug, Serialize, Default, Deserialize, Clone)]
+#[derive(Debug, Serialize, Default, Deserialize, Clone, PartialEq)]
+#[serde(rename_all = "UPPERCASE")]
 pub enum RefundStatus {
-    Succeeded,
-    Failed,
-    #[default]
-    Processing,
+    #[default] Created,
+    Locked,
+    Initiated,
+    Authorized,
+    Settled,
+    Failed
 }
 
 impl From<RefundStatus> for enums::RefundStatus {
     fn from(item: RefundStatus) -> Self {
         match item {
-            RefundStatus::Succeeded => Self::Success,
+            RefundStatus::Created => Self::Pending,
             RefundStatus::Failed => Self::Failure,
-            RefundStatus::Processing => Self::Pending,
-            //TODO: Review mapping
+            RefundStatus::Locked => Self::Pending,
+            RefundStatus::Initiated => Self::Pending,
+            RefundStatus::Authorized => Self::Pending,
+            RefundStatus::Settled => Self::Success,
         }
     }
 }
 
-//TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+#[derive(Default, Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[serde(rename_all = "camelCase")]
 pub struct RefundResponse {
-    id: String,
+    iata_refund_id: String,
     status: RefundStatus,
+    merchant_refund_id: String,
+    amount: f64,
+    currency: String,
+    bank_transfer_description: Option<String>,
+    failure_code: Option<String>,
+    failure_details: Option<String>,
+    lock_reason: Option<String>,
+    creation_date_time: Option<String>,
+    finish_date_time: Option<String>,
+    update_date_time: Option<String>,
+    clearance_date_time: Option<String>,
+    iata_payment_id: Option<String>,
+    merchant_payment_id: Option<String>,
+    payment_amount: Option<f64>,
+    merchant_id: Option<String>,
+    account_country: Option<String>,
 }
 
 impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
@@ -273,7 +308,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             response: Ok(types::RefundsResponseData {
-                connector_refund_id: item.response.id.to_string(),
+                connector_refund_id: item.response.iata_refund_id.to_string(),
                 refund_status: enums::RefundStatus::from(item.response.status),
             }),
             ..item.data
@@ -290,7 +325,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             response: Ok(types::RefundsResponseData {
-                connector_refund_id: item.response.id.to_string(),
+                connector_refund_id: item.response.iata_refund_id.to_string(),
                 refund_status: enums::RefundStatus::from(item.response.status),
             }),
             ..item.data

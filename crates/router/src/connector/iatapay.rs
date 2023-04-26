@@ -478,7 +478,13 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         _req: &types::RefundsRouterData<api::Execute>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        Ok(format!(
+            "{}{}{}{}",
+            self.base_url(_connectors),
+            "/payments/",
+            _req.request.connector_transaction_id,
+            "/refund"))
+        // Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
     }
 
     fn get_request_body(
@@ -552,7 +558,16 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         _req: &types::RefundSyncRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        Ok(format!(
+            "{}{}{}",
+            self.base_url(_connectors),
+            "/refunds/",
+            match _req.request.connector_refund_id.clone() {
+                Some(val) => val,
+                None => _req.request.refund_id.clone(),
+            },
+        ))
+        // Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
     }
 
     fn build_request(
