@@ -1056,6 +1056,26 @@ async fn filter_payment_methods(
         let parse_result = serde_json::from_value::<PaymentMethodsEnabled>(payment_method);
         if let Ok(payment_methods_enabled) = parse_result {
             let payment_method = payment_methods_enabled.payment_method;
+            let allowed_payment_method_types = payment_intent
+                .map(|payment_intent|
+                    payment_intent
+                        .metadata
+                        .as_ref()
+                        .and_then(|masked_metadata| {
+                            let metadata = masked_metadata.peek().clone();
+                            let parsed_metadata: Option<api_models::payments::Metadata> =
+                                serde_json::from_value(metadata)
+                                    .map_err(|error| logger::error!(%error, "Failed to deserialize PaymentIntent metadata"))
+                                    .ok();
+                            parsed_metadata.and_then(|pm| {
+                                logger::info!(
+                                    "Only given PaymentMethodTypes will be allowed {:?}",
+                                    pm.allowed_payment_method_types
+                                );
+                                pm.allowed_payment_method_types
+                            })
+                }))
+                .and_then(|a| a);
             for payment_method_type_info in payment_methods_enabled
                 .payment_method_types
                 .unwrap_or_default()
@@ -1115,6 +1135,11 @@ async fn filter_payment_methods(
                             .map(|value| value.foreign_into()),
                     );
 
+                    let filter6 = filter_pm_based_on_allowed_types(
+                        allowed_payment_method_types.as_ref(),
+                        &payment_method_object.payment_method_type,
+                    );
+
                     let connector = connector.clone();
 
                     let response_pm_type = ResponsePaymentMethodIntermediate::new(
@@ -1123,7 +1148,7 @@ async fn filter_payment_methods(
                         payment_method,
                     );
 
-                    if filter && filter2 && filter3 && filter4 && filter5 {
+                    if filter && filter2 && filter3 && filter4 && filter5 && filter6 {
                         resp.push(response_pm_type);
                     }
                 }
@@ -1358,6 +1383,13 @@ fn filter_amount_based(payment_method: &RequestPaymentMethodTypes, amount: Optio
     min_check && max_check
 }
 
+fn filter_pm_based_on_allowed_types(
+    allowed_types: Option<&Vec<api_enums::PaymentMethodType>>,
+    payment_method_type: &api_enums::PaymentMethodType,
+) -> bool {
+    allowed_types.map_or(true, |pm| pm.contains(payment_method_type))
+}
+
 fn filter_recurring_based(
     payment_method: &RequestPaymentMethodTypes,
     recurring_enabled: Option<bool>,
@@ -1444,8 +1476,8 @@ pub async fn list_customer_payment_method(
         ));
     }
     let mut customer_pms = Vec::new();
-    let parent_payment_method_token = generate_id(consts::ID_LENGTH, "token");
     for pm in resp.into_iter() {
+        let parent_payment_method_token = generate_id(consts::ID_LENGTH, "token");
         let hyperswitch_token = generate_id(consts::ID_LENGTH, "token");
         let card = if pm.payment_method == enums::PaymentMethod::Card {
             let locker_id = merchant_account

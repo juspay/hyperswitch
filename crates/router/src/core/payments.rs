@@ -11,7 +11,7 @@ use common_utils::pii::Email;
 use error_stack::{IntoReport, ResultExt};
 use futures::future::join_all;
 use masking::Secret;
-use router_env::tracing;
+use router_env::{instrument, tracing};
 use time;
 
 pub use self::operations::{
@@ -40,6 +40,7 @@ use crate::{
     utils::{Encode, OptionExt, ValueExt},
 };
 
+#[instrument(skip_all, fields(payment_id, merchant_id))]
 pub async fn payments_operation_core<F, Req, Op, FData>(
     state: &AppState,
     merchant_account: storage::MerchantAccount,
@@ -65,11 +66,13 @@ where
 {
     let operation: BoxedOperation<'_, F, Req> = Box::new(operation);
 
+    tracing::Span::current().record("merchant_id", merchant_account.merchant_id.as_str());
+
     let (operation, validate_result) = operation
         .to_validate_request()?
         .validate_request(&req, &merchant_account)?;
 
-    tracing::Span::current().record("payment_id", &format!("{:?}", validate_result.payment_id));
+    tracing::Span::current().record("payment_id", &format!("{}", validate_result.payment_id));
 
     let (operation, mut payment_data, customer_details) = operation
         .to_get_tracker()?
@@ -322,6 +325,7 @@ impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
                 order_details: None,
                 data: masking::Secret::new("{}".into()),
                 payload: Some(req.json_payload.unwrap_or(serde_json::json!({})).into()),
+                allowed_payment_method_types: None,
             }),
             ..Default::default()
         };

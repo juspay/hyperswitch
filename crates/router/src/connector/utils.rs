@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use api_models::payments;
+use api_models::payments::{self, OrderDetails};
 use base64::Engine;
 use common_utils::{
     date_time,
@@ -61,6 +61,7 @@ pub trait RouterData {
     where
         T: serde::de::DeserializeOwned;
     fn is_three_ds(&self) -> bool;
+    fn get_payment_method_token(&self) -> Result<String, Error>;
 }
 
 impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Response> {
@@ -139,17 +140,24 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
             .and_then(|a| a.address.as_ref())
             .ok_or_else(missing_field_err("shipping.address"))
     }
+    fn get_payment_method_token(&self) -> Result<String, Error> {
+        self.payment_method_token
+            .clone()
+            .ok_or_else(missing_field_err("payment_method_token"))
+    }
 }
 
 pub trait PaymentsAuthorizeRequestData {
     fn is_auto_capture(&self) -> Result<bool, Error>;
     fn get_email(&self) -> Result<Email, Error>;
     fn get_browser_info(&self) -> Result<types::BrowserInformation, Error>;
+    fn get_order_details(&self) -> Result<OrderDetails, Error>;
     fn get_card(&self) -> Result<api::Card, Error>;
     fn get_return_url(&self) -> Result<String, Error>;
     fn connector_mandate_id(&self) -> Option<String>;
     fn is_mandate_payment(&self) -> bool;
     fn get_webhook_url(&self) -> Result<String, Error>;
+    fn get_router_return_url(&self) -> Result<String, Error>;
 }
 
 impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
@@ -168,6 +176,12 @@ impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
             .clone()
             .ok_or_else(missing_field_err("browser_info"))
     }
+    fn get_order_details(&self) -> Result<OrderDetails, Error> {
+        self.order_details
+            .clone()
+            .ok_or_else(missing_field_err("order_details"))
+    }
+
     fn get_card(&self) -> Result<api::Card, Error> {
         match self.payment_method_data.clone() {
             api::PaymentMethodData::Card(card) => Ok(card),
@@ -193,9 +207,24 @@ impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
                 .is_some()
     }
     fn get_webhook_url(&self) -> Result<String, Error> {
+        self.webhook_url
+            .clone()
+            .ok_or_else(missing_field_err("webhook_url"))
+    }
+    fn get_router_return_url(&self) -> Result<String, Error> {
         self.router_return_url
             .clone()
             .ok_or_else(missing_field_err("webhook_url"))
+    }
+}
+
+pub trait BrowserInformationData {
+    fn get_ip_address(&self) -> Result<std::net::IpAddr, Error>;
+}
+
+impl BrowserInformationData for types::BrowserInformation {
+    fn get_ip_address(&self) -> Result<std::net::IpAddr, Error> {
+        self.ip_address.ok_or_else(missing_field_err("ip_address"))
     }
 }
 

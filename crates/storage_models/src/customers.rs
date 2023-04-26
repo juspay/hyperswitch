@@ -31,6 +31,7 @@ pub struct Customer {
     pub description: Option<String>,
     pub created_at: PrimitiveDateTime,
     pub metadata: Option<pii::SecretSerdeValue>,
+    pub modified_at: PrimitiveDateTime,
 }
 
 #[derive(Debug)]
@@ -54,6 +55,7 @@ pub struct CustomerUpdateInternal {
     description: Option<String>,
     phone_country_code: Option<String>,
     metadata: Option<pii::SecretSerdeValue>,
+    modified_at: Option<PrimitiveDateTime>,
 }
 
 impl From<CustomerUpdate> for CustomerUpdateInternal {
@@ -73,6 +75,7 @@ impl From<CustomerUpdate> for CustomerUpdateInternal {
                 description,
                 phone_country_code,
                 metadata,
+                modified_at: Some(common_utils::date_time::now()),
             },
         }
     }

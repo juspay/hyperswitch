@@ -11,7 +11,7 @@ pub(crate) struct ConnectorAuthentication {
     pub authorizedotnet: Option<BodyKey>,
     pub bambora: Option<BodyKey>,
     pub bluesnap: Option<BodyKey>,
-    pub checkout: Option<BodyKey>,
+    pub checkout: Option<SignatureKey>,
     pub coinbase: Option<HeaderKey>,
     pub cybersource: Option<SignatureKey>,
     pub dlocal: Option<SignatureKey>,
@@ -29,9 +29,10 @@ pub(crate) struct ConnectorAuthentication {
     pub rapyd: Option<BodyKey>,
     pub shift4: Option<HeaderKey>,
     pub stripe: Option<HeaderKey>,
+    pub trustpay: Option<SignatureKey>,
     pub worldpay: Option<BodyKey>,
     pub worldline: Option<SignatureKey>,
-    pub trustpay: Option<SignatureKey>,
+    pub zen: Option<HeaderKey>,
 }
 
 impl ConnectorAuthentication {
