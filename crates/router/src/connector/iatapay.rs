@@ -93,7 +93,7 @@ impl ConnectorCommon for Iatapay {
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
         let auth = iatapay::IatapayAuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-        Ok(vec![(headers::AUTHORIZATION.to_string(), auth.api_key)])
+        Ok(vec![(headers::AUTHORIZATION.to_string(), auth.client_id)])
     }
 
     fn build_error_response(
@@ -144,7 +144,7 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
             .try_into()
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
 
-        let auth_id = format!("{}:{}", auth.key1, auth.api_key);
+        let auth_id = format!("{}:{}", auth.client_id, auth.client_secret);
         let auth_val: String = format!("Basic {}", consts::BASE64_ENGINE.encode(auth_id));
         println!("## Auth val => {:?}", auth_val);
 

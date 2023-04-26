@@ -91,7 +91,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for IatapayPaymentsRequest {
             }
         }
         let payload = Self {
-            merchant_id: "6E3120000".to_string(),
+            merchant_id: IatapayAuthType::try_from(&item.connector_auth_type)?.merchant_id,
             amount: item.request.amount,
             currency: item.request.currency.to_string(),
             country: "DE".to_string(),
@@ -108,17 +108,19 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for IatapayPaymentsRequest {
 //TODO: Fill the struct with respective fields
 // Auth Struct
 pub struct IatapayAuthType {
-    pub(super) api_key: String,
-    pub(super) key1: String,
+    pub(super) client_id: String,
+    pub(super) merchant_id: String,
+    pub(super) client_secret: String,
 }
 
 impl TryFrom<&types::ConnectorAuthType> for IatapayAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
-            types::ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
-                api_key: api_key.to_string(),
-                key1: key1.to_string(),
+            types::ConnectorAuthType::SignatureKey { api_key, key1 , api_secret} => Ok(Self {
+                client_id: api_key.to_string(),
+                merchant_id: key1.to_string(),
+                client_secret: api_secret.to_string()
             }),
             _ => Err(errors::ConnectorError::FailedToObtainAuthType)?,
         }
@@ -237,7 +239,7 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for IatapayRefundRequest {
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
         Ok(Self {
             amount: item.request.amount,
-            merchant_id: "6E3120000".to_string(),
+            merchant_id: IatapayAuthType::try_from(&item.connector_auth_type)?.merchant_id,
             merchant_refund_id: match item.request.connector_refund_id.clone() {
                 Some(val) => val,
                 None => item.request.refund_id.clone(),
