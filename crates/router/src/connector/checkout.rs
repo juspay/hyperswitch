@@ -118,6 +118,7 @@ impl api::ConnectorAccessToken for Checkout {}
 impl api::AcceptDispute for Checkout {}
 impl api::PaymentToken for Checkout {}
 impl api::Dispute for Checkout {}
+impl api::RetrieveFile for Checkout {}
 
 impl
     ConnectorIntegration<
@@ -799,6 +800,12 @@ impl
 impl api::UploadFile for Checkout {}
 
 impl ConnectorIntegration<api::Upload, types::UploadFileRequestData, types::UploadFileResponse>
+    for Checkout
+{
+}
+
+impl
+    ConnectorIntegration<api::Retrieve, types::RetrieveFileRequestData, types::RetrieveFileResponse>
     for Checkout
 {
 }

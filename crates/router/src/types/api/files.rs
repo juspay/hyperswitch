@@ -14,6 +14,19 @@ pub enum FileUploadProvider {
     Stripe,
 }
 
+impl TryFrom<FileUploadProvider> for types::Connector {
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
+    fn try_from(item: FileUploadProvider) -> Result<Self, Self::Error> {
+        match item {
+            FileUploadProvider::Stripe => Ok(Self::Stripe),
+            _ => Err(errors::ApiErrorResponse::NotSupported {
+                message: "Connector not supported as file provider".to_owned(),
+            }
+            .into()),
+        }
+    }
+}
+
 impl TryFrom<&types::Connector> for FileUploadProvider {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
     fn try_from(item: &types::Connector) -> Result<Self, Self::Error> {
@@ -52,7 +65,19 @@ pub trait UploadFile:
 {
 }
 
-pub trait FileUpload: ConnectorCommon + Sync + UploadFile {
+#[derive(Debug, Clone)]
+pub struct Retrieve;
+
+pub trait RetrieveFile:
+    services::ConnectorIntegration<
+    Retrieve,
+    types::RetrieveFileRequestData,
+    types::RetrieveFileResponse,
+>
+{
+}
+
+pub trait FileUpload: ConnectorCommon + Sync + UploadFile + RetrieveFile {
     fn validate_file_upload(
         &self,
         _purpose: FilePurpose,
