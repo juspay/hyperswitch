@@ -84,7 +84,7 @@ pub struct DummyConnector;
 #[cfg(feature = "dummy_connector")]
 impl DummyConnector {
     pub fn server(state: AppState) -> Scope {
-        let mut route = web::scope("/dummy_connector").app_data(web::Data::new(state));
+        let mut route = web::scope("/dummy-connector").app_data(web::Data::new(state));
         #[cfg(not(feature = "external_access_dc"))]
         {
             route = route.guard(actix_web::guard::Host("localhost"));
