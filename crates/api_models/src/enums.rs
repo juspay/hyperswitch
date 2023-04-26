@@ -609,9 +609,10 @@ pub enum Connector {
     Rapyd,
     Shift4,
     Stripe,
+    Trustpay,
     Worldline,
     Worldpay,
-    Trustpay,
+    Zen,
 }
 
 impl Connector {
@@ -674,6 +675,7 @@ pub enum RoutableConnectors {
     Trustpay,
     Worldline,
     Worldpay,
+    Zen,
 }
 
 /// Name of banks supported by Hyperswitch
