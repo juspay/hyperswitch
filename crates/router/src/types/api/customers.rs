@@ -1,15 +1,8 @@
 use api_models::customers;
 pub use api_models::customers::{CustomerDeleteResponse, CustomerId, CustomerRequest};
-use error_stack::ResultExt;
 use serde::Serialize;
 
-use crate::{
-    core::errors::{self, RouterResult},
-    newtype,
-    pii::PeekInterface,
-    types::storage,
-    utils::{self, ValidateCall},
-};
+use crate::{core::errors::RouterResult, newtype, types::storage};
 
 newtype!(
     pub CustomerResponse = customers::CustomerResponse,
