@@ -7,7 +7,7 @@ use transformers as nexinets;
 
 use crate::{
     configs::settings,
-    connector::utils::to_connector_meta,
+    connector::utils::{to_connector_meta, PaymentsSyncRequestData},
     core::errors::{self, CustomResult},
     headers,
     services::{self, ConnectorIntegration},
@@ -244,11 +244,9 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         let order_id = nexinets::get_order_id(&meta)?;
         let transaction_id = match meta.psync_flow {
             transformers::NexinetsTransactionType::Debit
-            | transformers::NexinetsTransactionType::Capture => req
-                .request
-                .connector_transaction_id
-                .get_connector_transaction_id()
-                .change_context(errors::ConnectorError::MissingConnectorTransactionID)?,
+            | transformers::NexinetsTransactionType::Capture => {
+                req.request.get_connector_transaction_id()?
+            }
             _ => nexinets::get_transaction_id(&meta)?,
         };
         Ok(format!(

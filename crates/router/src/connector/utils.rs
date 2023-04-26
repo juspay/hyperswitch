@@ -221,7 +221,7 @@ impl PaymentsCompleteAuthorizeRequestData for types::CompleteAuthorizeData {
 
 pub trait PaymentsSyncRequestData {
     fn is_auto_capture(&self) -> Result<bool, Error>;
-    fn get_connector_transaction_id(&self) -> CustomResult<String, errors::ValidationError>;
+    fn get_connector_transaction_id(&self) -> CustomResult<String, errors::ConnectorError>;
 }
 
 impl PaymentsSyncRequestData for types::PaymentsSyncData {
@@ -232,14 +232,15 @@ impl PaymentsSyncRequestData for types::PaymentsSyncData {
             Some(_) => Err(errors::ConnectorError::CaptureMethodNotSupported.into()),
         }
     }
-    fn get_connector_transaction_id(&self) -> CustomResult<String, errors::ValidationError> {
+    fn get_connector_transaction_id(&self) -> CustomResult<String, errors::ConnectorError> {
         match self.connector_transaction_id.clone() {
             ResponseId::ConnectorTransactionId(txn_id) => Ok(txn_id),
             _ => Err(errors::ValidationError::IncorrectValueProvided {
                 field_name: "connector_transaction_id",
             })
             .into_report()
-            .attach_printable("Expected connector transaction ID not found"),
+            .attach_printable("Expected connector transaction ID not found")
+            .change_context(errors::ConnectorError::MissingConnectorTransactionID)?,
         }
     }
 }

@@ -48,8 +48,8 @@ pub enum NexinetsProduct {
 #[serde(rename_all = "camelCase")]
 #[serde(untagged)]
 pub enum NexinetsPaymentDetails {
-    Card(NexiCardDetails),
-    BankRedirects(NexinetsBankRedirects),
+    Card(Box<NexiCardDetails>),
+    BankRedirects(Box<NexinetsBankRedirects>),
 }
 
 #[derive(Debug, Serialize)]
@@ -505,11 +505,11 @@ fn get_payment_details_and_product(
                 Ok((None, NexinetsProduct::Giropay))
             }
             api_models::payments::BankRedirectData::Ideal { bank_name, .. } => Ok((
-                Some(NexinetsPaymentDetails::BankRedirects(
+                Some(NexinetsPaymentDetails::BankRedirects(Box::new(
                     NexinetsBankRedirects {
                         bic: NexinetsBIC::try_from(bank_name)?,
                     },
-                )),
+                ))),
                 NexinetsProduct::Ideal,
             )),
             api_models::payments::BankRedirectData::Sofort { .. } => {
@@ -526,12 +526,12 @@ fn get_payment_details_and_product(
 }
 
 fn get_card_details(req_card: &api_models::payments::Card) -> NexinetsPaymentDetails {
-    NexinetsPaymentDetails::Card(NexiCardDetails {
+    NexinetsPaymentDetails::Card(Box::new(NexiCardDetails {
         card_number: req_card.card_number.clone(),
         expiry_month: req_card.card_exp_month.clone(),
         expiry_year: req_card.get_card_expiry_year_2_digit(),
         verification: req_card.card_cvc.clone(),
-    })
+    }))
 }
 
 pub fn get_order_id(
