@@ -670,7 +670,7 @@ impl api::IncomingWebhook for Bluesnap {
             serde_urlencoded::from_bytes(request.body)
                 .into_report()
                 .change_context(errors::ConnectorError::WebhookSignatureNotFound)?;
-        let msg = webhook_body.reference_number + &webhook_body.contract_id;
+        let msg = webhook_body.reference_number + webhook_body.contract_id.as_str();
         Ok(msg.into_bytes())
     }
 

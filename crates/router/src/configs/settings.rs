@@ -64,6 +64,8 @@ pub struct Settings {
     pub api_keys: ApiKeys,
     #[cfg(feature = "kms")]
     pub kms: kms::KmsConfig,
+    #[cfg(feature = "s3")]
+    pub file_upload_config: FileUploadConfig,
     pub tokenization: TokenizationConfig,
 }
 
@@ -308,7 +310,7 @@ pub struct Connectors {
     pub payu: ConnectorParams,
     pub rapyd: ConnectorParams,
     pub shift4: ConnectorParams,
-    pub stripe: ConnectorParams,
+    pub stripe: ConnectorParamsWithFileUploadUrl,
     pub worldline: ConnectorParams,
     pub worldpay: ConnectorParams,
     pub trustpay: ConnectorParamsWithMoreUrls,
@@ -328,6 +330,13 @@ pub struct ConnectorParams {
 pub struct ConnectorParamsWithMoreUrls {
     pub base_url: String,
     pub base_url_bank_redirects: String,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+#[serde(default)]
+pub struct ConnectorParamsWithFileUploadUrl {
+    pub base_url: String,
+    pub base_url_file_upload: String,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -387,6 +396,16 @@ pub struct ApiKeys {
     /// hashes of API keys
     #[cfg(not(feature = "kms"))]
     pub hash_key: String,
+}
+
+#[cfg(feature = "s3")]
+#[derive(Debug, Deserialize, Clone, Default)]
+#[serde(default)]
+pub struct FileUploadConfig {
+    /// The AWS region to send file uploads
+    pub region: String,
+    /// The AWS s3 bucket to send file uploads
+    pub bucket_name: String,
 }
 
 impl Settings {
@@ -467,7 +486,8 @@ impl Settings {
         self.kms
             .validate()
             .map_err(|error| ApplicationError::InvalidConfigurationValueError(error.into()))?;
-
+        #[cfg(feature = "s3")]
+        self.file_upload_config.validate()?;
         Ok(())
     }
 }

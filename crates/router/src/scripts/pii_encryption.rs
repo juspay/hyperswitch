@@ -24,10 +24,7 @@ use crate::{
     },
     services::{self, Store},
     types::{
-        domain::{
-            address, behaviour::ReverseConversion, customer, merchant_account,
-            merchant_connector_account, merchant_key_store, types,
-        },
+        domain::{self, behaviour::ReverseConversion, merchant_key_store, types},
         storage,
     },
 };
@@ -84,7 +81,7 @@ pub async fn encrypt_merchant_account_fields(
     let mut domain_merchants = Vec::with_capacity(merchants.len());
     for mf in merchants.into_iter() {
         let merchant_id = mf.merchant_id.clone();
-        let domain_merchant: merchant_account::MerchantAccount = mf
+        let domain_merchant: domain::MerchantAccount = mf
             .convert(state, &merchant_id)
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)?;
@@ -148,7 +145,7 @@ pub async fn encrypt_merchant_connector_account_fields(
     let mut domain_merchants = Vec::with_capacity(merchants.len());
     for m in merchants.into_iter() {
         let merchant_id = m.merchant_id.clone();
-        let domain_merchant: merchant_connector_account::MerchantConnectorAccount = m
+        let domain_merchant: domain::MerchantConnectorAccount = m
             .convert(state, &merchant_id)
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)?;
@@ -202,7 +199,7 @@ pub async fn encrypt_customer_fields(
     let mut domain_merchants = Vec::with_capacity(merchants.len());
     for m in merchants.into_iter() {
         let merchant_id = m.merchant_id.clone();
-        let domain_merchant: customer::Customer = m
+        let domain_merchant: domain::Customer = m
             .convert(state, &merchant_id)
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)?;
@@ -256,7 +253,7 @@ pub async fn encrypt_address_fields(
     let mut domain_merchants = Vec::with_capacity(merchants.len());
     for m in merchants.into_iter() {
         let merchant_id = m.merchant_id.clone();
-        let domain_merchant: address::Address = m
+        let domain_merchant: domain::Address = m
             .convert(state, &merchant_id)
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)?;

@@ -17,8 +17,7 @@ use crate::{
     routes::AppState,
     services,
     types::{
-        api,
-        domain::merchant_account,
+        api, domain,
         storage::{self, enums},
         transformers::{ForeignInto, ForeignTryInto},
     },
@@ -30,7 +29,7 @@ const OUTGOING_WEBHOOK_TIMEOUT_MS: u64 = 5000;
 #[instrument(skip_all)]
 async fn payments_incoming_webhook_flow<W: api::OutgoingWebhookType>(
     state: AppState,
-    merchant_account: merchant_account::MerchantAccount,
+    merchant_account: domain::MerchantAccount,
     webhook_details: api::IncomingWebhookDetails,
     source_verified: bool,
 ) -> CustomResult<(), errors::WebhooksFlowError> {
@@ -99,7 +98,7 @@ async fn payments_incoming_webhook_flow<W: api::OutgoingWebhookType>(
 #[instrument(skip_all)]
 async fn refunds_incoming_webhook_flow<W: api::OutgoingWebhookType>(
     state: AppState,
-    merchant_account: merchant_account::MerchantAccount,
+    merchant_account: domain::MerchantAccount,
     webhook_details: api::IncomingWebhookDetails,
     connector_name: &str,
     source_verified: bool,
@@ -200,7 +199,7 @@ async fn refunds_incoming_webhook_flow<W: api::OutgoingWebhookType>(
 async fn get_payment_attempt_from_object_reference_id(
     state: AppState,
     object_reference_id: api_models::webhooks::ObjectReferenceId,
-    merchant_account: &merchant_account::MerchantAccount,
+    merchant_account: &domain::MerchantAccount,
 ) -> CustomResult<storage_models::payment_attempt::PaymentAttempt, errors::WebhooksFlowError> {
     let db = &*state.store;
     match object_reference_id {
@@ -297,7 +296,7 @@ async fn get_or_update_dispute_object(
 #[instrument(skip_all)]
 async fn disputes_incoming_webhook_flow<W: api::OutgoingWebhookType>(
     state: AppState,
-    merchant_account: merchant_account::MerchantAccount,
+    merchant_account: domain::MerchantAccount,
     webhook_details: api::IncomingWebhookDetails,
     source_verified: bool,
     connector: &(dyn api::Connector + Sync),
@@ -363,7 +362,7 @@ async fn disputes_incoming_webhook_flow<W: api::OutgoingWebhookType>(
 #[instrument(skip_all)]
 async fn create_event_and_trigger_outgoing_webhook<W: api::OutgoingWebhookType>(
     state: AppState,
-    merchant_account: merchant_account::MerchantAccount,
+    merchant_account: domain::MerchantAccount,
     event_type: enums::EventType,
     event_class: enums::EventClass,
     intent_reference_id: Option<String>,
@@ -415,7 +414,7 @@ async fn create_event_and_trigger_outgoing_webhook<W: api::OutgoingWebhookType>(
 }
 
 async fn trigger_webhook_to_merchant<W: api::OutgoingWebhookType>(
-    merchant_account: merchant_account::MerchantAccount,
+    merchant_account: domain::MerchantAccount,
     webhook: api::OutgoingWebhook,
     db: Box<dyn StorageInterface>,
 ) -> CustomResult<(), errors::WebhooksFlowError> {
@@ -478,7 +477,7 @@ async fn trigger_webhook_to_merchant<W: api::OutgoingWebhookType>(
 pub async fn webhooks_core<W: api::OutgoingWebhookType>(
     state: &AppState,
     req: &actix_web::HttpRequest,
-    merchant_account: merchant_account::MerchantAccount,
+    merchant_account: domain::MerchantAccount,
     connector_name: &str,
     body: actix_web::web::Bytes,
 ) -> RouterResponse<serde_json::Value> {

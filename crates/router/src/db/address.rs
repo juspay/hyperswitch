@@ -17,31 +17,30 @@ use crate::{
 #[async_trait::async_trait]
 pub trait AddressInterface
 where
-    domain::address::Address:
-        Conversion<DstType = storage::Address, NewDstType = storage::AddressNew>,
+    domain::Address: Conversion<DstType = storage::Address, NewDstType = storage::AddressNew>,
 {
     async fn update_address(
         &self,
         address_id: String,
         address: storage::AddressUpdate,
-    ) -> CustomResult<domain::address::Address, errors::StorageError>;
+    ) -> CustomResult<domain::Address, errors::StorageError>;
 
     async fn insert_address(
         &self,
-        address: domain::address::Address,
-    ) -> CustomResult<domain::address::Address, errors::StorageError>;
+        address: domain::Address,
+    ) -> CustomResult<domain::Address, errors::StorageError>;
 
     async fn find_address(
         &self,
         address_id: &str,
-    ) -> CustomResult<domain::address::Address, errors::StorageError>;
+    ) -> CustomResult<domain::Address, errors::StorageError>;
 
     async fn update_address_by_merchant_id_customer_id(
         &self,
         customer_id: &str,
         merchant_id: &str,
         address: storage::AddressUpdate,
-    ) -> CustomResult<Vec<domain::address::Address>, errors::StorageError>;
+    ) -> CustomResult<Vec<domain::Address>, errors::StorageError>;
 }
 
 #[async_trait::async_trait]
@@ -49,7 +48,7 @@ impl AddressInterface for Store {
     async fn find_address(
         &self,
         address_id: &str,
-    ) -> CustomResult<domain::address::Address, errors::StorageError> {
+    ) -> CustomResult<domain::Address, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
         storage::Address::find_by_address_id(&conn, address_id)
             .await
@@ -69,7 +68,7 @@ impl AddressInterface for Store {
         &self,
         address_id: String,
         address: storage::AddressUpdate,
-    ) -> CustomResult<domain::address::Address, errors::StorageError> {
+    ) -> CustomResult<domain::Address, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
         storage::Address::update_by_address_id(&conn, address_id, address.into())
             .await
@@ -87,8 +86,8 @@ impl AddressInterface for Store {
 
     async fn insert_address(
         &self,
-        address: domain::address::Address,
-    ) -> CustomResult<domain::address::Address, errors::StorageError> {
+        address: domain::Address,
+    ) -> CustomResult<domain::Address, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
         address
             .construct_new()
@@ -113,7 +112,7 @@ impl AddressInterface for Store {
         customer_id: &str,
         merchant_id: &str,
         address: storage::AddressUpdate,
-    ) -> CustomResult<Vec<domain::address::Address>, errors::StorageError> {
+    ) -> CustomResult<Vec<domain::Address>, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
         storage::Address::update_by_merchant_id_customer_id(
             &conn,
@@ -146,7 +145,7 @@ impl AddressInterface for MockDb {
     async fn find_address(
         &self,
         _address_id: &str,
-    ) -> CustomResult<domain::address::Address, errors::StorageError> {
+    ) -> CustomResult<domain::Address, errors::StorageError> {
         // [#172]: Implement function for `MockDb`
         Err(errors::StorageError::MockDbError)?
     }
@@ -155,15 +154,15 @@ impl AddressInterface for MockDb {
         &self,
         _address_id: String,
         _address: storage::AddressUpdate,
-    ) -> CustomResult<domain::address::Address, errors::StorageError> {
+    ) -> CustomResult<domain::Address, errors::StorageError> {
         // [#172]: Implement function for `MockDb`
         Err(errors::StorageError::MockDbError)?
     }
 
     async fn insert_address(
         &self,
-        _address: domain::address::Address,
-    ) -> CustomResult<domain::address::Address, errors::StorageError> {
+        _address: domain::Address,
+    ) -> CustomResult<domain::Address, errors::StorageError> {
         // [#172]: Implement function for `MockDb`
         Err(errors::StorageError::MockDbError)?
     }
@@ -173,7 +172,7 @@ impl AddressInterface for MockDb {
         _customer_id: &str,
         _merchant_id: &str,
         _address: storage::AddressUpdate,
-    ) -> CustomResult<Vec<domain::address::Address>, errors::StorageError> {
+    ) -> CustomResult<Vec<domain::Address>, errors::StorageError> {
         // [#172]: Implement function for `MockDb`
         Err(errors::StorageError::MockDbError)?
     }

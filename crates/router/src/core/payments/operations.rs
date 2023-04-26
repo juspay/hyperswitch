@@ -27,8 +27,7 @@ use crate::{
     db::StorageInterface,
     routes::AppState,
     types::{
-        self, api,
-        domain::{customer as domain, merchant_account},
+        self, api, domain,
         storage::{self, enums},
         PaymentsResponseData,
     },
@@ -79,7 +78,7 @@ pub trait ValidateRequest<F, R> {
     fn validate_request<'a, 'b>(
         &'b self,
         request: &R,
-        merchant_account: &'a merchant_account::MerchantAccount,
+        merchant_account: &'a domain::MerchantAccount,
     ) -> RouterResult<(BoxedOperation<'b, F, R>, ValidateResult<'a>)>;
 }
 
@@ -92,7 +91,7 @@ pub trait GetTracker<F, D, R>: Send {
         payment_id: &api::PaymentIdType,
         request: &R,
         mandate_type: Option<api::MandateTxnType>,
-        merchant_account: &merchant_account::MerchantAccount,
+        merchant_account: &domain::MerchantAccount,
     ) -> RouterResult<(BoxedOperation<'a, F, R>, D, Option<CustomerDetails>)>;
 }
 
@@ -125,7 +124,7 @@ pub trait Domain<F: Clone, R>: Send + Sync {
 
     async fn get_connector<'a>(
         &'a self,
-        merchant_account: &merchant_account::MerchantAccount,
+        merchant_account: &domain::MerchantAccount,
         state: &AppState,
         request: &R,
     ) -> CustomResult<api::ConnectorChoice, errors::ApiErrorResponse>;
@@ -193,7 +192,7 @@ where
 
     async fn get_connector<'a>(
         &'a self,
-        _merchant_account: &merchant_account::MerchantAccount,
+        _merchant_account: &domain::MerchantAccount,
         state: &AppState,
         _request: &api::PaymentsRetrieveRequest,
     ) -> CustomResult<api::ConnectorChoice, errors::ApiErrorResponse> {
@@ -260,7 +259,7 @@ where
 
     async fn get_connector<'a>(
         &'a self,
-        _merchant_account: &merchant_account::MerchantAccount,
+        _merchant_account: &domain::MerchantAccount,
         state: &AppState,
         _request: &api::PaymentsCaptureRequest,
     ) -> CustomResult<api::ConnectorChoice, errors::ApiErrorResponse> {
@@ -315,7 +314,7 @@ where
 
     async fn get_connector<'a>(
         &'a self,
-        _merchant_account: &merchant_account::MerchantAccount,
+        _merchant_account: &domain::MerchantAccount,
         state: &AppState,
         _request: &api::PaymentsCancelRequest,
     ) -> CustomResult<api::ConnectorChoice, errors::ApiErrorResponse> {

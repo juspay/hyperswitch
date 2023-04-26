@@ -23,7 +23,7 @@ use crate::{
     types::{
         self, api,
         domain::{
-            self, merchant_account as merchant_domain, merchant_key_store,
+            self, merchant_key_store,
             types::{self as domain_types, AsyncLift},
         },
         storage::{self},
@@ -177,7 +177,7 @@ pub async fn create_merchant_account(
         get_parent_merchant(db, req.sub_merchants_enabled, req.parent_merchant_id).await?;
 
     let merchant_account = async {
-        Ok(merchant_domain::MerchantAccount {
+        Ok(domain::MerchantAccount {
             merchant_id: req.merchant_id,
             merchant_name: req.merchant_name.async_lift(encrypt_string).await?,
             api_key: Some(domain_types::encrypt(api_key.peek().clone().into(), &key).await?),
@@ -398,7 +398,7 @@ async fn get_parent_merchant(
 async fn validate_merchant_id<S: Into<String>>(
     db: &dyn StorageInterface,
     merchant_id: S,
-) -> RouterResult<merchant_domain::MerchantAccount> {
+) -> RouterResult<domain::MerchantAccount> {
     db.find_merchant_account_by_merchant_id(&merchant_id.into())
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
@@ -406,7 +406,7 @@ async fn validate_merchant_id<S: Into<String>>(
 
 fn get_business_details_wrapper(
     request: &api::MerchantConnectorCreate,
-    _merchant_account: &domain::merchant_account::MerchantAccount,
+    _merchant_account: &domain::MerchantAccount,
 ) -> RouterResult<(enums::CountryCode, String)> {
     #[cfg(feature = "multiple_mca")]
     {
@@ -484,7 +484,7 @@ pub async fn create_payment_connector(
         }
         None => None,
     };
-    let merchant_connector_account = domain::merchant_connector_account::MerchantConnectorAccount {
+    let merchant_connector_account = domain::MerchantConnectorAccount {
         merchant_id: merchant_id.to_string(),
         connector_type: req.connector_type.foreign_into(),
         connector_name: req.connector_name,

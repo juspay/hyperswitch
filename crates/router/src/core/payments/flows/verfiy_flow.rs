@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 
-use super::{ConstructFlowSpecificData, Feature};
+use super::{authorize_flow, ConstructFlowSpecificData, Feature};
 use crate::{
     core::{
         errors::{ConnectorErrorExt, RouterResult},
@@ -9,10 +9,7 @@ use crate::{
     },
     routes::AppState,
     services,
-    types::{
-        self, api,
-        domain::{customer, merchant_account},
-    },
+    types::{self, api, domain},
 };
 
 #[async_trait]
@@ -23,7 +20,7 @@ impl ConstructFlowSpecificData<api::Verify, types::VerifyRequestData, types::Pay
         &self,
         state: &AppState,
         connector_id: &str,
-        merchant_account: &merchant_account::MerchantAccount,
+        merchant_account: &domain::MerchantAccount,
     ) -> RouterResult<types::VerifyRouterData> {
         transformers::construct_payment_router_data::<api::Verify, types::VerifyRequestData>(
             state,
@@ -41,9 +38,9 @@ impl Feature<api::Verify, types::VerifyRequestData> for types::VerifyRouterData 
         self,
         state: &AppState,
         connector: &api::ConnectorData,
-        customer: &Option<customer::Customer>,
+        customer: &Option<domain::Customer>,
         call_connector_action: payments::CallConnectorAction,
-        merchant_account: &merchant_account::MerchantAccount,
+        merchant_account: &domain::MerchantAccount,
     ) -> RouterResult<Self> {
         self.decide_flow(
             state,
@@ -60,7 +57,7 @@ impl Feature<api::Verify, types::VerifyRequestData> for types::VerifyRouterData 
         &self,
         state: &AppState,
         connector: &api::ConnectorData,
-        merchant_account: &merchant_account::MerchantAccount,
+        merchant_account: &domain::MerchantAccount,
     ) -> RouterResult<types::AddAccessTokenResult> {
         access_token::add_access_token(state, connector, merchant_account, self).await
     }
@@ -71,10 +68,10 @@ impl types::VerifyRouterData {
         &'b self,
         state: &'a AppState,
         connector: &api::ConnectorData,
-        maybe_customer: &Option<customer::Customer>,
+        maybe_customer: &Option<domain::Customer>,
         confirm: Option<bool>,
         call_connector_action: payments::CallConnectorAction,
-        _merchant_account: &merchant_account::MerchantAccount,
+        _merchant_account: &domain::MerchantAccount,
     ) -> RouterResult<Self> {
         match confirm {
             Some(true) => {
@@ -92,7 +89,17 @@ impl types::VerifyRouterData {
                 )
                 .await
                 .map_err(|err| err.to_verify_failed_response())?;
-                Ok(mandate::mandate_procedure(state, resp, maybe_customer, None).await?)
+
+                let pm_id = authorize_flow::save_payment_method(
+                    state,
+                    connector,
+                    resp.to_owned(),
+                    maybe_customer,
+                    _merchant_account,
+                )
+                .await?;
+
+                Ok(mandate::mandate_procedure(state, resp, maybe_customer, pm_id).await?)
             }
             _ => Ok(self.clone()),
         }

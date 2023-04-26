@@ -7,11 +7,11 @@ pub use api_models::admin::{
 };
 use common_utils::ext_traits::ValueExt;
 
-use crate::{core::errors, types::domain::merchant_account};
+use crate::{core::errors, types::domain};
 
-impl TryFrom<merchant_account::MerchantAccount> for MerchantAccountResponse {
+impl TryFrom<domain::MerchantAccount> for MerchantAccountResponse {
     type Error = error_stack::Report<errors::ParsingError>;
-    fn try_from(item: merchant_account::MerchantAccount) -> Result<Self, Self::Error> {
+    fn try_from(item: domain::MerchantAccount) -> Result<Self, Self::Error> {
         let primary_business_details: Vec<api_models::admin::PrimaryBusinessDetails> = item
             .primary_business_details
             .parse_value("primary_business_details")?;

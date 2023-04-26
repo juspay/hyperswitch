@@ -20,7 +20,7 @@ use crate::{
     types::{
         self,
         api::{self, enums as api_enums, PaymentIdTypeExt},
-        domain::{customer as domain, merchant_account},
+        domain,
         storage::{self, enums as storage_enums},
         transformers::ForeignInto,
     },
@@ -36,7 +36,7 @@ impl<F: Send + Clone> ValidateRequest<F, api::VerifyRequest> for PaymentMethodVa
     fn validate_request<'a, 'b>(
         &'b self,
         request: &api::VerifyRequest,
-        merchant_account: &'a merchant_account::MerchantAccount,
+        merchant_account: &'a domain::MerchantAccount,
     ) -> RouterResult<(
         BoxedOperation<'b, F, api::VerifyRequest>,
         operations::ValidateResult<'a>,
@@ -69,7 +69,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::VerifyRequest> for Paym
         payment_id: &api::PaymentIdType,
         request: &api::VerifyRequest,
         _mandate_type: Option<api::MandateTxnType>,
-        merchant_account: &merchant_account::MerchantAccount,
+        merchant_account: &domain::MerchantAccount,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::VerifyRequest>,
         PaymentData<F>,
@@ -273,7 +273,7 @@ where
 
     async fn get_connector<'a>(
         &'a self,
-        _merchant_account: &merchant_account::MerchantAccount,
+        _merchant_account: &domain::MerchantAccount,
         state: &AppState,
         _request: &api::VerifyRequest,
     ) -> CustomResult<api::ConnectorChoice, errors::ApiErrorResponse> {

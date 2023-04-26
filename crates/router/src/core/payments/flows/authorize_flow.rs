@@ -16,7 +16,7 @@ use crate::{
     types::{
         self,
         api::{self, PaymentMethodCreateExt},
-        domain::{customer, merchant_account},
+        domain,
     },
     utils::OptionExt,
 };
@@ -33,7 +33,7 @@ impl
         &self,
         state: &AppState,
         connector_id: &str,
-        merchant_account: &merchant_account::MerchantAccount,
+        merchant_account: &domain::MerchantAccount,
     ) -> RouterResult<
         types::RouterData<
             api::Authorize,
@@ -56,9 +56,9 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
         mut self,
         state: &AppState,
         connector: &api::ConnectorData,
-        customer: &Option<customer::Customer>,
+        customer: &Option<domain::Customer>,
         call_connector_action: payments::CallConnectorAction,
-        merchant_account: &merchant_account::MerchantAccount,
+        merchant_account: &domain::MerchantAccount,
     ) -> RouterResult<Self> {
         let resp = self
             .decide_flow(
@@ -80,7 +80,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
         &self,
         state: &AppState,
         connector: &api::ConnectorData,
-        merchant_account: &merchant_account::MerchantAccount,
+        merchant_account: &domain::MerchantAccount,
     ) -> RouterResult<types::AddAccessTokenResult> {
         access_token::add_access_token(state, connector, merchant_account, self).await
     }
@@ -100,10 +100,10 @@ impl types::PaymentsAuthorizeRouterData {
         &'b mut self,
         state: &'a AppState,
         connector: &api::ConnectorData,
-        maybe_customer: &Option<customer::Customer>,
+        maybe_customer: &Option<domain::Customer>,
         confirm: Option<bool>,
         call_connector_action: payments::CallConnectorAction,
-        merchant_account: &merchant_account::MerchantAccount,
+        merchant_account: &domain::MerchantAccount,
     ) -> RouterResult<Self> {
         match confirm {
             Some(true) => {
@@ -171,8 +171,8 @@ pub async fn save_payment_method<F: Clone, FData>(
     state: &AppState,
     connector: &api::ConnectorData,
     resp: types::RouterData<F, FData, types::PaymentsResponseData>,
-    maybe_customer: &Option<customer::Customer>,
-    merchant_account: &types::domain::merchant_account::MerchantAccount,
+    maybe_customer: &Option<domain::Customer>,
+    merchant_account: &types::domain::MerchantAccount,
 ) -> RouterResult<Option<String>>
 where
     FData: mandate::MandateBehaviour,
@@ -276,7 +276,7 @@ where
 
 pub async fn save_in_locker(
     state: &AppState,
-    merchant_account: &merchant_account::MerchantAccount,
+    merchant_account: &domain::MerchantAccount,
     payment_method_request: api::PaymentMethodCreate,
 ) -> RouterResult<(api_models::payment_methods::PaymentMethodResponse, bool)> {
     payment_method_request.validate()?;

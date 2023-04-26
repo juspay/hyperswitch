@@ -7,7 +7,7 @@ use crate::{
     core::errors::{self, RouterResult},
     newtype,
     pii::PeekInterface,
-    types::domain::customer as domain,
+    types::domain,
     utils::{self, ValidateCall},
 };
 

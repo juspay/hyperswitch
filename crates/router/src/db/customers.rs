@@ -11,8 +11,8 @@ use crate::{
     },
     types::{
         domain::{
+            self,
             behaviour::{Conversion, ReverseConversion},
-            customer as domain,
         },
         storage,
     },
