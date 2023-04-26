@@ -1192,21 +1192,17 @@ fn filter_pm_based_on_config<'a>(
         .unwrap_or(true)
 }
 
-fn filter_for_capture_method<'a>(
+fn filter_for_capture_method(
     payment_method_filters: &settings::PaymentMethodFilters,
     payment_method_type: &api_enums::PaymentMethodType,
 ) -> bool {
-    if let Some(_) = payment_method_filters
+    payment_method_filters
         .0
         .get(&settings::PaymentMethodFilterKey::PaymentMethodType(
             *payment_method_type,
         ))
         .and_then(|v| v.absent_impl)
-    {
-        false
-    } else {
-        true
-    }
+        .is_none()
 }
 
 fn card_network_filter(
