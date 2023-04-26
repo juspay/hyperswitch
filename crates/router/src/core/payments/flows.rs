@@ -75,13 +75,13 @@ pub trait Feature<F, T> {
         _state: &AppState,
         _connector: &api::ConnectorData,
         _customer: &Option<storage::Customer>,
-    ) -> RouterResult<Option<String>>
+    ) -> RouterResult<(Option<String>, Option<storage::CustomerUpdate>)>
     where
         F: Clone,
         Self: Sized,
         dyn api::Connector: services::ConnectorIntegration<F, T, types::PaymentsResponseData>,
     {
-        Ok(None)
+        Ok((None, None))
     }
 }
 

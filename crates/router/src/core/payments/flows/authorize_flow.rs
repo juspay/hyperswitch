@@ -101,7 +101,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
         state: &AppState,
         connector: &api::ConnectorData,
         customer: &Option<storage::Customer>,
-    ) -> RouterResult<Option<String>> {
+    ) -> RouterResult<(Option<String>, Option<storage::CustomerUpdate>)> {
         create_connector_customer(state, connector, customer, self).await
     }
 }
@@ -379,12 +379,10 @@ impl mandate::MandateBehaviour for types::PaymentsAuthorizeData {
 }
 
 pub async fn update_connector_customer_in_customers(
-    state: &AppState,
     connector: &api::ConnectorData,
-    customer: &Option<storage::Customer>,
     connector_customer_map: Option<serde_json::Map<String, serde_json::Value>>,
-    connector_cust_id: Option<String>,
-) -> RouterResult<Option<String>> {
+    connector_cust_id: &Option<String>,
+) -> RouterResult<Option<storage::CustomerUpdate>> {
     let mut connector_customer = match connector_customer_map {
         Some(cc) => cc,
         None => serde_json::Map::new(),
@@ -395,24 +393,9 @@ pub async fn update_connector_customer_in_customers(
             serde_json::Value::String(cc),
         )
     });
-    let db = &*state.store;
-    let update_customer = storage::CustomerUpdate::ConnectorCustomer {
+    Ok(Some(storage::CustomerUpdate::ConnectorCustomer {
         connector_customer: Some(serde_json::Value::Object(connector_customer)),
-    };
-    match customer {
-        Some(customer) => {
-            db.update_customer_by_customer_id_merchant_id(
-                customer.customer_id.to_owned(),
-                customer.merchant_id.to_owned(),
-                update_customer,
-            )
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to update CustomerConnector in customer")?;
-            Ok(connector_cust_id)
-        }
-        None => Ok(connector_cust_id),
-    }
+    }))
 }
 
 type CreateCustomerCheck = (
@@ -426,6 +409,7 @@ pub fn should_call_connector_create_customer(
     customer: &Option<storage::Customer>,
 ) -> RouterResult<CreateCustomerCheck> {
     let connector_name = connector.connector_name.to_string();
+    //Check if create customer is required for the connector
     let connector_customer_filter = state
         .conf
         .connector_customer
@@ -441,7 +425,7 @@ pub fn should_call_connector_create_customer(
                             .parse_value("Map<String, Value>")
                             .change_context(errors::ApiErrorResponse::InternalServerError)
                             .attach_printable("Failed to deserialize Value to CustomerConnector")?;
-                    let value = connector_customer_map.get(&connector_name);
+                    let value = connector_customer_map.get(&connector_name); //Check if customer already created for this customer and for this connector
                     Ok((
                         value.is_none(),
                         value.and_then(|val| val.as_str().map(|cust| cust.to_string())),
@@ -462,7 +446,7 @@ pub async fn create_connector_customer<F: Clone>(
     connector: &api::ConnectorData,
     customer: &Option<storage::Customer>,
     router_data: &types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
-) -> RouterResult<Option<String>> {
+) -> RouterResult<(Option<String>, Option<storage::CustomerUpdate>)> {
     let (is_eligible, connector_customer_id, connector_customer_map) =
         should_call_connector_create_customer(state, connector, customer)?;
 
@@ -514,16 +498,15 @@ pub async fn create_connector_customer<F: Clone>(
                 None
             }
         };
-        update_connector_customer_in_customers(
-            state,
+        let update_customer = update_connector_customer_in_customers(
             connector,
-            customer,
             connector_customer_map,
-            connector_customer_id,
+            &connector_customer_id,
         )
-        .await
+        .await?;
+        Ok((connector_customer_id, update_customer))
     } else {
-        Ok(connector_customer_id)
+        Ok((connector_customer_id, None))
     }
 }
 
