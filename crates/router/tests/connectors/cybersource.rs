@@ -1,3 +1,6 @@
+use std::str::FromStr;
+
+use common_utils::pii::Email;
 use masking::Secret;
 use router::types::{
     self, api,
@@ -58,7 +61,7 @@ fn get_default_payment_info() -> Option<utils::PaymentInfo> {
 fn get_default_payment_authorize_data() -> Option<types::PaymentsAuthorizeData> {
     Some(types::PaymentsAuthorizeData {
         currency: storage::enums::Currency::USD,
-        email: Some(Secret::new("abc@gmail.com".to_string())),
+        email: Some(Email::from_str("abc@gmail.com").unwrap()),
         ..PaymentAuthorizeType::default().0
     })
 }
