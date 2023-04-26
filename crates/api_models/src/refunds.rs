@@ -74,7 +74,7 @@ pub struct RefundUpdateRequest {
     pub metadata: Option<pii::SecretSerdeValue>,
 }
 
-#[derive(Default, Debug, Clone, ToSchema, Deserialize)]
+#[derive(Default, Debug, Clone, ToSchema, Deserialize, Serialize, Eq, PartialEq, Copy, strum::Display)]
 #[serde(rename_all = "snake_case")]
 pub enum RefundType {
     #[default]
