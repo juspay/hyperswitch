@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use time::PrimitiveDateTime;
 use url::Url;
 
 use crate::{
@@ -550,4 +551,110 @@ impl From<CheckoutRedirectResponseStatus> for enums::AttemptStatus {
             CheckoutRedirectResponseStatus::Failure => Self::Failure,
         }
     }
+}
+
+pub fn is_refund_event(event_code: &CheckoutTxnType) -> bool {
+    matches!(
+        event_code,
+        CheckoutTxnType::PaymentRefunded | CheckoutTxnType::PaymentRefundDeclined
+    )
+}
+
+pub fn is_chargeback_event(event_code: &CheckoutTxnType) -> bool {
+    matches!(
+        event_code,
+        CheckoutTxnType::DisputeReceived
+            | CheckoutTxnType::DisputeExpired
+            | CheckoutTxnType::DisputeAccepted
+            | CheckoutTxnType::DisputeCanceled
+            | CheckoutTxnType::DisputeEvidenceSubmitted
+            | CheckoutTxnType::DisputeEvidenceAcknowledgedByScheme
+            | CheckoutTxnType::DisputeEvidenceRequired
+            | CheckoutTxnType::DisputeArbitrationLost
+            | CheckoutTxnType::DisputeArbitrationWon
+            | CheckoutTxnType::DisputeWon
+            | CheckoutTxnType::DisputeLost
+    )
+}
+
+#[derive(Debug, Deserialize)]
+pub struct CheckoutWebhookData {
+    pub id: String,
+    pub payment_id: Option<String>,
+    pub action_id: Option<String>,
+    pub amount: i32,
+    pub currency: String,
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    pub evidence_required_by: Option<PrimitiveDateTime>,
+    pub reason_code: Option<String>,
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    pub date: Option<PrimitiveDateTime>,
+}
+#[derive(Debug, Deserialize)]
+pub struct CheckoutWebhookBody {
+    #[serde(rename = "type")]
+    pub txn_type: CheckoutTxnType,
+    pub data: CheckoutWebhookData,
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    pub created_on: Option<PrimitiveDateTime>,
+}
+#[derive(Debug, Deserialize, strum::Display, Clone)]
+#[serde(rename_all = "snake_case")]
+pub enum CheckoutTxnType {
+    PaymentApproved,
+    PaymentDeclined,
+    PaymentRefunded,
+    PaymentRefundDeclined,
+    DisputeReceived,
+    DisputeExpired,
+    DisputeAccepted,
+    DisputeCanceled,
+    DisputeEvidenceSubmitted,
+    DisputeEvidenceAcknowledgedByScheme,
+    DisputeEvidenceRequired,
+    DisputeArbitrationLost,
+    DisputeArbitrationWon,
+    DisputeWon,
+    DisputeLost,
+}
+
+impl From<CheckoutTxnType> for api::IncomingWebhookEvent {
+    fn from(txn_type: CheckoutTxnType) -> Self {
+        match txn_type {
+            CheckoutTxnType::PaymentApproved => Self::PaymentIntentSuccess,
+            CheckoutTxnType::PaymentDeclined => Self::PaymentIntentSuccess,
+            CheckoutTxnType::PaymentRefunded => Self::RefundSuccess,
+            CheckoutTxnType::PaymentRefundDeclined => Self::RefundFailure,
+            CheckoutTxnType::DisputeReceived | CheckoutTxnType::DisputeEvidenceRequired => {
+                Self::DisputeOpened
+            }
+            CheckoutTxnType::DisputeExpired => Self::DisputeExpired,
+            CheckoutTxnType::DisputeAccepted => Self::DisputeAccepted,
+            CheckoutTxnType::DisputeCanceled => Self::DisputeCancelled,
+            CheckoutTxnType::DisputeEvidenceSubmitted
+            | CheckoutTxnType::DisputeEvidenceAcknowledgedByScheme => Self::DisputeChallenged,
+            CheckoutTxnType::DisputeWon | CheckoutTxnType::DisputeArbitrationWon => {
+                Self::DisputeWon
+            }
+            CheckoutTxnType::DisputeLost | CheckoutTxnType::DisputeArbitrationLost => {
+                Self::DisputeLost
+            }
+        }
+    }
+}
+
+impl From<CheckoutTxnType> for api_models::enums::DisputeStage {
+    fn from(code: CheckoutTxnType) -> Self {
+        match code {
+            CheckoutTxnType::DisputeArbitrationLost | CheckoutTxnType::DisputeArbitrationWon => {
+                Self::PreArbitration
+            }
+            _ => Self::Dispute,
+        }
+    }
+}
+
+#[derive(Debug, Deserialize)]
+pub struct CheckoutWebhookObjectResource {
+    pub data: serde_json::Value,
 }

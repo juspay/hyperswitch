@@ -4,7 +4,7 @@ use common_utils::{fp_utils, pii::Email};
 use error_stack::{IntoReport, ResultExt};
 use masking::ExposeInterface;
 use serde::{Deserialize, Serialize};
-use strum::Display;
+use time::PrimitiveDateTime;
 use url::Url;
 use uuid::Uuid;
 
@@ -1347,7 +1347,8 @@ pub struct WebhookEventObjectData {
     pub currency: String,
     pub payment_intent: Option<String>,
     pub reason: Option<String>,
-    pub created: i64,
+    #[serde(with = "common_utils::custom_serde::timestamp")]
+    pub created: PrimitiveDateTime,
     pub evidence_details: Option<EvidenceDetails>,
     pub status: Option<WebhookEventStatus>,
 }
@@ -1400,11 +1401,11 @@ pub enum WebhookEventType {
     PaymentIntentProcessing,
     #[serde(rename = "payment_intent.requires_action")]
     PaymentIntentRequiresAction,
-    #[serde(rename = "payment_intent.requires_action")]
+    #[serde(rename = "amount_capturable_updated")]
     PaymentIntentAmountCapturableUpdated,
 }
 
-#[derive(Debug, Serialize, Display, Deserialize, PartialEq)]
+#[derive(Debug, Serialize, strum::Display, Deserialize, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub enum WebhookEventStatus {
     WarningNeedsResponse,
@@ -1426,8 +1427,10 @@ pub enum WebhookEventStatus {
 
 #[derive(Debug, Deserialize, PartialEq)]
 pub struct EvidenceDetails {
-    pub due_by: i64,
+    #[serde(with = "common_utils::custom_serde::timestamp")]
+    pub due_by: PrimitiveDateTime,
 }
+
 
 impl
     TryFrom<(

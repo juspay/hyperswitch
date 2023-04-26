@@ -1099,7 +1099,6 @@ impl api::IncomingWebhook for Stripe {
 
         Ok(details.data.object)
     }
-
     fn get_dispute_details(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
@@ -1119,32 +1118,17 @@ impl api::IncomingWebhook for Stripe {
                 .event_data
                 .event_object
                 .evidence_details
-                .map(|payload| get_date_and_time(payload.due_by))
-                .transpose()?,
+                .map(|payload| payload.due_by),
             connector_status: details
                 .event_data
                 .event_object
                 .status
                 .ok_or(errors::ConnectorError::WebhookResourceObjectNotFound)?
                 .to_string(),
-            created_at: Some(get_date_and_time(details.event_data.event_object.created)?),
+            created_at: Some(details.event_data.event_object.created),
             updated_at: None,
         })
     }
-}
-
-pub fn get_date_and_time(timestamp: i64) -> CustomResult<String, errors::ConnectorError> {
-    let datetime = time::OffsetDateTime::from_unix_timestamp(timestamp)
-        .map_err(|_| errors::ConnectorError::ResponseDeserializationFailed)?;
-    let format = time::format_description::parse(
-        "[year]-[month]-[day] [hour]:[minute]:[second] [offset_hour \
-             sign:mandatory]:[offset_minute]:[offset_second]",
-    )
-    .map_err(|_| errors::ConnectorError::ResponseDeserializationFailed)?;
-    let data = datetime
-        .format(&format)
-        .map_err(|_| errors::ConnectorError::ResponseDeserializationFailed)?;
-    Ok(data)
 }
 
 impl services::ConnectorRedirectResponse for Stripe {

@@ -1,4 +1,5 @@
 use masking::{Deserialize, Serialize};
+use time::PrimitiveDateTime;
 
 #[derive(Default, Debug, Deserialize, Serialize)]
 pub struct DisputeId {
@@ -14,7 +15,7 @@ pub struct DisputePayload {
     pub connector_dispute_id: String,
     pub connector_reason: Option<String>,
     pub connector_reason_code: Option<String>,
-    pub challenge_required_by: Option<String>,
-    pub created_at: Option<String>,
-    pub updated_at: Option<String>,
+    pub challenge_required_by: Option<PrimitiveDateTime>,
+    pub created_at: Option<PrimitiveDateTime>,
+    pub updated_at: Option<PrimitiveDateTime>,
 }
