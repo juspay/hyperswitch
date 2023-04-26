@@ -29,6 +29,7 @@ pub struct MerchantKeyStore {
 pub struct MerchantKeyStoreNew {
     pub merchant_id: String,
     pub key: Encryption,
+    pub created_at: PrimitiveDateTime,
 }
 
 #[derive(

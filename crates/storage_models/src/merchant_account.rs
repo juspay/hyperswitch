@@ -36,7 +36,7 @@ pub struct MerchantAccount {
     pub modified_at: time::PrimitiveDateTime,
 }
 
-#[derive(Clone, Debug, Default, Insertable, router_derive::DebugAsDisplay)]
+#[derive(Clone, Debug, Insertable, router_derive::DebugAsDisplay)]
 #[diesel(table_name = merchant_account)]
 pub struct MerchantAccountNew {
     pub merchant_id: String,
@@ -55,6 +55,8 @@ pub struct MerchantAccountNew {
     pub routing_algorithm: Option<serde_json::Value>,
     pub api_key: Option<Encryption>,
     pub primary_business_details: serde_json::Value,
+    pub created_at: time::PrimitiveDateTime,
+    pub modified_at: time::PrimitiveDateTime,
 }
 
 #[derive(Debug)]

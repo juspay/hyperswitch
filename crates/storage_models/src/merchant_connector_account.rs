@@ -34,7 +34,7 @@ pub struct MerchantConnectorAccount {
     pub modified_at: time::PrimitiveDateTime,
 }
 
-#[derive(Clone, Debug, Default, Insertable, router_derive::DebugAsDisplay)]
+#[derive(Clone, Debug, Insertable, router_derive::DebugAsDisplay)]
 #[diesel(table_name = merchant_connector_account)]
 pub struct MerchantConnectorAccountNew {
     pub merchant_id: Option<String>,
@@ -51,6 +51,8 @@ pub struct MerchantConnectorAccountNew {
     pub business_country: storage_enums::CountryCode,
     pub business_label: String,
     pub business_sub_label: Option<String>,
+    pub created_at: time::PrimitiveDateTime,
+    pub modified_at: time::PrimitiveDateTime,
 }
 
 #[derive(Clone, Debug, Default, AsChangeset, router_derive::DebugAsDisplay)]
