@@ -173,7 +173,7 @@ pub struct AirwallexCompleteRequest {
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
 pub struct AirwallexThreeDsData {
-    acs_response: Option<common_utils::pii::SecretSerdeValue>,
+    acs_response: Option<Secret<String>>,
 }
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
@@ -189,7 +189,11 @@ impl TryFrom<&types::PaymentsCompleteAuthorizeRouterData> for AirwallexCompleteR
         Ok(Self {
             request_id: Uuid::new_v4().to_string(),
             three_ds: AirwallexThreeDsData {
-                acs_response: item.request.payload.clone().map(Secret::new),
+                acs_response: item
+                    .request
+                    .payload
+                    .as_ref()
+                    .map(|data| Secret::new(serde_json::Value::to_string(data))),
             },
             three_ds_type: AirwallexThreeDsType::ThreeDSContinue,
         })
@@ -308,7 +312,7 @@ pub struct AirwallexPaymentsResponse {
 fn get_redirection_form(
     response_url_data: AirwallexPaymentsNextAction,
 ) -> Option<services::RedirectForm> {
-    Some(services::RedirectForm {
+    Some(services::RedirectForm::Form {
         endpoint: response_url_data.url.to_string(),
         method: response_url_data.method,
         form_fields: std::collections::HashMap::from([

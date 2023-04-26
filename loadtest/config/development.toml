@@ -83,10 +83,12 @@ payu.base_url = "https://secure.snd.payu.com/"
 rapyd.base_url = "https://sandboxapi.rapyd.net"
 shift4.base_url = "https://api.shift4.com/"
 stripe.base_url = "https://api.stripe.com/"
+stripe.base_url_file_upload = "https://files.stripe.com/"
 trustpay.base_url = "https://test-tpgw.trustpay.eu/"
 trustpay.base_url_bank_redirects = "https://aapi.trustpay.eu/"
 worldline.base_url = "https://eu.sandbox.api-ingenico.com/"
 worldpay.base_url = "https://try.access.worldpay.com/"
+zen.base_url = "https://api.zen-test.com/"
 
 [connectors.supported]
 wallets = ["klarna", "braintree", "applepay"]
@@ -119,4 +121,5 @@ cards = [
     "trustpay",
     "worldline",
     "worldpay",
+	"zen",
 ]
