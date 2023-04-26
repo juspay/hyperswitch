@@ -849,6 +849,9 @@ pub async fn list_payment_methods(
         .await?;
     }
 
+    response.retain(|intermediate| {
+        intermediate.connector != "apple_pay" && intermediate.connector != "applepay"
+    });
     logger::debug!(filtered_payment_methods=?response);
 
     let mut payment_experiences_consolidated_hm: HashMap<
