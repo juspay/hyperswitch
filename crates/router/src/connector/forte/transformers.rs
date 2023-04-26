@@ -67,16 +67,15 @@ impl TryFrom<utils::CardIssuer> for ForteCardType {
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for FortePaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
+        if item.request.currency != enums::Currency::USD {
+            Err(errors::ConnectorError::NotSupported {
+                message: item.request.currency.to_string(),
+                connector: "Forte",
+                payment_experience: api::enums::PaymentExperience::RedirectToUrl.to_string(),
+            })?
+        }
         match item.request.payment_method_data {
             api_models::payments::PaymentMethodData::Card(ref ccard) => {
-                if item.request.currency != enums::Currency::USD {
-                    Err(errors::ConnectorError::NotSupported {
-                        message: item.request.currency.to_string(),
-                        connector: "Forte",
-                        payment_experience: api::enums::PaymentExperience::RedirectToUrl
-                            .to_string(),
-                    })?
-                }
                 let action = match item.request.is_auto_capture()? {
                     true => ForteAction::Sale,
                     false => ForteAction::Authorize,
@@ -95,7 +94,8 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for FortePaymentsRequest {
                     first_name: address.get_first_name()?.to_owned(),
                     last_name: address.get_last_name()?.to_owned(),
                 };
-                let authorization_amount = utils::to_currency_base_unit_asf64(item.request.amount)?;
+                let authorization_amount =
+                    utils::to_currency_base_unit_asf64(item.request.amount, item.request.currency)?;
                 Ok(Self {
                     action,
                     authorization_amount,
@@ -458,7 +458,8 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for ForteRefundRequest {
         let connector_auth_id: ForteMeta =
             utils::to_connector_meta(item.request.connector_metadata.clone())?;
         let auth_code = connector_auth_id.auth_id;
-        let authorization_amount = utils::to_currency_base_unit_asf64(item.request.amount)?;
+        let authorization_amount =
+            utils::to_currency_base_unit_asf64(item.request.amount, item.request.currency)?;
         Ok(Self {
             action: "reverse".to_string(),
             authorization_amount,
