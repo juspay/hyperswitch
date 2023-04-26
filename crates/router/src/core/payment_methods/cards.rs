@@ -1166,6 +1166,10 @@ fn filter_pm_based_on_config<'a>(
     country: &Option<api_enums::CountryCode>,
     currency: Option<api_enums::Currency>,
 ) -> bool {
+    println!(
+        "???????/////////////////////////////.........../////////////////////{:?}",
+        config.0.get(connector)
+    );
     config
         .0
         .get(connector)
