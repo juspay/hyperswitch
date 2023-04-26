@@ -1693,7 +1693,6 @@ pub struct EvidenceDetails {
     pub due_by: PrimitiveDateTime,
 }
 
-
 impl
     TryFrom<(
         api::PaymentMethodData,
