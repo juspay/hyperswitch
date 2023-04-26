@@ -393,21 +393,15 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
-        match updated_customer {
-            Some(updated_customer) => match customer {
-                Some(customer) => Some(
-                    db.update_customer_by_customer_id_merchant_id(
-                        customer.customer_id.to_owned(),
-                        customer.merchant_id.to_owned(),
-                        updated_customer,
-                    )
-                    .await
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Failed to update CustomerConnector in customer")?,
-                ),
-                None => None,
-            },
-            None => None,
+        if let Some((updated_customer, customer)) = updated_customer.zip(customer) {
+            db.update_customer_by_customer_id_merchant_id(
+                customer.customer_id.to_owned(),
+                customer.merchant_id.to_owned(),
+                updated_customer,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to update CustomerConnector in customer")?;
         };
 
         Ok((Box::new(self), payment_data))
