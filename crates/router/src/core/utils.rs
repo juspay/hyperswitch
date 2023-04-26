@@ -29,7 +29,7 @@ pub async fn construct_refund_router_data<'a, F>(
     refund: &'a storage::Refund,
     creds_identifier: Option<String>,
 ) -> RouterResult<types::RefundsRouterData<F>> {
-    let db = &*state.store;
+    //let db = &*state.store;
 
     let connector_label = helpers::get_connector_label(
         payment_intent.business_country,
@@ -39,7 +39,7 @@ pub async fn construct_refund_router_data<'a, F>(
     );
 
     let merchant_connector_account = helpers::get_merchant_connector_account(
-        db,
+        state,
         merchant_account.merchant_id.as_str(),
         &connector_label,
         creds_identifier,

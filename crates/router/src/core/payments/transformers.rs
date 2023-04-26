@@ -43,9 +43,8 @@ where
         connector_id,
     );
 
-    let db = &*state.store;
     merchant_connector_account = helpers::get_merchant_connector_account(
-        db,
+        state,
         merchant_account.merchant_id.as_str(),
         &connector_label,
         payment_data.creds_identifier.to_owned(),
