@@ -212,7 +212,7 @@ pub struct MerchantAccountResponse {
 
     ///Will be used to expire client secret after certain amount of time to be supplied in seconds
     ///(900) for 15 mins
-    pub intent_fulfillment_time: Option<u32>,
+    pub intent_fulfillment_time: Option<i64>,
 }
 
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
