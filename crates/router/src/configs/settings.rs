@@ -311,9 +311,10 @@ pub struct Connectors {
     pub rapyd: ConnectorParams,
     pub shift4: ConnectorParams,
     pub stripe: ConnectorParamsWithFileUploadUrl,
+    pub trustpay: ConnectorParamsWithMoreUrls,
     pub worldline: ConnectorParams,
     pub worldpay: ConnectorParams,
-    pub trustpay: ConnectorParamsWithMoreUrls,
+    pub zen: ConnectorParams,
 
     // Keep this field separate from the remaining fields
     pub supported: SupportedConnectors,
