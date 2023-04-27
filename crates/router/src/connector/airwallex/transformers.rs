@@ -1,5 +1,4 @@
 use serde::{Deserialize, Serialize};
-use strum::Display;
 use time::PrimitiveDateTime;
 use url::Url;
 use uuid::Uuid;
@@ -481,37 +480,116 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AirwallexWebhookData {
-    pub source_id: String,
-    pub name: String,
-    pub data: ObjectData,
+    pub source_id: Option<String>,
+    pub name: AirwallexWebhookEvenType,
+    pub data: AirwallexObjectData,
 }
 
-#[derive(Debug, Deserialize, strum::Display)]                       //is it needed
-#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-pub enum DisputeStatus {
-    NeedResponse,
-    EvidenceRequired,
-    UnderReview,
-    REVERSED,
-    ACCEPTED,
-    WON,
-    LOST,
+#[derive(Debug, Deserialize, strum::Display, PartialEq)]
+pub enum AirwallexWebhookEvenType {
+    #[serde(rename = "payment_intent.created")]
+    PaymentIntentCreated,
+    #[serde(rename = "payment_intent.requires_payment_method")]
+    PaymentIntentRequiresPaymentMethod,
+    #[serde(rename = "payment_intent.cancelled")]
+    PaymentIntentCancelled,
+    #[serde(rename = "payment_intent.succeeded")]
+    PaymentIntentSucceeded,
+    #[serde(rename = "payment_intent.requires_capture")]
+    PaymentIntentRequiresCapture,
+    #[serde(rename = "payment_intent.requires_customer_action")]
+    PaymentIntentRequiresCustomerAction,
+    #[serde(rename = "payment_attempt.authorized")]
+    PaymentAttemptAuthorized,
+    #[serde(rename = "payment_attempt.authorization_failed")]
+    PaymentAttemptAuthorizationFailed,
+    #[serde(rename = "payment_attempt.capture_requested")]
+    PaymentAttemptCaptureRequested,
+    #[serde(rename = "payment_attempt.capture_failed")]
+    PaymentAttemptCaptureFailed,
+    #[serde(rename = "payment_attempt.authentication_redirected")]
+    PaymentAttemptAuthenticationRedirected,
+    #[serde(rename = "payment_attempt.authentication_failed")]
+    PaymentAttemptAuthenticationFailed,
+    #[serde(rename = "payment_attempt.failed_to_process")]
+    PaymentAttemptFailedToProcess,
+    #[serde(rename = "payment_attempt.cancelled")]
+    PaymentAttemptCancelled,
+    #[serde(rename = "payment_attempt.expired")]
+    PaymentAttemptExpired,
+    #[serde(rename = "payment_attempt.risk_declined")]
+    PaymentAttemptRiskDeclined,
+    #[serde(rename = "payment_attempt.settled")]
+    PaymentAttemptSettled,
+    #[serde(rename = "payment_attempt.paid")]
+    PaymentAttemptPaid,
+    #[serde(rename = "refund.received")]
+    RefundReceived,
+    #[serde(rename = "refund.accepted")]
+    RefundAccepted,
+    #[serde(rename = "refund.succeeded")]
+    RefundSucceeded,
+    #[serde(rename = "refund.failed")]
+    RefundFailed,
+    #[serde(rename = "dispute.rfi_responded_by_merchant")]
+    DisputeRfiRespondedByMerchant,
+    #[serde(rename = "dispute.dispute.pre_chargeback_accepted")]
+    DisputePreChargebackAccepted,
+    #[serde(rename = "dispute.accepted")]
+    DisputeAccepted,
+    #[serde(rename = "dispute.dispute_received_by_merchant")]
+    DisputeReceivedByMerchant,
+    #[serde(rename = "dispute.dispute_responded_by_merchant")]
+    DisputeRespondedByMerchant,
+    #[serde(rename = "dispute.won")]
+    DisputeWon,
+    #[serde(rename = "dispute.lost")]
+    DisputeLost,
+    #[serde(rename = "dispute.dispute_reversed")]
+    DisputeReversed,
+}
+
+pub fn is_transaction_event(event_code: &AirwallexWebhookEvenType) -> bool {
+    matches!(
+        event_code,
+        AirwallexWebhookEvenType::PaymentAttemptFailedToProcess
+            | AirwallexWebhookEvenType::PaymentAttemptAuthorized
+    )
+}
+
+pub fn is_refund_event(event_code: &AirwallexWebhookEvenType) -> bool {
+    matches!(
+        event_code,
+        AirwallexWebhookEvenType::RefundSucceeded | AirwallexWebhookEvenType::RefundFailed
+    )
+}
+
+pub fn is_dispute_event(event_code: &AirwallexWebhookEvenType) -> bool {
+    matches!(
+        event_code,
+        AirwallexWebhookEvenType::DisputeAccepted
+            | AirwallexWebhookEvenType::DisputePreChargebackAccepted
+            | AirwallexWebhookEvenType::DisputeRespondedByMerchant
+            | AirwallexWebhookEvenType::DisputeWon
+            | AirwallexWebhookEvenType::DisputeLost
+    )
 }
 
 #[derive(Debug, Deserialize)]
-pub struct ObjectData {
-    pub object: ObjectContents,
+pub struct AirwallexObjectData {
+    pub object: serde_json::Value,
 }
 
 #[derive(Debug, Deserialize)]
-pub struct ObjectContents {
+pub struct AirwallexDisputeObject {
+    pub payment_intent_id: String,
     pub dispute_amount: i64,
     pub dispute_currency: String,
     pub stage: String,
     pub dispute_id: String,
     pub dispute_reason_type: String,
     pub dispute_original_reason_code: String,
-    pub status: DisputeStatus,
+    pub status: String,
     pub created_at: String,
     pub updated_at: String,
 }
