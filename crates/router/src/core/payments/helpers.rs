@@ -12,6 +12,9 @@ use router_env::{instrument, tracing};
 use storage_models::enums;
 use uuid::Uuid;
 
+#[cfg(feature = "kms")]
+use external_services::kms;
+
 use super::{
     operations::{BoxedOperation, Operation, PaymentResponse},
     CustomerDetails, PaymentData,
@@ -1429,6 +1432,9 @@ pub async fn get_merchant_connector_account(
                 .to_not_found_response(
                     errors::ApiErrorResponse::MerchantConnectorAccountNotFound,
                 )?;
+
+            #[cfg(feature = "kms")]
+            let kms_config = &state.conf.kms;
 
             #[cfg(feature = "kms")]
             let private_key = kms::get_kms_client(kms_config)
