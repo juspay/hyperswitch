@@ -1440,7 +1440,7 @@ pub async fn get_merchant_connector_account(
                 .await
                 .decrypt(state.conf.jwekey.tunnel_private_key.to_owned())
                 .await
-                .change_context(errors::EncryptionError)
+                .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Error getting tunnel private key")?;
 
             #[cfg(not(feature = "kms"))]
