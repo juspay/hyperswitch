@@ -65,9 +65,11 @@ pub async fn refunds_retrieve(
     state: web::Data<AppState>,
     req: HttpRequest,
     path: web::Path<String>,
+    query_params: web::Query<api_models::refunds::RefundsRetrieveBody>,
 ) -> HttpResponse {
     let refund_request = refunds::RefundsRetrieveRequest {
         refund_id: path.into_inner(),
+        force_sync: query_params.force_sync,
         merchant_connector_details: None,
     };
     let flow = Flow::RefundsRetrieve;
