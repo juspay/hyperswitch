@@ -53,9 +53,7 @@ pub async fn get_address_for_payment_request(
                 Some(id) => Some(
                     db.update_address(id.to_owned(), address.foreign_into())
                         .await
-                        .map_err(|err| {
-                            err.to_not_found_response(errors::ApiErrorResponse::AddressNotFound)
-                        })?,
+                        .to_not_found_response(errors::ApiErrorResponse::AddressNotFound)?,
                 ),
                 None => {
                     // generate a new address here
@@ -84,9 +82,9 @@ pub async fn get_address_for_payment_request(
             }
         }
         None => match address_id {
-            Some(id) => Some(db.find_address(id).await).transpose().map_err(|err| {
-                err.to_not_found_response(errors::ApiErrorResponse::AddressNotFound)
-            })?,
+            Some(id) => Some(db.find_address(id).await)
+                .transpose()
+                .to_not_found_response(errors::ApiErrorResponse::AddressNotFound)?,
             None => None,
         },
     })
@@ -148,7 +146,7 @@ pub async fn get_token_for_recurring_mandate(
     let mandate = db
         .find_mandate_by_merchant_id_mandate_id(&merchant_account.merchant_id, mandate_id.as_str())
         .await
-        .map_err(|error| error.to_not_found_response(errors::ApiErrorResponse::MandateNotFound))?;
+        .to_not_found_response(errors::ApiErrorResponse::MandateNotFound)?;
 
     let customer = req.customer_id.clone().get_required_value("customer_id")?;
 
@@ -174,9 +172,7 @@ pub async fn get_token_for_recurring_mandate(
     let payment_method = db
         .find_payment_method(payment_method_id.as_str())
         .await
-        .map_err(|error| {
-            error.to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)
-        })?;
+        .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
 
     let token = Uuid::new_v4().to_string();
     let locker_id = merchant_account
@@ -306,6 +302,19 @@ fn validate_new_mandate_request(req: api::MandateValidationFields) -> RouterResu
         }))?
     }
 
+    let mandate_details = match mandate_data.mandate_type {
+        api_models::payments::MandateType::SingleUse(details) => Some(details),
+        api_models::payments::MandateType::MultiUse(details) => details,
+    };
+    mandate_details.and_then(|md| md.start_date.zip(md.end_date)).map(|(start_date, end_date)|
+        utils::when (start_date >= end_date, || {
+        Err(report!(errors::ApiErrorResponse::PreconditionFailed {
+            message: "`mandate_data.mandate_type.{multi_use|single_use}.start_date` should be greater than  \
+            `mandate_data.mandate_type.{multi_use|single_use}.end_date`"
+                .into()
+        }))
+    })).transpose()?;
+
     Ok(())
 }
 
@@ -339,7 +348,7 @@ pub fn create_startpay_url(
     payment_intent: &storage::PaymentIntent,
 ) -> String {
     format!(
-        "{}/payments/start/{}/{}/{}",
+        "{}/payments/redirect/{}/{}/{}",
         server.base_url,
         payment_intent.payment_id,
         payment_intent.merchant_id,
@@ -355,7 +364,7 @@ pub fn create_redirect_url(
 ) -> String {
     let creds_identifier_path = creds_identifier.map_or_else(String::new, |cd| format!("/{}", cd));
     format!(
-        "{}/payments/{}/{}/response/{}",
+        "{}/payments/{}/{}/redirect/response/{}",
         router_base_url, payment_attempt.payment_id, payment_attempt.merchant_id, connector_name,
     ) + &creds_identifier_path
 }
@@ -376,7 +385,7 @@ pub fn create_complete_authorize_url(
     connector_name: &String,
 ) -> String {
     format!(
-        "{}/payments/{}/{}/complete/{}",
+        "{}/payments/{}/{}/redirect/complete/{}",
         router_base_url, payment_attempt.payment_id, payment_attempt.merchant_id, connector_name
     )
 }
@@ -483,14 +492,9 @@ where
     Op: std::fmt::Debug,
 {
     if check_if_operation_confirm(operation) {
-        let routed_through: storage::RoutedThroughData = payment_attempt
+        let connector_name = payment_attempt
             .connector
             .clone()
-            .parse_value("RoutedThroughData")
-            .change_context(errors::ApiErrorResponse::InternalServerError)?;
-
-        let connector_name = routed_through
-            .routed_through
             .ok_or(errors::ApiErrorResponse::InternalServerError)?;
 
         let schedule_time = payment_sync::get_sync_process_schedule_time(
@@ -696,7 +700,14 @@ pub async fn make_pm_data<'a, F: Clone, R>(
                 .to_owned()
                 .get_required_value("payment_method")?,
         );
-        redis_conn.get_key::<String>(&key).await.ok()
+
+        let hyperswitch_token_option = redis_conn
+            .get_key::<Option<String>>(&key)
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to fetch the token from redis")?;
+
+        hyperswitch_token_option.or(Some(token))
     } else {
         None
     };
@@ -791,6 +802,7 @@ pub async fn make_pm_data<'a, F: Clone, R>(
         (pm @ Some(api::PaymentMethodData::PayLater(_)), _) => Ok(pm.to_owned()),
         (pm @ Some(api::PaymentMethodData::BankRedirect(_)), _) => Ok(pm.to_owned()),
         (pm @ Some(api::PaymentMethodData::Crypto(_)), _) => Ok(pm.to_owned()),
+        (pm @ Some(api::PaymentMethodData::BankDebit(_)), _) => Ok(pm.to_owned()),
         (pm_opt @ Some(pm @ api::PaymentMethodData::Wallet(_)), _) => {
             let token = vault::Vault::store_payment_method_data_in_locker(
                 state,
@@ -938,6 +950,7 @@ pub fn get_handle_response_url(
     connector: String,
 ) -> RouterResult<api::RedirectionResponse> {
     let payments_return_url = response.return_url.as_ref();
+
     let redirection_response = make_pg_redirect_response(payment_id, &response, connector);
 
     let return_url = make_merchant_url_with_response(
@@ -1158,7 +1171,10 @@ pub fn generate_mandate(
                 api::MandateType::MultiUse(op_data) => match op_data {
                     Some(data) => new_mandate
                         .set_mandate_amount(Some(data.amount))
-                        .set_mandate_currency(Some(data.currency.foreign_into())),
+                        .set_mandate_currency(Some(data.currency.foreign_into()))
+                        .set_start_date(data.start_date)
+                        .set_end_date(data.end_date)
+                        .set_metadata(data.metadata),
                     None => &mut new_mandate,
                 }
                 .set_mandate_type(storage_enums::MandateType::MultiUse)
@@ -1289,14 +1305,14 @@ pub fn get_business_details(
     business_country: Option<api_enums::CountryCode>,
     business_label: Option<&String>,
     merchant_account: &storage_models::merchant_account::MerchantAccount,
-) -> Result<(api_enums::CountryCode, String), error_stack::Report<errors::ApiErrorResponse>> {
+) -> RouterResult<(api_enums::CountryCode, String)> {
     let (business_country, business_label) = match business_country.zip(business_label) {
         Some((business_country, business_label)) => {
             (business_country.to_owned(), business_label.to_owned())
         }
         None => {
             // Parse the primary business details from merchant account
-            let primary_business_details: api_models::admin::PrimaryBusinessDetails =
+            let primary_business_details: Vec<api_models::admin::PrimaryBusinessDetails> =
                 merchant_account
                     .primary_business_details
                     .clone()
@@ -1304,28 +1320,20 @@ pub fn get_business_details(
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("failed to parse primary business details")?;
 
-            if primary_business_details.country.len() == 1
-                && primary_business_details.business.len() == 1
-            {
-                let primary_business_country = primary_business_details
-                    .country
-                    .first()
-                    .get_required_value("business_country")?
-                    .to_owned();
-
-                let primary_business_label = primary_business_details
-                    .business
-                    .first()
-                    .get_required_value("business_label")?
-                    .to_owned();
-
+            if primary_business_details.len() == 1 {
+                let primary_business_details = primary_business_details.first().ok_or(
+                    errors::ApiErrorResponse::MissingRequiredField {
+                        field_name: "primary_business_details",
+                    },
+                )?;
                 (
-                    business_country.unwrap_or(primary_business_country),
+                    business_country.unwrap_or_else(|| primary_business_details.country.to_owned()),
                     business_label
                         .map(ToString::to_string)
-                        .unwrap_or(primary_business_label),
+                        .unwrap_or_else(|| primary_business_details.business.to_owned()),
                 )
             } else {
+                // If primary business details are not present or more than one
                 Err(report!(errors::ApiErrorResponse::MissingRequiredField {
                     field_name: "business_country, business_label"
                 }))?
@@ -1417,11 +1425,9 @@ pub async fn get_merchant_connector_account(
             let mca_config = db
                 .find_config_by_key(format!("mcd_{merchant_id}_{creds_identifier}").as_str())
                 .await
-                .map_err(|error| {
-                    error.to_not_found_response(
-                        errors::ApiErrorResponse::MerchantConnectorAccountNotFound,
-                    )
-                })?;
+                .to_not_found_response(
+                    errors::ApiErrorResponse::MerchantConnectorAccountNotFound,
+                )?;
 
             let cached_mca = consts::BASE64_ENGINE
             .decode(mca_config.config.as_bytes())

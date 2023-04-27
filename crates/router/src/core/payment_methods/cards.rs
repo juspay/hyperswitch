@@ -119,9 +119,7 @@ pub async fn update_customer_payment_method(
             payment_method_id,
         )
         .await
-        .map_err(|error| {
-            error.to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)
-        })?;
+        .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
     if pm.payment_method == enums::PaymentMethod::Card {
         delete_card_from_locker(
             state,
@@ -316,7 +314,10 @@ pub async fn add_card_hs(
         req,
         merchant_id,
     );
-    Ok((payment_method_resp, store_card_payload.duplicate))
+    Ok((
+        payment_method_resp,
+        store_card_payload.duplicate.unwrap_or(false),
+    ))
 }
 
 // Legacy Locker Function
@@ -577,6 +578,7 @@ pub async fn mock_add_card_hs(
         card_cvc,
         payment_method_id,
         customer_id: customer_id.map(str::to_string),
+        name_on_card: card.card_holder_name.to_owned().expose_option(),
     };
 
     let response = db
@@ -585,7 +587,7 @@ pub async fn mock_add_card_hs(
         .change_context(errors::VaultError::SaveCardFailed)?;
     let payload = payment_methods::StoreCardRespPayload {
         card_reference: response.card_id,
-        duplicate: false,
+        duplicate: Some(false),
     };
     Ok(payment_methods::StoreCardResp {
         status: "SUCCESS".to_string(),
@@ -616,6 +618,7 @@ pub async fn mock_add_card(
         card_cvc,
         payment_method_id,
         customer_id: customer_id.map(str::to_string),
+        name_on_card: card.card_holder_name.to_owned().expose_option(),
     };
     let response = db
         .insert_locker_mock_up(locker_mock_up)
@@ -630,7 +633,7 @@ pub async fn mock_add_card(
         card_number: Some(response.card_number.into()),
         card_exp_year: Some(response.card_exp_year.into()),
         card_exp_month: Some(response.card_exp_month.into()),
-        name_on_card: None,
+        name_on_card: response.name_on_card.map(|c| c.into()),
         nickname: response.nickname,
         customer_id: response.customer_id,
         duplicate: response.duplicate,
@@ -657,7 +660,7 @@ pub async fn mock_get_card<'a>(
         card_number: Some(locker_mock_up.card_number.into()),
         card_exp_year: Some(locker_mock_up.card_exp_year.into()),
         card_exp_month: Some(locker_mock_up.card_exp_month.into()),
-        name_on_card: None,
+        name_on_card: locker_mock_up.name_on_card.map(|card| card.into()),
         nickname: locker_mock_up.nickname,
         customer_id: locker_mock_up.customer_id,
         duplicate: locker_mock_up.duplicate,
@@ -822,9 +825,7 @@ pub async fn list_payment_methods(
             false,
         )
         .await
-        .map_err(|error| {
-            error.to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
-        })?;
+        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
     logger::debug!(mca_before_filtering=?all_mcas);
 
@@ -1055,6 +1056,26 @@ async fn filter_payment_methods(
         let parse_result = serde_json::from_value::<PaymentMethodsEnabled>(payment_method);
         if let Ok(payment_methods_enabled) = parse_result {
             let payment_method = payment_methods_enabled.payment_method;
+            let allowed_payment_method_types = payment_intent
+                .map(|payment_intent|
+                    payment_intent
+                        .metadata
+                        .as_ref()
+                        .and_then(|masked_metadata| {
+                            let metadata = masked_metadata.peek().clone();
+                            let parsed_metadata: Option<api_models::payments::Metadata> =
+                                serde_json::from_value(metadata)
+                                    .map_err(|error| logger::error!(%error, "Failed to deserialize PaymentIntent metadata"))
+                                    .ok();
+                            parsed_metadata.and_then(|pm| {
+                                logger::info!(
+                                    "Only given PaymentMethodTypes will be allowed {:?}",
+                                    pm.allowed_payment_method_types
+                                );
+                                pm.allowed_payment_method_types
+                            })
+                }))
+                .and_then(|a| a);
             for payment_method_type_info in payment_methods_enabled
                 .payment_method_types
                 .unwrap_or_default()
@@ -1114,6 +1135,11 @@ async fn filter_payment_methods(
                             .map(|value| value.foreign_into()),
                     );
 
+                    let filter6 = filter_pm_based_on_allowed_types(
+                        allowed_payment_method_types.as_ref(),
+                        &payment_method_object.payment_method_type,
+                    );
+
                     let connector = connector.clone();
 
                     let response_pm_type = ResponsePaymentMethodIntermediate::new(
@@ -1122,7 +1148,7 @@ async fn filter_payment_methods(
                         payment_method,
                     );
 
-                    if filter && filter2 && filter3 && filter4 && filter5 {
+                    if filter && filter2 && filter3 && filter4 && filter5 && filter6 {
                         resp.push(response_pm_type);
                     }
                 }
@@ -1357,6 +1383,13 @@ fn filter_amount_based(payment_method: &RequestPaymentMethodTypes, amount: Optio
     min_check && max_check
 }
 
+fn filter_pm_based_on_allowed_types(
+    allowed_types: Option<&Vec<api_enums::PaymentMethodType>>,
+    payment_method_type: &api_enums::PaymentMethodType,
+) -> bool {
+    allowed_types.map_or(true, |pm| pm.contains(payment_method_type))
+}
+
 fn filter_recurring_based(
     payment_method: &RequestPaymentMethodTypes,
     recurring_enabled: Option<bool>,
@@ -1435,9 +1468,7 @@ pub async fn list_customer_payment_method(
             &merchant_account.merchant_id,
         )
         .await
-        .map_err(|err| {
-            err.to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)
-        })?;
+        .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
     //let mca = query::find_mca_by_merchant_id(conn, &merchant_account.merchant_id)?;
     if resp.is_empty() {
         return Err(error_stack::report!(
@@ -1445,8 +1476,8 @@ pub async fn list_customer_payment_method(
         ));
     }
     let mut customer_pms = Vec::new();
-    let parent_payment_method_token = generate_id(consts::ID_LENGTH, "token");
     for pm in resp.into_iter() {
+        let parent_payment_method_token = generate_id(consts::ID_LENGTH, "token");
         let hyperswitch_token = generate_id(consts::ID_LENGTH, "token");
         let card = if pm.payment_method == enums::PaymentMethod::Card {
             let locker_id = merchant_account
@@ -1740,9 +1771,7 @@ pub async fn retrieve_payment_method(
     let pm = db
         .find_payment_method(&pm.payment_method_id)
         .await
-        .map_err(|error| {
-            error.to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)
-        })?;
+        .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
     let card = if pm.payment_method == enums::PaymentMethod::Card {
         let card = get_card_from_locker(
             state,
@@ -1796,9 +1825,7 @@ pub async fn delete_payment_method(
             &payment_method_id,
         )
         .await
-        .map_err(|error| {
-            error.to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)
-        })?;
+        .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
 
     if pm.payment_method == enums::PaymentMethod::Card {
         let response =

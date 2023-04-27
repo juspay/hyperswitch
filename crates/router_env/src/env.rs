@@ -3,7 +3,6 @@
 use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
-use strum::{Display, EnumString};
 
 /// Environment variables accessed by the application. This module aims to be the source of truth
 /// containing all environment variable that the application accesses.
@@ -11,7 +10,7 @@ pub mod vars {
     /// Parent directory where `Cargo.toml` is stored.
     pub const CARGO_MANIFEST_DIR: &str = "CARGO_MANIFEST_DIR";
 
-    /// Environment variable that sets Development/Sandbox/Production environment.
+    /// Environment variable that sets development/sandbox/production environment.
     pub const RUN_ENV: &str = "RUN_ENV";
 
     /// Directory of config TOML files. Default is `config`.
@@ -19,7 +18,11 @@ pub mod vars {
 }
 
 /// Current environment.
-#[derive(Debug, Default, Deserialize, Serialize, Clone, Copy, Display, EnumString)]
+#[derive(
+    Debug, Default, Deserialize, Serialize, Clone, Copy, strum::Display, strum::EnumString,
+)]
+#[serde(rename_all = "lowercase")]
+#[strum(serialize_all = "lowercase")]
 pub enum Env {
     /// Development environment.
     #[default]
@@ -30,7 +33,7 @@ pub enum Env {
     Production,
 }
 
-/// Name of current environment. Either "Development", "Sandbox" or "Production".
+/// Name of current environment. Either "development", "sandbox" or "production".
 pub fn which() -> Env {
     #[cfg(debug_assertions)]
     let default_env = Env::Development;

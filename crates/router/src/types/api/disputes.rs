@@ -1,4 +1,11 @@
-use masking::Deserialize;
+use masking::{Deserialize, Serialize};
+
+use crate::{services, types};
+
+#[derive(Default, Debug, Deserialize, Serialize)]
+pub struct DisputeId {
+    pub dispute_id: String,
+}
 
 #[derive(Default, Debug, Deserialize)]
 pub struct DisputePayload {
@@ -13,3 +20,29 @@ pub struct DisputePayload {
     pub created_at: Option<String>,
     pub updated_at: Option<String>,
 }
+
+#[derive(Debug, Clone)]
+pub struct Accept;
+
+pub trait AcceptDispute:
+    services::ConnectorIntegration<
+    Accept,
+    types::AcceptDisputeRequestData,
+    types::AcceptDisputeResponse,
+>
+{
+}
+
+#[derive(Debug, Clone)]
+pub struct Evidence;
+
+pub trait SubmitEvidence:
+    services::ConnectorIntegration<
+    Evidence,
+    types::SubmitEvidenceRequestData,
+    types::SubmitEvidenceResponse,
+>
+{
+}
+
+pub trait Dispute: super::ConnectorCommon + AcceptDispute + SubmitEvidence {}

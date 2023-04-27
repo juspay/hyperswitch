@@ -1,7 +1,6 @@
 mod transformers;
 
 use std::fmt::Debug;
-use common_utils::errors::ReportSwitchExt;
 use error_stack::{ResultExt, IntoReport};
 
 use crate::{
@@ -35,6 +34,17 @@ impl api::PaymentVoid for {{project-name | downcase | pascal_case}} {}
 impl api::Refund for {{project-name | downcase | pascal_case}} {}
 impl api::RefundExecute for {{project-name | downcase | pascal_case}} {}
 impl api::RefundSync for {{project-name | downcase | pascal_case}} {}
+impl api::PaymentToken for {{project-name | downcase | pascal_case}} {}
+
+impl
+    ConnectorIntegration<
+        api::PaymentMethodToken,
+        types::PaymentMethodTokenizationData,
+        types::PaymentsResponseData,
+    > for {{project-name | downcase | pascal_case}}
+{
+    // Not Implemented (R)
+}
 
 impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for {{project-name | downcase | pascal_case}}
 where
@@ -80,7 +90,7 @@ impl ConnectorCommon for {{project-name | downcase | pascal_case}} {
         let response: {{project-name | downcase}}::{{project-name | downcase | pascal_case}}ErrorResponse = res
             .response
             .parse_struct("{{project-name | downcase | pascal_case}}ErrorResponse")
-            .switch()?;
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
         Ok(ErrorResponse {
             status_code: res.status_code,
@@ -168,7 +178,7 @@ impl
         data: &types::PaymentsAuthorizeRouterData,
         res: Response,
     ) -> CustomResult<types::PaymentsAuthorizeRouterData,errors::ConnectorError> {
-        let response: {{project-name | downcase}}::{{project-name | downcase | pascal_case}}PaymentsResponse = res.response.parse_struct("{{project-name | downcase | pascal_case}} PaymentsAuthorizeResponse").switch()?;
+        let response: {{project-name | downcase}}::{{project-name | downcase | pascal_case}}PaymentsResponse = res.response.parse_struct("{{project-name | downcase | pascal_case}} PaymentsAuthorizeResponse").change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -229,7 +239,7 @@ impl
         let response: {{project-name | downcase}}:: {{project-name | downcase | pascal_case}}PaymentsResponse = res
             .response
             .parse_struct("{{project-name | downcase}} PaymentsSyncResponse")
-            .switch()?;
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -305,7 +315,7 @@ impl
         let response: {{project-name | downcase }}::{{project-name | downcase | pascal_case}}PaymentsResponse = res
             .response
             .parse_struct("{{project-name | downcase | pascal_case}} PaymentsCaptureResponse")
-            .switch()?;
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -374,7 +384,7 @@ impl
         data: &types::RefundsRouterData<api::Execute>,
         res: Response,
     ) -> CustomResult<types::RefundsRouterData<api::Execute>,errors::ConnectorError> {
-        let response: {{project-name| downcase}}::RefundResponse = res.response.parse_struct("{{project-name | downcase}} RefundResponse").switch()?;
+        let response: {{project-name| downcase}}::RefundResponse = res.response.parse_struct("{{project-name | downcase}} RefundResponse").change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -423,7 +433,7 @@ impl
         data: &types::RefundSyncRouterData,
         res: Response,
     ) -> CustomResult<types::RefundSyncRouterData,errors::ConnectorError,> {
-        let response: {{project-name | downcase}}::RefundResponse = res.response.parse_struct("{{project-name | downcase}} RefundSyncResponse").switch()?;
+        let response: {{project-name | downcase}}::RefundResponse = res.response.parse_struct("{{project-name | downcase}} RefundSyncResponse").change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),

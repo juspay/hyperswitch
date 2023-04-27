@@ -6,17 +6,38 @@ impl super::settings::Secrets {
     pub fn validate(&self) -> Result<(), ApplicationError> {
         use common_utils::fp_utils::when;
 
-        when(self.jwt_secret.is_default_or_empty(), || {
-            Err(ApplicationError::InvalidConfigurationValueError(
-                "JWT secret must not be empty".into(),
-            ))
-        })?;
+        #[cfg(not(feature = "kms"))]
+        {
+            when(self.jwt_secret.is_default_or_empty(), || {
+                Err(ApplicationError::InvalidConfigurationValueError(
+                    "JWT secret must not be empty".into(),
+                ))
+            })?;
 
-        when(self.admin_api_key.is_default_or_empty(), || {
-            Err(ApplicationError::InvalidConfigurationValueError(
-                "admin API key must not be empty".into(),
-            ))
-        })
+            when(self.admin_api_key.is_default_or_empty(), || {
+                Err(ApplicationError::InvalidConfigurationValueError(
+                    "admin API key must not be empty".into(),
+                ))
+            })
+        }
+
+        #[cfg(feature = "kms")]
+        {
+            when(self.kms_encrypted_jwt_secret.is_default_or_empty(), || {
+                Err(ApplicationError::InvalidConfigurationValueError(
+                    "KMS encrypted JWT secret must not be empty".into(),
+                ))
+            })?;
+
+            when(
+                self.kms_encrypted_admin_api_key.is_default_or_empty(),
+                || {
+                    Err(ApplicationError::InvalidConfigurationValueError(
+                        "KMS encrypted admin API key must not be empty".into(),
+                    ))
+                },
+            )
+        }
     }
 }
 
@@ -134,6 +155,21 @@ impl super::settings::ConnectorParams {
     }
 }
 
+impl super::settings::ConnectorParamsWithFileUploadUrl {
+    pub fn validate(&self) -> Result<(), ApplicationError> {
+        common_utils::fp_utils::when(self.base_url.is_default_or_empty(), || {
+            Err(ApplicationError::InvalidConfigurationValueError(
+                "connector base URL must not be empty".into(),
+            ))
+        })?;
+        common_utils::fp_utils::when(self.base_url_file_upload.is_default_or_empty(), || {
+            Err(ApplicationError::InvalidConfigurationValueError(
+                "connector file upload base URL must not be empty".into(),
+            ))
+        })
+    }
+}
+
 impl super::settings::SchedulerSettings {
     pub fn validate(&self) -> Result<(), ApplicationError> {
         use common_utils::fp_utils::when;
@@ -172,6 +208,25 @@ impl super::settings::DrainerSettings {
         common_utils::fp_utils::when(self.stream_name.is_default_or_empty(), || {
             Err(ApplicationError::InvalidConfigurationValueError(
                 "drainer stream name must not be empty".into(),
+            ))
+        })
+    }
+}
+
+#[cfg(feature = "s3")]
+impl super::settings::FileUploadConfig {
+    pub fn validate(&self) -> Result<(), ApplicationError> {
+        use common_utils::fp_utils::when;
+
+        when(self.region.is_default_or_empty(), || {
+            Err(ApplicationError::InvalidConfigurationValueError(
+                "s3 region must not be empty".into(),
+            ))
+        })?;
+
+        when(self.bucket_name.is_default_or_empty(), || {
+            Err(ApplicationError::InvalidConfigurationValueError(
+                "s3 bucket name must not be empty".into(),
             ))
         })
     }

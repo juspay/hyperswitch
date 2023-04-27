@@ -12,9 +12,10 @@ use std::{
 use actix_web::{body, HttpRequest, HttpResponse, Responder};
 use common_utils::errors::ReportSwitchExt;
 use error_stack::{report, IntoReport, Report, ResultExt};
-use masking::ExposeOptionInterface;
+use masking::{ExposeOptionInterface, PeekInterface};
 use router_env::{instrument, tracing, Tag};
 use serde::Serialize;
+use serde_json::json;
 
 use self::request::{ContentType, HeaderExt, RequestBuilderExt};
 pub use self::request::{Method, Request, RequestBuilder};
@@ -27,7 +28,7 @@ use crate::{
     logger,
     routes::{app::AppStateInfo, metrics, AppState},
     services::authentication as auth,
-    types::{self, api, storage, ErrorResponse},
+    types::{self, api, ErrorResponse},
 };
 
 pub type BoxedConnectorIntegration<'a, T, Req, Resp> =
@@ -77,6 +78,13 @@ pub trait ConnectorIntegration<T, Req, Resp>: ConnectorIntegrationAny<T, Req, Re
         &self,
         _req: &types::RouterData<T, Req, Resp>,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
+        Ok(None)
+    }
+
+    fn get_request_form_data(
+        &self,
+        _req: &types::RouterData<T, Req, Resp>,
+    ) -> CustomResult<Option<reqwest::multipart::Form>, errors::ConnectorError> {
         Ok(None)
     }
 
@@ -308,10 +316,22 @@ async fn send_request(
             match request.content_type {
                 Some(ContentType::Json) => client.json(&request.payload),
 
+                Some(ContentType::FormData) => client.multipart(
+                    request
+                        .form_data
+                        .unwrap_or_else(reqwest::multipart::Form::new),
+                ),
+
                 // Currently this is not used remove this if not required
                 // If using this then handle the serde_part
                 Some(ContentType::FormUrlEncoded) => {
-                    let url_encoded_payload = serde_urlencoded::to_string(&request.payload)
+                    let payload = match request.payload.clone() {
+                        Some(req) => serde_json::from_str(req.peek())
+                            .into_report()
+                            .change_context(errors::ApiClientError::UrlEncodingFailed)?,
+                        _ => json!(r#""#),
+                    };
+                    let url_encoded_payload = serde_urlencoded::to_string(&payload)
                         .into_report()
                         .change_context(errors::ApiClientError::UrlEncodingFailed)
                         .attach_printable_lazy(|| {
@@ -329,11 +349,9 @@ async fn send_request(
             }
         }
 
-        Method::Put => {
-            client
-                .put(url)
-                .body(request.payload.expose_option().unwrap_or_default()) // If payload needs processing the body cannot have default
-        }
+        Method::Put => client
+            .put(url)
+            .body(request.payload.expose_option().unwrap_or_default()), // If payload needs processing the body cannot have default
         Method::Delete => client.delete(url),
     }
     .add_headers(headers)
@@ -360,7 +378,7 @@ async fn handle_response(
             logger::info!(?response);
             let status_code = response.status().as_u16();
             match status_code {
-                200..=202 | 302 => {
+                200..=202 | 302 | 204 => {
                     logger::debug!(response=?response);
                     // If needed add log line
                     // logger:: error!( error_parsing_response=?err);
@@ -434,6 +452,7 @@ pub enum ApplicationResponse<R> {
     TextPlain(String),
     JsonForRedirection(api::RedirectionResponse),
     Form(RedirectForm),
+    FileData((Vec<u8>, mime::Mime)),
 }
 
 #[derive(Debug, Eq, PartialEq)]
@@ -447,24 +466,16 @@ pub struct ApplicationRedirectResponse {
     pub url: String,
 }
 
-impl From<&storage::PaymentAttempt> for ApplicationRedirectResponse {
-    fn from(payment_attempt: &storage::PaymentAttempt) -> Self {
-        Self {
-            url: format!(
-                "/payments/start/{}/{}/{}",
-                &payment_attempt.payment_id,
-                &payment_attempt.merchant_id,
-                &payment_attempt.attempt_id
-            ),
-        }
-    }
-}
-
 #[derive(Debug, Eq, PartialEq, Clone, serde::Serialize, serde::Deserialize)]
-pub struct RedirectForm {
-    pub endpoint: String,
-    pub method: Method,
-    pub form_fields: HashMap<String, String>,
+pub enum RedirectForm {
+    Form {
+        endpoint: String,
+        method: Method,
+        form_fields: HashMap<String, String>,
+    },
+    Html {
+        html_data: String,
+    },
 }
 
 impl From<(url::Url, Method)> for RedirectForm {
@@ -478,7 +489,7 @@ impl From<(url::Url, Method)> for RedirectForm {
         // Do not include query params in the endpoint
         redirect_url.set_query(None);
 
-        Self {
+        Self::Form {
             endpoint: redirect_url.to_string(),
             method,
             form_fields,
@@ -562,6 +573,9 @@ where
         },
         Ok(ApplicationResponse::StatusOk) => http_response_ok(),
         Ok(ApplicationResponse::TextPlain(text)) => http_response_plaintext(text),
+        Ok(ApplicationResponse::FileData((file_data, content_type))) => {
+            http_response_file_data(file_data, content_type)
+        }
         Ok(ApplicationResponse::JsonForRedirection(response)) => {
             match serde_json::to_string(&response) {
                 Ok(res) => http_redirect_response(res, response),
@@ -609,6 +623,13 @@ pub fn http_response_json<T: body::MessageBody + 'static>(response: T) -> HttpRe
 
 pub fn http_response_plaintext<T: body::MessageBody + 'static>(res: T) -> HttpResponse {
     HttpResponse::Ok().content_type(mime::TEXT_PLAIN).body(res)
+}
+
+pub fn http_response_file_data<T: body::MessageBody + 'static>(
+    res: T,
+    content_type: mime::Mime,
+) -> HttpResponse {
+    HttpResponse::Ok().content_type(content_type).body(res)
 }
 
 pub fn http_response_ok() -> HttpResponse {
@@ -665,7 +686,12 @@ impl Authenticate for api_models::payment_methods::PaymentMethodListRequest {
 pub fn build_redirection_form(form: &RedirectForm) -> maud::Markup {
     use maud::PreEscaped;
 
-    maud::html! {
+    match form {
+        RedirectForm::Form {
+            endpoint,
+            method,
+            form_fields,
+        } => maud::html! {
         (maud::DOCTYPE)
         html {
             meta name="viewport" content="width=device-width, initial-scale=1";
@@ -710,8 +736,8 @@ pub fn build_redirection_form(form: &RedirectForm) -> maud::Markup {
 
 
                 h3 style="text-align: center;" { "Please wait while we process your payment..." }
-                form action=(PreEscaped(&form.endpoint)) method=(form.method.to_string()) #payment_form {
-                    @for (field, value) in &form.form_fields {
+                    form action=(PreEscaped(endpoint)) method=(method.to_string()) #payment_form {
+                        @for (field, value) in form_fields {
                         input type="hidden" name=(field) value=(value);
                     }
                 }
@@ -719,6 +745,8 @@ pub fn build_redirection_form(form: &RedirectForm) -> maud::Markup {
                 (PreEscaped(r#"<script type="text/javascript"> var frm = document.getElementById("payment_form"); window.setTimeout(function () { frm.submit(); }, 300); </script>"#))
             }
         }
+        },
+        RedirectForm::Html { html_data } => PreEscaped(html_data.to_string()),
     }
 }
 

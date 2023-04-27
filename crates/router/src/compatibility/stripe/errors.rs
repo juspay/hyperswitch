@@ -180,6 +180,22 @@ pub enum StripeErrorCode {
 
     #[error(error_type = StripeErrorType::HyperswitchError, code = "", message = "The connector provided in the request is incorrect or not available")]
     IncorrectConnectorNameGiven,
+    #[error(error_type = StripeErrorType::HyperswitchError, code = "", message = "No such {object}: '{id}'")]
+    ResourceMissing { object: String, id: String },
+    #[error(error_type = StripeErrorType::HyperswitchError, code = "", message = "File validation failed")]
+    FileValidationFailed,
+    #[error(error_type = StripeErrorType::HyperswitchError, code = "", message = "File not found in the request")]
+    MissingFile,
+    #[error(error_type = StripeErrorType::HyperswitchError, code = "", message = "File puropse not found in the request")]
+    MissingFilePurpose,
+    #[error(error_type = StripeErrorType::HyperswitchError, code = "", message = "File content type not found")]
+    MissingFileContentType,
+    #[error(error_type = StripeErrorType::HyperswitchError, code = "", message = "Dispute id not found in the request")]
+    MissingDisputeId,
+    #[error(error_type = StripeErrorType::HyperswitchError, code = "", message = "File does not exists in our records")]
+    FileNotFound,
+    #[error(error_type = StripeErrorType::HyperswitchError, code = "", message = "File not available")]
+    FileNotAvailable,
     // [#216]: https://github.com/juspay/hyperswitch/issues/216
     // Implement the remaining stripe error codes
 
@@ -460,6 +476,20 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
             errors::ApiErrorResponse::DuplicatePayment { payment_id } => {
                 Self::DuplicatePayment { payment_id }
             }
+            errors::ApiErrorResponse::DisputeNotFound { dispute_id } => Self::ResourceMissing {
+                object: "dispute".to_owned(),
+                id: dispute_id,
+            },
+            errors::ApiErrorResponse::DisputeStatusValidationFailed { reason } => {
+                Self::InternalServerError
+            }
+            errors::ApiErrorResponse::FileValidationFailed { .. } => Self::FileValidationFailed,
+            errors::ApiErrorResponse::MissingFile => Self::MissingFile,
+            errors::ApiErrorResponse::MissingFilePurpose => Self::MissingFilePurpose,
+            errors::ApiErrorResponse::MissingFileContentType => Self::MissingFileContentType,
+            errors::ApiErrorResponse::MissingDisputeId => Self::MissingDisputeId,
+            errors::ApiErrorResponse::FileNotFound => Self::FileNotFound,
+            errors::ApiErrorResponse::FileNotAvailable => Self::FileNotAvailable,
             errors::ApiErrorResponse::NotSupported { .. } => Self::InternalServerError,
         }
     }
@@ -507,7 +537,15 @@ impl actix_web::ResponseError for StripeErrorCode {
             | Self::PaymentIntentMandateInvalid { .. }
             | Self::PaymentIntentUnexpectedState { .. }
             | Self::DuplicatePayment { .. }
-            | Self::IncorrectConnectorNameGiven => StatusCode::BAD_REQUEST,
+            | Self::IncorrectConnectorNameGiven
+            | Self::ResourceMissing { .. }
+            | Self::FileValidationFailed
+            | Self::MissingFile
+            | Self::MissingFileContentType
+            | Self::MissingFilePurpose
+            | Self::MissingDisputeId
+            | Self::FileNotFound
+            | Self::FileNotAvailable => StatusCode::BAD_REQUEST,
             Self::RefundFailed
             | Self::InternalServerError
             | Self::MandateActive

@@ -31,8 +31,15 @@ impl Default for super::settings::Database {
 impl Default for super::settings::Secrets {
     fn default() -> Self {
         Self {
+            #[cfg(not(feature = "kms"))]
             jwt_secret: "secret".into(),
+            #[cfg(not(feature = "kms"))]
             admin_api_key: "test_admin".into(),
+
+            #[cfg(feature = "kms")]
+            kms_encrypted_jwt_secret: "".into(),
+            #[cfg(feature = "kms")]
+            kms_encrypted_admin_api_key: "".into(),
         }
     }
 }

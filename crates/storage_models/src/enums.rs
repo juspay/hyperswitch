@@ -57,6 +57,7 @@ pub enum AttemptStatus {
     Failure,
     PaymentMethodAwaited,
     ConfirmationAwaited,
+    DeviceDataCollectionPending,
 }
 
 #[derive(
@@ -456,6 +457,7 @@ pub enum PaymentMethod {
     BankRedirect,
     Reward,
     Crypto,
+    BankDebit,
 }
 
 #[derive(
@@ -612,21 +614,40 @@ pub enum MandateStatus {
 #[strum(serialize_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
 pub enum PaymentMethodType {
-    Credit,
-    Debit,
-    Giropay,
-    Ideal,
-    Sofort,
-    Eps,
-    Klarna,
+    Ach,
     Affirm,
     AfterpayClearpay,
-    GooglePay,
+    AliPay,
     ApplePay,
-    Paypal,
     Evoucher,
     Classic,
+    Bacs,
+    BancontactCard,
+    Becs,
+    Blik,
+    Credit,
     CryptoCurrency,
+    Debit,
+    Eps,
+    Giropay,
+    GooglePay,
+    Ideal,
+    Klarna,
+    MbWay,
+    MobilePay,
+    OnlineBankingCzechRepublic,
+    OnlineBankingFinland,
+    OnlineBankingPoland,
+    OnlineBankingSlovakia,
+    PayBright,
+    Paypal,
+    Przelewy24,
+    Sepa,
+    Sofort,
+    Swish,
+    Trustly,
+    Walley,
+    WeChatPay,
 }
 
 #[derive(
@@ -777,4 +798,26 @@ pub enum DisputeStatus {
     DisputeChallenged,
     DisputeWon,
     DisputeLost,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    Default,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    frunk::LabelledGeneric,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum FileUploadProvider {
+    #[default]
+    Router,
+    Stripe,
 }

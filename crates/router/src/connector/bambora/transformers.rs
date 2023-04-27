@@ -1,4 +1,6 @@
 use base64::Engine;
+use common_utils::ext_traits::ValueExt;
+use error_stack::{IntoReport, ResultExt};
 use masking::Secret;
 use serde::{Deserialize, Deserializer, Serialize};
 
@@ -6,6 +8,7 @@ use crate::{
     connector::utils::PaymentsAuthorizeRequestData,
     consts,
     core::errors,
+    services,
     types::{self, api, storage::enums},
 };
 
@@ -24,19 +27,21 @@ pub struct BamboraCard {
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
 pub struct ThreeDSecure {
-    // browser: Option<Browser>, //Needed only in case of 3Ds 2.0. Need to update request for this.
+    browser: Option<BamboraBrowserInfo>, //Needed only in case of 3Ds 2.0. Need to update request for this.
     enabled: bool,
+    version: Option<i64>,
+    auth_required: Option<bool>,
 }
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
-pub struct Browser {
+pub struct BamboraBrowserInfo {
     accept_header: String,
-    java_enabled: String,
+    java_enabled: bool,
     language: String,
-    color_depth: String,
-    screen_height: i64,
-    screen_width: i64,
-    time_zone: i64,
+    color_depth: u8,
+    screen_height: u32,
+    screen_width: u32,
+    time_zone: i32,
     user_agent: String,
     javascript_enabled: bool,
 }
@@ -45,7 +50,49 @@ pub struct Browser {
 pub struct BamboraPaymentsRequest {
     amount: i64,
     payment_method: PaymentMethod,
+    customer_ip: Option<std::net::IpAddr>,
+    term_url: Option<String>,
     card: BamboraCard,
+}
+
+fn get_browser_info(item: &types::PaymentsAuthorizeRouterData) -> Option<BamboraBrowserInfo> {
+    if matches!(item.auth_type, enums::AuthenticationType::ThreeDs) {
+        item.request
+            .browser_info
+            .as_ref()
+            .map(|info| BamboraBrowserInfo {
+                accept_header: info.accept_header.clone(),
+                java_enabled: info.java_enabled,
+                language: info.language.clone(),
+                color_depth: info.color_depth,
+                screen_height: info.screen_height,
+                screen_width: info.screen_width,
+                time_zone: info.time_zone,
+                user_agent: info.user_agent.clone(),
+                javascript_enabled: info.java_script_enabled,
+            })
+    } else {
+        None
+    }
+}
+
+impl TryFrom<&types::CompleteAuthorizeData> for BamboraThreedsContinueRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(value: &types::CompleteAuthorizeData) -> Result<Self, Self::Error> {
+        let card_response: CardResponse = value
+            .payload
+            .clone()
+            .ok_or(errors::ConnectorError::MissingRequiredField {
+                field_name: "payload",
+            })?
+            .parse_value("CardResponse")
+            .change_context(errors::ConnectorError::ParsingFailed)?;
+        let bambora_req = Self {
+            payment_method: "credit_card".to_string(),
+            card_response,
+        };
+        Ok(bambora_req)
+    }
 }
 
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for BamboraPaymentsRequest {
@@ -54,7 +101,12 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BamboraPaymentsRequest {
         match item.request.payment_method_data.clone() {
             api::PaymentMethodData::Card(req_card) => {
                 let three_ds = match item.auth_type {
-                    enums::AuthenticationType::ThreeDs => Some(ThreeDSecure { enabled: true }),
+                    enums::AuthenticationType::ThreeDs => Some(ThreeDSecure {
+                        enabled: true,
+                        browser: get_browser_info(item),
+                        version: Some(2),
+                        auth_required: Some(true),
+                    }),
                     enums::AuthenticationType::NoThreeDs => None,
                 };
                 let bambora_card = BamboraCard {
@@ -64,12 +116,15 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BamboraPaymentsRequest {
                     expiry_year: req_card.card_exp_year,
                     cvd: req_card.card_cvc,
                     three_d_secure: three_ds,
-                    complete: item.request.is_auto_capture(),
+                    complete: item.request.is_auto_capture()?,
                 };
+                let browser_info = item.request.get_browser_info()?;
                 Ok(Self {
                     amount: item.request.amount,
                     payment_method: PaymentMethod::Card,
                     card: bambora_card,
+                    customer_ip: browser_info.ip_address,
+                    term_url: item.request.complete_authorize_url.clone(),
                 })
             }
             _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
@@ -115,42 +170,68 @@ pub enum PaymentFlow {
 // PaymentsResponse
 impl<F, T>
     TryFrom<(
-        types::ResponseRouterData<F, BamboraPaymentsResponse, T, types::PaymentsResponseData>,
+        types::ResponseRouterData<F, BamboraResponse, T, types::PaymentsResponseData>,
         PaymentFlow,
     )> for types::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         data: (
-            types::ResponseRouterData<F, BamboraPaymentsResponse, T, types::PaymentsResponseData>,
+            types::ResponseRouterData<F, BamboraResponse, T, types::PaymentsResponseData>,
             PaymentFlow,
         ),
     ) -> Result<Self, Self::Error> {
         let flow = data.1;
         let item = data.0;
-        let pg_response = item.response;
-        Ok(Self {
-            status: match pg_response.approved.as_str() {
-                "0" => match flow {
-                    PaymentFlow::Authorize => enums::AttemptStatus::AuthorizationFailed,
-                    PaymentFlow::Capture => enums::AttemptStatus::Failure,
-                    PaymentFlow::Void => enums::AttemptStatus::VoidFailed,
+        match item.response {
+            BamboraResponse::NormalTransaction(pg_response) => Ok(Self {
+                status: match pg_response.approved.as_str() {
+                    "0" => match flow {
+                        PaymentFlow::Authorize => enums::AttemptStatus::AuthorizationFailed,
+                        PaymentFlow::Capture => enums::AttemptStatus::Failure,
+                        PaymentFlow::Void => enums::AttemptStatus::VoidFailed,
+                    },
+                    "1" => match flow {
+                        PaymentFlow::Authorize => enums::AttemptStatus::Authorized,
+                        PaymentFlow::Capture => enums::AttemptStatus::Charged,
+                        PaymentFlow::Void => enums::AttemptStatus::Voided,
+                    },
+                    &_ => Err(errors::ConnectorError::ResponseDeserializationFailed)?,
                 },
-                "1" => match flow {
-                    PaymentFlow::Authorize => enums::AttemptStatus::Authorized,
-                    PaymentFlow::Capture => enums::AttemptStatus::Charged,
-                    PaymentFlow::Void => enums::AttemptStatus::Voided,
-                },
-                &_ => Err(errors::ConnectorError::ResponseDeserializationFailed)?,
-            },
-            response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(pg_response.id.to_string()),
-                redirection_data: None,
-                mandate_reference: None,
-                connector_metadata: None,
+                response: Ok(types::PaymentsResponseData::TransactionResponse {
+                    resource_id: types::ResponseId::ConnectorTransactionId(
+                        pg_response.id.to_string(),
+                    ),
+                    redirection_data: None,
+                    mandate_reference: None,
+                    connector_metadata: None,
+                }),
+                ..item.data
             }),
-            ..item.data
-        })
+
+            BamboraResponse::ThreeDsResponse(response) => {
+                let value = url::form_urlencoded::parse(response.contents.as_bytes())
+                    .map(|(key, val)| [key, val].concat())
+                    .collect();
+                let redirection_data = Some(services::RedirectForm::Html { html_data: value });
+                Ok(Self {
+                    status: enums::AttemptStatus::AuthenticationPending,
+                    response: Ok(types::PaymentsResponseData::TransactionResponse {
+                        resource_id: types::ResponseId::NoResponseId,
+                        redirection_data,
+                        mandate_reference: None,
+                        connector_metadata: Some(
+                            serde_json::to_value(BamboraMeta {
+                                three_d_session_data: response.three_d_session_data,
+                            })
+                            .into_report()
+                            .change_context(errors::ConnectorError::ResponseHandlingFailed)?,
+                        ),
+                    }),
+                    ..item.data
+                })
+            }
+        }
     }
 }
 
@@ -173,7 +254,14 @@ where
     Ok(res)
 }
 
-#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Deserialize)]
+#[serde(untagged)]
+pub enum BamboraResponse {
+    NormalTransaction(Box<BamboraPaymentsResponse>),
+    ThreeDsResponse(Box<Bambora3DsResponse>),
+}
+
+#[derive(Default, Debug, Clone, Deserialize, PartialEq)]
 pub struct BamboraPaymentsResponse {
     #[serde(deserialize_with = "str_or_i32")]
     id: String,
@@ -203,7 +291,30 @@ pub struct BamboraPaymentsResponse {
     risk_score: Option<f32>,
 }
 
-#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Deserialize)]
+pub struct Bambora3DsResponse {
+    #[serde(rename = "3d_session_data")]
+    three_d_session_data: String,
+    contents: String,
+}
+
+#[derive(Debug, Serialize, Default, Deserialize)]
+pub struct BamboraMeta {
+    pub three_d_session_data: String,
+}
+
+#[derive(Default, Debug, Serialize, Eq, PartialEq)]
+pub struct BamboraThreedsContinueRequest {
+    pub(crate) payment_method: String,
+    pub card_response: CardResponse,
+}
+
+#[derive(Default, Debug, Deserialize, Serialize, Eq, PartialEq)]
+pub struct CardResponse {
+    pub(crate) cres: Option<common_utils::pii::SecretSerdeValue>,
+}
+
+#[derive(Default, Debug, Clone, Deserialize, PartialEq)]
 pub struct CardData {
     name: Option<String>,
     expiry_month: Option<String>,
@@ -337,34 +448,34 @@ impl From<RefundStatus> for enums::RefundStatus {
     }
 }
 
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+#[derive(Default, Debug, Clone, Deserialize)]
 pub struct RefundResponse {
     #[serde(deserialize_with = "str_or_i32")]
-    id: String,
-    authorizing_merchant_id: i32,
+    pub id: String,
+    pub authorizing_merchant_id: i32,
     #[serde(deserialize_with = "str_or_i32")]
-    approved: String,
+    pub approved: String,
     #[serde(deserialize_with = "str_or_i32")]
-    message_id: String,
-    message: String,
-    auth_code: String,
-    created: String,
-    amount: f32,
-    order_number: String,
+    pub message_id: String,
+    pub message: String,
+    pub auth_code: String,
+    pub created: String,
+    pub amount: f32,
+    pub order_number: String,
     #[serde(rename = "type")]
-    payment_type: String,
-    comments: Option<String>,
-    batch_number: Option<String>,
-    total_refunds: Option<f32>,
-    total_completions: Option<f32>,
-    payment_method: String,
-    card: CardData,
-    billing: Option<AddressData>,
-    shipping: Option<AddressData>,
-    custom: CustomData,
-    adjusted_by: Option<Vec<AdjustedBy>>,
-    links: Vec<Links>,
-    risk_score: Option<f32>,
+    pub payment_type: String,
+    pub comments: Option<String>,
+    pub batch_number: Option<String>,
+    pub total_refunds: Option<f32>,
+    pub total_completions: Option<f32>,
+    pub payment_method: String,
+    pub card: CardData,
+    pub billing: Option<AddressData>,
+    pub shipping: Option<AddressData>,
+    pub custom: CustomData,
+    pub adjusted_by: Option<Vec<AdjustedBy>>,
+    pub links: Vec<Links>,
+    pub risk_score: Option<f32>,
 }
 
 impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
