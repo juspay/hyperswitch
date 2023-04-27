@@ -1203,8 +1203,9 @@ fn filter_pm_based_on_capture_method_used(
         .get(&settings::PaymentMethodFilterKey::PaymentMethodType(
             *payment_method_type,
         ))
-        .and_then(|v| v.absent_impl)
-        .map(|value| !matches!(value, api_enums::AbsentImpl::ManualCapture))
+        .and_then(|v| v.not_available_flows)
+        .and_then(|v| v.capture_method)
+        .map(|v| !matches!(v, api_enums::CaptureMethod::Manual))
         .unwrap_or(true)
 }
 

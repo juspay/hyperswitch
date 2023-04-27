@@ -4,6 +4,7 @@ use std::{
     str::FromStr,
 };
 
+use api_models::enums;
 use common_utils::ext_traits::ConfigExt;
 use config::{Environment, File};
 #[cfg(feature = "kms")]
@@ -128,7 +129,12 @@ pub struct CurrencyCountryFilter {
     pub currency: Option<HashSet<api_models::enums::Currency>>,
     #[serde(deserialize_with = "string_set_deser")]
     pub country: Option<HashSet<api_models::enums::CountryCode>>,
-    pub absent_impl: Option<api_models::enums::AbsentImpl>,
+    pub not_available_flows: Option<NotAvailableFlows>,
+}
+#[derive(Debug, Deserialize, Copy, Clone, Default)]
+#[serde(default)]
+pub struct NotAvailableFlows {
+    pub capture_method: Option<enums::CaptureMethod>,
 }
 
 fn string_set_deser<'a, D>(
