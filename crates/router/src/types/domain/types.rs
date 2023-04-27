@@ -235,7 +235,7 @@ impl<U, V: Lift<U> + Lift<U, SelfWrapper<U> = V> + Send> AsyncLift<U> for V {
     }
 }
 
-pub(crate) async fn encrypt<E: Clone, S>(
+pub async fn encrypt<E: Clone, S>(
     inner: Secret<E, S>,
     key: &[u8],
 ) -> CustomResult<crypto::Encryptable<Secret<E, S>>, errors::CryptoError>
@@ -250,7 +250,7 @@ where
     .await
 }
 
-pub(crate) async fn decrypt<T: Clone, S: masking::Strategy<T>>(
+pub async fn decrypt<T: Clone, S: masking::Strategy<T>>(
     inner: Option<Encryption>,
     key: &[u8],
     timestamp: i64,
