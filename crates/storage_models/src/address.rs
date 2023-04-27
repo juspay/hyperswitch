@@ -90,20 +90,19 @@ pub struct AddressUpdateInternal {
 
 impl AddressUpdateInternal {
     pub fn create_address(self, source: Address) -> Address {
-        let _address_update_internal = self;
         Address {
-            city: _address_update_internal.city,
-            country: _address_update_internal.country,
-            line1: _address_update_internal.line1,
-            line2: _address_update_internal.line2,
-            line3: _address_update_internal.line3,
-            state: _address_update_internal.state,
-            zip: _address_update_internal.zip,
-            first_name: _address_update_internal.first_name,
-            last_name: _address_update_internal.last_name,
-            phone_number: _address_update_internal.phone_number,
-            country_code: _address_update_internal.country_code,
-            modified_at: _address_update_internal.modified_at,
+            city: self.city,
+            country: self.country,
+            line1: self.line1,
+            line2: self.line2,
+            line3: self.line3,
+            state: self.state,
+            zip: self.zip,
+            first_name: self.first_name,
+            last_name: self.last_name,
+            phone_number: self.phone_number,
+            country_code: self.country_code,
+            modified_at: self.modified_at,
 
             ..source
         }
