@@ -8,7 +8,7 @@ pub struct DisputeId {
     pub dispute_id: String,
 }
 
-#[derive(Default, Debug, Deserialize)]
+#[derive(Default, Debug)]
 pub struct DisputePayload {
     pub amount: String,
     pub currency: String,

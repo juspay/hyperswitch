@@ -358,6 +358,20 @@ pub enum StripeBankNames {
     VanLanschot,
 }
 
+impl TryFrom<WebhookEventStatus> for api_models::webhooks::IncomingWebhookEvent {
+    type Error = errors::ConnectorError;
+    fn try_from(value: WebhookEventStatus) -> Result<Self, Self::Error> {
+        Ok(match value {
+            WebhookEventStatus::WarningNeedsResponse => Self::DisputeOpened,
+            WebhookEventStatus::WarningClosed => Self::DisputeCancelled,
+            WebhookEventStatus::WarningUnderReview => Self::DisputeChallenged,
+            WebhookEventStatus::Won => Self::DisputeWon,
+            WebhookEventStatus::Lost => Self::DisputeLost,
+            _ => Err(errors::ConnectorError::WebhookEventTypeNotFound)?,
+        })
+    }
+}
+
 impl TryFrom<&api_models::enums::BankNames> for StripeBankNames {
     type Error = errors::ConnectorError;
     fn try_from(bank: &api_models::enums::BankNames) -> Result<Self, Self::Error> {
@@ -1312,8 +1326,6 @@ pub struct RefundRequest {
     pub metadata_txn_id: String,
     #[serde(rename = "metadata[txn_uuid]")]
     pub metadata_txn_uuid: String,
-    #[serde(rename = "metadata[refund_id]")]
-    pub metadata_refund_id: String,
 }
 
 impl<F> TryFrom<&types::RefundsRouterData<F>> for RefundRequest {
@@ -1323,14 +1335,12 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for RefundRequest {
         let metadata_txn_id = "Fetch txn_id from DB".to_string();
         let metadata_txn_uuid = "Fetch txn_id from DB".to_string();
         let payment_intent = item.request.connector_transaction_id.clone();
-        let metadata_refund_id = item.request.refund_id.clone();
         Ok(Self {
             amount: Some(amount),
             payment_intent,
             metadata_order_id: item.payment_id.clone(),
             metadata_txn_id,
             metadata_txn_uuid,
-            metadata_refund_id,
         })
     }
 }

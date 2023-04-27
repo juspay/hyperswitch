@@ -1,11 +1,11 @@
 use common_utils::custom_serde;
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use time::PrimitiveDateTime;
 
 use crate::{enums as storage_enums, schema::dispute};
 
-#[derive(Clone, Debug, Deserialize, Insertable, Serialize, router_derive::DebugAsDisplay)]
+#[derive(Clone, Debug, Insertable, Serialize, router_derive::DebugAsDisplay)]
 #[diesel(table_name = dispute)]
 #[serde(deny_unknown_fields)]
 pub struct DisputeNew {
@@ -27,7 +27,7 @@ pub struct DisputeNew {
     pub connector: String,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize, Identifiable, Queryable)]
+#[derive(Clone, Debug, Serialize, Identifiable, Queryable)]
 #[diesel(table_name = dispute)]
 pub struct Dispute {
     #[serde(skip_serializing)]
