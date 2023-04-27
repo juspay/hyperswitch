@@ -28,10 +28,11 @@ pub(crate) struct ConnectorAuthentication {
     pub payu: Option<BodyKey>,
     pub rapyd: Option<BodyKey>,
     pub shift4: Option<HeaderKey>,
+    pub trustpay: Option<SignatureKey>,
     pub stripe: Option<HeaderKey>,
     pub worldpay: Option<BodyKey>,
     pub worldline: Option<SignatureKey>,
-    pub trustpay: Option<SignatureKey>,
+    pub zen: Option<HeaderKey>,
 }
 
 impl ConnectorAuthentication {

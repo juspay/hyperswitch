@@ -309,6 +309,7 @@ pub struct Connectors {
     pub stripe: ConnectorParams,
     pub worldline: ConnectorParams,
     pub worldpay: ConnectorParams,
+    pub zen: ConnectorParams,
     pub trustpay: ConnectorParamsWithMoreUrls,
 
     // Keep this field separate from the remaining fields
