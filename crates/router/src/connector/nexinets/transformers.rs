@@ -147,7 +147,7 @@ pub enum NexinetsWalletDetails {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ApplePayDetails {
-    payment_data: Option<serde_json::Value>,
+    payment_data: serde_json::Value,
     payment_method: ApplepayPaymentMethod,
     transaction_identifier: String,
 }
@@ -595,7 +595,9 @@ fn get_card_data(
             recurring_type: RecurringType::Unscheduled,
         });
         let card_data = if item.request.off_session.is_some() {
-            CardDataDetails::PaymentInstrument(Box::new(get_payment_instrument(item)))
+            CardDataDetails::PaymentInstrument(Box::new(PaymentInstrument {
+                payment_instrument_id: item.request.connector_mandate_id(),
+            }))
         } else {
             CardDataDetails::CardDetails(Box::new(get_card_details(card)))
         };
@@ -608,17 +610,6 @@ fn get_card_data(
             card_data: CardDataDetails::CardDetails(Box::new(get_card_details(card))),
             cof_contract: None,
         })))
-    }
-}
-
-fn get_payment_instrument(item: &types::PaymentsAuthorizeRouterData) -> PaymentInstrument {
-    let payment_instrument_id = item
-        .request
-        .mandate_id
-        .as_ref()
-        .and_then(|mandate_ids| mandate_ids.connector_mandate_id.clone());
-    PaymentInstrument {
-        payment_instrument_id,
     }
 }
 
