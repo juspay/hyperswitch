@@ -6,14 +6,13 @@ use common_utils::{
 };
 // TODO : Evaluate all the helper functions ()
 use error_stack::{report, IntoReport, ResultExt};
+#[cfg(feature = "kms")]
+use external_services::kms;
 use josekit::jwe;
 use masking::{ExposeOptionInterface, PeekInterface};
 use router_env::{instrument, tracing};
 use storage_models::enums;
 use uuid::Uuid;
-
-#[cfg(feature = "kms")]
-use external_services::kms;
 
 use super::{
     operations::{BoxedOperation, Operation, PaymentResponse},
@@ -1441,8 +1440,8 @@ pub async fn get_merchant_connector_account(
                 .await
                 .decrypt(state.conf.jwekey.tunnel_private_key.to_owned())
                 .await
-                .change_context(errors::VaultError::SaveCardFailed)
-                .attach_printable("Error getting private key for signing jws")?;
+                .change_context(errors::EncryptionError)
+                .attach_printable("Error getting tunnel private key")?;
 
             #[cfg(not(feature = "kms"))]
             let private_key = state.conf.jwekey.tunnel_private_key.to_owned();
