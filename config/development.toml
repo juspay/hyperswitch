@@ -221,4 +221,3 @@ region = ""
 [tokenization]
 stripe = { long_lived_token = false, payment_method = "wallet"}
 checkout = { long_lived_token = false, payment_method = "wallet"}
-        #ACI,BrainTree,Klarna,Mollie,MultisafePay,Trustpay,Zen

@@ -1178,8 +1178,9 @@ fn filter_pm_based_on_config<'a>(
                 payment_attempt
                     .and_then(|inner| inner.capture_method)
                     .and_then(|capture_method| {
-                        (capture_method == CaptureMethod::Manual)
-                            .then(|| filter_for_capture_method(inner, payment_method_type))
+                        (capture_method == CaptureMethod::Manual).then(|| {
+                            filter_pm_based_on_capture_method_used(inner, payment_method_type)
+                        })
                     })
             }
             payment_method_type => inner
@@ -1192,7 +1193,8 @@ fn filter_pm_based_on_config<'a>(
         .unwrap_or(true)
 }
 
-fn filter_for_capture_method(
+///Filters the payment method list on basis of Capture methods, checks whether the connector issues Manual payments using cards or not if not it won't be visible in payment methods list
+fn filter_pm_based_on_capture_method_used(
     payment_method_filters: &settings::PaymentMethodFilters,
     payment_method_type: &api_enums::PaymentMethodType,
 ) -> bool {
