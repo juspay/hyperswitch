@@ -375,5 +375,6 @@ default_imp_for_defend_dispute!(
     connector::Trustpay,
     connector::Opennode,
     connector::Worldline,
-    connector::Worldpay
+    connector::Worldpay,
+    connector::Zen
 );
