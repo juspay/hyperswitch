@@ -34,13 +34,7 @@ where
     };
     match redis_val {
         Err(err) => match err.current_context() {
-            errors::RedisError::NotFound => get_data_set_redis().await,
-            errors::RedisError::JsonDeserializationFailed => {
-                // In case of deserialization failure remove the old data and insert the new data
-                redis
-                    .delete_key(key)
-                    .await
-                    .change_context(errors::StorageError::KVError)?;
+            errors::RedisError::NotFound | errors::RedisError::JsonDeserializationFailed => {
                 get_data_set_redis().await
             }
             _ => Err(err
