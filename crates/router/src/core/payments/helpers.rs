@@ -1440,7 +1440,6 @@ pub async fn get_merchant_connector_account(
 
             #[cfg(not(feature = "kms"))]
             let private_key = state.conf.jwekey.tunnel_private_key.to_owned();
-            println!("private key {}", private_key);
 
             let decrypted_mca = services::decrypt_jwe(mca_config.config.as_str(), services::KeyIdCheck::SkipKeyIdCheck, private_key, jwe::RSA_OAEP_256)
                                      .await
