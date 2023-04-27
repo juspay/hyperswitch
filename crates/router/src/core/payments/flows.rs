@@ -107,7 +107,8 @@ default_imp_for_complete_authorize!(
     connector::Stripe,
     connector::Trustpay,
     connector::Worldline,
-    connector::Worldpay
+    connector::Worldpay,
+    connector::Zen
 );
 
 macro_rules! default_imp_for_connector_redirect_response{
@@ -186,7 +187,8 @@ default_imp_for_connector_request_id!(
     connector::Stripe,
     connector::Trustpay,
     connector::Worldline,
-    connector::Worldpay
+    connector::Worldpay,
+    connector::Zen
 );
 
 macro_rules! default_imp_for_accept_dispute{
@@ -233,7 +235,8 @@ default_imp_for_accept_dispute!(
     connector::Trustpay,
     connector::Opennode,
     connector::Worldline,
-    connector::Worldpay
+    connector::Worldpay,
+    connector::Zen
 );
 
 macro_rules! default_imp_for_file_upload{
@@ -279,7 +282,8 @@ default_imp_for_file_upload!(
     connector::Trustpay,
     connector::Opennode,
     connector::Worldline,
-    connector::Worldpay
+    connector::Worldpay,
+    connector::Zen
 );
 
 macro_rules! default_imp_for_submit_evidence{
@@ -324,7 +328,8 @@ default_imp_for_submit_evidence!(
     connector::Trustpay,
     connector::Opennode,
     connector::Worldline,
-    connector::Worldpay
+    connector::Worldpay,
+    connector::Zen
 );
 
 macro_rules! default_imp_for_defend_dispute{
