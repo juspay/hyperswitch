@@ -29,7 +29,6 @@ pub async fn construct_refund_router_data<'a, F>(
     refund: &'a storage::Refund,
     creds_identifier: Option<String>,
 ) -> RouterResult<types::RefundsRouterData<F>> {
-
     let connector_label = helpers::get_connector_label(
         payment_intent.business_country,
         &payment_intent.business_label,
