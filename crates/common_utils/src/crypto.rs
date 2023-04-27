@@ -1,4 +1,5 @@
 //! Utilities for cryptographic algorithms
+use data_encoding::BASE64;
 use error_stack::{IntoReport, ResultExt};
 use md5;
 use ring::{aead, hmac};
@@ -120,6 +121,38 @@ impl VerifySignature for HmacSha256 {
         let key = hmac::Key::new(hmac::HMAC_SHA256, secret);
 
         Ok(hmac::verify(&key, msg, signature).is_ok())
+    }
+}
+
+#[derive(Debug)]
+pub struct Base64HmacSha256;
+
+impl SignMessage for Base64HmacSha256 {
+    fn sign_message(
+        &self,
+        secret: &[u8],
+        msg: &[u8],
+    ) -> CustomResult<Vec<u8>, errors::CryptoError> {
+        let key = hmac::Key::new(hmac::HMAC_SHA256, secret);
+        let hash = hmac::sign(&key, msg);
+        let base64sign = BASE64.encode(hash.as_ref());
+        Ok(base64sign.as_bytes().to_vec())
+    }
+}
+
+impl VerifySignature for Base64HmacSha256 {
+    fn verify_signature(
+        &self,
+        secret: &[u8],
+        signature: &[u8],
+        msg: &[u8],
+    ) -> CustomResult<bool, errors::CryptoError> {
+        let key = hmac::Key::new(hmac::HMAC_SHA256, secret);
+        let hash = hmac::sign(&key, msg);
+        let base64sign = BASE64.encode(hash.as_ref());
+        println!("##$$ base64sign={:?}", base64sign);
+        println!("##$$ signature={:?}", signature);
+        Ok(base64sign.as_bytes() == signature)
     }
 }
 
