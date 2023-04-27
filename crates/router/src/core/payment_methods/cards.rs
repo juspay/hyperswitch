@@ -17,7 +17,7 @@ use common_utils::{
 };
 use error_stack::{report, IntoReport, ResultExt};
 use router_env::{instrument, tracing};
-use storage_models::{enums::CaptureMethod, payment_method};
+use storage_models::{enums as storage_enums, payment_method};
 
 #[cfg(feature = "basilisk")]
 use crate::scheduler::metrics as scheduler_metrics;
@@ -1178,7 +1178,7 @@ fn filter_pm_based_on_config<'a>(
                 payment_attempt
                     .and_then(|inner| inner.capture_method)
                     .and_then(|capture_method| {
-                        (capture_method == CaptureMethod::Manual).then(|| {
+                        (capture_method == storage_enums::CaptureMethod::Manual).then(|| {
                             filter_pm_based_on_capture_method_used(inner, payment_method_type)
                         })
                     })
@@ -1204,7 +1204,8 @@ fn filter_pm_based_on_capture_method_used(
             *payment_method_type,
         ))
         .and_then(|v| v.absent_impl)
-        .is_none()
+        .map(|value| !matches!(value, api_enums::AbsentImpl::ManualCapture))
+        .unwrap_or(true)
 }
 
 fn card_network_filter(

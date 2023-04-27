@@ -41,7 +41,8 @@ pub enum CountryCode {
     US
 }
 
-#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Deserialize, Serialize)]
+#[serde(rename_all = "snake_case")]
 pub enum AbsentImpl {
     ManualCapture,
 }
