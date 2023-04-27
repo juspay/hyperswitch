@@ -157,28 +157,29 @@ impl From<IatapayPaymentStatus> for enums::AttemptStatus {
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct RedirectUrl {
-    redirect_url: String,
+    pub redirect_url: String,
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct CheckoutMethod {
-    redirect: RedirectUrl,
+    pub redirect: RedirectUrl,
 }
 
 //TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct IatapayPaymentsResponse {
-    status: IatapayPaymentStatus,
-    iata_payment_id: String,
-    merchant_id: String,
-    merchant_payment_id: Option<String>,
-    amount: f64,
-    currency: String,
-    country: String,
-    locale: String,
-    bank_transfer_description: Option<String>,
-    checkout_methods: Option<CheckoutMethod>,
+    pub status: IatapayPaymentStatus,
+    pub iata_payment_id: String,
+    pub merchant_id: String,
+    pub merchant_payment_id: Option<String>,
+    pub amount: f64,
+    pub currency: String,
+    pub country: String,
+    pub locale: String,
+    pub bank_transfer_description: Option<String>,
+    pub checkout_methods: Option<CheckoutMethod>,
+    pub failure_code: Option<String>,
 }
 
 impl<F, T>
@@ -190,7 +191,7 @@ impl<F, T>
         item: types::ResponseRouterData<F, IatapayPaymentsResponse, T, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         let form_fields = HashMap::new();
-        let id: String = item.response.iata_payment_id;
+        let id = item.response.iata_payment_id;
         Ok(Self {
             status: enums::AttemptStatus::from(item.response.status),
             response: item.response.checkout_methods.map_or(

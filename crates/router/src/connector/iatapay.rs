@@ -2,7 +2,10 @@ mod transformers;
 
 use std::fmt::Debug;
 
+use self::iatapay::IatapayPaymentsResponse;
+use super::utils;
 use base64::Engine;
+use common_utils::{crypto, ext_traits::ByteSliceExt};
 use error_stack::{IntoReport, ResultExt};
 use transformers as iatapay;
 
@@ -10,14 +13,14 @@ use crate::{
     configs::settings,
     consts,
     core::errors::{self, CustomResult},
-    headers,
+    db, headers,
     services::{self, ConnectorIntegration},
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
         ErrorResponse, Response,
     },
-    utils::{self, BytesExt},
+    utils::{BytesExt, Encode},
 };
 
 #[derive(Debug, Clone)]
@@ -161,9 +164,8 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
         &self,
         req: &types::RefreshTokenRouterData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        let iatapay_req =
-            utils::Encode::<iatapay::IatapayAuthUpdateRequest>::convert_and_url_encode(req)
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let iatapay_req = Encode::<iatapay::IatapayAuthUpdateRequest>::convert_and_url_encode(req)
+            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
 
         Ok(Some(iatapay_req))
     }
@@ -258,7 +260,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
         let req_obj = iatapay::IatapayPaymentsRequest::try_from(req)?;
         let iatapay_req =
-            utils::Encode::<iatapay::IatapayPaymentsRequest>::encode_to_string_of_json(&req_obj)
+            Encode::<iatapay::IatapayPaymentsRequest>::encode_to_string_of_json(&req_obj)
                 .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(iatapay_req))
     }
@@ -487,7 +489,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
         let req_obj = iatapay::IatapayRefundRequest::try_from(req)?;
         let iatapay_req =
-            utils::Encode::<iatapay::IatapayRefundRequest>::encode_to_string_of_json(&req_obj)
+            Encode::<iatapay::IatapayRefundRequest>::encode_to_string_of_json(&req_obj)
                 .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(iatapay_req))
     }
@@ -598,24 +600,97 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
 
 #[async_trait::async_trait]
 impl api::IncomingWebhook for Iatapay {
-    fn get_webhook_object_reference_id(
+    fn get_webhook_source_verification_algorithm(
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<api::webhooks::ObjectReferenceId, errors::ConnectorError> {
-        Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
+    ) -> CustomResult<Box<dyn crypto::VerifySignature + Send>, errors::ConnectorError> {
+        Ok(Box::new(crypto::Base64HmacSha256))
+    }
+
+    fn get_webhook_source_verification_signature(
+        &self,
+        request: &api::IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
+        let base64_signature = utils::get_header_key_value("Authorization", request.headers)?;
+        let base64_signature = base64_signature.replace("IATAPAY-HMAC-SHA256 ", "");
+        println!("## base64sign={}", base64_signature);
+        Ok(base64_signature.as_bytes().to_vec())
+        // hex::decode(base64_signature)
+        //     .into_report()
+        //     .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)
+    }
+
+    fn get_webhook_source_verification_message(
+        &self,
+        request: &api::IncomingWebhookRequestDetails<'_>,
+        _merchant_id: &str,
+        _secret: &[u8],
+    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
+        let message = std::str::from_utf8(request.body)
+            .into_report()
+            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
+        println!("## msgStr={}", message);
+        Ok(message.to_string().into_bytes())
+    }
+
+    async fn get_webhook_source_verification_merchant_secret(
+        &self,
+        db: &dyn db::StorageInterface,
+        merchant_id: &str,
+    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
+        let key = format!("whsec_verification_{}_{}", self.id(), merchant_id);
+        let secret = db
+            .get_key(&key)
+            .await
+            .change_context(errors::ConnectorError::WebhookVerificationSecretNotFound)?;
+
+        Ok(secret)
+    }
+
+    fn get_webhook_object_reference_id(
+        &self,
+        request: &api::IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
+        let notif: IatapayPaymentsResponse =
+            request
+                .body
+                .parse_struct("IatapayPaymentsResponse")
+                .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
+        Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
+            api_models::payments::PaymentIdType::ConnectorTransactionId(notif.iata_payment_id),
+        ))
     }
 
     fn get_webhook_event_type(
         &self,
-        _request: &api::IncomingWebhookRequestDetails<'_>,
+        request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api::IncomingWebhookEvent, errors::ConnectorError> {
-        Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
+        let notif: IatapayPaymentsResponse =
+            request
+                .body
+                .parse_struct("IatapayPaymentsResponse")
+                .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
+        match notif.status {
+            iatapay::IatapayPaymentStatus::Authorized | iatapay::IatapayPaymentStatus::Settled => {
+                Ok(api::IncomingWebhookEvent::PaymentIntentSuccess)
+            }
+            iatapay::IatapayPaymentStatus::Failed => {
+                Ok(api::IncomingWebhookEvent::PaymentActionRequired)
+            }
+            _ => Ok(api::IncomingWebhookEvent::EventNotSupported),
+        }
     }
 
     fn get_webhook_resource_object(
         &self,
-        _request: &api::IncomingWebhookRequestDetails<'_>,
+        request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<serde_json::Value, errors::ConnectorError> {
-        Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
+        let notif: IatapayPaymentsResponse =
+            request
+                .body
+                .parse_struct("IatapayPaymentsResponse")
+                .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+        Encode::<IatapayPaymentsResponse>::encode_to_value(&notif.status)
+            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)
     }
 }

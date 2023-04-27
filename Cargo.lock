@@ -1293,6 +1293,7 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "bytes",
+ "data-encoding",
  "error-stack",
  "fake",
  "futures",
@@ -1555,6 +1556,12 @@ dependencies = [
  "once_cell",
  "parking_lot_core",
 ]
+
+[[package]]
+name = "data-encoding"
+version = "2.3.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "23d8666cb01533c39dde32bcbab8e227b4ed6679b2c925eba05feabea39508fb"
 
 [[package]]
 name = "deadpool"
