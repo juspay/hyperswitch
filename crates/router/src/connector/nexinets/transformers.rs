@@ -1,12 +1,15 @@
 use api_models::payments::PaymentMethodData;
 use base64::Engine;
+use common_utils::errors::CustomResult;
 use error_stack::{IntoReport, ResultExt};
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 use url::Url;
 
 use crate::{
-    connector::utils::{CardData, PaymentsCancelRequestData},
+    connector::utils::{
+        CardData, PaymentsAuthorizeRequestData, PaymentsCancelRequestData, WalletData,
+    },
     consts,
     core::errors,
     services,
@@ -42,6 +45,7 @@ pub enum NexinetsProduct {
     Sofort,
     Eps,
     Ideal,
+    Applepay,
 }
 
 #[derive(Debug, Serialize)]
@@ -49,16 +53,50 @@ pub enum NexinetsProduct {
 #[serde(untagged)]
 pub enum NexinetsPaymentDetails {
     Card(Box<NexiCardDetails>),
+    Wallet(Box<NexinetsWalletDetails>),
     BankRedirects(Box<NexinetsBankRedirects>),
 }
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NexiCardDetails {
+    #[serde(flatten)]
+    card_data: CardDataDetails,
+    cof_contract: Option<CofContract>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(untagged)]
+pub enum CardDataDetails {
+    CardDetails(Box<CardDetails>),
+    PaymentInstrument(Box<PaymentInstrument>),
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CardDetails {
     card_number: Secret<String, common_utils::pii::CardNumber>,
     expiry_month: Secret<String>,
     expiry_year: Secret<String>,
     verification: Secret<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PaymentInstrument {
+    payment_instrument_id: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct CofContract {
+    #[serde(rename = "type")]
+    recurring_type: RecurringType,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum RecurringType {
+    Unscheduled,
 }
 
 #[derive(Debug, Serialize)]
@@ -100,6 +138,29 @@ pub enum NexinetsBIC {
     VanLanschot,
 }
 
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum NexinetsWalletDetails {
+    ApplePayToken(Box<ApplePayDetails>),
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ApplePayDetails {
+    payment_data: Option<serde_json::Value>,
+    payment_method: ApplepayPaymentMethod,
+    transaction_identifier: String,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ApplepayPaymentMethod {
+    display_name: String,
+    network: String,
+    #[serde(rename = "type")]
+    token_type: String,
+}
+
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for NexinetsPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
@@ -109,8 +170,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for NexinetsPaymentsRequest {
             cancel_url: return_url.clone(),
             failure_url: return_url,
         };
-        let (payment, product) =
-            get_payment_details_and_product(&item.request.payment_method_data)?;
+        let (payment, product) = get_payment_details_and_product(item)?;
         Ok(Self {
             initial_amount: item.request.amount,
             currency: item.request.currency,
@@ -213,6 +273,7 @@ pub struct NexinetsPreAuthOrDebitResponse {
     order_id: String,
     transaction_type: NexinetsTransactionType,
     transactions: Vec<NexinetsTransaction>,
+    payment_instrument: PaymentInstrument,
     redirect_url: Option<Url>,
 }
 
@@ -283,6 +344,7 @@ impl<F, T>
             }
             _ => Err(errors::ConnectorError::ResponseHandlingFailed)?,
         };
+        let mandate_reference = item.response.payment_instrument.payment_instrument_id;
         Ok(Self {
             status: enums::AttemptStatus::foreign_from((
                 transaction.status.clone(),
@@ -291,7 +353,7 @@ impl<F, T>
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id,
                 redirection_data,
-                mandate_reference: None,
+                mandate_reference,
                 connector_metadata: Some(connector_metadata),
             }),
             ..item.data
@@ -487,18 +549,17 @@ pub struct OrderErrorDetails {
 }
 
 fn get_payment_details_and_product(
-    item: &PaymentMethodData,
+    item: &types::PaymentsAuthorizeRouterData,
 ) -> Result<
     (Option<NexinetsPaymentDetails>, NexinetsProduct),
     error_stack::Report<errors::ConnectorError>,
 > {
-    match item {
-        PaymentMethodData::Card(card) => {
-            Ok((Some(get_card_details(card)), NexinetsProduct::Creditcard))
-        }
-        PaymentMethodData::Wallet(api_models::payments::WalletData::PaypalRedirect(_)) => {
-            Ok((None, NexinetsProduct::Paypal))
-        }
+    match &item.request.payment_method_data {
+        PaymentMethodData::Card(card) => Ok((
+            Some(get_card_data(item, card)?),
+            NexinetsProduct::Creditcard,
+        )),
+        PaymentMethodData::Wallet(wallet) => Ok(get_wallet_details(wallet)?),
         PaymentMethodData::BankRedirect(bank_redirect) => match bank_redirect {
             api_models::payments::BankRedirectData::Eps { .. } => Ok((None, NexinetsProduct::Eps)),
             api_models::payments::BankRedirectData::Giropay { .. } => {
@@ -525,13 +586,88 @@ fn get_payment_details_and_product(
     }
 }
 
-fn get_card_details(req_card: &api_models::payments::Card) -> NexinetsPaymentDetails {
-    NexinetsPaymentDetails::Card(Box::new(NexiCardDetails {
+fn get_card_data(
+    item: &types::PaymentsAuthorizeRouterData,
+    card: &api_models::payments::Card,
+) -> Result<NexinetsPaymentDetails, errors::ConnectorError> {
+    if item.request.is_mandate_payment() {
+        let cof_contract = Some(CofContract {
+            recurring_type: RecurringType::Unscheduled,
+        });
+        let card_data = if item.request.off_session.is_some() {
+            CardDataDetails::PaymentInstrument(Box::new(get_payment_instrument(item)))
+        } else {
+            CardDataDetails::CardDetails(Box::new(get_card_details(card)))
+        };
+        Ok(NexinetsPaymentDetails::Card(Box::new(NexiCardDetails {
+            card_data,
+            cof_contract,
+        })))
+    } else {
+        Ok(NexinetsPaymentDetails::Card(Box::new(NexiCardDetails {
+            card_data: CardDataDetails::CardDetails(Box::new(get_card_details(card))),
+            cof_contract: None,
+        })))
+    }
+}
+
+fn get_payment_instrument(item: &types::PaymentsAuthorizeRouterData) -> PaymentInstrument {
+    let payment_instrument_id = item
+        .request
+        .mandate_id
+        .as_ref()
+        .and_then(|mandate_ids| mandate_ids.connector_mandate_id.clone());
+    PaymentInstrument {
+        payment_instrument_id,
+    }
+}
+
+fn get_applepay_details(
+    wallet_data: &api_models::payments::WalletData,
+    applepay_data: &api_models::payments::ApplePayWalletData,
+) -> CustomResult<ApplePayDetails, errors::ConnectorError> {
+    let payment_data = wallet_data.get_wallet_token_as_json()?;
+    Ok(ApplePayDetails {
+        payment_data,
+        payment_method: ApplepayPaymentMethod {
+            display_name: applepay_data.payment_method.display_name.to_owned(),
+            network: applepay_data.payment_method.network.to_owned(),
+            token_type: applepay_data.payment_method.pm_type.to_owned(),
+        },
+        transaction_identifier: applepay_data.transaction_identifier.to_owned(),
+    })
+}
+
+fn get_card_details(req_card: &api_models::payments::Card) -> CardDetails {
+    CardDetails {
         card_number: req_card.card_number.clone(),
         expiry_month: req_card.card_exp_month.clone(),
         expiry_year: req_card.get_card_expiry_year_2_digit(),
         verification: req_card.card_cvc.clone(),
-    }))
+    }
+}
+
+fn get_wallet_details(
+    wallet: &api_models::payments::WalletData,
+) -> Result<
+    (Option<NexinetsPaymentDetails>, NexinetsProduct),
+    error_stack::Report<errors::ConnectorError>,
+> {
+    match wallet {
+        api_models::payments::WalletData::PaypalRedirect(_) => Ok((None, NexinetsProduct::Paypal)),
+        api_models::payments::WalletData::ApplePay(applepay_data) => Ok((
+            Some(NexinetsPaymentDetails::Wallet(Box::new(
+                NexinetsWalletDetails::ApplePayToken(Box::new(get_applepay_details(
+                    wallet,
+                    applepay_data,
+                )?)),
+            ))),
+            NexinetsProduct::Applepay,
+        )),
+        _ => Err(errors::ConnectorError::NotImplemented(
+            "Payment methods".to_string(),
+        ))?,
+    }
 }
 
 pub fn get_order_id(
