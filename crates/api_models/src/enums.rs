@@ -628,6 +628,9 @@ impl Connector {
     pub fn supports_file_storage_module(&self) -> bool {
         matches!(self, Self::Stripe | Self::Checkout)
     }
+    pub fn requires_defend_dispute(&self) -> bool {
+        matches!(self, Self::Checkout)
+    }
 }
 
 #[derive(

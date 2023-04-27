@@ -1,5 +1,5 @@
 use common_utils::errors::CustomResult;
-use error_stack::IntoReport;
+use error_stack::{IntoReport, ResultExt};
 use serde::{Deserialize, Serialize};
 use url::Url;
 
@@ -793,10 +793,11 @@ pub fn construct_file_upload_request(
                 .split('/')
                 .last()
                 .unwrap_or_default()
-                .to_owned()
         ))
         .mime_str(request.file_type.as_ref())
-        .map_err(|_| errors::ConnectorError::RequestEncodingFailed)?;
+        .into_report()
+        .change_context(errors::ConnectorError::RequestEncodingFailed)
+        .attach_printable("Failure in constructing file data")?;
     multipart = multipart.part("file", file_data);
     Ok(multipart)
 }
