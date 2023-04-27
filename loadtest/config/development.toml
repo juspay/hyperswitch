@@ -89,7 +89,7 @@ trustpay.base_url_bank_redirects = "https://aapi.trustpay.eu/"
 zen.base_url = "https://api.zen-test.com/"
 
 [connectors.supported]
-wallets = ["klarna", "braintree", "applepay"]
+wallets = ["klarna", "braintree", "apple_pay"]
 cards = [
     "aci",
     "adyen",

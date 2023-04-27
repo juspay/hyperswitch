@@ -62,7 +62,7 @@ file_name = "debug.log" # base name for log files.
 # defaults to "WARN"
 level = "WARN"
 # sets the log level for one or more crates
-filtering_directive = "WARN,router=INFO,reqwest=INFO" 
+filtering_directive = "WARN,router=INFO,reqwest=INFO"
 #                      ^^^^        ^^^^---------^^^^-- sets the log level for the
 #                      |                               router and reqwest crates to INFO.
 #                      |
@@ -77,7 +77,7 @@ log_format = "default" # Log format. "default" or "json"
 # defaults to "WARN"
 level = "DEBUG"
 # sets the log level for one or more crates
-filtering_directive = "WARN,router=INFO,reqwest=INFO" 
+filtering_directive = "WARN,router=INFO,reqwest=INFO"
 #                      ^^^^        ^^^^---------^^^^-- sets the log level for the
 #                      |                               router and reqwest crates to INFO.
 #                      |
@@ -164,7 +164,7 @@ nexinets.base_url = "https://apitest.payengine.de/v1"
 nuvei.base_url = "https://ppp-test.nuvei.com/"
 opennode.base_url = "https://dev-api.opennode.com"
 payeezy.base_url = "https://api-cert.payeezy.com/"
-paypal.base_url = "https://www.sandbox.paypal.com/" 
+paypal.base_url = "https://www.sandbox.paypal.com/"
 payu.base_url = "https://secure.snd.payu.com/"
 rapyd.base_url = "https://sandboxapi.rapyd.net"
 shift4.base_url = "https://api.shift4.com/"
@@ -177,7 +177,7 @@ zen.base_url = "https://api.zen-test.com/"
 
 # This data is used to call respective connectors for wallets and cards
 [connectors.supported]
-wallets = ["klarna", "braintree", "applepay"]
+wallets = ["klarna", "braintree", "apple_pay"]
 cards = [
     "adyen",
     "authorizedotnet",

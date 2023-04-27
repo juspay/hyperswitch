@@ -189,7 +189,7 @@ impl ConnectorData {
             "aci" => Ok(Box::new(&connector::Aci)),
             "adyen" => Ok(Box::new(&connector::Adyen)),
             "airwallex" => Ok(Box::new(&connector::Airwallex)),
-            "applepay" => Ok(Box::new(&connector::Applepay)),
+            "apple_pay" => Ok(Box::new(&connector::Applepay)),
             "authorizedotnet" => Ok(Box::new(&connector::Authorizedotnet)),
             "bambora" => Ok(Box::new(&connector::Bambora)),
             "bluesnap" => Ok(Box::new(&connector::Bluesnap)),
