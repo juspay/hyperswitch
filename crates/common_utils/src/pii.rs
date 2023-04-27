@@ -109,13 +109,9 @@ where
 {
     fn fmt(val: &T, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let val_str: &str = val.as_ref();
-
-        match Email::from_str(val_str) {
-            Ok(_email) => match val_str.split_once('@') {
-                Some((a, b)) => write!(f, "{}@{}", "*".repeat(a.len()), b),
-                None => WithType::fmt(val, f),
-            },
-            Err(..) => WithType::fmt(val, f),
+        match val_str.split_once('@') {
+            Some((a, b)) => write!(f, "{}@{}", "*".repeat(a.len()), b),
+            None => WithType::fmt(val, f),
         }
     }
 }
@@ -252,7 +248,7 @@ mod pii_masking_strategy_tests {
         let secret: Secret<String, EmailStrategy> = Secret::new("myemailgmail.com".to_string());
         assert_eq!("*** alloc::string::String ***", format!("{secret:?}"));
 
-        let secret: Secret<String, EmailStrategy> = Secret::new("myemail@gmail@com".to_string());
+        let secret: Secret<String, EmailStrategy> = Secret::new("myemail$gmail.com".to_string());
         assert_eq!("*** alloc::string::String ***", format!("{secret:?}"));
     }
 

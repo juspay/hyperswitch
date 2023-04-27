@@ -13,20 +13,6 @@ pub(crate) trait CustomerRequestExt: Sized {
     fn validate(self) -> RouterResult<Self>;
 }
 
-// impl CustomerRequestExt for CustomerRequest {
-//     fn validate(self) -> RouterResult<Self> {
-//         self.email
-//             .as_ref()
-//             .validate_opt(|email| utils::validate_email(email.peek()))
-//             .change_context(errors::ApiErrorResponse::InvalidDataFormat {
-//                 field_name: "email".to_string(),
-//                 expected_format: "valid email address".to_string(),
-//             })?;
-//
-//         Ok(self)
-//     }
-// }
-
 impl From<storage::Customer> for CustomerResponse {
     fn from(cust: storage::Customer) -> Self {
         customers::CustomerResponse {

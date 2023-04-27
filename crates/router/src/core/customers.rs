@@ -201,10 +201,7 @@ pub async fn delete_customer(
 
     let updated_customer = storage::CustomerUpdate::Update {
         name: Some(REDACTED.to_string()),
-        email: match Email::from_str(REDACTED) {
-            Ok(email) => Some(email),
-            Err(_) => None,
-        },
+        email: Email::from_str(REDACTED).ok(),
         phone: Some(REDACTED.to_string().into()),
         description: Some(REDACTED.to_string()),
         phone_country_code: Some(REDACTED.to_string()),
