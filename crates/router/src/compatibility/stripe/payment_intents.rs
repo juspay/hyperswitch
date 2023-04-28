@@ -1,6 +1,8 @@
 pub mod types;
 
-use actix_web::{get, post, web, HttpRequest, HttpResponse};
+#[cfg(feature = "olap")]
+use actix_web::get;
+use actix_web::{post, web, HttpRequest, HttpResponse};
 use api_models::payments as payment_types;
 use error_stack::report;
 use router_env::{instrument, tracing};
