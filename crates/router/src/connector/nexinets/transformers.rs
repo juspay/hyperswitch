@@ -590,27 +590,28 @@ fn get_card_data(
     item: &types::PaymentsAuthorizeRouterData,
     card: &api_models::payments::Card,
 ) -> Result<NexinetsPaymentDetails, errors::ConnectorError> {
-    if item.request.is_mandate_payment() {
-        let cof_contract = Some(CofContract {
-            recurring_type: RecurringType::Unscheduled,
-        });
-        let card_data = if item.request.off_session.is_some() {
-            CardDataDetails::PaymentInstrument(Box::new(PaymentInstrument {
-                payment_instrument_id: item.request.connector_mandate_id(),
-            }))
-        } else {
-            CardDataDetails::CardDetails(Box::new(get_card_details(card)))
-        };
-        Ok(NexinetsPaymentDetails::Card(Box::new(NexiCardDetails {
-            card_data,
-            cof_contract,
-        })))
-    } else {
-        Ok(NexinetsPaymentDetails::Card(Box::new(NexiCardDetails {
-            card_data: CardDataDetails::CardDetails(Box::new(get_card_details(card))),
-            cof_contract: None,
-        })))
-    }
+    let (card_data, cof_contract) = match item.request.is_mandate_payment() {
+        true => {
+            let card_data = match item.request.off_session {
+                Some(true) => CardDataDetails::PaymentInstrument(Box::new(PaymentInstrument {
+                    payment_instrument_id: item.request.connector_mandate_id(),
+                })),
+                _ => CardDataDetails::CardDetails(Box::new(get_card_details(card))),
+            };
+            let cof_contract = Some(CofContract {
+                recurring_type: RecurringType::Unscheduled,
+            });
+            (card_data, cof_contract)
+        }
+        false => (
+            CardDataDetails::CardDetails(Box::new(get_card_details(card))),
+            None,
+        ),
+    };
+    Ok(NexinetsPaymentDetails::Card(Box::new(NexiCardDetails {
+        card_data,
+        cof_contract,
+    })))
 }
 
 fn get_applepay_details(
