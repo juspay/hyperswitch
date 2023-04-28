@@ -7,7 +7,8 @@ level = "DEBUG"
 log_format = "default"
 
 [log.telemetry]
-enabled = false
+traces_enabled = false
+metrics_enabled = false
 
 # TODO: Update database credentials before running application
 [master_database]

@@ -5,7 +5,9 @@ enabled = false
 enabled = false
 
 [log.telemetry]
-enabled = true
+traces_enabled = true
+metrics_enabled = true
+ignore_errors = false
 
 [master_database]
 username = "postgres"

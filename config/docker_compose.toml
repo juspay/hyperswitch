@@ -14,7 +14,9 @@ enabled = true  # Whether you want to see log in your terminal.
 level = "DEBUG" # What you see in your terminal.
 
 [log.telemetry]
-enabled = false # Whether tracing/telemetry is enabled.
+traces_enabled = false  # Whether traces are enabled.
+metrics_enabled = false # Whether metrics are enabled.
+ignore_errors = false   # Whether to ignore errors during traces or metrics pipeline setup.
 
 [master_database]
 username = "db_user"
