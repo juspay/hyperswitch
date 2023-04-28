@@ -1103,7 +1103,7 @@ pub fn decide_connector(
         .clone()
         .parse_value("RoutingAlgorithm")
         .change_context(errors::ApiErrorResponse::PreconditionFailed {
-            message: "routing_algorithm not configured".to_string(),
+            message: "no routing algorithm has been configured".to_string(),
         })
         .attach_printable("Unable to deserialize merchant routing algorithm")?;
 
