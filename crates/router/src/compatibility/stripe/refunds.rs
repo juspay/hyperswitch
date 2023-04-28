@@ -1,6 +1,6 @@
 pub mod types;
 
-use actix_web::{get, post, web, HttpRequest, HttpResponse};
+use actix_web::{web, HttpRequest, HttpResponse};
 use error_stack::report;
 use router_env::{instrument, tracing};
 
@@ -13,7 +13,7 @@ use crate::{
 };
 
 #[instrument(skip_all)]
-#[post("")]
+// #[post("")]
 pub async fn refund_create(
     state: web::Data<routes::AppState>,
     qs_config: web::Data<serde_qs::Config>,
@@ -50,7 +50,7 @@ pub async fn refund_create(
 }
 
 #[instrument(skip_all)]
-#[post("/sync")]
+// #[post("/sync")]
 pub async fn refund_retrieve_with_gateway_creds(
     state: web::Data<routes::AppState>,
     qs_config: web::Data<serde_qs::Config>,
@@ -91,7 +91,7 @@ pub async fn refund_retrieve_with_gateway_creds(
 }
 
 #[instrument(skip_all)]
-#[get("/{refund_id}")]
+// #[get("/{refund_id}")]
 pub async fn refund_retrieve(
     state: web::Data<routes::AppState>,
     req: HttpRequest,
@@ -128,7 +128,7 @@ pub async fn refund_retrieve(
 }
 
 #[instrument(skip_all)]
-#[post("/{refund_id}")]
+// #[post("/{refund_id}")]
 pub async fn refund_update(
     state: web::Data<routes::AppState>,
     req: HttpRequest,
