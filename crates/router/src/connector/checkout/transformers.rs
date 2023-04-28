@@ -811,19 +811,12 @@ pub struct FileUploadResponse {
 #[derive(Default, Debug, Serialize)]
 pub struct Evidence {
     pub proof_of_delivery_or_service_file: Option<String>,
-    pub proof_of_delivery_or_service_text: Option<String>,
     pub invoice_or_receipt_file: Option<String>,
-    pub invoice_or_receipt_text: Option<String>,
     pub invoice_showing_distinct_transactions_file: Option<String>,
-    pub invoice_showing_distinct_transactions_text: Option<String>,
     pub customer_communication_file: Option<String>,
-    pub customer_communication_text: Option<String>,
     pub refund_or_cancellation_policy_file: Option<String>,
-    pub refund_or_cancellation_policy_text: Option<String>,
     pub recurring_transaction_agreement_file: Option<String>,
-    pub recurring_transaction_agreement_text: Option<String>,
     pub additional_evidence_file: Option<String>,
-    pub additional_evidence_text: Option<String>,
 }
 
 impl TryFrom<&types::SubmitEvidenceRouterData> for Evidence {
@@ -844,7 +837,6 @@ impl TryFrom<&types::SubmitEvidenceRouterData> for Evidence {
                 .recurring_transaction_agreement_provider_file_id,
             additional_evidence_file: submit_evidence_request_data
                 .uncategorized_file_provider_file_id,
-            ..Default::default()
         })
     }
 }
