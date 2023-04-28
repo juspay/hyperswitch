@@ -162,6 +162,7 @@ pub struct RouterData<Flow, Request, Response> {
 }
 
 #[derive(Debug, Clone)]
+//Bug we are getting mandate
 pub struct PaymentsAuthorizeData {
     pub payment_method_data: payments::PaymentMethodData,
     pub amount: i64,

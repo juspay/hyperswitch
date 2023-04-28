@@ -60,6 +60,7 @@ pub enum PaymentDetails {
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Serialize)]
+//BUG here need to make cvc secret
 pub struct CardDetails {
     #[serde(rename = "card.number")]
     pub card_number: Secret<String, common_utils::pii::CardNumber>,
@@ -106,6 +107,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for AciPaymentsRequest {
                 card_holder: ccard.card_holder_name,
                 card_expiry_month: ccard.card_exp_month,
                 card_expiry_year: ccard.card_exp_year,
+                //BUG                card_cvv: ccard.card_cvc.unwrap_or_else(|| None),
                 card_cvv: ccard.card_cvc,
             }),
             api::PaymentMethodData::PayLater(_) => PaymentDetails::Klarna,

@@ -515,6 +515,14 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             payment_data.creds_identifier.as_deref(),
         ));
 
+        //BUG we need to have a check here whether payment data is required or not
+        println!(
+            "///////////////////////////////{:?})))))))))))))))))))",
+            match payment_data.mandate_id.clone() {
+                Some(id) => println!("<<<<<<<<<<<<mandate_id:{:?}>>>>>>>>>>>>", id.mandate_id),
+                None => println!("<<<<<<<<<<<<<No mandate id>>>>>>>>>>>>>>>"),
+            }
+        );
         Ok(Self {
             payment_method_data: payment_data
                 .payment_method_data

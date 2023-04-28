@@ -419,6 +419,7 @@ pub struct Card {
 
     /// The CVC number for the card
     #[schema(value_type = String, example = "242")]
+    //BUG cvc needs to be made option here
     pub card_cvc: Secret<String>,
 
     /// The name of the issuer of card
@@ -507,6 +508,7 @@ pub enum BankDebitData {
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
+//BUG here we are getting the card payment
 pub enum PaymentMethodData {
     Card(Card),
     Wallet(WalletData),
