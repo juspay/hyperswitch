@@ -1102,7 +1102,9 @@ pub fn decide_connector(
         .routing_algorithm
         .clone()
         .parse_value("RoutingAlgorithm")
-        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .change_context(errors::ApiErrorResponse::PreconditionFailed {
+            message: "routing_algorithm not configured".to_string(),
+        })
         .attach_printable("Unable to deserialize merchant routing algorithm")?;
 
     let connector_name = match routing_algorithm {
