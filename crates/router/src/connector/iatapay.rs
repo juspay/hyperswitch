@@ -485,7 +485,8 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
             self.base_url(_connectors),
             "/payments/",
             _req.request.connector_transaction_id,
-            "/refund"))
+            "/refund"
+        ))
         // Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
     }
 
@@ -630,9 +631,6 @@ impl api::IncomingWebhook for Iatapay {
         let base64_signature = base64_signature.replace("IATAPAY-HMAC-SHA256 ", "");
         println!("## base64sign={}", base64_signature);
         Ok(base64_signature.as_bytes().to_vec())
-        // hex::decode(base64_signature)
-        //     .into_report()
-        //     .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)
     }
 
     fn get_webhook_source_verification_message(
@@ -671,9 +669,19 @@ impl api::IncomingWebhook for Iatapay {
                 .body
                 .parse_struct("IatapayPaymentsResponse")
                 .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
-        Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
-            api_models::payments::PaymentIdType::ConnectorTransactionId(notif.iata_payment_id),
-        ))
+        if notif.iata_payment_id.is_some() {
+            Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
+                api_models::payments::PaymentIdType::ConnectorTransactionId(
+                    notif.iata_payment_id.unwrap(),
+                ),
+            ))
+        } else {
+            Ok(api_models::webhooks::ObjectReferenceId::RefundId(
+                api_models::webhooks::RefundIdType::ConnectorRefundId(
+                    notif.iata_refund_id.unwrap(),
+                ),
+            ))
+        }
     }
 
     fn get_webhook_event_type(
@@ -685,13 +693,18 @@ impl api::IncomingWebhook for Iatapay {
                 .body
                 .parse_struct("IatapayPaymentsResponse")
                 .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
+        println!("## notif status = {:?}", notif.status);
         match notif.status {
             iatapay::IatapayPaymentStatus::Authorized | iatapay::IatapayPaymentStatus::Settled => {
-                Ok(api::IncomingWebhookEvent::PaymentIntentSuccess)
+                match notif.iata_payment_id.is_some() {
+                    true => Ok(api::IncomingWebhookEvent::PaymentIntentSuccess),
+                    false => Ok(api::IncomingWebhookEvent::RefundSuccess),
+                }
             }
-            iatapay::IatapayPaymentStatus::Failed => {
-                Ok(api::IncomingWebhookEvent::PaymentActionRequired)
-            }
+            iatapay::IatapayPaymentStatus::Failed => match notif.iata_payment_id.is_some() {
+                true => Ok(api::IncomingWebhookEvent::PaymentIntentFailure),
+                false => Ok(api::IncomingWebhookEvent::RefundFailure),
+            },
             _ => Ok(api::IncomingWebhookEvent::EventNotSupported),
         }
     }
@@ -705,7 +718,7 @@ impl api::IncomingWebhook for Iatapay {
                 .body
                 .parse_struct("IatapayPaymentsResponse")
                 .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
-        Encode::<IatapayPaymentsResponse>::encode_to_value(&notif.status)
+        Encode::<IatapayPaymentsResponse>::encode_to_value(&notif)
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)
     }
 }

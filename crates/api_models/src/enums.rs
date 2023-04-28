@@ -268,6 +268,7 @@ pub enum Currency {
 #[strum(serialize_all = "snake_case")]
 pub enum EventType {
     PaymentSucceeded,
+    PaymentFailed,
     PaymentProcessing,
     ActionRequired,
     RefundSucceeded,

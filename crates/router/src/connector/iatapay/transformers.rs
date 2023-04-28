@@ -97,7 +97,9 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for IatapayPaymentsRequest {
             country: "DE".to_string(),
             locale: "en-GB".to_string(),
             redirect_urls: get_redirect_url(item),
-            notification_url: "https://enymh9hvh5dxd.x.pipedream.net/".to_string(),
+            notification_url: //"https://enbd1nqbpipve.x.pipedream.net/".to_string(),
+            "https://d968-122-166-44-250.ngrok-free.app/webhooks/merchant_1682590147/iatapay"
+                .to_string(),
             departure_date: "2023-12-24".to_string(),
         };
         println!("## payload => {:?}", payload);
@@ -117,10 +119,14 @@ impl TryFrom<&types::ConnectorAuthType> for IatapayAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
-            types::ConnectorAuthType::SignatureKey { api_key, key1 , api_secret} => Ok(Self {
+            types::ConnectorAuthType::SignatureKey {
+                api_key,
+                key1,
+                api_secret,
+            } => Ok(Self {
                 client_id: api_key.to_string(),
                 merchant_id: key1.to_string(),
-                client_secret: api_secret.to_string()
+                client_secret: api_secret.to_string(),
             }),
             _ => Err(errors::ConnectorError::FailedToObtainAuthType)?,
         }
@@ -140,6 +146,7 @@ pub enum IatapayPaymentStatus {
     Blocked,
     Cleared,
     Failed,
+    Locked,
     #[serde(rename = "UNEXPECTED SETTLED")]
     UnexpectedSettled,
 }
@@ -172,13 +179,14 @@ pub struct CheckoutMethod {
 #[serde(rename_all = "camelCase")]
 pub struct IatapayPaymentsResponse {
     pub status: IatapayPaymentStatus,
-    pub iata_payment_id: String,
-    pub merchant_id: String,
+    pub iata_payment_id: Option<String>,
+    pub iata_refund_id: Option<String>,
+    pub merchant_id: Option<String>,
     pub merchant_payment_id: Option<String>,
     pub amount: f64,
     pub currency: String,
-    pub country: String,
-    pub locale: String,
+    pub country: Option<String>,
+    pub locale: Option<String>,
     pub bank_transfer_description: Option<String>,
     pub checkout_methods: Option<CheckoutMethod>,
     pub failure_code: Option<String>,
@@ -193,7 +201,7 @@ impl<F, T>
         item: types::ResponseRouterData<F, IatapayPaymentsResponse, T, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         let form_fields = HashMap::new();
-        let id = item.response.iata_payment_id;
+        let id = item.response.iata_payment_id.unwrap();
         Ok(Self {
             status: enums::AttemptStatus::from(item.response.status),
             response: item.response.checkout_methods.map_or(
@@ -247,7 +255,9 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for IatapayRefundRequest {
             },
             currency: item.request.currency.to_string(),
             bank_transfer_description: item.request.reason.clone(),
-            notification_url: "https://enymh9hvh5dxd.x.pipedream.net/".to_string(),
+            notification_url:
+                "https://d968-122-166-44-250.ngrok-free.app/webhooks/merchant_1682590147/iatapay"
+                    .to_string(),
         })
     }
 }
@@ -258,12 +268,13 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for IatapayRefundRequest {
 #[derive(Debug, Serialize, Default, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum RefundStatus {
-    #[default] Created,
+    #[default]
+    Created,
     Locked,
     Initiated,
     Authorized,
     Settled,
-    Failed
+    Failed,
 }
 
 impl From<RefundStatus> for enums::RefundStatus {
