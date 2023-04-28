@@ -1301,7 +1301,11 @@ impl api::IncomingWebhook for Stripe {
             stripe::WebhookEventObjectType::Dispute => {
                 api_models::webhooks::ObjectReferenceId::PaymentId(
                     api_models::payments::PaymentIdType::ConnectorTransactionId(
-                        details.event_data.event_object.id,
+                        details
+                            .event_data
+                            .event_object
+                            .payment_intent
+                            .ok_or(errors::ConnectorError::WebhookReferenceIdNotFound)?,
                     ),
                 )
             }
