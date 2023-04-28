@@ -113,7 +113,7 @@ pub struct ConnectorFilters(pub HashMap<String, PaymentMethodFilters>);
 
 #[derive(Debug, Deserialize, Clone, Default)]
 #[serde(transparent)]
-pub struct PaymentMethodFilters(pub HashMap<PaymentMethodFilterKey, CurrencyCountryFilter>);
+pub struct PaymentMethodFilters(pub HashMap<PaymentMethodFilterKey, CurrencyCountryFlowFilter>);
 
 #[derive(Debug, Deserialize, Clone, PartialEq, Eq, Hash)]
 #[serde(untagged)]
@@ -124,7 +124,7 @@ pub enum PaymentMethodFilterKey {
 
 #[derive(Debug, Deserialize, Clone, Default)]
 #[serde(default)]
-pub struct CurrencyCountryFilter {
+pub struct CurrencyCountryFlowFilter {
     #[serde(deserialize_with = "currency_set_deser")]
     pub currency: Option<HashSet<api_models::enums::Currency>>,
     #[serde(deserialize_with = "string_set_deser")]

@@ -1233,7 +1233,7 @@ fn card_network_filter(
 }
 
 fn global_country_currency_filter(
-    item: &settings::CurrencyCountryFilter,
+    item: &settings::CurrencyCountryFlowFilter,
     country: &Option<api_enums::CountryCode>,
     currency: Option<api_enums::Currency>,
 ) -> bool {
