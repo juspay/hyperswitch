@@ -34,10 +34,6 @@ port = 5432
 dbname = "hyperswitch_db"
 pool_size = 5
 
-[proxy]
-# http_url = "http proxy URL"
-# https_url = "https proxy URL"
-
 [secrets]
 admin_api_key = "test_admin"
 jwt_secret = "secret"
