@@ -82,6 +82,8 @@ pub struct StripeMandateRequest {
 pub struct PaymentIntentRequest {
     pub amount: i64, //amount in cents, hence passed as integer
     pub currency: String,
+    #[serde(rename = "automatic_payment_methods[enabled]")]
+    pub automatic_payment_methods: bool,
     pub statement_descriptor_suffix: Option<String>,
     pub statement_descriptor: Option<String>,
     #[serde(rename = "metadata[order_id]")]
@@ -274,6 +276,7 @@ pub enum StripeWallet {
     ApplepayPayment(ApplepayPayment),
     AlipayPayment(AlipayPayment),
 }
+
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct StripeApplePay {
@@ -766,6 +769,15 @@ fn create_stripe_payment_method(
                 StripePaymentMethodType::ApplePay,
                 StripeBillingAddress::default(),
             )),
+
+            payments::WalletData::AliPay(_) => Ok((
+                StripePaymentMethodData::Wallet(StripeWallet::AlipayPayment(AlipayPayment{
+                    payment_method_types: StripePaymentMethodType::Alipay
+                })),
+                StripePaymentMethodType::Alipay,
+                StripeBillingAddress::default(),
+            )),
+
             _ => Err(errors::ConnectorError::NotImplemented(
                 "This wallet is not implemented for stripe".to_string(),
             )
@@ -890,6 +902,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
         Ok(Self {
             amount: item.request.amount, //hopefully we don't loose some cents here
             currency: item.request.currency.to_string(), //we need to copy the value and not transfer ownership
+            automatic_payment_methods: true,
             statement_descriptor_suffix: item.request.statement_descriptor_suffix.clone(),
             statement_descriptor: item.request.statement_descriptor.clone(),
             metadata_order_id,
