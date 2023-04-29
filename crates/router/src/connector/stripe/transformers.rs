@@ -272,6 +272,7 @@ pub enum StripePaymentMethodData {
 pub enum StripeWallet {
     ApplepayToken(StripeApplePay),
     ApplepayPayment(ApplepayPayment),
+    AlipayPayment(AlipayPayment),
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
@@ -286,6 +287,12 @@ pub struct StripeApplePay {
 pub struct ApplepayPayment {
     #[serde(rename = "payment_method_data[card][token]")]
     pub token: String,
+    #[serde(rename = "payment_method_data[type]")]
+    pub payment_method_types: StripePaymentMethodType,
+}
+
+#[derive(Debug, Eq, PartialEq, Serialize)]
+pub struct AlipayPayment{
     #[serde(rename = "payment_method_data[type]")]
     pub payment_method_types: StripePaymentMethodType,
 }
@@ -310,6 +317,7 @@ pub enum StripePaymentMethodType {
     Becs,
     #[serde(rename = "bacs_debit")]
     Bacs,
+    Alipay,
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize, Clone)]
@@ -853,6 +861,11 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
                         .get_required_value("payment_token")
                         .change_context(errors::ConnectorError::RequestEncodingFailed)?,
                     payment_method_types: StripePaymentMethodType::Card,
+                })),
+            ),
+            payments::PaymentMethodData::Wallet(payments::WalletData::AliPay(_)) => Some(
+                StripePaymentMethodData::Wallet(StripeWallet::AlipayPayment(AlipayPayment{
+                    payment_method_types: StripePaymentMethodType::Alipay
                 })),
             ),
             _ => payment_data,
