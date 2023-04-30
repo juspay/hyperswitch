@@ -82,8 +82,6 @@ pub struct StripeMandateRequest {
 pub struct PaymentIntentRequest {
     pub amount: i64, //amount in cents, hence passed as integer
     pub currency: String,
-    #[serde(rename = "automatic_payment_methods[enabled]")]
-    pub automatic_payment_methods: bool,
     pub statement_descriptor_suffix: Option<String>,
     pub statement_descriptor: Option<String>,
     #[serde(rename = "metadata[order_id]")]
@@ -296,6 +294,8 @@ pub struct ApplepayPayment {
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct AlipayPayment{
+    #[serde(rename = "payment_method_types[]")]
+    pub payment_method_t : StripePaymentMethodType,
     #[serde(rename = "payment_method_data[type]")]
     pub payment_method_types: StripePaymentMethodType,
 }
@@ -772,6 +772,7 @@ fn create_stripe_payment_method(
 
             payments::WalletData::AliPay(_) => Ok((
                 StripePaymentMethodData::Wallet(StripeWallet::AlipayPayment(AlipayPayment{
+                    payment_method_t: StripePaymentMethodType::Alipay,
                     payment_method_types: StripePaymentMethodType::Alipay
                 })),
                 StripePaymentMethodType::Alipay,
@@ -877,6 +878,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
             ),
             payments::PaymentMethodData::Wallet(payments::WalletData::AliPay(_)) => Some(
                 StripePaymentMethodData::Wallet(StripeWallet::AlipayPayment(AlipayPayment{
+                    payment_method_t: StripePaymentMethodType::Alipay,
                     payment_method_types: StripePaymentMethodType::Alipay
                 })),
             ),
@@ -902,7 +904,6 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
         Ok(Self {
             amount: item.request.amount, //hopefully we don't loose some cents here
             currency: item.request.currency.to_string(), //we need to copy the value and not transfer ownership
-            automatic_payment_methods: true,
             statement_descriptor_suffix: item.request.statement_descriptor_suffix.clone(),
             statement_descriptor: item.request.statement_descriptor.clone(),
             metadata_order_id,
@@ -912,6 +913,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
                 .request
                 .router_return_url
                 .clone()
+
                 .unwrap_or_else(|| "https://juspay.in/".to_string()),
             confirm: true, // Stripe requires confirm to be true if return URL is present
 
@@ -1207,6 +1209,7 @@ impl<F, T>
                     | StripePaymentMethodOptions::Ach {}
                     | StripePaymentMethodOptions::Bacs {}
                     | StripePaymentMethodOptions::Becs {}
+                    | StripePaymentMethodOptions::Alipay {}
                     | StripePaymentMethodOptions::Sepa {} => None,
                 });
 
@@ -1279,6 +1282,7 @@ impl<F, T>
 #[serde(rename_all = "snake_case", remote = "Self")]
 pub enum StripeNextActionResponse {
     RedirectToUrl(StripeRedirectToUrlResponse),
+    AlipayHandleRedirect(StripeRedirectToUrlResponse),
     VerifyWithMicrodeposits(StripeVerifyWithMicroDepositsResponse),
 }
 
@@ -1286,6 +1290,7 @@ impl StripeNextActionResponse {
     fn get_url(&self) -> Url {
         match self {
             Self::RedirectToUrl(redirect_to_url) => redirect_to_url.url.to_owned(),
+            Self::AlipayHandleRedirect(redirect_to_url) => redirect_to_url.url.to_owned(),
             Self::VerifyWithMicrodeposits(verify_with_microdeposits) => {
                 verify_with_microdeposits.hosted_verification_url.to_owned()
             }
@@ -1521,6 +1526,7 @@ pub enum StripePaymentMethodOptions {
     Becs {},
     #[serde(rename = "bacs_debit")]
     Bacs {},
+    Alipay {},
 }
 // #[derive(Deserialize, Debug, Clone, Eq, PartialEq)]
 // pub struct Card
