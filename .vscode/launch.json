@@ -1,0 +1,556 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in library 'api_models'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--lib",
+                    "--package=api_models"
+                ],
+                "filter": {
+                    "name": "api_models",
+                    "kind": "lib"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in library 'common_enums'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--lib",
+                    "--package=common_enums"
+                ],
+                "filter": {
+                    "name": "common_enums",
+                    "kind": "lib"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in library 'common_utils'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--lib",
+                    "--package=common_utils"
+                ],
+                "filter": {
+                    "name": "common_utils",
+                    "kind": "lib"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in library 'masking'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--lib",
+                    "--package=masking"
+                ],
+                "filter": {
+                    "name": "masking",
+                    "kind": "lib"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug integration test 'basic'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--test=basic",
+                    "--package=masking"
+                ],
+                "filter": {
+                    "name": "basic",
+                    "kind": "test"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in library 'router_env'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--lib",
+                    "--package=router_env"
+                ],
+                "filter": {
+                    "name": "router_env",
+                    "kind": "lib"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug integration test 'logger'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--test=logger",
+                    "--package=router_env"
+                ],
+                "filter": {
+                    "name": "logger",
+                    "kind": "test"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug integration test 'env'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--test=env",
+                    "--package=router_env"
+                ],
+                "filter": {
+                    "name": "env",
+                    "kind": "test"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in library 'drainer'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--lib",
+                    "--package=drainer"
+                ],
+                "filter": {
+                    "name": "drainer",
+                    "kind": "lib"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug executable 'drainer'",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--bin=drainer",
+                    "--package=drainer"
+                ],
+                "filter": {
+                    "name": "drainer",
+                    "kind": "bin"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in executable 'drainer'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--bin=drainer",
+                    "--package=drainer"
+                ],
+                "filter": {
+                    "name": "drainer",
+                    "kind": "bin"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in library 'external_services'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--lib",
+                    "--package=external_services"
+                ],
+                "filter": {
+                    "name": "external_services",
+                    "kind": "lib"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in library 'redis_interface'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--lib",
+                    "--package=redis_interface"
+                ],
+                "filter": {
+                    "name": "redis_interface",
+                    "kind": "lib"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in library 'storage_models'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--lib",
+                    "--package=storage_models"
+                ],
+                "filter": {
+                    "name": "storage_models",
+                    "kind": "lib"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in library 'router'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--lib",
+                    "--package=router"
+                ],
+                "filter": {
+                    "name": "router",
+                    "kind": "lib"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug executable 'router'",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--bin=router",
+                    "--package=router"
+                ],
+                "filter": {
+                    "name": "router",
+                    "kind": "bin"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in executable 'router'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--bin=router",
+                    "--package=router"
+                ],
+                "filter": {
+                    "name": "router",
+                    "kind": "bin"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug executable 'scheduler'",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--bin=scheduler",
+                    "--package=router"
+                ],
+                "filter": {
+                    "name": "scheduler",
+                    "kind": "bin"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in executable 'scheduler'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--bin=scheduler",
+                    "--package=router"
+                ],
+                "filter": {
+                    "name": "scheduler",
+                    "kind": "bin"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug integration test 'connectors'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--test=connectors",
+                    "--package=router"
+                ],
+                "filter": {
+                    "name": "connectors",
+                    "kind": "test"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug integration test 'integration_demo'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--test=integration_demo",
+                    "--package=router"
+                ],
+                "filter": {
+                    "name": "integration_demo",
+                    "kind": "test"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug integration test 'refunds'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--test=refunds",
+                    "--package=router"
+                ],
+                "filter": {
+                    "name": "refunds",
+                    "kind": "test"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug integration test 'payouts'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--test=payouts",
+                    "--package=router"
+                ],
+                "filter": {
+                    "name": "payouts",
+                    "kind": "test"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug integration test 'payments'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--test=payments",
+                    "--package=router"
+                ],
+                "filter": {
+                    "name": "payments",
+                    "kind": "test"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug integration test 'webhooks'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--test=webhooks",
+                    "--package=router"
+                ],
+                "filter": {
+                    "name": "webhooks",
+                    "kind": "test"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug integration test 'customers'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--test=customers",
+                    "--package=router"
+                ],
+                "filter": {
+                    "name": "customers",
+                    "kind": "test"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug integration test 'payments2'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--test=payments2",
+                    "--package=router"
+                ],
+                "filter": {
+                    "name": "payments2",
+                    "kind": "test"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug integration test 'health_check'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--test=health_check",
+                    "--package=router"
+                ],
+                "filter": {
+                    "name": "health_check",
+                    "kind": "test"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug integration test 'utils'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--test=utils",
+                    "--package=router"
+                ],
+                "filter": {
+                    "name": "utils",
+                    "kind": "test"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        }
+    ]
+}

@@ -54,6 +54,8 @@ pub struct MerchantConnectorAccountNew {
     pub business_country: storage_enums::CountryCode,
     pub business_label: String,
     pub business_sub_label: Option<String>,
+    pub created_at: Option<time::PrimitiveDateTime>,
+    pub modified_at: Option<time::PrimitiveDateTime>,
 }
 
 #[derive(Debug)]

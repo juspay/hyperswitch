@@ -414,6 +414,8 @@ pub async fn create_payment_connector(
         business_country,
         business_label,
         business_sub_label: req.business_sub_label,
+        created_at: Some(common_utils::date_time::now()),
+        modified_at: Some(common_utils::date_time::now()),
     };
 
     let mca = store
