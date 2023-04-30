@@ -1,11 +1,13 @@
-use api_models::payments as api_models;
+use api_models::payments::{self, AddressDetails};
 use common_utils::pii::{self, Email};
 use masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
+use url::Url;
 
 use crate::{
     connector::utils::{self, CardData},
     core::errors,
+    services,
     types::{
         self,
         api::{self, enums as api_enums},
@@ -25,7 +27,7 @@ pub struct Card {
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
-pub struct CardPaymentMethod {
+pub struct CardDetails {
     pub card: Card,
     pub requires_approval: bool,
     pub payment_product_id: u16,
@@ -93,10 +95,83 @@ pub struct Shipping {
     pub zip: Option<Secret<String>>,
 }
 
-#[derive(Default, Debug, Serialize, Eq, PartialEq)]
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum WorldlinePaymentMethod {
+    CardPaymentMethodSpecificInput(Box<CardDetails>),
+    RedirectPaymentMethodSpecificInput(Box<RedirectDetails>),
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RedirectDetails {
+    pub payment_product_id: u16,
+    pub redirection_data: RedirectionData,
+    #[serde(flatten)]
+    pub payment_method_specfic_data: PaymentMethodSpecificData,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RedirectionData {
+    pub return_url: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum PaymentMethodSpecificData {
+    PaymentProduct816SpecificInput(Giropay),
+    PaymentProduct809SpecificInput(Ideal),
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Giropay {
+    pub bank_account_iban: BankAccountIban,
+}
+
+#[derive(Debug, Serialize)]
+pub struct Ideal {
+    #[serde(rename = "issuerId")]
+    pub issuer_id: WorldlineBic,
+}
+
+#[derive(Debug, Serialize)]
+pub enum WorldlineBic {
+    #[serde(rename = "ABNANL2A")]
+    Abnamro,
+    #[serde(rename = "ASNBNL21")]
+    Asn,
+    #[serde(rename = "FRBKNL2L")]
+    Friesland,
+    #[serde(rename = "KNABNL2H")]
+    Knab,
+    #[serde(rename = "RABONL2U")]
+    Rabobank,
+    #[serde(rename = "RBRBNL21")]
+    Regiobank,
+    #[serde(rename = "SNSBNL2A")]
+    Sns,
+    #[serde(rename = "TRIONL2U")]
+    Triodos,
+    #[serde(rename = "FVLBNL22")]
+    Vanlanschot,
+    #[serde(rename = "INGBNL2A")]
+    Ing,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BankAccountIban {
+    pub account_holder_name: Secret<String>,
+    pub iban: String,
+}
+
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PaymentsRequest {
-    pub card_payment_method_specific_input: CardPaymentMethod,
+    #[serde(flatten)]
+    pub payment_data: WorldlinePaymentMethod,
     pub order: Order,
     pub shipping: Option<Shipping>,
 }
@@ -104,15 +179,44 @@ pub struct PaymentsRequest {
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
-        match item.request.payment_method_data {
+        let payment_data = match item.request.payment_method_data {
             api::PaymentMethodData::Card(ref card) => {
-                make_card_request(&item.address, &item.request, card)
+                WorldlinePaymentMethod::CardPaymentMethodSpecificInput(Box::new(make_card_request(
+                    &item.request,
+                    card,
+                )?))
             }
-            _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
-        }
+            api::PaymentMethodData::BankRedirect(ref bank_redirect) => {
+                WorldlinePaymentMethod::RedirectPaymentMethodSpecificInput(Box::new(
+                    make_bank_redirect_request(&item.request, bank_redirect)?,
+                ))
+            }
+            _ => Err(errors::ConnectorError::NotImplemented(
+                "Payment methods".to_string(),
+            ))?,
+        };
+        let customer = build_customer_info(&item.address, &item.request.email)?;
+        let order = Order {
+            amount_of_money: AmountOfMoney {
+                amount: item.request.amount,
+                currency_code: item.request.currency.to_string().to_uppercase(),
+            },
+            customer,
+        };
+
+        let shipping = item
+            .address
+            .shipping
+            .as_ref()
+            .and_then(|shipping| shipping.address.clone())
+            .map(|address| Shipping { ..address.into() });
+        Ok(Self {
+            payment_data,
+            order,
+            shipping,
+        })
     }
 }
-
 #[derive(Clone, Debug, Eq, Hash, PartialEq, Deserialize, Serialize)]
 pub enum Gateway {
     Amex = 2,
@@ -139,11 +243,33 @@ impl TryFrom<utils::CardIssuer> for Gateway {
     }
 }
 
+impl TryFrom<&api_models::enums::BankNames> for WorldlineBic {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(bank: &api_models::enums::BankNames) -> Result<Self, Self::Error> {
+        match bank {
+            api_models::enums::BankNames::AbnAmro => Ok(Self::Abnamro),
+            api_models::enums::BankNames::AsnBank => Ok(Self::Asn),
+            api_models::enums::BankNames::Ing => Ok(Self::Ing),
+            api_models::enums::BankNames::Knab => Ok(Self::Knab),
+            api_models::enums::BankNames::Rabobank => Ok(Self::Rabobank),
+            api_models::enums::BankNames::Regiobank => Ok(Self::Regiobank),
+            api_models::enums::BankNames::SnsBank => Ok(Self::Sns),
+            api_models::enums::BankNames::TriodosBank => Ok(Self::Triodos),
+            api_models::enums::BankNames::VanLanschot => Ok(Self::Vanlanschot),
+            api_models::enums::BankNames::FrieslandBank => Ok(Self::Friesland),
+            _ => Err(errors::ConnectorError::FlowNotSupported {
+                flow: bank.to_string(),
+                connector: "Worldline".to_string(),
+            }
+            .into()),
+        }
+    }
+}
+
 fn make_card_request(
-    address: &types::PaymentAddress,
     req: &types::PaymentsAuthorizeData,
-    ccard: &api_models::Card,
-) -> Result<PaymentsRequest, error_stack::Report<errors::ConnectorError>> {
+    ccard: &payments::Card,
+) -> Result<CardDetails, error_stack::Report<errors::ConnectorError>> {
     let expiry_year = ccard.card_exp_year.peek().clone();
     let secret_value = format!(
         "{}{}",
@@ -162,38 +288,56 @@ fn make_card_request(
     };
     #[allow(clippy::as_conversions)]
     let payment_product_id = Gateway::try_from(ccard.get_card_issuer()?)? as u16;
-    let card_payment_method_specific_input = CardPaymentMethod {
+    let card_payment_method_specific_input = CardDetails {
         card,
         requires_approval: matches!(req.capture_method, Some(enums::CaptureMethod::Manual)),
         payment_product_id,
     };
+    Ok(card_payment_method_specific_input)
+}
 
-    let customer = build_customer_info(address, &req.email)?;
-
-    let order = Order {
-        amount_of_money: AmountOfMoney {
-            amount: req.amount,
-            currency_code: req.currency.to_string().to_uppercase(),
-        },
-        customer,
+fn make_bank_redirect_request(
+    req: &types::PaymentsAuthorizeData,
+    bank_redirect: &payments::BankRedirectData,
+) -> Result<RedirectDetails, error_stack::Report<errors::ConnectorError>> {
+    let return_url = req.router_return_url.clone();
+    let redirection_data = RedirectionData { return_url };
+    let (payment_method_specfic_data, payment_product_id) = match bank_redirect {
+        payments::BankRedirectData::Giropay { billing_details } => (
+            {
+                PaymentMethodSpecificData::PaymentProduct816SpecificInput(Giropay {
+                    bank_account_iban: BankAccountIban {
+                        account_holder_name: billing_details.billing_name.clone(),
+                        iban: "DE46940594210000012345".to_string(),
+                    },
+                })
+            },
+            816,
+        ),
+        payments::BankRedirectData::Ideal { bank_name, .. } => (
+            {
+                PaymentMethodSpecificData::PaymentProduct809SpecificInput(Ideal {
+                    issuer_id: WorldlineBic::try_from(bank_name)?,
+                })
+            },
+            809,
+        ),
+        _ => {
+            return Err(
+                errors::ConnectorError::NotImplemented("Payment methods".to_string()).into(),
+            )
+        }
     };
-
-    let shipping = address
-        .shipping
-        .as_ref()
-        .and_then(|shipping| shipping.address.clone())
-        .map(|address| Shipping { ..address.into() });
-
-    Ok(PaymentsRequest {
-        card_payment_method_specific_input,
-        order,
-        shipping,
+    Ok(RedirectDetails {
+        payment_product_id,
+        redirection_data,
+        payment_method_specfic_data,
     })
 }
 
 fn get_address(
     payment_address: &types::PaymentAddress,
-) -> Option<(&api_models::Address, &api_models::AddressDetails)> {
+) -> Option<(&payments::Address, &AddressDetails)> {
     let billing = payment_address.billing.as_ref()?;
     let address = billing.address.as_ref()?;
     address.country.as_ref()?;
@@ -229,8 +373,8 @@ fn build_customer_info(
     })
 }
 
-impl From<api_models::AddressDetails> for BillingAddress {
-    fn from(value: api_models::AddressDetails) -> Self {
+impl From<AddressDetails> for BillingAddress {
+    fn from(value: AddressDetails) -> Self {
         Self {
             city: value.city,
             country_code: value.country,
@@ -241,8 +385,8 @@ impl From<api_models::AddressDetails> for BillingAddress {
     }
 }
 
-impl From<api_models::AddressDetails> for Shipping {
-    fn from(value: api_models::AddressDetails) -> Self {
+impl From<AddressDetails> for Shipping {
+    fn from(value: AddressDetails) -> Self {
         Self {
             city: value.city,
             country_code: value.country,
@@ -298,6 +442,7 @@ pub enum PaymentStatus {
     #[default]
     Processing,
     Created,
+    Redirected,
 }
 
 impl ForeignFrom<(PaymentStatus, enums::CaptureMethod)> for enums::AttemptStatus {
@@ -319,6 +464,7 @@ impl ForeignFrom<(PaymentStatus, enums::CaptureMethod)> for enums::AttemptStatus
             }
             PaymentStatus::PendingApproval => Self::Authorized,
             PaymentStatus::Created => Self::Started,
+            PaymentStatus::Redirected => Self::AuthenticationPending,
             _ => Self::Pending,
         }
     }
@@ -358,9 +504,23 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, Payment, T, types::PaymentsRespo
     }
 }
 
-#[derive(Default, Debug, Clone, Deserialize, PartialEq)]
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct PaymentResponse {
     pub payment: Payment,
+    pub merchant_action: Option<MerchantAction>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MerchantAction {
+    pub redirect_data: RedirectData,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct RedirectData {
+    #[serde(rename = "redirectURL")]
+    pub redirect_url: Url,
 }
 
 impl<F, T> TryFrom<types::ResponseRouterData<F, PaymentResponse, T, types::PaymentsResponseData>>
@@ -370,6 +530,13 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, PaymentResponse, T, types::Payme
     fn try_from(
         item: types::ResponseRouterData<F, PaymentResponse, T, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
+        let redirection_data = item
+            .response
+            .merchant_action
+            .map(|action| action.redirect_data.redirect_url)
+            .map(|redirect_url| {
+                services::RedirectForm::from((redirect_url, services::Method::Get))
+            });
         Ok(Self {
             status: enums::AttemptStatus::foreign_from((
                 item.response.payment.status,
@@ -377,7 +544,7 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, PaymentResponse, T, types::Payme
             )),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.payment.id),
-                redirection_data: None,
+                redirection_data,
                 mandate_reference: None,
                 connector_metadata: None,
             }),
