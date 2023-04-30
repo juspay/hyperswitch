@@ -295,9 +295,9 @@ pub struct ApplepayPayment {
 #[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct AlipayPayment{
     #[serde(rename = "payment_method_types[]")]
-    pub payment_method_t : StripePaymentMethodType,
+    pub payment_method_types : StripePaymentMethodType,
     #[serde(rename = "payment_method_data[type]")]
-    pub payment_method_types: StripePaymentMethodType,
+    pub payment_method_data_type: StripePaymentMethodType,
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize, Clone, Copy)]
@@ -772,8 +772,8 @@ fn create_stripe_payment_method(
 
             payments::WalletData::AliPay(_) => Ok((
                 StripePaymentMethodData::Wallet(StripeWallet::AlipayPayment(AlipayPayment{
-                    payment_method_t: StripePaymentMethodType::Alipay,
-                    payment_method_types: StripePaymentMethodType::Alipay
+                    payment_method_types: StripePaymentMethodType::Alipay,
+                    payment_method_data_type: StripePaymentMethodType::Alipay
                 })),
                 StripePaymentMethodType::Alipay,
                 StripeBillingAddress::default(),
@@ -874,12 +874,6 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
                         .get_required_value("payment_token")
                         .change_context(errors::ConnectorError::RequestEncodingFailed)?,
                     payment_method_types: StripePaymentMethodType::Card,
-                })),
-            ),
-            payments::PaymentMethodData::Wallet(payments::WalletData::AliPay(_)) => Some(
-                StripePaymentMethodData::Wallet(StripeWallet::AlipayPayment(AlipayPayment{
-                    payment_method_t: StripePaymentMethodType::Alipay,
-                    payment_method_types: StripePaymentMethodType::Alipay
                 })),
             ),
             _ => payment_data,
@@ -1289,8 +1283,8 @@ pub enum StripeNextActionResponse {
 impl StripeNextActionResponse {
     fn get_url(&self) -> Url {
         match self {
-            Self::RedirectToUrl(redirect_to_url) => redirect_to_url.url.to_owned(),
-            Self::AlipayHandleRedirect(redirect_to_url) => redirect_to_url.url.to_owned(),
+            Self::RedirectToUrl(redirect_to_url) 
+            |Self::AlipayHandleRedirect(redirect_to_url) => redirect_to_url.url.to_owned(),
             Self::VerifyWithMicrodeposits(verify_with_microdeposits) => {
                 verify_with_microdeposits.hosted_verification_url.to_owned()
             }
