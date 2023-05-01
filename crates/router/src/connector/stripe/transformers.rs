@@ -1689,6 +1689,14 @@ impl
                     });
                     Ok(Self::Wallet(wallet_info))
                 }
+
+                payments::WalletData::AliPay(_) => {
+                    let wallet_info = StripeWallet::AlipayPayment(AlipayPayment{
+                        payment_method_types: StripePaymentMethodType::Alipay,
+                        payment_method_data_type: StripePaymentMethodType::Alipay
+                    });
+                    Ok(Self::Wallet(wallet_info))
+                }
                 _ => Err(errors::ConnectorError::InvalidWallet.into()),
             },
             api::PaymentMethodData::BankDebit(bank_debit_data) => {
