@@ -1,6 +1,6 @@
 use api_models::{self, enums as api_enums, payments};
 use base64::Engine;
-use common_utils::{errors::CustomResult, fp_utils, pii};
+use common_utils::{errors::CustomResult, pii};
 use error_stack::{IntoReport, ResultExt};
 use masking::{ExposeInterface, ExposeOptionInterface, Secret};
 use serde::{Deserialize, Serialize};
@@ -8,7 +8,7 @@ use url::Url;
 use uuid::Uuid;
 
 use crate::{
-    consts,
+    collect_missing_value_keys, consts,
     core::errors,
     services,
     types::{self, api, storage::enums},
@@ -429,30 +429,21 @@ fn validate_shipping_address_against_payment_method(
     payment_method: &StripePaymentMethodType,
 ) -> Result<(), error_stack::Report<errors::ConnectorError>> {
     if let StripePaymentMethodType::AfterpayClearpay = payment_method {
-        fp_utils::when(shipping_address.name.is_none(), || {
-            Err(errors::ConnectorError::MissingRequiredField {
-                field_name: "shipping.address.first_name",
-            })
-        })?;
+        let missing_fields = collect_missing_value_keys!(
+            ("shipping.address.first_name", shipping_address.name),
+            ("shipping.address.line1", shipping_address.line1),
+            ("shipping.address.country", shipping_address.country),
+            ("shipping.address.zip", shipping_address.zip)
+        );
 
-        fp_utils::when(shipping_address.line1.is_none(), || {
-            Err(errors::ConnectorError::MissingRequiredField {
-                field_name: "shipping.address.line1",
+        if !missing_fields.is_empty() {
+            return Err(errors::ConnectorError::MissingRequiredFields {
+                field_names: missing_fields,
             })
-        })?;
-
-        fp_utils::when(shipping_address.country.is_none(), || {
-            Err(errors::ConnectorError::MissingRequiredField {
-                field_name: "shipping.address.country",
-            })
-        })?;
-
-        fp_utils::when(shipping_address.zip.is_none(), || {
-            Err(errors::ConnectorError::MissingRequiredField {
-                field_name: "shipping.address.zip",
-            })
-        })?;
+            .into_report();
+        }
     }
+
     Ok(())
 }
 
@@ -1798,4 +1789,193 @@ pub struct DisputeObj {
     #[serde(rename = "id")]
     pub dispute_id: String,
     pub status: String,
+}
+
+#[cfg(test)]
+mod test_validate_shipping_address_against_payment_method {
+    #![allow(clippy::unwrap_used)]
+    use api_models::enums::CountryCode;
+    use masking::Secret;
+
+    use crate::{
+        connector::stripe::transformers::{
+            validate_shipping_address_against_payment_method, StripePaymentMethodType,
+            StripeShippingAddress,
+        },
+        core::errors,
+    };
+
+    #[test]
+    fn should_return_ok() {
+        // Arrange
+        let stripe_shipping_address = create_stripe_shipping_address(
+            Some("name".to_string()),
+            Some("line1".to_string()),
+            Some(CountryCode::AD),
+            Some("zip".to_string()),
+        );
+
+        let payment_method = &StripePaymentMethodType::AfterpayClearpay;
+
+        //Act
+        let result = validate_shipping_address_against_payment_method(
+            &stripe_shipping_address,
+            payment_method,
+        );
+
+        // Assert
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn should_return_err_for_empty_name() {
+        // Arrange
+        let stripe_shipping_address = create_stripe_shipping_address(
+            None,
+            Some("line1".to_string()),
+            Some(CountryCode::AD),
+            Some("zip".to_string()),
+        );
+
+        let payment_method = &StripePaymentMethodType::AfterpayClearpay;
+
+        //Act
+        let result = validate_shipping_address_against_payment_method(
+            &stripe_shipping_address,
+            payment_method,
+        );
+
+        // Assert
+        assert!(result.is_err());
+        let missing_fields = get_missing_fields(result.unwrap_err().current_context()).to_owned();
+        assert_eq!(missing_fields.len(), 1);
+        assert_eq!(missing_fields[0], "shipping.address.first_name");
+    }
+
+    #[test]
+    fn should_return_err_for_empty_line1() {
+        // Arrange
+        let stripe_shipping_address = create_stripe_shipping_address(
+            Some("name".to_string()),
+            None,
+            Some(CountryCode::AD),
+            Some("zip".to_string()),
+        );
+
+        let payment_method = &StripePaymentMethodType::AfterpayClearpay;
+
+        //Act
+        let result = validate_shipping_address_against_payment_method(
+            &stripe_shipping_address,
+            payment_method,
+        );
+
+        // Assert
+        assert!(result.is_err());
+        let missing_fields = get_missing_fields(result.unwrap_err().current_context()).to_owned();
+        assert_eq!(missing_fields.len(), 1);
+        assert_eq!(missing_fields[0], "shipping.address.line1");
+    }
+
+    #[test]
+    fn should_return_err_for_empty_country() {
+        // Arrange
+        let stripe_shipping_address = create_stripe_shipping_address(
+            Some("name".to_string()),
+            Some("line1".to_string()),
+            None,
+            Some("zip".to_string()),
+        );
+
+        let payment_method = &StripePaymentMethodType::AfterpayClearpay;
+
+        //Act
+        let result = validate_shipping_address_against_payment_method(
+            &stripe_shipping_address,
+            payment_method,
+        );
+
+        // Assert
+        assert!(result.is_err());
+        let missing_fields = get_missing_fields(result.unwrap_err().current_context()).to_owned();
+        assert_eq!(missing_fields.len(), 1);
+        assert_eq!(missing_fields[0], "shipping.address.country");
+    }
+
+    #[test]
+    fn should_return_err_for_empty_zip() {
+        // Arrange
+        let stripe_shipping_address = create_stripe_shipping_address(
+            Some("name".to_string()),
+            Some("line1".to_string()),
+            Some(CountryCode::AD),
+            None,
+        );
+        let payment_method = &StripePaymentMethodType::AfterpayClearpay;
+
+        //Act
+        let result = validate_shipping_address_against_payment_method(
+            &stripe_shipping_address,
+            payment_method,
+        );
+
+        // Assert
+        assert!(result.is_err());
+        let missing_fields = get_missing_fields(result.unwrap_err().current_context()).to_owned();
+        assert_eq!(missing_fields.len(), 1);
+        assert_eq!(missing_fields[0], "shipping.address.zip");
+    }
+
+    #[test]
+    fn should_return_error_when_missing_multiple_fields() {
+        // Arrange
+        let expected_missing_field_names: Vec<&'static str> =
+            vec!["shipping.address.zip", "shipping.address.country"];
+        let stripe_shipping_address = create_stripe_shipping_address(
+            Some("name".to_string()),
+            Some("line1".to_string()),
+            None,
+            None,
+        );
+        let payment_method = &StripePaymentMethodType::AfterpayClearpay;
+
+        //Act
+        let result = validate_shipping_address_against_payment_method(
+            &stripe_shipping_address,
+            payment_method,
+        );
+
+        // Assert
+        assert!(result.is_err());
+        let missing_fields = get_missing_fields(result.unwrap_err().current_context()).to_owned();
+        for field in missing_fields {
+            assert!(expected_missing_field_names.contains(&field));
+        }
+    }
+
+    fn get_missing_fields(connector_error: &errors::ConnectorError) -> Vec<&'static str> {
+        if let errors::ConnectorError::MissingRequiredFields { field_names } = connector_error {
+            return field_names.to_vec();
+        }
+
+        vec![]
+    }
+
+    fn create_stripe_shipping_address(
+        name: Option<String>,
+        line1: Option<String>,
+        country: Option<CountryCode>,
+        zip: Option<String>,
+    ) -> StripeShippingAddress {
+        StripeShippingAddress {
+            name: name.map(Secret::new),
+            line1: line1.map(Secret::new),
+            country,
+            zip: zip.map(Secret::new),
+            city: Some(String::from("city")),
+            line2: Some(Secret::new(String::from("line2"))),
+            state: Some(Secret::new(String::from("state"))),
+            phone: Some(Secret::new(String::from("pbone number"))),
+        }
+    }
 }
