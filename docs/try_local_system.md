@@ -553,14 +553,14 @@ To explore more of our APIs, please check the remaining folders in the
 [Postman collection][postman-collection].
 
 [postman]: https://www.postman.com
-[postman-collection]: https://www.postman.com/hyperswitch/workspace/hyperswitch/collection/25176183-e36f8e3d-078c-4067-a273-f456b6b724ed
-[variables]: https://www.postman.com/hyperswitch/workspace/hyperswitch/collection/25176183-e36f8e3d-078c-4067-a273-f456b6b724ed?tab=variables
-[quick-start]: https://www.postman.com/hyperswitch/workspace/hyperswitch/folder/25176183-0103918c-6611-459b-9faf-354dee8e4437
-[merchant-account-create]: https://www.postman.com/hyperswitch/workspace/hyperswitch/request/25176183-00124712-4dff-43d8-afb2-b99cdac1511d
-[api-key-create]: https://www.postman.com/hyperswitch/workspace/hyperswitch/request/25176183-b03615f6-c623-421e-be3f-52acf07b58d3
-[payment-connector-create]: https://www.postman.com/hyperswitch/workspace/hyperswitch/request/25176183-f9509d03-bb1b-4d86-bb63-1658da7f1be5
-[payments-create]: https://www.postman.com/hyperswitch/workspace/hyperswitch/request/25176183-9b4ad6a8-fbdd-4919-8505-c75c83bdf9d6
-[payments-retrieve]: https://www.postman.com/hyperswitch/workspace/hyperswitch/request/25176183-11995c9b-8a34-4afd-a6ce-e8645693929b
-[refunds-create]: https://www.postman.com/hyperswitch/workspace/hyperswitch/request/25176183-5b15d068-db9e-48a5-9ee9-3a70c0aac944
-[refunds-retrieve]: https://www.postman.com/hyperswitch/workspace/hyperswitch/request/25176183-c50c32af-5ceb-4ab6-aca7-85f6b32df9d3
+[postman-collection]: https://www.postman.com/hyperswitch/workspace/hyperswitch-development/collection/25176162-630b5353-7002-44d1-8ba1-ead6c230f2e3
+[variables]: https://www.postman.com/hyperswitch/workspace/hyperswitch-development/collection/25176162-630b5353-7002-44d1-8ba1-ead6c230f2e3?tab=variables
+[quick-start]: https://www.postman.com/hyperswitch/workspace/hyperswitch-development/folder/25176162-0f61a2bb-f9d5-4c60-8b73-9b677bf8ebbc
+[merchant-account-create]: https://www.postman.com/hyperswitch/workspace/hyperswitch-development/request/25176162-3c5d5282-931b-4adc-a651-f88c8697ebcb
+[api-key-create]: https://www.postman.com/hyperswitch/workspace/hyperswitch-development/request/25176162-98ce39af-0dbc-4583-8c22-dcaa801851e0
+[payment-connector-create]: https://www.postman.com/hyperswitch/workspace/hyperswitch-development/request/25176162-295d83c8-957a-4524-95c8-589a26d751cf
+[payments-create]: https://www.postman.com/hyperswitch/workspace/hyperswitch-development/request/25176162-ee0549bf-dd38-41fd-9a8a-de74879f3cda
+[payments-retrieve]: https://www.postman.com/hyperswitch/workspace/hyperswitch-development/request/25176162-8baf2590-d2af-44d0-ba37-e9cab7ef891a
+[refunds-create]: https://www.postman.com/hyperswitch/workspace/hyperswitch-development/request/25176162-4d1315c6-ac61-4411-8f7d-15d4e4e736a1
+[refunds-retrieve]: https://www.postman.com/hyperswitch/workspace/hyperswitch-development/request/25176162-137d6260-24f7-4752-9e69-26b61b83df0d
 [connector-specific-details]: https://docs.google.com/spreadsheets/d/e/2PACX-1vQWHLza9m5iO4Ol-tEBx22_Nnq8Mb3ISCWI53nrinIGLK8eHYmHGnvXFXUXEut8AFyGyI9DipsYaBLG/pubhtml?gid=748960791&single=true

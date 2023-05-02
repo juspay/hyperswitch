@@ -1,7 +1,6 @@
 mod transformers;
 
 use std::fmt::Debug;
-use common_utils::errors::ReportSwitchExt;
 use error_stack::{ResultExt, IntoReport};
 
 use crate::{
