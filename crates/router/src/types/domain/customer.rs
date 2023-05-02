@@ -1,6 +1,6 @@
 use common_utils::{
     crypto::{self},
-    pii,
+    date_time, pii,
 };
 use error_stack::ResultExt;
 use storage_models::{customers::CustomerUpdateInternal, encryption::Encryption};
@@ -86,6 +86,7 @@ impl super::behaviour::Conversion for Customer {
     }
 
     async fn construct_new(self) -> CustomResult<Self::NewDstType, ValidationError> {
+        let now = date_time::now();
         Ok(storage_models::customers::CustomerNew {
             customer_id: self.customer_id,
             merchant_id: self.merchant_id,
@@ -95,6 +96,8 @@ impl super::behaviour::Conversion for Customer {
             description: self.description,
             phone_country_code: self.phone_country_code,
             metadata: self.metadata,
+            created_at: now,
+            modified_at: now,
         })
     }
 }
@@ -128,7 +131,7 @@ impl From<CustomerUpdate> for CustomerUpdateInternal {
                 description,
                 phone_country_code,
                 metadata,
-                modified_at: Some(common_utils::date_time::now()),
+                modified_at: Some(date_time::now()),
             },
         }
     }

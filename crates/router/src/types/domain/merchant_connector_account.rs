@@ -1,5 +1,6 @@
 use common_utils::{
     crypto::{Encryptable, GcmAes256},
+    date_time,
     errors::{CustomResult, ValidationError},
     pii,
 };
@@ -125,6 +126,7 @@ impl behaviour::Conversion for MerchantConnectorAccount {
     }
 
     async fn construct_new(self) -> CustomResult<Self::NewDstType, ValidationError> {
+        let now = date_time::now();
         Ok(Self::NewDstType {
             merchant_id: Some(self.merchant_id),
             connector_name: Some(self.connector_name),
@@ -140,6 +142,8 @@ impl behaviour::Conversion for MerchantConnectorAccount {
             business_label: self.business_label,
             connector_label: self.connector_label,
             business_sub_label: self.business_sub_label,
+            created_at: now,
+            modified_at: now,
         })
     }
 }

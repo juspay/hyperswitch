@@ -4,7 +4,7 @@ use time::PrimitiveDateTime;
 
 use crate::{encryption::Encryption, schema::customers};
 
-#[derive(Default, Clone, Debug, Insertable, router_derive::DebugAsDisplay)]
+#[derive(Clone, Debug, Insertable, router_derive::DebugAsDisplay)]
 #[diesel(table_name = customers)]
 pub struct CustomerNew {
     pub customer_id: String,
@@ -15,6 +15,8 @@ pub struct CustomerNew {
     pub description: Option<String>,
     pub phone_country_code: Option<String>,
     pub metadata: Option<pii::SecretSerdeValue>,
+    pub created_at: PrimitiveDateTime,
+    pub modified_at: PrimitiveDateTime,
 }
 
 #[derive(Clone, Debug, Identifiable, Queryable)]
