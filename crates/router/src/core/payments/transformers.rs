@@ -1,7 +1,6 @@
 use std::{fmt::Debug, marker::PhantomData};
 
 use error_stack::{IntoReport, ResultExt};
-use masking::Secret;
 use router_env::{instrument, tracing};
 
 use super::{flows::Feature, PaymentAddress, PaymentData};
@@ -523,18 +522,10 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
         ));
 
         Ok(Self {
-            payment_method_data: payment_data.payment_method_data.unwrap_or(
-                //WIP: remove this hardcoding of payment_method_data as it is not required in mandate scenarios and make it optional
-                api::payments::PaymentMethodData::Card(api::payments::Card {
-                    card_number: Secret::new("5424000000000015".to_string()),
-                    card_exp_month: Secret::new("10".to_string()),
-                    card_exp_year: Secret::new("2025".to_string()),
-                    card_holder_name: Secret::new("John Doe".to_string()),
-                    card_cvc: Secret::new("999".to_string()),
-                    card_issuer: None,
-                    card_network: None,
-                }),
-            ),
+            // payment_method_data is not required during recurring mandate payment, in such case keep default PaymentMethodData as MandatePayment
+            payment_method_data: payment_data
+                .payment_method_data
+                .unwrap_or(api_models::payments::PaymentMethodData::MandatePayment),
             setup_future_usage: payment_data.payment_intent.setup_future_usage,
             mandate_id: payment_data.mandate_id.clone(),
             off_session: payment_data.mandate_id.as_ref().map(|_| true),
