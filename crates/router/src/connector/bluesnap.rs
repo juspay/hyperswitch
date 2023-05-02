@@ -7,7 +7,7 @@ use common_utils::crypto;
 use error_stack::{IntoReport, ResultExt};
 use transformers as bluesnap;
 
-use super::utils::RefundsRequestData;
+use super::utils::{self as connector_utils, RefundsRequestData, RouterData};
 use crate::{
     configs::settings,
     consts,
@@ -18,6 +18,7 @@ use crate::{
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
+        storage::enums,
         ErrorResponse, Response,
     },
     utils::{self, BytesExt},
@@ -414,14 +415,21 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
 
     fn get_url(
         &self,
-        _req: &types::PaymentsAuthorizeRouterData,
+        req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!(
-            "{}{}",
-            self.base_url(connectors),
-            "services/2/transactions"
-        ))
+        match req.is_three_ds() {
+            true => Ok(format!(
+                "{}{}",
+                self.base_url(connectors),
+                "services/2/payment-fields-tokens?shopperId=44160199"
+            )),
+            _ => Ok(format!(
+                "{}{}",
+                self.base_url(connectors),
+                "services/2/transactions"
+            )),
+        }
     }
 
     fn get_request_body(
@@ -462,17 +470,40 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         data: &types::PaymentsAuthorizeRouterData,
         res: Response,
     ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
-        let response: bluesnap::BluesnapPaymentsResponse = res
-            .response
-            .parse_struct("BluesnapPaymentsResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        types::ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
+        match (data.is_three_ds(), res.headers) {
+            (true, Some(headers)) => {
+                let location = connector_utils::get_http_header("Location", &headers)?;
+                let payment_fields_token = url::Url::parse(location)
+                    .into_report()
+                    .change_context(errors::ConnectorError::URLParsingFailed { url: location.to_string() })?
+                    .path_segments()
+                    .and_then(|segments| segments.last())
+                    .ok_or_else(|| errors::ConnectorError::ResponseHandlingFailed)?.to_string();
+                Ok(types::RouterData {
+                    status: enums::AttemptStatus::AuthenticationPending,
+                    response: Ok(types::PaymentsResponseData::TransactionResponse {
+                        resource_id: types::ResponseId::NoResponseId,
+                        redirection_data: Some(services::RedirectForm::BlueSnap {
+                            payment_fields_token,
+                        }),
+                        mandate_reference: None,
+                        connector_metadata: None,
+                    }),
+                    ..data.clone()
+                })
+            }
+            _ => {
+                let response: bluesnap::BluesnapPaymentsResponse = res
+                    .response
+                    .parse_struct("BluesnapPaymentsResponse")
+                    .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+                types::RouterData::try_from(types::ResponseRouterData {
+                    response,
+                    data: data.clone(),
+                    http_code: res.status_code,
+                })
+            }
         }
-        .try_into()
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
     fn get_error_response(

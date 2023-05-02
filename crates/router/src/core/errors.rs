@@ -295,6 +295,8 @@ pub enum ConnectorError {
     InvalidWalletToken,
     #[error("File Validation failed")]
     FileValidationFailed { reason: String },
+    #[error("Failed to parse the url {url}")]
+    URLParsingFailed { url: String },
 }
 
 #[derive(Debug, thiserror::Error)]

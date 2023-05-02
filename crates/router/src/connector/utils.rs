@@ -519,8 +519,20 @@ pub fn get_header_key_value<'a>(
     key: &str,
     headers: &'a actix_web::http::header::HeaderMap,
 ) -> CustomResult<&'a str, errors::ConnectorError> {
-    headers
-        .get(key)
+    get_header_field(headers.get(key))
+}
+
+pub fn get_http_header<'a>(
+    key: &str,
+    headers: &'a http::HeaderMap,
+) -> CustomResult<&'a str, errors::ConnectorError> {
+    get_header_field(headers.get(key))
+}
+
+fn get_header_field<'a>(
+    field: Option<&'a http::HeaderValue>,
+) -> CustomResult<&'a str, errors::ConnectorError> {
+    field
         .map(|header_value| {
             header_value
                 .to_str()

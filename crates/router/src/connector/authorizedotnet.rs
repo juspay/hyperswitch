@@ -594,6 +594,7 @@ impl api::IncomingWebhook for Authorizedotnet {
 #[inline]
 fn get_error_response(
     types::Response {
+        headers: _,
         response,
         status_code,
     }: types::Response,
