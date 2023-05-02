@@ -150,15 +150,16 @@ where
         None => {
             if resp.request.get_setup_mandate_details().is_some() {
                 resp.payment_method_id = pm_id.clone();
-                let mandate_details = match resp.response.as_ref().ok() {
+                let (mandate_reference, network_txn_id) = match resp.response.as_ref().ok() {
                     Some(types::PaymentsResponseData::TransactionResponse {
                         mandate_reference,
+                        network_txn_id,
                         ..
-                    }) => mandate_reference.clone(),
-                    _ => None,
+                    }) => (mandate_reference.clone(), network_txn_id.clone()),
+                    _ => (None, None),
                 };
 
-                let mandate_ids = mandate_details
+                let mandate_ids = mandate_reference
                     .map(|md| {
                         Encode::<types::MandateReference>::encode_to_value(&md)
                             .change_context(errors::ApiErrorResponse::MandateNotFound)
@@ -173,13 +174,16 @@ where
                     maybe_customer,
                     pm_id.get_required_value("payment_method_id")?,
                     mandate_ids,
+                    network_txn_id,
                 ) {
                     let connector = new_mandate_data.connector.clone();
                     logger::debug!("{:?}", new_mandate_data);
-                    resp.request.set_mandate_id(
-                        new_mandate_data
-                            .clone()
-                            .connector_mandate_id
+                    resp.request
+                        .set_mandate_id(Some(api_models::payments::MandateIds {
+                            mandate_id: new_mandate_data.mandate_id.clone(),
+                            mandate_reference_id: new_mandate_data
+                                .connector_mandate_id
+                                .clone()
                             .map(|ids| {
                                 Some(ids)
                                     .parse_value::<api_models::payments::ConnectorMandateId>(
@@ -188,12 +192,19 @@ where
                                     .change_context(errors::ApiErrorResponse::MandateNotFound)
                             })
                             .transpose()?
-                            .map(|connector_id| api_models::payments::MandateIds {
-                                mandate_id: new_mandate_data.mandate_id.clone(),
-                                connector_mandate_id: connector_id.mandate_id,
-                                payment_method_id: connector_id.payment_method_id,
-                            }),
-                    );
+                            .map_or(
+                                new_mandate_data.network_transaction_id.clone().map(|id| {
+                                    api_models::payments::MandateReferenceId::NetworkMandateId(
+                                        id,
+                                    )
+                                }),
+                                |connector_id| Some(api_models::payments::MandateReferenceId::ConnectorMandateId(
+                                    api_models::payments::ConnectorMandateReferenceId {
+                                        connector_mandate_id: connector_id.mandate_id,
+                                        payment_method_id: connector_id.payment_method_id,
+                                    }
+                                )))
+                        }));
                     state
                         .store
                         .insert_mandate(new_mandate_data)

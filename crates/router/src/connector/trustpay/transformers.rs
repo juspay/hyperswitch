@@ -558,11 +558,13 @@ fn handle_cards_response(
         response.redirect_url.clone(),
     )?;
     let form_fields = response.redirect_params.unwrap_or_default();
-    let redirection_data = response.redirect_url.map(|url| services::RedirectForm {
-        endpoint: url.to_string(),
-        method: services::Method::Post,
-        form_fields,
-    });
+    let redirection_data = response
+        .redirect_url
+        .map(|url| services::RedirectForm::Form {
+            endpoint: url.to_string(),
+            method: services::Method::Post,
+            form_fields,
+        });
     let error = if msg.is_some() {
         Some(types::ErrorResponse {
             code: response.payment_status,
@@ -578,6 +580,7 @@ fn handle_cards_response(
         redirection_data,
         mandate_reference: None,
         connector_metadata: None,
+        network_txn_id: None,
     };
     Ok((status, error, payment_response_data))
 }
@@ -604,6 +607,7 @@ fn handle_bank_redirects_response(
         ))),
         mandate_reference: None,
         connector_metadata: None,
+        network_txn_id: None,
     };
     Ok((status, error, payment_response_data))
 }
@@ -634,6 +638,7 @@ fn handle_bank_redirects_error_response(
         redirection_data: None,
         mandate_reference: None,
         connector_metadata: None,
+        network_txn_id: None,
     };
     Ok((status, error, payment_response_data))
 }
@@ -674,6 +679,7 @@ fn handle_bank_redirects_sync_response(
         redirection_data: None,
         mandate_reference: None,
         connector_metadata: None,
+        network_txn_id: None,
     };
     Ok((status, error, payment_response_data))
 }
@@ -694,6 +700,7 @@ pub fn handle_webhook_response(
         redirection_data: None,
         mandate_reference: None,
         connector_metadata: None,
+        network_txn_id: None,
     };
     Ok((status, None, payment_response_data))
 }

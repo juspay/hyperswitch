@@ -457,6 +457,12 @@ impl ForeignFrom<storage_enums::DisputeStatus> for api_enums::DisputeStatus {
     }
 }
 
+impl ForeignFrom<api_types::FileUploadProvider> for storage_enums::FileUploadProvider {
+    fn foreign_from(provider: api_types::FileUploadProvider) -> Self {
+        frunk::labelled_convert_from(provider)
+    }
+}
+
 impl ForeignTryFrom<api_models::webhooks::IncomingWebhookEvent> for storage_enums::DisputeStatus {
     type Error = errors::ValidationError;
 

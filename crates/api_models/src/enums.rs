@@ -609,9 +609,10 @@ pub enum Connector {
     Rapyd,
     Shift4,
     Stripe,
+    Trustpay,
     Worldline,
     Worldpay,
-    Trustpay,
+    Zen,
 }
 
 impl Connector {
@@ -624,6 +625,9 @@ impl Connector {
                 | (Self::Payu, _)
                 | (Self::Trustpay, PaymentMethod::BankRedirect)
         )
+    }
+    pub fn supports_file_storage_module(&self) -> bool {
+        matches!(self, Self::Stripe)
     }
 }
 
@@ -671,6 +675,7 @@ pub enum RoutableConnectors {
     Trustpay,
     Worldline,
     Worldpay,
+    Zen,
 }
 
 /// Name of banks supported by Hyperswitch

@@ -17,7 +17,6 @@ pub struct DisputeNew {
     pub payment_id: String,
     pub attempt_id: String,
     pub merchant_id: String,
-    pub connector: String,
     pub connector_status: String,
     pub connector_dispute_id: String,
     pub connector_reason: Option<String>,
@@ -25,6 +24,7 @@ pub struct DisputeNew {
     pub challenge_required_by: Option<String>,
     pub dispute_created_at: Option<String>,
     pub updated_at: Option<String>,
+    pub connector: String,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, Identifiable, Queryable)]
@@ -65,14 +65,18 @@ pub enum DisputeUpdate {
         challenge_required_by: Option<String>,
         updated_at: Option<String>,
     },
+    StatusUpdate {
+        dispute_status: storage_enums::DisputeStatus,
+        connector_status: Option<String>,
+    },
 }
 
 #[derive(Clone, Debug, Default, AsChangeset, router_derive::DebugAsDisplay)]
 #[diesel(table_name = dispute)]
 pub struct DisputeUpdateInternal {
-    dispute_stage: storage_enums::DisputeStage,
+    dispute_stage: Option<storage_enums::DisputeStage>,
     dispute_status: storage_enums::DisputeStatus,
-    connector_status: String,
+    connector_status: Option<String>,
     connector_reason: Option<String>,
     connector_reason_code: Option<String>,
     challenge_required_by: Option<String>,
@@ -92,14 +96,23 @@ impl From<DisputeUpdate> for DisputeUpdateInternal {
                 challenge_required_by,
                 updated_at,
             } => Self {
-                dispute_stage,
+                dispute_stage: Some(dispute_stage),
                 dispute_status,
-                connector_status,
+                connector_status: Some(connector_status),
                 connector_reason,
                 connector_reason_code,
                 challenge_required_by,
                 updated_at,
                 modified_at: Some(common_utils::date_time::now()),
+            },
+            DisputeUpdate::StatusUpdate {
+                dispute_status,
+                connector_status,
+            } => Self {
+                dispute_status,
+                connector_status,
+                modified_at: Some(common_utils::date_time::now()),
+                ..Default::default()
             },
         }
     }

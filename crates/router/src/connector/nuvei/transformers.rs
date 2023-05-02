@@ -1121,7 +1121,7 @@ where
                 .and_then(|o| o.card.clone())
                 .and_then(|card| card.three_d)
                 .and_then(|three_ds| three_ds.acs_url.zip(three_ds.c_req))
-                .map(|(base_url, creq)| services::RedirectForm {
+                .map(|(base_url, creq)| services::RedirectForm::Form {
                     endpoint: base_url,
                     method: services::Method::Post,
                     form_fields: std::collections::HashMap::from([("creq".to_string(), creq)]),
@@ -1160,6 +1160,7 @@ where
                     } else {
                         None
                     },
+                    network_txn_id: None,
                 })
             },
             ..item.data

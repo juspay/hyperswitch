@@ -345,7 +345,12 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for MultisafepayPaymentsReques
                 .request
                 .mandate_id
                 .clone()
-                .and_then(|mandate_ids| mandate_ids.connector_mandate_id),
+                .and_then(|mandate_ids| match mandate_ids.mandate_reference_id {
+                    Some(api_models::payments::MandateReferenceId::ConnectorMandateId(
+                        connector_mandate_ids,
+                    )) => connector_mandate_ids.connector_mandate_id,
+                    _ => None,
+                }),
             days_active: Some(30),
             seconds_active: Some(259200),
             var1: None,
@@ -473,6 +478,7 @@ impl<F, T>
                         payment_method_id: None,
                     }),
                 connector_metadata: None,
+                network_txn_id: None,
             }),
             ..item.data
         })

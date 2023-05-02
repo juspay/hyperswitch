@@ -302,6 +302,17 @@ pub enum MandateTxnType {
 #[derive(Default, Eq, PartialEq, Debug, serde::Deserialize, serde::Serialize, Clone)]
 pub struct MandateIds {
     pub mandate_id: String,
+    pub mandate_reference_id: Option<MandateReferenceId>,
+}
+
+#[derive(Eq, PartialEq, Debug, serde::Deserialize, serde::Serialize, Clone)]
+pub enum MandateReferenceId {
+    ConnectorMandateId(ConnectorMandateReferenceId), // mandate_id send by connector
+    NetworkMandateId(String), // network_txns_id send by Issuer to connector, Used for PG agnostic mandate txns
+}
+
+#[derive(Eq, PartialEq, Debug, serde::Deserialize, serde::Serialize, Clone)]
+pub struct ConnectorMandateReferenceId {
     pub connector_mandate_id: Option<String>,
     pub payment_method_id: Option<String>,
 }
@@ -310,8 +321,7 @@ impl MandateIds {
     pub fn new(mandate_id: String) -> Self {
         Self {
             mandate_id,
-            connector_mandate_id: None,
-            payment_method_id: None,
+            mandate_reference_id: None,
         }
     }
 }
