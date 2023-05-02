@@ -9,11 +9,11 @@ impl PaymentIntents {
     pub fn server(state: routes::AppState) -> Scope {
         web::scope("/payment_intents")
             .app_data(web::Data::new(state))
+            .service(web::resource("").route(web::post().to(payment_intents_create)))
             .service(
                 web::resource("/sync")
                     .route(web::post().to(payment_intents_retrieve_with_gateway_creds)),
             )
-            .service(web::resource("").route(web::post().to(payment_intents_create)))
             .service(
                 web::resource("/{payment_id}")
                     .route(web::get().to(payment_intents_retrieve))
@@ -26,6 +26,9 @@ impl PaymentIntents {
             .service(
                 web::resource("/{payment_id}/capture")
                     .route(web::post().to(payment_intents_capture)),
+            )
+            .service(
+                web::resource("/{payment_id}/cancel").route(web::post().to(payment_intents_cancel)),
             )
     }
 }

@@ -13,7 +13,6 @@ use crate::{
 };
 
 #[instrument(skip_all)]
-// #[post("")]
 pub async fn customer_create(
     state: web::Data<routes::AppState>,
     qs_config: web::Data<serde_qs::Config>,
@@ -51,7 +50,6 @@ pub async fn customer_create(
 }
 
 #[instrument(skip_all)]
-// #[get("/{customer_id}")]
 pub async fn customer_retrieve(
     state: web::Data<routes::AppState>,
     req: HttpRequest,
@@ -83,7 +81,6 @@ pub async fn customer_retrieve(
 }
 
 #[instrument(skip_all)]
-// #[post("/{customer_id}")]
 pub async fn customer_update(
     state: web::Data<routes::AppState>,
     qs_config: web::Data<serde_qs::Config>,
@@ -124,7 +121,6 @@ pub async fn customer_update(
 }
 
 #[instrument(skip_all)]
-// #[delete("/{customer_id}")]
 pub async fn customer_delete(
     state: web::Data<routes::AppState>,
     req: HttpRequest,
@@ -154,7 +150,6 @@ pub async fn customer_delete(
 }
 
 #[instrument(skip_all)]
-// #[get("/{customer_id}/payment_methods")]
 pub async fn list_customer_payment_method_api(
     state: web::Data<routes::AppState>,
     req: HttpRequest,

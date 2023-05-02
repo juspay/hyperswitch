@@ -1,8 +1,6 @@
 pub mod types;
 
-#[cfg(feature = "olap")]
-use actix_web::get;
-use actix_web::{post, web, HttpRequest, HttpResponse};
+use actix_web::{web, HttpRequest, HttpResponse};
 use api_models::payments as payment_types;
 use error_stack::report;
 use router_env::{instrument, tracing};
@@ -15,7 +13,6 @@ use crate::{
     types::api::{self as api_types},
 };
 
-// #[post("")]
 #[instrument(skip_all)]
 pub async fn payment_intents_create(
     state: web::Data<routes::AppState>,
@@ -65,7 +62,6 @@ pub async fn payment_intents_create(
 }
 
 #[instrument(skip_all)]
-// #[get("/{payment_id}")]
 pub async fn payment_intents_retrieve(
     state: web::Data<routes::AppState>,
     req: HttpRequest,
@@ -114,7 +110,6 @@ pub async fn payment_intents_retrieve(
 }
 
 #[instrument(skip_all)]
-// #[post("/sync")]
 pub async fn payment_intents_retrieve_with_gateway_creds(
     state: web::Data<routes::AppState>,
     qs_config: web::Data<serde_qs::Config>,
@@ -172,7 +167,6 @@ pub async fn payment_intents_retrieve_with_gateway_creds(
 }
 
 #[instrument(skip_all)]
-// #[post("/{payment_id}")]
 pub async fn payment_intents_update(
     state: web::Data<routes::AppState>,
     qs_config: web::Data<serde_qs::Config>,
@@ -231,7 +225,6 @@ pub async fn payment_intents_update(
 }
 
 #[instrument(skip_all)]
-// #[post("/{payment_id}/confirm")]
 pub async fn payment_intents_confirm(
     state: web::Data<routes::AppState>,
     qs_config: web::Data<serde_qs::Config>,
@@ -291,7 +284,6 @@ pub async fn payment_intents_confirm(
     .await
 }
 
-// #[post("/{payment_id}/capture")]
 pub async fn payment_intents_capture(
     state: web::Data<routes::AppState>,
     qs_config: web::Data<serde_qs::Config>,
@@ -342,7 +334,6 @@ pub async fn payment_intents_capture(
 }
 
 #[instrument(skip_all)]
-#[post("/{payment_id}/cancel")]
 pub async fn payment_intents_cancel(
     state: web::Data<routes::AppState>,
     qs_config: web::Data<serde_qs::Config>,
@@ -397,7 +388,6 @@ pub async fn payment_intents_cancel(
 }
 
 #[instrument(skip_all)]
-#[get("/list")]
 #[cfg(feature = "olap")]
 pub async fn payment_intent_list(
     state: web::Data<routes::AppState>,
