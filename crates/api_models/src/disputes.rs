@@ -4,7 +4,7 @@ use utoipa::ToSchema;
 
 use super::enums::{DisputeStage, DisputeStatus};
 
-#[derive(Default, Clone, Debug, Serialize, ToSchema)]
+#[derive(Default, Clone, Debug, Serialize, ToSchema, Eq, PartialEq)]
 pub struct DisputeResponse {
     /// The identifier for dispute
     pub dispute_id: String,
