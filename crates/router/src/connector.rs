@@ -29,6 +29,7 @@ pub mod trustpay;
 pub mod utils;
 pub mod worldline;
 pub mod worldpay;
+pub mod zen;
 
 pub mod mollie;
 
@@ -41,5 +42,5 @@ pub use self::{
     globalpay::Globalpay, klarna::Klarna, mollie::Mollie, multisafepay::Multisafepay,
     nexinets::Nexinets, nuvei::Nuvei, opennode::Opennode, payeezy::Payeezy, paypal::Paypal,
     payu::Payu, rapyd::Rapyd, shift4::Shift4, stripe::Stripe, trustpay::Trustpay,
-    worldline::Worldline, worldpay::Worldpay,
+    worldline::Worldline, worldpay::Worldpay, zen::Zen,
 };
