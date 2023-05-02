@@ -625,6 +625,11 @@ pub async fn payments_cancel(
     let payment_id = path.into_inner();
     payload.payment_id = payment_id;
 
+    let (auth_type, auth_flow) =
+        match auth::check_client_secret_and_get_auth(req.headers(), &payload) {
+            Ok(auth) => auth,
+            Err(e) => return api::log_and_return_error_response(e),
+        };
     api::server_wrap(
         flow,
         state.get_ref(),
@@ -636,11 +641,11 @@ pub async fn payments_cancel(
                 merchant_account,
                 payments::PaymentCancel,
                 req,
-                api::AuthFlow::Merchant,
+                auth_flow,
                 payments::CallConnectorAction::Trigger,
             )
         },
-        &auth::ApiKeyAuth,
+        &*auth_type,
     )
     .await
 }

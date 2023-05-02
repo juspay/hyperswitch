@@ -1663,6 +1663,8 @@ pub struct PaymentsCancelRequest {
     pub payment_id: String,
     /// The reason for the payment cancel
     pub cancellation_reason: Option<String>,
+    ///To make it accessible for different auth types
+    pub client_secret: Option<String>,
     /// Merchant connector details used to make payments.
     pub merchant_connector_details: Option<admin::MerchantConnectorDetailsWrap>,
 }
