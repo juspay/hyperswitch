@@ -185,26 +185,21 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsCancelRequest> for 
                     )
                     .await
                     .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
-                Some(enums::AttemptStatus::Voided)
+                enums::AttemptStatus::Voided
             } else {
-                Some(enums::AttemptStatus::VoidInitiated)
+                enums::AttemptStatus::VoidInitiated
             };
-        let payment_attempt = payment_data.payment_attempt.clone();
-        attempt_status_update
-            .async_map(|status| async move {
-                db.update_payment_attempt_with_attempt_id(
-                    payment_attempt,
-                    storage::PaymentAttemptUpdate::VoidUpdate {
-                        status,
-                        cancellation_reason,
-                    },
-                    storage_scheme,
-                )
-                .await
-                .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
-            })
-            .await
-            .transpose()?;
+
+        db.update_payment_attempt_with_attempt_id(
+            payment_data.payment_attempt.clone(),
+            storage::PaymentAttemptUpdate::VoidUpdate {
+                status: attempt_status_update,
+                cancellation_reason,
+            },
+            storage_scheme,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
         Ok((Box::new(self), payment_data))
     }
 }
