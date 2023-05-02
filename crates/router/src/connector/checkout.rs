@@ -1083,7 +1083,7 @@ impl api::IncomingWebhook for Checkout {
             .parse_struct("CheckoutWebhookBody")
             .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
 
-        if checkout::is_chargeback_event(&details.txn_type) {
+        if checkout::is_chargeback_event(&details.transaction_type) {
             return Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
                 api_models::payments::PaymentIdType::ConnectorTransactionId(
                     details
@@ -1093,7 +1093,7 @@ impl api::IncomingWebhook for Checkout {
                 ),
             ));
         }
-        if checkout::is_refund_event(&details.txn_type) {
+        if checkout::is_refund_event(&details.transaction_type) {
             return Ok(api_models::webhooks::ObjectReferenceId::RefundId(
                 api_models::webhooks::RefundIdType::ConnectorRefundId(
                     details
@@ -1117,7 +1117,7 @@ impl api::IncomingWebhook for Checkout {
             .parse_struct("CheckoutWebhookBody")
             .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
 
-        Ok(api::IncomingWebhookEvent::from(details.txn_type))
+        Ok(api::IncomingWebhookEvent::from(details.transaction_type))
     }
 
     fn get_webhook_resource_object(
@@ -1143,12 +1143,14 @@ impl api::IncomingWebhook for Checkout {
         Ok(api::disputes::DisputePayload {
             amount: dispute_details.data.amount.to_string(),
             currency: dispute_details.data.currency,
-            dispute_stage: api_models::enums::DisputeStage::from(dispute_details.txn_type.clone()),
+            dispute_stage: api_models::enums::DisputeStage::from(
+                dispute_details.transaction_type.clone(),
+            ),
             connector_dispute_id: dispute_details.data.id,
             connector_reason: None,
             connector_reason_code: dispute_details.data.reason_code,
             challenge_required_by: dispute_details.data.evidence_required_by,
-            connector_status: dispute_details.txn_type.to_string(),
+            connector_status: dispute_details.transaction_type.to_string(),
             created_at: dispute_details.created_on,
             updated_at: dispute_details.data.date,
         })

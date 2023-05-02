@@ -4,6 +4,7 @@ use common_utils::{errors::CustomResult, pii};
 use error_stack::{IntoReport, ResultExt};
 use masking::{ExposeInterface, ExposeOptionInterface, Secret};
 use serde::{Deserialize, Serialize};
+use time::PrimitiveDateTime;
 use url::Url;
 use uuid::Uuid;
 
@@ -355,6 +356,20 @@ pub enum StripeBankNames {
     SnsBank,
     TriodosBank,
     VanLanschot,
+}
+
+impl TryFrom<WebhookEventStatus> for api_models::webhooks::IncomingWebhookEvent {
+    type Error = errors::ConnectorError;
+    fn try_from(value: WebhookEventStatus) -> Result<Self, Self::Error> {
+        Ok(match value {
+            WebhookEventStatus::WarningNeedsResponse => Self::DisputeOpened,
+            WebhookEventStatus::WarningClosed => Self::DisputeCancelled,
+            WebhookEventStatus::WarningUnderReview => Self::DisputeChallenged,
+            WebhookEventStatus::Won => Self::DisputeWon,
+            WebhookEventStatus::Lost => Self::DisputeLost,
+            _ => Err(errors::ConnectorError::WebhookEventTypeNotFound)?,
+        })
+    }
 }
 
 impl TryFrom<&api_models::enums::BankNames> for StripeBankNames {
@@ -1566,34 +1581,119 @@ impl<F, T>
 // }
 
 #[derive(Debug, Deserialize)]
-pub struct StripeWebhookDataObjectId {
-    pub id: String,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct StripeWebhookDataId {
-    pub object: StripeWebhookDataObjectId,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct StripeWebhookDataResource {
+pub struct WebhookEventDataResource {
     pub object: serde_json::Value,
 }
 
 #[derive(Debug, Deserialize)]
-pub struct StripeWebhookObjectResource {
-    pub data: StripeWebhookDataResource,
+pub struct WebhookEventObjectResource {
+    pub data: WebhookEventDataResource,
 }
 
 #[derive(Debug, Deserialize)]
-pub struct StripeWebhookObjectEventType {
+pub struct WebhookEvent {
     #[serde(rename = "type")]
-    pub event_type: String,
+    pub event_type: WebhookEventType,
+    #[serde(rename = "data")]
+    pub event_data: WebhookEventData,
 }
 
 #[derive(Debug, Deserialize)]
-pub struct StripeWebhookObjectId {
-    pub data: StripeWebhookDataId,
+pub struct WebhookEventData {
+    #[serde(rename = "object")]
+    pub event_object: WebhookEventObjectData,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct WebhookEventObjectData {
+    pub id: String,
+    pub object: WebhookEventObjectType,
+    pub amount: i32,
+    pub currency: String,
+    pub payment_intent: Option<String>,
+    pub reason: Option<String>,
+    #[serde(with = "common_utils::custom_serde::timestamp")]
+    pub created: PrimitiveDateTime,
+    pub evidence_details: Option<EvidenceDetails>,
+    pub status: Option<WebhookEventStatus>,
+}
+
+#[derive(Debug, Deserialize, strum::Display)]
+#[serde(rename_all = "snake_case")]
+pub enum WebhookEventObjectType {
+    PaymentIntent,
+    Dispute,
+    Charge,
+}
+
+#[derive(Debug, Deserialize)]
+pub enum WebhookEventType {
+    #[serde(rename = "payment_intent.payment_failed")]
+    PaymentIntentFailed,
+    #[serde(rename = "payment_intent.succeeded")]
+    PaymentIntentSucceed,
+    #[serde(rename = "charge.dispute.captured")]
+    ChargeDisputeCaptured,
+    #[serde(rename = "charge.dispute.created")]
+    DisputeCreated,
+    #[serde(rename = "charge.dispute.closed")]
+    DisputeClosed,
+    #[serde(rename = "charge.dispute.updated")]
+    DisputeUpdated,
+    #[serde(rename = "charge.dispute.funds_reinstated")]
+    ChargeDisputeFundsReinstated,
+    #[serde(rename = "charge.dispute.funds_withdrawn")]
+    ChargeDisputeFundsWithdrawn,
+    #[serde(rename = "charge.expired")]
+    ChargeExpired,
+    #[serde(rename = "charge.failed")]
+    ChargeFailed,
+    #[serde(rename = "charge.pending")]
+    ChargePending,
+    #[serde(rename = "charge.captured")]
+    ChargeCaptured,
+    #[serde(rename = "charge.succeeded")]
+    ChargeSucceeded,
+    #[serde(rename = "charge.updated")]
+    ChargeUpdated,
+    #[serde(rename = "charge.refunded")]
+    ChanrgeRefunded,
+    #[serde(rename = "payment_intent.canceled")]
+    PaymentIntentCanceled,
+    #[serde(rename = "payment_intent.created")]
+    PaymentIntentCreated,
+    #[serde(rename = "payment_intent.processing")]
+    PaymentIntentProcessing,
+    #[serde(rename = "payment_intent.requires_action")]
+    PaymentIntentRequiresAction,
+    #[serde(rename = "amount_capturable_updated")]
+    PaymentIntentAmountCapturableUpdated,
+}
+
+#[derive(Debug, Serialize, strum::Display, Deserialize, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum WebhookEventStatus {
+    WarningNeedsResponse,
+    WarningClosed,
+    WarningUnderReview,
+    Won,
+    Lost,
+    NeedsResponse,
+    UnderReview,
+    ChargeRefunded,
+    Succeeded,
+    RequiresPaymentMethod,
+    RequiresConfirmation,
+    RequiresAction,
+    Processing,
+    RequiresCapture,
+    Canceled,
+}
+
+#[derive(Debug, Deserialize, PartialEq)]
+pub struct EvidenceDetails {
+    #[serde(with = "common_utils::custom_serde::timestamp")]
+    pub due_by: PrimitiveDateTime,
 }
 
 impl

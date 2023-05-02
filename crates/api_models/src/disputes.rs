@@ -31,11 +31,14 @@ pub struct DisputeResponse {
     /// Reason code of dispute sent by connector
     pub connector_reason_code: Option<String>,
     /// Evidence deadline of dispute sent by connector
-    pub challenge_required_by: Option<String>,
+    #[serde(with = "common_utils::custom_serde::iso8601::option")]
+    pub challenge_required_by: Option<PrimitiveDateTime>,
     /// Dispute created time sent by connector
-    pub created_at: Option<String>,
+    #[serde(with = "common_utils::custom_serde::iso8601::option")]
+    pub created_at: Option<PrimitiveDateTime>,
     /// Dispute updated time sent by connector
-    pub updated_at: Option<String>,
+    #[serde(with = "common_utils::custom_serde::iso8601::option")]
+    pub updated_at: Option<PrimitiveDateTime>,
     /// Time at which dispute is received
     pub received_at: String,
 }

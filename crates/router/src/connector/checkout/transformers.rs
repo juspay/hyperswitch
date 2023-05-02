@@ -1,6 +1,7 @@
 use common_utils::errors::CustomResult;
 use error_stack::{IntoReport, ResultExt};
 use serde::{Deserialize, Serialize};
+use time::PrimitiveDateTime;
 use url::Url;
 
 use crate::{
@@ -674,27 +675,27 @@ impl From<CheckoutRedirectResponseStatus> for enums::AttemptStatus {
     }
 }
 
-pub fn is_refund_event(event_code: &CheckoutTxnType) -> bool {
+pub fn is_refund_event(event_code: &CheckoutTransactionType) -> bool {
     matches!(
         event_code,
-        CheckoutTxnType::PaymentRefunded | CheckoutTxnType::PaymentRefundDeclined
+        CheckoutTransactionType::PaymentRefunded | CheckoutTransactionType::PaymentRefundDeclined
     )
 }
 
-pub fn is_chargeback_event(event_code: &CheckoutTxnType) -> bool {
+pub fn is_chargeback_event(event_code: &CheckoutTransactionType) -> bool {
     matches!(
         event_code,
-        CheckoutTxnType::DisputeReceived
-            | CheckoutTxnType::DisputeExpired
-            | CheckoutTxnType::DisputeAccepted
-            | CheckoutTxnType::DisputeCanceled
-            | CheckoutTxnType::DisputeEvidenceSubmitted
-            | CheckoutTxnType::DisputeEvidenceAcknowledgedByScheme
-            | CheckoutTxnType::DisputeEvidenceRequired
-            | CheckoutTxnType::DisputeArbitrationLost
-            | CheckoutTxnType::DisputeArbitrationWon
-            | CheckoutTxnType::DisputeWon
-            | CheckoutTxnType::DisputeLost
+        CheckoutTransactionType::DisputeReceived
+            | CheckoutTransactionType::DisputeExpired
+            | CheckoutTransactionType::DisputeAccepted
+            | CheckoutTransactionType::DisputeCanceled
+            | CheckoutTransactionType::DisputeEvidenceSubmitted
+            | CheckoutTransactionType::DisputeEvidenceAcknowledgedByScheme
+            | CheckoutTransactionType::DisputeEvidenceRequired
+            | CheckoutTransactionType::DisputeArbitrationLost
+            | CheckoutTransactionType::DisputeArbitrationWon
+            | CheckoutTransactionType::DisputeWon
+            | CheckoutTransactionType::DisputeLost
     )
 }
 
@@ -705,20 +706,20 @@ pub struct CheckoutWebhookData {
     pub action_id: Option<String>,
     pub amount: i32,
     pub currency: String,
-    pub evidence_required_by: Option<String>,
+    pub evidence_required_by: Option<PrimitiveDateTime>,
     pub reason_code: Option<String>,
-    pub date: Option<String>,
+    pub date: Option<PrimitiveDateTime>,
 }
 #[derive(Debug, Deserialize)]
 pub struct CheckoutWebhookBody {
     #[serde(rename = "type")]
-    pub txn_type: CheckoutTxnType,
+    pub transaction_type: CheckoutTransactionType,
     pub data: CheckoutWebhookData,
-    pub created_on: Option<String>,
+    pub created_on: Option<PrimitiveDateTime>,
 }
 #[derive(Debug, Deserialize, strum::Display, Clone)]
 #[serde(rename_all = "snake_case")]
-pub enum CheckoutTxnType {
+pub enum CheckoutTransactionType {
     PaymentApproved,
     PaymentDeclined,
     PaymentRefunded,
@@ -736,37 +737,35 @@ pub enum CheckoutTxnType {
     DisputeLost,
 }
 
-impl From<CheckoutTxnType> for api::IncomingWebhookEvent {
-    fn from(txn_type: CheckoutTxnType) -> Self {
-        match txn_type {
-            CheckoutTxnType::PaymentApproved => Self::PaymentIntentSuccess,
-            CheckoutTxnType::PaymentDeclined => Self::PaymentIntentSuccess,
-            CheckoutTxnType::PaymentRefunded => Self::RefundSuccess,
-            CheckoutTxnType::PaymentRefundDeclined => Self::RefundFailure,
-            CheckoutTxnType::DisputeReceived | CheckoutTxnType::DisputeEvidenceRequired => {
-                Self::DisputeOpened
+impl From<CheckoutTransactionType> for api::IncomingWebhookEvent {
+    fn from(transaction_type: CheckoutTransactionType) -> Self {
+        match transaction_type {
+            CheckoutTransactionType::PaymentApproved => Self::PaymentIntentSuccess,
+            CheckoutTransactionType::PaymentDeclined => Self::PaymentIntentSuccess,
+            CheckoutTransactionType::PaymentRefunded => Self::RefundSuccess,
+            CheckoutTransactionType::PaymentRefundDeclined => Self::RefundFailure,
+            CheckoutTransactionType::DisputeReceived
+            | CheckoutTransactionType::DisputeEvidenceRequired => Self::DisputeOpened,
+            CheckoutTransactionType::DisputeExpired => Self::DisputeExpired,
+            CheckoutTransactionType::DisputeAccepted => Self::DisputeAccepted,
+            CheckoutTransactionType::DisputeCanceled => Self::DisputeCancelled,
+            CheckoutTransactionType::DisputeEvidenceSubmitted
+            | CheckoutTransactionType::DisputeEvidenceAcknowledgedByScheme => {
+                Self::DisputeChallenged
             }
-            CheckoutTxnType::DisputeExpired => Self::DisputeExpired,
-            CheckoutTxnType::DisputeAccepted => Self::DisputeAccepted,
-            CheckoutTxnType::DisputeCanceled => Self::DisputeCancelled,
-            CheckoutTxnType::DisputeEvidenceSubmitted
-            | CheckoutTxnType::DisputeEvidenceAcknowledgedByScheme => Self::DisputeChallenged,
-            CheckoutTxnType::DisputeWon | CheckoutTxnType::DisputeArbitrationWon => {
-                Self::DisputeWon
-            }
-            CheckoutTxnType::DisputeLost | CheckoutTxnType::DisputeArbitrationLost => {
-                Self::DisputeLost
-            }
+            CheckoutTransactionType::DisputeWon
+            | CheckoutTransactionType::DisputeArbitrationWon => Self::DisputeWon,
+            CheckoutTransactionType::DisputeLost
+            | CheckoutTransactionType::DisputeArbitrationLost => Self::DisputeLost,
         }
     }
 }
 
-impl From<CheckoutTxnType> for api_models::enums::DisputeStage {
-    fn from(code: CheckoutTxnType) -> Self {
+impl From<CheckoutTransactionType> for api_models::enums::DisputeStage {
+    fn from(code: CheckoutTransactionType) -> Self {
         match code {
-            CheckoutTxnType::DisputeArbitrationLost | CheckoutTxnType::DisputeArbitrationWon => {
-                Self::PreArbitration
-            }
+            CheckoutTransactionType::DisputeArbitrationLost
+            | CheckoutTransactionType::DisputeArbitrationWon => Self::PreArbitration,
             _ => Self::Dispute,
         }
     }
