@@ -15,6 +15,8 @@ use crate::{
     utils::OptionExt,
 };
 
+use super::Stripe;
+
 pub struct StripeAuthType {
     pub(super) api_key: String,
 }
@@ -272,7 +274,7 @@ pub enum StripePaymentMethodData {
 pub enum StripeWallet {
     ApplepayToken(StripeApplePay),
     ApplepayPayment(ApplepayPayment),
-    WeChatpayPayment(WeChatpayPayment)
+    WechatpayPayment(WechatpayPayment)
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
@@ -292,16 +294,18 @@ pub struct ApplepayPayment {
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
-pub struct WeChatpayPayment {
-    #[serde(rename = "payment_method_options[wechat_pay][client]")]
-    pub client: WeChatClient,
+pub struct WechatpayPayment {
+    #[serde(rename = "payment_method_types[]")]
+    pub payment_method_types : StripePaymentMethodType,
     #[serde(rename = "payment_method_data[type]")]
-    pub payment_method_types: StripePaymentMethodType,
+    pub payment_method_data_type: StripePaymentMethodType,
+    #[serde(rename = "payment_method_options[wechat_pay][client]")]
+    pub client: WechatClient,
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize, Clone, Copy)]
 #[serde(rename_all = "snake_case")]
-pub enum WeChatClient {
+pub enum WechatClient {
     Web,
     Android,
     Ios
@@ -780,11 +784,12 @@ fn create_stripe_payment_method(
             )),
 
             payments::WalletData::WeChatPayRedirect(_) => Ok((
-                StripePaymentMethodData::Wallet(StripeWallet::WeChatpayPayment(WeChatpayPayment {
-                    client: WeChatClient::Web,
-                    payment_method_types: StripePaymentMethodType::Wechatpay
+                StripePaymentMethodData::Wallet(StripeWallet::WechatpayPayment(WechatpayPayment {
+                    client: WechatClient::Web,
+                    payment_method_types: StripePaymentMethodType::Wechatpay,
+                    payment_method_data_type: StripePaymentMethodType::Wechatpay,
                 })),
-                StripePaymentMethodType::ApplePay,
+                StripePaymentMethodType::Wechatpay,
                 StripeBillingAddress::default(),
             )),
             _ => Err(errors::ConnectorError::NotImplemented(
@@ -1210,6 +1215,7 @@ impl<F, T>
                     | StripePaymentMethodOptions::Ach {}
                     | StripePaymentMethodOptions::Bacs {}
                     | StripePaymentMethodOptions::Becs {}
+                    | StripePaymentMethodOptions::WechatPay {}
                     | StripePaymentMethodOptions::Sepa {} => None,
                 });
 
@@ -1283,12 +1289,14 @@ impl<F, T>
 pub enum StripeNextActionResponse {
     RedirectToUrl(StripeRedirectToUrlResponse),
     VerifyWithMicrodeposits(StripeVerifyWithMicroDepositsResponse),
+    WechatPayDisplayQrCode(StripeRedirectToQR)
 }
 
 impl StripeNextActionResponse {
     fn get_url(&self) -> Url {
         match self {
             Self::RedirectToUrl(redirect_to_url) => redirect_to_url.url.to_owned(),
+            Self::WechatPayDisplayQrCode(redirect_to_url) => redirect_to_url.data.to_owned(),
             Self::VerifyWithMicrodeposits(verify_with_microdeposits) => {
                 verify_with_microdeposits.hosted_verification_url.to_owned()
             }
@@ -1320,6 +1328,11 @@ impl<'de> Deserialize<'de> for StripeNextActionResponse {
 pub struct StripeRedirectToUrlResponse {
     return_url: String,
     url: Url,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
+pub struct StripeRedirectToQR{
+    data: Url,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Deserialize)]
@@ -1482,7 +1495,7 @@ pub struct StripeBillingAddress {
 #[derive(Debug, Clone, serde::Deserialize, Eq, PartialEq)]
 pub struct StripeRedirectResponse {
     pub payment_intent: String,
-    pub payment_intent_client_secret: String,
+    pub payment_intent_client_secret: Option<String>,
     pub source_redirect_slug: Option<String>,
     pub redirect_status: Option<StripePaymentStatus>,
     pub source_type: Option<Secret<String>>,
@@ -1524,6 +1537,7 @@ pub enum StripePaymentMethodOptions {
     Becs {},
     #[serde(rename = "bacs_debit")]
     Bacs {},
+    WechatPay{}
 }
 // #[derive(Deserialize, Debug, Clone, Eq, PartialEq)]
 // pub struct Card
@@ -1689,6 +1703,15 @@ impl
                         pk_token_instrument_name: data.payment_method.pm_type,
                         pk_token_payment_network: data.payment_method.network,
                         pk_token_transaction_id: data.transaction_identifier,
+                    });
+                    Ok(Self::Wallet(wallet_info))
+                }
+
+                payments::WalletData::WeChatPayRedirect(_) => {
+                    let wallet_info = StripeWallet::WechatpayPayment(WechatpayPayment {
+                        client: WechatClient::Web,
+                        payment_method_types: StripePaymentMethodType::Wechatpay,
+                        payment_method_data_type: StripePaymentMethodType::Wechatpay,
                     });
                     Ok(Self::Wallet(wallet_info))
                 }
