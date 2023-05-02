@@ -571,7 +571,9 @@ impl TryFrom<&payments::BankRedirectData> for StripeBillingAddress {
                 name: Some(billing_details.billing_name.clone()),
                 ..Self::default()
             }),
-            payments::BankRedirectData::Giropay { billing_details } => Ok(Self {
+            payments::BankRedirectData::Giropay {
+                billing_details, ..
+            } => Ok(Self {
                 name: Some(billing_details.billing_name.clone()),
                 ..Self::default()
             }),
