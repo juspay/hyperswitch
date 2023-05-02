@@ -1128,7 +1128,6 @@ impl
         let stripe_req = stripe::Evidence::try_from(req)?;
         let stripe_req_string = utils::Encode::<stripe::Evidence>::url_encode(&stripe_req)
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        print!("Stripe request: {:?}", stripe_req_string);
         Ok(Some(stripe_req_string))
     }
 

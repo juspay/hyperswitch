@@ -45,4 +45,16 @@ pub trait SubmitEvidence:
 {
 }
 
-pub trait Dispute: super::ConnectorCommon + AcceptDispute + SubmitEvidence {}
+#[derive(Debug, Clone)]
+pub struct Defend;
+
+pub trait DefendDispute:
+    services::ConnectorIntegration<
+    Defend,
+    types::DefendDisputeRequestData,
+    types::DefendDisputeResponse,
+>
+{
+}
+
+pub trait Dispute: super::ConnectorCommon + AcceptDispute + SubmitEvidence + DefendDispute {}
