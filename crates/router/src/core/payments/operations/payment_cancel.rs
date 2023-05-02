@@ -112,43 +112,45 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsCancelRequest> 
             .await
             .transpose()?;
 
-        match payment_intent.status {
-            status if status != enums::IntentStatus::RequiresCapture => {
-                Err(errors::ApiErrorResponse::InvalidRequestData {
-                    message: "You cannot cancel the payment that has not been authorized"
-                        .to_string(),
-                }
-                .into())
-            }
-            _ => Ok((
-                Box::new(self),
-                PaymentData {
-                    flow: PhantomData,
-                    payment_intent,
-                    payment_attempt,
-                    currency,
-                    amount,
-                    email: None,
-                    mandate_id: None,
-                    setup_mandate: None,
-                    token: None,
-                    address: PaymentAddress {
-                        shipping: shipping_address.as_ref().map(|a| a.foreign_into()),
-                        billing: billing_address.as_ref().map(|a| a.foreign_into()),
-                    },
-                    confirm: None,
-                    payment_method_data: None,
-                    force_sync: None,
-                    refunds: vec![],
-                    connector_response,
-                    sessions_token: vec![],
-                    card_cvc: None,
-                    creds_identifier,
-                    pm_token: None,
+        helpers::validate_payment_status_against_not_allowed_statuses(
+            &payment_intent.status,
+            &[
+                enums::IntentStatus::Failed,
+                enums::IntentStatus::Succeeded,
+                enums::IntentStatus::Cancelled,
+                enums::IntentStatus::Processing,
+                enums::IntentStatus::RequiresMerchantAction,
+            ],
+            "cancelled",
+        )?;
+        Ok((
+            Box::new(self),
+            PaymentData {
+                flow: PhantomData,
+                payment_intent,
+                payment_attempt,
+                currency,
+                amount,
+                email: None,
+                mandate_id: None,
+                setup_mandate: None,
+                token: None,
+                address: PaymentAddress {
+                    shipping: shipping_address.as_ref().map(|a| a.foreign_into()),
+                    billing: billing_address.as_ref().map(|a| a.foreign_into()),
                 },
-                None,
-            )),
-        }
+                confirm: None,
+                payment_method_data: None,
+                force_sync: None,
+                refunds: vec![],
+                connector_response,
+                sessions_token: vec![],
+                card_cvc: None,
+                creds_identifier,
+                pm_token: None,
+            },
+            None,
+        ))
     }
 }
 
@@ -170,18 +172,39 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsCancelRequest> for 
         F: 'b + Send,
     {
         let cancellation_reason = payment_data.payment_attempt.cancellation_reason.clone();
-        payment_data.payment_attempt = db
-            .update_payment_attempt_with_attempt_id(
-                payment_data.payment_attempt,
-                storage::PaymentAttemptUpdate::VoidUpdate {
-                    status: enums::AttemptStatus::VoidInitiated,
-                    cancellation_reason,
-                },
-                storage_scheme,
-            )
+        let attempt_status_update =
+            if payment_data.payment_intent.status != enums::IntentStatus::RequiresCapture {
+                let payment_intent_update = storage::PaymentIntentUpdate::PGStatusUpdate {
+                    status: enums::IntentStatus::Cancelled,
+                };
+                payment_data.payment_intent = db
+                    .update_payment_intent(
+                        payment_data.payment_intent,
+                        payment_intent_update,
+                        storage_scheme,
+                    )
+                    .await
+                    .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+                Some(enums::AttemptStatus::Voided)
+            } else {
+                Some(enums::AttemptStatus::VoidInitiated)
+            };
+        let payment_attempt = payment_data.payment_attempt.clone();
+        attempt_status_update
+            .async_map(|status| async move {
+                db.update_payment_attempt_with_attempt_id(
+                    payment_attempt,
+                    storage::PaymentAttemptUpdate::VoidUpdate {
+                        status,
+                        cancellation_reason,
+                    },
+                    storage_scheme,
+                )
+                .await
+                .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
+            })
             .await
-            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
-
+            .transpose()?;
         Ok((Box::new(self), payment_data))
     }
 }

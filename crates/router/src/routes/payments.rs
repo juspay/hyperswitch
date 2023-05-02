@@ -624,7 +624,6 @@ pub async fn payments_cancel(
     let mut payload = json_payload.into_inner();
     let payment_id = path.into_inner();
     payload.payment_id = payment_id;
-
     api::server_wrap(
         flow,
         state.get_ref(),
