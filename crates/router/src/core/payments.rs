@@ -843,9 +843,7 @@ pub fn should_call_connector<Op: Debug, F: Clone>(
         }
         "PaymentCancel" => matches!(
             payment_data.payment_intent.status,
-            storage_enums::IntentStatus::RequiresCapture // | storage_enums::IntentStatus::RequiresPaymentMethod
-                                                         // | storage_enums::IntentStatus::RequiresConfirmation
-                                                         // | storage_enums::IntentStatus::RequiresCustomerAction
+            storage_enums::IntentStatus::RequiresCaptur
         ),
         "PaymentCapture" => {
             matches!(
