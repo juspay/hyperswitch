@@ -477,7 +477,7 @@ pub async fn validate_and_create_refund(
     let (refund_id, all_refunds, currency, refund_create_req, refund);
 
     // Only for initial dev and testing
-    let refund_type = req.refund_type.clone().unwrap_or_default();
+    let refund_type = req.refund_type.unwrap_or_default();
 
     // If Refund Id not passed in request Generate one.
 
