@@ -75,7 +75,7 @@ pub struct RefundUpdateRequest {
 }
 
 #[derive(
-    Default, Debug, Clone, ToSchema, Deserialize, Serialize, Eq, PartialEq, strum::Display,
+    Default, Debug, Clone,Copy, ToSchema, Deserialize, Serialize, Eq, PartialEq, strum::Display,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum RefundType {
