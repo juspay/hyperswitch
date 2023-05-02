@@ -514,6 +514,7 @@ pub enum PaymentMethodData {
     BankRedirect(BankRedirectData),
     BankDebit(BankDebitData),
     Crypto(CryptoData),
+    MandatePayment,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
@@ -530,6 +531,7 @@ pub enum AdditionalPaymentData {
     PayLater {},
     Crypto {},
     BankDebit {},
+    MandatePayment {},
 }
 
 impl From<&PaymentMethodData> for AdditionalPaymentData {
@@ -555,6 +557,7 @@ impl From<&PaymentMethodData> for AdditionalPaymentData {
             PaymentMethodData::PayLater(_) => Self::PayLater {},
             PaymentMethodData::Crypto(_) => Self::Crypto {},
             PaymentMethodData::BankDebit(_) => Self::BankDebit {},
+            PaymentMethodData::MandatePayment => Self::MandatePayment {},
         }
     }
 }
@@ -781,6 +784,7 @@ pub enum PaymentMethodDataResponse {
     BankRedirect(BankRedirectData),
     Crypto(CryptoData),
     BankDebit(BankDebitData),
+    MandatePayment,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -1322,6 +1326,7 @@ impl From<PaymentMethodData> for PaymentMethodDataResponse {
             }
             PaymentMethodData::Crypto(crpto_data) => Self::Crypto(crpto_data),
             PaymentMethodData::BankDebit(bank_debit_data) => Self::BankDebit(bank_debit_data),
+            PaymentMethodData::MandatePayment => Self::MandatePayment,
         }
     }
 }

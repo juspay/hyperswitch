@@ -87,7 +87,9 @@ impl TryFrom<api_models::payments::PaymentMethodData> for PaymentDetails {
             api::PaymentMethodData::PayLater(_) => Ok(Self::Klarna),
             api::PaymentMethodData::Wallet(_) => Ok(Self::Wallet),
             api::PaymentMethodData::BankRedirect(_) => Ok(Self::BankRedirect),
-            api::PaymentMethodData::Crypto(_) | api::PaymentMethodData::BankDebit(_) => {
+            api::PaymentMethodData::Crypto(_)
+            | api::PaymentMethodData::BankDebit(_)
+            | api::PaymentMethodData::MandatePayment => {
                 Err(errors::ConnectorError::NotSupported {
                     payment_method: format!("{value:?}"),
                     connector: "AuthorizeDotNet",

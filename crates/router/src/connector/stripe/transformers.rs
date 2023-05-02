@@ -1673,11 +1673,14 @@ impl
                     bank_specific_data: bank_data,
                 }))
             }
-            api::PaymentMethodData::Crypto(_) => Err(errors::ConnectorError::NotSupported {
-                payment_method: format!("{pm_type:?}"),
-                connector: "Stripe",
-                payment_experience: api_models::enums::PaymentExperience::RedirectToUrl.to_string(),
-            })?,
+            api::PaymentMethodData::MandatePayment | api::PaymentMethodData::Crypto(_) => {
+                Err(errors::ConnectorError::NotSupported {
+                    payment_method: format!("{pm_type:?}"),
+                    connector: "Stripe",
+                    payment_experience: api_models::enums::PaymentExperience::RedirectToUrl
+                        .to_string(),
+                })?
+            }
         }
     }
 }
