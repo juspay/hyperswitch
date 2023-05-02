@@ -89,6 +89,7 @@ pub struct Store {
     #[cfg(feature = "kv_store")]
     pub(crate) config: StoreConfig,
     pub master_key: Vec<u8>,
+    pub migration_timestamp: i64,
 }
 
 #[cfg(feature = "kv_store")]
@@ -126,6 +127,8 @@ impl Store {
         )
         .await;
 
+        // let migration_timestamp = config.
+
         Self {
             master_pool: diesel_make_pg_pool(
                 &config.master_database,
@@ -149,6 +152,7 @@ impl Store {
                 drainer_num_partitions: config.drainer.num_partitions,
             },
             master_key: master_enc_key,
+            migration_timestamp: config.secrets.migration_encryption_timestamp,
         }
     }
 

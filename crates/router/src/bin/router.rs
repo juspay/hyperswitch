@@ -38,8 +38,7 @@ async fn main() -> ApplicationResult<()> {
 
     #[cfg(feature = "pii-encryption-script")]
     {
-        use router::db::StorageInterface;
-        let mut store =
+        let store =
             router::services::Store::new(&conf, false, tokio::sync::oneshot::channel().0).await;
 
         #[allow(clippy::expect_used)]
@@ -48,7 +47,6 @@ async fn main() -> ApplicationResult<()> {
             .expect("Failed while encrypting merchant account");
 
         crate::logger::error!("Done with everything");
-
     }
 
     logger::info!("Application started [{:?}] [{:?}]", conf.server, conf.log);

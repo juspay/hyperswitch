@@ -30,6 +30,7 @@ pub trait TypeEncryption<
         key: &[u8],
         crypt_algo: V,
         timestamp: i64,
+        migration_timestamp: i64,
     ) -> CustomResult<Self, errors::CryptoError>;
 }
 
@@ -56,11 +57,16 @@ impl<
         key: &[u8],
         crypt_algo: V,
         timestamp: i64,
+        migration_timestamp: i64,
     ) -> CustomResult<Self, errors::CryptoError> {
         let encrypted = encrypted_data.into_inner();
 
-        crate::logger::error!("const TIMESTAMP {}, modified_at {}", TIMESTAMP, timestamp);
-        let (data, encrypted) = if timestamp < TIMESTAMP {
+        crate::logger::error!(
+            "const TIMESTAMP {}, modified_at {}",
+            migration_timestamp,
+            timestamp
+        );
+        let (data, encrypted) = if timestamp < migration_timestamp {
             (
                 encrypted.clone(),
                 crypt_algo.encode_message(key, &encrypted)?,
@@ -110,10 +116,15 @@ impl<
         key: &[u8],
         crypt_algo: V,
         timestamp: i64,
+        migration_timestamp: i64,
     ) -> CustomResult<Self, errors::CryptoError> {
         let encrypted = encrypted_data.into_inner();
-        crate::logger::error!("const TIMESTAMP {}, modified_at {}", TIMESTAMP, timestamp);
-        let (data, encrypted) = if timestamp < TIMESTAMP {
+        crate::logger::error!(
+            "const TIMESTAMP {}, modified_at {}",
+            migration_timestamp,
+            timestamp
+        );
+        let (data, encrypted) = if timestamp < migration_timestamp {
             (
                 encrypted.clone(),
                 crypt_algo.encode_message(key, &encrypted)?,
@@ -158,10 +169,16 @@ impl<
         key: &[u8],
         crypt_algo: V,
         timestamp: i64,
+        migration_timestamp: i64,
     ) -> CustomResult<Self, errors::CryptoError> {
         let encrypted = encrypted_data.into_inner();
 
-        let (data, encrypted) = if timestamp < TIMESTAMP {
+        crate::logger::error!(
+            "const TIMESTAMP {}, modified_at {}",
+            migration_timestamp,
+            timestamp
+        );
+        let (data, encrypted) = if timestamp < migration_timestamp {
             (
                 encrypted.clone(),
                 crypt_algo.encode_message(key, &encrypted)?,
@@ -254,13 +271,20 @@ pub async fn decrypt<T: Clone, S: masking::Strategy<T>>(
     inner: Option<Encryption>,
     key: &[u8],
     timestamp: i64,
+    migration_timestamp: i64,
 ) -> CustomResult<Option<crypto::Encryptable<Secret<T, S>>>, errors::CryptoError>
 where
     crypto::Encryptable<Secret<T, S>>: TypeEncryption<T, crypto::GcmAes256, S>,
 {
     request::record_operation_time(
         inner.async_map(|item| {
-            crypto::Encryptable::decrypt(item, key, crypto::GcmAes256 {}, timestamp)
+            crypto::Encryptable::decrypt(
+                item,
+                key,
+                crypto::GcmAes256 {},
+                timestamp,
+                migration_timestamp,
+            )
         }),
         &DECRYPTION_TIME,
     )

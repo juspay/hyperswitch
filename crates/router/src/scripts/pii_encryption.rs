@@ -1,4 +1,4 @@
-use common_utils::{errors::CustomResult, ext_traits::AsyncExt};
+use common_utils::errors::CustomResult;
 use diesel::{associations::HasTable, ExpressionMethods, Table};
 use error_stack::ResultExt;
 use storage_models::{
@@ -82,7 +82,7 @@ pub async fn encrypt_merchant_account_fields(
     for mf in merchants.into_iter() {
         let merchant_id = mf.merchant_id.clone();
         let domain_merchant: domain::MerchantAccount = mf
-            .convert(state, &merchant_id)
+            .convert(state, &merchant_id, state.get_migration_timestamp())
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)?;
         domain_merchants.push(domain_merchant);
@@ -146,7 +146,7 @@ pub async fn encrypt_merchant_connector_account_fields(
     for m in merchants.into_iter() {
         let merchant_id = m.merchant_id.clone();
         let domain_merchant: domain::MerchantConnectorAccount = m
-            .convert(state, &merchant_id)
+            .convert(state, &merchant_id, state.get_migration_timestamp())
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)?;
         domain_merchants.push(domain_merchant);
@@ -200,7 +200,7 @@ pub async fn encrypt_customer_fields(
     for m in merchants.into_iter() {
         let merchant_id = m.merchant_id.clone();
         let domain_merchant: domain::Customer = m
-            .convert(state, &merchant_id)
+            .convert(state, &merchant_id, state.get_migration_timestamp())
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)?;
         domain_merchants.push(domain_merchant);
@@ -254,7 +254,7 @@ pub async fn encrypt_address_fields(
     for m in merchants.into_iter() {
         let merchant_id = m.merchant_id.clone();
         let domain_merchant: domain::Address = m
-            .convert(state, &merchant_id)
+            .convert(state, &merchant_id, state.get_migration_timestamp())
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)?;
         domain_merchants.push(domain_merchant);
