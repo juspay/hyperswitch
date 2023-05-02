@@ -95,6 +95,6 @@ key1 = "key1"
 api_secret = "secret"
 
 [iatapay]
-key1 = "6E3120000"
-api_key = "6e3120000-5tzx37"
-api_secret = "m5bd9Cef87XAjsHKnIe0upRyopH6k0"
+key1 = "key1"
+api_key = "api_key"
+api_secret = "secrect"
