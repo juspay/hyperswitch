@@ -175,6 +175,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsSessionRequest>
                 card_cvc: None,
                 creds_identifier,
                 pm_token: None,
+                connector_customer_id: None,
             },
             Some(customer_details),
         ))
@@ -191,6 +192,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsSessionRequest> for
         mut payment_data: PaymentData<F>,
         _customer: Option<storage::Customer>,
         storage_scheme: storage_enums::MerchantStorageScheme,
+        _updated_customer: Option<storage::CustomerUpdate>,
     ) -> RouterResult<(
         BoxedOperation<'b, F, api::PaymentsSessionRequest>,
         PaymentData<F>,

@@ -39,6 +39,8 @@ pub type RefundExecuteRouterData = RouterData<api::Execute, RefundsData, Refunds
 pub type RefundSyncRouterData = RouterData<api::RSync, RefundsData, RefundsResponseData>;
 pub type TokenizationRouterData =
     RouterData<api::PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>;
+pub type ConnectorCustomerRouterData =
+    RouterData<api::CreateConnectorCustomer, ConnectorCustomerData, PaymentsResponseData>;
 
 pub type RefreshTokenRouterData =
     RouterData<api::AccessTokenAuth, AccessTokenRequestData, AccessToken>;
@@ -59,6 +61,12 @@ pub type TokenizationResponseRouterData<R> = ResponseRouterData<
     api::PaymentMethodToken,
     R,
     PaymentMethodTokenizationData,
+    PaymentsResponseData,
+>;
+pub type ConnectorCustomerResponseRouterData<R> = ResponseRouterData<
+    api::CreateConnectorCustomer,
+    R,
+    ConnectorCustomerData,
     PaymentsResponseData,
 >;
 
@@ -94,6 +102,12 @@ pub type PaymentsVoidType =
 pub type TokenizationType = dyn services::ConnectorIntegration<
     api::PaymentMethodToken,
     PaymentMethodTokenizationData,
+    PaymentsResponseData,
+>;
+
+pub type ConnectorCustomerType = dyn services::ConnectorIntegration<
+    api::CreateConnectorCustomer,
+    ConnectorCustomerData,
     PaymentsResponseData,
 >;
 
@@ -143,6 +157,8 @@ pub type DefendDisputeRouterData =
 pub struct RouterData<Flow, Request, Response> {
     pub flow: PhantomData<Flow>,
     pub merchant_id: String,
+    pub customer_id: Option<String>,
+    pub connector_customer: Option<String>,
     pub connector: String,
     pub payment_id: String,
     pub attempt_id: String,
@@ -212,6 +228,14 @@ pub struct AuthorizeSessionTokenData {
     pub currency: storage_enums::Currency,
     pub connector_transaction_id: String,
     pub amount: i64,
+}
+
+#[derive(Debug, Clone)]
+pub struct ConnectorCustomerData {
+    pub description: Option<String>,
+    pub email: Option<masking::Secret<String, Email>>,
+    pub phone: Option<masking::Secret<String>>,
+    pub name: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -302,6 +326,7 @@ pub enum PaymentsResponseData {
         redirection_data: Option<services::RedirectForm>,
         mandate_reference: Option<String>,
         connector_metadata: Option<serde_json::Value>,
+        network_txn_id: Option<String>,
     },
     SessionResponse {
         session_token: api::SessionToken,
@@ -317,6 +342,11 @@ pub enum PaymentsResponseData {
     TokenizationResponse {
         token: String,
     },
+
+    ConnectorCustomerResponse {
+        connector_customer_id: String,
+    },
+
     ThreeDSEnrollmentResponse {
         enrolled_v2: bool,
         related_transaction_id: Option<String>,
@@ -628,7 +658,9 @@ impl<F1, F2, T1, T2> From<(&&mut RouterData<F1, T1, PaymentsResponseData>, T2)>
             payment_id: data.payment_id.clone(),
             session_token: data.session_token.clone(),
             reference_id: data.reference_id.clone(),
+            customer_id: data.customer_id.clone(),
             payment_method_token: None,
+            connector_customer: data.connector_customer.clone(),
         }
     }
 }

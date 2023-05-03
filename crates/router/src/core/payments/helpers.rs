@@ -1137,6 +1137,7 @@ pub fn generate_mandate(
     customer: &Option<storage::Customer>,
     payment_method_id: String,
     connector_mandate_id: Option<String>,
+    network_txn_id: Option<String>,
 ) -> Option<storage::MandateNew> {
     match (setup_mandate_details, customer) {
         (Some(data), Some(cus)) => {
@@ -1153,6 +1154,7 @@ pub fn generate_mandate(
                 .set_connector(connector)
                 .set_mandate_status(storage_enums::MandateStatus::Active)
                 .set_connector_mandate_id(connector_mandate_id)
+                .set_network_transaction_id(network_txn_id)
                 .set_customer_ip_address(
                     data.customer_acceptance
                         .get_ip_address()
@@ -1489,5 +1491,7 @@ pub fn router_data_type_conversion<F1, F2, Req1, Req2, Res1, Res2>(
         session_token: router_data.session_token,
         reference_id: None,
         payment_method_token: router_data.payment_method_token,
+        customer_id: router_data.customer_id,
+        connector_customer: router_data.connector_customer,
     }
 }

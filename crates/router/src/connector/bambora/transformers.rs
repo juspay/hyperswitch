@@ -205,6 +205,7 @@ impl<F, T>
                     redirection_data: None,
                     mandate_reference: None,
                     connector_metadata: None,
+                    network_txn_id: None,
                 }),
                 ..item.data
             }),
@@ -227,6 +228,7 @@ impl<F, T>
                             .into_report()
                             .change_context(errors::ConnectorError::ResponseHandlingFailed)?,
                         ),
+                        network_txn_id: None,
                     }),
                     ..item.data
                 })

@@ -1156,6 +1156,7 @@ where
                     } else {
                         None
                     },
+                    network_txn_id: None,
                 })
             },
             ..item.data
