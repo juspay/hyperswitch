@@ -1034,8 +1034,13 @@ where
 
     let connector = if should_call_connector(operation, payment_data) {
         Some(match connector_choice {
-            api::ConnectorChoice::SessionMultiple(connectors) => {
-                api::ConnectorCallType::Multiple(connectors)
+            api::ConnectorChoice::SessionMultiple(session_connectors) => {
+                api::ConnectorCallType::Multiple(
+                    session_connectors
+                        .into_iter()
+                        .map(|c| c.connector)
+                        .collect(),
+                )
             }
 
             api::ConnectorChoice::StraightThrough(straight_through) => connector_selection(
