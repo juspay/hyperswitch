@@ -4,6 +4,7 @@ pub mod configs;
 pub mod customers;
 pub mod disputes;
 pub mod enums;
+pub mod files;
 pub mod mandates;
 pub mod payment_methods;
 pub mod payments;
@@ -15,8 +16,8 @@ use std::{fmt::Debug, str::FromStr};
 use error_stack::{report, IntoReport, ResultExt};
 
 pub use self::{
-    admin::*, api_keys::*, configs::*, customers::*, disputes::*, payment_methods::*, payments::*,
-    refunds::*, webhooks::*,
+    admin::*, api_keys::*, configs::*, customers::*, disputes::*, files::*, payment_methods::*,
+    payments::*, refunds::*, webhooks::*,
 };
 use super::ErrorResponse;
 use crate::{
@@ -106,6 +107,8 @@ pub trait Connector:
     + ConnectorRedirectResponse
     + IncomingWebhook
     + ConnectorAccessToken
+    + Dispute
+    + FileUpload
     + ConnectorTransactionId
 {
 }
@@ -122,6 +125,8 @@ impl<
             + Send
             + IncomingWebhook
             + ConnectorAccessToken
+            + Dispute
+            + FileUpload
             + ConnectorTransactionId,
     > Connector for T
 {
@@ -213,9 +218,10 @@ impl ConnectorData {
             "worldline" => Ok(Box::new(&connector::Worldline)),
             "worldpay" => Ok(Box::new(&connector::Worldpay)),
             "multisafepay" => Ok(Box::new(&connector::Multisafepay)),
-            // "nexinets" => Ok(Box::new(&connector::Nexinets)), added as template code for future use
+            "nexinets" => Ok(Box::new(&connector::Nexinets)),
             "paypal" => Ok(Box::new(&connector::Paypal)),
             "trustpay" => Ok(Box::new(&connector::Trustpay)),
+            "zen" => Ok(Box::new(&connector::Zen)),
             _ => Err(report!(errors::ConnectorError::InvalidConnectorName)
                 .attach_printable(format!("invalid connector name: {connector_name}")))
             .change_context(errors::ApiErrorResponse::InternalServerError),

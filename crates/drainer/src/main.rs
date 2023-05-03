@@ -1,5 +1,4 @@
-use drainer::{errors, errors::DrainerResult, logger::logger, services, settings, start_drainer};
-use error_stack::ResultExt;
+use drainer::{errors::DrainerResult, logger::logger, services, settings, start_drainer};
 
 #[tokio::main]
 async fn main() -> DrainerResult<()> {
@@ -21,7 +20,7 @@ async fn main() -> DrainerResult<()> {
     let shutdown_intervals = conf.drainer.shutdown_interval;
     let loop_interval = conf.drainer.loop_interval;
 
-    let _guard = logger::setup(&conf.log).change_context(errors::DrainerError::MetricsError)?;
+    let _guard = logger::setup(&conf.log);
 
     logger::info!("Drainer started [{:?}] [{:?}]", conf.drainer, conf.log);
 

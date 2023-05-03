@@ -601,7 +601,7 @@ pub enum Connector {
     Klarna,
     Mollie,
     Multisafepay,
-    // Nexinets, added as template code for future use
+    Nexinets,
     Nuvei,
     // Payeezy, As psync and rsync are not supported by this connector, it is added as template code for future usage
     Paypal,
@@ -609,9 +609,10 @@ pub enum Connector {
     Rapyd,
     Shift4,
     Stripe,
+    Trustpay,
     Worldline,
     Worldpay,
-    Trustpay,
+    Zen,
 }
 
 impl Connector {
@@ -624,6 +625,12 @@ impl Connector {
                 | (Self::Payu, _)
                 | (Self::Trustpay, PaymentMethod::BankRedirect)
         )
+    }
+    pub fn supports_file_storage_module(&self) -> bool {
+        matches!(self, Self::Stripe | Self::Checkout)
+    }
+    pub fn requires_defend_dispute(&self) -> bool {
+        matches!(self, Self::Checkout)
     }
 }
 
@@ -659,7 +666,7 @@ pub enum RoutableConnectors {
     Klarna,
     Mollie,
     Multisafepay,
-    // Nexinets, added as template code for future use
+    Nexinets,
     Nuvei,
     Opennode,
     // Payeezy, As psync and rsync are not supported by this connector, it is added as template code for future usage
@@ -671,6 +678,7 @@ pub enum RoutableConnectors {
     Trustpay,
     Worldline,
     Worldpay,
+    Zen,
 }
 
 /// Name of banks supported by Hyperswitch
@@ -872,6 +880,7 @@ impl From<AttemptStatus> for IntentStatus {
     frunk::LabelledGeneric,
     ToSchema,
 )]
+#[serde(rename_all = "snake_case")]
 pub enum DisputeStage {
     PreDispute,
     #[default]
@@ -893,6 +902,7 @@ pub enum DisputeStage {
     frunk::LabelledGeneric,
     ToSchema,
 )]
+#[serde(rename_all = "snake_case")]
 pub enum DisputeStatus {
     #[default]
     DisputeOpened,
