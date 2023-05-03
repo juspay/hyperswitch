@@ -144,6 +144,7 @@ impl<F, T>
                 redirection_data: Some(redirection_data),
                 mandate_reference: None,
                 connector_metadata: None,
+                network_txn_id: None,
             }),
             |context| {
                 Ok(types::PaymentsResponseData::TransactionUnresolvedResponse{
