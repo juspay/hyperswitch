@@ -1,4 +1,4 @@
-use api_models::{enums::DisputeStage, webhooks::IncomingWebhookEvent};
+use api_models::{enums::DisputeStage, webhooks::IncomingWebhookEvent, payments};
 use masking::PeekInterface;
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
@@ -262,6 +262,17 @@ pub enum AdyenPaymentMethod<'a> {
     Trustly(Box<BankRedirectionPMData>),
     Walley(Box<WalleyData>),
     WeChatPayWeb(Box<WeChatPayWebData>),
+    AchDirectDebit(Box<AchDirectDebitData>),
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct  AchDirectDebitData{
+    #[serde(rename = "type")]
+    payment_type: PaymentType,
+    bank_account_number: Secret<String>,
+    bank_location_id: Secret<String>,
+    owner_name :Secret<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -606,6 +617,8 @@ pub enum PaymentType {
     Walley,
     #[serde(rename = "wechatpayWeb")]
     WeChatPayWeb,
+    #[serde(rename = "ach")]
+    AchDirectDebit,
 }
 
 pub struct AdyenTestBankNames<'a>(&'a str);
@@ -702,6 +715,10 @@ impl<'a> TryFrom<&types::PaymentsAuthorizeRouterData> for AdyenPaymentRequest<'a
             api_models::payments::PaymentMethodData::BankRedirect(ref bank_redirect) => {
                 AdyenPaymentRequest::try_from((item, bank_redirect))
             }
+            api_models::payments::PaymentMethodData::BankDebit(ref bank_debit) => {
+                AdyenPaymentRequest::try_from((item, bank_debit))
+            }
+        
             _ => Err(errors::ConnectorError::NotSupported {
                 payment_method: format!("{:?}", item.request.payment_method_type),
                 connector: "Adyen",
@@ -831,6 +848,32 @@ fn get_country_code(item: &types::PaymentsAuthorizeRouterData) -> Option<api_enu
         .billing
         .as_ref()
         .and_then(|billing| billing.address.as_ref().and_then(|address| address.country))
+}
+
+
+
+impl<'a> TryFrom<&api_models::payments::BankDebitData> for AdyenPaymentMethod<'a>{
+    type Error = Error;
+    fn try_from(bank_debit_data: &api_models::payments::BankDebitData) -> Result<Self, Self::Error>{
+        match bank_debit_data{
+            payments::BankDebitData::AchBankDebit { 
+                account_number, 
+                routing_number,
+                billing_details: _, 
+                card_holder_name,
+            } => Ok(AdyenPaymentMethod::AchDirectDebit(Box::new(
+                AchDirectDebitData{
+                    payment_type: PaymentType::AchDirectDebit,
+                    bank_account_number: account_number.clone(),
+                    bank_location_id: routing_number.clone(),
+                    owner_name: card_holder_name.clone(),
+                }
+            ))) ,
+
+            _ => Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into()),
+        }
+        }
+   
 }
 
 impl<'a> TryFrom<&api::Card> for AdyenPaymentMethod<'a> {
@@ -1057,6 +1100,44 @@ impl<'a> TryFrom<(&types::PaymentsAuthorizeRouterData, &api::Card)> for AdyenPay
     }
 }
 
+impl<'a> TryFrom<(&types::PaymentsAuthorizeRouterData, &api_models::payments::BankDebitData)> for AdyenPaymentRequest<'a>{
+    type Error = Error;
+
+    fn try_from(value: (&types::PaymentsAuthorizeRouterData, &api_models::payments::BankDebitData)
+    ) -> Result<Self, Self::Error> {
+        let (item, bank_debit_data) = value;
+        let amount = get_amount_data(item);
+        let auth_type = AdyenAuthType::try_from(&item.connector_auth_type)?;
+        let shopper_interaction = AdyenShopperInteraction::from(item);
+        let recurring_processing_model = get_recurring_processing_model(item);
+        let browser_info = get_browser_info(item);
+        let additional_data = get_additional_data(item);
+        let return_url = item.request.get_return_url()?;
+        let payment_method = AdyenPaymentMethod::try_from(bank_debit_data)?;
+        let request = AdyenPaymentRequest {
+            amount,
+            merchant_account: auth_type.merchant_account,
+            payment_method,
+            reference: item.payment_id.to_string(),
+            return_url,
+            browser_info,
+            shopper_interaction,
+            recurring_processing_model,
+            additional_data,
+            shopper_name: None,
+            shopper_locale:None,
+            shopper_email: item.request.email.clone(),
+            telephone_number: None,
+            billing_address: None,
+            delivery_address: None,
+            country_code: None,
+            line_items: None,
+        };
+        crate::logger::debug!(adyen_request=?request);
+        Ok(request)
+    }
+}
+
 impl<'a>
     TryFrom<(
         &types::PaymentsAuthorizeRouterData,
@@ -1079,7 +1160,7 @@ impl<'a>
         let additional_data = get_additional_data(item);
         let return_url = item.request.get_return_url()?;
         let payment_method = AdyenPaymentMethod::try_from(bank_redirect_data)?;
-        let (shopper_locale, country) = get_sofort_extra_details(item);
+        let (shopper_locale, _country) = get_sofort_extra_details(item);
         let line_items = Some(get_line_items(item));
 
         Ok(AdyenPaymentRequest {
@@ -1098,7 +1179,7 @@ impl<'a>
             shopper_locale,
             billing_address: None,
             delivery_address: None,
-            country_code: country,
+            country_code: None,
             line_items,
         })
     }

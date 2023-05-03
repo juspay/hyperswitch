@@ -618,8 +618,7 @@ fn get_bank_debit_data(
         payments::BankDebitData::AchBankDebit {
             billing_details,
             account_number,
-            routing_number,
-        } => {
+            routing_number, .. } => {
             let ach_data = BankDebitData::Ach {
                 account_holder_type: "individual".to_string(),
                 account_number: account_number.to_owned(),
