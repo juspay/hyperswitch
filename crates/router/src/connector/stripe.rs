@@ -1,6 +1,6 @@
 mod transformers;
 
-use std::{collections::HashMap, fmt::Debug};
+use std::{collections::HashMap, fmt::Debug, ops::Deref};
 
 use error_stack::{IntoReport, ResultExt};
 use router_env::{instrument, tracing};
@@ -16,7 +16,7 @@ use crate::{
         payments,
     },
     db::StorageInterface,
-    headers, services,
+    headers, routes, services,
     types::{
         self,
         api::{self, ConnectorCommon},
@@ -547,7 +547,7 @@ impl
     ) -> CustomResult<String, errors::ConnectorError> {
         match &req.request.payment_method_data {
             api_models::payments::PaymentMethodData::BankTransfer(bank_transfer_data) => {
-                match bank_transfer_data {
+                match bank_transfer_data.deref() {
                     api_models::payments::BankTransferData::AchBankTransfer(_) => {
                         Ok(format!("{}{}", self.base_url(connectors), "v1/charges"))
                     }
@@ -567,14 +567,7 @@ impl
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
         match &req.request.payment_method_data {
             api_models::payments::PaymentMethodData::BankTransfer(bank_transfer_data) => {
-                match bank_transfer_data {
-                    api_models::payments::BankTransferData::AchBankTransfer(_) => {
-                        let req = stripe::ChargesRequest::try_from(req)?;
-                        let request = utils::Encode::<stripe::ChargesRequest>::url_encode(&req)
-                            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-                        Ok(Some(request))
-                    }
-                }
+                stripe::get_bank_transfer_request_data(req, bank_transfer_data.deref())
             }
             _ => {
                 let req = stripe::PaymentIntentRequest::try_from(req)?;
@@ -588,7 +581,7 @@ impl
     async fn execute_pretasks(
         &self,
         router_data: &mut types::PaymentsAuthorizeRouterData,
-        app_state: &crate::routes::AppState,
+        app_state: &routes::AppState,
     ) -> CustomResult<(), errors::ConnectorError> {
         match &router_data.request.payment_method_data {
             api_models::payments::PaymentMethodData::BankTransfer(_) => {
@@ -649,23 +642,7 @@ impl
     ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
         match &data.request.payment_method_data {
             api_models::payments::PaymentMethodData::BankTransfer(bank_transfer_data) => {
-                match bank_transfer_data {
-                    api_models::payments::BankTransferData::AchBankTransfer(_) => {
-                        let response: stripe::ChargesResponse = res
-                            .response
-                            .parse_struct("ChargesResponse")
-                            .change_context(
-                                errors::ConnectorError::ResponseDeserializationFailed,
-                            )?;
-
-                        types::RouterData::try_from(types::ResponseRouterData {
-                            response,
-                            data: data.clone(),
-                            http_code: res.status_code,
-                        })
-                        .change_context(errors::ConnectorError::ResponseHandlingFailed)
-                    }
-                }
+                stripe::get_bank_transfer_authorize_response(data, res, bank_transfer_data.deref())
             }
             _ => {
                 let response: stripe::PaymentIntentResponse = res

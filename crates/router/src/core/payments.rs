@@ -491,6 +491,8 @@ where
         router_data.payment_method_token = Some(payment_method_token);
     };
 
+    //router_data = complete_preprocessing_steps_if_required(payment_data);
+
     router_data = match payment_data
         .payment_method_data
         .as_ref()
@@ -601,6 +603,31 @@ where
 
     Ok(payment_data)
 }
+
+// fn complete_preprocessing_steps_if_required<F>(
+//     payment_data: &PaymentData<F>,
+// ) -> RouterResult<types::RouterData<F, Req, types::PaymentsResponseData>>
+// where
+//     F: Send + Clone + Sync,
+// {
+//     match payment_data
+//         .payment_method_data
+//         .as_ref()
+//         .get_required_value("payment_method_data")?
+//     {
+//         api_models::payments::PaymentMethodData::BankTransfer(
+//             api_models::payments::BankTransferData::AchBankTransfer(_),
+//         ) => {
+//             if payment_data.payment_attempt.preprocessing_step_id.is_none() {
+//                 should_continue_payment = false;
+//                 router_data.preprocessing_steps(state, &connector).await?
+//             } else {
+//                 router_data
+//             }
+//         }
+//         _ => router_data,
+//     };
+// }
 
 fn is_payment_method_tokenization_enabled_for_connector(
     state: &AppState,

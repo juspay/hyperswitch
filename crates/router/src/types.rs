@@ -224,7 +224,6 @@ pub struct CompleteAuthorizeData {
     pub browser_info: Option<BrowserInformation>,
     pub connector_transaction_id: Option<String>,
     pub connector_meta: Option<serde_json::Value>,
-    pub customer_id: Option<String>,
 }
 
 #[derive(Debug, Clone)]

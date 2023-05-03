@@ -1,6 +1,8 @@
+use std::ops::Deref;
+
 use api_models::{self, enums as api_enums, payments};
 use base64::Engine;
-use common_utils::{fp_utils, pii};
+use common_utils::{errors::CustomResult, ext_traits::BytesExt, fp_utils, pii};
 use error_stack::{IntoReport, ResultExt};
 use masking::{ExposeInterface, ExposeOptionInterface, Secret};
 use serde::{Deserialize, Serialize};
@@ -12,7 +14,7 @@ use crate::{
     core::errors,
     services,
     types::{self, api, storage::enums},
-    utils::OptionExt,
+    utils::{self, OptionExt},
 };
 
 pub struct StripeAuthType {
@@ -167,11 +169,11 @@ pub struct ChargesRequest {
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct CustomerRequest {
-    pub email: Option<String>,
+    pub email: Option<Secret<String, pii::Email>>,
     pub source: Option<String>,
 }
 
-#[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
+#[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize)]
 pub struct ChargesResponse {
     pub id: String,
     pub amount: u64,
@@ -295,7 +297,7 @@ pub struct StripeAchSourceRequest {
     #[serde(rename = "type")]
     pub transfer_type: StripePaymentMethodType,
     #[serde(rename = "owner[email]")]
-    pub email: String,
+    pub email: Secret<String, pii::Email>,
     pub currency: String,
 }
 
@@ -817,15 +819,17 @@ fn create_stripe_payment_method(
 
             Ok((pm_data, pm_type, billing_address))
         }
-        payments::PaymentMethodData::BankTransfer(bank_transfer_data) => match bank_transfer_data {
-            payments::BankTransferData::AchBankTransfer(ach_bank_transfer_data) => Ok((
-                StripePaymentMethodData::AchBankTransfer(BankTransferData {
-                    email: ach_bank_transfer_data.billing_details.email.to_owned(),
-                }),
-                StripePaymentMethodType::AchCreditTransfer,
-                StripeBillingAddress::default(),
-            )),
-        },
+        payments::PaymentMethodData::BankTransfer(bank_transfer_data) => {
+            match bank_transfer_data.deref() {
+                payments::BankTransferData::AchBankTransfer(ach_bank_transfer_data) => Ok((
+                    StripePaymentMethodData::AchBankTransfer(BankTransferData {
+                        email: ach_bank_transfer_data.billing_details.email.to_owned(),
+                    }),
+                    StripePaymentMethodType::AchCreditTransfer,
+                    StripeBillingAddress::default(),
+                )),
+            }
+        }
         _ => Err(errors::ConnectorError::NotImplemented(
             "stripe does not support this payment method".to_string(),
         )
@@ -1087,7 +1091,7 @@ pub struct PaymentSyncResponse {
     pub last_payment_error: Option<ErrorDetails>,
 }
 
-impl std::ops::Deref for PaymentSyncResponse {
+impl Deref for PaymentSyncResponse {
     type Target = PaymentIntentResponse;
 
     fn deref(&self) -> &Self::Target {
@@ -1108,7 +1112,7 @@ pub struct PaymentIntentSyncResponse {
     pub last_payment_error: Option<LastPaymentError>,
 }
 
-impl std::ops::Deref for PaymentIntentSyncResponse {
+impl Deref for PaymentIntentSyncResponse {
     type Target = PaymentIntentResponse;
 
     fn deref(&self) -> &Self::Target {
@@ -1561,8 +1565,7 @@ impl TryFrom<&types::PaymentsPreProcessingRouterData> for StripeAchSourceRequest
                 .get_required_value("email")
                 .change_context(errors::ConnectorError::MissingRequiredField {
                     field_name: "email",
-                })?
-                .expose(),
+                })?,
             currency: item
                 .request
                 .currency
@@ -1639,7 +1642,7 @@ impl TryFrom<&types::CustomerRouterData> for CustomerRequest {
 
     fn try_from(value: &types::CustomerRouterData) -> Result<Self, Self::Error> {
         Ok(Self {
-            email: value.request.email.to_owned().map(|email| email.expose()),
+            email: value.request.email.to_owned().map(|email| email),
             source: value.request.preprocessing_id.to_owned(),
         })
     }
@@ -1853,13 +1856,46 @@ impl
                 connector: "Stripe",
                 payment_experience: api_models::enums::PaymentExperience::RedirectToUrl.to_string(),
             })?,
-            api::PaymentMethodData::BankTransfer(bank_transfer_data) => match bank_transfer_data {
-                payments::BankTransferData::AchBankTransfer(ach_bank_transfer_data) => {
-                    Ok(Self::AchBankTransfer(BankTransferData {
-                        email: ach_bank_transfer_data.billing_details.email,
-                    }))
+            api::PaymentMethodData::BankTransfer(bank_transfer_data) => {
+                match bank_transfer_data.deref() {
+                    payments::BankTransferData::AchBankTransfer(ach_bank_transfer_data) => {
+                        Ok(Self::AchBankTransfer(BankTransferData {
+                            email: ach_bank_transfer_data.billing_details.email,
+                        }))
+                    }
                 }
-            },
+            }
         }
     }
+}
+
+pub fn get_bank_transfer_request_data(
+    req: &types::PaymentsAuthorizeRouterData,
+    bank_transfer_data: &api_models::payments::BankTransferData,
+) -> CustomResult<Option<String>, errors::ConnectorError> {
+    match bank_transfer_data {
+        api_models::payments::BankTransferData::AchBankTransfer(_) => {
+            let req = ChargesRequest::try_from(req)?;
+            let request = utils::Encode::<ChargesRequest>::url_encode(&req)
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+            Ok(Some(request))
+        }
+    }
+}
+pub fn get_bank_transfer_authorize_response(
+    data: &types::PaymentsAuthorizeRouterData,
+    res: types::Response,
+    bank_transfer_data: &api_models::payments::BankTransferData,
+) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
+    let response: ChargesResponse = res
+        .response
+        .parse_struct("ChargesResponse")
+        .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+    types::RouterData::try_from(types::ResponseRouterData {
+        response,
+        data: data.clone(),
+        http_code: res.status_code,
+    })
+    .change_context(errors::ConnectorError::ResponseHandlingFailed)
 }

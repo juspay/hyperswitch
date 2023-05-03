@@ -513,7 +513,7 @@ pub enum PaymentMethodData {
     PayLater(PayLaterData),
     BankRedirect(BankRedirectData),
     BankDebit(BankDebitData),
-    BankTransfer(BankTransferData),
+    BankTransfer(Box<BankTransferData>),
     Crypto(CryptoData),
 }
 
@@ -984,10 +984,10 @@ pub struct NextStepsRequirements {
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct AchTransfer {
-    pub account_number: String,
+    pub account_number: Secret<String>,
     pub bank_name: String,
-    pub routing_number: String,
-    pub swift_code: String,
+    pub routing_number: Secret<String>,
+    pub swift_code: Secret<String>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -1366,7 +1366,7 @@ impl From<PaymentMethodData> for PaymentMethodDataResponse {
                 Self::BankRedirect(bank_redirect_data)
             }
             PaymentMethodData::BankTransfer(bank_transfer_data) => {
-                Self::BankTransfer(bank_transfer_data)
+                Self::BankTransfer(*bank_transfer_data)
             }
             PaymentMethodData::Crypto(crpto_data) => Self::Crypto(crpto_data),
             PaymentMethodData::BankDebit(bank_debit_data) => Self::BankDebit(bank_debit_data),

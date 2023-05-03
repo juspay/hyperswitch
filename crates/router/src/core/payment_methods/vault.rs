@@ -120,7 +120,7 @@ impl Vaultable for api_models::payments::BankTransferData {
 
         utils::Encode::<api_models::payment_methods::TokenizedBankTransferValue1>::encode_to_string_of_json(&value1)
             .change_context(errors::VaultError::RequestEncodingFailed)
-            .attach_printable("Failed to encode wallet data value1")
+            .attach_printable("Failed to encode bank transfer data")
     }
 
     fn get_value2(&self, customer_id: Option<String>) -> CustomResult<String, errors::VaultError> {
@@ -128,7 +128,7 @@ impl Vaultable for api_models::payments::BankTransferData {
 
         utils::Encode::<api_models::payment_methods::TokenizedBankTransferValue2>::encode_to_string_of_json(&value2)
             .change_context(errors::VaultError::RequestEncodingFailed)
-            .attach_printable("Failed to encode wallet data value2")
+            .attach_printable("Failed to encode bank transfer supplementary data")
     }
 
     fn from_values(
@@ -138,12 +138,12 @@ impl Vaultable for api_models::payments::BankTransferData {
         let value1: api_models::payment_methods::TokenizedBankTransferValue1 = value1
             .parse_struct("TokenizedBankTransferValue1")
             .change_context(errors::VaultError::ResponseDeserializationFailed)
-            .attach_printable("Could not deserialize into wallet data value1")?;
+            .attach_printable("Could not deserialize into bank transfer data")?;
 
         let value2: api_models::payment_methods::TokenizedBankTransferValue2 = value2
             .parse_struct("TokenizedBankTransferValue2")
             .change_context(errors::VaultError::ResponseDeserializationFailed)
-            .attach_printable("Could not deserialize into wallet data value2")?;
+            .attach_printable("Could not deserialize into supplementary bank transfer data")?;
 
         let bank_transfer_data = value1.data;
 
@@ -272,7 +272,7 @@ impl Vaultable for api::PaymentMethodData {
             ) => {
                 let (bank_transfer, supp_data) =
                     api_models::payments::BankTransferData::from_values(mvalue1, mvalue2)?;
-                Ok((Self::BankTransfer(bank_transfer), supp_data))
+                Ok((Self::BankTransfer(Box::new(bank_transfer)), supp_data))
             }
             _ => Err(errors::VaultError::PaymentMethodNotSupported)
                 .into_report()
