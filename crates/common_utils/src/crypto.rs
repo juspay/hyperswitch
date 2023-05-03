@@ -124,6 +124,7 @@ impl VerifySignature for HmacSha256 {
     }
 }
 
+/// Represents the Base64 encoded HMAC-SHA-256 algorithm
 #[derive(Debug)]
 pub struct Base64HmacSha256;
 
@@ -150,8 +151,6 @@ impl VerifySignature for Base64HmacSha256 {
         let key = hmac::Key::new(hmac::HMAC_SHA256, secret);
         let hash = hmac::sign(&key, msg);
         let base64sign = BASE64.encode(hash.as_ref());
-        println!("##$$ base64sign={:?}", base64sign);
-        println!("##$$ signature={:?}", signature);
         Ok(base64sign.as_bytes() == signature)
     }
 }

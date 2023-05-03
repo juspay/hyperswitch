@@ -301,6 +301,7 @@ impl PaymentsCancelRequestData for PaymentsCancelData {
 
 pub trait RefundsRequestData {
     fn get_connector_refund_id(&self) -> Result<String, Error>;
+    fn get_webhook_url(&self) -> Result<String, Error>;
 }
 
 impl RefundsRequestData for types::RefundsData {
@@ -310,6 +311,11 @@ impl RefundsRequestData for types::RefundsData {
             .clone()
             .get_required_value("connector_refund_id")
             .change_context(errors::ConnectorError::MissingConnectorTransactionID)
+    }
+    fn get_webhook_url(&self) -> Result<String, Error> {
+        self.webhook_url
+            .clone()
+            .ok_or_else(missing_field_err("webhook_url"))
     }
 }
 

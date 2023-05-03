@@ -2,13 +2,13 @@ mod transformers;
 
 use std::fmt::Debug;
 
-use self::iatapay::IatapayPaymentsResponse;
-use super::utils;
 use base64::Engine;
 use common_utils::{crypto, ext_traits::ByteSliceExt};
 use error_stack::{IntoReport, ResultExt};
 use transformers as iatapay;
 
+use self::iatapay::IatapayPaymentsResponse;
+use super::utils;
 use crate::{
     configs::settings,
     consts,
@@ -71,7 +71,6 @@ where
             headers::AUTHORIZATION.to_string(),
             format!("Bearer {}", access_token.token),
         );
-        println!("## Access token => {:?}", access_token);
         headers.push(auth_header);
         Ok(headers)
     }
@@ -110,7 +109,7 @@ impl ConnectorCommon for Iatapay {
 
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code: response.code,
+            code: response.error,
             message: response.message,
             reason: response.reason,
         })
@@ -149,7 +148,6 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
 
         let auth_id = format!("{}:{}", auth.client_id, auth.client_secret);
         let auth_val: String = format!("Basic {}", consts::BASE64_ENGINE.encode(auth_id));
-        println!("## Auth val => {:?}", auth_val);
 
         Ok(vec![
             (
@@ -184,7 +182,6 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
                 .body(types::RefreshTokenType::get_request_body(self, req)?)
                 .build(),
         );
-        println!("## access token req - {:?}", req);
 
         Ok(req)
     }
@@ -198,7 +195,6 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
             .parse_struct("iatapay IatapayAuthUpdateResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
-        println!("## access token res - {:?}", response);
         types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -290,7 +286,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         data: &types::PaymentsAuthorizeRouterData,
         res: Response,
     ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
-        let response: iatapay::IatapayPaymentsResponse = res
+        let response: IatapayPaymentsResponse = res
             .response
             .parse_struct("Iatapay PaymentsAuthorizeResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
@@ -335,7 +331,6 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
             .connector_transaction_id
             .get_connector_transaction_id()
             .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
-        println!("## cid => {:?}", connector_id);
         Ok(format!(
             "{}/payments/{}",
             self.base_url(_connectors),
@@ -363,7 +358,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         data: &types::PaymentsSyncRouterData,
         res: Response,
     ) -> CustomResult<types::PaymentsSyncRouterData, errors::ConnectorError> {
-        let response: iatapay::IatapayPaymentsResponse = res
+        let response: IatapayPaymentsResponse = res
             .response
             .parse_struct("iatapay PaymentsSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
@@ -435,7 +430,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         data: &types::PaymentsCaptureRouterData,
         res: Response,
     ) -> CustomResult<types::PaymentsCaptureRouterData, errors::ConnectorError> {
-        let response: iatapay::IatapayPaymentsResponse = res
+        let response: IatapayPaymentsResponse = res
             .response
             .parse_struct("Iatapay PaymentsCaptureResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
@@ -629,7 +624,6 @@ impl api::IncomingWebhook for Iatapay {
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let base64_signature = utils::get_header_key_value("Authorization", request.headers)?;
         let base64_signature = base64_signature.replace("IATAPAY-HMAC-SHA256 ", "");
-        println!("## base64sign={}", base64_signature);
         Ok(base64_signature.as_bytes().to_vec())
     }
 
@@ -642,7 +636,6 @@ impl api::IncomingWebhook for Iatapay {
         let message = std::str::from_utf8(request.body)
             .into_report()
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
-        println!("## msgStr={}", message);
         Ok(message.to_string().into_bytes())
     }
 
@@ -672,13 +665,13 @@ impl api::IncomingWebhook for Iatapay {
         if notif.iata_payment_id.is_some() {
             Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
                 api_models::payments::PaymentIdType::ConnectorTransactionId(
-                    notif.iata_payment_id.unwrap(),
+                    notif.iata_payment_id.unwrap_or_default(),
                 ),
             ))
         } else {
             Ok(api_models::webhooks::ObjectReferenceId::RefundId(
                 api_models::webhooks::RefundIdType::ConnectorRefundId(
-                    notif.iata_refund_id.unwrap(),
+                    notif.iata_refund_id.unwrap_or_default(),
                 ),
             ))
         }
@@ -693,7 +686,6 @@ impl api::IncomingWebhook for Iatapay {
                 .body
                 .parse_struct("IatapayPaymentsResponse")
                 .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
-        println!("## notif status = {:?}", notif.status);
         match notif.status {
             iatapay::IatapayPaymentStatus::Authorized | iatapay::IatapayPaymentStatus::Settled => {
                 match notif.iata_payment_id.is_some() {

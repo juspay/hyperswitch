@@ -537,8 +537,6 @@ pub async fn webhooks_core<W: api::OutgoingWebhookType>(
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("There was an issue in incoming webhook source verification")?;
 
-        println!("##*source_verified = {}", source_verified);
-
         let object_ref_id = connector
             .get_webhook_object_reference_id(&request_details)
             .change_context(errors::ApiErrorResponse::InternalServerError)

@@ -1,6 +1,5 @@
-
 use masking::Secret;
-use router::types::{self, api, storage::enums, AccessToken};
+use router::types::{self, api, storage::enums, AccessToken, PaymentAddress};
 
 use crate::{
     connector_auth,
@@ -12,7 +11,7 @@ use crate::{
 #[derive(Clone, Copy)]
 struct IatapayTest;
 impl ConnectorActions for IatapayTest {}
-impl utils::Connector for IatapayTest {
+impl Connector for IatapayTest {
     fn get_data(&self) -> types::api::ConnectorData {
         use router::connector::Iatapay;
         types::api::ConnectorData {
@@ -42,12 +41,10 @@ fn get_access_token() -> Option<AccessToken> {
             api_key,
             key1: _,
             api_secret: _,
-        } => {
-            Some(AccessToken {
-                token: api_key,
-                expires: 60 * 5,
-            })
-        }
+        } => Some(AccessToken {
+            token: api_key,
+            expires: 60 * 5,
+        }),
         _ => None,
     }
 }
@@ -56,6 +53,25 @@ static CONNECTOR: IatapayTest = IatapayTest {};
 
 fn get_default_payment_info() -> Option<utils::PaymentInfo> {
     Some(utils::PaymentInfo {
+        address: Some(PaymentAddress {
+            billing: Some(api::Address {
+                address: Some(api::AddressDetails {
+                    first_name: Some(Secret::new("first".to_string())),
+                    last_name: Some(Secret::new("last".to_string())),
+                    line1: Some(Secret::new("line1".to_string())),
+                    line2: Some(Secret::new("line2".to_string())),
+                    city: Some("city".to_string()),
+                    zip: Some(Secret::new("zip".to_string())),
+                    country: Some(api_models::enums::CountryAlpha2::NL),
+                    ..Default::default()
+                }),
+                phone: Some(api::PhoneDetails {
+                    number: Some(Secret::new("1234567890".to_string())),
+                    country_code: Some("+91".to_string()),
+                }),
+            }),
+            ..Default::default()
+        }),
         access_token: get_access_token(),
         ..Default::default()
     })
@@ -63,6 +79,8 @@ fn get_default_payment_info() -> Option<utils::PaymentInfo> {
 
 fn payment_method_details() -> Option<types::PaymentsAuthorizeData> {
     Some(types::PaymentsAuthorizeData {
+        router_return_url: Some("https://hyperswitch.io".to_string()),
+        webhook_url: Some("https://hyperswitch.io".to_string()),
         currency: enums::Currency::EUR,
         ..PaymentAuthorizeType::default().0
     })
@@ -77,10 +95,7 @@ async fn should_only_create_payment() {
         .authorize_payment(payment_method_details(), get_default_payment_info())
         .await
         .expect("Authorize payment response");
-    assert_eq!(
-        response.status.to_string(),
-        enums::IntentStatus::RequiresCustomerAction.to_string()
-    );
+    assert_eq!(response.status, enums::AttemptStatus::AuthenticationPending);
 }
 
 //refund on an unsuccessed payments
@@ -102,9 +117,8 @@ async fn should_fail_for_refund_on_unsuccessed_payment() {
         .await
         .unwrap();
     assert_eq!(
-        refund_response.response.unwrap_err().message,
-        "The payment has not succeeded yet. Please pass a successful payment to initiate refund"
-            .to_string(),
+        refund_response.response.unwrap_err().code,
+        "BAD_REQUEST".to_string(),
     );
 }
 
@@ -112,11 +126,11 @@ async fn should_fail_for_refund_on_unsuccessed_payment() {
 #[actix_web::test]
 async fn should_fail_for_refund_amount_higher_than_payment_amount() {
     let response = CONNECTOR
-        .make_payment_and_refund(
-            payment_method_details(),
+        .refund_payment(
+            "PWGKCZ91M4JJ0".to_string(),
             Some(types::RefundsData {
-                connector_refund_id: Some("PWGKCZ91M4JJ0".to_string()),
                 refund_amount: 150,
+                webhook_url: Some("https://hyperswitch.io".to_string()),
                 ..utils::PaymentRefundType::default().0
             }),
             get_default_payment_info(),
@@ -125,10 +139,6 @@ async fn should_fail_for_refund_amount_higher_than_payment_amount() {
         .unwrap();
     assert_eq!(
         response.response.unwrap_err().message,
-        "Refund amount exceeds the payment amount",
+        "The amount to be refunded (100) is greater than the unrefunded amount (10.00): the amount of the payment is 10.00 and the refunded amount is 0.00",
     );
 }
-
-// Connector dependent test cases goes here
-
-// [#478]: add unit tests for non 3DS, wallets & webhooks in connector tests

@@ -1,9 +1,10 @@
-use masking::Secret;
-use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
+use masking::Secret;
+use serde::{Deserialize, Serialize};
+
 use crate::{
-    connector::utils::PaymentsAuthorizeRequestData,
+    connector::utils::{PaymentsAuthorizeRequestData, RouterData},
     core::errors,
     services,
     types::{self, api, storage::enums},
@@ -16,7 +17,7 @@ pub struct IatapayAuthUpdateRequest {
 }
 impl TryFrom<&types::RefreshTokenRouterData> for IatapayAuthUpdateRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::RefreshTokenRouterData) -> Result<Self, Self::Error> {
+    fn try_from(_item: &types::RefreshTokenRouterData) -> Result<Self, Self::Error> {
         Ok(Self {
             grant_type: "client_credentials".to_string(),
             scope: "payment".to_string(),
@@ -68,7 +69,6 @@ pub struct IatapayPaymentsRequest {
     locale: String,
     redirect_urls: RedirectUrls,
     notification_url: String,
-    departure_date: String,
 }
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
@@ -84,26 +84,28 @@ pub struct IatapayCard {
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for IatapayPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
-        fn get_redirect_url(item: &types::PaymentsAuthorizeRouterData) -> RedirectUrls {
-            RedirectUrls {
-                success_url: "https://hyperswitch.io/".to_string(),
-                failure_url: "https://www.google.com/".to_string(),
-            }
-        }
+        let country = item.get_billing_country()?.to_string();
         let payload = Self {
             merchant_id: IatapayAuthType::try_from(&item.connector_auth_type)?.merchant_id,
             amount: item.request.amount,
             currency: item.request.currency.to_string(),
-            country: "DE".to_string(),
-            locale: "en-GB".to_string(),
+            country: country.clone(),
+            locale: format!("en-{}", country),
             redirect_urls: get_redirect_url(item),
-            notification_url: //"https://enbd1nqbpipve.x.pipedream.net/".to_string(),
-            "https://d968-122-166-44-250.ngrok-free.app/webhooks/merchant_1682590147/iatapay"
-                .to_string(),
-            departure_date: "2023-12-24".to_string(),
+            notification_url: item.request.get_webhook_url()?,
         };
-        println!("## payload => {:?}", payload);
         Ok(payload)
+    }
+}
+
+fn get_redirect_url(item: &types::PaymentsAuthorizeRouterData) -> RedirectUrls {
+    let return_url = item
+        .request
+        .get_return_url()
+        .unwrap_or("https://hyperswitch.io".to_string());
+    RedirectUrls {
+        success_url: return_url.clone(),
+        failure_url: return_url,
     }
 }
 
@@ -201,7 +203,7 @@ impl<F, T>
         item: types::ResponseRouterData<F, IatapayPaymentsResponse, T, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         let form_fields = HashMap::new();
-        let id = item.response.iata_payment_id.unwrap();
+        let id = item.response.iata_payment_id.unwrap_or_default();
         Ok(Self {
             status: enums::AttemptStatus::from(item.response.status),
             response: item.response.checkout_methods.map_or(
@@ -210,17 +212,19 @@ impl<F, T>
                     redirection_data: None,
                     mandate_reference: None,
                     connector_metadata: None,
+                    network_txn_id: None,
                 }),
                 |checkout_methods| {
                     Ok(types::PaymentsResponseData::TransactionResponse {
                         resource_id: types::ResponseId::ConnectorTransactionId(id),
                         redirection_data: Some(services::RedirectForm::Form {
-                            endpoint: checkout_methods.redirect.redirect_url.to_string(),
+                            endpoint: checkout_methods.redirect.redirect_url,
                             method: services::Method::Get,
                             form_fields,
                         }),
                         mandate_reference: None,
                         connector_metadata: None,
+                        network_txn_id: None,
                     })
                 },
             ),
@@ -255,9 +259,11 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for IatapayRefundRequest {
             },
             currency: item.request.currency.to_string(),
             bank_transfer_description: item.request.reason.clone(),
-            notification_url:
-                "https://d968-122-166-44-250.ngrok-free.app/webhooks/merchant_1682590147/iatapay"
-                    .to_string(),
+            notification_url: item
+                .request
+                .webhook_url
+                .clone()
+                .unwrap_or("https://hyperswitch.io".to_string()),
         })
     }
 }
@@ -350,8 +356,8 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
 //TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
 pub struct IatapayErrorResponse {
-    pub status_code: u16,
-    pub code: String,
+    pub status: u16,
+    pub error: String,
     pub message: String,
     pub reason: Option<String>,
 }
