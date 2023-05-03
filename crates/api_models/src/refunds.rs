@@ -48,6 +48,11 @@ pub struct RefundRequest {
     pub merchant_connector_details: Option<admin::MerchantConnectorDetailsWrap>,
 }
 
+#[derive(Default, Debug, Clone, Deserialize)]
+pub struct RefundsRetrieveBody {
+    pub force_sync: Option<bool>,
+}
+
 #[derive(Default, Debug, ToSchema, Clone, Deserialize)]
 pub struct RefundsRetrieveRequest {
     /// Unique Identifier for the Refund. This is to ensure idempotency for multiple partial refund initiated against the same payment. If the identifiers is not defined by the merchant, this filed shall be auto generated and provide in the API response. It is recommended to generate uuid(v4) as the refund_id.
@@ -57,6 +62,10 @@ pub struct RefundsRetrieveRequest {
         example = "ref_mbabizu24mvu3mela5njyhpit4"
     )]
     pub refund_id: String,
+
+    /// `force_sync` with the connector to get refund details
+    /// (defaults to false)
+    pub force_sync: Option<bool>,
 
     /// Merchant connector details used to make payments.
     pub merchant_connector_details: Option<admin::MerchantConnectorDetailsWrap>,
@@ -146,7 +155,9 @@ pub struct RefundListRequest {
 
 #[derive(Debug, Clone, Eq, PartialEq, Deserialize, Serialize, ToSchema)]
 pub struct RefundListResponse {
-    /// The list of refund response
+    /// The number of refunds included in the list
+    pub size: usize,
+    /// The List of refund response object
     pub data: Vec<RefundResponse>,
 }
 

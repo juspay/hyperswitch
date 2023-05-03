@@ -15,8 +15,8 @@ use crate::{
         api::{self, disputes},
         storage::{self, enums as storage_enums},
         transformers::{ForeignFrom, ForeignInto},
-        AcceptDisputeRequestData, AcceptDisputeResponse, SubmitEvidenceRequestData,
-        SubmitEvidenceResponse,
+        AcceptDisputeRequestData, AcceptDisputeResponse, DefendDisputeRequestData,
+        DefendDisputeResponse, SubmitEvidenceRequestData, SubmitEvidenceResponse,
     },
 };
 
@@ -245,12 +245,54 @@ pub async fn submit_evidence(
                 status_code: err.status_code,
                 reason: err.reason,
             })?;
+    //Defend Dispute Optionally if connector expects to defend / submit evidence in a separate api call
+    let (dispute_status, connector_status) =
+        if connector_data.connector_name.requires_defend_dispute() {
+            let connector_integration_defend_dispute: services::BoxedConnectorIntegration<
+                '_,
+                api::Defend,
+                DefendDisputeRequestData,
+                DefendDisputeResponse,
+            > = connector_data.connector.get_connector_integration();
+            let defend_dispute_router_data = utils::construct_defend_dispute_router_data(
+                state,
+                &payment_intent,
+                &payment_attempt,
+                &merchant_account,
+                &dispute,
+            )
+            .await?;
+            let defend_response = services::execute_connector_processing_step(
+                state,
+                connector_integration_defend_dispute,
+                &defend_dispute_router_data,
+                payments::CallConnectorAction::Trigger,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed while calling defend dispute connector api")?;
+            let defend_dispute_response = defend_response.response.map_err(|err| {
+                errors::ApiErrorResponse::ExternalConnectorError {
+                    code: err.code,
+                    message: err.message,
+                    connector: dispute.connector.clone(),
+                    status_code: err.status_code,
+                    reason: err.reason,
+                }
+            })?;
+            (
+                defend_dispute_response.dispute_status,
+                defend_dispute_response.connector_status,
+            )
+        } else {
+            (
+                submit_evidence_response.dispute_status,
+                submit_evidence_response.connector_status,
+            )
+        };
     let update_dispute = storage_models::dispute::DisputeUpdate::StatusUpdate {
-        dispute_status: submit_evidence_response
-            .dispute_status
-            .clone()
-            .foreign_into(),
-        connector_status: submit_evidence_response.connector_status.clone(),
+        dispute_status: dispute_status.foreign_into(),
+        connector_status,
     };
     let updated_dispute = db
         .update_dispute(dispute.clone(), update_dispute)
