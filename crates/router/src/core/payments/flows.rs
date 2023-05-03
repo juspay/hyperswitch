@@ -371,6 +371,7 @@ default_imp_for_defend_dispute!(
     connector::Mollie,
     connector::Multisafepay,
     connector::Nexinets,
+    connector::Nmi,
     connector::Nuvei,
     connector::Payeezy,
     connector::Paypal,

@@ -44,7 +44,7 @@ pub struct NmiPaymentsRequest {
     #[serde(rename = "type")]
     transaction_type: TransactionType,
     amount: f64,
-    security_key: String,
+    security_key: Secret<String>,
     currency: enums::Currency,
     #[serde(flatten)]
     payment_method: PaymentMethod,
@@ -89,7 +89,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for NmiPaymentsRequest {
 
         Ok(Self {
             transaction_type,
-            security_key: auth_type.api_key,
+            security_key: auth_type.api_key.into(),
             amount,
             currency: item.request.currency,
             payment_method,
@@ -164,7 +164,7 @@ impl TryFrom<&types::VerifyRouterData> for NmiPaymentsRequest {
         let payment_method = PaymentMethod::try_from(&item.request.payment_method_data)?;
         Ok(Self {
             transaction_type: TransactionType::Validate,
-            security_key: auth_type.api_key,
+            security_key: auth_type.api_key.into(),
             amount: 0.0,
             currency: item.request.currency,
             payment_method,
@@ -197,7 +197,7 @@ impl TryFrom<&types::PaymentsSyncRouterData> for NmiSyncRequest {
 pub struct NmiCaptureRequest {
     #[serde(rename = "type")]
     pub transaction_type: TransactionType,
-    pub security_key: String,
+    pub security_key: Secret<String>,
     pub transactionid: String,
     pub amount: Option<f64>,
 }
@@ -208,7 +208,7 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for NmiCaptureRequest {
         let auth = NmiAuthType::try_from(&item.connector_auth_type)?;
         Ok(Self {
             transaction_type: TransactionType::Capture,
-            security_key: auth.api_key,
+            security_key: auth.api_key.into(),
             transactionid: item.request.connector_transaction_id.clone(),
             amount: Some(utils::to_currency_base_unit_as_f64(
                 item.request.amount_to_capture,
@@ -269,7 +269,7 @@ impl
 pub struct NmiCancelRequest {
     #[serde(rename = "type")]
     pub transaction_type: TransactionType,
-    pub security_key: String,
+    pub security_key: Secret<String>,
     pub transactionid: String,
     pub void_reason: Option<String>,
 }
@@ -280,7 +280,7 @@ impl TryFrom<&types::PaymentsCancelRouterData> for NmiCancelRequest {
         let auth = NmiAuthType::try_from(&item.connector_auth_type)?;
         Ok(Self {
             transaction_type: TransactionType::Void,
-            security_key: auth.api_key,
+            security_key: auth.api_key.into(),
             transactionid: item.request.connector_transaction_id.clone(),
             void_reason: item.request.cancellation_reason.clone(),
         })
