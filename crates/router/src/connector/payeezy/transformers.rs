@@ -127,11 +127,14 @@ fn get_transaction_type_and_stored_creds(
     (PayeezyTransactionType, Option<StoredCredentials>),
     error_stack::Report<errors::ConnectorError>,
 > {
-    let connector_mandate_id = item
-        .request
-        .mandate_id
-        .as_ref()
-        .and_then(|mandate_ids| mandate_ids.connector_mandate_id.clone());
+    let connector_mandate_id = item.request.mandate_id.as_ref().and_then(|mandate_ids| {
+        match mandate_ids.mandate_reference_id.clone() {
+            Some(api_models::payments::MandateReferenceId::ConnectorMandateId(
+                connector_mandate_id,
+            )) => Some(connector_mandate_id),
+            _ => None,
+        }
+    });
     let (transaction_type, stored_credentials) =
         if is_mandate_payment(item, connector_mandate_id.as_ref()) {
             // Mandate payment
@@ -353,6 +356,7 @@ impl<F, T>
                 redirection_data: None,
                 mandate_reference,
                 connector_metadata: metadata,
+                network_txn_id: None,
             }),
             ..item.data
         })

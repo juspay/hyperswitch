@@ -355,6 +355,7 @@ impl<F, T>
                 redirection_data,
                 mandate_reference,
                 connector_metadata: Some(connector_metadata),
+                network_txn_id: None,
             }),
             ..item.data
         })
@@ -436,6 +437,7 @@ impl<F, T>
                 redirection_data: None,
                 mandate_reference: None,
                 connector_metadata: Some(connector_metadata),
+                network_txn_id: None,
             }),
             ..item.data
         })

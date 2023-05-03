@@ -260,6 +260,7 @@ impl<F, T>
                 connector_metadata: Some(serde_json::json!(ForteMeta {
                     auth_id: item.response.authorization_code,
                 })),
+                network_txn_id: None,
             }),
             ..item.data
         })
@@ -305,6 +306,7 @@ impl<F, T>
                 connector_metadata: Some(serde_json::json!(ForteMeta {
                     auth_id: item.response.authorization_code,
                 })),
+                network_txn_id: None,
             }),
             ..item.data
         })
@@ -371,6 +373,7 @@ impl TryFrom<types::PaymentsCaptureResponseRouterData<ForteCaptureResponse>>
                 connector_metadata: Some(serde_json::json!(ForteMeta {
                     auth_id: item.response.authorization_code,
                 })),
+                network_txn_id: None,
             }),
             amount_captured: None,
             ..item.data
@@ -436,6 +439,7 @@ impl<F, T>
                 connector_metadata: Some(serde_json::json!(ForteMeta {
                     auth_id: item.response.authorization_code,
                 })),
+                network_txn_id: None,
             }),
             ..item.data
         })
