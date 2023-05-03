@@ -7,8 +7,12 @@ pub struct PaymentIntents;
 
 impl PaymentIntents {
     pub fn server(state: routes::AppState) -> Scope {
-        web::scope("/payment_intents")
-            .app_data(web::Data::new(state))
+        let mut route = web::scope("/payment_intents").app_data(web::Data::new(state));
+        #[cfg(feature = "olap")]
+        {
+            route = route.service(web::resource("/list").route(web::get().to(payment_intent_list)))
+        }
+        route = route
             .service(web::resource("").route(web::post().to(payment_intents_create)))
             .service(
                 web::resource("/sync")
@@ -29,7 +33,8 @@ impl PaymentIntents {
             )
             .service(
                 web::resource("/{payment_id}/cancel").route(web::post().to(payment_intents_cancel)),
-            )
+            );
+        route
     }
 }
 
