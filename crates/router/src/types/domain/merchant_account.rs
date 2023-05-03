@@ -1,5 +1,6 @@
 use common_utils::{
     crypto::{Encryptable, GcmAes256, OptionalEncryptableName, OptionalEncryptableValue},
+    date_time,
     ext_traits::AsyncExt,
     pii,
 };
@@ -95,6 +96,7 @@ impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
                 locker_id,
                 metadata,
                 primary_business_details,
+                modified_at: Some(date_time::now()),
                 ..Default::default()
             },
             MerchantAccountUpdate::StorageSchemeUpdate { storage_scheme } => Self {
@@ -190,6 +192,7 @@ impl super::behaviour::Conversion for MerchantAccount {
     }
 
     async fn construct_new(self) -> CustomResult<Self::NewDstType, ValidationError> {
+        let now = date_time::now();
         Ok(storage_models::merchant_account::MerchantAccountNew {
             merchant_id: self.merchant_id,
             merchant_name: self.merchant_name.map(Encryption::from),
@@ -207,6 +210,8 @@ impl super::behaviour::Conversion for MerchantAccount {
             routing_algorithm: self.routing_algorithm,
             api_key: self.api_key.map(Encryption::from),
             primary_business_details: self.primary_business_details,
+            created_at: now,
+            modified_at: now,
         })
     }
 }

@@ -1,4 +1,3 @@
-use common_utils::{consts, generate_id};
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
 use time::PrimitiveDateTime;
 
@@ -22,6 +21,8 @@ pub struct AddressNew {
     pub country_code: Option<String>,
     pub customer_id: String,
     pub merchant_id: String,
+    pub created_at: PrimitiveDateTime,
+    pub modified_at: PrimitiveDateTime,
 }
 
 #[derive(Clone, Debug, Identifiable, Queryable, frunk::LabelledGeneric)]
@@ -67,25 +68,4 @@ pub struct AddressUpdateInternal {
     pub phone_number: Option<Encryption>,
     pub country_code: Option<String>,
     pub modified_at: PrimitiveDateTime,
-}
-
-impl Default for AddressNew {
-    fn default() -> Self {
-        Self {
-            address_id: generate_id(consts::ID_LENGTH, "add"),
-            city: None,
-            country: None,
-            line1: None,
-            line2: None,
-            line3: None,
-            state: None,
-            zip: None,
-            first_name: None,
-            last_name: None,
-            phone_number: None,
-            country_code: None,
-            customer_id: String::default(),
-            merchant_id: String::default(),
-        }
-    }
 }
