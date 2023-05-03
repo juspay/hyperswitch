@@ -82,14 +82,16 @@ pub async fn api_key_retrieve(
     path: web::Path<(String, String)>,
 ) -> impl Responder {
     let flow = Flow::ApiKeyRetrieve;
-    let (_merchant_id, key_id) = path.into_inner();
+    let (merchant_id, key_id) = path.into_inner();
 
     api::server_wrap(
         flow,
         state.get_ref(),
         &req,
-        &key_id,
-        |state, _, key_id| api_keys::retrieve_api_key(&*state.store, key_id),
+        (&merchant_id, &key_id),
+        |state, _, (merchant_id, key_id)| {
+            api_keys::retrieve_api_key(&*state.store, merchant_id, key_id)
+        },
         &auth::AdminApiAuth,
     )
     .await
@@ -122,15 +124,17 @@ pub async fn api_key_update(
     json_payload: web::Json<api_types::UpdateApiKeyRequest>,
 ) -> impl Responder {
     let flow = Flow::ApiKeyUpdate;
-    let (_merchant_id, key_id) = path.into_inner();
+    let (merchant_id, key_id) = path.into_inner();
     let payload = json_payload.into_inner();
 
     api::server_wrap(
         flow,
         state.get_ref(),
         &req,
-        (&key_id, payload),
-        |state, _, (key_id, payload)| api_keys::update_api_key(&*state.store, key_id, payload),
+        (&merchant_id, &key_id, payload),
+        |state, _, (merchant_id, key_id, payload)| {
+            api_keys::update_api_key(&*state.store, merchant_id, key_id, payload)
+        },
         &auth::AdminApiAuth,
     )
     .await
@@ -162,14 +166,16 @@ pub async fn api_key_revoke(
     path: web::Path<(String, String)>,
 ) -> impl Responder {
     let flow = Flow::ApiKeyRevoke;
-    let (_merchant_id, key_id) = path.into_inner();
+    let (merchant_id, key_id) = path.into_inner();
 
     api::server_wrap(
         flow,
         state.get_ref(),
         &req,
-        &key_id,
-        |state, _, key_id| api_keys::revoke_api_key(&*state.store, key_id),
+        (&merchant_id, &key_id),
+        |state, _, (merchant_id, key_id)| {
+            api_keys::revoke_api_key(&*state.store, merchant_id, key_id)
+        },
         &auth::AdminApiAuth,
     )
     .await

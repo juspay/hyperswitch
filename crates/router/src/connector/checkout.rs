@@ -115,7 +115,9 @@ impl api::PaymentVoid for Checkout {}
 impl api::PaymentCapture for Checkout {}
 impl api::PaymentSession for Checkout {}
 impl api::ConnectorAccessToken for Checkout {}
+impl api::AcceptDispute for Checkout {}
 impl api::PaymentToken for Checkout {}
+impl api::Dispute for Checkout {}
 
 impl
     ConnectorIntegration<
@@ -694,6 +696,139 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         res: types::Response,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
         self.build_error_response(res)
+    }
+}
+
+impl
+    ConnectorIntegration<api::Accept, types::AcceptDisputeRequestData, types::AcceptDisputeResponse>
+    for Checkout
+{
+    fn get_headers(
+        &self,
+        req: &types::AcceptDisputeRouterData,
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+        let mut header = vec![(
+            headers::CONTENT_TYPE.to_string(),
+            types::AcceptDisputeType::get_content_type(self).to_string(),
+        )];
+        let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
+        header.append(&mut api_key);
+        Ok(header)
+    }
+
+    fn get_url(
+        &self,
+        req: &types::AcceptDisputeRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(format!(
+            "{}{}{}{}",
+            self.base_url(connectors),
+            "disputes/",
+            req.request.connector_dispute_id,
+            "/accept"
+        ))
+    }
+
+    fn build_request(
+        &self,
+        req: &types::AcceptDisputeRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        Ok(Some(
+            services::RequestBuilder::new()
+                .method(services::Method::Post)
+                .url(&types::AcceptDisputeType::get_url(self, req, connectors)?)
+                .attach_default_headers()
+                .headers(types::AcceptDisputeType::get_headers(
+                    self, req, connectors,
+                )?)
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        data: &types::AcceptDisputeRouterData,
+        _res: types::Response,
+    ) -> CustomResult<types::AcceptDisputeRouterData, errors::ConnectorError> {
+        Ok(types::AcceptDisputeRouterData {
+            response: Ok(types::AcceptDisputeResponse {
+                dispute_status: api::enums::DisputeStatus::DisputeAccepted,
+                connector_status: None,
+            }),
+            ..data.clone()
+        })
+    }
+
+    fn get_error_response(
+        &self,
+        res: types::Response,
+    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
+        let response: checkout::ErrorResponse = if res.response.is_empty() {
+            checkout::ErrorResponse {
+                request_id: None,
+                error_type: if res.status_code == 401 {
+                    Some("Invalid Api Key".to_owned())
+                } else {
+                    None
+                },
+                error_codes: None,
+            }
+        } else {
+            res.response
+                .parse_struct("ErrorResponse")
+                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?
+        };
+
+        Ok(types::ErrorResponse {
+            status_code: res.status_code,
+            code: response
+                .error_codes
+                .unwrap_or_else(|| vec![consts::NO_ERROR_CODE.to_string()])
+                .join(" & "),
+            message: response
+                .error_type
+                .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
+            reason: None,
+        })
+    }
+}
+
+impl api::UploadFile for Checkout {}
+
+impl ConnectorIntegration<api::Upload, types::UploadFileRequestData, types::UploadFileResponse>
+    for Checkout
+{
+}
+
+#[async_trait::async_trait]
+impl api::FileUpload for Checkout {
+    fn validate_file_upload(
+        &self,
+        purpose: api::FilePurpose,
+        file_size: i32,
+        file_type: mime::Mime,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        match purpose {
+            api::FilePurpose::DisputeEvidence => {
+                let supported_file_types =
+                    vec!["image/jpeg", "image/jpg", "image/png", "application/pdf"];
+                // 4 Megabytes (MB)
+                if file_size > 4000000 {
+                    Err(errors::ConnectorError::FileValidationFailed {
+                        reason: "file_size exceeded the max file size of 4MB".to_owned(),
+                    })?
+                }
+                if !supported_file_types.contains(&file_type.to_string().as_str()) {
+                    Err(errors::ConnectorError::FileValidationFailed {
+                        reason: "file_type does not match JPEG, JPG, PNG, or PDF format".to_owned(),
+                    })?
+                }
+            }
+        }
+        Ok(())
     }
 }
 
