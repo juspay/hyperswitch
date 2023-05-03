@@ -628,7 +628,10 @@ impl Connector {
         )
     }
     pub fn supports_file_storage_module(&self) -> bool {
-        matches!(self, Self::Stripe)
+        matches!(self, Self::Stripe | Self::Checkout)
+    }
+    pub fn requires_defend_dispute(&self) -> bool {
+        matches!(self, Self::Checkout)
     }
 }
 
@@ -879,6 +882,7 @@ impl From<AttemptStatus> for IntentStatus {
     frunk::LabelledGeneric,
     ToSchema,
 )]
+#[serde(rename_all = "snake_case")]
 pub enum DisputeStage {
     PreDispute,
     #[default]
@@ -900,6 +904,7 @@ pub enum DisputeStage {
     frunk::LabelledGeneric,
     ToSchema,
 )]
+#[serde(rename_all = "snake_case")]
 pub enum DisputeStatus {
     #[default]
     DisputeOpened,

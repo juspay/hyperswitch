@@ -69,7 +69,6 @@ serde_path_to_error = "0.1.11"
 serde_qs = { version = "0.12.0", optional = true }
 serde_urlencoded = "0.7.1"
 serde_with = "2.3.2"
-signal-hook-tokio = { version = "0.3.1", features = ["futures-v0_3"] }
 signal-hook = "0.3.15"
 strum = { version = "0.24.1", features = ["derive"] }
 thiserror = "1.0.40"
@@ -93,6 +92,9 @@ actix-multipart = "0.6.0"
 aws-sdk-s3 = "0.25.0"
 aws-config = "0.55.1"
 infer = "0.13.0"
+
+[target.'cfg(not(target_os = "windows"))'.dependencies]
+signal-hook-tokio = { version = "0.3.1", features = ["futures-v0_3"]}
 
 [build-dependencies]
 router_env = { version = "0.1.0", path = "../router_env", default-features = false }
