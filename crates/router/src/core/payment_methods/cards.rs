@@ -787,11 +787,10 @@ pub async fn list_payment_methods(
     let db = &*state.store;
     let pm_config_mapping = &state.conf.pm_filters;
 
-    let payment_intent = helpers::verify_client_secret(
+    let payment_intent = helpers::verify_payment_intent_time_and_client_secret(
         db,
-        merchant_account.storage_scheme,
+        &merchant_account,
         req.client_secret.clone(),
-        &merchant_account.merchant_id,
     )
     .await?;
 

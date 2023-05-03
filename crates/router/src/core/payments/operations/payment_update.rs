@@ -71,11 +71,6 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             "update",
         )?;
 
-        helpers::authenticate_client_secret(
-            request.client_secret.as_ref(),
-            payment_intent.client_secret.as_ref(),
-        )?;
-
         let (token, payment_method_type, setup_mandate) =
             helpers::get_token_pm_type_mandate_details(
                 state,
