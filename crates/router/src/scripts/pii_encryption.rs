@@ -1,6 +1,6 @@
 use common_utils::{errors::CustomResult, ext_traits::AsyncExt};
 use diesel::{associations::HasTable, ExpressionMethods, Table};
-use error_stack::ResultExt;
+use error_stack::{IntoReport, ResultExt};
 use storage_models::{
     address::Address,
     customers::Customer,
@@ -13,18 +13,19 @@ use storage_models::{
     },
 };
 
+use async_bb8_diesel::AsyncConnection;
+
 use crate::{
     connection,
     core::errors,
-    db::{
-        address::AddressInterface, customers::CustomerInterface,
-        merchant_account::MerchantAccountInterface,
-        merchant_connector_account::MerchantConnectorAccountInterface,
-        merchant_key_store::MerchantKeyStoreInterface, MasterKeyInterface,
-    },
+    db::{merchant_key_store::MerchantKeyStoreInterface, MasterKeyInterface},
     services::{self, Store},
     types::{
-        domain::{self, behaviour::ReverseConversion, merchant_key_store, types},
+        domain::{
+            self,
+            behaviour::{Conversion, ReverseConversion},
+            merchant_key_store, types,
+        },
         storage,
     },
 };
@@ -44,11 +45,16 @@ pub async fn crate_merchant_key_store(
         created_at: common_utils::date_time::now(),
     };
 
-    state
-        .insert_merchant_key_store(key_store)
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
-    Ok(())
+    match state.insert_merchant_key_store(key_store).await {
+        Ok(_) => Ok(()),
+        Err(err) => match err.current_context() {
+            errors::StorageError::DatabaseError(f) => match f.current_context() {
+                storage_models::errors::DatabaseError::UniqueViolation => Ok(()),
+                _ => Err(err.change_context(errors::ApiErrorResponse::InternalServerError)),
+            },
+            _ => Err(err.change_context(errors::ApiErrorResponse::InternalServerError)),
+        },
+    }
 }
 
 pub async fn encrypt_merchant_account_fields(
@@ -106,10 +112,33 @@ pub async fn encrypt_merchant_account_fields(
             publishable_key: None,
             metadata: None,
         };
-        state
-            .update_merchant(m, updated_merchant_account)
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
+        conn.transaction_async::<MerchantAccount, async_bb8_diesel::ConnectionError, _, _>(
+            |conn| async move {
+                Conversion::convert(m)
+                    .await
+                    .map_err(|_| {
+                        async_bb8_diesel::ConnectionError::Query(
+                            diesel::result::Error::QueryBuilderError(
+                                "Error while decrypting MerchantAccount".into(),
+                            ),
+                        )
+                    })?
+                    .update(&conn, updated_merchant_account.into())
+                    .await
+                    .map_err(|_| {
+                        async_bb8_diesel::ConnectionError::Query(
+                            diesel::result::Error::QueryBuilderError(
+                                "Error while updating MerchantAccount".into(),
+                            ),
+                        )
+                    })
+            },
+        )
+        .await
+        .into_report()
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
         encrypt_merchant_connector_account_fields(state, &merchant_id).await?;
         encrypt_customer_fields(state, &merchant_id).await?;
         encrypt_address_fields(state, &merchant_id).await?;
@@ -165,10 +194,31 @@ pub async fn encrypt_merchant_connector_account_fields(
             metadata: None,
             connector_account_details: Some(m.connector_account_details.clone()),
         };
-        state
-            .update_merchant_connector_account(m, updated_merchant_connector_account.into())
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)?;
+        conn.transaction_async::<MerchantConnectorAccount, async_bb8_diesel::ConnectionError, _, _>(
+            |conn| async move {
+                Conversion::convert(m)
+                    .await
+                    .map_err(|_| {
+                        async_bb8_diesel::ConnectionError::Query(
+                            diesel::result::Error::QueryBuilderError(
+                                "Error while decrypting MerchantConnectorAccount".into(),
+                            ),
+                        )
+                    })?
+                    .update(&conn, updated_merchant_connector_account.into())
+                    .await
+                    .map_err(|_| {
+                        async_bb8_diesel::ConnectionError::Query(
+                            diesel::result::Error::QueryBuilderError(
+                                "Error while updating MerchantConnectorAccount".into(),
+                            ),
+                        )
+                    })
+            },
+        )
+        .await
+        .into_report()
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
     }
     Ok(())
 }
@@ -215,14 +265,27 @@ pub async fn encrypt_customer_fields(
             metadata: None,
             phone_country_code: None,
         };
-        state
-            .update_customer_by_customer_id_merchant_id(
-                m.customer_id.to_string(),
-                m.merchant_id.to_string(),
-                update_customer,
-            )
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)?;
+        conn.transaction_async::<Customer, async_bb8_diesel::ConnectionError, _, _>(
+            |conn| async move {
+                Customer::update_by_customer_id_merchant_id(
+                    &conn,
+                    m.customer_id.to_string(),
+                    m.merchant_id.to_string(),
+                    update_customer.into(),
+                )
+                .await
+                .map_err(|_| {
+                    async_bb8_diesel::ConnectionError::Query(
+                        diesel::result::Error::QueryBuilderError(
+                            "Error while updating Customer".into(),
+                        ),
+                    )
+                })
+            },
+        )
+        .await
+        .into_report()
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
     }
     Ok(())
 }
@@ -274,10 +337,22 @@ pub async fn encrypt_address_fields(
             country: None,
             country_code: None,
         };
-        state
-            .update_address(m.address_id.to_string(), update_address)
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)?;
+        conn.transaction_async::<Address, async_bb8_diesel::ConnectionError, _, _>(
+            |conn| async move {
+                Address::update_by_address_id(&conn, m.address_id, update_address.into())
+                    .await
+                    .map_err(|_| {
+                        async_bb8_diesel::ConnectionError::Query(
+                            diesel::result::Error::QueryBuilderError(
+                                "Error while updating Address".into(),
+                            ),
+                        )
+                    })
+            },
+        )
+        .await
+        .into_report()
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
     }
     Ok(())
 }
