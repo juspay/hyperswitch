@@ -16,6 +16,7 @@ pub struct CustomerNew {
     pub description: Option<String>,
     pub phone_country_code: Option<String>,
     pub metadata: Option<pii::SecretSerdeValue>,
+    pub connector_customer: Option<serde_json::Value>,
 }
 
 #[derive(Clone, Debug, Identifiable, Queryable)]
@@ -31,6 +32,7 @@ pub struct Customer {
     pub description: Option<String>,
     pub created_at: PrimitiveDateTime,
     pub metadata: Option<pii::SecretSerdeValue>,
+    pub connector_customer: Option<serde_json::Value>,
     pub modified_at: PrimitiveDateTime,
 }
 
@@ -43,6 +45,10 @@ pub enum CustomerUpdate {
         description: Option<String>,
         phone_country_code: Option<String>,
         metadata: Option<pii::SecretSerdeValue>,
+        connector_customer: Option<serde_json::Value>,
+    },
+    ConnectorCustomer {
+        connector_customer: Option<serde_json::Value>,
     },
 }
 
@@ -55,6 +61,7 @@ pub struct CustomerUpdateInternal {
     description: Option<String>,
     phone_country_code: Option<String>,
     metadata: Option<pii::SecretSerdeValue>,
+    connector_customer: Option<serde_json::Value>,
     modified_at: Option<PrimitiveDateTime>,
 }
 
@@ -68,6 +75,7 @@ impl From<CustomerUpdate> for CustomerUpdateInternal {
                 description,
                 phone_country_code,
                 metadata,
+                connector_customer,
             } => Self {
                 name,
                 email,
@@ -75,7 +83,13 @@ impl From<CustomerUpdate> for CustomerUpdateInternal {
                 description,
                 phone_country_code,
                 metadata,
+                connector_customer,
                 modified_at: Some(common_utils::date_time::now()),
+            },
+            CustomerUpdate::ConnectorCustomer { connector_customer } => Self {
+                connector_customer,
+                modified_at: Some(common_utils::date_time::now()),
+                ..Default::default()
             },
         }
     }

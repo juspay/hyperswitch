@@ -83,11 +83,6 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsSessionRequest>
 
         let amount = payment_intent.amount.into();
 
-        helpers::authenticate_client_secret(
-            Some(&request.client_secret),
-            payment_intent.client_secret.as_ref(),
-        )?;
-
         let shipping_address = helpers::get_address_for_payment_request(
             db,
             None,
@@ -174,6 +169,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsSessionRequest>
                 card_cvc: None,
                 creds_identifier,
                 pm_token: None,
+                connector_customer_id: None,
             },
             Some(customer_details),
         ))
@@ -190,6 +186,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsSessionRequest> for
         mut payment_data: PaymentData<F>,
         _customer: Option<storage::Customer>,
         storage_scheme: storage_enums::MerchantStorageScheme,
+        _updated_customer: Option<storage::CustomerUpdate>,
     ) -> RouterResult<(
         BoxedOperation<'b, F, api::PaymentsSessionRequest>,
         PaymentData<F>,

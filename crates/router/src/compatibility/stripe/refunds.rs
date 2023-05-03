@@ -99,6 +99,7 @@ pub async fn refund_retrieve(
 ) -> HttpResponse {
     let refund_request = refund_types::RefundsRetrieveRequest {
         refund_id: path.into_inner(),
+        force_sync: Some(true),
         merchant_connector_details: None,
     };
     wrap::compatibility_api_wrap::<

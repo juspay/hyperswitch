@@ -87,7 +87,7 @@ pub struct Address {
     zip: Option<Secret<String>>,
     state: Option<Secret<String>>,
     city: Option<String>,
-    country: Option<api_models::enums::CountryCode>,
+    country: Option<api_models::enums::CountryAlpha2>,
 }
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
@@ -462,6 +462,7 @@ impl<F>
                     .into_report()
                     .change_context(errors::ConnectorError::ResponseDeserializationFailed)?,
                 ),
+                network_txn_id: None,
             }),
             ..item.data
         })
@@ -500,6 +501,7 @@ impl<T, F>
                     .map(|url| services::RedirectForm::from((url, services::Method::Get))),
                 mandate_reference: None,
                 connector_metadata: None,
+                network_txn_id: None,
             }),
             ..item.data
         })

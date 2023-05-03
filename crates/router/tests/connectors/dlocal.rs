@@ -443,7 +443,7 @@ pub fn get_payment_info() -> PaymentInfo {
                 phone: None,
                 address: Some(api::AddressDetails {
                     city: None,
-                    country: Some(api_models::enums::CountryCode::PA),
+                    country: Some(api_models::enums::CountryAlpha2::PA),
                     line1: None,
                     line2: None,
                     line3: None,
