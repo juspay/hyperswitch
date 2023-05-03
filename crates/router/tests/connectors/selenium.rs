@@ -64,7 +64,7 @@ pub trait SeleniumTest {
                     Assert::Eq(_selector, text) => assert_eq!(driver.title().await?, text),
                     Assert::IsPresent(text) => {
                         assert!(is_text_present(driver, text).await?)
-                    },
+                    }
                     Assert::IsPresentNow(text) => {
                         assert!(is_text_present_now(driver, text).await?)
                     }
