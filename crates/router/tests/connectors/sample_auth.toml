@@ -87,6 +87,7 @@ api_key="API Key"
 
 [cashtocode]
 api_key = "API Key"
+key1 = "key1"
 
 [nexinets]
 api_key = "api_key"

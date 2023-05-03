@@ -1,6 +1,5 @@
 use common_utils::pii::Email;
 use masking::Secret;
-use router_env::logger;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -10,17 +9,16 @@ use crate::{
     types::{self, api, storage::enums},
 };
 
-//TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct CashtocodePaymentsRequest {
     amount: i64,
     transaction_id: String,
-    user_id: String,
-    currency: String,
-    first_name: Option<String>,
-    last_name: Option<String>,
-    user_alias: String,
+    user_id: Secret<String>,
+    currency: enums::Currency,
+    first_name: Option<Secret<String>>,
+    last_name: Option<Secret<String>>,
+    user_alias: Secret<String>,
     requested_url: String,
     cancel_url: String,
     email: Option<Secret<String, Email>>,
@@ -28,8 +26,8 @@ pub struct CashtocodePaymentsRequest {
 }
 
 pub struct CashToCodeMandatoryParams {
-    pub user_id: String,
-    pub user_alias: String,
+    pub user_id: Secret<String>,
+    pub user_alias: Secret<String>,
     pub requested_url: String,
     pub cancel_url: String,
 }
@@ -60,8 +58,8 @@ fn get_mandatory_params(
         .to_owned()
         .ok_or_else(utils::missing_field_err("return_url"))?;
     Ok(CashToCodeMandatoryParams {
-        user_id: customer_id.to_owned(),
-        user_alias: customer_id.to_owned(),
+        user_id: Secret::new(customer_id.to_owned()),
+        user_alias: Secret::new(customer_id.to_owned()),
         requested_url: url.to_owned(),
         cancel_url: url,
     })
@@ -71,16 +69,12 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for CashtocodePaymentsRequest 
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         let params: CashToCodeMandatoryParams = get_mandatory_params(item)?;
-        let mid_helper = get_mid(&item.request.payment_method_data);
-        let mid = match mid_helper {
-            Ok(mid) => mid,
-            Err(err) => return Err(err.into()),
-        };
+        let mid = get_mid(&item.request.payment_method_data)?;
         match item.payment_method {
             storage_models::enums::PaymentMethod::Reward => Ok(Self {
                 amount: item.request.amount,
                 transaction_id: item.attempt_id.clone(),
-                currency: item.request.currency.to_string(),
+                currency: item.request.currency,
                 user_id: params.user_id,
                 first_name: None,
                 last_name: None,
@@ -95,31 +89,10 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for CashtocodePaymentsRequest 
     }
 }
 
-//TODO: Fill the struct with respective fields
 // Auth Struct
 pub struct CashtocodeAuthType {
     pub(super) api_key: String,
 }
-
-// fn get_appropriate_api_key(
-//     payment_method_data: api_models::payments::PaymentMethodData,
-//     api_key1: String,
-//     api_key2: String,
-// ) -> CustomResult< String, errors::ConnectorError,
-// >
-// {
-//     match payment_method_data{
-//         api_models::payments::PaymentMethodData::Reward{payment_method_type} =>
-//             if payment_method_type == "CLASSIC".to_string()
-//             {
-//                 Ok(api_key1)
-//             }
-//             else{
-//                 Ok(api_key2)
-//             }
-//         _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
-//     }
-// }
 
 impl TryFrom<&types::ConnectorAuthType> for CashtocodeAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
@@ -133,8 +106,8 @@ impl TryFrom<&types::ConnectorAuthType> for CashtocodeAuthType {
         }
     }
 }
+
 // PaymentsResponse
-//TODO: Append the remaining status flags
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum CashtocodePaymentStatus {
@@ -158,9 +131,10 @@ impl From<CashtocodePaymentStatus> for enums::AttemptStatus {
 pub struct CashtocodeErrors {
     pub message: String,
     pub path: String,
-    pub r#type: String,
+    #[serde(rename = "r#type")]
+    pub event_type: String,
 }
-//TODO: Fill the struct with respective fields
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct CashtocodePaymentsResponse {
@@ -183,8 +157,7 @@ impl<F, T>
             types::PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
-        logger::info!(item.response.pay_url);
-        let redirection_data = services::RedirectForm {
+        let redirection_data = services::RedirectForm::Form {
             endpoint: item.response.pay_url.clone(),
             method: services::Method::Post,
             form_fields: Default::default(),
@@ -238,87 +211,6 @@ impl<F, T>
     }
 }
 
-//TODO: Fill the struct with respective fields
-// REFUND :
-// Type definition for RefundRequest
-#[derive(Default, Debug, Serialize)]
-pub struct CashtocodeRefundRequest {
-    pub amount: i64,
-}
-
-impl<F> TryFrom<&types::RefundsRouterData<F>> for CashtocodeRefundRequest {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
-        Ok(Self {
-            amount: item.request.amount,
-        })
-    }
-}
-
-// Type definition for Refund Response
-
-#[allow(dead_code)]
-#[derive(Debug, Serialize, Default, Deserialize, Clone)]
-pub enum RefundStatus {
-    Succeeded,
-    Failed,
-    #[default]
-    Processing,
-}
-
-impl From<RefundStatus> for enums::RefundStatus {
-    fn from(item: RefundStatus) -> Self {
-        match item {
-            RefundStatus::Succeeded => Self::Success,
-            RefundStatus::Failed => Self::Failure,
-            RefundStatus::Processing => Self::Pending,
-            //TODO: Review mapping
-        }
-    }
-}
-
-//TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
-pub struct RefundResponse {
-    id: String,
-    status: RefundStatus,
-}
-
-impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
-    for types::RefundsRouterData<api::Execute>
-{
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: types::RefundsResponseRouterData<api::Execute, RefundResponse>,
-    ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            response: Ok(types::RefundsResponseData {
-                connector_refund_id: item.response.id.to_string(),
-                refund_status: enums::RefundStatus::from(item.response.status),
-            }),
-            ..item.data
-        })
-    }
-}
-
-impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
-    for types::RefundsRouterData<api::RSync>
-{
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: types::RefundsResponseRouterData<api::RSync, RefundResponse>,
-    ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            response: Ok(types::RefundsResponseData {
-                connector_refund_id: item.response.id.to_string(),
-                refund_status: enums::RefundStatus::from(item.response.status),
-            }),
-            ..item.data
-        })
-    }
-}
-
-//TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
 pub struct CashtocodeErrorResponse {
     pub error: String,

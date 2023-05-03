@@ -34,10 +34,10 @@ pub mod mollie;
 
 pub use self::{
     aci::Aci, adyen::Adyen, airwallex::Airwallex, authorizedotnet::Authorizedotnet,
-    bambora::Bambora, bluesnap::Bluesnap, braintree::Braintree, checkout::Checkout,
-    coinbase::Coinbase, cashtocode::Cashtocode, cybersource::Cybersource, dlocal::Dlocal, fiserv::Fiserv, forte::Forte,
-    globalpay::Globalpay, klarna::Klarna, mollie::Mollie, multisafepay::Multisafepay,
-    nexinets::Nexinets, nuvei::Nuvei, opennode::Opennode, payeezy::Payeezy, paypal::Paypal,
-    payu::Payu, rapyd::Rapyd, shift4::Shift4, stripe::Stripe, trustpay::Trustpay,
-    worldline::Worldline, worldpay::Worldpay, zen::Zen,
+    bambora::Bambora, bluesnap::Bluesnap, braintree::Braintree, cashtocode::Cashtocode,
+    checkout::Checkout, coinbase::Coinbase, cybersource::Cybersource, dlocal::Dlocal,
+    fiserv::Fiserv, forte::Forte, globalpay::Globalpay, klarna::Klarna, mollie::Mollie,
+    multisafepay::Multisafepay, nexinets::Nexinets, nuvei::Nuvei, opennode::Opennode,
+    payeezy::Payeezy, paypal::Paypal, payu::Payu, rapyd::Rapyd, shift4::Shift4, stripe::Stripe,
+    trustpay::Trustpay, worldline::Worldline, worldpay::Worldpay, zen::Zen,
 };
