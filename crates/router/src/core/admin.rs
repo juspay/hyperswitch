@@ -422,7 +422,11 @@ pub async fn create_payment_connector(
     let mca = store
         .insert_merchant_connector_account(merchant_connector_account)
         .await
-        .to_duplicate_response(errors::ApiErrorResponse::DuplicateMerchantConnectorAccount { connector_label: connector_label.clone() })?;
+        .to_duplicate_response(
+            errors::ApiErrorResponse::DuplicateMerchantConnectorAccount {
+                connector_label: connector_label.clone(),
+            },
+        )?;
 
     let mca_response = ForeignTryFrom::foreign_try_from(mca)?;
 

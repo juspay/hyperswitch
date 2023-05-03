@@ -438,7 +438,7 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
             }
             errors::ApiErrorResponse::ReturnUrlUnavailable => Self::ReturnUrlUnavailable,
             errors::ApiErrorResponse::DuplicateMerchantAccount => Self::DuplicateMerchantAccount,
-            errors::ApiErrorResponse::DuplicateMerchantConnectorAccount { connector_label} => {
+            errors::ApiErrorResponse::DuplicateMerchantConnectorAccount { connector_label } => {
                 Self::DuplicateMerchantConnectorAccount { connector_label }
             }
             errors::ApiErrorResponse::DuplicatePaymentMethod => Self::DuplicatePaymentMethod,
