@@ -1,3 +1,40 @@
+#### 1.0.0 (2023-05-03)
+
+##### Build System / Dependencies
+
+* **deps:**  make AWS dependencies optional ([#1030](https://github.com/juspay/orca/pull/1030)) ([a4f6f3fd](https://github.com/juspay/orca/commit/a4f6f3fdaa23f7bd849eb44971de8311f9363ac3))
+
+##### New Features
+
+* **pm_list:**  add available capture methods filter ([#999](https://github.com/juspay/orca/pull/999)) ([36cc13d4](https://github.com/juspay/orca/commit/36cc13d44bb61b840195e1a24f1bebdb0115d13b))
+*  expire client secret after a merchant configurable intent fufliment time ([#956](https://github.com/juspay/orca/pull/956)) ([03a96432](https://github.com/juspay/orca/commit/03a96432a9d9874d2232d75206f7bc605f1170f3))
+*  PG Agnostic mandate using network_txns_id (Adyen, Authorizedotnet, Stripe) ([#855](https://github.com/juspay/orca/pull/855)) ([ed99655e](https://github.com/juspay/orca/commit/ed99655ebc11d53f4b2ffcb8c0eb9ef6b56f32c4))
+* **connector:**
+  *  add dispute webhooks for Stripe ([#918](https://github.com/juspay/orca/pull/918)) ([0df22447](https://github.com/juspay/orca/commit/0df224479416533579dd6d96e7f0dd9c246b739c))
+  *  [ACI] Add banking redirect support for EPS, Giropay, iDEAL, and Sofortueberweisung ([#890](https://github.com/juspay/orca/pull/890)) ([c86f2c04](https://github.com/juspay/orca/commit/c86f2c045e3cc614e5f68d84b5055a1b0e222f67))
+* **router:**  added support for optional defend dispute api call and added evidence submission flow for checkout connector ([#979](https://github.com/juspay/orca/pull/979)) ([4728d946](https://github.com/juspay/orca/commit/4728d946e24c2c548e7cdc23c34238ff028f1076))
+* **cards:**  validate card security code and expiration ([#874](https://github.com/juspay/orca/pull/874)) ([0b7bc7bc](https://github.com/juspay/orca/commit/0b7bc7bcd23498485c831d1c78187c433b8bb3c7))
+* **api_models:**  derive `Serialize`, `Eq`, `PartialEq`, `strum::Display` on `RefundStatus` ([#989](https://github.com/juspay/orca/pull/989)) ([22a53724](https://github.com/juspay/orca/commit/22a5372481bbf854cffb8b683606cdf0644a5f54))
+
+##### Bug Fixes
+
+* **storage_models:**  fix incorrect field order in `MerchantConnectorAccount` ([#976](https://github.com/juspay/orca/pull/976)) ([c9e8a9b4](https://github.com/juspay/orca/commit/c9e8a9b4b721612ff2c771f4849fbad0c18bb7f2))
+*  remove old data while deserialization error from cache ([#1010](https://github.com/juspay/orca/pull/1010)) ([23b56472](https://github.com/juspay/orca/commit/23b5647290a7baa12107abd88359507aa3c31444))
+*  fix internal server errors on merchant connector account creation ([#1026](https://github.com/juspay/orca/pull/1026)) ([c31b4b41](https://github.com/juspay/orca/commit/c31b4b41c22c9c622d75f0f8421ec67a416d5b70))
+* **refund_sync:**  add validation for missing `connector_refund_id` ([#1013](https://github.com/juspay/orca/pull/1013)) ([4397c8e1](https://github.com/juspay/orca/commit/4397c8e19977974510f7c24daa8c3ef7f2ab907b))
+* **refund_list:**  updated refund list response status code when no refunds found. ([#974](https://github.com/juspay/orca/pull/974)) ([4e0489cf](https://github.com/juspay/orca/commit/4e0489cf1cb7c17e55cffabeb0067c380ba41ff4))
+
+##### Other Changes
+
+* Changelog for release v0.5.8 ([#950](https://github.com/juspay/orca/pull/950)) ([9240e16a](https://github.com/juspay/orca/commit/9240e16ae4e4f4092a7f64f09ba1fcb058e0cdcf))
+* **README:**  remove redundant "more" in FAQs ([#1031](https://github.com/juspay/orca/pull/1031)) ([9cbda838](https://github.com/juspay/orca/commit/9cbda838171331598018a640551495014bc364a2))
+
+##### Refactors
+
+*  use `CountryAlpha2` instead of `CountryCode` for country codes ([#904](https://github.com/juspay/orca/pull/904)) ([2cff019a](https://github.com/juspay/orca/commit/2cff019a1be669e5b1cd44d5513463671f386f4c))
+* **config:**  add independent toggles for enabling traces and metrics ([#1020](https://github.com/juspay/orca/pull/1020)) ([af71828e](https://github.com/juspay/orca/commit/af71828e351918fe6a97b52969db4abd331f6e5b))
+* **stripe:**  return all the missing fields in a request ([#935](https://github.com/juspay/orca/pull/935)) ([e9fc34ff](https://github.com/juspay/orca/commit/e9fc34ff626c13ec117f4ec9b091a69892bddf4f))
+
 # 0.5.8 (2023-04-25)
 
 ## Chores
