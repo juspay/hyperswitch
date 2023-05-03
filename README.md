@@ -131,7 +131,7 @@ You can [try the hosted version in our sandbox][dashboard].
 
 ## FAQs
 
-Got more more questions?
+Got more questions?
 Please refer to our [FAQs page][faqs].
 
 [faqs]: https://hyperswitch.io/docs/websiteFAQ
