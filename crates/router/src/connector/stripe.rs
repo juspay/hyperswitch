@@ -1128,7 +1128,6 @@ impl
         let stripe_req = stripe::Evidence::try_from(req)?;
         let stripe_req_string = utils::Encode::<stripe::Evidence>::url_encode(&stripe_req)
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        print!("Stripe request: {:?}", stripe_req_string);
         Ok(Some(stripe_req_string))
     }
 
@@ -1285,28 +1284,58 @@ impl api::IncomingWebhook for Stripe {
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
-        let details: stripe::StripeWebhookObjectId = request
+        let details: stripe::WebhookEvent = request
             .body
-            .parse_struct("StripeWebhookObjectId")
+            .parse_struct("WebhookEvent")
             .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
 
-        Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
-            api_models::payments::PaymentIdType::ConnectorTransactionId(details.data.object.id),
-        ))
+        Ok(match details.event_data.event_object.object {
+            stripe::WebhookEventObjectType::PaymentIntent => {
+                api_models::webhooks::ObjectReferenceId::PaymentId(
+                    api_models::payments::PaymentIdType::ConnectorTransactionId(
+                        details.event_data.event_object.id,
+                    ),
+                )
+            }
+            stripe::WebhookEventObjectType::Dispute => {
+                api_models::webhooks::ObjectReferenceId::PaymentId(
+                    api_models::payments::PaymentIdType::ConnectorTransactionId(
+                        details
+                            .event_data
+                            .event_object
+                            .payment_intent
+                            .ok_or(errors::ConnectorError::WebhookReferenceIdNotFound)?,
+                    ),
+                )
+            }
+            _ => Err(errors::ConnectorError::WebhookReferenceIdNotFound)?,
+        })
     }
 
     fn get_webhook_event_type(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api::IncomingWebhookEvent, errors::ConnectorError> {
-        let details: stripe::StripeWebhookObjectEventType = request
+        let details: stripe::WebhookEvent = request
             .body
-            .parse_struct("StripeWebhookObjectEventType")
-            .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
-
-        Ok(match details.event_type.as_str() {
-            "payment_intent.payment_failed" => api::IncomingWebhookEvent::PaymentIntentFailure,
-            "payment_intent.succeeded" => api::IncomingWebhookEvent::PaymentIntentSuccess,
+            .parse_struct("WebhookEvent")
+            .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
+        Ok(match details.event_type {
+            stripe::WebhookEventType::PaymentIntentFailed => {
+                api::IncomingWebhookEvent::PaymentIntentFailure
+            }
+            stripe::WebhookEventType::PaymentIntentSucceed => {
+                api::IncomingWebhookEvent::PaymentIntentSuccess
+            }
+            stripe::WebhookEventType::DisputeCreated => api::IncomingWebhookEvent::DisputeOpened,
+            stripe::WebhookEventType::DisputeClosed => api::IncomingWebhookEvent::DisputeCancelled,
+            stripe::WebhookEventType::DisputeUpdated => api::IncomingWebhookEvent::try_from(
+                details
+                    .event_data
+                    .event_object
+                    .status
+                    .ok_or(errors::ConnectorError::WebhookEventTypeNotFound)?,
+            )?,
             _ => Err(errors::ConnectorError::WebhookEventTypeNotFound).into_report()?,
         })
     }
@@ -1315,12 +1344,42 @@ impl api::IncomingWebhook for Stripe {
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<serde_json::Value, errors::ConnectorError> {
-        let details: stripe::StripeWebhookObjectResource = request
+        let details: stripe::WebhookEventObjectResource = request
             .body
-            .parse_struct("StripeWebhookObjectResource")
+            .parse_struct("WebhookEventObjectResource")
             .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
 
         Ok(details.data.object)
+    }
+    fn get_dispute_details(
+        &self,
+        request: &api::IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<api::disputes::DisputePayload, errors::ConnectorError> {
+        let details: stripe::WebhookEvent = request
+            .body
+            .parse_struct("WebhookEvent")
+            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+        Ok(api::disputes::DisputePayload {
+            amount: details.event_data.event_object.amount.to_string(),
+            currency: details.event_data.event_object.currency,
+            dispute_stage: api_models::enums::DisputeStage::Dispute,
+            connector_dispute_id: details.event_data.event_object.id,
+            connector_reason: details.event_data.event_object.reason,
+            connector_reason_code: None,
+            challenge_required_by: details
+                .event_data
+                .event_object
+                .evidence_details
+                .map(|payload| payload.due_by),
+            connector_status: details
+                .event_data
+                .event_object
+                .status
+                .ok_or(errors::ConnectorError::WebhookResourceObjectNotFound)?
+                .to_string(),
+            created_at: Some(details.event_data.event_object.created),
+            updated_at: None,
+        })
     }
 }
 

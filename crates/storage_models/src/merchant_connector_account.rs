@@ -37,7 +37,7 @@ pub struct MerchantConnectorAccount {
     pub modified_at: time::PrimitiveDateTime,
 }
 
-#[derive(Clone, Debug, Default, Insertable, router_derive::DebugAsDisplay)]
+#[derive(Clone, Debug, Insertable, router_derive::DebugAsDisplay)]
 #[diesel(table_name = merchant_connector_account)]
 pub struct MerchantConnectorAccountNew {
     pub merchant_id: Option<String>,
@@ -54,6 +54,8 @@ pub struct MerchantConnectorAccountNew {
     pub business_country: storage_enums::CountryAlpha2,
     pub business_label: String,
     pub business_sub_label: Option<String>,
+    pub created_at: time::PrimitiveDateTime,
+    pub modified_at: time::PrimitiveDateTime,
 }
 
 #[derive(Debug)]
@@ -70,7 +72,7 @@ pub enum MerchantConnectorAccountUpdate {
         frm_configs: Option<Secret<serde_json::Value>>,
     },
 }
-#[derive(Clone, Debug, Default, AsChangeset, router_derive::DebugAsDisplay)]
+#[derive(Clone, Debug, AsChangeset, router_derive::DebugAsDisplay)]
 #[diesel(table_name = merchant_connector_account)]
 pub struct MerchantConnectorAccountUpdateInternal {
     merchant_id: Option<String>,
@@ -82,7 +84,7 @@ pub struct MerchantConnectorAccountUpdateInternal {
     payment_methods_enabled: Option<Vec<serde_json::Value>>,
     metadata: Option<pii::SecretSerdeValue>,
     frm_configs: Option<Secret<serde_json::Value>>,
-    modified_at: Option<time::PrimitiveDateTime>,
+    modified_at: time::PrimitiveDateTime,
 }
 
 impl From<MerchantConnectorAccountUpdate> for MerchantConnectorAccountUpdateInternal {
@@ -108,7 +110,7 @@ impl From<MerchantConnectorAccountUpdate> for MerchantConnectorAccountUpdateInte
                 payment_methods_enabled,
                 metadata,
                 frm_configs,
-                modified_at: Some(common_utils::date_time::now()),
+                modified_at: common_utils::date_time::now(),
             },
         }
     }
