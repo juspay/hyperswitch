@@ -1896,7 +1896,7 @@ pub struct DisputeObj {
 #[cfg(test)]
 mod test_validate_shipping_address_against_payment_method {
     #![allow(clippy::unwrap_used)]
-    use api_models::enums::CountryCode;
+    use api_models::enums::CountryAlpha2;
     use masking::Secret;
 
     use crate::{
@@ -1913,7 +1913,7 @@ mod test_validate_shipping_address_against_payment_method {
         let stripe_shipping_address = create_stripe_shipping_address(
             Some("name".to_string()),
             Some("line1".to_string()),
-            Some(CountryCode::AD),
+            Some(CountryAlpha2::AD),
             Some("zip".to_string()),
         );
 
@@ -1935,7 +1935,7 @@ mod test_validate_shipping_address_against_payment_method {
         let stripe_shipping_address = create_stripe_shipping_address(
             None,
             Some("line1".to_string()),
-            Some(CountryCode::AD),
+            Some(CountryAlpha2::AD),
             Some("zip".to_string()),
         );
 
@@ -1960,7 +1960,7 @@ mod test_validate_shipping_address_against_payment_method {
         let stripe_shipping_address = create_stripe_shipping_address(
             Some("name".to_string()),
             None,
-            Some(CountryCode::AD),
+            Some(CountryAlpha2::AD),
             Some("zip".to_string()),
         );
 
@@ -2010,7 +2010,7 @@ mod test_validate_shipping_address_against_payment_method {
         let stripe_shipping_address = create_stripe_shipping_address(
             Some("name".to_string()),
             Some("line1".to_string()),
-            Some(CountryCode::AD),
+            Some(CountryAlpha2::AD),
             None,
         );
         let payment_method = &StripePaymentMethodType::AfterpayClearpay;
@@ -2066,7 +2066,7 @@ mod test_validate_shipping_address_against_payment_method {
     fn create_stripe_shipping_address(
         name: Option<String>,
         line1: Option<String>,
-        country: Option<CountryCode>,
+        country: Option<CountryAlpha2>,
         zip: Option<String>,
     ) -> StripeShippingAddress {
         StripeShippingAddress {
