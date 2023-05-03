@@ -1,4 +1,5 @@
 use api_models::{enums::DisputeStage, webhooks::IncomingWebhookEvent};
+use cards::CardNumber;
 use masking::PeekInterface;
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
@@ -8,7 +9,7 @@ use crate::{
     connector::utils::PaymentsAuthorizeRequestData,
     consts,
     core::errors,
-    pii::{self, Email, Secret},
+    pii::{Email, Secret},
     services,
     types::{
         self,
@@ -277,7 +278,7 @@ pub struct BancontactCardData {
     #[serde(rename = "type")]
     payment_type: PaymentType,
     brand: String,
-    number: Secret<String, pii::CardNumber>,
+    number: CardNumber,
     expiry_month: Secret<String>,
     expiry_year: Secret<String>,
     holder_name: Secret<String>,
@@ -489,7 +490,7 @@ pub struct BankRedirectionWithIssuer<'a> {
 pub struct AdyenCard {
     #[serde(rename = "type")]
     payment_type: PaymentType,
-    number: Secret<String, pii::CardNumber>,
+    number: CardNumber,
     expiry_month: Secret<String>,
     expiry_year: Secret<String>,
     cvc: Option<Secret<String>>,

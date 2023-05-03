@@ -1,5 +1,6 @@
 use std::net::IpAddr;
 
+use cards::CardNumber;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 
@@ -98,7 +99,7 @@ pub enum ZenPaymentTypes {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ZenCardDetails {
-    number: Secret<String, pii::CardNumber>,
+    number: CardNumber,
     expiry_date: Secret<String>,
     cvv: Secret<String>,
 }

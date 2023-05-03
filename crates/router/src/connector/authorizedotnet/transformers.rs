@@ -43,7 +43,7 @@ impl TryFrom<&types::ConnectorAuthType> for MerchantAuthentication {
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
 #[serde(rename_all = "camelCase")]
 struct CreditCardDetails {
-    card_number: masking::Secret<String, common_utils::pii::CardNumber>,
+    card_number: masking::StrongSecret<String, cards::CardNumberStrategy>,
     expiration_date: masking::Secret<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     card_code: Option<masking::Secret<String>>,
@@ -74,7 +74,7 @@ impl TryFrom<api_models::payments::PaymentMethodData> for PaymentDetails {
         match value {
             api::PaymentMethodData::Card(ref ccard) => {
                 Ok(Self::CreditCard(CreditCardDetails {
-                    card_number: ccard.card_number.clone(),
+                    card_number: (*ccard.card_number).clone(),
                     // expiration_date: format!("{expiry_year}-{expiry_month}").into(),
                     expiration_date: ccard
                         .card_exp_month

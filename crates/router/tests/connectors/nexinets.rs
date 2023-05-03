@@ -1,3 +1,6 @@
+use std::str::FromStr;
+
+use cards::CardNumber;
 use masking::Secret;
 use router::types::{self, api, storage::enums, PaymentsAuthorizeData};
 
@@ -37,7 +40,7 @@ fn payment_method_details() -> Option<PaymentsAuthorizeData> {
     Some(PaymentsAuthorizeData {
         currency: storage_models::enums::Currency::EUR,
         payment_method_data: types::api::PaymentMethodData::Card(api::Card {
-            card_number: Secret::new("4012001038443335".to_string()),
+            card_number: CardNumber::from_str("4012001038443336").unwrap(),
             ..utils::CCardType::default().0
         }),
         router_return_url: Some("https://google.com".to_string()),
@@ -499,7 +502,7 @@ async fn should_fail_payment_for_incorrect_card_number() {
         .make_payment(
             Some(PaymentsAuthorizeData {
                 payment_method_data: types::api::PaymentMethodData::Card(api::Card {
-                    card_number: Secret::new("12345678910112331".to_string()),
+                    card_number: CardNumber::from_str("12345678910112331").unwrap(),
                     ..utils::CCardType::default().0
                 }),
                 currency: storage_models::enums::Currency::EUR,
@@ -512,29 +515,6 @@ async fn should_fail_payment_for_incorrect_card_number() {
     assert_eq!(
         response.response.unwrap_err().message,
         "payment.cardNumber : Bad value for 'payment.cardNumber'. Expected: string of length in range 12 <=> 19 representing a valid creditcard number.".to_string(),
-    );
-}
-
-// Creates a payment with empty card number.
-#[actix_web::test]
-async fn should_fail_payment_for_empty_card_number() {
-    let response = CONNECTOR
-        .make_payment(
-            Some(PaymentsAuthorizeData {
-                payment_method_data: types::api::PaymentMethodData::Card(api::Card {
-                    card_number: Secret::new(String::from("")),
-                    ..utils::CCardType::default().0
-                }),
-                ..utils::PaymentAuthorizeType::default().0
-            }),
-            None,
-        )
-        .await
-        .unwrap();
-    let x = response.response.unwrap_err();
-    assert_eq!(
-        x.message,
-        "payment.cardNumber : Bad value for 'payment.cardNumber'. Expected: string of length in range 12 <=> 19 representing a valid creditcard number.",
     );
 }
 

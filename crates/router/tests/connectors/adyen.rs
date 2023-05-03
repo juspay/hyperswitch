@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 use api_models::payments::{Address, AddressDetails};
 use masking::Secret;
 use router::types::{self, api, storage::enums, PaymentAddress};
@@ -61,7 +63,7 @@ impl AdyenTest {
             amount: 3500,
             currency: enums::Currency::USD,
             payment_method_data: types::api::PaymentMethodData::Card(types::api::Card {
-                card_number: Secret::new(card_number.to_string()),
+                card_number: cards::CardNumber::from_str(card_number).unwrap(),
                 card_exp_month: Secret::new(card_exp_month.to_string()),
                 card_exp_year: Secret::new(card_exp_year.to_string()),
                 card_holder_name: Secret::new("John Doe".to_string()),
@@ -341,7 +343,7 @@ async fn should_fail_payment_for_incorrect_card_number() {
             Some(types::PaymentsAuthorizeData {
                 router_return_url: Some(String::from("http://localhost:8080")),
                 payment_method_data: types::api::PaymentMethodData::Card(api::Card {
-                    card_number: Secret::new("1234567891011".to_string()),
+                    card_number: cards::CardNumber::from_str("1234567891011").unwrap(),
                     ..utils::CCardType::default().0
                 }),
                 ..utils::PaymentAuthorizeType::default().0
@@ -354,27 +356,6 @@ async fn should_fail_payment_for_incorrect_card_number() {
         response.response.unwrap_err().message,
         "Invalid card number",
     );
-}
-
-// Creates a payment with empty card number.
-#[actix_web::test]
-async fn should_fail_payment_for_empty_card_number() {
-    let response = CONNECTOR
-        .make_payment(
-            Some(types::PaymentsAuthorizeData {
-                router_return_url: Some(String::from("http://localhost:8080")),
-                payment_method_data: types::api::PaymentMethodData::Card(api::Card {
-                    card_number: Secret::new(String::from("")),
-                    ..utils::CCardType::default().0
-                }),
-                ..utils::PaymentAuthorizeType::default().0
-            }),
-            AdyenTest::get_payment_info(),
-        )
-        .await
-        .unwrap();
-    let x = response.response.unwrap_err();
-    assert_eq!(x.message, "Missing payment method details: number",);
 }
 
 // Creates a payment with incorrect CVC.

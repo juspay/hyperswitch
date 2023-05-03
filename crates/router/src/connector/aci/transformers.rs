@@ -87,7 +87,7 @@ pub enum PaymentBrand {
 #[derive(Debug, Clone, Eq, PartialEq, Serialize)]
 pub struct CardDetails {
     #[serde(rename = "card.number")]
-    pub card_number: Secret<String, common_utils::pii::CardNumber>,
+    pub card_number: cards::CardNumber,
     #[serde(rename = "card.holder")]
     pub card_holder: Secret<String>,
     #[serde(rename = "card.expiryMonth")]

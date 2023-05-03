@@ -9,7 +9,7 @@ use crate::{
         PaymentsAuthorizeRequestData,
     },
     core::errors,
-    pii, services,
+    services,
     types::{self, api, storage::enums as storage_enums, transformers::ForeignFrom},
 };
 
@@ -44,7 +44,7 @@ pub struct CardRequest {
     billing_address: Option<Address>,
     expiry: Option<Secret<String>>,
     name: Secret<String>,
-    number: Option<Secret<String, pii::CardNumber>>,
+    number: Option<cards::CardNumber>,
     security_code: Option<Secret<String>>,
 }
 

@@ -191,7 +191,7 @@ mod payments_test {
     #[allow(dead_code)]
     fn card() -> Card {
         Card {
-            card_number: "1234432112344321".to_string().into(),
+            card_number: "1234432112344321".to_string().try_into().unwrap(),
             card_exp_month: "12".to_string().into(),
             card_exp_year: "99".to_string().into(),
             card_holder_name: "JohnDoe".to_string().into(),

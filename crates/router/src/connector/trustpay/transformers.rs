@@ -13,7 +13,6 @@ use crate::{
     },
     consts,
     core::errors,
-    pii::{self},
     services,
     types::{self, api, storage::enums, BrowserInformation},
 };
@@ -113,7 +112,7 @@ pub struct CallbackURLs {
 pub struct PaymentRequestCards {
     pub amount: String,
     pub currency: String,
-    pub pan: Secret<String, pii::CardNumber>,
+    pub pan: cards::CardNumber,
     pub cvv: Secret<String>,
     #[serde(rename = "exp")]
     pub expiry_date: Secret<String>,

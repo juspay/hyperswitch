@@ -343,11 +343,7 @@ impl CardData for api::Card {
         Secret::new(year[year.len() - 2..].to_string())
     }
     fn get_card_issuer(&self) -> Result<CardIssuer, Error> {
-        let card: Secret<String, pii::CardNumber> = self
-            .card_number
-            .clone()
-            .map(|card| card.split_whitespace().collect());
-        get_card_issuer(card.peek().clone().as_str())
+        get_card_issuer(self.card_number.peek())
     }
     fn get_card_expiry_month_year_2_digit_with_delimiter(
         &self,

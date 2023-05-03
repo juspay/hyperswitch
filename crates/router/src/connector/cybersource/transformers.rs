@@ -45,7 +45,7 @@ pub struct PaymentInformation {
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct Card {
-    number: Secret<String, pii::CardNumber>,
+    number: cards::CardNumber,
     expiration_month: Secret<String>,
     expiration_year: Secret<String>,
     security_code: Secret<String>,

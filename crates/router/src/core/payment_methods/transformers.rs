@@ -24,7 +24,7 @@ pub struct StoreCardReq<'a> {
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Card {
-    pub card_number: Secret<String, pii::CardNumber>,
+    pub card_number: pii::CardNumber,
     pub name_on_card: Option<Secret<String>>,
     pub card_exp_month: Secret<String>,
     pub card_exp_year: Secret<String>,
@@ -78,7 +78,7 @@ pub struct DeleteCardResp {
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AddCardRequest<'a> {
-    pub card_number: Secret<String, pii::CardNumber>,
+    pub card_number: pii::CardNumber,
     pub customer_id: &'a str,
     pub card_exp_month: Secret<String>,
     pub card_exp_year: Secret<String>,
@@ -97,7 +97,7 @@ pub struct AddCardResponse {
     pub card_global_fingerprint: Secret<String>,
     #[serde(rename = "merchant_id")]
     pub merchant_id: Option<String>,
-    pub card_number: Option<Secret<String, pii::CardNumber>>,
+    pub card_number: Option<pii::CardNumber>,
     pub card_exp_year: Option<Secret<String>>,
     pub card_exp_month: Option<Secret<String>>,
     pub name_on_card: Option<Secret<String>>,

@@ -1,3 +1,4 @@
+use cards::CardNumber;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 
@@ -16,7 +17,7 @@ pub struct FortePaymentsRequest {
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
 pub struct ForteCard {
     name: Secret<String>,
-    number: Secret<String, common_utils::pii::CardNumber>,
+    number: CardNumber,
     expiry_month: Secret<String>,
     expiry_year: Secret<String>,
     cvc: Secret<String>,

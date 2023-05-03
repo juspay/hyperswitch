@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     connector::utils::{self, PaymentsCancelRequestData, PaymentsSyncRequestData, RouterData},
     core::errors,
-    pii::{self, Secret},
+    pii::Secret,
     types::{self, api, storage::enums},
 };
 
@@ -36,7 +36,7 @@ pub enum Source {
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct CardData {
-    card_data: Secret<String, pii::CardNumber>,
+    card_data: cards::CardNumber,
     expiration_month: Secret<String>,
     expiration_year: Secret<String>,
     security_code: Secret<String>,
@@ -134,10 +134,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for FiservPaymentsRequest {
         let source = match item.request.payment_method_data.clone() {
             api::PaymentMethodData::Card(ref ccard) => {
                 let card = CardData {
-                    card_data: ccard
-                        .card_number
-                        .clone()
-                        .map(|card| card.split_whitespace().collect()),
+                    card_data: ccard.card_number.clone(),
                     expiration_month: ccard.card_exp_month.clone(),
                     expiration_year: ccard.card_exp_year.clone(),
                     security_code: ccard.card_cvc.clone(),

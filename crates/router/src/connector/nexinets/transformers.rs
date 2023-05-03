@@ -1,5 +1,6 @@
 use api_models::payments::PaymentMethodData;
 use base64::Engine;
+use cards::CardNumber;
 use common_utils::errors::CustomResult;
 use error_stack::{IntoReport, ResultExt};
 use masking::Secret;
@@ -75,7 +76,7 @@ pub enum CardDataDetails {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CardDetails {
-    card_number: Secret<String, common_utils::pii::CardNumber>,
+    card_number: CardNumber,
     expiry_month: Secret<String>,
     expiry_year: Secret<String>,
     verification: Secret<String>,

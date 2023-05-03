@@ -6,7 +6,7 @@ use crate::{
     connector::utils,
     consts,
     core::errors,
-    pii::{self, Secret},
+    pii::Secret,
     types::{self, api, storage::enums, transformers::ForeignTryFrom},
     utils::Encode,
 };
@@ -31,7 +31,7 @@ pub enum PaymentMethodDetails {
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct Card {
-    card_number: Secret<String, pii::CardNumber>,
+    card_number: cards::CardNumber,
     expiration_month: Secret<String>,
     expiration_year: Secret<String>,
     security_code: Secret<String>,
