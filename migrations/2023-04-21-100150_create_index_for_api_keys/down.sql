@@ -1,0 +1,1 @@
+DROP INDEX api_keys_merchant_id_key_id_index;

@@ -34,7 +34,7 @@ async fn main() -> ApplicationResult<()> {
     conf.validate()
         .expect("Failed to validate router configuration");
 
-    let _guard = logger::setup(&conf.log)?;
+    let _guard = logger::setup(&conf.log);
 
     logger::info!("Application started [{:?}] [{:?}]", conf.server, conf.log);
 
@@ -42,7 +42,6 @@ async fn main() -> ApplicationResult<()> {
     let (server, mut state) = router::start_server(conf)
         .await
         .expect("Failed to create the server");
-
     let _ = server.await;
 
     state.store.close().await;

@@ -116,6 +116,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
         payment_data: PaymentData<F>,
         _customer: Option<storage::Customer>,
         _storage_scheme: enums::MerchantStorageScheme,
+        _updated_customer: Option<storage::CustomerUpdate>,
     ) -> RouterResult<(BoxedOperation<'b, F, api::PaymentsRequest>, PaymentData<F>)>
     where
         F: 'b + Send,
@@ -133,6 +134,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRetrieveRequest> fo
         payment_data: PaymentData<F>,
         _customer: Option<storage::Customer>,
         _storage_scheme: enums::MerchantStorageScheme,
+        _updated_customer: Option<storage::CustomerUpdate>,
     ) -> RouterResult<(
         BoxedOperation<'b, F, api::PaymentsRetrieveRequest>,
         PaymentData<F>,
@@ -253,8 +255,7 @@ async fn get_tracker_for_sync<
             mandate_id: payment_attempt.mandate_id.clone().map(|id| {
                 api_models::payments::MandateIds {
                     mandate_id: id,
-                    connector_mandate_id: None,
-                    payment_method_id: None,
+                    mandate_reference_id: None,
                 }
             }),
             setup_mandate: None,
@@ -278,6 +279,7 @@ async fn get_tracker_for_sync<
             card_cvc: None,
             creds_identifier,
             pm_token: None,
+            connector_customer_id: None,
         },
         None,
     ))

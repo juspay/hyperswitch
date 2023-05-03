@@ -158,10 +158,11 @@ pub async fn create_api_key(
 #[instrument(skip_all)]
 pub async fn retrieve_api_key(
     store: &dyn StorageInterface,
+    merchant_id: &str,
     key_id: &str,
 ) -> RouterResponse<api::RetrieveApiKeyResponse> {
     let api_key = store
-        .find_api_key_by_key_id_optional(key_id)
+        .find_api_key_by_merchant_id_key_id_optional(merchant_id, key_id)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError) // If retrieve failed
         .attach_printable("Failed to retrieve new API key")?
@@ -173,11 +174,16 @@ pub async fn retrieve_api_key(
 #[instrument(skip_all)]
 pub async fn update_api_key(
     store: &dyn StorageInterface,
+    merchant_id: &str,
     key_id: &str,
     api_key: api::UpdateApiKeyRequest,
 ) -> RouterResponse<api::RetrieveApiKeyResponse> {
     let api_key = store
-        .update_api_key(key_id.to_owned(), api_key.foreign_into())
+        .update_api_key(
+            merchant_id.to_owned(),
+            key_id.to_owned(),
+            api_key.foreign_into(),
+        )
         .await
         .to_not_found_response(errors::ApiErrorResponse::ApiKeyNotFound)?;
 
@@ -187,16 +193,18 @@ pub async fn update_api_key(
 #[instrument(skip_all)]
 pub async fn revoke_api_key(
     store: &dyn StorageInterface,
+    merchant_id: &str,
     key_id: &str,
 ) -> RouterResponse<api::RevokeApiKeyResponse> {
     let revoked = store
-        .revoke_api_key(key_id)
+        .revoke_api_key(merchant_id, key_id)
         .await
         .to_not_found_response(errors::ApiErrorResponse::ApiKeyNotFound)?;
 
     metrics::API_KEY_REVOKED.add(&metrics::CONTEXT, 1, &[]);
 
     Ok(ApplicationResponse::Json(api::RevokeApiKeyResponse {
+        merchant_id: merchant_id.to_owned(),
         key_id: key_id.to_owned(),
         revoked,
     }))

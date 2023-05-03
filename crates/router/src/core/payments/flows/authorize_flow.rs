@@ -6,7 +6,7 @@ use crate::{
     core::{
         errors::{self, ConnectorErrorExt, RouterResult},
         mandate,
-        payments::{self, access_token, tokenization, transformers, PaymentData},
+        payments::{self, access_token, customers, tokenization, transformers, PaymentData},
     },
     logger,
     routes::{metrics, AppState},
@@ -27,6 +27,7 @@ impl
         state: &AppState,
         connector_id: &str,
         merchant_account: &storage::MerchantAccount,
+        customer: &Option<storage::Customer>,
     ) -> RouterResult<
         types::RouterData<
             api::Authorize,
@@ -39,6 +40,7 @@ impl
             self.clone(),
             connector_id,
             merchant_account,
+            customer,
         )
         .await
     }
@@ -90,6 +92,22 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
             tokenization_action,
             self,
             types::PaymentMethodTokenizationData::try_from(self.request.to_owned())?,
+        )
+        .await
+    }
+
+    async fn create_connector_customer<'a>(
+        &self,
+        state: &AppState,
+        connector: &api::ConnectorData,
+        customer: &Option<storage::Customer>,
+    ) -> RouterResult<(Option<String>, Option<storage::CustomerUpdate>)> {
+        customers::create_connector_customer(
+            state,
+            connector,
+            customer,
+            self,
+            types::ConnectorCustomerData::try_from(self.request.to_owned())?,
         )
         .await
     }
@@ -192,6 +210,19 @@ impl mandate::MandateBehaviour for types::PaymentsAuthorizeData {
 
     fn set_mandate_id(&mut self, new_mandate_id: Option<api_models::payments::MandateIds>) {
         self.mandate_id = new_mandate_id;
+    }
+}
+
+impl TryFrom<types::PaymentsAuthorizeData> for types::ConnectorCustomerData {
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
+
+    fn try_from(data: types::PaymentsAuthorizeData) -> Result<Self, Self::Error> {
+        Ok(Self {
+            email: data.email,
+            description: None,
+            phone: None,
+            name: None,
+        })
     }
 }
 

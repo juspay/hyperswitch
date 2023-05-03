@@ -20,7 +20,7 @@ pub(crate) struct ConnectorAuthentication {
     pub globalpay: Option<HeaderKey>,
     pub mollie: Option<HeaderKey>,
     pub multisafepay: Option<HeaderKey>,
-    pub nexinets: Option<HeaderKey>,
+    pub nexinets: Option<BodyKey>,
     pub nuvei: Option<SignatureKey>,
     pub opennode: Option<HeaderKey>,
     pub payeezy: Option<SignatureKey>,
@@ -29,9 +29,10 @@ pub(crate) struct ConnectorAuthentication {
     pub rapyd: Option<BodyKey>,
     pub shift4: Option<HeaderKey>,
     pub stripe: Option<HeaderKey>,
+    pub trustpay: Option<SignatureKey>,
     pub worldpay: Option<BodyKey>,
     pub worldline: Option<SignatureKey>,
-    pub trustpay: Option<SignatureKey>,
+    pub zen: Option<HeaderKey>,
 }
 
 impl ConnectorAuthentication {
