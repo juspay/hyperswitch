@@ -1609,11 +1609,7 @@ impl BasiliskCardSupport {
         card: api::CardDetailFromLocker,
         pm: &storage::PaymentMethod,
     ) -> errors::RouterResult<api::CardDetailFromLocker> {
-        let card_number = card
-            .card_number
-            .clone()
-            .expose_option()
-            .get_required_value("card_number")?;
+        let card_number = card.card_number.clone().get_required_value("card_number")?;
         let card_exp_month = card
             .expiry_month
             .clone()
@@ -1725,7 +1721,7 @@ impl BasiliskCardSupport {
             .expose_option()
             .unwrap_or_default();
         let value1 = payment_methods::mk_card_value1(
-            card_number.peek().to_owned(),
+            card_number,
             card_exp_year,
             card_exp_month,
             Some(card_holder_name),

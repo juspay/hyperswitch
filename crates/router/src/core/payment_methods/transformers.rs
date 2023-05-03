@@ -625,7 +625,7 @@ pub fn mk_crud_locker_request(
 }
 
 pub fn mk_card_value1(
-    card_number: String,
+    card_number: cards::CardNumber,
     exp_year: String,
     exp_month: String,
     name_on_card: Option<String>,
@@ -634,7 +634,7 @@ pub fn mk_card_value1(
     card_token: Option<String>,
 ) -> CustomResult<String, errors::VaultError> {
     let value1 = api::TokenizedCardValue1 {
-        card_number,
+        card_number: card_number.peek().clone(),
         exp_year,
         exp_month,
         name_on_card,
