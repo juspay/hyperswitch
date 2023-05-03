@@ -787,26 +787,26 @@ fn get_line_items(item: &types::PaymentsAuthorizeRouterData) -> Vec<LineItem> {
     let order_details = item.request.order_details.clone();
     match order_details {
         Some(od) => od
-                    .iter()
-                    .map(|data| LineItem {
-                        amount_including_tax: Some(item.request.amount),
-                        amount_excluding_tax: Some(item.request.amount),
-                        description: Some(data.product_name.clone()),
-                        id: Some(String::from("Items #1")),
-                        tax_amount: None,
-                        quantity: Some(data.quantity),
-                    })
-                    .collect(),
-        None =>  {
+            .iter()
+            .map(|data| LineItem {
+                amount_including_tax: Some(item.request.amount),
+                amount_excluding_tax: Some(item.request.amount),
+                description: Some(data.product_name.clone()),
+                id: Some(String::from("Items #1")),
+                tax_amount: None,
+                quantity: Some(data.quantity),
+            })
+            .collect(),
+        None => {
             let line_item = LineItem {
-                    amount_including_tax: Some(item.request.amount),
-                    amount_excluding_tax: Some(item.request.amount),
-                    description: None,
-                    id: Some(String::from("Items #1")),
-                    tax_amount: None,
-                    quantity: None,
-                };
-                vec![line_item]
+                amount_including_tax: Some(item.request.amount),
+                amount_excluding_tax: Some(item.request.amount),
+                description: None,
+                id: Some(String::from("Items #1")),
+                tax_amount: None,
+                quantity: None,
+            };
+            vec![line_item]
         }
     }
 }

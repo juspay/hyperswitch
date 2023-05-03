@@ -48,13 +48,13 @@ impl TryFrom<&types::PaymentsSessionRouterData> for KlarnaSessionRequest {
                 purchase_currency: request.currency,
                 order_amount: request.amount,
                 locale: "en-US".to_string(),
-                order_lines : order_details
+                order_lines: order_details
                     .iter()
                     .map(|data| OrderLines {
-                            name : data.product_name.clone(),
-                            quantity: data.quantity,
-                            unit_price:data.amount,
-                            total_amount: request.amount,
+                        name: data.product_name.clone(),
+                        quantity: data.quantity,
+                        unit_price: data.amount,
+                        total_amount: request.amount,
                     })
                     .collect(),
             }),
@@ -96,13 +96,13 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for KlarnaPaymentsRequest {
                 purchase_country: "US".to_string(),
                 purchase_currency: request.currency,
                 order_amount: request.amount,
-                order_lines : order_details
+                order_lines: order_details
                     .iter()
                     .map(|data| OrderLines {
-                            name : data.product_name.clone(),
-                            quantity: data.quantity,
-                            unit_price:data.amount,
-                            total_amount: request.amount,
+                        name: data.product_name.clone(),
+                        quantity: data.quantity,
+                        unit_price: data.amount,
+                        total_amount: request.amount,
                     })
                     .collect(),
             }),
