@@ -119,6 +119,7 @@ impl api::AcceptDispute for Checkout {}
 impl api::PaymentToken for Checkout {}
 impl api::Dispute for Checkout {}
 impl api::RetrieveFile for Checkout {}
+impl api::DefendDispute for Checkout {}
 
 impl
     ConnectorIntegration<
@@ -767,42 +768,11 @@ impl
         &self,
         res: types::Response,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
-        let response: checkout::ErrorResponse = if res.response.is_empty() {
-            checkout::ErrorResponse {
-                request_id: None,
-                error_type: if res.status_code == 401 {
-                    Some("Invalid Api Key".to_owned())
-                } else {
-                    None
-                },
-                error_codes: None,
-            }
-        } else {
-            res.response
-                .parse_struct("ErrorResponse")
-                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?
-        };
-
-        Ok(types::ErrorResponse {
-            status_code: res.status_code,
-            code: response
-                .error_codes
-                .unwrap_or_else(|| vec![consts::NO_ERROR_CODE.to_string()])
-                .join(" & "),
-            message: response
-                .error_type
-                .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-            reason: None,
-        })
+        self.build_error_response(res)
     }
 }
 
 impl api::UploadFile for Checkout {}
-
-impl ConnectorIntegration<api::Upload, types::UploadFileRequestData, types::UploadFileResponse>
-    for Checkout
-{
-}
 
 impl
     ConnectorIntegration<api::Retrieve, types::RetrieveFileRequestData, types::RetrieveFileResponse>
@@ -836,6 +806,240 @@ impl api::FileUpload for Checkout {
             }
         }
         Ok(())
+    }
+}
+
+impl ConnectorIntegration<api::Upload, types::UploadFileRequestData, types::UploadFileResponse>
+    for Checkout
+{
+    fn get_headers(
+        &self,
+        req: &types::RouterData<
+            api::Upload,
+            types::UploadFileRequestData,
+            types::UploadFileResponse,
+        >,
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+        self.get_auth_header(&req.connector_auth_type)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        "multipart/form-data"
+    }
+
+    fn get_url(
+        &self,
+        _req: &types::UploadFileRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(format!("{}{}", self.base_url(connectors), "files"))
+    }
+
+    fn get_request_form_data(
+        &self,
+        req: &types::UploadFileRouterData,
+    ) -> CustomResult<Option<reqwest::multipart::Form>, errors::ConnectorError> {
+        let checkout_req = transformers::construct_file_upload_request(req.clone())?;
+        Ok(Some(checkout_req))
+    }
+
+    fn build_request(
+        &self,
+        req: &types::UploadFileRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        Ok(Some(
+            services::RequestBuilder::new()
+                .method(services::Method::Post)
+                .url(&types::UploadFileType::get_url(self, req, connectors)?)
+                .attach_default_headers()
+                .headers(types::UploadFileType::get_headers(self, req, connectors)?)
+                .form_data(types::UploadFileType::get_request_form_data(self, req)?)
+                .content_type(services::request::ContentType::FormData)
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        data: &types::UploadFileRouterData,
+        res: types::Response,
+    ) -> CustomResult<
+        types::RouterData<api::Upload, types::UploadFileRequestData, types::UploadFileResponse>,
+        errors::ConnectorError,
+    > {
+        let response: checkout::FileUploadResponse = res
+            .response
+            .parse_struct("Checkout FileUploadResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        Ok(types::UploadFileRouterData {
+            response: Ok(types::UploadFileResponse {
+                provider_file_id: response.file_id,
+            }),
+            ..data.clone()
+        })
+    }
+
+    fn get_error_response(
+        &self,
+        res: types::Response,
+    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res)
+    }
+}
+
+impl api::SubmitEvidence for Checkout {}
+
+impl
+    ConnectorIntegration<
+        api::Evidence,
+        types::SubmitEvidenceRequestData,
+        types::SubmitEvidenceResponse,
+    > for Checkout
+{
+    fn get_headers(
+        &self,
+        req: &types::SubmitEvidenceRouterData,
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+        let mut header = vec![(
+            headers::CONTENT_TYPE.to_string(),
+            types::SubmitEvidenceType::get_content_type(self).to_string(),
+        )];
+        let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
+        header.append(&mut api_key);
+        Ok(header)
+    }
+
+    fn get_url(
+        &self,
+        req: &types::SubmitEvidenceRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(format!(
+            "{}disputes/{}/evidence",
+            self.base_url(connectors),
+            req.request.connector_dispute_id,
+        ))
+    }
+
+    fn get_request_body(
+        &self,
+        req: &types::SubmitEvidenceRouterData,
+    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+        let checkout_req = checkout::Evidence::try_from(req)?;
+        let checkout_req_string =
+            utils::Encode::<checkout::Evidence>::encode_to_string_of_json(&checkout_req)
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        Ok(Some(checkout_req_string))
+    }
+
+    fn build_request(
+        &self,
+        req: &types::SubmitEvidenceRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        let request = services::RequestBuilder::new()
+            .method(services::Method::Put)
+            .url(&types::SubmitEvidenceType::get_url(self, req, connectors)?)
+            .attach_default_headers()
+            .headers(types::SubmitEvidenceType::get_headers(
+                self, req, connectors,
+            )?)
+            .body(types::SubmitEvidenceType::get_request_body(self, req)?)
+            .build();
+        Ok(Some(request))
+    }
+
+    fn handle_response(
+        &self,
+        data: &types::SubmitEvidenceRouterData,
+        _res: types::Response,
+    ) -> CustomResult<types::SubmitEvidenceRouterData, errors::ConnectorError> {
+        Ok(types::SubmitEvidenceRouterData {
+            response: Ok(types::SubmitEvidenceResponse {
+                dispute_status: api_models::enums::DisputeStatus::DisputeChallenged,
+                connector_status: None,
+            }),
+            ..data.clone()
+        })
+    }
+
+    fn get_error_response(
+        &self,
+        res: types::Response,
+    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res)
+    }
+}
+
+impl
+    ConnectorIntegration<api::Defend, types::DefendDisputeRequestData, types::DefendDisputeResponse>
+    for Checkout
+{
+    fn get_headers(
+        &self,
+        req: &types::DefendDisputeRouterData,
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+        let mut header = vec![(
+            headers::CONTENT_TYPE.to_string(),
+            types::DefendDisputeType::get_content_type(self).to_string(),
+        )];
+        let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
+        header.append(&mut api_key);
+        Ok(header)
+    }
+
+    fn get_url(
+        &self,
+        req: &types::DefendDisputeRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(format!(
+            "{}disputes/{}/evidence",
+            self.base_url(connectors),
+            req.request.connector_dispute_id,
+        ))
+    }
+
+    fn build_request(
+        &self,
+        req: &types::DefendDisputeRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        Ok(Some(
+            services::RequestBuilder::new()
+                .method(services::Method::Post)
+                .url(&types::DefendDisputeType::get_url(self, req, connectors)?)
+                .attach_default_headers()
+                .headers(types::DefendDisputeType::get_headers(
+                    self, req, connectors,
+                )?)
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        data: &types::DefendDisputeRouterData,
+        _res: types::Response,
+    ) -> CustomResult<types::DefendDisputeRouterData, errors::ConnectorError> {
+        Ok(types::DefendDisputeRouterData {
+            response: Ok(types::DefendDisputeResponse {
+                dispute_status: api::enums::DisputeStatus::DisputeChallenged,
+                connector_status: None,
+            }),
+            ..data.clone()
+        })
+    }
+
+    fn get_error_response(
+        &self,
+        res: types::Response,
+    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res)
     }
 }
 
@@ -886,7 +1090,7 @@ impl api::IncomingWebhook for Checkout {
             .parse_struct("CheckoutWebhookBody")
             .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
 
-        if checkout::is_chargeback_event(&details.txn_type) {
+        if checkout::is_chargeback_event(&details.transaction_type) {
             return Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
                 api_models::payments::PaymentIdType::ConnectorTransactionId(
                     details
@@ -896,7 +1100,7 @@ impl api::IncomingWebhook for Checkout {
                 ),
             ));
         }
-        if checkout::is_refund_event(&details.txn_type) {
+        if checkout::is_refund_event(&details.transaction_type) {
             return Ok(api_models::webhooks::ObjectReferenceId::RefundId(
                 api_models::webhooks::RefundIdType::ConnectorRefundId(
                     details
@@ -920,7 +1124,7 @@ impl api::IncomingWebhook for Checkout {
             .parse_struct("CheckoutWebhookBody")
             .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
 
-        Ok(api::IncomingWebhookEvent::from(details.txn_type))
+        Ok(api::IncomingWebhookEvent::from(details.transaction_type))
     }
 
     fn get_webhook_resource_object(
@@ -946,12 +1150,14 @@ impl api::IncomingWebhook for Checkout {
         Ok(api::disputes::DisputePayload {
             amount: dispute_details.data.amount.to_string(),
             currency: dispute_details.data.currency,
-            dispute_stage: api_models::enums::DisputeStage::from(dispute_details.txn_type.clone()),
+            dispute_stage: api_models::enums::DisputeStage::from(
+                dispute_details.transaction_type.clone(),
+            ),
             connector_dispute_id: dispute_details.data.id,
             connector_reason: None,
             connector_reason_code: dispute_details.data.reason_code,
             challenge_required_by: dispute_details.data.evidence_required_by,
-            connector_status: dispute_details.txn_type.to_string(),
+            connector_status: dispute_details.transaction_type.to_string(),
             created_at: dispute_details.created_on,
             updated_at: dispute_details.data.date,
         })

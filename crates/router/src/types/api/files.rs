@@ -12,6 +12,7 @@ pub struct FileId {
 pub enum FileUploadProvider {
     Router,
     Stripe,
+    Checkout,
 }
 
 impl TryFrom<FileUploadProvider> for types::Connector {
@@ -19,6 +20,7 @@ impl TryFrom<FileUploadProvider> for types::Connector {
     fn try_from(item: FileUploadProvider) -> Result<Self, Self::Error> {
         match item {
             FileUploadProvider::Stripe => Ok(Self::Stripe),
+            FileUploadProvider::Checkout => Ok(Self::Checkout),
             _ => Err(errors::ApiErrorResponse::NotSupported {
                 message: "Connector not supported as file provider".to_owned(),
             }
@@ -30,8 +32,9 @@ impl TryFrom<FileUploadProvider> for types::Connector {
 impl TryFrom<&types::Connector> for FileUploadProvider {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
     fn try_from(item: &types::Connector) -> Result<Self, Self::Error> {
-        match item {
-            &types::Connector::Stripe => Ok(Self::Stripe),
+        match *item {
+            types::Connector::Stripe => Ok(Self::Stripe),
+            types::Connector::Checkout => Ok(Self::Checkout),
             _ => Err(errors::ApiErrorResponse::NotSupported {
                 message: "Connector not supported as file provider".to_owned(),
             }
