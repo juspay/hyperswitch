@@ -21,7 +21,7 @@ pub struct Address {
     #[serde(skip_serializing)]
     pub address_id: String,
     pub city: Option<String>,
-    pub country: Option<enums::CountryCode>,
+    pub country: Option<enums::CountryAlpha2>,
     pub line1: crypto::OptionalEncryptableSecretString,
     pub line2: crypto::OptionalEncryptableSecretString,
     pub line3: crypto::OptionalEncryptableSecretString,
@@ -144,7 +144,7 @@ impl behaviour::Conversion for Address {
 pub enum AddressUpdate {
     Update {
         city: Option<String>,
-        country: Option<enums::CountryCode>,
+        country: Option<enums::CountryAlpha2>,
         line1: crypto::OptionalEncryptableSecretString,
         line2: crypto::OptionalEncryptableSecretString,
         line3: crypto::OptionalEncryptableSecretString,

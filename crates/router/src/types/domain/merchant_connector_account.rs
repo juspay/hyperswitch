@@ -31,7 +31,7 @@ pub struct MerchantConnectorAccount {
     pub metadata: Option<pii::SecretSerdeValue>,
     pub frm_configs: Option<Secret<serde_json::Value>>, //Option<FrmConfigs>
     pub connector_label: String,
-    pub business_country: enums::CountryCode,
+    pub business_country: enums::CountryAlpha2,
     pub business_label: String,
     pub business_sub_label: Option<String>,
     pub created_at: time::PrimitiveDateTime,

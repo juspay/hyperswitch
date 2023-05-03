@@ -164,6 +164,7 @@ async fn refunds_incoming_webhook_flow<W: api::OutgoingWebhookType>(
             merchant_account.clone(),
             api_models::refunds::RefundsRetrieveRequest {
                 refund_id: refund_id.to_owned(),
+                force_sync: Some(true),
                 merchant_connector_details: None,
             },
         )

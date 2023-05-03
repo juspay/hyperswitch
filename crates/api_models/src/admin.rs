@@ -257,7 +257,7 @@ pub enum RoutingAlgorithm {
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct PrimaryBusinessDetails {
-    pub country: api_enums::CountryCode,
+    pub country: api_enums::CountryAlpha2,
     pub business: String,
 }
 
@@ -388,11 +388,11 @@ pub struct MerchantConnectorCreate {
     pub frm_configs: Option<FrmConfigs>,
 
     /// Business Country of the connector
-    #[schema(example = "US")]
+    #[schema(value_type = CountryAlpha2, example = "US")]
     #[cfg(feature = "multiple_mca")]
-    pub business_country: api_enums::CountryCode,
+    pub business_country: api_enums::CountryAlpha2,
     #[cfg(not(feature = "multiple_mca"))]
-    pub business_country: Option<api_enums::CountryCode>,
+    pub business_country: Option<api_enums::CountryAlpha2>,
 
     ///Business Type of the merchant
     #[schema(example = "travel")]
@@ -469,8 +469,8 @@ pub struct MerchantConnectorResponse {
     pub metadata: Option<pii::SecretSerdeValue>,
 
     /// Business Country of the connector
-    #[schema(example = "US")]
-    pub business_country: api_enums::CountryCode,
+    #[schema(value_type = CountryAlpha2, example = "US")]
+    pub business_country: api_enums::CountryAlpha2,
 
     ///Business Type of the merchant
     #[schema(example = "travel")]
@@ -606,8 +606,8 @@ pub enum AcceptedCurrencies {
     rename_all = "snake_case"
 )]
 pub enum AcceptedCountries {
-    EnableOnly(Vec<api_enums::CountryCode>),
-    DisableOnly(Vec<api_enums::CountryCode>),
+    EnableOnly(Vec<api_enums::CountryAlpha2>),
+    DisableOnly(Vec<api_enums::CountryAlpha2>),
     AllAccepted,
 }
 

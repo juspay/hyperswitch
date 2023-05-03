@@ -34,7 +34,7 @@ async fn main() -> ApplicationResult<()> {
     conf.validate()
         .expect("Failed to validate router configuration");
 
-    let _guard = logger::setup(&conf.log)?;
+    let _guard = logger::setup(&conf.log);
 
     #[cfg(feature = "pii-encryption-script")]
     {

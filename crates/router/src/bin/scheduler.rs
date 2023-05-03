@@ -28,8 +28,7 @@ async fn main() -> CustomResult<(), errors::ProcessTrackerError> {
         redis_shutdown_signal_rx,
         tx.clone(),
     ));
-    let _guard =
-        logger::setup(&state.conf.log).map_err(|_| errors::ProcessTrackerError::UnexpectedFlow)?;
+    let _guard = logger::setup(&state.conf.log);
 
     logger::debug!(startup_config=?state.conf);
 

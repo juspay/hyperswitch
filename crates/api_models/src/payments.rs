@@ -205,8 +205,8 @@ pub struct PaymentsRequest {
     pub payment_method_type: Option<api_enums::PaymentMethodType>,
 
     /// Business country of the merchant for this payment
-    #[schema(example = "US")]
-    pub business_country: Option<api_enums::CountryCode>,
+    #[schema(value_type = CountryAlpha2, example = "US")]
+    pub business_country: Option<api_enums::CountryAlpha2>,
 
     /// Business label of the merchant for this payment
     #[schema(example = "food")]
@@ -442,8 +442,8 @@ pub enum PayLaterData {
         #[schema(value_type = String)]
         billing_email: Secret<String, pii::Email>,
         // The billing country code
-        #[schema(value_type = Country)]
-        billing_country: api_enums::CountryCode,
+        #[schema(value_type = CountryAlpha2, example = "US")]
+        billing_country: api_enums::CountryAlpha2,
     },
     /// For Klarna Sdk as PayLater Option
     KlarnaSdk {
@@ -596,6 +596,9 @@ pub enum BankRedirectData {
     Giropay {
         /// The billing details for bank redirection
         billing_details: BankRedirectBilling,
+        /// Bank account details for Giropay
+        bank_account_bic: Option<Secret<String>>,
+        bank_account_iban: Option<Secret<String>>,
     },
     Ideal {
         /// The billing details for bank redirection
@@ -627,8 +630,8 @@ pub enum BankRedirectData {
         billing_details: BankRedirectBilling,
 
         /// The country for bank payment
-        #[schema(value_type = Country, example = "US")]
-        country: api_enums::CountryCode,
+        #[schema(value_type = CountryAlpha2, example = "US")]
+        country: api_enums::CountryAlpha2,
 
         /// The preferred language
         #[schema(example = "en")]
@@ -645,7 +648,7 @@ pub struct CryptoData {}
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct SofortBilling {
     /// The country associated with the billing
-    #[schema(example = "US")]
+    #[schema(value_type = CountryAlpha2, example = "US")]
     pub billing_country: String,
 }
 
@@ -857,8 +860,8 @@ pub struct AddressDetails {
     pub city: Option<String>,
 
     /// The two-letter ISO country code for the address
-    #[schema(value_type = Option<Country>, max_length = 2, min_length = 2, example = "US")]
-    pub country: Option<api_enums::CountryCode>,
+    #[schema(value_type = Option<CountryAlpha2>, example = "US")]
+    pub country: Option<api_enums::CountryAlpha2>,
 
     /// The first line of the address
     #[schema(value_type = Option<String>, max_length = 200, example = "123, King Street")]
@@ -1119,7 +1122,7 @@ pub struct PaymentsResponse {
     pub connector_label: Option<String>,
 
     /// The business country of merchant for this payment
-    pub business_country: api_enums::CountryCode,
+    pub business_country: api_enums::CountryAlpha2,
 
     /// The business label of merchant for this payment
     pub business_label: String,
@@ -1449,8 +1452,8 @@ pub struct GpayAllowedPaymentMethods {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct GpayTransactionInfo {
     /// The country code
-    #[schema(value_type = Country)]
-    pub country_code: api_enums::CountryCode,
+    #[schema(value_type = CountryAlpha2, example = "US")]
+    pub country_code: api_enums::CountryAlpha2,
     /// The currency code
     pub currency_code: String,
     /// The total price status (ex: 'FINAL')
@@ -1597,8 +1600,8 @@ pub struct ApplePaySessionResponse {
 #[derive(Debug, Clone, serde::Serialize, ToSchema, serde::Deserialize)]
 pub struct ApplePayPaymentRequest {
     /// The code for country
-    #[schema(value_type = Country)]
-    pub country_code: api_enums::CountryCode,
+    #[schema(value_type = CountryAlpha2, example = "US")]
+    pub country_code: api_enums::CountryAlpha2,
     /// The code for currency
     pub currency_code: String,
     /// Represents the total for the payment.

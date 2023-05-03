@@ -26,7 +26,7 @@ use crate::{
             self, merchant_key_store,
             types::{self as domain_types, AsyncLift},
         },
-        storage::{self},
+        storage,
         transformers::ForeignInto,
     },
     utils::{self, OptionExt},
@@ -59,7 +59,7 @@ fn get_primary_business_details(
             .to_owned()
             .unwrap_or_else(|| {
                 vec![PrimaryBusinessDetails {
-                    country: enums::CountryCode::US,
+                    country: enums::CountryAlpha2::US,
                     business: "default".to_string(),
                 }]
             })
@@ -407,7 +407,7 @@ async fn validate_merchant_id<S: Into<String>>(
 fn get_business_details_wrapper(
     request: &api::MerchantConnectorCreate,
     _merchant_account: &domain::MerchantAccount,
-) -> RouterResult<(enums::CountryCode, String)> {
+) -> RouterResult<(enums::CountryAlpha2, String)> {
     #[cfg(feature = "multiple_mca")]
     {
         // The fields are mandatory

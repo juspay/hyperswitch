@@ -121,6 +121,12 @@ pub type SubmitEvidenceType = dyn services::ConnectorIntegration<
 pub type UploadFileType =
     dyn services::ConnectorIntegration<api::Upload, UploadFileRequestData, UploadFileResponse>;
 
+pub type DefendDisputeType = dyn services::ConnectorIntegration<
+    api::Defend,
+    DefendDisputeRequestData,
+    DefendDisputeResponse,
+>;
+
 pub type VerifyRouterData = RouterData<api::Verify, VerifyRequestData, PaymentsResponseData>;
 
 pub type AcceptDisputeRouterData =
@@ -130,6 +136,9 @@ pub type SubmitEvidenceRouterData =
     RouterData<api::Evidence, SubmitEvidenceRequestData, SubmitEvidenceResponse>;
 
 pub type UploadFileRouterData = RouterData<api::Upload, UploadFileRequestData, UploadFileResponse>;
+
+pub type DefendDisputeRouterData =
+    RouterData<api::Defend, DefendDisputeRequestData, DefendDisputeResponse>;
 
 #[derive(Debug, Clone)]
 pub struct RouterData<Flow, Request, Response> {
@@ -253,7 +262,7 @@ pub struct PaymentsCancelData {
 pub struct PaymentsSessionData {
     pub amount: i64,
     pub currency: storage_enums::Currency,
-    pub country: Option<api::enums::CountryCode>,
+    pub country: Option<api::enums::CountryAlpha2>,
     pub order_details: Option<api_models::payments::OrderDetails>,
 }
 
@@ -426,6 +435,10 @@ pub struct SubmitEvidenceRequestData {
     pub shipping_documentation: Option<Vec<u8>>,
     pub shipping_documentation_provider_file_id: Option<String>,
     pub shipping_tracking_number: Option<String>,
+    pub invoice_showing_distinct_transactions: Option<Vec<u8>>,
+    pub invoice_showing_distinct_transactions_provider_file_id: Option<String>,
+    pub recurring_transaction_agreement: Option<Vec<u8>>,
+    pub recurring_transaction_agreement_provider_file_id: Option<String>,
     pub uncategorized_file: Option<Vec<u8>>,
     pub uncategorized_file_provider_file_id: Option<String>,
     pub uncategorized_text: Option<String>,
@@ -433,6 +446,18 @@ pub struct SubmitEvidenceRequestData {
 
 #[derive(Default, Clone, Debug)]
 pub struct SubmitEvidenceResponse {
+    pub dispute_status: api_models::enums::DisputeStatus,
+    pub connector_status: Option<String>,
+}
+
+#[derive(Default, Debug, Clone)]
+pub struct DefendDisputeRequestData {
+    pub dispute_id: String,
+    pub connector_dispute_id: String,
+}
+
+#[derive(Default, Debug, Clone)]
+pub struct DefendDisputeResponse {
     pub dispute_status: api_models::enums::DisputeStatus,
     pub connector_status: Option<String>,
 }
@@ -460,6 +485,7 @@ pub struct ConnectorResponse {
     pub return_url: Option<String>,
     pub three_ds_form: Option<services::RedirectForm>,
 }
+
 pub struct ResponseRouterData<Flow, R, Request, Response> {
     pub response: R,
     pub data: RouterData<Flow, Request, Response>,

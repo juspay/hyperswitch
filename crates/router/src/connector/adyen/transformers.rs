@@ -2,6 +2,7 @@ use api_models::{enums::DisputeStage, webhooks::IncomingWebhookEvent};
 use masking::PeekInterface;
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
+use time::PrimitiveDateTime;
 
 use crate::{
     connector::utils::PaymentsAuthorizeRequestData,
@@ -61,7 +62,7 @@ pub struct ShopperName {
 #[serde(rename_all = "camelCase")]
 pub struct Address {
     city: Option<String>,
-    country: Option<api_enums::CountryCode>,
+    country: Option<api_enums::CountryAlpha2>,
     house_number_or_name: Option<Secret<String>>,
     postal_code: Option<Secret<String>>,
     state_or_province: Option<Secret<String>>,
@@ -98,7 +99,7 @@ pub struct AdyenPaymentRequest<'a> {
     telephone_number: Option<Secret<String>>,
     billing_address: Option<Address>,
     delivery_address: Option<Address>,
-    country_code: Option<api_enums::CountryCode>,
+    country_code: Option<api_enums::CountryAlpha2>,
     line_items: Option<Vec<LineItem>>,
 }
 
@@ -826,7 +827,7 @@ fn get_shopper_name(item: &types::PaymentsAuthorizeRouterData) -> Option<Shopper
     })
 }
 
-fn get_country_code(item: &types::PaymentsAuthorizeRouterData) -> Option<api_enums::CountryCode> {
+fn get_country_code(item: &types::PaymentsAuthorizeRouterData) -> Option<api_enums::CountryAlpha2> {
     item.address
         .billing
         .as_ref()
@@ -1106,7 +1107,7 @@ impl<'a>
 
 fn get_sofort_extra_details(
     item: &types::PaymentsAuthorizeRouterData,
-) -> (Option<String>, Option<api_enums::CountryCode>) {
+) -> (Option<String>, Option<api_enums::CountryAlpha2>) {
     match item.request.payment_method_data {
         api_models::payments::PaymentMethodData::BankRedirect(ref b) => {
             if let api_models::payments::BankRedirectData::Sofort {
@@ -1553,7 +1554,8 @@ pub struct AdyenAdditionalDataWH {
     pub hmac_signature: String,
     pub dispute_status: Option<DisputeStatus>,
     pub chargeback_reason_code: Option<String>,
-    pub defense_period_ends_at: Option<String>,
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    pub defense_period_ends_at: Option<PrimitiveDateTime>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -1653,7 +1655,8 @@ pub struct AdyenNotificationRequestItemWH {
     pub merchant_reference: String,
     pub success: String,
     pub reason: Option<String>,
-    pub event_date: Option<String>,
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    pub event_date: Option<PrimitiveDateTime>,
 }
 
 #[derive(Debug, Deserialize)]
