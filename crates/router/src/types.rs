@@ -233,7 +233,7 @@ pub struct AuthorizeSessionTokenData {
 #[derive(Debug, Clone)]
 pub struct ConnectorCustomerData {
     pub description: Option<String>,
-    pub email: Option<masking::Secret<String, Email>>,
+    pub email: Option<Email>,
     pub phone: Option<masking::Secret<String>>,
     pub name: Option<String>,
 }

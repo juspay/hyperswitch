@@ -1,6 +1,6 @@
 use api_models::{self, enums as api_enums, payments};
 use base64::Engine;
-use common_utils::{errors::CustomResult, fp_utils, pii, pii::Email};
+use common_utils::{errors::CustomResult, pii, pii::Email};
 use error_stack::{IntoReport, ResultExt};
 use masking::{ExposeInterface, ExposeOptionInterface, Secret};
 use serde::{Deserialize, Serialize};
@@ -168,7 +168,7 @@ pub struct StripeTokenResponse {
 #[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct CustomerRequest {
     pub description: Option<String>,
-    pub email: Option<Secret<String, pii::Email>>,
+    pub email: Option<Email>,
     pub phone: Option<Secret<String>>,
     pub name: Option<String>,
 }
@@ -177,7 +177,7 @@ pub struct CustomerRequest {
 pub struct StripeCustomerResponse {
     pub id: String,
     pub description: Option<String>,
-    pub email: Option<Secret<String, pii::Email>>,
+    pub email: Option<Email>,
     pub phone: Option<Secret<String>>,
     pub name: Option<String>,
 }
