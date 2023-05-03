@@ -1082,7 +1082,7 @@ where
             .attach_printable("Invalid straight through algorithm format in payment attempt")?,
     };
 
-    let request_straight_through: Option<api::RoutingAlgorithm> = request_straight_through
+    let request_straight_through: Option<api::StraightThroughAlgorithm> = request_straight_through
         .map(|val| val.parse_value("RoutingAlgorithm"))
         .transpose()
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -1111,7 +1111,7 @@ where
 pub fn decide_connector(
     state: &AppState,
     merchant_account: &storage::MerchantAccount,
-    request_straight_through: Option<api::RoutingAlgorithm>,
+    request_straight_through: Option<api::StraightThroughAlgorithm>,
     routing_data: &mut storage::RoutingData,
 ) -> RouterResult<api::ConnectorCallType> {
     if let Some(ref connector_name) = routing_data.routed_through {
@@ -1128,7 +1128,7 @@ pub fn decide_connector(
 
     if let Some(routing_algorithm) = request_straight_through {
         let connector_name = match &routing_algorithm {
-            api::RoutingAlgorithm::Single(conn) => conn.to_string(),
+            api::StraightThroughAlgorithm::Single(conn) => conn.to_string(),
         };
 
         let connector_data = api::ConnectorData::get_connector_by_name(
@@ -1146,7 +1146,7 @@ pub fn decide_connector(
 
     if let Some(ref routing_algorithm) = routing_data.algorithm {
         let connector_name = match routing_algorithm {
-            api::RoutingAlgorithm::Single(conn) => conn.to_string(),
+            api::StraightThroughAlgorithm::Single(conn) => conn.to_string(),
         };
 
         let connector_data = api::ConnectorData::get_connector_by_name(

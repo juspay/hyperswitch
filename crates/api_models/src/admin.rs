@@ -263,6 +263,40 @@ pub enum RoutingAlgorithm {
     Single(api_enums::RoutableConnectors),
 }
 
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(
+    tag = "type",
+    content = "data",
+    rename_all = "snake_case",
+    from = "StraightThroughAlgorithmSerde",
+    into = "StraightThroughAlgorithmSerde"
+)]
+pub enum StraightThroughAlgorithm {
+    Single(api_enums::RoutableConnectors),
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum StraightThroughAlgorithmSerde {
+    Direct(StraightThroughAlgorithm),
+    Nested { algorithm: StraightThroughAlgorithm },
+}
+
+impl From<StraightThroughAlgorithmSerde> for StraightThroughAlgorithm {
+    fn from(value: StraightThroughAlgorithmSerde) -> Self {
+        match value {
+            StraightThroughAlgorithmSerde::Direct(algorithm) => algorithm,
+            StraightThroughAlgorithmSerde::Nested { algorithm } => algorithm,
+        }
+    }
+}
+
+impl From<StraightThroughAlgorithm> for StraightThroughAlgorithmSerde {
+    fn from(value: StraightThroughAlgorithm) -> Self {
+        Self::Nested { algorithm: value }
+    }
+}
+
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct PrimaryBusinessDetails {
