@@ -62,6 +62,7 @@ pub trait RouterData {
         T: serde::de::DeserializeOwned;
     fn is_three_ds(&self) -> bool;
     fn get_payment_method_token(&self) -> Result<String, Error>;
+    fn get_customer_id(&self) -> Result<String, Error>;
 }
 
 impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Response> {
@@ -145,6 +146,11 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
             .clone()
             .ok_or_else(missing_field_err("payment_method_token"))
     }
+    fn get_customer_id(&self) -> Result<String, Error> {
+        self.customer_id
+            .to_owned()
+            .ok_or_else(missing_field_err("customer_id"))
+    }
 }
 
 pub trait PaymentsAuthorizeRequestData {
@@ -196,14 +202,19 @@ impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
     fn connector_mandate_id(&self) -> Option<String> {
         self.mandate_id
             .as_ref()
-            .and_then(|mandate_ids| mandate_ids.connector_mandate_id.clone())
+            .and_then(|mandate_ids| match &mandate_ids.mandate_reference_id {
+                Some(api_models::payments::MandateReferenceId::ConnectorMandateId(
+                    connector_mandate_id,
+                )) => Some(connector_mandate_id.to_string()),
+                _ => None,
+            })
     }
     fn is_mandate_payment(&self) -> bool {
         self.setup_mandate_details.is_some()
             || self
                 .mandate_id
                 .as_ref()
-                .and_then(|mandate_ids| mandate_ids.connector_mandate_id.as_ref())
+                .and_then(|mandate_ids| mandate_ids.mandate_reference_id.as_ref())
                 .is_some()
     }
     fn get_webhook_url(&self) -> Result<String, Error> {

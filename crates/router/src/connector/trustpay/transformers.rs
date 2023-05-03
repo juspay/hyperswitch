@@ -580,6 +580,7 @@ fn handle_cards_response(
         redirection_data,
         mandate_reference: None,
         connector_metadata: None,
+        network_txn_id: None,
     };
     Ok((status, error, payment_response_data))
 }
@@ -606,6 +607,7 @@ fn handle_bank_redirects_response(
         ))),
         mandate_reference: None,
         connector_metadata: None,
+        network_txn_id: None,
     };
     Ok((status, error, payment_response_data))
 }
@@ -636,6 +638,7 @@ fn handle_bank_redirects_error_response(
         redirection_data: None,
         mandate_reference: None,
         connector_metadata: None,
+        network_txn_id: None,
     };
     Ok((status, error, payment_response_data))
 }
@@ -676,6 +679,7 @@ fn handle_bank_redirects_sync_response(
         redirection_data: None,
         mandate_reference: None,
         connector_metadata: None,
+        network_txn_id: None,
     };
     Ok((status, error, payment_response_data))
 }
@@ -696,6 +700,7 @@ pub fn handle_webhook_response(
         redirection_data: None,
         mandate_reference: None,
         connector_metadata: None,
+        network_txn_id: None,
     };
     Ok((status, None, payment_response_data))
 }
