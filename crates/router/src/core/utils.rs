@@ -465,6 +465,8 @@ pub async fn construct_defend_dispute_router_data<'a>(
         session_token: None,
         reference_id: None,
         payment_method_token: None,
+        customer_id: None,
+        connector_customer: None,
     };
     Ok(router_data)
 }

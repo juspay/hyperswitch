@@ -285,7 +285,7 @@ pub struct PaymentsCancelData {
 pub struct PaymentsSessionData {
     pub amount: i64,
     pub currency: storage_enums::Currency,
-    pub country: Option<api::enums::CountryCode>,
+    pub country: Option<api::enums::CountryAlpha2>,
     pub order_details: Option<api_models::payments::OrderDetails>,
 }
 

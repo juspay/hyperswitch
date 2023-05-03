@@ -202,7 +202,7 @@ pub enum BankSpecificData {
         #[serde(rename = "payment_method_options[sofort][preferred_language]")]
         preferred_language: String,
         #[serde(rename = "payment_method_data[sofort][country]")]
-        country: api_enums::CountryCode,
+        country: api_enums::CountryAlpha2,
     },
 }
 
@@ -1494,7 +1494,7 @@ pub struct StripeShippingAddress {
     #[serde(rename = "shipping[address][city]")]
     pub city: Option<String>,
     #[serde(rename = "shipping[address][country]")]
-    pub country: Option<api_enums::CountryCode>,
+    pub country: Option<api_enums::CountryAlpha2>,
     #[serde(rename = "shipping[address][line1]")]
     pub line1: Option<Secret<String>>,
     #[serde(rename = "shipping[address][line2]")]
@@ -1514,7 +1514,7 @@ pub struct StripeBillingAddress {
     #[serde(rename = "payment_method_data[billing_details][email]")]
     pub email: Option<Secret<String, pii::Email>>,
     #[serde(rename = "payment_method_data[billing_details][address][country]")]
-    pub country: Option<api_enums::CountryCode>,
+    pub country: Option<api_enums::CountryAlpha2>,
     #[serde(rename = "payment_method_data[billing_details][name]")]
     pub name: Option<Secret<String>>,
     #[serde(rename = "payment_method_data[billing_details][address][city]")]
@@ -1994,7 +1994,7 @@ pub struct DisputeObj {
 #[cfg(test)]
 mod test_validate_shipping_address_against_payment_method {
     #![allow(clippy::unwrap_used)]
-    use api_models::enums::CountryCode;
+    use api_models::enums::CountryAlpha2;
     use masking::Secret;
 
     use crate::{
@@ -2011,7 +2011,7 @@ mod test_validate_shipping_address_against_payment_method {
         let stripe_shipping_address = create_stripe_shipping_address(
             Some("name".to_string()),
             Some("line1".to_string()),
-            Some(CountryCode::AD),
+            Some(CountryAlpha2::AD),
             Some("zip".to_string()),
         );
 
@@ -2033,7 +2033,7 @@ mod test_validate_shipping_address_against_payment_method {
         let stripe_shipping_address = create_stripe_shipping_address(
             None,
             Some("line1".to_string()),
-            Some(CountryCode::AD),
+            Some(CountryAlpha2::AD),
             Some("zip".to_string()),
         );
 
@@ -2058,7 +2058,7 @@ mod test_validate_shipping_address_against_payment_method {
         let stripe_shipping_address = create_stripe_shipping_address(
             Some("name".to_string()),
             None,
-            Some(CountryCode::AD),
+            Some(CountryAlpha2::AD),
             Some("zip".to_string()),
         );
 
@@ -2108,7 +2108,7 @@ mod test_validate_shipping_address_against_payment_method {
         let stripe_shipping_address = create_stripe_shipping_address(
             Some("name".to_string()),
             Some("line1".to_string()),
-            Some(CountryCode::AD),
+            Some(CountryAlpha2::AD),
             None,
         );
         let payment_method = &StripePaymentMethodType::AfterpayClearpay;
@@ -2164,7 +2164,7 @@ mod test_validate_shipping_address_against_payment_method {
     fn create_stripe_shipping_address(
         name: Option<String>,
         line1: Option<String>,
-        country: Option<CountryCode>,
+        country: Option<CountryAlpha2>,
         zip: Option<String>,
     ) -> StripeShippingAddress {
         StripeShippingAddress {

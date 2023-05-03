@@ -6,7 +6,7 @@ use router_env::{instrument, tracing};
 use super::{flows::Feature, PaymentAddress, PaymentData};
 use crate::{
     configs::settings::Server,
-    connector::Paypal,
+    connector::{Nexinets, Paypal},
     core::{
         errors::{self, RouterResponse, RouterResult},
         payments::{self, helpers},
@@ -584,6 +584,16 @@ impl api::ConnectorTransactionId for Paypal {
             Ok(data) => Ok(data),
             _ => Err(errors::ApiErrorResponse::ResourceIdNotFound),
         }
+    }
+}
+
+impl api::ConnectorTransactionId for Nexinets {
+    fn connector_transaction_id(
+        &self,
+        payment_attempt: storage::PaymentAttempt,
+    ) -> Result<Option<String>, errors::ApiErrorResponse> {
+        let metadata = Self::connector_transaction_id(self, &payment_attempt.connector_metadata);
+        metadata.map_err(|_| errors::ApiErrorResponse::ResourceIdNotFound)
     }
 }
 
