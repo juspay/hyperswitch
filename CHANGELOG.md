@@ -1,10 +1,10 @@
-#### 0.5.9 (2023-05-03)
+# 0.5.9 (2023-05-03)
 
-##### Build System / Dependencies
+## Build System / Dependencies
 
 * **deps:**  make AWS dependencies optional ([#1030](https://github.com/juspay/orca/pull/1030)) ([a4f6f3fd](https://github.com/juspay/orca/commit/a4f6f3fdaa23f7bd849eb44971de8311f9363ac3))
 
-##### New Features
+## New Features
 
 * **pm_list:**  add available capture methods filter ([#999](https://github.com/juspay/orca/pull/999)) ([36cc13d4](https://github.com/juspay/orca/commit/36cc13d44bb61b840195e1a24f1bebdb0115d13b))
 *  expire client secret after a merchant configurable intent fufliment time ([#956](https://github.com/juspay/orca/pull/956)) ([03a96432](https://github.com/juspay/orca/commit/03a96432a9d9874d2232d75206f7bc605f1170f3))
@@ -17,7 +17,7 @@
 * **cards:**  validate card security code and expiration ([#874](https://github.com/juspay/orca/pull/874)) ([0b7bc7bc](https://github.com/juspay/orca/commit/0b7bc7bcd23498485c831d1c78187c433b8bb3c7))
 * **api_models:**  derive `Serialize`, `Eq`, `PartialEq`, `strum::Display` on `RefundStatus` ([#989](https://github.com/juspay/orca/pull/989)) ([22a53724](https://github.com/juspay/orca/commit/22a5372481bbf854cffb8b683606cdf0644a5f54))
 
-##### Bug Fixes
+## Bug Fixes
 
 * **storage_models:**  fix incorrect field order in `MerchantConnectorAccount` ([#976](https://github.com/juspay/orca/pull/976)) ([c9e8a9b4](https://github.com/juspay/orca/commit/c9e8a9b4b721612ff2c771f4849fbad0c18bb7f2))
 *  remove old data while deserialization error from cache ([#1010](https://github.com/juspay/orca/pull/1010)) ([23b56472](https://github.com/juspay/orca/commit/23b5647290a7baa12107abd88359507aa3c31444))
@@ -25,13 +25,13 @@
 * **refund_sync:**  add validation for missing `connector_refund_id` ([#1013](https://github.com/juspay/orca/pull/1013)) ([4397c8e1](https://github.com/juspay/orca/commit/4397c8e19977974510f7c24daa8c3ef7f2ab907b))
 * **refund_list:**  updated refund list response status code when no refunds found. ([#974](https://github.com/juspay/orca/pull/974)) ([4e0489cf](https://github.com/juspay/orca/commit/4e0489cf1cb7c17e55cffabeb0067c380ba41ff4))
 
-##### Other Changes
+## Other Changes
 
-* **README:**  
+* **README**  
   * remove redundant "more" in FAQs ([#1031](https://github.com/juspay/orca/pull/1031)) ([9cbda838](https://github.com/juspay/orca/commit/9cbda838171331598018a640551495014bc364a2))
   * replaced stale link of hyperswitch blog ([#1019](https://github.com/juspay/orca/pull/1031)) ([17e8305a](https://github.com/juspay/hyperswitch/commit/17e8305a5de49a37aca9205f4dcdc8765c7cd0ec))
 
-##### Refactors
+## Refactors
 
 *  use `CountryAlpha2` instead of `CountryCode` for country codes ([#904](https://github.com/juspay/orca/pull/904)) ([2cff019a](https://github.com/juspay/orca/commit/2cff019a1be669e5b1cd44d5513463671f386f4c))
 * **config:**  add independent toggles for enabling traces and metrics ([#1020](https://github.com/juspay/orca/pull/1020)) ([af71828e](https://github.com/juspay/orca/commit/af71828e351918fe6a97b52969db4abd331f6e5b))
