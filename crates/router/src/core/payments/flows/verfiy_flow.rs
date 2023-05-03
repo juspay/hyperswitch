@@ -5,7 +5,7 @@ use crate::{
     core::{
         errors::{self, ConnectorErrorExt, RouterResult},
         mandate,
-        payments::{self, access_token, tokenization, transformers, PaymentData},
+        payments::{self, access_token, customers, tokenization, transformers, PaymentData},
     },
     routes::AppState,
     services,
@@ -78,6 +78,34 @@ impl Feature<api::Verify, types::VerifyRequestData> for types::VerifyRouterData 
             types::PaymentMethodTokenizationData::try_from(self.request.to_owned())?,
         )
         .await
+    }
+
+    async fn create_connector_customer<'a>(
+        &self,
+        state: &AppState,
+        connector: &api::ConnectorData,
+        customer: &Option<storage::Customer>,
+    ) -> RouterResult<(Option<String>, Option<storage::CustomerUpdate>)> {
+        customers::create_connector_customer(
+            state,
+            connector,
+            customer,
+            self,
+            types::ConnectorCustomerData::try_from(self.request.to_owned())?,
+        )
+        .await
+    }
+}
+
+impl TryFrom<types::VerifyRequestData> for types::ConnectorCustomerData {
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
+    fn try_from(data: types::VerifyRequestData) -> Result<Self, Self::Error> {
+        Ok(Self {
+            email: data.email,
+            description: None,
+            phone: None,
+            name: None,
+        })
     }
 }
 

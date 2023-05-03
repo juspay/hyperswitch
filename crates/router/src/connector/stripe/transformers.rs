@@ -109,6 +109,7 @@ pub struct PaymentIntentRequest {
     #[serde(flatten)]
     pub payment_data: Option<StripePaymentMethodData>,
     pub capture_method: StripeCaptureMethod,
+    pub off_session: Option<bool>,
     pub setup_future_usage: Option<enums::FutureUsage>,
     pub payment_method_options: Option<StripePaymentMethodOptions>, // For mandate txns using network_txns_id, needs to be validated
 }
@@ -982,18 +983,9 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
             payment_method,
             customer: item.connector_customer.to_owned(),
             setup_mandate_details,
+            off_session: item.request.off_session,
             setup_future_usage: item.request.setup_future_usage,
         })
-    }
-}
-
-impl ForeignFrom<bool> for Option<storage_models::enums::FutureUsage> {
-    fn foreign_from(is_mandate: bool) -> Self {
-        if is_mandate {
-            Some(storage_models::enums::FutureUsage::OffSession)
-        } else {
-            None
-        }
     }
 }
 
@@ -1269,17 +1261,7 @@ impl<F, T>
 
         //Note: we might have to call retrieve_setup_intent to get the network_transaction_id in case its not sent in PaymentIntentResponse
         // Or we identify the mandate txns before hand and always call SetupIntent in case of mandate payment call
-        let network_txn_id = item.response.latest_attempt.and_then(|latest_attempt| {
-            latest_attempt
-                .payment_method_options
-                .and_then(|payment_method_options| match payment_method_options {
-                    StripePaymentMethodOptions::Card {
-                        network_transaction_id,
-                        ..
-                    } => network_transaction_id,
-                    _ => None,
-                })
-        });
+        let network_txn_id = Option::foreign_from(item.response.latest_attempt);
 
         Ok(Self {
             status: enums::AttemptStatus::from(item.response.status),
@@ -1375,17 +1357,6 @@ impl<F, T>
             item.response.payment_method_options,
             item.response.payment_method,
         ))?;
-        let network_txn_id = item.response.latest_attempt.and_then(|latest_attempt| {
-            latest_attempt
-                .payment_method_options
-                .and_then(|payment_method_options| match payment_method_options {
-                    StripePaymentMethodOptions::Card {
-                        network_transaction_id,
-                        ..
-                    } => network_transaction_id,
-                    _ => None,
-                })
-        });
 
         Ok(Self {
             status: enums::AttemptStatus::from(item.response.status),
@@ -1394,10 +1365,27 @@ impl<F, T>
                 redirection_data,
                 mandate_reference,
                 connector_metadata: None,
-                network_txn_id,
+                network_txn_id: Option::foreign_from(item.response.latest_attempt),
             }),
             ..item.data
         })
+    }
+}
+
+impl ForeignFrom<Option<LatestAttempt>> for Option<String> {
+    fn foreign_from(latest_attempt: Option<LatestAttempt>) -> Self {
+        match latest_attempt {
+            Some(LatestAttempt::PaymentIntentAttempt(attempt)) => attempt
+                .payment_method_options
+                .and_then(|payment_method_options| match payment_method_options {
+                    StripePaymentMethodOptions::Card {
+                        network_transaction_id,
+                        ..
+                    } => network_transaction_id,
+                    _ => None,
+                }),
+            _ => None,
+        }
     }
 }
 
@@ -1656,8 +1644,14 @@ pub struct MitExemption {
     pub network_transaction_id: String,
 }
 
+#[derive(Clone, Debug, Eq, PartialEq, Deserialize)]
+#[serde(untagged)]
+pub enum LatestAttempt {
+    PaymentIntentAttempt(LatestPaymentAttempt),
+    SetupAttempt(String),
+}
 #[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize)]
-pub struct LatestAttempt {
+pub struct LatestPaymentAttempt {
     pub payment_method_options: Option<StripePaymentMethodOptions>,
 }
 // #[derive(Deserialize, Debug, Clone, Eq, PartialEq)]

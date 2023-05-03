@@ -489,27 +489,33 @@ impl
         types::PaymentsResponseData: Clone,
     {
         let id = data.request.connector_transaction_id.clone();
-        let response: transformers::PaymentIntentSyncResponse =
-            match id.get_connector_transaction_id() {
-                Ok(x) if x.starts_with("set") => res
+        match id.get_connector_transaction_id() {
+            Ok(x) if x.starts_with("set") => {
+                let response: stripe::SetupIntentResponse = res
                     .response
                     .parse_struct("SetupIntentSyncResponse")
-                    .change_context(errors::ConnectorError::ResponseDeserializationFailed),
-                Ok(_) => res
+                    .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+                types::RouterData::try_from(types::ResponseRouterData {
+                    response,
+                    data: data.clone(),
+                    http_code: res.status_code,
+                })
+            }
+            Ok(_) => {
+                let response: stripe::PaymentIntentSyncResponse = res
                     .response
                     .parse_struct("PaymentIntentSyncResponse")
-                    .change_context(errors::ConnectorError::ResponseDeserializationFailed),
-                Err(err) => {
-                    Err(err).change_context(errors::ConnectorError::MissingConnectorTransactionID)
-                }
-            }?;
-
-        types::RouterData::try_from(types::ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        })
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+                    .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+                types::RouterData::try_from(types::ResponseRouterData {
+                    response,
+                    data: data.clone(),
+                    http_code: res.status_code,
+                })
+            }
+            Err(err) => {
+                Err(err).change_context(errors::ConnectorError::MissingConnectorTransactionID)
+            }
+        }
     }
 
     fn get_error_response(
