@@ -1122,6 +1122,7 @@ impl<'a>
         let additional_data = get_additional_data(item);
         let return_url = item.request.get_return_url()?;
         let payment_method = AdyenPaymentMethod::try_from(bank_debit_data)?;
+        let country_code = get_country_code(item);
         let request = AdyenPaymentRequest {
             amount,
             merchant_account: auth_type.merchant_account,
@@ -1138,10 +1139,9 @@ impl<'a>
             telephone_number: None,
             billing_address: None,
             delivery_address: None,
-            country_code: None,
+            country_code,
             line_items: None,
         };
-        crate::logger::debug!(adyen_request=?request);
         Ok(request)
     }
 }
