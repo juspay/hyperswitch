@@ -87,8 +87,12 @@ pub struct LogConsole {
 #[derive(Debug, Deserialize, Clone, Default)]
 #[serde(default)]
 pub struct LogTelemetry {
-    /// Whether tracing/telemetry is enabled.
-    pub enabled: bool,
+    /// Whether the traces pipeline is enabled.
+    pub traces_enabled: bool,
+    /// Whether the metrics pipeline is enabled.
+    pub metrics_enabled: bool,
+    /// Whether errors in setting up traces or metrics pipelines must be ignored.
+    pub ignore_errors: bool,
     /// Sampling rate for traces
     pub sampling_rate: Option<f64>,
     /// Base endpoint URL to send metrics and traces to. Can optionally include the port number.

@@ -63,6 +63,22 @@ pub async fn get_evidence_request_data(
             merchant_account,
         )
         .await?;
+    let (
+        invoice_showing_distinct_transactions,
+        invoice_showing_distinct_transactions_provider_file_id,
+    ) = retrieve_file_and_provider_file_id_from_file_id(
+        state,
+        evidence_request.invoice_showing_distinct_transactions,
+        merchant_account,
+    )
+    .await?;
+    let (recurring_transaction_agreement, recurring_transaction_agreement_provider_file_id) =
+        retrieve_file_and_provider_file_id_from_file_id(
+            state,
+            evidence_request.recurring_transaction_agreement,
+            merchant_account,
+        )
+        .await?;
     let (uncategorized_file, uncategorized_file_provider_file_id) =
         retrieve_file_and_provider_file_id_from_file_id(
             state,
@@ -102,6 +118,10 @@ pub async fn get_evidence_request_data(
         shipping_documentation,
         shipping_documentation_provider_file_id,
         shipping_tracking_number: evidence_request.shipping_tracking_number,
+        invoice_showing_distinct_transactions,
+        invoice_showing_distinct_transactions_provider_file_id,
+        recurring_transaction_agreement,
+        recurring_transaction_agreement_provider_file_id,
         uncategorized_file,
         uncategorized_file_provider_file_id,
         uncategorized_text: evidence_request.uncategorized_text,

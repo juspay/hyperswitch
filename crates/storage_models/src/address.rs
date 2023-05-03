@@ -10,7 +10,7 @@ use crate::{encryption::Encryption, enums, schema::address};
 pub struct AddressNew {
     pub address_id: String,
     pub city: Option<String>,
-    pub country: Option<enums::CountryCode>,
+    pub country: Option<enums::CountryAlpha2>,
     pub line1: Option<Encryption>,
     pub line2: Option<Encryption>,
     pub line3: Option<Encryption>,
@@ -32,7 +32,7 @@ pub struct Address {
     // #[serde(skip_serializing)]
     pub address_id: String,
     pub city: Option<String>,
-    pub country: Option<enums::CountryCode>,
+    pub country: Option<enums::CountryAlpha2>,
     pub line1: Option<Encryption>,
     pub line2: Option<Encryption>,
     pub line3: Option<Encryption>,
@@ -56,7 +56,7 @@ pub struct Address {
 #[diesel(table_name = address)]
 pub struct AddressUpdateInternal {
     pub city: Option<String>,
-    pub country: Option<enums::CountryCode>,
+    pub country: Option<enums::CountryAlpha2>,
     pub line1: Option<Encryption>,
     pub line2: Option<Encryption>,
     pub line3: Option<Encryption>,
