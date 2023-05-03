@@ -179,20 +179,25 @@ pub async fn get_token_for_recurring_mandate(
         .locker_id
         .to_owned()
         .get_required_value("locker_id")?;
-    let _ = cards::get_lookup_key_from_locker(state, &token, &payment_method, &locker_id).await?;
+    if let storage_models::enums::PaymentMethod::Card = payment_method.payment_method {
+        let _ =
+            cards::get_lookup_key_from_locker(state, &token, &payment_method, &locker_id).await?;
+        if let Some(payment_method_from_request) = req.payment_method {
+            let pm: storage_enums::PaymentMethod = payment_method_from_request.foreign_into();
+            if pm != payment_method.payment_method {
+                Err(report!(errors::ApiErrorResponse::PreconditionFailed {
+                    message:
+                        "payment method in request does not match previously provided payment \
+                                  method information"
+                            .into()
+                }))?
+            }
+        };
 
-    if let Some(payment_method_from_request) = req.payment_method {
-        let pm: storage_enums::PaymentMethod = payment_method_from_request.foreign_into();
-        if pm != payment_method.payment_method {
-            Err(report!(errors::ApiErrorResponse::PreconditionFailed {
-                message: "payment method in request does not match previously provided payment \
-                          method information"
-                    .into()
-            }))?
-        }
-    };
-
-    Ok((Some(token), Some(payment_method.payment_method)))
+        Ok((Some(token), Some(payment_method.payment_method)))
+    } else {
+        Ok((None, Some(payment_method.payment_method)))
+    }
 }
 
 #[instrument(skip_all)]
