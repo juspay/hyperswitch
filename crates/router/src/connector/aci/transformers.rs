@@ -184,7 +184,9 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for AciPaymentsRequest {
                     ))?,
                 }
             }
-            api::PaymentMethodData::Crypto(_) | api::PaymentMethodData::BankDebit(_) => {
+            api::PaymentMethodData::Crypto(_)
+            | api::PaymentMethodData::BankDebit(_)
+            | api::PaymentMethodData::MandatePayment => {
                 Err(errors::ConnectorError::NotSupported {
                     payment_method: format!("{:?}", item.payment_method),
                     connector: "Aci",
