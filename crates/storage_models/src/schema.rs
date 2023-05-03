@@ -385,6 +385,45 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
+    payout_create (id) {
+        id -> Int4,
+        payout_id -> Varchar,
+        customer_id -> Varchar,
+        merchant_id -> Varchar,
+        status -> PayoutStatus,
+        created_at -> Timestamp,
+        encoded_data -> Nullable<Jsonb>,
+        connector -> Varchar,
+        error_message -> Nullable<Text>,
+        error_code -> Nullable<Varchar>,
+    }
+}
+
+diesel::table! {
+    use diesel::sql_types::*;
+    use crate::enums::diesel_exports::*;
+
+    payouts (id) {
+        id -> Int4,
+        payout_id -> Varchar,
+        customer_id -> Varchar,
+        merchant_id -> Varchar,
+        address_id -> Varchar,
+        payout_type -> PayoutType,
+        connector_payout_id -> Varchar,
+        connector -> Varchar,
+        payout_data -> Nullable<Jsonb>,
+        amount -> Int8,
+        destination_currency -> Currency,
+        source_currency -> Currency,
+        recurring -> Nullable<Bool>,
+    }
+}
+
+diesel::table! {
+    use diesel::sql_types::*;
+    use crate::enums::diesel_exports::*;
+
     process_tracker (id) {
         id -> Varchar,
         name -> Nullable<Varchar>,
@@ -463,6 +502,8 @@ diesel::allow_tables_to_appear_in_same_query!(
     payment_attempt,
     payment_intent,
     payment_methods,
+    payout_create,
+    payouts,
     process_tracker,
     refund,
     reverse_lookup,
