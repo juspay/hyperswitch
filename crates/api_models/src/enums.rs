@@ -601,7 +601,7 @@ pub enum Connector {
     Klarna,
     Mollie,
     Multisafepay,
-    // Nexinets, added as template code for future use
+    Nexinets,
     Nuvei,
     // Payeezy, As psync and rsync are not supported by this connector, it is added as template code for future usage
     Paypal,
@@ -666,7 +666,7 @@ pub enum RoutableConnectors {
     Klarna,
     Mollie,
     Multisafepay,
-    // Nexinets, added as template code for future use
+    Nexinets,
     Nuvei,
     Opennode,
     // Payeezy, As psync and rsync are not supported by this connector, it is added as template code for future usage

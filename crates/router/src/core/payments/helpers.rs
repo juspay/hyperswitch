@@ -1292,7 +1292,7 @@ fn connector_needs_business_sub_label(connector_name: &str) -> bool {
 /// Create the connector label
 /// {connector_name}_{country}_{business_label}
 pub fn get_connector_label(
-    business_country: api_models::enums::CountryCode,
+    business_country: api_models::enums::CountryAlpha2,
     business_label: &str,
     business_sub_label: Option<&String>,
     connector_name: &str,
@@ -1321,10 +1321,10 @@ pub fn get_connector_label(
 /// If there is more than one label or country configured in merchant account, then
 /// passing business details for payment is mandatory to avoid ambiguity
 pub fn get_business_details(
-    business_country: Option<api_enums::CountryCode>,
+    business_country: Option<api_enums::CountryAlpha2>,
     business_label: Option<&String>,
     merchant_account: &storage_models::merchant_account::MerchantAccount,
-) -> RouterResult<(api_enums::CountryCode, String)> {
+) -> RouterResult<(api_enums::CountryAlpha2, String)> {
     let (business_country, business_label) = match business_country.zip(business_label) {
         Some((business_country, business_label)) => {
             (business_country.to_owned(), business_label.to_owned())
