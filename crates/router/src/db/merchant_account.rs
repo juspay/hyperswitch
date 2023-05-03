@@ -93,7 +93,7 @@ impl MerchantAccountInterface for Store {
         {
             fetch_func()
                 .await?
-                .convert(self, merchant_id)
+                .convert(self, merchant_id, self.get_migration_timestamp())
                 .await
                 .change_context(errors::StorageError::DecryptionError)
         }

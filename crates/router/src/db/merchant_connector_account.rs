@@ -194,7 +194,7 @@ impl MerchantConnectorAccountInterface for Store {
         {
             find_call()
                 .await?
-                .convert(self, merchant_id)
+                .convert(self, merchant_id, self.get_migration_timestamp())
                 .await
                 .change_context(errors::StorageError::DeserializationFailed)
         }
