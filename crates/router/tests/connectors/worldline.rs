@@ -42,7 +42,7 @@ impl WorldlineTest {
             address: Some(PaymentAddress {
                 billing: Some(Address {
                     address: Some(AddressDetails {
-                        country: Some(api_models::enums::CountryCode::US),
+                        country: Some(api_models::enums::CountryAlpha2::US),
                         ..Default::default()
                     }),
                     phone: None,

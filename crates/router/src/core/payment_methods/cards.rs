@@ -1163,7 +1163,7 @@ fn filter_pm_based_on_config<'a>(
     connector: &'a str,
     payment_method_type: &'a api_enums::PaymentMethodType,
     card_network: &mut Option<Vec<api_enums::CardNetwork>>,
-    country: &Option<api_enums::CountryCode>,
+    country: &Option<api_enums::CountryAlpha2>,
     currency: Option<api_enums::Currency>,
 ) -> bool {
     config
@@ -1185,7 +1185,7 @@ fn filter_pm_based_on_config<'a>(
 }
 
 fn card_network_filter(
-    country: &Option<api_enums::CountryCode>,
+    country: &Option<api_enums::CountryAlpha2>,
     currency: Option<api_enums::Currency>,
     card_network: &mut Option<Vec<api_enums::CardNetwork>>,
     payment_method_filters: &settings::PaymentMethodFilters,
@@ -1209,7 +1209,7 @@ fn card_network_filter(
 
 fn global_country_currency_filter(
     item: &settings::CurrencyCountryFilter,
-    country: &Option<api_enums::CountryCode>,
+    country: &Option<api_enums::CountryAlpha2>,
     currency: Option<api_enums::Currency>,
 ) -> bool {
     let country_condition = item
@@ -1247,10 +1247,10 @@ fn filter_pm_card_network_based(
 }
 fn filter_pm_country_based(
     accepted_countries: &Option<admin::AcceptedCountries>,
-    req_country_list: &Option<Vec<api_enums::CountryCode>>,
+    req_country_list: &Option<Vec<api_enums::CountryAlpha2>>,
 ) -> (
     Option<admin::AcceptedCountries>,
-    Option<Vec<api_enums::CountryCode>>,
+    Option<Vec<api_enums::CountryAlpha2>>,
     bool,
 ) {
     match (accepted_countries, req_country_list) {

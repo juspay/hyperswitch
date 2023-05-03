@@ -186,7 +186,7 @@ pub struct BillingAddress {
     pub email: Option<Secret<String, Email>>,
     pub first_name: Option<Secret<String>>,
     pub last_name: Option<Secret<String>>,
-    pub country: api_models::enums::CountryCode,
+    pub country: api_models::enums::CountryAlpha2,
 }
 
 #[serde_with::skip_serializing_none]

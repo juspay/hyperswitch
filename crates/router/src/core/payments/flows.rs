@@ -177,7 +177,6 @@ default_imp_for_connector_request_id!(
     connector::Klarna,
     connector::Mollie,
     connector::Multisafepay,
-    connector::Nexinets,
     connector::Nuvei,
     connector::Opennode,
     connector::Payeezy,

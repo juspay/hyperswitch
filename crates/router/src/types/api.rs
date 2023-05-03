@@ -218,7 +218,7 @@ impl ConnectorData {
             "worldline" => Ok(Box::new(&connector::Worldline)),
             "worldpay" => Ok(Box::new(&connector::Worldpay)),
             "multisafepay" => Ok(Box::new(&connector::Multisafepay)),
-            // "nexinets" => Ok(Box::new(&connector::Nexinets)), added as template code for future use
+            "nexinets" => Ok(Box::new(&connector::Nexinets)),
             "paypal" => Ok(Box::new(&connector::Paypal)),
             "trustpay" => Ok(Box::new(&connector::Trustpay)),
             "zen" => Ok(Box::new(&connector::Zen)),
