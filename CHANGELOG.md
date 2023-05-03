@@ -27,7 +27,7 @@
 
 ## Other Changes
 
-* **README**  
+* **README:**
   * remove redundant "more" in FAQs ([#1031](https://github.com/juspay/orca/pull/1031)) ([9cbda838](https://github.com/juspay/orca/commit/9cbda838171331598018a640551495014bc364a2))
   * replaced stale link of hyperswitch blog ([#1019](https://github.com/juspay/orca/pull/1031)) ([17e8305a](https://github.com/juspay/hyperswitch/commit/17e8305a5de49a37aca9205f4dcdc8765c7cd0ec))
 
