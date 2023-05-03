@@ -12,6 +12,7 @@
 * **connector:**
   *  add dispute webhooks for Stripe ([#918](https://github.com/juspay/orca/pull/918)) ([0df22447](https://github.com/juspay/orca/commit/0df224479416533579dd6d96e7f0dd9c246b739c))
   *  [ACI] Add banking redirect support for EPS, Giropay, iDEAL, and Sofortueberweisung ([#890](https://github.com/juspay/orca/pull/890)) ([c86f2c04](https://github.com/juspay/orca/commit/c86f2c045e3cc614e5f68d84b5055a1b0e222f67))
+  *  add cards(3ds & non3ds),bank_redirects ,wallets(paypal,applepay) and mandates support to nexinets ([#898](https://github.com/juspay/hyperswitch/pull/898)) ([eea05f5c](https://github.com/juspay/hyperswitch/commit/eea05f5c3196d68cf9cd306419ac55003cebf002))
 * **router:**  added support for optional defend dispute api call and added evidence submission flow for checkout connector ([#979](https://github.com/juspay/orca/pull/979)) ([4728d946](https://github.com/juspay/orca/commit/4728d946e24c2c548e7cdc23c34238ff028f1076))
 * **cards:**  validate card security code and expiration ([#874](https://github.com/juspay/orca/pull/874)) ([0b7bc7bc](https://github.com/juspay/orca/commit/0b7bc7bcd23498485c831d1c78187c433b8bb3c7))
 * **api_models:**  derive `Serialize`, `Eq`, `PartialEq`, `strum::Display` on `RefundStatus` ([#989](https://github.com/juspay/orca/pull/989)) ([22a53724](https://github.com/juspay/orca/commit/22a5372481bbf854cffb8b683606cdf0644a5f54))
@@ -26,8 +27,9 @@
 
 ##### Other Changes
 
-* Changelog for release v0.5.8 ([#950](https://github.com/juspay/orca/pull/950)) ([9240e16a](https://github.com/juspay/orca/commit/9240e16ae4e4f4092a7f64f09ba1fcb058e0cdcf))
-* **README:**  remove redundant "more" in FAQs ([#1031](https://github.com/juspay/orca/pull/1031)) ([9cbda838](https://github.com/juspay/orca/commit/9cbda838171331598018a640551495014bc364a2))
+* **README:**  
+  * remove redundant "more" in FAQs ([#1031](https://github.com/juspay/orca/pull/1031)) ([9cbda838](https://github.com/juspay/orca/commit/9cbda838171331598018a640551495014bc364a2))
+  * replaced stale link of hyperswitch blog ([#1019](https://github.com/juspay/orca/pull/1031)) ([17e8305a](https://github.com/juspay/hyperswitch/commit/17e8305a5de49a37aca9205f4dcdc8765c7cd0ec))
 
 ##### Refactors
 
