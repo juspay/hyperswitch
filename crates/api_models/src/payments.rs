@@ -303,14 +303,20 @@ pub enum MandateTxnType {
 #[derive(Default, Eq, PartialEq, Debug, serde::Deserialize, serde::Serialize, Clone)]
 pub struct MandateIds {
     pub mandate_id: String,
-    pub connector_mandate_id: Option<String>,
+    pub mandate_reference_id: Option<MandateReferenceId>,
+}
+
+#[derive(Eq, PartialEq, Debug, serde::Deserialize, serde::Serialize, Clone)]
+pub enum MandateReferenceId {
+    ConnectorMandateId(String), // mandate_id send by connector
+    NetworkMandateId(String), // network_txns_id send by Issuer to connector, Used for PG agnostic mandate txns
 }
 
 impl MandateIds {
     pub fn new(mandate_id: String) -> Self {
         Self {
             mandate_id,
-            connector_mandate_id: None,
+            mandate_reference_id: None,
         }
     }
 }
@@ -594,6 +600,9 @@ pub enum BankRedirectData {
     Giropay {
         /// The billing details for bank redirection
         billing_details: BankRedirectBilling,
+        /// Bank account details for Giropay
+        bank_account_bic: Option<Secret<String>>,
+        bank_account_iban: Option<Secret<String>>,
     },
     Ideal {
         /// The billing details for bank redirection
@@ -647,7 +656,7 @@ pub struct CryptoData {}
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct SofortBilling {
     /// The country associated with the billing
-    #[schema(example = "US")]
+    #[schema(value_type = CountryAlpha2, example = "US")]
     pub billing_country: String,
 }
 
@@ -1458,7 +1467,7 @@ pub struct GpayAllowedPaymentMethods {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct GpayTransactionInfo {
     /// The country code
-    #[schema(value_type = CountryAlpha2)]
+    #[schema(value_type = CountryAlpha2, example = "US")]
     pub country_code: api_enums::CountryAlpha2,
     /// The currency code
     pub currency_code: String,
@@ -1606,7 +1615,7 @@ pub struct ApplePaySessionResponse {
 #[derive(Debug, Clone, serde::Serialize, ToSchema, serde::Deserialize)]
 pub struct ApplePayPaymentRequest {
     /// The code for country
-    #[schema(value_type = CountryAlpha2)]
+    #[schema(value_type = CountryAlpha2, example = "US")]
     pub country_code: api_enums::CountryAlpha2,
     /// The code for currency
     pub currency_code: String,

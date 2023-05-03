@@ -10,7 +10,6 @@ use opentelemetry::{
         propagation::TraceContextPropagator,
         trace, Resource,
     },
-    trace::TraceError,
     KeyValue,
 };
 use opentelemetry_otlp::{TonicExporterBuilder, WithExportConfig};
@@ -33,22 +32,19 @@ pub fn setup(
     config: &config::Log,
     service_name: &'static str,
     crates_to_filter: impl AsRef<[&'static str]>,
-) -> Result<TelemetryGuard, opentelemetry::metrics::MetricsError> {
+) -> TelemetryGuard {
     let mut guards = Vec::new();
 
     // Setup OpenTelemetry traces and metrics
-    let (telemetry_tracer, _metrics_controller) = if config.telemetry.enabled {
-        global::set_text_map_propagator(TraceContextPropagator::new());
-        (
-            setup_tracing_pipeline(&config.telemetry, service_name),
-            setup_metrics_pipeline(&config.telemetry),
-        )
+    let traces_layer = if config.telemetry.traces_enabled {
+        setup_tracing_pipeline(&config.telemetry, service_name)
     } else {
-        (None, None)
+        None
     };
-    let telemetry_layer = match telemetry_tracer {
-        Some(Ok(ref tracer)) => Some(tracing_opentelemetry::layer().with_tracer(tracer.clone())),
-        _ => None,
+    let _metrics_controller = if config.telemetry.metrics_enabled {
+        setup_metrics_pipeline(&config.telemetry)
+    } else {
+        None
     };
 
     // Setup file logging
@@ -75,7 +71,7 @@ pub fn setup(
     };
 
     let subscriber = tracing_subscriber::registry()
-        .with(telemetry_layer)
+        .with(traces_layer)
         .with(StorageSubscription)
         .with(file_writer);
 
@@ -110,17 +106,12 @@ pub fn setup(
         subscriber.init();
     };
 
-    if let Some(Err(err)) = telemetry_tracer {
-        tracing::error!("Failed to create an opentelemetry_otlp tracer: {err}");
-        eprintln!("Failed to create an opentelemetry_otlp tracer: {err}");
-    }
-
     // Returning the TelemetryGuard for logs to be printed and metrics to be collected until it is
     // dropped
-    Ok(TelemetryGuard {
+    TelemetryGuard {
         _log_guards: guards,
         _metrics_controller,
-    })
+    }
 }
 
 fn get_opentelemetry_exporter(config: &config::LogTelemetry) -> TonicExporterBuilder {
@@ -139,7 +130,10 @@ fn get_opentelemetry_exporter(config: &config::LogTelemetry) -> TonicExporterBui
 fn setup_tracing_pipeline(
     config: &config::LogTelemetry,
     service_name: &'static str,
-) -> Option<Result<trace::Tracer, TraceError>> {
+) -> Option<tracing_opentelemetry::OpenTelemetryLayer<tracing_subscriber::Registry, trace::Tracer>>
+{
+    global::set_text_map_propagator(TraceContextPropagator::new());
+
     let trace_config = trace::config()
         .with_sampler(trace::Sampler::TraceIdRatioBased(
             config.sampling_rate.unwrap_or(1.0),
@@ -148,14 +142,24 @@ fn setup_tracing_pipeline(
             "service.name",
             service_name,
         )]));
-
-    let tracer = opentelemetry_otlp::new_pipeline()
+    let traces_layer_result = opentelemetry_otlp::new_pipeline()
         .tracing()
         .with_exporter(get_opentelemetry_exporter(config))
         .with_trace_config(trace_config)
-        .install_simple();
+        .install_simple()
+        .map(|tracer| tracing_opentelemetry::layer().with_tracer(tracer));
 
-    Some(tracer)
+    if config.ignore_errors {
+        traces_layer_result
+            .map_err(|error| {
+                eprintln!("Failed to create an `opentelemetry_otlp` tracer: {error:?}")
+            })
+            .ok()
+    } else {
+        // Safety: This is conditional, there is an option to avoid this behavior at runtime.
+        #[allow(clippy::expect_used)]
+        Some(traces_layer_result.expect("Failed to create an `opentelemetry_otlp` tracer"))
+    }
 }
 
 fn setup_metrics_pipeline(config: &config::LogTelemetry) -> Option<BasicController> {
@@ -170,7 +174,7 @@ fn setup_metrics_pipeline(config: &config::LogTelemetry) -> Option<BasicControll
         buckets
     };
 
-    opentelemetry_otlp::new_pipeline()
+    let metrics_controller_result = opentelemetry_otlp::new_pipeline()
         .metrics(
             simple::histogram(histogram_buckets),
             cumulative_temporality_selector(),
@@ -180,9 +184,17 @@ fn setup_metrics_pipeline(config: &config::LogTelemetry) -> Option<BasicControll
         .with_exporter(get_opentelemetry_exporter(config))
         .with_period(Duration::from_secs(3))
         .with_timeout(Duration::from_secs(10))
-        .build()
-        .map_err(|err| eprintln!("Failed to setup metrics pipeline: {err:?}"))
-        .ok()
+        .build();
+
+    if config.ignore_errors {
+        metrics_controller_result
+            .map_err(|error| eprintln!("Failed to setup metrics pipeline: {error:?}"))
+            .ok()
+    } else {
+        // Safety: This is conditional, there is an option to avoid this behavior at runtime.
+        #[allow(clippy::expect_used)]
+        Some(metrics_controller_result.expect("Failed to setup metrics pipeline"))
+    }
 }
 
 fn get_envfilter(

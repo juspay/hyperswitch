@@ -817,4 +817,5 @@ pub enum FileUploadProvider {
     #[default]
     Router,
     Stripe,
+    Checkout,
 }
