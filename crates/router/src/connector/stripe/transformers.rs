@@ -306,9 +306,7 @@ pub struct WechatpayPayment {
 #[derive(Debug, Eq, PartialEq, Serialize, Clone, Copy)]
 #[serde(rename_all = "snake_case")]
 pub enum WechatClient {
-    Web,
-    Android,
-    Ios
+    Web
 }
 
 
