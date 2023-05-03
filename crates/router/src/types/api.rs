@@ -210,7 +210,7 @@ impl ConnectorData {
             "klarna" => Ok(Box::new(&connector::Klarna)),
             "mollie" => Ok(Box::new(&connector::Mollie)),
             "multisafepay" => Ok(Box::new(&connector::Multisafepay)),
-            // "nexinets" => Ok(Box::new(&connector::Nexinets)), added as template code for future use
+            "nexinets" => Ok(Box::new(&connector::Nexinets)),
             "nuvei" => Ok(Box::new(&connector::Nuvei)),
             "opennode" => Ok(Box::new(&connector::Opennode)),
             "paypal" => Ok(Box::new(&connector::Paypal)),

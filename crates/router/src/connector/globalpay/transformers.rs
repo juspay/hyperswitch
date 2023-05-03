@@ -217,6 +217,7 @@ fn get_payment_response(
             redirection_data,
             mandate_reference,
             connector_metadata: None,
+            network_txn_id: None,
         }),
     }
 }
@@ -376,11 +377,14 @@ fn get_return_url(item: &types::PaymentsAuthorizeRouterData) -> Option<String> {
 type MandateDetails = (Option<Initiator>, Option<StoredCredential>, Option<String>);
 fn get_mandate_details(item: &types::PaymentsAuthorizeRouterData) -> Result<MandateDetails, Error> {
     Ok(if item.request.is_mandate_payment() {
-        let connector_mandate_id = item
-            .request
-            .mandate_id
-            .as_ref()
-            .and_then(|mandate_ids| mandate_ids.connector_mandate_id.clone());
+        let connector_mandate_id = item.request.mandate_id.as_ref().and_then(|mandate_ids| {
+            match mandate_ids.mandate_reference_id.clone() {
+                Some(api_models::payments::MandateReferenceId::ConnectorMandateId(
+                    connector_mandate_id,
+                )) => Some(connector_mandate_id),
+                _ => None,
+            }
+        });
         (
             Some(match item.request.off_session {
                 Some(true) => Initiator::Merchant,

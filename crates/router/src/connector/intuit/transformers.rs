@@ -225,6 +225,7 @@ impl<F, T>
                 redirection_data: None,
                 mandate_reference: None,
                 connector_metadata: None,
+                network_txn_id: None,
             }),
             ..item.data
         })
@@ -251,6 +252,7 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, IntuitVoidResponse, T, types::Pa
                 redirection_data: None,
                 mandate_reference: None,
                 connector_metadata: None,
+                network_txn_id: None,
             }),
             ..item.data
         })
