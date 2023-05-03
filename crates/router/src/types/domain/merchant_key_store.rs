@@ -36,13 +36,14 @@ impl super::behaviour::Conversion for MerchantKeyStore {
         item: Self::DstType,
         db: &dyn StorageInterface,
         _merchant_id: &str,
+        migration_timestamp: i64,
     ) -> CustomResult<Self, ValidationError>
     where
         Self: Sized,
     {
         let key = &db.get_master_key();
         Ok(Self {
-            key: Encryptable::decrypt(item.key, key, GcmAes256 {}, 1682425530)
+            key: Encryptable::decrypt(item.key, key, GcmAes256 {}, 1682425530, migration_timestamp)
                 .await
                 .change_context(ValidationError::InvalidValue {
                     message: "Failed while decrypting customer data".to_string(),

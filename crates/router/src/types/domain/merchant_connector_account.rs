@@ -89,6 +89,7 @@ impl behaviour::Conversion for MerchantConnectorAccount {
         other: Self::DstType,
         db: &dyn StorageInterface,
         merchant_id: &str,
+        migration_timestamp: i64,
     ) -> CustomResult<Self, ValidationError> {
         let key = types::get_merchant_enc_key(db, merchant_id)
             .await
@@ -106,6 +107,7 @@ impl behaviour::Conversion for MerchantConnectorAccount {
                 &key,
                 GcmAes256 {},
                 modified_at,
+                migration_timestamp,
             )
             .await
             .change_context(ValidationError::InvalidValue {

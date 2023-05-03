@@ -1,8 +1,6 @@
 use common_utils::{
-    crypto::{Encryptable, GcmAes256, OptionalEncryptableName, OptionalEncryptableValue},
-    date_time,
-    ext_traits::AsyncExt,
-    pii,
+    crypto::{Encryptable, OptionalEncryptableName, OptionalEncryptableValue},
+    date_time, pii,
 };
 use error_stack::ResultExt;
 use masking::Secret;
@@ -13,7 +11,7 @@ use storage_models::{
 use crate::{
     db::StorageInterface,
     errors::{CustomResult, ValidationError},
-    types::domain::types::{self, AsyncLift, TypeEncryption},
+    types::domain::types::{self, AsyncLift},
 };
 
 #[derive(Clone, Debug, serde::Serialize)]
@@ -147,6 +145,7 @@ impl super::behaviour::Conversion for MerchantAccount {
         item: Self::DstType,
         db: &dyn StorageInterface,
         merchant_id: &str,
+        migration_timestamp: i64,
     ) -> CustomResult<Self, ValidationError>
     where
         Self: Sized,
@@ -167,11 +166,15 @@ impl super::behaviour::Conversion for MerchantAccount {
                 redirect_to_merchant_with_http_post: item.redirect_to_merchant_with_http_post,
                 merchant_name: item
                     .merchant_name
-                    .async_lift(|inner| types::decrypt(inner, &key, modified_at))
+                    .async_lift(|inner| {
+                        types::decrypt(inner, &key, modified_at, migration_timestamp)
+                    })
                     .await?,
                 merchant_details: item
                     .merchant_details
-                    .async_lift(|inner| types::decrypt(inner, &key, modified_at))
+                    .async_lift(|inner| {
+                        types::decrypt(inner, &key, modified_at, migration_timestamp)
+                    })
                     .await?,
                 webhook_details: item.webhook_details,
                 sub_merchants_enabled: item.sub_merchants_enabled,
@@ -183,7 +186,9 @@ impl super::behaviour::Conversion for MerchantAccount {
                 routing_algorithm: item.routing_algorithm,
                 api_key: item
                     .api_key
-                    .async_lift(|value| types::decrypt(value, &key, modified_at))
+                    .async_lift(|value| {
+                        types::decrypt(value, &key, modified_at, migration_timestamp)
+                    })
                     .await?,
                 primary_business_details: item.primary_business_details,
                 created_at: item.created_at,

@@ -38,7 +38,6 @@ async fn main() -> ApplicationResult<()> {
 
     #[cfg(feature = "pii-encryption-script")]
     {
-        use router::db::StorageInterface;
         let store =
             router::services::Store::new(&conf, false, tokio::sync::oneshot::channel().0).await;
 

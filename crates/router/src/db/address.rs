@@ -1,7 +1,7 @@
 use common_utils::ext_traits::AsyncExt;
 use error_stack::{IntoReport, ResultExt};
 
-use super::{MockDb, Store};
+use super::{MasterKeyInterface, MockDb, Store};
 use crate::{
     connection,
     core::errors::{self, CustomResult},
@@ -57,7 +57,7 @@ impl AddressInterface for Store {
             .async_and_then(|address| async {
                 let merchant_id = address.merchant_id.clone();
                 address
-                    .convert(self, &merchant_id)
+                    .convert(self, &merchant_id, self.get_migration_timestamp())
                     .await
                     .change_context(errors::StorageError::DecryptionError)
             })
@@ -77,7 +77,7 @@ impl AddressInterface for Store {
             .async_and_then(|address| async {
                 let merchant_id = address.merchant_id.clone();
                 address
-                    .convert(self, &merchant_id)
+                    .convert(self, &merchant_id, self.get_migration_timestamp())
                     .await
                     .change_context(errors::StorageError::DecryptionError)
             })
@@ -100,7 +100,7 @@ impl AddressInterface for Store {
             .async_and_then(|address| async {
                 let merchant_id = address.merchant_id.clone();
                 address
-                    .convert(self, &merchant_id)
+                    .convert(self, &merchant_id, self.get_migration_timestamp())
                     .await
                     .change_context(errors::StorageError::DecryptionError)
             })
@@ -129,7 +129,7 @@ impl AddressInterface for Store {
                 let merchant_id = address.merchant_id.clone();
                 output.push(
                     address
-                        .convert(self, &merchant_id)
+                        .convert(self, &merchant_id, self.get_migration_timestamp())
                         .await
                         .change_context(errors::StorageError::DecryptionError)?,
                 )
