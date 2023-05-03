@@ -128,7 +128,7 @@ pub struct CurrencyCountryFlowFilter {
     #[serde(deserialize_with = "currency_set_deser")]
     pub currency: Option<HashSet<api_models::enums::Currency>>,
     #[serde(deserialize_with = "string_set_deser")]
-    pub country: Option<HashSet<api_models::enums::CountryCode>>,
+    pub country: Option<HashSet<api_models::enums::CountryAlpha2>>,
     pub not_available_flows: Option<NotAvailableFlows>,
 }
 #[derive(Debug, Deserialize, Copy, Clone, Default)]
@@ -139,7 +139,7 @@ pub struct NotAvailableFlows {
 
 fn string_set_deser<'a, D>(
     deserializer: D,
-) -> Result<Option<HashSet<api_models::enums::CountryCode>>, D::Error>
+) -> Result<Option<HashSet<api_models::enums::CountryAlpha2>>, D::Error>
 where
     D: Deserializer<'a>,
 {
@@ -148,7 +148,7 @@ where
         let list = inner
             .trim()
             .split(',')
-            .flat_map(api_models::enums::CountryCode::from_str)
+            .flat_map(api_models::enums::CountryAlpha2::from_str)
             .collect::<HashSet<_>>();
         match list.len() {
             0 => None,

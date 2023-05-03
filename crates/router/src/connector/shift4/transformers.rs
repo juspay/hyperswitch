@@ -87,7 +87,7 @@ pub struct Address {
     zip: Option<Secret<String>>,
     state: Option<Secret<String>>,
     city: Option<String>,
-    country: Option<api_models::enums::CountryCode>,
+    country: Option<api_models::enums::CountryAlpha2>,
 }
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
