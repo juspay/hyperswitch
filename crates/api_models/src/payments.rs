@@ -599,6 +599,9 @@ pub enum BankRedirectData {
     Giropay {
         /// The billing details for bank redirection
         billing_details: BankRedirectBilling,
+        /// Bank account details for Giropay
+        bank_account_bic: Option<Secret<String>>,
+        bank_account_iban: Option<Secret<String>>,
     },
     Ideal {
         /// The billing details for bank redirection

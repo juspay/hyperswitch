@@ -1,11 +1,11 @@
 use common_utils::custom_serde;
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use time::PrimitiveDateTime;
 
 use crate::{enums as storage_enums, schema::dispute};
 
-#[derive(Clone, Debug, Deserialize, Insertable, Serialize, router_derive::DebugAsDisplay)]
+#[derive(Clone, Debug, Insertable, Serialize, router_derive::DebugAsDisplay)]
 #[diesel(table_name = dispute)]
 #[serde(deny_unknown_fields)]
 pub struct DisputeNew {
@@ -21,13 +21,13 @@ pub struct DisputeNew {
     pub connector_dispute_id: String,
     pub connector_reason: Option<String>,
     pub connector_reason_code: Option<String>,
-    pub challenge_required_by: Option<String>,
-    pub dispute_created_at: Option<String>,
-    pub updated_at: Option<String>,
+    pub challenge_required_by: Option<PrimitiveDateTime>,
+    pub dispute_created_at: Option<PrimitiveDateTime>,
+    pub updated_at: Option<PrimitiveDateTime>,
     pub connector: String,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize, Identifiable, Queryable)]
+#[derive(Clone, Debug, Serialize, Identifiable, Queryable)]
 #[diesel(table_name = dispute)]
 pub struct Dispute {
     #[serde(skip_serializing)]
@@ -44,9 +44,9 @@ pub struct Dispute {
     pub connector_dispute_id: String,
     pub connector_reason: Option<String>,
     pub connector_reason_code: Option<String>,
-    pub challenge_required_by: Option<String>,
-    pub dispute_created_at: Option<String>,
-    pub updated_at: Option<String>,
+    pub challenge_required_by: Option<PrimitiveDateTime>,
+    pub dispute_created_at: Option<PrimitiveDateTime>,
+    pub updated_at: Option<PrimitiveDateTime>,
     #[serde(with = "custom_serde::iso8601")]
     pub created_at: PrimitiveDateTime,
     #[serde(with = "custom_serde::iso8601")]
@@ -62,8 +62,8 @@ pub enum DisputeUpdate {
         connector_status: String,
         connector_reason: Option<String>,
         connector_reason_code: Option<String>,
-        challenge_required_by: Option<String>,
-        updated_at: Option<String>,
+        challenge_required_by: Option<PrimitiveDateTime>,
+        updated_at: Option<PrimitiveDateTime>,
     },
     StatusUpdate {
         dispute_status: storage_enums::DisputeStatus,
@@ -79,8 +79,8 @@ pub struct DisputeUpdateInternal {
     connector_status: Option<String>,
     connector_reason: Option<String>,
     connector_reason_code: Option<String>,
-    challenge_required_by: Option<String>,
-    updated_at: Option<String>,
+    challenge_required_by: Option<PrimitiveDateTime>,
+    updated_at: Option<PrimitiveDateTime>,
     modified_at: Option<PrimitiveDateTime>,
 }
 
