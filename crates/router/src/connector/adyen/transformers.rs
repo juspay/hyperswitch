@@ -776,8 +776,8 @@ type RecurringDetails = (Option<AdyenRecurringModel>, Option<bool>, Option<Strin
 fn get_recurring_processing_model(
     item: &types::PaymentsAuthorizeRouterData,
 ) -> Result<RecurringDetails, Error> {
-    match item.request.setup_future_usage {
-        Some(storage_enums::FutureUsage::OffSession) => {
+    match (item.request.setup_future_usage, item.request.off_session) {
+        (Some(storage_enums::FutureUsage::OffSession), _) => {
             let customer_id = item.get_customer_id()?;
             let shopper_reference = format!("{}_{}", item.merchant_id, customer_id);
             let store_payment_method = item.request.is_mandate_payment();
@@ -787,6 +787,11 @@ fn get_recurring_processing_model(
                 Some(shopper_reference),
             ))
         }
+        (_, Some(true)) => Ok((
+            Some(AdyenRecurringModel::UnscheduledCardOnFile),
+            None,
+            Some(format!("{}_{}", item.merchant_id, item.get_customer_id()?)),
+        )),
         _ => Ok((None, None, None)),
     }
 }

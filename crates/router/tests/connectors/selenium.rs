@@ -39,6 +39,7 @@ pub enum Assert<'a> {
     Eq(Selector, &'a str),
     Contains(Selector, &'a str),
     IsPresent(&'a str),
+    IsPresentNow(&'a str),
 }
 
 pub static CHEKOUT_BASE_URL: &str = "https://hs-payments-test.netlify.app";
@@ -63,6 +64,9 @@ pub trait SeleniumTest {
                     Assert::Eq(_selector, text) => assert_eq!(driver.title().await?, text),
                     Assert::IsPresent(text) => {
                         assert!(is_text_present(driver, text).await?)
+                    },
+                    Assert::IsPresentNow(text) => {
+                        assert!(is_text_present_now(driver, text).await?)
                     }
                 },
                 Event::RunIf(con_event, events) => match con_event {
@@ -82,6 +86,11 @@ pub trait SeleniumTest {
                     }
                     Assert::IsPresent(text) => {
                         if is_text_present(driver, text).await.is_ok() {
+                            self.complete_actions(driver, events).await?;
+                        }
+                    }
+                    Assert::IsPresentNow(text) => {
+                        if is_text_present_now(driver, text).await.is_ok() {
                             self.complete_actions(driver, events).await?;
                         }
                     }
@@ -117,6 +126,17 @@ pub trait SeleniumTest {
                         self.complete_actions(
                             driver,
                             if is_text_present(driver, text).await.is_ok() {
+                                success
+                            } else {
+                                failure
+                            },
+                        )
+                        .await?;
+                    }
+                    Assert::IsPresentNow(text) => {
+                        self.complete_actions(
+                            driver,
+                            if is_text_present_now(driver, text).await.is_ok() {
                                 success
                             } else {
                                 failure
@@ -228,8 +248,9 @@ pub trait SeleniumTest {
             Event::Trigger(Trigger::Goto(url)),
             Event::Trigger(Trigger::Click(By::Css(".gpay-button"))),
             Event::Trigger(Trigger::SwitchTab(Position::Next)),
+            Event::Trigger(Trigger::Sleep(5)),
             Event::RunIf(
-                Assert::IsPresent("Sign in"),
+                Assert::IsPresentNow("Sign in"),
                 vec![
                     Event::Trigger(Trigger::SendKeys(By::Id("identifierId"), email)),
                     Event::Trigger(Trigger::ClickNth(By::Tag("button"), 2)),
@@ -250,7 +271,6 @@ pub trait SeleniumTest {
                     ),
                 ],
             ),
-            Event::Trigger(Trigger::Sleep(5)),
             Event::Trigger(Trigger::SwitchFrame(By::Id("sM432dIframe"))),
             Event::Assert(Assert::IsPresent("Gpay Tester")),
             Event::Trigger(Trigger::Click(By::ClassName("jfk-button-action"))),
@@ -296,6 +316,13 @@ pub trait SeleniumTest {
         pypl_actions.extend(actions);
         self.complete_actions(&c, pypl_actions).await
     }
+}
+async fn is_text_present_now(driver: &WebDriver, key: &str) -> WebDriverResult<bool> {
+    let mut xpath = "//*[contains(text(),'".to_owned();
+    xpath.push_str(key);
+    xpath.push_str("')]");
+    let result = driver.find(By::XPath(&xpath)).await?;
+    result.is_present().await
 }
 async fn is_text_present(driver: &WebDriver, key: &str) -> WebDriverResult<bool> {
     let mut xpath = "//*[contains(text(),'".to_owned();
