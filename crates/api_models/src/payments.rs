@@ -601,7 +601,13 @@ pub enum BankRedirectData {
         /// The billing details for bank redirection
         billing_details: BankRedirectBilling,
         /// Bank account details for Giropay
+
+        #[schema(value_type = Option<String>)]
+        /// Bank account bic code
         bank_account_bic: Option<Secret<String>>,
+
+        /// Bank account iban
+        #[schema(value_type = Option<String>)]
         bank_account_iban: Option<Secret<String>>,
     },
     Ideal {
