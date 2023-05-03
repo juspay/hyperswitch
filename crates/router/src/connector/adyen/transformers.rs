@@ -1,4 +1,4 @@
-use api_models::{enums::DisputeStage, webhooks::IncomingWebhookEvent, payments};
+use api_models::{enums::DisputeStage, payments, webhooks::IncomingWebhookEvent};
 use masking::PeekInterface;
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
@@ -267,12 +267,12 @@ pub enum AdyenPaymentMethod<'a> {
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct  AchDirectDebitData{
+pub struct AchDirectDebitData {
     #[serde(rename = "type")]
     payment_type: PaymentType,
     bank_account_number: Secret<String>,
     bank_location_id: Secret<String>,
-    owner_name :Secret<String>,
+    owner_name: Secret<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -718,7 +718,7 @@ impl<'a> TryFrom<&types::PaymentsAuthorizeRouterData> for AdyenPaymentRequest<'a
             api_models::payments::PaymentMethodData::BankDebit(ref bank_debit) => {
                 AdyenPaymentRequest::try_from((item, bank_debit))
             }
-        
+
             _ => Err(errors::ConnectorError::NotSupported {
                 payment_method: format!("{:?}", item.request.payment_method_type),
                 connector: "Adyen",
@@ -850,30 +850,29 @@ fn get_country_code(item: &types::PaymentsAuthorizeRouterData) -> Option<api_enu
         .and_then(|billing| billing.address.as_ref().and_then(|address| address.country))
 }
 
-
-
-impl<'a> TryFrom<&api_models::payments::BankDebitData> for AdyenPaymentMethod<'a>{
+impl<'a> TryFrom<&api_models::payments::BankDebitData> for AdyenPaymentMethod<'a> {
     type Error = Error;
-    fn try_from(bank_debit_data: &api_models::payments::BankDebitData) -> Result<Self, Self::Error>{
-        match bank_debit_data{
-            payments::BankDebitData::AchBankDebit { 
-                account_number, 
+    fn try_from(
+        bank_debit_data: &api_models::payments::BankDebitData,
+    ) -> Result<Self, Self::Error> {
+        match bank_debit_data {
+            payments::BankDebitData::AchBankDebit {
+                account_number,
                 routing_number,
-                billing_details: _, 
+                billing_details: _,
                 card_holder_name,
             } => Ok(AdyenPaymentMethod::AchDirectDebit(Box::new(
-                AchDirectDebitData{
+                AchDirectDebitData {
                     payment_type: PaymentType::AchDirectDebit,
                     bank_account_number: account_number.clone(),
                     bank_location_id: routing_number.clone(),
                     owner_name: card_holder_name.clone(),
-                }
-            ))) ,
+                },
+            ))),
 
             _ => Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into()),
         }
-        }
-   
+    }
 }
 
 impl<'a> TryFrom<&api::Card> for AdyenPaymentMethod<'a> {
@@ -1100,10 +1099,19 @@ impl<'a> TryFrom<(&types::PaymentsAuthorizeRouterData, &api::Card)> for AdyenPay
     }
 }
 
-impl<'a> TryFrom<(&types::PaymentsAuthorizeRouterData, &api_models::payments::BankDebitData)> for AdyenPaymentRequest<'a>{
+impl<'a>
+    TryFrom<(
+        &types::PaymentsAuthorizeRouterData,
+        &api_models::payments::BankDebitData,
+    )> for AdyenPaymentRequest<'a>
+{
     type Error = Error;
 
-    fn try_from(value: (&types::PaymentsAuthorizeRouterData, &api_models::payments::BankDebitData)
+    fn try_from(
+        value: (
+            &types::PaymentsAuthorizeRouterData,
+            &api_models::payments::BankDebitData,
+        ),
     ) -> Result<Self, Self::Error> {
         let (item, bank_debit_data) = value;
         let amount = get_amount_data(item);
@@ -1125,7 +1133,7 @@ impl<'a> TryFrom<(&types::PaymentsAuthorizeRouterData, &api_models::payments::Ba
             recurring_processing_model,
             additional_data,
             shopper_name: None,
-            shopper_locale:None,
+            shopper_locale: None,
             shopper_email: item.request.email.clone(),
             telephone_number: None,
             billing_address: None,
