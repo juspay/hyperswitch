@@ -70,6 +70,7 @@ pub async fn update_connector_mandate_id(
     resp: Result<types::PaymentsResponseData, types::ErrorResponse>,
 ) -> RouterResponse<mandates::MandateResponse> {
     let connector_mandate_id = Option::foreign_try_from(resp)?;
+    //Ignore updation if the payment_attempt mandate_id or connector_mandate_id is not present
     if let Some((mandate_ids, connector_id)) = mandate_ids_opt.zip(connector_mandate_id) {
         let mandate_id = &mandate_ids.mandate_id;
         let mandate = state
@@ -91,10 +92,8 @@ pub async fn update_connector_mandate_id(
                 .await
                 .change_context(errors::ApiErrorResponse::MandateUpdateFailed)?;
         }
-        Ok(services::ApplicationResponse::StatusOk)
-    } else {
-        Err(errors::ApiErrorResponse::MandateNotFound.into())
     }
+    Ok(services::ApplicationResponse::StatusOk)
 }
 
 #[instrument(skip(state))]
