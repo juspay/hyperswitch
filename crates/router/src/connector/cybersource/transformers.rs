@@ -80,7 +80,7 @@ pub struct BillTo {
     locality: String,
     administrative_area: Secret<String>,
     postal_code: Secret<String>,
-    country: api_enums::CountryCode,
+    country: api_enums::CountryAlpha2,
     email: Secret<String, pii::Email>,
     phone_number: Secret<String>,
 }

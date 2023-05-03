@@ -4,6 +4,7 @@ use std::{
     str::FromStr,
 };
 
+use api_models::enums;
 use common_utils::ext_traits::ConfigExt;
 use config::{Environment, File};
 #[cfg(feature = "kms")]
@@ -165,7 +166,7 @@ pub struct ConnectorFilters(pub HashMap<String, PaymentMethodFilters>);
 
 #[derive(Debug, Deserialize, Clone, Default)]
 #[serde(transparent)]
-pub struct PaymentMethodFilters(pub HashMap<PaymentMethodFilterKey, CurrencyCountryFilter>);
+pub struct PaymentMethodFilters(pub HashMap<PaymentMethodFilterKey, CurrencyCountryFlowFilter>);
 
 #[derive(Debug, Deserialize, Clone, PartialEq, Eq, Hash)]
 #[serde(untagged)]
@@ -176,16 +177,22 @@ pub enum PaymentMethodFilterKey {
 
 #[derive(Debug, Deserialize, Clone, Default)]
 #[serde(default)]
-pub struct CurrencyCountryFilter {
+pub struct CurrencyCountryFlowFilter {
     #[serde(deserialize_with = "currency_set_deser")]
     pub currency: Option<HashSet<api_models::enums::Currency>>,
     #[serde(deserialize_with = "string_set_deser")]
-    pub country: Option<HashSet<api_models::enums::CountryCode>>,
+    pub country: Option<HashSet<api_models::enums::CountryAlpha2>>,
+    pub not_available_flows: Option<NotAvailableFlows>,
+}
+#[derive(Debug, Deserialize, Copy, Clone, Default)]
+#[serde(default)]
+pub struct NotAvailableFlows {
+    pub capture_method: Option<enums::CaptureMethod>,
 }
 
 fn string_set_deser<'a, D>(
     deserializer: D,
-) -> Result<Option<HashSet<api_models::enums::CountryCode>>, D::Error>
+) -> Result<Option<HashSet<api_models::enums::CountryAlpha2>>, D::Error>
 where
     D: Deserializer<'a>,
 {
@@ -194,7 +201,7 @@ where
         let list = inner
             .trim()
             .split(',')
-            .flat_map(api_models::enums::CountryCode::from_str)
+            .flat_map(api_models::enums::CountryAlpha2::from_str)
             .collect::<HashSet<_>>();
         match list.len() {
             0 => None,

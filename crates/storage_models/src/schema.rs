@@ -8,7 +8,7 @@ diesel::table! {
         id -> Int4,
         address_id -> Varchar,
         city -> Nullable<Varchar>,
-        country -> Nullable<CountryCode>,
+        country -> Nullable<CountryAlpha2>,
         line1 -> Nullable<Varchar>,
         line2 -> Nullable<Varchar>,
         line3 -> Nullable<Varchar>,
@@ -129,9 +129,9 @@ diesel::table! {
         connector_dispute_id -> Varchar,
         connector_reason -> Nullable<Varchar>,
         connector_reason_code -> Nullable<Varchar>,
-        challenge_required_by -> Nullable<Varchar>,
-        dispute_created_at -> Nullable<Varchar>,
-        updated_at -> Nullable<Varchar>,
+        challenge_required_by -> Nullable<Timestamp>,
+        dispute_created_at -> Nullable<Timestamp>,
+        updated_at -> Nullable<Timestamp>,
         created_at -> Timestamp,
         modified_at -> Timestamp,
         connector -> Varchar,
@@ -249,6 +249,7 @@ diesel::table! {
         api_key -> Nullable<Varchar>,
         created_at -> Timestamp,
         modified_at -> Timestamp,
+        intent_fulfillment_time -> Nullable<Int8>,
     }
 }
 
@@ -267,11 +268,11 @@ diesel::table! {
         payment_methods_enabled -> Nullable<Array<Nullable<Json>>>,
         connector_type -> ConnectorType,
         metadata -> Nullable<Jsonb>,
-        frm_configs -> Nullable<Jsonb>,
         connector_label -> Varchar,
-        business_country -> CountryCode,
+        business_country -> CountryAlpha2,
         business_label -> Varchar,
         business_sub_label -> Nullable<Varchar>,
+        frm_configs -> Nullable<Jsonb>,
         created_at -> Timestamp,
         modified_at -> Timestamp,
     }
@@ -348,7 +349,7 @@ diesel::table! {
         off_session -> Nullable<Bool>,
         client_secret -> Nullable<Varchar>,
         active_attempt_id -> Varchar,
-        business_country -> CountryCode,
+        business_country -> CountryAlpha2,
         business_label -> Varchar,
     }
 }
