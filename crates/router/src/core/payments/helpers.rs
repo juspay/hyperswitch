@@ -1398,7 +1398,7 @@ mod tests {
             off_session: None,
             client_secret: Some("1".to_string()),
             active_attempt_id: "nopes".to_string(),
-            business_country: storage_enums::CountryCode::AG,
+            business_country: storage_enums::CountryAlpha2::AG,
             business_label: "no".to_string(),
         };
         let req_cs = Some("1".to_string());
@@ -1437,7 +1437,7 @@ mod tests {
             off_session: None,
             client_secret: Some("1".to_string()),
             active_attempt_id: "nopes".to_string(),
-            business_country: storage_enums::CountryCode::AG,
+            business_country: storage_enums::CountryAlpha2::AG,
             business_label: "no".to_string(),
         };
         let req_cs = Some("1".to_string());
@@ -1476,7 +1476,7 @@ mod tests {
             off_session: None,
             client_secret: None,
             active_attempt_id: "nopes".to_string(),
-            business_country: storage_enums::CountryCode::AG,
+            business_country: storage_enums::CountryAlpha2::AG,
             business_label: "no".to_string(),
         };
         let req_cs = Some("1".to_string());
