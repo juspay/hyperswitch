@@ -73,10 +73,10 @@ pub struct Address {
 pub struct LineItem {
     amount_excluding_tax: Option<i64>,
     amount_including_tax: Option<i64>,
-    description: Option<Vec<String>>,
+    description: Option<String>,
     id: Option<String>,
     tax_amount: Option<i64>,
-    quantity: Option<Vec<u16>>,
+    quantity: Option<u16>,
 }
 
 #[derive(Debug, Serialize)]
@@ -784,19 +784,31 @@ fn get_address_info(address: Option<&api_models::payments::Address>) -> Option<A
 }
 
 fn get_line_items(item: &types::PaymentsAuthorizeRouterData) -> Vec<LineItem> {
-    let order_details = item.request.order_details.as_ref();
-    let line_item = LineItem {
-        amount_including_tax: Some(item.request.amount),
-        amount_excluding_tax: Some(item.request.amount),
-        description: order_details
-            .map(|details| details.iter().map(|v| v.product_name.clone()).collect()),
-        // We support only one product details in payment request as of now, therefore hard coded the id.
-        // If we begin to support multiple product details in future then this logic should be made to create ID dynamically
-        id: Some(String::from("Items #1")),
-        tax_amount: None,
-        quantity: order_details.map(|details| details.iter().map(|v| v.quantity).collect()),
-    };
-    vec![line_item]
+    let order_details = item.request.order_details.clone();
+    match order_details {
+        Some(od) => od
+                    .iter()
+                    .map(|data| LineItem {
+                        amount_including_tax: Some(item.request.amount),
+                        amount_excluding_tax: Some(item.request.amount),
+                        description: Some(data.product_name.clone()),
+                        id: Some(String::from("Items #1")),
+                        tax_amount: None,
+                        quantity: Some(data.quantity),
+                    })
+                    .collect(),
+        None =>  {
+            let line_item = LineItem {
+                    amount_including_tax: Some(item.request.amount),
+                    amount_excluding_tax: Some(item.request.amount),
+                    description: None,
+                    id: Some(String::from("Items #1")),
+                    tax_amount: None,
+                    quantity: None,
+                };
+                vec![line_item]
+        }
+    }
 }
 
 fn get_telephone_number(item: &types::PaymentsAuthorizeRouterData) -> Option<Secret<String>> {
