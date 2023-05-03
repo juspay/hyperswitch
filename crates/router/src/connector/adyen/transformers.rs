@@ -2,6 +2,7 @@ use api_models::{enums::DisputeStage, webhooks::IncomingWebhookEvent};
 use masking::PeekInterface;
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
+use time::PrimitiveDateTime;
 
 use crate::{
     connector::utils::PaymentsAuthorizeRequestData,
@@ -1553,7 +1554,8 @@ pub struct AdyenAdditionalDataWH {
     pub hmac_signature: String,
     pub dispute_status: Option<DisputeStatus>,
     pub chargeback_reason_code: Option<String>,
-    pub defense_period_ends_at: Option<String>,
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    pub defense_period_ends_at: Option<PrimitiveDateTime>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -1653,7 +1655,8 @@ pub struct AdyenNotificationRequestItemWH {
     pub merchant_reference: String,
     pub success: String,
     pub reason: Option<String>,
-    pub event_date: Option<String>,
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    pub event_date: Option<PrimitiveDateTime>,
 }
 
 #[derive(Debug, Deserialize)]
