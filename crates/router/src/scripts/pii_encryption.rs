@@ -1,3 +1,4 @@
+use async_bb8_diesel::AsyncConnection;
 use common_utils::errors::CustomResult;
 use diesel::{associations::HasTable, ExpressionMethods, Table};
 use error_stack::{IntoReport, ResultExt};
@@ -12,8 +13,6 @@ use storage_models::{
         merchant_connector_account::dsl as mca_dsl,
     },
 };
-
-use async_bb8_diesel::AsyncConnection;
 
 use crate::{
     connection,
@@ -35,6 +34,7 @@ pub async fn crate_merchant_key_store(
     merchant_id: &str,
     key: Vec<u8>,
 ) -> CustomResult<(), errors::ApiErrorResponse> {
+    crate::logger::warn!("Trying to create MerchantKeyStore for {}", merchant_id);
     let master_key = state.get_master_key();
     let key_store = merchant_key_store::MerchantKeyStore {
         merchant_id: merchant_id.to_string(),
@@ -112,6 +112,7 @@ pub async fn encrypt_merchant_account_fields(
             publishable_key: None,
             metadata: None,
         };
+        crate::logger::warn!("Started for {}", merchant_id);
 
         conn.transaction_async::<MerchantAccount, async_bb8_diesel::ConnectionError, _, _>(
             |conn| async move {
@@ -142,7 +143,7 @@ pub async fn encrypt_merchant_account_fields(
         encrypt_merchant_connector_account_fields(state, &merchant_id).await?;
         encrypt_customer_fields(state, &merchant_id).await?;
         encrypt_address_fields(state, &merchant_id).await?;
-        crate::logger::error!("Done for {}", merchant_id);
+        crate::logger::warn!("Done for {}", merchant_id);
     }
 
     Ok(())
@@ -152,6 +153,7 @@ pub async fn encrypt_merchant_connector_account_fields(
     state: &Store,
     merchant_id: &str,
 ) -> CustomResult<(), errors::ApiErrorResponse> {
+    crate::logger::warn!("Updating MerchantConnectorAccount for {}", merchant_id);
     let conn = connection::pg_connection_write(state)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
@@ -220,6 +222,11 @@ pub async fn encrypt_merchant_connector_account_fields(
         .into_report()
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
     }
+
+    crate::logger::warn!(
+        "Done: Updating MerchantConnectorAccount for {}",
+        merchant_id
+    );
     Ok(())
 }
 
@@ -227,6 +234,7 @@ pub async fn encrypt_customer_fields(
     state: &Store,
     merchant_id: &str,
 ) -> CustomResult<(), errors::ApiErrorResponse> {
+    crate::logger::warn!("Updating Customer for {}", merchant_id);
     let conn = connection::pg_connection_write(state)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
@@ -287,6 +295,8 @@ pub async fn encrypt_customer_fields(
         .into_report()
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
     }
+
+    crate::logger::warn!("Done: Updating Customer for {}", merchant_id);
     Ok(())
 }
 
@@ -294,6 +304,7 @@ pub async fn encrypt_address_fields(
     state: &Store,
     merchant_id: &str,
 ) -> CustomResult<(), errors::ApiErrorResponse> {
+    crate::logger::warn!("Updating Address for {}", merchant_id);
     let conn = connection::pg_connection_write(state)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
@@ -354,5 +365,7 @@ pub async fn encrypt_address_fields(
         .into_report()
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
     }
+
+    crate::logger::warn!("Done: Updating Address for {}", merchant_id);
     Ok(())
 }
