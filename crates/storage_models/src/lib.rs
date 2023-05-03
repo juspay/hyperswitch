@@ -19,6 +19,7 @@ pub mod merchant_connector_account;
 pub mod payment_attempt;
 pub mod payment_intent;
 pub mod payment_method;
+pub mod payouts;
 pub mod process_tracker;
 pub mod query;
 pub mod refund;

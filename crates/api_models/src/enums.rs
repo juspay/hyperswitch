@@ -964,3 +964,28 @@ pub struct UnresolvedResponseReason {
     /// A message to merchant to give hint on next action he/she should do to resolve
     pub message: String,
 }
+
+//Payout
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    PartialEq,
+    ToSchema,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    frunk::LabelledGeneric,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum PayoutStatus {
+    #[default]
+    Created,
+    Pending,
+    Success,
+    Failed,
+}

@@ -1,14 +1,32 @@
+use super::app::AppState;
+use crate::{
+    core::payouts::*,
+    services::{api, authentication as auth},
+    types::api::payouts,
+};
 use actix_web::{
     body::{BoxBody, MessageBody},
-    HttpResponse, Responder,
+    web, HttpRequest, HttpResponse, Responder,
 };
 use router_env::{instrument, tracing, Flow};
 
 #[instrument(skip_all, fields(flow = ?Flow::PayoutsCreate))]
 // #[post("/create")]
-pub async fn payouts_create() -> impl Responder {
-    let _flow = Flow::PayoutsCreate;
-    http_response("create")
+pub async fn payouts_create(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    json_payload: web::Json<payouts::PayoutCreateRequest>,
+) -> impl Responder {
+    let flow = Flow::PayoutsCreate;
+    api::server_wrap(
+        flow,
+        state.get_ref(),
+        &req,
+        json_payload.into_inner(),
+        payout_create_core,
+        &auth::ApiKeyAuth,
+    )
+    .await
 }
 
 #[instrument(skip_all, fields(flow = ?Flow::PayoutsRetrieve))]
