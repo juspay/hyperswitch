@@ -15,6 +15,7 @@ pub struct CustomerNew {
     pub description: Option<String>,
     pub phone_country_code: Option<String>,
     pub metadata: Option<pii::SecretSerdeValue>,
+    pub connector_customer: Option<serde_json::Value>,
     pub created_at: PrimitiveDateTime,
     pub modified_at: PrimitiveDateTime,
 }
@@ -32,6 +33,7 @@ pub struct Customer {
     pub description: Option<String>,
     pub created_at: PrimitiveDateTime,
     pub metadata: Option<pii::SecretSerdeValue>,
+    pub connector_customer: Option<serde_json::Value>,
     pub modified_at: PrimitiveDateTime,
 }
 
@@ -45,4 +47,5 @@ pub struct CustomerUpdateInternal {
     pub phone_country_code: Option<String>,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub modified_at: Option<PrimitiveDateTime>,
+    pub connector_customer: Option<serde_json::Value>,
 }

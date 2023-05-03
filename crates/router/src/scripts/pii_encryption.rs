@@ -1,3 +1,4 @@
+use async_bb8_diesel::AsyncConnection;
 use common_utils::errors::CustomResult;
 use diesel::{associations::HasTable, ExpressionMethods, Table};
 use error_stack::{IntoReport, ResultExt};
@@ -12,8 +13,6 @@ use storage_models::{
         merchant_connector_account::dsl as mca_dsl,
     },
 };
-
-use async_bb8_diesel::AsyncConnection;
 
 use crate::{
     connection,
@@ -111,6 +110,7 @@ pub async fn encrypt_merchant_account_fields(
             locker_id: None,
             publishable_key: None,
             metadata: None,
+            intent_fulfillment_time: None,
         };
 
         conn.transaction_async::<MerchantAccount, async_bb8_diesel::ConnectionError, _, _>(
@@ -264,6 +264,7 @@ pub async fn encrypt_customer_fields(
             description: None,
             metadata: None,
             phone_country_code: None,
+            connector_customer: None,
         };
         conn.transaction_async::<Customer, async_bb8_diesel::ConnectionError, _, _>(
             |conn| async move {

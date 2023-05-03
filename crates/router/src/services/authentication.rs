@@ -20,7 +20,6 @@ use crate::{
     types::domain::{self},
     utils::OptionExt,
 };
-
 #[async_trait]
 pub trait AuthenticateAndFetch<T, A>
 where

@@ -139,6 +139,7 @@ pub trait UpdateTracker<F, D, Req>: Send {
         payment_data: D,
         customer: Option<domain::Customer>,
         storage_scheme: enums::MerchantStorageScheme,
+        updated_customer: Option<storage::CustomerUpdate>,
     ) -> RouterResult<(BoxedOperation<'b, F, Req>, D)>
     where
         F: 'b + Send;

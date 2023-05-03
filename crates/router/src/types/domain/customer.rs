@@ -25,6 +25,7 @@ pub struct Customer {
     pub created_at: PrimitiveDateTime,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub modified_at: PrimitiveDateTime,
+    pub connector_customer: Option<serde_json::Value>,
 }
 
 #[async_trait::async_trait]
@@ -46,6 +47,7 @@ impl super::behaviour::Conversion for Customer {
             created_at: self.created_at,
             metadata: self.metadata,
             modified_at: self.modified_at,
+            connector_customer: self.connector_customer,
         })
     }
 
@@ -82,6 +84,7 @@ impl super::behaviour::Conversion for Customer {
                 created_at: item.created_at,
                 metadata: item.metadata,
                 modified_at: item.modified_at,
+                connector_customer: item.connector_customer,
             })
         }
         .await
@@ -103,6 +106,7 @@ impl super::behaviour::Conversion for Customer {
             metadata: self.metadata,
             created_at: now,
             modified_at: now,
+            connector_customer: self.connector_customer,
         })
     }
 }
@@ -116,6 +120,10 @@ pub enum CustomerUpdate {
         description: Option<String>,
         phone_country_code: Option<String>,
         metadata: Option<pii::SecretSerdeValue>,
+        connector_customer: Option<serde_json::Value>,
+    },
+    ConnectorCustomer {
+        connector_customer: Option<serde_json::Value>,
     },
 }
 
@@ -129,6 +137,7 @@ impl From<CustomerUpdate> for CustomerUpdateInternal {
                 description,
                 phone_country_code,
                 metadata,
+                connector_customer,
             } => Self {
                 name: name.map(Encryption::from),
                 email: email.map(Encryption::from),
@@ -136,7 +145,13 @@ impl From<CustomerUpdate> for CustomerUpdateInternal {
                 description,
                 phone_country_code,
                 metadata,
+                connector_customer,
                 modified_at: Some(date_time::now()),
+            },
+            CustomerUpdate::ConnectorCustomer { connector_customer } => Self {
+                connector_customer,
+                modified_at: Some(common_utils::date_time::now()),
+                ..Default::default()
             },
         }
     }

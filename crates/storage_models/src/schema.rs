@@ -106,6 +106,7 @@ diesel::table! {
         description -> Nullable<Varchar>,
         created_at -> Timestamp,
         metadata -> Nullable<Json>,
+        connector_customer -> Nullable<Jsonb>,
         modified_at -> Timestamp,
     }
 }
@@ -248,6 +249,7 @@ diesel::table! {
         primary_business_details -> Json,
         created_at -> Timestamp,
         modified_at -> Timestamp,
+        intent_fulfillment_time -> Nullable<Int8>,
     }
 }
 

@@ -20,6 +20,7 @@ impl ConstructFlowSpecificData<api::PSync, types::PaymentsSyncData, types::Payme
         state: &AppState,
         connector_id: &str,
         merchant_account: &domain::MerchantAccount,
+        customer: &Option<domain::Customer>,
     ) -> RouterResult<
         types::RouterData<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>,
     > {
@@ -28,6 +29,7 @@ impl ConstructFlowSpecificData<api::PSync, types::PaymentsSyncData, types::Payme
             self.clone(),
             connector_id,
             merchant_account,
+            customer,
         )
         .await
     }

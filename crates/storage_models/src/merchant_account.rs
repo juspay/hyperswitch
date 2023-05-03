@@ -34,6 +34,7 @@ pub struct MerchantAccount {
     pub primary_business_details: serde_json::Value,
     pub created_at: time::PrimitiveDateTime,
     pub modified_at: time::PrimitiveDateTime,
+    pub intent_fulfillment_time: Option<i64>,
 }
 
 #[derive(Clone, Debug, Insertable, router_derive::DebugAsDisplay)]
@@ -55,6 +56,7 @@ pub struct MerchantAccountNew {
     pub routing_algorithm: Option<serde_json::Value>,
     pub api_key: Option<Encryption>,
     pub primary_business_details: serde_json::Value,
+    pub intent_fulfillment_time: Option<i64>,
     pub created_at: time::PrimitiveDateTime,
     pub modified_at: time::PrimitiveDateTime,
 }
@@ -76,6 +78,7 @@ pub enum MerchantAccountUpdate {
         metadata: Option<pii::SecretSerdeValue>,
         routing_algorithm: Option<serde_json::Value>,
         primary_business_details: Option<serde_json::Value>,
+        intent_fulfillment_time: Option<i64>,
     },
     StorageSchemeUpdate {
         storage_scheme: storage_enums::MerchantStorageScheme,
@@ -102,4 +105,5 @@ pub struct MerchantAccountUpdateInternal {
     pub routing_algorithm: Option<serde_json::Value>,
     pub primary_business_details: Option<serde_json::Value>,
     pub modified_at: Option<time::PrimitiveDateTime>,
+    pub intent_fulfillment_time: Option<i64>,
 }

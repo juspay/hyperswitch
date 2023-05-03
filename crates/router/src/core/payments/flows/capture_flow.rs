@@ -21,12 +21,14 @@ impl
         state: &AppState,
         connector_id: &str,
         merchant_account: &domain::MerchantAccount,
+        customer: &Option<domain::Customer>,
     ) -> RouterResult<types::PaymentsCaptureRouterData> {
         transformers::construct_payment_router_data::<api::Capture, types::PaymentsCaptureData>(
             state,
             self.clone(),
             connector_id,
             merchant_account,
+            customer,
         )
         .await
     }

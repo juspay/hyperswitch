@@ -36,6 +36,7 @@ pub struct MerchantAccount {
     pub primary_business_details: serde_json::Value,
     pub created_at: time::PrimitiveDateTime,
     pub modified_at: time::PrimitiveDateTime,
+    pub intent_fulfillment_time: Option<i64>,
 }
 
 #[allow(clippy::large_enum_variant)]
@@ -57,6 +58,7 @@ pub enum MerchantAccountUpdate {
         routing_algorithm: Option<serde_json::Value>,
         primary_business_details: Option<serde_json::Value>,
         api_key: OptionalEncryptableName,
+        intent_fulfillment_time: Option<i64>,
     },
     StorageSchemeUpdate {
         storage_scheme: enums::MerchantStorageScheme,
@@ -82,6 +84,7 @@ impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
                 metadata,
                 primary_business_details,
                 api_key,
+                intent_fulfillment_time,
             } => Self {
                 merchant_name: merchant_name.map(Encryption::from),
                 merchant_details: merchant_details.map(Encryption::from),
@@ -99,6 +102,7 @@ impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
                 metadata,
                 primary_business_details,
                 modified_at: Some(date_time::now()),
+                intent_fulfillment_time,
                 ..Default::default()
             },
             MerchantAccountUpdate::StorageSchemeUpdate { storage_scheme } => Self {
@@ -138,6 +142,7 @@ impl super::behaviour::Conversion for MerchantAccount {
             primary_business_details: self.primary_business_details,
             created_at: self.created_at,
             modified_at: self.modified_at,
+            intent_fulfillment_time: self.intent_fulfillment_time,
         })
     }
 
@@ -193,6 +198,7 @@ impl super::behaviour::Conversion for MerchantAccount {
                 primary_business_details: item.primary_business_details,
                 created_at: item.created_at,
                 modified_at: item.modified_at,
+                intent_fulfillment_time: item.intent_fulfillment_time,
             })
         }
         .await
@@ -222,6 +228,7 @@ impl super::behaviour::Conversion for MerchantAccount {
             primary_business_details: self.primary_business_details,
             created_at: now,
             modified_at: now,
+            intent_fulfillment_time: self.intent_fulfillment_time,
         })
     }
 }

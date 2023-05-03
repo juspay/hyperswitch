@@ -199,6 +199,7 @@ pub async fn create_merchant_account(
             primary_business_details,
             created_at: date_time::now(),
             modified_at: date_time::now(),
+            intent_fulfillment_time: req.intent_fulfillment_time.map(i64::from),
             id: None,
         })
     }
@@ -233,7 +234,6 @@ pub async fn get_merchant_account(
             .attach_printable("Failed to construct response")?,
     ))
 }
-
 pub async fn merchant_account_update(
     db: &dyn StorageInterface,
     merchant_id: &String,
@@ -337,6 +337,7 @@ pub async fn merchant_account_update(
         metadata: req.metadata,
         publishable_key: None,
         primary_business_details,
+        intent_fulfillment_time: req.intent_fulfillment_time.map(i64::from),
         api_key: None,
     };
 
