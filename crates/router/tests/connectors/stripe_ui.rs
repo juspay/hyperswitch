@@ -69,7 +69,7 @@ async fn should_make_stripe_3ds_mandate_with_zero_dollar_payment(
             Event::Assert(Assert::IsPresent("man_")),// mandate id starting with man_
             Event::Trigger(Trigger::Click(By::Id("pm-mandate-btn"))),
             Event::Trigger(Trigger::Click(By::Id("pay-with-mandate-btn"))),
-            // Need to handled as mentioned in https://stripe.com/docs/payments/save-and-reuse?platform=web#charge-saved-payment-method
+            // Need to be handled as mentioned in https://stripe.com/docs/payments/save-and-reuse?platform=web#charge-saved-payment-method
             Event::Assert(Assert::IsPresent("succeeded")),
 
     ]).await?;
