@@ -1,1 +1,1 @@
-DROP TABLE MERCHANT_KEY_STORE;
+DROP TABLE merchant_key_store;
