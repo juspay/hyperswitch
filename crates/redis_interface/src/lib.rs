@@ -155,6 +155,13 @@ impl RedisConnectionPool {
     }
 }
 
+impl Drop for RedisConnectionPool {
+    fn drop(&mut self) {
+        let rt = tokio::runtime::Handle::current();
+        rt.block_on(self.close_connections())
+    }
+}
+
 struct RedisConfig {
     default_ttl: u32,
     default_stream_read_count: u64,
