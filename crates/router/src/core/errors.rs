@@ -241,6 +241,8 @@ pub enum ConnectorError {
     ResponseHandlingFailed,
     #[error("Missing required field: {field_name}")]
     MissingRequiredField { field_name: &'static str },
+    #[error("Missing required fields: {field_names:?}")]
+    MissingRequiredFields { field_names: Vec<&'static str> },
     #[error("Failed to obtain authentication type")]
     FailedToObtainAuthType,
     #[error("Failed to obtain certificate")]
@@ -293,6 +295,8 @@ pub enum ConnectorError {
     MismatchedPaymentData,
     #[error("Failed to parse Wallet token")]
     InvalidWalletToken,
+    #[error("Missing Connector Related Transaction ID")]
+    MissingConnectorRelatedTransactionID { id: String },
     #[error("File Validation failed")]
     FileValidationFailed { reason: String },
     #[error("Failed to parse the url {url}")]

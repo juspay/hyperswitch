@@ -20,7 +20,6 @@ use crate::{
     types::storage,
     utils::OptionExt,
 };
-
 #[async_trait]
 pub trait AuthenticateAndFetch<T, A>
 where
