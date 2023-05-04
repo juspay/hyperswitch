@@ -13,9 +13,86 @@ use crate::{
     types::{
         self,
         storage::{self, enums},
+        transformers::ForeignFrom,
     },
     utils::{generate_id, OptionExt, ValueExt},
 };
+
+#[instrument(skip_all)]
+#[allow(clippy::too_many_arguments)]
+pub async fn construct_payout_router_data<'a>(
+    state: &'a AppState,
+    connector_id: &str,
+    merchant_account: &storage::MerchantAccount,
+    payout_create: &storage::PayoutCreate,
+    payouts: Option<storage::Payouts>,
+    request: &api_models::payouts::PayoutCreateRequest,
+) -> RouterResult<types::PayoutsRouterData> {
+    let db = &*state.store;
+
+    let (business_country, business_label) = helpers::get_business_details(
+        request.business_country,
+        request.business_label.as_ref(),
+        merchant_account,
+    )?;
+
+    let connector_label =
+        helpers::get_connector_label(business_country, &business_label, None, connector_id);
+
+    let merchant_connector_account = helpers::get_merchant_connector_account(
+        db,
+        merchant_account.merchant_id.as_str(),
+        &connector_label,
+        None,
+    )
+    .await?;
+
+    let connector_auth_type: types::ConnectorAuthType = merchant_connector_account
+        .get_connector_account_details()
+        .parse_value("ConnectorAuthType")
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
+    let address = PaymentAddress {
+        shipping: None,
+        billing: request.billing.clone(),
+    };
+
+    let router_data = types::RouterData {
+        flow: PhantomData,
+        merchant_id: merchant_account.merchant_id.to_owned(),
+        connector: connector_id.to_string(),
+        payment_id: "".to_string(),                      //FIXME
+        attempt_id: "".to_string(),                      //FIXME
+        status: enums::AttemptStatus::Failure,           //FIXME
+        payment_method: enums::PaymentMethod::default(), //FIXME
+        connector_auth_type,
+        description: None,
+        return_url: request.return_url.clone(),
+        payment_method_id: None,
+        address,
+        auth_type: enums::AuthenticationType::default(), //FIXME
+        connector_meta_data: merchant_connector_account.get_metadata(),
+        amount_captured: None,
+        request: types::PayoutsData {
+            payout_id: payout_create.payout_id.clone(),
+            status: payout_create.status,
+            payout_type: enums::PayoutType::foreign_from(request.payout_type),
+        },
+
+        response: Ok(types::PayoutsResponseData {
+            payout_id: payout_create.payout_id.clone(),
+            status: payout_create.status,
+            payout_type: enums::PayoutType::foreign_from(request.payout_type),
+            connector_payout_id: None,
+        }),
+        access_token: None,
+        session_token: None,
+        reference_id: None,
+        payment_method_token: None,
+    };
+
+    Ok(router_data)
+}
 
 #[instrument(skip_all)]
 #[allow(clippy::too_many_arguments)]

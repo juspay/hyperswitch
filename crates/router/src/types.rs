@@ -34,6 +34,7 @@ pub type PaymentsCaptureRouterData =
 pub type PaymentsCancelRouterData = RouterData<api::Void, PaymentsCancelData, PaymentsResponseData>;
 pub type PaymentsSessionRouterData =
     RouterData<api::Session, PaymentsSessionData, PaymentsResponseData>;
+pub type PayoutsRouterData = RouterData<api::Payout, PayoutsData, PayoutsResponseData>;
 pub type RefundsRouterData<F> = RouterData<F, RefundsData, RefundsResponseData>;
 pub type RefundExecuteRouterData = RouterData<api::Execute, RefundsData, RefundsResponseData>;
 pub type RefundSyncRouterData = RouterData<api::RSync, RefundsData, RefundsResponseData>;
@@ -102,6 +103,9 @@ pub type RefundExecuteType =
 pub type RefundSyncType =
     dyn services::ConnectorIntegration<api::RSync, RefundsData, RefundsResponseData>;
 
+pub type PayoutCreateType =
+    dyn services::ConnectorIntegration<api::Payout, PayoutsData, PayoutsResponseData>;
+
 pub type RefreshTokenType =
     dyn services::ConnectorIntegration<api::AccessTokenAuth, AccessTokenRequestData, AccessToken>;
 
@@ -159,6 +163,21 @@ pub struct RouterData<Flow, Request, Response> {
 
     /// Contains any error response that the connector returns.
     pub payment_method_id: Option<String>,
+}
+
+#[derive(Debug, Clone)]
+pub struct PayoutsData {
+    pub payout_id: String,
+    pub status: storage_enums::PayoutStatus,
+    pub payout_type: storage_enums::PayoutType,
+}
+
+#[derive(Debug, Clone)]
+pub struct PayoutsResponseData {
+    pub payout_id: String,
+    pub status: storage_enums::PayoutStatus,
+    pub payout_type: storage_enums::PayoutType,
+    pub connector_payout_id: Option<String>,
 }
 
 #[derive(Debug, Clone)]
