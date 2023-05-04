@@ -63,6 +63,10 @@ impl Cache {
         let val = self.get(key)?;
         (*val).as_any().downcast_ref::<T>().cloned()
     }
+
+    pub async fn remove(&self, key: &str) {
+        self.invalidate(key).await;
+    }
 }
 
 #[cfg(test)]
@@ -74,5 +78,15 @@ mod cache_tests {
         let cache = Cache::new(1800, 1800);
         cache.push("key".to_string(), "val".to_string()).await;
         assert_eq!(cache.get_val::<String>("key"), Some(String::from("val")));
+    }
+
+    #[tokio::test]
+    async fn invalidate_cache_for_key() {
+        let cache = Cache::new(1800, 1800);
+        cache.push("key".to_string(), "val".to_string()).await;
+        
+        cache.remove(&"key".to_string()).await;
+
+        assert_eq!(cache.get_val::<String>("key"), None);
     }
 }
