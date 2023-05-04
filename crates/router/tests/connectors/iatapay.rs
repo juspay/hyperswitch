@@ -73,6 +73,7 @@ fn get_default_payment_info() -> Option<utils::PaymentInfo> {
             ..Default::default()
         }),
         access_token: get_access_token(),
+        return_url: Some(String::from("https://hyperswitch.io")),
         ..Default::default()
     })
 }
@@ -110,6 +111,7 @@ async fn should_fail_for_refund_on_unsuccessed_payment() {
             get_connector_transaction_id(response.response).unwrap(),
             Some(types::RefundsData {
                 refund_amount: response.request.amount,
+                webhook_url: Some("https://hyperswitch.io".to_string()),
                 ..utils::PaymentRefundType::default().0
             }),
             get_default_payment_info(),
@@ -140,5 +142,40 @@ async fn should_fail_for_refund_amount_higher_than_payment_amount() {
     assert_eq!(
         response.response.unwrap_err().message,
         "The amount to be refunded (100) is greater than the unrefunded amount (10.00): the amount of the payment is 10.00 and the refunded amount is 0.00",
+    );
+}
+
+#[actix_web::test]
+async fn should_sync_payment() {
+    let response = CONNECTOR
+        .psync_retry_till_status_matches(
+            enums::AttemptStatus::Charged,
+            Some(types::PaymentsSyncData {
+                connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
+                    "PE9OTYNP639XW".to_string(),
+                ),
+                ..Default::default()
+            }),
+            get_default_payment_info(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status, enums::AttemptStatus::Charged,);
+}
+
+#[actix_web::test]
+async fn should_sync_refund() {
+    let response = CONNECTOR
+        .rsync_retry_till_status_matches(
+            enums::RefundStatus::Success,
+            "R5DNXUW4EY6PQ".to_string(),
+            None,
+            get_default_payment_info(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(
+        response.response.unwrap().refund_status,
+        enums::RefundStatus::Success,
     );
 }
