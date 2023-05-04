@@ -13,7 +13,7 @@ use crate::{
     consts,
     routes::AppState,
     services::{self, ApplicationResponse},
-    types::{api, storage, transformers::ForeignInto},
+    types::{api, storage},
 };
 
 pub async fn files_create_core(
@@ -56,7 +56,7 @@ pub async fn files_create_core(
     //Update file metadata
     let update_file_metadata = storage_models::file::FileMetadataUpdate::Update {
         provider_file_id: Some(provider_file_id),
-        file_upload_provider: Some(file_upload_provider.foreign_into()),
+        file_upload_provider: Some(file_upload_provider),
         available: true,
         connector_label,
     };
@@ -104,6 +104,7 @@ pub async fn files_retrieve_core(
             state,
             Some(req.file_id),
             &merchant_account,
+            true,
         )
         .await?;
     let content_type = file_metadata_object

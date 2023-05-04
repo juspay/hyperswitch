@@ -12,7 +12,7 @@ use crate::{
     },
     routes::AppState,
     services,
-    types::{self, api, storage, transformers::ForeignFrom},
+    types::{self, api, storage, transformers::ForeignTryFrom},
 };
 
 pub async fn read_string(field: &mut Field) -> Option<String> {
@@ -151,14 +151,14 @@ pub async fn retrieve_file_from_connector(
     file_metadata: storage_models::file::FileMetadata,
     merchant_account: &storage_models::merchant_account::MerchantAccount,
 ) -> CustomResult<Vec<u8>, errors::ApiErrorResponse> {
-    let file_upload_provider = types::api::FileUploadProvider::foreign_from(
+    let connector = &types::Connector::foreign_try_from(
         file_metadata
             .file_upload_provider
             .ok_or(errors::ApiErrorResponse::InternalServerError)
             .into_report()
             .attach_printable("Missing file upload provider")?,
-    );
-    let connector = &types::Connector::try_from(file_upload_provider)?.to_string();
+    )?
+    .to_string();
     let connector_data = api::ConnectorData::get_connector_by_name(
         &state.conf.connectors,
         connector,
@@ -205,6 +205,7 @@ pub async fn retrieve_file_and_provider_file_id_from_file_id(
     state: &AppState,
     file_id: Option<String>,
     merchant_account: &storage_models::merchant_account::MerchantAccount,
+    is_connector_file_data_required: bool,
 ) -> CustomResult<(Option<Vec<u8>>, Option<String>), errors::ApiErrorResponse> {
     match file_id {
         None => Ok((None, None)),
@@ -236,13 +237,21 @@ pub async fn retrieve_file_and_provider_file_id_from_file_id(
                     ),
                     Some(provider_file_id),
                 )),
-                _ => Ok((
-                    Some(
-                        retrieve_file_from_connector(state, file_metadata_object, merchant_account)
+                _ => {
+                    let connector_file_data = if is_connector_file_data_required {
+                        Some(
+                            retrieve_file_from_connector(
+                                state,
+                                file_metadata_object,
+                                merchant_account,
+                            )
                             .await?,
-                    ),
-                    Some(provider_file_id),
-                )),
+                        )
+                    } else {
+                        None
+                    };
+                    Ok((connector_file_data, Some(provider_file_id)))
+                }
             }
         }
     }
@@ -254,7 +263,14 @@ pub async fn upload_and_get_provider_provider_file_id_connector_label(
     merchant_account: &storage::merchant_account::MerchantAccount,
     create_file_request: &api::CreateFileRequest,
     file_key: String,
-) -> CustomResult<(String, api::FileUploadProvider, Option<String>), errors::ApiErrorResponse> {
+) -> CustomResult<
+    (
+        String,
+        api_models::enums::FileUploadProvider,
+        Option<String>,
+    ),
+    errors::ApiErrorResponse,
+> {
     match create_file_request.purpose {
         api::FilePurpose::DisputeEvidence => {
             let dispute_id = create_file_request
@@ -335,7 +351,9 @@ pub async fn upload_and_get_provider_provider_file_id_connector_label(
                 })?;
                 Ok((
                     upload_file_response.provider_file_id,
-                    api::FileUploadProvider::try_from(&connector_data.connector_name)?,
+                    api_models::enums::FileUploadProvider::foreign_try_from(
+                        &connector_data.connector_name,
+                    )?,
                     Some(connector_label),
                 ))
             } else {
@@ -346,7 +364,11 @@ pub async fn upload_and_get_provider_provider_file_id_connector_label(
                     create_file_request.file.clone(),
                 )
                 .await?;
-                Ok((file_key, api::FileUploadProvider::Router, None))
+                Ok((
+                    file_key,
+                    api_models::enums::FileUploadProvider::Router,
+                    None,
+                ))
             }
         }
     }

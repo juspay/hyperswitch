@@ -1,23 +1,21 @@
+use api_models::enums::FileUploadProvider;
 use masking::{Deserialize, Serialize};
 
 use super::ConnectorCommon;
-use crate::{core::errors, services, types};
+use crate::{
+    core::errors,
+    services,
+    types::{self, transformers::ForeignTryFrom},
+};
 
 #[derive(Default, Debug, Deserialize, Serialize)]
 pub struct FileId {
     pub file_id: String,
 }
 
-#[derive(Debug, Clone, frunk::LabelledGeneric)]
-pub enum FileUploadProvider {
-    Router,
-    Stripe,
-    Checkout,
-}
-
-impl TryFrom<FileUploadProvider> for types::Connector {
+impl ForeignTryFrom<FileUploadProvider> for types::Connector {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
-    fn try_from(item: FileUploadProvider) -> Result<Self, Self::Error> {
+    fn foreign_try_from(item: FileUploadProvider) -> Result<Self, Self::Error> {
         match item {
             FileUploadProvider::Stripe => Ok(Self::Stripe),
             FileUploadProvider::Checkout => Ok(Self::Checkout),
@@ -29,9 +27,9 @@ impl TryFrom<FileUploadProvider> for types::Connector {
     }
 }
 
-impl TryFrom<&types::Connector> for FileUploadProvider {
+impl ForeignTryFrom<&types::Connector> for FileUploadProvider {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
-    fn try_from(item: &types::Connector) -> Result<Self, Self::Error> {
+    fn foreign_try_from(item: &types::Connector) -> Result<Self, Self::Error> {
         match *item {
             types::Connector::Stripe => Ok(Self::Stripe),
             types::Connector::Checkout => Ok(Self::Checkout),
