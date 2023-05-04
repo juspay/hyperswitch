@@ -50,7 +50,7 @@ fn get_primary_business_details(
             .to_owned()
             .unwrap_or_else(|| {
                 vec![PrimaryBusinessDetails {
-                    country: enums::CountryCode::US,
+                    country: enums::CountryAlpha2::US,
                     business: "default".to_string(),
                 }]
             })
@@ -151,6 +151,7 @@ pub async fn create_merchant_account(
         locker_id: req.locker_id,
         metadata: req.metadata,
         primary_business_details,
+        intent_fulfillment_time: req.intent_fulfillment_time.map(i64::from),
     };
 
     let merchant_account = db
@@ -184,7 +185,6 @@ pub async fn get_merchant_account(
         )?,
     ))
 }
-
 pub async fn merchant_account_update(
     db: &dyn StorageInterface,
     merchant_id: &String,
@@ -258,6 +258,7 @@ pub async fn merchant_account_update(
         metadata: req.metadata,
         publishable_key: None,
         primary_business_details,
+        intent_fulfillment_time: req.intent_fulfillment_time.map(i64::from),
     };
 
     let response = db
@@ -328,7 +329,7 @@ async fn validate_merchant_id<S: Into<String>>(
 fn get_business_details_wrapper(
     request: &api::MerchantConnectorCreate,
     _merchant_account: &MerchantAccount,
-) -> RouterResult<(enums::CountryCode, String)> {
+) -> RouterResult<(enums::CountryAlpha2, String)> {
     #[cfg(feature = "multiple_mca")]
     {
         // The fields are mandatory
@@ -414,6 +415,8 @@ pub async fn create_payment_connector(
         business_country,
         business_label,
         business_sub_label: req.business_sub_label,
+        created_at: common_utils::date_time::now(),
+        modified_at: common_utils::date_time::now(),
     };
 
     let mca = store

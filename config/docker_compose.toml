@@ -14,7 +14,10 @@ enabled = true  # Whether you want to see log in your terminal.
 level = "DEBUG" # What you see in your terminal.
 
 [log.telemetry]
-enabled = false # Whether tracing/telemetry is enabled.
+traces_enabled = false                                      # Whether traces are enabled.
+metrics_enabled = false                                     # Whether metrics are enabled.
+ignore_errors = false                                       # Whether to ignore errors during traces or metrics pipeline setup.
+otel_exporter_otlp_endpoint = "https://otel-collector:4317" # Endpoint to send metrics and traces to.
 
 [master_database]
 username = "db_user"
@@ -31,10 +34,6 @@ host = "pg"
 port = 5432
 dbname = "hyperswitch_db"
 pool_size = 5
-
-[proxy]
-# http_url = "http proxy URL"
-# https_url = "https proxy URL"
 
 [secrets]
 admin_api_key = "test_admin"
@@ -101,6 +100,7 @@ worldline.base_url = "https://eu.sandbox.api-ingenico.com/"
 worldpay.base_url = "https://try.access.worldpay.com/"
 trustpay.base_url = "https://test-tpgw.trustpay.eu/"
 trustpay.base_url_bank_redirects = "https://aapi.trustpay.eu/"
+zen.base_url = "https://api.zen-test.com/"
 
 
 [connectors.supported]
@@ -133,6 +133,7 @@ cards = [
     "trustpay",
     "worldline",
     "worldpay",
+    "zen",
 ]
 
 

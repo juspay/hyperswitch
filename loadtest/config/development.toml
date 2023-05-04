@@ -5,7 +5,9 @@ enabled = false
 enabled = false
 
 [log.telemetry]
-enabled = true
+traces_enabled = true
+metrics_enabled = true
+ignore_errors = false
 
 [master_database]
 username = "postgres"
@@ -87,6 +89,7 @@ worldline.base_url = "https://eu.sandbox.api-ingenico.com/"
 worldpay.base_url = "https://try.access.worldpay.com/"
 trustpay.base_url = "https://test-tpgw.trustpay.eu/"
 trustpay.base_url_bank_redirects = "https://aapi.trustpay.eu/"
+zen.base_url = "https://api.zen-test.com/"
 
 [connectors.supported]
 wallets = ["klarna", "braintree", "applepay"]
@@ -118,4 +121,5 @@ cards = [
     "trustpay",
     "worldline",
     "worldpay",
+    "zen",
 ]

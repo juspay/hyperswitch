@@ -521,17 +521,17 @@ pub enum StripeMandateType {
     MultiUse,
 }
 
-#[derive(PartialEq, Eq, Deserialize, Clone, Default, Debug)]
+#[derive(PartialEq, Eq, Clone, Default, serde::Deserialize, serde::Serialize, Debug)]
 pub struct MandateOption {
-    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    #[serde(default, with = "common_utils::custom_serde::timestamp::option")]
     pub accepted_at: Option<time::PrimitiveDateTime>,
     pub user_agent: Option<String>,
     pub ip_address: Option<pii::Secret<String, common_utils::pii::IpAddress>>,
     pub mandate_type: Option<StripeMandateType>,
     pub amount: Option<i64>,
-    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    #[serde(default, with = "common_utils::custom_serde::timestamp::option")]
     pub start_date: Option<time::PrimitiveDateTime>,
-    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    #[serde(default, with = "common_utils::custom_serde::timestamp::option")]
     pub end_date: Option<time::PrimitiveDateTime>,
 }
 
