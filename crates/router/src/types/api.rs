@@ -182,6 +182,7 @@ enum ConnectorName {
     #[cfg(feature = "dummy_connector")]
     DummyConnector,
     Fiserv,
+    Forte,
     Globalpay,
     Klarna,
     Mollie,
