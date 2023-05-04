@@ -179,6 +179,8 @@ enum ConnectorName {
     Coinbase,
     Cybersource,
     Dlocal,
+    #[cfg(feature = "dummy_connector")]
+    DummyConnector,
     Fiserv,
     Globalpay,
     Klarna,
@@ -240,12 +242,16 @@ impl ConnectorData {
                 ConnectorName::Coinbase => Ok(Box::new(&connector::Coinbase)),
                 ConnectorName::Cybersource => Ok(Box::new(&connector::Cybersource)),
                 ConnectorName::Dlocal => Ok(Box::new(&connector::Dlocal)),
+                #[cfg(feature = "dummy_connector")]
+                ConnectorName::DummyConnector => Ok(Box::new(&connector::DummyConnector)),
                 ConnectorName::Fiserv => Ok(Box::new(&connector::Fiserv)),
+                ConnectorName::Forte => Ok(Box::new(&connector::Forte)),
                 ConnectorName::Globalpay => Ok(Box::new(&connector::Globalpay)),
                 ConnectorName::Klarna => Ok(Box::new(&connector::Klarna)),
                 ConnectorName::Mollie => Ok(Box::new(&connector::Mollie)),
                 ConnectorName::Nuvei => Ok(Box::new(&connector::Nuvei)),
                 ConnectorName::Opennode => Ok(Box::new(&connector::Opennode)),
+                // "payeezy" => Ok(Box::new(&connector::Payeezy)), As psync and rsync are not supported by this connector, it is added as template code for future usage
                 ConnectorName::Payu => Ok(Box::new(&connector::Payu)),
                 ConnectorName::Rapyd => Ok(Box::new(&connector::Rapyd)),
                 ConnectorName::Shift4 => Ok(Box::new(&connector::Shift4)),
