@@ -118,7 +118,6 @@ services:
       - cargo_build_cache:/cargo_build_cache
     environment:
       - CARGO_TARGET_DIR=/cargo_build_cache
-      - OTEL_EXPORTER_OTLP_ENDPOINT=https://otel-collector:4317
     labels:
       logs: "promtail"
     healthcheck:
@@ -146,7 +145,6 @@ services:
       - p_cargo_build_cache:/cargo_build_cache
     environment:
       - CARGO_TARGET_DIR=/cargo_build_cache
-      - OTEL_EXPORTER_OTLP_ENDPOINT=https://otel-collector:4317
       - SCHEDULER_FLOW=producer
     depends_on:
       hyperswitch-consumer:
@@ -168,7 +166,6 @@ services:
       - c_cargo_build_cache:/cargo_build_cache
     environment:
       - CARGO_TARGET_DIR=/cargo_build_cache
-      - OTEL_EXPORTER_OTLP_ENDPOINT=https://otel-collector:4317
       - SCHEDULER_FLOW=consumer
     depends_on:
       hyperswitch-server:
@@ -288,7 +285,6 @@ services:
       - cargo_build_cache:/cargo_build_cache
     environment:
       - CARGO_TARGET_DIR=/cargo_build_cache
-      - OTEL_EXPORTER_OTLP_ENDPOINT=https://otel-collector:4317
     restart: unless-stopped
     depends_on:
       hyperswitch-server:
