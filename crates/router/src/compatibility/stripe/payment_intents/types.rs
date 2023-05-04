@@ -521,7 +521,7 @@ pub enum StripeMandateType {
     MultiUse,
 }
 
-#[derive(PartialEq, Eq, Clone, Default, serde::Deserialize, serde::Serialize, Debug)]
+#[derive(PartialEq, Eq, Clone, Default, Deserialize, Serialize, Debug)]
 pub struct MandateOption {
     #[serde(default, with = "common_utils::custom_serde::timestamp::option")]
     pub accepted_at: Option<time::PrimitiveDateTime>,
