@@ -1034,7 +1034,7 @@ impl api::IncomingWebhook for Airwallex {
         Ok(api::disputes::DisputePayload {
             amount: dispute_details.dispute_amount.to_string(),
             currency: dispute_details.dispute_currency,
-            dispute_stage: api_models::enums::DisputeStage::from(dispute_details.status.clone()),
+            dispute_stage: api_models::enums::DisputeStage::from(dispute_details.stage.clone()),
             connector_dispute_id: dispute_details.dispute_id,
             connector_reason: dispute_details.dispute_reason_type,
             connector_reason_code: dispute_details.dispute_original_reason_code,

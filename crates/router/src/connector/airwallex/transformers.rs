@@ -590,11 +590,11 @@ pub struct AirwallexDisputeObject {
     pub payment_intent_id: String,
     pub dispute_amount: i64,
     pub dispute_currency: String,
-    pub stage: String,
+    pub stage: AirwallexDisputeStage,
     pub dispute_id: String,
     pub dispute_reason_type: Option<String>,
     pub dispute_original_reason_code: Option<String>,
-    pub status: AirwallexDisputeStatus,
+    pub status: String,
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
     pub created_at: Option<PrimitiveDateTime>,
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
@@ -603,7 +603,7 @@ pub struct AirwallexDisputeObject {
 
 #[derive(Debug, Deserialize, strum::Display, Clone)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-pub enum AirwallexDisputeStatus {
+pub enum AirwallexDisputeStage {
     Rfi,
     Dispute,
     Arbitration,
@@ -646,12 +646,12 @@ impl TryFrom<AirwallexWebhookEventType> for api_models::webhooks::IncomingWebhoo
     }
 }
 
-impl From<AirwallexDisputeStatus> for api_models::enums::DisputeStage {
-    fn from(code: AirwallexDisputeStatus) -> Self {
+impl From<AirwallexDisputeStage> for api_models::enums::DisputeStage {
+    fn from(code: AirwallexDisputeStage) -> Self {
         match code {
-            AirwallexDisputeStatus::Rfi => Self::PreDispute,
-            AirwallexDisputeStatus::Dispute => Self::Dispute,
-            AirwallexDisputeStatus::Arbitration => Self::PreArbitration,
+            AirwallexDisputeStage::Rfi => Self::PreDispute,
+            AirwallexDisputeStage::Dispute => Self::Dispute,
+            AirwallexDisputeStage::Arbitration => Self::PreArbitration,
         }
     }
 }
