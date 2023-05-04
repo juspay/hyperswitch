@@ -267,6 +267,7 @@ impl ConnectorData {
 
 #[cfg(test)]
 mod test {
+    #![allow(clippy::unwrap_used)]
     use super::*;
 
     #[test]
