@@ -144,6 +144,9 @@ macro_rules! default_imp_for_create_customer{
     };
 }
 
+#[cfg(feature = "dummy_connector")]
+default_imp_for_create_customer!(connector::DummyConnector);
+
 default_imp_for_create_customer!(
     connector::Aci,
     connector::Adyen,
