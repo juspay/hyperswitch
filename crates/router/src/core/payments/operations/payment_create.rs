@@ -111,10 +111,8 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 storage_scheme,
             )
             .await
-            .map_err(|err| {
-                err.to_duplicate_response(errors::ApiErrorResponse::DuplicatePayment {
-                    payment_id: payment_id.clone(),
-                })
+            .to_duplicate_response(errors::ApiErrorResponse::DuplicatePayment {
+                payment_id: payment_id.clone(),
             })?;
 
         payment_intent = db
@@ -131,10 +129,8 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 storage_scheme,
             )
             .await
-            .map_err(|err| {
-                err.to_duplicate_response(errors::ApiErrorResponse::DuplicatePayment {
-                    payment_id: payment_id.clone(),
-                })
+            .to_duplicate_response(errors::ApiErrorResponse::DuplicatePayment {
+                payment_id: payment_id.clone(),
             })?;
         connector_response = db
             .insert_connector_response(
@@ -142,10 +138,8 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 storage_scheme,
             )
             .await
-            .map_err(|err| {
-                err.to_duplicate_response(errors::ApiErrorResponse::DuplicatePayment {
-                    payment_id: payment_id.clone(),
-                })
+            .to_duplicate_response(errors::ApiErrorResponse::DuplicatePayment {
+                payment_id: payment_id.clone(),
             })?;
 
         let mandate_id = request
@@ -158,7 +152,24 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                     .change_context(errors::ApiErrorResponse::MandateNotFound);
                 Some(mandate.map(|mandate_obj| api_models::payments::MandateIds {
                     mandate_id: mandate_obj.mandate_id,
-                    connector_mandate_id: mandate_obj.connector_mandate_id,
+                    mandate_reference_id: {
+                        match (
+                            mandate_obj.network_transaction_id,
+                            mandate_obj.connector_mandate_id,
+                        ) {
+                            (Some(network_tx_id), _) => {
+                                Some(api_models::payments::MandateReferenceId::NetworkMandateId(
+                                    network_tx_id,
+                                ))
+                            }
+                            (_, Some(connector_mandate_id)) => Some(
+                                api_models::payments::MandateReferenceId::ConnectorMandateId(
+                                    connector_mandate_id,
+                                ),
+                            ),
+                            (_, _) => None,
+                        }
+                    },
                 }))
             })
             .await
@@ -213,6 +224,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 card_cvc: request.card_cvc.clone(),
                 creds_identifier,
                 pm_token: None,
+                connector_customer_id: None,
             },
             Some(CustomerDetails {
                 customer_id: request.customer_id.clone(),
@@ -293,6 +305,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
         mut payment_data: PaymentData<F>,
         _customer: Option<storage::Customer>,
         storage_scheme: enums::MerchantStorageScheme,
+        _updated_customer: Option<storage::CustomerUpdate>,
     ) -> RouterResult<(BoxedOperation<'b, F, api::PaymentsRequest>, PaymentData<F>)>
     where
         F: 'b + Send,
@@ -330,9 +343,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
                 storage_scheme,
             )
             .await
-            .map_err(|error| {
-                error.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
-            })?;
+            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
         let customer_id = payment_data.payment_intent.customer_id.clone();
         payment_data.payment_intent = db
@@ -348,9 +359,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
                 storage_scheme,
             )
             .await
-            .map_err(|error| {
-                error.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
-            })?;
+            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
         // payment_data.mandate_id = response.and_then(|router_data| router_data.request.mandate_id);
 
@@ -495,7 +504,13 @@ impl PaymentCreate {
         let metadata = request
             .metadata
             .as_ref()
-            .map(Encode::<api_models::payments::Metadata>::encode_to_value)
+            .map(|metadata| {
+                let transformed_metadata = api_models::payments::Metadata {
+                    allowed_payment_method_types: request.allowed_payment_method_types.clone(),
+                    ..metadata.clone()
+                };
+                Encode::<api_models::payments::Metadata>::encode_to_value(&transformed_metadata)
+            })
             .transpose()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Encoding Metadata to value failed")?;

@@ -116,6 +116,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
         payment_data: PaymentData<F>,
         _customer: Option<storage::Customer>,
         _storage_scheme: enums::MerchantStorageScheme,
+        _updated_customer: Option<storage::CustomerUpdate>,
     ) -> RouterResult<(BoxedOperation<'b, F, api::PaymentsRequest>, PaymentData<F>)>
     where
         F: 'b + Send,
@@ -133,6 +134,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRetrieveRequest> fo
         payment_data: PaymentData<F>,
         _customer: Option<storage::Customer>,
         _storage_scheme: enums::MerchantStorageScheme,
+        _updated_customer: Option<storage::CustomerUpdate>,
     ) -> RouterResult<(
         BoxedOperation<'b, F, api::PaymentsRetrieveRequest>,
         PaymentData<F>,
@@ -272,6 +274,7 @@ async fn get_tracker_for_sync<
             card_cvc: None,
             creds_identifier,
             pm_token: None,
+            connector_customer_id: None,
         },
         None,
     ))
@@ -360,7 +363,5 @@ pub async fn get_payment_intent_payment_attempt(
         Ok((pi, pa))
     })()
     .await
-    .map_err(|error: error_stack::Report<errors::StorageError>| {
-        error.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
-    })
+    .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
 }

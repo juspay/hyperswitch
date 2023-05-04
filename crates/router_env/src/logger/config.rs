@@ -87,8 +87,12 @@ pub struct LogConsole {
 #[derive(Debug, Deserialize, Clone, Default)]
 #[serde(default)]
 pub struct LogTelemetry {
-    /// Whether tracing/telemetry is enabled.
-    pub enabled: bool,
+    /// Whether the traces pipeline is enabled.
+    pub traces_enabled: bool,
+    /// Whether the metrics pipeline is enabled.
+    pub metrics_enabled: bool,
+    /// Whether errors in setting up traces or metrics pipelines must be ignored.
+    pub ignore_errors: bool,
     /// Sampling rate for traces
     pub sampling_rate: Option<f64>,
     /// Base endpoint URL to send metrics and traces to. Can optionally include the port number.
@@ -123,8 +127,8 @@ impl Config {
         // 1. Defaults from the implementation of the `Default` trait.
         // 2. Values from config file. The config file accessed depends on the environment
         //    specified by the `RUN_ENV` environment variable. `RUN_ENV` can be one of
-        //    `Development`, `Sandbox` or `Production`. If nothing is specified for `RUN_ENV`,
-        //    `/config/Development.toml` file is read.
+        //    `development`, `sandbox` or `production`. If nothing is specified for `RUN_ENV`,
+        //    `/config/development.toml` file is read.
         // 3. Environment variables prefixed with `ROUTER` and each level separated by double
         //    underscores.
         //
@@ -166,9 +170,9 @@ impl Config {
             let config_directory =
                 std::env::var(crate::env::vars::CONFIG_DIR).unwrap_or_else(|_| "config".into());
             let config_file_name = match environment {
-                "Production" => "Production.toml",
-                "Sandbox" => "Sandbox.toml",
-                _ => "Development.toml",
+                "production" => "production.toml",
+                "sandbox" => "sandbox.toml",
+                _ => "development.toml",
             };
 
             config_path.push(crate::env::workspace_path());

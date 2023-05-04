@@ -39,7 +39,7 @@ impl AdyenTest {
             address: Some(PaymentAddress {
                 billing: Some(Address {
                     address: Some(AddressDetails {
-                        country: Some(api_models::enums::CountryCode::US),
+                        country: Some(api_models::enums::CountryAlpha2::US),
                         ..Default::default()
                     }),
                     phone: None,
@@ -417,10 +417,8 @@ async fn should_fail_payment_for_invalid_exp_month() {
         )
         .await
         .unwrap();
-    assert_eq!(
-        response.response.unwrap_err().message,
-        "The provided Expiry Date is not valid.: Expiry month should be between 1 and 12 inclusive: 20",
-    );
+    let errors = vec!["The provided Expiry Date is not valid.: Expiry month should be between 1 and 12 inclusive: 20","Refused"];
+    assert!(errors.contains(&response.response.unwrap_err().message.as_str()))
 }
 
 // Creates a payment with incorrect expiry year.

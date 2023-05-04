@@ -387,6 +387,8 @@ async fn payment_response_update_tracker<F: Clone, T>(
             types::PaymentsResponseData::SessionResponse { .. } => (None, None),
             types::PaymentsResponseData::SessionTokenResponse { .. } => (None, None),
             types::PaymentsResponseData::TokenizationResponse { .. } => (None, None),
+            types::PaymentsResponseData::ConnectorCustomerResponse { .. } => (None, None),
+            types::PaymentsResponseData::ThreeDSEnrollmentResponse { .. } => (None, None),
         },
     };
 
@@ -398,9 +400,7 @@ async fn payment_response_update_tracker<F: Clone, T>(
                 storage_scheme,
             )
             .await
-            .map_err(|error| {
-                error.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
-            })?,
+            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?,
         None => payment_data.payment_attempt,
     };
 
@@ -412,9 +412,7 @@ async fn payment_response_update_tracker<F: Clone, T>(
                 storage_scheme,
             )
             .await
-            .map_err(|error| {
-                error.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
-            })?,
+            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?,
         None => payment_data.connector_response,
     };
 
@@ -443,7 +441,7 @@ async fn payment_response_update_tracker<F: Clone, T>(
             storage_scheme,
         )
         .await
-        .map_err(|error| error.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound))?;
+        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
     Ok(payment_data)
 }

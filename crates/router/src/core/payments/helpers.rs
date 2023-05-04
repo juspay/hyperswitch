@@ -9,7 +9,8 @@ use common_utils::{
 use error_stack::{report, IntoReport, ResultExt};
 use masking::{ExposeOptionInterface, PeekInterface};
 use router_env::{instrument, tracing};
-use storage_models::enums;
+use storage_models::{enums, merchant_account, payment_intent};
+use time::Duration;
 use uuid::Uuid;
 
 use super::{
@@ -53,9 +54,7 @@ pub async fn get_address_for_payment_request(
                 Some(id) => Some(
                     db.update_address(id.to_owned(), address.foreign_into())
                         .await
-                        .map_err(|err| {
-                            err.to_not_found_response(errors::ApiErrorResponse::AddressNotFound)
-                        })?,
+                        .to_not_found_response(errors::ApiErrorResponse::AddressNotFound)?,
                 ),
                 None => {
                     // generate a new address here
@@ -84,9 +83,9 @@ pub async fn get_address_for_payment_request(
             }
         }
         None => match address_id {
-            Some(id) => Some(db.find_address(id).await).transpose().map_err(|err| {
-                err.to_not_found_response(errors::ApiErrorResponse::AddressNotFound)
-            })?,
+            Some(id) => Some(db.find_address(id).await)
+                .transpose()
+                .to_not_found_response(errors::ApiErrorResponse::AddressNotFound)?,
             None => None,
         },
     })
@@ -148,7 +147,7 @@ pub async fn get_token_for_recurring_mandate(
     let mandate = db
         .find_mandate_by_merchant_id_mandate_id(&merchant_account.merchant_id, mandate_id.as_str())
         .await
-        .map_err(|error| error.to_not_found_response(errors::ApiErrorResponse::MandateNotFound))?;
+        .to_not_found_response(errors::ApiErrorResponse::MandateNotFound)?;
 
     let customer = req.customer_id.clone().get_required_value("customer_id")?;
 
@@ -174,9 +173,7 @@ pub async fn get_token_for_recurring_mandate(
     let payment_method = db
         .find_payment_method(payment_method_id.as_str())
         .await
-        .map_err(|error| {
-            error.to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)
-        })?;
+        .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
 
     let token = Uuid::new_v4().to_string();
     let locker_id = merchant_account
@@ -305,6 +302,19 @@ fn validate_new_mandate_request(req: api::MandateValidationFields) -> RouterResu
                 .into()
         }))?
     }
+
+    let mandate_details = match mandate_data.mandate_type {
+        api_models::payments::MandateType::SingleUse(details) => Some(details),
+        api_models::payments::MandateType::MultiUse(details) => details,
+    };
+    mandate_details.and_then(|md| md.start_date.zip(md.end_date)).map(|(start_date, end_date)|
+        utils::when (start_date >= end_date, || {
+        Err(report!(errors::ApiErrorResponse::PreconditionFailed {
+            message: "`mandate_data.mandate_type.{multi_use|single_use}.start_date` should be greater than  \
+            `mandate_data.mandate_type.{multi_use|single_use}.end_date`"
+                .into()
+        }))
+    })).transpose()?;
 
     Ok(())
 }
@@ -793,6 +803,7 @@ pub async fn make_pm_data<'a, F: Clone, R>(
         (pm @ Some(api::PaymentMethodData::PayLater(_)), _) => Ok(pm.to_owned()),
         (pm @ Some(api::PaymentMethodData::BankRedirect(_)), _) => Ok(pm.to_owned()),
         (pm @ Some(api::PaymentMethodData::Crypto(_)), _) => Ok(pm.to_owned()),
+        (pm @ Some(api::PaymentMethodData::BankDebit(_)), _) => Ok(pm.to_owned()),
         (pm_opt @ Some(pm @ api::PaymentMethodData::Wallet(_)), _) => {
             let token = vault::Vault::store_payment_method_data_in_locker(
                 state,
@@ -1127,6 +1138,7 @@ pub fn generate_mandate(
     customer: &Option<storage::Customer>,
     payment_method_id: String,
     connector_mandate_id: Option<String>,
+    network_txn_id: Option<String>,
 ) -> Option<storage::MandateNew> {
     match (setup_mandate_details, customer) {
         (Some(data), Some(cus)) => {
@@ -1143,6 +1155,7 @@ pub fn generate_mandate(
                 .set_connector(connector)
                 .set_mandate_status(storage_enums::MandateStatus::Active)
                 .set_connector_mandate_id(connector_mandate_id)
+                .set_network_transaction_id(network_txn_id)
                 .set_customer_ip_address(
                     data.customer_acceptance
                         .get_ip_address()
@@ -1161,7 +1174,10 @@ pub fn generate_mandate(
                 api::MandateType::MultiUse(op_data) => match op_data {
                     Some(data) => new_mandate
                         .set_mandate_amount(Some(data.amount))
-                        .set_mandate_currency(Some(data.currency.foreign_into())),
+                        .set_mandate_currency(Some(data.currency.foreign_into()))
+                        .set_start_date(data.start_date)
+                        .set_end_date(data.end_date)
+                        .set_metadata(data.metadata),
                     None => &mut new_mandate,
                 }
                 .set_mandate_type(storage_enums::MandateType::MultiUse)
@@ -1172,14 +1188,29 @@ pub fn generate_mandate(
     }
 }
 
-// A function to manually authenticate the client secret
+// A function to manually authenticate the client secret with intent fulfillment time
 pub(crate) fn authenticate_client_secret(
     request_client_secret: Option<&String>,
-    payment_intent_client_secret: Option<&String>,
+    payment_intent: &payment_intent::PaymentIntent,
+    merchant_intent_fulfillment_time: Option<i64>,
 ) -> Result<(), errors::ApiErrorResponse> {
-    match (request_client_secret, payment_intent_client_secret) {
-        (Some(req_cs), Some(pi_cs)) if req_cs != pi_cs => {
-            Err(errors::ApiErrorResponse::ClientSecretInvalid)
+    match (request_client_secret, &payment_intent.client_secret) {
+        (Some(req_cs), Some(pi_cs)) => {
+            if req_cs != pi_cs {
+                Err(errors::ApiErrorResponse::ClientSecretInvalid)
+            } else {
+                //This is done to check whether the merchant_account's intent fulfillment time has expired or not
+                let payment_intent_fulfillment_deadline =
+                    payment_intent.created_at.saturating_add(Duration::seconds(
+                        merchant_intent_fulfillment_time
+                            .unwrap_or(consts::DEFAULT_FULFILLMENT_TIME),
+                    ));
+                let current_timestamp = common_utils::date_time::now();
+                fp_utils::when(
+                    current_timestamp > payment_intent_fulfillment_deadline,
+                    || Err(errors::ApiErrorResponse::ClientSecretExpired),
+                )
+            }
         }
         // If there is no client in payment intent, then it has expired
         (Some(_), None) => Err(errors::ApiErrorResponse::ClientSecretExpired),
@@ -1224,11 +1255,10 @@ pub(crate) fn validate_pm_or_token_given(
 }
 
 // A function to perform database lookup and then verify the client secret
-pub(crate) async fn verify_client_secret(
+pub(crate) async fn verify_payment_intent_time_and_client_secret(
     db: &dyn StorageInterface,
-    storage_scheme: storage_enums::MerchantStorageScheme,
+    merchant_account: &merchant_account::MerchantAccount,
     client_secret: Option<String>,
-    merchant_id: &str,
 ) -> error_stack::Result<Option<storage::PaymentIntent>, errors::ApiErrorResponse> {
     client_secret
         .async_map(|cs| async move {
@@ -1237,13 +1267,17 @@ pub(crate) async fn verify_client_secret(
             let payment_intent = db
                 .find_payment_intent_by_payment_id_merchant_id(
                     &payment_id,
-                    merchant_id,
-                    storage_scheme,
+                    &merchant_account.merchant_id,
+                    merchant_account.storage_scheme,
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
 
-            authenticate_client_secret(Some(&cs), payment_intent.client_secret.as_ref())?;
+            authenticate_client_secret(
+                Some(&cs),
+                &payment_intent,
+                merchant_account.intent_fulfillment_time,
+            )?;
             Ok(payment_intent)
         })
         .await
@@ -1260,7 +1294,7 @@ fn connector_needs_business_sub_label(connector_name: &str) -> bool {
 /// Create the connector label
 /// {connector_name}_{country}_{business_label}
 pub fn get_connector_label(
-    business_country: api_models::enums::CountryCode,
+    business_country: api_models::enums::CountryAlpha2,
     business_label: &str,
     business_sub_label: Option<&String>,
     connector_name: &str,
@@ -1289,10 +1323,10 @@ pub fn get_connector_label(
 /// If there is more than one label or country configured in merchant account, then
 /// passing business details for payment is mandatory to avoid ambiguity
 pub fn get_business_details(
-    business_country: Option<api_enums::CountryCode>,
+    business_country: Option<api_enums::CountryAlpha2>,
     business_label: Option<&String>,
     merchant_account: &storage_models::merchant_account::MerchantAccount,
-) -> RouterResult<(api_enums::CountryCode, String)> {
+) -> RouterResult<(api_enums::CountryAlpha2, String)> {
     let (business_country, business_label) = match business_country.zip(business_label) {
         Some((business_country, business_label)) => {
             (business_country.to_owned(), business_label.to_owned())
@@ -1341,10 +1375,120 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_authenticate_client_secret() {
+    fn test_authenticate_client_secret_fulfillment_time_not_expired() {
+        let payment_intent = payment_intent::PaymentIntent {
+            id: 21,
+            payment_id: "23".to_string(),
+            merchant_id: "22".to_string(),
+            status: storage_enums::IntentStatus::RequiresCapture,
+            amount: 200,
+            currency: None,
+            amount_captured: None,
+            customer_id: None,
+            description: None,
+            return_url: None,
+            metadata: None,
+            connector_id: None,
+            shipping_address_id: None,
+            billing_address_id: None,
+            statement_descriptor_name: None,
+            statement_descriptor_suffix: None,
+            created_at: common_utils::date_time::now(),
+            modified_at: common_utils::date_time::now(),
+            last_synced: None,
+            setup_future_usage: None,
+            off_session: None,
+            client_secret: Some("1".to_string()),
+            active_attempt_id: "nopes".to_string(),
+            business_country: storage_enums::CountryAlpha2::AG,
+            business_label: "no".to_string(),
+        };
         let req_cs = Some("1".to_string());
-        let pi_cs = Some("2".to_string());
-        assert!(authenticate_client_secret(req_cs.as_ref(), pi_cs.as_ref()).is_err())
+        let merchant_fulfillment_time = Some(900);
+        assert!(authenticate_client_secret(
+            req_cs.as_ref(),
+            &payment_intent,
+            merchant_fulfillment_time
+        )
+        .is_ok()); // Check if the result is an Ok variant
+    }
+
+    #[test]
+    fn test_authenticate_client_secret_fulfillment_time_expired() {
+        let payment_intent = payment_intent::PaymentIntent {
+            id: 21,
+            payment_id: "23".to_string(),
+            merchant_id: "22".to_string(),
+            status: storage_enums::IntentStatus::RequiresCapture,
+            amount: 200,
+            currency: None,
+            amount_captured: None,
+            customer_id: None,
+            description: None,
+            return_url: None,
+            metadata: None,
+            connector_id: None,
+            shipping_address_id: None,
+            billing_address_id: None,
+            statement_descriptor_name: None,
+            statement_descriptor_suffix: None,
+            created_at: common_utils::date_time::now().saturating_sub(Duration::seconds(20)),
+            modified_at: common_utils::date_time::now(),
+            last_synced: None,
+            setup_future_usage: None,
+            off_session: None,
+            client_secret: Some("1".to_string()),
+            active_attempt_id: "nopes".to_string(),
+            business_country: storage_enums::CountryAlpha2::AG,
+            business_label: "no".to_string(),
+        };
+        let req_cs = Some("1".to_string());
+        let merchant_fulfillment_time = Some(10);
+        assert!(authenticate_client_secret(
+            req_cs.as_ref(),
+            &payment_intent,
+            merchant_fulfillment_time
+        )
+        .is_err())
+    }
+
+    #[test]
+    fn test_authenticate_client_secret_expired() {
+        let payment_intent = payment_intent::PaymentIntent {
+            id: 21,
+            payment_id: "23".to_string(),
+            merchant_id: "22".to_string(),
+            status: storage_enums::IntentStatus::RequiresCapture,
+            amount: 200,
+            currency: None,
+            amount_captured: None,
+            customer_id: None,
+            description: None,
+            return_url: None,
+            metadata: None,
+            connector_id: None,
+            shipping_address_id: None,
+            billing_address_id: None,
+            statement_descriptor_name: None,
+            statement_descriptor_suffix: None,
+            created_at: common_utils::date_time::now().saturating_sub(Duration::seconds(20)),
+            modified_at: common_utils::date_time::now(),
+            last_synced: None,
+            setup_future_usage: None,
+            off_session: None,
+            client_secret: None,
+            active_attempt_id: "nopes".to_string(),
+            business_country: storage_enums::CountryAlpha2::AG,
+            business_label: "no".to_string(),
+        };
+        let req_cs = Some("1".to_string());
+        let merchant_fulfillment_time = Some(10);
+        assert!(authenticate_client_secret(
+            req_cs.as_ref(),
+            &payment_intent,
+            merchant_fulfillment_time
+        )
+        .is_err())
     }
 }
 
@@ -1412,11 +1556,9 @@ pub async fn get_merchant_connector_account(
             let mca_config = db
                 .find_config_by_key(format!("mcd_{merchant_id}_{creds_identifier}").as_str())
                 .await
-                .map_err(|error| {
-                    error.to_not_found_response(
-                        errors::ApiErrorResponse::MerchantConnectorAccountNotFound,
-                    )
-                })?;
+                .to_not_found_response(
+                    errors::ApiErrorResponse::MerchantConnectorAccountNotFound,
+                )?;
 
             let cached_mca = consts::BASE64_ENGINE
             .decode(mca_config.config.as_bytes())
@@ -1478,5 +1620,7 @@ pub fn router_data_type_conversion<F1, F2, Req1, Req2, Res1, Res2>(
         session_token: router_data.session_token,
         reference_id: None,
         payment_method_token: router_data.payment_method_token,
+        customer_id: router_data.customer_id,
+        connector_customer: router_data.connector_customer,
     }
 }

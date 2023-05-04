@@ -30,7 +30,7 @@ pub async fn get_mandate(
         .store
         .find_mandate_by_merchant_id_mandate_id(&merchant_account.merchant_id, &req.mandate_id)
         .await
-        .map_err(|error| error.to_not_found_response(errors::ApiErrorResponse::MandateNotFound))?;
+        .to_not_found_response(errors::ApiErrorResponse::MandateNotFound)?;
     Ok(services::ApplicationResponse::Json(
         mandates::MandateResponse::from_db_mandate(state, mandate, &merchant_account).await?,
     ))
@@ -51,7 +51,7 @@ pub async fn revoke_mandate(
             },
         )
         .await
-        .map_err(|error| error.to_not_found_response(errors::ApiErrorResponse::MandateNotFound))?;
+        .to_not_found_response(errors::ApiErrorResponse::MandateNotFound)?;
 
     Ok(services::ApplicationResponse::Json(
         mandates::MandateRevokedResponse {
@@ -149,12 +149,13 @@ where
         None => {
             if resp.request.get_setup_mandate_details().is_some() {
                 resp.payment_method_id = pm_id.clone();
-                let mandate_reference = match resp.response.as_ref().ok() {
+                let (mandate_reference, network_txn_id) = match resp.response.as_ref().ok() {
                     Some(types::PaymentsResponseData::TransactionResponse {
                         mandate_reference,
+                        network_txn_id,
                         ..
-                    }) => mandate_reference.clone(),
-                    _ => None,
+                    }) => (mandate_reference.clone(), network_txn_id.clone()),
+                    _ => (None, None),
                 };
 
                 if let Some(new_mandate_data) = helpers::generate_mandate(
@@ -164,23 +165,36 @@ where
                     maybe_customer,
                     pm_id.get_required_value("payment_method_id")?,
                     mandate_reference,
+                    network_txn_id,
                 ) {
                     let connector = new_mandate_data.connector.clone();
                     logger::debug!("{:?}", new_mandate_data);
                     resp.request
                         .set_mandate_id(api_models::payments::MandateIds {
                             mandate_id: new_mandate_data.mandate_id.clone(),
-                            connector_mandate_id: new_mandate_data.connector_mandate_id.clone(),
+                            mandate_reference_id: new_mandate_data
+                                .connector_mandate_id
+                                .clone()
+                                .map_or(
+                                    new_mandate_data.network_transaction_id.clone().map(|id| {
+                                        api_models::payments::MandateReferenceId::NetworkMandateId(
+                                            id,
+                                        )
+                                    }),
+                                    |connector_id| {
+                                        Some(
+                                    api_models::payments::MandateReferenceId::ConnectorMandateId(
+                                        connector_id,
+                                    ),
+                                )
+                                    },
+                                ),
                         });
                     state
                         .store
                         .insert_mandate(new_mandate_data)
                         .await
-                        .map_err(|err| {
-                            err.to_duplicate_response(
-                                errors::ApiErrorResponse::DuplicateRefundRequest,
-                            )
-                        })?;
+                        .to_duplicate_response(errors::ApiErrorResponse::DuplicateRefundRequest)?;
                     metrics::MANDATE_COUNT.add(
                         &metrics::CONTEXT,
                         1,

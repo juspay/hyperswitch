@@ -75,6 +75,10 @@ pub struct MerchantAccountCreate {
     #[cfg(not(feature = "multiple_mca"))]
     #[schema(value_type = Option<PrimaryBusinessDetails>)]
     pub primary_business_details: Option<Vec<PrimaryBusinessDetails>>,
+    ///Will be used to expire client secret after certain amount of time to be supplied in seconds
+    ///(900) for 15 mins
+    #[schema(example = 900)]
+    pub intent_fulfillment_time: Option<u32>,
 }
 
 #[derive(Clone, Debug, Deserialize, ToSchema)]
@@ -135,6 +139,10 @@ pub struct MerchantAccountUpdate {
 
     ///Default business details for connector routing
     pub primary_business_details: Option<Vec<PrimaryBusinessDetails>>,
+
+    ///Will be used to expire client secret after certain amount of time to be supplied in seconds
+    ///(900) for 15 mins
+    pub intent_fulfillment_time: Option<u32>,
 }
 
 #[derive(Clone, Debug, ToSchema, Serialize)]
@@ -201,6 +209,10 @@ pub struct MerchantAccountResponse {
     ///Default business details for connector routing
     #[schema(value_type = Vec<PrimaryBusinessDetails>)]
     pub primary_business_details: Vec<PrimaryBusinessDetails>,
+
+    ///Will be used to expire client secret after certain amount of time to be supplied in seconds
+    ///(900) for 15 mins
+    pub intent_fulfillment_time: Option<i64>,
 }
 
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
@@ -254,7 +266,7 @@ pub enum RoutingAlgorithm {
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct PrimaryBusinessDetails {
-    pub country: api_enums::CountryCode,
+    pub country: api_enums::CountryAlpha2,
     pub business: String,
 }
 
@@ -372,13 +384,24 @@ pub struct MerchantConnectorCreate {
     /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
     #[schema(value_type = Option<Object>,max_length = 255,example = json!({ "city": "NY", "unit": "245" }))]
     pub metadata: Option<pii::SecretSerdeValue>,
+    /// contains the frm configs for the merchant connector
+    #[schema(example = json!([
+        {
+            "frm_enabled_pms" : ["card"],
+            "frm_enabled_pm_types" : ["credit"],
+            "frm_enabled_gateways" : ["stripe"],
+            "frm_action": "cancel_txn",
+            "frm_preferred_flow_type" : "pre"
+        }
+    ]))]
+    pub frm_configs: Option<FrmConfigs>,
 
     /// Business Country of the connector
-    #[schema(example = "US")]
+    #[schema(value_type = CountryAlpha2, example = "US")]
     #[cfg(feature = "multiple_mca")]
-    pub business_country: api_enums::CountryCode,
+    pub business_country: api_enums::CountryAlpha2,
     #[cfg(not(feature = "multiple_mca"))]
-    pub business_country: Option<api_enums::CountryCode>,
+    pub business_country: Option<api_enums::CountryAlpha2>,
 
     ///Business Type of the merchant
     #[schema(example = "travel")]
@@ -455,8 +478,8 @@ pub struct MerchantConnectorResponse {
     pub metadata: Option<pii::SecretSerdeValue>,
 
     /// Business Country of the connector
-    #[schema(example = "US")]
-    pub business_country: api_enums::CountryCode,
+    #[schema(value_type = CountryAlpha2, example = "US")]
+    pub business_country: api_enums::CountryAlpha2,
 
     ///Business Type of the merchant
     #[schema(example = "travel")]
@@ -465,6 +488,18 @@ pub struct MerchantConnectorResponse {
     /// Business Sub label of the merchant
     #[schema(example = "chase")]
     pub business_sub_label: Option<String>,
+
+    /// contains the frm configs for the merchant connector
+    #[schema(example = json!([
+        {
+            "frm_enabled_pms" : ["card"],
+            "frm_enabled_pm_types" : ["credit"],
+            "frm_enabled_gateways" : ["stripe"],
+            "frm_action": "cancel_txn",
+            "frm_preferred_flow_type" : "pre"
+        }
+    ]))]
+    pub frm_configs: Option<FrmConfigs>,
 }
 
 /// Create a new Merchant Connector for the merchant account. The connector could be a payment processor / facilitator / acquirer or specialized services like Fraud / Accounting etc."
@@ -522,8 +557,30 @@ pub struct MerchantConnectorUpdate {
     /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
     #[schema(value_type = Option<Object>,max_length = 255,example = json!({ "city": "NY", "unit": "245" }))]
     pub metadata: Option<pii::SecretSerdeValue>,
+
+    /// contains the frm configs for the merchant connector
+    #[schema(example = json!([
+        {
+            "frm_enabled_pms" : ["card"],
+            "frm_enabled_pm_types" : ["credit"],
+            "frm_enabled_gateways" : ["stripe"],
+            "frm_action": "cancel_txn",
+            "frm_preferred_flow_type" : "pre"
+        }
+    ]))]
+    pub frm_configs: Option<FrmConfigs>,
 }
 
+///Details of FrmConfigs are mentioned here... it should be passed in payment connector create api call, and stored in merchant_connector_table
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub struct FrmConfigs {
+    pub frm_enabled_pms: Option<Vec<String>>,
+    pub frm_enabled_pm_types: Option<Vec<String>>,
+    pub frm_enabled_gateways: Option<Vec<String>>,
+    pub frm_action: api_enums::FrmAction, //What should be the action if FRM declines the txn (autorefund/cancel txn/manual review)
+    pub frm_preferred_flow_type: api_enums::FrmPreferredFlowTypes,
+}
 /// Details of all the payment methods enabled for the connector for the given merchant account
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
@@ -558,8 +615,8 @@ pub enum AcceptedCurrencies {
     rename_all = "snake_case"
 )]
 pub enum AcceptedCountries {
-    EnableOnly(Vec<api_enums::CountryCode>),
-    DisableOnly(Vec<api_enums::CountryCode>),
+    EnableOnly(Vec<api_enums::CountryAlpha2>),
+    DisableOnly(Vec<api_enums::CountryAlpha2>),
     AllAccepted,
 }
 

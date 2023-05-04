@@ -150,7 +150,7 @@ pub struct AirwallexCompleteRequest {
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
 pub struct AirwallexThreeDsData {
-    acs_response: Option<common_utils::pii::SecretSerdeValue>,
+    acs_response: Option<Secret<String>>,
 }
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
@@ -166,7 +166,11 @@ impl TryFrom<&types::PaymentsCompleteAuthorizeRouterData> for AirwallexCompleteR
         Ok(Self {
             request_id: Uuid::new_v4().to_string(),
             three_ds: AirwallexThreeDsData {
-                acs_response: item.request.payload.clone().map(Secret::new),
+                acs_response: item
+                    .request
+                    .payload
+                    .as_ref()
+                    .map(|data| Secret::new(serde_json::Value::to_string(data))),
             },
             three_ds_type: AirwallexThreeDsType::ThreeDSContinue,
         })
@@ -285,7 +289,7 @@ pub struct AirwallexPaymentsResponse {
 fn get_redirection_form(
     response_url_data: AirwallexPaymentsNextAction,
 ) -> Option<services::RedirectForm> {
-    Some(services::RedirectForm {
+    Some(services::RedirectForm::Form {
         endpoint: response_url_data.url.to_string(),
         method: response_url_data.method,
         form_fields: std::collections::HashMap::from([
@@ -378,6 +382,7 @@ impl<F, T>
                 redirection_data,
                 mandate_reference: None,
                 connector_metadata: None,
+                network_txn_id: None,
             }),
             ..item.data
         })
@@ -590,15 +595,18 @@ pub struct AirwallexDisputeObject {
     pub dispute_reason_type: Option<String>,
     pub dispute_original_reason_code: Option<String>,
     pub status: AirwallexDisputeStatus,
-    pub created_at: String,
-    pub updated_at: String,
+    #[serde(with = "common_utils::custom_serde::iso8601::option")]
+    pub created_at: Option<PrimitiveDateTime>,
+    #[serde(with = "common_utils::custom_serde::iso8601::option")]
+    pub updated_at: Option<PrimitiveDateTime>,
 }
 
 #[derive(Debug, Deserialize, strum::Display, Clone)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum AirwallexDisputeStatus {
-    RFI,
-    DISPUTE,
-    ARBITRATION,
+    Rfi,
+    Dispute,
+    Arbitration,
 }
 
 #[derive(Debug, Deserialize)]
@@ -641,9 +649,9 @@ impl TryFrom<AirwallexWebhookEventType> for api_models::webhooks::IncomingWebhoo
 impl From<AirwallexDisputeStatus> for api_models::enums::DisputeStage {
     fn from(code: AirwallexDisputeStatus) -> Self {
         match code {
-            AirwallexDisputeStatus::RFI => Self::PreDispute,
-            AirwallexDisputeStatus::DISPUTE => Self::Dispute,
-            AirwallexDisputeStatus::ARBITRATION => Self::PreArbitration,
+            AirwallexDisputeStatus::Rfi => Self::PreDispute,
+            AirwallexDisputeStatus::Dispute => Self::Dispute,
+            AirwallexDisputeStatus::Arbitration => Self::PreArbitration,
         }
     }
 }

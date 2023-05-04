@@ -27,6 +27,7 @@ impl api::Payment for Opennode {}
 impl api::PaymentSession for Opennode {}
 impl api::PaymentToken for Opennode {}
 impl api::ConnectorAccessToken for Opennode {}
+
 impl api::PreVerify for Opennode {}
 impl api::PaymentAuthorize for Opennode {}
 impl api::PaymentSync for Opennode {}
@@ -565,9 +566,6 @@ impl api::IncomingWebhook for Opennode {
             }
             opennode::OpennodePaymentStatus::Processing => {
                 Ok(api::IncomingWebhookEvent::PaymentIntentProcessing)
-            }
-            opennode::OpennodePaymentStatus::Refunded => {
-                Ok(api::IncomingWebhookEvent::RefundSuccess)
             }
             _ => Ok(api::IncomingWebhookEvent::EventNotSupported),
         }

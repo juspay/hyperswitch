@@ -513,13 +513,13 @@ impl
         Ok(Some(
             services::RequestBuilder::new()
                 .method(services::Method::Post)
-                .url(&types::PaymentsComeplteAuthorizeType::get_url(
+                .url(&types::PaymentsCompleteAuthorizeType::get_url(
                     self, req, connectors,
                 )?)
-                .headers(types::PaymentsComeplteAuthorizeType::get_headers(
+                .headers(types::PaymentsCompleteAuthorizeType::get_headers(
                     self, req, connectors,
                 )?)
-                .body(types::PaymentsComeplteAuthorizeType::get_request_body(
+                .body(types::PaymentsCompleteAuthorizeType::get_request_body(
                     self, req,
                 )?)
                 .build(),
@@ -961,37 +961,38 @@ impl api::IncomingWebhook for Airwallex {
             .body
             .parse_struct("airwallexWebhookData")
             .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
+
         if airwallex::is_transaction_event(&details.name) {
-            return Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
+            Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
                 api_models::payments::PaymentIdType::ConnectorTransactionId(
                     details
                         .source_id
                         .ok_or(errors::ConnectorError::WebhookReferenceIdNotFound)?,
                 ),
-            ));
-        }
-        if airwallex::is_refund_event(&details.name) {
-            return Ok(api_models::webhooks::ObjectReferenceId::RefundId(
+            ))
+        } else if airwallex::is_refund_event(&details.name) {
+            Ok(api_models::webhooks::ObjectReferenceId::RefundId(
                 api_models::webhooks::RefundIdType::ConnectorRefundId(
                     details
                         .source_id
                         .ok_or(errors::ConnectorError::WebhookReferenceIdNotFound)?,
                 ),
-            ));
-        }
-        if airwallex::is_dispute_event(&details.name) {
+            ))
+        } else if airwallex::is_dispute_event(&details.name) {
             let dispute_details: airwallex::AirwallexDisputeObject = details
                 .data
                 .object
                 .parse_value("AirwallexDisputeObject")
                 .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
-            return Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
+
+            Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
                 api_models::payments::PaymentIdType::ConnectorTransactionId(
                     dispute_details.payment_intent_id,
                 ),
-            ));
+            ))
+        } else {
+            Err(errors::ConnectorError::WebhookEventTypeNotFound).into_report()
         }
-        Err(errors::ConnectorError::WebhookEventTypeNotFound).into_report()
     }
 
     fn get_webhook_event_type(
@@ -1039,8 +1040,8 @@ impl api::IncomingWebhook for Airwallex {
             connector_reason_code: dispute_details.dispute_original_reason_code,
             challenge_required_by: None,
             connector_status: dispute_details.status.to_string(),
-            created_at: Some(dispute_details.created_at),
-            updated_at: Some(dispute_details.updated_at),
+            created_at: dispute_details.created_at,
+            updated_at: dispute_details.updated_at,
         })
     }
 }

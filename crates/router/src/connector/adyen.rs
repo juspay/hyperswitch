@@ -191,6 +191,8 @@ impl
     }
 }
 
+/// Payment Sync can be useful only incase of Redirect flow.
+/// For payments which doesn't involve redrection we have to rely on webhooks.
 impl
     services::ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>
     for Adyen
@@ -373,11 +375,7 @@ impl
 
     fn build_request(
         &self,
-        req: &types::RouterData<
-            api::Authorize,
-            types::PaymentsAuthorizeData,
-            types::PaymentsResponseData,
-        >,
+        req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         Ok(Some(
@@ -794,7 +792,7 @@ impl api::IncomingWebhook for Adyen {
             connector_reason_code: notif.additional_data.chargeback_reason_code,
             challenge_required_by: notif.additional_data.defense_period_ends_at,
             connector_status: notif.event_code.to_string(),
-            created_at: notif.event_date.clone(),
+            created_at: notif.event_date,
             updated_at: notif.event_date,
         })
     }

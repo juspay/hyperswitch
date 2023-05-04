@@ -1,7 +1,7 @@
 use api_models::enums as api_enums;
 use common_utils::ext_traits::ValueExt;
 use error_stack::ResultExt;
-use masking::Secret;
+use masking::{PeekInterface, Secret};
 use storage_models::enums as storage_enums;
 
 use crate::{
@@ -457,6 +457,12 @@ impl ForeignFrom<storage_enums::DisputeStatus> for api_enums::DisputeStatus {
     }
 }
 
+impl ForeignFrom<api_types::FileUploadProvider> for storage_enums::FileUploadProvider {
+    fn foreign_from(provider: api_types::FileUploadProvider) -> Self {
+        frunk::labelled_convert_from(provider)
+    }
+}
+
 impl ForeignTryFrom<api_models::webhooks::IncomingWebhookEvent> for storage_enums::DisputeStatus {
     type Error = errors::ValidationError;
 
@@ -535,7 +541,20 @@ impl ForeignTryFrom<storage_models::merchant_connector_account::MerchantConnecto
                 .change_context(errors::ApiErrorResponse::InternalServerError)?,
             None => None,
         };
-
+        let frm_configs = match item.frm_configs {
+            Some(frm_value) => {
+                let configs_for_frm : api_models::admin::FrmConfigs = frm_value
+                    .peek()
+                    .clone()
+                    .parse_value("FrmConfigs")
+                    .change_context(errors::ApiErrorResponse::InvalidDataFormat {
+                        field_name: "frm_configs".to_string(),
+                        expected_format: "\"frm_configs\" : { \"frm_enabled_pms\" : [\"card\"], \"frm_enabled_pm_types\" : [\"credit\"], \"frm_enabled_gateways\" : [\"stripe\"], \"frm_action\": \"cancel_txn\", \"frm_preferred_flow_type\" : \"pre\" }".to_string(),
+                    })?;
+                Some(configs_for_frm)
+            }
+            None => None,
+        };
         Ok(Self {
             connector_type: item.connector_type.foreign_into(),
             connector_name: item.connector_name,
@@ -549,6 +568,7 @@ impl ForeignTryFrom<storage_models::merchant_connector_account::MerchantConnecto
             business_country: item.business_country,
             business_label: item.business_label,
             business_sub_label: item.business_sub_label,
+            frm_configs,
         })
     }
 }

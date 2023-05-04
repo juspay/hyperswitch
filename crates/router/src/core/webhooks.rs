@@ -164,6 +164,7 @@ async fn refunds_incoming_webhook_flow<W: api::OutgoingWebhookType>(
             merchant_account.clone(),
             api_models::refunds::RefundsRetrieveRequest {
                 refund_id: refund_id.to_owned(),
+                force_sync: Some(true),
                 merchant_connector_details: None,
             },
         )
@@ -416,7 +417,7 @@ async fn create_event_and_trigger_outgoing_webhook<W: api::OutgoingWebhookType>(
 async fn trigger_webhook_to_merchant<W: api::OutgoingWebhookType>(
     merchant_account: storage::MerchantAccount,
     webhook: api::OutgoingWebhook,
-    _db: Box<dyn StorageInterface>,
+    db: Box<dyn StorageInterface>,
 ) -> CustomResult<(), errors::WebhooksFlowError> {
     let webhook_details_json = merchant_account
         .webhook_details
@@ -433,6 +434,8 @@ async fn trigger_webhook_to_merchant<W: api::OutgoingWebhookType>(
         .get_required_value("webhook_url")
         .change_context(errors::WebhooksFlowError::MerchantWebhookURLNotConfigured)
         .map(ExposeInterface::expose)?;
+
+    let outgoing_webhook_event_id = webhook.event_id.clone();
 
     let transformed_outgoing_webhook = W::from(webhook);
 
@@ -454,7 +457,14 @@ async fn trigger_webhook_to_merchant<W: api::OutgoingWebhookType>(
                 .change_context(errors::WebhooksFlowError::CallToMerchantFailed)?;
         }
         Ok(res) => {
-            if !res.status().is_success() {
+            if res.status().is_success() {
+                let update_event = storage::EventUpdate::UpdateWebhookNotified {
+                    is_webhook_notified: Some(true),
+                };
+                db.update_event(outgoing_webhook_event_id, update_event)
+                    .await
+                    .change_context(errors::WebhooksFlowError::WebhookEventUpdationFailed)?;
+            } else {
                 // [#217]: Schedule webhook for retry.
                 Err(errors::WebhooksFlowError::NotReceivedByMerchant).into_report()?;
             }

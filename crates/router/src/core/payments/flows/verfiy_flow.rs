@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 
-use super::{ConstructFlowSpecificData, Feature};
+use super::{authorize_flow, ConstructFlowSpecificData, Feature};
 use crate::{
     core::{
         errors::{ConnectorErrorExt, RouterResult},
@@ -21,12 +21,14 @@ impl ConstructFlowSpecificData<api::Verify, types::VerifyRequestData, types::Pay
         state: &AppState,
         connector_id: &str,
         merchant_account: &storage::MerchantAccount,
+        customer: &Option<storage::Customer>,
     ) -> RouterResult<types::VerifyRouterData> {
         transformers::construct_payment_router_data::<api::Verify, types::VerifyRequestData>(
             state,
             self.clone(),
             connector_id,
             merchant_account,
+            customer,
         )
         .await
     }
@@ -89,7 +91,17 @@ impl types::VerifyRouterData {
                 )
                 .await
                 .map_err(|err| err.to_verify_failed_response())?;
-                Ok(mandate::mandate_procedure(state, resp, maybe_customer, None).await?)
+
+                let pm_id = authorize_flow::save_payment_method(
+                    state,
+                    connector,
+                    resp.to_owned(),
+                    maybe_customer,
+                    _merchant_account,
+                )
+                .await?;
+
+                Ok(mandate::mandate_procedure(state, resp, maybe_customer, pm_id).await?)
             }
             _ => Ok(self.clone()),
         }
