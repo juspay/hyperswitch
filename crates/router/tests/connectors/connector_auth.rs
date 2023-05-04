@@ -15,6 +15,8 @@ pub(crate) struct ConnectorAuthentication {
     pub coinbase: Option<HeaderKey>,
     pub cybersource: Option<SignatureKey>,
     pub dlocal: Option<SignatureKey>,
+    #[cfg(feature = "dummy_connector")]
+    pub dummyconnector: Option<HeaderKey>,
     pub fiserv: Option<SignatureKey>,
     pub forte: Option<MultiAuthKey>,
     pub globalpay: Option<HeaderKey>,
