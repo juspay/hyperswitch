@@ -13,8 +13,6 @@ use crate::{
     pii,
 };
 
-const RING_ERR_UNSPECIFIED: &str = "ring::error::Unspecified";
-
 #[derive(Clone, Debug)]
 struct NonceSequence(u128);
 
@@ -223,12 +221,10 @@ impl EncodeMessage for GcmAes256 {
     ) -> CustomResult<Vec<u8>, errors::CryptoError> {
         let nonce_sequence = NonceSequence::new()
             .into_report()
-            .attach_printable(RING_ERR_UNSPECIFIED)
             .change_context(errors::CryptoError::EncodingFailed)?;
         let current_nonce = nonce_sequence.current();
         let key = UnboundKey::new(&aead::AES_256_GCM, secret)
             .into_report()
-            .attach_printable(RING_ERR_UNSPECIFIED)
             .change_context(errors::CryptoError::EncodingFailed)?;
         let mut key = SealingKey::new(key, nonce_sequence);
         let mut in_out = msg.to_vec();
@@ -567,9 +563,7 @@ mod crypto_tests {
         let secret =
             hex::decode("000102030405060708090a0b0c0d0e0f000102030405060708090a0b0c0d0e0f")
                 .expect("Secret decoding");
-        let algorithm = super::GcmAes256 {
-            // nonce: nonce.to_vec(),
-        };
+        let algorithm = super::GcmAes256;
 
         let encoded_message = algorithm
             .encode_message(&secret, message)

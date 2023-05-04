@@ -10,7 +10,7 @@ license = "Apache-2.0"
 build = "src/build.rs"
 
 [features]
-default = ["kv_store", "stripe", "oltp", "olap", "accounts_cache","pii-encryption-script"]
+default = ["kv_store", "stripe", "oltp", "olap", "accounts_cache"]
 s3 = ["dep:aws-sdk-s3","dep:aws-config"]
 kms = ["external_services/kms","dep:aws-config"]
 basilisk = ["kms"]

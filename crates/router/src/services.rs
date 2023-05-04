@@ -127,8 +127,6 @@ impl Store {
         )
         .await;
 
-        // let migration_timestamp = config.
-
         Self {
             master_pool: diesel_make_pg_pool(
                 &config.master_database,

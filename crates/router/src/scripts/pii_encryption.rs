@@ -37,7 +37,7 @@ pub async fn create_merchant_key_store(
     merchant_id: &str,
     key: Vec<u8>,
 ) -> CustomResult<(), errors::ApiErrorResponse> {
-    crate::logger::warn!("Trying to create MerchantKeyStore for {}", merchant_id);
+    crate::logger::info!("Trying to create MerchantKeyStore for {}", merchant_id);
     let master_key = state.get_master_key();
     let key_store = merchant_key_store::MerchantKeyStore {
         merchant_id: merchant_id.to_string(),

@@ -495,7 +495,6 @@ pub async fn create_payment_connector(
         .to_duplicate_response(errors::ApiErrorResponse::DuplicateMerchantConnectorAccount)?;
 
     let mca_response = mca.try_into()?;
-    // let mca_response = ForeignTryFrom::foreign_try_from(mca)?;
 
     Ok(service_api::ApplicationResponse::Json(mca_response))
 }

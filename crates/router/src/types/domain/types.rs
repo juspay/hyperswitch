@@ -11,8 +11,6 @@ use storage_models::encryption::Encryption;
 
 use crate::routes::metrics::{request, DECRYPTION_TIME, ENCRYPTION_TIME};
 
-pub const TIMESTAMP: i64 = 1682425530;
-
 #[async_trait]
 pub trait TypeEncryption<
     T,
@@ -61,11 +59,6 @@ impl<
     ) -> CustomResult<Self, errors::CryptoError> {
         let encrypted = encrypted_data.into_inner();
 
-        crate::logger::debug!(
-            "const TIMESTAMP {}, modified_at {}",
-            migration_timestamp,
-            timestamp
-        );
         let (data, encrypted) = if timestamp < migration_timestamp {
             (
                 encrypted.clone(),
@@ -77,8 +70,6 @@ impl<
                 encrypted,
             )
         };
-
-        crate::logger::debug!("data - {:?}, encrypted - {:?}", data, encrypted,);
 
         let value: String = std::str::from_utf8(&data)
             .into_report()
@@ -119,11 +110,6 @@ impl<
         migration_timestamp: i64,
     ) -> CustomResult<Self, errors::CryptoError> {
         let encrypted = encrypted_data.into_inner();
-        crate::logger::debug!(
-            "const TIMESTAMP {}, modified_at {}",
-            migration_timestamp,
-            timestamp
-        );
         let (data, encrypted) = if timestamp < migration_timestamp {
             (
                 encrypted.clone(),
@@ -135,8 +121,6 @@ impl<
                 encrypted,
             )
         };
-
-        crate::logger::debug!("data - {:?}, encrypted - {:?}", data, encrypted);
 
         let value: serde_json::Value = serde_json::from_slice(&data)
             .into_report()
@@ -173,11 +157,6 @@ impl<
     ) -> CustomResult<Self, errors::CryptoError> {
         let encrypted = encrypted_data.into_inner();
 
-        crate::logger::debug!(
-            "const TIMESTAMP {}, modified_at {}",
-            migration_timestamp,
-            timestamp
-        );
         let (data, encrypted) = if timestamp < migration_timestamp {
             (
                 encrypted.clone(),
