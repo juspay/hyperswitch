@@ -10,13 +10,10 @@ use async_trait::async_trait;
 
 use crate::{
     connector,
-    core::{
-        errors::{ConnectorError, CustomResult, RouterResult},
-        payments,
-    },
+    core::{ errors::{ ConnectorError, CustomResult, RouterResult }, payments },
     routes::AppState,
     services,
-    types::{self, api, storage},
+    types::{ self, api, storage },
 };
 
 #[async_trait]
@@ -26,7 +23,7 @@ pub trait ConstructFlowSpecificData<F, Req, Res> {
         state: &AppState,
         connector_id: &str,
         merchant_account: &storage::MerchantAccount,
-        customer: &Option<storage::Customer>,
+        customer: &Option<storage::Customer>
     ) -> RouterResult<types::RouterData<F, Req, Res>>;
 }
 
@@ -38,34 +35,37 @@ pub trait Feature<F, T> {
         connector: &api::ConnectorData,
         maybe_customer: &Option<storage::Customer>,
         call_connector_action: payments::CallConnectorAction,
-        merchant_account: &storage::MerchantAccount,
-    ) -> RouterResult<Self>
-    where
-        Self: Sized,
-        F: Clone,
-        dyn api::Connector: services::ConnectorIntegration<F, T, types::PaymentsResponseData>;
+        merchant_account: &storage::MerchantAccount
+    )
+        -> RouterResult<Self>
+        where
+            Self: Sized,
+            F: Clone,
+            dyn api::Connector: services::ConnectorIntegration<F, T, types::PaymentsResponseData>;
 
     async fn add_access_token<'a>(
         &self,
         state: &AppState,
         connector: &api::ConnectorData,
-        merchant_account: &storage::MerchantAccount,
-    ) -> RouterResult<types::AddAccessTokenResult>
-    where
-        F: Clone,
-        Self: Sized,
-        dyn api::Connector: services::ConnectorIntegration<F, T, types::PaymentsResponseData>;
+        merchant_account: &storage::MerchantAccount
+    )
+        -> RouterResult<types::AddAccessTokenResult>
+        where
+            F: Clone,
+            Self: Sized,
+            dyn api::Connector: services::ConnectorIntegration<F, T, types::PaymentsResponseData>;
 
     async fn add_payment_method_token<'a>(
         &self,
         _state: &AppState,
         _connector: &api::ConnectorData,
-        _tokenization_action: &payments::TokenizationAction,
-    ) -> RouterResult<Option<String>>
-    where
-        F: Clone,
-        Self: Sized,
-        dyn api::Connector: services::ConnectorIntegration<F, T, types::PaymentsResponseData>,
+        _tokenization_action: &payments::TokenizationAction
+    )
+        -> RouterResult<Option<String>>
+        where
+            F: Clone,
+            Self: Sized,
+            dyn api::Connector: services::ConnectorIntegration<F, T, types::PaymentsResponseData>
     {
         Ok(None)
     }
@@ -74,19 +74,20 @@ pub trait Feature<F, T> {
         &self,
         _state: &AppState,
         _connector: &api::ConnectorData,
-        _customer: &Option<storage::Customer>,
-    ) -> RouterResult<(Option<String>, Option<storage::CustomerUpdate>)>
-    where
-        F: Clone,
-        Self: Sized,
-        dyn api::Connector: services::ConnectorIntegration<F, T, types::PaymentsResponseData>,
+        _customer: &Option<storage::Customer>
+    )
+        -> RouterResult<(Option<String>, Option<storage::CustomerUpdate>)>
+        where
+            F: Clone,
+            Self: Sized,
+            dyn api::Connector: services::ConnectorIntegration<F, T, types::PaymentsResponseData>
     {
         Ok((None, None))
     }
 }
 
-macro_rules! default_imp_for_complete_authorize{
-    ($($path:ident::$connector:ident),*)=> {
+macro_rules! default_imp_for_complete_authorize {
+    ($($path:ident::$connector:ident),*) => {
         $(
             impl api::PaymentsCompleteAuthorize for $path::$connector {}
             impl
@@ -129,8 +130,8 @@ default_imp_for_complete_authorize!(
     connector::Zen
 );
 
-macro_rules! default_imp_for_create_customer{
-    ($($path:ident::$connector:ident),*)=> {
+macro_rules! default_imp_for_create_customer {
+    ($($path:ident::$connector:ident),*) => {
         $(
             impl api::ConnectorCustomer for $path::$connector {}
             impl
@@ -179,8 +180,8 @@ default_imp_for_create_customer!(
     connector::Zen
 );
 
-macro_rules! default_imp_for_connector_redirect_response{
-    ($($path:ident::$connector:ident),*)=> {
+macro_rules! default_imp_for_connector_redirect_response {
+    ($($path:ident::$connector:ident),*) => {
         $(
             impl services::ConnectorRedirectResponse for $path::$connector {
                 fn get_flow_type(
@@ -222,8 +223,8 @@ default_imp_for_connector_redirect_response!(
     connector::Worldpay
 );
 
-macro_rules! default_imp_for_connector_request_id{
-    ($($path:ident::$connector:ident),*)=> {
+macro_rules! default_imp_for_connector_request_id {
+    ($($path:ident::$connector:ident),*) => {
         $(
             impl api::ConnectorTransactionId for $path::$connector {}
     )*
@@ -264,8 +265,8 @@ default_imp_for_connector_request_id!(
     connector::Zen
 );
 
-macro_rules! default_imp_for_accept_dispute{
-    ($($path:ident::$connector:ident),*)=> {
+macro_rules! default_imp_for_accept_dispute {
+    ($($path:ident::$connector:ident),*) => {
         $(
             impl api::Dispute for $path::$connector {}
             impl api::AcceptDispute for $path::$connector {}
@@ -315,8 +316,8 @@ default_imp_for_accept_dispute!(
     connector::Zen
 );
 
-macro_rules! default_imp_for_file_upload{
-    ($($path:ident::$connector:ident),*)=> {
+macro_rules! default_imp_for_file_upload {
+    ($($path:ident::$connector:ident),*) => {
         $(
             impl api::FileUpload for $path::$connector {}
             impl api::UploadFile for $path::$connector {}
@@ -365,8 +366,8 @@ default_imp_for_file_upload!(
     connector::Zen
 );
 
-macro_rules! default_imp_for_submit_evidence{
-    ($($path:ident::$connector:ident),*)=> {
+macro_rules! default_imp_for_submit_evidence {
+    ($($path:ident::$connector:ident),*) => {
         $(
             impl api::SubmitEvidence for $path::$connector {}
             impl
@@ -414,8 +415,8 @@ default_imp_for_submit_evidence!(
     connector::Zen
 );
 
-macro_rules! default_imp_for_defend_dispute{
-    ($($path:ident::$connector:ident),*)=> {
+macro_rules! default_imp_for_defend_dispute {
+    ($($path:ident::$connector:ident),*) => {
         $(
             impl api::DefendDispute for $path::$connector {}
             impl
@@ -425,6 +426,22 @@ macro_rules! default_imp_for_defend_dispute{
                 types::DefendDisputeResponse,
             > for $path::$connector
             {}
+        )*
+    };
+}
+
+macro_rules! default_imp_for_payouts {
+    ($($path:ident::$connector:ident),*) => {
+        $(
+            impl api::Payouts for $path::$connector {}
+            impl api::PayoutCreate for $path::$connector {}
+            impl
+            services::ConnectorIntegration<
+            api::Payout,
+            types::PayoutsData,
+            types::PayoutsResponseData,
+        > for $path::$connector
+        {}
     )*
     };
 }
@@ -440,8 +457,9 @@ default_imp_for_defend_dispute!(
     connector::Bambora,
     connector::Bluesnap,
     connector::Braintree,
-    connector::Cybersource,
+    connector::Checkout,
     connector::Coinbase,
+    connector::Cybersource,
     connector::Dlocal,
     connector::Fiserv,
     connector::Forte,
@@ -451,6 +469,41 @@ default_imp_for_defend_dispute!(
     connector::Multisafepay,
     connector::Nexinets,
     connector::Nuvei,
+    connector::Opennode,
+    connector::Payeezy,
+    connector::Paypal,
+    connector::Payu,
+    connector::Rapyd,
+    connector::Stripe,
+    connector::Shift4,
+    connector::Trustpay,
+    connector::Opennode,
+    connector::Worldline,
+    connector::Worldpay,
+    connector::Zen
+);
+
+default_imp_for_payouts!(
+    connector::Aci,
+    connector::Adyen,
+    connector::Airwallex,
+    connector::Authorizedotnet,
+    connector::Bambora,
+    connector::Bluesnap,
+    connector::Braintree,
+    connector::Checkout,
+    connector::Coinbase,
+    connector::Cybersource,
+    connector::Dlocal,
+    connector::Fiserv,
+    connector::Forte,
+    connector::Globalpay,
+    connector::Klarna,
+    connector::Mollie,
+    connector::Multisafepay,
+    connector::Nexinets,
+    connector::Nuvei,
+    connector::Opennode,
     connector::Payeezy,
     connector::Paypal,
     connector::Payu,

@@ -111,6 +111,7 @@ pub trait Connector:
     + Dispute
     + FileUpload
     + ConnectorTransactionId
+    + Payouts
 {
 }
 
@@ -128,7 +129,8 @@ impl<
             + ConnectorAccessToken
             + Dispute
             + FileUpload
-            + ConnectorTransactionId,
+            + ConnectorTransactionId
+            + Payouts,
     > Connector for T
 {
 }

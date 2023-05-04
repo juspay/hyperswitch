@@ -19,6 +19,12 @@ pub trait PayoutsInterface {
         payout_id: &str,
     ) -> CustomResult<storage::PayoutCreate, errors::StorageError>;
 
+    async fn update_payout_create_by_payout_id(
+        &self,
+        payout_create: storage::PayoutCreate,
+        updated_payout: storage::PayoutCreateUpdate,
+    ) -> CustomResult<storage::PayoutCreate, errors::StorageError>;
+
     async fn insert_payouts(
         &self,
         p: storage::PayoutsNew,
@@ -49,6 +55,18 @@ impl PayoutsInterface for Store {
     ) -> CustomResult<storage::PayoutCreate, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
         storage::PayoutCreate::find_by_payout_id(&conn, payout_id)
+            .await
+            .map_err(Into::into)
+            .into_report()
+    }
+
+    async fn update_payout_create_by_payout_id(
+        &self,
+        payout_create: storage::PayoutCreate,
+        updated_payout: storage::PayoutCreateUpdate,
+    ) -> CustomResult<storage::PayoutCreate, errors::StorageError> {
+        let conn = connection::pg_connection_read(self).await?;
+        storage::PayoutCreate::update(payout_create, &conn, updated_payout)
             .await
             .map_err(Into::into)
             .into_report()
@@ -90,6 +108,15 @@ impl PayoutsInterface for MockDb {
     async fn find_payout_create_by_payout_id(
         &self,
         _payout_id: &str,
+    ) -> CustomResult<storage::PayoutCreate, errors::StorageError> {
+        // Implement function for `MockDb`
+        Err(errors::StorageError::MockDbError)?
+    }
+
+    async fn update_payout_create_by_payout_id(
+        &self,
+        _payout_create: storage::PayoutCreate,
+        _updated_payout: storage::PayoutCreateUpdate,
     ) -> CustomResult<storage::PayoutCreate, errors::StorageError> {
         // Implement function for `MockDb`
         Err(errors::StorageError::MockDbError)?

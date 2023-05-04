@@ -26,7 +26,7 @@ pub async fn construct_payout_router_data<'a>(
     connector_id: &str,
     merchant_account: &storage::MerchantAccount,
     payout_create: &storage::PayoutCreate,
-    payouts: Option<storage::Payouts>,
+    _payouts: Option<storage::Payouts>,
     request: &api_models::payouts::PayoutCreateRequest,
 ) -> RouterResult<types::PayoutsRouterData> {
     let db = &*state.store;
