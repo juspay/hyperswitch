@@ -131,7 +131,7 @@ You can [try the hosted version in our sandbox][dashboard].
 
 ## FAQs
 
-Got more more questions?
+Got more questions?
 Please refer to our [FAQs page][faqs].
 
 [faqs]: https://hyperswitch.io/docs/websiteFAQ
@@ -259,7 +259,7 @@ Get updates on HyperSwitch development and chat with the community:
 - Join our [Slack workspace][slack].
 - Ask and explore our [GitHub Discussions][github-discussions].
 
-[blog]: https://blog.hyperswitch.io
+[blog]: https://hyperswitch.io/blog
 [discord]: https://discord.gg/wJZ7DVW8mm
 [slack]: https://join.slack.com/t/hyperswitch-io/shared_invite/zt-1k6cz4lee-SAJzhz6bjmpp4jZCDOtOIg
 [github-discussions]: https://github.com/juspay/hyperswitch/discussions
