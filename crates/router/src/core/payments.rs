@@ -1083,7 +1083,7 @@ where
     };
 
     let request_straight_through: Option<api::StraightThroughAlgorithm> = request_straight_through
-        .map(|val| val.parse_value("RoutingAlgorithm"))
+        .map(|val| val.parse_value("StraightThroughAlgorithm"))
         .transpose()
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Invalid straight through routing rules format")?;
