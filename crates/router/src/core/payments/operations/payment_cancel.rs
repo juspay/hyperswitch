@@ -53,6 +53,18 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsCancelRequest> 
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
+        helpers::validate_payment_status_against_not_allowed_statuses(
+            &payment_intent.status,
+            &[
+                enums::IntentStatus::Failed,
+                enums::IntentStatus::Succeeded,
+                enums::IntentStatus::Cancelled,
+                enums::IntentStatus::Processing,
+                enums::IntentStatus::RequiresMerchantAction,
+            ],
+            "cancelled",
+        )?;
+
         let mut payment_attempt = db
             .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
                 payment_intent.payment_id.as_str(),
@@ -112,17 +124,6 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsCancelRequest> 
             .await
             .transpose()?;
 
-        helpers::validate_payment_status_against_not_allowed_statuses(
-            &payment_intent.status,
-            &[
-                enums::IntentStatus::Failed,
-                enums::IntentStatus::Succeeded,
-                enums::IntentStatus::Cancelled,
-                enums::IntentStatus::Processing,
-                enums::IntentStatus::RequiresMerchantAction,
-            ],
-            "cancelled",
-        )?;
         Ok((
             Box::new(self),
             PaymentData {
@@ -148,6 +149,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsCancelRequest> 
                 card_cvc: None,
                 creds_identifier,
                 pm_token: None,
+                connector_customer_id: None,
             },
             None,
         ))
@@ -178,23 +180,26 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsCancelRequest> for 
                 let payment_intent_update = storage::PaymentIntentUpdate::PGStatusUpdate {
                     status: enums::IntentStatus::Cancelled,
                 };
-                payment_data.payment_intent = db
-                    .update_payment_intent(
-                        payment_data.payment_intent,
-                        payment_intent_update,
-                        storage_scheme,
-                    )
-                    .await
-                    .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
-                enums::AttemptStatus::Voided
+                (Some(payment_intent_update), enums::AttemptStatus::Voided)
             } else {
-                enums::AttemptStatus::VoidInitiated
+                (None, enums::AttemptStatus::VoidInitiated)
             };
+
+        if let Some(payment_intent_update) = attempt_status_update.0 {
+            payment_data.payment_intent = db
+                .update_payment_intent(
+                    payment_data.payment_intent,
+                    payment_intent_update,
+                    storage_scheme,
+                )
+                .await
+                .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+        }
 
         db.update_payment_attempt_with_attempt_id(
             payment_data.payment_attempt.clone(),
             storage::PaymentAttemptUpdate::VoidUpdate {
-                status: attempt_status_update,
+                status: attempt_status_update.1,
                 cancellation_reason,
             },
             storage_scheme,
