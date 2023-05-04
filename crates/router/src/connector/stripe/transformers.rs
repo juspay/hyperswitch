@@ -15,8 +15,6 @@ use crate::{
     utils::OptionExt,
 };
 
-use super::Stripe;
-
 pub struct StripeAuthType {
     pub(super) api_key: String,
 }
