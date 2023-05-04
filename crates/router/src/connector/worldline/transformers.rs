@@ -60,7 +60,7 @@ pub struct BillingAddress {
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct ContactDetails {
-    pub email_address: Option<Secret<String, Email>>,
+    pub email_address: Option<Email>,
     pub mobile_phone_number: Option<Secret<String>>,
 }
 
@@ -202,7 +202,7 @@ fn get_address(
 
 fn build_customer_info(
     payment_address: &types::PaymentAddress,
-    email: &Option<Secret<String, Email>>,
+    email: &Option<Email>,
 ) -> Result<Customer, error_stack::Report<errors::ConnectorError>> {
     let (billing, address) =
         get_address(payment_address).ok_or(errors::ConnectorError::MissingRequiredField {

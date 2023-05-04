@@ -105,7 +105,7 @@ pub struct AdyenPaymentRequest<'a> {
     store_payment_method: Option<bool>,
     shopper_name: Option<ShopperName>,
     shopper_locale: Option<String>,
-    shopper_email: Option<Secret<String, Email>>,
+    shopper_email: Option<Email>,
     telephone_number: Option<Secret<String>>,
     billing_address: Option<Address>,
     delivery_address: Option<Address>,

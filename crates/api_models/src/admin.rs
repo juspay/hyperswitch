@@ -228,7 +228,7 @@ pub struct MerchantDetails {
 
     /// The merchant's primary email address
     #[schema(value_type = Option<String>, max_length = 255, example = "johndoe@test.com")]
-    pub primary_email: Option<Secret<String, pii::Email>>,
+    pub primary_email: Option<pii::Email>,
 
     /// The merchant's secondary contact name
     #[schema(value_type = Option<String>, max_length= 255, example = "John Doe2")]
@@ -240,7 +240,7 @@ pub struct MerchantDetails {
 
     /// The merchant's secondary email address
     #[schema(value_type = Option<String>, max_length = 255, example = "johndoe2@test.com")]
-    pub secondary_email: Option<Secret<String, pii::Email>>,
+    pub secondary_email: Option<pii::Email>,
 
     /// The business website of the merchant
     #[schema(max_length = 255, example = "www.example.com")]
