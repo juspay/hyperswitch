@@ -49,7 +49,7 @@ impl AccessTokenRequestInfo for types::RefreshTokenRouterData {
 
 pub trait RouterData {
     fn get_billing(&self) -> Result<&api::Address, Error>;
-    fn get_billing_country(&self) -> Result<api_models::enums::CountryCode, Error>;
+    fn get_billing_country(&self) -> Result<api_models::enums::CountryAlpha2, Error>;
     fn get_billing_phone(&self) -> Result<&api::PhoneDetails, Error>;
     fn get_description(&self) -> Result<String, Error>;
     fn get_return_url(&self) -> Result<String, Error>;
@@ -62,6 +62,7 @@ pub trait RouterData {
         T: serde::de::DeserializeOwned;
     fn is_three_ds(&self) -> bool;
     fn get_payment_method_token(&self) -> Result<String, Error>;
+    fn get_customer_id(&self) -> Result<String, Error>;
 }
 
 impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Response> {
@@ -72,7 +73,7 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
             .ok_or_else(missing_field_err("billing"))
     }
 
-    fn get_billing_country(&self) -> Result<api_models::enums::CountryCode, Error> {
+    fn get_billing_country(&self) -> Result<api_models::enums::CountryAlpha2, Error> {
         self.address
             .billing
             .as_ref()
@@ -145,6 +146,11 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
             .clone()
             .ok_or_else(missing_field_err("payment_method_token"))
     }
+    fn get_customer_id(&self) -> Result<String, Error> {
+        self.customer_id
+            .to_owned()
+            .ok_or_else(missing_field_err("customer_id"))
+    }
 }
 
 pub trait PaymentsAuthorizeRequestData {
@@ -196,14 +202,19 @@ impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
     fn connector_mandate_id(&self) -> Option<String> {
         self.mandate_id
             .as_ref()
-            .and_then(|mandate_ids| mandate_ids.connector_mandate_id.clone())
+            .and_then(|mandate_ids| match &mandate_ids.mandate_reference_id {
+                Some(api_models::payments::MandateReferenceId::ConnectorMandateId(
+                    connector_mandate_id,
+                )) => Some(connector_mandate_id.to_string()),
+                _ => None,
+            })
     }
     fn is_mandate_payment(&self) -> bool {
         self.setup_mandate_details.is_some()
             || self
                 .mandate_id
                 .as_ref()
-                .and_then(|mandate_ids| mandate_ids.connector_mandate_id.as_ref())
+                .and_then(|mandate_ids| mandate_ids.mandate_reference_id.as_ref())
                 .is_some()
     }
     fn get_webhook_url(&self) -> Result<String, Error> {
@@ -244,7 +255,7 @@ impl PaymentsCompleteAuthorizeRequestData for types::CompleteAuthorizeData {
 
 pub trait PaymentsSyncRequestData {
     fn is_auto_capture(&self) -> Result<bool, Error>;
-    fn get_connector_transaction_id(&self) -> CustomResult<String, errors::ValidationError>;
+    fn get_connector_transaction_id(&self) -> CustomResult<String, errors::ConnectorError>;
 }
 
 impl PaymentsSyncRequestData for types::PaymentsSyncData {
@@ -255,14 +266,15 @@ impl PaymentsSyncRequestData for types::PaymentsSyncData {
             Some(_) => Err(errors::ConnectorError::CaptureMethodNotSupported.into()),
         }
     }
-    fn get_connector_transaction_id(&self) -> CustomResult<String, errors::ValidationError> {
+    fn get_connector_transaction_id(&self) -> CustomResult<String, errors::ConnectorError> {
         match self.connector_transaction_id.clone() {
             ResponseId::ConnectorTransactionId(txn_id) => Ok(txn_id),
             _ => Err(errors::ValidationError::IncorrectValueProvided {
                 field_name: "connector_transaction_id",
             })
             .into_report()
-            .attach_printable("Expected connector transaction ID not found"),
+            .attach_printable("Expected connector transaction ID not found")
+            .change_context(errors::ConnectorError::MissingConnectorTransactionID)?,
         }
     }
 }
@@ -400,7 +412,7 @@ impl WalletData for api::WalletData {
     fn get_wallet_token(&self) -> Result<String, Error> {
         match self {
             Self::GooglePay(data) => Ok(data.tokenization_data.token.clone()),
-            Self::ApplePay(data) => Ok(data.payment_data.clone()),
+            Self::ApplePay(data) => Ok(data.get_applepay_decoded_payment_data()?),
             Self::PaypalSdk(data) => Ok(data.token.clone()),
             _ => Err(errors::ConnectorError::InvalidWallet.into()),
         }
@@ -415,6 +427,23 @@ impl WalletData for api::WalletData {
     }
 }
 
+pub trait ApplePay {
+    fn get_applepay_decoded_payment_data(&self) -> Result<String, Error>;
+}
+
+impl ApplePay for payments::ApplePayWalletData {
+    fn get_applepay_decoded_payment_data(&self) -> Result<String, Error> {
+        let token = String::from_utf8(
+            consts::BASE64_ENGINE
+                .decode(&self.payment_data)
+                .into_report()
+                .change_context(errors::ConnectorError::InvalidWalletToken)?,
+        )
+        .into_report()
+        .change_context(errors::ConnectorError::InvalidWalletToken)?;
+        Ok(token)
+    }
+}
 pub trait PhoneDetailsData {
     fn get_number(&self) -> Result<Secret<String>, Error>;
     fn get_country_code(&self) -> Result<String, Error>;
@@ -440,7 +469,7 @@ pub trait AddressDetailsData {
     fn get_city(&self) -> Result<&String, Error>;
     fn get_line2(&self) -> Result<&Secret<String>, Error>;
     fn get_zip(&self) -> Result<&Secret<String>, Error>;
-    fn get_country(&self) -> Result<&api_models::enums::CountryCode, Error>;
+    fn get_country(&self) -> Result<&api_models::enums::CountryAlpha2, Error>;
     fn get_combined_address_line(&self) -> Result<Secret<String>, Error>;
 }
 
@@ -481,7 +510,7 @@ impl AddressDetailsData for api::AddressDetails {
             .ok_or_else(missing_field_err("address.zip"))
     }
 
-    fn get_country(&self) -> Result<&api_models::enums::CountryCode, Error> {
+    fn get_country(&self) -> Result<&api_models::enums::CountryAlpha2, Error> {
         self.country
             .as_ref()
             .ok_or_else(missing_field_err("address.country"))

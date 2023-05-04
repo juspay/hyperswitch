@@ -65,7 +65,7 @@ pub enum PaymentDetails {
 pub struct BankRedirectionPMData {
     payment_brand: PaymentBrand,
     #[serde(rename = "bankAccount.country")]
-    bank_account_country: Option<api_models::enums::CountryCode>,
+    bank_account_country: Option<api_models::enums::CountryAlpha2>,
     #[serde(rename = "bankAccount.bankName")]
     bank_account_bank_name: Option<String>,
     #[serde(rename = "bankAccount.bic")]
@@ -140,7 +140,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for AciPaymentsRequest {
                     api_models::payments::BankRedirectData::Eps { .. } => {
                         PaymentDetails::BankRedirect(Box::new(BankRedirectionPMData {
                             payment_brand: PaymentBrand::Eps,
-                            bank_account_country: Some(api_models::enums::CountryCode::AT),
+                            bank_account_country: Some(api_models::enums::CountryAlpha2::AT),
                             bank_account_bank_name: None,
                             bank_account_bic: None,
                             bank_account_iban: None,
@@ -153,7 +153,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for AciPaymentsRequest {
                         ..
                     } => PaymentDetails::BankRedirect(Box::new(BankRedirectionPMData {
                         payment_brand: PaymentBrand::Giropay,
-                        bank_account_country: Some(api_models::enums::CountryCode::DE),
+                        bank_account_country: Some(api_models::enums::CountryAlpha2::DE),
                         bank_account_bank_name: None,
                         bank_account_bic: bank_account_bic.clone(),
                         bank_account_iban: bank_account_iban.clone(),
@@ -162,7 +162,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for AciPaymentsRequest {
                     api_models::payments::BankRedirectData::Ideal { bank_name, .. } => {
                         PaymentDetails::BankRedirect(Box::new(BankRedirectionPMData {
                             payment_brand: PaymentBrand::Ideal,
-                            bank_account_country: Some(api_models::enums::CountryCode::NL),
+                            bank_account_country: Some(api_models::enums::CountryAlpha2::NL),
                             bank_account_bank_name: Some(bank_name.to_string()),
                             bank_account_bic: None,
                             bank_account_iban: None,
@@ -337,6 +337,7 @@ impl<F, T>
                 redirection_data,
                 mandate_reference: None,
                 connector_metadata: None,
+                network_txn_id: None,
             }),
             ..item.data
         })

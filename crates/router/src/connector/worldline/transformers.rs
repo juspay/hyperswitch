@@ -49,7 +49,7 @@ pub struct Order {
 #[serde(rename_all = "camelCase")]
 pub struct BillingAddress {
     pub city: Option<String>,
-    pub country_code: Option<api_enums::CountryCode>,
+    pub country_code: Option<api_enums::CountryAlpha2>,
     pub house_number: Option<String>,
     pub state: Option<Secret<String>>,
     pub state_code: Option<String>,
@@ -84,7 +84,7 @@ pub struct Name {
 #[serde(rename_all = "camelCase")]
 pub struct Shipping {
     pub city: Option<String>,
-    pub country_code: Option<api_enums::CountryCode>,
+    pub country_code: Option<api_enums::CountryAlpha2>,
     pub house_number: Option<String>,
     pub name: Option<Name>,
     pub state: Option<Secret<String>>,
@@ -352,6 +352,7 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, Payment, T, types::PaymentsRespo
                 redirection_data: None,
                 mandate_reference: None,
                 connector_metadata: None,
+                network_txn_id: None,
             }),
             ..item.data
         })
@@ -380,6 +381,7 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, PaymentResponse, T, types::Payme
                 redirection_data: None,
                 mandate_reference: None,
                 connector_metadata: None,
+                network_txn_id: None,
             }),
             ..item.data
         })

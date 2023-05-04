@@ -246,6 +246,7 @@ impl
                     redirection_data: None,
                     mandate_reference: None,
                     connector_metadata: None,
+                    network_txn_id: None,
                 }),
                 enums::AttemptStatus::CaptureInitiated,
             ),
@@ -332,6 +333,7 @@ impl<T>
                     redirection_data: None,
                     mandate_reference: None,
                     connector_metadata: None,
+                    network_txn_id: None,
                 }),
                 enums::AttemptStatus::Charged,
             ),
@@ -383,6 +385,7 @@ impl TryFrom<types::PaymentsResponseRouterData<StandardResponse>>
                     redirection_data: None,
                     mandate_reference: None,
                     connector_metadata: None,
+                    network_txn_id: None,
                 }),
                 if let Some(storage_models::enums::CaptureMethod::Automatic) =
                     item.data.request.capture_method
@@ -430,6 +433,7 @@ impl<T>
                     redirection_data: None,
                     mandate_reference: None,
                     connector_metadata: None,
+                    network_txn_id: None,
                 }),
                 enums::AttemptStatus::VoidInitiated,
             ),
@@ -479,6 +483,7 @@ impl TryFrom<types::PaymentsSyncResponseRouterData<types::Response>>
                 redirection_data: None,
                 mandate_reference: None,
                 connector_metadata: None,
+                network_txn_id: None,
             }),
             ..item.data
         })
