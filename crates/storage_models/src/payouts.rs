@@ -1,4 +1,4 @@
-use diesel::{Identifiable, Insertable, Queryable};
+use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
@@ -22,7 +22,16 @@ pub struct PayoutCreate {
     pub error_code: Option<String>,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Insertable, Queryable, router_derive::DebugAsDisplay)]
+#[derive(
+    Clone,
+    Debug,
+    Eq,
+    PartialEq,
+    Insertable,
+    Queryable,
+    router_derive::DebugAsDisplay,
+    router_derive::Setter,
+)]
 #[diesel(table_name = payout_create)]
 pub struct PayoutCreateNew {
     pub payout_id: String,
@@ -34,6 +43,41 @@ pub struct PayoutCreateNew {
     pub connector: String,
     pub error_message: Option<String>,
     pub error_code: Option<String>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub enum PayoutCreateUpdate {
+    Update {
+        status: storage_enums::PayoutStatus,
+        error_message: Option<String>,
+        error_code: Option<String>,
+    },
+}
+
+#[derive(Clone, Debug, Default, AsChangeset, router_derive::DebugAsDisplay)]
+#[diesel(table_name = payout_create)]
+pub struct PayoutCreateUpdateInternal {
+    pub status: Option<storage_enums::PayoutStatus>,
+    pub encoded_data: Option<serde_json::Value>,
+    pub error_message: Option<String>,
+    pub error_code: Option<String>,
+}
+
+impl From<PayoutCreateUpdate> for PayoutCreateUpdateInternal {
+    fn from(payout_update: PayoutCreateUpdate) -> Self {
+        match payout_update {
+            PayoutCreateUpdate::Update {
+                status,
+                error_message,
+                error_code,
+            } => Self {
+                status: Some(status),
+                error_message,
+                error_code,
+                ..Default::default()
+            },
+        }
+    }
 }
 
 impl Default for PayoutCreateNew {
@@ -72,7 +116,16 @@ pub struct Payouts {
     pub recurring: Option<bool>,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Insertable, Queryable, router_derive::DebugAsDisplay)]
+#[derive(
+    Clone,
+    Debug,
+    Eq,
+    PartialEq,
+    Insertable,
+    Queryable,
+    router_derive::DebugAsDisplay,
+    router_derive::Setter,
+)]
 #[diesel(table_name = payouts)]
 pub struct PayoutsNew {
     pub payout_id: String,

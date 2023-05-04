@@ -282,6 +282,12 @@ impl ForeignFrom<api_enums::PayoutType> for storage_enums::PayoutType {
     }
 }
 
+impl ForeignFrom<storage_enums::PayoutStatus> for api_enums::PayoutStatus {
+    fn foreign_from(payout_type: storage_enums::PayoutStatus) -> Self {
+        frunk::labelled_convert_from(payout_type)
+    }
+}
+
 impl<'a> ForeignFrom<&'a api_types::Address> for storage::AddressUpdate {
     fn foreign_from(address: &api_types::Address) -> Self {
         let address = address;
