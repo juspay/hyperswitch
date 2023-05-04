@@ -426,6 +426,9 @@ macro_rules! default_imp_for_defend_dispute{
     };
 }
 
+#[cfg(feature = "dummy_connector")]
+default_imp_for_defend_dispute!(connector::DummyConnector);
+
 default_imp_for_defend_dispute!(
     connector::Aci,
     connector::Adyen,
