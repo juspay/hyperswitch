@@ -221,3 +221,6 @@ region = ""
 [tokenization]
 stripe = { long_lived_token = false, payment_method = "wallet" }
 checkout = { long_lived_token = false, payment_method = "wallet" }
+
+[connector_customer]
+connector_list = "stripe"
