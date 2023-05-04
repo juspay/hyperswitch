@@ -16,6 +16,8 @@ pub struct PayoutCreateRequest {
     #[schema(value_type = Option<Currency>, example = "USD")]
     pub currency: Option<api_enums::Currency>,
 
+    pub payout_type: api_enums::PayoutType,
+
     /// The payment method information provided for making a payment
     #[schema(example = "card")]
     pub payment_method_data: Option<PaymentMethodData>,
@@ -57,6 +59,14 @@ pub struct PayoutCreateRequest {
     /// The URL to redirect after the completion of the operation
     #[schema(example = "https://hyperswitch.io")]
     pub return_url: Option<String>,
+
+    /// Business country of the merchant for this payment
+    #[schema(example = "US")]
+    pub business_country: Option<api_enums::CountryCode>,
+
+    /// Business label of the merchant for this payment
+    #[schema(example = "food")]
+    pub business_label: Option<String>,
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
