@@ -1305,7 +1305,7 @@ impl api::IncomingWebhook for Stripe {
             .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
 
         Ok(match details.event_type.as_str() {
-            "payment_intent.payment_failed" | "payment_intent.failed" => {
+            "payment_intent.payment_failed" => {
                 api::IncomingWebhookEvent::PaymentIntentFailure
             }
             "payment_intent.succeeded" => api::IncomingWebhookEvent::PaymentIntentSuccess,
