@@ -1,9 +1,5 @@
 use api_models::admin::PrimaryBusinessDetails;
-use common_utils::{
-    crypto::OptionalSecretValue,
-    date_time,
-    ext_traits::{AsyncExt, ValueExt},
-};
+use common_utils::{crypto::OptionalSecretValue, date_time, ext_traits::ValueExt};
 use error_stack::{report, FutureExt, IntoReport, ResultExt};
 use masking::PeekInterface;
 use masking::Secret; //PeekInterface
@@ -159,29 +155,20 @@ pub async fn create_merchant_account(
         .await
         .to_duplicate_response(errors::ApiErrorResponse::DuplicateMerchantAccount)?;
 
-    let encrypt_string = |inner: Option<Secret<String>>| async {
-        inner
-            .async_map(|value| domain_types::encrypt(value, &key))
-            .await
-            .transpose()
-    };
-
-    let encrypt_value = |inner: OptionalSecretValue| async {
-        inner
-            .async_map(|value| domain_types::encrypt(value, &key))
-            .await
-            .transpose()
-    };
-
     let parent_merchant_id =
         get_parent_merchant(db, req.sub_merchants_enabled, req.parent_merchant_id).await?;
 
     let merchant_account = async {
         Ok(domain::MerchantAccount {
             merchant_id: req.merchant_id,
-            merchant_name: req.merchant_name.async_lift(encrypt_string).await?,
+            merchant_name: req
+                .merchant_name
+                .async_lift(|inner| domain_types::encrypt_optional(inner, &key))
+                .await?,
             api_key: Some(domain_types::encrypt(api_key.peek().clone().into(), &key).await?),
-            merchant_details: merchant_details.async_lift(encrypt_value).await?,
+            merchant_details: merchant_details
+                .async_lift(|inner| domain_types::encrypt_optional(inner, &key))
+                .await?,
             return_url: req.return_url.map(|a| a.to_string()),
             webhook_details,
             routing_algorithm: req.routing_algorithm,
@@ -266,19 +253,6 @@ pub async fn merchant_account_update(
             .attach_printable("Invalid routing algorithm given")?;
     }
 
-    let encrypt_string = |inner: Option<Secret<String>>| async {
-        inner
-            .async_map(|value| domain_types::encrypt(value, &key))
-            .await
-            .transpose()
-    };
-
-    let encrypt_value = |inner: OptionalSecretValue| async {
-        inner
-            .async_map(|value| domain_types::encrypt(value, &key))
-            .await
-            .transpose()
-    };
     let primary_business_details = req
         .primary_business_details
         .as_ref()
@@ -294,7 +268,7 @@ pub async fn merchant_account_update(
         merchant_name: req
             .merchant_name
             .map(masking::Secret::new)
-            .async_lift(encrypt_string)
+            .async_lift(|inner| domain_types::encrypt_optional(inner, &key))
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Unable to encrypt merchant name")?,
@@ -307,7 +281,7 @@ pub async fn merchant_account_update(
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Unable to convert merchant_details to a value")?
             .map(masking::Secret::new)
-            .async_lift(encrypt_value)
+            .async_lift(|inner| domain_types::encrypt_optional(inner, &key))
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Unable to encrypt merchant details")?,
@@ -603,13 +577,6 @@ pub async fn update_payment_connector(
             .collect::<Vec<serde_json::Value>>()
     });
 
-    let encrypt = |inner: Option<Secret<serde_json::Value>>| async {
-        inner
-            .async_map(|inner| domain_types::encrypt(inner, &key))
-            .await
-            .transpose()
-    };
-
     let frm_configs = match req.frm_configs.as_ref() {
         Some(frm_value) => {
             let configs_for_frm_value: serde_json::Value =
@@ -627,7 +594,7 @@ pub async fn update_payment_connector(
         merchant_connector_id: None,
         connector_account_details: req
             .connector_account_details
-            .async_lift(encrypt)
+            .async_lift(|inner| domain_types::encrypt_optional(inner, &key))
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed while encrypting data")?,

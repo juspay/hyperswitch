@@ -267,6 +267,18 @@ where
     .await
 }
 
+pub async fn encrypt_optional<E: Clone, S>(
+    inner: Option<Secret<E, S>>,
+    key: &[u8],
+) -> CustomResult<Option<crypto::Encryptable<Secret<E, S>>>, errors::CryptoError>
+where
+    Secret<E, S>: Send,
+    S: masking::Strategy<E>,
+    crypto::Encryptable<Secret<E, S>>: TypeEncryption<E, crypto::GcmAes256, S>,
+{
+    inner.async_map(|f| encrypt(f, key)).await.transpose()
+}
+
 pub async fn decrypt<T: Clone, S: masking::Strategy<T>>(
     inner: Option<Encryption>,
     key: &[u8],

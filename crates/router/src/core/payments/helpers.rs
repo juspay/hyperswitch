@@ -25,7 +25,6 @@ use crate::{
         payment_methods::{cards, vault},
     },
     db::StorageInterface,
-    pii,
     routes::{metrics, AppState},
     scheduler::{metrics as scheduler_metrics, workflows::payment_sync},
     services,
@@ -58,13 +57,6 @@ pub async fn get_address_for_payment_request(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed while getting key for encryption")?;
 
-    let encrypt = |inner: Option<masking::Secret<String>>| async {
-        inner
-            .async_map(|value| types::encrypt(value, &key))
-            .await
-            .transpose()
-    };
-
     Ok(match req_address {
         Some(address) => {
             match address_id {
@@ -80,49 +72,49 @@ pub async fn get_address_for_payment_request(
                                 .address
                                 .as_ref()
                                 .and_then(|value| value.line1.clone())
-                                .async_lift(encrypt)
+                                .async_lift(|inner| types::encrypt_optional(inner, &key))
                                 .await?,
                             line2: address
                                 .address
                                 .as_ref()
                                 .and_then(|value| value.line2.clone())
-                                .async_lift(encrypt)
+                                .async_lift(|inner| types::encrypt_optional(inner, &key))
                                 .await?,
                             line3: address
                                 .address
                                 .as_ref()
                                 .and_then(|value| value.line3.clone())
-                                .async_lift(encrypt)
+                                .async_lift(|inner| types::encrypt_optional(inner, &key))
                                 .await?,
                             state: address
                                 .address
                                 .as_ref()
                                 .and_then(|value| value.state.clone())
-                                .async_lift(encrypt)
+                                .async_lift(|inner| types::encrypt_optional(inner, &key))
                                 .await?,
                             zip: address
                                 .address
                                 .as_ref()
                                 .and_then(|value| value.zip.clone())
-                                .async_lift(encrypt)
+                                .async_lift(|inner| types::encrypt_optional(inner, &key))
                                 .await?,
                             first_name: address
                                 .address
                                 .as_ref()
                                 .and_then(|value| value.first_name.clone())
-                                .async_lift(encrypt)
+                                .async_lift(|inner| types::encrypt_optional(inner, &key))
                                 .await?,
                             last_name: address
                                 .address
                                 .as_ref()
                                 .and_then(|value| value.last_name.clone())
-                                .async_lift(encrypt)
+                                .async_lift(|inner| types::encrypt_optional(inner, &key))
                                 .await?,
                             phone_number: address
                                 .phone
                                 .as_ref()
                                 .and_then(|value| value.number.clone())
-                                .async_lift(encrypt)
+                                .async_lift(|inner| types::encrypt_optional(inner, &key))
                                 .await?,
                             country_code: address
                                 .phone
@@ -155,7 +147,7 @@ pub async fn get_address_for_payment_request(
                                         .phone
                                         .as_ref()
                                         .and_then(|a| a.number.clone())
-                                        .async_lift(encrypt)
+                                        .async_lift(|inner| types::encrypt_optional(inner, &key))
                                         .await?,
                                     country_code: address
                                         .phone
@@ -166,22 +158,37 @@ pub async fn get_address_for_payment_request(
                                     address_id: generate_id(consts::ID_LENGTH, "add"),
                                     city: address_details.city,
                                     country: address_details.country,
-                                    line1: address_details.line1.async_lift(encrypt).await?,
-                                    line2: address_details.line2.async_lift(encrypt).await?,
-                                    line3: address_details.line3.async_lift(encrypt).await?,
+                                    line1: address_details
+                                        .line1
+                                        .async_lift(|inner| types::encrypt_optional(inner, &key))
+                                        .await?,
+                                    line2: address_details
+                                        .line2
+                                        .async_lift(|inner| types::encrypt_optional(inner, &key))
+                                        .await?,
+                                    line3: address_details
+                                        .line3
+                                        .async_lift(|inner| types::encrypt_optional(inner, &key))
+                                        .await?,
                                     id: None,
-                                    state: address_details.state.async_lift(encrypt).await?,
+                                    state: address_details
+                                        .state
+                                        .async_lift(|inner| types::encrypt_optional(inner, &key))
+                                        .await?,
                                     created_at: common_utils::date_time::now(),
                                     first_name: address_details
                                         .first_name
-                                        .async_lift(encrypt)
+                                        .async_lift(|inner| types::encrypt_optional(inner, &key))
                                         .await?,
                                     last_name: address_details
                                         .last_name
-                                        .async_lift(encrypt)
+                                        .async_lift(|inner| types::encrypt_optional(inner, &key))
                                         .await?,
                                     modified_at: common_utils::date_time::now(),
-                                    zip: address_details.zip.async_lift(encrypt).await?,
+                                    zip: address_details
+                                        .zip
+                                        .async_lift(|inner| types::encrypt_optional(inner, &key))
+                                        .await?,
                                 })
                             }
                             .await
@@ -758,28 +765,24 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R>(
                 Some(c) => Ok(c),
                 None => {
                     let key = types::get_merchant_enc_key(db, merchant_id.to_string()).await?;
-
-                    let encrypt = |inner: Option<masking::Secret<String>>| async {
-                        inner
-                            .async_map(|value| types::encrypt(value, &key))
-                            .await
-                            .transpose()
-                    };
-
-                    let encrypt_email = |inner: Option<masking::Secret<String, pii::Email>>| async {
-                        inner
-                            .async_map(|value| types::encrypt(value, &key))
-                            .await
-                            .transpose()
-                    };
-
                     let new_customer = async {
                         Ok(domain::Customer {
                             customer_id: customer_id.to_string(),
                             merchant_id: merchant_id.to_string(),
-                            name: req.name.async_lift(encrypt).await?,
-                            email: req.email.clone().async_lift(encrypt_email).await?,
-                            phone: req.phone.clone().async_lift(encrypt).await?,
+                            name: req
+                                .name
+                                .async_lift(|inner| types::encrypt_optional(inner, &key))
+                                .await?,
+                            email: req
+                                .email
+                                .clone()
+                                .async_lift(|inner| types::encrypt_optional(inner, &key))
+                                .await?,
+                            phone: req
+                                .phone
+                                .clone()
+                                .async_lift(|inner| types::encrypt_optional(inner, &key))
+                                .await?,
                             phone_country_code: req.phone_country_code.clone(),
                             description: None,
                             created_at: common_utils::date_time::now(),
