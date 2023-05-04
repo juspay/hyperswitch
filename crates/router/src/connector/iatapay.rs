@@ -139,12 +139,12 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
 
     fn get_headers(
         &self,
-        _req: &types::RefreshTokenRouterData,
+        req: &types::RefreshTokenRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        let auth: iatapay::IatapayAuthType = (&_req.connector_auth_type)
-            .try_into()
-            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+        let auth: iatapay::IatapayAuthType =
+            iatapay::IatapayAuthType::try_from(&req.connector_auth_type)
+                .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
 
         let auth_id = format!("{}:{}", auth.client_id, auth.client_secret);
         let auth_val: String = format!("Basic {}", consts::BASE64_ENGINE.encode(auth_id));
@@ -162,9 +162,11 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
         &self,
         req: &types::RefreshTokenRouterData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        let iatapay_req = Encode::<iatapay::IatapayAuthUpdateRequest>::convert_and_url_encode(req)
+        let req_obj = iatapay::IatapayAuthUpdateRequest::try_from(req)?;
+        println!("##accReq={:?}", req_obj);
+        let iatapay_req = Encode::<iatapay::IatapayAuthUpdateRequest>::url_encode(&req_obj)
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-
+        println!("##accReqString={:?}", iatapay_req);
         Ok(Some(iatapay_req))
     }
 
@@ -195,13 +197,11 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
             .parse_struct("iatapay IatapayAuthUpdateResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
-        types::ResponseRouterData {
+        types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
-        }
-        .try_into()
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+        })
     }
 
     fn get_error_response(
@@ -245,9 +245,9 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     fn get_url(
         &self,
         _req: &types::PaymentsAuthorizeRouterData,
-        _connectors: &settings::Connectors,
+        connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!("{}/payments/", self.base_url(_connectors)))
+        Ok(format!("{}/payments/", self.base_url(connectors)))
     }
 
     fn get_request_body(
@@ -323,17 +323,17 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
 
     fn get_url(
         &self,
-        _req: &types::PaymentsSyncRouterData,
-        _connectors: &settings::Connectors,
+        req: &types::PaymentsSyncRouterData,
+        connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let connector_id = _req
+        let connector_id = req
             .request
             .connector_transaction_id
             .get_connector_transaction_id()
             .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
         Ok(format!(
             "{}/payments/{}",
-            self.base_url(_connectors),
+            self.base_url(connectors),
             connector_id
         ))
     }
@@ -410,19 +410,10 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
 
     fn build_request(
         &self,
-        req: &types::PaymentsCaptureRouterData,
-        connectors: &settings::Connectors,
+        _req: &types::PaymentsCaptureRouterData,
+        _connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        Ok(Some(
-            services::RequestBuilder::new()
-                .method(services::Method::Post)
-                .url(&types::PaymentsCaptureType::get_url(self, req, connectors)?)
-                .attach_default_headers()
-                .headers(types::PaymentsCaptureType::get_headers(
-                    self, req, connectors,
-                )?)
-                .build(),
-        ))
+        Err(errors::ConnectorError::NotImplemented("get_request_body method".to_string()).into())
     }
 
     fn handle_response(
@@ -472,17 +463,16 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
 
     fn get_url(
         &self,
-        _req: &types::RefundsRouterData<api::Execute>,
-        _connectors: &settings::Connectors,
+        req: &types::RefundsRouterData<api::Execute>,
+        connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!(
             "{}{}{}{}",
-            self.base_url(_connectors),
+            self.base_url(connectors),
             "/payments/",
-            _req.request.connector_transaction_id,
+            req.request.connector_transaction_id,
             "/refund"
         ))
-        // Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
     }
 
     fn get_request_body(
@@ -553,19 +543,18 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
 
     fn get_url(
         &self,
-        _req: &types::RefundSyncRouterData,
-        _connectors: &settings::Connectors,
+        req: &types::RefundSyncRouterData,
+        connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!(
             "{}{}{}",
-            self.base_url(_connectors),
+            self.base_url(connectors),
             "/refunds/",
-            match _req.request.connector_refund_id.clone() {
+            match req.request.connector_refund_id.clone() {
                 Some(val) => val,
-                None => _req.request.refund_id.clone(),
+                None => req.request.refund_id.clone(),
             },
         ))
-        // Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
     }
 
     fn build_request(
@@ -687,12 +676,10 @@ impl api::IncomingWebhook for Iatapay {
                 .parse_struct("IatapayPaymentsResponse")
                 .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
         match notif.status {
-            iatapay::IatapayPaymentStatus::Authorized | iatapay::IatapayPaymentStatus::Settled => {
-                match notif.iata_payment_id.is_some() {
-                    true => Ok(api::IncomingWebhookEvent::PaymentIntentSuccess),
-                    false => Ok(api::IncomingWebhookEvent::RefundSuccess),
-                }
-            }
+            iatapay::IatapayPaymentStatus::Authorized => match notif.iata_payment_id.is_some() {
+                true => Ok(api::IncomingWebhookEvent::PaymentIntentSuccess),
+                false => Ok(api::IncomingWebhookEvent::RefundSuccess),
+            },
             iatapay::IatapayPaymentStatus::Failed => match notif.iata_payment_id.is_some() {
                 true => Ok(api::IncomingWebhookEvent::PaymentIntentFailure),
                 false => Ok(api::IncomingWebhookEvent::RefundFailure),

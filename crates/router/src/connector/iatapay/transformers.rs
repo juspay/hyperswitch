@@ -1,16 +1,16 @@
 use std::collections::HashMap;
 
-use masking::Secret;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils::{PaymentsAuthorizeRequestData, RouterData},
+    connector::utils::{PaymentsAuthorizeRequestData, RefundsRequestData, RouterData},
     core::errors,
     services,
     types::{self, api, storage::enums},
 };
 
-#[derive(Debug, Clone, Serialize, PartialEq)]
+// Every access token will be valid for 5 minutes. It contains grant_type and scope for different type of access, but for our usecases it should be only 'client_credentials' and 'payment' resp(as per doc) for all type of api call.
+#[derive(Debug, Serialize)]
 pub struct IatapayAuthUpdateRequest {
     grant_type: String,
     scope: String,
@@ -25,7 +25,7 @@ impl TryFrom<&types::RefreshTokenRouterData> for IatapayAuthUpdateRequest {
     }
 }
 
-#[derive(Default, Debug, Clone, Deserialize, PartialEq)]
+#[derive(Debug, Deserialize)]
 pub struct IatapayAuthUpdateResponse {
     pub access_token: String,
     pub token_type: String,
@@ -51,15 +51,14 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, IatapayAuthUpdateResponse, T, ty
     }
 }
 
-#[derive(Default, Debug, Serialize, Eq, PartialEq)]
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RedirectUrls {
     success_url: String,
     failure_url: String,
 }
 
-//TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Serialize, Eq, PartialEq)]
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct IatapayPaymentsRequest {
     merchant_id: String,
@@ -71,45 +70,31 @@ pub struct IatapayPaymentsRequest {
     notification_url: String,
 }
 
-#[derive(Default, Debug, Serialize, Eq, PartialEq)]
-pub struct IatapayCard {
-    name: Secret<String>,
-    number: Secret<String, common_utils::pii::CardNumber>,
-    expiry_month: Secret<String>,
-    expiry_year: Secret<String>,
-    cvc: Secret<String>,
-    complete: bool,
-}
-
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for IatapayPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         let country = item.get_billing_country()?.to_string();
+        let return_url = item.get_return_url()?;
         let payload = Self {
             merchant_id: IatapayAuthType::try_from(&item.connector_auth_type)?.merchant_id,
             amount: item.request.amount,
             currency: item.request.currency.to_string(),
             country: country.clone(),
             locale: format!("en-{}", country),
-            redirect_urls: get_redirect_url(item),
+            redirect_urls: get_redirect_url(return_url),
             notification_url: item.request.get_webhook_url()?,
         };
         Ok(payload)
     }
 }
 
-fn get_redirect_url(item: &types::PaymentsAuthorizeRouterData) -> RedirectUrls {
-    let return_url = item
-        .request
-        .get_return_url()
-        .unwrap_or("https://hyperswitch.io".to_string());
+fn get_redirect_url(return_url: String) -> RedirectUrls {
     RedirectUrls {
         success_url: return_url.clone(),
         failure_url: return_url,
     }
 }
 
-//TODO: Fill the struct with respective fields
 // Auth Struct
 pub struct IatapayAuthType {
     pub(super) client_id: String,
@@ -135,8 +120,7 @@ impl TryFrom<&types::ConnectorAuthType> for IatapayAuthType {
     }
 }
 // PaymentsResponse
-//TODO: Append the remaining status flags
-#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum IatapayPaymentStatus {
     #[default]
@@ -171,13 +155,12 @@ pub struct RedirectUrl {
     pub redirect_url: String,
 }
 
-#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct CheckoutMethod {
     pub redirect: RedirectUrl,
 }
 
-//TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct IatapayPaymentsResponse {
     pub status: IatapayPaymentStatus,
@@ -203,12 +186,15 @@ impl<F, T>
         item: types::ResponseRouterData<F, IatapayPaymentsResponse, T, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         let form_fields = HashMap::new();
-        let id = item.response.iata_payment_id.unwrap_or_default();
+        let id = match item.response.iata_payment_id {
+            Some(s) => types::ResponseId::ConnectorTransactionId(s),
+            None => types::ResponseId::NoResponseId,
+        };
         Ok(Self {
             status: enums::AttemptStatus::from(item.response.status),
             response: item.response.checkout_methods.map_or(
                 Ok(types::PaymentsResponseData::TransactionResponse {
-                    resource_id: types::ResponseId::ConnectorTransactionId(id.clone()),
+                    resource_id: id.clone(),
                     redirection_data: None,
                     mandate_reference: None,
                     connector_metadata: None,
@@ -216,7 +202,7 @@ impl<F, T>
                 }),
                 |checkout_methods| {
                     Ok(types::PaymentsResponseData::TransactionResponse {
-                        resource_id: types::ResponseId::ConnectorTransactionId(id),
+                        resource_id: id,
                         redirection_data: Some(services::RedirectForm::Form {
                             endpoint: checkout_methods.redirect.redirect_url,
                             method: services::Method::Get,
@@ -233,10 +219,9 @@ impl<F, T>
     }
 }
 
-//TODO: Fill the struct with respective fields
 // REFUND :
 // Type definition for RefundRequest
-#[derive(Default, Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct IatapayRefundRequest {
     pub merchant_id: String,
@@ -259,11 +244,7 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for IatapayRefundRequest {
             },
             currency: item.request.currency.to_string(),
             bank_transfer_description: item.request.reason.clone(),
-            notification_url: item
-                .request
-                .webhook_url
-                .clone()
-                .unwrap_or("https://hyperswitch.io".to_string()),
+            notification_url: item.request.get_webhook_url()?,
         })
     }
 }
@@ -271,7 +252,7 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for IatapayRefundRequest {
 // Type definition for Refund Response
 
 #[allow(dead_code)]
-#[derive(Debug, Serialize, Default, Deserialize, Clone, PartialEq)]
+#[derive(Debug, Serialize, Default, Deserialize)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum RefundStatus {
     #[default]
@@ -296,7 +277,7 @@ impl From<RefundStatus> for enums::RefundStatus {
     }
 }
 
-#[derive(Default, Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RefundResponse {
     iata_refund_id: String,
@@ -353,8 +334,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
     }
 }
 
-//TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Deserialize)]
 pub struct IatapayErrorResponse {
     pub status: u16,
     pub error: String,

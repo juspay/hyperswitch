@@ -1,10 +1,13 @@
 //! Utilities for cryptographic algorithms
-use data_encoding::BASE64;
+use base64::Engine;
 use error_stack::{IntoReport, ResultExt};
 use md5;
 use ring::{aead, hmac};
 
-use crate::errors::{self, CustomResult};
+use crate::{
+    consts,
+    errors::{self, CustomResult},
+};
 
 const RING_ERR_UNSPECIFIED: &str = "ring::error::Unspecified";
 
@@ -136,7 +139,7 @@ impl SignMessage for Base64HmacSha256 {
     ) -> CustomResult<Vec<u8>, errors::CryptoError> {
         let key = hmac::Key::new(hmac::HMAC_SHA256, secret);
         let hash = hmac::sign(&key, msg);
-        let base64sign = BASE64.encode(hash.as_ref());
+        let base64sign = consts::BASE64_ENGINE.encode(hash.as_ref());
         Ok(base64sign.as_bytes().to_vec())
     }
 }
@@ -150,7 +153,7 @@ impl VerifySignature for Base64HmacSha256 {
     ) -> CustomResult<bool, errors::CryptoError> {
         let key = hmac::Key::new(hmac::HMAC_SHA256, secret);
         let hash = hmac::sign(&key, msg);
-        let base64sign = BASE64.encode(hash.as_ref());
+        let base64sign = consts::BASE64_ENGINE.encode(hash.as_ref());
         Ok(base64sign.as_bytes() == signature)
     }
 }
