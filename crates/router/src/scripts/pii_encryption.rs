@@ -32,7 +32,7 @@ use crate::{
     },
 };
 
-pub async fn crate_merchant_key_store(
+pub async fn create_merchant_key_store(
     state: &Store,
     merchant_id: &str,
     key: Vec<u8>,
@@ -85,7 +85,7 @@ pub async fn encrypt_merchant_account_fields(
         let key = services::generate_aes256_key()
             .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
-        crate_merchant_key_store(state, &mer.merchant_id, key.to_vec()).await?;
+        create_merchant_key_store(state, &mer.merchant_id, key.to_vec()).await?;
     }
     let mut domain_merchants = Vec::with_capacity(merchants.len());
     for mf in merchants.into_iter() {
