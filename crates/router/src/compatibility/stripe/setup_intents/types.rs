@@ -6,13 +6,15 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::{
-    compatibility::stripe::{payment_intents::types::Charges, refunds::types as stripe_refunds},
+    compatibility::stripe::{
+        payment_intents::types as payment_intent, refunds::types as stripe_refunds,
+    },
     consts,
     core::errors,
     pii::{self, PeekInterface},
     types::{
         api::{self as api_types, admin, enums as api_enums},
-        transformers::{ForeignFrom, ForeignInto},
+        transformers::{ForeignInto, ForeignTryInto},
     },
 };
 
@@ -116,57 +118,6 @@ impl From<Shipping> for payments::Address {
     }
 }
 
-#[derive(PartialEq, Eq, Deserialize, Clone, Debug)]
-#[serde(rename_all = "snake_case")]
-pub enum StripePaymentMethodOptions {
-    Card {
-        request_three_d_secure: Option<Request3DS>,
-        mandate_options: Option<MandateOption>,
-    },
-}
-
-#[derive(Default, Eq, PartialEq, Serialize, Deserialize, Clone, Debug)]
-#[serde(rename_all = "snake_case")]
-pub enum Request3DS {
-    #[default]
-    Automatic,
-    Any,
-}
-
-impl ForeignFrom<Option<Request3DS>> for api_models::enums::AuthenticationType {
-    fn foreign_from(item: Option<Request3DS>) -> Self {
-        match item.unwrap_or_default() {
-            Request3DS::Automatic => Self::NoThreeDs,
-            Request3DS::Any => Self::ThreeDs,
-        }
-    }
-}
-
-#[derive(PartialEq, Eq, Deserialize, Clone, Default, Debug)]
-pub struct MandateOption {
-    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
-    pub accepted_at: Option<time::PrimitiveDateTime>,
-    pub user_agent: Option<String>,
-    pub ip_address: Option<pii::Secret<String, common_utils::pii::IpAddress>>,
-    pub amount: Option<i64>,
-}
-
-impl From<MandateOption> for payments::MandateData {
-    fn from(mandate_options: MandateOption) -> Self {
-        Self {
-            mandate_type: payments::MandateType::MultiUse(None),
-            customer_acceptance: payments::CustomerAcceptance {
-                acceptance_type: payments::AcceptanceType::Online,
-                accepted_at: mandate_options.accepted_at,
-                online: Some(payments::OnlineMandate {
-                    ip_address: mandate_options.ip_address.unwrap_or_default(),
-                    user_agent: mandate_options.user_agent.unwrap_or_default(),
-                }),
-            },
-        }
-    }
-}
-
 #[derive(Default, PartialEq, Eq, Deserialize, Clone)]
 
 pub struct StripeSetupIntentRequest {
@@ -184,7 +135,7 @@ pub struct StripeSetupIntentRequest {
     pub statement_descriptor_suffix: Option<String>,
     pub metadata: Option<api_models::payments::Metadata>,
     pub client_secret: Option<pii::Secret<String>>,
-    pub payment_method_options: Option<StripePaymentMethodOptions>,
+    pub payment_method_options: Option<payment_intent::StripePaymentMethodOptions>,
     pub payment_method: Option<String>,
     pub merchant_connector_details: Option<admin::MerchantConnectorDetailsWrap>,
 }
@@ -194,17 +145,16 @@ impl TryFrom<StripeSetupIntentRequest> for payments::PaymentsRequest {
     fn try_from(item: StripeSetupIntentRequest) -> errors::RouterResult<Self> {
         let (mandate_options, authentication_type) = match item.payment_method_options {
             Some(pmo) => {
-                let StripePaymentMethodOptions::Card {
+                let payment_intent::StripePaymentMethodOptions::Card {
                     request_three_d_secure,
                     mandate_options,
-                }: StripePaymentMethodOptions = pmo;
-                (
-                    mandate_options.map(payments::MandateData::from),
-                    Some(request_three_d_secure.foreign_into()),
-                )
+                }: payment_intent::StripePaymentMethodOptions = pmo;
+                (mandate_options, Some(request_three_d_secure.foreign_into()))
             }
             None => (None, None),
         };
+        let mandate_data: Option<payments::MandateData> =
+            (mandate_options, item.currency.to_owned()).foreign_try_into()?;
         let request = Ok(Self {
             amount: Some(api_types::Amount::Zero),
             capture_method: None,
@@ -251,7 +201,7 @@ impl TryFrom<StripeSetupIntentRequest> for payments::PaymentsRequest {
             setup_future_usage: item.setup_future_usage,
             merchant_connector_details: item.merchant_connector_details,
             authentication_type,
-            mandate_data: mandate_options,
+            mandate_data,
             ..Default::default()
         });
         request
@@ -361,7 +311,7 @@ pub struct StripeSetupIntentResponse {
     pub mandate_id: Option<String>,
     pub next_action: Option<StripeNextAction>,
     pub last_payment_error: Option<LastPaymentError>,
-    pub charges: Charges,
+    pub charges: payment_intent::Charges,
 }
 
 #[derive(Default, Eq, PartialEq, Serialize)]
@@ -394,7 +344,7 @@ impl From<payments::PaymentsResponse> for StripeSetupIntentResponse {
             object: "setup_intent".to_owned(),
             status: StripeSetupStatus::from(resp.status),
             client_secret: resp.client_secret,
-            charges: Charges::new(),
+            charges: payment_intent::Charges::new(),
             created: resp.created,
             customer: resp.customer_id,
             id: resp.payment_id,
