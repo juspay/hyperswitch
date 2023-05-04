@@ -202,7 +202,7 @@ pub struct PaymentsRequest {
     pub payment_method_type: Option<api_enums::PaymentMethodType>,
 
     /// Business country of the merchant for this payment
-    #[schema(value_type = CountryAlpha2, example = "US")]
+    #[schema(value_type = Option<CountryAlpha2>, example = "US")]
     pub business_country: Option<api_enums::CountryAlpha2>,
 
     /// Business label of the merchant for this payment
@@ -210,7 +210,7 @@ pub struct PaymentsRequest {
     pub business_label: Option<String>,
 
     /// Merchant connector details used to make payments.
-    #[schema(value_type = MerchantConnectorDetailsWrap)]
+    #[schema(value_type = Option<MerchantConnectorDetailsWrap>)]
     pub merchant_connector_details: Option<admin::MerchantConnectorDetailsWrap>,
 
     /// Allowed Payment Method Types for a given PaymentIntent
