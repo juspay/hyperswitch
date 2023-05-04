@@ -14,6 +14,9 @@ pub mod webhooks;
 use std::{fmt::Debug, str::FromStr};
 
 use error_stack::{report, IntoReport, ResultExt};
+use masking::Deserialize;
+use serde::Serialize;
+use strum::EnumString;
 
 pub use self::{
     admin::*, api_keys::*, configs::*, customers::*, disputes::*, files::*, payment_methods::*,
@@ -162,6 +165,39 @@ pub enum ConnectorCallType {
     Single(ConnectorData),
 }
 
+#[derive(EnumString, Serialize, Deserialize, PartialEq, Debug)]
+#[strum(serialize_all = "lowercase")]
+enum ConnectorName {
+    Aci,
+    Adyen,
+    Airwallex,
+    Authorizedotnet,
+    Bambora,
+    Bluesnap,
+    Braintree,
+    Checkout,
+    Coinbase,
+    Cybersource,
+    Dlocal,
+    Fiserv,
+    Globalpay,
+    Klarna,
+    Mollie,
+    Nuvei,
+    Opennode,
+    Payu,
+    Rapyd,
+    Shift4,
+    Stripe,
+    Worldline,
+    Worldpay,
+    Multisafepay,
+    Nexinets,
+    Paypal,
+    Trustpay,
+    Zen,
+}
+
 impl ConnectorCallType {
     pub fn is_single(&self) -> bool {
         matches!(self, Self::Single(_))
@@ -191,40 +227,81 @@ impl ConnectorData {
         _connectors: &Connectors,
         connector_name: &str,
     ) -> CustomResult<BoxedConnector, errors::ApiErrorResponse> {
-        match connector_name {
-            "aci" => Ok(Box::new(&connector::Aci)),
-            "adyen" => Ok(Box::new(&connector::Adyen)),
-            "airwallex" => Ok(Box::new(&connector::Airwallex)),
-            "authorizedotnet" => Ok(Box::new(&connector::Authorizedotnet)),
-            "bambora" => Ok(Box::new(&connector::Bambora)),
-            "bluesnap" => Ok(Box::new(&connector::Bluesnap)),
-            "braintree" => Ok(Box::new(&connector::Braintree)),
-            "checkout" => Ok(Box::new(&connector::Checkout)),
-            "coinbase" => Ok(Box::new(&connector::Coinbase)),
-            "cybersource" => Ok(Box::new(&connector::Cybersource)),
-            "dlocal" => Ok(Box::new(&connector::Dlocal)),
-            "fiserv" => Ok(Box::new(&connector::Fiserv)),
-            // "forte" => Ok(Box::new(&connector::Forte)),
-            "globalpay" => Ok(Box::new(&connector::Globalpay)),
-            "klarna" => Ok(Box::new(&connector::Klarna)),
-            "mollie" => Ok(Box::new(&connector::Mollie)),
-            "nuvei" => Ok(Box::new(&connector::Nuvei)),
-            "opennode" => Ok(Box::new(&connector::Opennode)),
-            // "payeezy" => Ok(Box::new(&connector::Payeezy)), As psync and rsync are not supported by this connector, it is added as template code for future usage
-            "payu" => Ok(Box::new(&connector::Payu)),
-            "rapyd" => Ok(Box::new(&connector::Rapyd)),
-            "shift4" => Ok(Box::new(&connector::Shift4)),
-            "stripe" => Ok(Box::new(&connector::Stripe)),
-            "worldline" => Ok(Box::new(&connector::Worldline)),
-            "worldpay" => Ok(Box::new(&connector::Worldpay)),
-            "multisafepay" => Ok(Box::new(&connector::Multisafepay)),
-            "nexinets" => Ok(Box::new(&connector::Nexinets)),
-            "paypal" => Ok(Box::new(&connector::Paypal)),
-            "trustpay" => Ok(Box::new(&connector::Trustpay)),
-            "zen" => Ok(Box::new(&connector::Zen)),
-            _ => Err(report!(errors::ConnectorError::InvalidConnectorName)
+        match ConnectorName::from_str(connector_name) {
+            Ok(name) => match name {
+                ConnectorName::Aci => Ok(Box::new(&connector::Aci)),
+                ConnectorName::Adyen => Ok(Box::new(&connector::Adyen)),
+                ConnectorName::Airwallex => Ok(Box::new(&connector::Airwallex)),
+                ConnectorName::Authorizedotnet => Ok(Box::new(&connector::Authorizedotnet)),
+                ConnectorName::Bambora => Ok(Box::new(&connector::Bambora)),
+                ConnectorName::Bluesnap => Ok(Box::new(&connector::Bluesnap)),
+                ConnectorName::Braintree => Ok(Box::new(&connector::Braintree)),
+                ConnectorName::Checkout => Ok(Box::new(&connector::Checkout)),
+                ConnectorName::Coinbase => Ok(Box::new(&connector::Coinbase)),
+                ConnectorName::Cybersource => Ok(Box::new(&connector::Cybersource)),
+                ConnectorName::Dlocal => Ok(Box::new(&connector::Dlocal)),
+                ConnectorName::Fiserv => Ok(Box::new(&connector::Fiserv)),
+                ConnectorName::Globalpay => Ok(Box::new(&connector::Globalpay)),
+                ConnectorName::Klarna => Ok(Box::new(&connector::Klarna)),
+                ConnectorName::Mollie => Ok(Box::new(&connector::Mollie)),
+                ConnectorName::Nuvei => Ok(Box::new(&connector::Nuvei)),
+                ConnectorName::Opennode => Ok(Box::new(&connector::Opennode)),
+                ConnectorName::Payu => Ok(Box::new(&connector::Payu)),
+                ConnectorName::Rapyd => Ok(Box::new(&connector::Rapyd)),
+                ConnectorName::Shift4 => Ok(Box::new(&connector::Shift4)),
+                ConnectorName::Stripe => Ok(Box::new(&connector::Stripe)),
+                ConnectorName::Worldline => Ok(Box::new(&connector::Worldline)),
+                ConnectorName::Worldpay => Ok(Box::new(&connector::Worldpay)),
+                ConnectorName::Multisafepay => Ok(Box::new(&connector::Multisafepay)),
+                ConnectorName::Nexinets => Ok(Box::new(&connector::Nexinets)),
+                ConnectorName::Paypal => Ok(Box::new(&connector::Paypal)),
+                ConnectorName::Trustpay => Ok(Box::new(&connector::Trustpay)),
+                ConnectorName::Zen => Ok(Box::new(&connector::Zen)),
+            },
+            Err(_) => Err(report!(errors::ConnectorError::InvalidConnectorName)
                 .attach_printable(format!("invalid connector name: {connector_name}")))
             .change_context(errors::ApiErrorResponse::InternalServerError),
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn test_convert_connector_parsing_success() {
+        let result = ConnectorName::from_str("aci");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), ConnectorName::Aci);
+
+        let result = ConnectorName::from_str("shift4");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), ConnectorName::Shift4);
+
+        let result = ConnectorName::from_str("authorizedotnet");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), ConnectorName::Authorizedotnet);
+    }
+
+    #[test]
+    fn test_convert_connector_parsing_fail_for_unknown_type() {
+        let result = ConnectorName::from_str("unknowntype");
+        assert!(result.is_err());
+
+        let result = ConnectorName::from_str("randomstring");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_convert_connector_parsing_fail_for_camel_case() {
+        let result = ConnectorName::from_str("Paypal");
+        assert!(result.is_err());
+
+        let result = ConnectorName::from_str("Authorizedotnet");
+        assert!(result.is_err());
+
+        let result = ConnectorName::from_str("Opennode");
+        assert!(result.is_err());
     }
 }
