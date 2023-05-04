@@ -319,35 +319,6 @@ impl<'a> From<&'a domain::Address> for api_types::Address {
     }
 }
 
-// impl TryFrom<domain::MerchantConnectorAccount>
-//     for api_models::admin::MerchantConnector
-// {
-//     type Error = error_stack::Report<errors::ApiErrorResponse>;
-//     fn try_from(
-//         item: domain::MerchantConnectorAccount,
-//     ) -> Result<Self, Self::Error> {
-//         let merchant_ca = item;
-
-//         let payment_methods_enabled = match merchant_ca.payment_methods_enabled {
-//             Some(val) => serde_json::Value::Array(val)
-//                 .parse_value("PaymentMethods")
-//                 .change_context(errors::ApiErrorResponse::InternalServerError)?,
-//             None => None,
-//         };
-
-//         Ok(Self {
-//             connector_type: merchant_ca.connector_type.foreign_into(),
-//             connector_name: merchant_ca.connector_name,
-//             merchant_connector_id: Some(merchant_ca.merchant_connector_id),
-//             connector_account_details: Some(merchant_ca.connector_account_details.into_inner()),
-//             test_mode: merchant_ca.test_mode,
-//             disabled: merchant_ca.disabled,
-//             metadata: merchant_ca.metadata,
-//             payment_methods_enabled,
-//         })
-//     }
-// }
-
 impl ForeignFrom<api_models::enums::PaymentMethodType>
     for storage_models::enums::PaymentMethodType
 {

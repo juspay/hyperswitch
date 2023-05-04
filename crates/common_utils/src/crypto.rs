@@ -213,9 +213,7 @@ impl VerifySignature for HmacSha512 {
 
 /// Represents the GCM-AES-256 algorithm
 #[derive(Debug)]
-pub struct GcmAes256 {
-    // nonce: Vec<u8>,
-}
+pub struct GcmAes256;
 
 impl EncodeMessage for GcmAes256 {
     fn encode_message(
@@ -223,25 +221,6 @@ impl EncodeMessage for GcmAes256 {
         secret: &[u8],
         msg: &[u8],
     ) -> CustomResult<Vec<u8>, errors::CryptoError> {
-        // let unbound_key = aead::UnboundKey::new(&aead::AES_256_GCM, secret)
-        //     .map_err(|_| errors::CryptoError::EncodingFailed)
-        //     .into_report()
-        //     .attach_printable(RING_ERR_UNSPECIFIED)?;
-
-        // let nonce = aead::Nonce::try_assume_unique_for_key(&self.nonce)
-        //     .map_err(|_| errors::CryptoError::EncodingFailed)
-        //     .into_report()
-        //     .attach_printable(RING_ERR_UNSPECIFIED)?;
-
-        // let sealing_key = aead::LessSafeKey::new(unbound_key);
-        // let mut mutable_msg = msg.to_vec();
-
-        // let tag = sealing_key
-        //     .seal_in_place_separate_tag(nonce, aead::Aad::empty(), &mut mutable_msg)
-        //     .map_err(|_| errors::CryptoError::EncodingFailed)
-        //     .into_report()
-        //     .attach_printable(RING_ERR_UNSPECIFIED)?;
-
         let nonce_sequence = NonceSequence::new()
             .into_report()
             .attach_printable(RING_ERR_UNSPECIFIED)
@@ -269,26 +248,6 @@ impl DecodeMessage for GcmAes256 {
         secret: &[u8],
         msg: Vec<u8>,
     ) -> CustomResult<Vec<u8>, errors::CryptoError> {
-        // let unbound_key = aead::UnboundKey::new(&aead::AES_256_GCM, secret)
-        //     .map_err(|_| errors::CryptoError::DecodingFailed)
-        //     .into_report()
-        //     .attach_printable(RING_ERR_UNSPECIFIED)?;
-
-        // let nonce = aead::Nonce::try_assume_unique_for_key(&self.nonce)
-        //     .map_err(|_| errors::CryptoError::DecodingFailed)
-        //     .into_report()
-        //     .attach_printable(RING_ERR_UNSPECIFIED)?;
-
-        // let opening_key = aead::LessSafeKey::new(unbound_key);
-
-        // let mut mutable_msg = msg.to_vec();
-
-        // let output = opening_key
-        //     .open_in_place(nonce, aead::Aad::empty(), &mut mutable_msg)
-        //     .map_err(|_| errors::CryptoError::DecodingFailed)
-        //     .into_report()
-        //     .attach_printable(RING_ERR_UNSPECIFIED)?;
-
         let key = UnboundKey::new(&aead::AES_256_GCM, secret)
             .into_report()
             .change_context(errors::CryptoError::DecodingFailed)?;
@@ -310,7 +269,6 @@ impl DecodeMessage for GcmAes256 {
             .change_context(errors::CryptoError::DecodingFailed)?;
 
         Ok(result.into())
-        // Ok(output.to_vec())
     }
 }
 

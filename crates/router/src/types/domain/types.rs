@@ -61,7 +61,7 @@ impl<
     ) -> CustomResult<Self, errors::CryptoError> {
         let encrypted = encrypted_data.into_inner();
 
-        crate::logger::error!(
+        crate::logger::debug!(
             "const TIMESTAMP {}, modified_at {}",
             migration_timestamp,
             timestamp
@@ -78,7 +78,7 @@ impl<
             )
         };
 
-        crate::logger::error!("data - {:?}, encrypted - {:?}", data, encrypted,);
+        crate::logger::debug!("data - {:?}, encrypted - {:?}", data, encrypted,);
 
         let value: String = std::str::from_utf8(&data)
             .into_report()
@@ -119,7 +119,7 @@ impl<
         migration_timestamp: i64,
     ) -> CustomResult<Self, errors::CryptoError> {
         let encrypted = encrypted_data.into_inner();
-        crate::logger::error!(
+        crate::logger::debug!(
             "const TIMESTAMP {}, modified_at {}",
             migration_timestamp,
             timestamp
@@ -136,7 +136,7 @@ impl<
             )
         };
 
-        crate::logger::error!("data - {:?}, encrypted - {:?}", data, encrypted);
+        crate::logger::debug!("data - {:?}, encrypted - {:?}", data, encrypted);
 
         let value: serde_json::Value = serde_json::from_slice(&data)
             .into_report()
@@ -173,7 +173,7 @@ impl<
     ) -> CustomResult<Self, errors::CryptoError> {
         let encrypted = encrypted_data.into_inner();
 
-        crate::logger::error!(
+        crate::logger::debug!(
             "const TIMESTAMP {}, modified_at {}",
             migration_timestamp,
             timestamp

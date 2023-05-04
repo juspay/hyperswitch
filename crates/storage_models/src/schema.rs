@@ -282,7 +282,7 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
-    merchantkeystore (merchant_id) {
+    merchant_key_store (merchant_id) {
         merchant_id -> Varchar,
         key -> Bytea,
         created_at -> Timestamp,
@@ -473,7 +473,7 @@ diesel::allow_tables_to_appear_in_same_query!(
     mandate,
     merchant_account,
     merchant_connector_account,
-    merchantkeystore,
+    merchant_key_store,
     payment_attempt,
     payment_intent,
     payment_methods,

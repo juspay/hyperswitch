@@ -4,7 +4,7 @@ use router_env::{instrument, tracing};
 use super::generics;
 use crate::{
     merchant_key_store::{MerchantKeyStore, MerchantKeyStoreNew},
-    schema::merchantkeystore::dsl,
+    schema::merchant_key_store::dsl,
     PgPooledConn, StorageResult,
 };
 

@@ -1,9 +1,6 @@
 use std::num::NonZeroI64;
 
-use common_utils::{
-    crypto::{self},
-    pii,
-};
+use common_utils::{crypto, pii};
 use masking::{PeekInterface, Secret};
 use router_derive::Setter;
 use time::PrimitiveDateTime;
@@ -1271,24 +1268,6 @@ impl From<&VerifyRequest> for MandateValidationFields {
         }
     }
 }
-
-// impl From<VerifyRequest> for VerifyResponse {
-//     fn from(item: VerifyRequest) -> Self {
-//         Self {
-//             merchant_id: item.merchant_id,
-//             customer_id: item.customer_id,
-//             email: item.email,
-//             name: item.name,
-//             phone: item.phone,
-//             payment_method: item.payment_method,
-//             payment_method_data: item
-//                 .payment_method_data
-//                 .map(PaymentMethodDataResponse::from),
-//             payment_token: item.payment_token,
-//             ..Default::default()
-//         }
-//     }
-// }
 
 impl From<PaymentsSessionRequest> for PaymentsSessionResponse {
     fn from(item: PaymentsSessionRequest) -> Self {
