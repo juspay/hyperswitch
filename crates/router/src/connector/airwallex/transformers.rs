@@ -481,12 +481,12 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
 #[serde(rename_all = "camelCase")]
 pub struct AirwallexWebhookData {
     pub source_id: Option<String>,
-    pub name: AirwallexWebhookEvenType,
+    pub name: AirwallexWebhookEventType,
     pub data: AirwallexObjectData,
 }
 
 #[derive(Debug, Deserialize, strum::Display, PartialEq)]
-pub enum AirwallexWebhookEvenType {
+pub enum AirwallexWebhookEventType {
     #[serde(rename = "payment_intent.created")]
     PaymentIntentCreated,
     #[serde(rename = "payment_intent.requires_payment_method")]
@@ -549,29 +549,29 @@ pub enum AirwallexWebhookEvenType {
     DisputeReversed,
 }
 
-pub fn is_transaction_event(event_code: &AirwallexWebhookEvenType) -> bool {
+pub fn is_transaction_event(event_code: &AirwallexWebhookEventType) -> bool {
     matches!(
         event_code,
-        AirwallexWebhookEvenType::PaymentAttemptFailedToProcess
-            | AirwallexWebhookEvenType::PaymentAttemptAuthorized
+        AirwallexWebhookEventType::PaymentAttemptFailedToProcess
+            | AirwallexWebhookEventType::PaymentAttemptAuthorized
     )
 }
 
-pub fn is_refund_event(event_code: &AirwallexWebhookEvenType) -> bool {
+pub fn is_refund_event(event_code: &AirwallexWebhookEventType) -> bool {
     matches!(
         event_code,
-        AirwallexWebhookEvenType::RefundSucceeded | AirwallexWebhookEvenType::RefundFailed
+        AirwallexWebhookEventType::RefundSucceeded | AirwallexWebhookEventType::RefundFailed
     )
 }
 
-pub fn is_dispute_event(event_code: &AirwallexWebhookEvenType) -> bool {
+pub fn is_dispute_event(event_code: &AirwallexWebhookEventType) -> bool {
     matches!(
         event_code,
-        AirwallexWebhookEvenType::DisputeAccepted
-            | AirwallexWebhookEvenType::DisputePreChargebackAccepted
-            | AirwallexWebhookEvenType::DisputeRespondedByMerchant
-            | AirwallexWebhookEvenType::DisputeWon
-            | AirwallexWebhookEvenType::DisputeLost
+        AirwallexWebhookEventType::DisputeAccepted
+            | AirwallexWebhookEventType::DisputePreChargebackAccepted
+            | AirwallexWebhookEventType::DisputeRespondedByMerchant
+            | AirwallexWebhookEventType::DisputeWon
+            | AirwallexWebhookEventType::DisputeLost
     )
 }
 
@@ -587,11 +587,18 @@ pub struct AirwallexDisputeObject {
     pub dispute_currency: String,
     pub stage: String,
     pub dispute_id: String,
-    pub dispute_reason_type: String,
-    pub dispute_original_reason_code: String,
-    pub status: String,
+    pub dispute_reason_type: Option<String>,
+    pub dispute_original_reason_code: Option<String>,
+    pub status: AirwallexDisputeStatus,
     pub created_at: String,
     pub updated_at: String,
+}
+
+#[derive(Debug, Deserialize, strum::Display, Clone)]
+pub enum AirwallexDisputeStatus {
+    RFI,
+    DISPUTE,
+    ARBITRATION,
 }
 
 #[derive(Debug, Deserialize)]
@@ -609,4 +616,34 @@ pub struct AirwallexErrorResponse {
     pub code: String,
     pub message: String,
     pub source: Option<String>,
+}
+
+impl TryFrom<AirwallexWebhookEventType> for api_models::webhooks::IncomingWebhookEvent {
+    type Error = errors::ConnectorError;
+    fn try_from(value: AirwallexWebhookEventType) -> Result<Self, Self::Error> {
+        Ok(match value {
+            AirwallexWebhookEventType::PaymentAttemptFailedToProcess => Self::PaymentIntentFailure,
+            AirwallexWebhookEventType::PaymentAttemptAuthorized => Self::PaymentIntentSuccess,
+            AirwallexWebhookEventType::RefundSucceeded => Self::RefundSuccess,
+            AirwallexWebhookEventType::RefundFailed => Self::RefundFailure,
+            AirwallexWebhookEventType::DisputeAccepted
+            | AirwallexWebhookEventType::DisputePreChargebackAccepted => Self::DisputeAccepted,
+            AirwallexWebhookEventType::DisputeRespondedByMerchant => Self::DisputeChallenged,
+            AirwallexWebhookEventType::DisputeWon | AirwallexWebhookEventType::DisputeReversed => {
+                Self::DisputeWon
+            }
+            AirwallexWebhookEventType::DisputeLost => Self::DisputeLost,
+            _ => Err(errors::ConnectorError::WebhookEventTypeNotFound)?,
+        })
+    }
+}
+
+impl From<AirwallexDisputeStatus> for api_models::enums::DisputeStage {
+    fn from(code: AirwallexDisputeStatus) -> Self {
+        match code {
+            AirwallexDisputeStatus::RFI => Self::PreDispute,
+            AirwallexDisputeStatus::DISPUTE => Self::Dispute,
+            AirwallexDisputeStatus::ARBITRATION => Self::PreArbitration,
+        }
+    }
 }

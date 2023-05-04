@@ -961,7 +961,6 @@ impl api::IncomingWebhook for Airwallex {
             .body
             .parse_struct("airwallexWebhookData")
             .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
-
         if airwallex::is_transaction_event(&details.name) {
             return Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
                 api_models::payments::PaymentIdType::ConnectorTransactionId(
@@ -992,7 +991,7 @@ impl api::IncomingWebhook for Airwallex {
                 ),
             ));
         }
-        Err(errors::ConnectorError::WebhookReferenceIdNotFound).into_report()
+        Err(errors::ConnectorError::WebhookEventTypeNotFound).into_report()
     }
 
     fn get_webhook_event_type(
@@ -1003,36 +1002,7 @@ impl api::IncomingWebhook for Airwallex {
             .body
             .parse_struct("airwallexWebhookData")
             .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
-
-        Ok(match details.name {
-            airwallex::AirwallexWebhookEvenType::PaymentAttemptFailedToProcess => {
-                api::IncomingWebhookEvent::PaymentIntentFailure
-            }
-            airwallex::AirwallexWebhookEvenType::PaymentAttemptAuthorized => {
-                api::IncomingWebhookEvent::PaymentIntentSuccess
-            }
-            airwallex::AirwallexWebhookEvenType::RefundSucceeded => {
-                api::IncomingWebhookEvent::RefundSuccess
-            }
-            airwallex::AirwallexWebhookEvenType::RefundFailed => {
-                api::IncomingWebhookEvent::RefundFailure
-            }
-            airwallex::AirwallexWebhookEvenType::DisputeAccepted
-            | airwallex::AirwallexWebhookEvenType::DisputePreChargebackAccepted => {
-                api::IncomingWebhookEvent::DisputeAccepted
-            }
-            airwallex::AirwallexWebhookEvenType::DisputeRespondedByMerchant => {
-                api::IncomingWebhookEvent::DisputeChallenged
-            }
-            airwallex::AirwallexWebhookEvenType::DisputeWon
-            | airwallex::AirwallexWebhookEvenType::DisputeReversed => {
-                api::IncomingWebhookEvent::DisputeWon
-            }
-            airwallex::AirwallexWebhookEvenType::DisputeLost => {
-                api::IncomingWebhookEvent::DisputeLost
-            }
-            _ => Err(errors::ConnectorError::WebhookEventTypeNotFound).into_report()?,
-        })
+        Ok(api::IncomingWebhookEvent::try_from(details.name)?)
     }
 
     fn get_webhook_resource_object(
@@ -1055,12 +1025,6 @@ impl api::IncomingWebhook for Airwallex {
             .body
             .parse_struct("airwallexWebhookData")
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
-        let dispute_stage =
-            if details.name == airwallex::AirwallexWebhookEvenType::DisputePreChargebackAccepted {
-                api_models::enums::DisputeStage::PreDispute
-            } else {
-                api_models::enums::DisputeStage::Dispute
-            };
         let dispute_details: airwallex::AirwallexDisputeObject = details
             .data
             .object
@@ -1069,12 +1033,12 @@ impl api::IncomingWebhook for Airwallex {
         Ok(api::disputes::DisputePayload {
             amount: dispute_details.dispute_amount.to_string(),
             currency: dispute_details.dispute_currency,
-            dispute_stage,
+            dispute_stage: api_models::enums::DisputeStage::from(dispute_details.status.clone()),
             connector_dispute_id: dispute_details.dispute_id,
-            connector_reason: Some(dispute_details.dispute_reason_type),
-            connector_reason_code: Some(dispute_details.dispute_original_reason_code),
+            connector_reason: dispute_details.dispute_reason_type,
+            connector_reason_code: dispute_details.dispute_original_reason_code,
             challenge_required_by: None,
-            connector_status: dispute_details.status,
+            connector_status: dispute_details.status.to_string(),
             created_at: Some(dispute_details.created_at),
             updated_at: Some(dispute_details.updated_at),
         })
