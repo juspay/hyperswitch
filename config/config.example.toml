@@ -86,7 +86,9 @@ filtering_directive = "WARN,router=INFO,reqwest=INFO"
 
 # Telemetry configuration for metrics and traces
 [log.telemetry]
-enabled = false                                       # boolean [true or false]
+traces_enabled = false                                # boolean [true or false], whether traces are enabled
+metrics_enabled = false                               # boolean [true or false], whether metrics are enabled
+ignore_errors = false                                 # boolean [true or false], whether to ignore errors during traces or metrics pipeline setup
 sampling_rate = 0.1                                   # decimal rate between 0.0 - 1.0
 otel_exporter_otlp_endpoint = "http://localhost:4317" # endpoint to send metrics and traces to, can include port number
 otel_exporter_otlp_timeout = 5000                     # timeout (in milliseconds) for sending metrics and traces

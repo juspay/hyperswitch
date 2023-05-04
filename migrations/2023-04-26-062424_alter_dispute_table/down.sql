@@ -1,0 +1,4 @@
+ALTER TABLE dispute
+ALTER COLUMN challenge_required_by TYPE VARCHAR(255),
+ALTER COLUMN dispute_created_at TYPE VARCHAR(255),
+ALTER COLUMN updated_at TYPE VARCHAR(255)
