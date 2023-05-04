@@ -252,6 +252,7 @@ impl<U, V: Lift<U> + Lift<U, SelfWrapper<U> = V> + Send> AsyncLift<U> for V {
     }
 }
 
+#[inline]
 pub async fn encrypt<E: Clone, S>(
     inner: Secret<E, S>,
     key: &[u8],
@@ -267,6 +268,7 @@ where
     .await
 }
 
+#[inline]
 pub async fn encrypt_optional<E: Clone, S>(
     inner: Option<Secret<E, S>>,
     key: &[u8],
@@ -279,6 +281,7 @@ where
     inner.async_map(|f| encrypt(f, key)).await.transpose()
 }
 
+#[inline]
 pub async fn decrypt<T: Clone, S: masking::Strategy<T>>(
     inner: Option<Encryption>,
     key: &[u8],
