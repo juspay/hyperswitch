@@ -34,7 +34,7 @@ pub struct PaymentIntent {
     pub off_session: Option<bool>,
     pub client_secret: Option<String>,
     pub active_attempt_id: String,
-    pub business_country: storage_enums::CountryCode,
+    pub business_country: storage_enums::CountryAlpha2,
     pub business_label: String,
 }
 
@@ -76,7 +76,7 @@ pub struct PaymentIntentNew {
     pub off_session: Option<bool>,
     pub client_secret: Option<String>,
     pub active_attempt_id: String,
-    pub business_country: storage_enums::CountryCode,
+    pub business_country: storage_enums::CountryAlpha2,
     pub business_label: String,
 }
 
@@ -114,7 +114,7 @@ pub enum PaymentIntentUpdate {
         shipping_address_id: Option<String>,
         billing_address_id: Option<String>,
         return_url: Option<String>,
-        business_country: Option<storage_enums::CountryCode>,
+        business_country: Option<storage_enums::CountryAlpha2>,
         business_label: Option<String>,
     },
     PaymentAttemptUpdate {
@@ -140,7 +140,7 @@ pub struct PaymentIntentUpdateInternal {
     pub shipping_address_id: Option<String>,
     pub modified_at: Option<PrimitiveDateTime>,
     pub active_attempt_id: Option<String>,
-    pub business_country: Option<storage_enums::CountryCode>,
+    pub business_country: Option<storage_enums::CountryAlpha2>,
     pub business_label: Option<String>,
 }
 
