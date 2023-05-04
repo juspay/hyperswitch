@@ -194,14 +194,21 @@ pub struct MultisafepayPaymentsRequest {
     pub var3: Option<String>,
 }
 
-impl From<utils::CardIssuer> for Gateway {
-    fn from(issuer: utils::CardIssuer) -> Self {
+impl TryFrom<utils::CardIssuer> for Gateway {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(issuer: utils::CardIssuer) -> Result<Self, Self::Error> {
         match issuer {
-            utils::CardIssuer::AmericanExpress => Self::Amex,
-            utils::CardIssuer::Master => Self::MasterCard,
-            utils::CardIssuer::Maestro => Self::Maestro,
-            utils::CardIssuer::Visa => Self::Visa,
-            utils::CardIssuer::Discover => Self::Discover,
+            utils::CardIssuer::AmericanExpress => Ok(Self::Amex),
+            utils::CardIssuer::Master => Ok(Self::MasterCard),
+            utils::CardIssuer::Maestro => Ok(Self::Maestro),
+            utils::CardIssuer::Discover => Ok(Self::Discover),
+            utils::CardIssuer::Visa => Ok(Self::Visa),
+            _ => Err(errors::ConnectorError::NotSupported {
+                message: issuer.to_string(),
+                connector: "Multisafe pay",
+                payment_experience: api::enums::PaymentExperience::RedirectToUrl.to_string(),
+            }
+            .into()),
         }
     }
 }
@@ -216,7 +223,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for MultisafepayPaymentsReques
         };
 
         let gateway = match item.request.payment_method_data {
-            api::PaymentMethodData::Card(ref ccard) => Gateway::from(ccard.get_card_issuer()?),
+            api::PaymentMethodData::Card(ref ccard) => Gateway::try_from(ccard.get_card_issuer()?)?,
             api::PaymentMethodData::PayLater(
                 api_models::payments::PayLaterData::KlarnaRedirect {
                     billing_email: _,

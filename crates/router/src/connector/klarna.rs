@@ -261,7 +261,7 @@ impl
                     token
                 )),
                 _ => Err(error_stack::report!(errors::ConnectorError::NotSupported {
-                    payment_method: payment_method_type.to_string(),
+                    message: payment_method_type.to_string(),
                     connector: "klarna",
                     payment_experience: payment_experience.to_string()
                 })),

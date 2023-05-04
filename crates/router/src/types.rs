@@ -537,6 +537,12 @@ pub enum ConnectorAuthType {
         key1: String,
         api_secret: String,
     },
+    MultiAuthKey {
+        api_key: String,
+        key1: String,
+        api_secret: String,
+        key2: String,
+    },
     #[default]
     NoKey,
 }

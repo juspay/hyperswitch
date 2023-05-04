@@ -217,6 +217,10 @@ apple_pay = { country = "AU,CN,HK,JP,MO,MY,NZ,SG,TW,AM,AT,AZ,BY,BE,BG,HR,CY,CZ,D
 bucket_name = ""
 region = ""
 
+[pm_filters.forte]
+credit = {currency = "USD"}
+debit = {currency = "USD"}
+
 [tokenization]
 stripe = { long_lived_token = false, payment_method = "wallet" }
 checkout = { long_lived_token = false, payment_method = "wallet" }

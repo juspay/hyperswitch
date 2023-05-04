@@ -539,7 +539,7 @@ impl<F>
                 )
             }
             _ => Err(errors::ConnectorError::NotSupported {
-                payment_method: "Bank Redirect".to_string(),
+                message: "Bank Redirect".to_string(),
                 connector: "Nuvei",
                 payment_experience: "Redirection".to_string(),
             })?,
@@ -583,7 +583,7 @@ impl<F>
                     item,
                 )),
                 _ => Err(errors::ConnectorError::NotSupported {
-                    payment_method: "Wallet".to_string(),
+                    message: "Wallet".to_string(),
                     connector: "Nuvei",
                     payment_experience: "RedirectToUrl".to_string(),
                 }
@@ -611,7 +611,7 @@ impl<F>
                     item,
                 )),
                 _ => Err(errors::ConnectorError::NotSupported {
-                    payment_method: "Bank Redirect".to_string(),
+                    message: "Bank Redirect".to_string(),
                     connector: "Nuvei",
                     payment_experience: "RedirectToUrl".to_string(),
                 }
