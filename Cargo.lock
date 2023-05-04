@@ -1157,7 +1157,7 @@ dependencies = [
  "masking",
  "serde",
  "serde_json",
- "time",
+ "time 0.3.20",
 ]
 
 [[package]]

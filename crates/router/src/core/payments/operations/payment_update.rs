@@ -71,11 +71,6 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             "update",
         )?;
 
-        helpers::authenticate_client_secret(
-            request.client_secret.as_ref(),
-            payment_intent.client_secret.as_ref(),
-        )?;
-
         let (token, payment_method_type, setup_mandate) =
             helpers::get_token_pm_type_mandate_details(
                 state,
@@ -193,7 +188,24 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                     .change_context(errors::ApiErrorResponse::MandateNotFound);
                 Some(mandate.map(|mandate_obj| api_models::payments::MandateIds {
                     mandate_id: mandate_obj.mandate_id,
-                    connector_mandate_id: mandate_obj.connector_mandate_id,
+                    mandate_reference_id: {
+                        match (
+                            mandate_obj.network_transaction_id,
+                            mandate_obj.connector_mandate_id,
+                        ) {
+                            (Some(network_tx_id), _) => {
+                                Some(api_models::payments::MandateReferenceId::NetworkMandateId(
+                                    network_tx_id,
+                                ))
+                            }
+                            (_, Some(connector_mandate_id)) => Some(
+                                api_models::payments::MandateReferenceId::ConnectorMandateId(
+                                    connector_mandate_id,
+                                ),
+                            ),
+                            (_, _) => None,
+                        }
+                    },
                 }))
             })
             .await
@@ -268,6 +280,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 card_cvc: request.card_cvc.clone(),
                 creds_identifier,
                 pm_token: None,
+                connector_customer_id: None,
             },
             Some(CustomerDetails {
                 customer_id: request.customer_id.clone(),
@@ -348,6 +361,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
         mut payment_data: PaymentData<F>,
         customer: Option<storage::Customer>,
         storage_scheme: storage_enums::MerchantStorageScheme,
+        _updated_customer: Option<storage::CustomerUpdate>,
     ) -> RouterResult<(BoxedOperation<'b, F, api::PaymentsRequest>, PaymentData<F>)>
     where
         F: 'b + Send,

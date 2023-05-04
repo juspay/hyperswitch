@@ -63,6 +63,7 @@ pub async fn construct_refund_router_data<'a, F>(
     let router_data = types::RouterData {
         flow: PhantomData,
         merchant_id: merchant_account.merchant_id.clone(),
+        customer_id: payment_intent.customer_id.to_owned(),
         connector: connector_id.to_string(),
         payment_id: payment_attempt.payment_id.clone(),
         attempt_id: payment_attempt.attempt_id.clone(),
@@ -96,6 +97,7 @@ pub async fn construct_refund_router_data<'a, F>(
         session_token: None,
         reference_id: None,
         payment_method_token: None,
+        connector_customer: None,
     };
 
     Ok(router_data)
@@ -279,6 +281,8 @@ pub async fn construct_accept_dispute_router_data<'a>(
         session_token: None,
         reference_id: None,
         payment_method_token: None,
+        connector_customer: None,
+        customer_id: None,
     };
     Ok(router_data)
 }
@@ -336,6 +340,8 @@ pub async fn construct_submit_evidence_router_data<'a>(
         session_token: None,
         reference_id: None,
         payment_method_token: None,
+        connector_customer: None,
+        customer_id: None,
     };
     Ok(router_data)
 }
@@ -394,6 +400,8 @@ pub async fn construct_upload_file_router_data<'a>(
         session_token: None,
         reference_id: None,
         payment_method_token: None,
+        connector_customer: None,
+        customer_id: None,
     };
     Ok(router_data)
 }
@@ -453,6 +461,8 @@ pub async fn construct_defend_dispute_router_data<'a>(
         session_token: None,
         reference_id: None,
         payment_method_token: None,
+        customer_id: None,
+        connector_customer: None,
     };
     Ok(router_data)
 }
@@ -486,6 +496,8 @@ pub async fn construct_retrieve_file_router_data<'a>(
         flow: PhantomData,
         merchant_id: merchant_account.merchant_id.clone(),
         connector: connector_id.to_string(),
+        customer_id: None,
+        connector_customer: None,
         payment_id: "irrelevant_payment_id_in_dispute_flow".to_string(),
         attempt_id: "irrelevant_attempt_id_in_dispute_flow".to_string(),
         status: storage_models::enums::AttemptStatus::default(),
