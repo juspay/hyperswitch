@@ -1,5 +1,8 @@
 use base64::Engine;
-use common_utils::{ext_traits::{StringExt, ValueExt}, pii::Email};
+use common_utils::{
+    ext_traits::{StringExt, ValueExt},
+    pii::Email,
+};
 use error_stack::ResultExt;
 use serde::{Deserialize, Serialize};
 
