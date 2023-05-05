@@ -443,7 +443,8 @@ pub type OptionalEncryptableSecretString = Option<Encryptable<masking::Secret<St
 /// Type alias for `Option<Encryptable<Secret<String>>>` used for `name` field
 pub type OptionalEncryptableName = Option<Encryptable<masking::Secret<String>>>;
 /// Type alias for `Option<Encryptable<Secret<String>>>` used for `email` field
-pub type OptionalEncryptableEmail = Option<Encryptable<masking::Secret<String, pii::Email>>>;
+pub type OptionalEncryptableEmail =
+    Option<Encryptable<masking::Secret<String, pii::EmailStrategy>>>;
 /// Type alias for `Option<Encryptable<Secret<String>>>` used for `phone` field
 pub type OptionalEncryptablePhone = Option<Encryptable<masking::Secret<String>>>;
 /// Type alias for `Option<Encryptable<Secret<serde_json::Value>>>` used for `phone` field

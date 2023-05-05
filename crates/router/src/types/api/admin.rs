@@ -2,8 +2,8 @@ pub use api_models::admin::{
     MerchantAccountCreate, MerchantAccountDeleteResponse, MerchantAccountResponse,
     MerchantAccountUpdate, MerchantConnectorCreate, MerchantConnectorDeleteResponse,
     MerchantConnectorDetails, MerchantConnectorDetailsWrap, MerchantConnectorId, MerchantDetails,
-    MerchantId, PaymentMethodsEnabled, RoutingAlgorithm, ToggleKVRequest, ToggleKVResponse,
-    WebhookDetails,
+    MerchantId, PaymentMethodsEnabled, RoutingAlgorithm, StraightThroughAlgorithm, ToggleKVRequest,
+    ToggleKVResponse, WebhookDetails,
 };
 use common_utils::ext_traits::ValueExt;
 

@@ -231,7 +231,7 @@ pub struct MerchantDetails {
 
     /// The merchant's primary email address
     #[schema(value_type = Option<String>, max_length = 255, example = "johndoe@test.com")]
-    pub primary_email: Option<Secret<String, pii::Email>>,
+    pub primary_email: Option<pii::Email>,
 
     /// The merchant's secondary contact name
     #[schema(value_type = Option<String>, max_length= 255, example = "John Doe2")]
@@ -243,7 +243,7 @@ pub struct MerchantDetails {
 
     /// The merchant's secondary email address
     #[schema(value_type = Option<String>, max_length = 255, example = "johndoe2@test.com")]
-    pub secondary_email: Option<Secret<String, pii::Email>>,
+    pub secondary_email: Option<pii::Email>,
 
     /// The business website of the merchant
     #[schema(max_length = 255, example = "www.example.com")]
@@ -264,6 +264,40 @@ pub struct MerchantDetails {
 #[serde(tag = "type", content = "data", rename_all = "snake_case")]
 pub enum RoutingAlgorithm {
     Single(api_enums::RoutableConnectors),
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(
+    tag = "type",
+    content = "data",
+    rename_all = "snake_case",
+    from = "StraightThroughAlgorithmSerde",
+    into = "StraightThroughAlgorithmSerde"
+)]
+pub enum StraightThroughAlgorithm {
+    Single(api_enums::RoutableConnectors),
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum StraightThroughAlgorithmSerde {
+    Direct(StraightThroughAlgorithm),
+    Nested { algorithm: StraightThroughAlgorithm },
+}
+
+impl From<StraightThroughAlgorithmSerde> for StraightThroughAlgorithm {
+    fn from(value: StraightThroughAlgorithmSerde) -> Self {
+        match value {
+            StraightThroughAlgorithmSerde::Direct(algorithm) => algorithm,
+            StraightThroughAlgorithmSerde::Nested { algorithm } => algorithm,
+        }
+    }
+}
+
+impl From<StraightThroughAlgorithm> for StraightThroughAlgorithmSerde {
+    fn from(value: StraightThroughAlgorithm) -> Self {
+        Self::Nested { algorithm: value }
+    }
 }
 
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]

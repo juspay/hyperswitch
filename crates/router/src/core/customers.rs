@@ -2,6 +2,8 @@ use common_utils::{
     crypto::{Encryptable, GcmAes256},
     ext_traits::ValueExt,
 };
+
+
 use error_stack::ResultExt;
 use router_env::{instrument, tracing};
 use storage_models::errors as storage_errors;
@@ -17,7 +19,7 @@ use crate::{
     routes::{metrics, AppState},
     services,
     types::{
-        api::customers::{self, CustomerRequestExt},
+        api::customers::{self},
         domain::{
             self,
             types::{self, AsyncLift, TypeEncryption},
@@ -33,9 +35,8 @@ pub const REDACTED: &str = "Redacted";
 pub async fn create_customer(
     db: &dyn StorageInterface,
     merchant_account: domain::MerchantAccount,
-    customer_data: customers::CustomerRequest,
+    mut customer_data: customers::CustomerRequest,
 ) -> RouterResponse<customers::CustomerResponse> {
-    let mut customer_data = customer_data.validate()?;
     let customer_id = &customer_data.customer_id;
     let merchant_id = &merchant_account.merchant_id;
     customer_data.merchant_id = merchant_id.to_owned();
@@ -118,7 +119,7 @@ pub async fn create_customer(
                 .await?,
             email: customer_data
                 .email
-                .async_lift(|inner| types::encrypt_optional(inner, &key))
+                .async_lift(|inner| types::encrypt_optional(inner.map(|inner| inner.0), &key))
                 .await?,
             phone: customer_data
                 .phone
@@ -310,7 +311,6 @@ pub async fn update_customer(
     merchant_account: domain::MerchantAccount,
     update_customer: customers::CustomerRequest,
 ) -> RouterResponse<customers::CustomerResponse> {
-    let update_customer = update_customer.validate()?;
     //Add this in update call if customer can be updated anywhere else
     db.find_customer_by_customer_id_merchant_id(
         &update_customer.customer_id,
@@ -398,7 +398,9 @@ pub async fn update_customer(
                         .await?,
                     email: update_customer
                         .email
-                        .async_lift(|inner| types::encrypt_optional(inner, &key))
+                        .async_lift(|inner| {
+                            types::encrypt_optional(inner.map(|inner| inner.0), &key)
+                        })
                         .await?,
                     phone: update_customer
                         .phone

@@ -66,7 +66,6 @@ pub trait StorageInterface:
     + MasterKeyInterface
     + 'static
 {
-    async fn close(&mut self) {}
 }
 
 pub trait MasterKeyInterface {
@@ -98,15 +97,7 @@ impl MasterKeyInterface for MockDb {
 }
 
 #[async_trait::async_trait]
-impl StorageInterface for Store {
-    #[allow(clippy::expect_used)]
-    async fn close(&mut self) {
-        std::sync::Arc::get_mut(&mut self.redis_conn)
-            .expect("Redis connection pool cannot be closed")
-            .close_connections()
-            .await;
-    }
-}
+impl StorageInterface for Store {}
 
 #[derive(Clone)]
 pub struct MockDb {
@@ -138,15 +129,7 @@ impl MockDb {
 }
 
 #[async_trait::async_trait]
-impl StorageInterface for MockDb {
-    #[allow(clippy::expect_used)]
-    async fn close(&mut self) {
-        std::sync::Arc::get_mut(&mut self.redis)
-            .expect("Redis connection pool cannot be closed")
-            .close_connections()
-            .await;
-    }
-}
+impl StorageInterface for MockDb {}
 
 pub async fn get_and_deserialize_key<T>(
     db: &dyn StorageInterface,

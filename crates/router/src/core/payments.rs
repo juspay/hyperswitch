@@ -7,8 +7,10 @@ pub mod transformers;
 use std::{fmt::Debug, marker::PhantomData, time::Instant};
 
 use api_models::payments::Metadata;
+use common_utils::pii::Email;
 use error_stack::{IntoReport, ResultExt};
 use futures::future::join_all;
+use masking::Secret;
 use router_env::{instrument, tracing};
 use time;
 
@@ -28,7 +30,7 @@ use crate::{
         payment_methods::vault,
     },
     db::StorageInterface,
-    logger, pii,
+    logger,
     routes::AppState,
     scheduler::utils as pt_utils,
     services::{self, api::Authenticate},
@@ -820,8 +822,8 @@ where
     pub payment_method_data: Option<api::PaymentMethodData>,
     pub refunds: Vec<storage::Refund>,
     pub sessions_token: Vec<api::SessionToken>,
-    pub card_cvc: Option<pii::Secret<String>>,
-    pub email: Option<masking::Secret<String, pii::Email>>,
+    pub card_cvc: Option<Secret<String>>,
+    pub email: Option<Email>,
     pub creds_identifier: Option<String>,
     pub pm_token: Option<String>,
     pub connector_customer_id: Option<String>,
@@ -830,9 +832,9 @@ where
 #[derive(Debug, Default)]
 pub struct CustomerDetails {
     pub customer_id: Option<String>,
-    pub name: Option<masking::Secret<String, masking::WithType>>,
-    pub email: Option<masking::Secret<String, pii::Email>>,
-    pub phone: Option<masking::Secret<String, masking::WithType>>,
+    pub name: Option<Secret<String, masking::WithType>>,
+    pub email: Option<Email>,
+    pub phone: Option<Secret<String, masking::WithType>>,
     pub phone_country_code: Option<String>,
 }
 
@@ -1078,8 +1080,8 @@ where
             .attach_printable("Invalid straight through algorithm format in payment attempt")?,
     };
 
-    let request_straight_through: Option<api::RoutingAlgorithm> = request_straight_through
-        .map(|val| val.parse_value("RoutingAlgorithm"))
+    let request_straight_through: Option<api::StraightThroughAlgorithm> = request_straight_through
+        .map(|val| val.parse_value("StraightThroughAlgorithm"))
         .transpose()
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Invalid straight through routing rules format")?;
@@ -1107,7 +1109,7 @@ where
 pub fn decide_connector(
     state: &AppState,
     merchant_account: &domain::MerchantAccount,
-    request_straight_through: Option<api::RoutingAlgorithm>,
+    request_straight_through: Option<api::StraightThroughAlgorithm>,
     routing_data: &mut storage::RoutingData,
 ) -> RouterResult<api::ConnectorCallType> {
     if let Some(ref connector_name) = routing_data.routed_through {
@@ -1124,7 +1126,7 @@ pub fn decide_connector(
 
     if let Some(routing_algorithm) = request_straight_through {
         let connector_name = match &routing_algorithm {
-            api::RoutingAlgorithm::Single(conn) => conn.to_string(),
+            api::StraightThroughAlgorithm::Single(conn) => conn.to_string(),
         };
 
         let connector_data = api::ConnectorData::get_connector_by_name(
@@ -1142,7 +1144,7 @@ pub fn decide_connector(
 
     if let Some(ref routing_algorithm) = routing_data.algorithm {
         let connector_name = match routing_algorithm {
-            api::RoutingAlgorithm::Single(conn) => conn.to_string(),
+            api::StraightThroughAlgorithm::Single(conn) => conn.to_string(),
         };
 
         let connector_data = api::ConnectorData::get_connector_by_name(

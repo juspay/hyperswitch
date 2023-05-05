@@ -52,12 +52,10 @@ async fn main() -> ApplicationResult<()> {
     logger::info!("Application started [{:?}] [{:?}]", conf.server, conf.log);
 
     #[allow(clippy::expect_used)]
-    let (server, mut state) = router::start_server(conf)
+    let server = router::start_server(conf)
         .await
         .expect("Failed to create the server");
     let _ = server.await;
-
-    state.store.close().await;
 
     Err(ApplicationError::from(std::io::Error::new(
         std::io::ErrorKind::Other,

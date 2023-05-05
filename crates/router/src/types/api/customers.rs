@@ -1,6 +1,5 @@
 use api_models::customers;
 pub use api_models::customers::{CustomerDeleteResponse, CustomerId, CustomerRequest};
-use error_stack::ResultExt;
 use serde::Serialize;
 
 use crate::{
@@ -10,6 +9,8 @@ use crate::{
     types::domain,
     utils::{self, ValidateCall},
 };
+
+use error_stack::ResultExt;
 
 newtype!(
     pub CustomerResponse = customers::CustomerResponse,
@@ -24,7 +25,7 @@ impl CustomerRequestExt for CustomerRequest {
     fn validate(self) -> RouterResult<Self> {
         self.email
             .as_ref()
-            .validate_opt(|email| utils::validate_email(email.peek()))
+            .validate_opt(|email| utils::validate_email(email.0.peek()))
             .change_context(errors::ApiErrorResponse::InvalidDataFormat {
                 field_name: "email".to_string(),
                 expected_format: "valid email address".to_string(),

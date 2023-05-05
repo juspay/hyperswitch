@@ -1,14 +1,18 @@
 use std::{convert::From, default::Default};
 
 use api_models::payment_methods as api_types;
-use common_utils::{crypto::Encryptable, date_time, pii};
+use common_utils::{
+    crypto::Encryptable,
+    date_time,
+    pii::{self, Email},
+};
 use serde::{Deserialize, Serialize};
 
 use crate::{logger, types::api};
 
 #[derive(Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
 pub struct CreateCustomerRequest {
-    pub email: Option<masking::Secret<String, pii::Email>>,
+    pub email: Option<Email>,
     pub invoice_prefix: Option<String>,
     pub name: Option<masking::Secret<String>>,
     pub phone: Option<masking::Secret<String>>,
@@ -20,7 +24,7 @@ pub struct CreateCustomerRequest {
 #[derive(Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
 pub struct CustomerUpdateRequest {
     pub description: Option<String>,
-    pub email: Option<masking::Secret<String, pii::Email>>,
+    pub email: Option<Email>,
     pub phone: Option<masking::Secret<String, masking::WithType>>,
     pub name: Option<masking::Secret<String>>,
     pub address: Option<masking::Secret<serde_json::Value>>,
@@ -33,7 +37,7 @@ pub struct CreateCustomerResponse {
     pub object: String,
     pub created: u64,
     pub description: Option<String>,
-    pub email: Option<masking::Secret<String, pii::Email>>,
+    pub email: Option<Email>,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub name: Option<masking::Secret<String>>,
     pub phone: Option<masking::Secret<String, masking::WithType>>,
@@ -95,7 +99,7 @@ impl From<api::CustomerResponse> for CreateCustomerResponse {
                 },
             ),
             description: cust.description,
-            email: cust.email.map(Encryptable::into_inner),
+            email: cust.email.map(|inner|  Email(inner.into_inner())),
             metadata: cust.metadata,
             name: cust.name.map(Encryptable::into_inner),
             phone: cust.phone.map(Encryptable::into_inner),

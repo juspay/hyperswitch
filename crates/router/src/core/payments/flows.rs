@@ -100,6 +100,9 @@ macro_rules! default_imp_for_complete_authorize{
     };
 }
 
+#[cfg(feature = "dummy_connector")]
+default_imp_for_complete_authorize!(connector::DummyConnector);
+
 default_imp_for_complete_authorize!(
     connector::Aci,
     connector::Adyen,
@@ -140,6 +143,9 @@ macro_rules! default_imp_for_create_customer{
     )*
     };
 }
+
+#[cfg(feature = "dummy_connector")]
+default_imp_for_create_customer!(connector::DummyConnector);
 
 default_imp_for_create_customer!(
     connector::Aci,
@@ -190,6 +196,9 @@ macro_rules! default_imp_for_connector_redirect_response{
     };
 }
 
+#[cfg(feature = "dummy_connector")]
+default_imp_for_connector_redirect_response!(connector::DummyConnector);
+
 default_imp_for_connector_redirect_response!(
     connector::Aci,
     connector::Adyen,
@@ -220,6 +229,9 @@ macro_rules! default_imp_for_connector_request_id{
     )*
     };
 }
+
+#[cfg(feature = "dummy_connector")]
+default_imp_for_connector_request_id!(connector::DummyConnector);
 
 default_imp_for_connector_request_id!(
     connector::Aci,
@@ -267,6 +279,9 @@ macro_rules! default_imp_for_accept_dispute{
     )*
     };
 }
+
+#[cfg(feature = "dummy_connector")]
+default_imp_for_accept_dispute!(connector::DummyConnector);
 
 default_imp_for_accept_dispute!(
     connector::Aci,
@@ -316,6 +331,9 @@ macro_rules! default_imp_for_file_upload{
     };
 }
 
+#[cfg(feature = "dummy_connector")]
+default_imp_for_file_upload!(connector::DummyConnector);
+
 default_imp_for_file_upload!(
     connector::Aci,
     connector::Adyen,
@@ -362,6 +380,9 @@ macro_rules! default_imp_for_submit_evidence{
     };
 }
 
+#[cfg(feature = "dummy_connector")]
+default_imp_for_submit_evidence!(connector::DummyConnector);
+
 default_imp_for_submit_evidence!(
     connector::Aci,
     connector::Adyen,
@@ -407,6 +428,9 @@ macro_rules! default_imp_for_defend_dispute{
     )*
     };
 }
+
+#[cfg(feature = "dummy_connector")]
+default_imp_for_defend_dispute!(connector::DummyConnector);
 
 default_imp_for_defend_dispute!(
     connector::Aci,

@@ -7,7 +7,7 @@ use crate::{
     compatibility::stripe::refunds::types as stripe_refunds,
     consts,
     core::errors,
-    pii::{self, PeekInterface},
+    pii::{self, Email, PeekInterface},
     types::{
         api::{admin, enums as api_enums},
         transformers::{ForeignFrom, ForeignInto},
@@ -17,7 +17,7 @@ use crate::{
 #[derive(Default, Serialize, PartialEq, Eq, Deserialize, Clone)]
 pub struct StripeBillingDetails {
     pub address: Option<payments::AddressDetails>,
-    pub email: Option<pii::Secret<String, pii::Email>>,
+    pub email: Option<Email>,
     pub name: Option<String>,
     pub phone: Option<pii::Secret<String>>,
 }
@@ -133,7 +133,7 @@ pub struct StripePaymentIntentRequest {
     pub customer: Option<String>,
     pub description: Option<String>,
     pub payment_method_data: Option<StripePaymentMethodData>,
-    pub receipt_email: Option<pii::Secret<String, pii::Email>>,
+    pub receipt_email: Option<Email>,
     pub return_url: Option<url::Url>,
     pub setup_future_usage: Option<api_enums::FutureUsage>,
     pub shipping: Option<Shipping>,
@@ -299,7 +299,7 @@ pub struct StripePaymentIntentResponse {
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
     pub capture_on: Option<time::PrimitiveDateTime>,
     pub payment_token: Option<String>,
-    pub email: Option<masking::Secret<String, common_utils::pii::Email>>,
+    pub email: Option<Email>,
     pub phone: Option<masking::Secret<String>>,
     pub statement_descriptor_suffix: Option<String>,
     pub statement_descriptor_name: Option<String>,
@@ -349,7 +349,7 @@ impl From<payments::PaymentsResponse> for StripePaymentIntentResponse {
             payment_token: resp.payment_token,
             shipping: resp.shipping,
             billing: resp.billing,
-            email: resp.email.map(Encryptable::into_inner),
+            email: resp.email.map(|inner| Email(inner.into_inner())),
             name: resp.name.map(Encryptable::into_inner),
             phone: resp.phone.map(Encryptable::into_inner),
             authentication_type: resp.authentication_type,
