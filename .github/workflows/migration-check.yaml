@@ -24,7 +24,6 @@ env:
 jobs:
   migration_verify:
     name: Verify whether migration files are in sync with the schema.rs files
-    if: ${{ contains(github.event.pull_request.labels.*.name, 'S-awaiting-merge') && contains(github.event.pull_request.labels.*.name, 'M-database-changes') }}
     runs-on: ubuntu-latest
 
     services:
