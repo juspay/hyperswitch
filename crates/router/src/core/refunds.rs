@@ -669,6 +669,7 @@ impl ForeignFrom<storage::Refund> for api::RefundResponse {
             error_code: refund.refund_error_code,
             created_at: Some(refund.created_at),
             updated_at: Some(refund.updated_at),
+            connector: refund.connector,
         }
     }
 }
