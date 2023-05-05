@@ -1,4 +1,4 @@
-use api_models::payments::{self, AddressDetails};
+use api_models::payments;
 use common_utils::pii::{self, Email};
 use masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
@@ -27,7 +27,7 @@ pub struct Card {
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
-pub struct CardDetails {
+pub struct CardPaymentMethod {
     pub card: Card,
     pub requires_approval: bool,
     pub payment_product_id: u16,
@@ -98,13 +98,13 @@ pub struct Shipping {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub enum WorldlinePaymentMethod {
-    CardPaymentMethodSpecificInput(Box<CardDetails>),
-    RedirectPaymentMethodSpecificInput(Box<RedirectDetails>),
+    CardPaymentMethodSpecificInput(Box<CardPaymentMethod>),
+    RedirectPaymentMethodSpecificInput(Box<RedirectPaymentMethod>),
 }
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct RedirectDetails {
+pub struct RedirectPaymentMethod {
     pub payment_product_id: u16,
     pub redirection_data: RedirectionData,
     #[serde(flatten)]
@@ -120,8 +120,8 @@ pub struct RedirectionData {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub enum PaymentMethodSpecificData {
-    PaymentProduct816SpecificInput(Giropay),
-    PaymentProduct809SpecificInput(Ideal),
+    PaymentProduct816SpecificInput(Box<Giropay>),
+    PaymentProduct809SpecificInput(Box<Ideal>),
 }
 
 #[derive(Debug, Serialize)]
@@ -164,7 +164,7 @@ pub enum WorldlineBic {
 #[serde(rename_all = "camelCase")]
 pub struct BankAccountIban {
     pub account_holder_name: Secret<String>,
-    pub iban: String,
+    pub iban: Option<Secret<String>>,
 }
 
 #[derive(Debug, Serialize)]
@@ -269,7 +269,7 @@ impl TryFrom<&api_models::enums::BankNames> for WorldlineBic {
 fn make_card_request(
     req: &types::PaymentsAuthorizeData,
     ccard: &payments::Card,
-) -> Result<CardDetails, error_stack::Report<errors::ConnectorError>> {
+) -> Result<CardPaymentMethod, error_stack::Report<errors::ConnectorError>> {
     let expiry_year = ccard.card_exp_year.peek().clone();
     let secret_value = format!(
         "{}{}",
@@ -288,7 +288,7 @@ fn make_card_request(
     };
     #[allow(clippy::as_conversions)]
     let payment_product_id = Gateway::try_from(ccard.get_card_issuer()?)? as u16;
-    let card_payment_method_specific_input = CardDetails {
+    let card_payment_method_specific_input = CardPaymentMethod {
         card,
         requires_approval: matches!(req.capture_method, Some(enums::CaptureMethod::Manual)),
         payment_product_id,
@@ -299,26 +299,30 @@ fn make_card_request(
 fn make_bank_redirect_request(
     req: &types::PaymentsAuthorizeData,
     bank_redirect: &payments::BankRedirectData,
-) -> Result<RedirectDetails, error_stack::Report<errors::ConnectorError>> {
+) -> Result<RedirectPaymentMethod, error_stack::Report<errors::ConnectorError>> {
     let return_url = req.router_return_url.clone();
     let redirection_data = RedirectionData { return_url };
     let (payment_method_specfic_data, payment_product_id) = match bank_redirect {
-        payments::BankRedirectData::Giropay { billing_details } => (
+        payments::BankRedirectData::Giropay {
+            billing_details,
+            bank_account_iban,
+            ..
+        } => (
             {
-                PaymentMethodSpecificData::PaymentProduct816SpecificInput(Giropay {
+                PaymentMethodSpecificData::PaymentProduct816SpecificInput(Box::new(Giropay {
                     bank_account_iban: BankAccountIban {
                         account_holder_name: billing_details.billing_name.clone(),
-                        iban: "DE46940594210000012345".to_string(),
+                        iban: bank_account_iban.clone(),
                     },
-                })
+                }))
             },
             816,
         ),
         payments::BankRedirectData::Ideal { bank_name, .. } => (
             {
-                PaymentMethodSpecificData::PaymentProduct809SpecificInput(Ideal {
+                PaymentMethodSpecificData::PaymentProduct809SpecificInput(Box::new(Ideal {
                     issuer_id: WorldlineBic::try_from(bank_name)?,
-                })
+                }))
             },
             809,
         ),
@@ -328,7 +332,7 @@ fn make_bank_redirect_request(
             )
         }
     };
-    Ok(RedirectDetails {
+    Ok(RedirectPaymentMethod {
         payment_product_id,
         redirection_data,
         payment_method_specfic_data,
@@ -337,7 +341,7 @@ fn make_bank_redirect_request(
 
 fn get_address(
     payment_address: &types::PaymentAddress,
-) -> Option<(&payments::Address, &AddressDetails)> {
+) -> Option<(&payments::Address, &payments::AddressDetails)> {
     let billing = payment_address.billing.as_ref()?;
     let address = billing.address.as_ref()?;
     address.country.as_ref()?;
@@ -373,8 +377,8 @@ fn build_customer_info(
     })
 }
 
-impl From<AddressDetails> for BillingAddress {
-    fn from(value: AddressDetails) -> Self {
+impl From<payments::AddressDetails> for BillingAddress {
+    fn from(value: payments::AddressDetails) -> Self {
         Self {
             city: value.city,
             country_code: value.country,
@@ -385,8 +389,8 @@ impl From<AddressDetails> for BillingAddress {
     }
 }
 
-impl From<AddressDetails> for Shipping {
-    fn from(value: AddressDetails) -> Self {
+impl From<payments::AddressDetails> for Shipping {
+    fn from(value: payments::AddressDetails) -> Self {
         Self {
             city: value.city,
             country_code: value.country,
