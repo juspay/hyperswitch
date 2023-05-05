@@ -326,12 +326,6 @@ impl MandateIds {
     }
 }
 
-#[derive(Debug, serde::Deserialize)]
-pub struct ConnectorMandateId {
-    pub mandate_id: Option<String>,
-    pub payment_method_id: Option<String>,
-}
-
 #[derive(Default, Eq, PartialEq, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct MandateData {

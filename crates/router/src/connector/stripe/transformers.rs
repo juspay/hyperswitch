@@ -12,11 +12,7 @@ use crate::{
     collect_missing_value_keys, consts,
     core::errors,
     services,
-    types::{
-        self, api,
-        storage::enums,
-        transformers::{ForeignFrom, ForeignTryFrom},
-    },
+    types::{self, api, storage::enums, transformers::ForeignFrom},
     utils::OptionExt,
 };
 
@@ -1219,16 +1215,11 @@ pub struct SetupIntentResponse {
     pub latest_attempt: Option<LatestAttempt>,
 }
 
-impl ForeignTryFrom<(Option<StripePaymentMethodOptions>, Option<String>)>
-    for Option<types::MandateReference>
-{
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn foreign_try_from(
-        data: (Option<StripePaymentMethodOptions>, Option<String>),
-    ) -> Result<Self, Self::Error> {
-        let (payment_method_options, payment_method_id) = data;
-        // There will be payment_method_id and mandate_id present in set_up_future_usage. Mandate id is optional and we can proceed with pm_id for future usages
-        Ok(payment_method_id.clone().map(|_| types::MandateReference {
+impl ForeignFrom<(Option<StripePaymentMethodOptions>, String)> for types::MandateReference {
+    fn foreign_from(
+        (payment_method_options, payment_method_id): (Option<StripePaymentMethodOptions>, String),
+    ) -> Self {
+        Self {
             connector_mandate_id: payment_method_options.and_then(|options| match options {
                 StripePaymentMethodOptions::Card {
                     mandate_options, ..
@@ -1245,8 +1236,8 @@ impl ForeignTryFrom<(Option<StripePaymentMethodOptions>, Option<String>)>
                 | StripePaymentMethodOptions::Becs {}
                 | StripePaymentMethodOptions::Sepa {} => None,
             }),
-            payment_method_id,
-        }))
+            payment_method_id: Some(payment_method_id),
+        }
     }
 }
 
@@ -1262,10 +1253,9 @@ impl<F, T>
             services::RedirectForm::from((next_action_response.get_url(), services::Method::Get))
         });
 
-        let mandate_reference = Option::foreign_try_from((
-            item.response.payment_method_options,
-            item.response.payment_method,
-        ))?;
+        let mandate_reference = item.response.payment_method.map(|pm| {
+            types::MandateReference::foreign_from((item.response.payment_method_options, pm))
+        });
 
         //Note: we might have to call retrieve_setup_intent to get the network_transaction_id in case its not sent in PaymentIntentResponse
         // Or we identify the mandate txns before hand and always call SetupIntent in case of mandate payment call
@@ -1314,10 +1304,12 @@ impl<F, T>
                 ))
             });
 
-        let mandate_reference = Option::foreign_try_from((
-            item.response.payment_method_options.clone(),
-            item.response.payment_method.clone(),
-        ))?;
+        let mandate_reference = item.response.payment_method.clone().map(|pm| {
+            types::MandateReference::foreign_from((
+                item.response.payment_method_options.clone(),
+                pm,
+            ))
+        });
         let error_res =
             item.response
                 .last_payment_error
@@ -1361,10 +1353,9 @@ impl<F, T>
             services::RedirectForm::from((next_action_response.get_url(), services::Method::Get))
         });
 
-        let mandate_reference = Option::foreign_try_from((
-            item.response.payment_method_options,
-            item.response.payment_method,
-        ))?;
+        let mandate_reference = item.response.payment_method.map(|pm| {
+            types::MandateReference::foreign_from((item.response.payment_method_options, pm))
+        });
 
         Ok(Self {
             status: enums::AttemptStatus::from(item.response.status),

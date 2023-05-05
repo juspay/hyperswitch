@@ -299,7 +299,7 @@ pub struct VerifyRequestData {
     pub setup_future_usage: Option<storage_enums::FutureUsage>,
     pub off_session: Option<bool>,
     pub setup_mandate_details: Option<payments::MandateData>,
-    pub email: Option<masking::Secret<String, Email>>,
+    pub email: Option<Email>,
 }
 
 #[derive(Debug, Clone)]
