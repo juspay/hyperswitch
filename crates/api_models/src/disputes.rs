@@ -40,6 +40,32 @@ pub struct DisputeResponse {
     pub received_at: String,
 }
 
+#[derive(Default, Clone, Debug, Serialize, ToSchema, Eq, PartialEq)]
+pub struct DisputeResponsePaymentsRetrieve {
+    /// The identifier for dispute
+    pub dispute_id: String,
+    /// Stage of the dispute
+    pub dispute_stage: DisputeStage,
+    /// Status of the dispute
+    pub dispute_status: DisputeStatus,
+    /// Status of the dispute sent by connector
+    pub connector_status: String,
+    /// Dispute id sent by connector
+    pub connector_dispute_id: String,
+    /// Reason of dispute sent by connector
+    pub connector_reason: Option<String>,
+    /// Reason code of dispute sent by connector
+    pub connector_reason_code: Option<String>,
+    /// Evidence deadline of dispute sent by connector
+    pub challenge_required_by: Option<String>,
+    /// Dispute created time sent by connector
+    pub created_at: Option<String>,
+    /// Dispute updated time sent by connector
+    pub updated_at: Option<String>,
+    /// Time at which dispute is received
+    pub received_at: String,
+}
+
 #[derive(Clone, Debug, Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct DisputeListConstraints {

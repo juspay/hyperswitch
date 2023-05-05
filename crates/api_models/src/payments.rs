@@ -1013,8 +1013,8 @@ pub struct PaymentsResponse {
     pub refunds: Option<Vec<refunds::RefundResponse>>,
 
     /// List of dispute that happened on this intent
-    #[schema(value_type = Option<Vec<DisputeResponse>>)]
-    pub disputes: Option<Vec<disputes::DisputeResponse>>,
+    #[schema(value_type = Option<Vec<DisputeResponsePaymentsRetrieve>>)]
+    pub disputes: Option<Vec<disputes::DisputeResponsePaymentsRetrieve>>,
 
     /// A unique identifier to link the payment to a mandate, can be use instead of payment_method_data
     #[schema(max_length = 255, example = "mandate_iwer89rnjef349dni3")]
