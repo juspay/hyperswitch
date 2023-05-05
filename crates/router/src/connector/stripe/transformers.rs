@@ -1,6 +1,6 @@
 use api_models::{self, enums as api_enums, payments};
 use base64::Engine;
-use common_utils::{errors::CustomResult, ext_traits::ByteSliceExt, pii};
+use common_utils::{errors::CustomResult, ext_traits::ByteSliceExt, pii, pii::Email};
 use error_stack::{IntoReport, ResultExt};
 use masking::{ExposeInterface, ExposeOptionInterface, Secret};
 use serde::{Deserialize, Serialize};
@@ -173,7 +173,7 @@ pub struct StripeTokenResponse {
 #[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct CustomerRequest {
     pub description: Option<String>,
-    pub email: Option<Secret<String, pii::Email>>,
+    pub email: Option<Email>,
     pub phone: Option<Secret<String>>,
     pub name: Option<String>,
 }
@@ -182,7 +182,7 @@ pub struct CustomerRequest {
 pub struct StripeCustomerResponse {
     pub id: String,
     pub description: Option<String>,
-    pub email: Option<Secret<String, pii::Email>>,
+    pub email: Option<Email>,
     pub phone: Option<Secret<String>>,
     pub name: Option<String>,
 }
@@ -476,7 +476,7 @@ impl TryFrom<&api_models::enums::BankNames> for StripeBankNames {
             api_models::enums::BankNames::VolkskreditbankAg => Self::VolkskreditbankAg,
             api_models::enums::BankNames::VrBankBraunau => Self::VrBankBraunau,
             _ => Err(errors::ConnectorError::NotSupported {
-                payment_method: api_enums::PaymentMethod::BankRedirect.to_string(),
+                message: api_enums::PaymentMethod::BankRedirect.to_string(),
                 connector: "Stripe",
                 payment_experience: api_enums::PaymentExperience::RedirectToUrl.to_string(),
             })?,
@@ -519,14 +519,14 @@ fn infer_stripe_pay_later_type(
                 Ok(StripePaymentMethodType::AfterpayClearpay)
             }
             _ => Err(errors::ConnectorError::NotSupported {
-                payment_method: pm_type.to_string(),
+                message: pm_type.to_string(),
                 connector: "stripe",
                 payment_experience: experience.to_string(),
             }),
         }
     } else {
         Err(errors::ConnectorError::NotSupported {
-            payment_method: pm_type.to_string(),
+            message: pm_type.to_string(),
             connector: "stripe",
             payment_experience: experience.to_string(),
         })
@@ -1583,7 +1583,7 @@ pub struct StripeShippingAddress {
 #[derive(Debug, Default, Eq, PartialEq, Serialize)]
 pub struct StripeBillingAddress {
     #[serde(rename = "payment_method_data[billing_details][email]")]
-    pub email: Option<Secret<String, pii::Email>>,
+    pub email: Option<Email>,
     #[serde(rename = "payment_method_data[billing_details][address][country]")]
     pub country: Option<api_enums::CountryAlpha2>,
     #[serde(rename = "payment_method_data[billing_details][name]")]
@@ -1944,7 +1944,7 @@ impl
             }
             api::PaymentMethodData::MandatePayment | api::PaymentMethodData::Crypto(_) => {
                 Err(errors::ConnectorError::NotSupported {
-                    payment_method: format!("{pm_type:?}"),
+                    message: format!("{pm_type:?}"),
                     connector: "Stripe",
                     payment_experience: api_models::enums::PaymentExperience::RedirectToUrl
                         .to_string(),

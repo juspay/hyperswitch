@@ -592,11 +592,15 @@ pub enum Connector {
     Cybersource,
     #[default]
     Dummy,
+    #[cfg(feature = "dummy_connector")]
+    #[serde(rename = "dummyconnector")]
+    #[strum(serialize = "dummyconnector")]
+    DummyConnector,
     Opennode,
     Bambora,
     Dlocal,
     Fiserv,
-    //Forte,
+    Forte,
     Globalpay,
     Klarna,
     Mollie,
@@ -649,6 +653,10 @@ impl Connector {
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum RoutableConnectors {
+    #[cfg(feature = "dummy_connector")]
+    #[serde(rename = "dummyconnector")]
+    #[strum(serialize = "dummyconnector")]
+    DummyConnector,
     Aci,
     Adyen,
     Airwallex,
@@ -661,7 +669,7 @@ pub enum RoutableConnectors {
     Cybersource,
     Dlocal,
     Fiserv,
-    //Forte,
+    Forte,
     Globalpay,
     Klarna,
     Mollie,

@@ -118,8 +118,8 @@ pub enum ApiErrorResponse {
     DuplicateMandate,
     #[error(error_type = ErrorType::DuplicateRequest, code = "HE_01", message = "The merchant account with the specified details already exists in our records")]
     DuplicateMerchantAccount,
-    #[error(error_type = ErrorType::DuplicateRequest, code = "HE_01", message = "The merchant connector account with the specified details already exists in our records")]
-    DuplicateMerchantConnectorAccount,
+    #[error(error_type = ErrorType::DuplicateRequest, code = "HE_01", message = "The merchant connector account with the specified connector_label '{connector_label}' already exists in our records")]
+    DuplicateMerchantConnectorAccount { connector_label: String },
     #[error(error_type = ErrorType::DuplicateRequest, code = "HE_01", message = "The payment method with the specified details already exists in our records")]
     DuplicatePaymentMethod,
     #[error(error_type = ErrorType::DuplicateRequest, code = "HE_01", message = "The payment with the specified payment_id '{payment_id}' already exists in our records")]
@@ -274,7 +274,7 @@ impl actix_web::ResponseError for ApiErrorResponse {
             | Self::ApiKeyNotFound
             | Self::DisputeStatusValidationFailed { .. } => StatusCode::BAD_REQUEST, // 400
             Self::DuplicateMerchantAccount
-            | Self::DuplicateMerchantConnectorAccount
+            | Self::DuplicateMerchantConnectorAccount { .. }
             | Self::DuplicatePaymentMethod
             | Self::DuplicateMandate
             | Self::DisputeNotFound { .. }
@@ -413,8 +413,8 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
             Self::DuplicateRefundRequest => AER::BadRequest(ApiError::new("HE", 1, "Duplicate refund request. Refund already attempted with the refund ID", None)),
             Self::DuplicateMandate => AER::BadRequest(ApiError::new("HE", 1, "Duplicate mandate request. Mandate already attempted with the Mandate ID", None)),
             Self::DuplicateMerchantAccount => AER::BadRequest(ApiError::new("HE", 1, "The merchant account with the specified details already exists in our records", None)),
-            Self::DuplicateMerchantConnectorAccount => {
-                AER::BadRequest(ApiError::new("HE", 1, "The merchant connector account with the specified details already exists in our records", None))
+            Self::DuplicateMerchantConnectorAccount { connector_label } => {
+                AER::BadRequest(ApiError::new("HE", 1, format!("The merchant connector account with the specified connector_label '{connector_label}' already exists in our records"), None))
             }
             Self::DuplicatePaymentMethod => AER::BadRequest(ApiError::new("HE", 1, "The payment method with the specified details already exists in our records", None)),
             Self::DuplicatePayment { payment_id } => {

@@ -107,7 +107,7 @@ pub struct AdyenPaymentRequest<'a> {
     store_payment_method: Option<bool>,
     shopper_name: Option<ShopperName>,
     shopper_locale: Option<String>,
-    shopper_email: Option<Secret<String, Email>>,
+    shopper_email: Option<Email>,
     telephone_number: Option<Secret<String>>,
     billing_address: Option<Address>,
     delivery_address: Option<Address>,
@@ -358,7 +358,7 @@ impl TryFrom<&api_enums::BankNames> for OnlineBankingCzechRepublicBanks {
             api::enums::BankNames::CeskaSporitelna => Ok(Self::CS),
             api::enums::BankNames::PlatnoscOnlineKartaPlatnicza => Ok(Self::C),
             _ => Err(errors::ConnectorError::NotSupported {
-                payment_method: String::from("BankRedirect"),
+                message: String::from("BankRedirect"),
                 connector: "Adyen",
                 payment_experience: api_enums::PaymentExperience::RedirectToUrl.to_string(),
             })?,
@@ -439,7 +439,7 @@ impl TryFrom<&api_enums::BankNames> for OnlineBankingPolandBanks {
             api_models::enums::BankNames::VeloBank => Ok(Self::VeloBank),
             api_models::enums::BankNames::ETransferPocztowy24 => Ok(Self::ETransferPocztowy24),
             _ => Err(errors::ConnectorError::NotSupported {
-                payment_method: String::from("BankRedirect"),
+                message: String::from("BankRedirect"),
                 connector: "Adyen",
                 payment_experience: api_enums::PaymentExperience::RedirectToUrl.to_string(),
             })?,
@@ -475,7 +475,7 @@ impl TryFrom<&api_enums::BankNames> for OnlineBankingSlovakiaBanks {
             api::enums::BankNames::TatraPay => Ok(Self::Tatra),
             api::enums::BankNames::Viamo => Ok(Self::Viamo),
             _ => Err(errors::ConnectorError::NotSupported {
-                payment_method: String::from("BankRedirect"),
+                message: String::from("BankRedirect"),
                 connector: "Adyen",
                 payment_experience: api_enums::PaymentExperience::RedirectToUrl.to_string(),
             })?,
@@ -707,7 +707,7 @@ impl<'a> TryFrom<&api_enums::BankNames> for AdyenTestBankNames<'a> {
                 Self("4a0a975b-0594-4b40-9068-39f77b3a91f9")
             }
             _ => Err(errors::ConnectorError::NotSupported {
-                payment_method: String::from("BankRedirect"),
+                message: String::from("BankRedirect"),
                 connector: "Adyen",
                 payment_experience: api_enums::PaymentExperience::RedirectToUrl.to_string(),
             })?,
@@ -753,7 +753,7 @@ impl<'a> TryFrom<&types::PaymentsAuthorizeRouterData> for AdyenPaymentRequest<'a
                     AdyenPaymentRequest::try_from((item, bank_redirect))
                 }
                 _ => Err(errors::ConnectorError::NotSupported {
-                    payment_method: format!("{:?}", item.request.payment_method_type),
+                    message: format!("{:?}", item.request.payment_method_type),
                     connector: "Adyen",
                     payment_experience: api_models::enums::PaymentExperience::RedirectToUrl
                         .to_string(),
@@ -1147,7 +1147,7 @@ impl<'a> TryFrom<(&types::PaymentsAuthorizeRouterData, MandateReferenceId)>
                         Ok(AdyenPaymentMethod::AdyenCard(Box::new(adyen_card)))
                     }
                     _ => Err(errors::ConnectorError::NotSupported {
-                        payment_method: format!("mandate_{:?}", item.payment_method),
+                        message: format!("mandate_{:?}", item.payment_method),
                         connector: "Adyen",
                         payment_experience: api_models::enums::PaymentExperience::RedirectToUrl
                             .to_string(),

@@ -104,7 +104,7 @@ fn get_pm_and_subsequent_auth_detail(
                     Ok((payment_details, processing_options, subseuent_auth_info))
                 }
                 _ => Err(errors::ConnectorError::NotSupported {
-                    payment_method: format!("{:?}", item.request.payment_method_data),
+                    message: format!("{:?}", item.request.payment_method_data),
                     connector: "AuthorizeDotNet",
                     payment_experience: api_models::enums::PaymentExperience::RedirectToUrl
                         .to_string(),
@@ -133,7 +133,7 @@ fn get_pm_and_subsequent_auth_detail(
             | api::PaymentMethodData::BankDebit(_)
             | api::PaymentMethodData::MandatePayment => {
                 Err(errors::ConnectorError::NotSupported {
-                    payment_method: format!("{:?}", item.request.payment_method_data),
+                    message: format!("{:?}", item.request.payment_method_data),
                     connector: "AuthorizeDotNet",
                     payment_experience: api_models::enums::PaymentExperience::RedirectToUrl
                         .to_string(),

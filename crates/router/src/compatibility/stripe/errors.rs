@@ -103,8 +103,8 @@ pub enum StripeErrorCode {
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "token_already_used", message = "duplicate merchant account")]
     DuplicateMerchantAccount,
 
-    #[error(error_type = StripeErrorType::InvalidRequestError, code = "token_already_used", message = "duplicate merchant_connector_account")]
-    DuplicateMerchantConnectorAccount,
+    #[error(error_type = StripeErrorType::InvalidRequestError, code = "token_already_used", message = "The merchant connector account with the specified connector_label '{connector_label}' already exists in our records")]
+    DuplicateMerchantConnectorAccount { connector_label: String },
 
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "token_already_used", message = "duplicate payment method")]
     DuplicatePaymentMethod,
@@ -439,8 +439,8 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
             }
             errors::ApiErrorResponse::ReturnUrlUnavailable => Self::ReturnUrlUnavailable,
             errors::ApiErrorResponse::DuplicateMerchantAccount => Self::DuplicateMerchantAccount,
-            errors::ApiErrorResponse::DuplicateMerchantConnectorAccount => {
-                Self::DuplicateMerchantConnectorAccount
+            errors::ApiErrorResponse::DuplicateMerchantConnectorAccount { connector_label } => {
+                Self::DuplicateMerchantConnectorAccount { connector_label }
             }
             errors::ApiErrorResponse::DuplicatePaymentMethod => Self::DuplicatePaymentMethod,
             errors::ApiErrorResponse::ClientSecretInvalid => Self::PaymentIntentInvalidParameter {
@@ -522,7 +522,7 @@ impl actix_web::ResponseError for StripeErrorCode {
             | Self::MandateNotFound
             | Self::ApiKeyNotFound
             | Self::DuplicateMerchantAccount
-            | Self::DuplicateMerchantConnectorAccount
+            | Self::DuplicateMerchantConnectorAccount { .. }
             | Self::DuplicatePaymentMethod
             | Self::PaymentFailed
             | Self::VerificationFailed { .. }
