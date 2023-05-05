@@ -1,4 +1,5 @@
 use masking::{Deserialize, Serialize};
+use time::PrimitiveDateTime;
 
 use crate::{services, types};
 
@@ -7,7 +8,7 @@ pub struct DisputeId {
     pub dispute_id: String,
 }
 
-#[derive(Default, Debug, Deserialize)]
+#[derive(Default, Debug)]
 pub struct DisputePayload {
     pub amount: String,
     pub currency: String,
@@ -16,9 +17,9 @@ pub struct DisputePayload {
     pub connector_dispute_id: String,
     pub connector_reason: Option<String>,
     pub connector_reason_code: Option<String>,
-    pub challenge_required_by: Option<String>,
-    pub created_at: Option<String>,
-    pub updated_at: Option<String>,
+    pub challenge_required_by: Option<PrimitiveDateTime>,
+    pub created_at: Option<PrimitiveDateTime>,
+    pub updated_at: Option<PrimitiveDateTime>,
 }
 
 #[derive(Debug, Clone)]
@@ -45,4 +46,16 @@ pub trait SubmitEvidence:
 {
 }
 
-pub trait Dispute: super::ConnectorCommon + AcceptDispute + SubmitEvidence {}
+#[derive(Debug, Clone)]
+pub struct Defend;
+
+pub trait DefendDispute:
+    services::ConnectorIntegration<
+    Defend,
+    types::DefendDisputeRequestData,
+    types::DefendDisputeResponse,
+>
+{
+}
+
+pub trait Dispute: super::ConnectorCommon + AcceptDispute + SubmitEvidence + DefendDispute {}
