@@ -860,13 +860,13 @@ impl<'a> TryFrom<&api_models::payments::BankDebitData> for AdyenPaymentMethod<'a
                 account_number,
                 routing_number,
                 billing_details: _,
-                card_holder_name,
+                bank_account_holder_name,
             } => Ok(AdyenPaymentMethod::AchDirectDebit(Box::new(
                 AchDirectDebitData {
                     payment_type: PaymentType::AchDirectDebit,
                     bank_account_number: account_number.clone(),
                     bank_location_id: routing_number.clone(),
-                    owner_name: card_holder_name.clone(),
+                    owner_name: bank_account_holder_name.clone(),
                 },
             ))),
 

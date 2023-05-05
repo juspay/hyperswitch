@@ -477,7 +477,7 @@ pub enum BankDebitData {
         routing_number: Secret<String>,
 
         #[schema(value_type = String, example = "John Test")]
-        card_holder_name: Secret<String>,
+        bank_account_holder_name: Secret<String>,
     },
     SepaBankDebit {
         /// Billing details for bank debit
