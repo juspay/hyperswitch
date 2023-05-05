@@ -107,8 +107,8 @@ impl ConnectorErrorExt for error_stack::Report<errors::ConnectorError> {
                         "payment_method_data, payment_method_type and payment_experience does not match",
                 }
             },
-            errors::ConnectorError::NotSupported { payment_method, connector, payment_experience } => {
-                errors::ApiErrorResponse::NotSupported { message: format!("Payment method type {payment_method} is not supported by {connector} through payment experience {payment_experience}") }
+            errors::ConnectorError::NotSupported { message, connector, payment_experience } => {
+                errors::ApiErrorResponse::NotSupported { message: format!("{message} is not supported by {connector} through payment experience {payment_experience}") }
             },
             errors::ConnectorError::FlowNotSupported{ flow, connector } => {
                 errors::ApiErrorResponse::FlowNotSupported { flow: flow.to_owned(), connector: connector.to_owned() }
