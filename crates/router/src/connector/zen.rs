@@ -581,3 +581,6 @@ impl services::ConnectorRedirectResponse for Zen {
         Ok(payments::CallConnectorAction::Trigger)
     }
 }
+
+impl api::Validator<types::api::payments::Authorize> for Zen {}
+impl api::Validator<types::api::Global> for Zen {}

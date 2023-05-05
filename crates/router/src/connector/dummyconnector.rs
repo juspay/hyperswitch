@@ -505,3 +505,6 @@ impl api::IncomingWebhook for DummyConnector {
         Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
     }
 }
+
+impl api::Validator<types::api::payments::Authorize> for DummyConnector {}
+impl api::Validator<types::api::Global> for DummyConnector {}

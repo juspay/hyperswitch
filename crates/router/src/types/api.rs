@@ -152,7 +152,7 @@ impl<
             + ConnectorTransactionId
             + Validator<Global>
             + Dispute
-            + FileUpload
+            + FileUpload,
     > Connector for T
 {
 }
