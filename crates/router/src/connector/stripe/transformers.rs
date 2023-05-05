@@ -633,6 +633,7 @@ fn get_bank_debit_data(
         payments::BankDebitData::SepaBankDebit {
             billing_details,
             iban,
+            ..
         } => {
             let sepa_data = BankDebitData::Sepa {
                 iban: iban.to_owned(),

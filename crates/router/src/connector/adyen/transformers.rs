@@ -263,6 +263,8 @@ pub enum AdyenPaymentMethod<'a> {
     Walley(Box<WalleyData>),
     WeChatPayWeb(Box<WeChatPayWebData>),
     AchDirectDebit(Box<AchDirectDebitData>),
+    #[serde(rename = "sepadirectdebit")]
+    SepaDirectDebit(Box<SepaDirectDebitData>),
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -273,6 +275,15 @@ pub struct AchDirectDebitData {
     bank_account_number: Secret<String>,
     bank_location_id: Secret<String>,
     owner_name: Secret<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SepaDirectDebitData {
+    #[serde(rename = "sepa.ownerName")]
+    owner_name: Secret<String>,
+    #[serde(rename = "sepa.ibanNumber")]
+    iban_number: Secret<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -619,6 +630,7 @@ pub enum PaymentType {
     WeChatPayWeb,
     #[serde(rename = "ach")]
     AchDirectDebit,
+    SepaDirectDebit,
 }
 
 pub struct AdyenTestBankNames<'a>(&'a str);
@@ -869,7 +881,16 @@ impl<'a> TryFrom<&api_models::payments::BankDebitData> for AdyenPaymentMethod<'a
                     owner_name: card_holder_name.clone(),
                 },
             ))),
-
+            payments::BankDebitData::SepaBankDebit {
+                billing_details: _,
+                iban,
+                card_holder_name,
+            } => Ok(AdyenPaymentMethod::SepaDirectDebit(Box::new(
+                SepaDirectDebitData {
+                    owner_name: card_holder_name.clone(),
+                    iban_number: iban.clone(),
+                },
+            ))),
             _ => Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into()),
         }
     }

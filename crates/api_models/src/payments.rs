@@ -485,6 +485,9 @@ pub enum BankDebitData {
         /// International bank account number (iban) for SEPA
         #[schema(value_type = String, example = "DE89370400440532013000")]
         iban: Secret<String>,
+        /// Owner name for bank debit
+        #[schema(value_type = String, example = "A. Schneider")]
+        card_holder_name: Secret<String>,
     },
     BecsBankDebit {
         /// Billing details for bank debit
