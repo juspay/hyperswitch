@@ -487,7 +487,7 @@ pub enum BankDebitData {
         iban: Secret<String>,
         /// Owner name for bank debit
         #[schema(value_type = String, example = "A. Schneider")]
-        card_holder_name: Secret<String>,
+        bank_account_holder_name: Secret<String>,
     },
     BecsBankDebit {
         /// Billing details for bank debit

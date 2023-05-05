@@ -884,10 +884,10 @@ impl<'a> TryFrom<&api_models::payments::BankDebitData> for AdyenPaymentMethod<'a
             payments::BankDebitData::SepaBankDebit {
                 billing_details: _,
                 iban,
-                card_holder_name,
+                bank_account_holder_name,
             } => Ok(AdyenPaymentMethod::SepaDirectDebit(Box::new(
                 SepaDirectDebitData {
-                    owner_name: card_holder_name.clone(),
+                    owner_name: bank_account_holder_name.clone(),
                     iban_number: iban.clone(),
                 },
             ))),
