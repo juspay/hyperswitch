@@ -12,7 +12,7 @@ use std::{
 use actix_web::{body, HttpRequest, HttpResponse, Responder};
 use common_utils::errors::ReportSwitchExt;
 use error_stack::{report, IntoReport, Report, ResultExt};
-use masking::{ExposeOptionInterface, PeekInterface};
+use masking::{ExposeInterface, ExposeOptionInterface, PeekInterface};
 use router_env::{instrument, tracing, Tag};
 use serde::Serialize;
 use serde_json::json;
@@ -456,8 +456,16 @@ pub enum ApplicationResponse<R> {
     StatusOk,
     TextPlain(String),
     JsonForRedirection(api::RedirectionResponse),
-    Form(RedirectForm),
+    Form(Box<RedirectionFormData>),
     FileData((Vec<u8>, mime::Mime)),
+}
+
+#[derive(Debug, Eq, PartialEq)]
+pub struct RedirectionFormData {
+    pub redirect_form: RedirectForm,
+    pub payment_method_data: Option<api::PaymentMethodData>,
+    pub amount: String,
+    pub currency: String,
 }
 
 #[derive(Debug, Eq, PartialEq)]
@@ -596,10 +604,14 @@ where
                 ),
             }
         }
-        Ok(ApplicationResponse::Form(response)) => build_redirection_form(&response)
-            .respond_to(request)
-            .map_into_boxed_body(),
-
+        Ok(ApplicationResponse::Form(redirection_data)) => build_redirection_form(
+            &redirection_data.redirect_form,
+            redirection_data.payment_method_data,
+            redirection_data.amount,
+            redirection_data.currency,
+        )
+        .respond_to(request)
+        .map_into_boxed_body(),
         Err(error) => log_and_return_error_response(error),
     };
 
@@ -704,7 +716,12 @@ impl Authenticate for api_models::payments::PaymentsCancelRequest {}
 impl Authenticate for api_models::payments::PaymentsCaptureRequest {}
 impl Authenticate for api_models::payments::PaymentsStartRequest {}
 
-pub fn build_redirection_form(form: &RedirectForm) -> maud::Markup {
+pub fn build_redirection_form(
+    form: &RedirectForm,
+    payment_method_data: Option<api_models::payments::PaymentMethodData>,
+    amount: String,
+    currency: String,
+) -> maud::Markup {
     use maud::PreEscaped;
 
     match form {
@@ -771,15 +788,18 @@ pub fn build_redirection_form(form: &RedirectForm) -> maud::Markup {
         RedirectForm::BlueSnap {
             payment_fields_token,
         } => {
-            let card_details = format!(
-                "var newCard={{
-                ccNumber: \"4000000000001091\",
-                cvv: \"123\",
-                expDate: \"01/2026\",
-                amount: 10,
-                currency: \"USD\"
-              }};"
-            );
+            let mut card_details = "".to_string();
+            if let Some(api::PaymentMethodData::Card(ccard)) = payment_method_data {
+                card_details = format!(
+                    "var newCard={{ccNumber: \"{}\",cvv: \"{}\",expDate: \"{}/{}\",amount: {},currency: \"{}\"}};",
+                    ccard.card_number.expose(),
+                    ccard.card_cvc.expose(),
+                    ccard.card_exp_month.clone().expose(),
+                    ccard.card_exp_year.expose(),
+                    amount,
+                    currency
+                );
+            };
             maud::html! {
             (maud::DOCTYPE)
             html {
@@ -820,7 +840,7 @@ pub fn build_redirection_form(form: &RedirectForm) -> maud::Markup {
                         var i=document.createElement('input');
                         i.type='hidden';
                         i.name='authentication_response';
-                        i.value=sdkResponse;
+                        i.value=JSON.stringify(sdkResponse);
                         f.appendChild(i);
                         document.body.appendChild(f);
                         f.submit();

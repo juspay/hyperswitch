@@ -63,6 +63,7 @@ pub trait RouterData {
     fn is_three_ds(&self) -> bool;
     fn get_payment_method_token(&self) -> Result<String, Error>;
     fn get_customer_id(&self) -> Result<String, Error>;
+    fn get_connector_customer_id(&self) -> Result<String, Error>;
 }
 
 impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Response> {
@@ -150,6 +151,11 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
         self.customer_id
             .to_owned()
             .ok_or_else(missing_field_err("customer_id"))
+    }
+    fn get_connector_customer_id(&self) -> Result<String, Error> {
+        self.connector_customer
+            .to_owned()
+            .ok_or_else(missing_field_err("connector_customer_id"))
     }
 }
 
@@ -642,9 +648,11 @@ pub fn to_currency_base_unit(
     amount: i64,
     currency: storage_models::enums::Currency,
 ) -> Result<String, error_stack::Report<errors::ConnectorError>> {
-    let amount_u32 = u32::try_from(amount)
-        .into_report()
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+    let amount_u32 = u32::try_from(amount).into_report().change_context(
+        errors::ValidationError::InvalidValue {
+            message: "amount".to_string(),
+        },
+    )?;
     let amount_f64 = f64::from(amount_u32);
     let amount = match currency {
         storage_models::enums::Currency::JPY | storage_models::enums::Currency::KRW => amount_f64,
