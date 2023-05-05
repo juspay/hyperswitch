@@ -3,7 +3,10 @@ mod transformers;
 use std::fmt::Debug;
 
 use base64::Engine;
-use common_utils::crypto;
+use common_utils::{
+    crypto,
+    ext_traits::{StringExt, ValueExt},
+};
 use error_stack::{IntoReport, ResultExt};
 use transformers as bluesnap;
 
@@ -985,12 +988,25 @@ impl services::ConnectorRedirectResponse for Bluesnap {
         &self,
         _query_params: &str,
         json_payload: Option<serde_json::Value>,
-        action: services::PaymentAction,
+        _action: services::PaymentAction,
     ) -> CustomResult<payments::CallConnectorAction, errors::ConnectorError> {
-        match action {
-            services::PaymentAction::PSync | services::PaymentAction::CompleteAuthorize => {
-                Ok(payments::CallConnectorAction::Trigger)
-            }
+        let redirection_response: bluesnap::BluesnapRedirectionResponse = json_payload
+            .ok_or(errors::ConnectorError::MissingRequiredField {
+                field_name: "bluesnap_redirection_response",
+            })?
+            .parse_value("BluesnapRedirectionResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        let redirection_result: bluesnap::BluesnapThreeDsResult = redirection_response
+            .authentication_response
+            .parse_struct("BluesnapThreeDsResult")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        match redirection_result.status.as_str() {
+            "Success" => Ok(payments::CallConnectorAction::Trigger),
+            _ => Ok(payments::CallConnectorAction::StatusUpdate(
+                enums::AttemptStatus::AuthenticationFailed,
+            )),
         }
     }
 }

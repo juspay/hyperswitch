@@ -18,7 +18,7 @@ use crate::{
     core::errors::{self, CustomResult},
     pii::PeekInterface,
     types::{self, api, PaymentsCancelData, ResponseId},
-    utils::{OptionExt, ValueExt},
+    utils::{self, OptionExt, ValueExt},
 };
 
 pub fn missing_field_err(
@@ -566,9 +566,9 @@ pub fn get_http_header<'a>(
     get_header_field(headers.get(key))
 }
 
-fn get_header_field<'a>(
-    field: Option<&'a http::HeaderValue>,
-) -> CustomResult<&'a str, errors::ConnectorError> {
+fn get_header_field(
+    field: Option<&http::HeaderValue>,
+) -> CustomResult<&str, errors::ConnectorError> {
     field
         .map(|header_value| {
             header_value
@@ -648,21 +648,8 @@ pub fn to_currency_base_unit(
     amount: i64,
     currency: storage_models::enums::Currency,
 ) -> Result<String, error_stack::Report<errors::ConnectorError>> {
-    let amount_u32 = u32::try_from(amount).into_report().change_context(
-        errors::ValidationError::InvalidValue {
-            message: "amount".to_string(),
-        },
-    )?;
-    let amount_f64 = f64::from(amount_u32);
-    let amount = match currency {
-        storage_models::enums::Currency::JPY | storage_models::enums::Currency::KRW => amount_f64,
-        storage_models::enums::Currency::BHD
-        | storage_models::enums::Currency::JOD
-        | storage_models::enums::Currency::KWD
-        | storage_models::enums::Currency::OMR => amount_f64 / 1000.00,
-        _ => amount_f64 / 100.00,
-    };
-    Ok(format!("{amount:.2}"))
+    utils::to_currency_base_unit(amount, currency)
+        .change_context(errors::ConnectorError::RequestEncodingFailed)
 }
 
 pub fn str_to_f32<S>(value: &str, serializer: S) -> Result<S::Ok, S::Error>

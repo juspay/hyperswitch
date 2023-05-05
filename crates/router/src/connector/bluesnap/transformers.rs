@@ -173,6 +173,9 @@ impl TryFrom<&types::PaymentsCompleteAuthorizeRouterData> for BluesnapPaymentsRe
             three_d_secure: Some(BluesnapThreeDSecureInfo {
                 three_d_secure_reference_id: redirection_result
                     .three_d_secure
+                    .ok_or(errors::ConnectorError::MissingRequiredField {
+                        field_name: "three_d_secure",
+                    })?
                     .three_d_secure_reference_id,
             }),
         })
@@ -181,13 +184,14 @@ impl TryFrom<&types::PaymentsCompleteAuthorizeRouterData> for BluesnapPaymentsRe
 
 #[derive(Debug, Deserialize, PartialEq)]
 pub struct BluesnapRedirectionResponse {
-    authentication_response: String,
+    pub authentication_response: String,
 }
 
 #[derive(Debug, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct BluesnapThreeDsResult {
-    three_d_secure: BluesnapThreeDsReference,
+    three_d_secure: Option<BluesnapThreeDsReference>,
+    pub status: String,
 }
 
 #[derive(Debug, Deserialize, PartialEq)]
