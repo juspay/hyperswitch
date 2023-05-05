@@ -8,13 +8,18 @@ use crate::{
 };
 
 //TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Serialize, Eq, PartialEq)]
+#[derive(Debug, Serialize, Eq, PartialEq)]
 pub struct DummyConnectorPaymentsRequest {
     amount: i64,
-    card: DummyConnectorCard,
+    payment_method_data: Dummyconnector1PaymentMethodData,
 }
 
-#[derive(Default, Debug, Serialize, Eq, PartialEq)]
+#[derive(Debug, serde::Serialize, Eq, PartialEq)]
+pub enum Dummyconnector1PaymentMethodData {
+    Card(DummyConnectorCard),
+}
+
+#[derive(Debug, Serialize, Eq, PartialEq)]
 pub struct DummyConnectorCard {
     name: Secret<String>,
     number: Secret<String, common_utils::pii::CardNumber>,
@@ -39,7 +44,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for DummyConnectorPaymentsRequ
                 };
                 Ok(Self {
                     amount: item.request.amount,
-                    card,
+                    payment_method_data: Dummyconnector1PaymentMethodData::Card(card),
                 })
             }
             _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
@@ -137,7 +142,7 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for DummyConnectorRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
         Ok(Self {
-            amount: item.request.amount,
+            amount: item.request.refund_amount,
         })
     }
 }
@@ -146,6 +151,7 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for DummyConnectorRefundRequest {
 
 #[allow(dead_code)]
 #[derive(Debug, Serialize, Default, Deserialize, Clone)]
+#[serde(rename_all = "lowercase")]
 pub enum RefundStatus {
     Succeeded,
     Failed,
@@ -208,7 +214,11 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
 //TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
 pub struct DummyConnectorErrorResponse {
-    pub status_code: u16,
+    pub error: DummyConnectorErrorData,
+}
+
+#[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
+pub struct DummyConnectorErrorData {
     pub code: String,
     pub message: String,
     pub reason: Option<String>,
