@@ -5,7 +5,7 @@ pub use storage_models::payment_attempt::{
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct RoutingData {
     pub routed_through: Option<String>,
-    pub algorithm: Option<api_models::admin::RoutingAlgorithm>,
+    pub algorithm: Option<api_models::admin::StraightThroughAlgorithm>,
 }
 
 #[cfg(feature = "kv_store")]

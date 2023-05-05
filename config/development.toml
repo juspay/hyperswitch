@@ -62,6 +62,7 @@ cards = [
     "coinbase",
     "cybersource",
     "dlocal",
+    "dummyconnector",
     "fiserv",
     "forte",
     "globalpay",
@@ -107,6 +108,7 @@ checkout.base_url = "https://api.sandbox.checkout.com/"
 coinbase.base_url = "https://api.commerce.coinbase.com"
 cybersource.base_url = "https://apitest.cybersource.com/"
 dlocal.base_url = "https://sandbox.dlocal.com/"
+dummyconnector.base_url = "http://localhost:8080/dummy-connector"
 fiserv.base_url = "https://cert.api.fiservapps.com/"
 forte.base_url = "https://sandbox.forte.net/api/v3"
 globalpay.base_url = "https://apis.sandbox.globalpay.com/ucp/"
@@ -217,6 +219,13 @@ apple_pay = { country = "AU,CN,HK,JP,MO,MY,NZ,SG,TW,AM,AT,AZ,BY,BE,BG,HR,CY,CZ,D
 bucket_name = ""
 region = ""
 
+[pm_filters.forte]
+credit = {currency = "USD"}
+debit = {currency = "USD"}
+
 [tokenization]
 stripe = { long_lived_token = false, payment_method = "wallet" }
 checkout = { long_lived_token = false, payment_method = "wallet" }
+
+[connector_customer]
+connector_list = "stripe"
