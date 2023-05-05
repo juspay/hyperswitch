@@ -2,8 +2,6 @@ use common_utils::{
     crypto::{Encryptable, GcmAes256},
     ext_traits::ValueExt,
 };
-
-
 use error_stack::ResultExt;
 use router_env::{instrument, tracing};
 use storage_models::errors as storage_errors;

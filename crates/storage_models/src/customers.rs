@@ -1,4 +1,4 @@
-use common_utils::{pii};
+use common_utils::pii;
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
 use time::PrimitiveDateTime;
 

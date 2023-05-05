@@ -1,5 +1,6 @@
 use api_models::customers;
 pub use api_models::customers::{CustomerDeleteResponse, CustomerId, CustomerRequest};
+use error_stack::ResultExt;
 use serde::Serialize;
 
 use crate::{
@@ -9,8 +10,6 @@ use crate::{
     types::domain,
     utils::{self, ValidateCall},
 };
-
-use error_stack::ResultExt;
 
 newtype!(
     pub CustomerResponse = customers::CustomerResponse,

@@ -99,7 +99,7 @@ impl From<api::CustomerResponse> for CreateCustomerResponse {
                 },
             ),
             description: cust.description,
-            email: cust.email.map(|inner|  Email(inner.into_inner())),
+            email: cust.email.map(|inner| Email(inner.into_inner())),
             metadata: cust.metadata,
             name: cust.name.map(Encryptable::into_inner),
             phone: cust.phone.map(Encryptable::into_inner),
