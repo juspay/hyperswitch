@@ -1,5 +1,5 @@
 use base64::Engine;
-use common_utils::ext_traits::{StringExt, ValueExt};
+use common_utils::{ext_traits::{StringExt, ValueExt}, pii::Email};
 use error_stack::ResultExt;
 use serde::{Deserialize, Serialize};
 
@@ -265,7 +265,7 @@ impl TryFrom<&types::ConnectorAuthType> for BluesnapAuthType {
 #[derive(Debug, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct BluesnapCustomerRequest {
-    email: Option<Secret<String, pii::Email>>,
+    email: Option<Email>,
 }
 
 impl TryFrom<&types::ConnectorCustomerRouterData> for BluesnapCustomerRequest {

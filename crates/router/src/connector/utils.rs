@@ -662,6 +662,14 @@ pub fn to_currency_base_unit(
         .change_context(errors::ConnectorError::RequestEncodingFailed)
 }
 
+pub fn to_currency_base_unit_asf64(
+    amount: i64,
+    currency: storage_models::enums::Currency,
+) -> Result<f64, error_stack::Report<errors::ConnectorError>> {
+    utils::to_currency_base_unit_asf64(amount, currency)
+        .change_context(errors::ConnectorError::RequestEncodingFailed)
+}
+
 pub fn str_to_f32<S>(value: &str, serializer: S) -> Result<S::Ok, S::Error>
 where
     S: Serializer,
