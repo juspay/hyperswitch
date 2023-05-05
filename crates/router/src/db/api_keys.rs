@@ -16,14 +16,20 @@ pub trait ApiKeyInterface {
 
     async fn update_api_key(
         &self,
+        merchant_id: String,
         key_id: String,
         api_key: storage::ApiKeyUpdate,
     ) -> CustomResult<storage::ApiKey, errors::StorageError>;
 
-    async fn revoke_api_key(&self, key_id: &str) -> CustomResult<bool, errors::StorageError>;
-
-    async fn find_api_key_by_key_id_optional(
+    async fn revoke_api_key(
         &self,
+        merchant_id: &str,
+        key_id: &str,
+    ) -> CustomResult<bool, errors::StorageError>;
+
+    async fn find_api_key_by_merchant_id_key_id_optional(
+        &self,
+        merchant_id: &str,
         key_id: &str,
     ) -> CustomResult<Option<storage::ApiKey>, errors::StorageError>;
 
@@ -56,30 +62,36 @@ impl ApiKeyInterface for Store {
 
     async fn update_api_key(
         &self,
+        merchant_id: String,
         key_id: String,
         api_key: storage::ApiKeyUpdate,
     ) -> CustomResult<storage::ApiKey, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
-        storage::ApiKey::update_by_key_id(&conn, key_id, api_key)
+        storage::ApiKey::update_by_merchant_id_key_id(&conn, merchant_id, key_id, api_key)
             .await
             .map_err(Into::into)
             .into_report()
     }
 
-    async fn revoke_api_key(&self, key_id: &str) -> CustomResult<bool, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
-        storage::ApiKey::revoke_by_key_id(&conn, key_id)
-            .await
-            .map_err(Into::into)
-            .into_report()
-    }
-
-    async fn find_api_key_by_key_id_optional(
+    async fn revoke_api_key(
         &self,
+        merchant_id: &str,
+        key_id: &str,
+    ) -> CustomResult<bool, errors::StorageError> {
+        let conn = connection::pg_connection_write(self).await?;
+        storage::ApiKey::revoke_by_merchant_id_key_id(&conn, merchant_id, key_id)
+            .await
+            .map_err(Into::into)
+            .into_report()
+    }
+
+    async fn find_api_key_by_merchant_id_key_id_optional(
+        &self,
+        merchant_id: &str,
         key_id: &str,
     ) -> CustomResult<Option<storage::ApiKey>, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
-        storage::ApiKey::find_optional_by_key_id(&conn, key_id)
+        storage::ApiKey::find_optional_by_merchant_id_key_id(&conn, merchant_id, key_id)
             .await
             .map_err(Into::into)
             .into_report()
@@ -122,6 +134,7 @@ impl ApiKeyInterface for MockDb {
 
     async fn update_api_key(
         &self,
+        _merchant_id: String,
         _key_id: String,
         _api_key: storage::ApiKeyUpdate,
     ) -> CustomResult<storage::ApiKey, errors::StorageError> {
@@ -129,13 +142,18 @@ impl ApiKeyInterface for MockDb {
         Err(errors::StorageError::MockDbError)?
     }
 
-    async fn revoke_api_key(&self, _key_id: &str) -> CustomResult<bool, errors::StorageError> {
+    async fn revoke_api_key(
+        &self,
+        _merchant_id: &str,
+        _key_id: &str,
+    ) -> CustomResult<bool, errors::StorageError> {
         // [#172]: Implement function for `MockDb`
         Err(errors::StorageError::MockDbError)?
     }
 
-    async fn find_api_key_by_key_id_optional(
+    async fn find_api_key_by_merchant_id_key_id_optional(
         &self,
+        _merchant_id: &str,
         _key_id: &str,
     ) -> CustomResult<Option<storage::ApiKey>, errors::StorageError> {
         // [#172]: Implement function for `MockDb`

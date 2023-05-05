@@ -1,6 +1,6 @@
 pub mod types;
 
-use actix_web::{get, post, web, HttpRequest, HttpResponse};
+use actix_web::{web, HttpRequest, HttpResponse};
 use error_stack::report;
 use router_env::{instrument, tracing};
 
@@ -13,7 +13,6 @@ use crate::{
 };
 
 #[instrument(skip_all)]
-#[post("")]
 pub async fn refund_create(
     state: web::Data<routes::AppState>,
     qs_config: web::Data<serde_qs::Config>,
@@ -50,7 +49,46 @@ pub async fn refund_create(
 }
 
 #[instrument(skip_all)]
-#[get("/{refund_id}")]
+pub async fn refund_retrieve_with_gateway_creds(
+    state: web::Data<routes::AppState>,
+    qs_config: web::Data<serde_qs::Config>,
+    req: HttpRequest,
+    form_payload: web::Bytes,
+) -> HttpResponse {
+    let refund_request = match qs_config
+        .deserialize_bytes(&form_payload)
+        .map_err(|err| report!(errors::StripeErrorCode::from(err)))
+    {
+        Ok(payload) => payload,
+        Err(err) => return api::log_and_return_error_response(err),
+    };
+    wrap::compatibility_api_wrap::<
+        _,
+        _,
+        _,
+        _,
+        _,
+        _,
+        types::StripeRefundResponse,
+        errors::StripeErrorCode,
+    >(
+        state.get_ref(),
+        &req,
+        refund_request,
+        |state, merchant_account, refund_request| {
+            refunds::refund_response_wrapper(
+                state,
+                merchant_account,
+                refund_request,
+                refunds::refund_retrieve_core,
+            )
+        },
+        &auth::ApiKeyAuth,
+    )
+    .await
+}
+
+#[instrument(skip_all)]
 pub async fn refund_retrieve(
     state: web::Data<routes::AppState>,
     req: HttpRequest,
@@ -58,6 +96,7 @@ pub async fn refund_retrieve(
 ) -> HttpResponse {
     let refund_request = refund_types::RefundsRetrieveRequest {
         refund_id: path.into_inner(),
+        force_sync: Some(true),
         merchant_connector_details: None,
     };
     wrap::compatibility_api_wrap::<
@@ -87,7 +126,6 @@ pub async fn refund_retrieve(
 }
 
 #[instrument(skip_all)]
-#[post("/{refund_id}")]
 pub async fn refund_update(
     state: web::Data<routes::AppState>,
     req: HttpRequest,

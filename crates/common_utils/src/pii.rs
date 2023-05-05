@@ -1,13 +1,25 @@
 //! Personal Identifiable Information protection.
 
-use std::{convert::AsRef, fmt};
+use std::{convert::AsRef, fmt, str::FromStr};
 
-use masking::{Strategy, WithType};
+use diesel::{
+    backend,
+    backend::Backend,
+    deserialize,
+    deserialize::FromSql,
+    prelude::*,
+    serialize::{Output, ToSql},
+    sql_types, AsExpression,
+};
+use masking::{Secret, Strategy, WithType};
 
-use crate::validation::validate_email;
+use crate::{errors::ValidationError, validation::validate_email};
+
+/// A string constant representing a redacted or masked value.
+pub const REDACTED: &str = "Redacted";
 
 /// Type alias for serde_json value which has Secret Information
-pub type SecretSerdeValue = masking::Secret<serde_json::Value>;
+pub type SecretSerdeValue = Secret<serde_json::Value>;
 
 /// Card number
 #[derive(Debug)]
@@ -87,26 +99,73 @@ where
     }
 }
 
-/// Email address
+/// Strategy for masking Email
 #[derive(Debug)]
-pub struct Email;
+pub struct EmailStrategy;
 
-impl<T> Strategy<T> for Email
+impl<T> Strategy<T> for EmailStrategy
 where
-    T: AsRef<str>,
+    T: AsRef<str> + std::fmt::Debug,
 {
     fn fmt(val: &T, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let val_str: &str = val.as_ref();
-        let is_valid = validate_email(val_str);
-
-        if is_valid.is_err() {
-            return WithType::fmt(val, f);
+        match val_str.split_once('@') {
+            Some((a, b)) => write!(f, "{}@{}", "*".repeat(a.len()), b),
+            None => WithType::fmt(val, f),
         }
+    }
+}
+/// Email address
+#[derive(
+    serde::Serialize,
+    serde::Deserialize,
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    Default,
+    Queryable,
+    AsExpression,
+)]
+#[diesel(sql_type = diesel::sql_types::Text)]
+pub struct Email(Secret<String, EmailStrategy>);
 
-        if let Some((a, b)) = val_str.split_once('@') {
-            write!(f, "{}@{}", "*".repeat(a.len()), b)
-        } else {
-            WithType::fmt(val, f)
+impl<DB> FromSql<sql_types::Text, DB> for Email
+where
+    DB: Backend,
+    String: FromSql<sql_types::Text, DB>,
+{
+    fn from_sql(bytes: backend::RawValue<'_, DB>) -> deserialize::Result<Self> {
+        let val = String::from_sql(bytes)?;
+        Ok(Self::from_str(val.as_str())?)
+    }
+}
+
+impl<DB> ToSql<sql_types::Text, DB> for Email
+where
+    DB: Backend,
+    String: ToSql<sql_types::Text, DB>,
+{
+    fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, DB>) -> diesel::serialize::Result {
+        self.0.to_sql(out)
+    }
+}
+
+impl FromStr for Email {
+    type Err = ValidationError;
+
+    fn from_str(email: &str) -> Result<Self, Self::Err> {
+        if email.eq(REDACTED) {
+            return Ok(Self(Secret::new(email.to_string())));
+        }
+        match validate_email(email) {
+            Ok(_) => {
+                let secret = Secret::<String, EmailStrategy>::new(email.to_string());
+                Ok(Self(secret))
+            }
+            Err(_) => Err(ValidationError::InvalidValue {
+                message: "Invalid email address format".into(),
+            }),
         }
     }
 }
@@ -139,9 +198,12 @@ where
 
 #[cfg(test)]
 mod pii_masking_strategy_tests {
-    use masking::Secret;
+    use std::str::FromStr;
+
+    use masking::{ExposeInterface, Secret};
 
     use super::{CardNumber, ClientSecret, Email, IpAddress};
+    use crate::pii::{EmailStrategy, REDACTED};
 
     #[test]
     fn test_valid_card_number_masking() {
@@ -152,7 +214,7 @@ mod pii_masking_strategy_tests {
     #[test]
     fn test_invalid_card_number_masking() {
         let secret: Secret<String, CardNumber> = Secret::new("1234567890".to_string());
-        assert_eq!("123456****", format!("{secret:?}"));
+        assert_eq!("*** alloc::string::String ***", format!("{secret:?}"));
     }
 
     /*
@@ -174,17 +236,44 @@ mod pii_masking_strategy_tests {
 
     #[test]
     fn test_valid_email_masking() {
-        let secret: Secret<String, Email> = Secret::new("myemail@gmail.com".to_string());
-        assert_eq!("*******@gmail.com", format!("{secret:?}"));
+        let secret: Secret<String, EmailStrategy> = Secret::new("example@test.com".to_string());
+        assert_eq!("*******@test.com", format!("{secret:?}"));
+
+        let secret: Secret<String, EmailStrategy> = Secret::new("username@gmail.com".to_string());
+        assert_eq!("********@gmail.com", format!("{secret:?}"));
     }
 
     #[test]
     fn test_invalid_email_masking() {
-        let secret: Secret<String, Email> = Secret::new("myemailgmail.com".to_string());
+        let secret: Secret<String, EmailStrategy> = Secret::new("myemailgmail.com".to_string());
         assert_eq!("*** alloc::string::String ***", format!("{secret:?}"));
 
-        let secret: Secret<String, Email> = Secret::new("myemail@gmail@com".to_string());
+        let secret: Secret<String, EmailStrategy> = Secret::new("myemail$gmail.com".to_string());
         assert_eq!("*** alloc::string::String ***", format!("{secret:?}"));
+    }
+
+    #[test]
+    fn test_valid_newtype_email() {
+        let email_check: Result<Email, crate::errors::ValidationError> =
+            Email::from_str("example@abc.com");
+        assert!(email_check.is_ok());
+    }
+
+    #[test]
+    fn test_invalid_newtype_email() {
+        let email_check: Result<Email, crate::errors::ValidationError> =
+            Email::from_str("example@abc@com");
+        assert!(email_check.is_err());
+    }
+
+    #[test]
+    fn test_redacted_email() {
+        let email_result = Email::from_str(REDACTED);
+        assert!(email_result.is_ok());
+        if let Ok(email) = email_result {
+            let secret_value = email.0.expose();
+            assert_eq!(secret_value.as_str(), REDACTED);
+        }
     }
 
     #[test]

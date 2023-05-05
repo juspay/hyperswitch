@@ -10,6 +10,7 @@ use router::{
     routes, services,
     types::{self, api, storage::enums, AccessToken, PaymentAddress, RouterData},
 };
+use tokio::sync::oneshot;
 use wiremock::{Mock, MockServer};
 
 pub trait Connector {
@@ -49,9 +50,13 @@ pub trait ConnectorActions: Connector {
             },
             payment_info,
         );
-        let state =
-            routes::AppState::with_storage(Settings::new().unwrap(), StorageImpl::PostgresqlTest)
-                .await;
+        let tx: oneshot::Sender<()> = oneshot::channel().0;
+        let state = routes::AppState::with_storage(
+            Settings::new().unwrap(),
+            StorageImpl::PostgresqlTest,
+            tx,
+        )
+        .await;
         integration.execute_pretasks(&mut request, &state).await?;
         call_connector(request, integration).await
     }
@@ -70,9 +75,13 @@ pub trait ConnectorActions: Connector {
             },
             payment_info,
         );
-        let state =
-            routes::AppState::with_storage(Settings::new().unwrap(), StorageImpl::PostgresqlTest)
-                .await;
+        let tx: oneshot::Sender<()> = oneshot::channel().0;
+        let state = routes::AppState::with_storage(
+            Settings::new().unwrap(),
+            StorageImpl::PostgresqlTest,
+            tx,
+        )
+        .await;
         integration.execute_pretasks(&mut request, &state).await?;
         call_connector(request, integration).await
     }
@@ -355,6 +364,7 @@ pub trait ConnectorActions: Connector {
         RouterData {
             flow: PhantomData,
             merchant_id: self.get_name(),
+            customer_id: Some(self.get_name()),
             connector: self.get_name(),
             payment_id: uuid::Uuid::new_v4().to_string(),
             attempt_id: uuid::Uuid::new_v4().to_string(),
@@ -385,6 +395,7 @@ pub trait ConnectorActions: Connector {
             session_token: None,
             reference_id: None,
             payment_method_token: None,
+            connector_customer: None,
         }
     }
 
@@ -400,6 +411,7 @@ pub trait ConnectorActions: Connector {
             Ok(types::PaymentsResponseData::SessionTokenResponse { .. }) => None,
             Ok(types::PaymentsResponseData::TokenizationResponse { .. }) => None,
             Ok(types::PaymentsResponseData::TransactionUnresolvedResponse { .. }) => None,
+            Ok(types::PaymentsResponseData::ConnectorCustomerResponse { .. }) => None,
             Ok(types::PaymentsResponseData::ThreeDSEnrollmentResponse { .. }) => None,
             Err(_) => None,
         }
@@ -415,7 +427,8 @@ async fn call_connector<
     integration: services::BoxedConnectorIntegration<'_, T, Req, Resp>,
 ) -> Result<RouterData<T, Req, Resp>, Report<ConnectorError>> {
     let conf = Settings::new().unwrap();
-    let state = routes::AppState::with_storage(conf, StorageImpl::PostgresqlTest).await;
+    let tx: oneshot::Sender<()> = oneshot::channel().0;
+    let state = routes::AppState::with_storage(conf, StorageImpl::PostgresqlTest, tx).await;
     services::api::execute_connector_processing_step(
         &state,
         integration,
@@ -582,6 +595,7 @@ pub fn get_connector_transaction_id(
         Ok(types::PaymentsResponseData::SessionTokenResponse { .. }) => None,
         Ok(types::PaymentsResponseData::TokenizationResponse { .. }) => None,
         Ok(types::PaymentsResponseData::TransactionUnresolvedResponse { .. }) => None,
+        Ok(types::PaymentsResponseData::ConnectorCustomerResponse { .. }) => None,
         Ok(types::PaymentsResponseData::ThreeDSEnrollmentResponse { .. }) => None,
         Err(_) => None,
     }
@@ -596,6 +610,7 @@ pub fn get_connector_metadata(
             redirection_data: _,
             mandate_reference: _,
             connector_metadata,
+            network_txn_id: _,
         }) => connector_metadata,
         _ => None,
     }
