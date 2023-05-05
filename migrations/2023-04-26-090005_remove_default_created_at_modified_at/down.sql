@@ -45,10 +45,6 @@ ALTER COLUMN created_at SET DEFAULT now();
 ALTER TABLE payment_methods
 ALTER COLUMN created_at SET DEFAULT now();
 
--- MerchantKeystore
-ALTER TABLE merchantkeystore
-ALTER COLUMN created_at SET DEFAULT now();
-
 -- Payment Intent
 ALTER TABLE payment_intent
 ALTER COLUMN modified_at SET DEFAULT now();

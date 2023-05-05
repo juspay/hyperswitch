@@ -45,10 +45,6 @@ ALTER COLUMN created_at DROP DEFAULT;
 ALTER TABLE payment_methods
 ALTER COLUMN created_at DROP DEFAULT;
 
--- MerchantKeystore
-ALTER TABLE merchantkeystore
-ALTER COLUMN created_at DROP DEFAULT;
-
 -- Payment Intent
 ALTER TABLE payment_intent
 ALTER COLUMN modified_at DROP DEFAULT;
