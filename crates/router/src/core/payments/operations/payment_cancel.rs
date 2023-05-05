@@ -175,7 +175,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsCancelRequest> for 
         F: 'b + Send,
     {
         let cancellation_reason = payment_data.payment_attempt.cancellation_reason.clone();
-        let attempt_status_update =
+        let (intent_status_update, attempt_status_update) =
             if payment_data.payment_intent.status != enums::IntentStatus::RequiresCapture {
                 let payment_intent_update = storage::PaymentIntentUpdate::PGStatusUpdate {
                     status: enums::IntentStatus::Cancelled,
@@ -185,7 +185,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsCancelRequest> for 
                 (None, enums::AttemptStatus::VoidInitiated)
             };
 
-        if let Some(payment_intent_update) = attempt_status_update.0 {
+        if let Some(payment_intent_update) = intent_status_update {
             payment_data.payment_intent = db
                 .update_payment_intent(
                     payment_data.payment_intent,
@@ -199,7 +199,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsCancelRequest> for 
         db.update_payment_attempt_with_attempt_id(
             payment_data.payment_attempt.clone(),
             storage::PaymentAttemptUpdate::VoidUpdate {
-                status: attempt_status_update.1,
+                status: attempt_status_update,
                 cancellation_reason,
             },
             storage_scheme,
