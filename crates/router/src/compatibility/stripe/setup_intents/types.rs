@@ -14,7 +14,7 @@ use crate::{
     pii::{self, PeekInterface},
     types::{
         api::{self as api_types, admin, enums as api_enums},
-        transformers::{ForeignInto, ForeignTryInto},
+        transformers::{ForeignFrom, ForeignTryFrom},
     },
 };
 
@@ -149,12 +149,18 @@ impl TryFrom<StripeSetupIntentRequest> for payments::PaymentsRequest {
                     request_three_d_secure,
                     mandate_options,
                 }: payment_intent::StripePaymentMethodOptions = pmo;
-                (mandate_options, Some(request_three_d_secure.foreign_into()))
+                (
+                    Option::<payments::MandateData>::foreign_try_from((
+                        mandate_options,
+                        item.currency.to_owned(),
+                    ))?,
+                    Some(api_enums::AuthenticationType::foreign_from(
+                        request_three_d_secure,
+                    )),
+                )
             }
             None => (None, None),
         };
-        let mandate_data: Option<payments::MandateData> =
-            (mandate_options, item.currency.to_owned()).foreign_try_into()?;
         let request = Ok(Self {
             amount: Some(api_types::Amount::Zero),
             capture_method: None,
@@ -201,7 +207,7 @@ impl TryFrom<StripeSetupIntentRequest> for payments::PaymentsRequest {
             setup_future_usage: item.setup_future_usage,
             merchant_connector_details: item.merchant_connector_details,
             authentication_type,
-            mandate_data,
+            mandate_data: mandate_options,
             ..Default::default()
         });
         request
