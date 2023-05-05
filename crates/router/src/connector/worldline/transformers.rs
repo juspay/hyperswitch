@@ -108,7 +108,7 @@ pub struct RedirectPaymentMethod {
     pub payment_product_id: u16,
     pub redirection_data: RedirectionData,
     #[serde(flatten)]
-    pub payment_method_specfic_data: PaymentMethodSpecificData,
+    pub payment_method_specific_data: PaymentMethodSpecificData,
 }
 
 #[derive(Debug, Serialize)]
@@ -302,7 +302,7 @@ fn make_bank_redirect_request(
 ) -> Result<RedirectPaymentMethod, error_stack::Report<errors::ConnectorError>> {
     let return_url = req.router_return_url.clone();
     let redirection_data = RedirectionData { return_url };
-    let (payment_method_specfic_data, payment_product_id) = match bank_redirect {
+    let (payment_method_specific_data, payment_product_id) = match bank_redirect {
         payments::BankRedirectData::Giropay {
             billing_details,
             bank_account_iban,
@@ -335,7 +335,7 @@ fn make_bank_redirect_request(
     Ok(RedirectPaymentMethod {
         payment_product_id,
         redirection_data,
-        payment_method_specfic_data,
+        payment_method_specific_data,
     })
 }
 
