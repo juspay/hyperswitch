@@ -13,7 +13,3 @@ pub(crate) const ALPHABETS: [char; 62] = [
 
 /// TTL for token
 pub const TOKEN_TTL: i64 = 900;
-
-// General purpose base64 engines
-pub(crate) const BASE64_ENGINE: base64::engine::GeneralPurpose =
-    base64::engine::general_purpose::STANDARD;

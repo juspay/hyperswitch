@@ -1,13 +1,9 @@
 //! Utilities for cryptographic algorithms
-use base64::Engine;
 use error_stack::{IntoReport, ResultExt};
 use md5;
 use ring::{aead, hmac};
 
-use crate::{
-    consts,
-    errors::{self, CustomResult},
-};
+use crate::errors::{self, CustomResult};
 
 const RING_ERR_UNSPECIFIED: &str = "ring::error::Unspecified";
 
@@ -124,37 +120,6 @@ impl VerifySignature for HmacSha256 {
         let key = hmac::Key::new(hmac::HMAC_SHA256, secret);
 
         Ok(hmac::verify(&key, msg, signature).is_ok())
-    }
-}
-
-/// Represents the Base64 encoded HMAC-SHA-256 algorithm
-#[derive(Debug)]
-pub struct Base64HmacSha256;
-
-impl SignMessage for Base64HmacSha256 {
-    fn sign_message(
-        &self,
-        secret: &[u8],
-        msg: &[u8],
-    ) -> CustomResult<Vec<u8>, errors::CryptoError> {
-        let key = hmac::Key::new(hmac::HMAC_SHA256, secret);
-        let hash = hmac::sign(&key, msg);
-        let base64sign = consts::BASE64_ENGINE.encode(hash.as_ref());
-        Ok(base64sign.as_bytes().to_vec())
-    }
-}
-
-impl VerifySignature for Base64HmacSha256 {
-    fn verify_signature(
-        &self,
-        secret: &[u8],
-        signature: &[u8],
-        msg: &[u8],
-    ) -> CustomResult<bool, errors::CryptoError> {
-        let key = hmac::Key::new(hmac::HMAC_SHA256, secret);
-        let hash = hmac::sign(&key, msg);
-        let base64sign = consts::BASE64_ENGINE.encode(hash.as_ref());
-        Ok(base64sign.as_bytes() == signature)
     }
 }
 

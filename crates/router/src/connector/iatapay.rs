@@ -8,7 +8,7 @@ use error_stack::{IntoReport, ResultExt};
 use transformers as iatapay;
 
 use self::iatapay::IatapayPaymentsResponse;
-use super::utils;
+use super::utils::{self, base64_decode};
 use crate::{
     configs::settings,
     consts,
@@ -604,7 +604,7 @@ impl api::IncomingWebhook for Iatapay {
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn crypto::VerifySignature + Send>, errors::ConnectorError> {
-        Ok(Box::new(crypto::Base64HmacSha256))
+        Ok(Box::new(crypto::HmacSha256))
     }
 
     fn get_webhook_source_verification_signature(
@@ -613,7 +613,7 @@ impl api::IncomingWebhook for Iatapay {
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let base64_signature = utils::get_header_key_value("Authorization", request.headers)?;
         let base64_signature = base64_signature.replace("IATAPAY-HMAC-SHA256 ", "");
-        Ok(base64_signature.as_bytes().to_vec())
+        base64_decode(base64_signature)
     }
 
     fn get_webhook_source_verification_message(

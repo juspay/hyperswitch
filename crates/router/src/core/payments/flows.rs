@@ -101,7 +101,6 @@ macro_rules! default_imp_for_complete_authorize{
 }
 
 default_imp_for_complete_authorize!(
-    connector::Iatapay,
     connector::Aci,
     connector::Adyen,
     connector::Authorizedotnet,
@@ -113,6 +112,7 @@ default_imp_for_complete_authorize!(
     connector::Dlocal,
     connector::Fiserv,
     connector::Forte,
+    connector::Iatapay,
     connector::Klarna,
     connector::Multisafepay,
     connector::Nexinets,
@@ -193,7 +193,6 @@ macro_rules! default_imp_for_connector_redirect_response{
 }
 
 default_imp_for_connector_redirect_response!(
-    connector::Iatapay,
     connector::Aci,
     connector::Adyen,
     connector::Authorizedotnet,
@@ -204,6 +203,7 @@ default_imp_for_connector_redirect_response!(
     connector::Dlocal,
     connector::Fiserv,
     connector::Forte,
+    connector::Iatapay,
     connector::Klarna,
     connector::Multisafepay,
     connector::Nexinets,
@@ -225,7 +225,6 @@ macro_rules! default_imp_for_connector_request_id{
 }
 
 default_imp_for_connector_request_id!(
-    connector::Iatapay,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -240,6 +239,7 @@ default_imp_for_connector_request_id!(
     connector::Fiserv,
     connector::Forte,
     connector::Globalpay,
+    connector::Iatapay,
     connector::Klarna,
     connector::Mollie,
     connector::Multisafepay,
@@ -273,7 +273,6 @@ macro_rules! default_imp_for_accept_dispute{
 }
 
 default_imp_for_accept_dispute!(
-    connector::Iatapay,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -287,6 +286,7 @@ default_imp_for_accept_dispute!(
     connector::Fiserv,
     connector::Forte,
     connector::Globalpay,
+    connector::Iatapay,
     connector::Klarna,
     connector::Mollie,
     connector::Multisafepay,
@@ -322,7 +322,6 @@ macro_rules! default_imp_for_file_upload{
 }
 
 default_imp_for_file_upload!(
-    connector::Iatapay,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -336,6 +335,7 @@ default_imp_for_file_upload!(
     connector::Fiserv,
     connector::Forte,
     connector::Globalpay,
+    connector::Iatapay,
     connector::Klarna,
     connector::Mollie,
     connector::Multisafepay,
@@ -369,7 +369,6 @@ macro_rules! default_imp_for_submit_evidence{
 }
 
 default_imp_for_submit_evidence!(
-    connector::Iatapay,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -383,6 +382,7 @@ default_imp_for_submit_evidence!(
     connector::Fiserv,
     connector::Forte,
     connector::Globalpay,
+    connector::Iatapay,
     connector::Klarna,
     connector::Mollie,
     connector::Multisafepay,
