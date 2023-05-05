@@ -203,8 +203,10 @@ impl ConnectorData {
             "coinbase" => Ok(Box::new(&connector::Coinbase)),
             "cybersource" => Ok(Box::new(&connector::Cybersource)),
             "dlocal" => Ok(Box::new(&connector::Dlocal)),
+            #[cfg(feature = "dummy_connector")]
+            "dummyconnector" => Ok(Box::new(&connector::DummyConnector)),
             "fiserv" => Ok(Box::new(&connector::Fiserv)),
-            // "forte" => Ok(Box::new(&connector::Forte)),
+            "forte" => Ok(Box::new(&connector::Forte)),
             "globalpay" => Ok(Box::new(&connector::Globalpay)),
             "klarna" => Ok(Box::new(&connector::Klarna)),
             "mollie" => Ok(Box::new(&connector::Mollie)),
@@ -218,7 +220,7 @@ impl ConnectorData {
             "worldline" => Ok(Box::new(&connector::Worldline)),
             "worldpay" => Ok(Box::new(&connector::Worldpay)),
             "multisafepay" => Ok(Box::new(&connector::Multisafepay)),
-            // "nexinets" => Ok(Box::new(&connector::Nexinets)), added as template code for future use
+            "nexinets" => Ok(Box::new(&connector::Nexinets)),
             "paypal" => Ok(Box::new(&connector::Paypal)),
             "trustpay" => Ok(Box::new(&connector::Trustpay)),
             "zen" => Ok(Box::new(&connector::Zen)),

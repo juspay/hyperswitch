@@ -12,8 +12,6 @@ use crate::{
         payments::{helpers, operations, CustomerDetails, PaymentAddress, PaymentData},
     },
     db::StorageInterface,
-    pii,
-    pii::Secret,
     routes::AppState,
     types::{
         api::{self, PaymentIdTypeExt},
@@ -124,7 +122,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsStartRequest> f
                 payment_intent,
                 currency,
                 amount,
-                email: None::<Secret<String, pii::Email>>,
+                email: None,
                 mandate_id: None,
                 connector_response,
                 setup_mandate: None,
@@ -142,6 +140,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsStartRequest> f
                 card_cvc: None,
                 creds_identifier: None,
                 pm_token: None,
+                connector_customer_id: None,
             },
             Some(customer_details),
         ))
@@ -158,6 +157,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsStartRequest> for P
         payment_data: PaymentData<F>,
         _customer: Option<storage::Customer>,
         _storage_scheme: storage_enums::MerchantStorageScheme,
+        _updated_customer: Option<storage::CustomerUpdate>,
     ) -> RouterResult<(
         BoxedOperation<'b, F, api::PaymentsStartRequest>,
         PaymentData<F>,

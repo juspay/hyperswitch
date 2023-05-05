@@ -51,7 +51,7 @@ pub struct Order {
 #[serde(rename_all = "camelCase")]
 pub struct BillingAddress {
     pub city: Option<String>,
-    pub country_code: Option<api_enums::CountryCode>,
+    pub country_code: Option<api_enums::CountryAlpha2>,
     pub house_number: Option<String>,
     pub state: Option<Secret<String>>,
     pub state_code: Option<String>,
@@ -62,7 +62,7 @@ pub struct BillingAddress {
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct ContactDetails {
-    pub email_address: Option<Secret<String, Email>>,
+    pub email_address: Option<Email>,
     pub mobile_phone_number: Option<Secret<String>>,
 }
 
@@ -86,7 +86,7 @@ pub struct Name {
 #[serde(rename_all = "camelCase")]
 pub struct Shipping {
     pub city: Option<String>,
-    pub country_code: Option<api_enums::CountryCode>,
+    pub country_code: Option<api_enums::CountryAlpha2>,
     pub house_number: Option<String>,
     pub name: Option<Name>,
     pub state: Option<Secret<String>>,
@@ -234,7 +234,7 @@ impl TryFrom<utils::CardIssuer> for Gateway {
             utils::CardIssuer::Discover => Ok(Self::Discover),
             utils::CardIssuer::Visa => Ok(Self::Visa),
             _ => Err(errors::ConnectorError::NotSupported {
-                payment_method: api_enums::PaymentMethod::Card.to_string(),
+                message: issuer.to_string(),
                 connector: "worldline",
                 payment_experience: api_enums::PaymentExperience::RedirectToUrl.to_string(),
             }
@@ -346,7 +346,7 @@ fn get_address(
 
 fn build_customer_info(
     payment_address: &types::PaymentAddress,
-    email: &Option<Secret<String, Email>>,
+    email: &Option<Email>,
 ) -> Result<Customer, error_stack::Report<errors::ConnectorError>> {
     let (billing, address) =
         get_address(payment_address).ok_or(errors::ConnectorError::MissingRequiredField {
@@ -498,6 +498,7 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, Payment, T, types::PaymentsRespo
                 redirection_data: None,
                 mandate_reference: None,
                 connector_metadata: None,
+                network_txn_id: None,
             }),
             ..item.data
         })
@@ -547,6 +548,7 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, PaymentResponse, T, types::Payme
                 redirection_data,
                 mandate_reference: None,
                 connector_metadata: None,
+                network_txn_id: None,
             }),
             ..item.data
         })
