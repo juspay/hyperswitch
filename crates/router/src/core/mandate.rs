@@ -220,7 +220,7 @@ where
                                 .clone()
                             .map(|ids| {
                                 Some(ids)
-                                    .parse_value::<api_models::payments::ConnectorMandateId>(
+                                    .parse_value::<api_models::payments::ConnectorMandateReferenceId>(
                                         "ConnectorMandateId",
                                     )
                                     .change_context(errors::ApiErrorResponse::MandateNotFound)

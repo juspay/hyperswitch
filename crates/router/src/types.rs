@@ -303,7 +303,7 @@ pub struct VerifyRequestData {
     pub off_session: Option<bool>,
     pub setup_mandate_details: Option<payments::MandateData>,
     pub router_return_url: Option<String>,
-    pub email: Option<masking::Secret<String, Email>>,
+    pub email: Option<Email>,
 }
 
 #[derive(Debug, Clone)]
