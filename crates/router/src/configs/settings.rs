@@ -322,6 +322,8 @@ pub struct Connectors {
     pub coinbase: ConnectorParams,
     pub cybersource: ConnectorParams,
     pub dlocal: ConnectorParams,
+    #[cfg(feature = "dummy_connector")]
+    pub dummyconnector: ConnectorParams,
     pub fiserv: ConnectorParams,
     pub forte: ConnectorParams,
     pub globalpay: ConnectorParams,

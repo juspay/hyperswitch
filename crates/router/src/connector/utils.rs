@@ -161,7 +161,7 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
 
 pub trait PaymentsAuthorizeRequestData {
     fn is_auto_capture(&self) -> Result<bool, Error>;
-    fn get_email(&self) -> Result<Secret<String, Email>, Error>;
+    fn get_email(&self) -> Result<Email, Error>;
     fn get_browser_info(&self) -> Result<types::BrowserInformation, Error>;
     fn get_order_details(&self) -> Result<OrderDetails, Error>;
     fn get_card(&self) -> Result<api::Card, Error>;
@@ -180,7 +180,7 @@ impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
             Some(_) => Err(errors::ConnectorError::CaptureMethodNotSupported.into()),
         }
     }
-    fn get_email(&self) -> Result<Secret<String, Email>, Error> {
+    fn get_email(&self) -> Result<Email, Error> {
         self.email.clone().ok_or_else(missing_field_err("email"))
     }
     fn get_browser_info(&self) -> Result<types::BrowserInformation, Error> {
@@ -331,6 +331,14 @@ static CARD_REGEX: Lazy<HashMap<CardIssuer, Result<Regex, regex::Error>>> = Lazy
         CardIssuer::Maestro,
         Regex::new(r"^(5018|5020|5038|5893|6304|6759|6761|6762|6763)[0-9]{8,15}$"),
     );
+    map.insert(
+        CardIssuer::DinersClub,
+        Regex::new(r"^3(?:0[0-5]|[68][0-9])[0-9]{11}$"),
+    );
+    map.insert(
+        CardIssuer::JCB,
+        Regex::new(r"^(3(?:088|096|112|158|337|5(?:2[89]|[3-8][0-9]))\d{12})$"),
+    );
     map
 });
 
@@ -341,6 +349,8 @@ pub enum CardIssuer {
     Maestro,
     Visa,
     Discover,
+    DinersClub,
+    JCB,
 }
 
 pub trait CardData {

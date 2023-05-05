@@ -1,4 +1,6 @@
-use common_utils::ext_traits::StringExt;
+use std::str::FromStr;
+
+use common_utils::{ext_traits::StringExt, pii::Email};
 use error_stack::ResultExt;
 #[cfg(feature = "kms")]
 use external_services::kms;
@@ -83,7 +85,7 @@ pub struct AddCardRequest<'a> {
     pub card_exp_month: Secret<String>,
     pub card_exp_year: Secret<String>,
     pub merchant_id: &'a str,
-    pub email_address: Option<Secret<String, pii::Email>>,
+    pub email_address: Option<Email>,
     pub name_on_card: Option<Secret<String>>,
     pub nickname: Option<String>,
 }
@@ -396,9 +398,12 @@ pub fn mk_add_card_request(
         card_exp_month: card.card_exp_month.clone(),
         card_exp_year: card.card_exp_year.clone(),
         merchant_id: locker_id,
-        email_address: Some("dummy@gmail.com".to_string().into()), //
-        name_on_card: Some("John Doe".to_string().into()),         // [#256]
-        nickname: Some("router".to_string()),                      //
+        email_address: match Email::from_str("dummy@gmail.com") {
+            Ok(email) => Some(email),
+            Err(_) => None,
+        }, //
+        name_on_card: Some("John Doe".to_string().into()), // [#256]
+        nickname: Some("router".to_string()),              //
     };
     let body = utils::Encode::<AddCardRequest<'_>>::url_encode(&add_card_req)
         .change_context(errors::VaultError::RequestEncodingFailed)?;
