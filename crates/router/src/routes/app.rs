@@ -10,6 +10,7 @@ use super::{admin::*, api_keys::*, disputes::*, files::*};
 use super::{configs::*, customers::*, mandates::*, payments::*, payouts::*, refunds::*};
 #[cfg(feature = "oltp")]
 use super::{ephemeral_key::*, payment_methods::*, webhooks::*};
+use super::cache::*;
 use crate::{
     configs::settings::Settings,
     db::{MockDb, StorageImpl, StorageInterface},
@@ -456,5 +457,15 @@ impl Files {
                     .route(web::delete().to(files_delete))
                     .route(web::get().to(files_retrieve)),
             )
+    }
+}
+
+pub struct Cache;
+
+impl Cache {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/cache")
+            .app_data(web::Data::new(state))
+            .service(web::resource("/invalidate").route(web::get().to(invalidate)))
     }
 }
