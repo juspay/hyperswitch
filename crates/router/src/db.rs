@@ -63,19 +63,10 @@ pub trait StorageInterface:
     + cards_info::CardsInfoInterface
     + 'static
 {
-    async fn close(&mut self) {}
 }
 
 #[async_trait::async_trait]
-impl StorageInterface for Store {
-    #[allow(clippy::expect_used)]
-    async fn close(&mut self) {
-        std::sync::Arc::get_mut(&mut self.redis_conn)
-            .expect("Redis connection pool cannot be closed")
-            .close_connections()
-            .await;
-    }
-}
+impl StorageInterface for Store {}
 
 #[derive(Clone)]
 pub struct MockDb {
@@ -107,15 +98,7 @@ impl MockDb {
 }
 
 #[async_trait::async_trait]
-impl StorageInterface for MockDb {
-    #[allow(clippy::expect_used)]
-    async fn close(&mut self) {
-        std::sync::Arc::get_mut(&mut self.redis)
-            .expect("Redis connection pool cannot be closed")
-            .close_connections()
-            .await;
-    }
-}
+impl StorageInterface for MockDb {}
 
 pub async fn get_and_deserialize_key<T>(
     db: &dyn StorageInterface,

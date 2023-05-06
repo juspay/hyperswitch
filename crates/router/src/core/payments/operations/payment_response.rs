@@ -387,6 +387,7 @@ async fn payment_response_update_tracker<F: Clone, T>(
             types::PaymentsResponseData::SessionResponse { .. } => (None, None),
             types::PaymentsResponseData::SessionTokenResponse { .. } => (None, None),
             types::PaymentsResponseData::TokenizationResponse { .. } => (None, None),
+            types::PaymentsResponseData::ConnectorCustomerResponse { .. } => (None, None),
             types::PaymentsResponseData::ThreeDSEnrollmentResponse { .. } => (None, None),
         },
     };

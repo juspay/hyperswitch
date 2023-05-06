@@ -27,7 +27,7 @@ pub struct GlobalpayPaymentsRequest {
     /// related currency.
     pub convenience_amount: Option<String>,
     /// The country in ISO-3166-1(alpha-2 code) format.
-    pub country: api_models::enums::CountryCode,
+    pub country: api_models::enums::CountryAlpha2,
     /// The currency of the amount in ISO-4217(alpha-3)
     pub currency: String,
 
