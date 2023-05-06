@@ -7,6 +7,7 @@ use super::{Operation, PostUpdateTracker};
 use crate::{
     core::{
         errors::{self, RouterResult, StorageErrorExt},
+        mandate,
         payments::PaymentData,
     },
     db::StorageInterface,
@@ -442,6 +443,14 @@ async fn payment_response_update_tracker<F: Clone, T>(
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+
+    // When connector requires redirection for mandate creation it can update the connector mandate_id during Psync
+    mandate::update_connector_mandate_id(
+        db,
+        router_data.merchant_id,
+        payment_data.mandate_id.clone(),
+        router_data.response.clone(),
+    ).await?;
 
     Ok(payment_data)
 }

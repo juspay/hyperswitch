@@ -62,9 +62,9 @@ pub async fn revoke_mandate(
     ))
 }
 
-#[instrument(skip(state))]
+#[instrument(skip(db))]
 pub async fn update_connector_mandate_id(
-    state: &AppState,
+    db: &dyn StorageInterface,
     merchant_account: String,
     mandate_ids_opt: Option<api_models::payments::MandateIds>,
     resp: Result<types::PaymentsResponseData, types::ErrorResponse>,
@@ -73,24 +73,21 @@ pub async fn update_connector_mandate_id(
     //Ignore updation if the payment_attempt mandate_id or connector_mandate_id is not present
     if let Some((mandate_ids, connector_id)) = mandate_ids_opt.zip(connector_mandate_id) {
         let mandate_id = &mandate_ids.mandate_id;
-        let mandate = state
-            .store
+        let mandate = db
             .find_mandate_by_merchant_id_mandate_id(&merchant_account, mandate_id)
             .await
             .change_context(errors::ApiErrorResponse::MandateNotFound)?;
         // only update the connector_mandate_id if existing is none
         if mandate.connector_mandate_id.is_none() {
-            state
-                .store
-                .update_mandate_by_merchant_id_mandate_id(
-                    &merchant_account,
-                    mandate_id,
-                    storage::MandateUpdate::ConnectorReferenceUpdate {
-                        connector_mandate_id: Some(connector_id),
-                    },
-                )
-                .await
-                .change_context(errors::ApiErrorResponse::MandateUpdateFailed)?;
+            db.update_mandate_by_merchant_id_mandate_id(
+                &merchant_account,
+                mandate_id,
+                storage::MandateUpdate::ConnectorReferenceUpdate {
+                    connector_mandate_id: Some(connector_id),
+                },
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::MandateUpdateFailed)?;
         }
     }
     Ok(services::ApplicationResponse::StatusOk)
