@@ -247,9 +247,9 @@ diesel::table! {
         routing_algorithm -> Nullable<Json>,
         api_key -> Nullable<Bytea>,
         primary_business_details -> Json,
+        intent_fulfillment_time -> Nullable<Int8>,
         created_at -> Timestamp,
         modified_at -> Timestamp,
-        intent_fulfillment_time -> Nullable<Int8>,
     }
 }
 
