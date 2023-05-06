@@ -2,11 +2,6 @@ name: Migration Consistency Tests
 
 on:
   pull_request:
-    types:
-      - "labeled"
-      - "opened"
-      - "ready_for_review"
-      - "synchronize"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
