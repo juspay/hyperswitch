@@ -1,4 +1,8 @@
-use api_models::{enums::DisputeStage, payments::{self,MandateReferenceId}, webhooks::IncomingWebhookEvent};
+use api_models::{
+    enums::DisputeStage,
+    payments::{self, MandateReferenceId},
+    webhooks::IncomingWebhookEvent,
+};
 use masking::PeekInterface;
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
@@ -933,7 +937,7 @@ impl<'a> TryFrom<&api_models::payments::BankDebitData> for AdyenPaymentMethod<'a
             payments::BankDebitData::SepaBankDebit {
                 billing_details: _,
                 iban,
-                bank_account_holder_name
+                bank_account_holder_name,
             } => Ok(AdyenPaymentMethod::SepaDirectDebit(Box::new(
                 SepaDirectDebitData {
                     owner_name: bank_account_holder_name.clone().ok_or(
