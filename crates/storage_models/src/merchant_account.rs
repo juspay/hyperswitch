@@ -33,9 +33,9 @@ pub struct MerchantAccount {
     pub metadata: Option<pii::SecretSerdeValue>,
     pub routing_algorithm: Option<serde_json::Value>,
     pub primary_business_details: serde_json::Value,
+    pub intent_fulfillment_time: Option<i64>,
     pub created_at: time::PrimitiveDateTime,
     pub modified_at: time::PrimitiveDateTime,
-    pub intent_fulfillment_time: Option<i64>,
 }
 
 #[derive(Clone, Debug, Default, Insertable, router_derive::DebugAsDisplay)]
