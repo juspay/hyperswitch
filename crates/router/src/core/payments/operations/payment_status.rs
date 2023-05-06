@@ -234,10 +234,7 @@ async fn get_tracker_for_sync<
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable_lazy(|| {
-            format!(
-                "Failed while getting dispute list for, merchant_id: {}, payment_id: {}",
-                merchant_id, &payment_id_str
-            )
+            format!("Error while retrieving dispute list for, merchant_id: {merchant_id}, payment_id: {payment_id_str}")
         })?;
 
     let contains_encoded_data = connector_response.encoded_data.is_some();

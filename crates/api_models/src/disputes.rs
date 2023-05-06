@@ -4,7 +4,7 @@ use utoipa::ToSchema;
 
 use super::enums::{DisputeStage, DisputeStatus};
 
-#[derive(Default, Clone, Debug, Serialize, ToSchema, Eq, PartialEq)]
+#[derive(Clone, Debug, Serialize, ToSchema, Eq, PartialEq)]
 pub struct DisputeResponse {
     /// The identifier for dispute
     pub dispute_id: String,
@@ -40,10 +40,11 @@ pub struct DisputeResponse {
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
     pub updated_at: Option<PrimitiveDateTime>,
     /// Time at which dispute is received
-    pub received_at: String,
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub received_at: PrimitiveDateTime,
 }
 
-#[derive(Default, Clone, Debug, Serialize, ToSchema, Eq, PartialEq)]
+#[derive(Clone, Debug, Serialize, ToSchema, Eq, PartialEq)]
 pub struct DisputeResponsePaymentsRetrieve {
     /// The identifier for dispute
     pub dispute_id: String,
@@ -69,7 +70,8 @@ pub struct DisputeResponsePaymentsRetrieve {
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
     pub updated_at: Option<PrimitiveDateTime>,
     /// Time at which dispute is received
-    pub received_at: String,
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub received_at: PrimitiveDateTime,
 }
 
 #[derive(Clone, Debug, Deserialize, ToSchema)]
