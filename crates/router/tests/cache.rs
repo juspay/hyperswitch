@@ -6,8 +6,9 @@ async fn invalidate_cache_success() {
 
     //let key = "cachekey".to_string();
     let client = awc::Client::default();
+    let cache_key = "cacheKey";
     let mut response = client
-    .get(format!("http://127.0.0.1:8080/cache/invalidate"))
+    .get(format!("http://127.0.0.1:8080/cache/invalidate/{cache_key}"))
     .send()
     .await
     .unwrap();
