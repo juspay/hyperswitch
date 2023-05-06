@@ -1,10 +1,6 @@
-<<<<<<< HEAD
-use api_models::{enums::DisputeStage, payments, webhooks::IncomingWebhookEvent};
-=======
 use api_models::{
     enums::DisputeStage, payments::MandateReferenceId, webhooks::IncomingWebhookEvent,
 };
->>>>>>> main
 use masking::PeekInterface;
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
@@ -739,30 +735,6 @@ impl TryFrom<&types::ConnectorAuthType> for AdyenAuthType {
 impl<'a> TryFrom<&types::PaymentsAuthorizeRouterData> for AdyenPaymentRequest<'a> {
     type Error = Error;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
-<<<<<<< HEAD
-        match item.request.payment_method_data {
-            api_models::payments::PaymentMethodData::Card(ref card) => {
-                AdyenPaymentRequest::try_from((item, card))
-            }
-            api_models::payments::PaymentMethodData::Wallet(ref wallet) => {
-                AdyenPaymentRequest::try_from((item, wallet))
-            }
-            api_models::payments::PaymentMethodData::PayLater(ref pay_later) => {
-                AdyenPaymentRequest::try_from((item, pay_later))
-            }
-            api_models::payments::PaymentMethodData::BankRedirect(ref bank_redirect) => {
-                AdyenPaymentRequest::try_from((item, bank_redirect))
-            }
-            api_models::payments::PaymentMethodData::BankDebit(ref bank_debit) => {
-                AdyenPaymentRequest::try_from((item, bank_debit))
-            }
-
-            _ => Err(errors::ConnectorError::NotSupported {
-                payment_method: format!("{:?}", item.request.payment_method_type),
-                connector: "Adyen",
-                payment_experience: api_models::enums::PaymentExperience::RedirectToUrl.to_string(),
-            })?,
-=======
         match item
             .request
             .mandate_id
@@ -783,6 +755,9 @@ impl<'a> TryFrom<&types::PaymentsAuthorizeRouterData> for AdyenPaymentRequest<'a
                 api_models::payments::PaymentMethodData::BankRedirect(ref bank_redirect) => {
                     AdyenPaymentRequest::try_from((item, bank_redirect))
                 }
+                api_models::payments::PaymentMethodData::BankDebit(ref bank_debit) => {
+                    AdyenPaymentRequest::try_from((item, bank_debit))
+                }
                 _ => Err(errors::ConnectorError::NotSupported {
                     message: format!("{:?}", item.request.payment_method_type),
                     connector: "Adyen",
@@ -790,7 +765,6 @@ impl<'a> TryFrom<&types::PaymentsAuthorizeRouterData> for AdyenPaymentRequest<'a
                         .to_string(),
                 })?,
             },
->>>>>>> main
         }
     }
 }
