@@ -209,7 +209,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentsRequest {
             .shipping
             .as_ref()
             .and_then(|shipping| shipping.address.clone())
-            .map(|address| Shipping { ..address.into() });
+            .map(Shipping::from);
         Ok(Self {
             payment_data,
             order,
