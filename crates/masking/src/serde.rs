@@ -23,6 +23,8 @@ pub trait SerializableSecret: Serialize {}
 // pub trait NonSerializableSecret: Serialize {}
 
 impl SerializableSecret for serde_json::Value {}
+impl SerializableSecret for u8 {}
+impl SerializableSecret for u16 {}
 
 impl<'de, T, I> Deserialize<'de> for Secret<T, I>
 where
