@@ -450,7 +450,8 @@ async fn payment_response_update_tracker<F: Clone, T>(
         router_data.merchant_id,
         payment_data.mandate_id.clone(),
         router_data.response.clone(),
-    ).await?;
+    )
+    .await?;
 
     Ok(payment_data)
 }

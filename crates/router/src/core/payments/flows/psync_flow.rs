@@ -4,7 +4,6 @@ use super::{ConstructFlowSpecificData, Feature};
 use crate::{
     core::{
         errors::{ConnectorErrorExt, RouterResult},
-        mandate,
         payments::{self, access_token, transformers, PaymentData},
     },
     routes::AppState,
