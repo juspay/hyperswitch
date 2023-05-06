@@ -1,5 +1,7 @@
 use api_models::{
-    enums::DisputeStage, payments::MandateReferenceId, webhooks::IncomingWebhookEvent,
+    enums::DisputeStage,
+    payments::{self, MandateReferenceId},
+    webhooks::IncomingWebhookEvent,
 };
 use masking::PeekInterface;
 use reqwest::Url;
@@ -1264,7 +1266,7 @@ impl<'a>
         let amount = get_amount_data(item);
         let auth_type = AdyenAuthType::try_from(&item.connector_auth_type)?;
         let shopper_interaction = AdyenShopperInteraction::from(item);
-        let recurring_processing_model = get_recurring_processing_model(item);
+        let recurring_processing_model = get_recurring_processing_model(item)?.0;
         let browser_info = get_browser_info(item);
         let additional_data = get_additional_data(item);
         let return_url = item.request.get_return_url()?;
@@ -1288,6 +1290,8 @@ impl<'a>
             delivery_address: None,
             country_code,
             line_items: None,
+            shopper_reference: None,
+            store_payment_method: None,
         };
         Ok(request)
     }
