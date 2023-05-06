@@ -3,7 +3,7 @@ mod transformers;
 use std::fmt::Debug;
 
 use common_utils::{errors::ReportSwitchExt, ext_traits::ByteSliceExt};
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use transformers as bitpay;
 
 use self::bitpay::BitpayWebhookDetails;
@@ -37,7 +37,7 @@ impl api::RefundExecute for Bitpay {}
 impl api::RefundSync for Bitpay {}
 
 impl
-    services::ConnectorIntegration<
+    ConnectorIntegration<
         api::PaymentMethodToken,
         types::PaymentMethodTokenizationData,
         types::PaymentsResponseData,

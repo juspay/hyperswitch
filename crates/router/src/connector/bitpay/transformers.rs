@@ -44,9 +44,9 @@ pub struct BitpayAuthType {
     pub(super) api_key: String,
 }
 
-impl TryFrom<&types::ConnectorAuthType> for BitpayAuthType {
+impl TryFrom<&ConnectorAuthType> for BitpayAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
+    fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
             types::ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
                 api_key: api_key.to_string(),
@@ -126,15 +126,18 @@ impl<F, T>
     fn try_from(
         item: types::ResponseRouterData<F, BitpayPaymentsResponse, T, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
-        let redirection_data =
-            services::RedirectForm::from((item.response.data.url.unwrap(), services::Method::Get));
+        let redirection_data = item
+            .response
+            .data
+            .url
+            .map(|x| services::RedirectForm::from((x, services::Method::Get)));
         let connector_id = types::ResponseId::ConnectorTransactionId(item.response.data.id);
         let attempt_status = item.response.data.status;
         Ok(Self {
             status: enums::AttemptStatus::from(attempt_status),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: connector_id,
-                redirection_data: Some(redirection_data),
+                redirection_data,
                 mandate_reference: None,
                 connector_metadata: None,
             }),
