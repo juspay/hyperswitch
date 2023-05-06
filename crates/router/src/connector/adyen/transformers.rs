@@ -933,10 +933,14 @@ impl<'a> TryFrom<&api_models::payments::BankDebitData> for AdyenPaymentMethod<'a
             payments::BankDebitData::SepaBankDebit {
                 billing_details: _,
                 iban,
-                bank_account_holder_name,
+                bank_account_holder_name
             } => Ok(AdyenPaymentMethod::SepaDirectDebit(Box::new(
                 SepaDirectDebitData {
-                    owner_name: bank_account_holder_name.clone(),
+                    owner_name: bank_account_holder_name.clone().ok_or(
+                        errors::ConnectorError::MissingRequiredField {
+                            field_name: "bank_account_holder_name",
+                        },
+                    )?,
                     iban_number: iban.clone(),
                 },
             ))),
