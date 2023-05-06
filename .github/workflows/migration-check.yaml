@@ -22,7 +22,7 @@ env:
 
 jobs:
   migration_verify:
-    name: Verify whether migration files are in sync with the schema.rs files
+    name: Verify consistency of migrations with `schema.rs` file
     runs-on: ubuntu-latest
 
     services:
@@ -51,15 +51,15 @@ jobs:
 
       - name: Install diesel_cli
         shell: bash
-        run: cargo install diesel_cli
+        run: cargo install diesel_cli --no-default-features --features postgres
 
-      - name: Verify diesel run migrations
+      - name: Verify `diesel migration run`
         shell: bash
         env:
           DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
         run: diesel migration run --locked-schema
 
-      - name: Verify diesel migrations redo
+      - name: Verify `diesel migration redo`
         shell: bash
         env:
           DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
