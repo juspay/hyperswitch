@@ -6,6 +6,7 @@ pub mod configs;
 pub mod customers;
 pub mod disputes;
 pub mod ephemeral_key;
+pub mod files;
 pub mod health;
 pub mod mandates;
 pub mod metrics;
@@ -16,7 +17,7 @@ pub mod refunds;
 pub mod webhooks;
 
 pub use self::app::{
-    ApiKeys, AppState, Cards, Configs, Customers, Disputes, EphemeralKey, Health, Mandates,
+    ApiKeys, AppState, Cards, Configs, Customers, Disputes, EphemeralKey, Files, Health, Mandates,
     MerchantAccount, MerchantConnectorAccount, PaymentMethods, Payments, Payouts, Refunds,
     Webhooks,
 };

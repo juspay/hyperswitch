@@ -3,7 +3,7 @@ pub mod diesel_exports {
     pub use super::{
         DbAttemptStatus as AttemptStatus, DbAuthenticationType as AuthenticationType,
         DbCaptureMethod as CaptureMethod, DbConnectorType as ConnectorType,
-        DbCountryCode as CountryCode, DbCurrency as Currency, DbDisputeStage as DisputeStage,
+        DbCountryAlpha2 as CountryAlpha2, DbCurrency as Currency, DbDisputeStage as DisputeStage,
         DbDisputeStatus as DisputeStatus, DbEventClass as EventClass,
         DbEventObjectType as EventObjectType, DbEventType as EventType,
         DbFutureUsage as FutureUsage, DbIntentStatus as IntentStatus,
@@ -456,6 +456,7 @@ pub enum PaymentMethod {
     Wallet,
     BankRedirect,
     Crypto,
+    BankDebit,
 }
 
 #[derive(
@@ -612,19 +613,38 @@ pub enum MandateStatus {
 #[strum(serialize_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
 pub enum PaymentMethodType {
-    Credit,
-    Debit,
-    Giropay,
-    Ideal,
-    Sofort,
-    Eps,
-    Klarna,
+    Ach,
     Affirm,
     AfterpayClearpay,
-    GooglePay,
+    AliPay,
     ApplePay,
-    Paypal,
+    Bacs,
+    BancontactCard,
+    Becs,
+    Blik,
+    Credit,
     CryptoCurrency,
+    Debit,
+    Eps,
+    Giropay,
+    GooglePay,
+    Ideal,
+    Klarna,
+    MbWay,
+    MobilePay,
+    OnlineBankingCzechRepublic,
+    OnlineBankingFinland,
+    OnlineBankingPoland,
+    OnlineBankingSlovakia,
+    PayBright,
+    Paypal,
+    Przelewy24,
+    Sepa,
+    Sofort,
+    Swish,
+    Trustly,
+    Walley,
+    WeChatPay,
 }
 
 #[derive(
@@ -775,4 +795,27 @@ pub enum DisputeStatus {
     DisputeChallenged,
     DisputeWon,
     DisputeLost,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    Default,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    frunk::LabelledGeneric,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum FileUploadProvider {
+    #[default]
+    Router,
+    Stripe,
+    Checkout,
 }

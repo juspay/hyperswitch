@@ -18,6 +18,8 @@ use crate::{
     types::{self, api, storage::enums, BrowserInformation},
 };
 
+type Error = error_stack::Report<errors::ConnectorError>;
+
 pub struct TrustpayAuthType {
     pub(super) api_key: String,
     pub(super) project_id: String,
@@ -25,7 +27,7 @@ pub struct TrustpayAuthType {
 }
 
 impl TryFrom<&types::ConnectorAuthType> for TrustpayAuthType {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = Error;
     fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         if let types::ConnectorAuthType::SignatureKey {
             api_key,
@@ -122,13 +124,13 @@ pub struct PaymentRequestCards {
     #[serde(rename = "billing[city]")]
     pub billing_city: String,
     #[serde(rename = "billing[country]")]
-    pub billing_country: api_models::enums::CountryCode,
+    pub billing_country: api_models::enums::CountryAlpha2,
     #[serde(rename = "billing[street1]")]
     pub billing_street1: Secret<String>,
     #[serde(rename = "billing[postcode]")]
     pub billing_postcode: Secret<String>,
     #[serde(rename = "customer[email]")]
-    pub customer_email: Option<Secret<String, Email>>,
+    pub customer_email: Option<Email>,
     #[serde(rename = "customer[ipAddress]")]
     pub customer_ip_address: Option<std::net::IpAddr>,
     #[serde(rename = "browser[acceptHeader]")]
@@ -176,23 +178,27 @@ pub enum TrustpayPaymentsRequest {
 #[derive(Debug, Serialize, Eq, PartialEq)]
 pub struct TrustpayMandatoryParams {
     pub billing_city: String,
-    pub billing_country: api_models::enums::CountryCode,
+    pub billing_country: api_models::enums::CountryAlpha2,
     pub billing_street1: Secret<String>,
     pub billing_postcode: Secret<String>,
 }
 
-fn get_trustpay_payment_method(bank_redirection_data: &BankRedirectData) -> TrustpayPaymentMethod {
-    match bank_redirection_data {
-        api_models::payments::BankRedirectData::Giropay { .. } => TrustpayPaymentMethod::Giropay,
-        api_models::payments::BankRedirectData::Eps { .. } => TrustpayPaymentMethod::Eps,
-        api_models::payments::BankRedirectData::Ideal { .. } => TrustpayPaymentMethod::IDeal,
-        api_models::payments::BankRedirectData::Sofort { .. } => TrustpayPaymentMethod::Sofort,
+impl TryFrom<&BankRedirectData> for TrustpayPaymentMethod {
+    type Error = Error;
+    fn try_from(value: &BankRedirectData) -> Result<Self, Self::Error> {
+        match value {
+            api_models::payments::BankRedirectData::Giropay { .. } => Ok(Self::Giropay),
+            api_models::payments::BankRedirectData::Eps { .. } => Ok(Self::Eps),
+            api_models::payments::BankRedirectData::Ideal { .. } => Ok(Self::IDeal),
+            api_models::payments::BankRedirectData::Sofort { .. } => Ok(Self::Sofort),
+            _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
+        }
     }
 }
 
 fn get_mandatory_fields(
     item: &types::PaymentsAuthorizeRouterData,
-) -> Result<TrustpayMandatoryParams, error_stack::Report<errors::ConnectorError>> {
+) -> Result<TrustpayMandatoryParams, Error> {
     let billing_address = item
         .get_billing()?
         .address
@@ -248,33 +254,35 @@ fn get_bank_redirection_request_data(
     item: &types::PaymentsAuthorizeRouterData,
     bank_redirection_data: &BankRedirectData,
     amount: String,
-    return_url: String,
     auth: TrustpayAuthType,
-) -> TrustpayPaymentsRequest {
-    TrustpayPaymentsRequest::BankRedirectPaymentRequest(Box::new(PaymentRequestBankRedirect {
-        payment_method: get_trustpay_payment_method(bank_redirection_data),
-        merchant_identification: MerchantIdentification {
-            project_id: auth.project_id,
-        },
-        payment_information: BankPaymentInformation {
-            amount: Amount {
-                amount,
-                currency: item.request.currency.to_string(),
+) -> Result<TrustpayPaymentsRequest, error_stack::Report<errors::ConnectorError>> {
+    let return_url = item.request.get_return_url()?;
+    let payment_request =
+        TrustpayPaymentsRequest::BankRedirectPaymentRequest(Box::new(PaymentRequestBankRedirect {
+            payment_method: TrustpayPaymentMethod::try_from(bank_redirection_data)?,
+            merchant_identification: MerchantIdentification {
+                project_id: auth.project_id,
             },
-            references: References {
-                merchant_reference: item.attempt_id.clone(),
+            payment_information: BankPaymentInformation {
+                amount: Amount {
+                    amount,
+                    currency: item.request.currency.to_string(),
+                },
+                references: References {
+                    merchant_reference: item.attempt_id.clone(),
+                },
             },
-        },
-        callback_urls: CallbackURLs {
-            success: format!("{return_url}?status=SuccessOk"),
-            cancel: return_url.clone(),
-            error: return_url,
-        },
-    }))
+            callback_urls: CallbackURLs {
+                success: format!("{return_url}?status=SuccessOk"),
+                cancel: return_url.clone(),
+                error: return_url,
+            },
+        }));
+    Ok(payment_request)
 }
 
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for TrustpayPaymentsRequest {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = Error;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         let default_browser_info = BrowserInformation {
             color_depth: 24,
@@ -303,7 +311,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for TrustpayPaymentsRequest {
         );
         let auth = TrustpayAuthType::try_from(&item.connector_auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-        Ok(match item.request.payment_method_data {
+        match item.request.payment_method_data {
             api::PaymentMethodData::Card(ref ccard) => Ok(get_card_request_data(
                 item,
                 browser_info,
@@ -313,19 +321,10 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for TrustpayPaymentsRequest {
                 item.request.get_return_url()?,
             )),
             api::PaymentMethodData::BankRedirect(ref bank_redirection_data) => {
-                Ok(get_bank_redirection_request_data(
-                    item,
-                    bank_redirection_data,
-                    amount,
-                    item.request.get_return_url()?,
-                    auth,
-                ))
+                get_bank_redirection_request_data(item, bank_redirection_data, amount, auth)
             }
-            _ => Err(errors::ConnectorError::NotImplemented(format!(
-                "Current Payment Method - {:?}",
-                item.request.payment_method_data
-            ))),
-        }?)
+            _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
+        }
     }
 }
 
@@ -524,7 +523,7 @@ impl<F, T>
     TryFrom<types::ResponseRouterData<F, TrustpayPaymentsResponse, T, types::PaymentsResponseData>>
     for types::RouterData<F, T, types::PaymentsResponseData>
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = Error;
     fn try_from(
         item: types::ResponseRouterData<
             F,
@@ -559,11 +558,13 @@ fn handle_cards_response(
         response.redirect_url.clone(),
     )?;
     let form_fields = response.redirect_params.unwrap_or_default();
-    let redirection_data = response.redirect_url.map(|url| services::RedirectForm {
-        endpoint: url.to_string(),
-        method: services::Method::Post,
-        form_fields,
-    });
+    let redirection_data = response
+        .redirect_url
+        .map(|url| services::RedirectForm::Form {
+            endpoint: url.to_string(),
+            method: services::Method::Post,
+            form_fields,
+        });
     let error = if msg.is_some() {
         Some(types::ErrorResponse {
             code: response.payment_status,
@@ -579,6 +580,7 @@ fn handle_cards_response(
         redirection_data,
         mandate_reference: None,
         connector_metadata: None,
+        network_txn_id: None,
     };
     Ok((status, error, payment_response_data))
 }
@@ -605,6 +607,7 @@ fn handle_bank_redirects_response(
         ))),
         mandate_reference: None,
         connector_metadata: None,
+        network_txn_id: None,
     };
     Ok((status, error, payment_response_data))
 }
@@ -635,6 +638,7 @@ fn handle_bank_redirects_error_response(
         redirection_data: None,
         mandate_reference: None,
         connector_metadata: None,
+        network_txn_id: None,
     };
     Ok((status, error, payment_response_data))
 }
@@ -675,6 +679,7 @@ fn handle_bank_redirects_sync_response(
         redirection_data: None,
         mandate_reference: None,
         connector_metadata: None,
+        network_txn_id: None,
     };
     Ok((status, error, payment_response_data))
 }
@@ -695,6 +700,7 @@ pub fn handle_webhook_response(
         redirection_data: None,
         mandate_reference: None,
         connector_metadata: None,
+        network_txn_id: None,
     };
     Ok((status, None, payment_response_data))
 }
@@ -733,7 +739,7 @@ pub struct TrustpayAuthUpdateRequest {
 }
 
 impl TryFrom<&types::RefreshTokenRouterData> for TrustpayAuthUpdateRequest {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = Error;
     fn try_from(_item: &types::RefreshTokenRouterData) -> Result<Self, Self::Error> {
         Ok(Self {
             grant_type: "client_credentials".to_string(),
@@ -767,7 +773,7 @@ pub struct TrustpayAccessTokenErrorResponse {
 impl<F, T> TryFrom<types::ResponseRouterData<F, TrustpayAuthUpdateResponse, T, types::AccessToken>>
     for types::RouterData<F, T, types::AccessToken>
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = Error;
     fn try_from(
         item: types::ResponseRouterData<F, TrustpayAuthUpdateResponse, T, types::AccessToken>,
     ) -> Result<Self, Self::Error> {
@@ -820,7 +826,7 @@ pub enum TrustpayRefundRequest {
 }
 
 impl<F> TryFrom<&types::RefundsRouterData<F>> for TrustpayRefundRequest {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = Error;
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
         let amount = format!(
             "{:.2}",
@@ -1000,7 +1006,7 @@ fn handle_bank_redirects_refund_sync_error_response(
 impl<F> TryFrom<types::RefundsResponseRouterData<F, RefundResponse>>
     for types::RefundsRouterData<F>
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = Error;
     fn try_from(
         item: types::RefundsResponseRouterData<F, RefundResponse>,
     ) -> Result<Self, Self::Error> {
