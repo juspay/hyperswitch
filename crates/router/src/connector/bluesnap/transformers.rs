@@ -139,9 +139,7 @@ impl TryFrom<&types::PaymentsCompleteAuthorizeRouterData> for BluesnapPaymentsRe
             .request
             .payload
             .clone()
-            .ok_or(errors::ConnectorError::MissingRequiredField {
-                field_name: "bluesnap_redirection_response",
-            })?
+            .ok_or(errors::ConnectorError::MissingConnectorRedirectionPayload)?
             .parse_value("BluesnapRedirectionResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
@@ -176,9 +174,7 @@ impl TryFrom<&types::PaymentsCompleteAuthorizeRouterData> for BluesnapPaymentsRe
             three_d_secure: Some(BluesnapThreeDSecureInfo {
                 three_d_secure_reference_id: redirection_result
                     .three_d_secure
-                    .ok_or(errors::ConnectorError::MissingRequiredField {
-                        field_name: "three_d_secure",
-                    })?
+                    .ok_or(errors::ConnectorError::MissingConnectorRedirectionPayload)?
                     .three_d_secure_reference_id,
             }),
         })

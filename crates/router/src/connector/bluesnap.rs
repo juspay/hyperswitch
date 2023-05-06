@@ -671,6 +671,7 @@ impl
                 .url(&types::PaymentsCompleteAuthorizeType::get_url(
                     self, req, connectors,
                 )?)
+                .attach_default_headers()
                 .headers(types::PaymentsCompleteAuthorizeType::get_headers(
                     self, req, connectors,
                 )?)
@@ -991,9 +992,7 @@ impl services::ConnectorRedirectResponse for Bluesnap {
         _action: services::PaymentAction,
     ) -> CustomResult<payments::CallConnectorAction, errors::ConnectorError> {
         let redirection_response: bluesnap::BluesnapRedirectionResponse = json_payload
-            .ok_or(errors::ConnectorError::MissingRequiredField {
-                field_name: "bluesnap_redirection_response",
-            })?
+            .ok_or(errors::ConnectorError::MissingConnectorRedirectionPayload)?
             .parse_value("BluesnapRedirectionResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
