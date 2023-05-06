@@ -3,11 +3,11 @@ use std::borrow::Cow;
 use base64::Engine;
 use common_utils::{
     ext_traits::{AsyncExt, ByteSliceExt, ValueExt},
-    fp_utils, generate_id, pii,
+    fp_utils, generate_id,
 };
 // TODO : Evaluate all the helper functions ()
 use error_stack::{report, IntoReport, ResultExt};
-use masking::PeekInterface;
+use masking::{ExposeInterface, PeekInterface};
 use router_env::{instrument, tracing};
 use storage_models::{enums, payment_intent};
 use time::Duration;
@@ -727,7 +727,7 @@ pub async fn get_customer_from_details<F: Clone>(
                     inner
                         .email
                         .clone()
-                        .map(|encrypted_value| pii::Email(encrypted_value.into_inner()))
+                        .map(|encrypted_value| encrypted_value.into())
                 })
             });
             Ok(customer)
@@ -777,7 +777,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R>(
                                 .email
                                 .clone()
                                 .async_lift(|inner| {
-                                    types::encrypt_optional(inner.map(|inner| inner.0), &key)
+                                    types::encrypt_optional(inner.map(|inner| inner.expose()), &key)
                                 })
                                 .await?,
                             phone: req
@@ -821,7 +821,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R>(
                     customer
                         .email
                         .clone()
-                        .map(|encrypted_value| pii::Email(encrypted_value.into_inner()))
+                        .map(|encrypted_value| encrypted_value.into())
                 });
 
                 Some(customer)

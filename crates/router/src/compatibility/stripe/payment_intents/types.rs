@@ -349,7 +349,7 @@ impl From<payments::PaymentsResponse> for StripePaymentIntentResponse {
             payment_token: resp.payment_token,
             shipping: resp.shipping,
             billing: resp.billing,
-            email: resp.email.map(|inner| Email(inner.into_inner())),
+            email: resp.email.map(|inner| inner.into()),
             name: resp.name.map(Encryptable::into_inner),
             phone: resp.phone.map(Encryptable::into_inner),
             authentication_type: resp.authentication_type,

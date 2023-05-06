@@ -11,9 +11,9 @@ use diesel::{
     serialize::{Output, ToSql},
     sql_types, AsExpression,
 };
-use masking::{Secret, Strategy, WithType};
+use masking::{ExposeInterface, Secret, Strategy, WithType};
 
-use crate::{errors::ValidationError, validation::validate_email};
+use crate::{crypto::Encryptable, errors::ValidationError, validation::validate_email};
 
 /// A string constant representing a redacted or masked value.
 pub const REDACTED: &str = "Redacted";
@@ -128,7 +128,19 @@ where
     AsExpression,
 )]
 #[diesel(sql_type = diesel::sql_types::Text)]
-pub struct Email(pub Secret<String, EmailStrategy>);
+pub struct Email(Secret<String, EmailStrategy>);
+
+impl From<Encryptable<Secret<String, EmailStrategy>>> for Email {
+    fn from(item: Encryptable<Secret<String, EmailStrategy>>) -> Self {
+        Self(item.into_inner())
+    }
+}
+
+impl ExposeInterface<Secret<String, EmailStrategy>> for Email {
+    fn expose(self) -> Secret<String, EmailStrategy> {
+        self.0
+    }
+}
 
 impl<DB> FromSql<sql_types::Text, DB> for Email
 where

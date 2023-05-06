@@ -3,6 +3,7 @@ use common_utils::{
     ext_traits::ValueExt,
 };
 use error_stack::ResultExt;
+use masking::ExposeInterface;
 use router_env::{instrument, tracing};
 use storage_models::errors as storage_errors;
 
@@ -17,7 +18,7 @@ use crate::{
     routes::{metrics, AppState},
     services,
     types::{
-        api::customers::{self},
+        api::customers,
         domain::{
             self,
             types::{self, AsyncLift, TypeEncryption},
@@ -117,7 +118,9 @@ pub async fn create_customer(
                 .await?,
             email: customer_data
                 .email
-                .async_lift(|inner| types::encrypt_optional(inner.map(|inner| inner.0), &key))
+                .async_lift(|inner| {
+                    types::encrypt_optional(inner.map(|inner| inner.expose()), &key)
+                })
                 .await?,
             phone: customer_data
                 .phone
@@ -397,7 +400,7 @@ pub async fn update_customer(
                     email: update_customer
                         .email
                         .async_lift(|inner| {
-                            types::encrypt_optional(inner.map(|inner| inner.0), &key)
+                            types::encrypt_optional(inner.map(|inner| inner.expose()), &key)
                         })
                         .await?,
                     phone: update_customer
