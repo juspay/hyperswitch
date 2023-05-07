@@ -2,6 +2,7 @@ use common_utils::errors::CustomResult;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 use url::Url;
+use api_models::payments::BankRedirectData;
 
 use crate::{
     connector::utils::{
@@ -58,6 +59,7 @@ pub struct RedirectRequest {
 #[derive(Debug, Serialize)]
 pub struct ContextStruct {
     return_url: Option<String>,
+    cancel_url : Option<String>
 }
 
 #[derive(Debug, Serialize)]
@@ -70,6 +72,10 @@ pub struct PaypalRedirectionRequest {
 pub enum PaymentSourceItem {
     Card(CardRequest),
     Paypal(PaypalRedirectionRequest),
+    IDeal(RedirectRequest),
+    Eps(RedirectRequest),
+    Giropay(RedirectRequest),
+    Sofort(RedirectRequest),
 }
 
 #[derive(Debug, Serialize)]
@@ -92,6 +98,47 @@ fn get_address_info(
         None => None,
     };
     Ok(address)
+}
+fn get_payment_source(
+    item: &types::PaymentsAuthorizeRouterData,
+    bank_redirection_data: &BankRedirectData,
+) -> Result<PaymentSourceItem, error_stack::Report<errors::ConnectorError>> {
+    match bank_redirection_data {
+        BankRedirectData::Eps {
+            billing_details,
+            bank_name: _,
+        } => Ok(PaymentSourceItem::Eps(RedirectRequest {
+            name: billing_details.billing_name.clone(),
+            country_code: api_models::enums::CountryAlpha2::AT,
+            experience_context:ContextStruct { return_url: item.request.complete_authorize_url.clone(), cancel_url: Some("https://google.com/".to_string()) },
+        })),
+        BankRedirectData::Giropay {
+            billing_details,
+            ..
+        } => Ok(PaymentSourceItem::Giropay(RedirectRequest {
+            name: billing_details.billing_name.clone(),
+            country_code: api_models::enums::CountryAlpha2::DE,
+            experience_context: ContextStruct{ return_url: item.request.complete_authorize_url.clone(), cancel_url: Some("https://google.com/".to_string()) },
+        })),
+        BankRedirectData::Ideal {
+            billing_details,
+            bank_name: _,
+        } => Ok(PaymentSourceItem::IDeal(RedirectRequest {
+            name: billing_details.billing_name.clone(),
+            country_code: api_models::enums::CountryAlpha2::NL,
+            experience_context: ContextStruct { return_url: item.request.complete_authorize_url.clone(), cancel_url: Some("https://google.com/".to_string()) },
+        })),
+        BankRedirectData::Sofort {
+            country,
+            preferred_language: _,
+            billing_details,
+        } => Ok(PaymentSourceItem::Sofort(RedirectRequest {
+            name: billing_details.billing_name.clone(),
+            country_code: *country,
+            experience_context: ContextStruct { return_url: item.request.complete_authorize_url.clone(), cancel_url: Some("https://google.com/".to_string()) },
+        })),
+        _ => Err(errors::ConnectorError::NotImplemented("Bank Redirect".to_string()).into()),
+    }
 }
 
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaypalPaymentsRequest {
@@ -146,6 +193,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaypalPaymentsRequest {
                         Some(PaymentSourceItem::Paypal(PaypalRedirectionRequest {
                             experience_context: ContextStruct {
                                 return_url: item.request.complete_authorize_url.clone(),
+                                cancel_url: Some("https://google.com/".to_string())
                             },
                         }));
 
@@ -159,6 +207,25 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaypalPaymentsRequest {
                     "Payment Method".to_string(),
                 ))?,
             },
+            api::PaymentMethodData::BankRedirect(ref bank_redirection_data) => {
+                let intent = PaypalPaymentIntent::Capture;
+                let amount = OrderAmount {
+                    currency_code: item.request.currency,
+                    value: item.request.amount.to_string(),
+                };
+                let reference_id = item.attempt_id.clone();
+                let purchase_units = vec![PurchaseUnitRequest {
+                    reference_id,
+                    amount,
+                }];
+                let payment_source = Some(get_payment_source(item,bank_redirection_data)?);
+
+                Ok(Self {
+                    intent,
+                    purchase_units,
+                    payment_source,
+                })
+            }
             _ => Err(errors::ConnectorError::NotImplemented("Payment Method".to_string()).into()),
         }
     }
