@@ -223,7 +223,8 @@ fn get_bank_name(
         ) => Ok(Some(StripeBankName::Ideal {
             ideal_bank_name: StripeBankNames::try_from(bank_name)?,
         })),
-        (StripePaymentMethodType::Sofort | StripePaymentMethodType::Giropay, _) => Ok(None),
+        (StripePaymentMethodType::Sofort | StripePaymentMethodType::Giropay
+            |StripePaymentMethodType::Bancontact, _) => Ok(None),
         _ => Err(errors::ConnectorError::MismatchedPaymentData),
     }
 }
@@ -334,6 +335,7 @@ pub enum StripePaymentMethodType {
     Becs,
     #[serde(rename = "bacs_debit")]
     Bacs,
+    Bancontact,
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize, Clone)]
@@ -522,6 +524,9 @@ fn infer_stripe_bank_redirect_issuer(
         Some(storage_models::enums::PaymentMethodType::Sofort) => {
             Ok(StripePaymentMethodType::Sofort)
         }
+        Some(storage_models::enums::PaymentMethodType::BancontactCard) => {
+            Ok(StripePaymentMethodType::Bancontact)
+        }
         Some(storage_models::enums::PaymentMethodType::Eps) => Ok(StripePaymentMethodType::Eps),
         None => Err(errors::ConnectorError::MissingRequiredField {
             field_name: "payment_method_type",
@@ -619,6 +624,12 @@ impl TryFrom<&payments::BankRedirectData> for StripeBillingAddress {
                 billing_details, ..
             } => Ok(Self {
                 name: Some(billing_details.billing_name.clone()),
+                ..Self::default()
+            }),
+            payments::BankRedirectData::BancontactCard {
+                billing_details, ..
+            } => Ok(Self {
+                name: Some(billing_details.clone().unwrap().billing_name.clone()),
                 ..Self::default()
             }),
             _ => Ok(Self::default()),
@@ -760,6 +771,7 @@ fn create_stripe_payment_method(
             let pm_type = infer_stripe_bank_redirect_issuer(pm_type)?;
             let bank_specific_data = get_bank_specific_data(bank_redirect_data);
             let bank_name = get_bank_name(&pm_type, bank_redirect_data)?;
+
             Ok((
                 StripePaymentMethodData::BankRedirect(StripeBankRedirectData {
                     payment_method_types: pm_type,
@@ -920,6 +932,11 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
                         })
                 });
 
+        crate::logger::debug!("aaaaaaaaaaaaaaaaaaa{}", item
+        .request
+        .router_return_url
+        .clone()
+        .unwrap_or_else(|| "https://juspay.in/".to_string()));
         Ok(Self {
             amount: item.request.amount, //hopefully we don't loose some cents here
             currency: item.request.currency.to_string(), //we need to copy the value and not transfer ownership
@@ -1254,7 +1271,9 @@ impl<F, T>
                     | StripePaymentMethodOptions::Ach {}
                     | StripePaymentMethodOptions::Bacs {}
                     | StripePaymentMethodOptions::Becs {}
-                    | StripePaymentMethodOptions::Sepa {} => None,
+                    | StripePaymentMethodOptions::Sepa {} 
+                    | StripePaymentMethodOptions::Bancontact {} 
+                    => None,
                 });
 
         let error_res =
@@ -1529,8 +1548,8 @@ pub struct StripeBillingAddress {
 
 #[derive(Debug, Clone, serde::Deserialize, Eq, PartialEq)]
 pub struct StripeRedirectResponse {
-    pub payment_intent: String,
-    pub payment_intent_client_secret: String,
+    pub payment_intent: Option<String>,
+    pub payment_intent_client_secret: Option<String>,
     pub source_redirect_slug: Option<String>,
     pub redirect_status: Option<StripePaymentStatus>,
     pub source_type: Option<Secret<String>>,
@@ -1574,6 +1593,7 @@ pub enum StripePaymentMethodOptions {
     Becs {},
     #[serde(rename = "bacs_debit")]
     Bacs {},
+    Bancontact {},
 }
 
 #[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]

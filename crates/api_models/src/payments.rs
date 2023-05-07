@@ -571,18 +571,21 @@ pub enum BankRedirectData {
     BancontactCard {
         /// The card number
         #[schema(value_type = String, example = "4242424242424242")]
-        card_number: Secret<String, pii::CardNumber>,
+        card_number: Option<Secret<String, pii::CardNumber>>,
         /// The card's expiry month
         #[schema(value_type = String, example = "24")]
-        card_exp_month: Secret<String>,
+        card_exp_month: Option<Secret<String>>,
 
         /// The card's expiry year
         #[schema(value_type = String, example = "24")]
-        card_exp_year: Secret<String>,
+        card_exp_year: Option<Secret<String>>,
 
         /// The card holder's name
         #[schema(value_type = String, example = "John Test")]
-        card_holder_name: Secret<String>,
+        card_holder_name: Option<Secret<String>>,
+
+        //Required by Stripes
+        billing_details: Option<BankRedirectBilling>,
     },
     Blik {
         // Blik Code
