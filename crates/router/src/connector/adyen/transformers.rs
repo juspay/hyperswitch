@@ -1339,7 +1339,7 @@ impl<'a>
             shopper_locale,
             billing_address: None,
             delivery_address: None,
-            country_code: None,
+            country_code: country,
             line_items,
             shopper_reference,
             store_payment_method,
