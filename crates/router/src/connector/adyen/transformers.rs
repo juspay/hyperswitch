@@ -1320,7 +1320,7 @@ impl<'a>
         let additional_data = get_additional_data(item);
         let return_url = item.request.get_return_url()?;
         let payment_method = AdyenPaymentMethod::try_from(bank_redirect_data)?;
-        let (shopper_locale, _country) = get_sofort_extra_details(item);
+        let (shopper_locale, country) = get_sofort_extra_details(item);
         let line_items = Some(get_line_items(item));
 
         Ok(AdyenPaymentRequest {
