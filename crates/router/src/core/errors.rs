@@ -301,7 +301,7 @@ pub enum ConnectorError {
     FileValidationFailed { reason: String },
     #[error("Failed to parse the url {url}")]
     URLParsingFailed { url: String },
-    #[error("Missing 3DS redirection payload from connector resposne")]
+    #[error("Missing 3DS redirection payload from connector response")]
     MissingConnectorRedirectionPayload,
 }
 
