@@ -34,12 +34,13 @@ pub type PaymentsCaptureRouterData =
 pub type PaymentsCancelRouterData = RouterData<api::Void, PaymentsCancelData, PaymentsResponseData>;
 pub type PaymentsSessionRouterData =
     RouterData<api::Session, PaymentsSessionData, PaymentsResponseData>;
-pub type PayoutsRouterData = RouterData<api::Payout, PayoutsData, PayoutsResponseData>;
 pub type RefundsRouterData<F> = RouterData<F, RefundsData, RefundsResponseData>;
 pub type RefundExecuteRouterData = RouterData<api::Execute, RefundsData, RefundsResponseData>;
 pub type RefundSyncRouterData = RouterData<api::RSync, RefundsData, RefundsResponseData>;
 pub type TokenizationRouterData =
     RouterData<api::PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>;
+pub type ConnectorCustomerRouterData =
+    RouterData<api::CreateConnectorCustomer, ConnectorCustomerData, PaymentsResponseData>;
 
 pub type RefreshTokenRouterData =
     RouterData<api::AccessTokenAuth, AccessTokenRequestData, AccessToken>;
@@ -60,6 +61,12 @@ pub type TokenizationResponseRouterData<R> = ResponseRouterData<
     api::PaymentMethodToken,
     R,
     PaymentMethodTokenizationData,
+    PaymentsResponseData,
+>;
+pub type ConnectorCustomerResponseRouterData<R> = ResponseRouterData<
+    api::CreateConnectorCustomer,
+    R,
+    ConnectorCustomerData,
     PaymentsResponseData,
 >;
 
@@ -98,6 +105,12 @@ pub type TokenizationType = dyn services::ConnectorIntegration<
     PaymentsResponseData,
 >;
 
+pub type ConnectorCustomerType = dyn services::ConnectorIntegration<
+    api::CreateConnectorCustomer,
+    ConnectorCustomerData,
+    PaymentsResponseData,
+>;
+
 pub type RefundExecuteType =
     dyn services::ConnectorIntegration<api::Execute, RefundsData, RefundsResponseData>;
 pub type RefundSyncType =
@@ -124,6 +137,12 @@ pub type SubmitEvidenceType = dyn services::ConnectorIntegration<
 pub type UploadFileType =
     dyn services::ConnectorIntegration<api::Upload, UploadFileRequestData, UploadFileResponse>;
 
+pub type DefendDisputeType = dyn services::ConnectorIntegration<
+    api::Defend,
+    DefendDisputeRequestData,
+    DefendDisputeResponse,
+>;
+
 pub type VerifyRouterData = RouterData<api::Verify, VerifyRequestData, PaymentsResponseData>;
 
 pub type AcceptDisputeRouterData =
@@ -134,10 +153,17 @@ pub type SubmitEvidenceRouterData =
 
 pub type UploadFileRouterData = RouterData<api::Upload, UploadFileRequestData, UploadFileResponse>;
 
+pub type DefendDisputeRouterData =
+    RouterData<api::Defend, DefendDisputeRequestData, DefendDisputeResponse>;
+
+pub type PayoutsRouterData = RouterData<api::Payout, PayoutsData, PayoutsResponseData>;
+
 #[derive(Debug, Clone)]
 pub struct RouterData<Flow, Request, Response> {
     pub flow: PhantomData<Flow>,
     pub merchant_id: String,
+    pub customer_id: Option<String>,
+    pub connector_customer: Option<String>,
     pub connector: String,
     pub payment_id: String,
     pub attempt_id: String,
@@ -184,7 +210,7 @@ pub struct PayoutsResponseData {
 pub struct PaymentsAuthorizeData {
     pub payment_method_data: payments::PaymentMethodData,
     pub amount: i64,
-    pub email: Option<masking::Secret<String, Email>>,
+    pub email: Option<Email>,
     pub currency: storage_enums::Currency,
     pub confirm: bool,
     pub statement_descriptor_suffix: Option<String>,
@@ -225,6 +251,14 @@ pub struct AuthorizeSessionTokenData {
 }
 
 #[derive(Debug, Clone)]
+pub struct ConnectorCustomerData {
+    pub description: Option<String>,
+    pub email: Option<Email>,
+    pub phone: Option<masking::Secret<String>>,
+    pub name: Option<String>,
+}
+
+#[derive(Debug, Clone)]
 pub struct PaymentMethodTokenizationData {
     pub payment_method_data: payments::PaymentMethodData,
 }
@@ -233,7 +267,7 @@ pub struct PaymentMethodTokenizationData {
 pub struct CompleteAuthorizeData {
     pub payment_method_data: Option<payments::PaymentMethodData>,
     pub amount: i64,
-    pub email: Option<masking::Secret<String, Email>>,
+    pub email: Option<Email>,
     pub currency: storage_enums::Currency,
     pub confirm: bool,
     pub statement_descriptor_suffix: Option<String>,
@@ -271,7 +305,7 @@ pub struct PaymentsCancelData {
 pub struct PaymentsSessionData {
     pub amount: i64,
     pub currency: storage_enums::Currency,
-    pub country: Option<api::enums::CountryCode>,
+    pub country: Option<api::enums::CountryAlpha2>,
     pub order_details: Option<api_models::payments::OrderDetails>,
 }
 
@@ -312,6 +346,7 @@ pub enum PaymentsResponseData {
         redirection_data: Option<services::RedirectForm>,
         mandate_reference: Option<String>,
         connector_metadata: Option<serde_json::Value>,
+        network_txn_id: Option<String>,
     },
     SessionResponse {
         session_token: api::SessionToken,
@@ -327,6 +362,11 @@ pub enum PaymentsResponseData {
     TokenizationResponse {
         token: String,
     },
+
+    ConnectorCustomerResponse {
+        connector_customer_id: String,
+    },
+
     ThreeDSEnrollmentResponse {
         enrolled_v2: bool,
         related_transaction_id: Option<String>,
@@ -444,6 +484,10 @@ pub struct SubmitEvidenceRequestData {
     pub shipping_documentation: Option<Vec<u8>>,
     pub shipping_documentation_provider_file_id: Option<String>,
     pub shipping_tracking_number: Option<String>,
+    pub invoice_showing_distinct_transactions: Option<Vec<u8>>,
+    pub invoice_showing_distinct_transactions_provider_file_id: Option<String>,
+    pub recurring_transaction_agreement: Option<Vec<u8>>,
+    pub recurring_transaction_agreement_provider_file_id: Option<String>,
     pub uncategorized_file: Option<Vec<u8>>,
     pub uncategorized_file_provider_file_id: Option<String>,
     pub uncategorized_text: Option<String>,
@@ -451,6 +495,18 @@ pub struct SubmitEvidenceRequestData {
 
 #[derive(Default, Clone, Debug)]
 pub struct SubmitEvidenceResponse {
+    pub dispute_status: api_models::enums::DisputeStatus,
+    pub connector_status: Option<String>,
+}
+
+#[derive(Default, Debug, Clone)]
+pub struct DefendDisputeRequestData {
+    pub dispute_id: String,
+    pub connector_dispute_id: String,
+}
+
+#[derive(Default, Debug, Clone)]
+pub struct DefendDisputeResponse {
     pub dispute_status: api_models::enums::DisputeStatus,
     pub connector_status: Option<String>,
 }
@@ -478,6 +534,7 @@ pub struct ConnectorResponse {
     pub return_url: Option<String>,
     pub three_ds_form: Option<services::RedirectForm>,
 }
+
 pub struct ResponseRouterData<Flow, R, Request, Response> {
     pub response: R,
     pub data: RouterData<Flow, Request, Response>,
@@ -499,6 +556,12 @@ pub enum ConnectorAuthType {
         api_key: String,
         key1: String,
         api_secret: String,
+    },
+    MultiAuthKey {
+        api_key: String,
+        key1: String,
+        api_secret: String,
+        key2: String,
     },
     #[default]
     NoKey,
@@ -621,7 +684,9 @@ impl<F1, F2, T1, T2> From<(&&mut RouterData<F1, T1, PaymentsResponseData>, T2)>
             payment_id: data.payment_id.clone(),
             session_token: data.session_token.clone(),
             reference_id: data.reference_id.clone(),
+            customer_id: data.customer_id.clone(),
             payment_method_token: None,
+            connector_customer: data.connector_customer.clone(),
         }
     }
 }

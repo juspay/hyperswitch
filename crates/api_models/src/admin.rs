@@ -75,6 +75,10 @@ pub struct MerchantAccountCreate {
     #[cfg(not(feature = "multiple_mca"))]
     #[schema(value_type = Option<PrimaryBusinessDetails>)]
     pub primary_business_details: Option<Vec<PrimaryBusinessDetails>>,
+    ///Will be used to expire client secret after certain amount of time to be supplied in seconds
+    ///(900) for 15 mins
+    #[schema(example = 900)]
+    pub intent_fulfillment_time: Option<u32>,
 }
 
 #[derive(Clone, Debug, Deserialize, ToSchema)]
@@ -135,6 +139,10 @@ pub struct MerchantAccountUpdate {
 
     ///Default business details for connector routing
     pub primary_business_details: Option<Vec<PrimaryBusinessDetails>>,
+
+    ///Will be used to expire client secret after certain amount of time to be supplied in seconds
+    ///(900) for 15 mins
+    pub intent_fulfillment_time: Option<u32>,
 }
 
 #[derive(Clone, Debug, ToSchema, Serialize)]
@@ -201,6 +209,10 @@ pub struct MerchantAccountResponse {
     ///Default business details for connector routing
     #[schema(value_type = Vec<PrimaryBusinessDetails>)]
     pub primary_business_details: Vec<PrimaryBusinessDetails>,
+
+    ///Will be used to expire client secret after certain amount of time to be supplied in seconds
+    ///(900) for 15 mins
+    pub intent_fulfillment_time: Option<i64>,
 }
 
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
@@ -216,7 +228,7 @@ pub struct MerchantDetails {
 
     /// The merchant's primary email address
     #[schema(value_type = Option<String>, max_length = 255, example = "johndoe@test.com")]
-    pub primary_email: Option<Secret<String, pii::Email>>,
+    pub primary_email: Option<pii::Email>,
 
     /// The merchant's secondary contact name
     #[schema(value_type = Option<String>, max_length= 255, example = "John Doe2")]
@@ -228,7 +240,7 @@ pub struct MerchantDetails {
 
     /// The merchant's secondary email address
     #[schema(value_type = Option<String>, max_length = 255, example = "johndoe2@test.com")]
-    pub secondary_email: Option<Secret<String, pii::Email>>,
+    pub secondary_email: Option<pii::Email>,
 
     /// The business website of the merchant
     #[schema(max_length = 255, example = "www.example.com")]
@@ -251,10 +263,44 @@ pub enum RoutingAlgorithm {
     Single(api_enums::RoutableConnectors),
 }
 
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(
+    tag = "type",
+    content = "data",
+    rename_all = "snake_case",
+    from = "StraightThroughAlgorithmSerde",
+    into = "StraightThroughAlgorithmSerde"
+)]
+pub enum StraightThroughAlgorithm {
+    Single(api_enums::RoutableConnectors),
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum StraightThroughAlgorithmSerde {
+    Direct(StraightThroughAlgorithm),
+    Nested { algorithm: StraightThroughAlgorithm },
+}
+
+impl From<StraightThroughAlgorithmSerde> for StraightThroughAlgorithm {
+    fn from(value: StraightThroughAlgorithmSerde) -> Self {
+        match value {
+            StraightThroughAlgorithmSerde::Direct(algorithm) => algorithm,
+            StraightThroughAlgorithmSerde::Nested { algorithm } => algorithm,
+        }
+    }
+}
+
+impl From<StraightThroughAlgorithm> for StraightThroughAlgorithmSerde {
+    fn from(value: StraightThroughAlgorithm) -> Self {
+        Self::Nested { algorithm: value }
+    }
+}
+
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct PrimaryBusinessDetails {
-    pub country: api_enums::CountryCode,
+    pub country: api_enums::CountryAlpha2,
     pub business: String,
 }
 
@@ -385,11 +431,11 @@ pub struct MerchantConnectorCreate {
     pub frm_configs: Option<FrmConfigs>,
 
     /// Business Country of the connector
-    #[schema(example = "US")]
+    #[schema(value_type = CountryAlpha2, example = "US")]
     #[cfg(feature = "multiple_mca")]
-    pub business_country: api_enums::CountryCode,
+    pub business_country: api_enums::CountryAlpha2,
     #[cfg(not(feature = "multiple_mca"))]
-    pub business_country: Option<api_enums::CountryCode>,
+    pub business_country: Option<api_enums::CountryAlpha2>,
 
     ///Business Type of the merchant
     #[schema(example = "travel")]
@@ -466,8 +512,8 @@ pub struct MerchantConnectorResponse {
     pub metadata: Option<pii::SecretSerdeValue>,
 
     /// Business Country of the connector
-    #[schema(example = "US")]
-    pub business_country: api_enums::CountryCode,
+    #[schema(value_type = CountryAlpha2, example = "US")]
+    pub business_country: api_enums::CountryAlpha2,
 
     ///Business Type of the merchant
     #[schema(example = "travel")]
@@ -603,8 +649,8 @@ pub enum AcceptedCurrencies {
     rename_all = "snake_case"
 )]
 pub enum AcceptedCountries {
-    EnableOnly(Vec<api_enums::CountryCode>),
-    DisableOnly(Vec<api_enums::CountryCode>),
+    EnableOnly(Vec<api_enums::CountryAlpha2>),
+    DisableOnly(Vec<api_enums::CountryAlpha2>),
     AllAccepted,
 }
 

@@ -139,13 +139,11 @@ pub fn mk_app(
 ///
 ///  Unwrap used because without the value we can't start the server
 #[allow(clippy::expect_used, clippy::unwrap_used)]
-pub async fn start_server(conf: settings::Settings) -> ApplicationResult<(Server, AppState)> {
+pub async fn start_server(conf: settings::Settings) -> ApplicationResult<Server> {
     logger::debug!(startup_config=?conf);
     let server = conf.server.clone();
     let (tx, rx) = oneshot::channel();
     let state = routes::AppState::new(conf, tx).await;
-    // Cloning to close connections before shutdown
-    let app_state = state.clone();
     let request_body_limit = server.request_body_limit;
     let server = actix_web::HttpServer::new(move || mk_app(state.clone(), request_body_limit))
         .bind((server.host.as_str(), server.port))?
@@ -153,7 +151,7 @@ pub async fn start_server(conf: settings::Settings) -> ApplicationResult<(Server
         .shutdown_timeout(server.shutdown_timeout)
         .run();
     tokio::spawn(receiver_for_error(rx, server.handle()));
-    Ok((server, app_state))
+    Ok(server)
 }
 
 pub async fn receiver_for_error(rx: oneshot::Receiver<()>, mut server: impl Stop) {

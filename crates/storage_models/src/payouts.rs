@@ -1,103 +1,9 @@
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
-use serde::{Deserialize, Serialize};
-use time::PrimitiveDateTime;
+use serde::{self, Deserialize, Serialize};
 
-use crate::{
-    enums as storage_enums,
-    schema::{payout_create, payouts},
-};
+use crate::{enums as storage_enums, schema::payouts};
 
-#[derive(Clone, Debug, Eq, PartialEq, Identifiable, Queryable, Serialize, Deserialize)]
-#[diesel(table_name = payout_create)]
-pub struct PayoutCreate {
-    pub id: i32,
-    pub payout_id: String,
-    pub customer_id: String,
-    pub merchant_id: String,
-    pub status: storage_enums::PayoutStatus,
-    pub created_at: PrimitiveDateTime,
-    pub encoded_data: Option<serde_json::Value>,
-    pub connector: String,
-    pub error_message: Option<String>,
-    pub error_code: Option<String>,
-}
-
-#[derive(
-    Clone,
-    Debug,
-    Eq,
-    PartialEq,
-    Insertable,
-    Queryable,
-    router_derive::DebugAsDisplay,
-    router_derive::Setter,
-)]
-#[diesel(table_name = payout_create)]
-pub struct PayoutCreateNew {
-    pub payout_id: String,
-    pub customer_id: String,
-    pub merchant_id: String,
-    pub status: storage_enums::PayoutStatus,
-    pub created_at: PrimitiveDateTime,
-    pub encoded_data: Option<serde_json::Value>,
-    pub connector: String,
-    pub error_message: Option<String>,
-    pub error_code: Option<String>,
-}
-
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub enum PayoutCreateUpdate {
-    Update {
-        status: storage_enums::PayoutStatus,
-        error_message: Option<String>,
-        error_code: Option<String>,
-    },
-}
-
-#[derive(Clone, Debug, Default, AsChangeset, router_derive::DebugAsDisplay)]
-#[diesel(table_name = payout_create)]
-pub struct PayoutCreateUpdateInternal {
-    pub status: Option<storage_enums::PayoutStatus>,
-    pub encoded_data: Option<serde_json::Value>,
-    pub error_message: Option<String>,
-    pub error_code: Option<String>,
-}
-
-impl From<PayoutCreateUpdate> for PayoutCreateUpdateInternal {
-    fn from(payout_update: PayoutCreateUpdate) -> Self {
-        match payout_update {
-            PayoutCreateUpdate::Update {
-                status,
-                error_message,
-                error_code,
-            } => Self {
-                status: Some(status),
-                error_message,
-                error_code,
-                ..Default::default()
-            },
-        }
-    }
-}
-
-impl Default for PayoutCreateNew {
-    fn default() -> Self {
-        let now = common_utils::date_time::now();
-
-        Self {
-            payout_id: String::default(),
-            customer_id: String::default(),
-            merchant_id: String::default(),
-            status: storage_enums::PayoutStatus::default(),
-            created_at: now,
-            encoded_data: Option::default(),
-            connector: String::default(),
-            error_message: Option::default(),
-            error_code: Option::default(),
-        }
-    }
-}
-
+// Payouts
 #[derive(Clone, Debug, Eq, PartialEq, Identifiable, Queryable, Serialize, Deserialize)]
 #[diesel(table_name = payouts)]
 pub struct Payouts {
@@ -159,6 +65,27 @@ impl Default for PayoutsNew {
             destination_currency: storage_enums::Currency::default(),
             source_currency: storage_enums::Currency::default(),
             recurring: Some(false),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub enum PayoutsUpdate {
+    RecurringUpdate { recurring: bool },
+}
+
+#[derive(Clone, Debug, Default, AsChangeset, router_derive::DebugAsDisplay)]
+#[diesel(table_name = payouts)]
+pub struct PayoutsUpdateInternal {
+    pub recurring: Option<bool>,
+}
+
+impl From<PayoutsUpdate> for PayoutsUpdateInternal {
+    fn from(payout_update: PayoutsUpdate) -> Self {
+        match payout_update {
+            PayoutsUpdate::RecurringUpdate { recurring } => Self {
+                recurring: Some(recurring),
+            },
         }
     }
 }

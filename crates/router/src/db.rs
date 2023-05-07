@@ -16,6 +16,7 @@ pub mod merchant_connector_account;
 pub mod payment_attempt;
 pub mod payment_intent;
 pub mod payment_method;
+pub mod payout_create;
 pub mod payouts;
 pub mod process_tracker;
 pub mod queue;
@@ -57,6 +58,7 @@ pub trait StorageInterface:
     + payment_attempt::PaymentAttemptInterface
     + payment_intent::PaymentIntentInterface
     + payment_method::PaymentMethodInterface
+    + payout_create::PayoutCreateInterface
     + payouts::PayoutsInterface
     + process_tracker::ProcessTrackerInterface
     + queue::QueueInterface
@@ -65,19 +67,10 @@ pub trait StorageInterface:
     + cards_info::CardsInfoInterface
     + 'static
 {
-    async fn close(&mut self) {}
 }
 
 #[async_trait::async_trait]
-impl StorageInterface for Store {
-    #[allow(clippy::expect_used)]
-    async fn close(&mut self) {
-        std::sync::Arc::get_mut(&mut self.redis_conn)
-            .expect("Redis connection pool cannot be closed")
-            .close_connections()
-            .await;
-    }
-}
+impl StorageInterface for Store {}
 
 #[derive(Clone)]
 pub struct MockDb {
@@ -109,15 +102,7 @@ impl MockDb {
 }
 
 #[async_trait::async_trait]
-impl StorageInterface for MockDb {
-    #[allow(clippy::expect_used)]
-    async fn close(&mut self) {
-        std::sync::Arc::get_mut(&mut self.redis)
-            .expect("Redis connection pool cannot be closed")
-            .close_connections()
-            .await;
-    }
-}
+impl StorageInterface for MockDb {}
 
 pub async fn get_and_deserialize_key<T>(
     db: &dyn StorageInterface,

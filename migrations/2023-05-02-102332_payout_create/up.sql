@@ -1,20 +1,32 @@
-CREATE TYPE "PayoutStatus" AS ENUM ('created', 'pending', 'success', 'failed');
-CREATE TYPE "PayoutType" AS ENUM ('card', 'bank');
-
-CREATE TABLE payout_create (
-    id SERIAL PRIMARY KEY,
-    payout_id VARCHAR(255) NOT NULL,
-    customer_id VARCHAR(255) NOT NULL,
-    merchant_id VARCHAR(255) NOT NULL,
+CREATE type "PayoutStatus" AS ENUM (
+    'succeeded',
+    'failed',
+    'cancelled',
+    'processing',
+    'requires_fulfillment'
+);
+CREATE type "PayoutType" AS ENUM ('card', 'bank');
+CREATE TABLE PAYOUT_CREATE (
+    id serial PRIMARY KEY,
+    payout_id VARCHAR (64) NOT NULL,
+    merchant_id VARCHAR (64) NOT NULL,
+    customer_id VARCHAR (64) NOT NULL,
+    address_id VARCHAR (64) NOT NULL,
+    payout_type "PayoutType" NOT NULL,
+    amount BIGINT NOT NULL,
+    destination_currency "Currency" NOT NULL,
+    source_currency "Currency" NOT NULL,
+    description VARCHAR (255),
+    created_at timestamp NOT NULL DEFAULT NOW()::timestamp,
+    modified_at timestamp NOT NULL DEFAULT NOW()::timestamp,
     status "PayoutStatus" NOT NULL,
-    created_at TIMESTAMP NOT NULL DEFAULT now()::TIMESTAMP,
-    encoded_data JSONB,
-    connector VARCHAR(255) NOT NULL,
+    metadata jsonb DEFAULT '{}'::jsonb,
+    recurring boolean NOT NULL DEFAULT false,
+    connector VARCHAR(64) NOT NULL,
     error_message TEXT,
     error_code VARCHAR(255) 
 );
-
-CREATE TABLE payouts (
+CREATE TABLE PAYOUTS (
     id SERIAL PRIMARY KEY,
     payout_id VARCHAR(255) NOT NULL,
     customer_id VARCHAR(255) NOT NULL,

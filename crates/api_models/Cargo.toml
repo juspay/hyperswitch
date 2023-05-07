@@ -5,11 +5,14 @@ edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [features]
+default = []
 errors = [
     "dep:actix-web",
     "dep:reqwest",
 ]
 multiple_mca = []
+dummy_connector = []
+payouts = []
 
 [dependencies]
 actix-web = { version = "4.3.1", optional = true }

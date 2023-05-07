@@ -3,8 +3,8 @@ pub mod diesel_exports {
     pub use super::{
         DbAttemptStatus as AttemptStatus, DbAuthenticationType as AuthenticationType,
         DbCaptureMethod as CaptureMethod, DbConnectorType as ConnectorType,
-        DbCountryCode as CountryCode, DbCurrency as Currency, DbDisputeStage as DisputeStage,
-        DbDisputeStatus as DisputeStatus, DbEventClass as EventClass,
+        DbCountryAlpha2 as CountryAlpha2, DbCurrency as Currency, DbDisputeStage as DisputeStage,
+        DbDisputeStatus as DisputeStatus, DbEntityType as EntityType, DbEventClass as EventClass,
         DbEventObjectType as EventObjectType, DbEventType as EventType,
         DbFutureUsage as FutureUsage, DbIntentStatus as IntentStatus,
         DbMandateStatus as MandateStatus, DbMandateType as MandateType,
@@ -58,52 +58,6 @@ pub enum AttemptStatus {
     PaymentMethodAwaited,
     ConfirmationAwaited,
     DeviceDataCollectionPending,
-}
-
-#[derive(
-    Clone,
-    Copy,
-    Debug,
-    Default,
-    Eq,
-    PartialEq,
-    serde::Deserialize,
-    serde::Serialize,
-    strum::Display,
-    strum::EnumString,
-    frunk::LabelledGeneric,
-)]
-#[router_derive::diesel_enum(storage_type = "pg_enum")]
-#[serde(rename_all = "snake_case")]
-#[strum(serialize_all = "snake_case")]
-pub enum PayoutStatus {
-    #[default]
-    Created,
-    Pending,
-    Success,
-    Failed,
-}
-
-#[derive(
-    Clone,
-    Copy,
-    Debug,
-    Default,
-    Eq,
-    PartialEq,
-    serde::Deserialize,
-    serde::Serialize,
-    strum::Display,
-    strum::EnumString,
-    frunk::LabelledGeneric,
-)]
-#[router_derive::diesel_enum(storage_type = "pg_enum")]
-#[serde(rename_all = "snake_case")]
-#[strum(serialize_all = "snake_case")]
-pub enum PayoutType {
-    #[default]
-    Card,
-    Bank,
 }
 
 #[derive(
@@ -505,6 +459,88 @@ pub enum PaymentMethod {
     BankDebit,
 }
 
+// #[cfg(feature = "payouts")]
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    frunk::LabelledGeneric,
+)]
+#[router_derive::diesel_enum(storage_type = "pg_enum")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum PayoutStatus {
+    Pending,
+    Success,
+    Failed,
+    Cancelled,
+    #[default]
+    RequiresFulfillment,
+}
+
+// #[cfg(feature = "payouts")]
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    frunk::LabelledGeneric,
+)]
+#[router_derive::diesel_enum(storage_type = "pg_enum")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum PayoutType {
+    #[default]
+    Card,
+    Bank,
+}
+
+// #[cfg(feature = "payouts")]
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    frunk::LabelledGeneric,
+)]
+#[router_derive::diesel_enum(storage_type = "pg_enum")]
+#[serde(rename_all = "PascalCase")]
+#[strum(serialize_all = "PascalCase")]
+pub enum EntityType {
+    /// Adyen
+    #[default]
+    Individual,
+    Company,
+    NonProfit,
+    PublicSector,
+
+    /// Wise
+    #[strum(serialize = "lowercase")]
+    #[serde(rename = "lowercase")]
+    Business,
+    Personal,
+}
+
 #[derive(
     Clone,
     Copy,
@@ -863,4 +899,5 @@ pub enum FileUploadProvider {
     #[default]
     Router,
     Stripe,
+    Checkout,
 }

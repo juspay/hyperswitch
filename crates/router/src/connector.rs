@@ -9,6 +9,8 @@ pub mod checkout;
 pub mod coinbase;
 pub mod cybersource;
 pub mod dlocal;
+#[cfg(feature = "dummy_connector")]
+pub mod dummyconnector;
 pub mod fiserv;
 pub mod forte;
 pub mod globalpay;
@@ -31,6 +33,8 @@ pub mod zen;
 
 pub mod mollie;
 
+#[cfg(feature = "dummy_connector")]
+pub use self::dummyconnector::DummyConnector;
 pub use self::{
     aci::Aci, adyen::Adyen, airwallex::Airwallex, authorizedotnet::Authorizedotnet,
     bambora::Bambora, bluesnap::Bluesnap, braintree::Braintree, checkout::Checkout,

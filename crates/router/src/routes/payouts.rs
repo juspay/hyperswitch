@@ -8,23 +8,35 @@ use super::app::AppState;
 use crate::{
     core::payouts::*,
     services::{api, authentication as auth},
-    types::api::payouts,
+    types::api::payouts as payout_types,
 };
 
+/// Payouts - Create
+#[utoipa::path(
+    post,
+    path = "/payouts",
+    request_body=PayoutsRequest,
+    responses(
+        (status = 200, description = "Payout created", body = PayoutsResponse),
+        (status = 400, description = "Missing Mandatory fields")
+    ),
+    tag = "Payouts",
+    operation_id = "Create a Payout",
+    security(("api_key" = []))
+)]
 #[instrument(skip_all, fields(flow = ?Flow::PayoutsCreate))]
-// #[post("/create")]
 pub async fn payouts_create(
     state: web::Data<AppState>,
     req: HttpRequest,
-    json_payload: web::Json<payouts::PayoutCreateRequest>,
-) -> impl Responder {
+    json_payload: web::Json<payout_types::PayoutCreateRequest>,
+) -> HttpResponse {
     let flow = Flow::PayoutsCreate;
     api::server_wrap(
         flow,
         state.get_ref(),
         &req,
         json_payload.into_inner(),
-        payout_create_core,
+        payouts_create_core,
         &auth::ApiKeyAuth,
     )
     .await
