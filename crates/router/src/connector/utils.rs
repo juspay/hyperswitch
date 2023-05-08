@@ -556,6 +556,18 @@ impl MandateData for payments::MandateAmountData {
     }
 }
 
+pub trait MandateReferenceData {
+    fn get_connector_mandate_id(&self) -> Result<String, Error>;
+}
+
+impl MandateReferenceData for api_models::payments::ConnectorMandateReferenceId {
+    fn get_connector_mandate_id(&self) -> Result<String, Error> {
+        self.connector_mandate_id
+            .clone()
+            .ok_or_else(missing_field_err("mandate_id"))
+    }
+}
+
 pub fn get_header_key_value<'a>(
     key: &str,
     headers: &'a actix_web::http::header::HeaderMap,

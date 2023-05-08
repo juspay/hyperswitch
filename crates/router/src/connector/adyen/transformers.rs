@@ -7,7 +7,9 @@ use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
 use crate::{
-    connector::utils::{self, CardData, PaymentsAuthorizeRequestData, RouterData},
+    connector::utils::{
+        self, CardData, MandateReferenceData, PaymentsAuthorizeRequestData, RouterData,
+    },
     consts,
     core::errors,
     pii::{self, Email, Secret},
@@ -501,7 +503,7 @@ pub struct BankRedirectionWithIssuer<'a> {
 pub struct AdyenMandate {
     #[serde(rename = "type")]
     payment_type: PaymentType,
-    stored_payment_method_id: Option<String>,
+    stored_payment_method_id: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -1107,7 +1109,7 @@ impl<'a> TryFrom<(&types::PaymentsAuthorizeRouterData, MandateReferenceId)>
             MandateReferenceId::ConnectorMandateId(connector_mandate_ids) => {
                 let adyen_mandate = AdyenMandate {
                     payment_type: PaymentType::Scheme,
-                    stored_payment_method_id: connector_mandate_ids.connector_mandate_id,
+                    stored_payment_method_id: connector_mandate_ids.get_connector_mandate_id()?,
                 };
                 Ok::<AdyenPaymentMethod<'_>, Self::Error>(AdyenPaymentMethod::Mandate(Box::new(
                     adyen_mandate,
