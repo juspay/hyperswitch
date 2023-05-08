@@ -300,6 +300,7 @@ pub struct VerifyRequestData {
     pub off_session: Option<bool>,
     pub setup_mandate_details: Option<payments::MandateData>,
     pub email: Option<Email>,
+    pub return_url: Option<String>,
 }
 
 #[derive(Debug, Clone)]

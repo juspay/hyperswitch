@@ -298,6 +298,7 @@ pub struct Jwekey {
     pub locker_decryption_key2: String,
     pub vault_encryption_key: String,
     pub vault_private_key: String,
+    pub tunnel_private_key: String,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
