@@ -9,7 +9,7 @@ pub enum ErrorType {
 #[derive(Debug, Clone, router_derive::ApiError)]
 #[error(error_type_enum = ErrorType)]
 pub enum DummyConnectorErrors {
-    #[error(error_type = ErrorType::ServerNotAvailable, code = "DC_00", message = "Error occured while storing the payment")]
+    #[error(error_type = ErrorType::ServerNotAvailable, code = "DC_00", message = "Error occurred while storing the payment")]
     PaymentStoringError,
 
     #[error(error_type = ErrorType::ObjectNotFound, code = "DC_01", message = "Payment does not exist in our records")]
