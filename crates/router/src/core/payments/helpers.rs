@@ -19,7 +19,7 @@ use super::{
 };
 use crate::{
     configs::settings::Server,
-    connection, consts,
+    consts,
     core::{
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         payment_methods::{cards, vault},
@@ -691,7 +691,7 @@ pub async fn make_pm_data<'a, F: Clone, R>(
     let request = &payment_data.payment_method_data;
     let token = payment_data.token.clone();
     let hyperswitch_token = if let Some(token) = token {
-        let redis_conn = connection::redis_connection(&state.conf).await;
+        let redis_conn = state.store.get_redis_conn();
         let key = format!(
             "pm_token_{}_{}_hyperswitch",
             token,
