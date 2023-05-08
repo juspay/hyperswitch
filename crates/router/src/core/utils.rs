@@ -30,8 +30,6 @@ pub async fn construct_refund_router_data<'a, F>(
     refund: &'a storage::Refund,
     creds_identifier: Option<String>,
 ) -> RouterResult<types::RefundsRouterData<F>> {
-    let db = &*state.store;
-
     let connector_label = helpers::get_connector_label(
         payment_intent.business_country,
         &payment_intent.business_label,
@@ -40,7 +38,7 @@ pub async fn construct_refund_router_data<'a, F>(
     );
 
     let merchant_connector_account = helpers::get_merchant_connector_account(
-        db,
+        state,
         merchant_account.merchant_id.as_str(),
         &connector_label,
         creds_identifier,
@@ -234,7 +232,6 @@ pub async fn construct_accept_dispute_router_data<'a>(
     merchant_account: &storage::MerchantAccount,
     dispute: &storage::Dispute,
 ) -> RouterResult<types::AcceptDisputeRouterData> {
-    let db = &*state.store;
     let connector_id = &dispute.connector;
     let connector_label = helpers::get_connector_label(
         payment_intent.business_country,
@@ -243,7 +240,7 @@ pub async fn construct_accept_dispute_router_data<'a>(
         connector_id,
     );
     let merchant_connector_account = helpers::get_merchant_connector_account(
-        db,
+        state,
         merchant_account.merchant_id.as_str(),
         &connector_label,
         None,
@@ -296,7 +293,6 @@ pub async fn construct_submit_evidence_router_data<'a>(
     dispute: &storage::Dispute,
     submit_evidence_request_data: types::SubmitEvidenceRequestData,
 ) -> RouterResult<types::SubmitEvidenceRouterData> {
-    let db = &*state.store;
     let connector_id = &dispute.connector;
     let connector_label = helpers::get_connector_label(
         payment_intent.business_country,
@@ -305,7 +301,7 @@ pub async fn construct_submit_evidence_router_data<'a>(
         connector_id,
     );
     let merchant_connector_account = helpers::get_merchant_connector_account(
-        db,
+        state,
         merchant_account.merchant_id.as_str(),
         &connector_label,
         None,
@@ -358,9 +354,8 @@ pub async fn construct_upload_file_router_data<'a>(
     file_key: String,
     connector_label: String,
 ) -> RouterResult<types::UploadFileRouterData> {
-    let db = &*state.store;
     let merchant_connector_account = helpers::get_merchant_connector_account(
-        db,
+        state,
         merchant_account.merchant_id.as_str(),
         &connector_label,
         None,
@@ -414,7 +409,7 @@ pub async fn construct_defend_dispute_router_data<'a>(
     merchant_account: &storage::MerchantAccount,
     dispute: &storage::Dispute,
 ) -> RouterResult<types::DefendDisputeRouterData> {
-    let db = &*state.store;
+    let _db = &*state.store;
     let connector_id = &dispute.connector;
     let connector_label = helpers::get_connector_label(
         payment_intent.business_country,
@@ -423,7 +418,7 @@ pub async fn construct_defend_dispute_router_data<'a>(
         connector_id,
     );
     let merchant_connector_account = helpers::get_merchant_connector_account(
-        db,
+        state,
         merchant_account.merchant_id.as_str(),
         &connector_label,
         None,
@@ -474,7 +469,6 @@ pub async fn construct_retrieve_file_router_data<'a>(
     file_metadata: &storage_models::file::FileMetadata,
     connector_id: &str,
 ) -> RouterResult<types::RetrieveFileRouterData> {
-    let db = &*state.store;
     let connector_label = file_metadata
         .connector_label
         .clone()
@@ -482,7 +476,7 @@ pub async fn construct_retrieve_file_router_data<'a>(
         .into_report()
         .attach_printable("Missing connector label")?;
     let merchant_connector_account = helpers::get_merchant_connector_account(
-        db,
+        state,
         merchant_account.merchant_id.as_str(),
         &connector_label,
         None,
