@@ -117,14 +117,7 @@ where
 }
 /// Email address
 #[derive(
-    serde::Serialize,
-    serde::Deserialize,
-    Debug,
-    Clone,
-    PartialEq,
-    Eq,
-    Default,
-    AsExpression,
+    serde::Serialize, serde::Deserialize, Debug, Clone, PartialEq, Eq, Default, AsExpression,
 )]
 #[diesel(sql_type = diesel::sql_types::Text)]
 pub struct Email(Secret<String, EmailStrategy>);
