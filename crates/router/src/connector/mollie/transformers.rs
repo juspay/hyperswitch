@@ -83,7 +83,7 @@ pub struct Address {
     pub postal_code: Secret<String>,
     pub city: String,
     pub region: Option<Secret<String>>,
-    pub country: api_models::enums::CountryCode,
+    pub country: api_models::enums::CountryAlpha2,
 }
 
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for MolliePaymentsRequest {
@@ -333,6 +333,7 @@ impl<F, T>
                 redirection_data: url,
                 mandate_reference: None,
                 connector_metadata: None,
+                network_txn_id: None,
             }),
             ..item.data
         })

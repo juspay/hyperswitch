@@ -28,11 +28,10 @@ pub async fn retrieve_card_info(
     let db = &*state.store;
 
     verify_iin_length(&request.card_iin)?;
-    helpers::verify_client_secret(
+    helpers::verify_payment_intent_time_and_client_secret(
         db,
-        merchant_account.storage_scheme,
+        &merchant_account,
         request.client_secret,
-        &merchant_account.merchant_id,
     )
     .await?;
 

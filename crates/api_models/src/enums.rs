@@ -592,16 +592,20 @@ pub enum Connector {
     Cybersource,
     #[default]
     Dummy,
+    #[cfg(feature = "dummy_connector")]
+    #[serde(rename = "dummyconnector")]
+    #[strum(serialize = "dummyconnector")]
+    DummyConnector,
     Opennode,
     Bambora,
     Dlocal,
     Fiserv,
-    //Forte,
+    Forte,
     Globalpay,
     Klarna,
     Mollie,
     Multisafepay,
-    // Nexinets, added as template code for future use
+    Nexinets,
     Nuvei,
     // Payeezy, As psync and rsync are not supported by this connector, it is added as template code for future usage
     Paypal,
@@ -649,6 +653,10 @@ impl Connector {
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum RoutableConnectors {
+    #[cfg(feature = "dummy_connector")]
+    #[serde(rename = "dummyconnector")]
+    #[strum(serialize = "dummyconnector")]
+    DummyConnector,
     Aci,
     Adyen,
     Airwallex,
@@ -661,12 +669,12 @@ pub enum RoutableConnectors {
     Cybersource,
     Dlocal,
     Fiserv,
-    //Forte,
+    Forte,
     Globalpay,
     Klarna,
     Mollie,
     Multisafepay,
-    // Nexinets, added as template code for future use
+    Nexinets,
     Nuvei,
     Opennode,
     // Payeezy, As psync and rsync are not supported by this connector, it is added as template code for future usage

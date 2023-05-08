@@ -150,8 +150,14 @@ pub struct ConnectorData {
     pub get_token: GetToken,
 }
 
+#[derive(Clone)]
+pub struct SessionConnectorData {
+    pub payment_method_type: api_enums::PaymentMethodType,
+    pub connector: ConnectorData,
+}
+
 pub enum ConnectorChoice {
-    SessionMultiple(Vec<ConnectorData>),
+    SessionMultiple(Vec<SessionConnectorData>),
     StraightThrough(serde_json::Value),
     Decide,
 }
@@ -203,8 +209,10 @@ impl ConnectorData {
             "coinbase" => Ok(Box::new(&connector::Coinbase)),
             "cybersource" => Ok(Box::new(&connector::Cybersource)),
             "dlocal" => Ok(Box::new(&connector::Dlocal)),
+            #[cfg(feature = "dummy_connector")]
+            "dummyconnector" => Ok(Box::new(&connector::DummyConnector)),
             "fiserv" => Ok(Box::new(&connector::Fiserv)),
-            // "forte" => Ok(Box::new(&connector::Forte)),
+            "forte" => Ok(Box::new(&connector::Forte)),
             "globalpay" => Ok(Box::new(&connector::Globalpay)),
             "klarna" => Ok(Box::new(&connector::Klarna)),
             "mollie" => Ok(Box::new(&connector::Mollie)),
@@ -218,7 +226,7 @@ impl ConnectorData {
             "worldline" => Ok(Box::new(&connector::Worldline)),
             "worldpay" => Ok(Box::new(&connector::Worldpay)),
             "multisafepay" => Ok(Box::new(&connector::Multisafepay)),
-            // "nexinets" => Ok(Box::new(&connector::Nexinets)), added as template code for future use
+            "nexinets" => Ok(Box::new(&connector::Nexinets)),
             "paypal" => Ok(Box::new(&connector::Paypal)),
             "trustpay" => Ok(Box::new(&connector::Trustpay)),
             "zen" => Ok(Box::new(&connector::Zen)),

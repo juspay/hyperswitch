@@ -6,7 +6,7 @@ use router_env::{instrument, tracing};
 use super::{flows::Feature, PaymentAddress, PaymentData};
 use crate::{
     configs::settings::Server,
-    connector::Paypal,
+    connector::{Nexinets, Paypal},
     core::{
         errors::{self, RouterResponse, RouterResult},
         payments::{self, helpers},
@@ -27,6 +27,7 @@ pub async fn construct_payment_router_data<'a, F, T>(
     payment_data: PaymentData<F>,
     connector_id: &str,
     merchant_account: &storage::MerchantAccount,
+    customer: &Option<storage::Customer>,
 ) -> RouterResult<types::RouterData<F, T, types::PaymentsResponseData>>
 where
     T: TryFrom<PaymentAdditionalData<'a, F>>,
@@ -43,9 +44,8 @@ where
         connector_id,
     );
 
-    let db = &*state.store;
     merchant_connector_account = helpers::get_merchant_connector_account(
-        db,
+        state,
         merchant_account.merchant_id.as_str(),
         &connector_label,
         payment_data.creds_identifier.to_owned(),
@@ -74,6 +74,7 @@ where
             redirection_data: None,
             mandate_reference: None,
             connector_metadata: None,
+            network_txn_id: None,
         });
 
     let additional_data = PaymentAdditionalData {
@@ -83,9 +84,12 @@ where
         state,
     };
 
+    let customer_id = customer.to_owned().map(|customer| customer.customer_id);
+
     router_data = types::RouterData {
         flow: PhantomData,
         merchant_id: merchant_account.merchant_id.clone(),
+        customer_id,
         connector: connector_id.to_owned(),
         payment_id: payment_data.payment_attempt.payment_id.clone(),
         attempt_id: payment_data.payment_attempt.attempt_id.clone(),
@@ -108,6 +112,7 @@ where
         session_token: None,
         reference_id: None,
         payment_method_token: payment_data.pm_token,
+        connector_customer: payment_data.connector_customer_id,
     };
 
     Ok(router_data)
@@ -515,10 +520,16 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             payment_data.creds_identifier.as_deref(),
         ));
 
+        // payment_method_data is not required during recurring mandate payment, in such case keep default PaymentMethodData as MandatePayment
+        let payment_method_data = payment_data.payment_method_data.or_else(|| {
+            if payment_data.mandate_id.is_some() {
+                Some(api_models::payments::PaymentMethodData::MandatePayment)
+            } else {
+                None
+            }
+        });
         Ok(Self {
-            payment_method_data: payment_data
-                .payment_method_data
-                .get_required_value("payment_method_data")?,
+            payment_method_data: payment_method_data.get_required_value("payment_method_data")?,
             setup_future_usage: payment_data.payment_intent.setup_future_usage,
             mandate_id: payment_data.mandate_id.clone(),
             off_session: payment_data.mandate_id.as_ref().map(|_| true),
@@ -578,6 +589,16 @@ impl api::ConnectorTransactionId for Paypal {
             Ok(data) => Ok(data),
             _ => Err(errors::ApiErrorResponse::ResourceIdNotFound),
         }
+    }
+}
+
+impl api::ConnectorTransactionId for Nexinets {
+    fn connector_transaction_id(
+        &self,
+        payment_attempt: storage::PaymentAttempt,
+    ) -> Result<Option<String>, errors::ApiErrorResponse> {
+        let metadata = Self::connector_transaction_id(self, &payment_attempt.connector_metadata);
+        metadata.map_err(|_| errors::ApiErrorResponse::ResourceIdNotFound)
     }
 }
 
@@ -679,6 +700,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::VerifyRequestDat
             off_session: payment_data.mandate_id.as_ref().map(|_| true),
             mandate_id: payment_data.mandate_id.clone(),
             setup_mandate_details: payment_data.setup_mandate,
+            return_url: payment_data.payment_intent.return_url,
         })
     }
 }

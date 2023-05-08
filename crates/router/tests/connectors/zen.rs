@@ -1,4 +1,7 @@
+use std::str::FromStr;
+
 use api_models::payments::OrderDetails;
+use common_utils::pii::Email;
 use masking::Secret;
 use router::types::{self, api, storage::enums};
 
@@ -304,7 +307,7 @@ async fn should_fail_payment_for_incorrect_card_number() {
                     product_name: "test".to_string(),
                     quantity: 1,
                 }),
-                email: Some(Secret::new("test@gmail.com".to_string())),
+                email: Some(Email::from_str("test@gmail.com").unwrap()),
                 webhook_url: Some("https://1635-116-74-253-164.ngrok-free.app".to_string()),
                 ..utils::PaymentAuthorizeType::default().0
             }),
@@ -338,7 +341,7 @@ async fn should_fail_payment_for_empty_card_number() {
                     product_name: "test".to_string(),
                     quantity: 1,
                 }),
-                email: Some(Secret::new("test@gmail.com".to_string())),
+                email: Some(Email::from_str("test@gmail.com").unwrap()),
                 webhook_url: Some("https://1635-116-74-253-164.ngrok-free.app".to_string()),
                 ..utils::PaymentAuthorizeType::default().0
             }),
@@ -367,7 +370,7 @@ async fn should_fail_payment_for_incorrect_cvc() {
                     product_name: "test".to_string(),
                     quantity: 1,
                 }),
-                email: Some(Secret::new("test@gmail.com".to_string())),
+                email: Some(Email::from_str("test@gmail.com").unwrap()),
                 webhook_url: Some("https://1635-116-74-253-164.ngrok-free.app".to_string()),
                 ..utils::PaymentAuthorizeType::default().0
             }),
@@ -401,7 +404,7 @@ async fn should_fail_payment_for_invalid_exp_month() {
                     product_name: "test".to_string(),
                     quantity: 1,
                 }),
-                email: Some(Secret::new("test@gmail.com".to_string())),
+                email: Some(Email::from_str("test@gmail.com").unwrap()),
                 webhook_url: Some("https://1635-116-74-253-164.ngrok-free.app".to_string()),
                 ..utils::PaymentAuthorizeType::default().0
             }),
@@ -435,7 +438,7 @@ async fn should_fail_payment_for_incorrect_expiry_year() {
                     product_name: "test".to_string(),
                     quantity: 1,
                 }),
-                email: Some(Secret::new("test@gmail.com".to_string())),
+                email: Some(Email::from_str("test@gmail.com").unwrap()),
                 webhook_url: Some("https://1635-116-74-253-164.ngrok-free.app".to_string()),
                 ..utils::PaymentAuthorizeType::default().0
             }),
