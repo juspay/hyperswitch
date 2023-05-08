@@ -18,7 +18,7 @@ use crate::{
         storage::{self, enums},
         transformers::{ForeignFrom, ForeignInto},
     },
-    utils::{OptionExt, ValueExt},
+    utils::{self, OptionExt, ValueExt},
 };
 
 #[instrument(skip_all)]
@@ -256,8 +256,12 @@ where
     let currency = payment_attempt
         .currency
         .as_ref()
-        .get_required_value("currency")?
-        .to_string();
+        .get_required_value("currency")?;
+    let amount = utils::to_currency_base_unit(payment_attempt.amount, *currency).change_context(
+        errors::ApiErrorResponse::InvalidDataValue {
+            field_name: "amount",
+        },
+    )?;
     let mandate_id = payment_attempt.mandate_id.clone();
     let refunds_response = if refunds.is_empty() {
         None
@@ -281,7 +285,12 @@ where
                 let redirection_data = redirection_data.get_required_value("redirection_data")?;
                 let form: RedirectForm = serde_json::from_value(redirection_data)
                     .map_err(|_| errors::ApiErrorResponse::InternalServerError)?;
-                services::ApplicationResponse::Form(form)
+                services::ApplicationResponse::Form(Box::new(services::RedirectionFormData {
+                    redirect_form: form,
+                    payment_method_data,
+                    amount,
+                    currency: currency.to_string(),
+                }))
             } else {
                 let mut next_action_response = None;
                 if payment_intent.status == enums::IntentStatus::RequiresCustomerAction {
@@ -329,7 +338,7 @@ where
                         .set_connector(routed_through)
                         .set_client_secret(payment_intent.client_secret.map(masking::Secret::new))
                         .set_created(Some(payment_intent.created_at))
-                        .set_currency(currency)
+                        .set_currency(currency.to_string())
                         .set_customer_id(customer.as_ref().map(|cus| cus.clone().customer_id))
                         .set_email(
                             customer
@@ -417,7 +426,7 @@ where
             amount_received: payment_intent.amount_captured,
             client_secret: payment_intent.client_secret.map(masking::Secret::new),
             created: Some(payment_intent.created_at),
-            currency,
+            currency: currency.to_string(),
             customer_id: payment_intent.customer_id,
             description: payment_intent.description,
             refunds: refunds_response,
@@ -535,13 +544,10 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
         ));
 
         // payment_method_data is not required during recurring mandate payment, in such case keep default PaymentMethodData as MandatePayment
-        let payment_method_data = payment_data.payment_method_data.or_else(|| {
-            if payment_data.mandate_id.is_some() {
-                Some(api_models::payments::PaymentMethodData::MandatePayment)
-            } else {
-                None
-            }
-        });
+        let payment_method_data = payment_data
+            .mandate_id
+            .as_ref()
+            .map(|_| api_models::payments::PaymentMethodData::MandatePayment);
         Ok(Self {
             payment_method_data: payment_method_data.get_required_value("payment_method_data")?,
             setup_future_usage: payment_data.payment_intent.setup_future_usage,
@@ -714,6 +720,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::VerifyRequestDat
             off_session: payment_data.mandate_id.as_ref().map(|_| true),
             mandate_id: payment_data.mandate_id.clone(),
             setup_mandate_details: payment_data.setup_mandate,
+            email: payment_data.email,
             return_url: payment_data.payment_intent.return_url,
         })
     }

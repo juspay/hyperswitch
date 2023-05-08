@@ -126,7 +126,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsStartRequest> f
                 mandate_id: None,
                 connector_response,
                 setup_mandate: None,
-                token: None,
+                token: payment_attempt.payment_token.clone(),
                 address: PaymentAddress {
                     shipping: shipping_address.as_ref().map(|a| a.foreign_into()),
                     billing: billing_address.as_ref().map(|a| a.foreign_into()),
