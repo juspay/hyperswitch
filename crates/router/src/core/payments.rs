@@ -24,7 +24,6 @@ use self::{
     operations::{payment_complete_authorize, BoxedOperation, Operation},
 };
 use crate::{
-    connection,
     core::{
         errors::{self, CustomResult, RouterResponse, RouterResult},
         payment_methods::vault,
@@ -672,7 +671,7 @@ async fn decide_payment_method_tokenize_action(
             }
         }
         Some(token) => {
-            let redis_conn = connection::redis_connection(&state.conf).await;
+            let redis_conn = state.store.get_redis_conn();
             let key = format!(
                 "pm_token_{}_{}_{}",
                 token.to_owned(),
