@@ -217,10 +217,11 @@ diesel::table! {
         mandate_currency -> Nullable<Currency>,
         amount_captured -> Nullable<Int8>,
         connector -> Varchar,
-        connector_mandate_ids -> Nullable<Jsonb>,
+        connector_mandate_id -> Nullable<Varchar>,
         start_date -> Nullable<Timestamp>,
         end_date -> Nullable<Timestamp>,
         metadata -> Nullable<Jsonb>,
+        connector_mandate_ids -> Nullable<Jsonb>,
     }
 }
 
