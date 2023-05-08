@@ -5,7 +5,11 @@ use crate::{selenium::*, tester};
 
 struct AdyenSeleniumTest;
 
-impl SeleniumTest for AdyenSeleniumTest {}
+impl SeleniumTest for AdyenSeleniumTest {
+    fn get_connector_name() -> String {
+        "adyen".to_string()
+    }
+}
 
 async fn should_make_adyen_gpay_payment(c: WebDriver) -> Result<(), WebDriverError> {
     let conn = AdyenSeleniumTest {};
