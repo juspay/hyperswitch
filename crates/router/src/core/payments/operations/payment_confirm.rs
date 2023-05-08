@@ -79,11 +79,6 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         )
         .await?;
 
-        helpers::authenticate_client_secret(
-            request.client_secret.as_ref(),
-            payment_intent.client_secret.as_ref(),
-        )?;
-
         let browser_info = request
             .browser_info
             .clone()

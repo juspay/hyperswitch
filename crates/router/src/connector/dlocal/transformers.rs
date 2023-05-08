@@ -15,7 +15,7 @@ use crate::{
 #[derive(Debug, Default, Eq, PartialEq, Serialize)]
 pub struct Payer {
     pub name: Option<Secret<String>>,
-    pub email: Option<Secret<String, Email>>,
+    pub email: Option<Email>,
     pub document: Secret<String>,
 }
 

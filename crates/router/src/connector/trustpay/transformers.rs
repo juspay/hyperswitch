@@ -129,7 +129,7 @@ pub struct PaymentRequestCards {
     #[serde(rename = "billing[postcode]")]
     pub billing_postcode: Secret<String>,
     #[serde(rename = "customer[email]")]
-    pub customer_email: Option<Secret<String, Email>>,
+    pub customer_email: Option<Email>,
     #[serde(rename = "customer[ipAddress]")]
     pub customer_ip_address: Option<std::net::IpAddr>,
     #[serde(rename = "browser[acceptHeader]")]

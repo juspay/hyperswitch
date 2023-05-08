@@ -151,6 +151,7 @@ pub async fn create_merchant_account(
         locker_id: req.locker_id,
         metadata: req.metadata,
         primary_business_details,
+        intent_fulfillment_time: req.intent_fulfillment_time.map(i64::from),
     };
 
     let merchant_account = db
@@ -184,7 +185,6 @@ pub async fn get_merchant_account(
         )?,
     ))
 }
-
 pub async fn merchant_account_update(
     db: &dyn StorageInterface,
     merchant_id: &String,
@@ -258,6 +258,7 @@ pub async fn merchant_account_update(
         metadata: req.metadata,
         publishable_key: None,
         primary_business_details,
+        intent_fulfillment_time: req.intent_fulfillment_time.map(i64::from),
     };
 
     let response = db
@@ -421,7 +422,11 @@ pub async fn create_payment_connector(
     let mca = store
         .insert_merchant_connector_account(merchant_connector_account)
         .await
-        .to_duplicate_response(errors::ApiErrorResponse::DuplicateMerchantConnectorAccount)?;
+        .to_duplicate_response(
+            errors::ApiErrorResponse::DuplicateMerchantConnectorAccount {
+                connector_label: connector_label.clone(),
+            },
+        )?;
 
     let mca_response = ForeignTryFrom::foreign_try_from(mca)?;
 

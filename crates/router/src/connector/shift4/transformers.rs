@@ -77,7 +77,7 @@ pub struct PaymentMethod {
 #[derive(Debug, Serialize)]
 pub struct Billing {
     name: Option<Secret<String>>,
-    email: Option<Secret<String, pii::Email>>,
+    email: Option<pii::Email>,
     address: Option<Address>,
 }
 

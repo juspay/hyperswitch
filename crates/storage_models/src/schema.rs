@@ -221,6 +221,7 @@ diesel::table! {
         start_date -> Nullable<Timestamp>,
         end_date -> Nullable<Timestamp>,
         metadata -> Nullable<Jsonb>,
+        connector_mandate_ids -> Nullable<Jsonb>,
     }
 }
 
@@ -247,6 +248,7 @@ diesel::table! {
         routing_algorithm -> Nullable<Json>,
         primary_business_details -> Json,
         api_key -> Nullable<Varchar>,
+        intent_fulfillment_time -> Nullable<Int8>,
         created_at -> Timestamp,
         modified_at -> Timestamp,
     }
