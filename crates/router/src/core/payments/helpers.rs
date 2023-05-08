@@ -1,12 +1,14 @@
 use std::borrow::Cow;
 
-use base64::Engine;
 use common_utils::{
     ext_traits::{AsyncExt, ByteSliceExt, ValueExt},
     fp_utils,
 };
 // TODO : Evaluate all the helper functions ()
 use error_stack::{report, IntoReport, ResultExt};
+#[cfg(feature = "kms")]
+use external_services::kms;
+use josekit::jwe;
 use masking::{ExposeOptionInterface, PeekInterface};
 use router_env::{instrument, tracing};
 use storage_models::{enums, merchant_account, payment_intent};
@@ -19,7 +21,7 @@ use super::{
 };
 use crate::{
     configs::settings::Server,
-    connection, consts,
+    consts,
     core::{
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         payment_methods::{cards, vault},
@@ -180,20 +182,25 @@ pub async fn get_token_for_recurring_mandate(
         .locker_id
         .to_owned()
         .get_required_value("locker_id")?;
-    let _ = cards::get_lookup_key_from_locker(state, &token, &payment_method, &locker_id).await?;
+    if let storage_models::enums::PaymentMethod::Card = payment_method.payment_method {
+        let _ =
+            cards::get_lookup_key_from_locker(state, &token, &payment_method, &locker_id).await?;
+        if let Some(payment_method_from_request) = req.payment_method {
+            let pm: storage_enums::PaymentMethod = payment_method_from_request.foreign_into();
+            if pm != payment_method.payment_method {
+                Err(report!(errors::ApiErrorResponse::PreconditionFailed {
+                    message:
+                        "payment method in request does not match previously provided payment \
+                                  method information"
+                            .into()
+                }))?
+            }
+        };
 
-    if let Some(payment_method_from_request) = req.payment_method {
-        let pm: storage_enums::PaymentMethod = payment_method_from_request.foreign_into();
-        if pm != payment_method.payment_method {
-            Err(report!(errors::ApiErrorResponse::PreconditionFailed {
-                message: "payment method in request does not match previously provided payment \
-                          method information"
-                    .into()
-            }))?
-        }
-    };
-
-    Ok((Some(token), Some(payment_method.payment_method)))
+        Ok((Some(token), Some(payment_method.payment_method)))
+    } else {
+        Ok((None, Some(payment_method.payment_method)))
+    }
 }
 
 #[instrument(skip_all)]
@@ -691,7 +698,7 @@ pub async fn make_pm_data<'a, F: Clone, R>(
     let request = &payment_data.payment_method_data;
     let token = payment_data.token.clone();
     let hyperswitch_token = if let Some(token) = token {
-        let redis_conn = connection::redis_connection(&state.conf).await;
+        let redis_conn = state.store.get_redis_conn();
         let key = format!(
             "pm_token_{}_{}_hyperswitch",
             token,
@@ -1546,11 +1553,12 @@ impl MerchantConnectorAccountType {
 }
 
 pub async fn get_merchant_connector_account(
-    db: &dyn StorageInterface,
+    state: &AppState,
     merchant_id: &str,
     connector_label: &str,
     creds_identifier: Option<String>,
 ) -> RouterResult<MerchantConnectorAccountType> {
+    let db = &*state.store;
     match creds_identifier {
         Some(creds_identifier) => {
             let mca_config = db
@@ -1560,20 +1568,35 @@ pub async fn get_merchant_connector_account(
                     errors::ApiErrorResponse::MerchantConnectorAccountNotFound,
                 )?;
 
-            let cached_mca = consts::BASE64_ENGINE
-            .decode(mca_config.config.as_bytes())
-            .into_report()
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable(
-                "Failed to decode merchant_connector_details sent in request and then put in cache",
-            )?
-            .parse_struct("MerchantConnectorDetails")
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable(
-                "Failed to parse merchant_connector_details sent in request and then put in cache",
-            )?;
+            #[cfg(feature = "kms")]
+            let kms_config = &state.conf.kms;
 
-            Ok(MerchantConnectorAccountType::CacheVal(cached_mca))
+            #[cfg(feature = "kms")]
+            let private_key = kms::get_kms_client(kms_config)
+                .await
+                .decrypt(state.conf.jwekey.tunnel_private_key.to_owned())
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Error getting tunnel private key")?;
+
+            #[cfg(not(feature = "kms"))]
+            let private_key = state.conf.jwekey.tunnel_private_key.to_owned();
+
+            let decrypted_mca = services::decrypt_jwe(mca_config.config.as_str(), services::KeyIdCheck::SkipKeyIdCheck, private_key, jwe::RSA_OAEP_256)
+                                     .await
+                                     .change_context(errors::ApiErrorResponse::InternalServerError)
+                                     .attach_printable(
+                                        "Failed to decrypt merchant_connector_details sent in request and then put in cache",
+                                    )?;
+
+            let res = String::into_bytes(decrypted_mca)
+                        .parse_struct("MerchantConnectorDetails")
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable(
+                            "Failed to parse merchant_connector_details sent in request and then put in cache",
+                        )?;
+
+            Ok(MerchantConnectorAccountType::CacheVal(res))
         }
         None => db
             .find_merchant_connector_account_by_merchant_id_connector_label(
