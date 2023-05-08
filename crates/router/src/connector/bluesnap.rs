@@ -218,7 +218,6 @@ impl
             data: data.clone(),
             http_code: res.status_code,
         })
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
     fn get_error_response(
@@ -574,14 +573,10 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         match (data.is_three_ds(), res.headers) {
             (true, Some(headers)) => {
                 let location = connector_utils::get_http_header("Location", &headers)?;
-                let payment_fields_token = url::Url::parse(location)
-                    .into_report()
-                    .change_context(errors::ConnectorError::URLParsingFailed {
-                        url: location.to_string(),
-                    })?
-                    .path_segments()
-                    .and_then(|segments| segments.last())
-                    .ok_or_else(|| errors::ConnectorError::ResponseHandlingFailed)?
+                let payment_fields_token = location
+                    .split('/')
+                    .last()
+                    .ok_or(errors::ConnectorError::ResponseHandlingFailed)?
                     .to_string();
                 Ok(types::RouterData {
                     status: enums::AttemptStatus::AuthenticationPending,
