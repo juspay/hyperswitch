@@ -177,6 +177,10 @@ pub enum AlternativePaymentMethodType {
     Ideal,
     #[serde(rename = "apmgw_EPS")]
     Eps,
+    #[serde(rename = "apmgw_Afterpay")]
+    AfterPay,
+    #[serde(rename = "apmgw_Klarna")]
+    Klarna,
 }
 
 #[serde_with::skip_serializing_none]
@@ -558,6 +562,65 @@ impl<F>
     }
 }
 
+fn get_pay_later_info<F>(
+    payment_method_type: AlternativePaymentMethodType,
+    item: &types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
+) -> Result<NuveiPaymentsRequest, error_stack::Report<errors::ConnectorError>> {
+    match payment_method_type {
+        AlternativePaymentMethodType::AfterPay => {
+            let address = item
+                .get_billing()?
+                .address
+                .as_ref()
+                .ok_or_else(utils::missing_field_err("billing.address"))?;
+            Ok(NuveiPaymentsRequest {
+                payment_option: PaymentOption {
+                    alternative_payment_method: Some(AlternativePaymentMethod {
+                        payment_method: AlternativePaymentMethodType::AfterPay,
+                        ..Default::default()
+                    }),
+                    billing_address: Some(BillingAddress {
+                        email: Some(item.request.get_email()?),
+                        first_name: Some(address.get_first_name()?.to_owned()),
+                        last_name: Some(address.get_last_name()?.to_owned()),
+                        country: address.get_country()?.to_owned(),
+                    }),
+                    ..Default::default()
+                },
+                ..Default::default()
+            })
+        }
+        AlternativePaymentMethodType::Klarna => {
+            let address = item
+                .get_billing()?
+                .address
+                .as_ref()
+                .ok_or_else(utils::missing_field_err("billing.address"))?;
+            Ok(NuveiPaymentsRequest {
+                payment_option: PaymentOption {
+                    alternative_payment_method: Some(AlternativePaymentMethod {
+                        payment_method: AlternativePaymentMethodType::Klarna,
+                        ..Default::default()
+                    }),
+                    billing_address: Some(BillingAddress {
+                        email: Some(item.request.get_email()?),
+                        first_name: Some(address.get_first_name()?.to_owned()),
+                        last_name: Some(address.get_last_name()?.to_owned()),
+                        country: address.get_country()?.to_owned(),
+                    }),
+                    ..Default::default()
+                },
+                ..Default::default()
+            })
+        }
+        _ => Err(errors::ConnectorError::NotSupported {
+            payment_method: "Buy Now Pay Later".to_string(),
+            connector: "Nuvei",
+            payment_experience: "Redirection".to_string(),
+        })?,
+    }
+}
+
 impl<F>
     TryFrom<(
         &types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
@@ -617,6 +680,21 @@ impl<F>
                 }
                 .into()),
             },
+            api::PaymentMethodData::PayLater(pay_later_data) => match pay_later_data {
+                payments::PayLaterData::KlarnaRedirect { .. } => {
+                    get_pay_later_info(AlternativePaymentMethodType::Klarna, item)
+                }
+                payments::PayLaterData::AfterpayClearpayRedirect { .. } => {
+                    get_pay_later_info(AlternativePaymentMethodType::AfterPay, item)
+                }
+                _ => Err(errors::ConnectorError::NotSupported {
+                    payment_method: "Buy Now Pay Later".to_string(),
+                    connector: "Nuvei",
+                    payment_experience: "RedirectToUrl".to_string(),
+                }
+                .into()),
+            },
+
             _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
         }?;
         let request = Self::try_from(NuveiPaymentRequestData {
