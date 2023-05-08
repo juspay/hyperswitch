@@ -122,6 +122,12 @@ where
 #[diesel(sql_type = diesel::sql_types::Text)]
 pub struct Email(Secret<String, EmailStrategy>);
 
+impl From<Secret<String, EmailStrategy>> for Email {
+    fn from(value: Secret<String, EmailStrategy>) -> Self {
+        Self(value)
+    }
+}
+
 impl ops::Deref for Email {
     type Target = Secret<String, EmailStrategy>;
 
