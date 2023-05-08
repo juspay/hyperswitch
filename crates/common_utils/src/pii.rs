@@ -1,6 +1,6 @@
 //! Personal Identifiable Information protection.
 
-use std::{convert::AsRef, fmt, str::FromStr};
+use std::{convert::AsRef, fmt, ops, str::FromStr};
 
 use diesel::{
     backend,
@@ -117,18 +117,42 @@ where
 }
 /// Email address
 #[derive(
-    serde::Serialize,
-    serde::Deserialize,
-    Debug,
-    Clone,
-    PartialEq,
-    Eq,
-    Default,
-    Queryable,
-    AsExpression,
+    serde::Serialize, serde::Deserialize, Debug, Clone, PartialEq, Eq, Default, AsExpression,
 )]
 #[diesel(sql_type = diesel::sql_types::Text)]
 pub struct Email(Secret<String, EmailStrategy>);
+
+impl From<Secret<String, EmailStrategy>> for Email {
+    fn from(value: Secret<String, EmailStrategy>) -> Self {
+        Self(value)
+    }
+}
+
+impl ops::Deref for Email {
+    type Target = Secret<String, EmailStrategy>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl ops::DerefMut for Email {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+impl<DB> Queryable<diesel::sql_types::Text, DB> for Email
+where
+    DB: Backend,
+    Self: FromSql<sql_types::Text, DB>,
+{
+    type Row = Self;
+
+    fn build(row: Self::Row) -> deserialize::Result<Self> {
+        Ok(row)
+    }
+}
 
 impl<DB> FromSql<sql_types::Text, DB> for Email
 where

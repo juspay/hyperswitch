@@ -221,6 +221,7 @@ diesel::table! {
         start_date -> Nullable<Timestamp>,
         end_date -> Nullable<Timestamp>,
         metadata -> Nullable<Jsonb>,
+        connector_mandate_ids -> Nullable<Jsonb>,
     }
 }
 
