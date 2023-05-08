@@ -188,12 +188,13 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for AciPaymentsRequest {
                             customer_email: None,
                             shopper_result_url: item.request.router_return_url.clone(),
                         }))
-                    },
+                    }
                     api_models::payments::BankRedirectData::Przelewy24 { email } => {
-                        PaymentDetails::BankRedirect(Box::new(BankRedirectionPMData { payment_brand: PaymentBrand::Przelewy,
-                            bank_account_country: None, 
-                            bank_account_bank_name: None, 
-                            bank_account_bic: None, 
+                        PaymentDetails::BankRedirect(Box::new(BankRedirectionPMData {
+                            payment_brand: PaymentBrand::Przelewy,
+                            bank_account_country: None,
+                            bank_account_bank_name: None,
+                            bank_account_bic: None,
                             bank_account_iban: None,
                             customer_email: email.clone(),
                             shopper_result_url: item.request.router_return_url.clone(),
