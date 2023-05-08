@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use common_utils::pii;
+use common_utils::pii::Email;
 use error_stack::report;
 use masking::Secret;
 use reqwest::Url;
@@ -74,7 +74,7 @@ pub struct BankRedirectionPMData {
     #[serde(rename = "bankAccount.iban")]
     bank_account_iban: Option<Secret<String>>,
     #[serde(rename = "customer.email")]
-    customer_email: Option<Secret<String, pii::Email>>,
+    customer_email: Option<Email>,
     shopper_result_url: Option<String>,
 }
 
