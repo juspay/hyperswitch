@@ -120,9 +120,16 @@ where
         get_connector_tokenization_action(state, &operation, payment_data, &validate_result)
             .await?;
 
+    let connector_string = connector
+        .as_ref()
+        .and_then(|connector_type| match connector_type {
+            api::ConnectorCallType::Single(connector) => Some(connector.connector_name.to_string()),
+            _ => None,
+        });
+
     let updated_customer = call_create_connector_customer(
         state,
-        &payment_data.payment_attempt.connector.clone(),
+        &connector_string,
         &customer,
         &merchant_account,
         &mut payment_data,
@@ -1196,11 +1203,15 @@ pub fn decide_connector(
         return Ok(api::ConnectorCallType::Single(connector_data));
     }
 
-    let routing_algorithm: api::RoutingAlgorithm = merchant_account
+    let routing_algorithm = merchant_account
         .routing_algorithm
         .clone()
-        .parse_value("RoutingAlgorithm")
-        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .get_required_value("RoutingAlgorithm")
+        .change_context(errors::ApiErrorResponse::PreconditionFailed {
+            message: "no routing algorithm has been configured".to_string(),
+        })?
+        .parse_value::<api::RoutingAlgorithm>("RoutingAlgorithm")
+        .change_context(errors::ApiErrorResponse::InternalServerError) // Deserialization failed
         .attach_printable("Unable to deserialize merchant routing algorithm")?;
 
     let connector_name = match routing_algorithm {
