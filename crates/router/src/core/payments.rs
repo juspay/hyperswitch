@@ -1203,11 +1203,15 @@ pub fn decide_connector(
         return Ok(api::ConnectorCallType::Single(connector_data));
     }
 
-    let routing_algorithm: api::RoutingAlgorithm = merchant_account
+    let routing_algorithm = merchant_account
         .routing_algorithm
         .clone()
-        .parse_value("RoutingAlgorithm")
-        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .get_required_value("RoutingAlgorithm")
+        .change_context(errors::ApiErrorResponse::PreconditionFailed {
+            message: "no routing algorithm has been configured".to_string(),
+        })?
+        .parse_value::<api::RoutingAlgorithm>("RoutingAlgorithm")
+        .change_context(errors::ApiErrorResponse::InternalServerError) // Deserialization failed
         .attach_printable("Unable to deserialize merchant routing algorithm")?;
 
     let connector_name = match routing_algorithm {
