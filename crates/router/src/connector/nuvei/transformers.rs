@@ -580,7 +580,7 @@ fn get_pay_later_info<F>(
                         ..Default::default()
                     }),
                     billing_address: Some(BillingAddress {
-                        email: Some(item.request.get_email()?),
+                        email: item.request.get_email()?,
                         first_name: Some(address.get_first_name()?.to_owned()),
                         last_name: Some(address.get_last_name()?.to_owned()),
                         country: address.get_country()?.to_owned(),
@@ -603,7 +603,7 @@ fn get_pay_later_info<F>(
                         ..Default::default()
                     }),
                     billing_address: Some(BillingAddress {
-                        email: Some(item.request.get_email()?),
+                        email: item.request.get_email()?,
                         first_name: Some(address.get_first_name()?.to_owned()),
                         last_name: Some(address.get_last_name()?.to_owned()),
                         country: address.get_country()?.to_owned(),
@@ -614,7 +614,7 @@ fn get_pay_later_info<F>(
             })
         }
         _ => Err(errors::ConnectorError::NotSupported {
-            payment_method: "Buy Now Pay Later".to_string(),
+            message: "Buy Now Pay Later".to_string(),
             connector: "Nuvei",
             payment_experience: "Redirection".to_string(),
         })?,
@@ -688,7 +688,7 @@ impl<F>
                     get_pay_later_info(AlternativePaymentMethodType::AfterPay, item)
                 }
                 _ => Err(errors::ConnectorError::NotSupported {
-                    payment_method: "Buy Now Pay Later".to_string(),
+                    message: "Buy Now Pay Later".to_string(),
                     connector: "Nuvei",
                     payment_experience: "RedirectToUrl".to_string(),
                 }
