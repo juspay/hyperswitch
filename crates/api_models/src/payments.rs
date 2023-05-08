@@ -1,6 +1,6 @@
 use std::num::NonZeroI64;
 
-use common_utils::pii;
+use common_utils::{pii, pii::Email};
 use masking::{PeekInterface, Secret};
 use router_derive::Setter;
 use time::PrimitiveDateTime;
@@ -102,7 +102,7 @@ pub struct PaymentsRequest {
 
     /// description: The customer's email address
     #[schema(max_length = 255, value_type = Option<String>, example = "johntest@test.com")]
-    pub email: Option<Secret<String, pii::Email>>,
+    pub email: Option<Email>,
 
     /// description: The customer's name
     #[schema(value_type = Option<String>, max_length = 255, example = "John Test")]
@@ -258,7 +258,7 @@ pub struct VerifyRequest {
     // and is later passed in the struct
     pub merchant_id: Option<String>,
     pub customer_id: Option<String>,
-    pub email: Option<Secret<String, pii::Email>>,
+    pub email: Option<Email>,
     pub name: Option<Secret<String>>,
     pub phone: Option<Secret<String>>,
     pub phone_country_code: Option<String>,
@@ -302,14 +302,20 @@ pub enum MandateTxnType {
 #[derive(Default, Eq, PartialEq, Debug, serde::Deserialize, serde::Serialize, Clone)]
 pub struct MandateIds {
     pub mandate_id: String,
-    pub connector_mandate_id: Option<String>,
+    pub mandate_reference_id: Option<MandateReferenceId>,
+}
+
+#[derive(Eq, PartialEq, Debug, serde::Deserialize, serde::Serialize, Clone)]
+pub enum MandateReferenceId {
+    ConnectorMandateId(String), // mandate_id send by connector
+    NetworkMandateId(String), // network_txns_id send by Issuer to connector, Used for PG agnostic mandate txns
 }
 
 impl MandateIds {
     pub fn new(mandate_id: String) -> Self {
         Self {
             mandate_id,
-            connector_mandate_id: None,
+            mandate_reference_id: None,
         }
     }
 }
@@ -437,7 +443,7 @@ pub enum PayLaterData {
     KlarnaRedirect {
         /// The billing email
         #[schema(value_type = String)]
-        billing_email: Secret<String, pii::Email>,
+        billing_email: Email,
         // The billing country code
         #[schema(value_type = CountryAlpha2, example = "US")]
         billing_country: api_enums::CountryAlpha2,
@@ -453,7 +459,7 @@ pub enum PayLaterData {
     AfterpayClearpayRedirect {
         /// The billing email
         #[schema(value_type = String)]
-        billing_email: Secret<String, pii::Email>,
+        billing_email: Email,
         /// The billing name
         #[schema(value_type = String)]
         billing_name: Secret<String>,
@@ -514,6 +520,7 @@ pub enum PaymentMethodData {
     BankRedirect(BankRedirectData),
     BankDebit(BankDebitData),
     Crypto(CryptoData),
+    MandatePayment,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
@@ -530,6 +537,7 @@ pub enum AdditionalPaymentData {
     PayLater {},
     Crypto {},
     BankDebit {},
+    MandatePayment {},
 }
 
 impl From<&PaymentMethodData> for AdditionalPaymentData {
@@ -555,6 +563,7 @@ impl From<&PaymentMethodData> for AdditionalPaymentData {
             PaymentMethodData::PayLater(_) => Self::PayLater {},
             PaymentMethodData::Crypto(_) => Self::Crypto {},
             PaymentMethodData::BankDebit(_) => Self::BankDebit {},
+            PaymentMethodData::MandatePayment => Self::MandatePayment {},
         }
     }
 }
@@ -611,7 +620,7 @@ pub enum BankRedirectData {
     },
     OnlineBankingFinland {
         // Shopper Email
-        email: Option<Secret<String, pii::Email>>,
+        email: Option<Email>,
     },
     OnlineBankingPoland {
         // Issuer banks
@@ -663,7 +672,7 @@ pub struct BankDebitBilling {
     pub name: Secret<String>,
     /// The billing email for bank debits
     #[schema(value_type = String, example = "example@example.com")]
-    pub email: Secret<String, pii::Email>,
+    pub email: Email,
     /// The billing address for bank debits
     pub address: Option<AddressDetails>,
 }
@@ -784,6 +793,7 @@ pub enum PaymentMethodDataResponse {
     BankRedirect(BankRedirectData),
     Crypto(CryptoData),
     BankDebit(BankDebitData),
+    MandatePayment,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -1066,7 +1076,7 @@ pub struct PaymentsResponse {
 
     /// description: The customer's email address
     #[schema(max_length = 255, value_type = Option<String>, example = "johntest@test.com")]
-    pub email: Option<Secret<String, pii::Email>>,
+    pub email: Option<Email>,
 
     /// description: The customer's name
     #[schema(value_type = Option<String>, max_length = 255, example = "John Test")]
@@ -1206,7 +1216,7 @@ pub struct VerifyResponse {
     // pub status: enums::VerifyStatus,
     pub client_secret: Option<Secret<String>>,
     pub customer_id: Option<String>,
-    pub email: Option<Secret<String, pii::Email>>,
+    pub email: Option<Email>,
     pub name: Option<Secret<String>>,
     pub phone: Option<Secret<String>>,
     pub mandate_id: Option<String>,
@@ -1325,6 +1335,7 @@ impl From<PaymentMethodData> for PaymentMethodDataResponse {
             }
             PaymentMethodData::Crypto(crpto_data) => Self::Crypto(crpto_data),
             PaymentMethodData::BankDebit(bank_debit_data) => Self::BankDebit(bank_debit_data),
+            PaymentMethodData::MandatePayment => Self::MandatePayment,
         }
     }
 }

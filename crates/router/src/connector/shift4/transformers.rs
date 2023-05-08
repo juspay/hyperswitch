@@ -76,7 +76,7 @@ pub struct PaymentMethod {
 #[derive(Debug, Serialize)]
 pub struct Billing {
     name: Option<Secret<String>>,
-    email: Option<Secret<String, pii::Email>>,
+    email: Option<pii::Email>,
     address: Option<Address>,
 }
 
@@ -462,6 +462,7 @@ impl<F>
                     .into_report()
                     .change_context(errors::ConnectorError::ResponseDeserializationFailed)?,
                 ),
+                network_txn_id: None,
             }),
             ..item.data
         })
@@ -500,6 +501,7 @@ impl<T, F>
                     .map(|url| services::RedirectForm::from((url, services::Method::Get))),
                 mandate_reference: None,
                 connector_metadata: None,
+                network_txn_id: None,
             }),
             ..item.data
         })

@@ -66,11 +66,42 @@ pub struct Settings {
     #[cfg(feature = "s3")]
     pub file_upload_config: FileUploadConfig,
     pub tokenization: TokenizationConfig,
+    pub connector_customer: ConnectorCustomer,
+    #[cfg(feature = "dummy_connector")]
+    pub dummy_connector: DummyConnector,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
 #[serde(transparent)]
 pub struct TokenizationConfig(pub HashMap<String, PaymentMethodTokenFilter>);
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct ConnectorCustomer {
+    #[serde(deserialize_with = "connector_deser")]
+    pub connector_list: HashSet<api_models::enums::Connector>,
+}
+
+fn connector_deser<'a, D>(
+    deserializer: D,
+) -> Result<HashSet<api_models::enums::Connector>, D::Error>
+where
+    D: Deserializer<'a>,
+{
+    let value = <String>::deserialize(deserializer)?;
+    Ok(value
+        .trim()
+        .split(',')
+        .flat_map(api_models::enums::Connector::from_str)
+        .collect())
+}
+
+#[cfg(feature = "dummy_connector")]
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct DummyConnector {
+    pub payment_ttl: i64,
+    pub payment_duration: u64,
+    pub payment_tolerance: u64,
+}
 
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct PaymentMethodTokenFilter {
@@ -245,6 +276,7 @@ pub struct Jwekey {
     pub locker_decryption_key2: String,
     pub vault_encryption_key: String,
     pub vault_private_key: String,
+    pub tunnel_private_key: String,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -301,6 +333,8 @@ pub struct Connectors {
     pub coinbase: ConnectorParams,
     pub cybersource: ConnectorParams,
     pub dlocal: ConnectorParams,
+    #[cfg(feature = "dummy_connector")]
+    pub dummyconnector: ConnectorParams,
     pub fiserv: ConnectorParams,
     pub forte: ConnectorParams,
     pub globalpay: ConnectorParams,

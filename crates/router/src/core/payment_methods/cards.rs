@@ -23,7 +23,6 @@ use storage_models::{enums as storage_enums, payment_method};
 use crate::scheduler::metrics as scheduler_metrics;
 use crate::{
     configs::settings,
-    connection,
     core::{
         errors::{self, StorageErrorExt},
         payment_methods::{
@@ -787,11 +786,10 @@ pub async fn list_payment_methods(
     let db = &*state.store;
     let pm_config_mapping = &state.conf.pm_filters;
 
-    let payment_intent = helpers::verify_client_secret(
+    let payment_intent = helpers::verify_payment_intent_time_and_client_secret(
         db,
-        merchant_account.storage_scheme,
+        &merchant_account,
         req.client_secret.clone(),
-        &merchant_account.merchant_id,
     )
     .await?;
 
@@ -1532,7 +1530,7 @@ pub async fn list_customer_payment_method(
         };
         customer_pms.push(pma.to_owned());
 
-        let redis_conn = connection::redis_connection(&state.conf).await;
+        let redis_conn = state.store.get_redis_conn();
         let key_for_hyperswitch_token = format!(
             "pm_token_{}_{}_hyperswitch",
             parent_payment_method_token, pma.payment_method

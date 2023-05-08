@@ -62,6 +62,7 @@ pub trait RouterData {
         T: serde::de::DeserializeOwned;
     fn is_three_ds(&self) -> bool;
     fn get_payment_method_token(&self) -> Result<String, Error>;
+    fn get_customer_id(&self) -> Result<String, Error>;
 }
 
 impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Response> {
@@ -145,11 +146,16 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
             .clone()
             .ok_or_else(missing_field_err("payment_method_token"))
     }
+    fn get_customer_id(&self) -> Result<String, Error> {
+        self.customer_id
+            .to_owned()
+            .ok_or_else(missing_field_err("customer_id"))
+    }
 }
 
 pub trait PaymentsAuthorizeRequestData {
     fn is_auto_capture(&self) -> Result<bool, Error>;
-    fn get_email(&self) -> Result<Secret<String, Email>, Error>;
+    fn get_email(&self) -> Result<Email, Error>;
     fn get_browser_info(&self) -> Result<types::BrowserInformation, Error>;
     fn get_order_details(&self) -> Result<OrderDetails, Error>;
     fn get_card(&self) -> Result<api::Card, Error>;
@@ -168,7 +174,7 @@ impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
             Some(_) => Err(errors::ConnectorError::CaptureMethodNotSupported.into()),
         }
     }
-    fn get_email(&self) -> Result<Secret<String, Email>, Error> {
+    fn get_email(&self) -> Result<Email, Error> {
         self.email.clone().ok_or_else(missing_field_err("email"))
     }
     fn get_browser_info(&self) -> Result<types::BrowserInformation, Error> {
@@ -196,14 +202,19 @@ impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
     fn connector_mandate_id(&self) -> Option<String> {
         self.mandate_id
             .as_ref()
-            .and_then(|mandate_ids| mandate_ids.connector_mandate_id.clone())
+            .and_then(|mandate_ids| match &mandate_ids.mandate_reference_id {
+                Some(api_models::payments::MandateReferenceId::ConnectorMandateId(
+                    connector_mandate_id,
+                )) => Some(connector_mandate_id.to_string()),
+                _ => None,
+            })
     }
     fn is_mandate_payment(&self) -> bool {
         self.setup_mandate_details.is_some()
             || self
                 .mandate_id
                 .as_ref()
-                .and_then(|mandate_ids| mandate_ids.connector_mandate_id.as_ref())
+                .and_then(|mandate_ids| mandate_ids.mandate_reference_id.as_ref())
                 .is_some()
     }
     fn get_webhook_url(&self) -> Result<String, Error> {
@@ -314,6 +325,14 @@ static CARD_REGEX: Lazy<HashMap<CardIssuer, Result<Regex, regex::Error>>> = Lazy
         CardIssuer::Maestro,
         Regex::new(r"^(5018|5020|5038|5893|6304|6759|6761|6762|6763)[0-9]{8,15}$"),
     );
+    map.insert(
+        CardIssuer::DinersClub,
+        Regex::new(r"^3(?:0[0-5]|[68][0-9])[0-9]{11}$"),
+    );
+    map.insert(
+        CardIssuer::JCB,
+        Regex::new(r"^(3(?:088|096|112|158|337|5(?:2[89]|[3-8][0-9]))\d{12})$"),
+    );
     map
 });
 
@@ -324,6 +343,8 @@ pub enum CardIssuer {
     Maestro,
     Visa,
     Discover,
+    DinersClub,
+    JCB,
 }
 
 pub trait CardData {
@@ -619,6 +640,14 @@ pub fn to_currency_base_unit(
     amount: i64,
     currency: storage_models::enums::Currency,
 ) -> Result<String, error_stack::Report<errors::ConnectorError>> {
+    let amount_f64 = to_currency_base_unit_asf64(amount, currency)?;
+    Ok(format!("{amount_f64:.2}"))
+}
+
+pub fn to_currency_base_unit_asf64(
+    amount: i64,
+    currency: storage_models::enums::Currency,
+) -> Result<f64, error_stack::Report<errors::ConnectorError>> {
     let amount_u32 = u32::try_from(amount)
         .into_report()
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
@@ -631,7 +660,7 @@ pub fn to_currency_base_unit(
         | storage_models::enums::Currency::OMR => amount_f64 / 1000.00,
         _ => amount_f64 / 100.00,
     };
-    Ok(format!("{amount:.2}"))
+    Ok(amount)
 }
 
 pub fn str_to_f32<S>(value: &str, serializer: S) -> Result<S::Ok, S::Error>
