@@ -25,7 +25,7 @@ pub struct Mandate {
     pub mandate_currency: Option<storage_enums::Currency>,
     pub amount_captured: Option<i64>,
     pub connector: String,
-    pub connector_mandate_id: Option<pii::SecretSerdeValue>,
+    pub connector_mandate_ids: Option<pii::SecretSerdeValue>,
     pub start_date: Option<PrimitiveDateTime>,
     pub end_date: Option<PrimitiveDateTime>,
     pub metadata: Option<pii::SecretSerdeValue>,
@@ -52,7 +52,7 @@ pub struct MandateNew {
     pub mandate_currency: Option<storage_enums::Currency>,
     pub amount_captured: Option<i64>,
     pub connector: String,
-    pub connector_mandate_id: Option<pii::SecretSerdeValue>,
+    pub connector_mandate_ids: Option<pii::SecretSerdeValue>,
     pub start_date: Option<PrimitiveDateTime>,
     pub end_date: Option<PrimitiveDateTime>,
     pub metadata: Option<pii::SecretSerdeValue>,
@@ -67,7 +67,7 @@ pub enum MandateUpdate {
         amount_captured: Option<i64>,
     },
     ConnectorReferenceUpdate {
-        connector_mandate_id: Option<pii::SecretSerdeValue>,
+        connector_mandate_ids: Option<pii::SecretSerdeValue>,
     },
 }
 
@@ -82,7 +82,7 @@ pub struct SingleUseMandate {
 pub struct MandateUpdateInternal {
     mandate_status: Option<storage_enums::MandateStatus>,
     amount_captured: Option<i64>,
-    connector_mandate_id: Option<pii::SecretSerdeValue>,
+    connector_mandate_ids: Option<pii::SecretSerdeValue>,
 }
 
 impl From<MandateUpdate> for MandateUpdateInternal {
@@ -90,18 +90,18 @@ impl From<MandateUpdate> for MandateUpdateInternal {
         match mandate_update {
             MandateUpdate::StatusUpdate { mandate_status } => Self {
                 mandate_status: Some(mandate_status),
-                connector_mandate_id: None,
+                connector_mandate_ids: None,
                 amount_captured: None,
             },
             MandateUpdate::CaptureAmountUpdate { amount_captured } => Self {
                 mandate_status: None,
                 amount_captured,
-                connector_mandate_id: None,
+                connector_mandate_ids: None,
             },
             MandateUpdate::ConnectorReferenceUpdate {
-                connector_mandate_id,
+                connector_mandate_ids: connector_mandate_id,
             } => Self {
-                connector_mandate_id,
+                connector_mandate_ids: connector_mandate_id,
                 ..Default::default()
             },
         }

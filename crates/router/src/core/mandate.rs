@@ -182,7 +182,7 @@ where
                         .set_mandate_id(Some(api_models::payments::MandateIds {
                             mandate_id: new_mandate_data.mandate_id.clone(),
                             mandate_reference_id: new_mandate_data
-                                .connector_mandate_id
+                                .connector_mandate_ids
                                 .clone()
                             .map(|ids| {
                                 Some(ids)

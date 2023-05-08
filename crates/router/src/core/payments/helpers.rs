@@ -1159,7 +1159,7 @@ pub fn generate_mandate(
                 .set_payment_method_id(payment_method_id)
                 .set_connector(connector)
                 .set_mandate_status(storage_enums::MandateStatus::Active)
-                .set_connector_mandate_id(connector_mandate_id)
+                .set_connector_mandate_ids(connector_mandate_id)
                 .set_network_transaction_id(network_txn_id)
                 .set_customer_ip_address(
                     data.customer_acceptance
