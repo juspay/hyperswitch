@@ -83,7 +83,7 @@ pub async fn update_connector_mandate_id(
                 &merchant_account,
                 mandate_id,
                 storage::MandateUpdate::ConnectorReferenceUpdate {
-                    connector_mandate_id: Some(connector_id),
+                    connector_mandate_ids: Some(connector_id),
                 },
             )
             .await
