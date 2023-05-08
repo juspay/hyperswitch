@@ -304,6 +304,7 @@ pub struct VerifyRequestData {
     pub setup_mandate_details: Option<payments::MandateData>,
     pub router_return_url: Option<String>,
     pub email: Option<Email>,
+    pub return_url: Option<String>,
 }
 
 #[derive(Debug, Clone)]

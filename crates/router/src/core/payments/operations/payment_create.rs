@@ -153,7 +153,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 Some(mandate.and_then(|mandate_obj| {
                     match (
                         mandate_obj.network_transaction_id,
-                        mandate_obj.connector_mandate_id,
+                        mandate_obj.connector_mandate_ids,
                     ) {
                         (Some(network_tx_id), _) => Ok(api_models::payments::MandateIds {
                             mandate_id: mandate_obj.mandate_id,

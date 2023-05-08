@@ -1023,11 +1023,6 @@ impl TryFrom<&types::VerifyRouterData> for SetupIntentRequest {
     }
 }
 
-#[derive(Debug, Deserialize, Serialize)]
-pub struct StripePaymentMetadata {
-    payment_method: Option<String>,
-}
-
 impl TryFrom<&types::TokenizationRouterData> for TokenRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::TokenizationRouterData) -> Result<Self, Self::Error> {
