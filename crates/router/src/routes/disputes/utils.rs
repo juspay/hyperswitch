@@ -19,7 +19,7 @@ pub async fn parse_evidence_type(field: &mut Field) -> Option<disputes::Evidence
         Some("receipt") => Some(disputes::EvidenceType::Receipt),
         Some("refund_policy") => Some(disputes::EvidenceType::RefundPolicy),
         Some("service_documentation") => Some(disputes::EvidenceType::ServiceDocumentation),
-        Some("shipping_documentaion") => Some(disputes::EvidenceType::ShippingDocumentaion),
+        Some("shipping_documentation") => Some(disputes::EvidenceType::ShippingDocumentation),
         Some("invoice_showing_distinct_transactions") => {
             Some(disputes::EvidenceType::InvoiceShowingDistinctTransactions)
         }

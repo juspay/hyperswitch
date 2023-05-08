@@ -52,7 +52,7 @@ pub enum EvidenceType {
     Receipt,
     RefundPolicy,
     ServiceDocumentation,
-    ShippingDocumentaion,
+    ShippingDocumentation,
     InvoiceShowingDistinctTransactions,
     RecurringTransactionAgreement,
     UncategorizedFile,

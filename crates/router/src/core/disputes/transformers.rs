@@ -158,7 +158,7 @@ pub fn update_dispute_evidence(
             service_documentation: Some(file_id),
             ..dispute_evidence
         },
-        api::EvidenceType::ShippingDocumentaion => DisputeEvidence {
+        api::EvidenceType::ShippingDocumentation => DisputeEvidence {
             shipping_documentation: Some(file_id),
             ..dispute_evidence
         },

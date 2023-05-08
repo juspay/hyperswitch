@@ -350,7 +350,7 @@ pub async fn attach_evidence(
         services::ApplicationResponse::Json(res) => res.file_id,
         _ => Err(errors::ApiErrorResponse::InternalServerError)
             .into_report()
-            .attach_printable("Unexpected response recieved from files create core")?,
+            .attach_printable("Unexpected response received from files create core")?,
     };
     let dispute_evidence: api::DisputeEvidence = dispute
         .evidence
