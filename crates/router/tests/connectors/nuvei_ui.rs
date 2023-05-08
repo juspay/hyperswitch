@@ -5,7 +5,11 @@ use crate::{selenium::*, tester};
 
 struct NuveiSeleniumTest;
 
-impl SeleniumTest for NuveiSeleniumTest {}
+impl SeleniumTest for NuveiSeleniumTest {
+    fn get_connector_name() -> String {
+        "nuvei".to_string()
+    }
+}
 
 async fn should_make_nuvei_3ds_payment(c: WebDriver) -> Result<(), WebDriverError> {
     let conn = NuveiSeleniumTest {};
