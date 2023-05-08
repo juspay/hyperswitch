@@ -3,7 +3,10 @@ use common_utils::errors::CustomResult;
 use crate::{
     core::{errors, files::helpers::retrieve_file_and_provider_file_id_from_file_id},
     routes::AppState,
-    types::SubmitEvidenceRequestData,
+    types::{
+        api::{self, DisputeEvidence},
+        SubmitEvidenceRequestData,
+    },
 };
 
 pub async fn get_evidence_request_data(
@@ -123,4 +126,53 @@ pub async fn get_evidence_request_data(
         uncategorized_file_provider_file_id,
         uncategorized_text: evidence_request.uncategorized_text,
     })
+}
+
+pub fn update_dispute_evidence(
+    dispute_evidence: DisputeEvidence,
+    evidence_type: api::EvidenceType,
+    file_id: String,
+) -> DisputeEvidence {
+    match evidence_type {
+        api::EvidenceType::CancellationPolicy => DisputeEvidence {
+            cancellation_policy: Some(file_id),
+            ..dispute_evidence
+        },
+        api::EvidenceType::CustomerCommunication => DisputeEvidence {
+            customer_communication: Some(file_id),
+            ..dispute_evidence
+        },
+        api::EvidenceType::CustomerSignature => DisputeEvidence {
+            customer_signature: Some(file_id),
+            ..dispute_evidence
+        },
+        api::EvidenceType::Receipt => DisputeEvidence {
+            receipt: Some(file_id),
+            ..dispute_evidence
+        },
+        api::EvidenceType::RefundPolicy => DisputeEvidence {
+            refund_policy: Some(file_id),
+            ..dispute_evidence
+        },
+        api::EvidenceType::ServiceDocumentation => DisputeEvidence {
+            service_documentation: Some(file_id),
+            ..dispute_evidence
+        },
+        api::EvidenceType::ShippingDocumentaion => DisputeEvidence {
+            shipping_documentation: Some(file_id),
+            ..dispute_evidence
+        },
+        api::EvidenceType::InvoiceShowingDistinctTransactions => DisputeEvidence {
+            invoice_showing_distinct_transactions: Some(file_id),
+            ..dispute_evidence
+        },
+        api::EvidenceType::RecurringTransactionAgreement => DisputeEvidence {
+            recurring_transaction_agreement: Some(file_id),
+            ..dispute_evidence
+        },
+        api::EvidenceType::UncategorizedFile => DisputeEvidence {
+            uncategorized_file: Some(file_id),
+            ..dispute_evidence
+        },
+    }
 }

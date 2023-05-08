@@ -1344,7 +1344,7 @@ pub struct PgRedirectResponse {
     pub amount: Option<i64>,
 }
 
-#[derive(Debug, serde::Serialize, PartialEq, Eq, serde::Deserialize)]
+#[derive(Debug, serde::Serialize, PartialEq, Eq, serde::Deserialize, Clone)]
 pub struct RedirectionResponse {
     pub return_url: String,
     pub params: Vec<(String, String)>,

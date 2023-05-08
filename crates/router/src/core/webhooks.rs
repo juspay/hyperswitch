@@ -258,6 +258,7 @@ async fn get_or_update_dispute_object(
                 challenge_required_by: dispute_details.challenge_required_by,
                 dispute_created_at: dispute_details.created_at,
                 updated_at: dispute_details.updated_at,
+                evidence: None,
             };
             state
                 .store
