@@ -21,7 +21,7 @@ async fn main() -> CustomResult<(), errors::ProcessTrackerError> {
         .expect("Unable to construct application configuration");
     // channel for listening to redis disconnect events
     let (redis_shutdown_signal_tx, redis_shutdown_signal_rx) = oneshot::channel();
-    let mut state = routes::AppState::new(conf, redis_shutdown_signal_tx).await;
+    let state = routes::AppState::new(conf, redis_shutdown_signal_tx).await;
     // channel to shutdown scheduler gracefully
     let (tx, rx) = mpsc::channel(1);
     tokio::spawn(router::receiver_for_error(
@@ -33,8 +33,6 @@ async fn main() -> CustomResult<(), errors::ProcessTrackerError> {
     logger::debug!(startup_config=?state.conf);
 
     start_scheduler(&state, (tx, rx)).await?;
-
-    state.store.close().await;
 
     eprintln!("Scheduler shut down");
     Ok(())
