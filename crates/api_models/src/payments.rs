@@ -629,7 +629,7 @@ pub enum BankRedirectData {
     },
     Przelewy24 {
         // Shopper Email
-        email: Option<Email>,
+        email: Email,
     },
     Sofort {
         /// The billing details for bank redirection
