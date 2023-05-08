@@ -5,7 +5,11 @@ use crate::{selenium::*, tester};
 
 struct StripeSeleniumTest;
 
-impl SeleniumTest for StripeSeleniumTest {}
+impl SeleniumTest for StripeSeleniumTest {
+    fn get_connector_name() -> String {
+        "stripe".to_string()
+    }
+}
 
 async fn should_make_3ds_payment(c: WebDriver) -> Result<(), WebDriverError> {
     let conn = StripeSeleniumTest {};
