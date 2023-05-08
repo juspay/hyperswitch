@@ -67,6 +67,8 @@ pub struct Settings {
     pub file_upload_config: FileUploadConfig,
     pub tokenization: TokenizationConfig,
     pub connector_customer: ConnectorCustomer,
+    #[cfg(feature = "dummy_connector")]
+    pub dummy_connector: DummyConnector,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -91,6 +93,14 @@ where
         .split(',')
         .flat_map(api_models::enums::Connector::from_str)
         .collect())
+}
+
+#[cfg(feature = "dummy_connector")]
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct DummyConnector {
+    pub payment_ttl: i64,
+    pub payment_duration: u64,
+    pub payment_tolerance: u64,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -266,6 +276,7 @@ pub struct Jwekey {
     pub locker_decryption_key2: String,
     pub vault_encryption_key: String,
     pub vault_private_key: String,
+    pub tunnel_private_key: String,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]

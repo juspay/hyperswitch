@@ -351,7 +351,10 @@ where
                             connector_and_payment_method_type.0.as_str(),
                             api::GetToken::from(connector_and_payment_method_type.1),
                         )?;
-                        connectors_data.push(connector_details);
+                        connectors_data.push(api::SessionConnectorData {
+                            payment_method_type,
+                            connector: connector_details,
+                        });
                     }
                 }
             }
@@ -365,7 +368,10 @@ where
                     connector_and_payment_method_type.0.as_str(),
                     api::GetToken::from(connector_and_payment_method_type.1),
                 )?;
-                connectors_data.push(connector_details);
+                connectors_data.push(api::SessionConnectorData {
+                    payment_method_type: connector_and_payment_method_type.1,
+                    connector: connector_details,
+                });
             }
             connectors_data
         };

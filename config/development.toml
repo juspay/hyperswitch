@@ -47,6 +47,7 @@ locker_decryption_key1 = ""
 locker_decryption_key2 = ""
 vault_encryption_key = ""
 vault_private_key = ""
+tunnel_private_key = ""
 
 [connectors.supported]
 wallets = ["klarna", "braintree", "applepay"]
@@ -229,3 +230,8 @@ checkout = { long_lived_token = false, payment_method = "wallet" }
 
 [connector_customer]
 connector_list = "stripe"
+
+[dummy_connector]
+payment_ttl = 172800
+payment_duration = 1000
+payment_tolerance = 100
