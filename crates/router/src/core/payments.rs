@@ -7,8 +7,10 @@ pub mod transformers;
 use std::{fmt::Debug, marker::PhantomData, time::Instant};
 
 use api_models::payments::Metadata;
+use common_utils::pii::Email;
 use error_stack::{IntoReport, ResultExt};
 use futures::future::join_all;
+use masking::Secret;
 use router_env::{instrument, tracing};
 use time;
 
@@ -18,6 +20,7 @@ pub use self::operations::{
 };
 use self::{
     flows::{ConstructFlowSpecificData, Feature},
+    helpers::authenticate_client_secret,
     operations::{payment_complete_authorize, BoxedOperation, Operation},
 };
 use crate::{
@@ -27,12 +30,13 @@ use crate::{
         payment_methods::vault,
     },
     db::StorageInterface,
-    logger, pii,
+    logger,
     routes::AppState,
     scheduler::utils as pt_utils,
-    services,
+    services::{self, api::Authenticate},
     types::{
-        self, api,
+        self,
+        api::{self},
         storage::{self, enums as storage_enums},
     },
     utils::{Encode, OptionExt, ValueExt},
@@ -48,6 +52,7 @@ pub async fn payments_operation_core<F, Req, Op, FData>(
 ) -> RouterResult<(PaymentData<F>, Req, Option<storage::Customer>)>
 where
     F: Send + Clone + Sync,
+    Req: Authenticate,
     Op: Operation<F, Req> + Send + Sync,
 
     // To create connector flow specific interface data
@@ -82,6 +87,11 @@ where
             &merchant_account,
         )
         .await?;
+    authenticate_client_secret(
+        req.get_client_secret(),
+        &payment_data.payment_intent,
+        merchant_account.intent_fulfillment_time,
+    )?;
 
     let (operation, customer) = operation
         .to_domain()?
@@ -104,9 +114,18 @@ where
     )
     .await?;
 
-    let (payment_data, tokenization_action) =
+    let (mut payment_data, tokenization_action) =
         get_connector_tokenization_action(state, &operation, payment_data, &validate_result)
             .await?;
+
+    let updated_customer = call_create_connector_customer(
+        state,
+        &payment_data.payment_attempt.connector.clone(),
+        &customer,
+        &merchant_account,
+        &mut payment_data,
+    )
+    .await?;
 
     let (operation, mut payment_data) = operation
         .to_update_tracker()?
@@ -116,6 +135,7 @@ where
             payment_data,
             customer.clone(),
             validate_result.storage_scheme,
+            updated_customer,
         )
         .await?;
 
@@ -187,7 +207,7 @@ where
     F: Send + Clone + Sync,
     FData: Send + Sync,
     Op: Operation<F, Req> + Send + Sync + Clone,
-    Req: Debug,
+    Req: Debug + Authenticate,
     Res: transformers::ToResponse<Req, PaymentData<F>, Op>,
     // To create connector flow specific interface data
     PaymentData<F>: ConstructFlowSpecificData<F, FData, types::PaymentsResponseData>,
@@ -469,7 +489,7 @@ where
     let stime_connector = Instant::now();
 
     let mut router_data = payment_data
-        .construct_router_data(state, connector.connector.id(), merchant_account)
+        .construct_router_data(state, connector.connector.id(), merchant_account, customer)
         .await?;
 
     let add_access_token_result = router_data
@@ -539,7 +559,7 @@ where
     for connector in connectors.iter() {
         let connector_id = connector.connector.id();
         let router_data = payment_data
-            .construct_router_data(state, connector_id, merchant_account)
+            .construct_router_data(state, connector_id, merchant_account, customer)
             .await?;
 
         let res = router_data.decide_flows(
@@ -581,6 +601,47 @@ where
     tracing::info!(duration = format!("Duration taken: {}", call_connectors_duration.as_millis()));
 
     Ok(payment_data)
+}
+
+pub async fn call_create_connector_customer<F, Req>(
+    state: &AppState,
+    connector_name: &Option<String>,
+    customer: &Option<storage::Customer>,
+    merchant_account: &storage::MerchantAccount,
+    payment_data: &mut PaymentData<F>,
+) -> RouterResult<Option<storage::CustomerUpdate>>
+where
+    F: Send + Clone + Sync,
+    Req: Send + Sync,
+
+    // To create connector flow specific interface data
+    PaymentData<F>: ConstructFlowSpecificData<F, Req, types::PaymentsResponseData>,
+    types::RouterData<F, Req, types::PaymentsResponseData>: Feature<F, Req> + Send,
+
+    // To construct connector flow specific api
+    dyn api::Connector: services::api::ConnectorIntegration<F, Req, types::PaymentsResponseData>,
+
+    // To perform router related operation for PaymentResponse
+    PaymentResponse: Operation<F, Req>,
+{
+    match connector_name {
+        Some(connector_name) => {
+            let connector = api::ConnectorData::get_connector_by_name(
+                &state.conf.connectors,
+                connector_name,
+                api::GetToken::Connector,
+            )?;
+            let router_data = payment_data
+                .construct_router_data(state, connector.connector.id(), merchant_account, customer)
+                .await?;
+            let (connector_customer, customer_update) = router_data
+                .create_connector_customer(state, &connector, customer)
+                .await?;
+            payment_data.connector_customer_id = connector_customer;
+            Ok(customer_update)
+        }
+        None => Ok(None),
+    }
 }
 
 fn is_payment_method_tokenization_enabled_for_connector(
@@ -762,18 +823,19 @@ where
     pub payment_method_data: Option<api::PaymentMethodData>,
     pub refunds: Vec<storage::Refund>,
     pub sessions_token: Vec<api::SessionToken>,
-    pub card_cvc: Option<pii::Secret<String>>,
-    pub email: Option<masking::Secret<String, pii::Email>>,
+    pub card_cvc: Option<Secret<String>>,
+    pub email: Option<Email>,
     pub creds_identifier: Option<String>,
     pub pm_token: Option<String>,
+    pub connector_customer_id: Option<String>,
 }
 
 #[derive(Debug, Default)]
 pub struct CustomerDetails {
     pub customer_id: Option<String>,
-    pub name: Option<masking::Secret<String, masking::WithType>>,
-    pub email: Option<masking::Secret<String, pii::Email>>,
-    pub phone: Option<masking::Secret<String, masking::WithType>>,
+    pub name: Option<Secret<String, masking::WithType>>,
+    pub email: Option<Email>,
+    pub phone: Option<Secret<String, masking::WithType>>,
     pub phone_country_code: Option<String>,
 }
 
@@ -1019,8 +1081,8 @@ where
             .attach_printable("Invalid straight through algorithm format in payment attempt")?,
     };
 
-    let request_straight_through: Option<api::RoutingAlgorithm> = request_straight_through
-        .map(|val| val.parse_value("RoutingAlgorithm"))
+    let request_straight_through: Option<api::StraightThroughAlgorithm> = request_straight_through
+        .map(|val| val.parse_value("StraightThroughAlgorithm"))
         .transpose()
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Invalid straight through routing rules format")?;
@@ -1048,7 +1110,7 @@ where
 pub fn decide_connector(
     state: &AppState,
     merchant_account: &storage::MerchantAccount,
-    request_straight_through: Option<api::RoutingAlgorithm>,
+    request_straight_through: Option<api::StraightThroughAlgorithm>,
     routing_data: &mut storage::RoutingData,
 ) -> RouterResult<api::ConnectorCallType> {
     if let Some(ref connector_name) = routing_data.routed_through {
@@ -1065,7 +1127,7 @@ pub fn decide_connector(
 
     if let Some(routing_algorithm) = request_straight_through {
         let connector_name = match &routing_algorithm {
-            api::RoutingAlgorithm::Single(conn) => conn.to_string(),
+            api::StraightThroughAlgorithm::Single(conn) => conn.to_string(),
         };
 
         let connector_data = api::ConnectorData::get_connector_by_name(
@@ -1083,7 +1145,7 @@ pub fn decide_connector(
 
     if let Some(ref routing_algorithm) = routing_data.algorithm {
         let connector_name = match routing_algorithm {
-            api::RoutingAlgorithm::Single(conn) => conn.to_string(),
+            api::StraightThroughAlgorithm::Single(conn) => conn.to_string(),
         };
 
         let connector_data = api::ConnectorData::get_connector_by_name(
