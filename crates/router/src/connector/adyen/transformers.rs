@@ -1,8 +1,4 @@
-use api_models::{
-    enums::DisputeStage,
-    payments::{self, MandateReferenceId},
-    webhooks::IncomingWebhookEvent,
-};
+use api_models::{enums, payments, webhooks};
 use masking::PeekInterface;
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
@@ -1134,12 +1130,18 @@ impl<'a> TryFrom<&api_models::payments::BankRedirectData> for AdyenPaymentMethod
     }
 }
 
-impl<'a> TryFrom<(&types::PaymentsAuthorizeRouterData, MandateReferenceId)>
-    for AdyenPaymentRequest<'a>
+impl<'a>
+    TryFrom<(
+        &types::PaymentsAuthorizeRouterData,
+        payments::MandateReferenceId,
+    )> for AdyenPaymentRequest<'a>
 {
     type Error = Error;
     fn try_from(
-        value: (&types::PaymentsAuthorizeRouterData, MandateReferenceId),
+        value: (
+            &types::PaymentsAuthorizeRouterData,
+            payments::MandateReferenceId,
+        ),
     ) -> Result<Self, Self::Error> {
         let (item, mandate_ref_id) = value;
         let amount = get_amount_data(item);
@@ -1151,7 +1153,7 @@ impl<'a> TryFrom<(&types::PaymentsAuthorizeRouterData, MandateReferenceId)>
         let additional_data = get_additional_data(item);
         let return_url = item.request.get_return_url()?;
         let payment_method = match mandate_ref_id {
-            MandateReferenceId::ConnectorMandateId(connector_mandate_id) => {
+            payments::MandateReferenceId::ConnectorMandateId(connector_mandate_id) => {
                 let adyen_mandate = AdyenMandate {
                     payment_type: PaymentType::Scheme,
                     stored_payment_method_id: connector_mandate_id,
@@ -1160,7 +1162,7 @@ impl<'a> TryFrom<(&types::PaymentsAuthorizeRouterData, MandateReferenceId)>
                     adyen_mandate,
                 )))
             }
-            MandateReferenceId::NetworkMandateId(network_mandate_id) => {
+            payments::MandateReferenceId::NetworkMandateId(network_mandate_id) => {
                 match item.request.payment_method_data {
                     api::PaymentMethodData::Card(ref card) => {
                         let card_issuer = card.get_card_issuer()?;
@@ -1864,7 +1866,7 @@ pub fn is_chargeback_event(event_code: &WebhookEventCode) -> bool {
     )
 }
 
-impl ForeignFrom<(WebhookEventCode, Option<DisputeStatus>)> for IncomingWebhookEvent {
+impl ForeignFrom<(WebhookEventCode, Option<DisputeStatus>)> for webhooks::IncomingWebhookEvent {
     fn foreign_from((code, status): (WebhookEventCode, Option<DisputeStatus>)) -> Self {
         match (code, status) {
             (WebhookEventCode::Authorisation, _) => Self::PaymentIntentSuccess,
@@ -1890,7 +1892,7 @@ impl ForeignFrom<(WebhookEventCode, Option<DisputeStatus>)> for IncomingWebhookE
     }
 }
 
-impl From<WebhookEventCode> for DisputeStage {
+impl From<WebhookEventCode> for enums::DisputeStage {
     fn from(code: WebhookEventCode) -> Self {
         match code {
             WebhookEventCode::NotificationOfChargeback => Self::PreDispute,
