@@ -66,7 +66,6 @@ pub trait StorageInterface:
     + cards_info::CardsInfoInterface
     + services::RedisConnInterface
     + 'static
-    + cache::CacheInterface
 {
 }
 #[async_trait::async_trait]
