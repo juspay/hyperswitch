@@ -221,8 +221,8 @@ bucket_name = ""
 region = ""
 
 [pm_filters.forte]
-credit = {currency = "USD"}
-debit = {currency = "USD"}
+credit = { currency = "USD" }
+debit = { currency = "USD" }
 
 [tokenization]
 stripe = { long_lived_token = false, payment_method = "wallet" }
@@ -230,3 +230,8 @@ checkout = { long_lived_token = false, payment_method = "wallet" }
 
 [connector_customer]
 connector_list = "bluesnap, stripe"
+
+[dummy_connector]
+payment_ttl = 172800
+payment_duration = 1000
+payment_tolerance = 100

@@ -728,6 +728,9 @@ where
     let connector = payment_data.payment_attempt.connector.to_owned();
 
     let payment_data_and_tokenization_action = match connector {
+        Some(_) if payment_data.mandate_id.is_some() => {
+            (payment_data, TokenizationAction::SkipConnectorTokenization)
+        }
         Some(connector) if is_operation_confirm(&operation) => {
             let payment_method = &payment_data
                 .payment_attempt
