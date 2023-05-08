@@ -76,7 +76,7 @@ impl DummyConnectorPaymentData {
         eligible_amount: i64,
         currency: Currency,
         created: String,
-        payemnt_method_type: String,
+        payment_method_type: String,
     ) -> Self {
         Self {
             status,
@@ -84,7 +84,7 @@ impl DummyConnectorPaymentData {
             eligible_amount,
             currency,
             created,
-            payment_method_type: payemnt_method_type,
+            payment_method_type,
         }
     }
 }
