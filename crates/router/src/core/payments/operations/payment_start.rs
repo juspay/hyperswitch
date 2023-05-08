@@ -12,8 +12,6 @@ use crate::{
         payments::{helpers, operations, CustomerDetails, PaymentAddress, PaymentData},
     },
     db::StorageInterface,
-    pii,
-    pii::Secret,
     routes::AppState,
     types::{
         api::{self, PaymentIdTypeExt},
@@ -124,11 +122,11 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsStartRequest> f
                 payment_intent,
                 currency,
                 amount,
-                email: None::<Secret<String, pii::Email>>,
+                email: None,
                 mandate_id: None,
                 connector_response,
                 setup_mandate: None,
-                token: None,
+                token: payment_attempt.payment_token.clone(),
                 address: PaymentAddress {
                     shipping: shipping_address.as_ref().map(|a| a.foreign_into()),
                     billing: billing_address.as_ref().map(|a| a.foreign_into()),

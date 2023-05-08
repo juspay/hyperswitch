@@ -38,7 +38,7 @@ impl TryFrom<utils::CardIssuer> for PayeezyCardType {
             utils::CardIssuer::Discover => Ok(Self::Discover),
             utils::CardIssuer::Visa => Ok(Self::Visa),
             _ => Err(errors::ConnectorError::NotSupported {
-                payment_method: api::enums::PaymentMethod::Card.to_string(),
+                message: issuer.to_string(),
                 connector: "Payeezy",
                 payment_experience: api::enums::PaymentExperience::RedirectToUrl.to_string(),
             }
@@ -130,8 +130,8 @@ fn get_transaction_type_and_stored_creds(
     let connector_mandate_id = item.request.mandate_id.as_ref().and_then(|mandate_ids| {
         match mandate_ids.mandate_reference_id.clone() {
             Some(api_models::payments::MandateReferenceId::ConnectorMandateId(
-                connector_mandate_id,
-            )) => Some(connector_mandate_id),
+                connector_mandate_ids,
+            )) => connector_mandate_ids.connector_mandate_id,
             _ => None,
         }
     });
@@ -341,7 +341,11 @@ impl<F, T>
         let mandate_reference = item
             .response
             .stored_credentials
-            .map(|credentials| credentials.cardbrand_original_transaction_id);
+            .map(|credentials| credentials.cardbrand_original_transaction_id)
+            .map(|id| types::MandateReference {
+                connector_mandate_id: Some(id),
+                payment_method_id: None,
+            });
         let status = enums::AttemptStatus::foreign_from((
             item.response.transaction_status,
             item.response.transaction_type,

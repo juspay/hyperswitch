@@ -190,7 +190,7 @@ pub struct RouterData<Flow, Request, Response> {
 pub struct PaymentsAuthorizeData {
     pub payment_method_data: payments::PaymentMethodData,
     pub amount: i64,
-    pub email: Option<masking::Secret<String, Email>>,
+    pub email: Option<Email>,
     pub currency: storage_enums::Currency,
     pub confirm: bool,
     pub statement_descriptor_suffix: Option<String>,
@@ -233,7 +233,7 @@ pub struct AuthorizeSessionTokenData {
 #[derive(Debug, Clone)]
 pub struct ConnectorCustomerData {
     pub description: Option<String>,
-    pub email: Option<masking::Secret<String, Email>>,
+    pub email: Option<Email>,
     pub phone: Option<masking::Secret<String>>,
     pub name: Option<String>,
 }
@@ -247,7 +247,7 @@ pub struct PaymentMethodTokenizationData {
 pub struct CompleteAuthorizeData {
     pub payment_method_data: Option<payments::PaymentMethodData>,
     pub amount: i64,
-    pub email: Option<masking::Secret<String, Email>>,
+    pub email: Option<Email>,
     pub currency: storage_enums::Currency,
     pub confirm: bool,
     pub statement_descriptor_suffix: Option<String>,
@@ -299,6 +299,8 @@ pub struct VerifyRequestData {
     pub setup_future_usage: Option<storage_enums::FutureUsage>,
     pub off_session: Option<bool>,
     pub setup_mandate_details: Option<payments::MandateData>,
+    pub email: Option<Email>,
+    pub return_url: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -319,12 +321,18 @@ pub struct AccessToken {
     pub expires: i64,
 }
 
+#[derive(serde::Serialize, Debug, Clone)]
+pub struct MandateReference {
+    pub connector_mandate_id: Option<String>,
+    pub payment_method_id: Option<String>,
+}
+
 #[derive(Debug, Clone)]
 pub enum PaymentsResponseData {
     TransactionResponse {
         resource_id: ResponseId,
         redirection_data: Option<services::RedirectForm>,
-        mandate_reference: Option<String>,
+        mandate_reference: Option<MandateReference>,
         connector_metadata: Option<serde_json::Value>,
         network_txn_id: Option<String>,
     },
@@ -537,6 +545,12 @@ pub enum ConnectorAuthType {
         key1: String,
         api_secret: String,
     },
+    MultiAuthKey {
+        api_key: String,
+        key1: String,
+        api_secret: String,
+        key2: String,
+    },
     #[default]
     NoKey,
 }
@@ -548,6 +562,7 @@ pub struct ConnectorsList {
 
 #[derive(Clone, Debug)]
 pub struct Response {
+    pub headers: Option<http::HeaderMap>,
     pub response: bytes::Bytes,
     pub status_code: u16,
 }
