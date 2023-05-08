@@ -47,6 +47,7 @@ locker_decryption_key1 = ""
 locker_decryption_key2 = ""
 vault_encryption_key = ""
 vault_private_key = ""
+tunnel_private_key = ""
 
 [connectors.supported]
 wallets = ["klarna", "braintree", "applepay"]
@@ -239,5 +240,5 @@ payment_retrieve_tolerance = 100
 refund_ttl = 172800
 refund_duration = 1000
 refund_tolerance = 100
-refund_retrieve_duration = 500,
-refund_retrieve_tolerance = 100,
+refund_retrieve_duration = 500
+refund_retrieve_tolerance = 100
