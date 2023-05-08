@@ -992,7 +992,9 @@ impl services::ConnectorRedirectResponse for Bluesnap {
         _action: services::PaymentAction,
     ) -> CustomResult<payments::CallConnectorAction, errors::ConnectorError> {
         let redirection_response: bluesnap::BluesnapRedirectionResponse = json_payload
-            .ok_or(errors::ConnectorError::MissingConnectorRedirectionPayload)?
+            .ok_or(errors::ConnectorError::MissingConnectorRedirectionPayload {
+                field_name: "json_payload",
+            })?
             .parse_value("BluesnapRedirectionResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 

@@ -118,9 +118,16 @@ where
         get_connector_tokenization_action(state, &operation, payment_data, &validate_result)
             .await?;
 
+    let connector_string = connector
+        .as_ref()
+        .and_then(|connector_type| match connector_type {
+            api::ConnectorCallType::Single(connector) => Some(connector.connector_name.to_string()),
+            _ => None,
+        });
+
     let updated_customer = call_create_connector_customer(
         state,
-        &payment_data.payment_attempt.connector.clone(),
+        &connector_string,
         &customer,
         &merchant_account,
         &mut payment_data,
