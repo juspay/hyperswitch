@@ -24,7 +24,6 @@ use self::{
     operations::{payment_complete_authorize, BoxedOperation, Operation},
 };
 use crate::{
-    connection,
     core::{
         errors::{self, CustomResult, RouterResponse, RouterResult},
         payment_methods::vault,
@@ -679,7 +678,7 @@ async fn decide_payment_method_tokenize_action(
             }
         }
         Some(token) => {
-            let redis_conn = connection::redis_connection(&state.conf).await;
+            let redis_conn = state.store.get_redis_conn();
             let key = format!(
                 "pm_token_{}_{}_{}",
                 token.to_owned(),
@@ -1040,8 +1039,13 @@ where
 
     let connector = if should_call_connector(operation, payment_data) {
         Some(match connector_choice {
-            api::ConnectorChoice::SessionMultiple(connectors) => {
-                api::ConnectorCallType::Multiple(connectors)
+            api::ConnectorChoice::SessionMultiple(session_connectors) => {
+                api::ConnectorCallType::Multiple(
+                    session_connectors
+                        .into_iter()
+                        .map(|c| c.connector)
+                        .collect(),
+                )
             }
 
             api::ConnectorChoice::StraightThrough(straight_through) => connector_selection(

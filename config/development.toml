@@ -47,6 +47,7 @@ locker_decryption_key1 = ""
 locker_decryption_key2 = ""
 vault_encryption_key = ""
 vault_private_key = ""
+tunnel_private_key = ""
 
 [connectors.supported]
 wallets = ["klarna", "braintree", "applepay"]
