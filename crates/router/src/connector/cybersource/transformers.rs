@@ -81,14 +81,14 @@ pub struct BillTo {
     administrative_area: Secret<String>,
     postal_code: Secret<String>,
     country: api_enums::CountryAlpha2,
-    email: Secret<String, pii::Email>,
+    email: pii::Email,
     phone_number: Secret<String>,
 }
 
 // for cybersource each item in Billing is mandatory
 fn build_bill_to(
     address_details: &payments::Address,
-    email: Secret<String, pii::Email>,
+    email: pii::Email,
     phone_number: Secret<String>,
 ) -> Result<BillTo, error_stack::Report<errors::ConnectorError>> {
     let address = address_details

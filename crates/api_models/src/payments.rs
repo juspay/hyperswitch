@@ -1,6 +1,6 @@
 use std::num::NonZeroI64;
 
-use common_utils::pii;
+use common_utils::{pii, pii::Email};
 use masking::{PeekInterface, Secret};
 use router_derive::Setter;
 use time::PrimitiveDateTime;
@@ -102,7 +102,7 @@ pub struct PaymentsRequest {
 
     /// description: The customer's email address
     #[schema(max_length = 255, value_type = Option<String>, example = "johntest@test.com")]
-    pub email: Option<Secret<String, pii::Email>>,
+    pub email: Option<Email>,
 
     /// description: The customer's name
     #[schema(value_type = Option<String>, max_length = 255, example = "John Test")]
@@ -258,7 +258,7 @@ pub struct VerifyRequest {
     // and is later passed in the struct
     pub merchant_id: Option<String>,
     pub customer_id: Option<String>,
-    pub email: Option<Secret<String, pii::Email>>,
+    pub email: Option<Email>,
     pub name: Option<Secret<String>>,
     pub phone: Option<Secret<String>>,
     pub phone_country_code: Option<String>,
@@ -443,7 +443,7 @@ pub enum PayLaterData {
     KlarnaRedirect {
         /// The billing email
         #[schema(value_type = String)]
-        billing_email: Secret<String, pii::Email>,
+        billing_email: Email,
         // The billing country code
         #[schema(value_type = CountryAlpha2, example = "US")]
         billing_country: api_enums::CountryAlpha2,
@@ -459,7 +459,7 @@ pub enum PayLaterData {
     AfterpayClearpayRedirect {
         /// The billing email
         #[schema(value_type = String)]
-        billing_email: Secret<String, pii::Email>,
+        billing_email: Email,
         /// The billing name
         #[schema(value_type = String)]
         billing_name: Secret<String>,
@@ -617,7 +617,7 @@ pub enum BankRedirectData {
     },
     OnlineBankingFinland {
         // Shopper Email
-        email: Option<Secret<String, pii::Email>>,
+        email: Option<Email>,
     },
     OnlineBankingPoland {
         // Issuer banks
@@ -672,7 +672,7 @@ pub struct BankDebitBilling {
     pub name: Secret<String>,
     /// The billing email for bank debits
     #[schema(value_type = String, example = "example@example.com")]
-    pub email: Secret<String, pii::Email>,
+    pub email: Email,
     /// The billing address for bank debits
     pub address: Option<AddressDetails>,
 }
@@ -1075,7 +1075,7 @@ pub struct PaymentsResponse {
 
     /// description: The customer's email address
     #[schema(max_length = 255, value_type = Option<String>, example = "johntest@test.com")]
-    pub email: Option<Secret<String, pii::Email>>,
+    pub email: Option<Email>,
 
     /// description: The customer's name
     #[schema(value_type = Option<String>, max_length = 255, example = "John Test")]
@@ -1215,7 +1215,7 @@ pub struct VerifyResponse {
     // pub status: enums::VerifyStatus,
     pub client_secret: Option<Secret<String>>,
     pub customer_id: Option<String>,
-    pub email: Option<Secret<String, pii::Email>>,
+    pub email: Option<Email>,
     pub name: Option<Secret<String>>,
     pub phone: Option<Secret<String>>,
     pub mandate_id: Option<String>,

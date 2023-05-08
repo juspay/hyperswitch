@@ -12,7 +12,7 @@ use crate::{
 #[derive(Default, Serialize, PartialEq, Eq, Deserialize, Clone)]
 pub struct StripeBillingDetails {
     pub address: Option<payments::AddressDetails>,
-    pub email: Option<pii::Secret<String, pii::Email>>,
+    pub email: Option<pii::Email>,
     pub name: Option<String>,
     pub phone: Option<pii::Secret<String>>,
 }
@@ -114,7 +114,7 @@ pub struct StripeSetupIntentRequest {
     pub customer: Option<String>,
     pub description: Option<String>,
     pub payment_method_data: Option<StripePaymentMethodData>,
-    pub receipt_email: Option<pii::Secret<String, pii::Email>>,
+    pub receipt_email: Option<pii::Email>,
     pub return_url: Option<url::Url>,
     pub setup_future_usage: Option<api_enums::FutureUsage>,
     pub shipping: Option<Shipping>,

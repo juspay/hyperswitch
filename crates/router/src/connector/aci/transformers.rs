@@ -207,7 +207,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for AciPaymentsRequest {
             }
             api::PaymentMethodData::Crypto(_) | api::PaymentMethodData::BankDebit(_) => {
                 Err(errors::ConnectorError::NotSupported {
-                    payment_method: format!("{:?}", item.payment_method),
+                    message: format!("{:?}", item.payment_method),
                     connector: "Aci",
                     payment_experience: api_models::enums::PaymentExperience::RedirectToUrl
                         .to_string(),
