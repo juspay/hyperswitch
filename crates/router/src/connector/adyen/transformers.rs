@@ -7,7 +7,9 @@ use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
 use crate::{
-    connector::utils::{self, CardData, PaymentsAuthorizeRequestData, RouterData},
+    connector::utils::{
+        self, CardData, MandateReferenceData, PaymentsAuthorizeRequestData, RouterData,
+    },
     consts,
     core::errors,
     pii::{self, Email, Secret},
@@ -1104,10 +1106,10 @@ impl<'a> TryFrom<(&types::PaymentsAuthorizeRouterData, MandateReferenceId)>
         let additional_data = get_additional_data(item);
         let return_url = item.request.get_return_url()?;
         let payment_method = match mandate_ref_id {
-            MandateReferenceId::ConnectorMandateId(connector_mandate_id) => {
+            MandateReferenceId::ConnectorMandateId(connector_mandate_ids) => {
                 let adyen_mandate = AdyenMandate {
                     payment_type: PaymentType::Scheme,
-                    stored_payment_method_id: connector_mandate_id,
+                    stored_payment_method_id: connector_mandate_ids.get_connector_mandate_id()?,
                 };
                 Ok::<AdyenPaymentMethod<'_>, Self::Error>(AdyenPaymentMethod::Mandate(Box::new(
                     adyen_mandate,
@@ -1435,7 +1437,10 @@ pub fn get_adyen_response(
     let mandate_reference = response
         .additional_data
         .as_ref()
-        .and_then(|additional_data| additional_data.recurring_detail_reference.to_owned());
+        .map(|data| types::MandateReference {
+            connector_mandate_id: data.recurring_detail_reference.to_owned(),
+            payment_method_id: None,
+        });
     let network_txn_id = response
         .additional_data
         .and_then(|additional_data| additional_data.network_tx_reference);
