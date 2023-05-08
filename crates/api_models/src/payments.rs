@@ -627,7 +627,13 @@ pub enum BankRedirectData {
         // Issuer value corresponds to the bank
         issuer: api_enums::BankNames,
     },
-    Przelewy24 {},
+    Przelewy24 {
+        //Issuer banks
+        bank_name: api_enums::BankNames,
+        
+        // The billing details for bank redirection
+        billing_details: BankRedirectBilling
+    },
     Sofort {
         /// The billing details for bank redirection
         billing_details: BankRedirectBilling,
@@ -659,7 +665,10 @@ pub struct SofortBilling {
 pub struct BankRedirectBilling {
     /// The name for which billing is issued
     #[schema(value_type = String, example = "John Doe")]
-    pub billing_name: Secret<String>,
+    pub billing_name: Option<Secret<String>>,
+    /// The billing email for bank debits
+    #[schema(value_type = String, example = "example@example.com")]
+    pub email: Email,
 }
 
 #[derive(serde::Deserialize, serde::Serialize, Debug, Clone, ToSchema, Eq, PartialEq)]

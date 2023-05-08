@@ -193,6 +193,10 @@ pub enum StripeBankName {
         #[serde(rename = "payment_method_data[ideal][bank]")]
         ideal_bank_name: StripeBankNames,
     },
+    Przelewy24 {
+        #[serde(rename = "payment_method_data[p24][bank]")]
+        bank_name: StripeBankNames,
+    }
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
@@ -222,6 +226,12 @@ fn get_bank_name(
             api_models::payments::BankRedirectData::Ideal { bank_name, .. },
         ) => Ok(Some(StripeBankName::Ideal {
             ideal_bank_name: StripeBankNames::try_from(bank_name)?,
+        })),
+        (
+            StripePaymentMethodType::Przelewy24,
+            api_models::payments::BankRedirectData::Przelewy24 { bank_name, .. },
+        ) => Ok(Some(StripeBankName::Przelewy24 {
+            bank_name: StripeBankNames::try_from(bank_name)?,
         })),
         (StripePaymentMethodType::Sofort | StripePaymentMethodType::Giropay, _) => Ok(None),
         _ => Err(errors::ConnectorError::MismatchedPaymentData),
@@ -334,6 +344,8 @@ pub enum StripePaymentMethodType {
     Becs,
     #[serde(rename = "bacs_debit")]
     Bacs,
+    #[serde(rename = "p24")]
+    Przelewy24
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize, Clone)]
@@ -352,6 +364,7 @@ pub enum StripeBankNames {
     BtvVierLanderBank,
     Bunq,
     CapitalBankGraweGruppeAg,
+    CitiHandlowy,
     Dolomitenbank,
     EasybankAg,
     ErsteBankUndSparkassen,
@@ -416,6 +429,7 @@ impl TryFrom<&api_models::enums::BankNames> for StripeBankNames {
             api_models::enums::BankNames::CapitalBankGraweGruppeAg => {
                 Self::CapitalBankGraweGruppeAg
             }
+            api_models::enums::BankNames::Citi => Self::CitiHandlowy,
             api_models::enums::BankNames::Dolomitenbank => Self::Dolomitenbank,
             api_models::enums::BankNames::EasybankAg => Self::EasybankAg,
             api_models::enums::BankNames::ErsteBankUndSparkassen => Self::ErsteBankUndSparkassen,
@@ -423,6 +437,7 @@ impl TryFrom<&api_models::enums::BankNames> for StripeBankNames {
             api_models::enums::BankNames::HypoAlpeadriabankInternationalAg => {
                 Self::HypoAlpeadriabankInternationalAg
             }
+
             api_models::enums::BankNames::HypoNoeLbFurNiederosterreichUWien => {
                 Self::HypoNoeLbFurNiederosterreichUWien
             }
@@ -522,6 +537,9 @@ fn infer_stripe_bank_redirect_issuer(
         Some(storage_models::enums::PaymentMethodType::Sofort) => {
             Ok(StripePaymentMethodType::Sofort)
         }
+        Some(storage_models::enums::PaymentMethodType::Przelewy24) => {
+            Ok(StripePaymentMethodType::Przelewy24)
+        }
         Some(storage_models::enums::PaymentMethodType::Eps) => Ok(StripePaymentMethodType::Eps),
         None => Err(errors::ConnectorError::MissingRequiredField {
             field_name: "payment_method_type",
@@ -606,19 +624,25 @@ impl TryFrom<&payments::BankRedirectData> for StripeBillingAddress {
             payments::BankRedirectData::Eps {
                 billing_details, ..
             } => Ok(Self {
-                name: Some(billing_details.billing_name.clone()),
+                name: billing_details.billing_name.clone(),
                 ..Self::default()
             }),
             payments::BankRedirectData::Giropay {
                 billing_details, ..
             } => Ok(Self {
-                name: Some(billing_details.billing_name.clone()),
+                name: billing_details.billing_name.clone(),
                 ..Self::default()
             }),
             payments::BankRedirectData::Ideal {
                 billing_details, ..
             } => Ok(Self {
-                name: Some(billing_details.billing_name.clone()),
+                name: billing_details.billing_name.clone(),
+                ..Self::default()
+            }),
+            payments::BankRedirectData::Przelewy24 {
+                billing_details, ..
+            } => Ok(Self {
+                email: Some(billing_details.email.clone()),
                 ..Self::default()
             }),
             _ => Ok(Self::default()),
@@ -1254,7 +1278,8 @@ impl<F, T>
                     | StripePaymentMethodOptions::Ach {}
                     | StripePaymentMethodOptions::Bacs {}
                     | StripePaymentMethodOptions::Becs {}
-                    | StripePaymentMethodOptions::Sepa {} => None,
+                    | StripePaymentMethodOptions::Sepa {}
+                    | StripePaymentMethodOptions::Przelewy24 {} => None,
                 });
 
         let error_res =
@@ -1574,6 +1599,8 @@ pub enum StripePaymentMethodOptions {
     Becs {},
     #[serde(rename = "bacs_debit")]
     Bacs {},
+    #[serde(rename = "p24")]
+    Przelewy24 {}
 }
 
 #[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
