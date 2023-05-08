@@ -124,11 +124,22 @@ where
     PartialEq,
     Eq,
     Default,
-    Queryable,
     AsExpression,
 )]
 #[diesel(sql_type = diesel::sql_types::Text)]
 pub struct Email(Secret<String, EmailStrategy>);
+
+impl<DB> Queryable<diesel::sql_types::Text, DB> for Email
+where
+    DB: Backend,
+    Self: FromSql<sql_types::Text, DB>,
+{
+    type Row = Self;
+
+    fn build(row: Self::Row) -> deserialize::Result<Self> {
+        Ok(row)
+    }
+}
 
 impl<DB> FromSql<sql_types::Text, DB> for Email
 where
