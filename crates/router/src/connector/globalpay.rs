@@ -15,6 +15,7 @@ use self::{
         GlobalpayRefreshTokenResponse,
     },
 };
+use super::utils::RefundsRequestData;
 use crate::{
     configs::settings,
     connector::utils as conn_utils,
@@ -29,7 +30,7 @@ use crate::{
         api::{self, ConnectorCommon, ConnectorCommonExt, PaymentsCompleteAuthorize},
         ErrorResponse,
     },
-    utils::{self, crypto, BytesExt, OptionExt},
+    utils::{self, crypto, BytesExt},
 };
 
 #[derive(Debug, Clone)]
@@ -738,13 +739,7 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         req: &types::RefundSyncRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let refund_id = req
-            .response
-            .clone()
-            .ok()
-            .get_required_value("response")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?
-            .connector_refund_id;
+        let refund_id = req.request.get_connector_refund_id()?;
         Ok(format!(
             "{}transactions/{}",
             self.base_url(connectors),
