@@ -35,13 +35,13 @@ pub struct DisputeResponse {
     pub challenge_required_by: Option<PrimitiveDateTime>,
     /// Dispute created time sent by connector
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
-    pub created_at: Option<PrimitiveDateTime>,
+    pub connector_created_at: Option<PrimitiveDateTime>,
     /// Dispute updated time sent by connector
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
-    pub updated_at: Option<PrimitiveDateTime>,
+    pub connector_updated_at: Option<PrimitiveDateTime>,
     /// Time at which dispute is received
     #[serde(with = "common_utils::custom_serde::iso8601")]
-    pub received_at: PrimitiveDateTime,
+    pub created_at: PrimitiveDateTime,
 }
 
 #[derive(Clone, Debug, Serialize, ToSchema, Eq, PartialEq)]
@@ -65,13 +65,13 @@ pub struct DisputeResponsePaymentsRetrieve {
     pub challenge_required_by: Option<PrimitiveDateTime>,
     /// Dispute created time sent by connector
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
-    pub created_at: Option<PrimitiveDateTime>,
+    pub connector_created_at: Option<PrimitiveDateTime>,
     /// Dispute updated time sent by connector
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
-    pub updated_at: Option<PrimitiveDateTime>,
+    pub connector_updated_at: Option<PrimitiveDateTime>,
     /// Time at which dispute is received
     #[serde(with = "common_utils::custom_serde::iso8601")]
-    pub received_at: PrimitiveDateTime,
+    pub created_at: PrimitiveDateTime,
 }
 
 #[derive(Clone, Debug, Deserialize, ToSchema)]

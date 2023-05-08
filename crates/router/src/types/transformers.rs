@@ -506,9 +506,9 @@ impl ForeignFrom<storage::Dispute> for api_models::disputes::DisputeResponse {
             connector_reason: dispute.connector_reason,
             connector_reason_code: dispute.connector_reason_code,
             challenge_required_by: dispute.challenge_required_by,
-            created_at: dispute.dispute_created_at,
-            updated_at: dispute.updated_at,
-            received_at: dispute.created_at,
+            connector_created_at: dispute.dispute_created_at,
+            connector_updated_at: dispute.updated_at,
+            created_at: dispute.created_at,
         }
     }
 }
@@ -524,9 +524,9 @@ impl ForeignFrom<storage::Dispute> for api_models::disputes::DisputeResponsePaym
             connector_reason: dispute.connector_reason,
             connector_reason_code: dispute.connector_reason_code,
             challenge_required_by: dispute.challenge_required_by,
-            created_at: dispute.dispute_created_at,
-            updated_at: dispute.updated_at,
-            received_at: dispute.created_at,
+            connector_created_at: dispute.dispute_created_at,
+            connector_updated_at: dispute.updated_at,
+            created_at: dispute.created_at,
         }
     }
 }
