@@ -788,8 +788,7 @@ pub fn build_redirection_form(
         RedirectForm::BlueSnap {
             payment_fields_token,
         } => {
-            let mut card_details = "".to_string();
-            if let Some(api::PaymentMethodData::Card(ccard)) = payment_method_data {
+            let card_details = if let Some(api::PaymentMethodData::Card(ccard)) = payment_method_data {
                 card_details = format!(
                     "var newCard={{ccNumber: \"{}\",cvv: \"{}\",expDate: \"{}/{}\",amount: {},currency: \"{}\"}};",
                     ccard.card_number.expose(),
@@ -799,7 +798,7 @@ pub fn build_redirection_form(
                     amount,
                     currency
                 );
-            };
+            } else {"".to_string()};
             maud::html! {
             (maud::DOCTYPE)
             html {
