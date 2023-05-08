@@ -272,28 +272,7 @@ where
                 let mut next_action_response = None;
 
                 let bank_transfer_next_steps =
-                    if let Some(storage_models::enums::PaymentMethod::BankTransfer) =
-                        payment_attempt.payment_method
-                    {
-                        let bank_transfer_next_steps: Option<NextStepsRequirements> =
-                            payment_attempt
-                                .connector_metadata
-                                .to_owned()
-                                .map(|metadata| {
-                                    metadata
-                                        .parse_value("NextStepsRequirements")
-                                        .change_context(
-                                            errors::ApiErrorResponse::InternalServerError,
-                                        )
-                                        .attach_printable(
-                                            "Failed to parse the Value to NextRequirements struct",
-                                        )
-                                })
-                                .transpose()?;
-                        bank_transfer_next_steps
-                    } else {
-                        None
-                    };
+                    bank_transfer_next_steps_check(payment_attempt.clone())?;
 
                 if payment_intent.status == enums::IntentStatus::RequiresCustomerAction
                     || bank_transfer_next_steps.is_some()
@@ -491,6 +470,28 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             ..Default::default()
         }
     }
+}
+
+pub fn bank_transfer_next_steps_check(
+    payment_attempt: storage::PaymentAttempt,
+) -> RouterResult<Option<NextStepsRequirements>> {
+    let bank_transfer_next_step = if let Some(storage_models::enums::PaymentMethod::BankTransfer) =
+        payment_attempt.payment_method
+    {
+        let bank_transfer_next_steps: Option<NextStepsRequirements> = payment_attempt
+            .connector_metadata
+            .map(|metadata| {
+                metadata
+                    .parse_value("NextStepsRequirements")
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to parse the Value to NextRequirements struct")
+            })
+            .transpose()?;
+        bank_transfer_next_steps
+    } else {
+        None
+    };
+    Ok(bank_transfer_next_step)
 }
 
 #[derive(Clone)]

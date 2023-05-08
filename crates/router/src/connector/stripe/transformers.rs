@@ -1642,7 +1642,7 @@ impl TryFrom<&types::CustomerRouterData> for CustomerRequest {
 
     fn try_from(value: &types::CustomerRouterData) -> Result<Self, Self::Error> {
         Ok(Self {
-            email: value.request.email.to_owned().map(|email| email),
+            email: value.request.email.to_owned(),
             source: value.request.preprocessing_id.to_owned(),
         })
     }
@@ -1860,7 +1860,7 @@ impl
                 match bank_transfer_data.deref() {
                     payments::BankTransferData::AchBankTransfer(ach_bank_transfer_data) => {
                         Ok(Self::AchBankTransfer(BankTransferData {
-                            email: ach_bank_transfer_data.billing_details.email,
+                            email: ach_bank_transfer_data.billing_details.email.to_owned(),
                         }))
                     }
                 }
@@ -1885,7 +1885,7 @@ pub fn get_bank_transfer_request_data(
 pub fn get_bank_transfer_authorize_response(
     data: &types::PaymentsAuthorizeRouterData,
     res: types::Response,
-    bank_transfer_data: &api_models::payments::BankTransferData,
+    _bank_transfer_data: &api_models::payments::BankTransferData,
 ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
     let response: ChargesResponse = res
         .response

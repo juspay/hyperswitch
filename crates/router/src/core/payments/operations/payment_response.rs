@@ -307,25 +307,10 @@ async fn payment_response_update_tracker<F: Clone, T>(
                 pre_processing_id,
                 connector_metadata,
             } => {
-                let error_status = if router_data.status == enums::AttemptStatus::Charged {
-                    Some(None)
-                } else {
-                    None
-                };
-                let payment_attempt_update = storage::PaymentAttemptUpdate::ResponseUpdate {
+                let payment_attempt_update = storage::PaymentAttemptUpdate::PreprocessingUpdate {
                     status: router_data.status,
-                    connector: None,
-                    connector_transaction_id: None,
-                    authentication_type: None,
                     payment_method_id: Some(router_data.payment_method_id),
-                    mandate_id: payment_data
-                        .mandate_id
-                        .clone()
-                        .map(|mandate| mandate.mandate_id),
                     connector_metadata,
-                    payment_token: None,
-                    error_code: error_status.clone(),
-                    error_message: error_status,
                     preprocessing_step_id: Some(pre_processing_id),
                 };
                 (Some(payment_attempt_update), None)
@@ -376,7 +361,6 @@ async fn payment_response_update_tracker<F: Clone, T>(
                     payment_token: None,
                     error_code: error_status.clone(),
                     error_message: error_status,
-                    preprocessing_step_id: None,
                 };
 
                 let connector_response_update = storage::ConnectorResponseUpdate::ResponseUpdate {

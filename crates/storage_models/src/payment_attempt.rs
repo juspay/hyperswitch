@@ -148,7 +148,6 @@ pub enum PaymentAttemptUpdate {
         payment_token: Option<String>,
         error_code: Option<Option<String>>,
         error_message: Option<Option<String>>,
-        preprocessing_step_id: Option<String>,
     },
     UnresolvedResponseUpdate {
         status: storage_enums::AttemptStatus,
@@ -166,6 +165,12 @@ pub enum PaymentAttemptUpdate {
         status: storage_enums::AttemptStatus,
         error_code: Option<Option<String>>,
         error_message: Option<Option<String>>,
+    },
+    PreprocessingUpdate {
+        status: storage_enums::AttemptStatus,
+        payment_method_id: Option<Option<String>>,
+        connector_metadata: Option<serde_json::Value>,
+        preprocessing_step_id: Option<String>,
     },
 }
 
@@ -312,7 +317,6 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 payment_token,
                 error_code,
                 error_message,
-                preprocessing_step_id,
             } => Self {
                 status: Some(status),
                 connector,
@@ -325,8 +329,6 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 error_code,
                 error_message,
                 payment_token,
-
-                preprocessing_step_id,
                 ..Default::default()
             },
             PaymentAttemptUpdate::ErrorUpdate {
@@ -371,6 +373,19 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 modified_at: Some(common_utils::date_time::now()),
                 error_code,
                 error_message,
+                ..Default::default()
+            },
+            PaymentAttemptUpdate::PreprocessingUpdate {
+                status,
+                payment_method_id,
+                connector_metadata,
+                preprocessing_step_id,
+            } => Self {
+                status: Some(status),
+                payment_method_id,
+                modified_at: Some(common_utils::date_time::now()),
+                connector_metadata,
+                preprocessing_step_id,
                 ..Default::default()
             },
         }
