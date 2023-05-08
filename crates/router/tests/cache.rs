@@ -3,7 +3,7 @@ use router::cache::{self};
 mod utils;
 
 #[actix_web::test]
-async fn invalidate_cache_success() {
+async fn invalidate_in_memory_cache_success() {
     // Arrange
     utils::setup().await;
 

@@ -6,13 +6,19 @@ use crate::{
     services::{self},
 };
 
+use super::errors;
+
 pub async fn invalidate(
     store: &dyn StorageInterface,
     key: &str,
-) -> CustomResult<
-    services::api::ApplicationResponse<serde_json::Value>,
-    crate::errors::ApiErrorResponse,
-> {
+) -> CustomResult<services::api::ApplicationResponse<serde_json::Value>, errors::ApiErrorResponse> {
     CONFIG_CACHE.remove(key).await;
-    Ok(services::api::ApplicationResponse::StatusOk)
+
+    match store
+        .get_redis_conn()
+        .delete_key(key)
+        .await {
+            Ok(_) => Ok(services::api::ApplicationResponse::StatusOk),
+            _ => Err(errors::ApiErrorResponse::RemoveRedisKeyFailure.into())
+        }
 }

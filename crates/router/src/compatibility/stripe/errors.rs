@@ -492,6 +492,7 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
             errors::ApiErrorResponse::FileNotFound => Self::FileNotFound,
             errors::ApiErrorResponse::FileNotAvailable => Self::FileNotAvailable,
             errors::ApiErrorResponse::NotSupported { .. } => Self::InternalServerError,
+            errors::ApiErrorResponse::RemoveRedisKeyFailure => Self::InternalServerError,
         }
     }
 }

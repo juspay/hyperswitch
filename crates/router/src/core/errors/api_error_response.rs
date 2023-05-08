@@ -182,6 +182,8 @@ pub enum ApiErrorResponse {
     MissingFilePurpose,
     #[error(error_type = ErrorType::InvalidRequestError, code = "HE_04", message = "File content type not found / valid")]
     MissingFileContentType,
+    #[error(error_type = ErrorType::RouterError, code = "RE_01", message = "Failed to remove redis cache key")]
+    RemoveRedisKeyFailure,
 }
 
 #[derive(Clone)]
@@ -288,6 +290,7 @@ impl actix_web::ResponseError for ApiErrorResponse {
             Self::ReturnUrlUnavailable => StatusCode::SERVICE_UNAVAILABLE, // 503
             Self::PaymentNotSucceeded => StatusCode::BAD_REQUEST,          // 400
             Self::NotImplemented { .. } => StatusCode::NOT_IMPLEMENTED,    // 501
+            Self::RemoveRedisKeyFailure => StatusCode::INTERNAL_SERVER_ERROR
         }
     }
 
@@ -503,6 +506,10 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
             }
             Self::MissingDisputeId => {
                 AER::BadRequest(ApiError::new("HE", 2, "Dispute id not found in the request", None))
+            }
+
+            Self::RemoveRedisKeyFailure => {
+                AER::BadRequest(ApiError::new("RE", 1, "Failed to remove redis cache key", None))
             }
         }
     }
