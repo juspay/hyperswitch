@@ -33,5 +33,6 @@ async fn main() -> DrainerResult<()> {
     )
     .await?;
 
+    store.close().await;
     Ok(())
 }

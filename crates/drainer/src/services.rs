@@ -37,4 +37,13 @@ impl Store {
         // Example: {shard_5}_drainer_stream
         format!("{{{}}}_{}", shard_key, self.config.drainer_stream_name,)
     }
+
+    #[allow(clippy::expect_used)]
+    pub async fn close(mut self: Arc<Self>) {
+        Arc::get_mut(&mut self)
+            .and_then(|inner| Arc::get_mut(&mut inner.redis_conn))
+            .expect("Redis connection pool cannot be closed")
+            .close_connections()
+            .await;
+    }
 }

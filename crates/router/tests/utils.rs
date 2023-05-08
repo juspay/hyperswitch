@@ -20,7 +20,7 @@ static SERVER: OnceCell<bool> = OnceCell::const_new();
 
 async fn spawn_server() -> bool {
     let conf = Settings::new().expect("invalid settings");
-    let server = router::start_server(conf)
+    let (server, _state) = router::start_server(conf)
         .await
         .expect("failed to create server");
 
