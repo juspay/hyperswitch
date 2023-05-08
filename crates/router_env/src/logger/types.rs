@@ -178,6 +178,8 @@ pub enum Flow {
     DisputesEvidenceSubmit,
     /// Attach Dispute Evidence flow
     AttachDisputeEvidence,
+    /// Invalidate cache flow
+    CacheInvalidate
 }
 
 ///

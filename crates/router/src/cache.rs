@@ -86,7 +86,7 @@ mod cache_tests {
         cache.push("key".to_string(), "val".to_string()).await;
         
         cache.remove(&"key".to_string()).await;
-
+        
         assert_eq!(cache.get_val::<String>("key"), None);
     }
 }

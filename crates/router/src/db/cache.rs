@@ -1,13 +1,35 @@
 use common_utils::ext_traits::AsyncExt;
 use error_stack::ResultExt;
 
+use super::MockDb;
 use super::Store;
 use crate::{
     cache::{self, Cacheable},
+    cache::CONFIG_CACHE,
     consts,
     core::errors::{self, CustomResult},
     services::PubSubInterface,
 };
+
+#[async_trait::async_trait]
+pub trait CacheInterface {
+    async fn invalidate(&self, key: &str) -> Result<(), String>;
+}
+
+#[async_trait::async_trait]
+impl CacheInterface for Store {
+    async fn invalidate(&self, key: &str) -> Result<(), String> {
+        CONFIG_CACHE.remove(key).await;
+        Ok(())
+    }
+}
+
+#[async_trait::async_trait]
+impl CacheInterface for MockDb {
+    async fn invalidate(&self, _key: &str) -> Result<(), String> {
+        Ok(())
+    }
+}
 
 pub async fn get_or_populate_redis<T, F, Fut>(
     store: &Store,
