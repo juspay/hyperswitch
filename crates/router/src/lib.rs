@@ -95,6 +95,12 @@ pub fn mk_app(
         );
     }
 
+    #[cfg(feature = "dummy_connector")]
+    {
+        use routes::DummyConnector;
+        server_app = server_app.service(DummyConnector::server(state.clone()));
+    }
+
     #[cfg(any(feature = "olap", feature = "oltp"))]
     {
         server_app = server_app
