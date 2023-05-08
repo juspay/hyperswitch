@@ -210,8 +210,8 @@ impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
             .as_ref()
             .and_then(|mandate_ids| match &mandate_ids.mandate_reference_id {
                 Some(api_models::payments::MandateReferenceId::ConnectorMandateId(
-                    connector_mandate_id,
-                )) => Some(connector_mandate_id.to_string()),
+                    connector_mandate_ids,
+                )) => connector_mandate_ids.connector_mandate_id.clone(),
                 _ => None,
             })
     }
@@ -559,6 +559,18 @@ impl MandateData for payments::MandateAmountData {
         self.metadata.clone().ok_or_else(missing_field_err(
             "mandate_data.mandate_type.{multi_use|single_use}.metadata",
         ))
+    }
+}
+
+pub trait MandateReferenceData {
+    fn get_connector_mandate_id(&self) -> Result<String, Error>;
+}
+
+impl MandateReferenceData for api_models::payments::ConnectorMandateReferenceId {
+    fn get_connector_mandate_id(&self) -> Result<String, Error> {
+        self.connector_mandate_id
+            .clone()
+            .ok_or_else(missing_field_err("mandate_id"))
     }
 }
 

@@ -530,13 +530,10 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
         ));
 
         // payment_method_data is not required during recurring mandate payment, in such case keep default PaymentMethodData as MandatePayment
-        let payment_method_data = payment_data.payment_method_data.or_else(|| {
-            if payment_data.mandate_id.is_some() {
-                Some(api_models::payments::PaymentMethodData::MandatePayment)
-            } else {
-                None
-            }
-        });
+        let payment_method_data = payment_data
+            .mandate_id
+            .as_ref()
+            .map(|_| api_models::payments::PaymentMethodData::MandatePayment);
         Ok(Self {
             payment_method_data: payment_method_data.get_required_value("payment_method_data")?,
             setup_future_usage: payment_data.payment_intent.setup_future_usage,
@@ -709,6 +706,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::VerifyRequestDat
             off_session: payment_data.mandate_id.as_ref().map(|_| true),
             mandate_id: payment_data.mandate_id.clone(),
             setup_mandate_details: payment_data.setup_mandate,
+            email: payment_data.email,
             return_url: payment_data.payment_intent.return_url,
         })
     }

@@ -225,8 +225,8 @@ credit = { currency = "USD" }
 debit = { currency = "USD" }
 
 [tokenization]
-stripe = { long_lived_token = false, payment_method = "wallet" }
-checkout = { long_lived_token = false, payment_method = "wallet" }
+stripe = { long_lived_token = false, payment_method = "wallet", payment_method_type = { type = "disable_only", list = "google_pay" } }
+checkout = { long_lived_token = false, payment_method = "wallet"}
 
 [connector_customer]
 connector_list = "bluesnap, stripe"

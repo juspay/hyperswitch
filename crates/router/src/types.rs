@@ -299,6 +299,7 @@ pub struct VerifyRequestData {
     pub setup_future_usage: Option<storage_enums::FutureUsage>,
     pub off_session: Option<bool>,
     pub setup_mandate_details: Option<payments::MandateData>,
+    pub email: Option<Email>,
     pub return_url: Option<String>,
 }
 
@@ -320,12 +321,18 @@ pub struct AccessToken {
     pub expires: i64,
 }
 
+#[derive(serde::Serialize, Debug, Clone)]
+pub struct MandateReference {
+    pub connector_mandate_id: Option<String>,
+    pub payment_method_id: Option<String>,
+}
+
 #[derive(Debug, Clone)]
 pub enum PaymentsResponseData {
     TransactionResponse {
         resource_id: ResponseId,
         redirection_data: Option<services::RedirectForm>,
-        mandate_reference: Option<String>,
+        mandate_reference: Option<MandateReference>,
         connector_metadata: Option<serde_json::Value>,
         network_txn_id: Option<String>,
     },
