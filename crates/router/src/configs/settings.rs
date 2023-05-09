@@ -77,22 +77,8 @@ pub struct TokenizationConfig(pub HashMap<String, PaymentMethodTokenFilter>);
 
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct ConnectorCustomer {
-    #[serde(deserialize_with = "connector_deser")]
+    #[serde(deserialize_with = "comma_del_deser")]
     pub connector_list: HashSet<api_models::enums::Connector>,
-}
-
-fn connector_deser<'a, D>(
-    deserializer: D,
-) -> Result<HashSet<api_models::enums::Connector>, D::Error>
-where
-    D: Deserializer<'a>,
-{
-    let value = <String>::deserialize(deserializer)?;
-    Ok(value
-        .trim()
-        .split(',')
-        .flat_map(api_models::enums::Connector::from_str)
-        .collect())
 }
 
 #[cfg(feature = "dummy_connector")]
@@ -105,7 +91,7 @@ pub struct DummyConnector {
 
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct PaymentMethodTokenFilter {
-    #[serde(deserialize_with = "pm_deser")]
+    #[serde(deserialize_with = "comma_del_deser")]
     pub payment_method: HashSet<storage_models::enums::PaymentMethod>,
     pub payment_method_type: Option<PaymentMethodTypeTokenFilter>,
     pub long_lived_token: bool,
@@ -119,41 +105,52 @@ pub struct PaymentMethodTokenFilter {
     rename_all = "snake_case"
 )]
 pub enum PaymentMethodTypeTokenFilter {
-    #[serde(deserialize_with = "pm_type_deser")]
+    #[serde(deserialize_with = "comma_del_deser")]
     EnableOnly(HashSet<storage_models::enums::PaymentMethodType>),
-    #[serde(deserialize_with = "pm_type_deser")]
+    #[serde(deserialize_with = "comma_del_deser")]
     DisableOnly(HashSet<storage_models::enums::PaymentMethodType>),
     #[default]
     AllAccepted,
 }
 
-fn pm_deser<'a, D>(
-    deserializer: D,
-) -> Result<HashSet<storage_models::enums::PaymentMethod>, D::Error>
+fn comma_del_deser<'a, D, T>(deserializer: D) -> Result<HashSet<T>, D::Error>
 where
     D: Deserializer<'a>,
+    T: FromStr + Eq + std::hash::Hash,
+    <T as FromStr>::Err: std::fmt::Display,
 {
-    let value = <String>::deserialize(deserializer)?;
+    let value = String::deserialize(deserializer)?;
     value
         .trim()
         .split(',')
-        .map(storage_models::enums::PaymentMethod::from_str)
-        .collect::<Result<_, _>>()
+        .filter(|&inner| inner.ne(""))
+        .map(T::from_str)
+        .collect::<Result<HashSet<_>, _>>()
         .map_err(D::Error::custom)
 }
 
-fn pm_type_deser<'a, D>(
-    deserializer: D,
-) -> Result<HashSet<storage_models::enums::PaymentMethodType>, D::Error>
+fn optional_comma_del_deser<'a, D, T>(deserializer: D) -> Result<Option<HashSet<T>>, D::Error>
 where
     D: Deserializer<'a>,
+    T: FromStr + Eq + std::hash::Hash,
+    <T as FromStr>::Err: std::fmt::Display,
 {
-    let value = <String>::deserialize(deserializer)?;
+    let value = Option::<String>::deserialize(deserializer)?;
     value
-        .trim()
-        .split(',')
-        .map(storage_models::enums::PaymentMethodType::from_str)
-        .collect::<Result<_, _>>()
+        .and_then(|inner| {
+            match inner
+                .trim()
+                .split(',')
+                .filter(|&inner| inner.ne(""))
+                .map(T::from_str)
+                .collect::<Result<HashSet<_>, _>>()
+            {
+                Err(inner_err) => Some(Err(inner_err)),
+                Ok(x) if x.is_empty() => None,
+                Ok(x) => Some(Ok(x)),
+            }
+        })
+        .transpose()
         .map_err(D::Error::custom)
 }
 
@@ -166,7 +163,7 @@ pub struct ConnectorBankNames(pub HashMap<String, BanksVector>);
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct BanksVector {
-    #[serde(deserialize_with = "bank_vec_deser")]
+    #[serde(deserialize_with = "comma_del_deser")]
     pub banks: HashSet<api_models::enums::BankNames>,
 }
 
@@ -188,9 +185,9 @@ pub enum PaymentMethodFilterKey {
 #[derive(Debug, Deserialize, Clone, Default)]
 #[serde(default)]
 pub struct CurrencyCountryFlowFilter {
-    #[serde(deserialize_with = "currency_set_deser")]
+    #[serde(deserialize_with = "optional_comma_del_deser")]
     pub currency: Option<HashSet<api_models::enums::Currency>>,
-    #[serde(deserialize_with = "string_set_deser")]
+    #[serde(deserialize_with = "optional_comma_del_deser")]
     pub country: Option<HashSet<api_models::enums::CountryAlpha2>>,
     pub not_available_flows: Option<NotAvailableFlows>,
 }
@@ -198,58 +195,6 @@ pub struct CurrencyCountryFlowFilter {
 #[serde(default)]
 pub struct NotAvailableFlows {
     pub capture_method: Option<enums::CaptureMethod>,
-}
-
-fn string_set_deser<'a, D>(
-    deserializer: D,
-) -> Result<Option<HashSet<api_models::enums::CountryAlpha2>>, D::Error>
-where
-    D: Deserializer<'a>,
-{
-    let value = <Option<String>>::deserialize(deserializer)?;
-    Ok(value.and_then(|inner| {
-        let list = inner
-            .trim()
-            .split(',')
-            .flat_map(api_models::enums::CountryAlpha2::from_str)
-            .collect::<HashSet<_>>();
-        match list.len() {
-            0 => None,
-            _ => Some(list),
-        }
-    }))
-}
-
-fn currency_set_deser<'a, D>(
-    deserializer: D,
-) -> Result<Option<HashSet<api_models::enums::Currency>>, D::Error>
-where
-    D: Deserializer<'a>,
-{
-    let value = <Option<String>>::deserialize(deserializer)?;
-    Ok(value.and_then(|inner| {
-        let list = inner
-            .trim()
-            .split(',')
-            .flat_map(api_models::enums::Currency::from_str)
-            .collect::<HashSet<_>>();
-        match list.len() {
-            0 => None,
-            _ => Some(list),
-        }
-    }))
-}
-
-fn bank_vec_deser<'a, D>(deserializer: D) -> Result<HashSet<api_models::enums::BankNames>, D::Error>
-where
-    D: Deserializer<'a>,
-{
-    let value = <String>::deserialize(deserializer)?;
-    Ok(value
-        .trim()
-        .split(',')
-        .flat_map(api_models::enums::BankNames::from_str)
-        .collect())
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -575,9 +520,65 @@ mod payment_method_deserialization_test {
     use super::*;
 
     #[test]
-    fn test_pm_deserializer() {
-        let deserializer: StrDeserializer<'_, ValueError> = "wallet,card".into_deserializer();
-        let test_pm = pm_deser(deserializer);
-        assert!(test_pm.is_ok())
+    fn test_comma_del_deser_for_pm() {
+        let deserializer1: StrDeserializer<'_, ValueError> = "wallet,pay_later".into_deserializer();
+        let pms: HashSet<storage_models::enums::PaymentMethod> =
+            comma_del_deser(deserializer1).unwrap();
+        assert_eq!(
+            pms,
+            HashSet::from_iter([
+                storage_models::enums::PaymentMethod::Wallet,
+                storage_models::enums::PaymentMethod::PayLater
+            ])
+        );
+    }
+    #[test]
+    fn test_comm_del_deser_for_pm_type() {
+        let deserializer2: StrDeserializer<'_, ValueError> =
+            "google_pay,walley".into_deserializer();
+        let pm_types: HashSet<storage_models::enums::PaymentMethodType> =
+            comma_del_deser(deserializer2).unwrap();
+        assert_eq!(
+            pm_types,
+            HashSet::from_iter([
+                storage_models::enums::PaymentMethodType::Walley,
+                storage_models::enums::PaymentMethodType::GooglePay
+            ])
+        );
+    }
+    #[test]
+    fn test_comma_del_deser_for_connector() {
+        let dererializer3: StrDeserializer<'_, ValueError> = "stripe,adyen".into_deserializer();
+        let connectors: HashSet<api_models::enums::Connector> =
+            comma_del_deser(dererializer3).unwrap();
+        assert_eq!(
+            connectors,
+            HashSet::from_iter([
+                api_models::enums::Connector::Adyen,
+                api_models::enums::Connector::Stripe
+            ])
+        );
+    }
+
+    #[test]
+    fn test_comma_del_deser_for_bank_names() {
+        let dererializer3: StrDeserializer<'_, ValueError> = "ing,citi".into_deserializer();
+        let connectors: HashSet<api_models::enums::BankNames> =
+            comma_del_deser(dererializer3).unwrap();
+        assert_eq!(
+            connectors,
+            HashSet::from_iter([
+                api_models::enums::BankNames::Ing,
+                api_models::enums::BankNames::Citi
+            ])
+        );
+    }
+
+    #[test]
+    fn test_comma_del_deser_with_empty() {
+        let dererializer4: StrDeserializer<'_, ValueError> = "".into_deserializer();
+        let connectors: HashSet<api_models::enums::Connector> =
+            comma_del_deser(dererializer4).unwrap();
+        assert_eq!(connectors, HashSet::new());
     }
 }
