@@ -136,8 +136,8 @@ pub enum ApiErrorResponse {
     PaymentMethodNotFound,
     #[error(error_type = ErrorType::ObjectNotFound, code = "HE_02", message = "Merchant account does not exist in our records")]
     MerchantAccountNotFound,
-    #[error(error_type = ErrorType::ObjectNotFound, code = "HE_02", message = "Merchant connector account does not exist in our records")]
-    MerchantConnectorAccountNotFound,
+    #[error(error_type = ErrorType::ObjectNotFound, code = "HE_02", message = "Merchant connector account with id '{id}' does not exist in our records")]
+    MerchantConnectorAccountNotFound { id: String },
     #[error(error_type = ErrorType::ObjectNotFound, code = "HE_02", message = "Resource ID does not exist in our records")]
     ResourceIdNotFound,
     #[error(error_type = ErrorType::ObjectNotFound, code = "HE_02", message = "Mandate does not exist in our records")]
@@ -255,7 +255,7 @@ impl actix_web::ResponseError for ApiErrorResponse {
             | Self::PaymentNotFound
             | Self::PaymentMethodNotFound
             | Self::MerchantAccountNotFound
-            | Self::MerchantConnectorAccountNotFound
+            | Self::MerchantConnectorAccountNotFound { .. }
             | Self::MandateNotFound
             | Self::ClientSecretNotGiven
             | Self::ClientSecretExpired
@@ -434,8 +434,8 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
             Self::MerchantAccountNotFound => {
                 AER::NotFound(ApiError::new("HE", 2, "Merchant account does not exist in our records", None))
             }
-            Self::MerchantConnectorAccountNotFound => {
-                AER::NotFound(ApiError::new("HE", 2, "Merchant connector account does not exist in our records", None))
+            Self::MerchantConnectorAccountNotFound { id } => {
+                AER::NotFound(ApiError::new("HE", 2, format!("Merchant connector account with id '{id}' does not exist in our records"), None))
             }
             Self::ResourceIdNotFound => {
                 AER::NotFound(ApiError::new("HE", 2, "Resource ID does not exist in our records", None))
