@@ -279,6 +279,8 @@ pub enum AdyenPaymentMethod<'a> {
     Walley(Box<WalleyData>),
     WeChatPayWeb(Box<WeChatPayWebData>),
     AchDirectDebit(Box<AchDirectDebitData>),
+    #[serde(rename = "sepadirectdebit")]
+    SepaDirectDebit(Box<SepaDirectDebitData>),
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -289,6 +291,15 @@ pub struct AchDirectDebitData {
     bank_account_number: Secret<String>,
     bank_location_id: Secret<String>,
     owner_name: Secret<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SepaDirectDebitData {
+    #[serde(rename = "sepa.ownerName")]
+    owner_name: Secret<String>,
+    #[serde(rename = "sepa.ibanNumber")]
+    iban_number: Secret<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -663,6 +674,7 @@ pub enum PaymentType {
     WeChatPayWeb,
     #[serde(rename = "ach")]
     AchDirectDebit,
+    SepaDirectDebit,
 }
 
 pub struct AdyenTestBankNames<'a>(&'a str);
@@ -928,21 +940,34 @@ impl<'a> TryFrom<&api_models::payments::BankDebitData> for AdyenPaymentMethod<'a
             payments::BankDebitData::AchBankDebit {
                 account_number,
                 routing_number,
-                billing_details: _,
-                bank_account_holder_name,
+                card_holder_name,
+                ..
             } => Ok(AdyenPaymentMethod::AchDirectDebit(Box::new(
                 AchDirectDebitData {
                     payment_type: PaymentType::AchDirectDebit,
                     bank_account_number: account_number.clone(),
                     bank_location_id: routing_number.clone(),
+                    owner_name: card_holder_name.clone().ok_or(
+                        errors::ConnectorError::MissingRequiredField {
+                            field_name: "card_holder_name",
+                        },
+                    )?,
+                },
+            ))),
+            payments::BankDebitData::SepaBankDebit {
+                iban,
+                bank_account_holder_name,
+                ..
+            } => Ok(AdyenPaymentMethod::SepaDirectDebit(Box::new(
+                SepaDirectDebitData {
                     owner_name: bank_account_holder_name.clone().ok_or(
                         errors::ConnectorError::MissingRequiredField {
                             field_name: "bank_account_holder_name",
                         },
                     )?,
+                    iban_number: iban.clone(),
                 },
             ))),
-
             _ => Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into()),
         }
     }
