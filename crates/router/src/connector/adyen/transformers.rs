@@ -1,16 +1,19 @@
 use api_models::{
     enums::DisputeStage, payments::MandateReferenceId, webhooks::IncomingWebhookEvent,
 };
+use cards::CardNumber;
 use masking::PeekInterface;
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
 use crate::{
-    connector::utils::{self, CardData, PaymentsAuthorizeRequestData, RouterData},
+    connector::utils::{
+        self, CardData, MandateReferenceData, PaymentsAuthorizeRequestData, RouterData,
+    },
     consts,
     core::errors,
-    pii::{self, Email, Secret},
+    pii::{Email, Secret},
     services,
     types::{
         self,
@@ -35,8 +38,8 @@ pub enum AdyenShopperInteraction {
     Pos,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
 pub enum AdyenRecurringModel {
     UnscheduledCardOnFile,
     CardOnFile,
@@ -52,6 +55,8 @@ pub enum AuthType {
 pub struct AdditionalData {
     authorisation_type: Option<AuthType>,
     manual_capture: Option<bool>,
+    pub recurring_processing_model: Option<AdyenRecurringModel>,
+    /// Enable recurring details in dashboard to receive this ID, https://docs.adyen.com/online-payments/tokenization/create-and-use-tokens#test-and-go-live
     #[serde(rename = "recurring.recurringDetailReference")]
     recurring_detail_reference: Option<String>,
     #[serde(rename = "recurring.shopperReference")]
@@ -88,6 +93,7 @@ pub struct LineItem {
     quantity: Option<u16>,
 }
 
+#[serde_with::skip_serializing_none]
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AdyenPaymentRequest<'a> {
@@ -98,7 +104,6 @@ pub struct AdyenPaymentRequest<'a> {
     return_url: String,
     browser_info: Option<AdyenBrowserInfo>,
     shopper_interaction: AdyenShopperInteraction,
-    #[serde(skip_serializing_if = "Option::is_none")]
     recurring_processing_model: Option<AdyenRecurringModel>,
     additional_data: Option<AdditionalData>,
     shopper_reference: Option<String>,
@@ -278,6 +283,14 @@ pub enum AdyenPaymentMethod<'a> {
 }
 
 #[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MandateData {
+    #[serde(rename = "type")]
+    payment_type: PaymentType,
+    stored_payment_method_id: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
 pub struct WeChatPayWebData {
     #[serde(rename = "type")]
     payment_type: PaymentType,
@@ -289,7 +302,7 @@ pub struct BancontactCardData {
     #[serde(rename = "type")]
     payment_type: PaymentType,
     brand: String,
-    number: Secret<String, pii::CardNumber>,
+    number: CardNumber,
     expiry_month: Secret<String>,
     expiry_year: Secret<String>,
     holder_name: Secret<String>,
@@ -509,7 +522,7 @@ pub struct AdyenMandate {
 pub struct AdyenCard {
     #[serde(rename = "type")]
     payment_type: PaymentType,
-    number: Secret<String, pii::CardNumber>,
+    number: CardNumber,
     expiry_month: Secret<String>,
     expiry_year: Secret<String>,
     cvc: Option<Secret<String>>,
@@ -766,16 +779,22 @@ type RecurringDetails = (Option<AdyenRecurringModel>, Option<bool>, Option<Strin
 fn get_recurring_processing_model(
     item: &types::PaymentsAuthorizeRouterData,
 ) -> Result<RecurringDetails, Error> {
-    match item.request.setup_future_usage {
-        Some(storage_enums::FutureUsage::OffSession) => {
+    match (item.request.setup_future_usage, item.request.off_session) {
+        (Some(storage_enums::FutureUsage::OffSession), _) => {
             let customer_id = item.get_customer_id()?;
             let shopper_reference = format!("{}_{}", item.merchant_id, customer_id);
+            let store_payment_method = item.request.is_mandate_payment();
             Ok((
                 Some(AdyenRecurringModel::UnscheduledCardOnFile),
-                Some(true),
+                Some(store_payment_method),
                 Some(shopper_reference),
             ))
         }
+        (_, Some(true)) => Ok((
+            Some(AdyenRecurringModel::UnscheduledCardOnFile),
+            None,
+            Some(format!("{}_{}", item.merchant_id, item.get_customer_id()?)),
+        )),
         _ => Ok((None, None, None)),
     }
 }
@@ -810,6 +829,7 @@ fn get_additional_data(item: &types::PaymentsAuthorizeRouterData) -> Option<Addi
             network_tx_reference: None,
             recurring_detail_reference: None,
             recurring_shopper_reference: None,
+            recurring_processing_model: Some(AdyenRecurringModel::UnscheduledCardOnFile),
         }),
         _ => None,
     }
@@ -1104,10 +1124,10 @@ impl<'a> TryFrom<(&types::PaymentsAuthorizeRouterData, MandateReferenceId)>
         let additional_data = get_additional_data(item);
         let return_url = item.request.get_return_url()?;
         let payment_method = match mandate_ref_id {
-            MandateReferenceId::ConnectorMandateId(connector_mandate_id) => {
+            MandateReferenceId::ConnectorMandateId(connector_mandate_ids) => {
                 let adyen_mandate = AdyenMandate {
                     payment_type: PaymentType::Scheme,
-                    stored_payment_method_id: connector_mandate_id,
+                    stored_payment_method_id: connector_mandate_ids.get_connector_mandate_id()?,
                 };
                 Ok::<AdyenPaymentMethod<'_>, Self::Error>(AdyenPaymentMethod::Mandate(Box::new(
                     adyen_mandate,
@@ -1161,7 +1181,6 @@ impl<'a> TryFrom<(&types::PaymentsAuthorizeRouterData, MandateReferenceId)>
         })
     }
 }
-
 impl<'a> TryFrom<(&types::PaymentsAuthorizeRouterData, &api::Card)> for AdyenPaymentRequest<'a> {
     type Error = Error;
     fn try_from(
@@ -1435,7 +1454,10 @@ pub fn get_adyen_response(
     let mandate_reference = response
         .additional_data
         .as_ref()
-        .and_then(|additional_data| additional_data.recurring_detail_reference.to_owned());
+        .map(|data| types::MandateReference {
+            connector_mandate_id: data.recurring_detail_reference.to_owned(),
+            payment_method_id: None,
+        });
     let network_txn_id = response
         .additional_data
         .and_then(|additional_data| additional_data.network_tx_reference);

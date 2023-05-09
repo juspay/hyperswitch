@@ -1,5 +1,6 @@
 use std::num::NonZeroI64;
 
+use cards::CardNumber;
 use common_utils::{pii, pii::Email};
 use masking::{PeekInterface, Secret};
 use router_derive::Setter;
@@ -307,8 +308,14 @@ pub struct MandateIds {
 
 #[derive(Eq, PartialEq, Debug, serde::Deserialize, serde::Serialize, Clone)]
 pub enum MandateReferenceId {
-    ConnectorMandateId(String), // mandate_id send by connector
+    ConnectorMandateId(ConnectorMandateReferenceId), // mandate_id send by connector
     NetworkMandateId(String), // network_txns_id send by Issuer to connector, Used for PG agnostic mandate txns
+}
+
+#[derive(Eq, PartialEq, Debug, serde::Deserialize, serde::Serialize, Clone)]
+pub struct ConnectorMandateReferenceId {
+    pub connector_mandate_id: Option<String>,
+    pub payment_method_id: Option<String>,
 }
 
 impl MandateIds {
@@ -409,7 +416,7 @@ pub struct OnlineMandate {
 pub struct Card {
     /// The card number
     #[schema(value_type = String, example = "4242424242424242")]
-    pub card_number: Secret<String, pii::CardNumber>,
+    pub card_number: CardNumber,
 
     /// The card's expiry month
     #[schema(value_type = String, example = "24")]
@@ -511,7 +518,7 @@ pub enum BankDebitData {
     },
 }
 
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema, Eq, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub enum PaymentMethodData {
     Card(Card),
@@ -520,6 +527,7 @@ pub enum PaymentMethodData {
     BankRedirect(BankRedirectData),
     BankDebit(BankDebitData),
     Crypto(CryptoData),
+    MandatePayment,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
@@ -536,6 +544,7 @@ pub enum AdditionalPaymentData {
     PayLater {},
     Crypto {},
     BankDebit {},
+    MandatePayment {},
 }
 
 impl From<&PaymentMethodData> for AdditionalPaymentData {
@@ -561,6 +570,7 @@ impl From<&PaymentMethodData> for AdditionalPaymentData {
             PaymentMethodData::PayLater(_) => Self::PayLater {},
             PaymentMethodData::Crypto(_) => Self::Crypto {},
             PaymentMethodData::BankDebit(_) => Self::BankDebit {},
+            PaymentMethodData::MandatePayment => Self::MandatePayment {},
         }
     }
 }
@@ -571,7 +581,7 @@ pub enum BankRedirectData {
     BancontactCard {
         /// The card number
         #[schema(value_type = String, example = "4242424242424242")]
-        card_number: Secret<String, pii::CardNumber>,
+        card_number: CardNumber,
         /// The card's expiry month
         #[schema(value_type = String, example = "24")]
         card_exp_month: Secret<String>,
@@ -790,6 +800,7 @@ pub enum PaymentMethodDataResponse {
     BankRedirect(BankRedirectData),
     Crypto(CryptoData),
     BankDebit(BankDebitData),
+    MandatePayment,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -1331,6 +1342,7 @@ impl From<PaymentMethodData> for PaymentMethodDataResponse {
             }
             PaymentMethodData::Crypto(crpto_data) => Self::Crypto(crpto_data),
             PaymentMethodData::BankDebit(bank_debit_data) => Self::BankDebit(bank_debit_data),
+            PaymentMethodData::MandatePayment => Self::MandatePayment,
         }
     }
 }
@@ -1574,7 +1586,7 @@ pub struct ApplepaySessionTokenResponse {
 }
 
 #[derive(Debug, Clone, serde::Serialize, ToSchema, serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all(deserialize = "camelCase"))]
 pub struct ApplePaySessionResponse {
     /// Timestamp at which session is requested
     pub epoch_timestamp: u64,
