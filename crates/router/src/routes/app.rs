@@ -3,14 +3,13 @@ use tokio::sync::oneshot;
 
 #[cfg(feature = "dummy_connector")]
 use super::dummy_connector::*;
-use super::health::*;
 #[cfg(feature = "olap")]
 use super::{admin::*, api_keys::*, disputes::*, files::*};
+use super::{cache::*, health::*};
 #[cfg(any(feature = "olap", feature = "oltp"))]
 use super::{configs::*, customers::*, mandates::*, payments::*, payouts::*, refunds::*};
 #[cfg(feature = "oltp")]
 use super::{ephemeral_key::*, payment_methods::*, webhooks::*};
-use super::cache::*;
 use crate::{
     configs::settings::Settings,
     db::{MockDb, StorageImpl, StorageInterface},

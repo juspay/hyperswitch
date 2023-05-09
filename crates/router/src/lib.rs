@@ -138,7 +138,7 @@ pub fn mk_app(
     server_app = server_app.service(routes::Cards::server(state.clone()));
     server_app = server_app.service(routes::Cache::server(state.clone()));
     server_app = server_app.service(routes::Health::server(state));
-    
+
     server_app
 }
 

@@ -290,7 +290,7 @@ impl actix_web::ResponseError for ApiErrorResponse {
             Self::ReturnUrlUnavailable => StatusCode::SERVICE_UNAVAILABLE, // 503
             Self::PaymentNotSucceeded => StatusCode::BAD_REQUEST,          // 400
             Self::NotImplemented { .. } => StatusCode::NOT_IMPLEMENTED,    // 501
-            Self::RemoveRedisKeyFailure => StatusCode::INTERNAL_SERVER_ERROR
+            Self::RemoveRedisKeyFailure => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
 

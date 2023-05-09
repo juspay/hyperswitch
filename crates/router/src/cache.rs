@@ -84,8 +84,8 @@ mod cache_tests {
     async fn invalidate_cache_for_key() {
         let cache = Cache::new(1800, 1800);
         cache.push("key".to_string(), "val".to_string()).await;
-        
-        cache.remove(&"key".to_string()).await;
+
+        cache.remove("key").await;
 
         assert_eq!(cache.get_val::<String>("key"), None);
     }
