@@ -15,12 +15,14 @@ pub(crate) struct ConnectorAuthentication {
     pub coinbase: Option<HeaderKey>,
     pub cybersource: Option<SignatureKey>,
     pub dlocal: Option<SignatureKey>,
+    #[cfg(feature = "dummy_connector")]
+    pub dummyconnector: Option<HeaderKey>,
     pub fiserv: Option<SignatureKey>,
-    pub forte: Option<HeaderKey>,
+    pub forte: Option<MultiAuthKey>,
     pub globalpay: Option<HeaderKey>,
     pub mollie: Option<HeaderKey>,
     pub multisafepay: Option<HeaderKey>,
-    pub nexinets: Option<HeaderKey>,
+    pub nexinets: Option<BodyKey>,
     pub nuvei: Option<SignatureKey>,
     pub opennode: Option<HeaderKey>,
     pub payeezy: Option<SignatureKey>,
@@ -29,9 +31,10 @@ pub(crate) struct ConnectorAuthentication {
     pub rapyd: Option<BodyKey>,
     pub shift4: Option<HeaderKey>,
     pub stripe: Option<HeaderKey>,
+    pub trustpay: Option<SignatureKey>,
     pub worldpay: Option<BodyKey>,
     pub worldline: Option<SignatureKey>,
-    pub trustpay: Option<SignatureKey>,
+    pub zen: Option<HeaderKey>,
 }
 
 impl ConnectorAuthentication {
@@ -87,6 +90,25 @@ impl From<SignatureKey> for ConnectorAuthType {
             api_key: key.api_key,
             key1: key.key1,
             api_secret: key.api_secret,
+        }
+    }
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub(crate) struct MultiAuthKey {
+    pub api_key: String,
+    pub key1: String,
+    pub api_secret: String,
+    pub key2: String,
+}
+
+impl From<MultiAuthKey> for ConnectorAuthType {
+    fn from(key: MultiAuthKey) -> Self {
+        Self::MultiAuthKey {
+            api_key: key.api_key,
+            key1: key.key1,
+            api_secret: key.api_secret,
+            key2: key.key2,
         }
     }
 }

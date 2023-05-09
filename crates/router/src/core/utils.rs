@@ -13,6 +13,7 @@ use crate::{
     types::{
         self,
         storage::{self, enums},
+        ErrorResponse,
     },
     utils::{generate_id, OptionExt, ValueExt},
 };
@@ -62,6 +63,7 @@ pub async fn construct_refund_router_data<'a, F>(
     let router_data = types::RouterData {
         flow: PhantomData,
         merchant_id: merchant_account.merchant_id.clone(),
+        customer_id: payment_intent.customer_id.to_owned(),
         connector: connector_id.to_string(),
         payment_id: payment_attempt.payment_id.clone(),
         attempt_id: payment_attempt.attempt_id.clone(),
@@ -95,8 +97,8 @@ pub async fn construct_refund_router_data<'a, F>(
         session_token: None,
         reference_id: None,
         payment_method_token: None,
+        connector_customer: None,
         preprocessing_id: None,
-        customer_id: None,
     };
 
     Ok(router_data)
@@ -223,4 +225,253 @@ pub fn validate_dispute_stage_and_dispute_status(
             Err(errors::WebhooksFlowError::DisputeWebhookValidationFailed)?
         },
     )
+}
+
+#[instrument(skip_all)]
+pub async fn construct_accept_dispute_router_data<'a>(
+    state: &'a AppState,
+    payment_intent: &'a storage::PaymentIntent,
+    payment_attempt: &storage::PaymentAttempt,
+    merchant_account: &storage::MerchantAccount,
+    dispute: &storage::Dispute,
+) -> RouterResult<types::AcceptDisputeRouterData> {
+    let db = &*state.store;
+    let connector_id = &dispute.connector;
+    let connector_label = helpers::get_connector_label(
+        payment_intent.business_country,
+        &payment_intent.business_label,
+        payment_attempt.business_sub_label.as_ref(),
+        connector_id,
+    );
+    let merchant_connector_account = helpers::get_merchant_connector_account(
+        db,
+        merchant_account.merchant_id.as_str(),
+        &connector_label,
+        None,
+    )
+    .await?;
+    let auth_type: types::ConnectorAuthType = merchant_connector_account
+        .get_connector_account_details()
+        .parse_value("ConnectorAuthType")
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+    let payment_method = payment_attempt
+        .payment_method
+        .get_required_value("payment_method_type")?;
+    let router_data = types::RouterData {
+        flow: PhantomData,
+        merchant_id: merchant_account.merchant_id.clone(),
+        connector: connector_id.to_string(),
+        payment_id: payment_attempt.payment_id.clone(),
+        attempt_id: payment_attempt.attempt_id.clone(),
+        status: payment_attempt.status,
+        payment_method,
+        connector_auth_type: auth_type,
+        description: None,
+        return_url: payment_intent.return_url.clone(),
+        payment_method_id: payment_attempt.payment_method_id.clone(),
+        address: PaymentAddress::default(),
+        auth_type: payment_attempt.authentication_type.unwrap_or_default(),
+        connector_meta_data: merchant_connector_account.get_metadata(),
+        amount_captured: payment_intent.amount_captured,
+        request: types::AcceptDisputeRequestData {
+            dispute_id: dispute.dispute_id.clone(),
+            connector_dispute_id: dispute.connector_dispute_id.clone(),
+        },
+        response: Err(types::ErrorResponse::default()),
+        access_token: None,
+        session_token: None,
+        reference_id: None,
+        payment_method_token: None,
+        connector_customer: None,
+        customer_id: None,
+        preprocessing_id: None,
+    };
+    Ok(router_data)
+}
+
+#[instrument(skip_all)]
+pub async fn construct_submit_evidence_router_data<'a>(
+    state: &'a AppState,
+    payment_intent: &'a storage::PaymentIntent,
+    payment_attempt: &storage::PaymentAttempt,
+    merchant_account: &storage::MerchantAccount,
+    dispute: &storage::Dispute,
+    submit_evidence_request_data: types::SubmitEvidenceRequestData,
+) -> RouterResult<types::SubmitEvidenceRouterData> {
+    let db = &*state.store;
+    let connector_id = &dispute.connector;
+    let connector_label = helpers::get_connector_label(
+        payment_intent.business_country,
+        &payment_intent.business_label,
+        payment_attempt.business_sub_label.as_ref(),
+        connector_id,
+    );
+    let merchant_connector_account = helpers::get_merchant_connector_account(
+        db,
+        merchant_account.merchant_id.as_str(),
+        &connector_label,
+        None,
+    )
+    .await?;
+    let auth_type: types::ConnectorAuthType = merchant_connector_account
+        .get_connector_account_details()
+        .parse_value("ConnectorAuthType")
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+    let payment_method = payment_attempt
+        .payment_method
+        .get_required_value("payment_method_type")?;
+    let router_data = types::RouterData {
+        flow: PhantomData,
+        merchant_id: merchant_account.merchant_id.clone(),
+        connector: connector_id.to_string(),
+        payment_id: payment_attempt.payment_id.clone(),
+        attempt_id: payment_attempt.attempt_id.clone(),
+        status: payment_attempt.status,
+        payment_method,
+        connector_auth_type: auth_type,
+        description: None,
+        return_url: payment_intent.return_url.clone(),
+        payment_method_id: payment_attempt.payment_method_id.clone(),
+        address: PaymentAddress::default(),
+        auth_type: payment_attempt.authentication_type.unwrap_or_default(),
+        connector_meta_data: merchant_connector_account.get_metadata(),
+        amount_captured: payment_intent.amount_captured,
+        request: submit_evidence_request_data,
+        response: Err(types::ErrorResponse::default()),
+        access_token: None,
+        session_token: None,
+        reference_id: None,
+        payment_method_token: None,
+        connector_customer: None,
+        customer_id: None,
+        preprocessing_id: None,
+    };
+    Ok(router_data)
+}
+
+#[instrument(skip_all)]
+pub async fn construct_upload_file_router_data<'a>(
+    state: &'a AppState,
+    payment_intent: &'a storage::PaymentIntent,
+    payment_attempt: &storage::PaymentAttempt,
+    merchant_account: &storage::MerchantAccount,
+    create_file_request: &types::api::CreateFileRequest,
+    connector_id: &str,
+    file_key: String,
+) -> RouterResult<types::UploadFileRouterData> {
+    let db = &*state.store;
+    let connector_label = helpers::get_connector_label(
+        payment_intent.business_country,
+        &payment_intent.business_label,
+        payment_attempt.business_sub_label.as_ref(),
+        connector_id,
+    );
+    let merchant_connector_account = helpers::get_merchant_connector_account(
+        db,
+        merchant_account.merchant_id.as_str(),
+        &connector_label,
+        None,
+    )
+    .await?;
+    let auth_type: types::ConnectorAuthType = merchant_connector_account
+        .get_connector_account_details()
+        .parse_value("ConnectorAuthType")
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+    let payment_method = payment_attempt
+        .payment_method
+        .get_required_value("payment_method_type")?;
+    let router_data = types::RouterData {
+        flow: PhantomData,
+        merchant_id: merchant_account.merchant_id.clone(),
+        connector: connector_id.to_string(),
+        payment_id: payment_attempt.payment_id.clone(),
+        attempt_id: payment_attempt.attempt_id.clone(),
+        status: payment_attempt.status,
+        payment_method,
+        connector_auth_type: auth_type,
+        description: None,
+        return_url: payment_intent.return_url.clone(),
+        payment_method_id: payment_attempt.payment_method_id.clone(),
+        address: PaymentAddress::default(),
+        auth_type: payment_attempt.authentication_type.unwrap_or_default(),
+        connector_meta_data: merchant_connector_account.get_metadata(),
+        amount_captured: payment_intent.amount_captured,
+        request: types::UploadFileRequestData {
+            file_key,
+            file: create_file_request.file.clone(),
+            file_type: create_file_request.file_type.clone(),
+            file_size: create_file_request.file_size,
+        },
+        response: Err(types::ErrorResponse::default()),
+        access_token: None,
+        session_token: None,
+        reference_id: None,
+        payment_method_token: None,
+        connector_customer: None,
+        customer_id: None,
+        preprocessing_id: None,
+    };
+    Ok(router_data)
+}
+
+#[instrument(skip_all)]
+pub async fn construct_defend_dispute_router_data<'a>(
+    state: &'a AppState,
+    payment_intent: &'a storage::PaymentIntent,
+    payment_attempt: &storage::PaymentAttempt,
+    merchant_account: &storage::MerchantAccount,
+    dispute: &storage::Dispute,
+) -> RouterResult<types::DefendDisputeRouterData> {
+    let db = &*state.store;
+    let connector_id = &dispute.connector;
+    let connector_label = helpers::get_connector_label(
+        payment_intent.business_country,
+        &payment_intent.business_label,
+        payment_attempt.business_sub_label.as_ref(),
+        connector_id,
+    );
+    let merchant_connector_account = helpers::get_merchant_connector_account(
+        db,
+        merchant_account.merchant_id.as_str(),
+        &connector_label,
+        None,
+    )
+    .await?;
+    let auth_type: types::ConnectorAuthType = merchant_connector_account
+        .get_connector_account_details()
+        .parse_value("ConnectorAuthType")
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+    let payment_method = payment_attempt
+        .payment_method
+        .get_required_value("payment_method_type")?;
+    let router_data = types::RouterData {
+        flow: PhantomData,
+        merchant_id: merchant_account.merchant_id.clone(),
+        connector: connector_id.to_string(),
+        payment_id: payment_attempt.payment_id.clone(),
+        attempt_id: payment_attempt.attempt_id.clone(),
+        status: payment_attempt.status,
+        payment_method,
+        connector_auth_type: auth_type,
+        description: None,
+        return_url: payment_intent.return_url.clone(),
+        payment_method_id: payment_attempt.payment_method_id.clone(),
+        address: PaymentAddress::default(),
+        auth_type: payment_attempt.authentication_type.unwrap_or_default(),
+        connector_meta_data: merchant_connector_account.get_metadata(),
+        amount_captured: payment_intent.amount_captured,
+        request: types::DefendDisputeRequestData {
+            dispute_id: dispute.dispute_id.clone(),
+            connector_dispute_id: dispute.connector_dispute_id.clone(),
+        },
+        response: Err(ErrorResponse::get_not_implemented()),
+        access_token: None,
+        session_token: None,
+        reference_id: None,
+        payment_method_token: None,
+        customer_id: None,
+        connector_customer: None,
+        preprocessing_id: None,
+    };
+    Ok(router_data)
 }

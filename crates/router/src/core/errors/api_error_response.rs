@@ -118,8 +118,8 @@ pub enum ApiErrorResponse {
     DuplicateMandate,
     #[error(error_type = ErrorType::DuplicateRequest, code = "HE_01", message = "The merchant account with the specified details already exists in our records")]
     DuplicateMerchantAccount,
-    #[error(error_type = ErrorType::DuplicateRequest, code = "HE_01", message = "The merchant connector account with the specified details already exists in our records")]
-    DuplicateMerchantConnectorAccount,
+    #[error(error_type = ErrorType::DuplicateRequest, code = "HE_01", message = "The merchant connector account with the specified connector_label '{connector_label}' already exists in our records")]
+    DuplicateMerchantConnectorAccount { connector_label: String },
     #[error(error_type = ErrorType::DuplicateRequest, code = "HE_01", message = "The payment method with the specified details already exists in our records")]
     DuplicatePaymentMethod,
     #[error(error_type = ErrorType::DuplicateRequest, code = "HE_01", message = "The payment with the specified payment_id '{payment_id}' already exists in our records")]
@@ -160,10 +160,26 @@ pub enum ApiErrorResponse {
     AddressNotFound,
     #[error(error_type = ErrorType::ObjectNotFound, code = "HE_04", message = "Dispute does not exist in our records")]
     DisputeNotFound { dispute_id: String },
+    #[error(error_type = ErrorType::ObjectNotFound, code = "HE_04", message = "File does not exist in our records")]
+    FileNotFound,
+    #[error(error_type = ErrorType::ObjectNotFound, code = "HE_04", message = "File not available")]
+    FileNotAvailable,
+    #[error(error_type = ErrorType::InvalidRequestError, code = "HE_04", message = "Dispute status validation failed")]
+    DisputeStatusValidationFailed { reason: String },
     #[error(error_type = ErrorType::InvalidRequestError, code = "HE_04", message = "Card with the provided iin does not exist")]
     InvalidCardIin,
     #[error(error_type = ErrorType::InvalidRequestError, code = "HE_04", message = "The provided card IIN length is invalid, please provide an iin with 6 or 8 digits")]
     InvalidCardIinLength,
+    #[error(error_type = ErrorType::ValidationError, code = "HE_03", message = "File validation failed")]
+    FileValidationFailed { reason: String },
+    #[error(error_type = ErrorType::InvalidRequestError, code = "HE_04", message = "File not found / valid in the request")]
+    MissingFile,
+    #[error(error_type = ErrorType::InvalidRequestError, code = "HE_04", message = "Dispute id not found in the request")]
+    MissingDisputeId,
+    #[error(error_type = ErrorType::InvalidRequestError, code = "HE_04", message = "File purpose not found in the request or is invalid")]
+    MissingFilePurpose,
+    #[error(error_type = ErrorType::InvalidRequestError, code = "HE_04", message = "File content type not found / valid")]
+    MissingFileContentType,
 }
 
 #[derive(Clone)]
@@ -251,12 +267,20 @@ impl actix_web::ResponseError for ApiErrorResponse {
             | Self::AddressNotFound
             | Self::NotSupported { .. }
             | Self::FlowNotSupported { .. }
-            | Self::ApiKeyNotFound => StatusCode::BAD_REQUEST, // 400
+            | Self::ApiKeyNotFound
+            | Self::DisputeStatusValidationFailed { .. } => StatusCode::BAD_REQUEST, // 400
             Self::DuplicateMerchantAccount
-            | Self::DuplicateMerchantConnectorAccount
+            | Self::DuplicateMerchantConnectorAccount { .. }
             | Self::DuplicatePaymentMethod
             | Self::DuplicateMandate
-            | Self::DisputeNotFound { .. } => StatusCode::BAD_REQUEST, // 400
+            | Self::DisputeNotFound { .. }
+            | Self::MissingFile
+            | Self::FileValidationFailed { .. }
+            | Self::MissingFileContentType
+            | Self::MissingFilePurpose
+            | Self::MissingDisputeId
+            | Self::FileNotFound
+            | Self::FileNotAvailable => StatusCode::BAD_REQUEST, // 400
             Self::ReturnUrlUnavailable => StatusCode::SERVICE_UNAVAILABLE, // 503
             Self::PaymentNotSucceeded => StatusCode::BAD_REQUEST,          // 400
             Self::NotImplemented { .. } => StatusCode::NOT_IMPLEMENTED,    // 501
@@ -385,8 +409,8 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
             Self::DuplicateRefundRequest => AER::BadRequest(ApiError::new("HE", 1, "Duplicate refund request. Refund already attempted with the refund ID", None)),
             Self::DuplicateMandate => AER::BadRequest(ApiError::new("HE", 1, "Duplicate mandate request. Mandate already attempted with the Mandate ID", None)),
             Self::DuplicateMerchantAccount => AER::BadRequest(ApiError::new("HE", 1, "The merchant account with the specified details already exists in our records", None)),
-            Self::DuplicateMerchantConnectorAccount => {
-                AER::BadRequest(ApiError::new("HE", 1, "The merchant connector account with the specified details already exists in our records", None))
+            Self::DuplicateMerchantConnectorAccount { connector_label } => {
+                AER::BadRequest(ApiError::new("HE", 1, format!("The merchant connector account with the specified connector_label '{connector_label}' already exists in our records"), None))
             }
             Self::DuplicatePaymentMethod => AER::BadRequest(ApiError::new("HE", 1, "The payment method with the specified details already exists in our records", None)),
             Self::DuplicatePayment { payment_id } => {
@@ -446,10 +470,34 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
             Self::InvalidCardIinLength  => AER::BadRequest(ApiError::new("HE", 3, "The provided card IIN length is invalid, please provide an IIN with 6 digits", None)),
             Self::FlowNotSupported { flow, connector } => {
                 AER::BadRequest(ApiError::new("IR", 20, format!("{flow} flow not supported"), Some(Extra {connector: Some(connector.to_owned()), ..Default::default()}))) //FIXME: error message
-            },
+            }
             Self::DisputeNotFound { .. } => {
                 AER::NotFound(ApiError::new("HE", 2, "Dispute does not exist in our records", None))
-            },
+            }
+            Self::FileNotFound => {
+                AER::NotFound(ApiError::new("HE", 2, "File does not exist in our records", None))
+            }
+            Self::FileNotAvailable => {
+                AER::NotFound(ApiError::new("HE", 2, "File not available", None))
+            }
+            Self::DisputeStatusValidationFailed { .. } => {
+                AER::BadRequest(ApiError::new("HE", 2, "Dispute status validation failed", None))
+            }
+            Self::FileValidationFailed { reason } => {
+                AER::BadRequest(ApiError::new("HE", 2, format!("File validation failed {reason}"), None))
+            }
+            Self::MissingFile => {
+                AER::BadRequest(ApiError::new("HE", 2, "File not found in the request", None))
+            }
+            Self::MissingFilePurpose => {
+                AER::BadRequest(ApiError::new("HE", 2, "File purpose not found in the request or is invalid", None))
+            }
+            Self::MissingFileContentType => {
+                AER::BadRequest(ApiError::new("HE", 2, "File content type not found", None))
+            }
+            Self::MissingDisputeId => {
+                AER::BadRequest(ApiError::new("HE", 2, "Dispute id not found in the request", None))
+            }
         }
     }
 }

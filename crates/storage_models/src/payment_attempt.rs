@@ -69,7 +69,6 @@ pub struct PaymentAttemptNew {
     pub tax_amount: Option<i64>,
     pub payment_method_id: Option<String>,
     pub payment_method: Option<storage_enums::PaymentMethod>,
-    pub connector_transaction_id: Option<String>,
     pub capture_method: Option<storage_enums::CaptureMethod>,
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub capture_on: Option<PrimitiveDateTime>,

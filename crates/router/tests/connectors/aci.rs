@@ -21,6 +21,7 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
     types::RouterData {
         flow: PhantomData,
         merchant_id: String::from("aci"),
+        customer_id: Some(String::from("aci")),
         connector: "aci".to_string(),
         payment_id: uuid::Uuid::new_v4().to_string(),
         attempt_id: uuid::Uuid::new_v4().to_string(),
@@ -72,8 +73,8 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
         session_token: None,
         reference_id: None,
         payment_method_token: None,
+        connector_customer: None,
         preprocessing_id: None,
-        customer_id: None,
     }
 }
 
@@ -85,6 +86,7 @@ fn construct_refund_router_data<F>() -> types::RefundsRouterData<F> {
     types::RouterData {
         flow: PhantomData,
         merchant_id: String::from("aci"),
+        customer_id: Some(String::from("aci")),
         connector: "aci".to_string(),
         payment_id: uuid::Uuid::new_v4().to_string(),
         attempt_id: uuid::Uuid::new_v4().to_string(),
@@ -114,8 +116,8 @@ fn construct_refund_router_data<F>() -> types::RefundsRouterData<F> {
         session_token: None,
         reference_id: None,
         payment_method_token: None,
+        connector_customer: None,
         preprocessing_id: None,
-        customer_id: None,
     }
 }
 

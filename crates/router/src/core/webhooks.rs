@@ -164,6 +164,7 @@ async fn refunds_incoming_webhook_flow<W: api::OutgoingWebhookType>(
             merchant_account.clone(),
             api_models::refunds::RefundsRetrieveRequest {
                 refund_id: refund_id.to_owned(),
+                force_sync: Some(true),
                 merchant_connector_details: None,
             },
         )
@@ -373,15 +374,25 @@ async fn bank_transfer_webhook_flow<W: api::OutgoingWebhookType>(
     source_verified: bool,
 ) -> CustomResult<(), errors::WebhooksFlowError> {
     let response = if source_verified {
+        let db = &*state.store;
         let payment_attempt = get_payment_attempt_from_object_reference_id(
             &state,
             webhook_details.object_reference_id,
             &merchant_account,
         )
         .await?;
+        let payment_id = payment_attempt.payment_id;
+        let payment_intent = db
+            .find_payment_intent_by_payment_id_merchant_id(
+                &payment_id.clone(),
+                &merchant_account.merchant_id,
+                merchant_account.storage_scheme,
+            )
+            .await
+            .change_context(errors::WebhooksFlowError::ResourceNotFound)?;
         let request = api::PaymentsRequest {
             payment_id: Some(api_models::payments::PaymentIdType::PaymentIntentId(
-                payment_attempt.payment_id,
+                payment_id,
             )),
             merchant_id: Some(merchant_account.merchant_id.to_owned()),
             payment_token: payment_attempt.payment_token,
@@ -395,6 +406,7 @@ async fn bank_transfer_webhook_flow<W: api::OutgoingWebhookType>(
                     .foreign_into(),
             ),
             amount: Some(payment_attempt.amount.into()),
+            customer_id: payment_intent.customer_id,
             ..Default::default()
         };
         payments::payments_core::<api::Authorize, api::PaymentsResponse, _, _, _>(

@@ -7,7 +7,7 @@ use router_env::{instrument, tracing};
 use super::{flows::Feature, PaymentAddress, PaymentData};
 use crate::{
     configs::settings::Server,
-    connector::Paypal,
+    connector::{Nexinets, Paypal},
     core::{
         errors::{self, RouterResponse, RouterResult},
         payments::{self, helpers},
@@ -28,6 +28,7 @@ pub async fn construct_payment_router_data<'a, F, T>(
     payment_data: PaymentData<F>,
     connector_id: &str,
     merchant_account: &storage::MerchantAccount,
+    customer: &Option<storage::Customer>,
 ) -> RouterResult<types::RouterData<F, T, types::PaymentsResponseData>>
 where
     T: TryFrom<PaymentAdditionalData<'a, F>>,
@@ -75,6 +76,7 @@ where
             redirection_data: None,
             mandate_reference: None,
             connector_metadata: None,
+            network_txn_id: None,
         });
 
     let additional_data = PaymentAdditionalData {
@@ -84,9 +86,12 @@ where
         state,
     };
 
+    let customer_id = customer.to_owned().map(|customer| customer.customer_id);
+
     router_data = types::RouterData {
         flow: PhantomData,
         merchant_id: merchant_account.merchant_id.clone(),
+        customer_id,
         connector: connector_id.to_owned(),
         payment_id: payment_data.payment_attempt.payment_id.clone(),
         attempt_id: payment_data.payment_attempt.attempt_id.clone(),
@@ -109,8 +114,8 @@ where
         session_token: None,
         reference_id: None,
         payment_method_token: payment_data.pm_token,
+        connector_customer: payment_data.connector_customer_id,
         preprocessing_id: payment_data.payment_attempt.preprocessing_step_id,
-        customer_id: None,
     };
 
     Ok(router_data)
@@ -620,6 +625,16 @@ impl api::ConnectorTransactionId for Paypal {
     }
 }
 
+impl api::ConnectorTransactionId for Nexinets {
+    fn connector_transaction_id(
+        &self,
+        payment_attempt: storage::PaymentAttempt,
+    ) -> Result<Option<String>, errors::ApiErrorResponse> {
+        let metadata = Self::connector_transaction_id(self, &payment_attempt.connector_metadata);
+        metadata.map_err(|_| errors::ApiErrorResponse::ResourceIdNotFound)
+    }
+}
+
 impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCaptureData {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
 
@@ -740,7 +755,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::CompleteAuthoriz
         let json_payload = payment_data
             .connector_response
             .encoded_data
-            .map(serde_json::to_value)
+            .map(|s| serde_json::from_str::<serde_json::Value>(&s))
             .transpose()
             .into_report()
             .change_context(errors::ApiErrorResponse::InternalServerError)?;

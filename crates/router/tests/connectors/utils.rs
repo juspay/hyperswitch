@@ -364,6 +364,7 @@ pub trait ConnectorActions: Connector {
         RouterData {
             flow: PhantomData,
             merchant_id: self.get_name(),
+            customer_id: Some(self.get_name()),
             connector: self.get_name(),
             payment_id: uuid::Uuid::new_v4().to_string(),
             attempt_id: uuid::Uuid::new_v4().to_string(),
@@ -394,8 +395,8 @@ pub trait ConnectorActions: Connector {
             session_token: None,
             reference_id: None,
             payment_method_token: None,
+            connector_customer: None,
             preprocessing_id: None,
-            customer_id: None,
         }
     }
 
@@ -411,6 +412,7 @@ pub trait ConnectorActions: Connector {
             Ok(types::PaymentsResponseData::SessionTokenResponse { .. }) => None,
             Ok(types::PaymentsResponseData::TokenizationResponse { .. }) => None,
             Ok(types::PaymentsResponseData::TransactionUnresolvedResponse { .. }) => None,
+            Ok(types::PaymentsResponseData::ConnectorCustomerResponse { .. }) => None,
             Ok(types::PaymentsResponseData::PreProcessingResponse { .. }) => None,
             Ok(types::PaymentsResponseData::ThreeDSEnrollmentResponse { .. }) => None,
             Err(_) => None,
@@ -597,6 +599,7 @@ pub fn get_connector_transaction_id(
         Ok(types::PaymentsResponseData::TokenizationResponse { .. }) => None,
         Ok(types::PaymentsResponseData::TransactionUnresolvedResponse { .. }) => None,
         Ok(types::PaymentsResponseData::PreProcessingResponse { .. }) => None,
+        Ok(types::PaymentsResponseData::ConnectorCustomerResponse { .. }) => None,
         Ok(types::PaymentsResponseData::ThreeDSEnrollmentResponse { .. }) => None,
         Err(_) => None,
     }
@@ -611,6 +614,7 @@ pub fn get_connector_metadata(
             redirection_data: _,
             mandate_reference: _,
             connector_metadata,
+            network_txn_id: _,
         }) => connector_metadata,
         _ => None,
     }
