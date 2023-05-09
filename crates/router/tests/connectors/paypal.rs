@@ -131,6 +131,7 @@ async fn should_sync_authorized_payment() {
         .psync_retry_till_status_matches(
             enums::AttemptStatus::Authorized,
             Some(types::PaymentsSyncData {
+                mandate_id: None,
                 connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(txn_id),
                 encoded_data: None,
                 capture_method: None,
@@ -320,6 +321,7 @@ async fn should_sync_auto_captured_payment() {
         .psync_retry_till_status_matches(
             enums::AttemptStatus::Charged,
             Some(types::PaymentsSyncData {
+                mandate_id: None,
                 connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
                     txn_id.unwrap(),
                 ),
