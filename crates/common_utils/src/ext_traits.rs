@@ -147,17 +147,17 @@ where
 ///
 /// Extending functionalities of `bytes::Bytes`
 ///
-pub trait BytesExt<T> {
+pub trait BytesExt {
     ///
     /// Convert `bytes::Bytes` into type `<T>` using `serde::Deserialize`
     ///
-    fn parse_struct<'de>(&'de self, type_name: &str) -> CustomResult<T, errors::ParsingError>
+    fn parse_struct<'de, T>(&'de self, type_name: &str) -> CustomResult<T, errors::ParsingError>
     where
         T: Deserialize<'de>;
 }
 
-impl<T> BytesExt<T> for bytes::Bytes {
-    fn parse_struct<'de>(&'de self, _type_name: &str) -> CustomResult<T, errors::ParsingError>
+impl BytesExt for bytes::Bytes {
+    fn parse_struct<'de, T>(&'de self, _type_name: &str) -> CustomResult<T, errors::ParsingError>
     where
         T: Deserialize<'de>,
     {
@@ -200,17 +200,17 @@ impl ByteSliceExt for [u8] {
 ///
 /// Extending functionalities of `serde_json::Value` for performing parsing
 ///
-pub trait ValueExt<T> {
+pub trait ValueExt {
     ///
     /// Convert `serde_json::Value` into type `<T>` by using `serde::Deserialize`
     ///
-    fn parse_value(self, type_name: &str) -> CustomResult<T, errors::ParsingError>
+    fn parse_value<T>(self, type_name: &str) -> CustomResult<T, errors::ParsingError>
     where
         T: serde::de::DeserializeOwned;
 }
 
-impl<T> ValueExt<T> for serde_json::Value {
-    fn parse_value(self, type_name: &str) -> CustomResult<T, errors::ParsingError>
+impl ValueExt for serde_json::Value {
+    fn parse_value<T>(self, type_name: &str) -> CustomResult<T, errors::ParsingError>
     where
         T: serde::de::DeserializeOwned,
     {
@@ -225,11 +225,11 @@ impl<T> ValueExt<T> for serde_json::Value {
     }
 }
 
-impl<T, MaskingStrategy> ValueExt<T> for Secret<serde_json::Value, MaskingStrategy>
+impl<MaskingStrategy> ValueExt for Secret<serde_json::Value, MaskingStrategy>
 where
     MaskingStrategy: Strategy<serde_json::Value>,
 {
-    fn parse_value(self, type_name: &str) -> CustomResult<T, errors::ParsingError>
+    fn parse_value<T>(self, type_name: &str) -> CustomResult<T, errors::ParsingError>
     where
         T: serde::de::DeserializeOwned,
     {

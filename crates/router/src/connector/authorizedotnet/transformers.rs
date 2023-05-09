@@ -132,6 +132,7 @@ fn get_pm_and_subsequent_auth_detail(
             }
             api::PaymentMethodData::Crypto(_)
             | api::PaymentMethodData::BankDebit(_)
+            | api::PaymentMethodData::MandatePayment
             | api::PaymentMethodData::BankTransfer(_) => {
                 Err(errors::ConnectorError::NotSupported {
                     message: format!("{:?}", item.request.payment_method_data),

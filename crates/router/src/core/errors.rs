@@ -299,6 +299,8 @@ pub enum ConnectorError {
     MissingConnectorRelatedTransactionID { id: String },
     #[error("File Validation failed")]
     FileValidationFailed { reason: String },
+    #[error("Missing 3DS redirection payload: {field_name}")]
+    MissingConnectorRedirectionPayload { field_name: &'static str },
 }
 
 #[derive(Debug, thiserror::Error)]
