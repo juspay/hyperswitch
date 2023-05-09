@@ -13,14 +13,20 @@ pub struct FileId {
     pub file_id: String,
 }
 
+#[derive(Debug)]
+pub enum FileDataRequired {
+    Required,
+    NotRequired,
+}
+
 impl ForeignTryFrom<FileUploadProvider> for types::Connector {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
     fn foreign_try_from(item: FileUploadProvider) -> Result<Self, Self::Error> {
         match item {
             FileUploadProvider::Stripe => Ok(Self::Stripe),
             FileUploadProvider::Checkout => Ok(Self::Checkout),
-            _ => Err(errors::ApiErrorResponse::NotSupported {
-                message: "Connector not supported as file provider".to_owned(),
+            FileUploadProvider::Router => Err(errors::ApiErrorResponse::NotSupported {
+                message: "File upload provider is not a connector".to_owned(),
             }
             .into()),
         }

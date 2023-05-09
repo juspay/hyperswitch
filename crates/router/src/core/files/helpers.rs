@@ -205,7 +205,7 @@ pub async fn retrieve_file_and_provider_file_id_from_file_id(
     state: &AppState,
     file_id: Option<String>,
     merchant_account: &storage_models::merchant_account::MerchantAccount,
-    is_connector_file_data_required: bool,
+    is_connector_file_data_required: api::FileDataRequired,
 ) -> CustomResult<(Option<Vec<u8>>, Option<String>), errors::ApiErrorResponse> {
     match file_id {
         None => Ok((None, None)),
@@ -238,17 +238,16 @@ pub async fn retrieve_file_and_provider_file_id_from_file_id(
                     Some(provider_file_id),
                 )),
                 _ => {
-                    let connector_file_data = if is_connector_file_data_required {
-                        Some(
+                    let connector_file_data = match is_connector_file_data_required {
+                        api::FileDataRequired::Required => Some(
                             retrieve_file_from_connector(
                                 state,
                                 file_metadata_object,
                                 merchant_account,
                             )
                             .await?,
-                        )
-                    } else {
-                        None
+                        ),
+                        api::FileDataRequired::NotRequired => None,
                     };
                     Ok((connector_file_data, Some(provider_file_id)))
                 }

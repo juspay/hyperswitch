@@ -104,7 +104,7 @@ pub async fn files_retrieve_core(
             state,
             Some(req.file_id),
             &merchant_account,
-            true,
+            api::FileDataRequired::Required,
         )
         .await?;
     let content_type = file_metadata_object
