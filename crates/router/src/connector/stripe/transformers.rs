@@ -299,6 +299,7 @@ pub enum StripeWallet {
     GooglepayToken(GooglePayToken),
     ApplepayPayment(ApplepayPayment),
     WechatpayPayment(WechatpayPayment),
+    AlipayPayment(AlipayPayment),
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
@@ -323,6 +324,14 @@ pub struct ApplepayPayment {
     pub token: String,
     #[serde(rename = "payment_method_data[type]")]
     pub payment_method_types: StripePaymentMethodType,
+}
+
+#[derive(Debug, Eq, PartialEq, Serialize)]
+pub struct AlipayPayment {
+    #[serde(rename = "payment_method_types[]")]
+    pub payment_method_types: StripePaymentMethodType,
+    #[serde(rename = "payment_method_data[type]")]
+    pub payment_method_data_type: StripePaymentMethodType,
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
@@ -371,6 +380,7 @@ pub enum StripePaymentMethodType {
     Bacs,
     #[serde(rename = "wechat_pay")]
     Wechatpay,
+    Alipay,
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize, Clone)]
@@ -687,6 +697,7 @@ fn get_bank_debit_data(
             billing_details,
             account_number,
             routing_number,
+            ..
         } => {
             let ach_data = BankDebitData::Ach {
                 account_holder_type: "individual".to_string(),
@@ -834,6 +845,14 @@ fn create_stripe_payment_method(
                     payment_method_data_type: StripePaymentMethodType::Wechatpay,
                 })),
                 StripePaymentMethodType::Wechatpay,
+                StripeBillingAddress::default(),
+            )),
+            payments::WalletData::AliPay(_) => Ok((
+                StripePaymentMethodData::Wallet(StripeWallet::AlipayPayment(AlipayPayment {
+                    payment_method_types: StripePaymentMethodType::Alipay,
+                    payment_method_data_type: StripePaymentMethodType::Alipay,
+                })),
+                StripePaymentMethodType::Alipay,
                 StripeBillingAddress::default(),
             )),
             payments::WalletData::GooglePay(gpay_data) => Ok((
@@ -1260,6 +1279,7 @@ impl ForeignFrom<(Option<StripePaymentMethodOptions>, String)> for types::Mandat
                 | StripePaymentMethodOptions::Bacs {}
                 | StripePaymentMethodOptions::Becs {}
                 | StripePaymentMethodOptions::WechatPay {}
+                | StripePaymentMethodOptions::Alipay {}
                 | StripePaymentMethodOptions::Sepa {} => None,
             }),
             payment_method_id: Some(payment_method_id),
@@ -1418,6 +1438,7 @@ impl ForeignFrom<Option<LatestAttempt>> for Option<String> {
 #[serde(rename_all = "snake_case", remote = "Self")]
 pub enum StripeNextActionResponse {
     RedirectToUrl(StripeRedirectToUrlResponse),
+    AlipayHandleRedirect(StripeRedirectToUrlResponse),
     VerifyWithMicrodeposits(StripeVerifyWithMicroDepositsResponse),
     WechatPayDisplayQrCode(StripeRedirectToQR),
 }
@@ -1425,7 +1446,9 @@ pub enum StripeNextActionResponse {
 impl StripeNextActionResponse {
     fn get_url(&self) -> Url {
         match self {
-            Self::RedirectToUrl(redirect_to_url) => redirect_to_url.url.to_owned(),
+            Self::RedirectToUrl(redirect_to_url) | Self::AlipayHandleRedirect(redirect_to_url) => {
+                redirect_to_url.url.to_owned()
+            }
             Self::WechatPayDisplayQrCode(redirect_to_url) => redirect_to_url.data.to_owned(),
             Self::VerifyWithMicrodeposits(verify_with_microdeposits) => {
                 verify_with_microdeposits.hosted_verification_url.to_owned()
@@ -1670,6 +1693,7 @@ pub enum StripePaymentMethodOptions {
     #[serde(rename = "bacs_debit")]
     Bacs {},
     WechatPay {},
+    Alipay {},
 }
 
 #[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
@@ -1962,6 +1986,13 @@ impl
                         client: WechatClient::Web,
                         payment_method_types: StripePaymentMethodType::Wechatpay,
                         payment_method_data_type: StripePaymentMethodType::Wechatpay,
+                    });
+                    Ok(Self::Wallet(wallet_info))
+                }
+                payments::WalletData::AliPay(_) => {
+                    let wallet_info = StripeWallet::AlipayPayment(AlipayPayment {
+                        payment_method_types: StripePaymentMethodType::Alipay,
+                        payment_method_data_type: StripePaymentMethodType::Alipay,
                     });
                     Ok(Self::Wallet(wallet_info))
                 }
