@@ -640,7 +640,7 @@ where
                 connector_name,
                 api::GetToken::Connector,
             )?;
-            let (is_eligible, _, connector_customer_map) =
+            let (is_eligible, connector_customer_id, connector_customer_map) =
                 customers::should_call_connector_create_customer(state, &connector, customer)?;
 
             if is_eligible {
@@ -661,7 +661,8 @@ where
                 payment_data.connector_customer_id = connector_customer;
                 Ok(customer_update)
             } else {
-                // Customer already created in previous calls, no need to update
+                // Customer already created in previous calls use the same value, no need to update
+                payment_data.connector_customer_id = connector_customer_id;
                 Ok(None)
             }
         }
