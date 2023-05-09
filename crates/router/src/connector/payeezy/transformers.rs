@@ -1,3 +1,4 @@
+use cards::CardNumber;
 use common_utils::ext_traits::Encode;
 use error_stack::ResultExt;
 use masking::Secret;
@@ -6,7 +7,6 @@ use serde::{Deserialize, Serialize};
 use crate::{
     connector::utils::{self, CardData},
     core::errors,
-    pii::{self},
     types::{self, api, storage::enums, transformers::ForeignFrom},
 };
 
@@ -15,7 +15,7 @@ pub struct PayeezyCard {
     #[serde(rename = "type")]
     pub card_type: PayeezyCardType,
     pub cardholder_name: Secret<String>,
-    pub card_number: Secret<String, pii::CardNumber>,
+    pub card_number: CardNumber,
     pub exp_date: Secret<String>,
     pub cvv: Secret<String>,
 }

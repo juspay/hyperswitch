@@ -197,7 +197,7 @@ pub struct BillingAddress {
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Card {
-    pub card_number: Option<Secret<String, common_utils::pii::CardNumber>>,
+    pub card_number: Option<cards::CardNumber>,
     pub card_holder_name: Option<Secret<String>>,
     pub expiration_month: Option<Secret<String>>,
     pub expiration_year: Option<Secret<String>>,

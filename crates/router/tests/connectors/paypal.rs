@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 use masking::Secret;
 use router::types::{self, api, storage::enums, AccessToken, ConnectorAuthType};
 
@@ -53,7 +55,7 @@ fn get_default_payment_info() -> Option<utils::PaymentInfo> {
 fn get_payment_data() -> Option<types::PaymentsAuthorizeData> {
     Some(types::PaymentsAuthorizeData {
         payment_method_data: types::api::PaymentMethodData::Card(api::Card {
-            card_number: Secret::new(String::from("4000020000000000")),
+            card_number: cards::CardNumber::from_str("4000020000000000").unwrap(),
             ..utils::CCardType::default().0
         }),
         ..utils::PaymentAuthorizeType::default().0
@@ -433,7 +435,7 @@ async fn should_fail_payment_for_incorrect_card_number() {
         .make_payment(
             Some(types::PaymentsAuthorizeData {
                 payment_method_data: types::api::PaymentMethodData::Card(api::Card {
-                    card_number: Secret::new("1234567891011".to_string()),
+                    card_number: cards::CardNumber::from_str("1234567891011").unwrap(),
                     ..utils::CCardType::default().0
                 }),
                 ..utils::PaymentAuthorizeType::default().0
@@ -445,29 +447,6 @@ async fn should_fail_payment_for_incorrect_card_number() {
     assert_eq!(
         response.response.unwrap_err().message,
         "description - UNPROCESSABLE_ENTITY",
-    );
-}
-
-// Creates a payment with empty card number.
-#[actix_web::test]
-async fn should_fail_payment_for_empty_card_number() {
-    let response = CONNECTOR
-        .make_payment(
-            Some(types::PaymentsAuthorizeData {
-                payment_method_data: types::api::PaymentMethodData::Card(api::Card {
-                    card_number: Secret::new(String::from("")),
-                    ..utils::CCardType::default().0
-                }),
-                ..utils::PaymentAuthorizeType::default().0
-            }),
-            get_default_payment_info(),
-        )
-        .await
-        .unwrap();
-    let x = response.response.unwrap_err();
-    assert_eq!(
-        x.message,
-        "description - The card number is required when attempting to process payment with card., field - number;",
     );
 }
 

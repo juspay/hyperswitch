@@ -1,5 +1,6 @@
-use std::time::Duration;
+use std::{str::FromStr, time::Duration};
 
+use cards::CardNumber;
 use masking::Secret;
 use router::types::{self, api, storage::enums};
 
@@ -39,7 +40,7 @@ static CONNECTOR: ForteTest = ForteTest {};
 fn get_payment_data() -> Option<types::PaymentsAuthorizeData> {
     Some(types::PaymentsAuthorizeData {
         payment_method_data: types::api::PaymentMethodData::Card(api::Card {
-            card_number: Secret::new(String::from("4111111111111111")),
+            card_number: CardNumber::from_str("4111111111111111").unwrap(),
             ..utils::CCardType::default().0
         }),
         ..utils::PaymentAuthorizeType::default().0
@@ -460,7 +461,7 @@ async fn should_fail_payment_for_incorrect_card_number() {
         .make_payment(
             Some(types::PaymentsAuthorizeData {
                 payment_method_data: types::api::PaymentMethodData::Card(api::Card {
-                    card_number: Secret::new("4111111111111100".to_string()),
+                    card_number: CardNumber::from_str("4111111111111100").unwrap(),
                     ..utils::CCardType::default().0
                 }),
                 ..utils::PaymentAuthorizeType::default().0
@@ -473,27 +474,6 @@ async fn should_fail_payment_for_incorrect_card_number() {
         response.response.unwrap_err().message,
         "INVALID CREDIT CARD NUMBER".to_string(),
     );
-}
-
-// Creates a payment with empty card number.
-#[actix_web::test]
-async fn should_fail_payment_for_empty_card_number() {
-    let response = CONNECTOR
-        .make_payment(
-            Some(types::PaymentsAuthorizeData {
-                payment_method_data: types::api::PaymentMethodData::Card(api::Card {
-                    card_number: Secret::new(String::from("")),
-                    ..utils::CCardType::default().0
-                }),
-                ..utils::PaymentAuthorizeType::default().0
-            }),
-            get_default_payment_info(),
-        )
-        .await;
-    assert_eq!(
-        *response.unwrap_err().current_context(),
-        router::core::errors::ConnectorError::NotImplemented("Card Type".into())
-    )
 }
 
 // Creates a payment with incorrect CVC.
@@ -666,7 +646,7 @@ async fn should_fail_for_refund_amount_higher_than_payment_amount() {
 async fn should_throw_not_implemented_for_unsupported_issuer() {
     let authorize_data = Some(types::PaymentsAuthorizeData {
         payment_method_data: types::api::PaymentMethodData::Card(api::Card {
-            card_number: Secret::new(String::from("6759649826438453")),
+            card_number: CardNumber::from_str("6759649826438453").unwrap(),
             ..utils::CCardType::default().0
         }),
         capture_method: Some(enums::CaptureMethod::Automatic),

@@ -1,4 +1,9 @@
-#![allow(clippy::expect_used, clippy::panic, clippy::unwrap_used)]
+#![allow(
+    clippy::expect_used,
+    clippy::panic,
+    clippy::unwrap_in_result,
+    clippy::unwrap_used
+)]
 
 mod aci;
 mod adyen;

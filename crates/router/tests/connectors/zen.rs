@@ -1,6 +1,7 @@
 use std::str::FromStr;
 
 use api_models::payments::OrderDetails;
+use cards::CardNumber;
 use common_utils::pii::Email;
 use masking::Secret;
 use router::types::{self, api, storage::enums};
@@ -302,7 +303,7 @@ async fn should_fail_payment_for_incorrect_card_number() {
         .make_payment(
             Some(types::PaymentsAuthorizeData {
                 payment_method_data: types::api::PaymentMethodData::Card(api::Card {
-                    card_number: Secret::new("1234567891011".to_string()),
+                    card_number: CardNumber::from_str("1234567891011").unwrap(),
                     ..utils::CCardType::default().0
                 }),
                 order_details: Some(OrderDetails {
@@ -326,35 +327,6 @@ async fn should_fail_payment_for_incorrect_card_number() {
             .unwrap()
             .0,
         "Request data doesn't pass validation".to_string(),
-    );
-}
-
-// Creates a payment with empty card number.
-#[actix_web::test]
-async fn should_fail_payment_for_empty_card_number() {
-    let response = CONNECTOR
-        .make_payment(
-            Some(types::PaymentsAuthorizeData {
-                payment_method_data: types::api::PaymentMethodData::Card(api::Card {
-                    card_number: Secret::new(String::from("")),
-                    ..utils::CCardType::default().0
-                }),
-                order_details: Some(OrderDetails {
-                    product_name: "test".to_string(),
-                    quantity: 1,
-                }),
-                email: Some(Email::from_str("test@gmail.com").unwrap()),
-                webhook_url: Some("https://1635-116-74-253-164.ngrok-free.app".to_string()),
-                ..utils::PaymentAuthorizeType::default().0
-            }),
-            None,
-        )
-        .await
-        .unwrap();
-    let x = response.response.unwrap_err();
-    assert_eq!(
-        x.message.split_once(';').unwrap().0,
-        "Request data doesn't pass validation",
     );
 }
 
