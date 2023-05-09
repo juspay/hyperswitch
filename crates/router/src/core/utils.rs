@@ -1,6 +1,9 @@
 use std::marker::PhantomData;
 
-use api_models::enums::{DisputeStage, DisputeStatus};
+use api_models::{
+    enums::{DisputeStage, DisputeStatus},
+    payouts as payout_types,
+};
 use common_utils::errors::CustomResult;
 use error_stack::{IntoReport, ResultExt};
 use router_env::{instrument, tracing};
@@ -14,6 +17,7 @@ use crate::{
     types::{
         self, domain,
         storage::{self, enums},
+        transformers::ForeignFrom,
         ErrorResponse,
     },
     utils::{generate_id, OptionExt, ValueExt},
@@ -23,6 +27,95 @@ const IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_DISPUTE_FLOW: &str =
     "irrelevant_connector_request_reference_id_in_dispute_flow";
 const IRRELEVANT_PAYMENT_ID_IN_DISPUTE_FLOW: &str = "irrelevant_payment_id_in_dispute_flow";
 const IRRELEVANT_ATTEMPT_ID_IN_DISPUTE_FLOW: &str = "irrelevant_attempt_id_in_dispute_flow";
+
+#[instrument(skip_all)]
+#[allow(clippy::too_many_arguments)]
+pub async fn construct_payout_router_data<'a, F>(
+    state: &'a AppState,
+    connector_id: &str,
+    merchant_account: &domain::MerchantAccount,
+    key_store: &domain::MerchantKeyStore,
+    payout_create: &storage::PayoutCreate,
+    payouts: Option<storage::Payouts>,
+    request: &api_models::payouts::PayoutCreateRequest,
+) -> RouterResult<types::PayoutsRouterData<F>> {
+    let (business_country, business_label) = helpers::get_business_details(
+        request.business_country,
+        request.business_label.as_ref(),
+        merchant_account,
+    )?;
+
+    let connector_label =
+        helpers::get_connector_label(business_country, &business_label, None, connector_id);
+
+    let merchant_connector_account = helpers::get_merchant_connector_account(
+        state,
+        merchant_account.merchant_id.as_str(),
+        &connector_label,
+        None,
+        key_store,
+    )
+    .await?;
+
+    let connector_auth_type: types::ConnectorAuthType = merchant_connector_account
+        .get_connector_account_details()
+        .parse_value("ConnectorAuthType")
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
+    let address = PaymentAddress {
+        shipping: None,
+        billing: request.billing.clone(),
+    };
+
+    let payout_status = payouts.map_or(enums::PayoutStatus::default(), |p| p.status);
+
+    let router_data = types::RouterData {
+        flow: PhantomData,
+        merchant_id: merchant_account.merchant_id.to_owned(),
+        customer_id: None,
+        connector_customer: None,
+        connector: connector_id.to_string(),
+        payment_id: "".to_string(),                      //FIXME
+        attempt_id: "".to_string(),                      //FIXME
+        status: enums::AttemptStatus::Failure,           //FIXME
+        payment_method: enums::PaymentMethod::default(), //FIXME
+        connector_auth_type,
+        description: None,
+        return_url: request.return_url.clone(),
+        payment_method_id: None,
+        address,
+        auth_type: enums::AuthenticationType::default(), //FIXME
+        connector_meta_data: merchant_connector_account.get_metadata(),
+        amount_captured: None,
+        request: types::PayoutsData {
+            payout_id: payout_create.payout_id.clone(),
+            payout_type: enums::PayoutType::foreign_from(request.payout_type),
+            amount: payout_create.amount,
+            destination_currency: payout_create.destination_currency,
+            source_currency: payout_create.source_currency,
+            payout_method_data: request
+                .payout_method_data
+                .to_owned()
+                .map_or(payout_types::PayoutMethodData::default(), |pmd| pmd),
+            status: payout_status,
+        },
+        response: Ok(types::PayoutsResponseData {
+            payout_id: payout_create.payout_id.clone(),
+            status: payout_status,
+            payout_type: enums::PayoutType::foreign_from(request.payout_type),
+            connector_payout_id: None,
+        }),
+        access_token: None,
+        session_token: None,
+        reference_id: None,
+        payment_method_token: None,
+        preprocessing_id: None,
+        connector_request_reference_id: IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_DISPUTE_FLOW
+            .to_string(),
+    };
+
+    Ok(router_data)
+}
 
 #[instrument(skip_all)]
 #[allow(clippy::too_many_arguments)]
