@@ -1,9 +1,8 @@
-#[cfg(feature = "accounts_cache")]
-use crate::cache::{self, ACCOUNTS_CACHE};
-
 use error_stack::IntoReport;
 
 use super::{MockDb, Store};
+#[cfg(feature = "accounts_cache")]
+use crate::cache::{self, ACCOUNTS_CACHE};
 use crate::{
     connection,
     core::errors::{self, CustomResult},
