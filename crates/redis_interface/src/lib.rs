@@ -26,7 +26,7 @@ use std::sync::{atomic, Arc};
 use common_utils::errors::CustomResult;
 use error_stack::{IntoReport, ResultExt};
 use fred::interfaces::ClientLike;
-pub use fred::interfaces::PubsubInterface;
+pub use fred::{interfaces::PubsubInterface, types::RedisValue};
 use router_env::logger;
 
 pub use self::{commands::*, types::*};

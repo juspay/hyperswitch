@@ -2,6 +2,7 @@ use error_stack::IntoReport;
 
 use super::{MockDb, Store};
 use crate::{
+    cache::{self, ACCOUNTS_CACHE},
     connection,
     core::errors::{self, CustomResult},
     types::storage::{self, enums},
@@ -75,7 +76,8 @@ impl MerchantAccountInterface for Store {
 
         #[cfg(feature = "accounts_cache")]
         {
-            super::cache::get_or_populate_redis(self, merchant_id, fetch_func).await
+            super::cache::get_or_populate_in_memory(self, merchant_id, fetch_func, &ACCOUNTS_CACHE)
+                .await
         }
     }
 
@@ -100,7 +102,12 @@ impl MerchantAccountInterface for Store {
 
         #[cfg(feature = "accounts_cache")]
         {
-            super::cache::redact_cache(self, &_merchant_id, update_func, None).await
+            super::cache::publish_and_redact(
+                self,
+                cache::CacheKind::Accounts(_merchant_id.into()),
+                update_func,
+            )
+            .await
         }
     }
 
