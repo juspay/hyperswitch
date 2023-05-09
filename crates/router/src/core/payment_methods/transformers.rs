@@ -1,4 +1,6 @@
-use common_utils::ext_traits::StringExt;
+use std::str::FromStr;
+
+use common_utils::{ext_traits::StringExt, pii::Email};
 use error_stack::ResultExt;
 #[cfg(feature = "kms")]
 use external_services::kms;
@@ -9,7 +11,7 @@ use crate::{
     configs::settings,
     core::errors::{self, CustomResult},
     headers,
-    pii::{self, prelude::*, Secret},
+    pii::{prelude::*, Secret},
     services::{api as services, encryption},
     types::{api, storage},
     utils::{self, OptionExt},
@@ -24,7 +26,7 @@ pub struct StoreCardReq<'a> {
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Card {
-    pub card_number: Secret<String, pii::CardNumber>,
+    pub card_number: cards::CardNumber,
     pub name_on_card: Option<Secret<String>>,
     pub card_exp_month: Secret<String>,
     pub card_exp_year: Secret<String>,
@@ -78,12 +80,12 @@ pub struct DeleteCardResp {
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AddCardRequest<'a> {
-    pub card_number: Secret<String, pii::CardNumber>,
+    pub card_number: cards::CardNumber,
     pub customer_id: &'a str,
     pub card_exp_month: Secret<String>,
     pub card_exp_year: Secret<String>,
     pub merchant_id: &'a str,
-    pub email_address: Option<Secret<String, pii::Email>>,
+    pub email_address: Option<Email>,
     pub name_on_card: Option<Secret<String>>,
     pub nickname: Option<String>,
 }
@@ -97,7 +99,7 @@ pub struct AddCardResponse {
     pub card_global_fingerprint: Secret<String>,
     #[serde(rename = "merchant_id")]
     pub merchant_id: Option<String>,
-    pub card_number: Option<Secret<String, pii::CardNumber>>,
+    pub card_number: Option<cards::CardNumber>,
     pub card_exp_year: Option<Secret<String>>,
     pub card_exp_month: Option<Secret<String>>,
     pub name_on_card: Option<Secret<String>>,
@@ -396,9 +398,12 @@ pub fn mk_add_card_request(
         card_exp_month: card.card_exp_month.clone(),
         card_exp_year: card.card_exp_year.clone(),
         merchant_id: locker_id,
-        email_address: Some("dummy@gmail.com".to_string().into()), //
-        name_on_card: Some("John Doe".to_string().into()),         // [#256]
-        nickname: Some("router".to_string()),                      //
+        email_address: match Email::from_str("dummy@gmail.com") {
+            Ok(email) => Some(email),
+            Err(_) => None,
+        }, //
+        name_on_card: Some("John Doe".to_string().into()), // [#256]
+        nickname: Some("router".to_string()),              //
     };
     let body = utils::Encode::<AddCardRequest<'_>>::url_encode(&add_card_req)
         .change_context(errors::VaultError::RequestEncodingFailed)?;
@@ -625,7 +630,7 @@ pub fn mk_crud_locker_request(
 }
 
 pub fn mk_card_value1(
-    card_number: String,
+    card_number: cards::CardNumber,
     exp_year: String,
     exp_month: String,
     name_on_card: Option<String>,
@@ -634,7 +639,7 @@ pub fn mk_card_value1(
     card_token: Option<String>,
 ) -> CustomResult<String, errors::VaultError> {
     let value1 = api::TokenizedCardValue1 {
-        card_number,
+        card_number: card_number.peek().clone(),
         exp_year,
         exp_month,
         name_on_card,

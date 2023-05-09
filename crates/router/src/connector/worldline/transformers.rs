@@ -1,5 +1,5 @@
 use api_models::payments as api_models;
-use common_utils::pii::{self, Email};
+use common_utils::pii::Email;
 use masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
@@ -17,7 +17,7 @@ use crate::{
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct Card {
-    pub card_number: Secret<String, pii::CardNumber>,
+    pub card_number: cards::CardNumber,
     pub cardholder_name: Secret<String>,
     pub cvv: Secret<String>,
     pub expiry_date: Secret<String>,
@@ -60,7 +60,7 @@ pub struct BillingAddress {
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct ContactDetails {
-    pub email_address: Option<Secret<String, Email>>,
+    pub email_address: Option<Email>,
     pub mobile_phone_number: Option<Secret<String>>,
 }
 
@@ -130,7 +130,7 @@ impl TryFrom<utils::CardIssuer> for Gateway {
             utils::CardIssuer::Discover => Ok(Self::Discover),
             utils::CardIssuer::Visa => Ok(Self::Visa),
             _ => Err(errors::ConnectorError::NotSupported {
-                payment_method: api_enums::PaymentMethod::Card.to_string(),
+                message: issuer.to_string(),
                 connector: "worldline",
                 payment_experience: api_enums::PaymentExperience::RedirectToUrl.to_string(),
             }
@@ -152,10 +152,7 @@ fn make_card_request(
     );
     let expiry_date: Secret<String> = Secret::new(secret_value);
     let card = Card {
-        card_number: ccard
-            .card_number
-            .clone()
-            .map(|card| card.split_whitespace().collect()),
+        card_number: ccard.card_number.clone(),
         cardholder_name: ccard.card_holder_name.clone(),
         cvv: ccard.card_cvc.clone(),
         expiry_date,
@@ -202,7 +199,7 @@ fn get_address(
 
 fn build_customer_info(
     payment_address: &types::PaymentAddress,
-    email: &Option<Secret<String, Email>>,
+    email: &Option<Email>,
 ) -> Result<Customer, error_stack::Report<errors::ConnectorError>> {
     let (billing, address) =
         get_address(payment_address).ok_or(errors::ConnectorError::MissingRequiredField {

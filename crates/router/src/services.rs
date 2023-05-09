@@ -78,6 +78,10 @@ impl PubSubInterface for redis_interface::RedisConnectionPool {
     }
 }
 
+pub trait RedisConnInterface {
+    fn get_redis_conn(&self) -> Arc<redis_interface::RedisConnectionPool>;
+}
+
 #[derive(Clone)]
 pub struct Store {
     pub master_pool: PgPool,
@@ -183,5 +187,11 @@ impl Store {
             )
             .await
             .change_context(crate::core::errors::StorageError::KVError)
+    }
+}
+
+impl RedisConnInterface for Store {
+    fn get_redis_conn(&self) -> Arc<redis_interface::RedisConnectionPool> {
+        self.redis_conn.clone()
     }
 }
