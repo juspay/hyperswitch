@@ -1440,7 +1440,7 @@ pub enum StripeNextActionResponse {
     RedirectToUrl(StripeRedirectToUrlResponse),
     AlipayHandleRedirect(StripeRedirectToUrlResponse),
     VerifyWithMicrodeposits(StripeVerifyWithMicroDepositsResponse),
-    WechatPayDisplayQrCode(StripeRedirectToQR),
+    WechatPayDisplayQrCode(StripeRedirectToQr),
 }
 
 impl StripeNextActionResponse {
@@ -1484,7 +1484,7 @@ pub struct StripeRedirectToUrlResponse {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
-pub struct StripeRedirectToQR {
+pub struct StripeRedirectToQr {
     data: Url,
 }
 
