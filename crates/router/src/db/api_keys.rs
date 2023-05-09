@@ -281,3 +281,98 @@ impl ApiKeyInterface for MockDb {
         Ok(keys_for_merchant_id)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use time::macros::datetime;
+
+    use crate::{
+        db::{api_keys::ApiKeyInterface, MockDb},
+        types::storage,
+    };
+
+    // ignored for now because we need to do some finagling with redis to get it to run, since the
+    // mockdb needs to connect to a real redis instance
+    #[tokio::test]
+    #[ignore]
+    async fn test_mockdb_api_key_interface() {
+        let mockdb = MockDb::new(&Default::default()).await;
+
+        let key1 = mockdb
+            .insert_api_key(storage::ApiKeyNew {
+                key_id: "key_id1".into(),
+                merchant_id: "merchant1".into(),
+                name: "Key 1".into(),
+                description: None,
+                hashed_api_key: "hashed_key1".to_string().into(),
+                prefix: "abc".into(),
+                created_at: datetime!(2023-02-01 0:00),
+                expires_at: Some(datetime!(2023-03-01 0:00)),
+                last_used: None,
+            })
+            .await
+            .unwrap();
+
+        mockdb
+            .insert_api_key(storage::ApiKeyNew {
+                key_id: "key_id2".into(),
+                merchant_id: "merchant1".into(),
+                name: "Key 2".into(),
+                description: None,
+                hashed_api_key: "hashed_key2".to_string().into(),
+                prefix: "abc".into(),
+                created_at: datetime!(2023-03-01 0:00),
+                expires_at: None,
+                last_used: None,
+            })
+            .await
+            .unwrap();
+
+        let found_key1 = mockdb
+            .find_api_key_by_merchant_id_key_id_optional("merchant1", "key_id1")
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(found_key1.key_id, key1.key_id);
+        assert!(mockdb
+            .find_api_key_by_merchant_id_key_id_optional("merchant1", "does_not_exist")
+            .await
+            .unwrap()
+            .is_none());
+
+        mockdb
+            .update_api_key(
+                "merchant1".into(),
+                "key_id1".into(),
+                storage::ApiKeyUpdate::LastUsedUpdate {
+                    last_used: datetime!(2023-02-04 1:11),
+                },
+            )
+            .await
+            .unwrap();
+        let updated_key1 = mockdb
+            .find_api_key_by_merchant_id_key_id_optional("merchant1", "key_id1")
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(updated_key1.last_used, Some(datetime!(2023-02-04 1:11)));
+
+        assert_eq!(
+            mockdb
+                .list_api_keys_by_merchant_id("merchant1", None, None)
+                .await
+                .unwrap()
+                .len(),
+            2
+        );
+        mockdb.revoke_api_key("merchant1", "key_id1").await.unwrap();
+        assert_eq!(
+            mockdb
+                .list_api_keys_by_merchant_id("merchant1", None, None)
+                .await
+                .unwrap()
+                .len(),
+            1
+        );
+    }
+}
