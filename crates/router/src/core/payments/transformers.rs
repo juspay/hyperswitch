@@ -113,6 +113,7 @@ where
         reference_id: None,
         payment_method_token: payment_data.pm_token,
         connector_customer: payment_data.connector_customer_id,
+        mandate_metadata: payment_data.mandate_metadata,
     };
 
     Ok(router_data)

@@ -60,7 +60,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             .get_payment_intent_id()
             .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
 
-        let (token, payment_method_type, setup_mandate) =
+        let (token, payment_method_type, setup_mandate, mandate_metadata) =
             helpers::get_token_pm_type_mandate_details(
                 state,
                 request,
@@ -225,6 +225,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 creds_identifier,
                 pm_token: None,
                 connector_customer_id: None,
+                mandate_metadata
             },
             Some(CustomerDetails {
                 customer_id: request.customer_id.clone(),

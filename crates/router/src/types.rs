@@ -175,7 +175,7 @@ pub struct RouterData<Flow, Request, Response> {
     pub session_token: Option<String>,
     pub reference_id: Option<String>,
     pub payment_method_token: Option<String>,
-
+    pub mandate_metadata: Option<pii::SecretSerdeValue>,
     /// Contains flow-specific data required to construct a request and send it to the connector.
     pub request: Request,
 
@@ -668,6 +668,7 @@ impl<F1, F2, T1, T2> From<(&&mut RouterData<F1, T1, PaymentsResponseData>, T2)>
             customer_id: data.customer_id.clone(),
             payment_method_token: None,
             connector_customer: data.connector_customer.clone(),
+            mandate_metadata: data.mandate_metadata.clone()
         }
     }
 }

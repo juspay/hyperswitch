@@ -1,8 +1,9 @@
 use std::borrow::Cow;
 
+use api_models::payments::{BankDebitData, PaymentMethodData};
 use common_utils::{
     ext_traits::{AsyncExt, ByteSliceExt, ValueExt},
-    fp_utils,
+    fp_utils, pii,
 };
 // TODO : Evaluate all the helper functions ()
 use error_stack::{report, IntoReport, ResultExt};
@@ -112,6 +113,7 @@ pub async fn get_token_pm_type_mandate_details(
     Option<String>,
     Option<storage_enums::PaymentMethod>,
     Option<api::MandateData>,
+    Option<pii::SecretSerdeValue>
 )> {
     match mandate_type {
         Some(api::MandateTxnType::NewMandateTxn) => {
@@ -123,17 +125,19 @@ pub async fn get_token_pm_type_mandate_details(
                 request.payment_token.to_owned(),
                 request.payment_method.map(ForeignInto::foreign_into),
                 Some(setup_mandate),
+                None
             ))
         }
         Some(api::MandateTxnType::RecurringMandateTxn) => {
-            let (token_, payment_method_type_) =
+            let (token_, payment_method_type_, mandate_metadata) =
                 get_token_for_recurring_mandate(state, request, merchant_account).await?;
-            Ok((token_, payment_method_type_, None))
+            Ok((token_, payment_method_type_, None,mandate_metadata))
         }
         None => Ok((
             request.payment_token.to_owned(),
             request.payment_method.map(ForeignInto::foreign_into),
             request.mandate_data.clone(),
+            None
         )),
     }
 }
@@ -142,7 +146,7 @@ pub async fn get_token_for_recurring_mandate(
     state: &AppState,
     req: &api::PaymentsRequest,
     merchant_account: &storage::MerchantAccount,
-) -> RouterResult<(Option<String>, Option<storage_enums::PaymentMethod>)> {
+) -> RouterResult<(Option<String>, Option<storage_enums::PaymentMethod>, Option<pii::SecretSerdeValue>)> {
     let db = &*state.store;
     let mandate_id = req.mandate_id.clone().get_required_value("mandate_id")?;
 
@@ -182,24 +186,28 @@ pub async fn get_token_for_recurring_mandate(
         .locker_id
         .to_owned()
         .get_required_value("locker_id")?;
-    if let storage_models::enums::PaymentMethod::Card = payment_method.payment_method {
-        let _ =
+    match payment_method.payment_method{
+        storage_enums::PaymentMethod::Card => {
+            let _ =
             cards::get_lookup_key_from_locker(state, &token, &payment_method, &locker_id).await?;
-        if let Some(payment_method_from_request) = req.payment_method {
-            let pm: storage_enums::PaymentMethod = payment_method_from_request.foreign_into();
-            if pm != payment_method.payment_method {
-                Err(report!(errors::ApiErrorResponse::PreconditionFailed {
-                    message:
-                        "payment method in request does not match previously provided payment \
-                                  method information"
-                            .into()
-                }))?
-            }
-        };
+            if let Some(payment_method_from_request) = req.payment_method {
+                let pm: storage_enums::PaymentMethod = payment_method_from_request.foreign_into();
+                if pm != payment_method.payment_method {
+                    Err(report!(errors::ApiErrorResponse::PreconditionFailed {
+                        message:
+                            "payment method in request does not match previously provided payment \
+                                    method information"
+                                .into()
+                    }))?
+                }
+            };
 
-        Ok((Some(token), Some(payment_method.payment_method)))
-    } else {
-        Ok((None, Some(payment_method.payment_method)))
+            Ok((Some(token), Some(payment_method.payment_method), None))
+        },
+        storage_enums::PaymentMethod::BankDebit => {
+            Ok((None,Some(payment_method.payment_method), mandate.metadata))
+        },
+        _ => Ok((None, Some(payment_method.payment_method),None))
     }
 }
 
@@ -1645,5 +1653,6 @@ pub fn router_data_type_conversion<F1, F2, Req1, Req2, Res1, Res2>(
         payment_method_token: router_data.payment_method_token,
         customer_id: router_data.customer_id,
         connector_customer: router_data.connector_customer,
+        mandate_metadata: router_data.mandate_metadata
     }
 }
