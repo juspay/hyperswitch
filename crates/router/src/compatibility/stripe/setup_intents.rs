@@ -1,6 +1,6 @@
 pub mod types;
 
-use actix_web::{get, post, web, HttpRequest, HttpResponse};
+use actix_web::{web, HttpRequest, HttpResponse};
 use api_models::payments as payment_types;
 use error_stack::report;
 use router_env::{instrument, tracing};
@@ -13,7 +13,6 @@ use crate::{
     types::api as api_types,
 };
 
-#[post("")]
 #[instrument(skip_all)]
 pub async fn setup_intents_create(
     state: web::Data<routes::AppState>,
@@ -29,7 +28,11 @@ pub async fn setup_intents_create(
         }
     };
 
-    let create_payment_req: payment_types::PaymentsRequest = payload.into();
+    let create_payment_req: payment_types::PaymentsRequest =
+        match payment_types::PaymentsRequest::try_from(payload) {
+            Ok(req) => req,
+            Err(err) => return api::log_and_return_error_response(err),
+        };
 
     wrap::compatibility_api_wrap::<
         _,
@@ -60,7 +63,6 @@ pub async fn setup_intents_create(
 }
 
 #[instrument(skip_all)]
-#[get("/{setup_id}")]
 pub async fn setup_intents_retrieve(
     state: web::Data<routes::AppState>,
     req: HttpRequest,
@@ -109,7 +111,6 @@ pub async fn setup_intents_retrieve(
 }
 
 #[instrument(skip_all)]
-#[post("/{setup_id}")]
 pub async fn setup_intents_update(
     state: web::Data<routes::AppState>,
     qs_config: web::Data<serde_qs::Config>,
@@ -127,7 +128,11 @@ pub async fn setup_intents_update(
         }
     };
 
-    let mut payload: payment_types::PaymentsRequest = stripe_payload.into();
+    let mut payload: payment_types::PaymentsRequest =
+        match payment_types::PaymentsRequest::try_from(stripe_payload) {
+            Ok(req) => req,
+            Err(err) => return api::log_and_return_error_response(err),
+        };
     payload.payment_id = Some(api_types::PaymentIdType::PaymentIntentId(setup_id));
 
     let (auth_type, auth_flow) =
@@ -165,7 +170,6 @@ pub async fn setup_intents_update(
 }
 
 #[instrument(skip_all)]
-#[post("/{setup_id}/confirm")]
 pub async fn setup_intents_confirm(
     state: web::Data<routes::AppState>,
     qs_config: web::Data<serde_qs::Config>,
@@ -183,7 +187,11 @@ pub async fn setup_intents_confirm(
         }
     };
 
-    let mut payload: payment_types::PaymentsRequest = stripe_payload.into();
+    let mut payload: payment_types::PaymentsRequest =
+        match payment_types::PaymentsRequest::try_from(stripe_payload) {
+            Ok(req) => req,
+            Err(err) => return api::log_and_return_error_response(err),
+        };
     payload.payment_id = Some(api_types::PaymentIdType::PaymentIntentId(setup_id));
     payload.confirm = Some(true);
 

@@ -1,4 +1,7 @@
+use std::str::FromStr;
+
 use api_models::payments::{Address, AddressDetails};
+use cards::CardNumber;
 use masking::Secret;
 use router::{
     core::errors,
@@ -41,7 +44,7 @@ impl PayeezyTest {
     fn get_payment_data() -> Option<PaymentsAuthorizeData> {
         Some(PaymentsAuthorizeData {
             payment_method_data: types::api::PaymentMethodData::Card(api::Card {
-                card_number: Secret::new(String::from("4012000033330026")),
+                card_number: CardNumber::from_str("4012000033330026").unwrap(),
                 ..utils::CCardType::default().0
             }),
             ..utils::PaymentAuthorizeType::default().0
@@ -364,7 +367,7 @@ async fn should_sync_refund() {}
 async fn should_throw_not_implemented_for_unsupported_issuer() {
     let authorize_data = Some(PaymentsAuthorizeData {
         payment_method_data: types::api::PaymentMethodData::Card(api::Card {
-            card_number: Secret::new(String::from("630495060000000000")),
+            card_number: CardNumber::from_str("630495060000000000").unwrap(),
             ..utils::CCardType::default().0
         }),
         capture_method: Some(enums::CaptureMethod::Automatic),
@@ -376,31 +379,10 @@ async fn should_throw_not_implemented_for_unsupported_issuer() {
     assert_eq!(
         *response.unwrap_err().current_context(),
         errors::ConnectorError::NotSupported {
-            payment_method: "card".to_string(),
+            message: "card".to_string(),
             connector: "Payeezy",
             payment_experience: "RedirectToUrl".to_string(),
         }
-    )
-}
-
-// Creates a payment with empty card number.
-#[actix_web::test]
-async fn should_fail_payment_for_empty_card_number() {
-    let response = CONNECTOR
-        .make_payment(
-            Some(PaymentsAuthorizeData {
-                payment_method_data: types::api::PaymentMethodData::Card(api::Card {
-                    card_number: Secret::new(String::from("")),
-                    ..utils::CCardType::default().0
-                }),
-                ..utils::PaymentAuthorizeType::default().0
-            }),
-            None,
-        )
-        .await;
-    assert_eq!(
-        *response.unwrap_err().current_context(),
-        errors::ConnectorError::NotImplemented("Card Type".to_string())
     )
 }
 

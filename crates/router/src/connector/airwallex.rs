@@ -288,8 +288,10 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
                   + Sync
                   + 'static),
         > = Box::new(&Self);
-        let authorize_data =
-            &types::PaymentsInitRouterData::from((&router_data, router_data.request.clone()));
+        let authorize_data = &types::PaymentsInitRouterData::from((
+            &router_data.to_owned(),
+            router_data.request.clone(),
+        ));
         let resp = services::execute_connector_processing_step(
             app_state,
             integ,

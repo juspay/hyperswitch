@@ -253,9 +253,9 @@ pub enum ConnectorError {
     FailedToObtainCertificateKey,
     #[error("This step has not been implemented for: {0}")]
     NotImplemented(String),
-    #[error("{payment_method} is not supported by {connector}")]
+    #[error("{message} is not supported by {connector}")]
     NotSupported {
-        payment_method: String,
+        message: String,
         connector: &'static str,
         payment_experience: String,
     },
@@ -299,6 +299,8 @@ pub enum ConnectorError {
     MissingConnectorRelatedTransactionID { id: String },
     #[error("File Validation failed")]
     FileValidationFailed { reason: String },
+    #[error("Missing 3DS redirection payload: {field_name}")]
+    MissingConnectorRedirectionPayload { field_name: &'static str },
 }
 
 #[derive(Debug, thiserror::Error)]
