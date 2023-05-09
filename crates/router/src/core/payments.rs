@@ -1,7 +1,9 @@
 pub mod access_token;
+pub mod customers;
 pub mod flows;
 pub mod helpers;
 pub mod operations;
+pub mod tokenization;
 pub mod transformers;
 
 use std::{fmt::Debug, marker::PhantomData, time::Instant};
@@ -24,7 +26,7 @@ use self::{
     operations::{payment_complete_authorize, BoxedOperation, Operation},
 };
 use crate::{
-    connection,
+    configs::settings::PaymentMethodTypeTokenFilter,
     core::{
         errors::{self, CustomResult, RouterResponse, RouterResult},
         payment_methods::vault,
@@ -118,9 +120,16 @@ where
         get_connector_tokenization_action(state, &operation, payment_data, &validate_result)
             .await?;
 
+    let connector_string = connector
+        .as_ref()
+        .and_then(|connector_type| match connector_type {
+            api::ConnectorCallType::Single(connector) => Some(connector.connector_name.to_string()),
+            _ => None,
+        });
+
     let updated_customer = call_create_connector_customer(
         state,
-        &payment_data.payment_attempt.connector.clone(),
+        &connector_string,
         &customer,
         &merchant_account,
         &mut payment_data,
@@ -648,12 +657,36 @@ fn is_payment_method_tokenization_enabled_for_connector(
     state: &AppState,
     connector_name: &str,
     payment_method: &storage::enums::PaymentMethod,
+    payment_method_type: &Option<storage::enums::PaymentMethodType>,
 ) -> RouterResult<bool> {
     let connector_tokenization_filter = state.conf.tokenization.0.get(connector_name);
 
     Ok(connector_tokenization_filter
-        .map(|connector_filter| connector_filter.payment_method.contains(payment_method))
+        .map(|connector_filter| {
+            connector_filter
+                .payment_method
+                .clone()
+                .contains(payment_method)
+                && is_payment_method_type_allowed_for_connector(
+                    payment_method_type,
+                    connector_filter.payment_method_type.clone(),
+                )
+        })
         .unwrap_or(false))
+}
+
+fn is_payment_method_type_allowed_for_connector(
+    current_pm_type: &Option<storage::enums::PaymentMethodType>,
+    pm_type_filter: Option<PaymentMethodTypeTokenFilter>,
+) -> bool {
+    match current_pm_type.clone().zip(pm_type_filter) {
+        Some((pm_type, type_filter)) => match type_filter {
+            PaymentMethodTypeTokenFilter::AllAccepted => true,
+            PaymentMethodTypeTokenFilter::EnableOnly(enabled) => enabled.contains(&pm_type),
+            PaymentMethodTypeTokenFilter::DisableOnly(disabled) => !disabled.contains(&pm_type),
+        },
+        None => true, // Allow all types if payment_method_type is not present
+    }
 }
 
 async fn decide_payment_method_tokenize_action(
@@ -672,7 +705,7 @@ async fn decide_payment_method_tokenize_action(
             }
         }
         Some(token) => {
-            let redis_conn = connection::redis_connection(&state.conf).await;
+            let redis_conn = state.store.get_redis_conn();
             let key = format!(
                 "pm_token_{}_{}_{}",
                 token.to_owned(),
@@ -722,17 +755,22 @@ where
     let connector = payment_data.payment_attempt.connector.to_owned();
 
     let payment_data_and_tokenization_action = match connector {
+        Some(_) if payment_data.mandate_id.is_some() => {
+            (payment_data, TokenizationAction::SkipConnectorTokenization)
+        }
         Some(connector) if is_operation_confirm(&operation) => {
             let payment_method = &payment_data
                 .payment_attempt
                 .payment_method
                 .get_required_value("payment_method")?;
+            let payment_method_type = &payment_data.payment_attempt.payment_method_type;
 
             let is_connector_tokenization_enabled =
                 is_payment_method_tokenization_enabled_for_connector(
                     state,
                     &connector,
                     payment_method,
+                    payment_method_type,
                 )?;
 
             let payment_method_action = decide_payment_method_tokenize_action(
@@ -1033,8 +1071,13 @@ where
 
     let connector = if should_call_connector(operation, payment_data) {
         Some(match connector_choice {
-            api::ConnectorChoice::SessionMultiple(connectors) => {
-                api::ConnectorCallType::Multiple(connectors)
+            api::ConnectorChoice::SessionMultiple(session_connectors) => {
+                api::ConnectorCallType::Multiple(
+                    session_connectors
+                        .into_iter()
+                        .map(|c| c.connector)
+                        .collect(),
+                )
             }
 
             api::ConnectorChoice::StraightThrough(straight_through) => connector_selection(
@@ -1160,11 +1203,15 @@ pub fn decide_connector(
         return Ok(api::ConnectorCallType::Single(connector_data));
     }
 
-    let routing_algorithm: api::RoutingAlgorithm = merchant_account
+    let routing_algorithm = merchant_account
         .routing_algorithm
         .clone()
-        .parse_value("RoutingAlgorithm")
-        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .get_required_value("RoutingAlgorithm")
+        .change_context(errors::ApiErrorResponse::PreconditionFailed {
+            message: "no routing algorithm has been configured".to_string(),
+        })?
+        .parse_value::<api::RoutingAlgorithm>("RoutingAlgorithm")
+        .change_context(errors::ApiErrorResponse::InternalServerError) // Deserialization failed
         .attach_printable("Unable to deserialize merchant routing algorithm")?;
 
     let connector_name = match routing_algorithm {
