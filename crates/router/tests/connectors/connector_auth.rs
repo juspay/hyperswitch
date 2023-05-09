@@ -15,8 +15,10 @@ pub(crate) struct ConnectorAuthentication {
     pub coinbase: Option<HeaderKey>,
     pub cybersource: Option<SignatureKey>,
     pub dlocal: Option<SignatureKey>,
+    #[cfg(feature = "dummy_connector")]
+    pub dummyconnector: Option<HeaderKey>,
     pub fiserv: Option<SignatureKey>,
-    pub forte: Option<HeaderKey>,
+    pub forte: Option<MultiAuthKey>,
     pub globalpay: Option<BodyKey>,
     pub mollie: Option<HeaderKey>,
     pub multisafepay: Option<HeaderKey>,
@@ -88,6 +90,25 @@ impl From<SignatureKey> for ConnectorAuthType {
             api_key: key.api_key,
             key1: key.key1,
             api_secret: key.api_secret,
+        }
+    }
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub(crate) struct MultiAuthKey {
+    pub api_key: String,
+    pub key1: String,
+    pub api_secret: String,
+    pub key2: String,
+}
+
+impl From<MultiAuthKey> for ConnectorAuthType {
+    fn from(key: MultiAuthKey) -> Self {
+        Self::MultiAuthKey {
+            api_key: key.api_key,
+            key1: key.key1,
+            api_secret: key.api_secret,
+            key2: key.key2,
         }
     }
 }

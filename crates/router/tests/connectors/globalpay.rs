@@ -1,10 +1,12 @@
+use std::str::FromStr;
+
 use masking::Secret;
 use router::types::{self, api, storage::enums, AccessToken, ConnectorAuthType};
 use serde_json::json;
 
 use crate::{
     connector_auth,
-    utils::{self, get_connector_metadata, Connector, ConnectorActions, PaymentInfo},
+    utils::{self, Connector, ConnectorActions, PaymentInfo},
 };
 
 struct Globalpay;
@@ -34,9 +36,6 @@ impl Connector for Globalpay {
 
     fn get_connector_meta(&self) -> Option<serde_json::Value> {
         Some(json!({"account_name": "transaction_processing"}))
-    }
-    fn get_request_interval(&self) -> u64 {
-        5
     }
 }
 
@@ -135,7 +134,7 @@ async fn should_fail_payment_for_incorrect_cvc() {
         .make_payment(
             Some(types::PaymentsAuthorizeData {
                 payment_method_data: types::api::PaymentMethodData::Card(api::Card {
-                    card_number: Secret::new("4024007134364842".to_string()),
+                    card_number: cards::CardNumber::from_str("4024007134364842").unwrap(),
                     ..utils::CCardType::default().0
                 }),
                 ..utils::PaymentAuthorizeType::default().0
@@ -257,7 +256,6 @@ async fn should_partially_refund_succeeded_payment() {
 }
 
 // Synchronizes a refund using the manual capture flow (Non 3DS).
-// #[serial_test::serial]
 #[actix_web::test]
 async fn should_sync_manually_captured_refund() {
     let refund_response = CONNECTOR
@@ -388,7 +386,7 @@ async fn should_fail_payment_for_empty_card_number() {
         .make_payment(
             Some(types::PaymentsAuthorizeData {
                 payment_method_data: types::api::PaymentMethodData::Card(api::Card {
-                    card_number: Secret::new(String::from("")),
+                    card_number: cards::CardNumber::from_str("4024007134364842").unwrap(),
                     ..utils::CCardType::default().0
                 }),
                 ..utils::PaymentAuthorizeType::default().0
@@ -406,14 +404,13 @@ async fn should_fail_payment_for_empty_card_number() {
 
 // Cards Negative scenerios
 // Creates a payment with incorrect card number.
-#[serial_test::serial]
 #[actix_web::test]
 async fn should_fail_payment_for_incorrect_card_number() {
     let response = CONNECTOR
         .make_payment(
             Some(types::PaymentsAuthorizeData {
                 payment_method_data: types::api::PaymentMethodData::Card(api::Card {
-                    card_number: Secret::new("1234567891011".to_string()),
+                    card_number: cards::CardNumber::from_str("4024007134364842").unwrap(),
                     ..utils::CCardType::default().0
                 }),
                 ..utils::PaymentAuthorizeType::default().0

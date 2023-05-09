@@ -1,4 +1,3 @@
-use common_utils::pii;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 #[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize)]
@@ -153,7 +152,7 @@ pub struct CardPayment {
     pub cvc: Option<Secret<String>>,
     #[serde(rename = "type")]
     pub payment_type: PaymentType,
-    pub card_number: Secret<String, pii::CardNumber>,
+    pub card_number: cards::CardNumber,
 }
 
 #[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize)]

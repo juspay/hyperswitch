@@ -5,11 +5,13 @@ edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [features]
+default = []
 errors = [
     "dep:actix-web",
     "dep:reqwest",
 ]
 multiple_mca = []
+dummy_connector = []
 
 [dependencies]
 actix-web = { version = "4.3.1", optional = true }
@@ -31,3 +33,4 @@ common_utils = { version = "0.1.0", path = "../common_utils" }
 masking = { version = "0.1.0", path = "../masking" }
 router_derive = { version = "0.1.0", path = "../router_derive" }
 common_enums = {path = "../common_enums"}
+cards = { version = "0.1.0", path = "../cards" }
