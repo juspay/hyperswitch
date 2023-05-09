@@ -229,7 +229,7 @@ stripe = { long_lived_token = false, payment_method = "wallet", payment_method_t
 checkout = { long_lived_token = false, payment_method = "wallet"}
 
 [connector_customer]
-connector_list = "bluesnap, stripe"
+connector_list = "bluesnap,stripe"
 
 [dummy_connector]
 payment_ttl = 172800
