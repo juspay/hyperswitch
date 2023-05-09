@@ -1,5 +1,6 @@
 use masking::Secret;
 use serde::{Deserialize, Serialize};
+use storage_models::enums::Currency;
 
 use crate::{
     connector::utils::PaymentsAuthorizeRequestData,
@@ -11,6 +12,7 @@ use crate::{
 #[derive(Debug, Serialize, Eq, PartialEq)]
 pub struct DummyConnectorPaymentsRequest {
     amount: i64,
+    currency: Currency,
     payment_method_data: Dummyconnector1PaymentMethodData,
 }
 
@@ -44,6 +46,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for DummyConnectorPaymentsRequ
                 };
                 Ok(Self {
                     amount: item.request.amount,
+                    currency: item.request.currency,
                     payment_method_data: Dummyconnector1PaymentMethodData::Card(card),
                 })
             }
@@ -92,26 +95,25 @@ impl From<DummyConnectorPaymentStatus> for enums::AttemptStatus {
 
 //TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct DummyConnectorPaymentsResponse {
+pub struct DummyConnectorPaymentResponse {
     status: DummyConnectorPaymentStatus,
     id: String,
+    amount: i64,
+    currency: Currency,
+    created: String,
+    payment_method_type: String,
 }
 
 impl<F, T>
     TryFrom<
-        types::ResponseRouterData<
-            F,
-            DummyConnectorPaymentsResponse,
-            T,
-            types::PaymentsResponseData,
-        >,
+        types::ResponseRouterData<F, DummyConnectorPaymentResponse, T, types::PaymentsResponseData>,
     > for types::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         item: types::ResponseRouterData<
             F,
-            DummyConnectorPaymentsResponse,
+            DummyConnectorPaymentResponse,
             T,
             types::PaymentsResponseData,
         >,
@@ -175,6 +177,10 @@ impl From<RefundStatus> for enums::RefundStatus {
 pub struct RefundResponse {
     id: String,
     status: RefundStatus,
+    currency: Currency,
+    created: String,
+    payment_amount: i64,
+    refund_amount: i64,
 }
 
 impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
