@@ -39,23 +39,7 @@ pub struct DisputeEvidence {
 #[derive(Debug, Clone)]
 pub struct AttachEvidenceRequest {
     pub create_file_request: types::api::CreateFileRequest,
-    pub evidence_type: EvidenceType,
-}
-
-#[derive(Debug, serde::Deserialize, strum::Display, Clone)]
-#[serde(rename_all = "snake_case")]
-#[strum(serialize_all = "snake_case")]
-pub enum EvidenceType {
-    CancellationPolicy,
-    CustomerCommunication,
-    CustomerSignature,
-    Receipt,
-    RefundPolicy,
-    ServiceDocumentation,
-    ShippingDocumentation,
-    InvoiceShowingDistinctTransactions,
-    RecurringTransactionAgreement,
-    UncategorizedFile,
+    pub evidence_type: api_models::disputes::EvidenceType,
 }
 
 #[derive(Debug, Clone)]

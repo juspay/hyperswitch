@@ -10,23 +10,29 @@ use crate::{
     utils::OptionExt,
 };
 
-pub async fn parse_evidence_type(field: &mut Field) -> Option<disputes::EvidenceType> {
+pub async fn parse_evidence_type(field: &mut Field) -> Option<api_models::disputes::EvidenceType> {
     let purpose = helpers::read_string(field).await;
     match purpose.as_deref() {
-        Some("cancellation_policy") => Some(disputes::EvidenceType::CancellationPolicy),
-        Some("customer_communication") => Some(disputes::EvidenceType::CustomerCommunication),
-        Some("customer_signature") => Some(disputes::EvidenceType::CustomerSignature),
-        Some("receipt") => Some(disputes::EvidenceType::Receipt),
-        Some("refund_policy") => Some(disputes::EvidenceType::RefundPolicy),
-        Some("service_documentation") => Some(disputes::EvidenceType::ServiceDocumentation),
-        Some("shipping_documentation") => Some(disputes::EvidenceType::ShippingDocumentation),
+        Some("cancellation_policy") => Some(api_models::disputes::EvidenceType::CancellationPolicy),
+        Some("customer_communication") => {
+            Some(api_models::disputes::EvidenceType::CustomerCommunication)
+        }
+        Some("customer_signature") => Some(api_models::disputes::EvidenceType::CustomerSignature),
+        Some("receipt") => Some(api_models::disputes::EvidenceType::Receipt),
+        Some("refund_policy") => Some(api_models::disputes::EvidenceType::RefundPolicy),
+        Some("service_documentation") => {
+            Some(api_models::disputes::EvidenceType::ServiceDocumentation)
+        }
+        Some("shipping_documentation") => {
+            Some(api_models::disputes::EvidenceType::ShippingDocumentation)
+        }
         Some("invoice_showing_distinct_transactions") => {
-            Some(disputes::EvidenceType::InvoiceShowingDistinctTransactions)
+            Some(api_models::disputes::EvidenceType::InvoiceShowingDistinctTransactions)
         }
         Some("recurring_transaction_agreement") => {
-            Some(disputes::EvidenceType::RecurringTransactionAgreement)
+            Some(api_models::disputes::EvidenceType::RecurringTransactionAgreement)
         }
-        Some("uncategorized_file") => Some(disputes::EvidenceType::UncategorizedFile),
+        Some("uncategorized_file") => Some(api_models::disputes::EvidenceType::UncategorizedFile),
         _ => None,
     }
 }
@@ -34,7 +40,7 @@ pub async fn parse_evidence_type(field: &mut Field) -> Option<disputes::Evidence
 pub async fn get_attach_evidence_request(
     mut payload: Multipart,
 ) -> CustomResult<disputes::AttachEvidenceRequest, errors::ApiErrorResponse> {
-    let mut option_evidence_type: Option<disputes::EvidenceType> = None;
+    let mut option_evidence_type: Option<api_models::disputes::EvidenceType> = None;
     let mut dispute_id: Option<String> = None;
 
     let mut file_name: Option<String> = None;

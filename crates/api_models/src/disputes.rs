@@ -3,6 +3,7 @@ use time::PrimitiveDateTime;
 use utoipa::ToSchema;
 
 use super::enums::{DisputeStage, DisputeStatus};
+use crate::files;
 
 #[derive(Default, Clone, Debug, Serialize, ToSchema)]
 pub struct DisputeResponse {
@@ -41,6 +42,30 @@ pub struct DisputeResponse {
     pub updated_at: Option<PrimitiveDateTime>,
     /// Time at which dispute is received
     pub received_at: String,
+}
+
+#[derive(Debug, Serialize, strum::Display, Clone)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum EvidenceType {
+    CancellationPolicy,
+    CustomerCommunication,
+    CustomerSignature,
+    Receipt,
+    RefundPolicy,
+    ServiceDocumentation,
+    ShippingDocumentation,
+    InvoiceShowingDistinctTransactions,
+    RecurringTransactionAgreement,
+    UncategorizedFile,
+}
+
+#[derive(Clone, Debug, Serialize, ToSchema)]
+pub struct DisputeEvidenceBlock {
+    /// Evidence type
+    pub evidence_type: EvidenceType,
+    /// File metadata
+    pub file_metadata_response: files::FileMetadataResponse,
 }
 
 #[derive(Clone, Debug, Deserialize, ToSchema)]
