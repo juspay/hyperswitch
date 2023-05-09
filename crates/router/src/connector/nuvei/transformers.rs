@@ -566,59 +566,28 @@ fn get_pay_later_info<F>(
     payment_method_type: AlternativePaymentMethodType,
     item: &types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
 ) -> Result<NuveiPaymentsRequest, error_stack::Report<errors::ConnectorError>> {
-    match payment_method_type {
-        AlternativePaymentMethodType::AfterPay => {
-            let address = item
-                .get_billing()?
-                .address
-                .as_ref()
-                .ok_or_else(utils::missing_field_err("billing.address"))?;
-            Ok(NuveiPaymentsRequest {
-                payment_option: PaymentOption {
-                    alternative_payment_method: Some(AlternativePaymentMethod {
-                        payment_method: AlternativePaymentMethodType::AfterPay,
-                        ..Default::default()
-                    }),
-                    billing_address: Some(BillingAddress {
-                        email: item.request.get_email()?,
-                        first_name: Some(address.get_first_name()?.to_owned()),
-                        last_name: Some(address.get_last_name()?.to_owned()),
-                        country: address.get_country()?.to_owned(),
-                    }),
-                    ..Default::default()
-                },
+    let address = item
+        .get_billing()?
+        .address
+        .as_ref()
+        .ok_or_else(utils::missing_field_err("billing.address"))?;
+    let payment_method = payment_method_type;
+    Ok(NuveiPaymentsRequest {
+        payment_option: PaymentOption {
+            alternative_payment_method: Some(AlternativePaymentMethod {
+                payment_method,
                 ..Default::default()
-            })
-        }
-        AlternativePaymentMethodType::Klarna => {
-            let address = item
-                .get_billing()?
-                .address
-                .as_ref()
-                .ok_or_else(utils::missing_field_err("billing.address"))?;
-            Ok(NuveiPaymentsRequest {
-                payment_option: PaymentOption {
-                    alternative_payment_method: Some(AlternativePaymentMethod {
-                        payment_method: AlternativePaymentMethodType::Klarna,
-                        ..Default::default()
-                    }),
-                    billing_address: Some(BillingAddress {
-                        email: item.request.get_email()?,
-                        first_name: Some(address.get_first_name()?.to_owned()),
-                        last_name: Some(address.get_last_name()?.to_owned()),
-                        country: address.get_country()?.to_owned(),
-                    }),
-                    ..Default::default()
-                },
-                ..Default::default()
-            })
-        }
-        _ => Err(errors::ConnectorError::NotSupported {
-            message: "Buy Now Pay Later".to_string(),
-            connector: "Nuvei",
-            payment_experience: "Redirection".to_string(),
-        })?,
-    }
+            }),
+            billing_address: Some(BillingAddress {
+                email: item.request.get_email()?,
+                first_name: Some(address.get_first_name()?.to_owned()),
+                last_name: Some(address.get_last_name()?.to_owned()),
+                country: address.get_country()?.to_owned(),
+            }),
+            ..Default::default()
+        },
+        ..Default::default()
+    })
 }
 
 impl<F>
