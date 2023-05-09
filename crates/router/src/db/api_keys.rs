@@ -131,7 +131,7 @@ impl ApiKeyInterface for MockDb {
         let mut locked_api_keys = self.api_keys.lock().await;
         // don't allow duplicate key_ids, a those would be a unique constraint violation in the
         // real db as it is used as the primary key
-        if locked_api_keys.iter().any(|k| &k.key_id == &api_key.key_id) {
+        if locked_api_keys.iter().any(|k| k.key_id == api_key.key_id) {
             Err(errors::StorageError::MockDbError)?;
         }
         let stored_key = storage::ApiKey {
@@ -160,7 +160,7 @@ impl ApiKeyInterface for MockDb {
         // find a key with the given merchant_id and key_id and update, otherwise return an error
         let mut key_to_update = locked_api_keys
             .iter_mut()
-            .find(|k| &k.merchant_id == &merchant_id && &k.key_id == &key_id)
+            .find(|k| k.merchant_id == merchant_id && k.key_id == key_id)
             .ok_or(errors::StorageError::MockDbError)?;
 
         match api_key {
@@ -235,10 +235,11 @@ impl ApiKeyInterface for MockDb {
             .lock()
             .await
             .iter()
-            .find(|k| &k.hashed_api_key == &hashed_api_key)
+            .find(|k| k.hashed_api_key == hashed_api_key)
             .cloned())
     }
 
+    #[allow(clippy::unwrap_used)]
     async fn list_api_keys_by_merchant_id(
         &self,
         merchant_id: &str,
