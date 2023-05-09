@@ -3,7 +3,7 @@ pub mod diesel_exports {
     pub use super::{
         DbAttemptStatus as AttemptStatus, DbAuthenticationType as AuthenticationType,
         DbCaptureMethod as CaptureMethod, DbConnectorType as ConnectorType,
-        DbCountryCode as CountryCode, DbCurrency as Currency, DbDisputeStage as DisputeStage,
+        DbCountryAlpha2 as CountryAlpha2, DbCurrency as Currency, DbDisputeStage as DisputeStage,
         DbDisputeStatus as DisputeStatus, DbEventClass as EventClass,
         DbEventObjectType as EventObjectType, DbEventType as EventType,
         DbFutureUsage as FutureUsage, DbIntentStatus as IntentStatus,
@@ -817,4 +817,5 @@ pub enum FileUploadProvider {
     #[default]
     Router,
     Stripe,
+    Checkout,
 }

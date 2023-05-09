@@ -1,3 +1,4 @@
+use common_utils::ext_traits::Encode;
 use error_stack::{report, ResultExt};
 use router_env::{instrument, logger, tracing};
 use storage_models::enums as storage_enums;
@@ -149,13 +150,22 @@ where
         None => {
             if resp.request.get_setup_mandate_details().is_some() {
                 resp.payment_method_id = pm_id.clone();
-                let mandate_reference = match resp.response.as_ref().ok() {
+                let (mandate_reference, network_txn_id) = match resp.response.as_ref().ok() {
                     Some(types::PaymentsResponseData::TransactionResponse {
                         mandate_reference,
+                        network_txn_id,
                         ..
-                    }) => mandate_reference.clone(),
-                    _ => None,
+                    }) => (mandate_reference.clone(), network_txn_id.clone()),
+                    _ => (None, None),
                 };
+
+                let mandate_ids = mandate_reference
+                    .map(|md| {
+                        Encode::<types::MandateReference>::encode_to_value(&md)
+                            .change_context(errors::ApiErrorResponse::MandateNotFound)
+                            .map(masking::Secret::new)
+                    })
+                    .transpose()?;
 
                 if let Some(new_mandate_data) = helpers::generate_mandate(
                     resp.merchant_id.clone(),
@@ -163,15 +173,38 @@ where
                     resp.request.get_setup_mandate_details().map(Clone::clone),
                     maybe_customer,
                     pm_id.get_required_value("payment_method_id")?,
-                    mandate_reference,
+                    mandate_ids,
+                    network_txn_id,
                 ) {
                     let connector = new_mandate_data.connector.clone();
                     logger::debug!("{:?}", new_mandate_data);
                     resp.request
-                        .set_mandate_id(api_models::payments::MandateIds {
+                        .set_mandate_id(Some(api_models::payments::MandateIds {
                             mandate_id: new_mandate_data.mandate_id.clone(),
-                            connector_mandate_id: new_mandate_data.connector_mandate_id.clone(),
-                        });
+                            mandate_reference_id: new_mandate_data
+                                .connector_mandate_ids
+                                .clone()
+                            .map(|ids| {
+                                Some(ids)
+                                    .parse_value::<api_models::payments::ConnectorMandateReferenceId>(
+                                        "ConnectorMandateId",
+                                    )
+                                    .change_context(errors::ApiErrorResponse::MandateNotFound)
+                            })
+                            .transpose()?
+                            .map_or(
+                                new_mandate_data.network_transaction_id.clone().map(|id| {
+                                    api_models::payments::MandateReferenceId::NetworkMandateId(
+                                        id,
+                                    )
+                                }),
+                                |connector_id| Some(api_models::payments::MandateReferenceId::ConnectorMandateId(
+                                    api_models::payments::ConnectorMandateReferenceId {
+                                        connector_mandate_id: connector_id.connector_mandate_id,
+                                        payment_method_id: connector_id.payment_method_id,
+                                    }
+                                )))
+                        }));
                     state
                         .store
                         .insert_mandate(new_mandate_data)
@@ -194,7 +227,7 @@ pub trait MandateBehaviour {
     fn get_amount(&self) -> i64;
     fn get_setup_future_usage(&self) -> Option<storage_models::enums::FutureUsage>;
     fn get_mandate_id(&self) -> Option<&api_models::payments::MandateIds>;
-    fn set_mandate_id(&mut self, new_mandate_id: api_models::payments::MandateIds);
+    fn set_mandate_id(&mut self, new_mandate_id: Option<api_models::payments::MandateIds>);
     fn get_payment_method_data(&self) -> api_models::payments::PaymentMethodData;
     fn get_setup_mandate_details(&self) -> Option<&api_models::payments::MandateData>;
 }

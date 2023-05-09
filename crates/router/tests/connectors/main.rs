@@ -11,6 +11,8 @@ mod coinbase;
 mod connector_auth;
 mod cybersource;
 mod dlocal;
+#[cfg(feature = "dummy_connector")]
+mod dummyconnector;
 mod fiserv;
 mod forte;
 mod globalpay;
@@ -27,6 +29,7 @@ mod rapyd;
 mod selenium;
 mod shift4;
 mod stripe;
+mod stripe_ui;
 mod trustpay;
 mod utils;
 mod worldline;

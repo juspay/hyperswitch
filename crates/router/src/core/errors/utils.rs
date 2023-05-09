@@ -107,8 +107,8 @@ impl ConnectorErrorExt for error_stack::Report<errors::ConnectorError> {
                         "payment_method_data, payment_method_type and payment_experience does not match",
                 }
             },
-            errors::ConnectorError::NotSupported { payment_method, connector, payment_experience } => {
-                errors::ApiErrorResponse::NotSupported { message: format!("Payment method type {payment_method} is not supported by {connector} through payment experience {payment_experience}") }
+            errors::ConnectorError::NotSupported { message, connector, payment_experience } => {
+                errors::ApiErrorResponse::NotSupported { message: format!("{message} is not supported by {connector} through payment experience {payment_experience}") }
             },
             errors::ConnectorError::FlowNotSupported{ flow, connector } => {
                 errors::ApiErrorResponse::FlowNotSupported { flow: flow.to_owned(), connector: connector.to_owned() }
@@ -119,7 +119,8 @@ impl ConnectorErrorExt for error_stack::Report<errors::ConnectorError> {
     }
 
     fn to_verify_failed_response(self) -> error_stack::Report<errors::ApiErrorResponse> {
-        let data = match self.current_context() {
+        let error = self.current_context();
+        let data = match error {
             errors::ConnectorError::ProcessingStepFailed(Some(bytes)) => {
                 let response_str = std::str::from_utf8(bytes);
                 match response_str {
@@ -132,7 +133,10 @@ impl ConnectorErrorExt for error_stack::Report<errors::ConnectorError> {
                     }
                 }
             }
-            _ => None,
+            _ => {
+                logger::error!(%error,"Verify flow failed");
+                None
+            }
         };
         self.change_context(errors::ApiErrorResponse::PaymentAuthorizationFailed { data })
     }

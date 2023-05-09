@@ -1,5 +1,6 @@
 use std::net::IpAddr;
 
+use common_utils::pii::Email;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 
@@ -56,7 +57,7 @@ pub enum ZenPaymentChannels {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ZenCustomerDetails {
-    email: Secret<String, pii::Email>,
+    email: Email,
     ip: IpAddr,
 }
 
@@ -304,6 +305,7 @@ impl<F, T>
                 redirection_data,
                 mandate_reference: None,
                 connector_metadata: None,
+                network_txn_id: None,
             }),
             ..item.data
         })
