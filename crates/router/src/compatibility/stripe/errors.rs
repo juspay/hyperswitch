@@ -103,6 +103,9 @@ pub enum StripeErrorCode {
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "resource_missing", message = "No such API key")]
     ApiKeyNotFound,
 
+    #[error(error_type = StripeErrorType::InvalidRequestError, code = "resource_missing", message = "No such payout")]
+    PayoutNotFound,
+
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "parameter_missing", message = "Return url is not available")]
     ReturnUrlUnavailable,
 
@@ -464,6 +467,7 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
             }
             errors::ApiErrorResponse::MandateNotFound => Self::MandateNotFound,
             errors::ApiErrorResponse::ApiKeyNotFound => Self::ApiKeyNotFound,
+            errors::ApiErrorResponse::PayoutNotFound => Self::PayoutNotFound,
             errors::ApiErrorResponse::MandateValidationFailed { reason } => {
                 Self::PaymentIntentMandateInvalid { message: reason }
             }
@@ -568,6 +572,7 @@ impl actix_web::ResponseError for StripeErrorCode {
             | Self::MerchantConnectorAccountDisabled
             | Self::MandateNotFound
             | Self::ApiKeyNotFound
+            | Self::PayoutNotFound
             | Self::DuplicateMerchantAccount
             | Self::DuplicateMerchantConnectorAccount { .. }
             | Self::DuplicatePaymentMethod

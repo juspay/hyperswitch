@@ -156,6 +156,8 @@ pub enum ApiErrorResponse {
     MandateUpdateFailed,
     #[error(error_type = ErrorType::ObjectNotFound, code = "HE_02", message = "API Key does not exist in our records")]
     ApiKeyNotFound,
+    #[error(error_type = ErrorType::ObjectNotFound, code = "HE_02", message = "Payout does not exist in our records")]
+    PayoutNotFound,
     #[error(error_type = ErrorType::ValidationError, code = "HE_03", message = "Invalid mandate id passed from connector")]
     MandateSerializationFailed,
     #[error(error_type = ErrorType::ValidationError, code = "HE_03", message = "Unable to parse the mandate identifier passed from connector")]
@@ -445,6 +447,9 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
             },
             Self::ApiKeyNotFound => {
                 AER::NotFound(ApiError::new("HE", 2, "API Key does not exist in our records", None))
+            }
+            Self::PayoutNotFound => {
+                AER::NotFound(ApiError::new("HE", 2, "Payout does not exist in our records", None))
             }
             Self::NotSupported { message } => {
                 AER::BadRequest(ApiError::new("HE", 3, "Payment method type not supported", Some(Extra {reason: Some(message.to_owned()), ..Default::default()})))
