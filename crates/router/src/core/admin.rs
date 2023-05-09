@@ -471,7 +471,7 @@ pub async fn list_payment_connectors(
     let merchant_connector_accounts = store
         .find_merchant_connector_account_by_merchant_id_and_disabled_list(&merchant_id, true)
         .await
-        .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound)?;
+        .to_not_found_response(errors::ApiErrorResponse::InternalServerError)?;
     let mut response = vec![];
 
     // The can be eliminated once [#79711](https://github.com/rust-lang/rust/issues/79711) is stabilized
