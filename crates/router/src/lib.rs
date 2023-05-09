@@ -67,7 +67,6 @@ pub mod headers {
 pub mod pii {
     //! Personal Identifiable Information protection.
 
-    pub(crate) use cards::CardNumber;
     pub(crate) use common_utils::pii::Email;
     #[doc(inline)]
     pub use masking::*;

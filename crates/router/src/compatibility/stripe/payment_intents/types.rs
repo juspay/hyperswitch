@@ -39,7 +39,7 @@ impl From<StripeBillingDetails> for payments::Address {
 
 #[derive(Default, Serialize, PartialEq, Eq, Deserialize, Clone)]
 pub struct StripeCard {
-    pub number: pii::CardNumber,
+    pub number: cards::CardNumber,
     pub exp_month: pii::Secret<String>,
     pub exp_year: pii::Secret<String>,
     pub cvc: pii::Secret<String>,
