@@ -56,7 +56,7 @@ impl PubSubInterface for redis_interface::RedisConnectionPool {
         key: CacheKind<'a>,
     ) -> errors::CustomResult<usize, redis_errors::RedisError> {
         self.publisher
-            .publish(channel,redis_interface::RedisValue::from(key))
+            .publish(channel, redis_interface::RedisValue::from(key))
             .await
             .into_report()
             .change_context(redis_errors::RedisError::SubscribeError)
