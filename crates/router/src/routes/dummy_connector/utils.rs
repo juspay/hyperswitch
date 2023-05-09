@@ -1,6 +1,6 @@
 use app::AppState;
 use error_stack::{IntoReport, ResultExt};
-use masking::ExposeInterface;
+use masking::PeekInterface;
 use rand::Rng;
 use redis_interface::RedisConnectionPool;
 use tokio::time as tokio;
@@ -21,7 +21,7 @@ pub async fn payment(
     let payment_id = format!("dummy_{}", uuid::Uuid::new_v4());
     match req.payment_method_data {
         types::DummyConnectorPaymentMethodData::Card(card) => {
-            let card_number: String = card.number.expose();
+            let card_number = card.number.peek();
             tokio_mock_sleep(
                 state.conf.dummy_connector.payment_duration,
                 state.conf.dummy_connector.payment_tolerance,
