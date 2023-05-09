@@ -609,3 +609,5 @@ impl common_utils::errors::ErrorSwitch<StripeErrorCode> for errors::ApiErrorResp
         self.clone().into()
     }
 }
+
+impl crate::services::EmbedError for error_stack::Report<StripeErrorCode> {}
