@@ -169,6 +169,7 @@ diesel::table! {
         file_upload_provider -> Nullable<Varchar>,
         available -> Bool,
         created_at -> Timestamp,
+        connector_label -> Nullable<Varchar>,
     }
 }
 

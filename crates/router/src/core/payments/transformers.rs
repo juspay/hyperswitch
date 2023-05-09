@@ -544,10 +544,13 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
         ));
 
         // payment_method_data is not required during recurring mandate payment, in such case keep default PaymentMethodData as MandatePayment
-        let payment_method_data = payment_data
-            .mandate_id
-            .as_ref()
-            .map(|_| api_models::payments::PaymentMethodData::MandatePayment);
+        let payment_method_data = payment_data.payment_method_data.or_else(|| {
+            if payment_data.mandate_id.is_some() {
+                Some(api_models::payments::PaymentMethodData::MandatePayment)
+            } else {
+                None
+            }
+        });
         Ok(Self {
             payment_method_data: payment_method_data.get_required_value("payment_method_data")?,
             setup_future_usage: payment_data.payment_intent.setup_future_usage,
@@ -581,6 +584,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSyncData
     fn try_from(additional_data: PaymentAdditionalData<'_, F>) -> Result<Self, Self::Error> {
         let payment_data = additional_data.payment_data;
         Ok(Self {
+            mandate_id: payment_data.mandate_id.clone(),
             connector_transaction_id: match payment_data.payment_attempt.connector_transaction_id {
                 Some(connector_txn_id) => {
                     types::ResponseId::ConnectorTransactionId(connector_txn_id)
@@ -709,6 +713,15 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::VerifyRequestDat
 
     fn try_from(additional_data: PaymentAdditionalData<'_, F>) -> Result<Self, Self::Error> {
         let payment_data = additional_data.payment_data;
+        let router_base_url = &additional_data.router_base_url;
+        let connector_name = &additional_data.connector_name;
+        let attempt = &payment_data.payment_attempt;
+        let router_return_url = Some(helpers::create_redirect_url(
+            router_base_url,
+            attempt,
+            connector_name,
+            payment_data.creds_identifier.as_deref(),
+        ));
         Ok(Self {
             currency: payment_data.currency,
             confirm: true,
@@ -720,6 +733,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::VerifyRequestDat
             off_session: payment_data.mandate_id.as_ref().map(|_| true),
             mandate_id: payment_data.mandate_id.clone(),
             setup_mandate_details: payment_data.setup_mandate,
+            router_return_url,
             email: payment_data.email,
             return_url: payment_data.payment_intent.return_url,
         })

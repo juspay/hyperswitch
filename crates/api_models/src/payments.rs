@@ -1,5 +1,6 @@
 use std::num::NonZeroI64;
 
+use cards::CardNumber;
 use common_utils::{pii, pii::Email};
 use masking::{PeekInterface, Secret};
 use router_derive::Setter;
@@ -415,7 +416,7 @@ pub struct OnlineMandate {
 pub struct Card {
     /// The card number
     #[schema(value_type = String, example = "4242424242424242")]
-    pub card_number: Secret<String, pii::CardNumber>,
+    pub card_number: CardNumber,
 
     /// The card's expiry month
     #[schema(value_type = String, example = "24")]
@@ -580,7 +581,7 @@ pub enum BankRedirectData {
     BancontactCard {
         /// The card number
         #[schema(value_type = String, example = "4242424242424242")]
-        card_number: Secret<String, pii::CardNumber>,
+        card_number: CardNumber,
         /// The card's expiry month
         #[schema(value_type = String, example = "24")]
         card_exp_month: Secret<String>,
@@ -1589,7 +1590,7 @@ pub struct ApplepaySessionTokenResponse {
 }
 
 #[derive(Debug, Clone, serde::Serialize, ToSchema, serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all(deserialize = "camelCase"))]
 pub struct ApplePaySessionResponse {
     /// Timestamp at which session is requested
     pub epoch_timestamp: u64,

@@ -17,7 +17,7 @@ pub struct DummyConnectorPaymentsRequest {
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
 pub struct DummyConnectorCard {
     name: Secret<String>,
-    number: Secret<String, common_utils::pii::CardNumber>,
+    number: cards::CardNumber,
     expiry_month: Secret<String>,
     expiry_year: Secret<String>,
     cvc: Secret<String>,
