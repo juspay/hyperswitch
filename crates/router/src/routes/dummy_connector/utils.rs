@@ -33,7 +33,7 @@ pub async fn payment(
 
             if card_number != "4111111111111111" && card_number != "4242424242424242" {
                 return Err(report!(errors::DummyConnectorErrors::CardNotSupported)
-                    .attach_printable("The card is not supported"))
+                    .attach_printable("The card is not supported"));
             }
 
             let timestamp = common_utils::date_time::date_as_yyyymmddthhmmssmmmz()

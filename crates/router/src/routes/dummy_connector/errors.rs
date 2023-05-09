@@ -78,4 +78,3 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
         }
     }
 }
-
