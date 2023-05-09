@@ -148,6 +148,8 @@ pub enum ApiErrorResponse {
     MandateUpdateFailed,
     #[error(error_type = ErrorType::ObjectNotFound, code = "HE_02", message = "API Key does not exist in our records")]
     ApiKeyNotFound,
+    #[error(error_type = ErrorType::ObjectNotFound, code = "HE_02", message = "Payout does not exist in our records")]
+    PayoutNotFound,
     #[error(error_type = ErrorType::ValidationError, code = "HE_03", message = "Return URL is not configured and not passed in payments request")]
     ReturnUrlUnavailable,
     #[error(error_type = ErrorType::ValidationError, code = "HE_03", message = "This refund is not possible through Hyperswitch. Please raise the refund through {connector} dashboard")]
@@ -293,6 +295,7 @@ impl actix_web::ResponseError for ApiErrorResponse {
             | Self::FlowNotSupported { .. }
             | Self::ApiKeyNotFound
             | Self::DisputeStatusValidationFailed { .. }
+            | Self::PayoutNotFound
             | Self::WebhookBadRequest => StatusCode::BAD_REQUEST, // 400
             Self::DuplicateMerchantAccount
             | Self::DuplicateMerchantConnectorAccount { .. }
@@ -496,6 +499,9 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
             },
             Self::ApiKeyNotFound => {
                 AER::NotFound(ApiError::new("HE", 2, "API Key does not exist in our records", None))
+            }
+            Self::PayoutNotFound => {
+                AER::NotFound(ApiError::new("HE", 2, "Payout does not exist in our records", None))
             }
             Self::NotSupported { message } => {
                 AER::BadRequest(ApiError::new("HE", 3, "Payment method type not supported", Some(Extra {reason: Some(message.to_owned()), ..Default::default()})))
