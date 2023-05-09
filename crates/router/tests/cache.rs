@@ -14,7 +14,7 @@ async fn invalidate_in_memory_cache_success() {
 
     // Act
     let mut response = client
-    .get(format!("http://127.0.0.1:8080/cache/invalidate/{cache_key}"))
+    .post(format!("http://127.0.0.1:8080/cache/invalidate/{cache_key}"))
     .insert_header(api_key)
     .send()
     .await
