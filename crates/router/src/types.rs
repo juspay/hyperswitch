@@ -136,6 +136,12 @@ pub type SubmitEvidenceType = dyn services::ConnectorIntegration<
 pub type UploadFileType =
     dyn services::ConnectorIntegration<api::Upload, UploadFileRequestData, UploadFileResponse>;
 
+pub type RetrieveFileType = dyn services::ConnectorIntegration<
+    api::Retrieve,
+    RetrieveFileRequestData,
+    RetrieveFileResponse,
+>;
+
 pub type DefendDisputeType = dyn services::ConnectorIntegration<
     api::Defend,
     DefendDisputeRequestData,
@@ -151,6 +157,9 @@ pub type SubmitEvidenceRouterData =
     RouterData<api::Evidence, SubmitEvidenceRequestData, SubmitEvidenceResponse>;
 
 pub type UploadFileRouterData = RouterData<api::Upload, UploadFileRequestData, UploadFileResponse>;
+
+pub type RetrieveFileRouterData =
+    RouterData<api::Retrieve, RetrieveFileRequestData, RetrieveFileResponse>;
 
 pub type DefendDisputeRouterData =
     RouterData<api::Defend, DefendDisputeRequestData, DefendDisputeResponse>;
@@ -514,6 +523,16 @@ pub struct UploadFileRequestData {
 #[derive(Default, Clone, Debug)]
 pub struct UploadFileResponse {
     pub provider_file_id: String,
+}
+
+#[derive(Clone, Debug)]
+pub struct RetrieveFileRequestData {
+    pub provider_file_id: String,
+}
+
+#[derive(Clone, Debug)]
+pub struct RetrieveFileResponse {
+    pub file_data: Vec<u8>,
 }
 
 #[derive(Debug, Clone, Default, serde::Deserialize, serde::Serialize)]
