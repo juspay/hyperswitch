@@ -940,9 +940,8 @@ impl<'a> TryFrom<&api_models::payments::BankDebitData> for AdyenPaymentMethod<'a
             payments::BankDebitData::AchBankDebit {
                 account_number,
                 routing_number,
-                billing_details: _,
                 card_holder_name,
-                bank_account_holder_name: _,
+                ..
             } => Ok(AdyenPaymentMethod::AchDirectDebit(Box::new(
                 AchDirectDebitData {
                     payment_type: PaymentType::AchDirectDebit,
@@ -956,9 +955,9 @@ impl<'a> TryFrom<&api_models::payments::BankDebitData> for AdyenPaymentMethod<'a
                 },
             ))),
             payments::BankDebitData::SepaBankDebit {
-                billing_details: _,
                 iban,
                 bank_account_holder_name,
+                ..
             } => Ok(AdyenPaymentMethod::SepaDirectDebit(Box::new(
                 SepaDirectDebitData {
                     owner_name: bank_account_holder_name.clone().ok_or(
