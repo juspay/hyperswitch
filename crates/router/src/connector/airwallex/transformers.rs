@@ -6,7 +6,7 @@ use uuid::Uuid;
 use crate::{
     connector::utils,
     core::errors,
-    pii::{self, Secret},
+    pii::Secret,
     services,
     types::{self, api, storage::enums},
 };
@@ -57,7 +57,7 @@ pub struct AirwallexCard {
 pub struct AirwallexCardDetails {
     expiry_month: Secret<String>,
     expiry_year: Secret<String>,
-    number: Secret<String, pii::CardNumber>,
+    number: cards::CardNumber,
     cvc: Secret<String>,
 }
 
@@ -92,9 +92,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for AirwallexPaymentsRequest {
                     }));
                 Ok(AirwallexPaymentMethod::Card(AirwallexCard {
                     card: AirwallexCardDetails {
-                        number: ccard
-                            .card_number
-                            .map(|card| card.split_whitespace().collect()),
+                        number: ccard.card_number,
                         expiry_month: ccard.card_exp_month.clone(),
                         expiry_year: ccard.card_exp_year.clone(),
                         cvc: ccard.card_cvc,

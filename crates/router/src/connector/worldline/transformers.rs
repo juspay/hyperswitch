@@ -1,5 +1,5 @@
 use api_models::payments;
-use common_utils::pii::{self, Email};
+use common_utils::pii::Email;
 use masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use url::Url;
@@ -19,7 +19,7 @@ use crate::{
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct Card {
-    pub card_number: Secret<String, pii::CardNumber>,
+    pub card_number: cards::CardNumber,
     pub cardholder_name: Secret<String>,
     pub cvv: Secret<String>,
     pub expiry_date: Secret<String>,
@@ -278,10 +278,7 @@ fn make_card_request(
     );
     let expiry_date: Secret<String> = Secret::new(secret_value);
     let card = Card {
-        card_number: ccard
-            .card_number
-            .clone()
-            .map(|card| card.split_whitespace().collect()),
+        card_number: ccard.card_number.clone(),
         cardholder_name: ccard.card_holder_name.clone(),
         cvv: ccard.card_cvc.clone(),
         expiry_date,

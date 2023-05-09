@@ -6,7 +6,7 @@ use url::Url;
 use crate::{
     connector::utils::{self, AddressDetailsData, CardData, RouterData},
     core::errors,
-    pii::{self, Secret},
+    pii::Secret,
     services,
     types::{self, api, storage::enums},
 };
@@ -114,7 +114,7 @@ pub struct Customer {
 #[serde_with::skip_serializing_none]
 #[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
 pub struct GatewayInfo {
-    pub card_number: Option<Secret<String, pii::CardNumber>>,
+    pub card_number: Option<cards::CardNumber>,
     pub card_holder_name: Option<Secret<String>>,
     pub card_expiry_date: Option<i32>,
     pub card_cvc: Option<Secret<String>>,

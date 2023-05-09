@@ -313,3 +313,25 @@ pub enum Country {
     Zambia,
     Zimbabwe,
 }
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    Default,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum FileUploadProvider {
+    #[default]
+    Router,
+    Stripe,
+    Checkout,
+}
