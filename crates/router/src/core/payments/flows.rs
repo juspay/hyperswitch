@@ -85,8 +85,8 @@ pub trait Feature<F, T> {
     }
 }
 
-macro_rules! default_imp_for_complete_authorize{
-    ($($path:ident::$connector:ident),*)=> {
+macro_rules! default_imp_for_complete_authorize {
+    ($($path:ident::$connector:ident),*) => {
         $(
             impl api::PaymentsCompleteAuthorize for $path::$connector {}
             impl
@@ -128,8 +128,8 @@ default_imp_for_complete_authorize!(
     connector::Zen
 );
 
-macro_rules! default_imp_for_create_customer{
-    ($($path:ident::$connector:ident),*)=> {
+macro_rules! default_imp_for_create_customer {
+    ($($path:ident::$connector:ident),*) => {
         $(
             impl api::ConnectorCustomer for $path::$connector {}
             impl
@@ -177,8 +177,8 @@ default_imp_for_create_customer!(
     connector::Zen
 );
 
-macro_rules! default_imp_for_connector_redirect_response{
-    ($($path:ident::$connector:ident),*)=> {
+macro_rules! default_imp_for_connector_redirect_response {
+    ($($path:ident::$connector:ident),*) => {
         $(
             impl services::ConnectorRedirectResponse for $path::$connector {
                 fn get_flow_type(
@@ -219,8 +219,8 @@ default_imp_for_connector_redirect_response!(
     connector::Worldpay
 );
 
-macro_rules! default_imp_for_connector_request_id{
-    ($($path:ident::$connector:ident),*)=> {
+macro_rules! default_imp_for_connector_request_id {
+    ($($path:ident::$connector:ident),*) => {
         $(
             impl api::ConnectorTransactionId for $path::$connector {}
     )*
@@ -261,8 +261,8 @@ default_imp_for_connector_request_id!(
     connector::Zen
 );
 
-macro_rules! default_imp_for_accept_dispute{
-    ($($path:ident::$connector:ident),*)=> {
+macro_rules! default_imp_for_accept_dispute {
+    ($($path:ident::$connector:ident),*) => {
         $(
             impl api::Dispute for $path::$connector {}
             impl api::AcceptDispute for $path::$connector {}
@@ -312,8 +312,8 @@ default_imp_for_accept_dispute!(
     connector::Zen
 );
 
-macro_rules! default_imp_for_file_upload{
-    ($($path:ident::$connector:ident),*)=> {
+macro_rules! default_imp_for_file_upload {
+    ($($path:ident::$connector:ident),*) => {
         $(
             impl api::FileUpload for $path::$connector {}
             impl api::UploadFile for $path::$connector {}
@@ -362,8 +362,8 @@ default_imp_for_file_upload!(
     connector::Zen
 );
 
-macro_rules! default_imp_for_submit_evidence{
-    ($($path:ident::$connector:ident),*)=> {
+macro_rules! default_imp_for_submit_evidence {
+    ($($path:ident::$connector:ident),*) => {
         $(
             impl api::SubmitEvidence for $path::$connector {}
             impl
@@ -411,8 +411,8 @@ default_imp_for_submit_evidence!(
     connector::Zen
 );
 
-macro_rules! default_imp_for_defend_dispute{
-    ($($path:ident::$connector:ident),*)=> {
+macro_rules! default_imp_for_defend_dispute {
+    ($($path:ident::$connector:ident),*) => {
         $(
             impl api::DefendDispute for $path::$connector {}
             impl
@@ -422,7 +422,7 @@ macro_rules! default_imp_for_defend_dispute{
                 types::DefendDisputeResponse,
             > for $path::$connector
             {}
-    )*
+        )*
     };
 }
 
@@ -437,6 +437,157 @@ default_imp_for_defend_dispute!(
     connector::Bambora,
     connector::Bluesnap,
     connector::Braintree,
+    connector::Cybersource,
+    connector::Coinbase,
+    connector::Dlocal,
+    connector::Fiserv,
+    connector::Forte,
+    connector::Globalpay,
+    connector::Klarna,
+    connector::Mollie,
+    connector::Multisafepay,
+    connector::Nexinets,
+    connector::Nuvei,
+    connector::Payeezy,
+    connector::Paypal,
+    connector::Payu,
+    connector::Rapyd,
+    connector::Stripe,
+    connector::Shift4,
+    connector::Trustpay,
+    connector::Opennode,
+    connector::Worldline,
+    connector::Worldpay,
+    connector::Zen
+);
+
+macro_rules! default_imp_for_payouts {
+    ($($path:ident::$connector:ident),*) => {
+        $(
+            impl api::Payouts for $path::$connector {}
+            impl api::PayoutCreate for $path::$connector {}
+            impl
+            services::ConnectorIntegration<
+            api::PCreate,
+            types::PayoutsData,
+            types::PayoutsResponseData,
+        > for $path::$connector
+        {}
+    )*
+    };
+}
+
+#[cfg(feature = "dummy_connector")]
+default_imp_for_payouts!(connector::DummyConnector);
+
+default_imp_for_payouts!(
+    connector::Aci,
+    connector::Airwallex,
+    connector::Authorizedotnet,
+    connector::Bambora,
+    connector::Bluesnap,
+    connector::Braintree,
+    connector::Checkout,
+    connector::Cybersource,
+    connector::Coinbase,
+    connector::Dlocal,
+    connector::Fiserv,
+    connector::Forte,
+    connector::Globalpay,
+    connector::Klarna,
+    connector::Mollie,
+    connector::Multisafepay,
+    connector::Nexinets,
+    connector::Nuvei,
+    connector::Payeezy,
+    connector::Paypal,
+    connector::Payu,
+    connector::Rapyd,
+    connector::Stripe,
+    connector::Shift4,
+    connector::Trustpay,
+    connector::Opennode,
+    connector::Worldline,
+    connector::Worldpay,
+    connector::Zen
+);
+
+macro_rules! default_imp_for_payouts_eligibility {
+    ($($path:ident::$connector:ident),*) => {
+        $(
+            impl api::PayoutEligibility for $path::$connector {}
+            impl
+            services::ConnectorIntegration<
+            api::PEligibility,
+            types::PayoutsData,
+            types::PayoutsResponseData,
+        > for $path::$connector
+        {}
+    )*
+    };
+}
+
+#[cfg(feature = "dummy_connector")]
+default_imp_for_payouts_eligibility!(connector::DummyConnector);
+
+default_imp_for_payouts_eligibility!(
+    connector::Aci,
+    connector::Airwallex,
+    connector::Authorizedotnet,
+    connector::Bambora,
+    connector::Bluesnap,
+    connector::Braintree,
+    connector::Checkout,
+    connector::Cybersource,
+    connector::Coinbase,
+    connector::Dlocal,
+    connector::Fiserv,
+    connector::Forte,
+    connector::Globalpay,
+    connector::Klarna,
+    connector::Mollie,
+    connector::Multisafepay,
+    connector::Nexinets,
+    connector::Nuvei,
+    connector::Payeezy,
+    connector::Paypal,
+    connector::Payu,
+    connector::Rapyd,
+    connector::Stripe,
+    connector::Shift4,
+    connector::Trustpay,
+    connector::Opennode,
+    connector::Worldline,
+    connector::Worldpay,
+    connector::Zen
+);
+
+macro_rules! default_imp_for_payouts_fulfill {
+    ($($path:ident::$connector:ident),*) => {
+        $(
+            impl api::PayoutFulfill for $path::$connector {}
+            impl
+            services::ConnectorIntegration<
+            api::PFulfill,
+            types::PayoutsData,
+            types::PayoutsResponseData,
+        > for $path::$connector
+        {}
+    )*
+    };
+}
+
+#[cfg(feature = "dummy_connector")]
+default_imp_for_payouts_fulfill!(connector::DummyConnector);
+
+default_imp_for_payouts_fulfill!(
+    connector::Aci,
+    connector::Airwallex,
+    connector::Authorizedotnet,
+    connector::Bambora,
+    connector::Bluesnap,
+    connector::Braintree,
+    connector::Checkout,
     connector::Cybersource,
     connector::Coinbase,
     connector::Dlocal,
