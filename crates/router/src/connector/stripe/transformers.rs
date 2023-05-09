@@ -298,6 +298,7 @@ pub enum StripeWallet {
     ApplepayToken(StripeApplePay),
     GooglepayToken(GooglePayToken),
     ApplepayPayment(ApplepayPayment),
+    WechatpayPayment(WechatpayPayment),
     AlipayPayment(AlipayPayment),
 }
 
@@ -334,6 +335,22 @@ pub struct AlipayPayment {
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
+pub struct WechatpayPayment {
+    #[serde(rename = "payment_method_types[]")]
+    pub payment_method_types: StripePaymentMethodType,
+    #[serde(rename = "payment_method_data[type]")]
+    pub payment_method_data_type: StripePaymentMethodType,
+    #[serde(rename = "payment_method_options[wechat_pay][client]")]
+    pub client: WechatClient,
+}
+
+#[derive(Debug, Eq, PartialEq, Serialize, Clone, Copy)]
+#[serde(rename_all = "snake_case")]
+pub enum WechatClient {
+    Web,
+}
+
+#[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct GooglepayPayment {
     #[serde(rename = "payment_method_data[card][token]")]
     pub token: String,
@@ -361,6 +378,8 @@ pub enum StripePaymentMethodType {
     Becs,
     #[serde(rename = "bacs_debit")]
     Bacs,
+    #[serde(rename = "wechat_pay")]
+    Wechatpay,
     Alipay,
 }
 
@@ -819,6 +838,15 @@ fn create_stripe_payment_method(
                 StripeBillingAddress::default(),
             )),
 
+            payments::WalletData::WeChatPayRedirect(_) => Ok((
+                StripePaymentMethodData::Wallet(StripeWallet::WechatpayPayment(WechatpayPayment {
+                    client: WechatClient::Web,
+                    payment_method_types: StripePaymentMethodType::Wechatpay,
+                    payment_method_data_type: StripePaymentMethodType::Wechatpay,
+                })),
+                StripePaymentMethodType::Wechatpay,
+                StripeBillingAddress::default(),
+            )),
             payments::WalletData::AliPay(_) => Ok((
                 StripePaymentMethodData::Wallet(StripeWallet::AlipayPayment(AlipayPayment {
                     payment_method_types: StripePaymentMethodType::Alipay,
@@ -832,7 +860,6 @@ fn create_stripe_payment_method(
                 StripePaymentMethodType::Card,
                 StripeBillingAddress::default(),
             )),
-
             _ => Err(errors::ConnectorError::NotImplemented(
                 "This wallet is not implemented for stripe".to_string(),
             )
@@ -1251,8 +1278,9 @@ impl ForeignFrom<(Option<StripePaymentMethodOptions>, String)> for types::Mandat
                 | StripePaymentMethodOptions::Ach {}
                 | StripePaymentMethodOptions::Bacs {}
                 | StripePaymentMethodOptions::Becs {}
-                | StripePaymentMethodOptions::Sepa {}
-                | StripePaymentMethodOptions::Alipay {} => None,
+                | StripePaymentMethodOptions::WechatPay {}
+                | StripePaymentMethodOptions::Alipay {}
+                | StripePaymentMethodOptions::Sepa {} => None,
             }),
             payment_method_id: Some(payment_method_id),
         }
@@ -1412,6 +1440,7 @@ pub enum StripeNextActionResponse {
     RedirectToUrl(StripeRedirectToUrlResponse),
     AlipayHandleRedirect(StripeRedirectToUrlResponse),
     VerifyWithMicrodeposits(StripeVerifyWithMicroDepositsResponse),
+    WechatPayDisplayQrCode(StripeRedirectToQr),
 }
 
 impl StripeNextActionResponse {
@@ -1420,6 +1449,7 @@ impl StripeNextActionResponse {
             Self::RedirectToUrl(redirect_to_url) | Self::AlipayHandleRedirect(redirect_to_url) => {
                 redirect_to_url.url.to_owned()
             }
+            Self::WechatPayDisplayQrCode(redirect_to_url) => redirect_to_url.data.to_owned(),
             Self::VerifyWithMicrodeposits(verify_with_microdeposits) => {
                 verify_with_microdeposits.hosted_verification_url.to_owned()
             }
@@ -1451,6 +1481,11 @@ impl<'de> Deserialize<'de> for StripeNextActionResponse {
 pub struct StripeRedirectToUrlResponse {
     return_url: String,
     url: Url,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
+pub struct StripeRedirectToQr {
+    data: Url,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Deserialize)]
@@ -1612,8 +1647,8 @@ pub struct StripeBillingAddress {
 
 #[derive(Debug, Clone, serde::Deserialize, Eq, PartialEq)]
 pub struct StripeRedirectResponse {
-    pub payment_intent: String,
-    pub payment_intent_client_secret: String,
+    pub payment_intent: Option<String>,
+    pub payment_intent_client_secret: Option<String>,
     pub source_redirect_slug: Option<String>,
     pub redirect_status: Option<StripePaymentStatus>,
     pub source_type: Option<Secret<String>>,
@@ -1657,6 +1692,7 @@ pub enum StripePaymentMethodOptions {
     Becs {},
     #[serde(rename = "bacs_debit")]
     Bacs {},
+    WechatPay {},
     Alipay {},
 }
 
@@ -1945,6 +1981,14 @@ impl
                     Ok(Self::Wallet(wallet_info))
                 }
 
+                payments::WalletData::WeChatPayRedirect(_) => {
+                    let wallet_info = StripeWallet::WechatpayPayment(WechatpayPayment {
+                        client: WechatClient::Web,
+                        payment_method_types: StripePaymentMethodType::Wechatpay,
+                        payment_method_data_type: StripePaymentMethodType::Wechatpay,
+                    });
+                    Ok(Self::Wallet(wallet_info))
+                }
                 payments::WalletData::AliPay(_) => {
                     let wallet_info = StripeWallet::AlipayPayment(AlipayPayment {
                         payment_method_types: StripePaymentMethodType::Alipay,
