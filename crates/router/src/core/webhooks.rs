@@ -256,8 +256,8 @@ async fn get_or_update_dispute_object(
                 connector_reason: dispute_details.connector_reason,
                 connector_reason_code: dispute_details.connector_reason_code,
                 challenge_required_by: dispute_details.challenge_required_by,
-                dispute_created_at: dispute_details.created_at,
-                updated_at: dispute_details.updated_at,
+                connector_created_at: dispute_details.created_at,
+                connector_updated_at: dispute_details.updated_at,
             };
             state
                 .store
@@ -285,7 +285,7 @@ async fn get_or_update_dispute_object(
                 connector_reason: dispute_details.connector_reason,
                 connector_reason_code: dispute_details.connector_reason_code,
                 challenge_required_by: dispute_details.challenge_required_by,
-                updated_at: dispute_details.updated_at,
+                connector_updated_at: dispute_details.updated_at,
             };
             db.update_dispute(dispute, update_dispute)
                 .await

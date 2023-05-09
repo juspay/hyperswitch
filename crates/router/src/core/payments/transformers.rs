@@ -151,6 +151,7 @@ where
             payment_data.payment_attempt,
             payment_data.payment_intent,
             payment_data.refunds,
+            payment_data.disputes,
             payment_data.payment_method_data,
             customer,
             auth_flow,
@@ -240,6 +241,7 @@ pub fn payments_to_payments_response<R, Op>(
     payment_attempt: storage::PaymentAttempt,
     payment_intent: storage::PaymentIntent,
     refunds: Vec<storage::Refund>,
+    disputes: Vec<storage::Dispute>,
     payment_method_data: Option<api::PaymentMethodData>,
     customer: Option<storage::Customer>,
     auth_flow: services::AuthFlow,
@@ -265,6 +267,16 @@ where
         None
     } else {
         Some(refunds.into_iter().map(ForeignInto::foreign_into).collect())
+    };
+    let disputes_response = if disputes.is_empty() {
+        None
+    } else {
+        Some(
+            disputes
+                .into_iter()
+                .map(ForeignInto::foreign_into)
+                .collect(),
+        )
     };
 
     Ok(match payment_request {
@@ -346,6 +358,7 @@ where
                         .set_mandate_id(mandate_id)
                         .set_description(payment_intent.description)
                         .set_refunds(refunds_response) // refunds.iter().map(refund_to_refund_response),
+                        .set_disputes(disputes_response)
                         .set_payment_method(
                             payment_attempt
                                 .payment_method
@@ -417,6 +430,7 @@ where
             customer_id: payment_intent.customer_id,
             description: payment_intent.description,
             refunds: refunds_response,
+            disputes: disputes_response,
             payment_method: payment_attempt
                 .payment_method
                 .map(ForeignInto::foreign_into),
