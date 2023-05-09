@@ -1,3 +1,4 @@
+use cards::CardNumber;
 use common_utils::pii;
 use serde::de;
 use utoipa::ToSchema;
@@ -72,7 +73,7 @@ pub struct PaymentMethodUpdate {
 pub struct CardDetail {
     /// Card Number
     #[schema(value_type = String,example = "4111111145551142")]
-    pub card_number: masking::Secret<String, pii::CardNumber>,
+    pub card_number: CardNumber,
 
     /// Card Expiry Month
     #[schema(value_type = String,example = "10")]
@@ -142,7 +143,7 @@ pub struct CardDetailFromLocker {
     pub last4_digits: Option<String>,
     #[serde(skip)]
     #[schema(value_type=Option<String>)]
-    pub card_number: Option<masking::Secret<String, pii::CardNumber>>,
+    pub card_number: Option<CardNumber>,
 
     #[schema(value_type=Option<String>)]
     pub expiry_month: Option<masking::Secret<String>>,

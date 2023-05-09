@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 
 use super::result_codes::{FAILURE_CODES, PENDING_CODES, SUCCESSFUL_CODES};
 use crate::{
+    connector::utils,
     core::errors,
     services,
     types::{self, api, storage::enums},
@@ -35,7 +36,7 @@ impl TryFrom<&types::ConnectorAuthType> for AciAuthType {
 #[serde(rename_all = "camelCase")]
 pub struct AciPaymentsRequest {
     pub entity_id: String,
-    pub amount: i64,
+    pub amount: String,
     pub currency: String,
     pub payment_type: AciPaymentType,
     #[serde(flatten)]
@@ -87,7 +88,7 @@ pub enum PaymentBrand {
 #[derive(Debug, Clone, Eq, PartialEq, Serialize)]
 pub struct CardDetails {
     #[serde(rename = "card.number")]
-    pub card_number: Secret<String, common_utils::pii::CardNumber>,
+    pub card_number: cards::CardNumber,
     #[serde(rename = "card.holder")]
     pub card_holder: Secret<String>,
     #[serde(rename = "card.expiryMonth")]
@@ -184,7 +185,9 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for AciPaymentsRequest {
                     ))?,
                 }
             }
-            api::PaymentMethodData::Crypto(_) | api::PaymentMethodData::BankDebit(_) => {
+            api::PaymentMethodData::Crypto(_)
+            | api::PaymentMethodData::BankDebit(_)
+            | api::PaymentMethodData::MandatePayment => {
                 Err(errors::ConnectorError::NotSupported {
                     message: format!("{:?}", item.payment_method),
                     connector: "Aci",
@@ -198,7 +201,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for AciPaymentsRequest {
         let aci_payment_request = Self {
             payment_method: payment_details,
             entity_id: auth.entity_id,
-            amount: item.request.amount,
+            amount: utils::to_currency_base_unit(item.request.amount, item.request.currency)?,
             currency: item.request.currency.to_string(),
             payment_type: AciPaymentType::Debit,
         };
@@ -347,7 +350,7 @@ impl<F, T>
 #[derive(Default, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AciRefundRequest {
-    pub amount: i64,
+    pub amount: String,
     pub currency: String,
     pub payment_type: AciPaymentType,
     pub entity_id: String,
@@ -356,7 +359,8 @@ pub struct AciRefundRequest {
 impl<F> TryFrom<&types::RefundsRouterData<F>> for AciRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
-        let amount = item.request.refund_amount;
+        let amount =
+            utils::to_currency_base_unit(item.request.refund_amount, item.request.currency)?;
         let currency = item.request.currency;
         let payment_type = AciPaymentType::Refund;
         let auth = AciAuthType::try_from(&item.connector_auth_type)?;

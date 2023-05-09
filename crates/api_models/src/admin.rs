@@ -275,25 +275,41 @@ pub enum StraightThroughAlgorithm {
     Single(api_enums::RoutableConnectors),
 }
 
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(tag = "type", content = "data", rename_all = "snake_case")]
+pub enum StraightThroughAlgorithmInner {
+    Single(api_enums::RoutableConnectors),
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum StraightThroughAlgorithmSerde {
-    Direct(StraightThroughAlgorithm),
-    Nested { algorithm: StraightThroughAlgorithm },
+    Direct(StraightThroughAlgorithmInner),
+    Nested {
+        algorithm: StraightThroughAlgorithmInner,
+    },
 }
 
 impl From<StraightThroughAlgorithmSerde> for StraightThroughAlgorithm {
     fn from(value: StraightThroughAlgorithmSerde) -> Self {
-        match value {
+        let inner = match value {
             StraightThroughAlgorithmSerde::Direct(algorithm) => algorithm,
             StraightThroughAlgorithmSerde::Nested { algorithm } => algorithm,
+        };
+
+        match inner {
+            StraightThroughAlgorithmInner::Single(conn) => Self::Single(conn),
         }
     }
 }
 
 impl From<StraightThroughAlgorithm> for StraightThroughAlgorithmSerde {
     fn from(value: StraightThroughAlgorithm) -> Self {
-        Self::Nested { algorithm: value }
+        let inner = match value {
+            StraightThroughAlgorithm::Single(conn) => StraightThroughAlgorithmInner::Single(conn),
+        };
+
+        Self::Nested { algorithm: inner }
     }
 }
 

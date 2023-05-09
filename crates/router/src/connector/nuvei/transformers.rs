@@ -177,6 +177,10 @@ pub enum AlternativePaymentMethodType {
     Ideal,
     #[serde(rename = "apmgw_EPS")]
     Eps,
+    #[serde(rename = "apmgw_Afterpay")]
+    AfterPay,
+    #[serde(rename = "apmgw_Klarna")]
+    Klarna,
 }
 
 #[serde_with::skip_serializing_none]
@@ -193,7 +197,7 @@ pub struct BillingAddress {
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Card {
-    pub card_number: Option<Secret<String, common_utils::pii::CardNumber>>,
+    pub card_number: Option<cards::CardNumber>,
     pub card_holder_name: Option<Secret<String>>,
     pub expiration_month: Option<Secret<String>>,
     pub expiration_year: Option<Secret<String>>,
@@ -558,6 +562,34 @@ impl<F>
     }
 }
 
+fn get_pay_later_info<F>(
+    payment_method_type: AlternativePaymentMethodType,
+    item: &types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
+) -> Result<NuveiPaymentsRequest, error_stack::Report<errors::ConnectorError>> {
+    let address = item
+        .get_billing()?
+        .address
+        .as_ref()
+        .ok_or_else(utils::missing_field_err("billing.address"))?;
+    let payment_method = payment_method_type;
+    Ok(NuveiPaymentsRequest {
+        payment_option: PaymentOption {
+            alternative_payment_method: Some(AlternativePaymentMethod {
+                payment_method,
+                ..Default::default()
+            }),
+            billing_address: Some(BillingAddress {
+                email: item.request.get_email()?,
+                first_name: Some(address.get_first_name()?.to_owned()),
+                last_name: Some(address.get_last_name()?.to_owned()),
+                country: address.get_country()?.to_owned(),
+            }),
+            ..Default::default()
+        },
+        ..Default::default()
+    })
+}
+
 impl<F>
     TryFrom<(
         &types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
@@ -617,6 +649,21 @@ impl<F>
                 }
                 .into()),
             },
+            api::PaymentMethodData::PayLater(pay_later_data) => match pay_later_data {
+                payments::PayLaterData::KlarnaRedirect { .. } => {
+                    get_pay_later_info(AlternativePaymentMethodType::Klarna, item)
+                }
+                payments::PayLaterData::AfterpayClearpayRedirect { .. } => {
+                    get_pay_later_info(AlternativePaymentMethodType::AfterPay, item)
+                }
+                _ => Err(errors::ConnectorError::NotSupported {
+                    message: "Buy Now Pay Later".to_string(),
+                    connector: "Nuvei",
+                    payment_experience: "RedirectToUrl".to_string(),
+                }
+                .into()),
+            },
+
             _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
         }?;
         let request = Self::try_from(NuveiPaymentRequestData {
@@ -1143,7 +1190,11 @@ where
                     redirection_data,
                     mandate_reference: response
                         .payment_option
-                        .and_then(|po| po.user_payment_option_id),
+                        .and_then(|po| po.user_payment_option_id)
+                        .map(|id| types::MandateReference {
+                            connector_mandate_id: Some(id),
+                            payment_method_id: None,
+                        }),
                     // we don't need to save session token for capture, void flow so ignoring if it is not present
                     connector_metadata: if let Some(token) = response.session_token {
                         Some(
