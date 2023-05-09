@@ -975,3 +975,86 @@ pub struct UnresolvedResponseReason {
     /// A message to merchant to give hint on next action he/she should do to resolve
     pub message: String,
 }
+
+// Payout
+// #[cfg(feature = "payouts")]
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    PartialEq,
+    ToSchema,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    frunk::LabelledGeneric,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum PayoutStatus {
+    Pending,
+    Success,
+    Failed,
+    Cancelled,
+    #[default]
+    RequiresFulfillment,
+}
+
+// #[cfg(feature = "payouts")]
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    PartialEq,
+    ToSchema,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    frunk::LabelledGeneric,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum PayoutType {
+    #[default]
+    Card,
+    Bank,
+}
+
+// #[cfg(feature = "payouts")]
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+    frunk::LabelledGeneric,
+)]
+#[serde(rename_all = "PascalCase")]
+#[strum(serialize_all = "PascalCase")]
+pub enum EntityType {
+    /// Adyen
+    #[default]
+    Individual,
+    Company,
+    NonProfit,
+    PublicSector,
+
+    /// Wise
+    #[strum(serialize = "lowercase")]
+    #[serde(rename = "lowercase")]
+    Business,
+    Personal,
+}

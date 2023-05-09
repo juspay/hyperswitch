@@ -621,6 +621,30 @@ impl
     }
 }
 
+impl api::Payouts for Adyen {}
+impl api::PayoutCreate for Adyen {}
+impl api::PayoutEligibility for Adyen {}
+impl api::PayoutFulfill for Adyen {}
+
+impl services::ConnectorIntegration<api::PCreate, types::PayoutsData, types::PayoutsResponseData>
+    for Adyen
+{
+}
+
+impl
+    services::ConnectorIntegration<
+        api::PEligibility,
+        types::PayoutsData,
+        types::PayoutsResponseData,
+    > for Adyen
+{
+}
+
+impl services::ConnectorIntegration<api::PFulfill, types::PayoutsData, types::PayoutsResponseData>
+    for Adyen
+{
+}
+
 impl api::Refund for Adyen {}
 impl api::RefundExecute for Adyen {}
 impl api::RefundSync for Adyen {}

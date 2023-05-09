@@ -12,7 +12,7 @@ pub mod transformers;
 
 use std::marker::PhantomData;
 
-pub use api_models::enums::Connector;
+pub use api_models::{enums::Connector, payouts as payout_types};
 use common_utils::{pii, pii::Email};
 use error_stack::{IntoReport, ResultExt};
 use masking::Secret;
@@ -125,6 +125,15 @@ pub type RefundExecuteType =
 pub type RefundSyncType =
     dyn services::ConnectorIntegration<api::RSync, RefundsData, RefundsResponseData>;
 
+pub type PayoutCreateType =
+    dyn services::ConnectorIntegration<api::PCreate, PayoutsData, PayoutsResponseData>;
+
+pub type PayoutEligibilityType =
+    dyn services::ConnectorIntegration<api::PEligibility, PayoutsData, PayoutsResponseData>;
+
+pub type PayoutFulfillType =
+    dyn services::ConnectorIntegration<api::PFulfill, PayoutsData, PayoutsResponseData>;
+
 pub type RefreshTokenType =
     dyn services::ConnectorIntegration<api::AccessTokenAuth, AccessTokenRequestData, AccessToken>;
 
@@ -171,6 +180,8 @@ pub type RetrieveFileRouterData =
 pub type DefendDisputeRouterData =
     RouterData<api::Defend, DefendDisputeRequestData, DefendDisputeResponse>;
 
+pub type PayoutsRouterData<F> = RouterData<F, PayoutsData, PayoutsResponseData>;
+
 #[derive(Debug, Clone)]
 pub struct RouterData<Flow, Request, Response> {
     pub flow: PhantomData<Flow>,
@@ -203,6 +214,25 @@ pub struct RouterData<Flow, Request, Response> {
 
     /// Contains any error response that the connector returns.
     pub payment_method_id: Option<String>,
+}
+
+#[derive(Debug, Clone)]
+pub struct PayoutsData {
+    pub payout_id: String,
+    pub amount: i64,
+    pub destination_currency: storage_enums::Currency,
+    pub source_currency: storage_enums::Currency,
+    pub payout_method_data: payout_types::PayoutMethodData,
+    pub payout_type: storage_enums::PayoutType,
+    pub status: storage_enums::PayoutStatus,
+}
+
+#[derive(Debug, Clone)]
+pub struct PayoutsResponseData {
+    pub payout_id: String,
+    pub status: storage_enums::PayoutStatus,
+    pub payout_type: storage_enums::PayoutType,
+    pub connector_payout_id: Option<String>,
 }
 
 #[derive(Debug, Clone)]

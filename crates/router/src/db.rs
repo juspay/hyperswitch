@@ -16,6 +16,8 @@ pub mod merchant_connector_account;
 pub mod payment_attempt;
 pub mod payment_intent;
 pub mod payment_method;
+pub mod payout_create;
+pub mod payouts;
 pub mod process_tracker;
 pub mod queue;
 pub mod refund;
@@ -59,6 +61,8 @@ pub trait StorageInterface:
     + payment_attempt::PaymentAttemptInterface
     + payment_intent::PaymentIntentInterface
     + payment_method::PaymentMethodInterface
+    + payout_create::PayoutCreateInterface
+    + payouts::PayoutsInterface
     + process_tracker::ProcessTrackerInterface
     + queue::QueueInterface
     + refund::RefundInterface
