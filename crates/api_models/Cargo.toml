@@ -33,3 +33,4 @@ common_utils = { version = "0.1.0", path = "../common_utils" }
 masking = { version = "0.1.0", path = "../masking" }
 router_derive = { version = "0.1.0", path = "../router_derive" }
 common_enums = {path = "../common_enums"}
+cards = { version = "0.1.0", path = "../cards" }

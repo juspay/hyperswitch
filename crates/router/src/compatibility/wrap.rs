@@ -71,9 +71,15 @@ where
                 ),
             }
         }
-        Ok(api::ApplicationResponse::Form(form_data)) => api::build_redirection_form(&form_data)
-            .respond_to(request)
-            .map_into_boxed_body(),
+        Ok(api::ApplicationResponse::Form(redirection_data)) => api::build_redirection_form(
+            &redirection_data.redirect_form,
+            redirection_data.payment_method_data,
+            redirection_data.amount,
+            redirection_data.currency,
+        )
+        .respond_to(request)
+        .map_into_boxed_body(),
+
         Err(error) => {
             logger::error!(api_response_error=?error);
             api::log_and_return_error_response(error)

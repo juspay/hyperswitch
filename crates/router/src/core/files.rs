@@ -13,7 +13,7 @@ use crate::{
     consts,
     routes::AppState,
     services::{self, ApplicationResponse},
-    types::{api, storage, transformers::ForeignInto},
+    types::{api, storage},
 };
 
 pub async fn files_create_core(
@@ -37,6 +37,7 @@ pub async fn files_create_core(
         provider_file_id: None,
         file_upload_provider: None,
         available: false,
+        connector_label: None,
     };
     let file_metadata_object = state
         .store
@@ -44,8 +45,8 @@ pub async fn files_create_core(
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Unable to insert file_metadata")?;
-    let (provider_file_id, file_upload_provider) =
-        helpers::upload_and_get_provider_provider_file_id(
+    let (provider_file_id, file_upload_provider, connector_label) =
+        helpers::upload_and_get_provider_provider_file_id_connector_label(
             state,
             &merchant_account,
             &create_file_request,
@@ -55,8 +56,9 @@ pub async fn files_create_core(
     //Update file metadata
     let update_file_metadata = storage_models::file::FileMetadataUpdate::Update {
         provider_file_id: Some(provider_file_id),
-        file_upload_provider: Some(file_upload_provider.foreign_into()),
+        file_upload_provider: Some(file_upload_provider),
         available: true,
+        connector_label,
     };
     state
         .store
@@ -102,6 +104,7 @@ pub async fn files_retrieve_core(
             state,
             Some(req.file_id),
             &merchant_account,
+            api::FileDataRequired::Required,
         )
         .await?;
     let content_type = file_metadata_object
