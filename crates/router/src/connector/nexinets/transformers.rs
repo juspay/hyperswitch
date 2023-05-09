@@ -344,7 +344,14 @@ impl<F, T>
             }
             _ => Err(errors::ConnectorError::ResponseHandlingFailed)?,
         };
-        let mandate_reference = item.response.payment_instrument.payment_instrument_id;
+        let mandate_reference = item
+            .response
+            .payment_instrument
+            .payment_instrument_id
+            .map(|id| types::MandateReference {
+                connector_mandate_id: Some(id),
+                payment_method_id: None,
+            });
         Ok(Self {
             status: enums::AttemptStatus::foreign_from((
                 transaction.status.clone(),
