@@ -1,4 +1,4 @@
-use common_utils::ext_traits::Encode;
+use common_utils::{ext_traits::Encode, pii};
 use error_stack::{report, ResultExt};
 use router_env::{instrument, logger, tracing};
 use storage_models::enums as storage_enums;
@@ -16,7 +16,7 @@ use crate::{
             mandates::{self, MandateResponseExt},
         },
         storage,
-        transformers::ForeignInto,
+        transformers::{ForeignInto, ForeignTryFrom},
     },
     utils::OptionExt,
 };
@@ -60,6 +60,37 @@ pub async fn revoke_mandate(
             status: mandate.mandate_status.foreign_into(),
         },
     ))
+}
+
+#[instrument(skip(db))]
+pub async fn update_connector_mandate_id(
+    db: &dyn StorageInterface,
+    merchant_account: String,
+    mandate_ids_opt: Option<api_models::payments::MandateIds>,
+    resp: Result<types::PaymentsResponseData, types::ErrorResponse>,
+) -> RouterResponse<mandates::MandateResponse> {
+    let connector_mandate_id = Option::foreign_try_from(resp)?;
+    //Ignore updation if the payment_attempt mandate_id or connector_mandate_id is not present
+    if let Some((mandate_ids, connector_id)) = mandate_ids_opt.zip(connector_mandate_id) {
+        let mandate_id = &mandate_ids.mandate_id;
+        let mandate = db
+            .find_mandate_by_merchant_id_mandate_id(&merchant_account, mandate_id)
+            .await
+            .change_context(errors::ApiErrorResponse::MandateNotFound)?;
+        // only update the connector_mandate_id if existing is none
+        if mandate.connector_mandate_id.is_none() {
+            db.update_mandate_by_merchant_id_mandate_id(
+                &merchant_account,
+                mandate_id,
+                storage::MandateUpdate::ConnectorReferenceUpdate {
+                    connector_mandate_ids: Some(connector_id),
+                },
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::MandateUpdateFailed)?;
+        }
+    }
+    Ok(services::ApplicationResponse::StatusOk)
 }
 
 #[instrument(skip(state))]
@@ -122,7 +153,7 @@ where
                         },
                     )
                     .await
-                    .change_context(errors::ApiErrorResponse::MandateNotFound),
+                    .change_context(errors::ApiErrorResponse::MandateUpdateFailed),
                 storage_enums::MandateType::MultiUse => state
                     .store
                     .update_mandate_by_merchant_id_mandate_id(
@@ -135,7 +166,7 @@ where
                         },
                     )
                     .await
-                    .change_context(errors::ApiErrorResponse::MandateNotFound),
+                    .change_context(errors::ApiErrorResponse::MandateUpdateFailed),
             }?;
             metrics::SUBSEQUENT_MANDATE_PAYMENT.add(
                 &metrics::CONTEXT,
@@ -221,6 +252,30 @@ where
     }
 
     Ok(resp)
+}
+
+impl ForeignTryFrom<Result<types::PaymentsResponseData, types::ErrorResponse>>
+    for Option<pii::SecretSerdeValue>
+{
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
+    fn foreign_try_from(
+        resp: Result<types::PaymentsResponseData, types::ErrorResponse>,
+    ) -> errors::RouterResult<Self> {
+        let mandate_details = match resp {
+            Ok(types::PaymentsResponseData::TransactionResponse {
+                mandate_reference, ..
+            }) => mandate_reference,
+            _ => None,
+        };
+
+        mandate_details
+            .map(|md| {
+                Encode::<types::MandateReference>::encode_to_value(&md)
+                    .change_context(errors::ApiErrorResponse::MandateNotFound)
+                    .map(masking::Secret::new)
+            })
+            .transpose()
+    }
 }
 
 pub trait MandateBehaviour {

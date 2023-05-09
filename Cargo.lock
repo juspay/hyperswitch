@@ -364,6 +364,7 @@ name = "api_models"
 version = "0.1.0"
 dependencies = [
  "actix-web",
+ "cards",
  "common_enums",
  "common_utils",
  "error-stack",
@@ -1154,9 +1155,11 @@ version = "0.1.0"
 dependencies = [
  "common_utils",
  "error-stack",
+ "luhn",
  "masking",
  "serde",
  "serde_json",
+ "thiserror",
  "time 0.3.20",
 ]
 
@@ -1650,6 +1653,12 @@ dependencies = [
  "crypto-common",
  "subtle",
 ]
+
+[[package]]
+name = "digits_iterator"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "af83450b771231745d43edf36dc9b7813ab83be5e8cbea344ccced1a09dfebcd"
 
 [[package]]
 name = "dirs"
@@ -2639,6 +2648,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "abb12e687cfb44aa40f41fc3978ef76448f9b6038cad6aef4259d3c095a2382e"
 dependencies = [
  "cfg-if",
+]
+
+[[package]]
+name = "luhn"
+version = "1.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4d10b831402a3b10e018c8bc7f0ec3344a67d0725919cbaf393accb9baf8700b"
+dependencies = [
+ "digits_iterator",
 ]
 
 [[package]]
@@ -3635,6 +3653,7 @@ dependencies = [
  "bb8",
  "blake3",
  "bytes",
+ "cards",
  "clap",
  "common_utils",
  "config",
@@ -5347,9 +5366,9 @@ checksum = "1a515f5799fe4961cb532f983ce2b23082366b898e52ffbce459c86f67c8378a"
 
 [[package]]
 name = "winnow"
-version = "0.4.1"
+version = "0.4.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ae8970b36c66498d8ff1d66685dc86b91b29db0c7739899012f63a63814b4b28"
+checksum = "61de7bac303dc551fe038e2b3cef0f571087a47571ea6e79a87692ac99b99699"
 dependencies = [
  "memchr",
 ]
