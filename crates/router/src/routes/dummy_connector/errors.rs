@@ -29,6 +29,9 @@ pub enum DummyConnectorErrors {
 
     #[error(error_type = ErrorType::ServerNotAvailable, code = "DC_06", message = "Something went wrong")]
     InternalServerError,
+
+    #[error(error_type = ErrorType::InvalidRequestError, code = "DC_07", message = "Payment is not successful")]
+    PaymentNotSuccessful,
 }
 
 impl core::fmt::Display for DummyConnectorErrors {
@@ -69,6 +72,10 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
             Self::InternalServerError => {
                 AER::InternalServerError(ApiError::new("DC", 6, self.error_message(), None))
             }
+            Self::PaymentNotSuccessful => {
+                AER::BadRequest(ApiError::new("DC", 7, self.error_message(), None))
+            }
         }
     }
 }
+
