@@ -828,6 +828,7 @@ where
     pub creds_identifier: Option<String>,
     pub pm_token: Option<String>,
     pub connector_customer_id: Option<String>,
+    pub intent_status: Option<storage_enums::IntentStatus>,
 }
 
 #[derive(Debug, Default)]

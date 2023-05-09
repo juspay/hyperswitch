@@ -193,6 +193,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Co
                 creds_identifier: None,
                 pm_token: None,
                 connector_customer_id: None,
+                intent_status: None,
             },
             Some(CustomerDetails {
                 customer_id: request.customer_id.clone(),

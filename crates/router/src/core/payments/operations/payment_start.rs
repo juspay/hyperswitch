@@ -141,6 +141,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsStartRequest> f
                 creds_identifier: None,
                 pm_token: None,
                 connector_customer_id: None,
+                intent_status: None,
             },
             Some(customer_details),
         ))

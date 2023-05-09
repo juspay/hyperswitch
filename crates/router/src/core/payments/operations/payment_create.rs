@@ -225,6 +225,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 creds_identifier,
                 pm_token: None,
                 connector_customer_id: None,
+                intent_status: None,
             },
             Some(CustomerDetails {
                 customer_id: request.customer_id.clone(),
