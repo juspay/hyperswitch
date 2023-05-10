@@ -319,6 +319,47 @@ impl RefundsRequestData for types::RefundsData {
     }
 }
 
+#[derive(Clone, Debug, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GooglePayWalletData {
+    #[serde(rename = "type")]
+    pub pm_type: String,
+    pub description: String,
+    pub info: GooglePayPaymentMethodInfo,
+    pub tokenization_data: GpayTokenizationData,
+}
+
+#[derive(Clone, Debug, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GooglePayPaymentMethodInfo {
+    pub card_network: String,
+    pub card_details: String,
+}
+
+#[derive(Clone, Debug, serde::Serialize)]
+pub struct GpayTokenizationData {
+    #[serde(rename = "type")]
+    pub token_type: String,
+    pub token: String,
+}
+
+impl From<api_models::payments::GooglePayWalletData> for GooglePayWalletData {
+    fn from(data: api_models::payments::GooglePayWalletData) -> Self {
+        Self {
+            pm_type: data.pm_type,
+            description: data.description,
+            info: GooglePayPaymentMethodInfo {
+                card_network: data.info.card_network,
+                card_details: data.info.card_details,
+            },
+            tokenization_data: GpayTokenizationData{
+                token_type: data.tokenization_data.token_type,
+                token: data.tokenization_data.token,
+            },
+        }
+    }
+}
+
 static CARD_REGEX: Lazy<HashMap<CardIssuer, Result<Regex, regex::Error>>> = Lazy::new(|| {
     let mut map = HashMap::new();
     // Reference: https://gist.github.com/michaelkeevildown/9096cd3aac9029c4e6e05588448a8841
