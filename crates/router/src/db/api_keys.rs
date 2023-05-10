@@ -239,7 +239,6 @@ impl ApiKeyInterface for MockDb {
             .cloned())
     }
 
-    #[allow(clippy::unwrap_used)]
     async fn list_api_keys_by_merchant_id(
         &self,
         merchant_id: &str,
@@ -263,19 +262,19 @@ impl ApiKeyInterface for MockDb {
             if offset < 0 {
                 Err(errors::StorageError::MockDbError)?;
             }
-            let offset: usize = offset.try_into().unwrap();
-            if offset >= keys_for_merchant_id.len() {
-                keys_for_merchant_id = vec![];
-            } else {
-                keys_for_merchant_id = keys_for_merchant_id[offset..].to_vec();
-            }
-        }
+            let offset: usize = offset
+                .try_into()
+                .map_err(|_| errors::StorageError::MockDbError)?;
+            keys_for_merchant_id = keys_for_merchant_id.into_iter().skip(offset).collect();
+        };
 
         if let Some(limit) = limit {
             if limit < 0 {
                 Err(errors::StorageError::MockDbError)?;
             }
-            let limit: usize = limit.try_into().unwrap();
+            let limit: usize = limit
+                .try_into()
+                .map_err(|_| errors::StorageError::MockDbError)?;
             keys_for_merchant_id.truncate(limit);
         }
 
@@ -295,7 +294,6 @@ mod tests {
     // ignored for now because we need to do some finagling with redis to get it to run, since the
     // mockdb needs to connect to a real redis instance
     #[tokio::test]
-    #[ignore]
     async fn test_mockdb_api_key_interface() {
         let mockdb = MockDb::new(&Default::default()).await;
 
