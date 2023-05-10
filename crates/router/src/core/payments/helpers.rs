@@ -1252,9 +1252,7 @@ pub(crate) fn validate_pm_or_token_given(
             Some(api_enums::PaymentMethodType::Paypal)
         ) && !matches!(mandate_type, Some(api::MandateTxnType::RecurringMandateTxn))
             && token.is_none()
-            && (payment_method_data.is_none() || payment_method.is_none())
-            && !matches!(payment_method, Some(api_enums::PaymentMethod::BankRedirect))
-            && !matches!(payment_method, Some(api_enums::PaymentMethod::PayLater)),
+            && (payment_method_data.is_none() || payment_method.is_none()),
         || {
             Err(errors::ApiErrorResponse::InvalidRequestData {
                 message: "A payment token or payment method data is required".to_string(),
