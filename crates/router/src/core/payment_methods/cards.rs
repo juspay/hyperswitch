@@ -23,7 +23,6 @@ use storage_models::{enums as storage_enums, payment_method};
 use crate::scheduler::metrics as scheduler_metrics;
 use crate::{
     configs::settings,
-    connection,
     core::{
         errors::{self, StorageErrorExt},
         payment_methods::{
@@ -630,7 +629,13 @@ pub async fn mock_add_card(
         card_fingerprint: response.card_fingerprint.into(),
         card_global_fingerprint: response.card_global_fingerprint.into(),
         merchant_id: Some(response.merchant_id),
-        card_number: Some(response.card_number.into()),
+        card_number: response
+            .card_number
+            .try_into()
+            .into_report()
+            .change_context(errors::VaultError::ResponseDeserializationFailed)
+            .attach_printable("Invalid card number format from the mock locker")
+            .map(Some)?,
         card_exp_year: Some(response.card_exp_year.into()),
         card_exp_month: Some(response.card_exp_month.into()),
         name_on_card: response.name_on_card.map(|c| c.into()),
@@ -657,7 +662,13 @@ pub async fn mock_get_card<'a>(
         card_fingerprint: locker_mock_up.card_fingerprint.into(),
         card_global_fingerprint: locker_mock_up.card_global_fingerprint.into(),
         merchant_id: Some(locker_mock_up.merchant_id),
-        card_number: Some(locker_mock_up.card_number.into()),
+        card_number: locker_mock_up
+            .card_number
+            .try_into()
+            .into_report()
+            .change_context(errors::VaultError::ResponseDeserializationFailed)
+            .attach_printable("Invalid card number format from the mock locker")
+            .map(Some)?,
         card_exp_year: Some(locker_mock_up.card_exp_year.into()),
         card_exp_month: Some(locker_mock_up.card_exp_month.into()),
         name_on_card: locker_mock_up.name_on_card.map(|card| card.into()),
@@ -1531,7 +1542,7 @@ pub async fn list_customer_payment_method(
         };
         customer_pms.push(pma.to_owned());
 
-        let redis_conn = connection::redis_connection(&state.conf).await;
+        let redis_conn = state.store.get_redis_conn();
         let key_for_hyperswitch_token = format!(
             "pm_token_{}_{}_hyperswitch",
             parent_payment_method_token, pma.payment_method
@@ -1621,11 +1632,7 @@ impl BasiliskCardSupport {
         card: api::CardDetailFromLocker,
         pm: &storage::PaymentMethod,
     ) -> errors::RouterResult<api::CardDetailFromLocker> {
-        let card_number = card
-            .card_number
-            .clone()
-            .expose_option()
-            .get_required_value("card_number")?;
+        let card_number = card.card_number.clone().get_required_value("card_number")?;
         let card_exp_month = card
             .expiry_month
             .clone()
@@ -1720,11 +1727,7 @@ impl BasiliskCardSupport {
         card: api::CardDetailFromLocker,
         pm: &storage::PaymentMethod,
     ) -> errors::RouterResult<api::CardDetailFromLocker> {
-        let card_number = card
-            .card_number
-            .clone()
-            .expose_option()
-            .get_required_value("card_number")?;
+        let card_number = card.card_number.clone().get_required_value("card_number")?;
         let card_exp_month = card
             .expiry_month
             .clone()

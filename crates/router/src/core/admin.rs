@@ -449,7 +449,9 @@ pub async fn retrieve_payment_connector(
             &merchant_connector_id,
         )
         .await
-        .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound)?;
+        .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+            id: merchant_connector_id.clone(),
+        })?;
 
     Ok(service_api::ApplicationResponse::Json(
         ForeignTryFrom::foreign_try_from(mca)?,
@@ -469,7 +471,7 @@ pub async fn list_payment_connectors(
     let merchant_connector_accounts = store
         .find_merchant_connector_account_by_merchant_id_and_disabled_list(&merchant_id, true)
         .await
-        .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound)?;
+        .to_not_found_response(errors::ApiErrorResponse::InternalServerError)?;
     let mut response = vec![];
 
     // The can be eliminated once [#79711](https://github.com/rust-lang/rust/issues/79711) is stabilized
@@ -497,7 +499,9 @@ pub async fn update_payment_connector(
             merchant_connector_id,
         )
         .await
-        .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound)?;
+        .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+            id: merchant_connector_id.to_string(),
+        })?;
 
     let payment_methods_enabled = req.payment_methods_enabled.map(|pm_enabled| {
         pm_enabled
@@ -557,7 +561,9 @@ pub async fn delete_payment_connector(
             &merchant_connector_id,
         )
         .await
-        .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound)?;
+        .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+            id: merchant_connector_id.clone(),
+        })?;
     let response = api::MerchantConnectorDeleteResponse {
         merchant_id,
         merchant_connector_id,

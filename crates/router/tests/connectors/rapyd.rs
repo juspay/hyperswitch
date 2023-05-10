@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 use futures::future::OptionFuture;
 use masking::Secret;
 use router::types::{self, api, storage::enums};
@@ -39,7 +41,7 @@ async fn should_only_authorize_payment() {
         .authorize_payment(
             Some(types::PaymentsAuthorizeData {
                 payment_method_data: types::api::PaymentMethodData::Card(api::Card {
-                    card_number: Secret::new("4111111111111111".to_string()),
+                    card_number: cards::CardNumber::from_str("4111111111111111").unwrap(),
                     card_exp_month: Secret::new("02".to_string()),
                     card_exp_year: Secret::new("2024".to_string()),
                     card_holder_name: Secret::new("John Doe".to_string()),
@@ -63,7 +65,7 @@ async fn should_authorize_and_capture_payment() {
         .make_payment(
             Some(types::PaymentsAuthorizeData {
                 payment_method_data: types::api::PaymentMethodData::Card(api::Card {
-                    card_number: Secret::new("4111111111111111".to_string()),
+                    card_number: cards::CardNumber::from_str("4111111111111111").unwrap(),
                     card_exp_month: Secret::new("02".to_string()),
                     card_exp_year: Secret::new("2024".to_string()),
                     card_holder_name: Secret::new("John Doe".to_string()),
@@ -142,7 +144,7 @@ async fn should_fail_payment_for_incorrect_card_number() {
         .make_payment(
             Some(types::PaymentsAuthorizeData {
                 payment_method_data: types::api::PaymentMethodData::Card(api::Card {
-                    card_number: Secret::new("0000000000000000".to_string()),
+                    card_number: cards::CardNumber::from_str("0000000000000000").unwrap(),
                     ..utils::CCardType::default().0
                 }),
                 ..utils::PaymentAuthorizeType::default().0

@@ -6,7 +6,7 @@ use url::Url;
 use crate::{
     connector::utils::{self, AddressDetailsData, CardData, RouterData},
     core::errors,
-    pii::{self, Secret},
+    pii::Secret,
     services,
     types::{self, api, storage::enums},
 };
@@ -114,7 +114,7 @@ pub struct Customer {
 #[serde_with::skip_serializing_none]
 #[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
 pub struct GatewayInfo {
-    pub card_number: Option<Secret<String, pii::CardNumber>>,
+    pub card_number: Option<cards::CardNumber>,
     pub card_holder_name: Option<Secret<String>>,
     pub card_expiry_date: Option<i32>,
     pub card_cvc: Option<Secret<String>>,
@@ -354,8 +354,8 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for MultisafepayPaymentsReques
                 .clone()
                 .and_then(|mandate_ids| match mandate_ids.mandate_reference_id {
                     Some(api_models::payments::MandateReferenceId::ConnectorMandateId(
-                        connector_mandate_id,
-                    )) => Some(connector_mandate_id),
+                        connector_mandate_ids,
+                    )) => connector_mandate_ids.connector_mandate_id,
                     _ => None,
                 }),
             days_active: Some(30),
@@ -479,7 +479,11 @@ impl<F, T>
                     .response
                     .data
                     .payment_details
-                    .and_then(|payment_details| payment_details.recurring_id),
+                    .and_then(|payment_details| payment_details.recurring_id)
+                    .map(|id| types::MandateReference {
+                        connector_mandate_id: Some(id),
+                        payment_method_id: None,
+                    }),
                 connector_metadata: None,
                 network_txn_id: None,
             }),
