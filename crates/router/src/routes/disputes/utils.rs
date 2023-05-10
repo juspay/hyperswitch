@@ -49,7 +49,7 @@ pub async fn get_attach_evidence_request(
                         Ok(bytes) => file_data.push(bytes),
                         Err(err) => Err(errors::ApiErrorResponse::InternalServerError)
                             .into_report()
-                            .attach_printable(format!("{}{}", "File parsing error: ", err))?,
+                            .attach_printable_lazy(|| format!("File parsing error: {err}"))?,
                     }
                 }
                 file_content = Some(file_data)
