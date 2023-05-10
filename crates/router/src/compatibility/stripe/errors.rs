@@ -403,7 +403,8 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
             errors::ApiErrorResponse::RefundNotPossible { connector } => Self::RefundFailed,
             errors::ApiErrorResponse::RefundFailed { data } => Self::RefundFailed, // Nothing at stripe to map
 
-            errors::ApiErrorResponse::InternalServerError => Self::InternalServerError, // not a stripe code
+            errors::ApiErrorResponse::MandateUpdateFailed
+            | errors::ApiErrorResponse::InternalServerError => Self::InternalServerError, // not a stripe code
             errors::ApiErrorResponse::ExternalConnectorError {
                 code,
                 message,

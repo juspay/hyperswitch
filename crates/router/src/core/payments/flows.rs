@@ -324,6 +324,14 @@ macro_rules! default_imp_for_file_upload{
                 types::UploadFileResponse,
             > for $path::$connector
             {}
+            impl api::RetrieveFile for $path::$connector {}
+            impl
+                services::ConnectorIntegration<
+                api::Retrieve,
+                types::RetrieveFileRequestData,
+                types::RetrieveFileResponse,
+            > for $path::$connector
+            {}
     )*
     };
 }

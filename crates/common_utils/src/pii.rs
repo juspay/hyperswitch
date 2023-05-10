@@ -21,25 +21,6 @@ pub const REDACTED: &str = "Redacted";
 /// Type alias for serde_json value which has Secret Information
 pub type SecretSerdeValue = Secret<serde_json::Value>;
 
-/// Card number
-#[derive(Debug)]
-pub struct CardNumber;
-
-impl<T> Strategy<T> for CardNumber
-where
-    T: AsRef<str>,
-{
-    fn fmt(val: &T, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let val_str: &str = val.as_ref();
-
-        if val_str.len() < 15 || val_str.len() > 19 {
-            return WithType::fmt(val, f);
-        }
-
-        write!(f, "{}{}", &val_str[..6], "*".repeat(val_str.len() - 6))
-    }
-}
-
 /*
 /// Phone number
 #[derive(Debug)]
@@ -226,20 +207,8 @@ mod pii_masking_strategy_tests {
 
     use masking::{ExposeInterface, Secret};
 
-    use super::{CardNumber, ClientSecret, Email, IpAddress};
+    use super::{ClientSecret, Email, IpAddress};
     use crate::pii::{EmailStrategy, REDACTED};
-
-    #[test]
-    fn test_valid_card_number_masking() {
-        let secret: Secret<String, CardNumber> = Secret::new("1234567890987654".to_string());
-        assert_eq!("123456**********", format!("{secret:?}"));
-    }
-
-    #[test]
-    fn test_invalid_card_number_masking() {
-        let secret: Secret<String, CardNumber> = Secret::new("1234567890".to_string());
-        assert_eq!("*** alloc::string::String ***", format!("{secret:?}"));
-    }
 
     /*
     #[test]

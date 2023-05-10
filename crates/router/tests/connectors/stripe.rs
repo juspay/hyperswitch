@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 use masking::Secret;
 use router::types::{self, api, storage::enums};
 
@@ -34,7 +36,7 @@ impl utils::Connector for Stripe {
 fn get_payment_authorize_data() -> Option<types::PaymentsAuthorizeData> {
     Some(types::PaymentsAuthorizeData {
         payment_method_data: types::api::PaymentMethodData::Card(api::Card {
-            card_number: Secret::new("4242424242424242".to_string()),
+            card_number: cards::CardNumber::from_str("4242424242424242").unwrap(),
             ..utils::CCardType::default().0
         }),
         ..utils::PaymentAuthorizeType::default().0
@@ -155,7 +157,7 @@ async fn should_fail_payment_for_incorrect_card_number() {
         .make_payment(
             Some(types::PaymentsAuthorizeData {
                 payment_method_data: types::api::PaymentMethodData::Card(api::Card {
-                    card_number: Secret::new("4024007134364842".to_string()),
+                    card_number: cards::CardNumber::from_str("4024007134364842").unwrap(),
                     ..utils::CCardType::default().0
                 }),
                 ..utils::PaymentAuthorizeType::default().0
@@ -168,28 +170,6 @@ async fn should_fail_payment_for_incorrect_card_number() {
     assert_eq!(
         x.message,
         "Your card was declined. Your request was in test mode, but used a non test (live) card. For a list of valid test cards, visit: https://stripe.com/docs/testing.",
-    );
-}
-
-#[actix_web::test]
-async fn should_fail_payment_for_no_card_number() {
-    let response = Stripe {}
-        .make_payment(
-            Some(types::PaymentsAuthorizeData {
-                payment_method_data: types::api::PaymentMethodData::Card(api::Card {
-                    card_number: Secret::new("".to_string()),
-                    ..utils::CCardType::default().0
-                }),
-                ..utils::PaymentAuthorizeType::default().0
-            }),
-            None,
-        )
-        .await
-        .unwrap();
-    let x = response.response.unwrap_err();
-    assert_eq!(
-        x.message,
-        "You passed an empty string for 'payment_method_data[card][number]'. We assume empty values are an attempt to unset a parameter; however 'payment_method_data[card][number]' cannot be unset. You should remove 'payment_method_data[card][number]' from your request or supply a non-empty value.",
     );
 }
 
