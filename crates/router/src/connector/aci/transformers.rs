@@ -44,6 +44,14 @@ pub struct AciPaymentsRequest {
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
+pub struct AciTokenRequest {
+    pub entity_id: String,
+    #[serde(flatten)]
+    pub payment_method: PaymentDetails,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct AciCancelRequest {
     pub entity_id: String,
     pub payment_type: AciPaymentType,
@@ -120,6 +128,87 @@ pub enum AciPaymentType {
     Reversal,
     #[serde(rename = "RF")]
     Refund,
+}
+
+impl TryFrom<&types::TokenizationRouterData> for AciTokenRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &types::TokenizationRouterData) -> Result<Self, Self::Error> {
+        let payment_details: PaymentDetails = match item.request.payment_method_data.clone() {
+            api::PaymentMethodData::Card(ccard) => PaymentDetails::AciCard(Box::new(CardDetails {
+                card_number: ccard.card_number,
+                card_holder: ccard.card_holder_name,
+                card_expiry_month: ccard.card_exp_month,
+                card_expiry_year: ccard.card_exp_year,
+                card_cvv: ccard.card_cvc,
+            })),
+            api::PaymentMethodData::PayLater(_) => PaymentDetails::Klarna,
+            api::PaymentMethodData::Wallet(_) => PaymentDetails::Wallet,
+            api::PaymentMethodData::BankRedirect(ref redirect_banking_data) => {
+                match redirect_banking_data {
+                    api_models::payments::BankRedirectData::Eps { .. } => {
+                        PaymentDetails::BankRedirect(Box::new(BankRedirectionPMData {
+                            payment_brand: PaymentBrand::Eps,
+                            bank_account_country: Some(api_models::enums::CountryAlpha2::AT),
+                            bank_account_bank_name: None,
+                            bank_account_bic: None,
+                            bank_account_iban: None,
+                            shopper_result_url: None,
+                        }))
+                    }
+                    api_models::payments::BankRedirectData::Giropay {
+                        bank_account_bic,
+                        bank_account_iban,
+                        ..
+                    } => PaymentDetails::BankRedirect(Box::new(BankRedirectionPMData {
+                        payment_brand: PaymentBrand::Giropay,
+                        bank_account_country: Some(api_models::enums::CountryAlpha2::DE),
+                        bank_account_bank_name: None,
+                        bank_account_bic: bank_account_bic.clone(),
+                        bank_account_iban: bank_account_iban.clone(),
+                        shopper_result_url: None,
+                    })),
+                    api_models::payments::BankRedirectData::Ideal { bank_name, .. } => {
+                        PaymentDetails::BankRedirect(Box::new(BankRedirectionPMData {
+                            payment_brand: PaymentBrand::Ideal,
+                            bank_account_country: Some(api_models::enums::CountryAlpha2::NL),
+                            bank_account_bank_name: Some(bank_name.to_string()),
+                            bank_account_bic: None,
+                            bank_account_iban: None,
+                            shopper_result_url: None,
+                        }))
+                    }
+                    api_models::payments::BankRedirectData::Sofort { country, .. } => {
+                        PaymentDetails::BankRedirect(Box::new(BankRedirectionPMData {
+                            payment_brand: PaymentBrand::Sofortueberweisung,
+                            bank_account_country: Some(*country),
+                            bank_account_bank_name: None,
+                            bank_account_bic: None,
+                            bank_account_iban: None,
+                            shopper_result_url: None,
+                        }))
+                    }
+                    _ => Err(errors::ConnectorError::NotImplemented(
+                        "Payment method".to_string(),
+                    ))?,
+                }
+            }
+            api::PaymentMethodData::Crypto(_) | api::PaymentMethodData::BankDebit(_) => {
+                Err(errors::ConnectorError::NotSupported {
+                    message: format!("{:?}", item.payment_method),
+                    connector: "Aci",
+                    payment_experience: api_models::enums::PaymentExperience::RedirectToUrl
+                        .to_string(),
+                })?
+            }
+        };
+
+        let auth = AciAuthType::try_from(&item.connector_auth_type)?;
+        let aci_token_request = Self {
+            payment_method: payment_details,
+            entity_id: auth.entity_id,
+        };
+        Ok(aci_token_request)
+    }
 }
 
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for AciPaymentsRequest {
@@ -257,8 +346,18 @@ impl FromStr for AciPaymentStatus {
 
 #[derive(Debug, Default, Clone, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
-pub struct AciPaymentsResponse {
+pub struct AciTokenResponse {
     id: String,
+    ndc: String,
+    timestamp: String,
+    build_number: String,
+    pub(super) result: ResultCode,
+    pub(super) redirect: Option<AciRedirectionData>,
+}
+
+#[derive(Debug, Default, Clone, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct AciPaymentsResponse {
     // ndc is an internal unique identifier for the request.
     ndc: String,
     timestamp: String,
@@ -294,6 +393,23 @@ pub struct ErrorParameters {
     pub(super) name: String,
     pub(super) value: String,
     pub(super) message: String,
+}
+
+impl<F, T>
+    TryFrom<types::ResponseRouterData<F, AciTokenResponse, T, types::PaymentsResponseData>>
+    for types::RouterData<F, T, types::PaymentsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: types::ResponseRouterData<F, AciTokenResponse, T, types::PaymentsResponseData>,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            response: Ok(types::PaymentsResponseData::TokenizationResponse {
+                token: item.response.id,
+            }),
+            ..item.data
+        })
+    }
 }
 
 impl<F, T>
@@ -333,7 +449,7 @@ impl<F, T>
                 }
             },
             response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
+                resource_id: types::ResponseId::ConnectorTransactionId(item.response.ndc),
                 redirection_data,
                 mandate_reference: None,
                 connector_metadata: None,
