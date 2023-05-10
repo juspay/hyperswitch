@@ -958,20 +958,18 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
                         }),
                     }
                 });
-        setup_mandate_details= if setup_mandate_details.is_none(){ 
+        setup_mandate_details = if setup_mandate_details.is_none() {
             //stripe requires us to send mandate_data when payment method is bank debit attached to the customer
-            match &payment_data{
-                Some(StripePaymentMethodData::BankDebit(_)) => {
-                    Some(StripeMandateRequest {
-                        mandate_type: StripeMandateType::Offline {
-                            mandate_type_enum: StripeMandateTypeEnum::Offline,
-                        }
-                    })
-                },
+            match &payment_data {
+                Some(StripePaymentMethodData::BankDebit(_)) => Some(StripeMandateRequest {
+                    mandate_type: StripeMandateType::Offline {
+                        mandate_type_enum: StripeMandateTypeEnum::Offline,
+                    },
+                }),
                 Some(_) => None,
                 None => None,
             }
-        }else{
+        } else {
             setup_mandate_details
         };
         Ok(Self {
@@ -1004,13 +1002,14 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
     }
 }
 
-fn get_payment_method_data_from_mandate_metadata(item: &types::PaymentsAuthorizeRouterData) -> Option<StripePaymentMethodData>{
+fn get_payment_method_data_from_mandate_metadata(
+    item: &types::PaymentsAuthorizeRouterData,
+) -> Option<StripePaymentMethodData> {
     match item.mandate_metadata.clone() {
         Some(value) => {
             let payment_method_data =
-                serde_json::from_value::<api_models::payments::PaymentMethodData>(
-                    value.expose(),
-                ).ok();
+                serde_json::from_value::<api_models::payments::PaymentMethodData>(value.expose())
+                    .ok();
             match payment_method_data {
                 Some(payments::PaymentMethodData::BankDebit(data)) => {
                     let stripe_payment_method_data = create_stripe_payment_method(
@@ -1018,8 +1017,9 @@ fn get_payment_method_data_from_mandate_metadata(item: &types::PaymentsAuthorize
                         item.request.payment_experience.as_ref(),
                         &payments::PaymentMethodData::BankDebit(data),
                         item.auth_type,
-                    ).ok();
-                    let stripe_payment_method_data =stripe_payment_method_data.map(|t| t.0);
+                    )
+                    .ok();
+                    let stripe_payment_method_data = stripe_payment_method_data.map(|t| t.0);
                     match stripe_payment_method_data {
                         Some(StripePaymentMethodData::BankDebit(stripe_bank_debit_enum)) => {
                             match stripe_bank_debit_enum {
@@ -1028,15 +1028,11 @@ fn get_payment_method_data_from_mandate_metadata(item: &types::PaymentsAuthorize
                                         StripeBankDebitEnum::Type(stripe_bank_debit_type),
                                     ))
                                 }
-                                StripeBankDebitEnum::Data(stripe_bank_debit_data) => {
-                                    Some(StripePaymentMethodData::BankDebit(
-                                        StripeBankDebitEnum::Type(
-                                            StripeBankDebitType::from(
-                                                stripe_bank_debit_data,
-                                            ),
-                                        ),
-                                    ))
-                                }
+                                StripeBankDebitEnum::Data(stripe_bank_debit_data) => Some(
+                                    StripePaymentMethodData::BankDebit(StripeBankDebitEnum::Type(
+                                        StripeBankDebitType::from(stripe_bank_debit_data),
+                                    )),
+                                ),
                             }
                         }
                         _ => None,
