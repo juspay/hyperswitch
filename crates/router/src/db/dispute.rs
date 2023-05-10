@@ -33,6 +33,12 @@ pub trait DisputeInterface {
         dispute_constraints: api_models::disputes::DisputeListConstraints,
     ) -> CustomResult<Vec<storage::Dispute>, errors::StorageError>;
 
+    async fn find_disputes_by_merchant_id_payment_id(
+        &self,
+        merchant_id: &str,
+        payment_id: &str,
+    ) -> CustomResult<Vec<storage::Dispute>, errors::StorageError>;
+
     async fn update_dispute(
         &self,
         this: storage::Dispute,
@@ -96,6 +102,18 @@ impl DisputeInterface for Store {
             .into_report()
     }
 
+    async fn find_disputes_by_merchant_id_payment_id(
+        &self,
+        merchant_id: &str,
+        payment_id: &str,
+    ) -> CustomResult<Vec<storage::Dispute>, errors::StorageError> {
+        let conn = connection::pg_connection_read(self).await?;
+        storage::Dispute::find_by_merchant_id_payment_id(&conn, merchant_id, payment_id)
+            .await
+            .map_err(Into::into)
+            .into_report()
+    }
+
     async fn update_dispute(
         &self,
         this: storage::Dispute,
@@ -141,6 +159,15 @@ impl DisputeInterface for MockDb {
         &self,
         _merchant_id: &str,
         _dispute_constraints: api_models::disputes::DisputeListConstraints,
+    ) -> CustomResult<Vec<storage::Dispute>, errors::StorageError> {
+        // TODO: Implement function for `MockDb`
+        Err(errors::StorageError::MockDbError)?
+    }
+
+    async fn find_disputes_by_merchant_id_payment_id(
+        &self,
+        _merchant_id: &str,
+        _payment_id: &str,
     ) -> CustomResult<Vec<storage::Dispute>, errors::StorageError> {
         // TODO: Implement function for `MockDb`
         Err(errors::StorageError::MockDbError)?

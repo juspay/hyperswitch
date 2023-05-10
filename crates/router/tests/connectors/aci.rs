@@ -1,4 +1,4 @@
-use std::marker::PhantomData;
+use std::{marker::PhantomData, str::FromStr};
 
 use masking::Secret;
 use router::{
@@ -35,7 +35,7 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
             amount: 1000,
             currency: enums::Currency::USD,
             payment_method_data: types::api::PaymentMethodData::Card(types::api::Card {
-                card_number: Secret::new("4200000000000000".to_string()),
+                card_number: cards::CardNumber::from_str("4200000000000000").unwrap(),
                 card_exp_month: Secret::new("10".to_string()),
                 card_exp_year: Secret::new("2025".to_string()),
                 card_holder_name: Secret::new("John Doe".to_string()),
@@ -174,7 +174,7 @@ async fn payments_create_failure() {
         let mut request = construct_payment_router_data();
         request.request.payment_method_data =
             types::api::PaymentMethodData::Card(types::api::Card {
-                card_number: Secret::new("420000000000000000".to_string()),
+                card_number: cards::CardNumber::from_str("4200000000000000").unwrap(),
                 card_exp_month: Secret::new("10".to_string()),
                 card_exp_year: Secret::new("2025".to_string()),
                 card_holder_name: Secret::new("John Doe".to_string()),

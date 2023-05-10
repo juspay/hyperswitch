@@ -5,7 +5,7 @@ use error_stack::ResultExt;
 use crate::{
     core::{errors, files::helpers::retrieve_file_and_provider_file_id_from_file_id},
     routes::AppState,
-    types::{api::DisputeEvidence, storage, transformers::ForeignFrom, SubmitEvidenceRequestData},
+    types::{api, storage, transformers::ForeignFrom, SubmitEvidenceRequestData},
 };
 
 pub async fn get_evidence_request_data(
@@ -19,6 +19,7 @@ pub async fn get_evidence_request_data(
             state,
             evidence_request.cancellation_policy,
             merchant_account,
+            api::FileDataRequired::NotRequired,
         )
         .await?;
     let (customer_communication, customer_communication_provider_file_id) =
@@ -26,6 +27,7 @@ pub async fn get_evidence_request_data(
             state,
             evidence_request.customer_communication,
             merchant_account,
+            api::FileDataRequired::NotRequired,
         )
         .await?;
     let (customer_signature, customer_signature_provider_file_id) =
@@ -33,12 +35,14 @@ pub async fn get_evidence_request_data(
             state,
             evidence_request.customer_signature,
             merchant_account,
+            api::FileDataRequired::NotRequired,
         )
         .await?;
     let (receipt, receipt_provider_file_id) = retrieve_file_and_provider_file_id_from_file_id(
         state,
         evidence_request.receipt,
         merchant_account,
+        api::FileDataRequired::NotRequired,
     )
     .await?;
     let (refund_policy, refund_policy_provider_file_id) =
@@ -46,6 +50,7 @@ pub async fn get_evidence_request_data(
             state,
             evidence_request.refund_policy,
             merchant_account,
+            api::FileDataRequired::NotRequired,
         )
         .await?;
     let (service_documentation, service_documentation_provider_file_id) =
@@ -53,6 +58,7 @@ pub async fn get_evidence_request_data(
             state,
             evidence_request.service_documentation,
             merchant_account,
+            api::FileDataRequired::NotRequired,
         )
         .await?;
     let (shipping_documentation, shipping_documentation_provider_file_id) =
@@ -60,6 +66,7 @@ pub async fn get_evidence_request_data(
             state,
             evidence_request.shipping_documentation,
             merchant_account,
+            api::FileDataRequired::NotRequired,
         )
         .await?;
     let (
@@ -69,6 +76,7 @@ pub async fn get_evidence_request_data(
         state,
         evidence_request.invoice_showing_distinct_transactions,
         merchant_account,
+        api::FileDataRequired::NotRequired,
     )
     .await?;
     let (recurring_transaction_agreement, recurring_transaction_agreement_provider_file_id) =
@@ -76,6 +84,7 @@ pub async fn get_evidence_request_data(
             state,
             evidence_request.recurring_transaction_agreement,
             merchant_account,
+            api::FileDataRequired::NotRequired,
         )
         .await?;
     let (uncategorized_file, uncategorized_file_provider_file_id) =
@@ -83,6 +92,7 @@ pub async fn get_evidence_request_data(
             state,
             evidence_request.uncategorized_file,
             merchant_account,
+            api::FileDataRequired::NotRequired,
         )
         .await?;
     Ok(SubmitEvidenceRequestData {
@@ -128,48 +138,50 @@ pub async fn get_evidence_request_data(
 }
 
 pub fn update_dispute_evidence(
-    dispute_evidence: DisputeEvidence,
+    dispute_evidence: api::DisputeEvidence,
     evidence_type: EvidenceType,
     file_id: String,
-) -> DisputeEvidence {
+) -> api::DisputeEvidence {
     match evidence_type {
-        api_models::disputes::EvidenceType::CancellationPolicy => DisputeEvidence {
+        api_models::disputes::EvidenceType::CancellationPolicy => api::DisputeEvidence {
             cancellation_policy: Some(file_id),
             ..dispute_evidence
         },
-        api_models::disputes::EvidenceType::CustomerCommunication => DisputeEvidence {
+        api_models::disputes::EvidenceType::CustomerCommunication => api::DisputeEvidence {
             customer_communication: Some(file_id),
             ..dispute_evidence
         },
-        api_models::disputes::EvidenceType::CustomerSignature => DisputeEvidence {
+        api_models::disputes::EvidenceType::CustomerSignature => api::DisputeEvidence {
             customer_signature: Some(file_id),
             ..dispute_evidence
         },
-        api_models::disputes::EvidenceType::Receipt => DisputeEvidence {
+        api_models::disputes::EvidenceType::Receipt => api::DisputeEvidence {
             receipt: Some(file_id),
             ..dispute_evidence
         },
-        api_models::disputes::EvidenceType::RefundPolicy => DisputeEvidence {
+        api_models::disputes::EvidenceType::RefundPolicy => api::DisputeEvidence {
             refund_policy: Some(file_id),
             ..dispute_evidence
         },
-        api_models::disputes::EvidenceType::ServiceDocumentation => DisputeEvidence {
+        api_models::disputes::EvidenceType::ServiceDocumentation => api::DisputeEvidence {
             service_documentation: Some(file_id),
             ..dispute_evidence
         },
-        api_models::disputes::EvidenceType::ShippingDocumentation => DisputeEvidence {
+        api_models::disputes::EvidenceType::ShippingDocumentation => api::DisputeEvidence {
             shipping_documentation: Some(file_id),
             ..dispute_evidence
         },
-        api_models::disputes::EvidenceType::InvoiceShowingDistinctTransactions => DisputeEvidence {
-            invoice_showing_distinct_transactions: Some(file_id),
-            ..dispute_evidence
-        },
-        api_models::disputes::EvidenceType::RecurringTransactionAgreement => DisputeEvidence {
+        api_models::disputes::EvidenceType::InvoiceShowingDistinctTransactions => {
+            api::DisputeEvidence {
+                invoice_showing_distinct_transactions: Some(file_id),
+                ..dispute_evidence
+            }
+        }
+        api_models::disputes::EvidenceType::RecurringTransactionAgreement => api::DisputeEvidence {
             recurring_transaction_agreement: Some(file_id),
             ..dispute_evidence
         },
-        api_models::disputes::EvidenceType::UncategorizedFile => DisputeEvidence {
+        api_models::disputes::EvidenceType::UncategorizedFile => api::DisputeEvidence {
             uncategorized_file: Some(file_id),
             ..dispute_evidence
         },
@@ -199,7 +211,7 @@ pub async fn get_dispute_evidence_block(
 pub async fn get_dispute_evidence_vec(
     state: &AppState,
     merchant_account: storage::MerchantAccount,
-    dispute_evidence: DisputeEvidence,
+    dispute_evidence: api::DisputeEvidence,
 ) -> CustomResult<Vec<api_models::disputes::DisputeEvidenceBlock>, errors::ApiErrorResponse> {
     let mut dispute_evidence_blocks: Vec<api_models::disputes::DisputeEvidenceBlock> = vec![];
     if let Some(cancellation_policy_block) = dispute_evidence.cancellation_policy {
