@@ -16,7 +16,7 @@ pub async fn invalidate(
     let flow = Flow::CacheInvalidate;
 
     let key = key.into_inner().to_owned();
-    
+
     api::server_wrap(
         flow,
         state.get_ref(),
