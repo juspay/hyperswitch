@@ -685,7 +685,7 @@ pub struct BankRedirectBilling {
     /// The name for which billing is issued
     #[schema(value_type = String, example = "John Doe")]
     pub billing_name: Option<Secret<String>>,
-    /// The billing email for bank debits
+    /// The billing email for bank rsedirects
     #[schema(value_type = String, example = "example@example.com")]
     pub email: Email,
 }
