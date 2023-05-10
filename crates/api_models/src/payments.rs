@@ -630,6 +630,13 @@ pub enum BankRedirectData {
         #[schema(value_type = BankNames, example = "abn_amro")]
         bank_name: api_enums::BankNames,
     },
+    Interac {
+        /// The country for bank payment
+        #[schema(value_type = CountryAlpha2, example = "US")]
+        country: api_enums::CountryAlpha2,
+
+        email: Email,
+    },
     OnlineBankingCzechRepublic {
         // Issuer banks
         issuer: api_enums::BankNames,
