@@ -1,3 +1,4 @@
+use cards::CardNumber;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 
@@ -6,7 +7,6 @@ use crate::{
         self, AddressDetailsData, CardData, PaymentsAuthorizeRequestData, RouterData,
     },
     core::errors,
-    pii::{self},
     types::{self, api, storage::enums, transformers::ForeignFrom},
 };
 
@@ -27,7 +27,7 @@ pub struct BillingAddress {
 pub struct Card {
     card_type: ForteCardType,
     name_on_card: Secret<String>,
-    account_number: Secret<String, pii::CardNumber>,
+    account_number: CardNumber,
     expire_month: Secret<String>,
     expire_year: Secret<String>,
     card_verification_value: Secret<String>,
