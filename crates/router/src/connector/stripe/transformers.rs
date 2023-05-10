@@ -1,6 +1,6 @@
 use api_models::{self, enums as api_enums, payments};
 use base64::Engine;
-use common_utils::{errors::CustomResult, pii::{self, SecretSerdeValue}, pii::Email};
+use common_utils::{errors::CustomResult, pii, pii::Email};
 use error_stack::{IntoReport, ResultExt};
 use masking::{ExposeInterface, ExposeOptionInterface, Secret};
 use serde::{Deserialize, Serialize};
