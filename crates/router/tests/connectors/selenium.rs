@@ -2,7 +2,6 @@ use std::{collections::HashMap, env, path::MAIN_SEPARATOR, time::Duration};
 
 use actix_web::cookie::SameSite;
 use async_trait::async_trait;
-use futures::Future;
 use thirtyfour::{components::SelectElement, prelude::*, WebDriver};
 
 pub enum Event<'a> {
@@ -40,8 +39,11 @@ pub enum Assert<'a> {
     Eq(Selector, &'a str),
     Contains(Selector, &'a str),
     IsPresent(&'a str),
+    IsPresentNow(&'a str),
 }
 
+pub static CHEKOUT_BASE_URL: &str = "https://hs-payments-test.netlify.app";
+pub static CHEKOUT_DOMAIN: &str = "hs-payments-test.netlify.app";
 #[async_trait]
 pub trait SeleniumTest {
     async fn complete_actions(
@@ -63,6 +65,9 @@ pub trait SeleniumTest {
                     Assert::IsPresent(text) => {
                         assert!(is_text_present(driver, text).await?)
                     }
+                    Assert::IsPresentNow(text) => {
+                        assert!(is_text_present_now(driver, text).await?)
+                    }
                 },
                 Event::RunIf(con_event, events) => match con_event {
                     Assert::Contains(selector, text) => match selector {
@@ -81,6 +86,11 @@ pub trait SeleniumTest {
                     }
                     Assert::IsPresent(text) => {
                         if is_text_present(driver, text).await.is_ok() {
+                            self.complete_actions(driver, events).await?;
+                        }
+                    }
+                    Assert::IsPresentNow(text) => {
+                        if is_text_present_now(driver, text).await.is_ok() {
                             self.complete_actions(driver, events).await?;
                         }
                     }
@@ -123,6 +133,17 @@ pub trait SeleniumTest {
                         )
                         .await?;
                     }
+                    Assert::IsPresentNow(text) => {
+                        self.complete_actions(
+                            driver,
+                            if is_text_present_now(driver, text).await.is_ok() {
+                                success
+                            } else {
+                                failure
+                            },
+                        )
+                        .await?;
+                    }
                 },
                 Event::Trigger(trigger) => match trigger {
                     Trigger::Goto(url) => {
@@ -142,12 +163,14 @@ pub trait SeleniumTest {
                         let ele = driver.query(by).first().await?;
                         ele.wait_until().displayed().await?;
                         ele.wait_until().clickable().await?;
+                        ele.wait_until().enabled().await?;
                         ele.click().await?;
                     }
                     Trigger::ClickNth(by, n) => {
                         let ele = driver.query(by).all().await?.into_iter().nth(n).unwrap();
                         ele.wait_until().displayed().await?;
                         ele.wait_until().clickable().await?;
+                        ele.wait_until().enabled().await?;
                         ele.click().await?;
                     }
                     Trigger::Find(by) => {
@@ -204,14 +227,6 @@ pub trait SeleniumTest {
         Ok(())
     }
 
-    async fn process_payment<F, Fut>(&self, _f: F) -> Result<(), WebDriverError>
-    where
-        F: FnOnce(WebDriver) -> Fut + Send,
-        Fut: Future<Output = Result<(), WebDriverError>> + Send,
-    {
-        let _browser = env::var("HS_TEST_BROWSER").unwrap_or("chrome".to_string()); //Issue: #924
-        Ok(())
-    }
     async fn make_redirection_payment(
         &self,
         c: WebDriver,
@@ -231,10 +246,11 @@ pub trait SeleniumTest {
         );
         let default_actions = vec![
             Event::Trigger(Trigger::Goto(url)),
-            Event::Trigger(Trigger::Click(By::Css("#gpay-btn button"))),
+            Event::Trigger(Trigger::Click(By::Css(".gpay-button"))),
             Event::Trigger(Trigger::SwitchTab(Position::Next)),
+            Event::Trigger(Trigger::Sleep(5)),
             Event::RunIf(
-                Assert::IsPresent("Sign in"),
+                Assert::IsPresentNow("Sign in"),
                 vec![
                     Event::Trigger(Trigger::SendKeys(By::Id("identifierId"), email)),
                     Event::Trigger(Trigger::ClickNth(By::Tag("button"), 2)),
@@ -255,9 +271,6 @@ pub trait SeleniumTest {
                     ),
                 ],
             ),
-            Event::Trigger(Trigger::Query(By::ClassName(
-                "bootstrapperIframeContainerElement",
-            ))),
             Event::Trigger(Trigger::SwitchFrame(By::Id("sM432dIframe"))),
             Event::Assert(Assert::IsPresent("Gpay Tester")),
             Event::Trigger(Trigger::Click(By::ClassName("jfk-button-action"))),
@@ -304,6 +317,13 @@ pub trait SeleniumTest {
         self.complete_actions(&c, pypl_actions).await
     }
 }
+async fn is_text_present_now(driver: &WebDriver, key: &str) -> WebDriverResult<bool> {
+    let mut xpath = "//*[contains(text(),'".to_owned();
+    xpath.push_str(key);
+    xpath.push_str("')]");
+    let result = driver.find(By::XPath(&xpath)).await?;
+    result.is_present().await
+}
 async fn is_text_present(driver: &WebDriver, key: &str) -> WebDriverResult<bool> {
     let mut xpath = "//*[contains(text(),'".to_owned();
     xpath.push_str(key);
@@ -314,7 +334,7 @@ async fn is_text_present(driver: &WebDriver, key: &str) -> WebDriverResult<bool>
 fn new_cookie(name: &str, value: String) -> Cookie<'_> {
     let mut base_url_cookie = Cookie::new(name, value);
     base_url_cookie.set_same_site(Some(SameSite::Lax));
-    base_url_cookie.set_domain("hs-payment-tests.w3spaces.com");
+    base_url_cookie.set_domain(CHEKOUT_DOMAIN);
     base_url_cookie.set_path("/");
     base_url_cookie
 }
@@ -362,13 +382,17 @@ macro_rules! tester_inner {
 
 #[macro_export]
 macro_rules! tester {
-    ($f:ident, $endpoint:expr) => {{
+    ($f:ident) => {{
         use $crate::tester_inner;
-
-        let url = make_url($endpoint);
-        let caps = make_capabilities($endpoint);
+        let browser = get_browser();
+        let url = make_url(&browser);
+        let caps = make_capabilities(&browser);
         tester_inner!($f, WebDriver::new(url, caps));
     }};
+}
+
+pub fn get_browser() -> String {
+    env::var("HS_TEST_BROWSER").unwrap_or("firefox".to_string()) //Issue: #924
 }
 
 pub fn make_capabilities(s: &str) -> Capabilities {

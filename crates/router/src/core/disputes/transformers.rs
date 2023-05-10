@@ -20,6 +20,7 @@ pub async fn get_evidence_request_data(
             state,
             evidence_request.cancellation_policy,
             merchant_account,
+            api::FileDataRequired::NotRequired,
         )
         .await?;
     let (customer_communication, customer_communication_provider_file_id) =
@@ -27,6 +28,7 @@ pub async fn get_evidence_request_data(
             state,
             evidence_request.customer_communication,
             merchant_account,
+            api::FileDataRequired::NotRequired,
         )
         .await?;
     let (customer_signature, customer_signature_provider_file_id) =
@@ -34,12 +36,14 @@ pub async fn get_evidence_request_data(
             state,
             evidence_request.customer_signature,
             merchant_account,
+            api::FileDataRequired::NotRequired,
         )
         .await?;
     let (receipt, receipt_provider_file_id) = retrieve_file_and_provider_file_id_from_file_id(
         state,
         evidence_request.receipt,
         merchant_account,
+        api::FileDataRequired::NotRequired,
     )
     .await?;
     let (refund_policy, refund_policy_provider_file_id) =
@@ -47,6 +51,7 @@ pub async fn get_evidence_request_data(
             state,
             evidence_request.refund_policy,
             merchant_account,
+            api::FileDataRequired::NotRequired,
         )
         .await?;
     let (service_documentation, service_documentation_provider_file_id) =
@@ -54,6 +59,7 @@ pub async fn get_evidence_request_data(
             state,
             evidence_request.service_documentation,
             merchant_account,
+            api::FileDataRequired::NotRequired,
         )
         .await?;
     let (shipping_documentation, shipping_documentation_provider_file_id) =
@@ -61,6 +67,7 @@ pub async fn get_evidence_request_data(
             state,
             evidence_request.shipping_documentation,
             merchant_account,
+            api::FileDataRequired::NotRequired,
         )
         .await?;
     let (
@@ -70,6 +77,7 @@ pub async fn get_evidence_request_data(
         state,
         evidence_request.invoice_showing_distinct_transactions,
         merchant_account,
+        api::FileDataRequired::NotRequired,
     )
     .await?;
     let (recurring_transaction_agreement, recurring_transaction_agreement_provider_file_id) =
@@ -77,6 +85,7 @@ pub async fn get_evidence_request_data(
             state,
             evidence_request.recurring_transaction_agreement,
             merchant_account,
+            api::FileDataRequired::NotRequired,
         )
         .await?;
     let (uncategorized_file, uncategorized_file_provider_file_id) =
@@ -84,6 +93,7 @@ pub async fn get_evidence_request_data(
             state,
             evidence_request.uncategorized_file,
             merchant_account,
+            api::FileDataRequired::NotRequired,
         )
         .await?;
     Ok(SubmitEvidenceRequestData {

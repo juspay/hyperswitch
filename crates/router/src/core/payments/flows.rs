@@ -107,7 +107,6 @@ default_imp_for_complete_authorize!(
     connector::Aci,
     connector::Adyen,
     connector::Authorizedotnet,
-    connector::Bluesnap,
     connector::Braintree,
     connector::Checkout,
     connector::Coinbase,
@@ -153,7 +152,6 @@ default_imp_for_create_customer!(
     connector::Airwallex,
     connector::Authorizedotnet,
     connector::Bambora,
-    connector::Bluesnap,
     connector::Braintree,
     connector::Checkout,
     connector::Coinbase,
@@ -203,7 +201,6 @@ default_imp_for_connector_redirect_response!(
     connector::Aci,
     connector::Adyen,
     connector::Authorizedotnet,
-    connector::Bluesnap,
     connector::Braintree,
     connector::Coinbase,
     connector::Cybersource,
@@ -325,6 +322,14 @@ macro_rules! default_imp_for_file_upload{
                 api::Upload,
                 types::UploadFileRequestData,
                 types::UploadFileResponse,
+            > for $path::$connector
+            {}
+            impl api::RetrieveFile for $path::$connector {}
+            impl
+                services::ConnectorIntegration<
+                api::Retrieve,
+                types::RetrieveFileRequestData,
+                types::RetrieveFileResponse,
             > for $path::$connector
             {}
     )*

@@ -3,21 +3,28 @@ mod transformers;
 use std::fmt::Debug;
 
 use base64::Engine;
-use common_utils::crypto;
+use common_utils::{
+    crypto,
+    ext_traits::{StringExt, ValueExt},
+};
 use error_stack::{IntoReport, ResultExt};
 use transformers as bluesnap;
 
-use super::utils::RefundsRequestData;
+use super::utils::{self as connector_utils, RefundsRequestData, RouterData};
 use crate::{
     configs::settings,
     consts,
-    core::errors::{self, CustomResult},
+    core::{
+        errors::{self, CustomResult},
+        payments,
+    },
     db::StorageInterface,
     headers, logger,
     services::{self, ConnectorIntegration},
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
+        storage::enums,
         ErrorResponse, Response,
     },
     utils::{self, BytesExt},
@@ -126,6 +133,99 @@ impl api::PreVerify for Bluesnap {}
 impl ConnectorIntegration<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>
     for Bluesnap
 {
+}
+
+impl api::ConnectorCustomer for Bluesnap {}
+
+impl
+    ConnectorIntegration<
+        api::CreateConnectorCustomer,
+        types::ConnectorCustomerData,
+        types::PaymentsResponseData,
+    > for Bluesnap
+{
+    fn get_headers(
+        &self,
+        req: &types::ConnectorCustomerRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(
+        &self,
+        _req: &types::ConnectorCustomerRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(format!(
+            "{}services/2/vaulted-shoppers",
+            self.base_url(connectors),
+        ))
+    }
+
+    fn get_request_body(
+        &self,
+        req: &types::ConnectorCustomerRouterData,
+    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+        let connector_request = bluesnap::BluesnapCustomerRequest::try_from(req)?;
+        let bluesnap_req =
+            utils::Encode::<bluesnap::BluesnapCustomerRequest>::encode_to_string_of_json(
+                &connector_request,
+            )
+            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        Ok(Some(bluesnap_req))
+    }
+
+    fn build_request(
+        &self,
+        req: &types::ConnectorCustomerRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        Ok(Some(
+            services::RequestBuilder::new()
+                .method(services::Method::Post)
+                .url(&types::ConnectorCustomerType::get_url(
+                    self, req, connectors,
+                )?)
+                .attach_default_headers()
+                .headers(types::ConnectorCustomerType::get_headers(
+                    self, req, connectors,
+                )?)
+                .body(types::ConnectorCustomerType::get_request_body(self, req)?)
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        data: &types::ConnectorCustomerRouterData,
+        res: Response,
+    ) -> CustomResult<types::ConnectorCustomerRouterData, errors::ConnectorError>
+    where
+        types::PaymentsResponseData: Clone,
+    {
+        let response: bluesnap::BluesnapCustomerResponse = res
+            .response
+            .parse_struct("BluesnapCustomerResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        types::RouterData::try_from(types::ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res)
+    }
 }
 
 impl api::PaymentVoid for Bluesnap {}
@@ -414,14 +514,22 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
 
     fn get_url(
         &self,
-        _req: &types::PaymentsAuthorizeRouterData,
+        req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!(
-            "{}{}",
-            self.base_url(connectors),
-            "services/2/transactions"
-        ))
+        match req.is_three_ds() {
+            true => Ok(format!(
+                "{}{}{}",
+                self.base_url(connectors),
+                "services/2/payment-fields-tokens?shopperId=",
+                req.get_connector_customer_id()?
+            )),
+            _ => Ok(format!(
+                "{}{}",
+                self.base_url(connectors),
+                "services/2/transactions"
+            )),
+        }
     }
 
     fn get_request_body(
@@ -462,16 +570,126 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         data: &types::PaymentsAuthorizeRouterData,
         res: Response,
     ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
+        match (data.is_three_ds(), res.headers) {
+            (true, Some(headers)) => {
+                let location = connector_utils::get_http_header("Location", &headers)?;
+                let payment_fields_token = location
+                    .split('/')
+                    .last()
+                    .ok_or(errors::ConnectorError::ResponseHandlingFailed)?
+                    .to_string();
+                Ok(types::RouterData {
+                    status: enums::AttemptStatus::AuthenticationPending,
+                    response: Ok(types::PaymentsResponseData::TransactionResponse {
+                        resource_id: types::ResponseId::NoResponseId,
+                        redirection_data: Some(services::RedirectForm::BlueSnap {
+                            payment_fields_token,
+                        }),
+                        mandate_reference: None,
+                        connector_metadata: None,
+                        network_txn_id: None,
+                    }),
+                    ..data.clone()
+                })
+            }
+            _ => {
+                let response: bluesnap::BluesnapPaymentsResponse = res
+                    .response
+                    .parse_struct("BluesnapPaymentsResponse")
+                    .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+                types::RouterData::try_from(types::ResponseRouterData {
+                    response,
+                    data: data.clone(),
+                    http_code: res.status_code,
+                })
+            }
+        }
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res)
+    }
+}
+
+impl api::PaymentsCompleteAuthorize for Bluesnap {}
+
+impl
+    ConnectorIntegration<
+        api::CompleteAuthorize,
+        types::CompleteAuthorizeData,
+        types::PaymentsResponseData,
+    > for Bluesnap
+{
+    fn get_headers(
+        &self,
+        req: &types::PaymentsCompleteAuthorizeRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+    fn get_url(
+        &self,
+        _req: &types::PaymentsCompleteAuthorizeRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(format!(
+            "{}services/2/transactions",
+            self.base_url(connectors),
+        ))
+    }
+    fn get_request_body(
+        &self,
+        req: &types::PaymentsCompleteAuthorizeRouterData,
+    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+        let connector_req = bluesnap::BluesnapPaymentsRequest::try_from(req)?;
+        let bluesnap_req =
+            utils::Encode::<bluesnap::BluesnapPaymentsRequest>::encode_to_string_of_json(
+                &connector_req,
+            )
+            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        Ok(Some(bluesnap_req))
+    }
+    fn build_request(
+        &self,
+        req: &types::PaymentsCompleteAuthorizeRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        Ok(Some(
+            services::RequestBuilder::new()
+                .method(services::Method::Post)
+                .url(&types::PaymentsCompleteAuthorizeType::get_url(
+                    self, req, connectors,
+                )?)
+                .attach_default_headers()
+                .headers(types::PaymentsCompleteAuthorizeType::get_headers(
+                    self, req, connectors,
+                )?)
+                .body(types::PaymentsCompleteAuthorizeType::get_request_body(
+                    self, req,
+                )?)
+                .build(),
+        ))
+    }
+    fn handle_response(
+        &self,
+        data: &types::PaymentsCompleteAuthorizeRouterData,
+        res: Response,
+    ) -> CustomResult<types::PaymentsCompleteAuthorizeRouterData, errors::ConnectorError> {
         let response: bluesnap::BluesnapPaymentsResponse = res
             .response
             .parse_struct("BluesnapPaymentsResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        types::ResponseRouterData {
+        types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
-        }
-        .try_into()
+        })
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
@@ -758,5 +976,33 @@ impl api::IncomingWebhook for Bluesnap {
                 .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
 
         Ok(res_json)
+    }
+}
+
+impl services::ConnectorRedirectResponse for Bluesnap {
+    fn get_flow_type(
+        &self,
+        _query_params: &str,
+        json_payload: Option<serde_json::Value>,
+        _action: services::PaymentAction,
+    ) -> CustomResult<payments::CallConnectorAction, errors::ConnectorError> {
+        let redirection_response: bluesnap::BluesnapRedirectionResponse = json_payload
+            .ok_or(errors::ConnectorError::MissingConnectorRedirectionPayload {
+                field_name: "json_payload",
+            })?
+            .parse_value("BluesnapRedirectionResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        let redirection_result: bluesnap::BluesnapThreeDsResult = redirection_response
+            .authentication_response
+            .parse_struct("BluesnapThreeDsResult")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        match redirection_result.status.as_str() {
+            "Success" => Ok(payments::CallConnectorAction::Trigger),
+            _ => Ok(payments::CallConnectorAction::StatusUpdate(
+                enums::AttemptStatus::AuthenticationFailed,
+            )),
+        }
     }
 }
