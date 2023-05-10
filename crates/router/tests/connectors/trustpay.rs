@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 use async_once::AsyncOnce;
 use lazy_static::lazy_static;
 use masking::Secret;
@@ -52,7 +54,7 @@ fn get_default_browser_info() -> BrowserInformation {
 fn get_default_payment_authorize_data() -> Option<types::PaymentsAuthorizeData> {
     Some(types::PaymentsAuthorizeData {
         payment_method_data: types::api::PaymentMethodData::Card(api::Card {
-            card_number: Secret::new("4200000000000000".to_string()),
+            card_number: cards::CardNumber::from_str("4200000000000000").unwrap(),
             card_exp_year: Secret::new("25".to_string()),
             card_cvc: Secret::new("123".to_string()),
             ..utils::CCardType::default().0
@@ -186,7 +188,7 @@ async fn should_sync_refund() {
 async fn should_fail_payment_for_incorrect_card_number() {
     let payment_authorize_data = types::PaymentsAuthorizeData {
         payment_method_data: types::api::PaymentMethodData::Card(api::Card {
-            card_number: Secret::new("1234567891011".to_string()),
+            card_number: cards::CardNumber::from_str("1234567891011").unwrap(),
             card_exp_year: Secret::new("25".to_string()),
             card_cvc: Secret::new("123".to_string()),
             ..utils::CCardType::default().0
@@ -206,38 +208,12 @@ async fn should_fail_payment_for_incorrect_card_number() {
     );
 }
 
-// Creates a payment with empty card number.
-#[actix_web::test]
-async fn should_fail_payment_for_empty_card_number() {
-    let payment_authorize_data = types::PaymentsAuthorizeData {
-        payment_method_data: types::api::PaymentMethodData::Card(api::Card {
-            card_number: Secret::new("".to_string()),
-            card_exp_year: Secret::new("25".to_string()),
-            card_cvc: Secret::new("123".to_string()),
-            ..utils::CCardType::default().0
-        }),
-        browser_info: Some(get_default_browser_info()),
-        router_return_url: Some(String::from("http://localhost:8080")),
-        ..utils::PaymentAuthorizeType::default().0
-    };
-    let payment_info = get_default_payment_info().await;
-    let response = CONNECTOR
-        .make_payment(Some(payment_authorize_data), payment_info)
-        .await
-        .unwrap();
-    let x = response.response.unwrap_err();
-    assert_eq!(
-        x.message,
-        "Errors { code: 61, description: \"invalid payment data (country or brand)\" }",
-    );
-}
-
 // Creates a payment with incorrect expiry year.
 #[actix_web::test]
 async fn should_fail_payment_for_incorrect_expiry_year() {
     let payment_authorize_data = Some(types::PaymentsAuthorizeData {
         payment_method_data: types::api::PaymentMethodData::Card(api::Card {
-            card_number: Secret::new("4200000000000000".to_string()),
+            card_number: cards::CardNumber::from_str("4200000000000000").unwrap(),
             card_exp_year: Secret::new("22".to_string()),
             card_cvc: Secret::new("123".to_string()),
             ..utils::CCardType::default().0

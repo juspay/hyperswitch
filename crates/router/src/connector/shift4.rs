@@ -183,7 +183,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
                           + 'static),
                 > = Box::new(&Self);
                 let init_data = &types::PaymentsInitRouterData::from((
-                    &router_data,
+                    &router_data.to_owned(),
                     router_data.request.clone(),
                 ));
                 let init_resp = services::execute_connector_processing_step(

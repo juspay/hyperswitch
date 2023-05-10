@@ -1,6 +1,7 @@
+use std::str::FromStr;
+
 use async_once::AsyncOnce;
 use lazy_static::lazy_static;
-use masking::Secret;
 use router::types::{self, api, storage::enums, AccessToken, ErrorResponse};
 use serde_json::json;
 
@@ -134,7 +135,7 @@ async fn should_fail_payment_for_incorrect_cvc() {
         .make_payment(
             Some(types::PaymentsAuthorizeData {
                 payment_method_data: types::api::PaymentMethodData::Card(api::Card {
-                    card_number: Secret::new("4024007134364842".to_string()),
+                    card_number: cards::CardNumber::from_str("4024007134364842").unwrap(),
                     ..utils::CCardType::default().0
                 }),
                 ..utils::PaymentAuthorizeType::default().0

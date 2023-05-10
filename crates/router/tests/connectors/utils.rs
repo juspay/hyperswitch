@@ -1,4 +1,4 @@
-use std::{fmt::Debug, marker::PhantomData, time::Duration};
+use std::{fmt::Debug, marker::PhantomData, str::FromStr, time::Duration};
 
 use async_trait::async_trait;
 use error_stack::Report;
@@ -484,7 +484,7 @@ pub struct BrowserInfoType(pub types::BrowserInformation);
 impl Default for CCardType {
     fn default() -> Self {
         Self(api::Card {
-            card_number: Secret::new("4200000000000000".to_string()),
+            card_number: cards::CardNumber::from_str("4200000000000000").unwrap(),
             card_exp_month: Secret::new("10".to_string()),
             card_exp_year: Secret::new("2025".to_string()),
             card_holder_name: Secret::new("John Doe".to_string()),
@@ -568,6 +568,7 @@ impl Default for BrowserInfoType {
 impl Default for PaymentSyncType {
     fn default() -> Self {
         let data = types::PaymentsSyncData {
+            mandate_id: None,
             connector_transaction_id: types::ResponseId::ConnectorTransactionId(
                 "12345".to_string(),
             ),

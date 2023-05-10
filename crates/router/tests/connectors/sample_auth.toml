@@ -86,7 +86,10 @@ key1 = "key1"
 api_key = "API Key"
 
 [forte]
-api_key="API Key"
+api_key = "api_key"
+key1 = "key1"
+key2 = "key2"
+api_secret = "api_secret"
 
 
 [coinbase]
@@ -103,3 +106,6 @@ key1 = "key1"
 api_key = "api_key"
 key1 = "key1"
 api_secret = "secret"
+
+[dummyconnector]
+api_key="API Key"

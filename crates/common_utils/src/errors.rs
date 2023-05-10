@@ -98,9 +98,26 @@ where
 }
 
 /// Allow [error_stack::Report] to convert between error types
-/// This autoimplements [ReportSwitchExt] for the corresponding errors
+/// This auto-implements [ReportSwitchExt] for the corresponding errors
 pub trait ErrorSwitch<T> {
     /// Get the next error type that the source error can be escalated into
     /// This does not consume the source error since we need to keep it in context
     fn switch(&self) -> T;
+}
+
+/// Allow [error_stack::Report] to convert between error types
+/// This serves as an alternative to [ErrorSwitch]
+pub trait ErrorSwitchFrom<T> {
+    /// Convert to an error type that the source can be escalated into
+    /// This does not consume the source error since we need to keep it in context
+    fn switch_from(error: &T) -> Self;
+}
+
+impl<T, S> ErrorSwitch<T> for S
+where
+    T: ErrorSwitchFrom<Self>,
+{
+    fn switch(&self) -> T {
+        T::switch_from(self)
+    }
 }

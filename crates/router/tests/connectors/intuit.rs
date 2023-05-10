@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 use async_once::AsyncOnce;
 use lazy_static::lazy_static;
 use masking::Secret;
@@ -233,6 +235,7 @@ async fn should_sync_auto_captured_payment() {
                 encoded_data: None,
                 capture_method: None,
                 connector_meta: None,
+                mandate_id: None,
             }),
             payment_info,
         )
@@ -335,7 +338,7 @@ async fn should_fail_payment_for_incorrect_card_number() {
         .make_payment(
             Some(types::PaymentsAuthorizeData {
                 payment_method_data: types::api::PaymentMethodData::Card(api::Card {
-                    card_number: Secret::new("1234567891011".to_string()),
+                    card_number: cards::CardNumber::from_str("1234567891011").unwrap(),
                     ..utils::CCardType::default().0
                 }),
                 ..utils::PaymentAuthorizeType::default().0
@@ -347,30 +350,6 @@ async fn should_fail_payment_for_incorrect_card_number() {
     assert_eq!(
         response.response.unwrap_err().message,
         "card.number is invalid.",
-    );
-}
-
-// Creates a payment with empty card number.
-#[serial_test::serial]
-#[actix_web::test]
-async fn should_fail_payment_for_empty_card_number() {
-    let payment_info = get_default_payment_info().await;
-    let response = CONNECTOR
-        .make_payment(
-            Some(types::PaymentsAuthorizeData {
-                payment_method_data: types::api::PaymentMethodData::Card(api::Card {
-                    card_number: Secret::new(String::from("")),
-                    ..utils::CCardType::default().0
-                }),
-                ..utils::PaymentAuthorizeType::default().0
-            }),
-            payment_info,
-        )
-        .await
-        .unwrap();
-    assert_eq!(
-        response.response.unwrap_err().message,
-        "card.cvc is invalid.",
     );
 }
 

@@ -1,9 +1,10 @@
+use cards::CardNumber;
 use serde::{Deserialize, Serialize};
 
 use crate::{
     connector::utils::PaymentsAuthorizeRequestData,
     core::errors,
-    pii::{self, Secret},
+    pii::Secret,
     types::{self, api, storage::enums},
 };
 
@@ -105,7 +106,7 @@ pub struct IntuitPaymentsRequest {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Card {
-    number: Secret<String, pii::CardNumber>,
+    number: CardNumber,
     exp_month: Secret<String>,
     exp_year: Secret<String>,
     cvc: Secret<String>,

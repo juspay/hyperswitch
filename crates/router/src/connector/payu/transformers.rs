@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     consts,
     core::errors,
-    pii::{self, Secret},
+    pii::Secret,
     types::{self, api, storage::enums},
 };
 
@@ -41,7 +41,7 @@ pub enum PayuPaymentMethodData {
 pub enum PayuCard {
     #[serde(rename_all = "camelCase")]
     Card {
-        number: Secret<String, pii::CardNumber>,
+        number: cards::CardNumber,
         expiration_month: Secret<String>,
         expiration_year: Secret<String>,
         cvv: Secret<String>,
