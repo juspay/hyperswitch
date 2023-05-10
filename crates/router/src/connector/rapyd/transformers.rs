@@ -5,7 +5,7 @@ use url::Url;
 use crate::{
     consts,
     core::errors,
-    pii::{self, Secret},
+    pii::Secret,
     services,
     types::{self, api, storage::enums, transformers::ForeignFrom},
     utils::OptionExt,
@@ -37,7 +37,7 @@ pub struct PaymentMethod {
 
 #[derive(Default, Debug, Serialize)]
 pub struct PaymentFields {
-    pub number: Secret<String, pii::CardNumber>,
+    pub number: cards::CardNumber,
     pub expiration_month: Secret<String>,
     pub expiration_year: Secret<String>,
     pub name: Secret<String>,

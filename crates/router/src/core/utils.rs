@@ -2,7 +2,7 @@ use std::marker::PhantomData;
 
 use api_models::enums::{DisputeStage, DisputeStatus};
 use common_utils::errors::CustomResult;
-use error_stack::ResultExt;
+use error_stack::{IntoReport, ResultExt};
 use router_env::{instrument, tracing};
 
 use super::payments::{helpers, PaymentAddress};
@@ -346,6 +346,7 @@ pub async fn construct_submit_evidence_router_data<'a>(
 }
 
 #[instrument(skip_all)]
+#[allow(clippy::too_many_arguments)]
 pub async fn construct_upload_file_router_data<'a>(
     state: &'a AppState,
     payment_intent: &'a storage::PaymentIntent,
@@ -354,13 +355,8 @@ pub async fn construct_upload_file_router_data<'a>(
     create_file_request: &types::api::CreateFileRequest,
     connector_id: &str,
     file_key: String,
+    connector_label: String,
 ) -> RouterResult<types::UploadFileRouterData> {
-    let connector_label = helpers::get_connector_label(
-        payment_intent.business_country,
-        &payment_intent.business_label,
-        payment_attempt.business_sub_label.as_ref(),
-        connector_id,
-    );
     let merchant_connector_account = helpers::get_merchant_connector_account(
         state,
         merchant_account.merchant_id.as_str(),
@@ -466,6 +462,66 @@ pub async fn construct_defend_dispute_router_data<'a>(
         payment_method_token: None,
         customer_id: None,
         connector_customer: None,
+        preprocessing_id: None,
+    };
+    Ok(router_data)
+}
+
+#[instrument(skip_all)]
+pub async fn construct_retrieve_file_router_data<'a>(
+    state: &'a AppState,
+    merchant_account: &storage::MerchantAccount,
+    file_metadata: &storage_models::file::FileMetadata,
+    connector_id: &str,
+) -> RouterResult<types::RetrieveFileRouterData> {
+    let connector_label = file_metadata
+        .connector_label
+        .clone()
+        .ok_or(errors::ApiErrorResponse::InternalServerError)
+        .into_report()
+        .attach_printable("Missing connector label")?;
+    let merchant_connector_account = helpers::get_merchant_connector_account(
+        state,
+        merchant_account.merchant_id.as_str(),
+        &connector_label,
+        None,
+    )
+    .await?;
+    let auth_type: types::ConnectorAuthType = merchant_connector_account
+        .get_connector_account_details()
+        .parse_value("ConnectorAuthType")
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+    let router_data = types::RouterData {
+        flow: PhantomData,
+        merchant_id: merchant_account.merchant_id.clone(),
+        connector: connector_id.to_string(),
+        customer_id: None,
+        connector_customer: None,
+        payment_id: "irrelevant_payment_id_in_dispute_flow".to_string(),
+        attempt_id: "irrelevant_attempt_id_in_dispute_flow".to_string(),
+        status: storage_models::enums::AttemptStatus::default(),
+        payment_method: storage_models::enums::PaymentMethod::default(),
+        connector_auth_type: auth_type,
+        description: None,
+        return_url: None,
+        payment_method_id: None,
+        address: PaymentAddress::default(),
+        auth_type: storage_models::enums::AuthenticationType::default(),
+        connector_meta_data: merchant_connector_account.get_metadata(),
+        amount_captured: None,
+        request: types::RetrieveFileRequestData {
+            provider_file_id: file_metadata
+                .provider_file_id
+                .clone()
+                .ok_or(errors::ApiErrorResponse::InternalServerError)
+                .into_report()
+                .attach_printable("Missing provider file id")?,
+        },
+        response: Err(types::ErrorResponse::default()),
+        access_token: None,
+        session_token: None,
+        reference_id: None,
+        payment_method_token: None,
         preprocessing_id: None,
     };
     Ok(router_data)

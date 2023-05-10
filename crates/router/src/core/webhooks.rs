@@ -264,8 +264,8 @@ async fn get_or_update_dispute_object(
                 connector_reason: dispute_details.connector_reason,
                 connector_reason_code: dispute_details.connector_reason_code,
                 challenge_required_by: dispute_details.challenge_required_by,
-                dispute_created_at: dispute_details.created_at,
-                updated_at: dispute_details.updated_at,
+                connector_created_at: dispute_details.created_at,
+                connector_updated_at: dispute_details.updated_at,
             };
             state
                 .store
@@ -293,7 +293,7 @@ async fn get_or_update_dispute_object(
                 connector_reason: dispute_details.connector_reason,
                 connector_reason_code: dispute_details.connector_reason_code,
                 challenge_required_by: dispute_details.challenge_required_by,
-                updated_at: dispute_details.updated_at,
+                connector_updated_at: dispute_details.updated_at,
             };
             db.update_dispute(dispute, update_dispute)
                 .await
@@ -374,7 +374,6 @@ async fn bank_transfer_webhook_flow<W: api::OutgoingWebhookType>(
     source_verified: bool,
 ) -> CustomResult<(), errors::WebhooksFlowError> {
     let response = if source_verified {
-        let db = &*state.store;
         let payment_attempt = get_payment_attempt_from_object_reference_id(
             &state,
             webhook_details.object_reference_id,
@@ -382,31 +381,11 @@ async fn bank_transfer_webhook_flow<W: api::OutgoingWebhookType>(
         )
         .await?;
         let payment_id = payment_attempt.payment_id;
-        let payment_intent = db
-            .find_payment_intent_by_payment_id_merchant_id(
-                &payment_id.clone(),
-                &merchant_account.merchant_id,
-                merchant_account.storage_scheme,
-            )
-            .await
-            .change_context(errors::WebhooksFlowError::ResourceNotFound)?;
         let request = api::PaymentsRequest {
             payment_id: Some(api_models::payments::PaymentIdType::PaymentIntentId(
                 payment_id,
             )),
-            merchant_id: Some(merchant_account.merchant_id.to_owned()),
             payment_token: payment_attempt.payment_token,
-            currency: Some(
-                payment_attempt
-                    .currency
-                    .get_required_value("currency")
-                    .change_context(errors::WebhooksFlowError::MissingRequiredField {
-                        field_name: "currency",
-                    })?
-                    .foreign_into(),
-            ),
-            amount: Some(payment_attempt.amount.into()),
-            customer_id: payment_intent.customer_id,
             ..Default::default()
         };
         payments::payments_core::<api::Authorize, api::PaymentsResponse, _, _, _>(

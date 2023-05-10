@@ -43,7 +43,7 @@ impl TryFrom<&types::ConnectorAuthType> for MerchantAuthentication {
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
 #[serde(rename_all = "camelCase")]
 struct CreditCardDetails {
-    card_number: masking::Secret<String, common_utils::pii::CardNumber>,
+    card_number: masking::StrongSecret<String, cards::CardNumberStrategy>,
     expiration_date: masking::Secret<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     card_code: Option<masking::Secret<String>>,
@@ -98,7 +98,7 @@ fn get_pm_and_subsequent_auth_detail(
             match item.request.payment_method_data {
                 api::PaymentMethodData::Card(ref ccard) => {
                     let payment_details = PaymentDetails::CreditCard(CreditCardDetails {
-                        card_number: ccard.card_number.clone(),
+                        card_number: (*ccard.card_number).clone(),
                         expiration_date: ccard.get_expiry_date_as_yyyymm("-"),
                         card_code: None,
                     });
@@ -116,7 +116,7 @@ fn get_pm_and_subsequent_auth_detail(
             api::PaymentMethodData::Card(ref ccard) => {
                 Ok((
                     PaymentDetails::CreditCard(CreditCardDetails {
-                        card_number: ccard.card_number.clone(),
+                        card_number: (*ccard.card_number).clone(),
                         // expiration_date: format!("{expiry_year}-{expiry_month}").into(),
                         expiration_date: ccard.get_expiry_date_as_yyyymm("-"),
                         card_code: Some(ccard.card_cvc.clone()),
