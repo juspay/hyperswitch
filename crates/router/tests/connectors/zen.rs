@@ -1,4 +1,8 @@
+use std::str::FromStr;
+
 use api_models::payments::OrderDetails;
+use cards::CardNumber;
+use common_utils::pii::Email;
 use masking::Secret;
 use router::types::{self, api, storage::enums};
 
@@ -95,6 +99,7 @@ async fn should_sync_authorized_payment() {
                 encoded_data: None,
                 capture_method: None,
                 connector_meta: None,
+                mandate_id: None,
             }),
             None,
         )
@@ -207,6 +212,7 @@ async fn should_sync_auto_captured_payment() {
                 encoded_data: None,
                 capture_method: Some(enums::CaptureMethod::Automatic),
                 connector_meta: None,
+                mandate_id: None,
             }),
             None,
         )
@@ -297,7 +303,7 @@ async fn should_fail_payment_for_incorrect_card_number() {
         .make_payment(
             Some(types::PaymentsAuthorizeData {
                 payment_method_data: types::api::PaymentMethodData::Card(api::Card {
-                    card_number: Secret::new("1234567891011".to_string()),
+                    card_number: CardNumber::from_str("1234567891011").unwrap(),
                     ..utils::CCardType::default().0
                 }),
                 order_details: Some(vec![OrderDetails {
@@ -305,7 +311,7 @@ async fn should_fail_payment_for_incorrect_card_number() {
                     quantity: 1,
                     amount: 1000,
                 }]),
-                email: Some(Secret::new("test@gmail.com".to_string())),
+                email: Some(Email::from_str("test@gmail.com").unwrap()),
                 webhook_url: Some("https://1635-116-74-253-164.ngrok-free.app".to_string()),
                 ..utils::PaymentAuthorizeType::default().0
             }),
@@ -325,36 +331,6 @@ async fn should_fail_payment_for_incorrect_card_number() {
     );
 }
 
-// Creates a payment with empty card number.
-#[actix_web::test]
-async fn should_fail_payment_for_empty_card_number() {
-    let response = CONNECTOR
-        .make_payment(
-            Some(types::PaymentsAuthorizeData {
-                payment_method_data: types::api::PaymentMethodData::Card(api::Card {
-                    card_number: Secret::new(String::from("")),
-                    ..utils::CCardType::default().0
-                }),
-                order_details: Some(vec![OrderDetails {
-                    product_name: "test".to_string(),
-                    quantity: 1,
-                    amount: 1000,
-                }]),
-                email: Some(Secret::new("test@gmail.com".to_string())),
-                webhook_url: Some("https://1635-116-74-253-164.ngrok-free.app".to_string()),
-                ..utils::PaymentAuthorizeType::default().0
-            }),
-            None,
-        )
-        .await
-        .unwrap();
-    let x = response.response.unwrap_err();
-    assert_eq!(
-        x.message.split_once(';').unwrap().0,
-        "Request data doesn't pass validation",
-    );
-}
-
 // Creates a payment with incorrect CVC.
 #[actix_web::test]
 async fn should_fail_payment_for_incorrect_cvc() {
@@ -370,7 +346,7 @@ async fn should_fail_payment_for_incorrect_cvc() {
                     quantity: 1,
                     amount: 1000,
                 }]),
-                email: Some(Secret::new("test@gmail.com".to_string())),
+                email: Some(Email::from_str("test@gmail.com").unwrap()),
                 webhook_url: Some("https://1635-116-74-253-164.ngrok-free.app".to_string()),
                 ..utils::PaymentAuthorizeType::default().0
             }),
@@ -405,7 +381,7 @@ async fn should_fail_payment_for_invalid_exp_month() {
                     quantity: 1,
                     amount: 1000,
                 }]),
-                email: Some(Secret::new("test@gmail.com".to_string())),
+                Some(Email::from_str("test@gmail.com").unwrap()),
                 webhook_url: Some("https://1635-116-74-253-164.ngrok-free.app".to_string()),
                 ..utils::PaymentAuthorizeType::default().0
             }),
@@ -440,7 +416,7 @@ async fn should_fail_payment_for_incorrect_expiry_year() {
                     quantity: 1,
                     amount: 1000,
                 }]),
-                email: Some(Secret::new("test@gmail.com".to_string())),
+                email: Some(Email::from_str("test@gmail.com").unwrap()),
                 webhook_url: Some("https://1635-116-74-253-164.ngrok-free.app".to_string()),
                 ..utils::PaymentAuthorizeType::default().0
             }),

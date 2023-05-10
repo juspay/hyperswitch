@@ -107,8 +107,8 @@ impl ConnectorErrorExt for error_stack::Report<errors::ConnectorError> {
                         "payment_method_data, payment_method_type and payment_experience does not match",
                 }
             },
-            errors::ConnectorError::NotSupported { payment_method, connector, payment_experience } => {
-                errors::ApiErrorResponse::NotSupported { message: format!("Payment method type {payment_method} is not supported by {connector} through payment experience {payment_experience}") }
+            errors::ConnectorError::NotSupported { message, connector, payment_experience } => {
+                errors::ApiErrorResponse::NotSupported { message: format!("{message} is not supported by {connector} through payment experience {payment_experience}") }
             },
             errors::ConnectorError::FlowNotSupported{ flow, connector } => {
                 errors::ApiErrorResponse::FlowNotSupported { flow: flow.to_owned(), connector: connector.to_owned() }
@@ -119,10 +119,11 @@ impl ConnectorErrorExt for error_stack::Report<errors::ConnectorError> {
     }
 
     fn to_verify_failed_response(self) -> error_stack::Report<errors::ApiErrorResponse> {
-        let data = match self.current_context() {
+        let error = self.current_context();
+        let data = match error {
             errors::ConnectorError::ProcessingStepFailed(Some(bytes)) => {
                 let response_str = std::str::from_utf8(bytes);
-                match response_str {
+                let error_response = match response_str {
                     Ok(s) => serde_json::from_str(s)
                         .map_err(|err| logger::error!(%err, "Failed to convert response to JSON"))
                         .ok(),
@@ -130,11 +131,20 @@ impl ConnectorErrorExt for error_stack::Report<errors::ConnectorError> {
                         logger::error!(%err, "Failed to convert response to UTF8 string");
                         None
                     }
+                };
+                errors::ApiErrorResponse::PaymentAuthorizationFailed {
+                    data: error_response,
                 }
             }
-            _ => None,
+            errors::ConnectorError::MissingRequiredField { field_name } => {
+                errors::ApiErrorResponse::MissingRequiredField { field_name }
+            }
+            _ => {
+                logger::error!(%error,"Verify flow failed");
+                errors::ApiErrorResponse::PaymentAuthorizationFailed { data: None }
+            }
         };
-        self.change_context(errors::ApiErrorResponse::PaymentAuthorizationFailed { data })
+        self.change_context(data)
     }
 }
 

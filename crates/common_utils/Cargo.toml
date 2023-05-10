@@ -8,20 +8,9 @@ readme = "README.md"
 license = "Apache-2.0"
 
 [features]
-signals = [
-    "dep:signal-hook-tokio",
-    "dep:signal-hook",
-    "dep:tokio",
-    "dep:router_env",
-    "dep:futures"
-]
-async_ext = [
-    "dep:futures",
-    "dep:async-trait"
-]
-logs = [
-    "dep:router_env"
-]
+signals = ["dep:signal-hook-tokio", "dep:signal-hook", "dep:tokio", "dep:router_env", "dep:futures"]
+async_ext = ["dep:futures", "dep:async-trait"]
+logs = ["dep:router_env"]
 
 [dependencies]
 async-trait = { version = "0.1.68", optional = true }
@@ -46,6 +35,7 @@ md5 = "0.7.0"
 # First party crates
 masking = { version = "0.1.0", path = "../masking" }
 router_env = { version = "0.1.0", path = "../router_env", features = ["log_extra_implicit_fields", "log_custom_entries_to_extra"], optional = true }
+diesel = "2.0.3"
 
 [target.'cfg(not(target_os = "windows"))'.dependencies]
 signal-hook-tokio = { version = "0.3.1", features = ["futures-v0_3"], optional = true }
