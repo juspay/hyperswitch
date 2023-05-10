@@ -100,9 +100,20 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Co
         let token = token.or_else(|| payment_attempt.payment_token.clone());
 
         helpers::validate_pm_or_token_given(
-            &request.payment_method,
+            &request.payment_method.or(Some(
+                payment_attempt
+                    .payment_method
+                    .ok_or(errors::ApiErrorResponse::PaymentMethodNotFound)?
+                    .foreign_into(),
+            )),
             &request.payment_method_data,
-            &request.payment_method_type,
+            &request.payment_method_type.or(Some(
+                payment_attempt
+                    .payment_method_type
+                    .clone()
+                    .ok_or(errors::ApiErrorResponse::PaymentMethodTypeNotFound)?
+                    .foreign_into(),
+            )),
             &mandate_type,
             &token,
         )?;
@@ -167,6 +178,12 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Co
         payment_intent.billing_address_id = billing_address.clone().map(|i| i.address_id);
         payment_intent.return_url = request.return_url.as_ref().map(|a| a.to_string());
 
+        let attempt_pm_data: Option<api::PaymentMethodData> = payment_attempt
+            .payment_method_data
+            .clone()
+            .parse_value("PaymentMethodData")
+            .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)?;
+
         Ok((
             Box::new(self),
             PaymentData {
@@ -185,7 +202,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Co
                     billing: billing_address.as_ref().map(|a| a.foreign_into()),
                 },
                 confirm: request.confirm,
-                payment_method_data: request.payment_method_data.clone(),
+                payment_method_data: request.payment_method_data.clone().or(attempt_pm_data),
                 force_sync: None,
                 refunds: vec![],
                 sessions_token: vec![],
