@@ -82,7 +82,7 @@ pub enum StripeErrorCode {
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "resource_missing", message = "No such payment method")]
     PaymentMethodNotFound,
 
-    #[error(error_type = StripeErrorType::InvalidRequestError, code = "resource_missing", message = "No such payment method")]
+    #[error(error_type = StripeErrorType::InvalidRequestError, code = "resource_missing", message = "No such payment method type")]
     PaymentMethodTypeNotFound,
 
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "resource_missing", message = "No such merchant account")]

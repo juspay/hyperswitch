@@ -19,7 +19,7 @@ use crate::{
         self,
         api::{self, PaymentIdTypeExt},
         storage::{self, enums as storage_enums},
-        transformers::ForeignInto,
+        transformers::{ForeignFrom, ForeignInto},
     },
     utils::{self, OptionExt},
 };
@@ -100,19 +100,27 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Co
         let token = token.or_else(|| payment_attempt.payment_token.clone());
 
         helpers::validate_pm_or_token_given(
-            &request.payment_method.or(Some(
+            &request
+                .payment_method
+                .or(Some(api_models::enums::PaymentMethod::foreign_from(
+                    payment_attempt
+                        .payment_method
+                        .ok_or(errors::ApiErrorResponse::PaymentMethodNotFound)?,
+                ))),
+            &request.payment_method_data.clone().or(Some(
                 payment_attempt
-                    .payment_method
-                    .ok_or(errors::ApiErrorResponse::PaymentMethodNotFound)?
-                    .foreign_into(),
-            )),
-            &request.payment_method_data,
-            &request.payment_method_type.or(Some(
-                payment_attempt
-                    .payment_method_type
+                    .payment_method_data
                     .clone()
-                    .ok_or(errors::ApiErrorResponse::PaymentMethodTypeNotFound)?
-                    .foreign_into(),
+                    .parse_value("payment method")
+                    .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)?,
+            )),
+            &request.payment_method_type.or(Some(
+                api_models::enums::PaymentMethodType::foreign_from(
+                    payment_attempt
+                        .payment_method_type
+                        .clone()
+                        .ok_or(errors::ApiErrorResponse::PaymentMethodTypeNotFound)?,
+                ),
             )),
             &mandate_type,
             &token,
