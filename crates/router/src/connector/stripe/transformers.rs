@@ -1,6 +1,6 @@
 use api_models::{self, enums as api_enums, payments};
 use base64::Engine;
-use common_utils::{errors::CustomResult, pii, pii::Email};
+use common_utils::{errors::CustomResult, ext_traits::ByteSliceExt, pii, pii::Email};
 use error_stack::{IntoReport, ResultExt};
 use masking::{ExposeInterface, ExposeOptionInterface, Secret};
 use serde::{Deserialize, Serialize};
@@ -12,7 +12,7 @@ use crate::{
     collect_missing_value_keys, consts,
     core::errors,
     services,
-    types::{self, api, storage::enums},
+    types::{self, api, storage::enums, transformers::ForeignFrom},
     utils::OptionExt,
 };
 
@@ -108,6 +108,7 @@ pub struct PaymentIntentRequest {
     pub capture_method: StripeCaptureMethod,
     pub payment_method_options: Option<StripePaymentMethodOptions>, // For mandate txns using network_txns_id, needs to be validated
     pub setup_future_usage: Option<enums::FutureUsage>,
+    pub off_session: Option<bool>,
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
@@ -135,7 +136,7 @@ pub struct StripeCardData {
     #[serde(rename = "payment_method_data[type]")]
     pub payment_method_data_type: StripePaymentMethodType,
     #[serde(rename = "payment_method_data[card][number]")]
-    pub payment_method_data_card_number: Secret<String, pii::CardNumber>,
+    pub payment_method_data_card_number: cards::CardNumber,
     #[serde(rename = "payment_method_data[card][exp_month]")]
     pub payment_method_data_card_exp_month: Secret<String>,
     #[serde(rename = "payment_method_data[card][exp_year]")]
@@ -196,7 +197,7 @@ pub enum StripeBankName {
     Przelewy24 {
         #[serde(rename = "payment_method_data[p24][bank]")]
         bank_name: StripeBankNames,
-    }
+    },
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
@@ -305,7 +306,10 @@ pub enum StripePaymentMethodData {
 #[serde(untagged)]
 pub enum StripeWallet {
     ApplepayToken(StripeApplePay),
+    GooglepayToken(GooglePayToken),
     ApplepayPayment(ApplepayPayment),
+    WechatpayPayment(WechatpayPayment),
+    AlipayPayment(AlipayPayment),
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
@@ -317,7 +321,47 @@ pub struct StripeApplePay {
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
+pub struct GooglePayToken {
+    #[serde(rename = "payment_method_data[type]")]
+    pub payment_type: StripePaymentMethodType,
+    #[serde(rename = "payment_method_data[card][token]")]
+    pub token: String,
+}
+
+#[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct ApplepayPayment {
+    #[serde(rename = "payment_method_data[card][token]")]
+    pub token: String,
+    #[serde(rename = "payment_method_data[type]")]
+    pub payment_method_types: StripePaymentMethodType,
+}
+
+#[derive(Debug, Eq, PartialEq, Serialize)]
+pub struct AlipayPayment {
+    #[serde(rename = "payment_method_types[]")]
+    pub payment_method_types: StripePaymentMethodType,
+    #[serde(rename = "payment_method_data[type]")]
+    pub payment_method_data_type: StripePaymentMethodType,
+}
+
+#[derive(Debug, Eq, PartialEq, Serialize)]
+pub struct WechatpayPayment {
+    #[serde(rename = "payment_method_types[]")]
+    pub payment_method_types: StripePaymentMethodType,
+    #[serde(rename = "payment_method_data[type]")]
+    pub payment_method_data_type: StripePaymentMethodType,
+    #[serde(rename = "payment_method_options[wechat_pay][client]")]
+    pub client: WechatClient,
+}
+
+#[derive(Debug, Eq, PartialEq, Serialize, Clone, Copy)]
+#[serde(rename_all = "snake_case")]
+pub enum WechatClient {
+    Web,
+}
+
+#[derive(Debug, Eq, PartialEq, Serialize)]
+pub struct GooglepayPayment {
     #[serde(rename = "payment_method_data[card][token]")]
     pub token: String,
     #[serde(rename = "payment_method_data[type]")]
@@ -344,8 +388,11 @@ pub enum StripePaymentMethodType {
     Becs,
     #[serde(rename = "bacs_debit")]
     Bacs,
+    #[serde(rename = "wechat_pay")]
+    Wechatpay,
+    Alipay,
     #[serde(rename = "p24")]
-    Przelewy24
+    Przelewy24,
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize, Clone)]
@@ -674,6 +721,7 @@ fn get_bank_debit_data(
             billing_details,
             account_number,
             routing_number,
+            ..
         } => {
             let ach_data = BankDebitData::Ach {
                 account_holder_type: "individual".to_string(),
@@ -687,6 +735,7 @@ fn get_bank_debit_data(
         payments::BankDebitData::SepaBankDebit {
             billing_details,
             iban,
+            ..
         } => {
             let sepa_data = BankDebitData::Sepa {
                 iban: iban.to_owned(),
@@ -813,6 +862,29 @@ fn create_stripe_payment_method(
                 StripePaymentMethodType::ApplePay,
                 StripeBillingAddress::default(),
             )),
+
+            payments::WalletData::WeChatPayRedirect(_) => Ok((
+                StripePaymentMethodData::Wallet(StripeWallet::WechatpayPayment(WechatpayPayment {
+                    client: WechatClient::Web,
+                    payment_method_types: StripePaymentMethodType::Wechatpay,
+                    payment_method_data_type: StripePaymentMethodType::Wechatpay,
+                })),
+                StripePaymentMethodType::Wechatpay,
+                StripeBillingAddress::default(),
+            )),
+            payments::WalletData::AliPay(_) => Ok((
+                StripePaymentMethodData::Wallet(StripeWallet::AlipayPayment(AlipayPayment {
+                    payment_method_types: StripePaymentMethodType::Alipay,
+                    payment_method_data_type: StripePaymentMethodType::Alipay,
+                })),
+                StripePaymentMethodType::Alipay,
+                StripeBillingAddress::default(),
+            )),
+            payments::WalletData::GooglePay(gpay_data) => Ok((
+                StripePaymentMethodData::try_from(gpay_data)?,
+                StripePaymentMethodType::Card,
+                StripeBillingAddress::default(),
+            )),
             _ => Err(errors::ConnectorError::NotImplemented(
                 "This wallet is not implemented for stripe".to_string(),
             )
@@ -829,9 +901,25 @@ fn create_stripe_payment_method(
             Ok((pm_data, pm_type, billing_address))
         }
         _ => Err(errors::ConnectorError::NotImplemented(
-            "stripe does not support this payment method".to_string(),
+            "this payment method for stripe".to_string(),
         )
         .into()),
+    }
+}
+
+impl TryFrom<&payments::GooglePayWalletData> for StripePaymentMethodData {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(gpay_data: &payments::GooglePayWalletData) -> Result<Self, Self::Error> {
+        Ok(Self::Wallet(StripeWallet::GooglepayToken(GooglePayToken {
+            token: gpay_data
+                .tokenization_data
+                .token
+                .as_bytes()
+                .parse_struct::<StripeGpayToken>("StripeGpayToken")
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?
+                .id,
+            payment_type: StripePaymentMethodType::Card,
+        })))
     }
 }
 
@@ -873,16 +961,21 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
         };
         let mut payment_method_options = None;
 
-        let (mut payment_data, payment_method, billing_address) = {
+        let (mut payment_data, payment_method, mandate, billing_address) = {
             match item
                 .request
                 .mandate_id
                 .clone()
                 .and_then(|mandate_ids| mandate_ids.mandate_reference_id)
             {
-                Some(api_models::payments::MandateReferenceId::ConnectorMandateId(mandate_id)) => {
-                    (None, Some(mandate_id), StripeBillingAddress::default())
-                }
+                Some(api_models::payments::MandateReferenceId::ConnectorMandateId(
+                    connector_mandate_ids,
+                )) => (
+                    None,
+                    connector_mandate_ids.payment_method_id,
+                    connector_mandate_ids.connector_mandate_id,
+                    StripeBillingAddress::default(),
+                ),
                 Some(api_models::payments::MandateReferenceId::NetworkMandateId(
                     network_transaction_id,
                 )) => {
@@ -893,7 +986,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
                             network_transaction_id,
                         }),
                     });
-                    (None, None, StripeBillingAddress::default())
+                    (None, None, None, StripeBillingAddress::default())
                 }
                 _ => {
                     let (payment_method_data, payment_method_type, billing_address) =
@@ -909,7 +1002,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
                         &payment_method_type,
                     )?;
 
-                    (Some(payment_method_data), None, billing_address)
+                    (Some(payment_method_data), None, None, billing_address)
                 }
             }
         };
@@ -958,17 +1051,17 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
                 .clone()
                 .unwrap_or_else(|| "https://juspay.in/".to_string()),
             confirm: true, // Stripe requires confirm to be true if return URL is present
-
             description: item.description.clone(),
             shipping: shipping_address,
             billing: billing_address,
             capture_method: StripeCaptureMethod::from(item.request.capture_method),
             payment_data,
-            mandate: None,
+            mandate,
             payment_method_options,
             payment_method,
             customer: item.connector_customer.to_owned(),
             setup_mandate_details,
+            off_session: item.request.off_session,
             setup_future_usage: item.request.setup_future_usage,
         })
     }
@@ -1191,6 +1284,35 @@ pub struct SetupIntentResponse {
     pub latest_attempt: Option<LatestAttempt>,
 }
 
+impl ForeignFrom<(Option<StripePaymentMethodOptions>, String)> for types::MandateReference {
+    fn foreign_from(
+        (payment_method_options, payment_method_id): (Option<StripePaymentMethodOptions>, String),
+    ) -> Self {
+        Self {
+            connector_mandate_id: payment_method_options.and_then(|options| match options {
+                StripePaymentMethodOptions::Card {
+                    mandate_options, ..
+                } => mandate_options.map(|mandate_options| mandate_options.reference),
+                StripePaymentMethodOptions::Klarna {}
+                | StripePaymentMethodOptions::Affirm {}
+                | StripePaymentMethodOptions::AfterpayClearpay {}
+                | StripePaymentMethodOptions::Eps {}
+                | StripePaymentMethodOptions::Giropay {}
+                | StripePaymentMethodOptions::Ideal {}
+                | StripePaymentMethodOptions::Sofort {}
+                | StripePaymentMethodOptions::Ach {}
+                | StripePaymentMethodOptions::Bacs {}
+                | StripePaymentMethodOptions::Becs {}
+                | StripePaymentMethodOptions::WechatPay {}
+                | StripePaymentMethodOptions::Alipay {}
+                | StripePaymentMethodOptions::Sepa {}
+                | StripePaymentMethodOptions::Przelewy24 {} => None,
+            }),
+            payment_method_id: Some(payment_method_id),
+        }
+    }
+}
+
 impl<F, T>
     TryFrom<types::ResponseRouterData<F, PaymentIntentResponse, T, types::PaymentsResponseData>>
     for types::RouterData<F, T, types::PaymentsResponseData>
@@ -1203,19 +1325,13 @@ impl<F, T>
             services::RedirectForm::from((next_action_response.get_url(), services::Method::Get))
         });
 
+        let mandate_reference = item.response.payment_method.map(|pm| {
+            types::MandateReference::foreign_from((item.response.payment_method_options, pm))
+        });
+
         //Note: we might have to call retrieve_setup_intent to get the network_transaction_id in case its not sent in PaymentIntentResponse
         // Or we identify the mandate txns before hand and always call SetupIntent in case of mandate payment call
-        let network_txn_id = item.response.latest_attempt.and_then(|latest_attempt| {
-            latest_attempt
-                .payment_method_options
-                .and_then(|payment_method_options| match payment_method_options {
-                    StripePaymentMethodOptions::Card {
-                        network_transaction_id,
-                        ..
-                    } => network_transaction_id,
-                    _ => None,
-                })
-        });
+        let network_txn_id = Option::foreign_from(item.response.latest_attempt);
 
         Ok(Self {
             status: enums::AttemptStatus::from(item.response.status),
@@ -1226,7 +1342,7 @@ impl<F, T>
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
                 redirection_data,
-                mandate_reference: item.response.payment_method,
+                mandate_reference,
                 connector_metadata: None,
                 network_txn_id,
             }),
@@ -1260,28 +1376,12 @@ impl<F, T>
                 ))
             });
 
-        let mandate_reference =
-            item.response
-                .payment_method_options
-                .to_owned()
-                .and_then(|payment_method_options| match payment_method_options {
-                    StripePaymentMethodOptions::Card {
-                        mandate_options, ..
-                    } => mandate_options.map(|mandate_options| mandate_options.reference),
-                    StripePaymentMethodOptions::Klarna {}
-                    | StripePaymentMethodOptions::Affirm {}
-                    | StripePaymentMethodOptions::AfterpayClearpay {}
-                    | StripePaymentMethodOptions::Eps {}
-                    | StripePaymentMethodOptions::Giropay {}
-                    | StripePaymentMethodOptions::Ideal {}
-                    | StripePaymentMethodOptions::Sofort {}
-                    | StripePaymentMethodOptions::Ach {}
-                    | StripePaymentMethodOptions::Bacs {}
-                    | StripePaymentMethodOptions::Becs {}
-                    | StripePaymentMethodOptions::Sepa {}
-                    | StripePaymentMethodOptions::Przelewy24 {} => None,
-                });
-
+        let mandate_reference = item.response.payment_method.clone().map(|pm| {
+            types::MandateReference::foreign_from((
+                item.response.payment_method_options.clone(),
+                pm,
+            ))
+        });
         let error_res =
             item.response
                 .last_payment_error
@@ -1325,16 +1425,8 @@ impl<F, T>
             services::RedirectForm::from((next_action_response.get_url(), services::Method::Get))
         });
 
-        let network_txn_id = item.response.latest_attempt.and_then(|latest_attempt| {
-            latest_attempt
-                .payment_method_options
-                .and_then(|payment_method_options| match payment_method_options {
-                    StripePaymentMethodOptions::Card {
-                        network_transaction_id,
-                        ..
-                    } => network_transaction_id,
-                    _ => None,
-                })
+        let mandate_reference = item.response.payment_method.map(|pm| {
+            types::MandateReference::foreign_from((item.response.payment_method_options, pm))
         });
 
         Ok(Self {
@@ -1342,12 +1434,29 @@ impl<F, T>
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
                 redirection_data,
-                mandate_reference: item.response.payment_method,
+                mandate_reference,
                 connector_metadata: None,
-                network_txn_id,
+                network_txn_id: Option::foreign_from(item.response.latest_attempt),
             }),
             ..item.data
         })
+    }
+}
+
+impl ForeignFrom<Option<LatestAttempt>> for Option<String> {
+    fn foreign_from(latest_attempt: Option<LatestAttempt>) -> Self {
+        match latest_attempt {
+            Some(LatestAttempt::PaymentIntentAttempt(attempt)) => attempt
+                .payment_method_options
+                .and_then(|payment_method_options| match payment_method_options {
+                    StripePaymentMethodOptions::Card {
+                        network_transaction_id,
+                        ..
+                    } => network_transaction_id,
+                    _ => None,
+                }),
+            _ => None,
+        }
     }
 }
 
@@ -1355,13 +1464,18 @@ impl<F, T>
 #[serde(rename_all = "snake_case", remote = "Self")]
 pub enum StripeNextActionResponse {
     RedirectToUrl(StripeRedirectToUrlResponse),
+    AlipayHandleRedirect(StripeRedirectToUrlResponse),
     VerifyWithMicrodeposits(StripeVerifyWithMicroDepositsResponse),
+    WechatPayDisplayQrCode(StripeRedirectToQr),
 }
 
 impl StripeNextActionResponse {
     fn get_url(&self) -> Url {
         match self {
-            Self::RedirectToUrl(redirect_to_url) => redirect_to_url.url.to_owned(),
+            Self::RedirectToUrl(redirect_to_url) | Self::AlipayHandleRedirect(redirect_to_url) => {
+                redirect_to_url.url.to_owned()
+            }
+            Self::WechatPayDisplayQrCode(redirect_to_url) => redirect_to_url.data.to_owned(),
             Self::VerifyWithMicrodeposits(verify_with_microdeposits) => {
                 verify_with_microdeposits.hosted_verification_url.to_owned()
             }
@@ -1393,6 +1507,11 @@ impl<'de> Deserialize<'de> for StripeNextActionResponse {
 pub struct StripeRedirectToUrlResponse {
     return_url: String,
     url: Url,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
+pub struct StripeRedirectToQr {
+    data: Url,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Deserialize)]
@@ -1554,8 +1673,8 @@ pub struct StripeBillingAddress {
 
 #[derive(Debug, Clone, serde::Deserialize, Eq, PartialEq)]
 pub struct StripeRedirectResponse {
-    pub payment_intent: String,
-    pub payment_intent_client_secret: String,
+    pub payment_intent: Option<String>,
+    pub payment_intent_client_secret: Option<String>,
     pub source_redirect_slug: Option<String>,
     pub redirect_status: Option<StripePaymentStatus>,
     pub source_type: Option<Secret<String>>,
@@ -1599,8 +1718,10 @@ pub enum StripePaymentMethodOptions {
     Becs {},
     #[serde(rename = "bacs_debit")]
     Bacs {},
+    WechatPay {},
+    Alipay {},
     #[serde(rename = "p24")]
-    Przelewy24 {}
+    Przelewy24 {},
 }
 
 #[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
@@ -1608,8 +1729,14 @@ pub struct MitExemption {
     pub network_transaction_id: String,
 }
 
+#[derive(Clone, Debug, Eq, PartialEq, Deserialize)]
+#[serde(untagged)]
+pub enum LatestAttempt {
+    PaymentIntentAttempt(LatestPaymentAttempt),
+    SetupAttempt(String),
+}
 #[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize)]
-pub struct LatestAttempt {
+pub struct LatestPaymentAttempt {
     pub payment_method_options: Option<StripePaymentMethodOptions>,
 }
 // #[derive(Deserialize, Debug, Clone, Eq, PartialEq)]
@@ -1881,6 +2008,23 @@ impl
                     });
                     Ok(Self::Wallet(wallet_info))
                 }
+
+                payments::WalletData::WeChatPayRedirect(_) => {
+                    let wallet_info = StripeWallet::WechatpayPayment(WechatpayPayment {
+                        client: WechatClient::Web,
+                        payment_method_types: StripePaymentMethodType::Wechatpay,
+                        payment_method_data_type: StripePaymentMethodType::Wechatpay,
+                    });
+                    Ok(Self::Wallet(wallet_info))
+                }
+                payments::WalletData::AliPay(_) => {
+                    let wallet_info = StripeWallet::AlipayPayment(AlipayPayment {
+                        payment_method_types: StripePaymentMethodType::Alipay,
+                        payment_method_data_type: StripePaymentMethodType::Alipay,
+                    });
+                    Ok(Self::Wallet(wallet_info))
+                }
+                payments::WalletData::GooglePay(gpay_data) => Self::try_from(&gpay_data),
                 _ => Err(errors::ConnectorError::InvalidWallet.into()),
             },
             api::PaymentMethodData::BankDebit(bank_debit_data) => {
@@ -1891,15 +2035,22 @@ impl
                     bank_specific_data: bank_data,
                 }))
             }
-            api::PaymentMethodData::Crypto(_) => Err(errors::ConnectorError::NotSupported {
-                message: format!("{pm_type:?}"),
-                connector: "Stripe",
-                payment_experience: api_models::enums::PaymentExperience::RedirectToUrl.to_string(),
-            })?,
+            api::PaymentMethodData::MandatePayment | api::PaymentMethodData::Crypto(_) => {
+                Err(errors::ConnectorError::NotSupported {
+                    message: format!("{pm_type:?}"),
+                    connector: "Stripe",
+                    payment_experience: api_models::enums::PaymentExperience::RedirectToUrl
+                        .to_string(),
+                })?
+            }
         }
     }
 }
 
+#[derive(Debug, Deserialize)]
+pub struct StripeGpayToken {
+    pub id: String,
+}
 pub fn construct_file_upload_request(
     file_upload_router_data: types::UploadFileRouterData,
 ) -> CustomResult<reqwest::multipart::Form, errors::ConnectorError> {

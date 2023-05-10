@@ -1,5 +1,5 @@
 use api_models::payments::AddressDetails;
-use common_utils::pii::{self, Email};
+use common_utils::pii::Email;
 use error_stack::ResultExt;
 use masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
@@ -22,7 +22,7 @@ pub struct Payer {
 #[derive(Debug, Default, Eq, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Card {
     pub holder_name: Secret<String>,
-    pub number: Secret<String, pii::CardNumber>,
+    pub number: cards::CardNumber,
     pub cvv: Secret<String>,
     pub expiration_month: Secret<String>,
     pub expiration_year: Secret<String>,
