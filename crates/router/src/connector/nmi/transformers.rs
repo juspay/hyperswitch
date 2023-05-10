@@ -1,4 +1,5 @@
-use common_utils::{ext_traits::XmlExt, pii};
+use cards::CardNumber;
+use common_utils::ext_traits::XmlExt;
 use error_stack::{IntoReport, Report, ResultExt};
 use masking::Secret;
 use serde::{Deserialize, Serialize};
@@ -60,7 +61,7 @@ pub enum PaymentMethod {
 
 #[derive(Debug, Serialize)]
 pub struct CardData {
-    ccnumber: Secret<String, pii::CardNumber>,
+    ccnumber: CardNumber,
     ccexp: Secret<String>,
     cvv: Secret<String>,
 }
@@ -84,7 +85,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for NmiPaymentsRequest {
         };
         let auth_type: NmiAuthType = (&item.connector_auth_type).try_into()?;
         let amount =
-            utils::to_currency_base_unit_as_f64(item.request.amount, item.request.currency)?;
+            utils::to_currency_base_unit_asf64(item.request.amount, item.request.currency)?;
         let payment_method = PaymentMethod::try_from(&item.request.payment_method_data)?;
 
         Ok(Self {
@@ -210,7 +211,7 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for NmiCaptureRequest {
             transaction_type: TransactionType::Capture,
             security_key: auth.api_key.into(),
             transactionid: item.request.connector_transaction_id.clone(),
-            amount: Some(utils::to_currency_base_unit_as_f64(
+            amount: Some(utils::to_currency_base_unit_asf64(
                 item.request.amount_to_capture,
                 item.request.currency,
             )?),
@@ -535,7 +536,7 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for NmiRefundRequest {
             transaction_type: TransactionType::Refund,
             security_key: auth_type.api_key,
             transactionid: item.request.connector_transaction_id.clone(),
-            amount: utils::to_currency_base_unit_as_f64(
+            amount: utils::to_currency_base_unit_asf64(
                 item.request.refund_amount,
                 item.request.currency,
             )?,

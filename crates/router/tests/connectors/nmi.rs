@@ -1,6 +1,5 @@
-use std::time::Duration;
+use std::{str::FromStr, time::Duration};
 
-use masking::Secret;
 use router::types::{self, api, storage::enums};
 
 use crate::{
@@ -38,7 +37,7 @@ static CONNECTOR: NmiTest = NmiTest {};
 fn get_payment_authorize_data() -> Option<types::PaymentsAuthorizeData> {
     Some(types::PaymentsAuthorizeData {
         payment_method_data: types::api::PaymentMethodData::Card(api::Card {
-            card_number: Secret::new("4111111111111111".to_string()),
+            card_number: cards::CardNumber::from_str("4111111111111111").unwrap(),
             ..utils::CCardType::default().0
         }),
         amount: 2023,
@@ -568,46 +567,6 @@ async fn should_refund_succeeded_payment_multiple_times() {
             enums::RefundStatus::Pending,
         );
     }
-}
-
-// Cards Negative scenerios
-// Creates a payment with incorrect card number.
-#[actix_web::test]
-async fn should_fail_payment_for_incorrect_card_number() {
-    let response = CONNECTOR
-        .make_payment(
-            Some(types::PaymentsAuthorizeData {
-                payment_method_data: types::api::PaymentMethodData::Card(api::Card {
-                    card_number: Secret::new("4111111111111112".to_string()),
-                    ..utils::CCardType::default().0
-                }),
-                amount: 2023,
-                ..utils::PaymentAuthorizeType::default().0
-            }),
-            None,
-        )
-        .await
-        .unwrap();
-    assert_eq!(response.status, enums::AttemptStatus::Failure);
-}
-
-// Creates a payment with empty card number.
-#[actix_web::test]
-async fn should_fail_payment_for_empty_card_number() {
-    let response = CONNECTOR
-        .make_payment(
-            Some(types::PaymentsAuthorizeData {
-                payment_method_data: types::api::PaymentMethodData::Card(api::Card {
-                    card_number: Secret::new(String::from("")),
-                    ..utils::CCardType::default().0
-                }),
-                ..utils::PaymentAuthorizeType::default().0
-            }),
-            None,
-        )
-        .await
-        .unwrap();
-    assert_eq!(response.status, enums::AttemptStatus::Failure);
 }
 
 // Creates a payment with incorrect CVC.
