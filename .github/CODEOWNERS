@@ -1,30 +1,35 @@
 * @jarnura @ashokkjag
 
-docs/ @juspay/orca-maintainers
-*.md @juspay/orca-maintainers
-LICENSE @juspay/orca-maintainers
-NOTICE @juspay/orca-maintainers
-.github/ @juspay/orca-maintainers
-.gitignore @juspay/orca-maintainers
-Makefile @juspay/orca-maintainers
+docs/ @juspay/hyperswitch-maintainers
+openapi/ @juspay/hyperswitch-maintainers
+postman/ @juspay/hyperswitch-maintainers
+scripts/ @juspay/hyperswitch-maintainers
+*.md @juspay/hyperswitch-maintainers
+*.sh @juspay/hyperswitch-maintainers
+LICENSE @juspay/hyperswitch-maintainers
+NOTICE @juspay/hyperswitch-maintainers
+.github/ @juspay/hyperswitch-maintainers
+.gitignore @juspay/hyperswitch-maintainers
+Makefile @juspay/hyperswitch-maintainers
 
+config/ @juspay/hyperswitch-framework
+crates/ @juspay/hyperswitch-framework
+crates/router/src/types/ @juspay/hyperswitch-framework
+crates/router/src/services/ @juspay/hyperswitch-framework
+crates/router/src/db/ @juspay/hyperswitch-framework
+crates/router/src/routes/ @juspay/hyperswitch-framework
+migrations/ @juspay/hyperswitch-framework
 
-crates/ @juspay/orca-framework
-crates/router/src/types/ @juspay/orca-framework
-crates/router/src/services/ @juspay/orca-framework
-crates/router/src/db/ @juspay/orca-framework
-crates/router/src/routes/ @juspay/orca-framework
+connector-template/ @juspay/hyperswitch-connector
+crates/router/src/connector/ @juspay/hyperswitch-connector
 
-crates/router/src/connector/ @juspay/orca-connector
+crates/router/src/compatibility/ @juspay/hyperswitch-compatibility
 
-crates/router/src/compatibility/ @juspay/orca-compatibility
+crates/router/src/core/ @juspay/hyperswitch-core
 
-crates/router/src/core/ @juspay/orca-core
+crates/router/src/scheduler/ @juspay/hyperswitch-process-tracker
 
-crates/router/src/scheduler/ @juspay/orca-process-tracker
-
-Dockerfile @juspay/orca-infra
-docker-compose.yml @juspay/orca-infra
-.dockerignore @juspay/orca-infra
-monitoring/ @juspay/orca-infra
-*.sh @juspay/orca-infra
+Dockerfile @juspay/hyperswitch-infra
+docker-compose.yml @juspay/hyperswitch-infra
+.dockerignore @juspay/hyperswitch-infra
+monitoring/ @juspay/hyperswitch-infra

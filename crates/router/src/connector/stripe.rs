@@ -1199,6 +1199,98 @@ impl
     }
 }
 
+impl api::RetrieveFile for Stripe {}
+
+impl
+    services::ConnectorIntegration<
+        api::Retrieve,
+        types::RetrieveFileRequestData,
+        types::RetrieveFileResponse,
+    > for Stripe
+{
+    fn get_headers(
+        &self,
+        req: &types::RouterData<
+            api::Retrieve,
+            types::RetrieveFileRequestData,
+            types::RetrieveFileResponse,
+        >,
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+        self.get_auth_header(&req.connector_auth_type)
+    }
+
+    fn get_url(
+        &self,
+        req: &types::RetrieveFileRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(format!(
+            "{}v1/files/{}/contents",
+            connectors.stripe.base_url_file_upload, req.request.provider_file_id
+        ))
+    }
+
+    fn build_request(
+        &self,
+        req: &types::RetrieveFileRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        Ok(Some(
+            services::RequestBuilder::new()
+                .method(services::Method::Get)
+                .url(&types::RetrieveFileType::get_url(self, req, connectors)?)
+                .attach_default_headers()
+                .headers(types::RetrieveFileType::get_headers(self, req, connectors)?)
+                .build(),
+        ))
+    }
+
+    #[instrument(skip_all)]
+    fn handle_response(
+        &self,
+        data: &types::RetrieveFileRouterData,
+        res: types::Response,
+    ) -> CustomResult<
+        types::RouterData<
+            api::Retrieve,
+            types::RetrieveFileRequestData,
+            types::RetrieveFileResponse,
+        >,
+        errors::ConnectorError,
+    > {
+        let response = res.response;
+        Ok(types::RetrieveFileRouterData {
+            response: Ok(types::RetrieveFileResponse {
+                file_data: response.to_vec(),
+            }),
+            ..data.clone()
+        })
+    }
+
+    fn get_error_response(
+        &self,
+        res: types::Response,
+    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
+        let response: stripe::ErrorResponse = res
+            .response
+            .parse_struct("ErrorResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        Ok(types::ErrorResponse {
+            status_code: res.status_code,
+            code: response
+                .error
+                .code
+                .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
+            message: response
+                .error
+                .message
+                .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
+            reason: None,
+        })
+    }
+}
+
 impl api::SubmitEvidence for Stripe {}
 
 impl

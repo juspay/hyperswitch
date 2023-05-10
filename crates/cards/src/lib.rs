@@ -1,3 +1,4 @@
+pub mod validate;
 use std::ops::Deref;
 
 use common_utils::{date_time, errors};
@@ -8,6 +9,8 @@ use serde::{
     Deserialize, Serialize,
 };
 use time::{util::days_in_year_month, Date, Duration, PrimitiveDateTime, Time};
+
+pub use crate::validate::{CCValError, CardNumber, CardNumberStrategy};
 
 #[derive(Serialize)]
 pub struct CardSecurityCode(StrongSecret<u16>);

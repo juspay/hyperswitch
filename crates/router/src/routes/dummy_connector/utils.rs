@@ -2,13 +2,13 @@ use std::{fmt::Debug, sync::Arc};
 
 use app::AppState;
 use error_stack::{report, IntoReport, ResultExt};
-use masking::ExposeInterface;
+use masking::PeekInterface;
 use rand::Rng;
 use redis_interface::RedisConnectionPool;
 use tokio::time as tokio;
 
 use super::{errors, types};
-use crate::{core::errors as api_errors, logger, routes::app, services::api};
+use crate::{connection, core::errors as api_errors, logger, routes::app, services::api};
 
 pub async fn tokio_mock_sleep(delay: u64, tolerance: u64) {
     let mut rng = rand::thread_rng();
@@ -29,7 +29,7 @@ pub async fn payment(
     let payment_id = format!("dummy_pay_{}", uuid::Uuid::new_v4());
     match req.payment_method_data {
         types::DummyConnectorPaymentMethodData::Card(card) => {
-            let card_number: String = card.number.expose();
+            let card_number = card.number.peek();
 
             match card_number.as_str() {
                 "4111111111111111" | "4242424242424242" => {

@@ -52,7 +52,7 @@ pub enum DummyConnectorPaymentMethodData {
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct DummyConnectorCard {
     pub name: Secret<String>,
-    pub number: Secret<String, common_utils::pii::CardNumber>,
+    pub number: cards::CardNumber,
     pub expiry_month: Secret<String>,
     pub expiry_year: Secret<String>,
     pub cvc: Secret<String>,
