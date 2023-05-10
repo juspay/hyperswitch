@@ -200,7 +200,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for AciPaymentsRequest {
                             customer_email: Some(email.to_owned()),
                             shopper_result_url: item.request.router_return_url.clone(),
                         }))
-                    },
+                    }
                     api_models::payments::BankRedirectData::Interac { email, country } => {
                         PaymentDetails::BankRedirect(Box::new(BankRedirectionPMData {
                             payment_brand: PaymentBrand::InteracOnline,
@@ -211,7 +211,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for AciPaymentsRequest {
                             customer_email: Some(email.to_owned()),
                             shopper_result_url: item.request.router_return_url.clone(),
                         }))
-                    },
+                    }
                     _ => Err(errors::ConnectorError::NotImplemented(
                         "Payment method".to_string(),
                     ))?,
