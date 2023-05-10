@@ -8,7 +8,7 @@ use redis_interface::RedisConnectionPool;
 use tokio::time as tokio;
 
 use super::{errors, types};
-use crate::{connection, core::errors as api_errors, logger, routes::app, services::api};
+use crate::{core::errors as api_errors, logger, routes::app, services::api};
 
 pub async fn tokio_mock_sleep(delay: u64, tolerance: u64) {
     let mut rng = rand::thread_rng();
