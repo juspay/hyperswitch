@@ -546,9 +546,7 @@ pub enum AdditionalPaymentData {
         card_issuer: Option<String>,
         card_network: Option<String>,
     },
-    BankRedirect {
-        bank_name: Option<api_enums::BankNames>,
-    },
+    BankRedirect(BankRedirectData),
     Wallet {},
     PayLater {},
     Crypto {},
@@ -566,15 +564,9 @@ impl From<&PaymentMethodData> for AdditionalPaymentData {
                     .as_ref()
                     .map(|card_network| card_network.to_string()),
             },
-            PaymentMethodData::BankRedirect(bank_redirect_data) => match bank_redirect_data {
-                BankRedirectData::Eps { bank_name, .. } => Self::BankRedirect {
-                    bank_name: Some(bank_name.to_owned()),
-                },
-                BankRedirectData::Ideal { bank_name, .. } => Self::BankRedirect {
-                    bank_name: Some(bank_name.to_owned()),
-                },
-                _ => Self::BankRedirect { bank_name: None },
-            },
+            PaymentMethodData::BankRedirect(bank_redirect_data) => {
+                Self::BankRedirect(bank_redirect_data.to_owned())
+            }
             PaymentMethodData::Wallet(_) => Self::Wallet {},
             PaymentMethodData::PayLater(_) => Self::PayLater {},
             PaymentMethodData::Crypto(_) => Self::Crypto {},

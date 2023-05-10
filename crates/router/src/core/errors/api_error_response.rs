@@ -134,6 +134,8 @@ pub enum ApiErrorResponse {
     PaymentNotFound,
     #[error(error_type = ErrorType::ObjectNotFound, code = "HE_02", message = "Payment method does not exist in our records")]
     PaymentMethodNotFound,
+    #[error(error_type = ErrorType::ObjectNotFound, code = "HE_02", message = "Payment method type does not exist in our records")]
+    PaymentMethodTypeNotFound,
     #[error(error_type = ErrorType::ObjectNotFound, code = "HE_02", message = "Merchant account does not exist in our records")]
     MerchantAccountNotFound,
     #[error(error_type = ErrorType::ObjectNotFound, code = "HE_02", message = "Merchant connector account does not exist in our records")]
@@ -258,6 +260,7 @@ impl actix_web::ResponseError for ApiErrorResponse {
             | Self::CustomerRedacted
             | Self::PaymentNotFound
             | Self::PaymentMethodNotFound
+            | Self::PaymentMethodTypeNotFound
             | Self::MerchantAccountNotFound
             | Self::MerchantConnectorAccountNotFound
             | Self::MandateNotFound
@@ -434,6 +437,9 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
             }
             Self::PaymentMethodNotFound => {
                 AER::NotFound(ApiError::new("HE", 2, "Payment method does not exist in our records", None))
+            }
+            Self::PaymentMethodTypeNotFound => {
+                AER::NotFound(ApiError::new("HE", 2, "Payment method type does not exist in our records", None))
             }
             Self::MerchantAccountNotFound => {
                 AER::NotFound(ApiError::new("HE", 2, "Merchant account does not exist in our records", None))
