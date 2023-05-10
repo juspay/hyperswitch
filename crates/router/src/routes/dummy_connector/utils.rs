@@ -31,40 +31,40 @@ pub async fn payment(
         types::DummyConnectorPaymentMethodData::Card(card) => {
             let card_number: String = card.number.expose();
 
-            if card_number != "4111111111111111" && card_number != "4242424242424242" {
-                return Err(report!(errors::DummyConnectorErrors::CardNotSupported)
-                    .attach_printable("The card is not supported"));
+            match card_number.as_str() {
+                "4111111111111111" | "4242424242424242" => {
+                    let timestamp = common_utils::date_time::date_as_yyyymmddthhmmssmmmz()
+                        .map_err(|_| errors::DummyConnectorErrors::InternalServerError)?;
+                    let payment_data = types::DummyConnectorPaymentData::new(
+                        types::DummyConnectorStatus::Succeeded.to_string(),
+                        req.amount,
+                        req.amount,
+                        req.currency,
+                        timestamp.to_owned(),
+                        "card".to_string(),
+                    );
+                    let redis_conn = state.store.get_redis_conn();
+                    store_data_in_redis(
+                        redis_conn,
+                        payment_id.to_owned(),
+                        payment_data,
+                        state.conf.dummy_connector.payment_ttl,
+                    )
+                    .await?;
+                    Ok(api::ApplicationResponse::Json(
+                        types::DummyConnectorPaymentResponse::new(
+                            types::DummyConnectorStatus::Succeeded.to_string(),
+                            payment_id,
+                            req.amount,
+                            req.currency,
+                            timestamp,
+                            "card".to_string(),
+                        ),
+                    ))
+                }
+                _ => Err(report!(errors::DummyConnectorErrors::CardNotSupported)
+                    .attach_printable("The card is not supported")),
             }
-
-            let timestamp = common_utils::date_time::date_as_yyyymmddthhmmssmmmz()
-                .map_err(|_| errors::DummyConnectorErrors::InternalServerError)?;
-
-            let payment_data = types::DummyConnectorPaymentData::new(
-                types::DummyConnectorStatus::Succeeded.to_string(),
-                req.amount,
-                req.amount,
-                req.currency,
-                timestamp.to_owned(),
-                "card".to_string(),
-            );
-            let redis_conn = state.store.get_redis_conn();
-            store_data_in_redis(
-                redis_conn,
-                payment_id.to_owned(),
-                payment_data,
-                state.conf.dummy_connector.payment_ttl,
-            )
-            .await?;
-            Ok(api::ApplicationResponse::Json(
-                types::DummyConnectorPaymentResponse::new(
-                    types::DummyConnectorStatus::Succeeded.to_string(),
-                    payment_id,
-                    req.amount,
-                    req.currency,
-                    timestamp,
-                    "card".to_string(),
-                ),
-            ))
         }
     }
 }
