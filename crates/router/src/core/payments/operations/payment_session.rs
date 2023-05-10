@@ -164,6 +164,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsSessionRequest>
                 payment_method_data: None,
                 force_sync: None,
                 refunds: vec![],
+                disputes: vec![],
                 sessions_token: vec![],
                 connector_response,
                 card_cvc: None,
@@ -350,7 +351,10 @@ where
                             connector_and_payment_method_type.0.as_str(),
                             api::GetToken::from(connector_and_payment_method_type.1),
                         )?;
-                        connectors_data.push(connector_details);
+                        connectors_data.push(api::SessionConnectorData {
+                            payment_method_type,
+                            connector: connector_details,
+                        });
                     }
                 }
             }
@@ -364,7 +368,10 @@ where
                     connector_and_payment_method_type.0.as_str(),
                     api::GetToken::from(connector_and_payment_method_type.1),
                 )?;
-                connectors_data.push(connector_details);
+                connectors_data.push(api::SessionConnectorData {
+                    payment_method_type: connector_and_payment_method_type.1,
+                    connector: connector_details,
+                });
             }
             connectors_data
         };
