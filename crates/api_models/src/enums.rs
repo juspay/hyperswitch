@@ -813,7 +813,6 @@ pub enum BankNames {
     VeloBank,
     #[serde(rename = "e-transfer Pocztowy24")]
     ETransferPocztowy24,
-    TmobileUsbugiBankowe,
     PlusBank,
     EtransferPocztowy24,
     BankiSpbdzielcze,
