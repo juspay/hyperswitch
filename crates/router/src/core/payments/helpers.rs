@@ -79,7 +79,8 @@ pub async fn get_address_for_payment_request(
                             ..address_details.foreign_into()
                         })
                         .await
-                        .map_err(|_| errors::ApiErrorResponse::InternalServerError)?,
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Failed while inserting new address")?,
                     )
                 }
             }
