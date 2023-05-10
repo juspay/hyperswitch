@@ -352,7 +352,7 @@ impl From<api_models::payments::GooglePayWalletData> for GooglePayWalletData {
                 card_network: data.info.card_network,
                 card_details: data.info.card_details,
             },
-            tokenization_data: GpayTokenizationData{
+            tokenization_data: GpayTokenizationData {
                 token_type: data.tokenization_data.token_type,
                 token: data.tokenization_data.token,
             },
