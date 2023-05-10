@@ -668,7 +668,7 @@ impl<F1, F2, T1, T2> From<(&&mut RouterData<F1, T1, PaymentsResponseData>, T2)>
             customer_id: data.customer_id.clone(),
             payment_method_token: None,
             connector_customer: data.connector_customer.clone(),
-            mandate_metadata: data.mandate_metadata.clone()
+            mandate_metadata: data.mandate_metadata.clone(),
         }
     }
 }

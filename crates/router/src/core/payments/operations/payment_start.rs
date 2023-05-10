@@ -1,8 +1,8 @@
 use std::marker::PhantomData;
 
-use api_models::payments::PaymentMethodData;
+use api_models::payments;
 use async_trait::async_trait;
-use error_stack::{ResultExt, IntoReport};
+use error_stack::{IntoReport, ResultExt};
 use masking::ExposeInterface;
 use router_derive::PaymentOperation;
 use router_env::{instrument, tracing};
@@ -75,26 +75,29 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsStartRequest> f
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
-        let mandate_metadata = match payment_attempt.mandate_id.clone(){
-            Some(mandate_id)=>{
+        //If payment intent is associated with a mandate_id then fetch payment_method_data from
+        //mandate metadata (Card data is not stored in db)
+        let mandate_metadata = match payment_attempt.mandate_id.clone() {
+            Some(mandate_id) => {
                 db.find_mandate_by_merchant_id_mandate_id(merchant_id, &mandate_id[..])
                     .await
-                    .to_not_found_response(errors::ApiErrorResponse::MandateNotFound)?.metadata
-            },
-            None=>None
+                    .to_not_found_response(errors::ApiErrorResponse::MandateNotFound)?
+                    .metadata
+            }
+            None => None,
         };
 
-        let payment_method_data = match mandate_metadata{
-            Some(value) =>{
-                let payment_data: PaymentMethodData = serde_json::from_value::<PaymentMethodData>(value.expose())
+        let payment_method_data = match mandate_metadata {
+            Some(value) => {
+                let payment_data: payments::PaymentMethodData =
+                    serde_json::from_value::<payments::PaymentMethodData>(value.expose())
                         .into_report()
                         .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)?;
                 Some(payment_data)
-            },
+            }
             None => None,
         };
-        println!("Payment method data \n\n\n\n\n\n\n");
-        dbg!(&payment_method_data);
+
         currency = payment_attempt.currency.get_required_value("currency")?;
         amount = payment_attempt.amount.into();
 
@@ -163,7 +166,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsStartRequest> f
                 creds_identifier: None,
                 pm_token: None,
                 connector_customer_id: None,
-                mandate_metadata: None
+                mandate_metadata: None,
             },
             Some(customer_details),
         ))

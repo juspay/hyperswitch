@@ -1,6 +1,6 @@
 use std::borrow::Cow;
 
-use api_models::payments::{BankDebitData, PaymentMethodData};
+use api_models::payments;
 use common_utils::{
     ext_traits::{AsyncExt, ByteSliceExt, ValueExt},
     fp_utils, pii,
@@ -113,7 +113,7 @@ pub async fn get_token_pm_type_mandate_details(
     Option<String>,
     Option<storage_enums::PaymentMethod>,
     Option<api::MandateData>,
-    Option<pii::SecretSerdeValue>
+    Option<pii::SecretSerdeValue>,
 )> {
     match mandate_type {
         Some(api::MandateTxnType::NewMandateTxn) => {
@@ -125,19 +125,19 @@ pub async fn get_token_pm_type_mandate_details(
                 request.payment_token.to_owned(),
                 request.payment_method.map(ForeignInto::foreign_into),
                 Some(setup_mandate),
-                None
+                None,
             ))
         }
         Some(api::MandateTxnType::RecurringMandateTxn) => {
             let (token_, payment_method_type_, mandate_metadata) =
                 get_token_for_recurring_mandate(state, request, merchant_account).await?;
-            Ok((token_, payment_method_type_, None,mandate_metadata))
+            Ok((token_, payment_method_type_, None, mandate_metadata))
         }
         None => Ok((
             request.payment_token.to_owned(),
             request.payment_method.map(ForeignInto::foreign_into),
             request.mandate_data.clone(),
-            None
+            None,
         )),
     }
 }
@@ -146,7 +146,11 @@ pub async fn get_token_for_recurring_mandate(
     state: &AppState,
     req: &api::PaymentsRequest,
     merchant_account: &storage::MerchantAccount,
-) -> RouterResult<(Option<String>, Option<storage_enums::PaymentMethod>, Option<pii::SecretSerdeValue>)> {
+) -> RouterResult<(
+    Option<String>,
+    Option<storage_enums::PaymentMethod>,
+    Option<pii::SecretSerdeValue>,
+)> {
     let db = &*state.store;
     let mandate_id = req.mandate_id.clone().get_required_value("mandate_id")?;
 
@@ -186,10 +190,10 @@ pub async fn get_token_for_recurring_mandate(
         .locker_id
         .to_owned()
         .get_required_value("locker_id")?;
-    match payment_method.payment_method{
+    match payment_method.payment_method {
         storage_enums::PaymentMethod::Card => {
-            let _ =
-            cards::get_lookup_key_from_locker(state, &token, &payment_method, &locker_id).await?;
+            let _ = cards::get_lookup_key_from_locker(state, &token, &payment_method, &locker_id)
+                .await?;
             if let Some(payment_method_from_request) = req.payment_method {
                 let pm: storage_enums::PaymentMethod = payment_method_from_request.foreign_into();
                 if pm != payment_method.payment_method {
@@ -203,11 +207,11 @@ pub async fn get_token_for_recurring_mandate(
             };
 
             Ok((Some(token), Some(payment_method.payment_method), None))
-        },
+        }
         storage_enums::PaymentMethod::BankDebit => {
-            Ok((None,Some(payment_method.payment_method), mandate.metadata))
-        },
-        _ => Ok((None, Some(payment_method.payment_method),None))
+            Ok((None, Some(payment_method.payment_method), mandate.metadata))
+        }
+        _ => Ok((None, Some(payment_method.payment_method), None)),
     }
 }
 
@@ -1153,7 +1157,10 @@ pub fn generate_mandate(
     customer: &Option<storage::Customer>,
     payment_method_id: String,
     connector_mandate_id: Option<String>,
-    network_txn_id: Option<String>,
+    (network_txn_id, payment_method_data_option): (
+        Option<String>,
+        Option<payments::PaymentMethodData>,
+    ),
 ) -> Option<storage::MandateNew> {
     match (setup_mandate_details, customer) {
         (Some(data), Some(cus)) => {
@@ -1177,7 +1184,12 @@ pub fn generate_mandate(
                         .map(masking::Secret::new),
                 )
                 .set_customer_user_agent(data.customer_acceptance.get_user_agent())
-                .set_customer_accepted_at(Some(data.customer_acceptance.get_accepted_at()));
+                .set_customer_accepted_at(Some(data.customer_acceptance.get_accepted_at()))
+                .set_metadata(payment_method_data_option.map(|payment_method_data| {
+                    pii::SecretSerdeValue::new(
+                        serde_json::to_value(payment_method_data).unwrap_or_default(),
+                    )
+                }));
 
             Some(match data.mandate_type {
                 api::MandateType::SingleUse(data) => new_mandate
@@ -1191,8 +1203,8 @@ pub fn generate_mandate(
                         .set_mandate_amount(Some(data.amount))
                         .set_mandate_currency(Some(data.currency.foreign_into()))
                         .set_start_date(data.start_date)
-                        .set_end_date(data.end_date)
-                        .set_metadata(data.metadata),
+                        .set_end_date(data.end_date),
+                    // .set_metadata(data.metadata),
                     None => &mut new_mandate,
                 }
                 .set_mandate_type(storage_enums::MandateType::MultiUse)
@@ -1653,6 +1665,6 @@ pub fn router_data_type_conversion<F1, F2, Req1, Req2, Res1, Res2>(
         payment_method_token: router_data.payment_method_token,
         customer_id: router_data.customer_id,
         connector_customer: router_data.connector_customer,
-        mandate_metadata: router_data.mandate_metadata
+        mandate_metadata: router_data.mandate_metadata,
     }
 }

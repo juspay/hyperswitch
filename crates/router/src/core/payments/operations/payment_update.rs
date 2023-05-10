@@ -281,7 +281,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 creds_identifier,
                 pm_token: None,
                 connector_customer_id: None,
-                mandate_metadata
+                mandate_metadata,
             },
             Some(CustomerDetails {
                 customer_id: request.customer_id.clone(),

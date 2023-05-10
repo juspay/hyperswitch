@@ -7,7 +7,7 @@ pub mod transformers;
 use std::{fmt::Debug, marker::PhantomData, time::Instant};
 
 use api_models::payments::Metadata;
-use common_utils::{pii::Email, pii::SecretSerdeValue};
+use common_utils::pii::{Email, SecretSerdeValue};
 use error_stack::{IntoReport, ResultExt};
 use futures::future::join_all;
 use masking::Secret;
@@ -752,7 +752,7 @@ where
                         .to_domain()?
                         .make_pm_data(state, &mut payment_data, validate_result.storage_scheme)
                         .await?;
-                    if payment_data.payment_method_data.is_none(){
+                    if payment_data.payment_method_data.is_none() {
                         payment_data.payment_method_data = payment_method_data;
                     }
                     TokenizationAction::SkipConnectorTokenization
@@ -765,9 +765,9 @@ where
                         .make_pm_data(state, &mut payment_data, validate_result.storage_scheme)
                         .await?;
 
-                        if payment_data.payment_method_data.is_none(){
-                            payment_data.payment_method_data = payment_method_data;
-                        }
+                    if payment_data.payment_method_data.is_none() {
+                        payment_data.payment_method_data = payment_method_data;
+                    }
                     TokenizationAction::TokenizeInConnector
                 }
                 TokenizationAction::ConnectorToken(token) => {
@@ -785,9 +785,9 @@ where
                 .to_domain()?
                 .make_pm_data(state, &mut payment_data, validate_result.storage_scheme)
                 .await?;
-                if payment_data.payment_method_data.is_none(){
-                    payment_data.payment_method_data = payment_method_data;
-                }
+            if payment_data.payment_method_data.is_none() {
+                payment_data.payment_method_data = payment_method_data;
+            }
             (payment_data, TokenizationAction::SkipConnectorTokenization)
         }
     };
@@ -834,7 +834,7 @@ where
     pub creds_identifier: Option<String>,
     pub pm_token: Option<String>,
     pub connector_customer_id: Option<String>,
-    pub mandate_metadata: Option<SecretSerdeValue>
+    pub mandate_metadata: Option<SecretSerdeValue>,
 }
 
 #[derive(Debug, Default)]

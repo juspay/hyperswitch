@@ -96,7 +96,7 @@ pub async fn construct_refund_router_data<'a, F>(
         reference_id: None,
         payment_method_token: None,
         connector_customer: None,
-        mandate_metadata: None
+        mandate_metadata: None,
     };
 
     Ok(router_data)
@@ -281,7 +281,7 @@ pub async fn construct_accept_dispute_router_data<'a>(
         payment_method_token: None,
         connector_customer: None,
         customer_id: None,
-        mandate_metadata: None
+        mandate_metadata: None,
     };
     Ok(router_data)
 }
@@ -340,7 +340,7 @@ pub async fn construct_submit_evidence_router_data<'a>(
         payment_method_token: None,
         connector_customer: None,
         customer_id: None,
-        mandate_metadata: None
+        mandate_metadata: None,
     };
     Ok(router_data)
 }
@@ -404,7 +404,7 @@ pub async fn construct_upload_file_router_data<'a>(
         payment_method_token: None,
         connector_customer: None,
         customer_id: None,
-        mandate_metadata: None
+        mandate_metadata: None,
     };
     Ok(router_data)
 }
@@ -466,7 +466,7 @@ pub async fn construct_defend_dispute_router_data<'a>(
         payment_method_token: None,
         customer_id: None,
         connector_customer: None,
-        mandate_metadata: None
+        mandate_metadata: None,
     };
     Ok(router_data)
 }

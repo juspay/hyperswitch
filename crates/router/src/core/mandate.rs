@@ -1,3 +1,4 @@
+use api_models::payments;
 use error_stack::{report, ResultExt};
 use router_env::{instrument, logger, tracing};
 use storage_models::enums as storage_enums;
@@ -93,6 +94,21 @@ pub async fn get_customer_mandates(
     }
 }
 
+fn get_insensitive_payment_method_data_if_exists<F, FData>(
+    router_data: &types::RouterData<F, FData, types::PaymentsResponseData>,
+) -> Option<payments::PaymentMethodData>
+where
+    FData: MandateBehaviour,
+{
+    match &router_data.request.get_payment_method_data() {
+        api_models::payments::PaymentMethodData::BankDebit(_) => {
+            Some(router_data.request.get_payment_method_data())
+        }
+        api_models::payments::PaymentMethodData::Card(_) => None,
+        _ => None,
+    }
+}
+
 pub async fn mandate_procedure<F, FData>(
     state: &AppState,
     mut resp: types::RouterData<F, FData, types::PaymentsResponseData>,
@@ -165,7 +181,10 @@ where
                     maybe_customer,
                     pm_id.get_required_value("payment_method_id")?,
                     mandate_reference,
-                    network_txn_id,
+                    (
+                        network_txn_id,
+                        get_insensitive_payment_method_data_if_exists(&resp),
+                    ), //tuple To avoid "passing too many arguments to a function" warning
                 ) {
                     let connector = new_mandate_data.connector.clone();
                     logger::debug!("{:?}", new_mandate_data);

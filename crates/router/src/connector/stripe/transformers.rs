@@ -1,4 +1,4 @@
-use api_models::{self, enums as api_enums, payments::{self, PaymentMethodData}};
+use api_models::{self, enums as api_enums, payments};
 use base64::Engine;
 use common_utils::{errors::CustomResult, pii, pii::Email};
 use error_stack::{IntoReport, ResultExt};
@@ -11,7 +11,7 @@ use uuid::Uuid;
 use crate::{
     collect_missing_value_keys, consts,
     core::errors,
-    services,
+    services::{self},
     types::{self, api, storage::enums},
     utils::OptionExt,
 };
@@ -66,30 +66,30 @@ pub enum Auth3ds {
 #[derive(Debug, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "snake_case", untagged)]
 pub enum StripeMandateType {
-    Online{
+    Online {
         #[serde(rename = "mandate_data[customer_acceptance][type]")]
-        mandate_type: StripeMandateTypeEnum,
+        mandate_type_enum: StripeMandateTypeEnum,
         #[serde(rename = "mandate_data[customer_acceptance][online][ip_address]")]
         ip_address: Secret<String, pii::IpAddress>,
         #[serde(rename = "mandate_data[customer_acceptance][online][user_agent]")]
         user_agent: String,
     },
-    Offline{
+    Offline {
         #[serde(rename = "mandate_data[customer_acceptance][type]")]
-        mandate_type: StripeMandateTypeEnum,
-    }
+        mandate_type_enum: StripeMandateTypeEnum,
+    },
 }
 #[derive(Debug, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "snake_case")]
-pub enum StripeMandateTypeEnum{
+pub enum StripeMandateTypeEnum {
     Online,
-    Offline
+    Offline,
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct StripeMandateRequest {
     #[serde(flatten)]
-    mandate_type: StripeMandateType
+    mandate_type: StripeMandateType,
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
@@ -288,7 +288,7 @@ pub enum BankDebitData {
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct StripeBankDebitData {
-    #[serde(rename = "payment_method_types[]")]
+    #[serde(rename = "payment_method_types[0]")]
     pub payment_method_types: StripePaymentMethodType,
     #[serde(flatten)]
     pub bank_specific_data: BankDebitData,
@@ -297,15 +297,14 @@ pub struct StripeBankDebitData {
 #[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct StripeBankDebitType {
     #[serde(rename = "payment_method_types[]")]
-    pub payment_method_types: StripePaymentMethodType
+    pub payment_method_types: StripePaymentMethodType,
 }
 #[derive(Debug, Eq, PartialEq, Serialize)]
 #[serde(untagged)]
-pub enum StripeBankDebitEnum{
+pub enum StripeBankDebitEnum {
     Type(StripeBankDebitType),
-    Data(StripeBankDebitData)
+    Data(StripeBankDebitData),
 }
-
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
 #[serde(untagged)]
@@ -823,10 +822,12 @@ fn create_stripe_payment_method(
         payments::PaymentMethodData::BankDebit(bank_debit_data) => {
             let (pm_type, bank_debit_data, billing_address) = get_bank_debit_data(bank_debit_data);
 
-            let pm_data = StripePaymentMethodData::BankDebit(StripeBankDebitEnum::Data( StripeBankDebitData {
-                payment_method_types: pm_type,
-                bank_specific_data: bank_debit_data,
-            }));
+            let pm_data = StripePaymentMethodData::BankDebit(StripeBankDebitEnum::Data(
+                StripeBankDebitData {
+                    payment_method_types: pm_type,
+                    bank_specific_data: bank_debit_data,
+                },
+            ));
 
             Ok((pm_data, pm_type, billing_address))
         }
@@ -905,62 +906,63 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
                             &item.request.payment_method_data,
                             item.auth_type,
                         )?;
-                    
+
                     validate_shipping_address_against_payment_method(
                         &shipping_address,
                         &payment_method_type,
                     )?;
-
-
 
                     (Some(payment_method_data), None, billing_address)
                 }
             }
         };
 
-        if payment_method.is_some(){
-            payment_data = match item.mandate_metadata.clone(){
+        if payment_method.is_some() {
+            payment_data = match item.mandate_metadata.clone() {
                 Some(value) => {
-                    let payment_method_data: PaymentMethodData = serde_json::from_value::<PaymentMethodData>(value.expose())
+                    let payment_method_data: api_models::payments::PaymentMethodData =
+                        serde_json::from_value::<api_models::payments::PaymentMethodData>(
+                            value.expose(),
+                        )
                         .into_report()
                         .change_context(errors::ConnectorError::MismatchedPaymentData)?;
-                    match payment_method_data{
-                        PaymentMethodData::BankDebit(_) => {
-                            let stripe_payment_method_data =
-                            create_stripe_payment_method(
+                    match payment_method_data {
+                        payments::PaymentMethodData::BankDebit(_) => {
+                            let stripe_payment_method_data = create_stripe_payment_method(
                                 item.request.payment_method_type.as_ref(),
                                 item.request.payment_experience.as_ref(),
-                                &item.request.payment_method_data,
+                                &payment_method_data,
                                 item.auth_type,
-                            )?.0;
-                            match stripe_payment_method_data{
+                            )?
+                            .0;
+                            match stripe_payment_method_data {
                                 StripePaymentMethodData::BankDebit(stripe_bank_debit_enum) => {
-                                    match stripe_bank_debit_enum{
+                                    match stripe_bank_debit_enum {
                                         StripeBankDebitEnum::Type(stripe_bank_debit_type) => {
-                                            Some(StripePaymentMethodData::BankDebit(StripeBankDebitEnum::Type(
-                                                stripe_bank_debit_type                                        )))
-                                        },
+                                            Some(StripePaymentMethodData::BankDebit(
+                                                StripeBankDebitEnum::Type(stripe_bank_debit_type),
+                                            ))
+                                        }
                                         StripeBankDebitEnum::Data(stripe_bank_debit_data) => {
-                                            Some(StripePaymentMethodData::BankDebit(StripeBankDebitEnum::Type(
-                                                StripeBankDebitType::from(stripe_bank_debit_data)
-                                            )))
-                                        },
+                                            Some(StripePaymentMethodData::BankDebit(
+                                                StripeBankDebitEnum::Type(
+                                                    StripeBankDebitType::from(
+                                                        stripe_bank_debit_data,
+                                                    ),
+                                                ),
+                                            ))
+                                        }
                                     }
-                                },
-                                _ => None
+                                }
+                                _ => None,
                             }
-                            
-                        },
-                        _
-                        => None
+                        }
+                        _ => None,
                     }
-                },
+                }
                 None => None,
             }
         }
-
-        println!("\n\n\n\n\n\npayment method = {:?}", &payment_method);
-
         payment_data = match item.request.payment_method_data {
             payments::PaymentMethodData::Wallet(payments::WalletData::ApplePay(_)) => Some(
                 StripePaymentMethodData::Wallet(StripeWallet::ApplepayPayment(ApplepayPayment {
@@ -975,38 +977,53 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
             _ => payment_data,
         };
 
-        let setup_mandate_details =
+        let mut setup_mandate_details =
             item.request
                 .setup_mandate_details
                 .as_ref()
                 .and_then(|mandate_details| {
-                    match mandate_details
-                        .customer_acceptance.acceptance_type{
-                            payments::AcceptanceType::Online => {
-                                mandate_details
-                                .customer_acceptance
-                                .online
-                                .as_ref()
-                                .map(|online_details| StripeMandateRequest {
-                                    mandate_type: StripeMandateType::Online { 
-                                        mandate_type: StripeMandateTypeEnum::Online, 
-                                        ip_address: online_details.ip_address.clone(), 
-                                        user_agent: online_details.user_agent.clone()
+                    match mandate_details.customer_acceptance.acceptance_type {
+                        payments::AcceptanceType::Online => {
+                            mandate_details.customer_acceptance.online.as_ref().map(
+                                |online_details| StripeMandateRequest {
+                                    mandate_type: StripeMandateType::Online {
+                                        mandate_type_enum: StripeMandateTypeEnum::Online,
+                                        ip_address: online_details.ip_address.clone(),
+                                        user_agent: online_details.user_agent.clone(),
                                     },
-                                })
-                            },
-                            payments::AcceptanceType::Offline =>{
-                                Some(StripeMandateRequest {
-                                    mandate_type: StripeMandateType::Offline { 
-                                        mandate_type: StripeMandateTypeEnum::Offline, 
-                                    } 
-                                })
-                            }
+                                },
+                            )
                         }
-                        
+                        payments::AcceptanceType::Offline => Some(StripeMandateRequest {
+                            mandate_type: StripeMandateType::Offline {
+                                mandate_type_enum: StripeMandateTypeEnum::Offline,
+                            },
+                        }),
+                    }
                 });
-        dbg!(&item.request.setup_mandate_details);
-        let request = Self {
+        dbg!(&setup_mandate_details);
+        dbg!(&payment_data);
+        setup_mandate_details= if setup_mandate_details.is_none(){
+            match &payment_data{
+                Some(p_data) => {
+                    match p_data{
+                        StripePaymentMethodData::BankDebit(_) => {
+                            Some(StripeMandateRequest {
+                                mandate_type: StripeMandateType::Offline {
+                                    mandate_type_enum: StripeMandateTypeEnum::Offline,
+                                }
+                            })
+                        },
+                        _ => None
+                    }
+                },
+                None => None,
+            }
+        }else{
+            setup_mandate_details
+        };
+        // payment_data = None;
+        Ok(Self {
             amount: item.request.amount, //hopefully we don't loose some cents here
             currency: item.request.currency.to_string(), //we need to copy the value and not transfer ownership
             statement_descriptor_suffix: item.request.statement_descriptor_suffix.clone(),
@@ -1032,15 +1049,15 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
             customer: item.connector_customer.to_owned(),
             setup_mandate_details,
             setup_future_usage: item.request.setup_future_usage,
-        };
-        dbg!(&request);
-        Ok(request)
+        })
     }
 }
 
-impl From<StripeBankDebitData> for StripeBankDebitType{
-    fn from(value: StripeBankDebitData) -> Self{
-        StripeBankDebitType { payment_method_types: value.payment_method_types }
+impl From<StripeBankDebitData> for StripeBankDebitType {
+    fn from(value: StripeBankDebitData) -> Self {
+        Self {
+            payment_method_types: value.payment_method_types,
+        }
     }
 }
 
@@ -1953,10 +1970,12 @@ impl
             api::PaymentMethodData::BankDebit(bank_debit_data) => {
                 let (pm_type, bank_data, _) = get_bank_debit_data(&bank_debit_data);
 
-                Ok(Self::BankDebit( StripeBankDebitEnum::Data( StripeBankDebitData {
-                    payment_method_types: pm_type,
-                    bank_specific_data: bank_data,
-                })))
+                Ok(Self::BankDebit(StripeBankDebitEnum::Data(
+                    StripeBankDebitData {
+                        payment_method_types: pm_type,
+                        bank_specific_data: bank_data,
+                    },
+                )))
             }
             api::PaymentMethodData::MandatePayment | api::PaymentMethodData::Crypto(_) => {
                 Err(errors::ConnectorError::NotSupported {
