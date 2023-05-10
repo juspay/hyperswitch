@@ -1565,7 +1565,9 @@ pub async fn get_merchant_connector_account(
                 .find_config_by_key(format!("mcd_{merchant_id}_{creds_identifier}").as_str())
                 .await
                 .to_not_found_response(
-                    errors::ApiErrorResponse::MerchantConnectorAccountNotFound,
+                    errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                        id: connector_label.to_string(),
+                    },
                 )?;
 
             #[cfg(feature = "kms")]
@@ -1605,7 +1607,9 @@ pub async fn get_merchant_connector_account(
             )
             .await
             .map(MerchantConnectorAccountType::DbVal)
-            .change_context(errors::ApiErrorResponse::MerchantConnectorAccountNotFound),
+            .change_context(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                id: connector_label.to_string(),
+            }),
     }
 }
 
