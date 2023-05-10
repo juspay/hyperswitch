@@ -352,10 +352,7 @@ async fn should_fail_payment_for_incorrect_card_number() {
         )
         .await
         .unwrap();
-    assert_eq!(
-        response.response.unwrap_err().message,
-        "Refused",
-    );
+    assert_eq!(response.response.unwrap_err().message, "Refused",);
 }
 
 // Creates a payment with incorrect CVC.
