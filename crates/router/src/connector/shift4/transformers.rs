@@ -1,4 +1,5 @@
 use api_models::payments;
+use cards::CardNumber;
 use common_utils::pii::SecretSerdeValue;
 use error_stack::{IntoReport, ResultExt};
 use masking::Secret;
@@ -30,7 +31,7 @@ pub struct Shift43DSRequest {
     amount: String,
     currency: String,
     #[serde(rename = "card[number]")]
-    pub card_number: Secret<String, common_utils::pii::CardNumber>,
+    pub card_number: CardNumber,
     #[serde(rename = "card[expMonth]")]
     pub card_exp_month: Secret<String>,
     #[serde(rename = "card[expYear]")]
@@ -76,7 +77,7 @@ pub struct PaymentMethod {
 #[derive(Debug, Serialize)]
 pub struct Billing {
     name: Option<Secret<String>>,
-    email: Option<Secret<String, pii::Email>>,
+    email: Option<pii::Email>,
     address: Option<Address>,
 }
 
@@ -87,7 +88,7 @@ pub struct Address {
     zip: Option<Secret<String>>,
     state: Option<Secret<String>>,
     city: Option<String>,
-    country: Option<api_models::enums::CountryCode>,
+    country: Option<api_models::enums::CountryAlpha2>,
 }
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
@@ -96,7 +97,7 @@ pub struct DeviceData;
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct Card {
-    pub number: Secret<String, common_utils::pii::CardNumber>,
+    pub number: CardNumber,
     pub exp_month: Secret<String>,
     pub exp_year: Secret<String>,
     pub cardholder_name: Secret<String>,
@@ -462,6 +463,7 @@ impl<F>
                     .into_report()
                     .change_context(errors::ConnectorError::ResponseDeserializationFailed)?,
                 ),
+                network_txn_id: None,
             }),
             ..item.data
         })
@@ -500,6 +502,7 @@ impl<T, F>
                     .map(|url| services::RedirectForm::from((url, services::Method::Get))),
                 mandate_reference: None,
                 connector_metadata: None,
+                network_txn_id: None,
             }),
             ..item.data
         })

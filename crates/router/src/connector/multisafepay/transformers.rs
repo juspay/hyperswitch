@@ -6,7 +6,7 @@ use url::Url;
 use crate::{
     connector::utils::{self, AddressDetailsData, CardData, RouterData},
     core::errors,
-    pii::{self, Secret},
+    pii::Secret,
     services,
     types::{self, api, storage::enums},
 };
@@ -105,7 +105,7 @@ pub struct Customer {
     pub state: Option<String>,
     pub country: Option<String>,
     pub phone: Option<String>,
-    pub email: Option<Secret<String, Email>>,
+    pub email: Option<Email>,
     pub user_agent: Option<String>,
     pub referrer: Option<String>,
     pub reference: Option<String>,
@@ -114,14 +114,14 @@ pub struct Customer {
 #[serde_with::skip_serializing_none]
 #[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
 pub struct GatewayInfo {
-    pub card_number: Option<Secret<String, pii::CardNumber>>,
+    pub card_number: Option<cards::CardNumber>,
     pub card_holder_name: Option<Secret<String>>,
     pub card_expiry_date: Option<i32>,
     pub card_cvc: Option<Secret<String>>,
     pub flexible_3d: Option<bool>,
     pub moto: Option<bool>,
     pub term_url: Option<String>,
-    pub email: Option<Secret<String, Email>>,
+    pub email: Option<Email>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
@@ -132,7 +132,7 @@ pub struct DeliveryObject {
     house_number: Secret<String>,
     zip_code: Secret<String>,
     city: String,
-    country: api_models::enums::CountryCode,
+    country: api_models::enums::CountryAlpha2,
 }
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
@@ -194,14 +194,21 @@ pub struct MultisafepayPaymentsRequest {
     pub var3: Option<String>,
 }
 
-impl From<utils::CardIssuer> for Gateway {
-    fn from(issuer: utils::CardIssuer) -> Self {
+impl TryFrom<utils::CardIssuer> for Gateway {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(issuer: utils::CardIssuer) -> Result<Self, Self::Error> {
         match issuer {
-            utils::CardIssuer::AmericanExpress => Self::Amex,
-            utils::CardIssuer::Master => Self::MasterCard,
-            utils::CardIssuer::Maestro => Self::Maestro,
-            utils::CardIssuer::Visa => Self::Visa,
-            utils::CardIssuer::Discover => Self::Discover,
+            utils::CardIssuer::AmericanExpress => Ok(Self::Amex),
+            utils::CardIssuer::Master => Ok(Self::MasterCard),
+            utils::CardIssuer::Maestro => Ok(Self::Maestro),
+            utils::CardIssuer::Discover => Ok(Self::Discover),
+            utils::CardIssuer::Visa => Ok(Self::Visa),
+            _ => Err(errors::ConnectorError::NotSupported {
+                message: issuer.to_string(),
+                connector: "Multisafe pay",
+                payment_experience: api::enums::PaymentExperience::RedirectToUrl.to_string(),
+            }
+            .into()),
         }
     }
 }
@@ -216,7 +223,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for MultisafepayPaymentsReques
         };
 
         let gateway = match item.request.payment_method_data {
-            api::PaymentMethodData::Card(ref ccard) => Gateway::from(ccard.get_card_issuer()?),
+            api::PaymentMethodData::Card(ref ccard) => Gateway::try_from(ccard.get_card_issuer()?)?,
             api::PaymentMethodData::PayLater(
                 api_models::payments::PayLaterData::KlarnaRedirect {
                     billing_email: _,
@@ -345,7 +352,12 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for MultisafepayPaymentsReques
                 .request
                 .mandate_id
                 .clone()
-                .and_then(|mandate_ids| mandate_ids.connector_mandate_id),
+                .and_then(|mandate_ids| match mandate_ids.mandate_reference_id {
+                    Some(api_models::payments::MandateReferenceId::ConnectorMandateId(
+                        connector_mandate_ids,
+                    )) => connector_mandate_ids.connector_mandate_id,
+                    _ => None,
+                }),
             days_active: Some(30),
             seconds_active: Some(259200),
             var1: None,
@@ -467,8 +479,13 @@ impl<F, T>
                     .response
                     .data
                     .payment_details
-                    .and_then(|payment_details| payment_details.recurring_id),
+                    .and_then(|payment_details| payment_details.recurring_id)
+                    .map(|id| types::MandateReference {
+                        connector_mandate_id: Some(id),
+                        payment_method_id: None,
+                    }),
                 connector_metadata: None,
+                network_txn_id: None,
             }),
             ..item.data
         })

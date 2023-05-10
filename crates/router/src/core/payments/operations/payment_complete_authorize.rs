@@ -78,11 +78,6 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Co
         )
         .await?;
 
-        helpers::authenticate_client_secret(
-            request.client_secret.as_ref(),
-            payment_intent.client_secret.as_ref(),
-        )?;
-
         let browser_info = request
             .browser_info
             .clone()
@@ -193,10 +188,12 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Co
                 payment_method_data: request.payment_method_data.clone(),
                 force_sync: None,
                 refunds: vec![],
+                disputes: vec![],
                 sessions_token: vec![],
                 card_cvc: request.card_cvc.clone(),
                 creds_identifier: None,
                 pm_token: None,
+                connector_customer_id: None,
             },
             Some(CustomerDetails {
                 customer_id: request.customer_id.clone(),
@@ -286,6 +283,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Comple
         payment_data: PaymentData<F>,
         _customer: Option<storage::Customer>,
         _storage_scheme: storage_enums::MerchantStorageScheme,
+        _updated_customer: Option<storage::CustomerUpdate>,
     ) -> RouterResult<(BoxedOperation<'b, F, api::PaymentsRequest>, PaymentData<F>)>
     where
         F: 'b + Send,
