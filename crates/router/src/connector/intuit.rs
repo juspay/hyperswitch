@@ -151,9 +151,14 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
     fn get_url(
         &self,
         _req: &types::RefreshTokenRouterData,
-        _connectors: &settings::Connectors,
+        connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok("https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer".to_string())
+        connectors
+            .intuit
+            .access_token_url
+            .to_owned()
+            .ok_or(errors::ConnectorError::FailedToObtainIntegrationUrl)
+            .into_report()
     }
 
     fn get_content_type(&self) -> &'static str {

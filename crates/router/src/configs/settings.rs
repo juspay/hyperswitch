@@ -396,6 +396,7 @@ pub struct Connectors {
 #[serde(default)]
 pub struct ConnectorParams {
     pub base_url: String,
+    pub access_token_url: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
