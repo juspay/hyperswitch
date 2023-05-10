@@ -4,7 +4,7 @@ use super::errors;
 use crate::{
     cache::CONFIG_CACHE,
     db::StorageInterface,
-    services::{self},
+    services,
 };
 
 pub async fn invalidate(

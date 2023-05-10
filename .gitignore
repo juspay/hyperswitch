@@ -258,5 +258,3 @@ loadtest/*.tmp/
 result*
 
 .idea/
-
-.vscode/settings.json
