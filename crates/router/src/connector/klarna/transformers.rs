@@ -54,7 +54,7 @@ impl TryFrom<&types::PaymentsSessionRouterData> for KlarnaSessionRequest {
                         name: data.product_name.clone(),
                         quantity: data.quantity,
                         unit_price: data.amount,
-                        total_amount: request.amount,
+                        total_amount: i64::from(data.quantity)*(data.amount),
                     })
                     .collect(),
             }),
@@ -102,7 +102,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for KlarnaPaymentsRequest {
                         name: data.product_name.clone(),
                         quantity: data.quantity,
                         unit_price: data.amount,
-                        total_amount: request.amount,
+                        total_amount: i64::from(data.quantity)*(data.amount),
                     })
                     .collect(),
             }),
