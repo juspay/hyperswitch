@@ -799,6 +799,120 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, TrustpayAuthUpdateResponse, T, t
 
 #[derive(Default, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
+pub struct TrustpayCreateIntentRequest {
+    pub amount: String,
+    pub currency: String,
+    pub init_apple_pay: Option<bool>,
+}
+
+impl TryFrom<&types::PaymentsSessionRouterData> for TrustpayCreateIntentRequest {
+    type Error = Error;
+    fn try_from(item: &types::PaymentsSessionRouterData) -> Result<Self, Self::Error> {
+        Ok(Self {
+            amount: item.request.amount.to_string(),
+            currency: item.request.currency.to_string(),
+            init_apple_pay: Some(true),
+        })
+    }
+}
+
+#[derive(Default, Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TrustpayCreateIntentResponse {
+    pub secrets: SDKSecretInfo,
+    pub apple_init_result_data: TrustpayApplePayResponse,
+}
+
+#[derive(Default, Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SDKSecretInfo {
+    pub display: String,
+    pub payment: String,
+}
+
+#[derive(Default, Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TrustpayApplePayResponse {
+    pub country_code: String,
+    pub currency_code: String,
+    pub supported_networks: Vec<String>,
+    pub merchant_capabilities: Vec<String>,
+    pub total: ApplePayTotalInfo,
+}
+
+#[derive(Default, Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ApplePayTotalInfo {
+    pub label: String,
+    pub amount: String,
+}
+
+impl TryFrom<types::PaymentsSessionResponseRouterData<TrustpayCreateIntentResponse>>
+    for types::PaymentsSessionRouterData
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: types::PaymentsSessionResponseRouterData<TrustpayCreateIntentResponse>,
+    ) -> Result<Self, Self::Error> {
+        let response = item.response;
+        Ok(Self {
+            response: Ok(types::PaymentsResponseData::SessionResponse {
+                session_token: types::api::SessionToken::ApplePay(Box::new(
+                    api_models::payments::ApplepaySessionTokenResponse {
+                        session_token_data:
+                            api_models::payments::ApplePaySessionResponse::ThirdPartySDK(
+                                api_models::payments::ThirdPartySDKSessionResponse {
+                                    secrets: response.secrets.into(),
+                                    country_code: response
+                                        .apple_init_result_data
+                                        .country_code
+                                        .clone(),
+                                    currency_code: response
+                                        .apple_init_result_data
+                                        .currency_code
+                                        .clone(),
+                                    supported_networks: response
+                                        .apple_init_result_data
+                                        .supported_networks
+                                        .clone(),
+                                    merchant_capabilities: response
+                                        .apple_init_result_data
+                                        .merchant_capabilities
+                                        .clone(),
+                                    total: response.apple_init_result_data.total.into(),
+                                },
+                            ),
+                        payment_request_data: None,
+                        connector: "trustpay".to_string(),
+                        delayed_response: true,
+                    },
+                )),
+            }),
+            ..item.data
+        })
+    }
+}
+
+impl From<SDKSecretInfo> for api_models::payments::SecretInfoToInitiateSDK {
+    fn from(value: SDKSecretInfo) -> Self {
+        Self {
+            display: value.display,
+            payment: value.payment,
+        }
+    }
+}
+
+impl From<ApplePayTotalInfo> for api_models::payments::ThirdPartyTotalInfo {
+    fn from(value: ApplePayTotalInfo) -> Self {
+        Self {
+            label: value.label,
+            amount: value.amount,
+        }
+    }
+}
+
+#[derive(Default, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct TrustpayRefundRequestCards {
     instance_id: String,
     amount: String,

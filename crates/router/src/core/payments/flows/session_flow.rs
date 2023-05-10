@@ -76,18 +76,22 @@ impl Feature<api::Session, types::PaymentsSessionData> for types::PaymentsSessio
     }
 }
 
-fn mk_applepay_session_request(
-    state: &routes::AppState,
-    router_data: &types::PaymentsSessionRouterData,
-) -> RouterResult<(services::Request, payment_types::ApplepaySessionTokenData)> {
-    let connector_metadata = router_data.connector_meta_data.clone();
-
-    let applepay_metadata = connector_metadata
+fn get_applepay_metadata(
+    connector_metadata: Option<common_utils::pii::SecretSerdeValue>,
+) -> RouterResult<payment_types::ApplepaySessionTokenData> {
+    connector_metadata
         .parse_value::<payment_types::ApplepaySessionTokenData>("ApplepaySessionTokenData")
         .change_context(errors::ApiErrorResponse::InvalidDataFormat {
             field_name: "connector_metadata".to_string(),
             expected_format: "applepay_metadata_format".to_string(),
-        })?;
+        })
+}
+
+fn mk_applepay_session_request(
+    state: &routes::AppState,
+    router_data: &types::PaymentsSessionRouterData,
+) -> RouterResult<services::Request> {
+    let applepay_metadata = get_applepay_metadata(router_data.connector_meta_data.clone())?;
     let request = payment_types::ApplepaySessionRequest {
         merchant_identifier: applepay_metadata
             .data
@@ -132,14 +136,10 @@ fn mk_applepay_session_request(
                 .clone(),
         ))
         .add_certificate_key(Some(
-            applepay_metadata
-                .data
-                .session_token_data
-                .certificate_keys
-                .clone(),
+            applepay_metadata.data.session_token_data.certificate_keys,
         ))
         .build();
-    Ok((session_request, applepay_metadata))
+    Ok(session_request)
 }
 
 async fn create_applepay_session_token(
@@ -147,32 +147,13 @@ async fn create_applepay_session_token(
     router_data: &types::PaymentsSessionRouterData,
     connector: &api::ConnectorData,
 ) -> RouterResult<types::PaymentsSessionRouterData> {
-    let (applepay_session_request, applepay_metadata) =
-        mk_applepay_session_request(state, router_data)?;
-    let response = services::call_connector_api(state, applepay_session_request)
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failure in calling connector api")?;
-    let session_response: payment_types::ApplePaySessionResponse = match response {
-        Ok(resp) => resp
-            .response
-            .parse_struct("ApplePaySessionResponse")
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to parse ApplePaySessionResponse struct"),
-        Err(err) => {
-            let error_response: payment_types::ApplepayErrorResponse = err
-                .response
-                .parse_struct("ApplepayErrorResponse")
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to parse ApplepayErrorResponse struct")?;
-            Err(
-                report!(errors::ApiErrorResponse::InternalServerError).attach_printable(format!(
-                    "Failed with {} status code and the error response is {:?}",
-                    err.status_code, error_response
-                )),
-            )
-        }
-    }?;
+    let delayed_response = &state
+        .conf
+        .delayed_session_response
+        .connectors_with_delayed_session_repsonse;
+
+    let connector_name = connector.connector_name;
+    let applepay_metadata = get_applepay_metadata(router_data.connector_meta_data.clone())?;
 
     let amount_info = payment_types::AmountInfo {
         label: applepay_metadata.data.payment_request_data.label,
@@ -210,17 +191,67 @@ async fn create_applepay_session_token(
             .merchant_identifier,
     };
 
-    let response_router_data = types::PaymentsSessionRouterData {
-        response: Ok(types::PaymentsResponseData::SessionResponse {
-            session_token: payment_types::SessionToken::ApplePay(Box::new(
-                payment_types::ApplepaySessionTokenResponse {
-                    session_token_data: session_response,
-                    payment_request_data: applepay_payment_request,
-                    connector: connector.connector_name.to_string(),
-                },
-            )),
-        }),
-        ..router_data.clone()
+    let delayed_response = delayed_response.contains(&connector_name);
+
+    let response_router_data = if delayed_response {
+        types::PaymentsSessionRouterData {
+            response: Ok(types::PaymentsResponseData::SessionResponse {
+                session_token: payment_types::SessionToken::ApplePay(Box::new(
+                    payment_types::ApplepaySessionTokenResponse {
+                        session_token_data:
+                            payment_types::ApplePaySessionResponse::NoSessionResponse,
+                        payment_request_data: None,
+                        connector: connector_name.to_string(),
+                        delayed_response,
+                    },
+                )),
+            }),
+            ..router_data.clone()
+        }
+    } else {
+        let applepay_session_request = mk_applepay_session_request(state, router_data)?;
+        let response = services::call_connector_api(state, applepay_session_request)
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failure in calling connector api")?;
+        let session_response: payment_types::NoThirdPartySDKSessionResponse = match response {
+            Ok(resp) => resp
+                .response
+                .parse_struct("NoThirdPartySDKSessionResponse")
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to parse ApplePaySessionResponse struct"),
+            Err(err) => {
+                let error_response: payment_types::ApplepayErrorResponse = err
+                    .response
+                    .parse_struct("ApplepayErrorResponse")
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to parse ApplepayErrorResponse struct")?;
+                Err(
+                    report!(errors::ApiErrorResponse::InternalServerError).attach_printable(
+                        format!(
+                            "Failed with {} status code and the error response is {:?}",
+                            err.status_code, error_response
+                        ),
+                    ),
+                )
+            }
+        }?;
+
+        types::PaymentsSessionRouterData {
+            response: Ok(types::PaymentsResponseData::SessionResponse {
+                session_token: payment_types::SessionToken::ApplePay(Box::new(
+                    payment_types::ApplepaySessionTokenResponse {
+                        session_token_data: payment_types::ApplePaySessionResponse::NoThirdPartySDK(
+                            session_response,
+                        ),
+                        payment_request_data: Some(applepay_payment_request),
+                        connector: connector_name.to_string(),
+                        delayed_response,
+                    },
+                )),
+            }),
+            ..router_data.clone()
+        }
     };
 
     Ok(response_router_data)

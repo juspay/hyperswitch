@@ -1405,6 +1405,8 @@ pub struct PaymentsSessionRequest {
     pub wallets: Vec<api_enums::PaymentMethodType>,
     /// Merchant connector details used to make payments.
     pub merchant_connector_details: Option<admin::MerchantConnectorDetailsWrap>,
+    /// Identifier for the delayed session response
+    pub delayed_session_response: Option<bool>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -1560,13 +1562,49 @@ pub struct ApplepaySessionTokenResponse {
     /// Session object for Apple Pay
     pub session_token_data: ApplePaySessionResponse,
     /// Payment request object for Apple Pay
-    pub payment_request_data: ApplePayPaymentRequest,
+    pub payment_request_data: Option<ApplePayPaymentRequest>,
     pub connector: String,
+    pub delayed_response: bool,
 }
 
 #[derive(Debug, Clone, serde::Serialize, ToSchema, serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ApplePaySessionResponse {
+#[serde(untagged)]
+pub enum ApplePaySessionResponse {
+    ThirdPartySDK(ThirdPartySDKSessionResponse),
+    NoThirdPartySDK(NoThirdPartySDKSessionResponse),
+    NoSessionResponse,
+}
+
+// #[derive(Debug, Clone, serde::Serialize, ToSchema, serde::Deserialize)]
+// #[serde(rename_all = "camelCase")]
+// pub struct ApplePaySessionResponse {
+//     /// Timestamp at which session is requested
+//     pub epoch_timestamp: u64,
+//     /// Timestamp at which session expires
+//     pub expires_at: u64,
+//     /// The identifier for the merchant session
+//     pub merchant_session_identifier: String,
+//     /// Apple pay generated unique ID (UUID) value
+//     pub nonce: String,
+//     /// The identifier for the merchant
+//     pub merchant_identifier: String,
+//     /// The domain name of the merchant which is registered in Apple Pay
+//     pub domain_name: String,
+//     /// The name to be displayed on Apple Pay button
+//     pub display_name: String,
+//     /// A string which represents the properties of a payment
+//     pub signature: String,
+//     /// The identifier for the operational analytics
+//     pub operational_analytics_identifier: String,
+//     /// The number of retries to get the session response
+//     pub retries: u8,
+//     /// The identifier for the connector transaction
+//     pub psp_id: String,
+// }
+
+#[derive(Debug, Clone, serde::Serialize, ToSchema, serde::Deserialize)]
+#[serde(rename_all(deserialize = "camelCase"))]
+pub struct NoThirdPartySDKSessionResponse {
     /// Timestamp at which session is requested
     pub epoch_timestamp: u64,
     /// Timestamp at which session expires
@@ -1589,6 +1627,28 @@ pub struct ApplePaySessionResponse {
     pub retries: u8,
     /// The identifier for the connector transaction
     pub psp_id: String,
+}
+
+#[derive(Debug, Clone, serde::Serialize, ToSchema, serde::Deserialize)]
+pub struct ThirdPartySDKSessionResponse {
+    pub secrets: SecretInfoToInitiateSDK,
+    pub country_code: String,
+    pub currency_code: String,
+    pub supported_networks: Vec<String>,
+    pub merchant_capabilities: Vec<String>,
+    pub total: ThirdPartyTotalInfo,
+}
+
+#[derive(Debug, Clone, serde::Serialize, ToSchema, serde::Deserialize)]
+pub struct ThirdPartyTotalInfo {
+    pub label: String,
+    pub amount: String,
+}
+
+#[derive(Debug, Clone, serde::Serialize, ToSchema, serde::Deserialize)]
+pub struct SecretInfoToInitiateSDK {
+    pub display: String,
+    pub payment: String,
 }
 
 #[derive(Debug, Clone, serde::Serialize, ToSchema, serde::Deserialize)]
