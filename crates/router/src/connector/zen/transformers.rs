@@ -212,12 +212,6 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for ZenPaymentsRequest {
                     line_amount_total: order_amount.clone(),
                 })
                 .collect(),
-            // items: vec![ZenItemObject {
-            //     name: order_details.product_name,
-            //     price: order_amount.clone(),
-            //     quantity: 1,
-            //     line_amount_total: order_amount,
-            // }],
         })
     }
 }

@@ -856,7 +856,7 @@ fn get_line_items(item: &types::PaymentsAuthorizeRouterData) -> Vec<LineItem> {
                 description: None,
                 id: Some(String::from("Items #1")),
                 tax_amount: None,
-                quantity: None,
+                quantity: Some(1),
             };
             vec![line_item]
         }
