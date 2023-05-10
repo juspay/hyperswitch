@@ -1449,15 +1449,17 @@ pub struct GpayAllowedMethodsParameters {
     pub allowed_card_networks: Vec<String>,
 }
 
-#[serde_with::skip_serializing_none]
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct GpayTokenParameters {
     /// The name of the connector
     pub gateway: String,
     /// The merchant ID registered in the connector associated
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub gateway_merchant_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(rename = "stripe:version")]
     pub stripe_version: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(rename = "stripe:publishableKey")]
     pub stripe_publishable_key: Option<String>,
 }
