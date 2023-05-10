@@ -42,7 +42,7 @@ pub struct AttachEvidenceRequest {
     pub evidence_type: EvidenceType,
 }
 
-#[derive(Debug, serde::Deserialize, strum::Display, Clone)]
+#[derive(Debug, serde::Deserialize, strum::Display, strum::EnumString, Clone)]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum EvidenceType {
