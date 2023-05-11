@@ -91,8 +91,8 @@ pub enum StripeErrorCode {
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "resource_missing", message = "No such resource ID")]
     ResourceIdNotFound,
 
-    #[error(error_type = StripeErrorType::InvalidRequestError, code = "resource_missing", message = "No such merchant connector account")]
-    MerchantConnectorAccountNotFound,
+    #[error(error_type = StripeErrorType::InvalidRequestError, code = "resource_missing", message = "Merchant connector account with id '{id}' does not exist in our records")]
+    MerchantConnectorAccountNotFound { id: String },
 
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "resource_missing", message = "No such mandate")]
     MandateNotFound,
@@ -433,8 +433,8 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
             | errors::ApiErrorResponse::ClientSecretExpired => Self::ClientSecretNotFound,
             errors::ApiErrorResponse::MerchantAccountNotFound => Self::MerchantAccountNotFound,
             errors::ApiErrorResponse::ResourceIdNotFound => Self::ResourceIdNotFound,
-            errors::ApiErrorResponse::MerchantConnectorAccountNotFound => {
-                Self::MerchantConnectorAccountNotFound
+            errors::ApiErrorResponse::MerchantConnectorAccountNotFound { id } => {
+                Self::MerchantConnectorAccountNotFound { id }
             }
             errors::ApiErrorResponse::MandateNotFound => Self::MandateNotFound,
             errors::ApiErrorResponse::ApiKeyNotFound => Self::ApiKeyNotFound,
@@ -523,7 +523,7 @@ impl actix_web::ResponseError for StripeErrorCode {
             | Self::PaymentMethodNotFound
             | Self::PaymentMethodTypeNotFound
             | Self::MerchantAccountNotFound
-            | Self::MerchantConnectorAccountNotFound
+            | Self::MerchantConnectorAccountNotFound { .. }
             | Self::MandateNotFound
             | Self::ApiKeyNotFound
             | Self::DuplicateMerchantAccount

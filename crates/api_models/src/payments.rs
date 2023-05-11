@@ -638,7 +638,10 @@ pub enum BankRedirectData {
         // Issuer value corresponds to the bank
         issuer: api_enums::BankNames,
     },
-    Przelewy24 {},
+    Przelewy24 {
+        // Shopper Email
+        email: Email,
+    },
     Sofort {
         /// The billing details for bank redirection
         billing_details: BankRedirectBilling,

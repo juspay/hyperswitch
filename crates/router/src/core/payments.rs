@@ -120,16 +120,9 @@ where
         get_connector_tokenization_action(state, &operation, payment_data, &validate_result)
             .await?;
 
-    let connector_string = connector
-        .as_ref()
-        .and_then(|connector_type| match connector_type {
-            api::ConnectorCallType::Single(connector) => Some(connector.connector_name.to_string()),
-            _ => None,
-        });
-
-    let updated_customer = call_create_connector_customer(
+    let updated_customer = call_create_connector_customer_if_required(
         state,
-        &connector_string,
+        &payment_data.payment_attempt.connector.clone(),
         &customer,
         &merchant_account,
         &mut payment_data,
@@ -612,7 +605,7 @@ where
     Ok(payment_data)
 }
 
-pub async fn call_create_connector_customer<F, Req>(
+pub async fn call_create_connector_customer_if_required<F, Req>(
     state: &AppState,
     connector_name: &Option<String>,
     customer: &Option<storage::Customer>,
@@ -640,14 +633,31 @@ where
                 connector_name,
                 api::GetToken::Connector,
             )?;
-            let router_data = payment_data
-                .construct_router_data(state, connector.connector.id(), merchant_account, customer)
-                .await?;
-            let (connector_customer, customer_update) = router_data
-                .create_connector_customer(state, &connector, customer)
-                .await?;
-            payment_data.connector_customer_id = connector_customer;
-            Ok(customer_update)
+            let (is_eligible, connector_customer_id, connector_customer_map) =
+                customers::should_call_connector_create_customer(state, &connector, customer)?;
+
+            if is_eligible {
+                // Create customer at connector and update the customer table to store this data
+                let router_data = payment_data
+                    .construct_router_data(
+                        state,
+                        connector.connector.id(),
+                        merchant_account,
+                        customer,
+                    )
+                    .await?;
+
+                let (connector_customer, customer_update) = router_data
+                    .create_connector_customer(state, &connector, connector_customer_map)
+                    .await?;
+
+                payment_data.connector_customer_id = connector_customer;
+                Ok(customer_update)
+            } else {
+                // Customer already created in previous calls use the same value, no need to update
+                payment_data.connector_customer_id = connector_customer_id;
+                Ok(None)
+            }
         }
         None => Ok(None),
     }
