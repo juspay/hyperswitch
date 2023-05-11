@@ -18,7 +18,7 @@ use crate::{
     core::errors::{self, CustomResult},
     pii::PeekInterface,
     types::{self, api, PaymentsCancelData, ResponseId},
-    utils::{OptionExt, ValueExt},
+    utils::{self, OptionExt, ValueExt},
 };
 
 pub fn missing_field_err(
@@ -63,6 +63,7 @@ pub trait RouterData {
     fn is_three_ds(&self) -> bool;
     fn get_payment_method_token(&self) -> Result<String, Error>;
     fn get_customer_id(&self) -> Result<String, Error>;
+    fn get_connector_customer_id(&self) -> Result<String, Error>;
 }
 
 impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Response> {
@@ -151,6 +152,11 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
             .to_owned()
             .ok_or_else(missing_field_err("customer_id"))
     }
+    fn get_connector_customer_id(&self) -> Result<String, Error> {
+        self.connector_customer
+            .to_owned()
+            .ok_or_else(missing_field_err("connector_customer_id"))
+    }
 }
 
 pub trait PaymentsAuthorizeRequestData {
@@ -204,8 +210,8 @@ impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
             .as_ref()
             .and_then(|mandate_ids| match &mandate_ids.mandate_reference_id {
                 Some(api_models::payments::MandateReferenceId::ConnectorMandateId(
-                    connector_mandate_id,
-                )) => Some(connector_mandate_id.to_string()),
+                    connector_mandate_ids,
+                )) => connector_mandate_ids.connector_mandate_id.clone(),
                 _ => None,
             })
     }
@@ -370,11 +376,7 @@ impl CardData for api::Card {
         Secret::new(year[year.len() - 2..].to_string())
     }
     fn get_card_issuer(&self) -> Result<CardIssuer, Error> {
-        let card: Secret<String, pii::CardNumber> = self
-            .card_number
-            .clone()
-            .map(|card| card.split_whitespace().collect());
-        get_card_issuer(card.peek().clone().as_str())
+        get_card_issuer(self.card_number.peek())
     }
     fn get_card_expiry_month_year_2_digit_with_delimiter(
         &self,
@@ -562,12 +564,36 @@ impl MandateData for payments::MandateAmountData {
     }
 }
 
+pub trait MandateReferenceData {
+    fn get_connector_mandate_id(&self) -> Result<String, Error>;
+}
+
+impl MandateReferenceData for api_models::payments::ConnectorMandateReferenceId {
+    fn get_connector_mandate_id(&self) -> Result<String, Error> {
+        self.connector_mandate_id
+            .clone()
+            .ok_or_else(missing_field_err("mandate_id"))
+    }
+}
+
 pub fn get_header_key_value<'a>(
     key: &str,
     headers: &'a actix_web::http::header::HeaderMap,
 ) -> CustomResult<&'a str, errors::ConnectorError> {
-    headers
-        .get(key)
+    get_header_field(headers.get(key))
+}
+
+pub fn get_http_header<'a>(
+    key: &str,
+    headers: &'a http::HeaderMap,
+) -> CustomResult<&'a str, errors::ConnectorError> {
+    get_header_field(headers.get(key))
+}
+
+fn get_header_field(
+    field: Option<&http::HeaderValue>,
+) -> CustomResult<&str, errors::ConnectorError> {
+    field
         .map(|header_value| {
             header_value
                 .to_str()
@@ -646,27 +672,16 @@ pub fn to_currency_base_unit(
     amount: i64,
     currency: storage_models::enums::Currency,
 ) -> Result<String, error_stack::Report<errors::ConnectorError>> {
-    let amount_f64 = to_currency_base_unit_asf64(amount, currency)?;
-    Ok(format!("{amount_f64:.2}"))
+    utils::to_currency_base_unit(amount, currency)
+        .change_context(errors::ConnectorError::RequestEncodingFailed)
 }
 
 pub fn to_currency_base_unit_asf64(
     amount: i64,
     currency: storage_models::enums::Currency,
 ) -> Result<f64, error_stack::Report<errors::ConnectorError>> {
-    let amount_u32 = u32::try_from(amount)
-        .into_report()
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-    let amount_f64 = f64::from(amount_u32);
-    let amount = match currency {
-        storage_models::enums::Currency::JPY | storage_models::enums::Currency::KRW => amount_f64,
-        storage_models::enums::Currency::BHD
-        | storage_models::enums::Currency::JOD
-        | storage_models::enums::Currency::KWD
-        | storage_models::enums::Currency::OMR => amount_f64 / 1000.00,
-        _ => amount_f64 / 100.00,
-    };
-    Ok(amount)
+    utils::to_currency_base_unit_asf64(amount, currency)
+        .change_context(errors::ConnectorError::RequestEncodingFailed)
 }
 
 pub fn str_to_f32<S>(value: &str, serializer: S) -> Result<S::Ok, S::Error>

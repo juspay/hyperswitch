@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 use api_models::payments::{Address, AddressDetails};
 use masking::Secret;
 use router::{
@@ -64,7 +66,7 @@ impl WorldlineTest {
             amount: 3500,
             currency: enums::Currency::USD,
             payment_method_data: types::api::PaymentMethodData::Card(types::api::Card {
-                card_number: Secret::new(card_number.to_string()),
+                card_number: cards::CardNumber::from_str(card_number).unwrap(),
                 card_exp_month: Secret::new(card_exp_month.to_string()),
                 card_exp_year: Secret::new(card_exp_year.to_string()),
                 card_holder_name: Secret::new("John Doe".to_string()),
@@ -141,7 +143,7 @@ async fn should_throw_not_implemented_for_unsupported_issuer() {
     assert_eq!(
         *response.unwrap_err().current_context(),
         errors::ConnectorError::NotSupported {
-            message: "card".to_string(),
+            message: "Maestro".to_string(),
             connector: "worldline",
             payment_experience: "RedirectToUrl".to_string(),
         }
