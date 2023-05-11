@@ -1,4 +1,4 @@
-use std::{fmt::Debug, marker::PhantomData, time::Duration};
+use std::{fmt::Debug, marker::PhantomData, str::FromStr, time::Duration};
 
 use async_trait::async_trait;
 use error_stack::Report;
@@ -364,6 +364,7 @@ pub trait ConnectorActions: Connector {
         RouterData {
             flow: PhantomData,
             merchant_id: self.get_name(),
+            customer_id: Some(self.get_name()),
             connector: self.get_name(),
             payment_id: uuid::Uuid::new_v4().to_string(),
             attempt_id: uuid::Uuid::new_v4().to_string(),
@@ -394,6 +395,7 @@ pub trait ConnectorActions: Connector {
             session_token: None,
             reference_id: None,
             payment_method_token: None,
+            connector_customer: None,
         }
     }
 
@@ -409,6 +411,7 @@ pub trait ConnectorActions: Connector {
             Ok(types::PaymentsResponseData::SessionTokenResponse { .. }) => None,
             Ok(types::PaymentsResponseData::TokenizationResponse { .. }) => None,
             Ok(types::PaymentsResponseData::TransactionUnresolvedResponse { .. }) => None,
+            Ok(types::PaymentsResponseData::ConnectorCustomerResponse { .. }) => None,
             Ok(types::PaymentsResponseData::ThreeDSEnrollmentResponse { .. }) => None,
             Err(_) => None,
         }
@@ -470,7 +473,7 @@ pub struct BrowserInfoType(pub types::BrowserInformation);
 impl Default for CCardType {
     fn default() -> Self {
         Self(api::Card {
-            card_number: Secret::new("4200000000000000".to_string()),
+            card_number: cards::CardNumber::from_str("4200000000000000").unwrap(),
             card_exp_month: Secret::new("10".to_string()),
             card_exp_year: Secret::new("2025".to_string()),
             card_holder_name: Secret::new("John Doe".to_string()),
@@ -554,6 +557,7 @@ impl Default for BrowserInfoType {
 impl Default for PaymentSyncType {
     fn default() -> Self {
         let data = types::PaymentsSyncData {
+            mandate_id: None,
             connector_transaction_id: types::ResponseId::ConnectorTransactionId(
                 "12345".to_string(),
             ),
@@ -592,6 +596,7 @@ pub fn get_connector_transaction_id(
         Ok(types::PaymentsResponseData::SessionTokenResponse { .. }) => None,
         Ok(types::PaymentsResponseData::TokenizationResponse { .. }) => None,
         Ok(types::PaymentsResponseData::TransactionUnresolvedResponse { .. }) => None,
+        Ok(types::PaymentsResponseData::ConnectorCustomerResponse { .. }) => None,
         Ok(types::PaymentsResponseData::ThreeDSEnrollmentResponse { .. }) => None,
         Err(_) => None,
     }
@@ -606,6 +611,7 @@ pub fn get_connector_metadata(
             redirection_data: _,
             mandate_reference: _,
             connector_metadata,
+            network_txn_id: _,
         }) => connector_metadata,
         _ => None,
     }

@@ -15,7 +15,7 @@ use crate::{
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
 pub struct BamboraCard {
     name: Secret<String>,
-    number: Secret<String, common_utils::pii::CardNumber>,
+    number: cards::CardNumber,
     expiry_month: Secret<String>,
     expiry_year: Secret<String>,
     cvd: Secret<String>,
@@ -205,6 +205,7 @@ impl<F, T>
                     redirection_data: None,
                     mandate_reference: None,
                     connector_metadata: None,
+                    network_txn_id: None,
                 }),
                 ..item.data
             }),
@@ -227,6 +228,7 @@ impl<F, T>
                             .into_report()
                             .change_context(errors::ConnectorError::ResponseHandlingFailed)?,
                         ),
+                        network_txn_id: None,
                     }),
                     ..item.data
                 })

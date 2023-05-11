@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 use api_models::payments::{Address, AddressDetails};
 use masking::Secret;
 use router::types::{self, api, storage::enums, PaymentAddress};
@@ -39,7 +41,7 @@ impl AdyenTest {
             address: Some(PaymentAddress {
                 billing: Some(Address {
                     address: Some(AddressDetails {
-                        country: Some(api_models::enums::CountryCode::US),
+                        country: Some(api_models::enums::CountryAlpha2::US),
                         ..Default::default()
                     }),
                     phone: None,
@@ -61,7 +63,7 @@ impl AdyenTest {
             amount: 3500,
             currency: enums::Currency::USD,
             payment_method_data: types::api::PaymentMethodData::Card(types::api::Card {
-                card_number: Secret::new(card_number.to_string()),
+                card_number: cards::CardNumber::from_str(card_number).unwrap(),
                 card_exp_month: Secret::new(card_exp_month.to_string()),
                 card_exp_year: Secret::new(card_exp_year.to_string()),
                 card_holder_name: Secret::new("John Doe".to_string()),
@@ -341,7 +343,7 @@ async fn should_fail_payment_for_incorrect_card_number() {
             Some(types::PaymentsAuthorizeData {
                 router_return_url: Some(String::from("http://localhost:8080")),
                 payment_method_data: types::api::PaymentMethodData::Card(api::Card {
-                    card_number: Secret::new("1234567891011".to_string()),
+                    card_number: cards::CardNumber::from_str("4024007134364842").unwrap(),
                     ..utils::CCardType::default().0
                 }),
                 ..utils::PaymentAuthorizeType::default().0
@@ -350,31 +352,7 @@ async fn should_fail_payment_for_incorrect_card_number() {
         )
         .await
         .unwrap();
-    assert_eq!(
-        response.response.unwrap_err().message,
-        "Invalid card number",
-    );
-}
-
-// Creates a payment with empty card number.
-#[actix_web::test]
-async fn should_fail_payment_for_empty_card_number() {
-    let response = CONNECTOR
-        .make_payment(
-            Some(types::PaymentsAuthorizeData {
-                router_return_url: Some(String::from("http://localhost:8080")),
-                payment_method_data: types::api::PaymentMethodData::Card(api::Card {
-                    card_number: Secret::new(String::from("")),
-                    ..utils::CCardType::default().0
-                }),
-                ..utils::PaymentAuthorizeType::default().0
-            }),
-            AdyenTest::get_payment_info(),
-        )
-        .await
-        .unwrap();
-    let x = response.response.unwrap_err();
-    assert_eq!(x.message, "Missing payment method details: number",);
+    assert_eq!(response.response.unwrap_err().message, "Refused",);
 }
 
 // Creates a payment with incorrect CVC.
