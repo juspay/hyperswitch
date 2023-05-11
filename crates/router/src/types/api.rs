@@ -150,8 +150,14 @@ pub struct ConnectorData {
     pub get_token: GetToken,
 }
 
+#[derive(Clone)]
+pub struct SessionConnectorData {
+    pub payment_method_type: api_enums::PaymentMethodType,
+    pub connector: ConnectorData,
+}
+
 pub enum ConnectorChoice {
-    SessionMultiple(Vec<ConnectorData>),
+    SessionMultiple(Vec<SessionConnectorData>),
     StraightThrough(serde_json::Value),
     Decide,
 }
@@ -197,17 +203,22 @@ impl ConnectorData {
             "airwallex" => Ok(Box::new(&connector::Airwallex)),
             "authorizedotnet" => Ok(Box::new(&connector::Authorizedotnet)),
             "bambora" => Ok(Box::new(&connector::Bambora)),
+            "bitpay" => Ok(Box::new(&connector::Bitpay)),
             "bluesnap" => Ok(Box::new(&connector::Bluesnap)),
             "braintree" => Ok(Box::new(&connector::Braintree)),
             "checkout" => Ok(Box::new(&connector::Checkout)),
             "coinbase" => Ok(Box::new(&connector::Coinbase)),
             "cybersource" => Ok(Box::new(&connector::Cybersource)),
             "dlocal" => Ok(Box::new(&connector::Dlocal)),
+            #[cfg(feature = "dummy_connector")]
+            "dummyconnector" => Ok(Box::new(&connector::DummyConnector)),
             "fiserv" => Ok(Box::new(&connector::Fiserv)),
-            // "forte" => Ok(Box::new(&connector::Forte)),
+            "forte" => Ok(Box::new(&connector::Forte)),
             "globalpay" => Ok(Box::new(&connector::Globalpay)),
+            "iatapay" => Ok(Box::new(&connector::Iatapay)),
             "klarna" => Ok(Box::new(&connector::Klarna)),
             "mollie" => Ok(Box::new(&connector::Mollie)),
+            "nmi" => Ok(Box::new(&connector::Nmi)),
             "nuvei" => Ok(Box::new(&connector::Nuvei)),
             "opennode" => Ok(Box::new(&connector::Opennode)),
             // "payeezy" => Ok(Box::new(&connector::Payeezy)), As psync and rsync are not supported by this connector, it is added as template code for future usage

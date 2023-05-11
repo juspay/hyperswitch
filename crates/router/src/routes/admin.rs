@@ -35,7 +35,7 @@ pub async fn merchant_account_create(
         state.get_ref(),
         &req,
         json_payload.into_inner(),
-        |state, _, req| create_merchant_account(state, req),
+        |state, _, req| create_merchant_account(&*state.store, req),
         &auth::AdminApiAuth,
     )
     .await
