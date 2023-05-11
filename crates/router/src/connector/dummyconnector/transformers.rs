@@ -8,16 +8,15 @@ use crate::{
     types::{self, api, storage::enums},
 };
 
-//TODO: Fill the struct with respective fields
 #[derive(Debug, Serialize, Eq, PartialEq)]
 pub struct DummyConnectorPaymentsRequest {
     amount: i64,
     currency: Currency,
-    payment_method_data: Dummyconnector1PaymentMethodData,
+    payment_method_data: PaymentMethodData,
 }
 
 #[derive(Debug, serde::Serialize, Eq, PartialEq)]
-pub enum Dummyconnector1PaymentMethodData {
+pub enum PaymentMethodData {
     Card(DummyConnectorCard),
 }
 
@@ -47,7 +46,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for DummyConnectorPaymentsRequ
                 Ok(Self {
                     amount: item.request.amount,
                     currency: item.request.currency,
-                    payment_method_data: Dummyconnector1PaymentMethodData::Card(card),
+                    payment_method_data: PaymentMethodData::Card(card),
                 })
             }
             _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
@@ -55,7 +54,6 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for DummyConnectorPaymentsRequ
     }
 }
 
-//TODO: Fill the struct with respective fields
 // Auth Struct
 pub struct DummyConnectorAuthType {
     pub(super) api_key: String,
@@ -93,9 +91,8 @@ impl From<DummyConnectorPaymentStatus> for enums::AttemptStatus {
     }
 }
 
-//TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct DummyConnectorPaymentResponse {
+pub struct PaymentsResponse {
     status: DummyConnectorPaymentStatus,
     id: String,
     amount: i64,
@@ -104,19 +101,12 @@ pub struct DummyConnectorPaymentResponse {
     payment_method_type: String,
 }
 
-impl<F, T>
-    TryFrom<
-        types::ResponseRouterData<F, DummyConnectorPaymentResponse, T, types::PaymentsResponseData>,
-    > for types::RouterData<F, T, types::PaymentsResponseData>
+impl<F, T> TryFrom<types::ResponseRouterData<F, PaymentsResponse, T, types::PaymentsResponseData>>
+    for types::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::ResponseRouterData<
-            F,
-            DummyConnectorPaymentResponse,
-            T,
-            types::PaymentsResponseData,
-        >,
+        item: types::ResponseRouterData<F, PaymentsResponse, T, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             status: enums::AttemptStatus::from(item.response.status),
@@ -132,7 +122,6 @@ impl<F, T>
     }
 }
 
-//TODO: Fill the struct with respective fields
 // REFUND :
 // Type definition for RefundRequest
 #[derive(Default, Debug, Serialize)]
@@ -172,7 +161,6 @@ impl From<RefundStatus> for enums::RefundStatus {
     }
 }
 
-//TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct RefundResponse {
     id: String,
@@ -217,14 +205,13 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
     }
 }
 
-//TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
 pub struct DummyConnectorErrorResponse {
-    pub error: DummyConnectorErrorData,
+    pub error: ErrorData,
 }
 
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
-pub struct DummyConnectorErrorData {
+pub struct ErrorData {
     pub code: String,
     pub message: String,
     pub reason: Option<String>,

@@ -6,10 +6,13 @@ use api_models::payments::PaymentMethodData;
 use error_stack::{IntoReport, ResultExt};
 use transformers as dummyconnector;
 
+use super::utils::{PaymentsAuthorizeRequestData, RefundsRequestData};
 use crate::{
     configs::settings,
-    connector::utils as connector_utils,
-    core::errors::{self, CustomResult},
+    core::{
+        errors::{self, CustomResult},
+        mandate::MandateBehaviour,
+    },
     headers,
     services::{self, ConnectorIntegration},
     types::{
@@ -141,12 +144,8 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let payment_method_data = req.request.payment_method_data.clone();
-        let payment_method_type = req
-            .to_owned()
-            .request
-            .payment_method_type
-            .ok_or_else(connector_utils::missing_field_err("payment_method_type"))?;
+        let payment_method_data = req.request.get_payment_method_data();
+        let payment_method_type = req.request.get_payment_method_type()?;
         match payment_method_data {
             PaymentMethodData::Card(_) => Ok(format!("{}/payment", self.base_url(connectors))),
             _ => Err(error_stack::report!(errors::ConnectorError::NotSupported {
@@ -198,7 +197,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         data: &types::PaymentsAuthorizeRouterData,
         res: Response,
     ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
-        let response: dummyconnector::DummyConnectorPaymentResponse = res
+        let response: dummyconnector::PaymentsResponse = res
             .response
             .parse_struct("DummyConnector PaymentsAuthorizeResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
@@ -274,7 +273,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         data: &types::PaymentsSyncRouterData,
         res: Response,
     ) -> CustomResult<types::PaymentsSyncRouterData, errors::ConnectorError> {
-        let response: dummyconnector::DummyConnectorPaymentResponse = res
+        let response: dummyconnector::PaymentsResponse = res
             .response
             .parse_struct("dummyconnector PaymentsSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
@@ -346,7 +345,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         data: &types::PaymentsCaptureRouterData,
         res: Response,
     ) -> CustomResult<types::PaymentsCaptureRouterData, errors::ConnectorError> {
-        let response: dummyconnector::DummyConnectorPaymentResponse = res
+        let response: dummyconnector::PaymentsResponse = res
             .response
             .parse_struct("DummyConnector PaymentsCaptureResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
@@ -473,11 +472,7 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         req: &types::RefundSyncRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let refund_id = req
-            .request
-            .to_owned()
-            .connector_refund_id
-            .ok_or(errors::ConnectorError::MissingConnectorRefundID)?;
+        let refund_id = req.request.get_connector_refund_id()?;
         Ok(format!(
             "{}/refunds/{}",
             self.base_url(connectors),
