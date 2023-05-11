@@ -17,7 +17,6 @@ pub enum TransactionSpeed {
     High,
 }
 
-//TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
 pub struct BitpayPaymentsRequest {
     price: i64,
@@ -38,7 +37,6 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BitpayPaymentsRequest {
     }
 }
 
-//TODO: Fill the struct with respective fields
 // Auth Struct
 pub struct BitpayAuthType {
     pub(super) api_key: String,
@@ -56,7 +54,6 @@ impl TryFrom<&ConnectorAuthType> for BitpayAuthType {
     }
 }
 // PaymentsResponse
-//TODO: Append the remaining status flags
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum BitpayPaymentStatus {
@@ -111,7 +108,6 @@ pub struct BitpayPaymentResponseData {
     pub token: Option<String>,
 }
 
-//TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct BitpayPaymentsResponse {
     data: BitpayPaymentResponseData,
@@ -227,7 +223,6 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
     }
 }
 
-//TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
 pub struct BitpayErrorResponse {
     pub status_code: u16,
