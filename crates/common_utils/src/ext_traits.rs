@@ -5,6 +5,7 @@
 
 use error_stack::{IntoReport, ResultExt};
 use masking::{ExposeInterface, Secret, Strategy};
+use quick_xml::de;
 use serde::{Deserialize, Serialize};
 
 use crate::errors::{self, CustomResult};
@@ -390,5 +391,24 @@ pub trait ConfigExt {
 impl ConfigExt for String {
     fn is_empty_after_trim(&self) -> bool {
         self.trim().is_empty()
+    }
+}
+
+/// Extension trait for deserializing XML strings using `quick-xml` crate
+pub trait XmlExt {
+    ///
+    /// Deserialize an XML string into the specified type `<T>`.
+    ///
+    fn parse_xml<T>(self) -> Result<T, quick_xml::de::DeError>
+    where
+        T: serde::de::DeserializeOwned;
+}
+
+impl XmlExt for &str {
+    fn parse_xml<T>(self) -> Result<T, quick_xml::de::DeError>
+    where
+        T: serde::de::DeserializeOwned,
+    {
+        de::from_str(self)
     }
 }
