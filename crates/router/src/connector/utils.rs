@@ -312,6 +312,7 @@ impl PaymentsCancelRequestData for PaymentsCancelData {
 
 pub trait RefundsRequestData {
     fn get_connector_refund_id(&self) -> Result<String, Error>;
+    fn get_webhook_url(&self) -> Result<String, Error>;
 }
 
 impl RefundsRequestData for types::RefundsData {
@@ -321,6 +322,52 @@ impl RefundsRequestData for types::RefundsData {
             .clone()
             .get_required_value("connector_refund_id")
             .change_context(errors::ConnectorError::MissingConnectorTransactionID)
+    }
+    fn get_webhook_url(&self) -> Result<String, Error> {
+        self.webhook_url
+            .clone()
+            .ok_or_else(missing_field_err("webhook_url"))
+    }
+}
+
+#[derive(Clone, Debug, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GooglePayWalletData {
+    #[serde(rename = "type")]
+    pub pm_type: String,
+    pub description: String,
+    pub info: GooglePayPaymentMethodInfo,
+    pub tokenization_data: GpayTokenizationData,
+}
+
+#[derive(Clone, Debug, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GooglePayPaymentMethodInfo {
+    pub card_network: String,
+    pub card_details: String,
+}
+
+#[derive(Clone, Debug, serde::Serialize)]
+pub struct GpayTokenizationData {
+    #[serde(rename = "type")]
+    pub token_type: String,
+    pub token: String,
+}
+
+impl From<api_models::payments::GooglePayWalletData> for GooglePayWalletData {
+    fn from(data: api_models::payments::GooglePayWalletData) -> Self {
+        Self {
+            pm_type: data.pm_type,
+            description: data.description,
+            info: GooglePayPaymentMethodInfo {
+                card_network: data.info.card_network,
+                card_details: data.info.card_details,
+            },
+            tokenization_data: GpayTokenizationData {
+                token_type: data.tokenization_data.token_type,
+                token: data.tokenization_data.token,
+            },
+        }
     }
 }
 

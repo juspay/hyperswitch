@@ -581,7 +581,6 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, CheckoutRefundResponse
 #[derive(Debug, Default, Eq, PartialEq, Deserialize)]
 pub struct ErrorResponse {
     pub request_id: Option<String>,
-    #[serde(rename = "type")]
     pub error_type: Option<String>,
     pub error_codes: Option<Vec<String>>,
 }
@@ -710,15 +709,33 @@ pub struct CheckoutWebhookData {
     pub action_id: Option<String>,
     pub amount: i32,
     pub currency: String,
-    pub evidence_required_by: Option<PrimitiveDateTime>,
-    pub reason_code: Option<String>,
-    pub date: Option<PrimitiveDateTime>,
 }
 #[derive(Debug, Deserialize)]
 pub struct CheckoutWebhookBody {
     #[serde(rename = "type")]
     pub transaction_type: CheckoutTransactionType,
     pub data: CheckoutWebhookData,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct CheckoutDisputeWebhookData {
+    pub id: String,
+    pub payment_id: Option<String>,
+    pub action_id: Option<String>,
+    pub amount: i32,
+    pub currency: String,
+    #[serde(with = "common_utils::custom_serde::iso8601::option")]
+    pub evidence_required_by: Option<PrimitiveDateTime>,
+    pub reason_code: Option<String>,
+    #[serde(with = "common_utils::custom_serde::iso8601::option")]
+    pub date: Option<PrimitiveDateTime>,
+}
+#[derive(Debug, Deserialize)]
+pub struct CheckoutDisputeWebhookBody {
+    #[serde(rename = "type")]
+    pub transaction_type: CheckoutTransactionType,
+    pub data: CheckoutDisputeWebhookData,
+    #[serde(with = "common_utils::custom_serde::iso8601::option")]
     pub created_on: Option<PrimitiveDateTime>,
 }
 #[derive(Debug, Deserialize, strum::Display, Clone)]
