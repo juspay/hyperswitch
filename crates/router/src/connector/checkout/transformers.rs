@@ -581,7 +581,6 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, CheckoutRefundResponse
 #[derive(Debug, Default, Eq, PartialEq, Deserialize)]
 pub struct ErrorResponse {
     pub request_id: Option<String>,
-    #[serde(rename = "type")]
     pub error_type: Option<String>,
     pub error_codes: Option<Vec<String>>,
 }
