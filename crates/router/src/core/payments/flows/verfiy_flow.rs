@@ -84,14 +84,14 @@ impl Feature<api::Verify, types::VerifyRequestData> for types::VerifyRouterData 
         &self,
         state: &AppState,
         connector: &api::ConnectorData,
-        customer: &Option<storage::Customer>,
+        connector_customer_map: Option<serde_json::Map<String, serde_json::Value>>,
     ) -> RouterResult<(Option<String>, Option<storage::CustomerUpdate>)> {
         customers::create_connector_customer(
             state,
             connector,
-            customer,
             self,
             types::ConnectorCustomerData::try_from(self.request.to_owned())?,
+            connector_customer_map,
         )
         .await
     }

@@ -87,7 +87,7 @@ pub trait Feature<F, T> {
         &self,
         _state: &AppState,
         _connector: &api::ConnectorData,
-        _customer: &Option<storage::Customer>,
+        _connector_customer_map: Option<serde_json::Map<String, serde_json::Value>>,
     ) -> RouterResult<(Option<String>, Option<storage::CustomerUpdate>)>
     where
         F: Clone,
