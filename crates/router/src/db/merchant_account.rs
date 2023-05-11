@@ -179,7 +179,6 @@ impl MerchantAccountInterface for MockDb {
             #[allow(clippy::as_conversions)]
             id: accounts.len() as i32,
             merchant_id: merchant_account.merchant_id,
-            api_key: merchant_account.api_key,
             return_url: merchant_account.return_url,
             enable_payment_response_hash: merchant_account
                 .enable_payment_response_hash
@@ -201,6 +200,7 @@ impl MerchantAccountInterface for MockDb {
             primary_business_details: merchant_account.primary_business_details,
             created_at: common_utils::date_time::now(),
             modified_at: common_utils::date_time::now(),
+            intent_fulfillment_time: merchant_account.intent_fulfillment_time,
         };
         accounts.push(account.clone());
         Ok(account)

@@ -78,7 +78,7 @@ pub struct Card {
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct CardDetails {
-    number: Secret<String, common_utils::pii::CardNumber>,
+    number: cards::CardNumber,
     expiration_month: Secret<String>,
     expiration_year: Secret<String>,
     cvv: Secret<String>,
@@ -221,6 +221,7 @@ impl<F, T>
                 redirection_data: None,
                 mandate_reference: None,
                 connector_metadata: None,
+                network_txn_id: None,
             }),
             ..item.data
         })

@@ -1,20 +1,40 @@
 use actix_web::{web, Scope};
 
 use super::{customers::*, payment_intents::*, refunds::*, setup_intents::*, webhooks::*};
-use crate::routes::{self, webhooks};
+use crate::routes::{self, mandates, webhooks};
 
 pub struct PaymentIntents;
 
 impl PaymentIntents {
     pub fn server(state: routes::AppState) -> Scope {
-        web::scope("/payment_intents")
-            .app_data(web::Data::new(state))
-            .service(payment_intents_retrieve_with_gateway_creds)
-            .service(payment_intents_create)
-            .service(payment_intents_retrieve)
-            .service(payment_intents_update)
-            .service(payment_intents_confirm)
-            .service(payment_intents_capture)
+        let mut route = web::scope("/payment_intents").app_data(web::Data::new(state));
+        #[cfg(feature = "olap")]
+        {
+            route = route.service(web::resource("/list").route(web::get().to(payment_intent_list)))
+        }
+        route = route
+            .service(web::resource("").route(web::post().to(payment_intents_create)))
+            .service(
+                web::resource("/sync")
+                    .route(web::post().to(payment_intents_retrieve_with_gateway_creds)),
+            )
+            .service(
+                web::resource("/{payment_id}")
+                    .route(web::get().to(payment_intents_retrieve))
+                    .route(web::post().to(payment_intents_update)),
+            )
+            .service(
+                web::resource("/{payment_id}/confirm")
+                    .route(web::post().to(payment_intents_confirm)),
+            )
+            .service(
+                web::resource("/{payment_id}/capture")
+                    .route(web::post().to(payment_intents_capture)),
+            )
+            .service(
+                web::resource("/{payment_id}/cancel").route(web::post().to(payment_intents_cancel)),
+            );
+        route
     }
 }
 
@@ -24,10 +44,15 @@ impl SetupIntents {
     pub fn server(state: routes::AppState) -> Scope {
         web::scope("/setup_intents")
             .app_data(web::Data::new(state))
-            .service(setup_intents_create)
-            .service(setup_intents_retrieve)
-            .service(setup_intents_update)
-            .service(setup_intents_confirm)
+            .service(web::resource("").route(web::post().to(setup_intents_create)))
+            .service(
+                web::resource("/{setup_id}")
+                    .route(web::get().to(setup_intents_retrieve))
+                    .route(web::post().to(setup_intents_update)),
+            )
+            .service(
+                web::resource("/{setup_id}/confirm").route(web::post().to(setup_intents_confirm)),
+            )
     }
 }
 
@@ -37,10 +62,15 @@ impl Refunds {
     pub fn server(config: routes::AppState) -> Scope {
         web::scope("/refunds")
             .app_data(web::Data::new(config))
-            .service(refund_create)
-            .service(refund_retrieve)
-            .service(refund_update)
-            .service(refund_retrieve_with_gateway_creds)
+            .service(web::resource("").route(web::post().to(refund_create)))
+            .service(
+                web::resource("/sync").route(web::post().to(refund_retrieve_with_gateway_creds)),
+            )
+            .service(
+                web::resource("/{refund_id}")
+                    .route(web::get().to(refund_retrieve))
+                    .route(web::post().to(refund_update)),
+            )
     }
 }
 
@@ -50,11 +80,17 @@ impl Customers {
     pub fn server(config: routes::AppState) -> Scope {
         web::scope("/customers")
             .app_data(web::Data::new(config))
-            .service(customer_create)
-            .service(customer_retrieve)
-            .service(customer_update)
-            .service(customer_delete)
-            .service(list_customer_payment_method_api)
+            .service(web::resource("").route(web::post().to(customer_create)))
+            .service(
+                web::resource("/{customer_id}")
+                    .route(web::get().to(customer_retrieve))
+                    .route(web::post().to(customer_update))
+                    .route(web::delete().to(customer_delete)),
+            )
+            .service(
+                web::resource("/{customer_id}/payment_methods")
+                    .route(web::get().to(list_customer_payment_method_api)),
+            )
     }
 }
 
@@ -73,5 +109,15 @@ impl Webhooks {
                         web::get().to(webhooks::receive_incoming_webhook::<StripeOutgoingWebhook>),
                     ),
             )
+    }
+}
+
+pub struct Mandates;
+
+impl Mandates {
+    pub fn server(config: routes::AppState) -> Scope {
+        web::scope("/payment_methods")
+            .app_data(web::Data::new(config))
+            .service(web::resource("/{id}/detach").route(web::post().to(mandates::revoke_mandate)))
     }
 }

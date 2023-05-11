@@ -318,17 +318,37 @@ pub async fn refund_retrieve_core(
         .await
         .transpose()?;
 
-    response = sync_refund_with_gateway(
-        state,
-        &merchant_account,
-        &payment_attempt,
-        &payment_intent,
-        &refund,
-        creds_identifier,
-    )
-    .await?;
+    response = if should_call_refund(&refund, request.force_sync.unwrap_or(false)) {
+        sync_refund_with_gateway(
+            state,
+            &merchant_account,
+            &payment_attempt,
+            &payment_intent,
+            &refund,
+            creds_identifier,
+        )
+        .await
+    } else {
+        Ok(refund)
+    }?;
 
     Ok(response)
+}
+
+fn should_call_refund(refund: &storage_models::refund::Refund, force_sync: bool) -> bool {
+    // This implies, we cannot perform a refund sync & `the connector_refund_id`
+    // doesn't exist
+    let predicate1 = refund.connector_refund_id.is_some();
+
+    // This allows refund sync at connector level if force_sync is enabled, or
+    // checks if the refund has failed
+    let predicate2 = force_sync
+        || !matches!(
+            refund.refund_status,
+            storage_models::enums::RefundStatus::Failure
+        );
+
+    predicate1 && predicate2
 }
 
 #[instrument(skip_all)]
@@ -477,7 +497,7 @@ pub async fn validate_and_create_refund(
     let (refund_id, all_refunds, currency, refund_create_req, refund);
 
     // Only for initial dev and testing
-    let refund_type = req.refund_type.clone().unwrap_or_default();
+    let refund_type = req.refund_type.unwrap_or_default();
 
     // If Refund Id not passed in request Generate one.
 
@@ -626,11 +646,11 @@ pub async fn refund_list(
         .into_iter()
         .map(ForeignInto::foreign_into)
         .collect();
-    utils::when(data.is_empty(), || {
-        Err(errors::ApiErrorResponse::RefundNotFound)
-    })?;
     Ok(services::ApplicationResponse::Json(
-        api_models::refunds::RefundListResponse { data },
+        api_models::refunds::RefundListResponse {
+            size: data.len(),
+            data,
+        },
     ))
 }
 
@@ -649,6 +669,7 @@ impl ForeignFrom<storage::Refund> for api::RefundResponse {
             error_code: refund.refund_error_code,
             created_at: Some(refund.created_at),
             updated_at: Some(refund.updated_at),
+            connector: refund.connector,
         }
     }
 }
@@ -755,6 +776,7 @@ pub async fn sync_refund_with_gateway_workflow(
         merchant_account,
         refunds::RefundsRetrieveRequest {
             refund_id: refund_core.refund_internal_reference_id,
+            force_sync: Some(true),
             merchant_connector_details: None,
         },
     )

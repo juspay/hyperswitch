@@ -1,7 +1,13 @@
-#![allow(clippy::expect_used, clippy::panic, clippy::unwrap_used)]
+#![allow(
+    clippy::expect_used,
+    clippy::panic,
+    clippy::unwrap_in_result,
+    clippy::unwrap_used
+)]
 
 mod aci;
 mod adyen;
+mod adyen_ui;
 mod airwallex;
 mod authorizedotnet;
 mod bambora;
@@ -11,6 +17,8 @@ mod coinbase;
 mod connector_auth;
 mod cybersource;
 mod dlocal;
+#[cfg(feature = "dummy_connector")]
+mod dummyconnector;
 mod fiserv;
 mod forte;
 mod globalpay;
@@ -27,6 +35,7 @@ mod rapyd;
 mod selenium;
 mod shift4;
 mod stripe;
+mod stripe_ui;
 mod trustpay;
 mod utils;
 mod worldline;

@@ -1,24 +1,44 @@
+use api_models::enums::FileUploadProvider;
 use masking::{Deserialize, Serialize};
 
 use super::ConnectorCommon;
-use crate::{core::errors, services, types};
+use crate::{
+    core::errors,
+    services,
+    types::{self, transformers::ForeignTryFrom},
+};
 
 #[derive(Default, Debug, Deserialize, Serialize)]
 pub struct FileId {
     pub file_id: String,
 }
 
-#[derive(Debug, Clone, frunk::LabelledGeneric)]
-pub enum FileUploadProvider {
-    Router,
-    Stripe,
+#[derive(Debug)]
+pub enum FileDataRequired {
+    Required,
+    NotRequired,
 }
 
-impl TryFrom<&types::Connector> for FileUploadProvider {
+impl ForeignTryFrom<FileUploadProvider> for types::Connector {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
-    fn try_from(item: &types::Connector) -> Result<Self, Self::Error> {
+    fn foreign_try_from(item: FileUploadProvider) -> Result<Self, Self::Error> {
         match item {
-            &types::Connector::Stripe => Ok(Self::Stripe),
+            FileUploadProvider::Stripe => Ok(Self::Stripe),
+            FileUploadProvider::Checkout => Ok(Self::Checkout),
+            FileUploadProvider::Router => Err(errors::ApiErrorResponse::NotSupported {
+                message: "File upload provider is not a connector".to_owned(),
+            }
+            .into()),
+        }
+    }
+}
+
+impl ForeignTryFrom<&types::Connector> for FileUploadProvider {
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
+    fn foreign_try_from(item: &types::Connector) -> Result<Self, Self::Error> {
+        match *item {
+            types::Connector::Stripe => Ok(Self::Stripe),
+            types::Connector::Checkout => Ok(Self::Checkout),
             _ => Err(errors::ApiErrorResponse::NotSupported {
                 message: "Connector not supported as file provider".to_owned(),
             }
@@ -52,7 +72,19 @@ pub trait UploadFile:
 {
 }
 
-pub trait FileUpload: ConnectorCommon + Sync + UploadFile {
+#[derive(Debug, Clone)]
+pub struct Retrieve;
+
+pub trait RetrieveFile:
+    services::ConnectorIntegration<
+    Retrieve,
+    types::RetrieveFileRequestData,
+    types::RetrieveFileResponse,
+>
+{
+}
+
+pub trait FileUpload: ConnectorCommon + Sync + UploadFile + RetrieveFile {
     fn validate_file_upload(
         &self,
         _purpose: FilePurpose,

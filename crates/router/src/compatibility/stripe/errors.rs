@@ -88,8 +88,8 @@ pub enum StripeErrorCode {
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "resource_missing", message = "No such resource ID")]
     ResourceIdNotFound,
 
-    #[error(error_type = StripeErrorType::InvalidRequestError, code = "resource_missing", message = "No such merchant connector account")]
-    MerchantConnectorAccountNotFound,
+    #[error(error_type = StripeErrorType::InvalidRequestError, code = "resource_missing", message = "Merchant connector account with id '{id}' does not exist in our records")]
+    MerchantConnectorAccountNotFound { id: String },
 
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "resource_missing", message = "No such mandate")]
     MandateNotFound,
@@ -103,8 +103,8 @@ pub enum StripeErrorCode {
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "token_already_used", message = "duplicate merchant account")]
     DuplicateMerchantAccount,
 
-    #[error(error_type = StripeErrorType::InvalidRequestError, code = "token_already_used", message = "duplicate merchant_connector_account")]
-    DuplicateMerchantConnectorAccount,
+    #[error(error_type = StripeErrorType::InvalidRequestError, code = "token_already_used", message = "The merchant connector account with the specified connector_label '{connector_label}' already exists in our records")]
+    DuplicateMerchantConnectorAccount { connector_label: String },
 
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "token_already_used", message = "duplicate payment method")]
     DuplicatePaymentMethod,
@@ -400,7 +400,8 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
             errors::ApiErrorResponse::RefundNotPossible { connector } => Self::RefundFailed,
             errors::ApiErrorResponse::RefundFailed { data } => Self::RefundFailed, // Nothing at stripe to map
 
-            errors::ApiErrorResponse::InternalServerError => Self::InternalServerError, // not a stripe code
+            errors::ApiErrorResponse::MandateUpdateFailed
+            | errors::ApiErrorResponse::InternalServerError => Self::InternalServerError, // not a stripe code
             errors::ApiErrorResponse::ExternalConnectorError {
                 code,
                 message,
@@ -428,8 +429,8 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
             | errors::ApiErrorResponse::ClientSecretExpired => Self::ClientSecretNotFound,
             errors::ApiErrorResponse::MerchantAccountNotFound => Self::MerchantAccountNotFound,
             errors::ApiErrorResponse::ResourceIdNotFound => Self::ResourceIdNotFound,
-            errors::ApiErrorResponse::MerchantConnectorAccountNotFound => {
-                Self::MerchantConnectorAccountNotFound
+            errors::ApiErrorResponse::MerchantConnectorAccountNotFound { id } => {
+                Self::MerchantConnectorAccountNotFound { id }
             }
             errors::ApiErrorResponse::MandateNotFound => Self::MandateNotFound,
             errors::ApiErrorResponse::ApiKeyNotFound => Self::ApiKeyNotFound,
@@ -438,8 +439,8 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
             }
             errors::ApiErrorResponse::ReturnUrlUnavailable => Self::ReturnUrlUnavailable,
             errors::ApiErrorResponse::DuplicateMerchantAccount => Self::DuplicateMerchantAccount,
-            errors::ApiErrorResponse::DuplicateMerchantConnectorAccount => {
-                Self::DuplicateMerchantConnectorAccount
+            errors::ApiErrorResponse::DuplicateMerchantConnectorAccount { connector_label } => {
+                Self::DuplicateMerchantConnectorAccount { connector_label }
             }
             errors::ApiErrorResponse::DuplicatePaymentMethod => Self::DuplicatePaymentMethod,
             errors::ApiErrorResponse::ClientSecretInvalid => Self::PaymentIntentInvalidParameter {
@@ -517,11 +518,11 @@ impl actix_web::ResponseError for StripeErrorCode {
             | Self::PaymentNotFound
             | Self::PaymentMethodNotFound
             | Self::MerchantAccountNotFound
-            | Self::MerchantConnectorAccountNotFound
+            | Self::MerchantConnectorAccountNotFound { .. }
             | Self::MandateNotFound
             | Self::ApiKeyNotFound
             | Self::DuplicateMerchantAccount
-            | Self::DuplicateMerchantConnectorAccount
+            | Self::DuplicateMerchantConnectorAccount { .. }
             | Self::DuplicatePaymentMethod
             | Self::PaymentFailed
             | Self::VerificationFailed { .. }
