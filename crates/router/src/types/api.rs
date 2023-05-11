@@ -165,7 +165,7 @@ pub enum ConnectorChoice {
 
 #[derive(Clone)]
 pub enum ConnectorCallType {
-    Multiple(Vec<ConnectorData>),
+    Multiple(Vec<SessionConnectorData>),
     Single(ConnectorData),
 }
 
