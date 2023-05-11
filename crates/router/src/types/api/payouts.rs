@@ -1,5 +1,5 @@
 pub use api_models::payouts::{
-    PayoutCreateRequest, PayoutCreateResponse, PayoutRetrieveBody, PayoutRetrieveRequest,
+    PayoutRequest, PayoutCreateRequest, PayoutCreateResponse, PayoutRetrieveBody, PayoutRetrieveRequest,
 };
 
 use super::ConnectorCommon;

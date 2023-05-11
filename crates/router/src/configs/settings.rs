@@ -354,7 +354,7 @@ pub struct SupportedConnectors {
 #[serde(default)]
 pub struct Connectors {
     pub aci: ConnectorParams,
-    pub adyen: ConnectorParams,
+    pub adyen: ConnectorParamsWithSecondaryBaseUrl,
     pub airwallex: ConnectorParams,
     pub applepay: ConnectorParams,
     pub authorizedotnet: ConnectorParams,
@@ -409,6 +409,13 @@ pub struct ConnectorParamsWithMoreUrls {
 pub struct ConnectorParamsWithFileUploadUrl {
     pub base_url: String,
     pub base_url_file_upload: String,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+#[serde(default)]
+pub struct ConnectorParamsWithSecondaryBaseUrl {
+    pub base_url: String,
+    pub secondary_base_url: String,
 }
 
 #[derive(Debug, Clone, Deserialize)]
