@@ -203,6 +203,7 @@ pub struct ResponsePaymentMethodTypes {
     /// The list of banks enabled, if applicable for a payment method type
     pub bank_names: Option<Vec<BankCodeResponse>>,
 
+    /// The Bank debit payment method information, if applicable for a payment method type.
     pub bank_debits: Option<BankDebitTypes>,
 }
 
