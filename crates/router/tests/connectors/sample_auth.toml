@@ -100,5 +100,10 @@ api_secret = "secret"
 [bitpay]
 api_key="API Key"
 
+[iatapay]
+key1 = "key1"
+api_key = "api_key"
+api_secret = "secrect"
+
 [dummyconnector]
 api_key="API Key"
