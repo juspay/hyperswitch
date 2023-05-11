@@ -3,7 +3,6 @@
 //! & inbuilt datatypes.
 //!
 
-
 use error_stack::{IntoReport, ResultExt};
 use masking::{ExposeInterface, Secret, Strategy};
 use quick_xml::de;
