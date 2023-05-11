@@ -295,6 +295,7 @@ where
         merchant_account: &storage::MerchantAccount,
         state: &AppState,
         request: &api::PaymentsSessionRequest,
+        payment_data: &PaymentData<F>,
     ) -> RouterResult<api::ConnectorChoice> {
         let connectors = &state.conf.connectors;
         let db = &state.store;
@@ -309,120 +310,80 @@ where
             .attach_printable("Database error when querying for merchant connector accounts")?;
 
         //TODO: filter the connector based on business details
-
+        let requested_payment_method_types = request.wallets.clone();
         let mut connector_and_supporting_payment_method_type = Vec::new();
 
-        connector_accounts.iter().for_each(|connector_account| {
-            let res = connector_account
-                .payment_methods_enabled
-                .unwrap_or_default()
-                .iter()
-                .map(|payment_methods_enabled| {
-                    payment_methods_enabled
-                        .parse_value::<PaymentMethodsEnabled>("payment_methods_enabled")
-                })
-                .filter_map(|parsed_payment_method_result| parsed_payment_method_result.ok())
-                .flat_map(|parsed_payment_methods_enabled| {
-                    parsed_payment_methods_enabled
-                        .payment_method_types
-                        .unwrap_or_default()
-                        .iter()
-                        .filter(|payment_method_type| {
-                            matches!(
-                                payment_method_type.payment_experience,
-                                Some(api_models::enums::PaymentExperience::InvokeSdkClient)
-                            )
-                        })
-                        .map(|payment_method_type| {
-                            (
-                                connector_account.connector_name,
-                                payment_method_type.payment_method_type,
-                            )
-                        })
-                        .collect::<Vec<_>>()
-                })
-                .collect::<Vec<_>>();
-            connector_and_supporting_payment_method_type.extend(res);
-        });
+        connector_accounts
+            .into_iter()
+            .for_each(|connector_account| {
+                let res = connector_account
+                    .payment_methods_enabled
+                    .unwrap_or_default()
+                    .into_iter()
+                    .map(|payment_methods_enabled| {
+                        payment_methods_enabled
+                            .parse_value::<PaymentMethodsEnabled>("payment_methods_enabled")
+                    })
+                    .filter_map(|parsed_payment_method_result| parsed_payment_method_result.ok())
+                    .flat_map(|parsed_payment_methods_enabled| {
+                        parsed_payment_methods_enabled
+                            .payment_method_types
+                            .unwrap_or_default()
+                            .into_iter()
+                            .filter(|payment_method_type| {
+                                let is_invoke_sdk_client = matches!(
+                                    payment_method_type.payment_experience,
+                                    Some(api_models::enums::PaymentExperience::InvokeSdkClient)
+                                );
 
-        // for connector_account in connector_accounts {
-        //     let payment_methods = connector_account
-        //         .payment_methods_enabled
-        //         .unwrap_or_default();
-        //     for payment_method in payment_methods {
-        //         let parsed_payment_method_result: Result<
-        //             PaymentMethodsEnabled,
-        //             error_stack::Report<errors::ParsingError>,
-        //         > = payment_method.clone().parse_value("payment_method");
+                                // If session token is requested for the payment method type,
+                                // filter it out
+                                // if not, then create all sessions tokens
+                                let is_sent_in_request = requested_payment_method_types
+                                    .contains(&payment_method_type.payment_method_type)
+                                    || requested_payment_method_types.is_empty();
 
-        //         match parsed_payment_method_result {
-        //             Ok(parsed_payment_method) => {
-        //                 let payment_method_types = parsed_payment_method
-        //                     .payment_method_types
-        //                     .unwrap_or_default();
-        //                 for payment_method_type in payment_method_types {
-        //                     if matches!(
-        //                         payment_method_type.payment_experience,
-        //                         Some(api_models::enums::PaymentExperience::InvokeSdkClient)
-        //                     ) {
-        //                         let connector_and_wallet = (
-        //                             connector_account.connector_name.to_owned(),
-        //                             payment_method_type.payment_method_type,
-        //                         );
-        //                         connector_and_supporting_payment_method_type
-        //                             .push(connector_and_wallet);
-        //                     }
-        //                 }
-        //             }
-        //             Err(parsing_error) => {
-        //                 logger::debug!(session_token_parsing_error=?parsing_error);
-        //             }
-        //         }
-        //     }
-        // }
-
-        let requested_payment_method_types = request.wallets.clone();
+                                is_invoke_sdk_client && is_sent_in_request
+                            })
+                            .map(|payment_method_type| {
+                                (
+                                    connector_account.connector_name.to_owned(),
+                                    payment_method_type.payment_method_type,
+                                )
+                            })
+                            .collect::<Vec<_>>()
+                    })
+                    .collect::<Vec<_>>();
+                connector_and_supporting_payment_method_type.extend(res);
+            });
 
         // If only specific wallets are requested, then create session tokens only for those
-        let connectors_data = if !requested_payment_method_types.is_empty() {
-            let mut connectors_data = Vec::new();
+        let session_connector_data = connector_and_supporting_payment_method_type
+            .into_iter()
+            .map(|(connector, payment_method_type)| {
+                (
+                    api::ConnectorData::get_connector_by_name(
+                        connectors,
+                        &connector,
+                        api::GetToken::from(payment_method_type),
+                    ),
+                    payment_method_type,
+                )
+            })
+            .filter_map(|(connector_data_result, payment_method_type)| {
+                connector_data_result.ok().zip(Some(payment_method_type))
+            })
+            .map(
+                |(connector_data, payment_method_type)| api::SessionConnectorData {
+                    payment_method_type,
+                    connector: connector_data,
+                },
+            )
+            .collect::<Vec<_>>();
 
-            for payment_method_type in requested_payment_method_types {
-                for connector_and_payment_method_type in
-                    &connector_and_supporting_payment_method_type
-                {
-                    if connector_and_payment_method_type.1 == payment_method_type {
-                        let connector_details = api::ConnectorData::get_connector_by_name(
-                            connectors,
-                            connector_and_payment_method_type.0.as_str(),
-                            api::GetToken::from(connector_and_payment_method_type.1),
-                        )?;
-                        connectors_data.push(api::SessionConnectorData {
-                            payment_method_type,
-                            connector: connector_details,
-                        });
-                    }
-                }
-            }
-            connectors_data
-        } else {
-            let mut connectors_data = Vec::new();
-
-            for connector_and_payment_method_type in connector_and_supporting_payment_method_type {
-                let connector_details = api::ConnectorData::get_connector_by_name(
-                    connectors,
-                    connector_and_payment_method_type.0.as_str(),
-                    api::GetToken::from(connector_and_payment_method_type.1),
-                )?;
-                connectors_data.push(api::SessionConnectorData {
-                    payment_method_type: connector_and_payment_method_type.1,
-                    connector: connector_details,
-                });
-            }
-            connectors_data
-        };
-
-        Ok(api::ConnectorChoice::SessionMultiple(connectors_data))
+        Ok(api::ConnectorChoice::SessionMultiple(
+            session_connector_data,
+        ))
     }
 }
 
