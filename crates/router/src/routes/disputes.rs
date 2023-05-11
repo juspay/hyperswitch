@@ -9,7 +9,7 @@ use crate::{
     types::api::disputes::{self as dispute_types},
 };
 
-/// Diputes - Retrieve Dispute
+/// Disputes - Retrieve Dispute
 #[utoipa::path(
     get,
     path = "/disputes/{dispute_id}",
@@ -45,7 +45,7 @@ pub async fn retrieve_dispute(
     .await
 }
 
-/// Diputes - List Disputes
+/// Disputes - List Disputes
 #[utoipa::path(
     get,
     path = "/disputes/list",
@@ -88,7 +88,7 @@ pub async fn retrieve_disputes_list(
     .await
 }
 
-/// Diputes - Accept Dispute
+/// Disputes - Accept Dispute
 #[utoipa::path(
     get,
     path = "/disputes/accept/{dispute_id}",
@@ -124,7 +124,7 @@ pub async fn accept_dispute(
     .await
 }
 
-/// Diputes - Submit Dispute Evidence
+/// Disputes - Submit Dispute Evidence
 #[utoipa::path(
     post,
     path = "/disputes/evidence",
