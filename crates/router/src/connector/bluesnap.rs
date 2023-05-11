@@ -10,7 +10,9 @@ use common_utils::{
 use error_stack::{IntoReport, ResultExt};
 use transformers as bluesnap;
 
-use super::utils::{self as connector_utils, RefundsRequestData, RouterData};
+use super::utils::{
+    self as connector_utils, PaymentsAuthorizeRequestData, RefundsRequestData, RouterData,
+};
 use crate::{
     configs::settings,
     consts,
@@ -517,7 +519,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        match req.is_three_ds() {
+        match req.is_three_ds() && !req.request.is_wallet() {
             true => Ok(format!(
                 "{}{}{}",
                 self.base_url(connectors),
@@ -570,7 +572,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         data: &types::PaymentsAuthorizeRouterData,
         res: Response,
     ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
-        match (data.is_three_ds(), res.headers) {
+        match (data.is_three_ds() && !data.request.is_wallet(), res.headers) {
             (true, Some(headers)) => {
                 let location = connector_utils::get_http_header("Location", &headers)?;
                 let payment_fields_token = location
