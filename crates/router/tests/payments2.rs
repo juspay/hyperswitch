@@ -62,7 +62,7 @@ async fn payments_create_core() {
         setup_future_usage: None,
         authentication_type: Some(api_enums::AuthenticationType::NoThreeDs),
         payment_method_data: Some(api::PaymentMethodData::Card(api::Card {
-            card_number: "4242424242424242".to_string().into(),
+            card_number: "4242424242424242".to_string().try_into().unwrap(),
             card_exp_month: "10".to_string().into(),
             card_exp_year: "35".to_string().into(),
             card_holder_name: "Arun Raj".to_string().into(),
@@ -215,7 +215,7 @@ async fn payments_create_core_adyen_no_redirect() {
         setup_future_usage: Some(api_enums::FutureUsage::OffSession),
         authentication_type: Some(api_enums::AuthenticationType::NoThreeDs),
         payment_method_data: Some(api::PaymentMethodData::Card(api::Card {
-            card_number: "5555 3412 4444 1115".to_string().into(),
+            card_number: "5555 3412 4444 1115".to_string().try_into().unwrap(),
             card_exp_month: "03".to_string().into(),
             card_exp_year: "2030".to_string().into(),
             card_holder_name: "JohnDoe".to_string().into(),

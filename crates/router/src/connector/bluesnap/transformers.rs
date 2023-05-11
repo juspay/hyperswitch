@@ -1,4 +1,8 @@
 use base64::Engine;
+use common_utils::{
+    ext_traits::{StringExt, ValueExt},
+    pii::Email,
+};
 use error_stack::ResultExt;
 use serde::{Deserialize, Serialize};
 
@@ -6,7 +10,7 @@ use crate::{
     connector::utils,
     consts,
     core::errors,
-    pii::{self, Secret},
+    pii::Secret,
     types::{self, api, storage::enums, transformers::ForeignTryFrom},
     utils::Encode,
 };
@@ -19,6 +23,13 @@ pub struct BluesnapPaymentsRequest {
     payment_method: PaymentMethodDetails,
     currency: enums::Currency,
     card_transaction_type: BluesnapTxnType,
+    three_d_secure: Option<BluesnapThreeDSecureInfo>,
+}
+
+#[derive(Debug, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct BluesnapThreeDSecureInfo {
+    three_d_secure_reference_id: String,
 }
 
 #[derive(Debug, Serialize, Eq, PartialEq)]
@@ -31,7 +42,7 @@ pub enum PaymentMethodDetails {
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct Card {
-    card_number: Secret<String, pii::CardNumber>,
+    card_number: cards::CardNumber,
     expiration_month: Secret<String>,
     expiration_year: Secret<String>,
     security_code: Secret<String>,
@@ -116,8 +127,80 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BluesnapPaymentsRequest {
             payment_method,
             currency: item.request.currency,
             card_transaction_type: auth_mode,
+            three_d_secure: None,
         })
     }
+}
+
+impl TryFrom<&types::PaymentsCompleteAuthorizeRouterData> for BluesnapPaymentsRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &types::PaymentsCompleteAuthorizeRouterData) -> Result<Self, Self::Error> {
+        let redirection_response: BluesnapRedirectionResponse = item
+            .request
+            .payload
+            .clone()
+            .ok_or(errors::ConnectorError::MissingConnectorRedirectionPayload {
+                field_name: "request.payload",
+            })?
+            .parse_value("BluesnapRedirectionResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        let redirection_result: BluesnapThreeDsResult = redirection_response
+            .authentication_response
+            .parse_struct("BluesnapThreeDsResult")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        let auth_mode = match item.request.capture_method {
+            Some(enums::CaptureMethod::Manual) => BluesnapTxnType::AuthOnly,
+            _ => BluesnapTxnType::AuthCapture,
+        };
+        let payment_method = if let Some(api::PaymentMethodData::Card(ccard)) =
+            item.request.payment_method_data.clone()
+        {
+            PaymentMethodDetails::CreditCard(Card {
+                card_number: ccard.card_number,
+                expiration_month: ccard.card_exp_month.clone(),
+                expiration_year: ccard.card_exp_year.clone(),
+                security_code: ccard.card_cvc,
+            })
+        } else {
+            Err(errors::ConnectorError::MissingConnectorRedirectionPayload {
+                field_name: "request.payment_method_data",
+            })?
+        };
+        Ok(Self {
+            amount: utils::to_currency_base_unit(item.request.amount, item.request.currency)?,
+            payment_method,
+            currency: item.request.currency,
+            card_transaction_type: auth_mode,
+            three_d_secure: Some(BluesnapThreeDSecureInfo {
+                three_d_secure_reference_id: redirection_result
+                    .three_d_secure
+                    .ok_or(errors::ConnectorError::MissingConnectorRedirectionPayload {
+                        field_name: "three_d_secure_reference_id",
+                    })?
+                    .three_d_secure_reference_id,
+            }),
+        })
+    }
+}
+
+#[derive(Debug, Deserialize, PartialEq)]
+pub struct BluesnapRedirectionResponse {
+    pub authentication_response: String,
+}
+
+#[derive(Debug, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct BluesnapThreeDsResult {
+    three_d_secure: Option<BluesnapThreeDsReference>,
+    pub status: String,
+}
+
+#[derive(Debug, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct BluesnapThreeDsReference {
+    three_d_secure_reference_id: String,
 }
 
 #[derive(Debug, Serialize, PartialEq)]
@@ -181,6 +264,49 @@ impl TryFrom<&types::ConnectorAuthType> for BluesnapAuthType {
         }
     }
 }
+
+#[derive(Debug, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct BluesnapCustomerRequest {
+    email: Option<Email>,
+}
+
+impl TryFrom<&types::ConnectorCustomerRouterData> for BluesnapCustomerRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &types::ConnectorCustomerRouterData) -> Result<Self, Self::Error> {
+        Ok(Self {
+            email: item.request.email.to_owned(),
+        })
+    }
+}
+
+#[derive(Debug, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct BluesnapCustomerResponse {
+    vaulted_shopper_id: u64,
+}
+impl<F, T>
+    TryFrom<types::ResponseRouterData<F, BluesnapCustomerResponse, T, types::PaymentsResponseData>>
+    for types::RouterData<F, T, types::PaymentsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: types::ResponseRouterData<
+            F,
+            BluesnapCustomerResponse,
+            T,
+            types::PaymentsResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            response: Ok(types::PaymentsResponseData::ConnectorCustomerResponse {
+                connector_customer_id: item.response.vaulted_shopper_id.to_string(),
+            }),
+            ..item.data
+        })
+    }
+}
+
 // PaymentsResponse
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]

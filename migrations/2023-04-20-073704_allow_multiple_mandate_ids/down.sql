@@ -1,0 +1,1 @@
+ALTER TABLE mandate DROP COLUMN connector_mandate_ids;

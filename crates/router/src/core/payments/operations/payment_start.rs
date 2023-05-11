@@ -151,7 +151,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsStartRequest> f
                 mandate_id: None,
                 connector_response,
                 setup_mandate: None,
-                token: None,
+                token: payment_attempt.payment_token.clone(),
                 address: PaymentAddress {
                     shipping: shipping_address.as_ref().map(|a| a.foreign_into()),
                     billing: billing_address.as_ref().map(|a| a.foreign_into()),
@@ -161,6 +161,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsStartRequest> f
                 payment_method_data,
                 force_sync: None,
                 refunds: vec![],
+                disputes: vec![],
                 sessions_token: vec![],
                 card_cvc: None,
                 creds_identifier: None,

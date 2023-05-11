@@ -80,7 +80,8 @@ pub async fn get_address_for_payment_request(
                             ..address_details.foreign_into()
                         })
                         .await
-                        .map_err(|_| errors::ApiErrorResponse::InternalServerError)?,
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Failed while inserting new address")?,
                     )
                 }
             }
@@ -1156,7 +1157,7 @@ pub fn generate_mandate(
     setup_mandate_details: Option<api::MandateData>,
     customer: &Option<storage::Customer>,
     payment_method_id: String,
-    connector_mandate_id: Option<String>,
+    connector_mandate_id: Option<pii::SecretSerdeValue>,
     (network_txn_id, payment_method_data_option): (
         Option<String>,
         Option<payments::PaymentMethodData>,
@@ -1176,7 +1177,7 @@ pub fn generate_mandate(
                 .set_payment_method_id(payment_method_id)
                 .set_connector(connector)
                 .set_mandate_status(storage_enums::MandateStatus::Active)
-                .set_connector_mandate_id(connector_mandate_id)
+                .set_connector_mandate_ids(connector_mandate_id)
                 .set_network_transaction_id(network_txn_id)
                 .set_customer_ip_address(
                     data.customer_acceptance
@@ -1585,7 +1586,9 @@ pub async fn get_merchant_connector_account(
                 .find_config_by_key(format!("mcd_{merchant_id}_{creds_identifier}").as_str())
                 .await
                 .to_not_found_response(
-                    errors::ApiErrorResponse::MerchantConnectorAccountNotFound,
+                    errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                        id: connector_label.to_string(),
+                    },
                 )?;
 
             #[cfg(feature = "kms")]
@@ -1625,7 +1628,9 @@ pub async fn get_merchant_connector_account(
             )
             .await
             .map(MerchantConnectorAccountType::DbVal)
-            .change_context(errors::ApiErrorResponse::MerchantConnectorAccountNotFound),
+            .change_context(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                id: connector_label.to_string(),
+            }),
     }
 }
 
