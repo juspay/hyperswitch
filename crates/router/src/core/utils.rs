@@ -17,7 +17,6 @@ use crate::{
     types::{
         self, domain,
         storage::{self, enums},
-        transformers::ForeignFrom,
         ErrorResponse,
     },
     utils::{generate_id, OptionExt, ValueExt},
@@ -67,8 +66,6 @@ pub async fn construct_payout_router_data<'a, F>(
         billing: request.billing.clone(),
     };
 
-    let payout_status = payouts.map_or(enums::PayoutStatus::default(), |p| p.status);
-
     let router_data = types::RouterData {
         flow: PhantomData,
         merchant_id: merchant_account.merchant_id.to_owned(),
@@ -81,30 +78,26 @@ pub async fn construct_payout_router_data<'a, F>(
         payment_method: enums::PaymentMethod::default(), //FIXME
         connector_auth_type,
         description: None,
-        return_url: request.return_url.clone(),
+        return_url: request.return_url.to_owned(),
         payment_method_id: None,
         address,
         auth_type: enums::AuthenticationType::default(), //FIXME
         connector_meta_data: merchant_connector_account.get_metadata(),
         amount_captured: None,
         request: types::PayoutsData {
-            payout_id: payout_create.payout_id.clone(),
-            payout_type: enums::PayoutType::foreign_from(request.payout_type),
+            payout_id: payout_create.payout_id.to_owned(),
             amount: payout_create.amount,
+            connector_payout_id: payouts.map(|p| p.connector_payout_id),
             destination_currency: payout_create.destination_currency,
             source_currency: payout_create.source_currency,
+            entity_type: payout_create.entity_type,
+            payout_type: payout_create.payout_type,
             payout_method_data: request
                 .payout_method_data
                 .to_owned()
                 .map_or(payout_types::PayoutMethodData::default(), |pmd| pmd),
-            status: payout_status,
         },
-        response: Ok(types::PayoutsResponseData {
-            payout_id: payout_create.payout_id.clone(),
-            status: payout_status,
-            payout_type: enums::PayoutType::foreign_from(request.payout_type),
-            connector_payout_id: None,
-        }),
+        response: Ok(types::PayoutsResponseData::default()),
         access_token: None,
         session_token: None,
         reference_id: None,

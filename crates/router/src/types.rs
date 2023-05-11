@@ -183,6 +183,9 @@ pub type DefendDisputeRouterData =
 
 pub type PayoutsRouterData<F> = RouterData<F, PayoutsData, PayoutsResponseData>;
 
+pub type PayoutsResponseRouterData<F, R> =
+    ResponseRouterData<F, R, PayoutsData, PayoutsResponseData>;
+
 #[derive(Debug, Clone)]
 pub struct RouterData<Flow, Request, Response> {
     pub flow: PhantomData<Flow>,
@@ -224,19 +227,19 @@ pub struct RouterData<Flow, Request, Response> {
 pub struct PayoutsData {
     pub payout_id: String,
     pub amount: i64,
+    pub connector_payout_id: Option<String>,
     pub destination_currency: storage_enums::Currency,
     pub source_currency: storage_enums::Currency,
     pub payout_method_data: payout_types::PayoutMethodData,
     pub payout_type: storage_enums::PayoutType,
-    pub status: storage_enums::PayoutStatus,
+    pub entity_type: storage_enums::EntityType,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone, Debug, Default)]
 pub struct PayoutsResponseData {
-    pub payout_id: String,
     pub status: storage_enums::PayoutStatus,
-    pub payout_type: storage_enums::PayoutType,
-    pub connector_payout_id: Option<String>,
+    pub connector_payout_id: String,
+    pub payout_eligible: Option<bool>,
 }
 
 #[derive(Debug, Clone)]
