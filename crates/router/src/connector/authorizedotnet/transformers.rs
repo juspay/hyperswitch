@@ -714,10 +714,67 @@ pub struct AuthorizedotnetErrorResponse {
     pub error: ErrorDetails,
 }
 
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AuthorizedotnetWebhookObjectId {
+    pub webhook_id: String,
+    pub event_type: AuthorizedotnetWebhookEvent,
+    pub payload: AuthorizedotnetWebhookPayload,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct AuthorizedotnetWebhookPayload {
+    pub id: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AuthorizedotnetWebhookEventType {
+    pub event_type: AuthorizedotnetWebhookEvent,
+}
+
 fn construct_refund_payment_details(masked_number: String) -> PaymentDetails {
     PaymentDetails::CreditCard(CreditCardDetails {
         card_number: masked_number.into(),
         expiration_date: "XXXX".to_string().into(),
         card_code: None,
     })
+}
+
+#[derive(Debug, Deserialize)]
+pub enum AuthorizedotnetWebhookEvent {
+    #[serde(rename = "net.authorize.payment.authorization.created")]
+    AuthorizationCreated,
+    #[serde(rename = "net.authorize.payment.priorAuthCapture.created")]
+    PriorAuthCapture,
+    #[serde(rename = "net.authorize.payment.authcapture.created")]
+    AuthCapCreated,
+    #[serde(rename = "net.authorize.payment.capture.created")]
+    CaptureCreated,
+    #[serde(rename = "net.authorize.payment.void.created")]
+    VoidCreated,
+    #[serde(rename = "net.authorize.payment.refund.created")]
+    RefundCreated,
+}
+
+impl From<AuthorizedotnetWebhookEvent> for api::IncomingWebhookEvent {
+    fn from(event_type: AuthorizedotnetWebhookEvent) -> Self {
+        match event_type {
+            AuthorizedotnetWebhookEvent::AuthorizationCreated
+            | AuthorizedotnetWebhookEvent::PriorAuthCapture
+            | AuthorizedotnetWebhookEvent::AuthCapCreated
+            | AuthorizedotnetWebhookEvent::CaptureCreated
+            | AuthorizedotnetWebhookEvent::VoidCreated => Self::PaymentIntentSuccess,
+            AuthorizedotnetWebhookEvent::RefundCreated => Self::RefundSuccess,
+        }
+    }
+}
+
+pub fn get_trans_id(
+    details: AuthorizedotnetWebhookObjectId,
+) -> Result<String, errors::ConnectorError> {
+    details
+        .payload
+        .id
+        .ok_or(errors::ConnectorError::WebhookReferenceIdNotFound)
 }
