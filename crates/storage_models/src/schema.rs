@@ -251,7 +251,6 @@ diesel::table! {
         intent_fulfillment_time -> Nullable<Int8>,
         created_at -> Timestamp,
         modified_at -> Timestamp,
-        // api_key -> Nullable<Varchar>,
     }
 }
 
