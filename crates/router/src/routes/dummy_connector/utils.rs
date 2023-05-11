@@ -1,14 +1,15 @@
 use std::{fmt::Debug, sync::Arc};
 
 use app::AppState;
-use error_stack::{report, IntoReport, ResultExt};
+use common_utils::generate_id;
+use error_stack::{report, ResultExt};
 use masking::PeekInterface;
 use rand::Rng;
 use redis_interface::RedisConnectionPool;
 use tokio::time as tokio;
 
 use super::{errors, types};
-use crate::{core::errors as api_errors, logger, routes::app, services::api};
+use crate::{routes::app, services::api, utils::OptionExt};
 
 pub async fn tokio_mock_sleep(delay: u64, tolerance: u64) {
     let mut rng = rand::thread_rng();
@@ -26,22 +27,21 @@ pub async fn payment(
     )
     .await;
 
-    let payment_id = format!("dummy_pay_{}", uuid::Uuid::new_v4());
+    let payment_id = generate_id(20, "dummy_pay_");
     match req.payment_method_data {
         types::DummyConnectorPaymentMethodData::Card(card) => {
             let card_number = card.number.peek();
 
             match card_number.as_str() {
                 "4111111111111111" | "4242424242424242" => {
-                    let timestamp = common_utils::date_time::date_as_yyyymmddthhmmssmmmz()
-                        .map_err(|_| errors::DummyConnectorErrors::InternalServerError)?;
+                    let timestamp = common_utils::date_time::now();
                     let payment_data = types::DummyConnectorPaymentData::new(
-                        types::DummyConnectorStatus::Succeeded.to_string(),
+                        types::DummyConnectorStatus::Succeeded,
                         req.amount,
                         req.amount,
                         req.currency,
                         timestamp.to_owned(),
-                        "card".to_string(),
+                        types::PaymentMethodType::Card,
                     );
                     let redis_conn = state.store.get_redis_conn();
                     store_data_in_redis(
@@ -53,12 +53,12 @@ pub async fn payment(
                     .await?;
                     Ok(api::ApplicationResponse::Json(
                         types::DummyConnectorPaymentResponse::new(
-                            types::DummyConnectorStatus::Succeeded.to_string(),
+                            types::DummyConnectorStatus::Succeeded,
                             payment_id,
                             req.amount,
                             req.currency,
                             timestamp,
-                            "card".to_string(),
+                            types::PaymentMethodType::Card,
                         ),
                     ))
                 }
@@ -87,10 +87,7 @@ pub async fn payment_data(
             "DummyConnectorPaymentData",
         )
         .await
-        .map_err(|error| {
-            logger::error!(dummy_connector_payment_deserialize_error=?error);
-            errors::DummyConnectorErrors::PaymentNotFound
-        })?;
+        .change_context(errors::DummyConnectorErrors::PaymentNotFound)?;
 
     Ok(api::ApplicationResponse::Json(
         types::DummyConnectorPaymentResponse::new(
@@ -116,7 +113,8 @@ pub async fn refund_payment(
 
     let payment_id = req
         .payment_id
-        .ok_or(errors::DummyConnectorErrors::MissingRequiredField {
+        .get_required_value("payment_id")
+        .change_context(errors::DummyConnectorErrors::MissingRequiredField {
             field_name: "payment_id",
         })?;
 
@@ -127,10 +125,7 @@ pub async fn refund_payment(
             "DummyConnectorPaymentData",
         )
         .await
-        .map_err(|error| {
-            logger::error!(dummy_connector_payment_deserialize_error=?error);
-            errors::DummyConnectorErrors::PaymentNotFound
-        })?;
+        .change_context(errors::DummyConnectorErrors::PaymentNotFound)?;
 
     if payment_data.eligible_amount < req.amount {
         return Err(
@@ -139,12 +134,12 @@ pub async fn refund_payment(
         );
     }
 
-    if payment_data.status != types::DummyConnectorStatus::Succeeded.to_string() {
+    if payment_data.status != types::DummyConnectorStatus::Succeeded {
         return Err(report!(errors::DummyConnectorErrors::PaymentNotSuccessful)
             .attach_printable("Payment is not successful to process the refund"));
     }
 
-    let refund_id = format!("dummy_ref_{}", uuid::Uuid::new_v4());
+    let refund_id = generate_id(20, "dummy_ref_");
     payment_data.eligible_amount -= req.amount;
     store_data_in_redis(
         redis_conn.to_owned(),
@@ -155,11 +150,10 @@ pub async fn refund_payment(
     .await?;
 
     let refund_data = types::DummyConnectorRefundResponse::new(
-        types::DummyConnectorStatus::Succeeded.to_string(),
+        types::DummyConnectorStatus::Succeeded,
         refund_id.to_owned(),
         payment_data.currency,
-        common_utils::date_time::date_as_yyyymmddthhmmssmmmz()
-            .map_err(|_| errors::DummyConnectorErrors::InternalServerError)?,
+        common_utils::date_time::now(),
         payment_data.amount,
         req.amount,
     );
@@ -192,10 +186,7 @@ pub async fn refund_data(
             "DummyConnectorRefundResponse",
         )
         .await
-        .map_err(|error| {
-            logger::error!(dummy_connector_payment_deserialize_error=?error);
-            errors::DummyConnectorErrors::RefundNotFound
-        })?;
+        .change_context(errors::DummyConnectorErrors::RefundNotFound)?;
     Ok(api::ApplicationResponse::Json(refund_data))
 }
 
@@ -208,11 +199,6 @@ async fn store_data_in_redis(
     redis_conn
         .serialize_and_set_key_with_expiry(&key, data, ttl)
         .await
-        .map_err(|error| {
-            logger::error!(dummy_connector_payment_storage_error=?error);
-            api_errors::StorageError::KVError
-        })
-        .into_report()
         .change_context(errors::DummyConnectorErrors::PaymentStoringError)
         .attach_printable("Failed to add data in redis")?;
     Ok(())

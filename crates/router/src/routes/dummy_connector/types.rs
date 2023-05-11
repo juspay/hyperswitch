@@ -3,6 +3,7 @@ use common_utils::errors::CustomResult;
 use masking::Secret;
 use router_env::types::FlowMetric;
 use strum::Display;
+use time::PrimitiveDateTime;
 
 use super::errors::DummyConnectorErrors;
 use crate::services;
@@ -19,22 +20,15 @@ pub enum Flow {
 impl FlowMetric for Flow {}
 
 #[allow(dead_code)]
-#[derive(Default)]
+#[derive(
+    Default, serde::Serialize, serde::Deserialize, strum::Display, Clone, PartialEq, Debug, Eq,
+)]
+#[serde(rename_all = "lowercase")]
 pub enum DummyConnectorStatus {
     Succeeded,
     #[default]
     Processing,
     Failed,
-}
-
-impl std::fmt::Display for DummyConnectorStatus {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Succeeded => write!(f, "succeeded"),
-            Self::Processing => write!(f, "processing"),
-            Self::Failed => write!(f, "failed"),
-        }
-    }
 }
 
 #[derive(Debug, serde::Serialize, Eq, PartialEq, serde::Deserialize)]
@@ -59,24 +53,33 @@ pub struct DummyConnectorCard {
     pub complete: bool,
 }
 
-#[derive(Default, Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq)]
+#[derive(
+    Default, serde::Serialize, serde::Deserialize, strum::Display, PartialEq, Debug, Clone,
+)]
+#[serde(rename_all = "lowercase")]
+pub enum PaymentMethodType {
+    #[default]
+    Card,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq)]
 pub struct DummyConnectorPaymentData {
-    pub status: String,
+    pub status: DummyConnectorStatus,
     pub amount: i64,
     pub eligible_amount: i64,
     pub currency: Currency,
-    pub created: String,
-    pub payment_method_type: String,
+    pub created: PrimitiveDateTime,
+    pub payment_method_type: PaymentMethodType,
 }
 
 impl DummyConnectorPaymentData {
     pub fn new(
-        status: String,
+        status: DummyConnectorStatus,
         amount: i64,
         eligible_amount: i64,
         currency: Currency,
-        created: String,
-        payment_method_type: String,
+        created: PrimitiveDateTime,
+        payment_method_type: PaymentMethodType,
     ) -> Self {
         Self {
             status,
@@ -89,14 +92,15 @@ impl DummyConnectorPaymentData {
     }
 }
 
-#[derive(Default, Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct DummyConnectorPaymentResponse {
-    pub status: String,
+    pub status: DummyConnectorStatus,
     pub id: String,
     pub amount: i64,
     pub currency: Currency,
-    pub created: String,
-    pub payment_method_type: String,
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub created: PrimitiveDateTime,
+    pub payment_method_type: PaymentMethodType,
 }
 
 #[derive(Default, Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -106,12 +110,12 @@ pub struct DummyConnectorPaymentRetrieveRequest {
 
 impl DummyConnectorPaymentResponse {
     pub fn new(
-        status: String,
+        status: DummyConnectorStatus,
         id: String,
         amount: i64,
         currency: Currency,
-        created: String,
-        payment_method_type: String,
+        created: PrimitiveDateTime,
+        payment_method_type: PaymentMethodType,
     ) -> Self {
         Self {
             status,
@@ -130,22 +134,22 @@ pub struct DummyConnectorRefundRequest {
     pub payment_id: Option<String>,
 }
 
-#[derive(Default, Clone, Debug, serde::Serialize, Eq, PartialEq, serde::Deserialize)]
+#[derive(Clone, Debug, serde::Serialize, Eq, PartialEq, serde::Deserialize)]
 pub struct DummyConnectorRefundResponse {
-    pub status: String,
+    pub status: DummyConnectorStatus,
     pub id: String,
     pub currency: Currency,
-    pub created: String,
+    pub created: PrimitiveDateTime,
     pub payment_amount: i64,
     pub refund_amount: i64,
 }
 
 impl DummyConnectorRefundResponse {
     pub fn new(
-        status: String,
+        status: DummyConnectorStatus,
         id: String,
         currency: Currency,
-        created: String,
+        created: PrimitiveDateTime,
         payment_amount: i64,
         refund_amount: i64,
     ) -> Self {

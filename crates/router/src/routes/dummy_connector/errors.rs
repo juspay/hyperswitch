@@ -27,10 +27,7 @@ pub enum DummyConnectorErrors {
     #[error(error_type = ErrorType::ObjectNotFound, code = "DC_05", message = "Refund does not exist in our records")]
     RefundNotFound,
 
-    #[error(error_type = ErrorType::ServerNotAvailable, code = "DC_06", message = "Something went wrong")]
-    InternalServerError,
-
-    #[error(error_type = ErrorType::InvalidRequestError, code = "DC_07", message = "Payment is not successful")]
+    #[error(error_type = ErrorType::InvalidRequestError, code = "DC_06", message = "Payment is not successful")]
     PaymentNotSuccessful,
 }
 
@@ -69,11 +66,8 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
             Self::RefundNotFound => {
                 AER::NotFound(ApiError::new("DC", 5, self.error_message(), None))
             }
-            Self::InternalServerError => {
-                AER::InternalServerError(ApiError::new("DC", 6, self.error_message(), None))
-            }
             Self::PaymentNotSuccessful => {
-                AER::BadRequest(ApiError::new("DC", 7, self.error_message(), None))
+                AER::BadRequest(ApiError::new("DC", 6, self.error_message(), None))
             }
         }
     }

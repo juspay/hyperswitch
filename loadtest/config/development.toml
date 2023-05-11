@@ -125,3 +125,15 @@ cards = [
     "worldpay",
     "zen",
 ]
+
+[dummy_connector]
+payment_ttl = 172800
+payment_duration = 1000
+payment_tolerance = 100
+payment_retrieve_duration = 500
+payment_retrieve_tolerance = 100
+refund_ttl = 172800
+refund_duration = 1000
+refund_tolerance = 100
+refund_retrieve_duration = 500
+refund_retrieve_tolerance = 100

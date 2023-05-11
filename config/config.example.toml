@@ -237,3 +237,15 @@ paypal = { currency = "USD,INR", country = "US" }
 [kms]
 key_id = "" # The AWS key ID used by the KMS SDK for decrypting data.
 region = "" # The AWS region used by the KMS SDK for decrypting data.
+
+[dummy_connector]
+payment_ttl = 172800 # Time to live for dummy connector payment in redis
+payment_duration = 1000 # Fake delay duration for dummy connector payment
+payment_tolerance = 100 # Fake delay tolerance for dummy connector payment
+payment_retrieve_duration = 500 # Fake delay duration for dummy connector payment sync
+payment_retrieve_tolerance = 100 # Fake delay tolerance for dummy connector payment sync
+refund_ttl = 172800 # Time to live for dummy connector refund in redis
+refund_duration = 1000 # Fake delay duration for dummy connector refund
+refund_tolerance = 100 # Fake delay tolerance for dummy connector refund
+refund_retrieve_duration = 500 # Fake delay duration for dummy connector refund sync
+refund_retrieve_tolerance = 100 # Fake delay tolerance for dummy connector refund sync
