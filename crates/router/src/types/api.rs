@@ -154,6 +154,7 @@ pub struct ConnectorData {
 pub struct SessionConnectorData {
     pub payment_method_type: api_enums::PaymentMethodType,
     pub connector: ConnectorData,
+    pub business_sub_label: Option<String>,
 }
 
 pub enum ConnectorChoice {
@@ -164,7 +165,7 @@ pub enum ConnectorChoice {
 
 #[derive(Clone)]
 pub enum ConnectorCallType {
-    Multiple(Vec<ConnectorData>),
+    Multiple(Vec<SessionConnectorData>),
     Single(ConnectorData),
 }
 

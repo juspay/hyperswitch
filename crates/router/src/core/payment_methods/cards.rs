@@ -826,7 +826,8 @@ pub async fn list_payment_methods(
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
     // filter out connectors based on the business country
-    let filtered_mcas = filter_mca_based_on_business_details(all_mcas, payment_intent.as_ref());
+    let filtered_mcas =
+        helpers::filter_mca_based_on_business_details(all_mcas, payment_intent.as_ref());
 
     logger::debug!(mca_before_filtering=?filtered_mcas);
 
@@ -1200,25 +1201,6 @@ async fn filter_payment_methods(
         }
     }
     Ok(())
-}
-
-fn filter_mca_based_on_business_details(
-    merchant_connector_accounts: Vec<
-        storage_models::merchant_connector_account::MerchantConnectorAccount,
-    >,
-    payment_intent: Option<&storage_models::payment_intent::PaymentIntent>,
-) -> Vec<storage_models::merchant_connector_account::MerchantConnectorAccount> {
-    if let Some(payment_intent) = payment_intent {
-        merchant_connector_accounts
-            .into_iter()
-            .filter(|mca| {
-                mca.business_country == payment_intent.business_country
-                    && mca.business_label == payment_intent.business_label
-            })
-            .collect::<Vec<_>>()
-    } else {
-        merchant_connector_accounts
-    }
 }
 
 fn filter_pm_based_on_config<'a>(
