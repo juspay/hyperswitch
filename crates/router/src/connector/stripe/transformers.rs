@@ -232,7 +232,11 @@ fn get_bank_name(
             StripePaymentMethodType::Przelewy24,
             api_models::payments::BankRedirectData::Przelewy24 { bank_name, .. },
         ) => Ok(Some(StripeBankName::Przelewy24 {
-            bank_name: StripeBankNames::try_from(bank_name)?,
+            bank_name: StripeBankNames::try_from(&bank_name.ok_or(
+                errors::ConnectorError::MissingRequiredField {
+                    field_name: "bank_name",
+                },
+            )?)?,
         })),
         (StripePaymentMethodType::Sofort | StripePaymentMethodType::Giropay, _) => Ok(None),
         _ => Err(errors::ConnectorError::MismatchedPaymentData),
