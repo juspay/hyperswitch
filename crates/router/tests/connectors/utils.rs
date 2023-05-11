@@ -32,6 +32,7 @@ pub struct PaymentInfo {
     pub auth_type: Option<enums::AuthenticationType>,
     pub access_token: Option<AccessToken>,
     pub connector_meta_data: Option<serde_json::Value>,
+    pub return_url: Option<String>,
 }
 
 #[async_trait]
@@ -378,7 +379,7 @@ pub trait ConnectorActions: Connector {
             payment_method: enums::PaymentMethod::Card,
             connector_auth_type: self.get_auth_token(),
             description: Some("This is a test".to_string()),
-            return_url: None,
+            return_url: info.clone().and_then(|a| a.return_url),
             request: req,
             response: Err(types::ErrorResponse::default()),
             payment_method_id: None,

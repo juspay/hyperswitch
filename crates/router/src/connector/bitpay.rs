@@ -138,9 +138,9 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     fn get_url(
         &self,
         _req: &types::PaymentsAuthorizeRouterData,
-        _connectors: &settings::Connectors,
+        connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!("{}/invoices", self.base_url(_connectors)))
+        Ok(format!("{}/invoices", self.base_url(connectors)))
     }
 
     fn get_request_body(
@@ -216,19 +216,19 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
 
     fn get_url(
         &self,
-        _req: &types::PaymentsSyncRouterData,
-        _connectors: &settings::Connectors,
+        req: &types::PaymentsSyncRouterData,
+        connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let auth = bitpay::BitpayAuthType::try_from(&_req.connector_auth_type)
+        let auth = bitpay::BitpayAuthType::try_from(&req.connector_auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-        let connector_id = _req
+        let connector_id = req
             .request
             .connector_transaction_id
             .get_connector_transaction_id()
             .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
         Ok(format!(
             "{}/invoices/{}?token={}",
-            self.base_url(_connectors),
+            self.base_url(connectors),
             connector_id,
             auth.api_key
         ))
@@ -491,9 +491,9 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
 impl api::IncomingWebhook for Bitpay {
     fn get_webhook_object_reference_id(
         &self,
-        _request: &api::IncomingWebhookRequestDetails<'_>,
+        request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api::webhooks::ObjectReferenceId, errors::ConnectorError> {
-        let notif: BitpayWebhookDetails = _request
+        let notif: BitpayWebhookDetails = request
             .body
             .parse_struct("BitpayWebhookDetails")
             .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
@@ -504,9 +504,9 @@ impl api::IncomingWebhook for Bitpay {
 
     fn get_webhook_event_type(
         &self,
-        _request: &api::IncomingWebhookRequestDetails<'_>,
+        request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api::IncomingWebhookEvent, errors::ConnectorError> {
-        let notif: BitpayWebhookDetails = _request
+        let notif: BitpayWebhookDetails = request
             .body
             .parse_struct("BitpayWebhookDetails")
             .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
@@ -526,9 +526,9 @@ impl api::IncomingWebhook for Bitpay {
 
     fn get_webhook_resource_object(
         &self,
-        _request: &api::IncomingWebhookRequestDetails<'_>,
+        request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<serde_json::Value, errors::ConnectorError> {
-        let notif: BitpayWebhookDetails = _request
+        let notif: BitpayWebhookDetails = request
             .body
             .parse_struct("BitpayWebhookDetails")
             .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;

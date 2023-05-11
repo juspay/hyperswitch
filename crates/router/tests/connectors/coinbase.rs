@@ -47,7 +47,7 @@ fn get_default_payment_info() -> Option<utils::PaymentInfo> {
                     line2: Some(Secret::new("line2".to_string())),
                     city: Some("city".to_string()),
                     zip: Some(Secret::new("zip".to_string())),
-                    country: Some(api_models::enums::CountryCode::IN),
+                    country: Some(api_models::enums::CountryAlpha2::IN),
                     ..Default::default()
                 }),
                 phone: Some(api::PhoneDetails {
@@ -83,7 +83,7 @@ fn payment_method_details() -> Option<types::PaymentsAuthorizeData> {
         session_token: None,
         enrolled_for_3ds: false,
         related_transaction_id: None,
-        router_return_url: Some(String::from("http://localhost:8080")),
+        router_return_url: Some(String::from("https://google.com/")),
         webhook_url: None,
         complete_authorize_url: None,
         capture_method: None,
@@ -102,7 +102,7 @@ async fn should_only_authorize_payment() {
     let endpoint = match resp {
         types::PaymentsResponseData::TransactionResponse {
             redirection_data, ..
-        } => Some(redirection_data.unwrap().endpoint),
+        } => Some(redirection_data),
         _ => None,
     };
     assert!(endpoint.is_some())

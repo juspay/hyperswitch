@@ -104,10 +104,10 @@ macro_rules! default_imp_for_complete_authorize{
 default_imp_for_complete_authorize!(connector::DummyConnector);
 
 default_imp_for_complete_authorize!(
-    connector::Bitpay,
     connector::Aci,
     connector::Adyen,
     connector::Authorizedotnet,
+    connector::Bitpay,
     connector::Bluesnap,
     connector::Braintree,
     connector::Checkout,
@@ -154,6 +154,7 @@ default_imp_for_create_customer!(
     connector::Airwallex,
     connector::Authorizedotnet,
     connector::Bambora,
+    connector::Bitpay,
     connector::Bluesnap,
     connector::Braintree,
     connector::Checkout,
@@ -201,10 +202,10 @@ macro_rules! default_imp_for_connector_redirect_response{
 default_imp_for_connector_redirect_response!(connector::DummyConnector);
 
 default_imp_for_connector_redirect_response!(
-    connector::Bitpay,
     connector::Aci,
     connector::Adyen,
     connector::Authorizedotnet,
+    connector::Bitpay,
     connector::Bluesnap,
     connector::Braintree,
     connector::Coinbase,
@@ -236,12 +237,12 @@ macro_rules! default_imp_for_connector_request_id{
 default_imp_for_connector_request_id!(connector::DummyConnector);
 
 default_imp_for_connector_request_id!(
-    connector::Bitpay,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
     connector::Authorizedotnet,
     connector::Bambora,
+    connector::Bitpay,
     connector::Bluesnap,
     connector::Braintree,
     connector::Checkout,
@@ -292,6 +293,7 @@ default_imp_for_accept_dispute!(
     connector::Airwallex,
     connector::Authorizedotnet,
     connector::Bambora,
+    connector::Bitpay,
     connector::Bluesnap,
     connector::Braintree,
     connector::Coinbase,
@@ -343,6 +345,7 @@ default_imp_for_file_upload!(
     connector::Airwallex,
     connector::Authorizedotnet,
     connector::Bambora,
+    connector::Bitpay,
     connector::Bluesnap,
     connector::Braintree,
     connector::Coinbase,
@@ -392,6 +395,7 @@ default_imp_for_submit_evidence!(
     connector::Airwallex,
     connector::Authorizedotnet,
     connector::Bambora,
+    connector::Bitpay,
     connector::Bluesnap,
     connector::Braintree,
     connector::Cybersource,
@@ -441,6 +445,7 @@ default_imp_for_defend_dispute!(
     connector::Airwallex,
     connector::Authorizedotnet,
     connector::Bambora,
+    connector::Bitpay,
     connector::Bluesnap,
     connector::Braintree,
     connector::Cybersource,
