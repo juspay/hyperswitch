@@ -10,10 +10,12 @@ CREATE type "EntityType" as ENUM (
     'personal'
 );
 CREATE type "PayoutStatus" AS ENUM (
-    'succeeded',
+    'success',
     'failed',
     'cancelled',
-    'processing',
+    'pending',
+    'ineligible',
+    'requires_creation',
     'requires_fulfillment'
 );
 CREATE type "PayoutType" AS ENUM ('card', 'bank');
@@ -47,6 +49,7 @@ CREATE TABLE PAYOUTS (
     connector_payout_id VARCHAR (64) NOT NULL,
     payout_method_data JSONB,
     status "PayoutStatus" NOT NULL,
+    is_eligible BOOLEAN,
     encoded_data TEXT,
     error_message TEXT,
     error_code VARCHAR (64)

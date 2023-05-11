@@ -52,6 +52,9 @@ pub enum StripeErrorCode {
     #[error(error_type = StripeErrorType::ApiError, code = "refund_failed", message = "refund has failed")]
     RefundFailed, // stripe error code
 
+    #[error(error_type = StripeErrorType::ApiError, code = "payout_failed", message = "payout has failed")]
+    PayoutFailed, // stripe error code
+
     #[error(error_type = StripeErrorType::ApiError, code = "internal_server_error", message = "Server is down")]
     InternalServerError,
 
@@ -102,6 +105,9 @@ pub enum StripeErrorCode {
 
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "resource_missing", message = "No such payout")]
     PayoutNotFound,
+
+    #[error(error_type = StripeErrorType::InvalidRequestError, code = "token_already_used", message = "duplicate payout request")]
+    DuplicatePayout { payout_id: String },
 
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "parameter_missing", message = "Return url is not available")]
     ReturnUrlUnavailable,
@@ -405,6 +411,7 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
             errors::ApiErrorResponse::CardExpired { data } => Self::ExpiredCard,
             errors::ApiErrorResponse::RefundNotPossible { connector } => Self::RefundFailed,
             errors::ApiErrorResponse::RefundFailed { data } => Self::RefundFailed, // Nothing at stripe to map
+            errors::ApiErrorResponse::PayoutFailed { data } => Self::PayoutFailed,
 
             errors::ApiErrorResponse::MandateUpdateFailed
             | errors::ApiErrorResponse::InternalServerError => Self::InternalServerError, // not a stripe code
@@ -427,6 +434,9 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
             errors::ApiErrorResponse::CustomerRedacted => Self::CustomerRedacted, //not a stripe code
             errors::ApiErrorResponse::ConfigNotFound => Self::ConfigNotFound, // not a stripe code
             errors::ApiErrorResponse::DuplicateRefundRequest => Self::DuplicateRefundRequest,
+            errors::ApiErrorResponse::DuplicatePayout { payout_id } => {
+                Self::DuplicatePayout { payout_id }
+            }
             errors::ApiErrorResponse::RefundNotFound => Self::RefundNotFound,
             errors::ApiErrorResponse::CustomerNotFound => Self::CustomerNotFound,
             errors::ApiErrorResponse::PaymentNotFound => Self::PaymentNotFound,
@@ -521,6 +531,7 @@ impl actix_web::ResponseError for StripeErrorCode {
             | Self::ExpiredCard
             | Self::InvalidCardType
             | Self::DuplicateRefundRequest
+            | Self::DuplicatePayout { .. }
             | Self::RefundNotFound
             | Self::CustomerNotFound
             | Self::ConfigNotFound
@@ -560,6 +571,7 @@ impl actix_web::ResponseError for StripeErrorCode {
             | Self::FileNotFound
             | Self::FileNotAvailable => StatusCode::BAD_REQUEST,
             Self::RefundFailed
+            | Self::PayoutFailed
             | Self::InternalServerError
             | Self::MandateActive
             | Self::CustomerRedacted => StatusCode::INTERNAL_SERVER_ERROR,

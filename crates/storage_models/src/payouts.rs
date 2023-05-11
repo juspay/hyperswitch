@@ -16,6 +16,7 @@ pub struct Payouts {
     pub connector_payout_id: String,
     pub payout_method_data: Option<serde_json::Value>,
     pub status: storage_enums::PayoutStatus,
+    pub is_eligible: Option<bool>,
     pub encoded_data: Option<String>,
     pub error_message: Option<String>,
     pub error_code: Option<String>,
@@ -42,6 +43,7 @@ pub struct PayoutsNew {
     pub connector_payout_id: String,
     pub payout_method_data: Option<serde_json::Value>,
     pub status: storage_enums::PayoutStatus,
+    pub is_eligible: Option<bool>,
     pub encoded_data: Option<String>,
     pub error_message: Option<String>,
     pub error_code: Option<String>,
@@ -54,6 +56,7 @@ pub enum PayoutsUpdate {
         status: storage_enums::PayoutStatus,
         error_message: Option<String>,
         error_code: Option<String>,
+        is_eligible: Option<bool>,
     },
 }
 
@@ -64,6 +67,7 @@ pub struct PayoutsUpdateInternal {
     pub status: Option<storage_enums::PayoutStatus>,
     pub error_message: Option<String>,
     pub error_code: Option<String>,
+    is_eligible: Option<bool>,
 }
 
 impl From<PayoutsUpdate> for PayoutsUpdateInternal {
@@ -74,11 +78,13 @@ impl From<PayoutsUpdate> for PayoutsUpdateInternal {
                 status,
                 error_message,
                 error_code,
+                is_eligible,
             } => Self {
                 connector_payout_id,
                 status: Some(status),
                 error_message,
                 error_code,
+                is_eligible,
             },
         }
     }

@@ -6,6 +6,12 @@ use utoipa::ToSchema;
 
 use crate::{enums as api_enums, payments};
 
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub enum PayoutRequest {
+    PayoutCreateRequest(PayoutCreateRequest),
+    PayoutRetrieveRequest(PayoutRetrieveRequest),
+}
+
 // #[cfg(feature = "payouts")]
 #[derive(Default, Debug, Deserialize, Serialize, Clone, ToSchema)]
 #[serde(deny_unknown_fields)]
@@ -55,7 +61,7 @@ pub struct PayoutCreateRequest {
 
     /// Set to true to confirm the payout without review, no further action required
     #[schema(value_type = bool, example = true, default = false)]
-    pub auto_fulfilled: Option<bool>,
+    pub auto_fulfill: Option<bool>,
 
     /// description: The customer's email address
     #[schema(max_length = 255, value_type = Option<String>, example = "johntest@test.com")]
@@ -124,6 +130,14 @@ pub struct Card {
     /// The card number
     #[schema(value_type = String, example = "4242424242424242")]
     pub card_number: CardNumber,
+
+    /// The card's expiry month
+    #[schema(value_type = String)]
+    pub expiry_month: Secret<String>,
+
+    /// The card's expiry year
+    #[schema(value_type = String)]
+    pub expiry_year: Secret<String>,
 
     /// The card holder's name
     #[schema(value_type = String, example = "John Doe")]
@@ -311,7 +325,7 @@ pub struct PayoutCreateResponse {
 
     /// Set to true to confirm the payout without review, no further action required
     #[schema(value_type = bool, example = true, default = false)]
-    pub auto_fulfilled: bool,
+    pub auto_fulfill: bool,
 
     /// description: The customer's email address
     #[schema(max_length = 255, value_type = Option<String>, example = "johntest@test.com")]
@@ -363,6 +377,14 @@ pub struct PayoutCreateResponse {
 
     /// Current status of the Payout
     pub status: api_enums::PayoutStatus,
+
+    /// If there was an error while calling the connector the error message is received here
+    #[schema(example = "Failed while verifying the card")]
+    pub error_message: Option<String>,
+
+    /// If there was an error while calling the connectors the code is received here
+    #[schema(example = "E0001")]
+    pub error_code: Option<String>,
 }
 
 #[derive(Default, Debug, Clone, Deserialize)]
@@ -370,7 +392,7 @@ pub struct PayoutRetrieveBody {
     pub force_sync: Option<bool>,
 }
 
-#[derive(Default, Debug, ToSchema, Clone, Deserialize)]
+#[derive(Default, Debug, Serialize, ToSchema, Clone, Deserialize)]
 pub struct PayoutRetrieveRequest {
     /// Unique identifier for the payout. This ensures idempotency for multiple payouts
     /// that have been done by a single merchant. This field is auto generated and is returned in the API response.

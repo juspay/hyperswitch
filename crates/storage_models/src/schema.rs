@@ -428,6 +428,7 @@ diesel::table! {
         connector_payout_id -> Varchar,
         payout_method_data -> Nullable<Jsonb>,
         status -> PayoutStatus,
+        is_eligible -> Nullable<Bool>,
         encoded_data -> Nullable<Text>,
         error_message -> Nullable<Text>,
         error_code -> Nullable<Varchar>,
