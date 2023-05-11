@@ -68,6 +68,7 @@ pub struct DummyConnectorPaymentData {
     pub amount: i64,
     pub eligible_amount: i64,
     pub currency: Currency,
+    #[serde(with = "common_utils::custom_serde::iso8601")]
     pub created: PrimitiveDateTime,
     pub payment_method_type: PaymentMethodType,
 }
@@ -139,6 +140,7 @@ pub struct DummyConnectorRefundResponse {
     pub status: DummyConnectorStatus,
     pub id: String,
     pub currency: Currency,
+    #[serde(with = "common_utils::custom_serde::iso8601")]
     pub created: PrimitiveDateTime,
     pub payment_amount: i64,
     pub refund_amount: i64,
