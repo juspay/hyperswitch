@@ -214,6 +214,7 @@ impl ConnectorData {
             "fiserv" => Ok(Box::new(&connector::Fiserv)),
             "forte" => Ok(Box::new(&connector::Forte)),
             "globalpay" => Ok(Box::new(&connector::Globalpay)),
+            "iatapay" => Ok(Box::new(&connector::Iatapay)),
             "klarna" => Ok(Box::new(&connector::Klarna)),
             "mollie" => Ok(Box::new(&connector::Mollie)),
             "nmi" => Ok(Box::new(&connector::Nmi)),
