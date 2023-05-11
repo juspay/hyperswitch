@@ -22,6 +22,7 @@ mod dummyconnector;
 mod fiserv;
 mod forte;
 mod globalpay;
+mod iatapay;
 mod mollie;
 mod multisafepay;
 mod nexinets;
