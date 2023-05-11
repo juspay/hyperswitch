@@ -144,7 +144,6 @@ where
                     .find_mandate_by_merchant_id_mandate_id(resp.merchant_id.as_ref(), mandate_id)
                     .await
                     .change_context(errors::ApiErrorResponse::MandateNotFound)?;
-                router_env::logger::error!(?resp.response);
                 let mandate = match mandate.mandate_type {
                     storage_enums::MandateType::SingleUse => state
                         .store
