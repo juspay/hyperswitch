@@ -200,6 +200,10 @@ fn get_payment_response(
         pm.card
             .as_ref()
             .and_then(|card| card.brand_reference.to_owned())
+            .map(|id| types::MandateReference {
+                connector_mandate_id: Some(id),
+                payment_method_id: None,
+            })
     });
     match status {
         enums::AttemptStatus::Failure => Err(ErrorResponse {
@@ -374,8 +378,8 @@ fn get_mandate_details(item: &types::PaymentsAuthorizeRouterData) -> Result<Mand
         let connector_mandate_id = item.request.mandate_id.as_ref().and_then(|mandate_ids| {
             match mandate_ids.mandate_reference_id.clone() {
                 Some(api_models::payments::MandateReferenceId::ConnectorMandateId(
-                    connector_mandate_id,
-                )) => Some(connector_mandate_id),
+                    connector_mandate_ids,
+                )) => connector_mandate_ids.connector_mandate_id,
                 _ => None,
             }
         });

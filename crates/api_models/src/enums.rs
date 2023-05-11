@@ -268,6 +268,7 @@ pub enum Currency {
 #[strum(serialize_all = "snake_case")]
 pub enum EventType {
     PaymentSucceeded,
+    PaymentFailed,
     PaymentProcessing,
     ActionRequired,
     RefundSucceeded,
@@ -585,6 +586,7 @@ pub enum Connector {
     Airwallex,
     Applepay,
     Authorizedotnet,
+    Bitpay,
     Bluesnap,
     Braintree,
     Checkout,
@@ -592,16 +594,22 @@ pub enum Connector {
     Cybersource,
     #[default]
     Dummy,
+    Iatapay,
+    #[cfg(feature = "dummy_connector")]
+    #[serde(rename = "dummyconnector")]
+    #[strum(serialize = "dummyconnector")]
+    DummyConnector,
     Opennode,
     Bambora,
     Dlocal,
     Fiserv,
-    //Forte,
+    Forte,
     Globalpay,
     Klarna,
     Mollie,
     Multisafepay,
     Nexinets,
+    Nmi,
     Nuvei,
     // Payeezy, As psync and rsync are not supported by this connector, it is added as template code for future usage
     Paypal,
@@ -624,6 +632,7 @@ impl Connector {
                 | (Self::Paypal, _)
                 | (Self::Payu, _)
                 | (Self::Trustpay, PaymentMethod::BankRedirect)
+                | (Self::Iatapay, _)
         )
     }
     pub fn supports_file_storage_module(&self) -> bool {
@@ -649,10 +658,15 @@ impl Connector {
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum RoutableConnectors {
+    #[cfg(feature = "dummy_connector")]
+    #[serde(rename = "dummyconnector")]
+    #[strum(serialize = "dummyconnector")]
+    DummyConnector,
     Aci,
     Adyen,
     Airwallex,
     Authorizedotnet,
+    Bitpay,
     Bambora,
     Bluesnap,
     Braintree,
@@ -661,12 +675,14 @@ pub enum RoutableConnectors {
     Cybersource,
     Dlocal,
     Fiserv,
-    //Forte,
+    Forte,
     Globalpay,
+    Iatapay,
     Klarna,
     Mollie,
     Multisafepay,
     Nexinets,
+    Nmi,
     Nuvei,
     Opennode,
     // Payeezy, As psync and rsync are not supported by this connector, it is added as template code for future usage
@@ -747,6 +763,7 @@ pub enum BankNames {
     #[serde(rename = "ePlatby VÚB")]
     EPlatbyVUB,
     ErsteBankUndSparkassen,
+    FrieslandBank,
     HypoAlpeadriabankInternationalAg,
     HypoNoeLbFurNiederosterreichUWien,
     HypoOberosterreichSalzburgSteiermark,
@@ -831,39 +848,6 @@ pub enum CardNetwork {
     Interac,
     RuPay,
     Maestro,
-}
-
-impl From<AttemptStatus> for IntentStatus {
-    fn from(s: AttemptStatus) -> Self {
-        match s {
-            AttemptStatus::Charged | AttemptStatus::AutoRefunded => Self::Succeeded,
-
-            AttemptStatus::ConfirmationAwaited => Self::RequiresConfirmation,
-            AttemptStatus::PaymentMethodAwaited => Self::RequiresPaymentMethod,
-
-            AttemptStatus::Authorized => Self::RequiresCapture,
-            AttemptStatus::AuthenticationPending | AttemptStatus::DeviceDataCollectionPending => {
-                Self::RequiresCustomerAction
-            }
-            AttemptStatus::Unresolved => Self::RequiresMerchantAction,
-            AttemptStatus::PartialCharged
-            | AttemptStatus::Started
-            | AttemptStatus::AuthenticationSuccessful
-            | AttemptStatus::Authorizing
-            | AttemptStatus::CodInitiated
-            | AttemptStatus::VoidInitiated
-            | AttemptStatus::CaptureInitiated
-            | AttemptStatus::Pending => Self::Processing,
-
-            AttemptStatus::AuthenticationFailed
-            | AttemptStatus::AuthorizationFailed
-            | AttemptStatus::VoidFailed
-            | AttemptStatus::RouterDeclined
-            | AttemptStatus::CaptureFailed
-            | AttemptStatus::Failure => Self::Failed,
-            AttemptStatus::Voided => Self::Cancelled,
-        }
-    }
 }
 
 #[derive(

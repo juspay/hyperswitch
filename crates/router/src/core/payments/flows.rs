@@ -74,7 +74,7 @@ pub trait Feature<F, T> {
         &self,
         _state: &AppState,
         _connector: &api::ConnectorData,
-        _customer: &Option<storage::Customer>,
+        _connector_customer_map: Option<serde_json::Map<String, serde_json::Value>>,
     ) -> RouterResult<(Option<String>, Option<storage::CustomerUpdate>)>
     where
         F: Clone,
@@ -100,11 +100,14 @@ macro_rules! default_imp_for_complete_authorize{
     };
 }
 
+#[cfg(feature = "dummy_connector")]
+default_imp_for_complete_authorize!(connector::DummyConnector);
+
 default_imp_for_complete_authorize!(
     connector::Aci,
     connector::Adyen,
     connector::Authorizedotnet,
-    connector::Bluesnap,
+    connector::Bitpay,
     connector::Braintree,
     connector::Checkout,
     connector::Coinbase,
@@ -112,9 +115,11 @@ default_imp_for_complete_authorize!(
     connector::Dlocal,
     connector::Fiserv,
     connector::Forte,
+    connector::Iatapay,
     connector::Klarna,
     connector::Multisafepay,
     connector::Nexinets,
+    connector::Nmi,
     connector::Opennode,
     connector::Payeezy,
     connector::Payu,
@@ -141,13 +146,16 @@ macro_rules! default_imp_for_create_customer{
     };
 }
 
+#[cfg(feature = "dummy_connector")]
+default_imp_for_create_customer!(connector::DummyConnector);
+
 default_imp_for_create_customer!(
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
     connector::Authorizedotnet,
     connector::Bambora,
-    connector::Bluesnap,
+    connector::Bitpay,
     connector::Braintree,
     connector::Checkout,
     connector::Coinbase,
@@ -156,10 +164,12 @@ default_imp_for_create_customer!(
     connector::Fiserv,
     connector::Forte,
     connector::Globalpay,
+    connector::Iatapay,
     connector::Klarna,
     connector::Mollie,
     connector::Multisafepay,
     connector::Nexinets,
+    connector::Nmi,
     connector::Nuvei,
     connector::Opennode,
     connector::Payeezy,
@@ -190,20 +200,25 @@ macro_rules! default_imp_for_connector_redirect_response{
     };
 }
 
+#[cfg(feature = "dummy_connector")]
+default_imp_for_connector_redirect_response!(connector::DummyConnector);
+
 default_imp_for_connector_redirect_response!(
     connector::Aci,
     connector::Adyen,
     connector::Authorizedotnet,
-    connector::Bluesnap,
+    connector::Bitpay,
     connector::Braintree,
     connector::Coinbase,
     connector::Cybersource,
     connector::Dlocal,
     connector::Fiserv,
     connector::Forte,
+    connector::Iatapay,
     connector::Klarna,
     connector::Multisafepay,
     connector::Nexinets,
+    connector::Nmi,
     connector::Opennode,
     connector::Payeezy,
     connector::Payu,
@@ -221,12 +236,16 @@ macro_rules! default_imp_for_connector_request_id{
     };
 }
 
+#[cfg(feature = "dummy_connector")]
+default_imp_for_connector_request_id!(connector::DummyConnector);
+
 default_imp_for_connector_request_id!(
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
     connector::Authorizedotnet,
     connector::Bambora,
+    connector::Bitpay,
     connector::Bluesnap,
     connector::Braintree,
     connector::Checkout,
@@ -236,9 +255,11 @@ default_imp_for_connector_request_id!(
     connector::Fiserv,
     connector::Forte,
     connector::Globalpay,
+    connector::Iatapay,
     connector::Klarna,
     connector::Mollie,
     connector::Multisafepay,
+    connector::Nmi,
     connector::Nuvei,
     connector::Opennode,
     connector::Payeezy,
@@ -268,12 +289,16 @@ macro_rules! default_imp_for_accept_dispute{
     };
 }
 
+#[cfg(feature = "dummy_connector")]
+default_imp_for_accept_dispute!(connector::DummyConnector);
+
 default_imp_for_accept_dispute!(
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
     connector::Authorizedotnet,
     connector::Bambora,
+    connector::Bitpay,
     connector::Bluesnap,
     connector::Braintree,
     connector::Coinbase,
@@ -282,10 +307,12 @@ default_imp_for_accept_dispute!(
     connector::Fiserv,
     connector::Forte,
     connector::Globalpay,
+    connector::Iatapay,
     connector::Klarna,
     connector::Mollie,
     connector::Multisafepay,
     connector::Nexinets,
+    connector::Nmi,
     connector::Nuvei,
     connector::Payeezy,
     connector::Paypal,
@@ -312,9 +339,20 @@ macro_rules! default_imp_for_file_upload{
                 types::UploadFileResponse,
             > for $path::$connector
             {}
+            impl api::RetrieveFile for $path::$connector {}
+            impl
+                services::ConnectorIntegration<
+                api::Retrieve,
+                types::RetrieveFileRequestData,
+                types::RetrieveFileResponse,
+            > for $path::$connector
+            {}
     )*
     };
 }
+
+#[cfg(feature = "dummy_connector")]
+default_imp_for_file_upload!(connector::DummyConnector);
 
 default_imp_for_file_upload!(
     connector::Aci,
@@ -322,6 +360,7 @@ default_imp_for_file_upload!(
     connector::Airwallex,
     connector::Authorizedotnet,
     connector::Bambora,
+    connector::Bitpay,
     connector::Bluesnap,
     connector::Braintree,
     connector::Coinbase,
@@ -330,10 +369,12 @@ default_imp_for_file_upload!(
     connector::Fiserv,
     connector::Forte,
     connector::Globalpay,
+    connector::Iatapay,
     connector::Klarna,
     connector::Mollie,
     connector::Multisafepay,
     connector::Nexinets,
+    connector::Nmi,
     connector::Nuvei,
     connector::Payeezy,
     connector::Paypal,
@@ -362,12 +403,16 @@ macro_rules! default_imp_for_submit_evidence{
     };
 }
 
+#[cfg(feature = "dummy_connector")]
+default_imp_for_submit_evidence!(connector::DummyConnector);
+
 default_imp_for_submit_evidence!(
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
     connector::Authorizedotnet,
     connector::Bambora,
+    connector::Bitpay,
     connector::Bluesnap,
     connector::Braintree,
     connector::Cybersource,
@@ -376,10 +421,12 @@ default_imp_for_submit_evidence!(
     connector::Fiserv,
     connector::Forte,
     connector::Globalpay,
+    connector::Iatapay,
     connector::Klarna,
     connector::Mollie,
     connector::Multisafepay,
     connector::Nexinets,
+    connector::Nmi,
     connector::Nuvei,
     connector::Payeezy,
     connector::Paypal,
@@ -408,12 +455,16 @@ macro_rules! default_imp_for_defend_dispute{
     };
 }
 
+#[cfg(feature = "dummy_connector")]
+default_imp_for_defend_dispute!(connector::DummyConnector);
+
 default_imp_for_defend_dispute!(
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
     connector::Authorizedotnet,
     connector::Bambora,
+    connector::Bitpay,
     connector::Bluesnap,
     connector::Braintree,
     connector::Cybersource,
@@ -422,10 +473,12 @@ default_imp_for_defend_dispute!(
     connector::Fiserv,
     connector::Forte,
     connector::Globalpay,
+    connector::Iatapay,
     connector::Klarna,
     connector::Mollie,
     connector::Multisafepay,
     connector::Nexinets,
+    connector::Nmi,
     connector::Nuvei,
     connector::Payeezy,
     connector::Paypal,

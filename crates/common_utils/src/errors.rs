@@ -8,35 +8,22 @@
 ///
 pub type CustomResult<T, E> = error_stack::Result<T, E>;
 
-macro_rules! impl_error_display {
-    ($st: ident, $arg: tt) => {
-        impl std::fmt::Display for $st {
-            fn fmt(&self, fmt: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                fmt.write_str(&format!(
-                    "{{ error_type: {:?}, error_description: {} }}",
-                    self, $arg
-                ))
-            }
-        }
-    };
+/// Parsing Errors
+#[derive(Debug, thiserror::Error)]
+pub enum ParsingError {
+    ///Failed to parse enum
+    #[error("Failed to parse enum: {0}")]
+    EnumParseFailure(&'static str),
+    ///Failed to parse struct
+    #[error("Failed to parse struct: {0}")]
+    StructParseFailure(&'static str),
+    /// Failed to encode data to given format
+    #[error("Failed to serialize to {0} format")]
+    EncodeError(&'static str),
+    /// Failed to parse data
+    #[error("Unknown error while parsing")]
+    UnknownError,
 }
-
-macro_rules! impl_error_type {
-    ($name: ident, $arg: tt) => {
-        #[doc = ""]
-        #[doc = stringify!(Error variant $name)]
-        #[doc = stringify!(Custom error variant for $arg)]
-        #[doc = ""]
-        #[derive(Debug)]
-        pub struct $name;
-
-        impl_error_display!($name, $arg);
-
-        impl std::error::Error for $name {}
-    };
-}
-
-impl_error_type!(ParsingError, "Parsing error");
 
 /// Validation errors.
 #[allow(missing_docs)] // Only to prevent warnings about struct fields not being documented
@@ -98,9 +85,26 @@ where
 }
 
 /// Allow [error_stack::Report] to convert between error types
-/// This autoimplements [ReportSwitchExt] for the corresponding errors
+/// This auto-implements [ReportSwitchExt] for the corresponding errors
 pub trait ErrorSwitch<T> {
     /// Get the next error type that the source error can be escalated into
     /// This does not consume the source error since we need to keep it in context
     fn switch(&self) -> T;
+}
+
+/// Allow [error_stack::Report] to convert between error types
+/// This serves as an alternative to [ErrorSwitch]
+pub trait ErrorSwitchFrom<T> {
+    /// Convert to an error type that the source can be escalated into
+    /// This does not consume the source error since we need to keep it in context
+    fn switch_from(error: &T) -> Self;
+}
+
+impl<T, S> ErrorSwitch<T> for S
+where
+    T: ErrorSwitchFrom<Self>,
+{
+    fn switch(&self) -> T {
+        T::switch_from(self)
+    }
 }

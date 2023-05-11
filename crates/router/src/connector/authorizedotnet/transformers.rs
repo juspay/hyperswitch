@@ -43,7 +43,7 @@ impl TryFrom<&types::ConnectorAuthType> for MerchantAuthentication {
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
 #[serde(rename_all = "camelCase")]
 struct CreditCardDetails {
-    card_number: masking::Secret<String, common_utils::pii::CardNumber>,
+    card_number: masking::StrongSecret<String, cards::CardNumberStrategy>,
     expiration_date: masking::Secret<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     card_code: Option<masking::Secret<String>>,
@@ -97,14 +97,14 @@ fn get_pm_and_subsequent_auth_detail(
             match item.request.payment_method_data {
                 api::PaymentMethodData::Card(ref ccard) => {
                     let payment_details = PaymentDetails::CreditCard(CreditCardDetails {
-                        card_number: ccard.card_number.clone(),
+                        card_number: (*ccard.card_number).clone(),
                         expiration_date: ccard.get_expiry_date_as_yyyymm("-"),
                         card_code: None,
                     });
                     Ok((payment_details, processing_options, subseuent_auth_info))
                 }
                 _ => Err(errors::ConnectorError::NotSupported {
-                    payment_method: format!("{:?}", item.request.payment_method_data),
+                    message: format!("{:?}", item.request.payment_method_data),
                     connector: "AuthorizeDotNet",
                     payment_experience: api_models::enums::PaymentExperience::RedirectToUrl
                         .to_string(),
@@ -115,7 +115,7 @@ fn get_pm_and_subsequent_auth_detail(
             api::PaymentMethodData::Card(ref ccard) => {
                 Ok((
                     PaymentDetails::CreditCard(CreditCardDetails {
-                        card_number: ccard.card_number.clone(),
+                        card_number: (*ccard.card_number).clone(),
                         // expiration_date: format!("{expiry_year}-{expiry_month}").into(),
                         expiration_date: ccard.get_expiry_date_as_yyyymm("-"),
                         card_code: Some(ccard.card_cvc.clone()),
@@ -129,9 +129,11 @@ fn get_pm_and_subsequent_auth_detail(
             api::PaymentMethodData::BankRedirect(_) => {
                 Ok((PaymentDetails::BankRedirect, None, None))
             }
-            api::PaymentMethodData::Crypto(_) | api::PaymentMethodData::BankDebit(_) => {
+            api::PaymentMethodData::Crypto(_)
+            | api::PaymentMethodData::BankDebit(_)
+            | api::PaymentMethodData::MandatePayment => {
                 Err(errors::ConnectorError::NotSupported {
-                    payment_method: format!("{:?}", item.request.payment_method_data),
+                    message: format!("{:?}", item.request.payment_method_data),
                     connector: "AuthorizeDotNet",
                     payment_experience: api_models::enums::PaymentExperience::RedirectToUrl
                         .to_string(),
