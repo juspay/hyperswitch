@@ -32,6 +32,7 @@ pub struct PaymentInfo {
     pub auth_type: Option<enums::AuthenticationType>,
     pub access_token: Option<AccessToken>,
     pub connector_meta_data: Option<serde_json::Value>,
+    pub return_url: Option<String>,
 }
 
 #[async_trait]
@@ -318,6 +319,7 @@ pub trait ConnectorActions: Connector {
                 currency: enums::Currency::USD,
                 refund_id: uuid::Uuid::new_v4().to_string(),
                 connector_transaction_id: "".to_string(),
+                webhook_url: None,
                 refund_amount: 100,
                 connector_metadata: None,
                 reason: None,
@@ -378,7 +380,7 @@ pub trait ConnectorActions: Connector {
             payment_method: enums::PaymentMethod::Card,
             connector_auth_type: self.get_auth_token(),
             description: Some("This is a test".to_string()),
-            return_url: None,
+            return_url: info.clone().and_then(|a| a.return_url),
             request: req,
             response: Err(types::ErrorResponse::default()),
             payment_method_id: None,
@@ -577,6 +579,7 @@ impl Default for PaymentRefundType {
             refund_id: uuid::Uuid::new_v4().to_string(),
             connector_transaction_id: String::new(),
             refund_amount: 100,
+            webhook_url: None,
             connector_metadata: None,
             reason: Some("Customer returned product".to_string()),
             connector_refund_id: None,

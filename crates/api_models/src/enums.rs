@@ -268,6 +268,7 @@ pub enum Currency {
 #[strum(serialize_all = "snake_case")]
 pub enum EventType {
     PaymentSucceeded,
+    PaymentFailed,
     PaymentProcessing,
     ActionRequired,
     RefundSucceeded,
@@ -592,6 +593,7 @@ pub enum Connector {
     Cybersource,
     #[default]
     Dummy,
+    Iatapay,
     #[cfg(feature = "dummy_connector")]
     #[serde(rename = "dummyconnector")]
     #[strum(serialize = "dummyconnector")]
@@ -628,6 +630,7 @@ impl Connector {
                 | (Self::Paypal, _)
                 | (Self::Payu, _)
                 | (Self::Trustpay, PaymentMethod::BankRedirect)
+                | (Self::Iatapay, _)
         )
     }
     pub fn supports_file_storage_module(&self) -> bool {
@@ -671,6 +674,7 @@ pub enum RoutableConnectors {
     Fiserv,
     Forte,
     Globalpay,
+    Iatapay,
     Klarna,
     Mollie,
     Multisafepay,
