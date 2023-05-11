@@ -522,7 +522,7 @@ pub async fn construct_retrieve_file_router_data<'a>(
         session_token: None,
         reference_id: None,
         payment_method_token: None,
-        mandate_metadata: None
+        mandate_metadata: None,
     };
     Ok(router_data)
 }
