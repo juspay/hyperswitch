@@ -236,6 +236,7 @@ impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
     }
     fn get_payment_method_type(&self) -> Result<storage_models::enums::PaymentMethodType, Error> {
         self.payment_method_type
+            .to_owned()
             .ok_or_else(missing_field_err("payment_method_type"))
     }
 }

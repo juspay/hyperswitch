@@ -9,10 +9,7 @@ use transformers as dummyconnector;
 use super::utils::{PaymentsAuthorizeRequestData, RefundsRequestData};
 use crate::{
     configs::settings,
-    core::{
-        errors::{self, CustomResult},
-        mandate::MandateBehaviour,
-    },
+    core::errors::{self, CustomResult},
     headers,
     services::{self, ConnectorIntegration},
     types::{
@@ -144,7 +141,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let payment_method_data = req.request.get_payment_method_data();
+        let payment_method_data = req.request.payment_method_data.to_owned();
         let payment_method_type = req.request.get_payment_method_type()?;
         match payment_method_data {
             PaymentMethodData::Card(_) => Ok(format!("{}/payment", self.base_url(connectors))),
