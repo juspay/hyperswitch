@@ -2,7 +2,7 @@ use std::marker::PhantomData;
 
 use api_models::admin::PaymentMethodsEnabled;
 use async_trait::async_trait;
-use common_utils::ext_traits::{AsyncExt, ValueExt};
+use common_utils::ext_traits::{AsyncExt, ResultExtLog, ValueExt};
 use error_stack::ResultExt;
 use router_derive::PaymentOperation;
 use router_env::{instrument, tracing};
@@ -14,7 +14,6 @@ use crate::{
         payments::{self, helpers, operations, PaymentData},
     },
     db::StorageInterface,
-    logger,
     routes::AppState,
     types::{
         api::{self, PaymentIdTypeExt},
@@ -329,9 +328,7 @@ where
                             .parse_value::<PaymentMethodsEnabled>("payment_methods_enabled")
                     })
                     .filter_map(|parsed_payment_method_result| {
-                        let error = parsed_payment_method_result.as_ref().err();
-                        logger::error!(session_token_parsing_error=?error);
-                        parsed_payment_method_result.ok()
+                        parsed_payment_method_result.log_err_and_ok("session_token_parsing_error")
                     })
                     .flat_map(|parsed_payment_methods_enabled| {
                         parsed_payment_methods_enabled
@@ -372,20 +369,19 @@ where
         for (connector, payment_method_type, business_sub_label) in
             connector_and_supporting_payment_method_type
         {
-            match api::ConnectorData::get_connector_by_name(
+            if let Some(connector_data) = api::ConnectorData::get_connector_by_name(
                 connectors,
                 &connector,
                 api::GetToken::from(payment_method_type),
-            ) {
-                Ok(connector_data) => session_connector_data.push(api::SessionConnectorData {
+            )
+            .log_err_and_ok("session_token_error")
+            {
+                session_connector_data.push(api::SessionConnectorData {
                     payment_method_type,
                     connector: connector_data,
                     business_sub_label,
-                }),
-                Err(error) => {
-                    logger::error!(session_token_error=?error)
-                }
-            }
+                })
+            };
         }
 
         Ok(api::ConnectorChoice::SessionMultiple(
