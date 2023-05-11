@@ -450,7 +450,7 @@ async fn handle_response(
         .await
 }
 
-#[derive(Debug, Eq, PartialEq, Clone)]
+#[derive(Debug, Eq, PartialEq)]
 pub enum ApplicationResponse<R> {
     Json(R),
     StatusOk,

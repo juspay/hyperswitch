@@ -152,7 +152,7 @@ pub async fn accept_dispute(
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable_lazy(|| {
-            format!("Unable to update dispute with dispute_id: {}", dispute_id)
+            format!("Unable to update dispute with dispute_id: {dispute_id}")
         })?;
     let dispute_response = api_models::disputes::DisputeResponse::foreign_from(updated_dispute);
     Ok(services::ApplicationResponse::Json(dispute_response))
@@ -301,7 +301,7 @@ pub async fn submit_evidence(
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable_lazy(|| {
-            format!("Unable to update dispute with dispute_id: {}", dispute_id)
+            format!("Unable to update dispute with dispute_id: {dispute_id}")
         })?;
     let dispute_response = api_models::disputes::DisputeResponse::foreign_from(updated_dispute);
     Ok(services::ApplicationResponse::Json(dispute_response))
@@ -347,8 +347,8 @@ pub async fn attach_evidence(
         attach_evidence_request.create_file_request,
     )
     .await?;
-    let file_id = match create_file_response.clone() {
-        services::ApplicationResponse::Json(res) => res.file_id,
+    let file_id = match &create_file_response {
+        services::ApplicationResponse::Json(res) => res.file_id.clone(),
         _ => Err(errors::ApiErrorResponse::InternalServerError)
             .into_report()
             .attach_printable("Unexpected response received from files create core")?,
@@ -373,7 +373,7 @@ pub async fn attach_evidence(
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable_lazy(|| {
-            format!("Unable to update dispute with dispute_id: {}", dispute_id)
+            format!("Unable to update dispute with dispute_id: {dispute_id}")
         })?;
     Ok(create_file_response)
 }
