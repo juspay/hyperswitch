@@ -278,7 +278,7 @@ where
         _merchant_account: &storage::MerchantAccount,
         state: &AppState,
         _request: &api::VerifyRequest,
-        _payment_data: &PaymentData<F>,
+        _payment_intent: &storage::payment_intent::PaymentIntent,
     ) -> CustomResult<api::ConnectorChoice, errors::ApiErrorResponse> {
         helpers::get_connector_default(state, None).await
     }

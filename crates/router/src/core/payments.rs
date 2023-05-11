@@ -1077,7 +1077,7 @@ where
 {
     let connector_choice = operation
         .to_domain()?
-        .get_connector(merchant_account, state, req, &payment_data)
+        .get_connector(merchant_account, state, req, &payment_data.payment_intent)
         .await?;
 
     let connector = if should_call_connector(operation, payment_data) {

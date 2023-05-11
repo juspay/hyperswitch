@@ -127,7 +127,7 @@ pub trait Domain<F: Clone, R>: Send + Sync {
         merchant_account: &storage::MerchantAccount,
         state: &AppState,
         request: &R,
-        payment_data: &PaymentData<F>,
+        payment_intent: &storage::payment_intent::PaymentIntent,
     ) -> CustomResult<api::ConnectorChoice, errors::ApiErrorResponse>;
 }
 
@@ -197,7 +197,7 @@ where
         _merchant_account: &storage::MerchantAccount,
         state: &AppState,
         _request: &api::PaymentsRetrieveRequest,
-        _payment_data: &PaymentData<F>,
+        _payment_intent: &storage::payment_intent::PaymentIntent,
     ) -> CustomResult<api::ConnectorChoice, errors::ApiErrorResponse> {
         helpers::get_connector_default(state, None).await
     }
@@ -265,7 +265,7 @@ where
         _merchant_account: &storage::MerchantAccount,
         state: &AppState,
         _request: &api::PaymentsCaptureRequest,
-        _payment_data: &PaymentData<F>,
+        _payment_intent: &storage::payment_intent::PaymentIntent,
     ) -> CustomResult<api::ConnectorChoice, errors::ApiErrorResponse> {
         helpers::get_connector_default(state, None).await
     }
@@ -321,7 +321,7 @@ where
         _merchant_account: &storage::MerchantAccount,
         state: &AppState,
         _request: &api::PaymentsCancelRequest,
-        _payment_data: &PaymentData<F>,
+        _payment_intent: &storage::payment_intent::PaymentIntent,
     ) -> CustomResult<api::ConnectorChoice, errors::ApiErrorResponse> {
         helpers::get_connector_default(state, None).await
     }
