@@ -1459,11 +1459,12 @@ pub struct GpayTokenParameters {
     /// The merchant ID registered in the connector associated
     #[serde(skip_serializing_if = "Option::is_none")]
     pub gateway_merchant_id: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[serde(rename = "stripe:version")]
+    #[serde(skip_serializing_if = "Option::is_none", rename = "stripe:version")]
     pub stripe_version: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[serde(rename = "stripe:publishableKey")]
+    #[serde(
+        skip_serializing_if = "Option::is_none",
+        rename = "stripe:publishableKey"
+    )]
     pub stripe_publishable_key: Option<String>,
 }
 
