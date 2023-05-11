@@ -450,7 +450,7 @@ pub enum StripeBankNames {
     GetinBank,
     Blik,
     NoblePay,
-    #[serde(rename = "idea_bank")]
+    #[serde(rename = "ideabank")]
     IdeaBank,
     #[serde(rename = "envelobank")]
     EnveloBank,
