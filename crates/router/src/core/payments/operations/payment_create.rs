@@ -5,6 +5,7 @@ use common_utils::ext_traits::{AsyncExt, Encode, ValueExt};
 use error_stack::{self, ResultExt};
 use router_derive::PaymentOperation;
 use router_env::{instrument, tracing};
+use storage_models::ephemeral_key;
 use uuid::Uuid;
 
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
@@ -17,6 +18,7 @@ use crate::{
     },
     db::StorageInterface,
     routes::AppState,
+    services,
     types::{
         self,
         api::{self, PaymentIdTypeExt},
@@ -48,7 +50,13 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         Option<CustomerDetails>,
     )> {
         let db = &*state.store;
-
+        let ephemeral_key = match request.customer_id.clone() {
+            Some(customer_id) => {
+                self.create_ephemeral_key(state, customer_id, merchant_account.merchant_id.clone())
+                    .await
+            }
+            None => None,
+        };
         let merchant_id = &merchant_account.merchant_id;
         let storage_scheme = merchant_account.storage_scheme;
 
@@ -238,6 +246,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 creds_identifier,
                 pm_token: None,
                 connector_customer_id: None,
+                ephemeral_key,
             },
             Some(CustomerDetails {
                 customer_id: request.customer_id.clone(),
@@ -575,6 +584,22 @@ impl PaymentCreate {
             authentication_data: None,
             encoded_data: None,
         }
+    }
+
+    #[instrument(skip_all)]
+    pub async fn create_ephemeral_key(
+        &self,
+        state: &AppState,
+        customer_id: String,
+        merchant_id: String,
+    ) -> Option<ephemeral_key::EphemeralKey> {
+        let ephemeral_key: Option<ephemeral_key::EphemeralKey> =
+            match helpers::make_ephemeral_key(state, customer_id, merchant_id).await {
+                Ok(services::ApplicationResponse::Json(ek)) => Some(ek),
+                Ok(_) => None,
+                Err(_) => None,
+            };
+        ephemeral_key
     }
 }
 

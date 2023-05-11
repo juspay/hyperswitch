@@ -7,7 +7,9 @@ use router_derive::Setter;
 use time::PrimitiveDateTime;
 use utoipa::ToSchema;
 
-use crate::{admin, disputes, enums as api_enums, refunds};
+use crate::{
+    admin, disputes, enums as api_enums, ephemeral_key::EphemeralKeyCreateResponse, refunds,
+};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum PaymentOp {
@@ -1163,6 +1165,9 @@ pub struct PaymentsResponse {
     /// Allowed Payment Method Types for a given PaymentIntent
     #[schema(value_type = Option<Vec<PaymentMethodType>>)]
     pub allowed_payment_method_types: Option<Vec<api_enums::PaymentMethodType>>,
+
+    /// ephemeral_key for the customer_id mentioned
+    pub ephemeral_key: Option<EphemeralKeyCreateResponse>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, ToSchema)]

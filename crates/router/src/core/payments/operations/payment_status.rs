@@ -289,6 +289,7 @@ async fn get_tracker_for_sync<
             creds_identifier,
             pm_token: None,
             connector_customer_id: None,
+            ephemeral_key: None,
         },
         None,
     ))

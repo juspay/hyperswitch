@@ -4,6 +4,7 @@ pub mod configs;
 pub mod customers;
 pub mod disputes;
 pub mod enums;
+pub mod ephemeral_key;
 pub mod files;
 pub mod mandates;
 pub mod payment_methods;
