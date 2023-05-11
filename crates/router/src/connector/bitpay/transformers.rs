@@ -18,6 +18,7 @@ pub enum TransactionSpeed {
 }
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
+#[serde(rename_all = "camelCase")]
 pub struct BitpayPaymentsRequest {
     price: i64,
     currency: String,
@@ -25,7 +26,6 @@ pub struct BitpayPaymentsRequest {
     redirect_url: String,
     #[serde(rename = "notificationURL")]
     notification_url: String,
-    #[serde(rename = "transactionSpeed")]
     transaction_speed: TransactionSpeed,
     token: String,
 }
@@ -82,8 +82,8 @@ impl From<BitpayPaymentStatus> for enums::AttemptStatus {
 pub enum ExceptionStatus {
     #[default]
     Unit,
-    B(bool),
-    S(String),
+    Bool(bool),
+    String(String),
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
@@ -143,7 +143,6 @@ impl<F, T>
     }
 }
 
-//TODO: Fill the struct with respective fields
 // REFUND :
 // Type definition for RefundRequest
 #[derive(Default, Debug, Serialize)]
