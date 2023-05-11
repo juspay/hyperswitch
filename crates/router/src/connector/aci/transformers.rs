@@ -58,7 +58,7 @@ pub enum PaymentDetails {
     AciCard(Box<CardDetails>),
     BankRedirect(Box<BankRedirectionPMData>),
     #[serde(rename = "bank")]
-    Wallet,
+    Wallet(Box<WalletPMData>),
     Klarna,
 }
 
@@ -84,6 +84,15 @@ pub struct BankRedirectionPMData {
     shopper_result_url: Option<String>,
 }
 
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WalletPMData {
+    payment_brand: PaymentBrand,
+    #[serde(rename = "virtualAccount.accountId")]
+    account_id: Option<Secret<String>>,
+    shopper_result_url: Option<String>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum PaymentBrand {
@@ -94,6 +103,8 @@ pub enum PaymentBrand {
     InteracOnline,
     Przelewy,
     Trustly,
+    Mbway,
+    Alipay,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Serialize)]
@@ -146,7 +157,25 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for AciPaymentsRequest {
                 card_cvv: ccard.card_cvc,
             })),
             api::PaymentMethodData::PayLater(_) => PaymentDetails::Klarna,
-            api::PaymentMethodData::Wallet(_) => PaymentDetails::Wallet,
+            api::PaymentMethodData::Wallet(ref wallet_data) => match wallet_data {
+                api_models::payments::WalletData::MbWay(data) => {
+                    PaymentDetails::Wallet(Box::new(WalletPMData {
+                        payment_brand: PaymentBrand::Mbway,
+                        account_id: Some(data.telephone_number.clone()),
+                        shopper_result_url: item.request.router_return_url.clone(),
+                    }))
+                }
+                api_models::payments::WalletData::AliPay { .. } => {
+                    PaymentDetails::Wallet(Box::new(WalletPMData {
+                        payment_brand: PaymentBrand::Alipay,
+                        account_id: None,
+                        shopper_result_url: item.request.router_return_url.clone(),
+                    }))
+                }
+                _ => Err(errors::ConnectorError::NotImplemented(
+                    "Payment method".to_string(),
+                ))?,
+            },
             api::PaymentMethodData::BankRedirect(ref redirect_banking_data) => {
                 match redirect_banking_data {
                     api_models::payments::BankRedirectData::Eps { .. } => {

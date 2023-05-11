@@ -54,6 +54,7 @@ pub async fn construct_refund_router_data<'a, F>(
 
     let (amount, currency) = money;
 
+    print!("pm:-------{:?}", payment_attempt.payment_method);
     let payment_method_type = payment_attempt
         .payment_method
         .get_required_value("payment_method_type")?;
