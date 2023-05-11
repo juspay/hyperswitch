@@ -3,11 +3,11 @@ pub mod validator;
 use api_models::enums as api_enums;
 use error_stack::{report, ResultExt};
 use masking::Secret;
-use router_env::{instrument, logger, tracing};
+use router_env::{instrument, tracing};
 use serde_json::{self};
 use storage_models::enums as storage_enums;
 
-use super::errors::StorageErrorExt;
+use super::errors::{ConnectorErrorExt, StorageErrorExt};
 use crate::{
     consts,
     core::{
@@ -38,14 +38,20 @@ pub async fn payouts_create_core(
     let connector_name = api_enums::Connector::Adyen;
 
     // 1. Validate and insert in DB
-    let payout_create =
+    let (payout_create, mut payouts) =
         validate_request_and_form_payout_create(state, &merchant_account, &req, &connector_name)
             .await
             .change_context(errors::ApiErrorResponse::InvalidRequestData {
                 message: "Invalid data passed".to_string(),
             })
-            .attach_printable("Failed to validate and form PayoutCreate entry")
-            .map_or(storage::payout_create::PayoutCreate::default(), |pc| pc);
+            .attach_printable("Failed to validate and form PayoutCreate and Payouts entry")
+            .map_or(
+                (
+                    storage::payout_create::PayoutCreate::default(),
+                    storage::payouts::Payouts::default(),
+                ),
+                |(pc, p)| (pc, p),
+            );
 
     // 2. Form connector data
     let connector_data: api::ConnectorData = api::ConnectorData::get_connector_by_name(
@@ -57,80 +63,74 @@ pub async fn payouts_create_core(
     .attach_printable("Failed to get the connector data")?;
 
     // 3. Eligibility flow
-    let payouts = check_payout_eligibility(
-        state,
-        &merchant_account,
-        &key_store,
-        &req,
-        &connector_data,
-        &payout_create,
-    )
-    .await
-    .change_context(errors::ApiErrorResponse::InvalidRequestData {
-        message: "Eligibility failed".to_string(),
-    })
-    .attach_printable("Eligibility failed for given Payout request")
-    .map_or(storage::payouts::Payouts::default(), |up| up);
+    if payout_create.payout_type == storage_enums::PayoutType::Card {
+        payouts = check_payout_eligibility(
+            state,
+            &merchant_account,
+            &key_store,
+            &req,
+            &connector_data,
+            &payout_create,
+            &payouts,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InvalidRequestData {
+            message: "Eligibility failed".to_string(),
+        })
+        .attach_printable("Eligibility failed for given Payout request")?;
+    }
 
     // 4. Payout creation flow
-    let _creation_response = create_payout(
+    utils::when(!payouts.is_eligible.unwrap_or(true), || {
+        Err(report!(errors::ApiErrorResponse::PayoutFailed {
+            data: Some(serde_json::json!({
+                "message": "Payout method data is invalid"
+            }))
+        })
+        .attach_printable("Payout data provided is invalid"))
+    })?;
+    payouts = create_payout(
         state,
         &merchant_account,
         &key_store,
         &req,
         &connector_data,
         &payout_create,
+        &payouts,
     )
     .await
     .change_context(errors::ApiErrorResponse::InvalidRequestData {
         message: "Payout creation failed".to_string(),
     })
-    .attach_printable("Payout creation failed for given Payout request")
-    .map_or(storage::payouts::Payouts::default(), |up| up);
+    .attach_printable("Payout creation failed for given Payout request")?;
 
     // 5. Auto fulfillment flow
-    let _fulfillment_response = fulfill_payout(
-        state,
-        &merchant_account,
-        &key_store,
-        &req,
-        &connector_data,
-        &payout_create,
-    )
-    .await
-    .change_context(errors::ApiErrorResponse::InvalidRequestData {
-        message: "Payout fulfillment failed".to_string(),
-    })
-    .attach_printable("Payout fulfillment failed for given Payout request")
-    .map_or(storage::payouts::Payouts::default(), |up| up);
+    if payout_create.auto_fulfill {
+        payouts = fulfill_payout(
+            state,
+            &merchant_account,
+            &key_store,
+            &req,
+            &connector_data,
+            &payout_create,
+            &payouts,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InvalidRequestData {
+            message: "Payout fulfillment failed".to_string(),
+        })
+        .attach_printable("Payout fulfillment failed for given Payout request")?;
+    }
 
     // 6. Send back response
-    Ok(services::ApplicationResponse::Json(
-        api::PayoutCreateResponse {
-            payout_id: payout_create.payout_id,
-            merchant_id: merchant_account.merchant_id.clone(),
-            amount: payout_create.amount,
-            currency: api_enums::Currency::foreign_from(payout_create.destination_currency),
-            connector: Some(payouts.connector),
-            payout_type: api_enums::PayoutType::foreign_from(payout_create.payout_type),
-            billing: req.billing,
-            customer_id: payout_create.customer_id,
-            auto_fulfilled: req.auto_fulfilled.unwrap_or(false),
-            email: req.email,
-            name: req.name,
-            phone: req.phone,
-            phone_country_code: req.phone_country_code,
-            client_secret: None, // FIXME: Add client secret
-            return_url: payout_create.return_url,
-            business_country: req.business_country,
-            business_label: req.business_label,
-            description: payout_create.description,
-            entity_type: api_enums::EntityType::foreign_from(payout_create.entity_type),
-            recurring: payout_create.recurring,
-            metadata: payout_create.metadata,
-            status: api_enums::PayoutStatus::foreign_from(payouts.status),
-        },
-    ))
+    response_handler(
+        state,
+        &merchant_account,
+        &payouts::PayoutRequest::PayoutCreateRequest(req),
+        &payout_create,
+        &payouts,
+    )
+    .await
 }
 
 pub async fn payouts_retrieve_core(
@@ -138,46 +138,28 @@ pub async fn payouts_retrieve_core(
     merchant_account: domain::MerchantAccount,
     req: payouts::PayoutRetrieveRequest,
 ) -> RouterResponse<payouts::PayoutCreateResponse> {
-    let (merchant_id, payout_id, payout, payout_create);
+    let (merchant_id, payout_id, payouts, payout_create);
     let db = &*state.store;
 
-    payout_id = req.payout_id;
+    payout_id = req.payout_id.to_owned();
     merchant_id = &merchant_account.merchant_id;
     payout_create = db
         .find_payout_create_by_merchant_id_payout_id(merchant_id, &payout_id)
         .await
         .to_not_found_response(errors::ApiErrorResponse::PayoutNotFound)?;
-    payout = db
+    payouts = db
         .find_payout_by_merchant_id_payout_id(merchant_id, &payout_id)
         .await
         .to_not_found_response(errors::ApiErrorResponse::PayoutNotFound)?;
 
-    Ok(services::ApplicationResponse::Json(
-        api::PayoutCreateResponse {
-            payout_id: payout_create.payout_id,
-            merchant_id: merchant_account.merchant_id.clone(),
-            amount: payout_create.amount,
-            customer_id: payout_create.customer_id,
-            currency: api_enums::Currency::foreign_from(payout_create.destination_currency),
-            connector: Some(payout.connector),
-            payout_type: api_enums::PayoutType::foreign_from(payout_create.payout_type),
-            billing: None, // FIXME: Store + Fetch from DB
-            auto_fulfilled: payout_create.auto_fulfill,
-            email: Some(Secret::new("".to_string())), // FIXME: Store + Fetch from DB
-            name: Some(Secret::new("".to_string())),  // FIXME: Store + Fetch from DB
-            phone: Some(Secret::new("".to_string())), // FIXME: Store + Fetch from DB
-            phone_country_code: Some("".to_string()), // FIXME: Store + Fetch from DB
-            client_secret: None,
-            return_url: payout_create.return_url,
-            business_country: None, // FIXME: Fetch from MCA
-            business_label: None,   // FIXME: Fetch from MCA
-            description: payout_create.description,
-            entity_type: api_enums::EntityType::foreign_from(payout_create.entity_type),
-            recurring: payout_create.recurring,
-            metadata: payout_create.metadata,
-            status: api_enums::PayoutStatus::foreign_from(payout.status),
-        },
-    ))
+    response_handler(
+        state,
+        &merchant_account,
+        &payouts::PayoutRequest::PayoutRetrieveRequest(req),
+        &payout_create,
+        &payouts,
+    )
+    .await
 }
 
 // ********************************************** HELPERS **********************************************
@@ -187,9 +169,12 @@ pub async fn validate_request_and_form_payout_create(
     merchant_account: &domain::MerchantAccount,
     req: &payouts::PayoutCreateRequest,
     connector_name: &api_enums::Connector,
-) -> RouterResult<storage::payout_create::PayoutCreate> {
+) -> RouterResult<(
+    storage::payout_create::PayoutCreate,
+    storage::payouts::Payouts,
+)> {
     let db = &*state.store;
-    let (address_id, customer_id, payout_id, currency, payout_create_req, payouts_req);
+    let (address_id, customer_id, payout_id, currency, payout_create_req, payouts_req, payouts);
 
     // Create address_id FIXME: Handle addresses
     address_id = utils::generate_id(consts::ID_LENGTH, "addr");
@@ -227,7 +212,19 @@ pub async fn validate_request_and_form_payout_create(
             &merchant_account.merchant_id
         )
     })? {
-        Some(payout) => payout,
+        Some(payout) => {
+            payouts = db
+                .find_payout_by_merchant_id_payout_id(
+                    &merchant_account.merchant_id,
+                    &payout_id.to_owned(),
+                )
+                .await
+                .to_duplicate_response(errors::ApiErrorResponse::DuplicatePayout {
+                    payout_id: payout_id.to_owned(),
+                })
+                .attach_printable("Error finding payouts in db")?;
+            payout
+        }
         None => {
             currency = req
                 .currency
@@ -239,6 +236,7 @@ pub async fn validate_request_and_form_payout_create(
                 .set_customer_id(customer_id.to_owned())
                 .set_merchant_id(merchant_account.merchant_id.to_owned())
                 .set_address_id(address_id.to_owned())
+                .set_connector_payout_id(String::default())
                 .set_connector(connector_name.to_string())
                 .set_payout_method_data(Some(
                     serde_json::to_value(&req.payout_method_data)
@@ -260,7 +258,7 @@ pub async fn validate_request_and_form_payout_create(
                 .set_source_currency(currency)
                 .set_description(req.description.to_owned().unwrap_or("".to_string()))
                 .set_recurring(req.recurring.unwrap_or(false))
-                .set_auto_fulfill(req.auto_fulfilled.unwrap_or(false))
+                .set_auto_fulfill(req.auto_fulfill.unwrap_or(false))
                 .set_return_url(req.return_url.to_owned())
                 .set_entity_type(storage_enums::EntityType::foreign_from(
                     req.entity_type.unwrap_or(api_enums::EntityType::default()),
@@ -270,19 +268,24 @@ pub async fn validate_request_and_form_payout_create(
                 .set_last_modified_at(Some(common_utils::date_time::now()))
                 .to_owned();
 
-            db.insert_payout(payouts_req)
+            payouts = db
+                .insert_payout(payouts_req)
                 .await
-                .to_duplicate_response(errors::ApiErrorResponse::DuplicateRefundRequest)
+                .to_duplicate_response(errors::ApiErrorResponse::DuplicatePayout {
+                    payout_id: payout_id.to_owned(),
+                })
                 .attach_printable("Error inserting payouts in db")?;
 
             db.insert_payout_create(payout_create_req)
                 .await
-                .to_duplicate_response(errors::ApiErrorResponse::DuplicateRefundRequest)
+                .to_duplicate_response(errors::ApiErrorResponse::DuplicatePayout {
+                    payout_id: payout_id.to_owned(),
+                })
                 .attach_printable("Error inserting payout_create in db")?
         }
     };
 
-    Ok(payout)
+    Ok((payout, payouts))
 }
 
 pub async fn check_payout_eligibility(
@@ -292,6 +295,7 @@ pub async fn check_payout_eligibility(
     req: &payouts::PayoutCreateRequest,
     connector_data: &api::ConnectorData,
     payout_create: &storage::payout_create::PayoutCreate,
+    _payouts: &storage::payouts::Payouts,
 ) -> RouterResult<storage::payouts::Payouts> {
     // 1. Form Router data
     let router_data = core_utils::construct_payout_router_data(
@@ -322,18 +326,18 @@ pub async fn check_payout_eligibility(
         None,
     )
     .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("Failed to get connector response")?;
+    .to_payout_failed_response()?;
 
     // 4. Process data returned by the connector
     let db = &*state.store;
     let updated_payouts = match router_data_resp.response {
         Ok(payout_response_data) => {
             let updated_payouts = storage::payouts::PayoutsUpdate::StatusUpdate {
-                connector_payout_id: payout_response_data.connector_payout_id.unwrap_or_default(),
+                connector_payout_id: payout_response_data.connector_payout_id,
                 status: payout_response_data.status,
                 error_code: None,
                 error_message: None,
+                is_eligible: payout_response_data.payout_eligible,
             };
             db.update_payout_by_merchant_id_payout_id(
                 &merchant_account.merchant_id,
@@ -342,7 +346,7 @@ pub async fn check_payout_eligibility(
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Error updating payment_create in db")?
+            .attach_printable("Error updating payouts in db")?
         }
         Err(err) => {
             let updated_payouts = storage::payouts::PayoutsUpdate::StatusUpdate {
@@ -350,8 +354,8 @@ pub async fn check_payout_eligibility(
                 status: storage_enums::PayoutStatus::Failed,
                 error_code: Some(err.code),
                 error_message: Some(err.message),
+                is_eligible: None,
             };
-            logger::debug!("PAYOUT ERR {:?}", updated_payouts);
             db.update_payout_by_merchant_id_payout_id(
                 &merchant_account.merchant_id,
                 &payout_create.payout_id,
@@ -359,7 +363,7 @@ pub async fn check_payout_eligibility(
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Error updating payment_create in db")?
+            .attach_printable("Error updating payouts in db")?
         }
     };
 
@@ -373,6 +377,7 @@ pub async fn create_payout(
     req: &payouts::PayoutCreateRequest,
     connector_data: &api::ConnectorData,
     payout_create: &storage::payout_create::PayoutCreate,
+    _payouts: &storage::payouts::Payouts,
 ) -> RouterResult<storage::payouts::Payouts> {
     // 1. Form Router data
     let router_data = core_utils::construct_payout_router_data(
@@ -403,18 +408,18 @@ pub async fn create_payout(
         None,
     )
     .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("Failed to get connector response")?;
+    .to_payout_failed_response()?;
 
     // 4. Process data returned by the connector
     let db = &*state.store;
     let updated_payouts = match router_data_resp.response {
         Ok(payout_response_data) => {
             let updated_payouts = storage::payouts::PayoutsUpdate::StatusUpdate {
-                connector_payout_id: payout_response_data.connector_payout_id.unwrap_or_default(),
+                connector_payout_id: payout_response_data.connector_payout_id,
                 status: payout_response_data.status,
                 error_code: None,
                 error_message: None,
+                is_eligible: payout_response_data.payout_eligible,
             };
             db.update_payout_by_merchant_id_payout_id(
                 &merchant_account.merchant_id,
@@ -423,7 +428,7 @@ pub async fn create_payout(
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Error updating payment_create in db")?
+            .attach_printable("Error updating payouts in db")?
         }
         Err(err) => {
             let updated_payouts = storage::payouts::PayoutsUpdate::StatusUpdate {
@@ -431,8 +436,8 @@ pub async fn create_payout(
                 status: storage_enums::PayoutStatus::Failed,
                 error_code: Some(err.code),
                 error_message: Some(err.message),
+                is_eligible: None,
             };
-            logger::debug!("PAYOUT ERR {:?}", updated_payouts);
             db.update_payout_by_merchant_id_payout_id(
                 &merchant_account.merchant_id,
                 &payout_create.payout_id,
@@ -440,7 +445,7 @@ pub async fn create_payout(
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Error updating payment_create in db")?
+            .attach_printable("Error updating payouts in db")?
         }
     };
 
@@ -454,6 +459,7 @@ pub async fn fulfill_payout(
     req: &payouts::PayoutCreateRequest,
     connector_data: &api::ConnectorData,
     payout_create: &storage::payout_create::PayoutCreate,
+    _payouts: &storage::payouts::Payouts,
 ) -> RouterResult<storage::payouts::Payouts> {
     // 1. Form Router data
     let router_data = core_utils::construct_payout_router_data(
@@ -484,18 +490,18 @@ pub async fn fulfill_payout(
         None,
     )
     .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("Failed to get connector response")?;
+    .to_payout_failed_response()?;
 
     // 4. Process data returned by the connector
     let db = &*state.store;
     let updated_payouts = match router_data_resp.response {
         Ok(payout_response_data) => {
             let updated_payouts = storage::payouts::PayoutsUpdate::StatusUpdate {
-                connector_payout_id: payout_response_data.connector_payout_id.unwrap_or_default(),
+                connector_payout_id: payout_response_data.connector_payout_id,
                 status: payout_response_data.status,
                 error_code: None,
                 error_message: None,
+                is_eligible: payout_response_data.payout_eligible,
             };
             db.update_payout_by_merchant_id_payout_id(
                 &merchant_account.merchant_id,
@@ -504,7 +510,7 @@ pub async fn fulfill_payout(
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Error updating payment_create in db")?
+            .attach_printable("Error updating payouts in db")?
         }
         Err(err) => {
             let updated_payouts = storage::payouts::PayoutsUpdate::StatusUpdate {
@@ -512,8 +518,8 @@ pub async fn fulfill_payout(
                 status: storage_enums::PayoutStatus::Failed,
                 error_code: Some(err.code),
                 error_message: Some(err.message),
+                is_eligible: None,
             };
-            logger::debug!("PAYOUT ERR {:?}", updated_payouts);
             db.update_payout_by_merchant_id_payout_id(
                 &merchant_account.merchant_id,
                 &payout_create.payout_id,
@@ -521,9 +527,50 @@ pub async fn fulfill_payout(
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Error updating payment_create in db")?
+            .attach_printable("Error updating payouts in db")?
         }
     };
 
     Ok(updated_payouts)
+}
+
+pub async fn response_handler(
+    _state: &AppState,
+    merchant_account: &domain::MerchantAccount,
+    _req: &payouts::PayoutRequest,
+    payout_create: &storage::payout_create::PayoutCreate,
+    payouts: &storage::payouts::Payouts,
+) -> RouterResponse<payouts::PayoutCreateResponse> {
+    let status = api_enums::PayoutStatus::foreign_from(payouts.status.to_owned());
+    let currency = api_enums::Currency::foreign_from(payout_create.destination_currency.to_owned());
+    let entity_type = api_enums::EntityType::foreign_from(payout_create.entity_type.to_owned());
+    let payout_type = api_enums::PayoutType::foreign_from(payout_create.payout_type.to_owned());
+
+    let response = api::PayoutCreateResponse {
+        payout_id: payout_create.payout_id.to_owned(),
+        merchant_id: merchant_account.merchant_id.to_owned(),
+        amount: payout_create.amount.to_owned(),
+        currency,
+        connector: Some(payouts.connector.to_owned()),
+        payout_type,
+        billing: None, // FIXME: Store + Fetch from DB
+        customer_id: payout_create.customer_id.to_owned(),
+        auto_fulfill: payout_create.auto_fulfill,
+        email: Some(Secret::new("".to_string())), // FIXME: Store + Fetch from DB
+        name: Some(Secret::new("".to_string())),  // FIXME: Store + Fetch from DB
+        phone: Some(Secret::new("".to_string())), // FIXME: Store + Fetch from DB
+        phone_country_code: Some("".to_string()), // FIXME: Store + Fetch from DB
+        client_secret: None,
+        return_url: payout_create.return_url.to_owned(),
+        business_country: None, // FIXME: Fetch from MCA
+        business_label: None,   // FIXME: Fetch from MCA
+        description: payout_create.description.to_owned(),
+        entity_type,
+        recurring: payout_create.recurring,
+        metadata: payout_create.metadata.to_owned(),
+        status,
+        error_message: payouts.error_message.to_owned(),
+        error_code: payouts.error_code.to_owned(),
+    };
+    Ok(services::ApplicationResponse::Json(response))
 }
