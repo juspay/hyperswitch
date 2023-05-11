@@ -8,14 +8,14 @@ use crate::{
 };
 
 #[derive(Clone, Copy)]
-struct OpennodeTest;
-impl ConnectorActions for OpennodeTest {}
-impl utils::Connector for OpennodeTest {
+struct BitpayTest;
+impl ConnectorActions for BitpayTest {}
+impl utils::Connector for BitpayTest {
     fn get_data(&self) -> types::api::ConnectorData {
-        use router::connector::Opennode;
+        use router::connector::Bitpay;
         types::api::ConnectorData {
-            connector: Box::new(&Opennode),
-            connector_name: types::Connector::Opennode,
+            connector: Box::new(&Bitpay),
+            connector_name: types::Connector::Bitpay,
             get_token: types::api::GetToken::Connector,
         }
     }
@@ -23,17 +23,17 @@ impl utils::Connector for OpennodeTest {
     fn get_auth_token(&self) -> types::ConnectorAuthType {
         types::ConnectorAuthType::from(
             connector_auth::ConnectorAuthentication::new()
-                .opennode
+                .bitpay
                 .expect("Missing connector authentication configuration"),
         )
     }
 
     fn get_name(&self) -> String {
-        "opennode".to_string()
+        "bitpay".to_string()
     }
 }
 
-static CONNECTOR: OpennodeTest = OpennodeTest {};
+static CONNECTOR: BitpayTest = BitpayTest {};
 
 fn get_default_payment_info() -> Option<utils::PaymentInfo> {
     Some(utils::PaymentInfo {
@@ -56,7 +56,6 @@ fn get_default_payment_info() -> Option<utils::PaymentInfo> {
             }),
             ..Default::default()
         }),
-        return_url: Some(String::from("https://google.com")),
         ..Default::default()
     })
 }
@@ -96,8 +95,8 @@ async fn should_only_authorize_payment() {
         .authorize_payment(payment_method_details(), get_default_payment_info())
         .await
         .expect("Authorize payment response");
+    let resp = response.clone().response.ok().unwrap();
     assert_eq!(response.status, enums::AttemptStatus::AuthenticationPending);
-    let resp = response.response.ok().unwrap();
     let endpoint = match resp {
         types::PaymentsResponseData::TransactionResponse {
             redirection_data, ..
@@ -115,7 +114,7 @@ async fn should_sync_authorized_payment() {
             enums::AttemptStatus::Authorized,
             Some(types::PaymentsSyncData {
                 connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
-                    "5adebfb1-802e-432b-8b42-5db4b754b2eb".to_string(),
+                    "NPf27TDfyU5mhcTCw2oaq4".to_string(),
                 ),
                 ..Default::default()
             }),
@@ -126,25 +125,6 @@ async fn should_sync_authorized_payment() {
     assert_eq!(response.status, enums::AttemptStatus::Charged);
 }
 
-// Synchronizes a unresovled(underpaid) transaction.
-#[actix_web::test]
-async fn should_sync_unresolved_payment() {
-    let response = CONNECTOR
-        .psync_retry_till_status_matches(
-            enums::AttemptStatus::Authorized,
-            Some(types::PaymentsSyncData {
-                connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
-                    "4cf63e6b-5135-49cb-997f-6e0b30fecebc".to_string(),
-                ),
-                ..Default::default()
-            }),
-            get_default_payment_info(),
-        )
-        .await
-        .expect("PSync response");
-    assert_eq!(response.status, enums::AttemptStatus::Unresolved);
-}
-
 // Synchronizes a expired transaction.
 #[actix_web::test]
 async fn should_sync_expired_payment() {
@@ -153,7 +133,7 @@ async fn should_sync_expired_payment() {
             enums::AttemptStatus::Authorized,
             Some(types::PaymentsSyncData {
                 connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
-                    "c36a097a-5091-4317-8749-80343a71c1c4".to_string(),
+                    "bUsFf4RjQEahjbjGcETRS".to_string(),
                 ),
                 ..Default::default()
             }),
