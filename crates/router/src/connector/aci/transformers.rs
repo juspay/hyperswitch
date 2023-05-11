@@ -218,6 +218,18 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for AciPaymentsRequest {
                             merchant_customer_id: None,
                             merchant_transaction_id: None,
                             customer_email: Some(email.to_owned()),
+
+                            shopper_result_url: item.request.router_return_url.clone(),
+                        }))
+                    }
+                    api_models::payments::BankRedirectData::Interac { email, country } => {
+                        PaymentDetails::BankRedirect(Box::new(BankRedirectionPMData {
+                            payment_brand: PaymentBrand::InteracOnline,
+                            bank_account_country: Some(*country),
+                            bank_account_bank_name: None,
+                            bank_account_bic: None,
+                            bank_account_iban: None,
+                            customer_email: Some(email.to_owned()),
                             shopper_result_url: item.request.router_return_url.clone(),
                         }))
                     }

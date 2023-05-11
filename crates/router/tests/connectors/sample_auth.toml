@@ -63,6 +63,9 @@ api_secret = "secret"
 api_key = "api_key"
 key1= "key1"
 
+[nmi]
+api_key = "NMI API Key"
+
 [nuvei]
 api_key = "api_key"
 key1 = "key1"
@@ -96,6 +99,9 @@ key1 = "key1"
 api_key = "api_key"
 key1 = "key1"
 api_secret = "secret"
+
+[bitpay]
+api_key="API Key"
 
 [iatapay]
 key1 = "key1"

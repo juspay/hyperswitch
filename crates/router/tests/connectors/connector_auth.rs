@@ -10,6 +10,7 @@ pub(crate) struct ConnectorAuthentication {
     pub airwallex: Option<BodyKey>,
     pub authorizedotnet: Option<BodyKey>,
     pub bambora: Option<BodyKey>,
+    pub bitpay: Option<HeaderKey>,
     pub bluesnap: Option<BodyKey>,
     pub checkout: Option<SignatureKey>,
     pub coinbase: Option<HeaderKey>,
@@ -23,7 +24,8 @@ pub(crate) struct ConnectorAuthentication {
     pub iatapay: Option<SignatureKey>,
     pub mollie: Option<HeaderKey>,
     pub multisafepay: Option<HeaderKey>,
-    pub nexinets: Option<BodyKey>,
+    pub nexinets: Option<HeaderKey>,
+    pub nmi: Option<HeaderKey>,
     pub nuvei: Option<SignatureKey>,
     pub opennode: Option<HeaderKey>,
     pub payeezy: Option<SignatureKey>,
@@ -41,6 +43,8 @@ pub(crate) struct ConnectorAuthentication {
 impl ConnectorAuthentication {
     #[allow(clippy::expect_used)]
     pub(crate) fn new() -> Self {
+        // Do `export CONNECTOR_AUTH_FILE_PATH="/hyperswitch/crates/router/tests/connectors/sample_auth.toml"`
+        // before running tests
         let path = env::var("CONNECTOR_AUTH_FILE_PATH")
             .expect("connector authentication file path not set");
         toml::from_str(

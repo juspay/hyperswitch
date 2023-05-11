@@ -100,7 +100,6 @@ pub type PaymentsSessionType =
     dyn services::ConnectorIntegration<api::Session, PaymentsSessionData, PaymentsResponseData>;
 pub type PaymentsVoidType =
     dyn services::ConnectorIntegration<api::Void, PaymentsCancelData, PaymentsResponseData>;
-
 pub type TokenizationType = dyn services::ConnectorIntegration<
     api::PaymentMethodToken,
     PaymentMethodTokenizationData,
