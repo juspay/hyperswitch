@@ -57,7 +57,6 @@ pub enum PaymentDetails {
     #[serde(rename = "card")]
     AciCard(Box<CardDetails>),
     BankRedirect(Box<BankRedirectionPMData>),
-    #[serde(rename = "bank")]
     Wallet(Box<WalletPMData>),
     Klarna,
 }
@@ -104,7 +103,8 @@ pub enum PaymentBrand {
     Przelewy,
     Trustly,
     Mbway,
-    Alipay,
+    #[serde(rename = "ALIPAY")]
+    AliPay,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Serialize)]
@@ -167,7 +167,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for AciPaymentsRequest {
                 }
                 api_models::payments::WalletData::AliPay { .. } => {
                     PaymentDetails::Wallet(Box::new(WalletPMData {
-                        payment_brand: PaymentBrand::Alipay,
+                        payment_brand: PaymentBrand::AliPay,
                         account_id: None,
                         shopper_result_url: item.request.router_return_url.clone(),
                     }))
