@@ -3,7 +3,6 @@
 //! & inbuilt datatypes.
 //!
 
-use std::fmt::Display;
 
 use error_stack::{IntoReport, ResultExt};
 use masking::{ExposeInterface, Secret, Strategy};
@@ -448,7 +447,7 @@ pub trait ResultExtLog<T> {
 
 impl<T, E> ResultExtLog<T> for Result<T, E>
 where
-    E: Display + std::fmt::Debug,
+    E: std::fmt::Display,
 {
     fn log_err_and_ok(self, key: &str) -> Option<T> {
         self.map_err(|err| {
