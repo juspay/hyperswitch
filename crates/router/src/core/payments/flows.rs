@@ -74,7 +74,7 @@ pub trait Feature<F, T> {
         &self,
         _state: &AppState,
         _connector: &api::ConnectorData,
-        _customer: &Option<storage::Customer>,
+        _connector_customer_map: Option<serde_json::Map<String, serde_json::Value>>,
     ) -> RouterResult<(Option<String>, Option<storage::CustomerUpdate>)>
     where
         F: Clone,
@@ -108,7 +108,6 @@ default_imp_for_complete_authorize!(
     connector::Adyen,
     connector::Authorizedotnet,
     connector::Bitpay,
-    connector::Bluesnap,
     connector::Braintree,
     connector::Checkout,
     connector::Coinbase,
@@ -155,7 +154,6 @@ default_imp_for_create_customer!(
     connector::Authorizedotnet,
     connector::Bambora,
     connector::Bitpay,
-    connector::Bluesnap,
     connector::Braintree,
     connector::Checkout,
     connector::Coinbase,
@@ -206,7 +204,6 @@ default_imp_for_connector_redirect_response!(
     connector::Adyen,
     connector::Authorizedotnet,
     connector::Bitpay,
-    connector::Bluesnap,
     connector::Braintree,
     connector::Coinbase,
     connector::Cybersource,
@@ -330,6 +327,14 @@ macro_rules! default_imp_for_file_upload{
                 api::Upload,
                 types::UploadFileRequestData,
                 types::UploadFileResponse,
+            > for $path::$connector
+            {}
+            impl api::RetrieveFile for $path::$connector {}
+            impl
+                services::ConnectorIntegration<
+                api::Retrieve,
+                types::RetrieveFileRequestData,
+                types::RetrieveFileResponse,
             > for $path::$connector
             {}
     )*

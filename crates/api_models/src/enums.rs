@@ -757,6 +757,7 @@ pub enum BankNames {
     #[serde(rename = "ePlatby VÚB")]
     EPlatbyVUB,
     ErsteBankUndSparkassen,
+    FrieslandBank,
     HypoAlpeadriabankInternationalAg,
     HypoNoeLbFurNiederosterreichUWien,
     HypoOberosterreichSalzburgSteiermark,
