@@ -635,6 +635,7 @@ pub enum BankRedirectData {
         #[schema(value_type = CountryAlpha2, example = "US")]
         country: api_enums::CountryAlpha2,
 
+        // Shopper Email
         email: Email,
     },
     OnlineBankingCzechRepublic {
@@ -670,7 +671,11 @@ pub enum BankRedirectData {
         preferred_language: String,
     },
     Swish {},
-    Trustly {},
+    Trustly {
+        /// The country for bank payment
+        #[schema(value_type = CountryAlpha2, example = "US")]
+        country: api_enums::CountryAlpha2,
+    },
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]

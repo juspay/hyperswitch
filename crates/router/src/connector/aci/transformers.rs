@@ -74,8 +74,13 @@ pub struct BankRedirectionPMData {
     bank_account_bic: Option<Secret<String>>,
     #[serde(rename = "bankAccount.iban")]
     bank_account_iban: Option<Secret<String>>,
+    #[serde(rename = "billing.country")]
+    billing_country: Option<api_models::enums::CountryAlpha2>,
     #[serde(rename = "customer.email")]
     customer_email: Option<Email>,
+    #[serde(rename = "customer.merchantCustomerId")]
+    merchant_customer_id: Option<Secret<String>>,
+    merchant_transaction_id: Option<Secret<String>>,
     shopper_result_url: Option<String>,
 }
 
@@ -151,6 +156,9 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for AciPaymentsRequest {
                             bank_account_bank_name: None,
                             bank_account_bic: None,
                             bank_account_iban: None,
+                            billing_country: None,
+                            merchant_customer_id: None,
+                            merchant_transaction_id: None,
                             customer_email: None,
                             shopper_result_url: item.request.router_return_url.clone(),
                         }))
@@ -165,6 +173,9 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for AciPaymentsRequest {
                         bank_account_bank_name: None,
                         bank_account_bic: bank_account_bic.clone(),
                         bank_account_iban: bank_account_iban.clone(),
+                        billing_country: None,
+                            merchant_customer_id: None,
+                            merchant_transaction_id: None,
                         customer_email: None,
                         shopper_result_url: item.request.router_return_url.clone(),
                     })),
@@ -175,6 +186,9 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for AciPaymentsRequest {
                             bank_account_bank_name: Some(bank_name.to_string()),
                             bank_account_bic: None,
                             bank_account_iban: None,
+                            billing_country: None,
+                            merchant_customer_id: None,
+                            merchant_transaction_id: None,
                             customer_email: None,
                             shopper_result_url: item.request.router_return_url.clone(),
                         }))
@@ -186,6 +200,9 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for AciPaymentsRequest {
                             bank_account_bank_name: None,
                             bank_account_bic: None,
                             bank_account_iban: None,
+                            billing_country: None,
+                            merchant_customer_id: None,
+                            merchant_transaction_id: None,
                             customer_email: None,
                             shopper_result_url: item.request.router_return_url.clone(),
                         }))
@@ -197,6 +214,9 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for AciPaymentsRequest {
                             bank_account_bank_name: None,
                             bank_account_bic: None,
                             bank_account_iban: None,
+                            billing_country: None,
+                            merchant_customer_id: None,
+                            merchant_transaction_id: None,
                             customer_email: Some(email.to_owned()),
                             shopper_result_url: item.request.router_return_url.clone(),
                         }))
@@ -208,10 +228,31 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for AciPaymentsRequest {
                             bank_account_bank_name: None,
                             bank_account_bic: None,
                             bank_account_iban: None,
+                            billing_country: None,
+                            merchant_customer_id: None,
+                            merchant_transaction_id: None,
                             customer_email: Some(email.to_owned()),
                             shopper_result_url: item.request.router_return_url.clone(),
                         }))
                     },
+                    api_models::payments::BankRedirectData::Trustly { country } => {
+                        PaymentDetails::BankRedirect(Box::new(BankRedirectionPMData {
+                            payment_brand: PaymentBrand::Trustly,
+                            bank_account_country: None,
+                            bank_account_bank_name: None,
+                            bank_account_bic: None,
+                            bank_account_iban: None,
+                            billing_country: Some(*country),
+                            merchant_customer_id: Some(Secret::new(item.customer_id.clone().ok_or(
+                                errors::ConnectorError::MissingRequiredField { 
+                                    field_name: "customer_id",
+                                },
+                            )?)),
+                            merchant_transaction_id: Some(Secret::new(item.payment_id.clone())),
+                            customer_email: None,
+                            shopper_result_url: item.request.router_return_url.clone(),
+                        }))
+                    }
                     _ => Err(errors::ConnectorError::NotImplemented(
                         "Payment method".to_string(),
                     ))?,
