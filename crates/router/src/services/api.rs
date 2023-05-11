@@ -231,6 +231,8 @@ where
                 })? {
                 Some(request) => {
                     logger::debug!(connector_request=?request);
+                    let request_payload = request.payload.clone().ok_or(errors::ConnectorError::ResponseDeserializationFailed)?;
+                    logger::debug!("Rishav2000 {:?}",request_payload.peek() );
                     let response = call_connector_api(state, request).await;
                     logger::debug!(connector_response=?response);
                     match response {
