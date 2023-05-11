@@ -536,7 +536,7 @@ where
 pub async fn call_multiple_connectors_service<F, Op, Req>(
     state: &AppState,
     merchant_account: &storage::MerchantAccount,
-    connectors: Vec<api::ConnectorData>,
+    connectors: Vec<api::SessionConnectorData>,
     _operation: &Op,
     mut payment_data: PaymentData<F>,
     customer: &Option<storage::Customer>,
@@ -558,15 +558,16 @@ where
     let call_connectors_start_time = Instant::now();
     let mut join_handlers = Vec::with_capacity(connectors.len());
 
-    for connector in connectors.iter() {
-        let connector_id = connector.connector.id();
+    for session_connector_data in connectors.iter() {
+        let connector_id = session_connector_data.connector.connector.id();
+
         let router_data = payment_data
             .construct_router_data(state, connector_id, merchant_account, customer)
             .await?;
 
         let res = router_data.decide_flows(
             state,
-            connector,
+            &session_connector_data.connector,
             customer,
             CallConnectorAction::Trigger,
             merchant_account,
@@ -577,8 +578,8 @@ where
 
     let result = join_all(join_handlers).await;
 
-    for (connector_res, connector) in result.into_iter().zip(connectors) {
-        let connector_name = connector.connector_name.to_string();
+    for (connector_res, session_connector) in result.into_iter().zip(connectors) {
+        let connector_name = session_connector.connector.connector_name.to_string();
         match connector_res {
             Ok(connector_response) => {
                 if let Ok(types::PaymentsResponseData::SessionResponse { session_token }) =
@@ -1076,18 +1077,13 @@ where
 {
     let connector_choice = operation
         .to_domain()?
-        .get_connector(merchant_account, state, req)
+        .get_connector(merchant_account, state, req, &payment_data.payment_intent)
         .await?;
 
     let connector = if should_call_connector(operation, payment_data) {
         Some(match connector_choice {
             api::ConnectorChoice::SessionMultiple(session_connectors) => {
-                api::ConnectorCallType::Multiple(
-                    session_connectors
-                        .into_iter()
-                        .map(|c| c.connector)
-                        .collect(),
-                )
+                api::ConnectorCallType::Multiple(session_connectors)
             }
 
             api::ConnectorChoice::StraightThrough(straight_through) => connector_selection(
