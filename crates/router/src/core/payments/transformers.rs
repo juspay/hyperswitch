@@ -1,5 +1,6 @@
 use std::{fmt::Debug, marker::PhantomData};
 
+use common_utils::fp_utils;
 use error_stack::{IntoReport, ResultExt};
 use router_env::{instrument, tracing};
 
@@ -51,6 +52,10 @@ where
         payment_data.creds_identifier.to_owned(),
     )
     .await?;
+
+    fp_utils::when(merchant_connector_account.is_disabled(), || {
+        Err(errors::ApiErrorResponse::MerchantConnectorAccountDisabled)
+    })?;
 
     let auth_type: types::ConnectorAuthType = merchant_connector_account
         .get_connector_account_details()

@@ -1570,6 +1570,13 @@ impl MerchantConnectorAccountType {
             Self::CacheVal(val) => val.connector_account_details.peek().to_owned(),
         }
     }
+
+    pub fn is_disabled(&self) -> bool {
+        match self {
+            Self::DbVal(ref inner) => inner.disabled.unwrap_or(false),
+            Self::CacheVal(_) => false,
+        }
+    }
 }
 
 pub async fn get_merchant_connector_account(
