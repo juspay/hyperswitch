@@ -642,6 +642,7 @@ pub enum BankRedirectData {
         #[schema(value_type = CountryAlpha2, example = "US")]
         country: api_enums::CountryAlpha2,
 
+        #[schema(value_type = String, example = "john.doe@example.com")]
         email: Email,
     },
     OnlineBankingCzechRepublic {
@@ -666,6 +667,7 @@ pub enum BankRedirectData {
     },
     Przelewy24 {
         // Shopper Email
+        #[schema(value_type = String, example = "john.doe@example.com")]
         email: Email,
     },
     Sofort {
