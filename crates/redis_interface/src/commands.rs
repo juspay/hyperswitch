@@ -80,6 +80,32 @@ impl super::RedisConnectionPool {
     }
 
     #[instrument(level = "DEBUG", skip(self))]
+    pub async fn serialize_and_set_key_with_expiry<V>(
+        &self,
+        key: &str,
+        value: V,
+        seconds: i64,
+    ) -> CustomResult<(), errors::RedisError>
+    where
+        V: serde::Serialize + Debug,
+    {
+        let serialized = Encode::<V>::encode_to_vec(&value)
+            .change_context(errors::RedisError::JsonSerializationFailed)?;
+
+        self.pool
+            .set(
+                key,
+                serialized.as_slice(),
+                Some(Expiration::EX(seconds)),
+                None,
+                false,
+            )
+            .await
+            .into_report()
+            .change_context(errors::RedisError::SetExFailed)
+    }
+
+    #[instrument(level = "DEBUG", skip(self))]
     pub async fn get_key<V>(&self, key: &str) -> CustomResult<V, errors::RedisError>
     where
         V: FromRedis + Unpin + Send + 'static,

@@ -4,6 +4,7 @@ use std::{
     str::FromStr,
 };
 
+use api_models::enums;
 use common_utils::ext_traits::ConfigExt;
 use config::{Environment, File};
 #[cfg(feature = "kms")]
@@ -62,7 +63,12 @@ pub struct Settings {
     pub api_keys: ApiKeys,
     #[cfg(feature = "kms")]
     pub kms: kms::KmsConfig,
+    #[cfg(feature = "s3")]
+    pub file_upload_config: FileUploadConfig,
     pub tokenization: TokenizationConfig,
+    pub connector_customer: ConnectorCustomer,
+    #[cfg(feature = "dummy_connector")]
+    pub dummy_connector: DummyConnector,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -70,10 +76,55 @@ pub struct Settings {
 pub struct TokenizationConfig(pub HashMap<String, PaymentMethodTokenFilter>);
 
 #[derive(Debug, Deserialize, Clone, Default)]
+pub struct ConnectorCustomer {
+    #[serde(deserialize_with = "connector_deser")]
+    pub connector_list: HashSet<api_models::enums::Connector>,
+}
+
+fn connector_deser<'a, D>(
+    deserializer: D,
+) -> Result<HashSet<api_models::enums::Connector>, D::Error>
+where
+    D: Deserializer<'a>,
+{
+    let value = <String>::deserialize(deserializer)?;
+    Ok(value
+        .trim()
+        .split(',')
+        .flat_map(api_models::enums::Connector::from_str)
+        .collect())
+}
+
+#[cfg(feature = "dummy_connector")]
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct DummyConnector {
+    pub payment_ttl: i64,
+    pub payment_duration: u64,
+    pub payment_tolerance: u64,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct PaymentMethodTokenFilter {
     #[serde(deserialize_with = "pm_deser")]
     pub payment_method: HashSet<storage_models::enums::PaymentMethod>,
+    pub payment_method_type: Option<PaymentMethodTypeTokenFilter>,
     pub long_lived_token: bool,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+#[serde(
+    deny_unknown_fields,
+    tag = "type",
+    content = "list",
+    rename_all = "snake_case"
+)]
+pub enum PaymentMethodTypeTokenFilter {
+    #[serde(deserialize_with = "pm_type_deser")]
+    EnableOnly(HashSet<storage_models::enums::PaymentMethodType>),
+    #[serde(deserialize_with = "pm_type_deser")]
+    DisableOnly(HashSet<storage_models::enums::PaymentMethodType>),
+    #[default]
+    AllAccepted,
 }
 
 fn pm_deser<'a, D>(
@@ -87,6 +138,21 @@ where
         .trim()
         .split(',')
         .map(storage_models::enums::PaymentMethod::from_str)
+        .collect::<Result<_, _>>()
+        .map_err(D::Error::custom)
+}
+
+fn pm_type_deser<'a, D>(
+    deserializer: D,
+) -> Result<HashSet<storage_models::enums::PaymentMethodType>, D::Error>
+where
+    D: Deserializer<'a>,
+{
+    let value = <String>::deserialize(deserializer)?;
+    value
+        .trim()
+        .split(',')
+        .map(storage_models::enums::PaymentMethodType::from_str)
         .collect::<Result<_, _>>()
         .map_err(D::Error::custom)
 }
@@ -110,7 +176,7 @@ pub struct ConnectorFilters(pub HashMap<String, PaymentMethodFilters>);
 
 #[derive(Debug, Deserialize, Clone, Default)]
 #[serde(transparent)]
-pub struct PaymentMethodFilters(pub HashMap<PaymentMethodFilterKey, CurrencyCountryFilter>);
+pub struct PaymentMethodFilters(pub HashMap<PaymentMethodFilterKey, CurrencyCountryFlowFilter>);
 
 #[derive(Debug, Deserialize, Clone, PartialEq, Eq, Hash)]
 #[serde(untagged)]
@@ -121,16 +187,22 @@ pub enum PaymentMethodFilterKey {
 
 #[derive(Debug, Deserialize, Clone, Default)]
 #[serde(default)]
-pub struct CurrencyCountryFilter {
+pub struct CurrencyCountryFlowFilter {
     #[serde(deserialize_with = "currency_set_deser")]
     pub currency: Option<HashSet<api_models::enums::Currency>>,
     #[serde(deserialize_with = "string_set_deser")]
-    pub country: Option<HashSet<api_models::enums::CountryCode>>,
+    pub country: Option<HashSet<api_models::enums::CountryAlpha2>>,
+    pub not_available_flows: Option<NotAvailableFlows>,
+}
+#[derive(Debug, Deserialize, Copy, Clone, Default)]
+#[serde(default)]
+pub struct NotAvailableFlows {
+    pub capture_method: Option<enums::CaptureMethod>,
 }
 
 fn string_set_deser<'a, D>(
     deserializer: D,
-) -> Result<Option<HashSet<api_models::enums::CountryCode>>, D::Error>
+) -> Result<Option<HashSet<api_models::enums::CountryAlpha2>>, D::Error>
 where
     D: Deserializer<'a>,
 {
@@ -139,7 +211,7 @@ where
         let list = inner
             .trim()
             .split(',')
-            .flat_map(api_models::enums::CountryCode::from_str)
+            .flat_map(api_models::enums::CountryAlpha2::from_str)
             .collect::<HashSet<_>>();
         match list.len() {
             0 => None,
@@ -236,6 +308,7 @@ pub struct Jwekey {
     pub locker_decryption_key2: String,
     pub vault_encryption_key: String,
     pub vault_private_key: String,
+    pub tunnel_private_key: String,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -286,19 +359,24 @@ pub struct Connectors {
     pub applepay: ConnectorParams,
     pub authorizedotnet: ConnectorParams,
     pub bambora: ConnectorParams,
+    pub bitpay: ConnectorParams,
     pub bluesnap: ConnectorParams,
     pub braintree: ConnectorParams,
     pub checkout: ConnectorParams,
     pub coinbase: ConnectorParams,
     pub cybersource: ConnectorParams,
     pub dlocal: ConnectorParams,
+    #[cfg(feature = "dummy_connector")]
+    pub dummyconnector: ConnectorParams,
     pub fiserv: ConnectorParams,
     pub forte: ConnectorParams,
     pub globalpay: ConnectorParams,
+    pub iatapay: ConnectorParams,
     pub klarna: ConnectorParams,
     pub mollie: ConnectorParams,
     pub multisafepay: ConnectorParams,
     pub nexinets: ConnectorParams,
+    pub nmi: ConnectorParams,
     pub nuvei: ConnectorParams,
     pub opennode: ConnectorParams,
     pub payeezy: ConnectorParams,
@@ -306,10 +384,11 @@ pub struct Connectors {
     pub payu: ConnectorParams,
     pub rapyd: ConnectorParams,
     pub shift4: ConnectorParams,
-    pub stripe: ConnectorParams,
+    pub stripe: ConnectorParamsWithFileUploadUrl,
+    pub trustpay: ConnectorParamsWithMoreUrls,
     pub worldline: ConnectorParams,
     pub worldpay: ConnectorParams,
-    pub trustpay: ConnectorParamsWithMoreUrls,
+    pub zen: ConnectorParams,
 
     // Keep this field separate from the remaining fields
     pub supported: SupportedConnectors,
@@ -326,6 +405,13 @@ pub struct ConnectorParams {
 pub struct ConnectorParamsWithMoreUrls {
     pub base_url: String,
     pub base_url_bank_redirects: String,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+#[serde(default)]
+pub struct ConnectorParamsWithFileUploadUrl {
+    pub base_url: String,
+    pub base_url_file_upload: String,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -385,6 +471,16 @@ pub struct ApiKeys {
     /// hashes of API keys
     #[cfg(not(feature = "kms"))]
     pub hash_key: String,
+}
+
+#[cfg(feature = "s3")]
+#[derive(Debug, Deserialize, Clone, Default)]
+#[serde(default)]
+pub struct FileUploadConfig {
+    /// The AWS region to send file uploads
+    pub region: String,
+    /// The AWS s3 bucket to send file uploads
+    pub bucket_name: String,
 }
 
 impl Settings {
@@ -465,7 +561,8 @@ impl Settings {
         self.kms
             .validate()
             .map_err(|error| ApplicationError::InvalidConfigurationValueError(error.into()))?;
-
+        #[cfg(feature = "s3")]
+        self.file_upload_config.validate()?;
         Ok(())
     }
 }

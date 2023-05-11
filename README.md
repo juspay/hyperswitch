@@ -52,21 +52,24 @@ Using HyperSwitch, you can:
 
 ## Quick Start Guide
 
-You have three options to try out HyperSwitch:
 
-1. [Try it in our Sandbox Environment](/docs/try_sandbox.md): Fast and easy to
+<a href="https://app.hyperswitch.io"><img src="./docs/imgs/signup-to-hs.svg" height="35"></a>
+
+Ways to get started with Hyperswitch:
+
+1. Try it in our Sandbox Environment: Fast and easy to
    start.
-   No code or setup required in your system.
-2. Try our React Demo App: A simple demo of integrating Hyperswitch with your
-   React app.
+   No code or setup required in your system, [learn more](/docs/try_sandbox.md)
 
-   <a href="https://github.com/aashu331998/hyperswitch-react-demo-app/archive/refs/heads/main.zip">
-   <img src= "./docs/imgs/download-button.png" alt="Download Now" width="190rem" />
-   </a>
 
-3. [Install in your local system](/docs/try_local_system.md): Configurations and
+<a href="https://app.hyperswitch.io"><img src="./docs/imgs/get-api-keys.svg" height="35"></a>
+
+2. A simple demo of integrating Hyperswitch with your React App, Try our React [Demo App](https://github.com/aashu331998/hyperswitch-react-demo-app/archive/refs/heads/main.zip).
+
+
+3. Install in your local system: Configurations and
    setup required in your system.
-   Suitable if you like to customize the core offering.
+   Suitable if you like to customize the core offering, [setup guide](/docs/try_local_system.md)
 
 ## Fast Integration for Stripe Users
 
@@ -85,7 +88,7 @@ Try the steps below to get a feel for how quick the setup is:
 
 ### Supported Payment Processors and Methods
 
-As of Jan 2023, we support 14 payment processors and multiple payment methods.
+As of Apr 2023, we support 30 payment processors and multiple payment methods.
 In addition, we are continuously integrating new processors based on their reach
 and community requests.
 Our target is to support 100+ processors by H2 2023.
@@ -128,7 +131,7 @@ You can [try the hosted version in our sandbox][dashboard].
 
 ## FAQs
 
-Got more more questions?
+Got more questions?
 Please refer to our [FAQs page][faqs].
 
 [faqs]: https://hyperswitch.io/docs/websiteFAQ
@@ -256,7 +259,7 @@ Get updates on HyperSwitch development and chat with the community:
 - Join our [Slack workspace][slack].
 - Ask and explore our [GitHub Discussions][github-discussions].
 
-[blog]: https://blog.hyperswitch.io
+[blog]: https://hyperswitch.io/blog
 [discord]: https://discord.gg/wJZ7DVW8mm
 [slack]: https://join.slack.com/t/hyperswitch-io/shared_invite/zt-1k6cz4lee-SAJzhz6bjmpp4jZCDOtOIg
 [github-discussions]: https://github.com/juspay/hyperswitch/discussions

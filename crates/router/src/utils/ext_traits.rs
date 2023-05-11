@@ -20,7 +20,7 @@ pub trait OptionExt<T> {
 
     fn parse_value<U>(self, type_name: &'static str) -> CustomResult<U, errors::ParsingError>
     where
-        T: ValueExt<U>,
+        T: ValueExt,
         U: serde::de::DeserializeOwned;
 
     fn update_value(&mut self, value: Option<T>);
@@ -67,7 +67,7 @@ where
 
     fn parse_value<U>(self, type_name: &'static str) -> CustomResult<U, errors::ParsingError>
     where
-        T: ValueExt<U>,
+        T: ValueExt,
         U: serde::de::DeserializeOwned,
     {
         let value = self

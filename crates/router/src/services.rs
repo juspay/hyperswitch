@@ -7,11 +7,13 @@ use std::sync::{atomic, Arc};
 
 use error_stack::{IntoReport, ResultExt};
 use redis_interface::{errors as redis_errors, PubsubInterface};
+use tokio::sync::oneshot;
 
 pub use self::{api::*, encryption::*};
 use crate::{
     async_spawn,
     cache::CONFIG_CACHE,
+    configs::settings,
     connection::{diesel_make_pg_pool, PgPool},
     consts,
     core::errors,
@@ -76,6 +78,10 @@ impl PubSubInterface for redis_interface::RedisConnectionPool {
     }
 }
 
+pub trait RedisConnInterface {
+    fn get_redis_conn(&self) -> Arc<redis_interface::RedisConnectionPool>;
+}
+
 #[derive(Clone)]
 pub struct Store {
     pub master_pool: PgPool,
@@ -94,22 +100,24 @@ pub(crate) struct StoreConfig {
 }
 
 impl Store {
-    pub async fn new(config: &crate::configs::settings::Settings, test_transaction: bool) -> Self {
+    pub async fn new(
+        config: &settings::Settings,
+        test_transaction: bool,
+        shut_down_signal: oneshot::Sender<()>,
+    ) -> Self {
         let redis_conn = Arc::new(crate::connection::redis_connection(config).await);
         let redis_clone = redis_conn.clone();
 
         let subscriber_conn = redis_conn.clone();
 
         redis_conn.subscribe(consts::PUB_SUB_CHANNEL).await.ok();
-
         async_spawn!({
             if let Err(e) = subscriber_conn.on_message().await {
                 logger::error!(pubsub_err=?e);
             }
         });
-
         async_spawn!({
-            redis_clone.on_error().await;
+            redis_clone.on_error(shut_down_signal).await;
         });
 
         Self {
@@ -179,5 +187,11 @@ impl Store {
             )
             .await
             .change_context(crate::core::errors::StorageError::KVError)
+    }
+}
+
+impl RedisConnInterface for Store {
+    fn get_redis_conn(&self) -> Arc<redis_interface::RedisConnectionPool> {
+        self.redis_conn.clone()
     }
 }

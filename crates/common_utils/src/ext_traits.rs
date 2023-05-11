@@ -5,6 +5,7 @@
 
 use error_stack::{IntoReport, ResultExt};
 use masking::{ExposeInterface, Secret, Strategy};
+use quick_xml::de;
 use serde::{Deserialize, Serialize};
 
 use crate::errors::{self, CustomResult};
@@ -151,11 +152,11 @@ where
 ///
 /// Extending functionalities of `bytes::Bytes`
 ///
-pub trait BytesExt<T> {
+pub trait BytesExt {
     ///
     /// Convert `bytes::Bytes` into type `<T>` using `serde::Deserialize`
     ///
-    fn parse_struct<'de>(
+    fn parse_struct<'de, T>(
         &'de self,
         type_name: &'static str,
     ) -> CustomResult<T, errors::ParsingError>
@@ -163,8 +164,8 @@ pub trait BytesExt<T> {
         T: Deserialize<'de>;
 }
 
-impl<T> BytesExt<T> for bytes::Bytes {
-    fn parse_struct<'de>(
+impl BytesExt for bytes::Bytes {
+    fn parse_struct<'de, T>(
         &'de self,
         type_name: &'static str,
     ) -> CustomResult<T, errors::ParsingError>
@@ -216,17 +217,17 @@ impl ByteSliceExt for [u8] {
 ///
 /// Extending functionalities of `serde_json::Value` for performing parsing
 ///
-pub trait ValueExt<T> {
+pub trait ValueExt {
     ///
     /// Convert `serde_json::Value` into type `<T>` by using `serde::Deserialize`
     ///
-    fn parse_value(self, type_name: &'static str) -> CustomResult<T, errors::ParsingError>
+    fn parse_value<T>(self, type_name: &'static str) -> CustomResult<T, errors::ParsingError>
     where
         T: serde::de::DeserializeOwned;
 }
 
-impl<T> ValueExt<T> for serde_json::Value {
-    fn parse_value(self, type_name: &'static str) -> CustomResult<T, errors::ParsingError>
+impl ValueExt for serde_json::Value {
+    fn parse_value<T>(self, type_name: &'static str) -> CustomResult<T, errors::ParsingError>
     where
         T: serde::de::DeserializeOwned,
     {
@@ -241,11 +242,11 @@ impl<T> ValueExt<T> for serde_json::Value {
     }
 }
 
-impl<T, MaskingStrategy> ValueExt<T> for Secret<serde_json::Value, MaskingStrategy>
+impl<MaskingStrategy> ValueExt for Secret<serde_json::Value, MaskingStrategy>
 where
     MaskingStrategy: Strategy<serde_json::Value>,
 {
-    fn parse_value(self, type_name: &'static str) -> CustomResult<T, errors::ParsingError>
+    fn parse_value<T>(self, type_name: &'static str) -> CustomResult<T, errors::ParsingError>
     where
         T: serde::de::DeserializeOwned,
     {
@@ -412,5 +413,24 @@ pub trait ConfigExt {
 impl ConfigExt for String {
     fn is_empty_after_trim(&self) -> bool {
         self.trim().is_empty()
+    }
+}
+
+/// Extension trait for deserializing XML strings using `quick-xml` crate
+pub trait XmlExt {
+    ///
+    /// Deserialize an XML string into the specified type `<T>`.
+    ///
+    fn parse_xml<T>(self) -> Result<T, quick_xml::de::DeError>
+    where
+        T: serde::de::DeserializeOwned;
+}
+
+impl XmlExt for &str {
+    fn parse_xml<T>(self) -> Result<T, quick_xml::de::DeError>
+    where
+        T: serde::de::DeserializeOwned,
+    {
+        de::from_str(self)
     }
 }

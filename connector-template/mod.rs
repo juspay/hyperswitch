@@ -1,7 +1,6 @@
 mod transformers;
 
 use std::fmt::Debug;
-use common_utils::errors::ReportSwitchExt;
 use error_stack::{ResultExt, IntoReport};
 
 use crate::{
@@ -304,6 +303,7 @@ impl
                 .headers(types::PaymentsCaptureType::get_headers(
                     self, req, connectors,
                 )?)
+                .body(types::PaymentsCaptureType::get_request_body(self, req)?)
                 .build(),
         ))
     }

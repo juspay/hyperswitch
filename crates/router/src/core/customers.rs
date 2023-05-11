@@ -1,4 +1,6 @@
-use common_utils::ext_traits::ValueExt;
+use std::str::FromStr;
+
+use common_utils::{ext_traits::ValueExt, pii::Email};
 use error_stack::ResultExt;
 use router_env::{instrument, tracing};
 use storage_models::errors as storage_errors;
@@ -13,7 +15,7 @@ use crate::{
     routes::{metrics, AppState},
     services,
     types::{
-        api::customers::{self, CustomerRequestExt},
+        api::customers,
         storage::{self, enums},
     },
 };
@@ -24,9 +26,8 @@ pub const REDACTED: &str = "Redacted";
 pub async fn create_customer(
     db: &dyn StorageInterface,
     merchant_account: storage::MerchantAccount,
-    customer_data: customers::CustomerRequest,
+    mut customer_data: customers::CustomerRequest,
 ) -> RouterResponse<customers::CustomerResponse> {
-    let mut customer_data = customer_data.validate()?;
     let customer_id = &customer_data.customer_id;
     let merchant_id = &merchant_account.merchant_id;
     customer_data.merchant_id = merchant_id.to_owned();
@@ -36,7 +37,9 @@ pub async fn create_customer(
             .peek()
             .clone()
             .parse_value("AddressDetails")
-            .change_context(errors::ApiErrorResponse::AddressNotFound)?;
+            .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "address",
+            })?;
         db.insert_address(storage::AddressNew {
             city: customer_address.city,
             country: customer_address.country,
@@ -67,6 +70,7 @@ pub async fn create_customer(
         description: customer_data.description,
         phone_country_code: customer_data.phone_country_code,
         metadata: customer_data.metadata,
+        connector_customer: None,
     };
 
     let customer = match db.insert_customer(new_customer).await {
@@ -198,11 +202,12 @@ pub async fn delete_customer(
 
     let updated_customer = storage::CustomerUpdate::Update {
         name: Some(REDACTED.to_string()),
-        email: Some(REDACTED.to_string().into()),
+        email: Email::from_str(REDACTED).ok(),
         phone: Some(REDACTED.to_string().into()),
         description: Some(REDACTED.to_string()),
         phone_country_code: Some(REDACTED.to_string()),
         metadata: None,
+        connector_customer: None,
     };
     db.update_customer_by_customer_id_merchant_id(
         req.customer_id.clone(),
@@ -228,7 +233,6 @@ pub async fn update_customer(
     merchant_account: storage::MerchantAccount,
     update_customer: customers::CustomerRequest,
 ) -> RouterResponse<customers::CustomerResponse> {
-    let update_customer = update_customer.validate()?;
     //Add this in update call if customer can be updated anywhere else
     db.find_customer_by_customer_id_merchant_id(
         &update_customer.customer_id,
@@ -280,6 +284,7 @@ pub async fn update_customer(
                 phone_country_code: update_customer.phone_country_code,
                 metadata: update_customer.metadata,
                 description: update_customer.description,
+                connector_customer: None,
             },
         )
         .await
