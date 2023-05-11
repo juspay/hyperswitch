@@ -837,7 +837,7 @@ pub async fn list_payment_methods(
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
-    // filter out connectors based on the busness country
+    // filter out connectors based on the business country
     let filtered_mcas = filter_mca_based_on_business_details(all_mcas, payment_intent.as_ref());
 
     logger::debug!(mca_before_filtering=?filtered_mcas);
