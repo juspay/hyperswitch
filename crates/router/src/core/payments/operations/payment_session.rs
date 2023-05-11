@@ -237,7 +237,6 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsSessionRequest> for Paymen
     }
 }
 
-#[async_trait]
 impl<F: Clone + Send, Op: Send + Sync + Operation<F, api::PaymentsSessionRequest>>
     Domain<F, api::PaymentsSessionRequest> for Op
 where
@@ -295,7 +294,7 @@ where
         merchant_account: &storage::MerchantAccount,
         state: &AppState,
         request: &api::PaymentsSessionRequest,
-        payment_data: &PaymentData<F>,
+        _payment_data: &PaymentData<F>,
     ) -> RouterResult<api::ConnectorChoice> {
         let connectors = &state.conf.connectors;
         let db = &state.store;
@@ -324,7 +323,11 @@ where
                         payment_methods_enabled
                             .parse_value::<PaymentMethodsEnabled>("payment_methods_enabled")
                     })
-                    .filter_map(|parsed_payment_method_result| parsed_payment_method_result.ok())
+                    .filter_map(|parsed_payment_method_result| {
+                        let error = parsed_payment_method_result.as_ref().err();
+                        logger::error!(session_token_parsing_error=?error);
+                        parsed_payment_method_result.ok()
+                    })
                     .flat_map(|parsed_payment_methods_enabled| {
                         parsed_payment_methods_enabled
                             .payment_method_types
@@ -349,6 +352,7 @@ where
                                 (
                                     connector_account.connector_name.to_owned(),
                                     payment_method_type.payment_method_type,
+                                    connector_account.business_sub_label.to_owned(),
                                 )
                             })
                             .collect::<Vec<_>>()
@@ -357,29 +361,27 @@ where
                 connector_and_supporting_payment_method_type.extend(res);
             });
 
-        // If only specific wallets are requested, then create session tokens only for those
-        let session_connector_data = connector_and_supporting_payment_method_type
-            .into_iter()
-            .map(|(connector, payment_method_type)| {
-                (
-                    api::ConnectorData::get_connector_by_name(
-                        connectors,
-                        &connector,
-                        api::GetToken::from(payment_method_type),
-                    ),
-                    payment_method_type,
-                )
-            })
-            .filter_map(|(connector_data_result, payment_method_type)| {
-                connector_data_result.ok().zip(Some(payment_method_type))
-            })
-            .map(
-                |(connector_data, payment_method_type)| api::SessionConnectorData {
+        let mut session_connector_data =
+            Vec::with_capacity(connector_and_supporting_payment_method_type.len());
+
+        for (connector, payment_method_type, business_sub_label) in
+            connector_and_supporting_payment_method_type
+        {
+            match api::ConnectorData::get_connector_by_name(
+                connectors,
+                &connector,
+                api::GetToken::from(payment_method_type),
+            ) {
+                Ok(connector_data) => session_connector_data.push(api::SessionConnectorData {
                     payment_method_type,
                     connector: connector_data,
-                },
-            )
-            .collect::<Vec<_>>();
+                    business_sub_label,
+                }),
+                Err(error) => {
+                    logger::error!(session_token_error=?error)
+                }
+            }
+        }
 
         Ok(api::ConnectorChoice::SessionMultiple(
             session_connector_data,
