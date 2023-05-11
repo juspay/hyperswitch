@@ -122,7 +122,7 @@ where
 
     let updated_customer = call_create_connector_customer_if_required(
         state,
-        &connector,
+        &payment_data.payment_attempt.connector.clone(),
         &customer,
         &merchant_account,
         &mut payment_data,
@@ -607,7 +607,7 @@ where
 
 pub async fn call_create_connector_customer_if_required<F, Req>(
     state: &AppState,
-    connector: &Option<api::ConnectorCallType>,
+    connector_name: &Option<String>,
     customer: &Option<storage::Customer>,
     merchant_account: &storage::MerchantAccount,
     payment_data: &mut PaymentData<F>,
