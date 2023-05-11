@@ -73,7 +73,7 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
         reference_id: None,
         payment_method_token: None,
         connector_customer: None,
-        mandate_metadata: None
+        mandate_metadata: None,
     }
 }
 
@@ -116,7 +116,7 @@ fn construct_refund_router_data<F>() -> types::RefundsRouterData<F> {
         reference_id: None,
         payment_method_token: None,
         connector_customer: None,
-        mandate_metadata: None
+        mandate_metadata: None,
     }
 }
 
