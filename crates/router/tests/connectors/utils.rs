@@ -396,6 +396,7 @@ pub trait ConnectorActions: Connector {
             reference_id: None,
             payment_method_token: None,
             connector_customer: None,
+            mandate_metadata: None
         }
     }
 
