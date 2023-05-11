@@ -367,7 +367,8 @@ pub async fn attach_evidence(
     let update_dispute = storage_models::dispute::DisputeUpdate::EvidenceUpdate {
         evidence: utils::Encode::<api::DisputeEvidence>::encode_to_value(&updated_dispute_evidence)
             .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Error while encoding dispute evidence")?,
+            .attach_printable("Error while encoding dispute evidence")?
+            .into(),
     };
     db.update_dispute(dispute, update_dispute)
         .await

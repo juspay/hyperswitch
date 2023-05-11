@@ -1,5 +1,6 @@
 use common_utils::custom_serde;
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
+use masking::Secret;
 use serde::Serialize;
 use time::PrimitiveDateTime;
 
@@ -25,7 +26,7 @@ pub struct DisputeNew {
     pub connector_created_at: Option<PrimitiveDateTime>,
     pub connector_updated_at: Option<PrimitiveDateTime>,
     pub connector: String,
-    pub evidence: Option<serde_json::Value>,
+    pub evidence: Option<Secret<serde_json::Value>>,
 }
 
 #[derive(Clone, Debug, Serialize, Identifiable, Queryable)]
@@ -53,7 +54,7 @@ pub struct Dispute {
     #[serde(with = "custom_serde::iso8601")]
     pub modified_at: PrimitiveDateTime,
     pub connector: String,
-    pub evidence: serde_json::Value,
+    pub evidence: Secret<serde_json::Value>,
 }
 
 #[derive(Debug)]
@@ -72,7 +73,7 @@ pub enum DisputeUpdate {
         connector_status: Option<String>,
     },
     EvidenceUpdate {
-        evidence: serde_json::Value,
+        evidence: Secret<serde_json::Value>,
     },
 }
 
@@ -87,7 +88,7 @@ pub struct DisputeUpdateInternal {
     challenge_required_by: Option<PrimitiveDateTime>,
     connector_updated_at: Option<PrimitiveDateTime>,
     modified_at: Option<PrimitiveDateTime>,
-    evidence: Option<serde_json::Value>,
+    evidence: Option<Secret<serde_json::Value>>,
 }
 
 impl From<DisputeUpdate> for DisputeUpdateInternal {
