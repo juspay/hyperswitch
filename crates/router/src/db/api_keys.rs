@@ -245,38 +245,39 @@ impl ApiKeyInterface for MockDb {
         limit: Option<i64>,
         offset: Option<i64>,
     ) -> CustomResult<Vec<storage::ApiKey>, errors::StorageError> {
-        // first gather all the keys for the given merchant_id, then apply any limit or offset, if
-        // requested. This uses memory inefficiently if a limit/offset is requested, but should be
-        // sufficient for the mockdb usecase
-        let mut keys_for_merchant_id: Vec<storage::ApiKey> = self
+        // mimic the SQL limit/offset behavior
+        let offset: usize = if let Some(offset) = offset {
+            if offset < 0 {
+                Err(errors::StorageError::MockDbError)?;
+            }
+            offset
+                .try_into()
+                .map_err(|_| errors::StorageError::MockDbError)?
+        } else {
+            0
+        };
+
+        let limit: usize = if let Some(limit) = limit {
+            if limit < 0 {
+                Err(errors::StorageError::MockDbError)?;
+            }
+            limit
+                .try_into()
+                .map_err(|_| errors::StorageError::MockDbError)?
+        } else {
+            usize::MAX
+        };
+
+        let keys_for_merchant_id: Vec<storage::ApiKey> = self
             .api_keys
             .lock()
             .await
             .iter()
             .filter(|k| k.merchant_id == merchant_id)
+            .skip(offset)
+            .take(limit)
             .cloned()
             .collect();
-
-        // mimic the SQL limit/offset behavior
-        if let Some(offset) = offset {
-            if offset < 0 {
-                Err(errors::StorageError::MockDbError)?;
-            }
-            let offset: usize = offset
-                .try_into()
-                .map_err(|_| errors::StorageError::MockDbError)?;
-            keys_for_merchant_id = keys_for_merchant_id.into_iter().skip(offset).collect();
-        };
-
-        if let Some(limit) = limit {
-            if limit < 0 {
-                Err(errors::StorageError::MockDbError)?;
-            }
-            let limit: usize = limit
-                .try_into()
-                .map_err(|_| errors::StorageError::MockDbError)?;
-            keys_for_merchant_id.truncate(limit);
-        }
 
         Ok(keys_for_merchant_id)
     }
