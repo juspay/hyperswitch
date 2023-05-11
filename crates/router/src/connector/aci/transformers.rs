@@ -174,8 +174,8 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for AciPaymentsRequest {
                         bank_account_bic: bank_account_bic.clone(),
                         bank_account_iban: bank_account_iban.clone(),
                         billing_country: None,
-                            merchant_customer_id: None,
-                            merchant_transaction_id: None,
+                        merchant_customer_id: None,
+                        merchant_transaction_id: None,
                         customer_email: None,
                         shopper_result_url: item.request.router_return_url.clone(),
                     })),
@@ -220,7 +220,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for AciPaymentsRequest {
                             customer_email: Some(email.to_owned()),
                             shopper_result_url: item.request.router_return_url.clone(),
                         }))
-                    },
+                    }
                     api_models::payments::BankRedirectData::Interac { email, country } => {
                         PaymentDetails::BankRedirect(Box::new(BankRedirectionPMData {
                             payment_brand: PaymentBrand::InteracOnline,
@@ -234,7 +234,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for AciPaymentsRequest {
                             customer_email: Some(email.to_owned()),
                             shopper_result_url: item.request.router_return_url.clone(),
                         }))
-                    },
+                    }
                     api_models::payments::BankRedirectData::Trustly { country } => {
                         PaymentDetails::BankRedirect(Box::new(BankRedirectionPMData {
                             payment_brand: PaymentBrand::Trustly,
@@ -243,11 +243,13 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for AciPaymentsRequest {
                             bank_account_bic: None,
                             bank_account_iban: None,
                             billing_country: Some(*country),
-                            merchant_customer_id: Some(Secret::new(item.customer_id.clone().ok_or(
-                                errors::ConnectorError::MissingRequiredField { 
-                                    field_name: "customer_id",
-                                },
-                            )?)),
+                            merchant_customer_id: Some(Secret::new(
+                                item.customer_id.clone().ok_or(
+                                    errors::ConnectorError::MissingRequiredField {
+                                        field_name: "customer_id",
+                                    },
+                                )?,
+                            )),
                             merchant_transaction_id: Some(Secret::new(item.payment_id.clone())),
                             customer_email: None,
                             shopper_result_url: item.request.router_return_url.clone(),
