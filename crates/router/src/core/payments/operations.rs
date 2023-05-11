@@ -127,6 +127,7 @@ pub trait Domain<F: Clone, R>: Send + Sync {
         merchant_account: &storage::MerchantAccount,
         state: &AppState,
         request: &R,
+        payment_data: &PaymentData<F>,
     ) -> CustomResult<api::ConnectorChoice, errors::ApiErrorResponse>;
 }
 
