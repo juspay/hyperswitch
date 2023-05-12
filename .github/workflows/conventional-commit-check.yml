@@ -39,6 +39,7 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2.2.0
         with:
+          key: "pr_title_check"
           cache-on-failure: "true"
 
       - name: Install cocogitto
