@@ -63,7 +63,7 @@ jobs:
 
         # GitHub CLI returns a successful error code even if the PR has the label already attached
       - name: Attach 'S-conventions-not-followed' label if PR title check failed
-        if: ${{ steps.pr_title_check.outcome == 'failure' }}
+        if: ${{ github.event_name == 'pull_request' && steps.pr_title_check.outcome == 'failure' }}
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
@@ -74,7 +74,7 @@ jobs:
 
         # GitHub CLI returns a successful error code even if the PR does not have the label attached
       - name: Remove 'S-conventions-not-followed' label if PR title check succeeded
-        if: ${{ steps.pr_title_check.outcome == 'success' }}
+        if: ${{ github.event_name == 'pull_request' && steps.pr_title_check.outcome == 'success' }}
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
