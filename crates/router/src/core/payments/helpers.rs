@@ -1574,6 +1574,8 @@ impl MerchantConnectorAccountType {
     pub fn is_disabled(&self) -> bool {
         match self {
             Self::DbVal(ref inner) => inner.disabled.unwrap_or(false),
+            // Cached merchant connector account, only contains the account details,
+            // the merchant connector account must only be cached if it's not disabled
             Self::CacheVal(_) => false,
         }
     }
