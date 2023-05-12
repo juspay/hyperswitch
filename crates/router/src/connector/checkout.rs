@@ -92,17 +92,28 @@ impl ConnectorCommon for Checkout {
                 .parse_struct("ErrorResponse")
                 .change_context(errors::ConnectorError::ResponseDeserializationFailed)?
         };
-
         Ok(types::ErrorResponse {
             status_code: res.status_code,
             code: response
-                .error_codes
-                .unwrap_or_else(|| vec![consts::NO_ERROR_CODE.to_string()])
-                .join(" & "),
-            message: response
                 .error_type
-                .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-            reason: None,
+                .clone()
+                .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
+            message: response
+                .error_codes
+                .clone()
+                .map(|error_codes| {
+                    error_codes
+                        .first()
+                        .cloned()
+                        .unwrap_or(consts::NO_ERROR_MESSAGE.to_string())
+                })
+                .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
+            reason: Some(
+                response
+                    .error_codes
+                    .unwrap_or_else(|| vec![consts::NO_ERROR_CODE.to_string()])
+                    .join(" & "),
+            ),
         })
     }
 }
