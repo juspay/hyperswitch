@@ -101,9 +101,9 @@ macro_rules! default_imp_for_complete_authorize{
 }
 
 #[cfg(feature = "dummy_connector")]
-impl<const T: i32> api::PaymentsCompleteAuthorize for connector::DummyConnector<T> {}
+impl<const T: u8> api::PaymentsCompleteAuthorize for connector::DummyConnector<T> {}
 #[cfg(feature = "dummy_connector")]
-impl<const T: i32>
+impl<const T: u8>
     services::ConnectorIntegration<
         api::CompleteAuthorize,
         types::CompleteAuthorizeData,
@@ -156,9 +156,9 @@ macro_rules! default_imp_for_create_customer{
 }
 
 #[cfg(feature = "dummy_connector")]
-impl<const T: i32> api::ConnectorCustomer for connector::DummyConnector<T> {}
+impl<const T: u8> api::ConnectorCustomer for connector::DummyConnector<T> {}
 #[cfg(feature = "dummy_connector")]
-impl<const T: i32>
+impl<const T: u8>
     services::ConnectorIntegration<
         api::CreateConnectorCustomer,
         types::ConnectorCustomerData,
@@ -219,7 +219,7 @@ macro_rules! default_imp_for_connector_redirect_response{
 }
 
 #[cfg(feature = "dummy_connector")]
-impl<const T: i32> services::ConnectorRedirectResponse for connector::DummyConnector<T> {
+impl<const T: u8> services::ConnectorRedirectResponse for connector::DummyConnector<T> {
     fn get_flow_type(
         &self,
         _query_params: &str,
@@ -264,7 +264,7 @@ macro_rules! default_imp_for_connector_request_id{
 }
 
 #[cfg(feature = "dummy_connector")]
-impl<const T: i32> api::ConnectorTransactionId for connector::DummyConnector<T> {}
+impl<const T: u8> api::ConnectorTransactionId for connector::DummyConnector<T> {}
 
 default_imp_for_connector_request_id!(
     connector::Aci,
@@ -317,11 +317,11 @@ macro_rules! default_imp_for_accept_dispute{
 }
 
 #[cfg(feature = "dummy_connector")]
-impl<const T: i32> api::Dispute for connector::DummyConnector<T> {}
+impl<const T: u8> api::Dispute for connector::DummyConnector<T> {}
 #[cfg(feature = "dummy_connector")]
-impl<const T: i32> api::AcceptDispute for connector::DummyConnector<T> {}
+impl<const T: u8> api::AcceptDispute for connector::DummyConnector<T> {}
 #[cfg(feature = "dummy_connector")]
-impl<const T: i32>
+impl<const T: u8>
     services::ConnectorIntegration<
         api::Accept,
         types::AcceptDisputeRequestData,
@@ -390,11 +390,11 @@ macro_rules! default_imp_for_file_upload{
 }
 
 #[cfg(feature = "dummy_connector")]
-impl<const T: i32> api::FileUpload for connector::DummyConnector<T> {}
+impl<const T: u8> api::FileUpload for connector::DummyConnector<T> {}
 #[cfg(feature = "dummy_connector")]
-impl<const T: i32> api::UploadFile for connector::DummyConnector<T> {}
+impl<const T: u8> api::UploadFile for connector::DummyConnector<T> {}
 #[cfg(feature = "dummy_connector")]
-impl<const T: i32>
+impl<const T: u8>
     services::ConnectorIntegration<
         api::Upload,
         types::UploadFileRequestData,
@@ -403,9 +403,9 @@ impl<const T: i32>
 {
 }
 #[cfg(feature = "dummy_connector")]
-impl<const T: i32> api::RetrieveFile for connector::DummyConnector<T> {}
+impl<const T: u8> api::RetrieveFile for connector::DummyConnector<T> {}
 #[cfg(feature = "dummy_connector")]
-impl<const T: i32>
+impl<const T: u8>
     services::ConnectorIntegration<
         api::Retrieve,
         types::RetrieveFileRequestData,
@@ -464,9 +464,9 @@ macro_rules! default_imp_for_submit_evidence{
 }
 
 #[cfg(feature = "dummy_connector")]
-impl<const T: i32> api::SubmitEvidence for connector::DummyConnector<T> {}
+impl<const T: u8> api::SubmitEvidence for connector::DummyConnector<T> {}
 #[cfg(feature = "dummy_connector")]
-impl<const T: i32>
+impl<const T: u8>
     services::ConnectorIntegration<
         api::Evidence,
         types::SubmitEvidenceRequestData,
@@ -525,9 +525,9 @@ macro_rules! default_imp_for_defend_dispute{
 }
 
 #[cfg(feature = "dummy_connector")]
-impl<const T: i32> api::DefendDispute for connector::DummyConnector<T> {}
+impl<const T: u8> api::DefendDispute for connector::DummyConnector<T> {}
 #[cfg(feature = "dummy_connector")]
-impl<const T: i32>
+impl<const T: u8>
     services::ConnectorIntegration<
         api::Defend,
         types::DefendDisputeRequestData,
