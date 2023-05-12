@@ -1734,6 +1734,7 @@ impl TryFrom<types::PaymentsCaptureResponseRouterData<AdyenCaptureResponse>>
                 connector_metadata: None,
                 network_txn_id: None,
             }),
+            amount_captured: Some(item.response.amount.value),
             ..item.data
         })
     }
