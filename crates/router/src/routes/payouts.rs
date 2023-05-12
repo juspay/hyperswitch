@@ -99,18 +99,80 @@ pub async fn payouts_update(
     .await
 }
 
+/// Payouts - Cancel
+#[utoipa::path(
+    post,
+    path = "/payouts/{payout_id}/cancel",
+    params(
+        ("payout_id" = String, Path, description = "The identifier for payout")
+    ),
+    request_body=PayoutActionRequest,
+    responses(
+        (status = 200, description = "Payout cancelled", body = PayoutCreateResponse),
+        (status = 400, description = "Missing Mandatory fields")
+    ),
+    tag = "Payouts",
+    operation_id = "Cancel a Payout",
+    security(("api_key" = []))
+)]
 #[instrument(skip_all, fields(flow = ?Flow::PayoutsCancel))]
-// #[post("/cancel")]
-pub async fn payouts_cancel() -> impl Responder {
-    let _flow = Flow::PayoutsCancel;
-    http_response("cancel")
+pub async fn payouts_cancel(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    json_payload: web::Json<payout_types::PayoutActionRequest>,
+    path: web::Path<String>,
+) -> HttpResponse {
+    let flow = Flow::PayoutsCancel;
+    let mut payload = json_payload.into_inner();
+    payload.payout_id = path.into_inner();
+
+    api::server_wrap(
+        flow,
+        state.get_ref(),
+        &req,
+        payload,
+        payouts_cancel_core,
+        &auth::ApiKeyAuth,
+    )
+    .await
 }
 
+/// Payouts - Fulfill
+#[utoipa::path(
+    post,
+    path = "/payouts/{payout_id}/fulfill",
+    params(
+        ("payout_id" = String, Path, description = "The identifier for payout")
+    ),
+    request_body=PayoutActionRequest,
+    responses(
+        (status = 200, description = "Payout fulfilled", body = PayoutCreateResponse),
+        (status = 400, description = "Missing Mandatory fields")
+    ),
+    tag = "Payouts",
+    operation_id = "Fulfill a Payout",
+    security(("api_key" = []))
+)]
 #[instrument(skip_all, fields(flow = ?Flow::PayoutsFulfill))]
-// #[post("/cancel")]
-pub async fn payouts_fulfill() -> impl Responder {
-    let _flow = Flow::PayoutsFulfill;
-    http_response("fulfill")
+pub async fn payouts_fulfill(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    json_payload: web::Json<payout_types::PayoutActionRequest>,
+    path: web::Path<String>,
+) -> HttpResponse {
+    let flow = Flow::PayoutsFulfill;
+    let mut payload = json_payload.into_inner();
+    payload.payout_id = path.into_inner();
+
+    api::server_wrap(
+        flow,
+        state.get_ref(),
+        &req,
+        payload,
+        payouts_cancel_core,
+        &auth::ApiKeyAuth,
+    )
+    .await
 }
 
 #[instrument(skip_all, fields(flow = ?Flow::PayoutsAccounts))]
