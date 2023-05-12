@@ -2,11 +2,11 @@ mod transformers;
 
 use std::fmt::Debug;
 
-use api_models::payments::PaymentMethodData;
-use error_stack::{IntoReport, ResultExt};
-use transformers as dummyconnector;
+use common_utils::{errors::ReportSwitchExt, ext_traits::ByteSliceExt};
+use error_stack::ResultExt;
+use transformers as bitpay;
 
-use super::utils::{PaymentsAuthorizeRequestData, RefundsRequestData};
+use self::bitpay::BitpayWebhookDetails;
 use crate::{
     configs::settings,
     core::errors::{self, CustomResult},
@@ -17,57 +17,58 @@ use crate::{
         api::{self, ConnectorCommon, ConnectorCommonExt},
         ErrorResponse, Response,
     },
-    utils::{self, BytesExt},
+    utils::{self, BytesExt, Encode},
 };
 
 #[derive(Debug, Clone)]
-pub struct DummyConnector;
+pub struct Bitpay;
 
-impl api::Payment for DummyConnector {}
-impl api::PaymentSession for DummyConnector {}
-impl api::ConnectorAccessToken for DummyConnector {}
-impl api::PreVerify for DummyConnector {}
-impl api::PaymentAuthorize for DummyConnector {}
-impl api::PaymentSync for DummyConnector {}
-impl api::PaymentCapture for DummyConnector {}
-impl api::PaymentVoid for DummyConnector {}
-impl api::Refund for DummyConnector {}
-impl api::RefundExecute for DummyConnector {}
-impl api::RefundSync for DummyConnector {}
-impl api::PaymentToken for DummyConnector {}
+impl api::Payment for Bitpay {}
+impl api::PaymentToken for Bitpay {}
+impl api::PaymentSession for Bitpay {}
+impl api::ConnectorAccessToken for Bitpay {}
+impl api::PreVerify for Bitpay {}
+impl api::PaymentAuthorize for Bitpay {}
+impl api::PaymentSync for Bitpay {}
+impl api::PaymentCapture for Bitpay {}
+impl api::PaymentVoid for Bitpay {}
+impl api::Refund for Bitpay {}
+impl api::RefundExecute for Bitpay {}
+impl api::RefundSync for Bitpay {}
 
 impl
     ConnectorIntegration<
         api::PaymentMethodToken,
         types::PaymentMethodTokenizationData,
         types::PaymentsResponseData,
-    > for DummyConnector
+    > for Bitpay
 {
     // Not Implemented (R)
 }
 
-impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for DummyConnector
+impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Bitpay
 where
     Self: ConnectorIntegration<Flow, Request, Response>,
 {
     fn build_headers(
         &self,
-        req: &types::RouterData<Flow, Request, Response>,
+        _req: &types::RouterData<Flow, Request, Response>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        let mut header = vec![(
-            headers::CONTENT_TYPE.to_string(),
-            types::PaymentsAuthorizeType::get_content_type(self).to_string(),
-        )];
-        let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
-        header.append(&mut api_key);
+        let header = vec![
+            (
+                headers::CONTENT_TYPE.to_string(),
+                types::PaymentsAuthorizeType::get_content_type(self).to_string(),
+            ),
+            (headers::X_ACCEPT_VERSION.to_string(), "2.0.0".to_string()),
+        ];
         Ok(header)
     }
 }
 
-impl ConnectorCommon for DummyConnector {
+impl ConnectorCommon for Bitpay {
     fn id(&self) -> &'static str {
-        "dummyconnector"
+        "bitpay"
     }
 
     fn common_get_content_type(&self) -> &'static str {
@@ -75,14 +76,14 @@ impl ConnectorCommon for DummyConnector {
     }
 
     fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
-        connectors.dummyconnector.base_url.as_ref()
+        connectors.bitpay.base_url.as_ref()
     }
 
     fn get_auth_header(
         &self,
         auth_type: &types::ConnectorAuthType,
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
-        let auth = dummyconnector::DummyConnectorAuthType::try_from(auth_type)
+        let auth = bitpay::BitpayAuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(vec![(headers::AUTHORIZATION.to_string(), auth.api_key)])
     }
@@ -91,38 +92,36 @@ impl ConnectorCommon for DummyConnector {
         &self,
         res: Response,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let response: dummyconnector::DummyConnectorErrorResponse = res
-            .response
-            .parse_struct("DummyConnectorErrorResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        let response: bitpay::BitpayErrorResponse =
+            res.response.parse_struct("BitpayErrorResponse").switch()?;
 
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code: response.error.code,
-            message: response.error.message,
-            reason: response.error.reason,
+            code: response.code,
+            message: response.message,
+            reason: response.reason,
         })
     }
 }
 
 impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::PaymentsResponseData>
-    for DummyConnector
+    for Bitpay
 {
     //TODO: implement sessions flow
 }
 
 impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, types::AccessToken>
-    for DummyConnector
+    for Bitpay
 {
 }
 
 impl ConnectorIntegration<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>
-    for DummyConnector
+    for Bitpay
 {
 }
 
 impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::PaymentsResponseData>
-    for DummyConnector
+    for Bitpay
 {
     fn get_headers(
         &self,
@@ -138,35 +137,21 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
 
     fn get_url(
         &self,
-        req: &types::PaymentsAuthorizeRouterData,
+        _req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let payment_method_data = req.request.payment_method_data.to_owned();
-        let payment_method_type = req.request.get_payment_method_type()?;
-        match payment_method_data {
-            PaymentMethodData::Card(_) => Ok(format!("{}/payment", self.base_url(connectors))),
-            _ => Err(error_stack::report!(errors::ConnectorError::NotSupported {
-                message: format!(
-                    "The payment method {} is not supported",
-                    payment_method_type
-                ),
-                connector: "dummyconnector",
-                payment_experience: api::enums::PaymentExperience::RedirectToUrl.to_string(),
-            })),
-        }
+        Ok(format!("{}/invoices", self.base_url(connectors)))
     }
 
     fn get_request_body(
         &self,
         req: &types::PaymentsAuthorizeRouterData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        let req_obj = dummyconnector::DummyConnectorPaymentsRequest::try_from(req)?;
-        let dummyconnector_req =
-            utils::Encode::<dummyconnector::DummyConnectorPaymentsRequest>::encode_to_string_of_json(
-                &req_obj,
-            )
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(dummyconnector_req))
+        let req_obj = bitpay::BitpayPaymentsRequest::try_from(req)?;
+        let bitpay_req =
+            utils::Encode::<bitpay::BitpayPaymentsRequest>::encode_to_string_of_json(&req_obj)
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        Ok(Some(bitpay_req))
     }
 
     fn build_request(
@@ -194,16 +179,15 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         data: &types::PaymentsAuthorizeRouterData,
         res: Response,
     ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
-        let response: dummyconnector::PaymentsResponse = res
+        let response: bitpay::BitpayPaymentsResponse = res
             .response
-            .parse_struct("DummyConnector PaymentsAuthorizeResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+            .parse_struct("Bitpay PaymentsAuthorizeResponse")
+            .switch()?;
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
         })
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
     fn get_error_response(
@@ -215,7 +199,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
 }
 
 impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>
-    for DummyConnector
+    for Bitpay
 {
     fn get_headers(
         &self,
@@ -234,20 +218,19 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         req: &types::PaymentsSyncRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        match req
+        let auth = bitpay::BitpayAuthType::try_from(&req.connector_auth_type)
+            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+        let connector_id = req
             .request
             .connector_transaction_id
             .get_connector_transaction_id()
-        {
-            Ok(transaction_id) => Ok(format!(
-                "{}/payments/{}",
-                self.base_url(connectors),
-                transaction_id
-            )),
-            Err(_) => Err(error_stack::report!(
-                errors::ConnectorError::MissingConnectorTransactionID
-            )),
-        }
+            .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
+        Ok(format!(
+            "{}/invoices/{}?token={}",
+            self.base_url(connectors),
+            connector_id,
+            auth.api_key
+        ))
     }
 
     fn build_request(
@@ -270,16 +253,15 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         data: &types::PaymentsSyncRouterData,
         res: Response,
     ) -> CustomResult<types::PaymentsSyncRouterData, errors::ConnectorError> {
-        let response: dummyconnector::PaymentsResponse = res
+        let response: bitpay::BitpayPaymentsResponse = res
             .response
-            .parse_struct("dummyconnector PaymentsSyncResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+            .parse_struct("bitpay PaymentsSyncResponse")
+            .switch()?;
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
         })
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
     fn get_error_response(
@@ -291,7 +273,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
 }
 
 impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::PaymentsResponseData>
-    for DummyConnector
+    for Bitpay
 {
     fn get_headers(
         &self,
@@ -342,16 +324,15 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         data: &types::PaymentsCaptureRouterData,
         res: Response,
     ) -> CustomResult<types::PaymentsCaptureRouterData, errors::ConnectorError> {
-        let response: dummyconnector::PaymentsResponse = res
+        let response: bitpay::BitpayPaymentsResponse = res
             .response
-            .parse_struct("DummyConnector PaymentsCaptureResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+            .parse_struct("Bitpay PaymentsCaptureResponse")
+            .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
         })
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
     fn get_error_response(
@@ -363,13 +344,11 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
 }
 
 impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsResponseData>
-    for DummyConnector
+    for Bitpay
 {
 }
 
-impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsResponseData>
-    for DummyConnector
-{
+impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsResponseData> for Bitpay {
     fn get_headers(
         &self,
         req: &types::RefundsRouterData<api::Execute>,
@@ -384,27 +363,21 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
 
     fn get_url(
         &self,
-        req: &types::RefundsRouterData<api::Execute>,
-        connectors: &settings::Connectors,
+        _req: &types::RefundsRouterData<api::Execute>,
+        _connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!(
-            "{}/{}/refund",
-            self.base_url(connectors),
-            req.request.connector_transaction_id
-        ))
+        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
     }
 
     fn get_request_body(
         &self,
         req: &types::RefundsRouterData<api::Execute>,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        let req_obj = dummyconnector::DummyConnectorRefundRequest::try_from(req)?;
-        let dummyconnector_req =
-            utils::Encode::<dummyconnector::DummyConnectorRefundRequest>::encode_to_string_of_json(
-                &req_obj,
-            )
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(dummyconnector_req))
+        let req_obj = bitpay::BitpayRefundRequest::try_from(req)?;
+        let bitpay_req =
+            utils::Encode::<bitpay::BitpayRefundRequest>::encode_to_string_of_json(&req_obj)
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        Ok(Some(bitpay_req))
     }
 
     fn build_request(
@@ -429,16 +402,15 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         data: &types::RefundsRouterData<api::Execute>,
         res: Response,
     ) -> CustomResult<types::RefundsRouterData<api::Execute>, errors::ConnectorError> {
-        let response: dummyconnector::RefundResponse = res
-            .response
-            .parse_struct("dummyconnector RefundResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        let response: bitpay::RefundResponse =
+            res.response
+                .parse_struct("bitpay RefundResponse")
+                .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
         })
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
     fn get_error_response(
@@ -449,9 +421,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
     }
 }
 
-impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponseData>
-    for DummyConnector
-{
+impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponseData> for Bitpay {
     fn get_headers(
         &self,
         req: &types::RefundSyncRouterData,
@@ -466,15 +436,10 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
 
     fn get_url(
         &self,
-        req: &types::RefundSyncRouterData,
-        connectors: &settings::Connectors,
+        _req: &types::RefundSyncRouterData,
+        _connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let refund_id = req.request.get_connector_refund_id()?;
-        Ok(format!(
-            "{}/refunds/{}",
-            self.base_url(connectors),
-            refund_id
-        ))
+        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
     }
 
     fn build_request(
@@ -498,16 +463,15 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         data: &types::RefundSyncRouterData,
         res: Response,
     ) -> CustomResult<types::RefundSyncRouterData, errors::ConnectorError> {
-        let response: dummyconnector::RefundResponse = res
+        let response: bitpay::RefundResponse = res
             .response
-            .parse_struct("dummyconnector RefundSyncResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+            .parse_struct("bitpay RefundSyncResponse")
+            .switch()?;
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
         })
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
     fn get_error_response(
@@ -519,25 +483,51 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
 }
 
 #[async_trait::async_trait]
-impl api::IncomingWebhook for DummyConnector {
+impl api::IncomingWebhook for Bitpay {
     fn get_webhook_object_reference_id(
         &self,
-        _request: &api::IncomingWebhookRequestDetails<'_>,
+        request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api::webhooks::ObjectReferenceId, errors::ConnectorError> {
-        Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
+        let notif: BitpayWebhookDetails = request
+            .body
+            .parse_struct("BitpayWebhookDetails")
+            .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
+        Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
+            api_models::payments::PaymentIdType::ConnectorTransactionId(notif.data.id),
+        ))
     }
 
     fn get_webhook_event_type(
         &self,
-        _request: &api::IncomingWebhookRequestDetails<'_>,
+        request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api::IncomingWebhookEvent, errors::ConnectorError> {
-        Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
+        let notif: BitpayWebhookDetails = request
+            .body
+            .parse_struct("BitpayWebhookDetails")
+            .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
+        match notif.event.name {
+            bitpay::WebhookEventType::Confirmed | bitpay::WebhookEventType::Completed => {
+                Ok(api::IncomingWebhookEvent::PaymentIntentSuccess)
+            }
+            bitpay::WebhookEventType::Paid => {
+                Ok(api::IncomingWebhookEvent::PaymentIntentProcessing)
+            }
+            bitpay::WebhookEventType::Declined => {
+                Ok(api::IncomingWebhookEvent::PaymentIntentFailure)
+            }
+            _ => Ok(api::IncomingWebhookEvent::EventNotSupported),
+        }
     }
 
     fn get_webhook_resource_object(
         &self,
-        _request: &api::IncomingWebhookRequestDetails<'_>,
+        request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<serde_json::Value, errors::ConnectorError> {
-        Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
+        let notif: BitpayWebhookDetails = request
+            .body
+            .parse_struct("BitpayWebhookDetails")
+            .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
+        Encode::<BitpayWebhookDetails>::encode_to_value(&notif)
+            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)
     }
 }

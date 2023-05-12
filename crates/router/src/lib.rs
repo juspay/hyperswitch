@@ -61,6 +61,7 @@ pub mod headers {
     pub const X_TRANS_KEY: &str = "X-Trans-Key";
     pub const X_VERSION: &str = "X-Version";
     pub const X_CC_VERSION: &str = "X-CC-Version";
+    pub const X_ACCEPT_VERSION: &str = "X-Accept-Version";
     pub const X_DATE: &str = "X-Date";
 }
 
