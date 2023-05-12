@@ -108,7 +108,7 @@ impl StorageInterface for MockDb {}
 pub async fn get_and_deserialize_key<T>(
     db: &dyn StorageInterface,
     key: &str,
-    type_name: &str,
+    type_name: &'static str,
 ) -> common_utils::errors::CustomResult<T, redis_interface::errors::RedisError>
 where
     T: serde::de::DeserializeOwned,

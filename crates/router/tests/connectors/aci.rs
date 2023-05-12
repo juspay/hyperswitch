@@ -101,6 +101,7 @@ fn construct_refund_router_data<F>() -> types::RefundsRouterData<F> {
             refund_id: uuid::Uuid::new_v4().to_string(),
             connector_transaction_id: String::new(),
             refund_amount: 100,
+            webhook_url: None,
             connector_metadata: None,
             reason: None,
             connector_refund_id: None,
