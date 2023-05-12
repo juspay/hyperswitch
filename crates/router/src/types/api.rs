@@ -14,9 +14,6 @@ pub mod webhooks;
 use std::{fmt::Debug, str::FromStr};
 
 use error_stack::{report, IntoReport, ResultExt};
-use masking::Deserialize;
-use serde::Serialize;
-use strum::EnumString;
 
 pub use self::{
     admin::*, api_keys::*, configs::*, customers::*, disputes::*, files::*, payment_methods::*,
@@ -172,41 +169,7 @@ pub enum ConnectorCallType {
     Single(ConnectorData),
 }
 
-#[derive(EnumString, Serialize, Deserialize, PartialEq, Debug)]
-#[strum(serialize_all = "lowercase")]
-enum ConnectorName {
-    Aci,
-    Adyen,
-    Airwallex,
-    Authorizedotnet,
-    Bambora,
-    Bluesnap,
-    Braintree,
-    Checkout,
-    Coinbase,
-    Cybersource,
-    Dlocal,
-    #[cfg(feature = "dummy_connector")]
-    DummyConnector,
-    Fiserv,
-    Forte,
-    Globalpay,
-    Klarna,
-    Mollie,
-    Nuvei,
-    Opennode,
-    Payu,
-    Rapyd,
-    Shift4,
-    Stripe,
-    Worldline,
-    Worldpay,
-    Multisafepay,
-    Nexinets,
-    Paypal,
-    Trustpay,
-    Zen,
-}
+use api_models::enums::Connector as ConnectorName;
 
 impl ConnectorCallType {
     pub fn is_single(&self) -> bool {
@@ -244,6 +207,7 @@ impl ConnectorData {
                 ConnectorName::Airwallex => Ok(Box::new(&connector::Airwallex)),
                 ConnectorName::Authorizedotnet => Ok(Box::new(&connector::Authorizedotnet)),
                 ConnectorName::Bambora => Ok(Box::new(&connector::Bambora)),
+                ConnectorName::Bitpay => Ok(Box::new(&connector::Bitpay)),
                 ConnectorName::Bluesnap => Ok(Box::new(&connector::Bluesnap)),
                 ConnectorName::Braintree => Ok(Box::new(&connector::Braintree)),
                 ConnectorName::Checkout => Ok(Box::new(&connector::Checkout)),
@@ -255,8 +219,10 @@ impl ConnectorData {
                 ConnectorName::Fiserv => Ok(Box::new(&connector::Fiserv)),
                 ConnectorName::Forte => Ok(Box::new(&connector::Forte)),
                 ConnectorName::Globalpay => Ok(Box::new(&connector::Globalpay)),
+                ConnectorName::Iatapay => Ok(Box::new(&connector::Iatapay)),
                 ConnectorName::Klarna => Ok(Box::new(&connector::Klarna)),
                 ConnectorName::Mollie => Ok(Box::new(&connector::Mollie)),
+                ConnectorName::Nmi => Ok(Box::new(&connector::Nmi)),
                 ConnectorName::Nuvei => Ok(Box::new(&connector::Nuvei)),
                 ConnectorName::Opennode => Ok(Box::new(&connector::Opennode)),
                 // "payeezy" => Ok(Box::new(&connector::Payeezy)), As psync and rsync are not supported by this connector, it is added as template code for future usage

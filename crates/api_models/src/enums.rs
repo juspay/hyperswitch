@@ -567,7 +567,6 @@ pub enum MandateStatus {
     Clone,
     Copy,
     Debug,
-    Default,
     Eq,
     PartialEq,
     ToSchema,
@@ -584,7 +583,6 @@ pub enum Connector {
     Aci,
     Adyen,
     Airwallex,
-    Applepay,
     Authorizedotnet,
     Bitpay,
     Bluesnap,
@@ -592,8 +590,6 @@ pub enum Connector {
     Checkout,
     Coinbase,
     Cybersource,
-    #[default]
-    Dummy,
     Iatapay,
     #[cfg(feature = "dummy_connector")]
     #[serde(rename = "dummyconnector")]
