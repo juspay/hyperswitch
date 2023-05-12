@@ -6,7 +6,7 @@ use crate::{
         payment_methods::{cards, vault},
     },
     routes::AppState,
-    types::{api, storage},
+    types::{api, domain, storage},
     utils,
 };
 
@@ -68,7 +68,7 @@ pub async fn save_payout_data_to_locker(
     state: &AppState,
     payout_create: &storage::payout_create::PayoutCreate,
     payout_method_data: &api::PayoutMethodData,
-    merchant_account: &storage::merchant_account::MerchantAccount,
+    merchant_account: &domain::MerchantAccount,
 ) -> RouterResult<Option<String>> {
     match payout_method_data {
         api_models::payouts::PayoutMethodData::Card(card) => {
