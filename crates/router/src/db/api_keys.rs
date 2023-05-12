@@ -292,8 +292,7 @@ mod tests {
         types::storage,
     };
 
-    // ignored for now because we need to do some finagling with redis to get it to run, since the
-    // mockdb needs to connect to a real redis instance
+    #[allow(clippy::unwrap_used)]
     #[tokio::test]
     async fn test_mockdb_api_key_interface() {
         let mockdb = MockDb::new(&Default::default()).await;
