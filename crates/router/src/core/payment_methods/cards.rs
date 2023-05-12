@@ -275,7 +275,7 @@ pub async fn call_to_card_hs(
     state: &routes::AppState,
     card: &api::CardDetail,
     customer_id: &str,
-    merchant_account: &storage::MerchantAccount,
+    merchant_account: &domain::MerchantAccount,
 ) -> errors::CustomResult<payment_methods::StoreCardRespPayload, errors::VaultError> {
     let locker = &state.conf.locker;
     #[cfg(not(feature = "kms"))]

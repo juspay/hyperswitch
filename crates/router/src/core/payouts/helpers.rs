@@ -6,7 +6,7 @@ use crate::{
         payment_methods::{cards, vault},
     },
     routes::AppState,
-    types::{api, storage},
+    types::{api, domain, storage},
     utils,
 };
 
@@ -68,7 +68,7 @@ pub async fn save_payout_data_to_locker(
     state: &AppState,
     payout_create: &storage::payout_create::PayoutCreate,
     payout_method_data: &api::PayoutMethodData,
-    merchant_account: &storage::merchant_account::MerchantAccount,
+    merchant_account: &domain::MerchantAccount,
 ) -> RouterResult<Option<String>> {
     match payout_method_data {
         api_models::payouts::PayoutMethodData::Card(card) => {
@@ -77,6 +77,7 @@ pub async fn save_payout_data_to_locker(
                 card_exp_month: card.expiry_month.to_owned(),
                 card_exp_year: card.expiry_year.to_owned(),
                 card_holder_name: Some(card.card_holder_name.to_owned()),
+                nick_name: None,
             };
             let stored_card_resp = cards::call_to_card_hs(
                 state,
