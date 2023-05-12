@@ -429,7 +429,7 @@ impl TryFrom<payments::GooglePayWalletData> for NuveiPaymentsRequest {
                         mobile_token: common_utils::ext_traits::Encode::<
                             payments::GooglePayWalletData,
                         >::encode_to_string_of_json(
-                            &gpay_data
+                            &utils::GooglePayWalletData::from(gpay_data)
                         )
                         .change_context(errors::ConnectorError::RequestEncodingFailed)?,
                     }),
