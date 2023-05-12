@@ -232,8 +232,10 @@ impl Payouts {
         {
             route = route
                 .service(web::resource("/create").route(web::post().to(payouts_create)))
-                .service(web::resource("/cancel").route(web::post().to(payouts_cancel)))
-                .service(web::resource("/fulfill").route(web::post().to(payouts_fulfill)))
+                .service(web::resource("/{payout_id}/cancel").route(web::post().to(payouts_cancel)))
+                .service(
+                    web::resource("/{payout_id}/fulfill").route(web::post().to(payouts_fulfill)),
+                )
                 .service(
                     web::resource("/{payout_id}")
                         .route(web::get().to(payouts_retrieve))
