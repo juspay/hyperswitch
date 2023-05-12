@@ -29,6 +29,7 @@ mod rapyd;
 mod selenium;
 mod shift4;
 mod stripe;
+mod stripe_ui;
 mod trustpay;
 mod utils;
 mod worldline;

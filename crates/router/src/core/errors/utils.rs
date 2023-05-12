@@ -50,6 +50,8 @@ pub trait ConnectorErrorExt {
     fn to_payment_failed_response(self) -> error_stack::Report<errors::ApiErrorResponse>;
     #[track_caller]
     fn to_verify_failed_response(self) -> error_stack::Report<errors::ApiErrorResponse>;
+    #[track_caller]
+    fn to_payout_failed_response(self) -> error_stack::Report<errors::ApiErrorResponse>;
 }
 
 impl ConnectorErrorExt for error_stack::Report<errors::ConnectorError> {
@@ -119,7 +121,8 @@ impl ConnectorErrorExt for error_stack::Report<errors::ConnectorError> {
     }
 
     fn to_verify_failed_response(self) -> error_stack::Report<errors::ApiErrorResponse> {
-        let data = match self.current_context() {
+        let error = self.current_context();
+        let data = match error {
             errors::ConnectorError::ProcessingStepFailed(Some(bytes)) => {
                 let response_str = std::str::from_utf8(bytes);
                 match response_str {
@@ -132,9 +135,33 @@ impl ConnectorErrorExt for error_stack::Report<errors::ConnectorError> {
                     }
                 }
             }
-            _ => None,
+            _ => {
+                logger::error!(%error,"Verify flow failed");
+                None
+            }
         };
         self.change_context(errors::ApiErrorResponse::PaymentAuthorizationFailed { data })
+    }
+
+    fn to_payout_failed_response(self) -> error_stack::Report<errors::ApiErrorResponse> {
+        let data = match self.current_context() {
+            errors::ConnectorError::ProcessingStepFailed(Some(bytes)) => {
+                let response_str = std::str::from_utf8(bytes);
+                match response_str {
+                    Ok(s) => serde_json::from_str(s)
+                        .map_err(
+                            |error| logger::error!(%error,"Failed to convert response to JSON"),
+                        )
+                        .ok(),
+                    Err(error) => {
+                        logger::error!(%error,"Failed to convert response to UTF8 string");
+                        None
+                    }
+                }
+            }
+            _ => None,
+        };
+        self.change_context(errors::ApiErrorResponse::PayoutFailed { data })
     }
 }
 

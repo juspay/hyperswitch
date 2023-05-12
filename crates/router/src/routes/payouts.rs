@@ -14,10 +14,10 @@ use crate::{
 /// Payouts - Create
 #[utoipa::path(
     post,
-    path = "/payouts",
-    request_body=PayoutsRequest,
+    path = "/payouts/create",
+    request_body=PayoutCreateRequest,
     responses(
-        (status = 200, description = "Payout created", body = PayoutsResponse),
+        (status = 200, description = "Payout created", body = PayoutCreateResponse),
         (status = 400, description = "Missing Mandatory fields")
     ),
     tag = "Payouts",
@@ -42,11 +42,42 @@ pub async fn payouts_create(
     .await
 }
 
+/// Payouts - Retrieve
+#[utoipa::path(
+    get,
+    path = "/payouts/retrieve/{payout_id}",
+    params(
+        ("payout_id" = String, Path, description = "The identifier for payout]")
+    ),
+    responses(
+        (status = 200, description = "Payout retrieved", body = PayoutCreateResponse),
+        (status = 404, description = "Payout does not exist in our records")
+    ),
+    tag = "Payouts",
+    operation_id = "Retrieve a Payout",
+    security(("api_key" = []))
+)]
 #[instrument(skip_all, fields(flow = ?Flow::PayoutsRetrieve))]
-// #[get("/retrieve")]
-pub async fn payouts_retrieve() -> impl Responder {
-    let _flow = Flow::PayoutsRetrieve;
-    http_response("retrieve")
+pub async fn payouts_retrieve(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    path: web::Path<String>,
+    query_params: web::Query<payout_types::PayoutRetrieveBody>,
+) -> HttpResponse {
+    let payout_retrieve_request = payout_types::PayoutRetrieveRequest {
+        payout_id: path.into_inner(),
+        force_sync: query_params.force_sync,
+    };
+    let flow = Flow::PayoutsRetrieve;
+    api::server_wrap(
+        flow,
+        state.get_ref(),
+        &req,
+        payout_retrieve_request,
+        payouts_retrieve_core,
+        &auth::ApiKeyAuth,
+    )
+    .await
 }
 
 #[instrument(skip_all, fields(flow = ?Flow::PayoutsUpdate))]
@@ -56,18 +87,18 @@ pub async fn payouts_update() -> impl Responder {
     http_response("update")
 }
 
-#[instrument(skip_all, fields(flow = ?Flow::PayoutsReverse))]
-// #[post("/reverse")]
-pub async fn payouts_reverse() -> impl Responder {
-    let _flow = Flow::PayoutsReverse;
-    http_response("reverse")
-}
-
 #[instrument(skip_all, fields(flow = ?Flow::PayoutsCancel))]
 // #[post("/cancel")]
 pub async fn payouts_cancel() -> impl Responder {
     let _flow = Flow::PayoutsCancel;
     http_response("cancel")
+}
+
+#[instrument(skip_all, fields(flow = ?Flow::PayoutsFulfill))]
+// #[post("/cancel")]
+pub async fn payouts_fulfill() -> impl Responder {
+    let _flow = Flow::PayoutsFulfill;
+    http_response("fulfill")
 }
 
 #[instrument(skip_all, fields(flow = ?Flow::PayoutsAccounts))]

@@ -47,6 +47,7 @@ locker_decryption_key1 = ""
 locker_decryption_key2 = ""
 vault_encryption_key = ""
 vault_private_key = ""
+tunnel_private_key = ""
 
 [connectors.supported]
 wallets = ["klarna", "braintree", "applepay"]
@@ -98,6 +99,7 @@ hash_key = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
 [connectors]
 aci.base_url = "https://eu-test.oppwa.com/"
 adyen.base_url = "https://checkout-test.adyen.com/"
+adyen.secondary_base_url = "https://pal-test.adyen.com/"
 airwallex.base_url = "https://api-demo.airwallex.com/"
 applepay.base_url = "https://apple-pay-gateway.apple.com/"
 authorizedotnet.base_url = "https://apitest.authorize.net/xml/v1/request.api"
@@ -179,33 +181,33 @@ ideal = { country = "NL", currency = "EUR" }
 
 [pm_filters.braintree]
 paypal = { currency = "AUD,BRL,CAD,CNY,CZK,DKK,EUR,HKD,HUF,ILS,JPY,MYR,MXN,TWD,NZD,NOK,PHP,PLN,GBP,RUB,SGD,SEK,CHF,THB,USD" }
-credit = { not_available_flows = {capture_method="manual"} }
-debit =  { not_available_flows = {capture_method="manual"} }
+credit = { not_available_flows = { capture_method = "manual" } }
+debit = { not_available_flows = { capture_method = "manual" } }
 
 [pm_filters.klarna]
 klarna = { country = "AU,AT,BE,CA,CZ,DK,FI,FR,DE,GR,IE,IT,NL,NZ,NO,PL,PT,ES,SE,CH,GB,US", currency = "AUD,EUR,EUR,CAD,CZK,DKK,EUR,EUR,EUR,EUR,EUR,EUR,EUR,NZD,NOK,PLN,EUR,EUR,SEK,CHF,GBP,USD" }
-credit = { not_available_flows = {capture_method="manual"} }
-debit =  { not_available_flows = {capture_method="manual"} }
+credit = { not_available_flows = { capture_method = "manual" } }
+debit = { not_available_flows = { capture_method = "manual" } }
 
 [pm_filters.zen]
-credit = { not_available_flows = {capture_method="manual"} }
-debit =  { not_available_flows = {capture_method="manual"} }
+credit = { not_available_flows = { capture_method = "manual" } }
+debit = { not_available_flows = { capture_method = "manual" } }
 
 [pm_filters.aci]
-credit = { not_available_flows = {capture_method="manual"} }
-debit =  { not_available_flows = {capture_method="manual"} }
+credit = { not_available_flows = { capture_method = "manual" } }
+debit = { not_available_flows = { capture_method = "manual" } }
 
 [pm_filters.mollie]
-credit = { not_available_flows = {capture_method="manual"} }
-debit =  { not_available_flows = {capture_method="manual"} }
+credit = { not_available_flows = { capture_method = "manual" } }
+debit = { not_available_flows = { capture_method = "manual" } }
 
 [pm_filters.multisafepay]
-credit = { not_available_flows = {capture_method="manual"} }
-debit =  { not_available_flows = {capture_method="manual"} }
+credit = { not_available_flows = { capture_method = "manual" } }
+debit = { not_available_flows = { capture_method = "manual" } }
 
 [pm_filters.trustpay]
-credit = { not_available_flows = {capture_method="manual"} }
-debit =  { not_available_flows = {capture_method="manual"} }
+credit = { not_available_flows = { capture_method = "manual" } }
+debit = { not_available_flows = { capture_method = "manual" } }
 
 [pm_filters.authorizedotnet]
 google_pay = { currency = "CHF,DKK,EUR,GBP,NOK,PLN,SEK,USD,AUD,NZD,CAD" }
@@ -220,12 +222,17 @@ bucket_name = ""
 region = ""
 
 [pm_filters.forte]
-credit = {currency = "USD"}
-debit = {currency = "USD"}
+credit = { currency = "USD" }
+debit = { currency = "USD" }
 
 [tokenization]
-stripe = { long_lived_token = false, payment_method = "wallet" }
-checkout = { long_lived_token = false, payment_method = "wallet" }
+stripe = { long_lived_token = false, payment_method = "wallet", payment_method_type = { type = "disable_only", list = "google_pay" } }
+checkout = { long_lived_token = false, payment_method = "wallet"}
 
 [connector_customer]
-connector_list = "stripe"
+connector_list = "bluesnap, stripe"
+
+[dummy_connector]
+payment_ttl = 172800
+payment_duration = 1000
+payment_tolerance = 100

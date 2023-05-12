@@ -221,6 +221,7 @@ diesel::table! {
         start_date -> Nullable<Timestamp>,
         end_date -> Nullable<Timestamp>,
         metadata -> Nullable<Jsonb>,
+        connector_mandate_ids -> Nullable<Jsonb>,
     }
 }
 
@@ -247,9 +248,9 @@ diesel::table! {
         routing_algorithm -> Nullable<Json>,
         primary_business_details -> Json,
         api_key -> Nullable<Varchar>,
+        intent_fulfillment_time -> Nullable<Int8>,
         created_at -> Timestamp,
         modified_at -> Timestamp,
-        intent_fulfillment_time -> Nullable<Int8>,
     }
 }
 
@@ -394,18 +395,18 @@ diesel::table! {
         customer_id -> Varchar,
         address_id -> Varchar,
         payout_type -> PayoutType,
+        payout_method_data -> Nullable<Jsonb>,
         amount -> Int8,
         destination_currency -> Currency,
         source_currency -> Currency,
         description -> Nullable<Varchar>,
-        created_at -> Timestamp,
-        modified_at -> Timestamp,
-        status -> PayoutStatus,
-        metadata -> Nullable<Jsonb>,
         recurring -> Bool,
-        connector -> Varchar,
-        error_message -> Nullable<Text>,
-        error_code -> Nullable<Varchar>,
+        auto_fulfill -> Bool,
+        return_url -> Nullable<Varchar>,
+        entity_type -> EntityType,
+        metadata -> Nullable<Jsonb>,
+        created_at -> Timestamp,
+        last_modified_at -> Timestamp,
     }
 }
 
@@ -419,14 +420,14 @@ diesel::table! {
         customer_id -> Varchar,
         merchant_id -> Varchar,
         address_id -> Varchar,
-        payout_type -> PayoutType,
-        connector_payout_id -> Varchar,
         connector -> Varchar,
-        payout_data -> Nullable<Jsonb>,
-        amount -> Int8,
-        destination_currency -> Currency,
-        source_currency -> Currency,
-        recurring -> Nullable<Bool>,
+        connector_payout_id -> Varchar,
+        payout_method_data -> Nullable<Jsonb>,
+        status -> PayoutStatus,
+        is_eligible -> Nullable<Bool>,
+        encoded_data -> Nullable<Text>,
+        error_message -> Nullable<Text>,
+        error_code -> Nullable<Varchar>,
     }
 }
 

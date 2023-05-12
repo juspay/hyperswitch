@@ -153,8 +153,14 @@ pub struct ConnectorData {
     pub get_token: GetToken,
 }
 
+#[derive(Clone)]
+pub struct SessionConnectorData {
+    pub payment_method_type: api_enums::PaymentMethodType,
+    pub connector: ConnectorData,
+}
+
 pub enum ConnectorChoice {
-    SessionMultiple(Vec<ConnectorData>),
+    SessionMultiple(Vec<SessionConnectorData>),
     StraightThrough(serde_json::Value),
     Decide,
 }

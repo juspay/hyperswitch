@@ -27,7 +27,10 @@ use std::sync::Arc;
 
 use futures::lock::Mutex;
 
-use crate::{services::Store, types::storage};
+use crate::{
+    services::{self, Store},
+    types::storage,
+};
 
 #[derive(PartialEq, Eq)]
 pub enum StorageImpl {
@@ -65,10 +68,10 @@ pub trait StorageInterface:
     + refund::RefundInterface
     + reverse_lookup::ReverseLookupInterface
     + cards_info::CardsInfoInterface
+    + services::RedisConnInterface
     + 'static
 {
 }
-
 #[async_trait::async_trait]
 impl StorageInterface for Store {}
 
@@ -119,6 +122,12 @@ where
     bytes
         .parse_struct(type_name)
         .change_context(redis_interface::errors::RedisError::JsonDeserializationFailed)
+}
+
+impl services::RedisConnInterface for MockDb {
+    fn get_redis_conn(&self) -> Arc<redis_interface::RedisConnectionPool> {
+        self.redis.clone()
+    }
 }
 
 dyn_clone::clone_trait_object!(StorageInterface);

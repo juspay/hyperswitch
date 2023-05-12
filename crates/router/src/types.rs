@@ -12,7 +12,7 @@ pub mod transformers;
 
 use std::marker::PhantomData;
 
-pub use api_models::enums::Connector;
+pub use api_models::{enums::Connector, payouts as payout_types};
 use common_utils::{pii, pii::Email};
 use error_stack::{IntoReport, ResultExt};
 
@@ -117,7 +117,13 @@ pub type RefundSyncType =
     dyn services::ConnectorIntegration<api::RSync, RefundsData, RefundsResponseData>;
 
 pub type PayoutCreateType =
-    dyn services::ConnectorIntegration<api::Payout, PayoutsData, PayoutsResponseData>;
+    dyn services::ConnectorIntegration<api::PCreate, PayoutsData, PayoutsResponseData>;
+
+pub type PayoutEligibilityType =
+    dyn services::ConnectorIntegration<api::PEligibility, PayoutsData, PayoutsResponseData>;
+
+pub type PayoutFulfillType =
+    dyn services::ConnectorIntegration<api::PFulfill, PayoutsData, PayoutsResponseData>;
 
 pub type RefreshTokenType =
     dyn services::ConnectorIntegration<api::AccessTokenAuth, AccessTokenRequestData, AccessToken>;
@@ -156,7 +162,10 @@ pub type UploadFileRouterData = RouterData<api::Upload, UploadFileRequestData, U
 pub type DefendDisputeRouterData =
     RouterData<api::Defend, DefendDisputeRequestData, DefendDisputeResponse>;
 
-pub type PayoutsRouterData = RouterData<api::Payout, PayoutsData, PayoutsResponseData>;
+pub type PayoutsRouterData<F> = RouterData<F, PayoutsData, PayoutsResponseData>;
+
+pub type PayoutsResponseRouterData<F, R> =
+    ResponseRouterData<F, R, PayoutsData, PayoutsResponseData>;
 
 #[derive(Debug, Clone)]
 pub struct RouterData<Flow, Request, Response> {
@@ -194,16 +203,20 @@ pub struct RouterData<Flow, Request, Response> {
 #[derive(Debug, Clone)]
 pub struct PayoutsData {
     pub payout_id: String,
-    pub status: storage_enums::PayoutStatus,
+    pub amount: i64,
+    pub connector_payout_id: Option<String>,
+    pub destination_currency: storage_enums::Currency,
+    pub source_currency: storage_enums::Currency,
+    pub payout_method_data: payout_types::PayoutMethodData,
     pub payout_type: storage_enums::PayoutType,
+    pub entity_type: storage_enums::EntityType,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone, Debug, Default)]
 pub struct PayoutsResponseData {
-    pub payout_id: String,
     pub status: storage_enums::PayoutStatus,
-    pub payout_type: storage_enums::PayoutType,
-    pub connector_payout_id: Option<String>,
+    pub connector_payout_id: String,
+    pub payout_eligible: Option<bool>,
 }
 
 #[derive(Debug, Clone)]
@@ -319,6 +332,8 @@ pub struct VerifyRequestData {
     pub setup_future_usage: Option<storage_enums::FutureUsage>,
     pub off_session: Option<bool>,
     pub setup_mandate_details: Option<payments::MandateData>,
+    pub email: Option<Email>,
+    pub return_url: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -339,12 +354,18 @@ pub struct AccessToken {
     pub expires: i64,
 }
 
+#[derive(serde::Serialize, Debug, Clone)]
+pub struct MandateReference {
+    pub connector_mandate_id: Option<String>,
+    pub payment_method_id: Option<String>,
+}
+
 #[derive(Debug, Clone)]
 pub enum PaymentsResponseData {
     TransactionResponse {
         resource_id: ResponseId,
         redirection_data: Option<services::RedirectForm>,
-        mandate_reference: Option<String>,
+        mandate_reference: Option<MandateReference>,
         connector_metadata: Option<serde_json::Value>,
         network_txn_id: Option<String>,
     },
@@ -574,6 +595,7 @@ pub struct ConnectorsList {
 
 #[derive(Clone, Debug)]
 pub struct Response {
+    pub headers: Option<http::HeaderMap>,
     pub response: bytes::Bytes,
     pub status_code: u16,
 }

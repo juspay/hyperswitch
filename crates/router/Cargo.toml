@@ -24,7 +24,8 @@ accounts_cache = []
 openapi = ["olap", "oltp"]
 vergen = ["router_env/vergen"]
 multiple_mca = ["api_models/multiple_mca"]
-dummy_connector = []
+dummy_connector = ["api_models/dummy_connector"]
+external_access_dc = ["dummy_connector"]
 payouts = []
 
 

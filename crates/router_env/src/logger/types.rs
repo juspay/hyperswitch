@@ -132,10 +132,10 @@ pub enum Flow {
     PayoutsRetrieve,
     /// Payouts update flow.
     PayoutsUpdate,
-    /// Payouts reverse flow.
-    PayoutsReverse,
     /// Payouts cancel flow.
     PayoutsCancel,
+    /// Payouts fulfill flow.
+    PayoutsFulfill,
     /// Payouts accounts flow.
     PayoutsAccounts,
     /// Payments Redirect flow.

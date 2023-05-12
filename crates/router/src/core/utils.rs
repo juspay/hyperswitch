@@ -1,6 +1,9 @@
 use std::marker::PhantomData;
 
-use api_models::enums::{DisputeStage, DisputeStatus};
+use api_models::{
+    enums::{DisputeStage, DisputeStatus},
+    payouts as payout_types,
+};
 use common_utils::errors::CustomResult;
 use error_stack::ResultExt;
 use router_env::{instrument, tracing};
@@ -21,16 +24,14 @@ use crate::{
 
 #[instrument(skip_all)]
 #[allow(clippy::too_many_arguments)]
-pub async fn construct_payout_router_data<'a>(
+pub async fn construct_payout_router_data<'a, F>(
     state: &'a AppState,
     connector_id: &str,
     merchant_account: &storage::MerchantAccount,
     payout_create: &storage::PayoutCreate,
-    _payouts: Option<storage::Payouts>,
+    payouts: Option<storage::Payouts>,
     request: &api_models::payouts::PayoutCreateRequest,
-) -> RouterResult<types::PayoutsRouterData> {
-    let db = &*state.store;
-
+) -> RouterResult<types::PayoutsRouterData<F>> {
     let (business_country, business_label) = helpers::get_business_details(
         request.business_country,
         request.business_label.as_ref(),
@@ -41,7 +42,7 @@ pub async fn construct_payout_router_data<'a>(
         helpers::get_connector_label(business_country, &business_label, None, connector_id);
 
     let merchant_connector_account = helpers::get_merchant_connector_account(
-        db,
+        state,
         merchant_account.merchant_id.as_str(),
         &connector_label,
         None,
@@ -70,24 +71,26 @@ pub async fn construct_payout_router_data<'a>(
         payment_method: enums::PaymentMethod::default(), //FIXME
         connector_auth_type,
         description: None,
-        return_url: request.return_url.clone(),
+        return_url: request.return_url.to_owned(),
         payment_method_id: None,
         address,
         auth_type: enums::AuthenticationType::default(), //FIXME
         connector_meta_data: merchant_connector_account.get_metadata(),
         amount_captured: None,
         request: types::PayoutsData {
-            payout_id: payout_create.payout_id.clone(),
-            status: payout_create.status,
-            payout_type: enums::PayoutType::foreign_from(request.payout_type),
+            payout_id: payout_create.payout_id.to_owned(),
+            amount: payout_create.amount,
+            connector_payout_id: payouts.map(|p| p.connector_payout_id),
+            destination_currency: payout_create.destination_currency,
+            source_currency: payout_create.source_currency,
+            entity_type: payout_create.entity_type,
+            payout_type: payout_create.payout_type,
+            payout_method_data: request
+                .payout_method_data
+                .to_owned()
+                .map_or(payout_types::PayoutMethodData::default(), |pmd| pmd),
         },
-
-        response: Ok(types::PayoutsResponseData {
-            payout_id: payout_create.payout_id.clone(),
-            status: payout_create.status,
-            payout_type: enums::PayoutType::foreign_from(request.payout_type),
-            connector_payout_id: None,
-        }),
+        response: Ok(types::PayoutsResponseData::default()),
         access_token: None,
         session_token: None,
         reference_id: None,
@@ -109,8 +112,6 @@ pub async fn construct_refund_router_data<'a, F>(
     refund: &'a storage::Refund,
     creds_identifier: Option<String>,
 ) -> RouterResult<types::RefundsRouterData<F>> {
-    let db = &*state.store;
-
     let connector_label = helpers::get_connector_label(
         payment_intent.business_country,
         &payment_intent.business_label,
@@ -119,7 +120,7 @@ pub async fn construct_refund_router_data<'a, F>(
     );
 
     let merchant_connector_account = helpers::get_merchant_connector_account(
-        db,
+        state,
         merchant_account.merchant_id.as_str(),
         &connector_label,
         creds_identifier,
@@ -313,7 +314,6 @@ pub async fn construct_accept_dispute_router_data<'a>(
     merchant_account: &storage::MerchantAccount,
     dispute: &storage::Dispute,
 ) -> RouterResult<types::AcceptDisputeRouterData> {
-    let db = &*state.store;
     let connector_id = &dispute.connector;
     let connector_label = helpers::get_connector_label(
         payment_intent.business_country,
@@ -322,7 +322,7 @@ pub async fn construct_accept_dispute_router_data<'a>(
         connector_id,
     );
     let merchant_connector_account = helpers::get_merchant_connector_account(
-        db,
+        state,
         merchant_account.merchant_id.as_str(),
         &connector_label,
         None,
@@ -375,7 +375,6 @@ pub async fn construct_submit_evidence_router_data<'a>(
     dispute: &storage::Dispute,
     submit_evidence_request_data: types::SubmitEvidenceRequestData,
 ) -> RouterResult<types::SubmitEvidenceRouterData> {
-    let db = &*state.store;
     let connector_id = &dispute.connector;
     let connector_label = helpers::get_connector_label(
         payment_intent.business_country,
@@ -384,7 +383,7 @@ pub async fn construct_submit_evidence_router_data<'a>(
         connector_id,
     );
     let merchant_connector_account = helpers::get_merchant_connector_account(
-        db,
+        state,
         merchant_account.merchant_id.as_str(),
         &connector_label,
         None,
@@ -435,7 +434,6 @@ pub async fn construct_upload_file_router_data<'a>(
     connector_id: &str,
     file_key: String,
 ) -> RouterResult<types::UploadFileRouterData> {
-    let db = &*state.store;
     let connector_label = helpers::get_connector_label(
         payment_intent.business_country,
         &payment_intent.business_label,
@@ -443,7 +441,7 @@ pub async fn construct_upload_file_router_data<'a>(
         connector_id,
     );
     let merchant_connector_account = helpers::get_merchant_connector_account(
-        db,
+        state,
         merchant_account.merchant_id.as_str(),
         &connector_label,
         None,
@@ -497,7 +495,7 @@ pub async fn construct_defend_dispute_router_data<'a>(
     merchant_account: &storage::MerchantAccount,
     dispute: &storage::Dispute,
 ) -> RouterResult<types::DefendDisputeRouterData> {
-    let db = &*state.store;
+    let _db = &*state.store;
     let connector_id = &dispute.connector;
     let connector_label = helpers::get_connector_label(
         payment_intent.business_country,
@@ -506,7 +504,7 @@ pub async fn construct_defend_dispute_router_data<'a>(
         connector_id,
     );
     let merchant_connector_account = helpers::get_merchant_connector_account(
-        db,
+        state,
         merchant_account.merchant_id.as_str(),
         &connector_label,
         None,

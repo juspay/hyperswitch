@@ -984,10 +984,12 @@ pub struct UnresolvedResponseReason {
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum PayoutStatus {
-    Pending,
     Success,
     Failed,
     Cancelled,
+    Pending,
+    Ineligible,
+    RequiresCreation,
     #[default]
     RequiresFulfillment,
 }

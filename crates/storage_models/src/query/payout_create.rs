@@ -5,7 +5,9 @@ use router_env::{instrument, tracing};
 use super::generics;
 use crate::{
     errors,
-    payout_create::{PayoutCreate, PayoutCreateNew, PayoutCreateUpdate, PayoutCreateUpdateInternal},
+    payout_create::{
+        PayoutCreate, PayoutCreateNew, PayoutCreateUpdate, PayoutCreateUpdateInternal,
+    },
     schema::payout_create::dsl,
     PgPooledConn, StorageResult,
 };

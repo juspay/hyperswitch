@@ -1,6 +1,8 @@
 use actix_web::{web, Scope};
 use tokio::sync::oneshot;
 
+#[cfg(feature = "dummy_connector")]
+use super::dummy_connector::*;
 use super::health::*;
 #[cfg(feature = "olap")]
 use super::{admin::*, api_keys::*, disputes::*, files::*};
@@ -73,6 +75,23 @@ impl Health {
         web::scope("")
             .app_data(web::Data::new(state))
             .service(web::resource("/health").route(web::get().to(health)))
+    }
+}
+
+#[cfg(feature = "dummy_connector")]
+pub struct DummyConnector;
+
+#[cfg(feature = "dummy_connector")]
+impl DummyConnector {
+    pub fn server(state: AppState) -> Scope {
+        let mut route = web::scope("/dummy-connector").app_data(web::Data::new(state));
+        #[cfg(not(feature = "external_access_dc"))]
+        {
+            route = route.guard(actix_web::guard::Host("localhost"));
+        }
+        route =
+            route.service(web::resource("/payment").route(web::post().to(dummy_connector_payment)));
+        route
     }
 }
 
@@ -213,10 +232,13 @@ impl Payouts {
         {
             route = route
                 .service(web::resource("/create").route(web::post().to(payouts_create)))
-                .service(web::resource("/retrieve").route(web::get().to(payouts_retrieve)))
-                .service(web::resource("/update").route(web::post().to(payouts_update)))
-                .service(web::resource("/reverse").route(web::post().to(payouts_reverse)))
-                .service(web::resource("/cancel").route(web::post().to(payouts_cancel)));
+                .service(web::resource("/cancel").route(web::post().to(payouts_cancel)))
+                .service(web::resource("/fulfill").route(web::post().to(payouts_fulfill)))
+                .service(
+                    web::resource("/{payout_id}")
+                        .route(web::get().to(payouts_retrieve))
+                        .route(web::post().to(payouts_update)),
+                )
         }
         route
     }
