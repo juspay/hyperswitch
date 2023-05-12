@@ -83,7 +83,7 @@ impl ProcessTrackerBatch {
                     .as_str()
                     .parse()
                     .into_report()
-                    .change_context(errors::ParsingError)
+                    .change_context(errors::ParsingError::UnknownError)
                     .change_context(errors::ProcessTrackerError::DeserializationFailed)?,
             )
             .into_report()
@@ -105,7 +105,7 @@ impl ProcessTrackerBatch {
 
         let trackers = serde_json::from_str::<Vec<ProcessTracker>>(trackers.as_str())
             .into_report()
-            .change_context(errors::ParsingError)
+            .change_context(errors::ParsingError::UnknownError)
             .attach_printable_lazy(|| {
                 format!("Unable to parse trackers from JSON string: {trackers:?}")
             })
