@@ -8,6 +8,7 @@ use crate::{enums as api_enums, payments};
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub enum PayoutRequest {
+    PayoutActionRequest(PayoutActionRequest),
     PayoutCreateRequest(PayoutCreateRequest),
     PayoutRetrieveRequest(PayoutRetrieveRequest),
 }
@@ -412,4 +413,17 @@ pub struct PayoutRetrieveRequest {
     /// (defaults to false)
     #[schema(value_type = Option<bool>, default = false, example = true)]
     pub force_sync: Option<bool>,
+}
+
+#[derive(Default, Debug, Serialize, ToSchema, Clone, Deserialize)]
+pub struct PayoutActionRequest {
+    /// Unique identifier for the payout. This ensures idempotency for multiple payouts
+    /// that have been done by a single merchant. This field is auto generated and is returned in the API response.
+    #[schema(
+        value_type = String,
+        min_length = 30,
+        max_length = 30,
+        example = "payout_mbabizu24mvu3mela5njyhpit4"
+    )]
+    pub payout_id: String,
 }

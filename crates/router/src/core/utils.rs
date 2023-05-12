@@ -1,7 +1,7 @@
 use std::marker::PhantomData;
 
 use api_models::enums::{DisputeStage, DisputeStatus};
-use common_utils::errors::CustomResult;
+use common_utils::{crypto::Encryptable, errors::CustomResult};
 use error_stack::{IntoReport, ResultExt};
 use router_env::{instrument, tracing};
 
@@ -26,15 +26,21 @@ pub async fn construct_payout_router_data<'a, F>(
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
     payout_create: &storage::PayoutCreate,
-    payouts: Option<storage::Payouts>,
-    request: &api_models::payouts::PayoutCreateRequest,
+    payouts: &storage::Payouts,
+    request: &api_models::payouts::PayoutRequest,
+    billing: &Option<domain::Address>,
     payout_method_data: &api::PayoutMethodData,
 ) -> RouterResult<types::PayoutsRouterData<F>> {
-    let (business_country, business_label) = helpers::get_business_details(
-        request.business_country,
-        request.business_label.as_ref(),
-        merchant_account,
-    )?;
+    let (business_country, business_label) = match request {
+        api_models::payouts::PayoutRequest::PayoutCreateRequest(req) => {
+            helpers::get_business_details(
+                req.business_country,
+                req.business_label.as_ref(),
+                merchant_account,
+            )?
+        }
+        _ => helpers::get_business_details(None, None, merchant_account)?,
+    };
 
     let connector_label =
         helpers::get_connector_label(business_country, &business_label, None, connector_id);
@@ -55,7 +61,28 @@ pub async fn construct_payout_router_data<'a, F>(
 
     let address = PaymentAddress {
         shipping: None,
-        billing: request.billing.clone(),
+        billing: billing.as_ref().map(|a| {
+            let phone_details = api_models::payments::PhoneDetails {
+                number: a.phone_number.clone().map(Encryptable::into_inner),
+                country_code: a.country_code.to_owned(),
+            };
+            let address_details = api_models::payments::AddressDetails {
+                city: a.city.to_owned(),
+                country: a.country.to_owned(),
+                line1: a.line1.clone().map(Encryptable::into_inner),
+                line2: a.line2.clone().map(Encryptable::into_inner),
+                line3: a.line3.clone().map(Encryptable::into_inner),
+                zip: a.zip.clone().map(Encryptable::into_inner),
+                first_name: a.first_name.clone().map(Encryptable::into_inner),
+                last_name: a.last_name.clone().map(Encryptable::into_inner),
+                state: a.state.clone().map(Encryptable::into_inner),
+            };
+
+            api_models::payments::Address {
+                phone: Some(phone_details),
+                address: Some(address_details),
+            }
+        }),
     };
 
     let router_data = types::RouterData {
@@ -70,7 +97,7 @@ pub async fn construct_payout_router_data<'a, F>(
         payment_method: enums::PaymentMethod::default(), //FIXME
         connector_auth_type,
         description: None,
-        return_url: request.return_url.to_owned(),
+        return_url: payout_create.return_url.to_owned(),
         payment_method_id: None,
         address,
         auth_type: enums::AuthenticationType::default(), //FIXME
@@ -79,7 +106,7 @@ pub async fn construct_payout_router_data<'a, F>(
         request: types::PayoutsData {
             payout_id: payout_create.payout_id.to_owned(),
             amount: payout_create.amount,
-            connector_payout_id: payouts.map(|p| p.connector_payout_id),
+            connector_payout_id: Some(payouts.connector_payout_id.to_owned()),
             destination_currency: payout_create.destination_currency,
             source_currency: payout_create.source_currency,
             entity_type: payout_create.entity_type,
