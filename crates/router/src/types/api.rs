@@ -169,8 +169,6 @@ pub enum ConnectorCallType {
     Single(ConnectorData),
 }
 
-use api_models::enums::Connector as ConnectorName;
-
 impl ConnectorCallType {
     pub fn is_single(&self) -> bool {
         matches!(self, Self::Single(_))
@@ -200,43 +198,43 @@ impl ConnectorData {
         _connectors: &Connectors,
         connector_name: &str,
     ) -> CustomResult<BoxedConnector, errors::ApiErrorResponse> {
-        match ConnectorName::from_str(connector_name) {
+        match enums::Connector::from_str(connector_name) {
             Ok(name) => match name {
-                ConnectorName::Aci => Ok(Box::new(&connector::Aci)),
-                ConnectorName::Adyen => Ok(Box::new(&connector::Adyen)),
-                ConnectorName::Airwallex => Ok(Box::new(&connector::Airwallex)),
-                ConnectorName::Authorizedotnet => Ok(Box::new(&connector::Authorizedotnet)),
-                ConnectorName::Bambora => Ok(Box::new(&connector::Bambora)),
-                ConnectorName::Bitpay => Ok(Box::new(&connector::Bitpay)),
-                ConnectorName::Bluesnap => Ok(Box::new(&connector::Bluesnap)),
-                ConnectorName::Braintree => Ok(Box::new(&connector::Braintree)),
-                ConnectorName::Checkout => Ok(Box::new(&connector::Checkout)),
-                ConnectorName::Coinbase => Ok(Box::new(&connector::Coinbase)),
-                ConnectorName::Cybersource => Ok(Box::new(&connector::Cybersource)),
-                ConnectorName::Dlocal => Ok(Box::new(&connector::Dlocal)),
+                enums::Connector::Aci => Ok(Box::new(&connector::Aci)),
+                enums::Connector::Adyen => Ok(Box::new(&connector::Adyen)),
+                enums::Connector::Airwallex => Ok(Box::new(&connector::Airwallex)),
+                enums::Connector::Authorizedotnet => Ok(Box::new(&connector::Authorizedotnet)),
+                enums::Connector::Bambora => Ok(Box::new(&connector::Bambora)),
+                enums::Connector::Bitpay => Ok(Box::new(&connector::Bitpay)),
+                enums::Connector::Bluesnap => Ok(Box::new(&connector::Bluesnap)),
+                enums::Connector::Braintree => Ok(Box::new(&connector::Braintree)),
+                enums::Connector::Checkout => Ok(Box::new(&connector::Checkout)),
+                enums::Connector::Coinbase => Ok(Box::new(&connector::Coinbase)),
+                enums::Connector::Cybersource => Ok(Box::new(&connector::Cybersource)),
+                enums::Connector::Dlocal => Ok(Box::new(&connector::Dlocal)),
                 #[cfg(feature = "dummy_connector")]
-                ConnectorName::DummyConnector => Ok(Box::new(&connector::DummyConnector)),
-                ConnectorName::Fiserv => Ok(Box::new(&connector::Fiserv)),
-                ConnectorName::Forte => Ok(Box::new(&connector::Forte)),
-                ConnectorName::Globalpay => Ok(Box::new(&connector::Globalpay)),
-                ConnectorName::Iatapay => Ok(Box::new(&connector::Iatapay)),
-                ConnectorName::Klarna => Ok(Box::new(&connector::Klarna)),
-                ConnectorName::Mollie => Ok(Box::new(&connector::Mollie)),
-                ConnectorName::Nmi => Ok(Box::new(&connector::Nmi)),
-                ConnectorName::Nuvei => Ok(Box::new(&connector::Nuvei)),
-                ConnectorName::Opennode => Ok(Box::new(&connector::Opennode)),
+                enums::Connector::DummyConnector => Ok(Box::new(&connector::DummyConnector)),
+                enums::Connector::Fiserv => Ok(Box::new(&connector::Fiserv)),
+                enums::Connector::Forte => Ok(Box::new(&connector::Forte)),
+                enums::Connector::Globalpay => Ok(Box::new(&connector::Globalpay)),
+                enums::Connector::Iatapay => Ok(Box::new(&connector::Iatapay)),
+                enums::Connector::Klarna => Ok(Box::new(&connector::Klarna)),
+                enums::Connector::Mollie => Ok(Box::new(&connector::Mollie)),
+                enums::Connector::Nmi => Ok(Box::new(&connector::Nmi)),
+                enums::Connector::Nuvei => Ok(Box::new(&connector::Nuvei)),
+                enums::Connector::Opennode => Ok(Box::new(&connector::Opennode)),
                 // "payeezy" => Ok(Box::new(&connector::Payeezy)), As psync and rsync are not supported by this connector, it is added as template code for future usage
-                ConnectorName::Payu => Ok(Box::new(&connector::Payu)),
-                ConnectorName::Rapyd => Ok(Box::new(&connector::Rapyd)),
-                ConnectorName::Shift4 => Ok(Box::new(&connector::Shift4)),
-                ConnectorName::Stripe => Ok(Box::new(&connector::Stripe)),
-                ConnectorName::Worldline => Ok(Box::new(&connector::Worldline)),
-                ConnectorName::Worldpay => Ok(Box::new(&connector::Worldpay)),
-                ConnectorName::Multisafepay => Ok(Box::new(&connector::Multisafepay)),
-                ConnectorName::Nexinets => Ok(Box::new(&connector::Nexinets)),
-                ConnectorName::Paypal => Ok(Box::new(&connector::Paypal)),
-                ConnectorName::Trustpay => Ok(Box::new(&connector::Trustpay)),
-                ConnectorName::Zen => Ok(Box::new(&connector::Zen)),
+                enums::Connector::Payu => Ok(Box::new(&connector::Payu)),
+                enums::Connector::Rapyd => Ok(Box::new(&connector::Rapyd)),
+                enums::Connector::Shift4 => Ok(Box::new(&connector::Shift4)),
+                enums::Connector::Stripe => Ok(Box::new(&connector::Stripe)),
+                enums::Connector::Worldline => Ok(Box::new(&connector::Worldline)),
+                enums::Connector::Worldpay => Ok(Box::new(&connector::Worldpay)),
+                enums::Connector::Multisafepay => Ok(Box::new(&connector::Multisafepay)),
+                enums::Connector::Nexinets => Ok(Box::new(&connector::Nexinets)),
+                enums::Connector::Paypal => Ok(Box::new(&connector::Paypal)),
+                enums::Connector::Trustpay => Ok(Box::new(&connector::Trustpay)),
+                enums::Connector::Zen => Ok(Box::new(&connector::Zen)),
             },
             Err(_) => Err(report!(errors::ConnectorError::InvalidConnectorName)
                 .attach_printable(format!("invalid connector name: {connector_name}")))
@@ -252,37 +250,37 @@ mod test {
 
     #[test]
     fn test_convert_connector_parsing_success() {
-        let result = ConnectorName::from_str("aci");
+        let result = enums::Connector::from_str("aci");
         assert!(result.is_ok());
-        assert_eq!(result.unwrap(), ConnectorName::Aci);
+        assert_eq!(result.unwrap(), enums::Connector::Aci);
 
-        let result = ConnectorName::from_str("shift4");
+        let result = enums::Connector::from_str("shift4");
         assert!(result.is_ok());
-        assert_eq!(result.unwrap(), ConnectorName::Shift4);
+        assert_eq!(result.unwrap(), enums::Connector::Shift4);
 
-        let result = ConnectorName::from_str("authorizedotnet");
+        let result = enums::Connector::from_str("authorizedotnet");
         assert!(result.is_ok());
-        assert_eq!(result.unwrap(), ConnectorName::Authorizedotnet);
+        assert_eq!(result.unwrap(), enums::Connector::Authorizedotnet);
     }
 
     #[test]
     fn test_convert_connector_parsing_fail_for_unknown_type() {
-        let result = ConnectorName::from_str("unknowntype");
+        let result = enums::Connector::from_str("unknowntype");
         assert!(result.is_err());
 
-        let result = ConnectorName::from_str("randomstring");
+        let result = enums::Connector::from_str("randomstring");
         assert!(result.is_err());
     }
 
     #[test]
     fn test_convert_connector_parsing_fail_for_camel_case() {
-        let result = ConnectorName::from_str("Paypal");
+        let result = enums::Connector::from_str("Paypal");
         assert!(result.is_err());
 
-        let result = ConnectorName::from_str("Authorizedotnet");
+        let result = enums::Connector::from_str("Authorizedotnet");
         assert!(result.is_err());
 
-        let result = ConnectorName::from_str("Opennode");
+        let result = enums::Connector::from_str("Opennode");
         assert!(result.is_err());
     }
 }
