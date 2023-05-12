@@ -21,32 +21,33 @@ use crate::{
 };
 
 #[derive(Debug, Clone)]
-pub struct DummyConnector;
+pub struct DummyConnector<const T: i32>;
 
-impl api::Payment for DummyConnector {}
-impl api::PaymentSession for DummyConnector {}
-impl api::ConnectorAccessToken for DummyConnector {}
-impl api::PreVerify for DummyConnector {}
-impl api::PaymentAuthorize for DummyConnector {}
-impl api::PaymentSync for DummyConnector {}
-impl api::PaymentCapture for DummyConnector {}
-impl api::PaymentVoid for DummyConnector {}
-impl api::Refund for DummyConnector {}
-impl api::RefundExecute for DummyConnector {}
-impl api::RefundSync for DummyConnector {}
-impl api::PaymentToken for DummyConnector {}
+impl<const T: i32> api::Payment for DummyConnector<T> {}
+impl<const T: i32> api::PaymentSession for DummyConnector<T> {}
+impl<const T: i32> api::ConnectorAccessToken for DummyConnector<T> {}
+impl<const T: i32> api::PreVerify for DummyConnector<T> {}
+impl<const T: i32> api::PaymentAuthorize for DummyConnector<T> {}
+impl<const T: i32> api::PaymentSync for DummyConnector<T> {}
+impl<const T: i32> api::PaymentCapture for DummyConnector<T> {}
+impl<const T: i32> api::PaymentVoid for DummyConnector<T> {}
+impl<const T: i32> api::Refund for DummyConnector<T> {}
+impl<const T: i32> api::RefundExecute for DummyConnector<T> {}
+impl<const T: i32> api::RefundSync for DummyConnector<T> {}
+impl<const T: i32> api::PaymentToken for DummyConnector<T> {}
 
-impl
+impl<const T: i32>
     ConnectorIntegration<
         api::PaymentMethodToken,
         types::PaymentMethodTokenizationData,
         types::PaymentsResponseData,
-    > for DummyConnector
+    > for DummyConnector<T>
 {
     // Not Implemented (R)
 }
 
-impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for DummyConnector
+impl<const T: i32, Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response>
+    for DummyConnector<T>
 where
     Self: ConnectorIntegration<Flow, Request, Response>,
 {
@@ -65,9 +66,14 @@ where
     }
 }
 
-impl ConnectorCommon for DummyConnector {
+impl<const T: i32> ConnectorCommon for DummyConnector<T> {
     fn id(&self) -> &'static str {
-        "dummyconnector"
+        match T {
+            1 => "dummyconnector1",
+            2 => "dummyconnector2",
+            3 => "dummyconnector3",
+            _ => "dummyconnector",
+        }
     }
 
     fn common_get_content_type(&self) -> &'static str {
@@ -105,24 +111,28 @@ impl ConnectorCommon for DummyConnector {
     }
 }
 
-impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::PaymentsResponseData>
-    for DummyConnector
+impl<const T: i32>
+    ConnectorIntegration<api::Session, types::PaymentsSessionData, types::PaymentsResponseData>
+    for DummyConnector<T>
 {
     //TODO: implement sessions flow
 }
 
-impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, types::AccessToken>
-    for DummyConnector
+impl<const T: i32>
+    ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, types::AccessToken>
+    for DummyConnector<T>
 {
 }
 
-impl ConnectorIntegration<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>
-    for DummyConnector
+impl<const T: i32>
+    ConnectorIntegration<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>
+    for DummyConnector<T>
 {
 }
 
-impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::PaymentsResponseData>
-    for DummyConnector
+impl<const T: i32>
+    ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::PaymentsResponseData>
+    for DummyConnector<T>
 {
     fn get_headers(
         &self,
@@ -214,8 +224,9 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     }
 }
 
-impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>
-    for DummyConnector
+impl<const T: i32>
+    ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>
+    for DummyConnector<T>
 {
     fn get_headers(
         &self,
@@ -290,8 +301,9 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
     }
 }
 
-impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::PaymentsResponseData>
-    for DummyConnector
+impl<const T: i32>
+    ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::PaymentsResponseData>
+    for DummyConnector<T>
 {
     fn get_headers(
         &self,
@@ -362,13 +374,15 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
     }
 }
 
-impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsResponseData>
-    for DummyConnector
+impl<const T: i32>
+    ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsResponseData>
+    for DummyConnector<T>
 {
 }
 
-impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsResponseData>
-    for DummyConnector
+impl<const T: i32>
+    ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsResponseData>
+    for DummyConnector<T>
 {
     fn get_headers(
         &self,
@@ -449,8 +463,8 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
     }
 }
 
-impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponseData>
-    for DummyConnector
+impl<const T: i32> ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponseData>
+    for DummyConnector<T>
 {
     fn get_headers(
         &self,
@@ -519,7 +533,7 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
 }
 
 #[async_trait::async_trait]
-impl api::IncomingWebhook for DummyConnector {
+impl<const T: i32> api::IncomingWebhook for DummyConnector<T> {
     fn get_webhook_object_reference_id(
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
