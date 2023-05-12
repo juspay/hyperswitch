@@ -187,7 +187,6 @@ impl MerchantAccountInterface for MockDb {
             #[allow(clippy::as_conversions)]
             id: accounts.len() as i32,
             merchant_id: merchant_account.merchant_id,
-            api_key: merchant_account.api_key,
             return_url: merchant_account.return_url,
             enable_payment_response_hash: merchant_account
                 .enable_payment_response_hash

@@ -1,19 +1,17 @@
 use api_models::admin::PrimaryBusinessDetails;
 use common_utils::ext_traits::ValueExt;
-use error_stack::{report, FutureExt, IntoReport, ResultExt};
-use masking::Secret; //PeekInterface
+use error_stack::{report, FutureExt, ResultExt};
+use masking::Secret;
 use storage_models::{enums, merchant_account};
 use uuid::Uuid;
 
 use crate::{
     consts,
     core::{
-        api_keys,
         errors::{self, RouterResponse, RouterResult, StorageErrorExt},
         payments::helpers,
     },
     db::StorageInterface,
-    routes::AppState,
     services::api as service_api,
     types::{
         self, api,
@@ -58,37 +56,10 @@ fn get_primary_business_details(
 }
 
 pub async fn create_merchant_account(
-    state: &AppState,
+    db: &dyn StorageInterface,
     req: api::MerchantAccountCreate,
 ) -> RouterResponse<api::MerchantAccountResponse> {
-    let db = &*state.store;
     let publishable_key = Some(create_merchant_publishable_key());
-
-    let api_key_request = api::CreateApiKeyRequest {
-        name: "Default API key".into(),
-        description: Some(
-            "An API key created by default when a user signs up on the HyperSwitch dashboard"
-                .into(),
-        ),
-        expiration: api::ApiKeyExpiration::Never,
-    };
-    let api_key = match api_keys::create_api_key(
-        db,
-        &state.conf.api_keys,
-        #[cfg(feature = "kms")]
-        &state.conf.kms,
-        api_key_request,
-        req.merchant_id.clone(),
-    )
-    .await?
-    {
-        service_api::ApplicationResponse::Json(api::CreateApiKeyResponse { api_key, .. }) => {
-            Ok(api_key)
-        }
-        _ => Err(errors::ApiErrorResponse::InternalServerError)
-            .into_report()
-            .attach_printable("Unexpected create API key response"),
-    }?;
 
     let primary_business_details = utils::Encode::<Vec<PrimaryBusinessDetails>>::encode_to_value(
         &get_primary_business_details(&req),
@@ -132,7 +103,6 @@ pub async fn create_merchant_account(
     let merchant_account = storage::MerchantAccountNew {
         merchant_id: req.merchant_id,
         merchant_name: req.merchant_name,
-        api_key: Some(api_key),
         merchant_details,
         return_url: req.return_url.map(|a| a.to_string()),
         webhook_details,
