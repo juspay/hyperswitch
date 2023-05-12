@@ -2,9 +2,11 @@ mod transformers;
 
 use std::fmt::Debug;
 
+use api_models::payments::PaymentMethodData;
 use error_stack::{IntoReport, ResultExt};
 use transformers as dummyconnector;
 
+use super::utils::{PaymentsAuthorizeRequestData, RefundsRequestData};
 use crate::{
     configs::settings,
     core::errors::{self, CustomResult},
@@ -96,9 +98,9 @@ impl ConnectorCommon for DummyConnector {
 
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code: response.code,
-            message: response.message,
-            reason: response.reason,
+            code: response.error.code,
+            message: response.error.message,
+            reason: response.error.reason,
         })
     }
 }
@@ -136,10 +138,22 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
 
     fn get_url(
         &self,
-        _req: &types::PaymentsAuthorizeRouterData,
-        _connectors: &settings::Connectors,
+        req: &types::PaymentsAuthorizeRouterData,
+        connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        let payment_method_data = req.request.payment_method_data.to_owned();
+        let payment_method_type = req.request.get_payment_method_type()?;
+        match payment_method_data {
+            PaymentMethodData::Card(_) => Ok(format!("{}/payment", self.base_url(connectors))),
+            _ => Err(error_stack::report!(errors::ConnectorError::NotSupported {
+                message: format!(
+                    "The payment method {} is not supported",
+                    payment_method_type
+                ),
+                connector: "dummyconnector",
+                payment_experience: api::enums::PaymentExperience::RedirectToUrl.to_string(),
+            })),
+        }
     }
 
     fn get_request_body(
@@ -180,7 +194,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         data: &types::PaymentsAuthorizeRouterData,
         res: Response,
     ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
-        let response: dummyconnector::DummyConnectorPaymentsResponse = res
+        let response: dummyconnector::PaymentsResponse = res
             .response
             .parse_struct("DummyConnector PaymentsAuthorizeResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
@@ -217,10 +231,23 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
 
     fn get_url(
         &self,
-        _req: &types::PaymentsSyncRouterData,
-        _connectors: &settings::Connectors,
+        req: &types::PaymentsSyncRouterData,
+        connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        match req
+            .request
+            .connector_transaction_id
+            .get_connector_transaction_id()
+        {
+            Ok(transaction_id) => Ok(format!(
+                "{}/payments/{}",
+                self.base_url(connectors),
+                transaction_id
+            )),
+            Err(_) => Err(error_stack::report!(
+                errors::ConnectorError::MissingConnectorTransactionID
+            )),
+        }
     }
 
     fn build_request(
@@ -243,7 +270,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         data: &types::PaymentsSyncRouterData,
         res: Response,
     ) -> CustomResult<types::PaymentsSyncRouterData, errors::ConnectorError> {
-        let response: dummyconnector::DummyConnectorPaymentsResponse = res
+        let response: dummyconnector::PaymentsResponse = res
             .response
             .parse_struct("dummyconnector PaymentsSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
@@ -315,7 +342,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         data: &types::PaymentsCaptureRouterData,
         res: Response,
     ) -> CustomResult<types::PaymentsCaptureRouterData, errors::ConnectorError> {
-        let response: dummyconnector::DummyConnectorPaymentsResponse = res
+        let response: dummyconnector::PaymentsResponse = res
             .response
             .parse_struct("DummyConnector PaymentsCaptureResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
@@ -357,10 +384,14 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
 
     fn get_url(
         &self,
-        _req: &types::RefundsRouterData<api::Execute>,
-        _connectors: &settings::Connectors,
+        req: &types::RefundsRouterData<api::Execute>,
+        connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        Ok(format!(
+            "{}/{}/refund",
+            self.base_url(connectors),
+            req.request.connector_transaction_id
+        ))
     }
 
     fn get_request_body(
@@ -435,10 +466,15 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
 
     fn get_url(
         &self,
-        _req: &types::RefundSyncRouterData,
-        _connectors: &settings::Connectors,
+        req: &types::RefundSyncRouterData,
+        connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        let refund_id = req.request.get_connector_refund_id()?;
+        Ok(format!(
+            "{}/refunds/{}",
+            self.base_url(connectors),
+            refund_id
+        ))
     }
 
     fn build_request(
