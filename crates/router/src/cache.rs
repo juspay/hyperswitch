@@ -40,7 +40,7 @@ impl<'a> From<CacheKind<'a>> for RedisValue {
             CacheKind::Config(s) => format!("config,{s}"),
             CacheKind::Accounts(s) => format!("accounts,{s}"),
         };
-        Self::String(value.into())
+        Self::from_string(value)
     }
 }
 

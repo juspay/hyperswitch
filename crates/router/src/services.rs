@@ -6,7 +6,7 @@ pub mod logger;
 use std::sync::{atomic, Arc};
 
 use error_stack::{IntoReport, ResultExt};
-use redis_interface::{errors as redis_errors, PubsubInterface};
+use redis_interface::{errors as redis_errors, PubsubInterface, RedisValue};
 use tokio::sync::oneshot;
 
 pub use self::{api::*, encryption::*};
@@ -56,7 +56,7 @@ impl PubSubInterface for redis_interface::RedisConnectionPool {
         key: CacheKind<'a>,
     ) -> errors::CustomResult<usize, redis_errors::RedisError> {
         self.publisher
-            .publish(channel, redis_interface::RedisValue::from(key))
+            .publish(channel, RedisValue::from(key).into_inner())
             .await
             .into_report()
             .change_context(redis_errors::RedisError::SubscribeError)
@@ -66,8 +66,7 @@ impl PubSubInterface for redis_interface::RedisConnectionPool {
     async fn on_message(&self) -> errors::CustomResult<(), redis_errors::RedisError> {
         let mut rx = self.subscriber.on_message();
         while let Ok(message) = rx.recv().await {
-            let key: CacheKind<'_> = message
-                .value
+            let key: CacheKind<'_> = RedisValue::new(message.value)
                 .try_into()
                 .change_context(redis_errors::RedisError::OnMessageError)?;
             match key {
