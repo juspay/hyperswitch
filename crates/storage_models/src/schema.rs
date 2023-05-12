@@ -1,5 +1,3 @@
-// @generated automatically by Diesel CLI.
-
 diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
@@ -450,23 +448,6 @@ diesel::table! {
     }
 }
 
-diesel::table! {
-    use diesel::sql_types::*;
-    use crate::enums::diesel_exports::*;
-
-    users (id) {
-        id -> Int4,
-        user_id -> Varchar,
-        email -> Varchar,
-        name -> Varchar,
-        password -> Varchar,
-        merchant_id -> Nullable<Varchar>,
-        is_verified -> Bool,
-        created_at -> Timestamp,
-        last_modified -> Timestamp,
-    }
-}
-
 diesel::allow_tables_to_appear_in_same_query!(
     address,
     api_keys,
@@ -487,5 +468,4 @@ diesel::allow_tables_to_appear_in_same_query!(
     process_tracker,
     refund,
     reverse_lookup,
-    users,
 );
