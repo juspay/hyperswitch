@@ -22,7 +22,7 @@ impl utils::Connector for PayeezyTest {
         use router::connector::Payeezy;
         types::api::ConnectorData {
             connector: Box::new(&Payeezy),
-            connector_name: types::Connector::Dummy,
+            connector_name: types::Connector::DummyConnector,
             get_token: types::api::GetToken::Connector,
         }
     }
