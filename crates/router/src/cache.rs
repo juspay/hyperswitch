@@ -8,6 +8,12 @@ use redis_interface::RedisValue;
 
 use crate::core::errors;
 
+/// Prefix for config cache key
+const CONFIG_CACHE_PREFIX: &str = "config";
+
+/// Prefix for accounts cache key
+const ACCOUNTS_CACHE_PREFIX: &str = "accounts";
+
 /// Time to live 30 mins
 const CACHE_TTL: u64 = 30 * 60;
 
@@ -37,8 +43,8 @@ pub enum CacheKind<'a> {
 impl<'a> From<CacheKind<'a>> for RedisValue {
     fn from(kind: CacheKind<'a>) -> Self {
         let value = match kind {
-            CacheKind::Config(s) => format!("config,{s}"),
-            CacheKind::Accounts(s) => format!("accounts,{s}"),
+            CacheKind::Config(s) => format!("{CONFIG_CACHE_PREFIX},{s}"),
+            CacheKind::Accounts(s) => format!("{ACCOUNTS_CACHE_PREFIX},{s}"),
         };
         Self::from_string(value)
     }
@@ -53,10 +59,10 @@ impl<'a> TryFrom<RedisValue> for CacheKind<'a> {
         let kind = kind.as_string().ok_or(validation_err.clone())?;
         let mut split = kind.split(',');
         match split.next().ok_or(validation_err.clone())? {
-            "accounts" => Ok(Self::Accounts(Cow::Owned(
+            ACCOUNTS_CACHE_PREFIX => Ok(Self::Accounts(Cow::Owned(
                 split.next().ok_or(validation_err)?.to_string(),
             ))),
-            "config" => Ok(Self::Config(Cow::Owned(
+            CONFIG_CACHE_PREFIX => Ok(Self::Config(Cow::Owned(
                 split.next().ok_or(validation_err)?.to_string(),
             ))),
             _ => Err(validation_err.into()),
