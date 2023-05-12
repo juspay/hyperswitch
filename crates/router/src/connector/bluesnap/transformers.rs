@@ -10,7 +10,7 @@ use crate::{
     connector::utils,
     consts,
     core::errors,
-    pii::{self, Secret},
+    pii::Secret,
     types::{self, api, storage::enums, transformers::ForeignTryFrom},
     utils::Encode,
 };
@@ -42,7 +42,7 @@ pub enum PaymentMethodDetails {
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct Card {
-    card_number: Secret<String, pii::CardNumber>,
+    card_number: cards::CardNumber,
     expiration_month: Secret<String>,
     expiration_year: Secret<String>,
     security_code: Secret<String>,
@@ -55,10 +55,10 @@ pub struct BluesnapWallet {
     encoded_payment_token: String,
 }
 
-#[derive(Debug, Serialize, Eq, PartialEq)]
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BluesnapGooglePayObject {
-    payment_method_data: api_models::payments::GooglePayWalletData,
+    payment_method_data: utils::GooglePayWalletData,
 }
 
 #[derive(Debug, Serialize, Eq, PartialEq)]
@@ -92,7 +92,9 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BluesnapPaymentsRequest {
                 api_models::payments::WalletData::GooglePay(payment_method_data) => {
                     let gpay_object = Encode::<BluesnapGooglePayObject>::encode_to_string_of_json(
                         &BluesnapGooglePayObject {
-                            payment_method_data,
+                            payment_method_data: utils::GooglePayWalletData::from(
+                                payment_method_data,
+                            ),
                         },
                     )
                     .change_context(errors::ConnectorError::RequestEncodingFailed)?;

@@ -12,7 +12,7 @@ use std::{
 use actix_web::{body, HttpRequest, HttpResponse, Responder};
 use common_utils::errors::ReportSwitchExt;
 use error_stack::{report, IntoReport, Report, ResultExt};
-use masking::{ExposeInterface, ExposeOptionInterface, PeekInterface};
+use masking::{ExposeOptionInterface, PeekInterface};
 use router_env::{instrument, tracing, Tag};
 use serde::Serialize;
 use serde_json::json;
@@ -231,8 +231,10 @@ where
                 })? {
                 Some(request) => {
                     logger::debug!(connector_request=?request);
-                    let request_payload = request.payload.clone().ok_or(errors::ConnectorError::ResponseDeserializationFailed)?;
-                    logger::debug!("Rishav2000 {:?}",request_payload.peek() );
+                    let request_payload = request
+                        .payload
+                        .clone()
+                        .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?;
                     let response = call_connector_api(state, request).await;
                     logger::debug!(connector_response=?response);
                     match response {
@@ -795,10 +797,10 @@ pub fn build_redirection_form(
             {
                 format!(
                     "var newCard={{ccNumber: \"{}\",cvv: \"{}\",expDate: \"{}/{}\",amount: {},currency: \"{}\"}};",
-                    ccard.card_number.expose(),
-                    ccard.card_cvc.expose(),
-                    ccard.card_exp_month.clone().expose(),
-                    ccard.card_exp_year.expose(),
+                    ccard.card_number.peek(),
+                    ccard.card_cvc.peek(),
+                    ccard.card_exp_month.peek(),
+                    ccard.card_exp_year.peek(),
                     amount,
                     currency
                 )
@@ -836,7 +838,7 @@ pub fn build_redirection_form(
                     }
 
                 (PreEscaped(format!("<script>
-                    bluesnap.threeDsPaymentsSetup(\"{payment_fields_token}\", 
+                    bluesnap.threeDsPaymentsSetup(\"{payment_fields_token}\",
                     function(sdkResponse) {{
                         console.log(sdkResponse);
                         var f = document.createElement('form');

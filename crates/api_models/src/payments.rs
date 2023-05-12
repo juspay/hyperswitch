@@ -1,12 +1,13 @@
 use std::num::NonZeroI64;
 
+use cards::CardNumber;
 use common_utils::{pii, pii::Email};
 use masking::{PeekInterface, Secret};
 use router_derive::Setter;
 use time::PrimitiveDateTime;
 use utoipa::ToSchema;
 
-use crate::{admin, enums as api_enums, refunds};
+use crate::{admin, disputes, enums as api_enums, refunds};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum PaymentOp {
@@ -415,7 +416,7 @@ pub struct OnlineMandate {
 pub struct Card {
     /// The card number
     #[schema(value_type = String, example = "4242424242424242")]
-    pub card_number: Secret<String, pii::CardNumber>,
+    pub card_number: CardNumber,
 
     /// The card's expiry month
     #[schema(value_type = String, example = "24")]
@@ -487,6 +488,12 @@ pub enum BankDebitData {
         /// Routing number for ach bank debit payment
         #[schema(value_type = String, example = "110000000")]
         routing_number: Secret<String>,
+
+        #[schema(value_type = String, example = "John Test")]
+        card_holder_name: Option<Secret<String>>,
+
+        #[schema(value_type = String, example = "John Doe")]
+        bank_account_holder_name: Option<Secret<String>>,
     },
     SepaBankDebit {
         /// Billing details for bank debit
@@ -494,6 +501,9 @@ pub enum BankDebitData {
         /// International bank account number (iban) for SEPA
         #[schema(value_type = String, example = "DE89370400440532013000")]
         iban: Secret<String>,
+        /// Owner name for bank debit
+        #[schema(value_type = String, example = "A. Schneider")]
+        bank_account_holder_name: Option<Secret<String>>,
     },
     BecsBankDebit {
         /// Billing details for bank debit
@@ -580,7 +590,7 @@ pub enum BankRedirectData {
     BancontactCard {
         /// The card number
         #[schema(value_type = String, example = "4242424242424242")]
-        card_number: Secret<String, pii::CardNumber>,
+        card_number: CardNumber,
         /// The card's expiry month
         #[schema(value_type = String, example = "24")]
         card_exp_month: Secret<String>,
@@ -620,6 +630,13 @@ pub enum BankRedirectData {
         #[schema(value_type = BankNames, example = "abn_amro")]
         bank_name: api_enums::BankNames,
     },
+    Interac {
+        /// The country for bank payment
+        #[schema(value_type = CountryAlpha2, example = "US")]
+        country: api_enums::CountryAlpha2,
+
+        email: Email,
+    },
     OnlineBankingCzechRepublic {
         // Issuer banks
         issuer: api_enums::BankNames,
@@ -636,7 +653,10 @@ pub enum BankRedirectData {
         // Issuer value corresponds to the bank
         issuer: api_enums::BankNames,
     },
-    Przelewy24 {},
+    Przelewy24 {
+        // Shopper Email
+        email: Email,
+    },
     Sofort {
         /// The billing details for bank redirection
         billing_details: BankRedirectBilling,
@@ -704,7 +724,7 @@ pub enum WalletData {
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
-#[serde(rename_all(serialize = "camelCase", deserialize = "snake_case"))]
+#[serde(rename_all = "snake_case")]
 pub struct GooglePayWalletData {
     /// The type of payment method
     #[serde(rename = "type")]
@@ -736,7 +756,7 @@ pub struct MbWayRedirection {
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
-#[serde(rename_all(serialize = "camelCase", deserialize = "snake_case"))]
+#[serde(rename_all = "snake_case")]
 pub struct GooglePayPaymentMethodInfo {
     /// The name of the card network
     pub card_network: String,
@@ -925,7 +945,7 @@ pub struct PhoneDetails {
     pub country_code: Option<String>,
 }
 
-#[derive(Debug, Clone, Default, Eq, PartialEq, serde::Deserialize, ToSchema)]
+#[derive(Debug, Clone, Default, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct PaymentsCaptureRequest {
     /// The unique identifier for the payment
     pub payment_id: Option<String>,
@@ -1030,6 +1050,10 @@ pub struct PaymentsResponse {
     /// List of refund that happened on this intent
     #[schema(value_type = Option<Vec<RefundResponse>>)]
     pub refunds: Option<Vec<refunds::RefundResponse>>,
+
+    /// List of dispute that happened on this intent
+    #[schema(value_type = Option<Vec<DisputeResponsePaymentsRetrieve>>)]
+    pub disputes: Option<Vec<disputes::DisputeResponsePaymentsRetrieve>>,
 
     /// A unique identifier to link the payment to a mandate, can be use instead of payment_method_data
     #[schema(max_length = 255, example = "mandate_iwer89rnjef349dni3")]
@@ -1442,7 +1466,15 @@ pub struct GpayTokenParameters {
     /// The name of the connector
     pub gateway: String,
     /// The merchant ID registered in the connector associated
-    pub gateway_merchant_id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub gateway_merchant_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none", rename = "stripe:version")]
+    pub stripe_version: Option<String>,
+    #[serde(
+        skip_serializing_if = "Option::is_none",
+        rename = "stripe:publishableKey"
+    )]
+    pub stripe_publishable_key: Option<String>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -1587,7 +1619,7 @@ pub struct ApplepaySessionTokenResponse {
 }
 
 #[derive(Debug, Clone, serde::Serialize, ToSchema, serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all(deserialize = "camelCase"))]
 pub struct ApplePaySessionResponse {
     /// Timestamp at which session is requested
     pub epoch_timestamp: u64,

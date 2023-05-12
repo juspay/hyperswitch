@@ -230,6 +230,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 confirm: request.confirm,
                 payment_method_data: request.payment_method_data.clone(),
                 refunds: vec![],
+                disputes: vec![],
                 force_sync: None,
                 connector_response,
                 sessions_token: vec![],
@@ -302,6 +303,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentCreate {
         _merchant_account: &storage::MerchantAccount,
         state: &AppState,
         request: &api::PaymentsRequest,
+        _payment_intent: &storage::payment_intent::PaymentIntent,
     ) -> CustomResult<api::ConnectorChoice, errors::ApiErrorResponse> {
         helpers::get_connector_default(state, request.routing.clone()).await
     }

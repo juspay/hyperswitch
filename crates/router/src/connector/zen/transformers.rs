@@ -1,5 +1,6 @@
 use std::net::IpAddr;
 
+use cards::CardNumber;
 use common_utils::pii::Email;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
@@ -9,7 +10,6 @@ use crate::{
         self, BrowserInformationData, CardData, PaymentsAuthorizeRequestData, RouterData,
     },
     core::errors,
-    pii,
     services::{self, Method},
     types::{self, api, storage::enums, transformers::ForeignTryFrom},
 };
@@ -99,7 +99,7 @@ pub enum ZenPaymentTypes {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ZenCardDetails {
-    number: Secret<String, pii::CardNumber>,
+    number: CardNumber,
     expiry_date: Secret<String>,
     cvv: Secret<String>,
 }
@@ -204,14 +204,14 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for ZenPaymentsRequest {
                 ip,
             },
             custom_ipn_url: item.request.get_webhook_url()?,
-            items : order_details
+            items: order_details
                 .iter()
                 .map(|data| ZenItemObject {
-                        name: data.product_name.clone(),
-                        price: data.amount.to_string(),
-                        quantity: data.quantity,
-                        line_amount_total: order_amount.clone(),
-                    })
+                    name: data.product_name.clone(),
+                    price: data.amount.to_string(),
+                    quantity: data.quantity,
+                    line_amount_total: order_amount.clone(),
+                })
                 .collect(),
             // items: vec![ZenItemObject {
             //     name: "dummy".to_string(), //order_details.product_name,

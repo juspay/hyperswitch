@@ -1,5 +1,6 @@
 use std::str::FromStr;
 
+use common_utils::pii::Email;
 use error_stack::report;
 use masking::Secret;
 use reqwest::Url;
@@ -73,22 +74,27 @@ pub struct BankRedirectionPMData {
     bank_account_bic: Option<Secret<String>>,
     #[serde(rename = "bankAccount.iban")]
     bank_account_iban: Option<Secret<String>>,
+    #[serde(rename = "customer.email")]
+    customer_email: Option<Email>,
     shopper_result_url: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "UPPERCASE")]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum PaymentBrand {
     Eps,
     Ideal,
     Giropay,
     Sofortueberweisung,
+    InteracOnline,
+    Przelewy,
+    Trustly,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Serialize)]
 pub struct CardDetails {
     #[serde(rename = "card.number")]
-    pub card_number: Secret<String, common_utils::pii::CardNumber>,
+    pub card_number: cards::CardNumber,
     #[serde(rename = "card.holder")]
     pub card_holder: Secret<String>,
     #[serde(rename = "card.expiryMonth")]
@@ -145,6 +151,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for AciPaymentsRequest {
                             bank_account_bank_name: None,
                             bank_account_bic: None,
                             bank_account_iban: None,
+                            customer_email: None,
                             shopper_result_url: item.request.router_return_url.clone(),
                         }))
                     }
@@ -158,6 +165,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for AciPaymentsRequest {
                         bank_account_bank_name: None,
                         bank_account_bic: bank_account_bic.clone(),
                         bank_account_iban: bank_account_iban.clone(),
+                        customer_email: None,
                         shopper_result_url: item.request.router_return_url.clone(),
                     })),
                     api_models::payments::BankRedirectData::Ideal { bank_name, .. } => {
@@ -167,6 +175,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for AciPaymentsRequest {
                             bank_account_bank_name: Some(bank_name.to_string()),
                             bank_account_bic: None,
                             bank_account_iban: None,
+                            customer_email: None,
                             shopper_result_url: item.request.router_return_url.clone(),
                         }))
                     }
@@ -177,6 +186,30 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for AciPaymentsRequest {
                             bank_account_bank_name: None,
                             bank_account_bic: None,
                             bank_account_iban: None,
+                            customer_email: None,
+                            shopper_result_url: item.request.router_return_url.clone(),
+                        }))
+                    }
+                    api_models::payments::BankRedirectData::Przelewy24 { email } => {
+                        PaymentDetails::BankRedirect(Box::new(BankRedirectionPMData {
+                            payment_brand: PaymentBrand::Przelewy,
+                            bank_account_country: None,
+                            bank_account_bank_name: None,
+                            bank_account_bic: None,
+                            bank_account_iban: None,
+                            customer_email: Some(email.to_owned()),
+
+                            shopper_result_url: item.request.router_return_url.clone(),
+                        }))
+                    }
+                    api_models::payments::BankRedirectData::Interac { email, country } => {
+                        PaymentDetails::BankRedirect(Box::new(BankRedirectionPMData {
+                            payment_brand: PaymentBrand::InteracOnline,
+                            bank_account_country: Some(*country),
+                            bank_account_bank_name: None,
+                            bank_account_bic: None,
+                            bank_account_iban: None,
+                            customer_email: Some(email.to_owned()),
                             shopper_result_url: item.request.router_return_url.clone(),
                         }))
                     }

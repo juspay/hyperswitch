@@ -130,8 +130,8 @@ diesel::table! {
         connector_reason -> Nullable<Varchar>,
         connector_reason_code -> Nullable<Varchar>,
         challenge_required_by -> Nullable<Timestamp>,
-        dispute_created_at -> Nullable<Timestamp>,
-        updated_at -> Nullable<Timestamp>,
+        connector_created_at -> Nullable<Timestamp>,
+        connector_updated_at -> Nullable<Timestamp>,
         created_at -> Timestamp,
         modified_at -> Timestamp,
         connector -> Varchar,
@@ -169,6 +169,7 @@ diesel::table! {
         file_upload_provider -> Nullable<Varchar>,
         available -> Bool,
         created_at -> Timestamp,
+        connector_label -> Nullable<Varchar>,
     }
 }
 
@@ -247,7 +248,6 @@ diesel::table! {
         metadata -> Nullable<Jsonb>,
         routing_algorithm -> Nullable<Json>,
         primary_business_details -> Json,
-        api_key -> Nullable<Varchar>,
         intent_fulfillment_time -> Nullable<Int8>,
         created_at -> Timestamp,
         modified_at -> Timestamp,
