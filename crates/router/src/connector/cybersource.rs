@@ -93,22 +93,32 @@ impl ConnectorCommon for Cybersource {
             .response
             .parse_struct("Cybersource ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        let details = response.details.map_or(vec![], |details| details);
+        let mut connector_reason = String::new();
+        for det in details.iter() {
+            if connector_reason.is_empty() {
+                connector_reason.push_str(&format!("{} : {}", det.field, det.reason));
+            }
+            connector_reason.push_str(&format!(", {} : {}", det.field, det.reason));
+        }
+        let (code, message) = match response.error_information {
+            Some(ref error_info) => (error_info.reason.clone(), error_info.message.clone()),
+            None => (
+                response
+                    .reason
+                    .map_or(consts::NO_ERROR_CODE.to_string(), |reason| {
+                        reason.to_string()
+                    }),
+                response
+                    .message
+                    .map_or(consts::NO_ERROR_MESSAGE.to_string(), |message| message),
+            ),
+        };
         Ok(types::ErrorResponse {
             status_code: res.status_code,
-            code: consts::NO_ERROR_CODE.to_string(),
-            message: response
-                .message
-                .map(|m| {
-                    format!(
-                        "{} {}",
-                        m,
-                        response.details.map(|d| d.to_string()).unwrap_or_default()
-                    )
-                    .trim()
-                    .to_string()
-                })
-                .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-            reason: response.reason,
+            code,
+            message,
+            reason: Some(connector_reason),
         })
     }
 }

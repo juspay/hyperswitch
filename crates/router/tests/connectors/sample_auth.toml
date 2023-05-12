@@ -35,7 +35,8 @@ api_key = "Bearer MyApiKey"
 key1 = "MerchantPosId"
 
 [globalpay]
-api_key = "Bearer MyApiKey"
+api_key = "api_key"
+key1 = "key1"
 
 [rapyd]
 api_key = "access_key"
