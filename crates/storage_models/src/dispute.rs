@@ -1,5 +1,6 @@
 use common_utils::custom_serde;
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
+use masking::Secret;
 use serde::Serialize;
 use time::PrimitiveDateTime;
 
@@ -25,6 +26,7 @@ pub struct DisputeNew {
     pub connector_created_at: Option<PrimitiveDateTime>,
     pub connector_updated_at: Option<PrimitiveDateTime>,
     pub connector: String,
+    pub evidence: Option<Secret<serde_json::Value>>,
 }
 
 #[derive(Clone, Debug, Serialize, Identifiable, Queryable)]
@@ -52,6 +54,7 @@ pub struct Dispute {
     #[serde(with = "custom_serde::iso8601")]
     pub modified_at: PrimitiveDateTime,
     pub connector: String,
+    pub evidence: Secret<serde_json::Value>,
 }
 
 #[derive(Debug)]
@@ -69,19 +72,23 @@ pub enum DisputeUpdate {
         dispute_status: storage_enums::DisputeStatus,
         connector_status: Option<String>,
     },
+    EvidenceUpdate {
+        evidence: Secret<serde_json::Value>,
+    },
 }
 
 #[derive(Clone, Debug, Default, AsChangeset, router_derive::DebugAsDisplay)]
 #[diesel(table_name = dispute)]
 pub struct DisputeUpdateInternal {
     dispute_stage: Option<storage_enums::DisputeStage>,
-    dispute_status: storage_enums::DisputeStatus,
+    dispute_status: Option<storage_enums::DisputeStatus>,
     connector_status: Option<String>,
     connector_reason: Option<String>,
     connector_reason_code: Option<String>,
     challenge_required_by: Option<PrimitiveDateTime>,
     connector_updated_at: Option<PrimitiveDateTime>,
     modified_at: Option<PrimitiveDateTime>,
+    evidence: Option<Secret<serde_json::Value>>,
 }
 
 impl From<DisputeUpdate> for DisputeUpdateInternal {
@@ -97,21 +104,26 @@ impl From<DisputeUpdate> for DisputeUpdateInternal {
                 connector_updated_at,
             } => Self {
                 dispute_stage: Some(dispute_stage),
-                dispute_status,
+                dispute_status: Some(dispute_status),
                 connector_status: Some(connector_status),
                 connector_reason,
                 connector_reason_code,
                 challenge_required_by,
                 connector_updated_at,
                 modified_at: Some(common_utils::date_time::now()),
+                ..Default::default()
             },
             DisputeUpdate::StatusUpdate {
                 dispute_status,
                 connector_status,
             } => Self {
-                dispute_status,
+                dispute_status: Some(dispute_status),
                 connector_status,
                 modified_at: Some(common_utils::date_time::now()),
+                ..Default::default()
+            },
+            DisputeUpdate::EvidenceUpdate { evidence } => Self {
+                evidence: Some(evidence),
                 ..Default::default()
             },
         }
