@@ -216,6 +216,9 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for AciPaymentsRequest {
                         bank_account_bank_name: None,
                         bank_account_bic: None,
                         bank_account_iban: None,
+                        billing_country: None,
+                        merchant_customer_id: None,
+                        merchant_transaction_id: None,
                         customer_email: Some(billing_details.email.clone()),
                         shopper_result_url: item.request.router_return_url.clone(),
                     })),
@@ -256,6 +259,12 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for AciPaymentsRequest {
                         }))
                     }
 
+                    _ => Err(errors::ConnectorError::NotImplemented(
+                        "Payment method".to_string(),
+                    ))?,
+                }
+            }
+
             api::PaymentMethodData::Crypto(_)
             | api::PaymentMethodData::BankDebit(_)
             | api::PaymentMethodData::MandatePayment => {
@@ -266,10 +275,6 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for AciPaymentsRequest {
                         .to_string(),
                 })?
             }
-          
-          _ => Err(errors::ConnectorError::NotImplemented(
-                        "Payment method".to_string(),
-                    ))?
         };
 
         let auth = AciAuthType::try_from(&item.connector_auth_type)?;
