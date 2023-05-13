@@ -14,7 +14,7 @@ on:
 
 permissions:
   # Reference: https://github.com/cli/cli/issues/6274
-  repository-projects: write
+  repository-projects: read
   pull-requests: write
 
 env:
