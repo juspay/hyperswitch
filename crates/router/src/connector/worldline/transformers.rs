@@ -310,7 +310,7 @@ fn make_bank_redirect_request(
                     bank_account_iban: BankAccountIban {
                         account_holder_name: billing_details.billing_name.clone().ok_or(
                             errors::ConnectorError::MissingRequiredField {
-                                field_name: "account_holder_name",
+                                field_name: "billing_details.billing_name",
                             },
                         )?,
                         iban: bank_account_iban.clone(),
