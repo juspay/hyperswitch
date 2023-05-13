@@ -23,6 +23,12 @@ pub enum ParsingError {
     /// Failed to parse data
     #[error("Unknown error while parsing")]
     UnknownError,
+    /// Failed to parse datetime
+    #[error("Failed to parse datetime")]
+    DateTimeParsingError,
+    /// Failed to parse email
+    #[error("Failed to parse email")]
+    EmailParsingError,
 }
 
 /// Validation errors.
