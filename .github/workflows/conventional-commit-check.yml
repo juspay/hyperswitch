@@ -1,7 +1,14 @@
 name: Conventional Commit Message Check
 
 on:
-  pull_request:
+  # This is a dangerous event trigger as it causes the workflow to run in the
+  # context of the target repository.
+  # Avoid checking out the head of the pull request or building code from the
+  # pull request whenever this trigger is used.
+  # Since we only label pull requests, do not have a checkout step in this
+  # workflow, and restrict permissions on the token, this is an acceptable
+  # use of this trigger.
+  pull_request_target:
     types:
       - opened
       - edited
