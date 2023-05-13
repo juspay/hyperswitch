@@ -56,7 +56,7 @@ jobs:
         if: ${{ github.event_name == 'pull_request' }}
         shell: bash
         continue-on-error: true
-        run: cog verify "${{ github.event.pull_request.title }}"
+        run: cog verify '${{ github.event.pull_request.title }}'
 
       - name: Verify commit message follows conventional commit standards
         id: commit_message_check
@@ -64,7 +64,7 @@ jobs:
         shell: bash
         # Fail on error, we don't have context about PR information to update labels
         continue-on-error: false
-        run: cog verify "${{ github.event.merge_group.head_commit.message }}"
+        run: cog verify '${{ github.event.merge_group.head_commit.message }}'
 
         # GitHub CLI returns a successful error code even if the PR has the label already attached
       - name: Attach 'S-conventions-not-followed' label if PR title check failed
