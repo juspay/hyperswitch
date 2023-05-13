@@ -1165,11 +1165,11 @@ impl<'a> TryFrom<&api_models::payments::BankRedirectData> for AdyenPaymentMethod
                     payment_type: PaymentType::Sofort,
                 })),
             ),
-            api_models::payments::BankRedirectData::Trustly {} => Ok(AdyenPaymentMethod::Trustly(
-                Box::new(BankRedirectionPMData {
+            api_models::payments::BankRedirectData::Trustly { .. } => Ok(
+                AdyenPaymentMethod::Trustly(Box::new(BankRedirectionPMData {
                     payment_type: PaymentType::Trustly,
-                }),
-            )),
+                })),
+            ),
             _ => Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into()),
         }
     }
