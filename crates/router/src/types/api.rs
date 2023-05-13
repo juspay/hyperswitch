@@ -212,7 +212,11 @@ impl ConnectorData {
             "cybersource" => Ok(Box::new(&connector::Cybersource)),
             "dlocal" => Ok(Box::new(&connector::Dlocal)),
             #[cfg(feature = "dummy_connector")]
-            "dummyconnector" => Ok(Box::new(&connector::DummyConnector)),
+            "dummyconnector1" => Ok(Box::new(&connector::DummyConnector::<1>)),
+            #[cfg(feature = "dummy_connector")]
+            "dummyconnector2" => Ok(Box::new(&connector::DummyConnector::<2>)),
+            #[cfg(feature = "dummy_connector")]
+            "dummyconnector3" => Ok(Box::new(&connector::DummyConnector::<3>)),
             "fiserv" => Ok(Box::new(&connector::Fiserv)),
             "forte" => Ok(Box::new(&connector::Forte)),
             "globalpay" => Ok(Box::new(&connector::Globalpay)),
