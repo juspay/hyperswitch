@@ -176,6 +176,8 @@ pub enum Flow {
     RetrieveFile,
     /// Dispute Evidence submission flow
     DisputesEvidenceSubmit,
+    /// Attach Dispute Evidence flow
+    AttachDisputeEvidence,
 }
 
 ///
