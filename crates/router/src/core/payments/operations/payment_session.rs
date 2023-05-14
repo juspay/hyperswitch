@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-use api_models::{admin::PaymentMethodsEnabled, payments::Metadata};
+use api_models::admin::PaymentMethodsEnabled;
 use async_trait::async_trait;
 use common_utils::ext_traits::{AsyncExt, ValueExt};
 use error_stack::ResultExt;
