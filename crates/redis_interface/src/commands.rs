@@ -21,7 +21,7 @@ use fred::{
         RedisKey, RedisMap, RedisValue, Scanner, SetOptions, XCap, XReadResponse,
     },
 };
-use futures::{StreamExt};
+use futures::StreamExt;
 use router_env::{instrument, logger, tracing};
 
 use crate::{
@@ -147,17 +147,15 @@ impl super::RedisConnectionPool {
             .change_context(errors::RedisError::JsonDeserializationFailed)
     }
 
-   
-
     #[instrument(level = "DEBUG", skip(self))]
     pub async fn delete_key(&self, key: &str) -> CustomResult<(), errors::RedisError> {
-        match self.pool
-            .del(key)
-            .await{
-                Ok(0) | Ok(i32::MIN..=-1_i32) => Err(errors::RedisError::NotFound).into_report(),
-                Ok(1_i32..=i32::MAX) =>  Ok(()),
-                Err(fred::error::RedisError {..}) => return Err(errors::RedisError::DeleteFailed).into_report(),              
+        match self.pool.del(key).await {
+            Ok(0) | Ok(i32::MIN..=-1_i32) => Err(errors::RedisError::NotFound).into_report(),
+            Ok(1_i32..=i32::MAX) => Ok(()),
+            Err(fred::error::RedisError { .. }) => {
+                Err(errors::RedisError::DeleteFailed).into_report()
             }
+        }
     }
 
     #[instrument(level = "DEBUG", skip(self))]
@@ -657,14 +655,13 @@ mod tests {
 
     #[tokio::test]
     async fn test_delete_non_exist_key_should_return_not_found_error() {
-        // Arrange 
+        // Arrange
         let redis_connection_pool = RedisConnectionPool::new(&RedisSettings::default())
-        .await
-        .unwrap();
-        
+            .await
+            .unwrap();
+
         // Act
-        let result = redis_connection_pool.delete_key("key_does_not_exist")
-        .await;
+        let result = redis_connection_pool.delete_key("key_does_not_exist").await;
 
         // Assert
         assert!(result.is_err());

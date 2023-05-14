@@ -1,18 +1,32 @@
 #![allow(clippy::unwrap_used)]
-use router::cache::{self};
+use router::{
+    cache::{self},
+    configs::settings::Settings,
+    routes,
+};
 
 mod utils;
 
 #[actix_web::test]
-async fn invalidate_in_memory_cache_success() {
+async fn invalidate_cache_success() {
     // Arrange
     utils::setup().await;
+    let (tx, _) = tokio::sync::oneshot::channel();
+    let state = routes::AppState::new(Settings::default(), tx).await;
+
+    let cache_key = "cacheKey".to_string();
+    let cache_key_value = "val".to_string();
+    let _ = state
+        .store
+        .get_redis_conn()
+        .set_key(&cache_key.clone(), cache_key_value.clone())
+        .await;
 
     let api_key = ("api-key", "test_admin");
     let client = awc::Client::default();
-    let cache_key = "cacheKey".to_string();
+
     cache::CONFIG_CACHE
-        .push(cache_key.clone(), "val".to_string())
+        .push(cache_key.clone(), cache_key_value.clone())
         .await;
 
     // Act
@@ -24,9 +38,37 @@ async fn invalidate_in_memory_cache_success() {
         .send()
         .await
         .unwrap();
+
     // Assert
     let response_body = response.body().await;
     println!("invalidate Cache: {response:?} : {response_body:?}");
     assert_eq!(response.status(), awc::http::StatusCode::OK);
     assert!(cache::CONFIG_CACHE.get(&cache_key).is_none());
+}
+
+#[actix_web::test]
+async fn invalidate_cache_failure() {
+    // Arrange
+    utils::setup().await;
+    let cache_key = "cacheKey".to_string();
+    let api_key = ("api-key", "test_admin");
+    let client = awc::Client::default();
+
+    // Act
+    let mut response = client
+        .post(format!(
+            "http://127.0.0.1:8080/cache/invalidate/{cache_key}"
+        ))
+        .insert_header(api_key)
+        .send()
+        .await
+        .unwrap();
+
+    // Assert
+    let response_body = response.body().await;
+    println!("invalidate Cache: {response:?} : {response_body:?}");
+    assert_eq!(
+        response.status(),
+        awc::http::StatusCode::INTERNAL_SERVER_ERROR
+    );
 }
