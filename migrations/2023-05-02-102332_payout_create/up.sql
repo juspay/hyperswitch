@@ -16,6 +16,7 @@ CREATE type "PayoutStatus" AS ENUM (
     'pending',
     'ineligible',
     'requires_creation',
+    'require_payout_method_data'
     'requires_fulfillment'
 );
 CREATE type "PayoutType" AS ENUM ('card', 'bank');
@@ -26,7 +27,7 @@ CREATE TABLE PAYOUT_CREATE (
     customer_id VARCHAR (64) NOT NULL,
     address_id VARCHAR (64) NOT NULL,
     payout_type "PayoutType" NOT NULL,
-    payout_method_data JSONB,
+    payout_token VARCHAR (64),
     amount BIGINT NOT NULL,
     destination_currency "Currency" NOT NULL,
     source_currency "Currency" NOT NULL,
@@ -47,7 +48,7 @@ CREATE TABLE PAYOUTS (
     address_id VARCHAR (64) NOT NULL,
     connector VARCHAR (64) NOT NULL,
     connector_payout_id VARCHAR (64) NOT NULL,
-    payout_method_data JSONB,
+    payout_method_id VARCHAR (64),
     status "PayoutStatus" NOT NULL,
     is_eligible BOOLEAN,
     encoded_data TEXT,
