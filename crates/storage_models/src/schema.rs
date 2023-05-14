@@ -135,6 +135,7 @@ diesel::table! {
         created_at -> Timestamp,
         modified_at -> Timestamp,
         connector -> Varchar,
+        evidence -> Jsonb,
     }
 }
 
