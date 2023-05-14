@@ -627,3 +627,20 @@ pub struct TokenizedBankTransferValue1 {
 pub struct TokenizedBankTransferValue2 {
     pub customer_id: Option<String>,
 }
+
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+pub struct TokenizedBankValue1 {
+    pub bank_account_number: Option<String>,
+    pub bank_routing_number: Option<String>,
+    pub bic: Option<String>,
+    pub bank_sort_code: Option<String>,
+    pub blz: Option<String>,
+    pub bank_transit_number: Option<String>,
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+pub struct TokenizedBankValue2 {
+    pub customer_id: Option<String>,
+    pub iban: Option<String>,
+    pub bank_name: String,
+}
