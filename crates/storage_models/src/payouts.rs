@@ -14,7 +14,7 @@ pub struct Payouts {
     pub address_id: String,
     pub connector: String,
     pub connector_payout_id: String,
-    pub payout_method_data: Option<serde_json::Value>,
+    pub payout_method_id: Option<String>,
     pub status: storage_enums::PayoutStatus,
     pub is_eligible: Option<bool>,
     pub encoded_data: Option<String>,
@@ -41,7 +41,7 @@ pub struct PayoutsNew {
     pub address_id: String,
     pub connector: String,
     pub connector_payout_id: String,
-    pub payout_method_data: Option<serde_json::Value>,
+    pub payout_method_id: Option<String>,
     pub status: storage_enums::PayoutStatus,
     pub is_eligible: Option<bool>,
     pub encoded_data: Option<String>,
@@ -58,15 +58,19 @@ pub enum PayoutsUpdate {
         error_code: Option<String>,
         is_eligible: Option<bool>,
     },
+    PaymentMethodIdUpdate {
+        payout_method_id: Option<String>,
+    },
 }
 
 #[derive(Clone, Debug, Default, AsChangeset, router_derive::DebugAsDisplay)]
 #[diesel(table_name = payouts)]
 pub struct PayoutsUpdateInternal {
-    pub connector_payout_id: String,
+    pub connector_payout_id: Option<String>,
     pub status: Option<storage_enums::PayoutStatus>,
     pub error_message: Option<String>,
     pub error_code: Option<String>,
+    pub payout_method_id: Option<String>,
     is_eligible: Option<bool>,
 }
 
@@ -80,11 +84,16 @@ impl From<PayoutsUpdate> for PayoutsUpdateInternal {
                 error_code,
                 is_eligible,
             } => Self {
-                connector_payout_id,
+                connector_payout_id: Some(connector_payout_id),
                 status: Some(status),
                 error_message,
                 error_code,
                 is_eligible,
+                payout_method_id: Default::default(),
+            },
+            PayoutsUpdate::PaymentMethodIdUpdate { payout_method_id } => Self {
+                payout_method_id,
+                ..Default::default()
             },
         }
     }
