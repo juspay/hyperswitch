@@ -1,6 +1,7 @@
 use std::marker::PhantomData;
 
 use async_trait::async_trait;
+use common_utils::ext_traits::ValueExt;
 use error_stack::ResultExt;
 use masking::ExposeOptionInterface;
 use router_derive::PaymentOperation;
@@ -100,28 +101,21 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Co
         let token = token.or_else(|| payment_attempt.payment_token.clone());
 
         helpers::validate_pm_or_token_given(
-            &request
+            &request.payment_method.or(payment_attempt
                 .payment_method
-                .or(Some(api_models::enums::PaymentMethod::foreign_from(
-                    payment_attempt
-                        .payment_method
-                        .ok_or(errors::ApiErrorResponse::PaymentMethodNotFound)?,
-                ))),
+                .map(api_models::enums::PaymentMethod::foreign_from)),
             &request.payment_method_data.clone().or(Some(
                 payment_attempt
                     .payment_method_data
                     .clone()
                     .parse_value("payment method")
-                    .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)?,
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed while parsing value for Payment Method")?,
             )),
-            &request.payment_method_type.or(Some(
-                api_models::enums::PaymentMethodType::foreign_from(
-                    payment_attempt
-                        .payment_method_type
-                        .clone()
-                        .ok_or(errors::ApiErrorResponse::PaymentMethodTypeNotFound)?,
-                ),
-            )),
+            &request.payment_method_type.or(payment_attempt
+                .payment_method_type
+                .clone()
+                .map(api_models::enums::PaymentMethodType::foreign_from)),
             &mandate_type,
             &token,
         )?;
@@ -186,12 +180,13 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Co
         payment_intent.billing_address_id = billing_address.clone().map(|i| i.address_id);
         payment_intent.return_url = request.return_url.as_ref().map(|a| a.to_string());
 
-        let attempt_pm_data: Option<api::PaymentMethodData> = payment_attempt
+        let attempt_pm_data = payment_attempt
             .payment_method_data
             .clone()
-            .parse_value("PaymentMethodData")
-            .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)?;
-
+            .map(|payment_method_data| payment_method_data.parse_value("PaymentMethodData"))
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed while parsing value for Payment Method")?;
         Ok((
             Box::new(self),
             PaymentData {
