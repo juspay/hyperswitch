@@ -1,6 +1,6 @@
 pub use api_models::payouts::{
-    PayoutCreateRequest, PayoutCreateResponse, PayoutRequest, PayoutRetrieveBody,
-    PayoutRetrieveRequest,
+    Bank as BankPayout, Card as CardPayout, PayoutCreateRequest, PayoutCreateResponse,
+    PayoutMethodData, PayoutRequest, PayoutRetrieveBody, PayoutRetrieveRequest,
 };
 
 use super::ConnectorCommon;

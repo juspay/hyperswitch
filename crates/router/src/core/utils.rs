@@ -1,9 +1,6 @@
 use std::marker::PhantomData;
 
-use api_models::{
-    enums::{DisputeStage, DisputeStatus},
-    payouts as payout_types,
-};
+use api_models::enums::{DisputeStage, DisputeStatus};
 use common_utils::errors::CustomResult;
 use error_stack::{IntoReport, ResultExt};
 use router_env::{instrument, tracing};
@@ -14,7 +11,7 @@ use crate::{
     core::errors::{self, RouterResult},
     routes::AppState,
     types::{
-        self, domain,
+        self, api, domain,
         storage::{self, enums},
         ErrorResponse,
     },
@@ -30,6 +27,7 @@ pub async fn construct_payout_router_data<'a, F>(
     payout_create: &storage::PayoutCreate,
     payouts: Option<storage::Payouts>,
     request: &api_models::payouts::PayoutCreateRequest,
+    payout_method_data: &api::PayoutMethodData,
 ) -> RouterResult<types::PayoutsRouterData<F>> {
     let (business_country, business_label) = helpers::get_business_details(
         request.business_country,
@@ -84,10 +82,7 @@ pub async fn construct_payout_router_data<'a, F>(
             source_currency: payout_create.source_currency,
             entity_type: payout_create.entity_type,
             payout_type: payout_create.payout_type,
-            payout_method_data: request
-                .payout_method_data
-                .to_owned()
-                .map_or(payout_types::PayoutMethodData::default(), |pmd| pmd),
+            payout_method_data: payout_method_data.to_owned(),
         },
         response: Ok(types::PayoutsResponseData::default()),
         access_token: None,
