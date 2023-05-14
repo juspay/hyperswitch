@@ -11,6 +11,6 @@ pub async fn invalidate(
 
     match store.get_redis_conn().delete_key(key).await {
         Ok(_) => Ok(services::api::ApplicationResponse::StatusOk),
-        _ => Err(errors::ApiErrorResponse::InternalServerError.into()),
+        _ => Err(errors::ApiErrorResponse::InvalidRequestUrl.into()),
     }
 }

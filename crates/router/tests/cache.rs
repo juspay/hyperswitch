@@ -67,8 +67,5 @@ async fn invalidate_cache_failure() {
     // Assert
     let response_body = response.body().await;
     println!("invalidate Cache: {response:?} : {response_body:?}");
-    assert_eq!(
-        response.status(),
-        awc::http::StatusCode::INTERNAL_SERVER_ERROR
-    );
+    assert_eq!(response.status(), awc::http::StatusCode::NOT_FOUND);
 }
