@@ -82,9 +82,21 @@ pub async fn payouts_retrieve(
 
 #[instrument(skip_all, fields(flow = ?Flow::PayoutsUpdate))]
 // #[post("/update")]
-pub async fn payouts_update() -> impl Responder {
-    let _flow = Flow::PayoutsUpdate;
-    http_response("update")
+pub async fn payouts_update(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    json_payload: web::Json<payout_types::PayoutCreateRequest>,
+) -> HttpResponse {
+    let flow = Flow::PayoutsUpdate;
+    api::server_wrap(
+        flow,
+        state.get_ref(),
+        &req,
+        json_payload.into_inner(),
+        payouts_update_core,
+        &auth::ApiKeyAuth,
+    )
+    .await
 }
 
 #[instrument(skip_all, fields(flow = ?Flow::PayoutsCancel))]
