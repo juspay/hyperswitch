@@ -1691,27 +1691,25 @@ pub fn validate_tracker_data(
                     | enums::AttemptStatus::CodInitiated
                     | enums::AttemptStatus::VoidInitiated
                     | enums::AttemptStatus::CaptureInitiated
-                    | enums::AttemptStatus::VoidFailed  // pr: should this be here
                     | enums::AttemptStatus::Unresolved
                     | enums::AttemptStatus::Pending
-                    | enums::AttemptStatus::ConfirmationAwaited => Err(report!(errors::ApiErrorResponse::PreconditionFailed {
-                        message:
-                            format!("You cannot {action} this payment because the previous payment attempt has status {}. 
-                            You need to wait until the previous attempt resolves to an appropriate state so try again later. 
-                            If it doesn't resolve you can contact support if necessary or create a new payment.", payment_attempt.status)
-                        }
-                    )),
-
-                    enums::AttemptStatus::AuthenticationFailed
-                    | enums::AttemptStatus::RouterDeclined
-                    | enums::AttemptStatus::AuthorizationFailed
-                    | enums::AttemptStatus::Voided
-                    | enums::AttemptStatus::CaptureFailed
-                    | enums::AttemptStatus::AutoRefunded
+                    | enums::AttemptStatus::ConfirmationAwaited
                     | enums::AttemptStatus::PartialCharged
-                    | enums::AttemptStatus::Failure
-                    | enums::AttemptStatus::PaymentMethodAwaited  // we can actually continue without creating a new payment attempt over here.
-                    | enums::AttemptStatus::DeviceDataCollectionPending => Ok(api_enums::AttemptType::New),
+                    | enums::AttemptStatus::Voided
+                    | enums::AttemptStatus::AutoRefunded
+                    | enums::AttemptStatus::PaymentMethodAwaited
+                    | enums::AttemptStatus::DeviceDataCollectionPending => {
+                        Err(errors::ApiErrorResponse::InternalServerError)
+                            .into_report()
+                            .attach_printable("Payment Attempt unexpected state")
+                    }
+
+                    storage_enums::AttemptStatus::AuthenticationFailed
+                    | storage_enums::AttemptStatus::AuthorizationFailed
+                    | storage_enums::AttemptStatus::VoidFailed
+                    | storage_enums::AttemptStatus::RouterDeclined
+                    | storage_enums::AttemptStatus::CaptureFailed
+                    | storage_enums::AttemptStatus::Failure => Ok(api_enums::AttemptType::New),
                 }
             } else {
                 Err(report!(errors::ApiErrorResponse::PreconditionFailed {
