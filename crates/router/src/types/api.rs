@@ -213,7 +213,11 @@ impl ConnectorData {
                 enums::Connector::Cybersource => Ok(Box::new(&connector::Cybersource)),
                 enums::Connector::Dlocal => Ok(Box::new(&connector::Dlocal)),
                 #[cfg(feature = "dummy_connector")]
-                enums::Connector::DummyConnector => Ok(Box::new(&connector::DummyConnector)),
+                enums::Connector::DummyConnector1 => Ok(Box::new(&connector::DummyConnector::<1>)),
+                #[cfg(feature = "dummy_connector")]
+                enums::Connector::DummyConnector2 => Ok(Box::new(&connector::DummyConnector::<2>)),
+                #[cfg(feature = "dummy_connector")]
+                enums::Connector::DummyConnector3 => Ok(Box::new(&connector::DummyConnector::<3>)),
                 enums::Connector::Fiserv => Ok(Box::new(&connector::Fiserv)),
                 enums::Connector::Forte => Ok(Box::new(&connector::Forte)),
                 enums::Connector::Globalpay => Ok(Box::new(&connector::Globalpay)),
