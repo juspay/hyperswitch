@@ -219,6 +219,9 @@ pub struct PaymentsRequest {
 
     /// Business sub label for the payment
     pub business_sub_label: Option<String>,
+
+    /// If enabled payment can be retried from the client side until the payment is successful or payment expires or the attempts(configured by the merchant) for payment are exhausted.
+    pub manual_retry: Option<bool>,
 }
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, Copy, PartialEq, Eq)]
