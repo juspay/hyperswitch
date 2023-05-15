@@ -446,7 +446,7 @@ async fn should_fail_payment_for_incorrect_cvc() {
         .await
         .unwrap();
     assert_eq!(
-        response.clone().response.clone().unwrap_err().message,
+        response.response.clone().unwrap_err().message,
         "Request is not well-formed, syntactically incorrect, or violates schema.",
     );
     assert_eq!(
@@ -472,7 +472,7 @@ async fn should_fail_payment_for_invalid_exp_month() {
         .await
         .unwrap();
     assert_eq!(
-        response.clone().response.clone().unwrap_err().message,
+        response.response.clone().unwrap_err().message,
         "Request is not well-formed, syntactically incorrect, or violates schema.",
     );
     assert_eq!(
@@ -498,7 +498,7 @@ async fn should_fail_payment_for_incorrect_expiry_year() {
         .await
         .unwrap();
     assert_eq!(
-        response.clone().response.clone().unwrap_err().message,
+        response.response.clone().unwrap_err().message,
         "The requested action could not be performed, semantically incorrect, or failed business validation.",
     );
     assert_eq!(
@@ -542,7 +542,7 @@ async fn should_fail_void_payment_for_auto_capture() {
         .await
         .expect("Void payment response");
     assert_eq!(
-        void_response.clone().response.clone().unwrap_err().message,
+        void_response.response.clone().unwrap_err().message,
         "The requested action could not be performed, semantically incorrect, or failed business validation."
     );
     assert_eq!(
@@ -571,12 +571,7 @@ async fn should_fail_capture_for_invalid_payment() {
         .await
         .unwrap();
     assert_eq!(
-        capture_response
-            .clone()
-            .response
-            .clone()
-            .unwrap_err()
-            .message,
+        capture_response.response.clone().unwrap_err().message,
         "The specified resource does not exist.",
     );
     assert_eq!(
@@ -604,7 +599,7 @@ async fn should_fail_for_refund_amount_higher_than_payment_amount() {
         )
         .await
         .unwrap();
-    assert_eq!(&response.clone().response.clone().unwrap_err().message, "The requested action could not be performed, semantically incorrect, or failed business validation.");
+    assert_eq!(&response.response.clone().unwrap_err().message, "The requested action could not be performed, semantically incorrect, or failed business validation.");
 
     assert_eq!(
         response.response.unwrap_err().reason.unwrap(),
