@@ -100,7 +100,6 @@ pub type PaymentsSessionType =
     dyn services::ConnectorIntegration<api::Session, PaymentsSessionData, PaymentsResponseData>;
 pub type PaymentsVoidType =
     dyn services::ConnectorIntegration<api::Void, PaymentsCancelData, PaymentsResponseData>;
-
 pub type TokenizationType = dyn services::ConnectorIntegration<
     api::PaymentMethodToken,
     PaymentMethodTokenizationData,
@@ -216,7 +215,7 @@ pub struct PaymentsAuthorizeData {
     pub off_session: Option<bool>,
     pub setup_mandate_details: Option<payments::MandateData>,
     pub browser_info: Option<BrowserInformation>,
-    pub order_details: Option<api_models::payments::OrderDetails>,
+    pub order_details: Option<Vec<api_models::payments::OrderDetails>>,
     pub session_token: Option<String>,
     pub enrolled_for_3ds: bool,
     pub related_transaction_id: Option<String>,
@@ -298,7 +297,7 @@ pub struct PaymentsSessionData {
     pub amount: i64,
     pub currency: storage_enums::Currency,
     pub country: Option<api::enums::CountryAlpha2>,
-    pub order_details: Option<api_models::payments::OrderDetails>,
+    pub order_details: Option<Vec<api_models::payments::OrderDetails>>,
 }
 
 #[derive(Debug, Clone)]
@@ -407,6 +406,7 @@ pub struct RefundsData {
     /// Amount for the payment against which this refund is issued
     pub amount: i64,
     pub reason: Option<String>,
+    pub webhook_url: Option<String>,
     /// Amount to be refunded
     pub refund_amount: i64,
     /// Arbitrary metadata required for refund

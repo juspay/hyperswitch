@@ -319,6 +319,7 @@ pub enum EventObjectType {
 #[strum(serialize_all = "snake_case")]
 pub enum EventType {
     PaymentSucceeded,
+    PaymentFailed,
     PaymentProcessing,
     ActionRequired,
     RefundSucceeded,
@@ -719,6 +720,24 @@ pub enum BankNames {
     VolksbankGruppe,
     VolkskreditbankAg,
     VrBankBraunau,
+    PlusBank,
+    EtransferPocztowy24,
+    BankiSpbdzielcze,
+    BankNowyBfgSa,
+    GetinBank,
+    Blik,
+    NoblePay,
+    IdeaBank,
+    EnveloBank,
+    NestPrzelew,
+    MbankMtransfer,
+    Inteligo,
+    PbacZIpko,
+    BnpParibas,
+    BankPekaoSa,
+    VolkswagenBank,
+    AliorBank,
+    Boz,
 }
 
 #[derive(
