@@ -54,6 +54,7 @@ pub enum PayoutsUpdate {
     StatusUpdate {
         connector_payout_id: String,
         status: storage_enums::PayoutStatus,
+        payout_method_id: Option<String>,
         error_message: Option<String>,
         error_code: Option<String>,
         is_eligible: Option<bool>,
@@ -83,13 +84,14 @@ impl From<PayoutsUpdate> for PayoutsUpdateInternal {
                 error_message,
                 error_code,
                 is_eligible,
+                payout_method_id,
             } => Self {
                 connector_payout_id: Some(connector_payout_id),
                 status: Some(status),
                 error_message,
                 error_code,
                 is_eligible,
-                payout_method_id: Default::default(),
+                payout_method_id,
             },
             PayoutsUpdate::PaymentMethodIdUpdate { payout_method_id } => Self {
                 payout_method_id,
