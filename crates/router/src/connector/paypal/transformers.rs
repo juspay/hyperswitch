@@ -108,7 +108,11 @@ fn get_payment_source(
             billing_details,
             bank_name: _,
         } => Ok(PaymentSourceItem::Eps(RedirectRequest {
-            name: billing_details.billing_name.clone(),
+            name: billing_details.billing_name.clone().ok_or(
+                errors::ConnectorError::MissingRequiredField {
+                    field_name: "billing_name",
+                },
+            )?,
             country_code: api_models::enums::CountryAlpha2::AT,
             experience_context: ContextStruct {
                 return_url: item.request.complete_authorize_url.clone(),
@@ -118,7 +122,11 @@ fn get_payment_source(
         BankRedirectData::Giropay {
             billing_details, ..
         } => Ok(PaymentSourceItem::Giropay(RedirectRequest {
-            name: billing_details.billing_name.clone(),
+            name: billing_details.billing_name.clone().ok_or(
+                errors::ConnectorError::MissingRequiredField {
+                    field_name: "billing_name",
+                },
+            )?,
             country_code: api_models::enums::CountryAlpha2::DE,
             experience_context: ContextStruct {
                 return_url: item.request.complete_authorize_url.clone(),
@@ -129,7 +137,11 @@ fn get_payment_source(
             billing_details,
             bank_name: _,
         } => Ok(PaymentSourceItem::IDeal(RedirectRequest {
-            name: billing_details.billing_name.clone(),
+            name: billing_details.billing_name.clone().ok_or(
+                errors::ConnectorError::MissingRequiredField {
+                    field_name: "billing_name",
+                },
+            )?,
             country_code: api_models::enums::CountryAlpha2::NL,
             experience_context: ContextStruct {
                 return_url: item.request.complete_authorize_url.clone(),
@@ -141,7 +153,11 @@ fn get_payment_source(
             preferred_language: _,
             billing_details,
         } => Ok(PaymentSourceItem::Sofort(RedirectRequest {
-            name: billing_details.billing_name.clone(),
+            name: billing_details.billing_name.clone().ok_or(
+                errors::ConnectorError::MissingRequiredField {
+                    field_name: "billing_name",
+                },
+            )?,
             country_code: *country,
             experience_context: ContextStruct {
                 return_url: item.request.complete_authorize_url.clone(),
