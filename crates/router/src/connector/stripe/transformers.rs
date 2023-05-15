@@ -749,14 +749,13 @@ impl TryFrom<&payments::BankRedirectData> for StripeBillingAddress {
             payments::BankRedirectData::BancontactCard {
                 billing_details, ..
             } => Ok(Self {
-                name: 
-                    billing_details
-                        .as_ref()
-                        .ok_or(errors::ConnectorError::MissingRequiredField {
-                            field_name: "billing_name",
-                        })?
-                        .billing_name
-                        .clone(),
+                name: billing_details
+                    .as_ref()
+                    .ok_or(errors::ConnectorError::MissingRequiredField {
+                        field_name: "billing_name",
+                    })?
+                    .billing_name
+                    .clone(),
                 ..Self::default()
             }),
             _ => Ok(Self::default()),
