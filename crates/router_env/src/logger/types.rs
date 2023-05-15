@@ -178,6 +178,8 @@ pub enum Flow {
     DisputesEvidenceSubmit,
     /// Create Config Key flow
     CreateConfigKey,
+    /// Attach Dispute Evidence flow
+    AttachDisputeEvidence,
 }
 
 ///
