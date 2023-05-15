@@ -701,7 +701,7 @@ pub struct BankRedirectBilling {
     pub billing_name: Option<Secret<String>>,
     /// The billing email for bank redirect
     #[schema(value_type = String, example = "example@example.com")]
-    pub email: Email,
+    pub email: Option<Email>,
 }
 
 #[derive(serde::Deserialize, serde::Serialize, Debug, Clone, ToSchema, Eq, PartialEq)]

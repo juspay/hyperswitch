@@ -238,6 +238,7 @@ fn get_bank_name(
                 },
             )?)?,
         })),
+        (
             StripePaymentMethodType::Sofort
             | StripePaymentMethodType::Giropay
             | StripePaymentMethodType::Bancontact,
@@ -246,6 +247,7 @@ fn get_bank_name(
         _ => Err(errors::ConnectorError::MismatchedPaymentData),
     }
 }
+
 #[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct StripeBankRedirectData {
     #[serde(rename = "payment_method_types[]")]
@@ -635,7 +637,6 @@ fn infer_stripe_bank_redirect_issuer(
 
         Some(storage_models::enums::PaymentMethodType::BancontactCard) => {
             Ok(StripePaymentMethodType::Bancontact)
-        
         }
         Some(storage_models::enums::PaymentMethodType::Przelewy24) => {
             Ok(StripePaymentMethodType::Przelewy24)
@@ -742,13 +743,13 @@ impl TryFrom<&payments::BankRedirectData> for StripeBillingAddress {
             payments::BankRedirectData::Przelewy24 {
                 billing_details, ..
             } => Ok(Self {
-                email: Some(billing_details.email.clone()),
+                email: billing_details.email.clone(),
                 ..Self::default()
             }),
             payments::BankRedirectData::BancontactCard {
                 billing_details, ..
             } => Ok(Self {
-                name: Some(
+                name: 
                     billing_details
                         .as_ref()
                         .ok_or(errors::ConnectorError::MissingRequiredField {
@@ -756,7 +757,6 @@ impl TryFrom<&payments::BankRedirectData> for StripeBillingAddress {
                         })?
                         .billing_name
                         .clone(),
-                ),
                 ..Self::default()
             }),
             _ => Ok(Self::default()),

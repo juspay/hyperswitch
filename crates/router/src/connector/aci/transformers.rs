@@ -248,7 +248,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for AciPaymentsRequest {
                         billing_country: None,
                         merchant_customer_id: None,
                         merchant_transaction_id: None,
-                        customer_email: Some(billing_details.email.clone()),
+                        customer_email: billing_details.email.clone(),
                         shopper_result_url: item.request.router_return_url.clone(),
                     })),
 
