@@ -64,7 +64,10 @@ pub enum Auth3ds {
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
-#[serde(rename_all = "snake_case", tag = "mandate_data[customer_acceptance][type]")]
+#[serde(
+    rename_all = "snake_case",
+    tag = "mandate_data[customer_acceptance][type]"
+)]
 pub enum StripeMandateType {
     Online {
         #[serde(rename = "mandate_data[customer_acceptance][online][ip_address]")]
@@ -1033,7 +1036,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
                             )
                         }
                         payments::AcceptanceType::Offline => Some(StripeMandateRequest {
-                            mandate_type: StripeMandateType::Offline
+                            mandate_type: StripeMandateType::Offline,
                         }),
                     }
                 });

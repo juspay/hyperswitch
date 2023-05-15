@@ -217,21 +217,21 @@ where
                         })
                         .transpose()?;
 
-                if let Some(new_mandate_data) = helpers::generate_mandate(
-                    resp.merchant_id.clone(),
-                    resp.connector.clone(),
-                    resp.request.get_setup_mandate_details().map(Clone::clone),
-                    maybe_customer,
-                    pm_id.get_required_value("payment_method_id")?,
-                    mandate_ids,
-                    (
-                        network_txn_id,
-                        get_insensitive_payment_method_data_if_exists(&resp),
-                    ), 
-                ) {
-                    let connector = new_mandate_data.connector.clone();
-                    logger::debug!("{:?}", new_mandate_data);
-                    resp.request
+                    if let Some(new_mandate_data) = helpers::generate_mandate(
+                        resp.merchant_id.clone(),
+                        resp.connector.clone(),
+                        resp.request.get_setup_mandate_details().map(Clone::clone),
+                        maybe_customer,
+                        pm_id.get_required_value("payment_method_id")?,
+                        mandate_ids,
+                        (
+                            network_txn_id,
+                            get_insensitive_payment_method_data_if_exists(&resp),
+                        ),
+                    ) {
+                        let connector = new_mandate_data.connector.clone();
+                        logger::debug!("{:?}", new_mandate_data);
+                        resp.request
                         .set_mandate_id(Some(api_models::payments::MandateIds {
                             mandate_id: new_mandate_data.mandate_id.clone(),
                             mandate_reference_id: new_mandate_data
