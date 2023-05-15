@@ -450,7 +450,7 @@ async fn handle_response(
         .await
 }
 
-#[derive(Debug, Eq, PartialEq, Clone)]
+#[derive(Debug, Eq, PartialEq)]
 pub enum ApplicationResponse<R> {
     Json(R),
     StatusOk,
@@ -460,7 +460,7 @@ pub enum ApplicationResponse<R> {
     FileData((Vec<u8>, mime::Mime)),
 }
 
-#[derive(Debug, Eq, PartialEq, Clone)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct RedirectionFormData {
     pub redirect_form: RedirectForm,
     pub payment_method_data: Option<api::PaymentMethodData>,
