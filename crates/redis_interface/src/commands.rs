@@ -133,7 +133,7 @@ impl super::RedisConnectionPool {
     pub async fn get_and_deserialize_key<T>(
         &self,
         key: &str,
-        type_name: &str,
+        type_name: &'static str,
     ) -> CustomResult<T, errors::RedisError>
     where
         T: serde::de::DeserializeOwned,
@@ -380,7 +380,7 @@ impl super::RedisConnectionPool {
         &self,
         key: &str,
         field: &str,
-        type_name: &str,
+        type_name: &'static str,
     ) -> CustomResult<V, errors::RedisError>
     where
         V: serde::de::DeserializeOwned,

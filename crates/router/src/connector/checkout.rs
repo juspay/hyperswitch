@@ -1081,11 +1081,16 @@ impl api::IncomingWebhook for Checkout {
         merchant_id: &str,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let key = format!("whsec_verification_{}_{}", self.id(), merchant_id);
-        let secret = db
-            .find_config_by_key(&key)
-            .await
-            .change_context(errors::ConnectorError::WebhookVerificationSecretNotFound)?;
-        Ok(secret.config.into_bytes())
+        let secret = match db.find_config_by_key(&key).await {
+            Ok(config) => Some(config),
+            Err(e) => {
+                crate::logger::warn!("Unable to fetch merchant webhook secret from DB: {:#?}", e);
+                None
+            }
+        };
+        Ok(secret
+            .map(|conf| conf.config.into_bytes())
+            .unwrap_or_default())
     }
     fn get_webhook_object_reference_id(
         &self,
@@ -1149,7 +1154,7 @@ impl api::IncomingWebhook for Checkout {
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api::disputes::DisputePayload, errors::ConnectorError> {
-        let dispute_details: checkout::CheckoutWebhookBody = request
+        let dispute_details: checkout::CheckoutDisputeWebhookBody = request
             .body
             .parse_struct("CheckoutWebhookBody")
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;

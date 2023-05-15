@@ -1,5 +1,6 @@
 use masking::Secret;
 use serde::{Deserialize, Serialize};
+use storage_models::enums::Currency;
 
 use crate::{
     connector::utils::PaymentsAuthorizeRequestData,
@@ -7,14 +8,19 @@ use crate::{
     types::{self, api, storage::enums},
 };
 
-//TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Serialize, Eq, PartialEq)]
+#[derive(Debug, Serialize, Eq, PartialEq)]
 pub struct DummyConnectorPaymentsRequest {
     amount: i64,
-    card: DummyConnectorCard,
+    currency: Currency,
+    payment_method_data: PaymentMethodData,
 }
 
-#[derive(Default, Debug, Serialize, Eq, PartialEq)]
+#[derive(Debug, serde::Serialize, Eq, PartialEq)]
+pub enum PaymentMethodData {
+    Card(DummyConnectorCard),
+}
+
+#[derive(Debug, Serialize, Eq, PartialEq)]
 pub struct DummyConnectorCard {
     name: Secret<String>,
     number: cards::CardNumber,
@@ -39,7 +45,8 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for DummyConnectorPaymentsRequ
                 };
                 Ok(Self {
                     amount: item.request.amount,
-                    card,
+                    currency: item.request.currency,
+                    payment_method_data: PaymentMethodData::Card(card),
                 })
             }
             _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
@@ -47,7 +54,6 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for DummyConnectorPaymentsRequ
     }
 }
 
-//TODO: Fill the struct with respective fields
 // Auth Struct
 pub struct DummyConnectorAuthType {
     pub(super) api_key: String,
@@ -85,31 +91,22 @@ impl From<DummyConnectorPaymentStatus> for enums::AttemptStatus {
     }
 }
 
-//TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct DummyConnectorPaymentsResponse {
+pub struct PaymentsResponse {
     status: DummyConnectorPaymentStatus,
     id: String,
+    amount: i64,
+    currency: Currency,
+    created: String,
+    payment_method_type: String,
 }
 
-impl<F, T>
-    TryFrom<
-        types::ResponseRouterData<
-            F,
-            DummyConnectorPaymentsResponse,
-            T,
-            types::PaymentsResponseData,
-        >,
-    > for types::RouterData<F, T, types::PaymentsResponseData>
+impl<F, T> TryFrom<types::ResponseRouterData<F, PaymentsResponse, T, types::PaymentsResponseData>>
+    for types::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::ResponseRouterData<
-            F,
-            DummyConnectorPaymentsResponse,
-            T,
-            types::PaymentsResponseData,
-        >,
+        item: types::ResponseRouterData<F, PaymentsResponse, T, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             status: enums::AttemptStatus::from(item.response.status),
@@ -125,7 +122,6 @@ impl<F, T>
     }
 }
 
-//TODO: Fill the struct with respective fields
 // REFUND :
 // Type definition for RefundRequest
 #[derive(Default, Debug, Serialize)]
@@ -137,7 +133,7 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for DummyConnectorRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
         Ok(Self {
-            amount: item.request.amount,
+            amount: item.request.refund_amount,
         })
     }
 }
@@ -146,6 +142,7 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for DummyConnectorRefundRequest {
 
 #[allow(dead_code)]
 #[derive(Debug, Serialize, Default, Deserialize, Clone)]
+#[serde(rename_all = "lowercase")]
 pub enum RefundStatus {
     Succeeded,
     Failed,
@@ -164,11 +161,14 @@ impl From<RefundStatus> for enums::RefundStatus {
     }
 }
 
-//TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct RefundResponse {
     id: String,
     status: RefundStatus,
+    currency: Currency,
+    created: String,
+    payment_amount: i64,
+    refund_amount: i64,
 }
 
 impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
@@ -205,10 +205,13 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
     }
 }
 
-//TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
 pub struct DummyConnectorErrorResponse {
-    pub status_code: u16,
+    pub error: ErrorData,
+}
+
+#[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
+pub struct ErrorData {
     pub code: String,
     pub message: String,
     pub reason: Option<String>,
