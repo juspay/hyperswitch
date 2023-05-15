@@ -622,6 +622,13 @@ pub enum BankRedirectData {
         #[schema(value_type = BankNames, example = "abn_amro")]
         bank_name: api_enums::BankNames,
     },
+    Interac {
+        /// The country for bank payment
+        #[schema(value_type = CountryAlpha2, example = "US")]
+        country: api_enums::CountryAlpha2,
+
+        email: Email,
+    },
     OnlineBankingCzechRepublic {
         // Issuer banks
         issuer: api_enums::BankNames,
@@ -638,7 +645,10 @@ pub enum BankRedirectData {
         // Issuer value corresponds to the bank
         issuer: api_enums::BankNames,
     },
-    Przelewy24 {},
+    Przelewy24 {
+        // Shopper Email
+        email: Email,
+    },
     Sofort {
         /// The billing details for bank redirection
         billing_details: BankRedirectBilling,
@@ -652,7 +662,11 @@ pub enum BankRedirectData {
         preferred_language: String,
     },
     Swish {},
-    Trustly {},
+    Trustly {
+        /// The country for bank payment
+        #[schema(value_type = CountryAlpha2, example = "US")]
+        country: api_enums::CountryAlpha2,
+    },
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -706,7 +720,7 @@ pub enum WalletData {
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
-#[serde(rename_all(serialize = "camelCase", deserialize = "snake_case"))]
+#[serde(rename_all = "snake_case")]
 pub struct GooglePayWalletData {
     /// The type of payment method
     #[serde(rename = "type")]
@@ -738,7 +752,7 @@ pub struct MbWayRedirection {
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
-#[serde(rename_all(serialize = "camelCase", deserialize = "snake_case"))]
+#[serde(rename_all = "snake_case")]
 pub struct GooglePayPaymentMethodInfo {
     /// The name of the card network
     pub card_network: String,
@@ -927,7 +941,7 @@ pub struct PhoneDetails {
     pub country_code: Option<String>,
 }
 
-#[derive(Debug, Clone, Default, Eq, PartialEq, serde::Deserialize, ToSchema)]
+#[derive(Debug, Clone, Default, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct PaymentsCaptureRequest {
     /// The unique identifier for the payment
     pub payment_id: Option<String>,
@@ -1446,7 +1460,15 @@ pub struct GpayTokenParameters {
     /// The name of the connector
     pub gateway: String,
     /// The merchant ID registered in the connector associated
-    pub gateway_merchant_id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub gateway_merchant_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none", rename = "stripe:version")]
+    pub stripe_version: Option<String>,
+    #[serde(
+        skip_serializing_if = "Option::is_none",
+        rename = "stripe:publishableKey"
+    )]
+    pub stripe_publishable_key: Option<String>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]

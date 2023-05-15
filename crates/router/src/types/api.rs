@@ -154,6 +154,7 @@ pub struct ConnectorData {
 pub struct SessionConnectorData {
     pub payment_method_type: api_enums::PaymentMethodType,
     pub connector: ConnectorData,
+    pub business_sub_label: Option<String>,
 }
 
 pub enum ConnectorChoice {
@@ -164,7 +165,7 @@ pub enum ConnectorChoice {
 
 #[derive(Clone)]
 pub enum ConnectorCallType {
-    Multiple(Vec<ConnectorData>),
+    Multiple(Vec<SessionConnectorData>),
     Single(ConnectorData),
 }
 
@@ -203,6 +204,7 @@ impl ConnectorData {
             "airwallex" => Ok(Box::new(&connector::Airwallex)),
             "authorizedotnet" => Ok(Box::new(&connector::Authorizedotnet)),
             "bambora" => Ok(Box::new(&connector::Bambora)),
+            "bitpay" => Ok(Box::new(&connector::Bitpay)),
             "bluesnap" => Ok(Box::new(&connector::Bluesnap)),
             "braintree" => Ok(Box::new(&connector::Braintree)),
             "checkout" => Ok(Box::new(&connector::Checkout)),
@@ -210,12 +212,18 @@ impl ConnectorData {
             "cybersource" => Ok(Box::new(&connector::Cybersource)),
             "dlocal" => Ok(Box::new(&connector::Dlocal)),
             #[cfg(feature = "dummy_connector")]
-            "dummyconnector" => Ok(Box::new(&connector::DummyConnector)),
+            "dummyconnector1" => Ok(Box::new(&connector::DummyConnector::<1>)),
+            #[cfg(feature = "dummy_connector")]
+            "dummyconnector2" => Ok(Box::new(&connector::DummyConnector::<2>)),
+            #[cfg(feature = "dummy_connector")]
+            "dummyconnector3" => Ok(Box::new(&connector::DummyConnector::<3>)),
             "fiserv" => Ok(Box::new(&connector::Fiserv)),
             "forte" => Ok(Box::new(&connector::Forte)),
             "globalpay" => Ok(Box::new(&connector::Globalpay)),
+            "iatapay" => Ok(Box::new(&connector::Iatapay)),
             "klarna" => Ok(Box::new(&connector::Klarna)),
             "mollie" => Ok(Box::new(&connector::Mollie)),
+            "nmi" => Ok(Box::new(&connector::Nmi)),
             "nuvei" => Ok(Box::new(&connector::Nuvei)),
             "opennode" => Ok(Box::new(&connector::Opennode)),
             // "payeezy" => Ok(Box::new(&connector::Payeezy)), As psync and rsync are not supported by this connector, it is added as template code for future usage

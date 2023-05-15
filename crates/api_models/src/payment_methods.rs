@@ -184,6 +184,11 @@ pub struct CardNetworkTypes {
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, PartialEq, Eq)]
+pub struct BankDebitTypes {
+    pub eligible_connectors: Vec<String>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, PartialEq, Eq)]
 pub struct ResponsePaymentMethodTypes {
     /// The payment method type enabled
     #[schema(example = "klarna")]
@@ -197,6 +202,9 @@ pub struct ResponsePaymentMethodTypes {
 
     /// The list of banks enabled, if applicable for a payment method type
     pub bank_names: Option<Vec<BankCodeResponse>>,
+
+    /// The Bank debit payment method information, if applicable for a payment method type.
+    pub bank_debits: Option<BankDebitTypes>,
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
