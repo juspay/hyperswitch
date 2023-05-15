@@ -1719,7 +1719,6 @@ pub fn validate_tracker_data(
                     ))
             }
         }
-        // pr: if any changes in the the previous validation suggested then need to change here as well
         enums::IntentStatus::Cancelled
         | enums::IntentStatus::RequiresCapture
         | enums::IntentStatus::Processing

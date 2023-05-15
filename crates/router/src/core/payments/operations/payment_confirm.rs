@@ -54,7 +54,7 @@ impl PaymentConfirm {
             capture_method: old_payment_attempt.capture_method,
             capture_on: old_payment_attempt.capture_on,
             confirm: old_payment_attempt.confirm,
-            authentication_type: old_payment_attempt.authentication_type, // pr: this is only for cards right, should we remove it from here and add in payment_method under cards ? If not what should I keep here.
+            authentication_type: old_payment_attempt.authentication_type,
             created_at,
             modified_at,
             last_synced,
@@ -108,9 +108,9 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             &[
                 storage_enums::IntentStatus::Cancelled,
                 storage_enums::IntentStatus::Succeeded,
-                // storage_enums::IntentStatus::Processing, // pr: should this be added here ?
+                storage_enums::IntentStatus::Processing,
                 storage_enums::IntentStatus::RequiresCapture,
-                // storage_enums::IntentStatus::RequiresMerchantAction, // pr: should this be added here ?
+                storage_enums::IntentStatus::RequiresMerchantAction,
             ],
             "confirm",
         )?;
