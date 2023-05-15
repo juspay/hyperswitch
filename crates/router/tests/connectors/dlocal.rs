@@ -438,6 +438,7 @@ pub fn get_payment_info() -> PaymentInfo {
         auth_type: None,
         access_token: None,
         connector_meta_data: None,
+        ..Default::default()
     }
 }
 // Connector dependent test cases goes here

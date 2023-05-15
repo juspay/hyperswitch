@@ -43,6 +43,25 @@ use crate::{
     },
 };
 
+pub fn filter_mca_based_on_business_details(
+    merchant_connector_accounts: Vec<
+        storage_models::merchant_connector_account::MerchantConnectorAccount,
+    >,
+    payment_intent: Option<&storage_models::payment_intent::PaymentIntent>,
+) -> Vec<storage_models::merchant_connector_account::MerchantConnectorAccount> {
+    if let Some(payment_intent) = payment_intent {
+        merchant_connector_accounts
+            .into_iter()
+            .filter(|mca| {
+                mca.business_country == payment_intent.business_country
+                    && mca.business_label == payment_intent.business_label
+            })
+            .collect::<Vec<_>>()
+    } else {
+        merchant_connector_accounts
+    }
+}
+
 pub async fn get_address_for_payment_request(
     db: &dyn StorageInterface,
     req_address: Option<&api::Address>,
@@ -380,12 +399,12 @@ pub fn create_redirect_url(
 
 pub fn create_webhook_url(
     router_base_url: &String,
-    payment_attempt: &storage::PaymentAttempt,
+    merchant_id: &String,
     connector_name: &String,
 ) -> String {
     format!(
         "{}/webhooks/{}/{}",
-        router_base_url, payment_attempt.merchant_id, connector_name
+        router_base_url, merchant_id, connector_name
     )
 }
 pub fn create_complete_authorize_url(
