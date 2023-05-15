@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 use masking::Secret;
 use router::types::{self, api, storage::enums};
 
@@ -278,7 +280,7 @@ async fn should_fail_payment_for_incorrect_card_number() {
         .make_payment(
             Some(types::PaymentsAuthorizeData {
                 payment_method_data: types::api::PaymentMethodData::Card(api::Card {
-                    card_number: Secret::new("374500000000015".to_string()),
+                    card_number: cards::CardNumber::from_str("37450000000001").unwrap(),
                     ..utils::CCardType::default().0
                 }),
                 ..utils::PaymentAuthorizeType::default().0
@@ -288,26 +290,6 @@ async fn should_fail_payment_for_incorrect_card_number() {
         .await
         .unwrap();
     assert!(response.response.is_err());
-}
-
-// Creates a payment with empty card number.
-#[actix_web::test]
-async fn should_fail_payment_for_empty_card_number() {
-    let response = CONNECTOR
-        .make_payment(
-            Some(types::PaymentsAuthorizeData {
-                payment_method_data: types::api::PaymentMethodData::Card(api::Card {
-                    card_number: Secret::new(String::from("")),
-                    ..utils::CCardType::default().0
-                }),
-                ..utils::PaymentAuthorizeType::default().0
-            }),
-            None,
-        )
-        .await
-        .unwrap();
-    let x = response.response.is_err();
-    assert!(x);
 }
 
 // Creates a payment with incorrect CVC.

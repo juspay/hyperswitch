@@ -155,7 +155,7 @@ async fn should_fail_payment_for_incorrect_card_number() {
         .make_payment(
             Some(types::PaymentsAuthorizeData {
                 payment_method_data: types::api::PaymentMethodData::Card(api::Card {
-                    card_number: Secret::new("4024007134364111".to_string()),
+                    card_number: cards::CardNumber::from_str("4024007134364111").unwrap(),
                     ..utils::CCardType::default().0
                 }),
                 ..get_default_payment_authorize_data().unwrap()
@@ -166,24 +166,6 @@ async fn should_fail_payment_for_incorrect_card_number() {
         .unwrap();
     let x = response.response.unwrap_err();
     assert_eq!(x.message, "Decline - Invalid account number",);
-}
-#[actix_web::test]
-async fn should_fail_payment_for_no_card_number() {
-    let response = Cybersource {}
-        .make_payment(
-            Some(types::PaymentsAuthorizeData {
-                payment_method_data: types::api::PaymentMethodData::Card(api::Card {
-                    card_number: Secret::new("".to_string()),
-                    ..utils::CCardType::default().0
-                }),
-                ..get_default_payment_authorize_data().unwrap()
-            }),
-            get_default_payment_info(),
-        )
-        .await
-        .unwrap();
-    let x = response.response.unwrap_err();
-    assert_eq!(x.message, "The order has been rejected by Decision Manager",);
 }
 #[actix_web::test]
 async fn should_fail_payment_for_invalid_exp_month() {

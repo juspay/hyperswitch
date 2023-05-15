@@ -22,8 +22,8 @@ pub struct DisputeNew {
     pub connector_reason: Option<String>,
     pub connector_reason_code: Option<String>,
     pub challenge_required_by: Option<PrimitiveDateTime>,
-    pub dispute_created_at: Option<PrimitiveDateTime>,
-    pub updated_at: Option<PrimitiveDateTime>,
+    pub connector_created_at: Option<PrimitiveDateTime>,
+    pub connector_updated_at: Option<PrimitiveDateTime>,
     pub connector: String,
 }
 
@@ -45,8 +45,8 @@ pub struct Dispute {
     pub connector_reason: Option<String>,
     pub connector_reason_code: Option<String>,
     pub challenge_required_by: Option<PrimitiveDateTime>,
-    pub dispute_created_at: Option<PrimitiveDateTime>,
-    pub updated_at: Option<PrimitiveDateTime>,
+    pub connector_created_at: Option<PrimitiveDateTime>,
+    pub connector_updated_at: Option<PrimitiveDateTime>,
     #[serde(with = "custom_serde::iso8601")]
     pub created_at: PrimitiveDateTime,
     #[serde(with = "custom_serde::iso8601")]
@@ -63,7 +63,7 @@ pub enum DisputeUpdate {
         connector_reason: Option<String>,
         connector_reason_code: Option<String>,
         challenge_required_by: Option<PrimitiveDateTime>,
-        updated_at: Option<PrimitiveDateTime>,
+        connector_updated_at: Option<PrimitiveDateTime>,
     },
     StatusUpdate {
         dispute_status: storage_enums::DisputeStatus,
@@ -80,7 +80,7 @@ pub struct DisputeUpdateInternal {
     connector_reason: Option<String>,
     connector_reason_code: Option<String>,
     challenge_required_by: Option<PrimitiveDateTime>,
-    updated_at: Option<PrimitiveDateTime>,
+    connector_updated_at: Option<PrimitiveDateTime>,
     modified_at: Option<PrimitiveDateTime>,
 }
 
@@ -94,7 +94,7 @@ impl From<DisputeUpdate> for DisputeUpdateInternal {
                 connector_reason,
                 connector_reason_code,
                 challenge_required_by,
-                updated_at,
+                connector_updated_at,
             } => Self {
                 dispute_stage: Some(dispute_stage),
                 dispute_status,
@@ -102,7 +102,7 @@ impl From<DisputeUpdate> for DisputeUpdateInternal {
                 connector_reason,
                 connector_reason_code,
                 challenge_required_by,
-                updated_at,
+                connector_updated_at,
                 modified_at: Some(common_utils::date_time::now()),
             },
             DisputeUpdate::StatusUpdate {
