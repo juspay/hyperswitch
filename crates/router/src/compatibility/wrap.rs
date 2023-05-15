@@ -8,7 +8,7 @@ use serde::Serialize;
 use crate::{
     core::errors::{self, RouterResult},
     routes::app::AppStateInfo,
-    services::{api, authentication as auth, logger},
+    services::{self, api, authentication as auth, logger},
 };
 
 #[instrument(skip(request, payload, state, func, api_authentication))]
@@ -25,6 +25,7 @@ where
     Q: Serialize + std::fmt::Debug + 'a,
     S: TryFrom<Q> + Serialize,
     E: Serialize + error_stack::Context + actix_web::ResponseError + Clone,
+    error_stack::Report<E>: services::EmbedError,
     errors::ApiErrorResponse: ErrorSwitch<E>,
     T: std::fmt::Debug,
     A: AppStateInfo,

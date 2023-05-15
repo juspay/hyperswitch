@@ -124,7 +124,9 @@ fn get_pm_and_subsequent_auth_detail(
                         expiration_date: ccard.get_expiry_date_as_yyyymm("-"),
                         card_code: Some(ccard.card_cvc.clone()),
                     }),
-                    None,
+                    Some(ProcessingOptions {
+                        is_subsequent_auth: true,
+                    }),
                     None,
                 ))
             }
@@ -155,6 +157,7 @@ struct TransactionRequest {
     currency_code: String,
     payment: PaymentDetails,
     processing_options: Option<ProcessingOptions>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     subsequent_auth_information: Option<SubsequentAuthInformation>,
     authorization_indicator_type: Option<AuthorizationIndicator>,
 }
