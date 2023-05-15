@@ -75,7 +75,7 @@ pub struct MerchantAccountCreate {
     /// The frm routing algorithm to be used for routing payments to desired FRM's
     #[schema(value_type = Option<Object>,example = json!({"type": "single", "data": "signifyd"}))]
     pub frm_routing_algorithm: Option<serde_json::Value>,
-    
+
     ///Will be used to expire client secret after certain amount of time to be supplied in seconds
     ///(900) for 15 mins
     #[schema(example = 900)]
