@@ -115,7 +115,6 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
         let message = self
             .get_webhook_source_verification_message(request, merchant_id, &secret)
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
-
         algorithm
             .verify_signature(&secret, &signature, &message)
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)

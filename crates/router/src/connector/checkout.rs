@@ -118,6 +118,7 @@ impl api::ConnectorAccessToken for Checkout {}
 impl api::AcceptDispute for Checkout {}
 impl api::PaymentToken for Checkout {}
 impl api::Dispute for Checkout {}
+impl api::RetrieveFile for Checkout {}
 impl api::DefendDispute for Checkout {}
 
 impl
@@ -772,6 +773,12 @@ impl
 }
 
 impl api::UploadFile for Checkout {}
+
+impl
+    ConnectorIntegration<api::Retrieve, types::RetrieveFileRequestData, types::RetrieveFileResponse>
+    for Checkout
+{
+}
 
 #[async_trait::async_trait]
 impl api::FileUpload for Checkout {

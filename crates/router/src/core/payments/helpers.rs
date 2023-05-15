@@ -98,7 +98,8 @@ pub async fn get_address_for_payment_request(
                             ..address_details.foreign_into()
                         })
                         .await
-                        .map_err(|_| errors::ApiErrorResponse::InternalServerError)?,
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Failed while inserting new address")?,
                     )
                 }
             }
@@ -398,12 +399,12 @@ pub fn create_redirect_url(
 
 pub fn create_webhook_url(
     router_base_url: &String,
-    payment_attempt: &storage::PaymentAttempt,
+    merchant_id: &String,
     connector_name: &String,
 ) -> String {
     format!(
         "{}/webhooks/{}/{}",
-        router_base_url, payment_attempt.merchant_id, connector_name
+        router_base_url, merchant_id, connector_name
     )
 }
 pub fn create_complete_authorize_url(
@@ -1428,6 +1429,7 @@ mod tests {
             active_attempt_id: "nopes".to_string(),
             business_country: storage_enums::CountryAlpha2::AG,
             business_label: "no".to_string(),
+            meta_data: None,
         };
         let req_cs = Some("1".to_string());
         let merchant_fulfillment_time = Some(900);
@@ -1467,6 +1469,7 @@ mod tests {
             active_attempt_id: "nopes".to_string(),
             business_country: storage_enums::CountryAlpha2::AG,
             business_label: "no".to_string(),
+            meta_data: None,
         };
         let req_cs = Some("1".to_string());
         let merchant_fulfillment_time = Some(10);
@@ -1506,6 +1509,7 @@ mod tests {
             active_attempt_id: "nopes".to_string(),
             business_country: storage_enums::CountryAlpha2::AG,
             business_label: "no".to_string(),
+            meta_data: None,
         };
         let req_cs = Some("1".to_string());
         let merchant_fulfillment_time = Some(10);
@@ -1584,7 +1588,9 @@ pub async fn get_merchant_connector_account(
                 .find_config_by_key(format!("mcd_{merchant_id}_{creds_identifier}").as_str())
                 .await
                 .to_not_found_response(
-                    errors::ApiErrorResponse::MerchantConnectorAccountNotFound,
+                    errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                        id: connector_label.to_string(),
+                    },
                 )?;
 
             #[cfg(feature = "kms")]
@@ -1624,7 +1630,9 @@ pub async fn get_merchant_connector_account(
             )
             .await
             .map(MerchantConnectorAccountType::DbVal)
-            .change_context(errors::ApiErrorResponse::MerchantConnectorAccountNotFound),
+            .change_context(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                id: connector_label.to_string(),
+            }),
     }
 }
 

@@ -97,7 +97,7 @@ impl<F, T>
 pub struct CardSource {
     #[serde(rename = "type")]
     pub source_type: CheckoutSourceTypes,
-    pub number: pii::Secret<String, pii::CardNumber>,
+    pub number: cards::CardNumber,
     pub expiry_month: pii::Secret<String>,
     pub expiry_year: pii::Secret<String>,
     pub cvv: pii::Secret<String>,
@@ -581,7 +581,6 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, CheckoutRefundResponse
 #[derive(Debug, Default, Eq, PartialEq, Deserialize)]
 pub struct ErrorResponse {
     pub request_id: Option<String>,
-    #[serde(rename = "type")]
     pub error_type: Option<String>,
     pub error_codes: Option<Vec<String>>,
 }

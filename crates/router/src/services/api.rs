@@ -12,7 +12,7 @@ use std::{
 use actix_web::{body, HttpRequest, HttpResponse, Responder};
 use common_utils::errors::ReportSwitchExt;
 use error_stack::{report, IntoReport, Report, ResultExt};
-use masking::{ExposeInterface, ExposeOptionInterface, PeekInterface};
+use masking::{ExposeOptionInterface, PeekInterface};
 use router_env::{instrument, tracing, Tag};
 use serde::Serialize;
 use serde_json::json;
@@ -630,9 +630,45 @@ where
 pub fn log_and_return_error_response<T>(error: Report<T>) -> HttpResponse
 where
     T: actix_web::ResponseError + error_stack::Context + Clone,
+    Report<T>: EmbedError,
 {
     logger::error!(?error);
-    HttpResponse::from_error(error.current_context().clone())
+    HttpResponse::from_error(error.embed().current_context().clone())
+}
+
+pub trait EmbedError: Sized {
+    fn embed(self) -> Self {
+        self
+    }
+}
+
+impl EmbedError for Report<api_models::errors::types::ApiErrorResponse> {
+    fn embed(self) -> Self {
+        #[cfg(feature = "detailed_errors")]
+        {
+            let mut report = self;
+            let error_trace = serde_json::to_value(&report).ok().and_then(|inner| {
+                serde_json::from_value::<Vec<errors::NestedErrorStack<'_>>>(inner)
+                    .ok()
+                    .map(Into::<errors::VecLinearErrorStack<'_>>::into)
+                    .map(serde_json::to_value)
+                    .transpose()
+                    .ok()
+                    .flatten()
+            });
+
+            match report.downcast_mut::<api_models::errors::types::ApiErrorResponse>() {
+                None => {}
+                Some(inner) => {
+                    inner.get_internal_error_mut().stacktrace = error_trace;
+                }
+            }
+            report
+        }
+
+        #[cfg(not(feature = "detailed_errors"))]
+        self
+    }
 }
 
 pub fn http_response_json<T: body::MessageBody + 'static>(response: T) -> HttpResponse {
@@ -793,10 +829,10 @@ pub fn build_redirection_form(
             {
                 format!(
                     "var newCard={{ccNumber: \"{}\",cvv: \"{}\",expDate: \"{}/{}\",amount: {},currency: \"{}\"}};",
-                    ccard.card_number.expose(),
-                    ccard.card_cvc.expose(),
-                    ccard.card_exp_month.clone().expose(),
-                    ccard.card_exp_year.expose(),
+                    ccard.card_number.peek(),
+                    ccard.card_cvc.peek(),
+                    ccard.card_exp_month.peek(),
+                    ccard.card_exp_year.peek(),
                     amount,
                     currency
                 )
@@ -834,7 +870,7 @@ pub fn build_redirection_form(
                     }
 
                 (PreEscaped(format!("<script>
-                    bluesnap.threeDsPaymentsSetup(\"{payment_fields_token}\", 
+                    bluesnap.threeDsPaymentsSetup(\"{payment_fields_token}\",
                     function(sdkResponse) {{
                         console.log(sdkResponse);
                         var f = document.createElement('form');

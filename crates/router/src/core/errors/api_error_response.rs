@@ -136,12 +136,14 @@ pub enum ApiErrorResponse {
     PaymentMethodNotFound,
     #[error(error_type = ErrorType::ObjectNotFound, code = "HE_02", message = "Merchant account does not exist in our records")]
     MerchantAccountNotFound,
-    #[error(error_type = ErrorType::ObjectNotFound, code = "HE_02", message = "Merchant connector account does not exist in our records")]
-    MerchantConnectorAccountNotFound,
+    #[error(error_type = ErrorType::ObjectNotFound, code = "HE_02", message = "Merchant connector account with id '{id}' does not exist in our records")]
+    MerchantConnectorAccountNotFound { id: String },
     #[error(error_type = ErrorType::ObjectNotFound, code = "HE_02", message = "Resource ID does not exist in our records")]
     ResourceIdNotFound,
     #[error(error_type = ErrorType::ObjectNotFound, code = "HE_02", message = "Mandate does not exist in our records")]
     MandateNotFound,
+    #[error(error_type = ErrorType::ObjectNotFound, code = "HE_02", message = "Failed to update mandate")]
+    MandateUpdateFailed,
     #[error(error_type = ErrorType::ObjectNotFound, code = "HE_02", message = "API Key does not exist in our records")]
     ApiKeyNotFound,
     #[error(error_type = ErrorType::ValidationError, code = "HE_03", message = "Return URL is not configured and not passed in payments request")]
@@ -246,7 +248,9 @@ impl actix_web::ResponseError for ApiErrorResponse {
             | Self::PaymentUnexpectedState { .. }
             | Self::MandateValidationFailed { .. } => StatusCode::BAD_REQUEST, // 400
 
-            Self::InternalServerError => StatusCode::INTERNAL_SERVER_ERROR, // 500
+            Self::MandateUpdateFailed | Self::InternalServerError => {
+                StatusCode::INTERNAL_SERVER_ERROR
+            } // 500
             Self::DuplicateRefundRequest | Self::DuplicatePayment { .. } => StatusCode::BAD_REQUEST, // 400
             Self::RefundNotFound
             | Self::CustomerNotFound
@@ -255,7 +259,7 @@ impl actix_web::ResponseError for ApiErrorResponse {
             | Self::PaymentNotFound
             | Self::PaymentMethodNotFound
             | Self::MerchantAccountNotFound
-            | Self::MerchantConnectorAccountNotFound
+            | Self::MerchantConnectorAccountNotFound { .. }
             | Self::MandateNotFound
             | Self::ClientSecretNotGiven
             | Self::ClientSecretExpired
@@ -295,6 +299,8 @@ impl actix_web::ResponseError for ApiErrorResponse {
             .body(self.to_string())
     }
 }
+
+impl crate::services::EmbedError for error_stack::Report<ApiErrorResponse> {}
 
 impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorResponse>
     for ApiErrorResponse
@@ -402,8 +408,8 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
             Self::RefundFailed { data } => AER::BadRequest(ApiError::new("CE", 6, "Refund failed while processing with connector. Retry refund", Some(Extra { data: data.clone(), ..Default::default()}))),
             Self::VerificationFailed { data } => {
                 AER::BadRequest(ApiError::new("CE", 7, "Verification failed while processing with connector. Retry operation", Some(Extra { data: data.clone(), ..Default::default()})))
-            }
-            Self::InternalServerError => {
+            },
+            Self::MandateUpdateFailed | Self::InternalServerError => {
                 AER::InternalServerError(ApiError::new("HE", 0, "Something went wrong", None))
             }
             Self::DuplicateRefundRequest => AER::BadRequest(ApiError::new("HE", 1, "Duplicate refund request. Refund already attempted with the refund ID", None)),
@@ -434,8 +440,8 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
             Self::MerchantAccountNotFound => {
                 AER::NotFound(ApiError::new("HE", 2, "Merchant account does not exist in our records", None))
             }
-            Self::MerchantConnectorAccountNotFound => {
-                AER::NotFound(ApiError::new("HE", 2, "Merchant connector account does not exist in our records", None))
+            Self::MerchantConnectorAccountNotFound { id } => {
+                AER::NotFound(ApiError::new("HE", 2, format!("Merchant connector account with id '{id}' does not exist in our records"), None))
             }
             Self::ResourceIdNotFound => {
                 AER::NotFound(ApiError::new("HE", 2, "Resource ID does not exist in our records", None))

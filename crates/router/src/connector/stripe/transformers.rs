@@ -136,7 +136,7 @@ pub struct StripeCardData {
     #[serde(rename = "payment_method_data[type]")]
     pub payment_method_data_type: StripePaymentMethodType,
     #[serde(rename = "payment_method_data[card][number]")]
-    pub payment_method_data_card_number: Secret<String, pii::CardNumber>,
+    pub payment_method_data_card_number: cards::CardNumber,
     #[serde(rename = "payment_method_data[card][exp_month]")]
     pub payment_method_data_card_exp_month: Secret<String>,
     #[serde(rename = "payment_method_data[card][exp_year]")]
@@ -194,6 +194,10 @@ pub enum StripeBankName {
         #[serde(rename = "payment_method_data[ideal][bank]")]
         ideal_bank_name: StripeBankNames,
     },
+    Przelewy24 {
+        #[serde(rename = "payment_method_data[p24][bank]")]
+        bank_name: StripeBankNames,
+    },
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
@@ -223,6 +227,16 @@ fn get_bank_name(
             api_models::payments::BankRedirectData::Ideal { bank_name, .. },
         ) => Ok(Some(StripeBankName::Ideal {
             ideal_bank_name: StripeBankNames::try_from(bank_name)?,
+        })),
+        (
+            StripePaymentMethodType::Przelewy24,
+            api_models::payments::BankRedirectData::Przelewy24 { bank_name, .. },
+        ) => Ok(Some(StripeBankName::Przelewy24 {
+            bank_name: StripeBankNames::try_from(&bank_name.ok_or(
+                errors::ConnectorError::MissingRequiredField {
+                    field_name: "bank_name",
+                },
+            )?)?,
         })),
         (StripePaymentMethodType::Sofort | StripePaymentMethodType::Giropay, _) => Ok(None),
         _ => Err(errors::ConnectorError::MismatchedPaymentData),
@@ -298,6 +312,8 @@ pub enum StripeWallet {
     ApplepayToken(StripeApplePay),
     GooglepayToken(GooglePayToken),
     ApplepayPayment(ApplepayPayment),
+    WechatpayPayment(WechatpayPayment),
+    AlipayPayment(AlipayPayment),
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
@@ -322,6 +338,30 @@ pub struct ApplepayPayment {
     pub token: String,
     #[serde(rename = "payment_method_data[type]")]
     pub payment_method_types: StripePaymentMethodType,
+}
+
+#[derive(Debug, Eq, PartialEq, Serialize)]
+pub struct AlipayPayment {
+    #[serde(rename = "payment_method_types[]")]
+    pub payment_method_types: StripePaymentMethodType,
+    #[serde(rename = "payment_method_data[type]")]
+    pub payment_method_data_type: StripePaymentMethodType,
+}
+
+#[derive(Debug, Eq, PartialEq, Serialize)]
+pub struct WechatpayPayment {
+    #[serde(rename = "payment_method_types[]")]
+    pub payment_method_types: StripePaymentMethodType,
+    #[serde(rename = "payment_method_data[type]")]
+    pub payment_method_data_type: StripePaymentMethodType,
+    #[serde(rename = "payment_method_options[wechat_pay][client]")]
+    pub client: WechatClient,
+}
+
+#[derive(Debug, Eq, PartialEq, Serialize, Clone, Copy)]
+#[serde(rename_all = "snake_case")]
+pub enum WechatClient {
+    Web,
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
@@ -352,6 +392,11 @@ pub enum StripePaymentMethodType {
     Becs,
     #[serde(rename = "bacs_debit")]
     Bacs,
+    #[serde(rename = "wechat_pay")]
+    Wechatpay,
+    Alipay,
+    #[serde(rename = "p24")]
+    Przelewy24,
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize, Clone)]
@@ -370,6 +415,7 @@ pub enum StripeBankNames {
     BtvVierLanderBank,
     Bunq,
     CapitalBankGraweGruppeAg,
+    CitiHandlowy,
     Dolomitenbank,
     EasybankAg,
     ErsteBankUndSparkassen,
@@ -397,6 +443,26 @@ pub enum StripeBankNames {
     SnsBank,
     TriodosBank,
     VanLanschot,
+    PlusBank,
+    EtransferPocztowy24,
+    BankiSpbdzielcze,
+    BankNowyBfgSa,
+    GetinBank,
+    Blik,
+    NoblePay,
+    #[serde(rename = "ideabank")]
+    IdeaBank,
+    #[serde(rename = "envelobank")]
+    EnveloBank,
+    NestPrzelew,
+    MbankMtransfer,
+    Inteligo,
+    PbacZIpko,
+    BnpParibas,
+    BankPekaoSa,
+    VolkswagenBank,
+    AliorBank,
+    Boz,
 }
 
 impl TryFrom<WebhookEventStatus> for api_models::webhooks::IncomingWebhookEvent {
@@ -434,6 +500,7 @@ impl TryFrom<&api_models::enums::BankNames> for StripeBankNames {
             api_models::enums::BankNames::CapitalBankGraweGruppeAg => {
                 Self::CapitalBankGraweGruppeAg
             }
+            api_models::enums::BankNames::Citi => Self::CitiHandlowy,
             api_models::enums::BankNames::Dolomitenbank => Self::Dolomitenbank,
             api_models::enums::BankNames::EasybankAg => Self::EasybankAg,
             api_models::enums::BankNames::ErsteBankUndSparkassen => Self::ErsteBankUndSparkassen,
@@ -441,6 +508,7 @@ impl TryFrom<&api_models::enums::BankNames> for StripeBankNames {
             api_models::enums::BankNames::HypoAlpeadriabankInternationalAg => {
                 Self::HypoAlpeadriabankInternationalAg
             }
+
             api_models::enums::BankNames::HypoNoeLbFurNiederosterreichUWien => {
                 Self::HypoNoeLbFurNiederosterreichUWien
             }
@@ -471,6 +539,25 @@ impl TryFrom<&api_models::enums::BankNames> for StripeBankNames {
             api_models::enums::BankNames::VolksbankGruppe => Self::VolksbankGruppe,
             api_models::enums::BankNames::VolkskreditbankAg => Self::VolkskreditbankAg,
             api_models::enums::BankNames::VrBankBraunau => Self::VrBankBraunau,
+            api_models::enums::BankNames::PlusBank => Self::PlusBank,
+            api_models::enums::BankNames::EtransferPocztowy24 => Self::EtransferPocztowy24,
+            api_models::enums::BankNames::BankiSpbdzielcze => Self::BankiSpbdzielcze,
+            api_models::enums::BankNames::BankNowyBfgSa => Self::BankNowyBfgSa,
+            api_models::enums::BankNames::GetinBank => Self::GetinBank,
+            api_models::enums::BankNames::Blik => Self::Blik,
+            api_models::enums::BankNames::NoblePay => Self::NoblePay,
+            api_models::enums::BankNames::IdeaBank => Self::IdeaBank,
+            api_models::enums::BankNames::EnveloBank => Self::EnveloBank,
+            api_models::enums::BankNames::NestPrzelew => Self::NestPrzelew,
+            api_models::enums::BankNames::MbankMtransfer => Self::MbankMtransfer,
+            api_models::enums::BankNames::Inteligo => Self::Inteligo,
+            api_models::enums::BankNames::PbacZIpko => Self::PbacZIpko,
+            api_models::enums::BankNames::BnpParibas => Self::BnpParibas,
+            api_models::enums::BankNames::BankPekaoSa => Self::BankPekaoSa,
+            api_models::enums::BankNames::VolkswagenBank => Self::VolkswagenBank,
+            api_models::enums::BankNames::AliorBank => Self::AliorBank,
+            api_models::enums::BankNames::Boz => Self::Boz,
+
             _ => Err(errors::ConnectorError::NotSupported {
                 message: api_enums::PaymentMethod::BankRedirect.to_string(),
                 connector: "Stripe",
@@ -539,6 +626,9 @@ fn infer_stripe_bank_redirect_issuer(
         Some(storage_models::enums::PaymentMethodType::Ideal) => Ok(StripePaymentMethodType::Ideal),
         Some(storage_models::enums::PaymentMethodType::Sofort) => {
             Ok(StripePaymentMethodType::Sofort)
+        }
+        Some(storage_models::enums::PaymentMethodType::Przelewy24) => {
+            Ok(StripePaymentMethodType::Przelewy24)
         }
         Some(storage_models::enums::PaymentMethodType::Eps) => Ok(StripePaymentMethodType::Eps),
         None => Err(errors::ConnectorError::MissingRequiredField {
@@ -624,19 +714,25 @@ impl TryFrom<&payments::BankRedirectData> for StripeBillingAddress {
             payments::BankRedirectData::Eps {
                 billing_details, ..
             } => Ok(Self {
-                name: Some(billing_details.billing_name.clone()),
+                name: billing_details.billing_name.clone(),
                 ..Self::default()
             }),
             payments::BankRedirectData::Giropay {
                 billing_details, ..
             } => Ok(Self {
-                name: Some(billing_details.billing_name.clone()),
+                name: billing_details.billing_name.clone(),
                 ..Self::default()
             }),
             payments::BankRedirectData::Ideal {
                 billing_details, ..
             } => Ok(Self {
-                name: Some(billing_details.billing_name.clone()),
+                name: billing_details.billing_name.clone(),
+                ..Self::default()
+            }),
+            payments::BankRedirectData::Przelewy24 {
+                billing_details, ..
+            } => Ok(Self {
+                email: Some(billing_details.email.clone()),
                 ..Self::default()
             }),
             _ => Ok(Self::default()),
@@ -668,6 +764,7 @@ fn get_bank_debit_data(
             billing_details,
             account_number,
             routing_number,
+            ..
         } => {
             let ach_data = BankDebitData::Ach {
                 account_holder_type: "individual".to_string(),
@@ -681,6 +778,7 @@ fn get_bank_debit_data(
         payments::BankDebitData::SepaBankDebit {
             billing_details,
             iban,
+            ..
         } => {
             let sepa_data = BankDebitData::Sepa {
                 iban: iban.to_owned(),
@@ -807,14 +905,33 @@ fn create_stripe_payment_method(
                 StripePaymentMethodType::ApplePay,
                 StripeBillingAddress::default(),
             )),
+
+            payments::WalletData::WeChatPayRedirect(_) => Ok((
+                StripePaymentMethodData::Wallet(StripeWallet::WechatpayPayment(WechatpayPayment {
+                    client: WechatClient::Web,
+                    payment_method_types: StripePaymentMethodType::Wechatpay,
+                    payment_method_data_type: StripePaymentMethodType::Wechatpay,
+                })),
+                StripePaymentMethodType::Wechatpay,
+                StripeBillingAddress::default(),
+            )),
+            payments::WalletData::AliPay(_) => Ok((
+                StripePaymentMethodData::Wallet(StripeWallet::AlipayPayment(AlipayPayment {
+                    payment_method_types: StripePaymentMethodType::Alipay,
+                    payment_method_data_type: StripePaymentMethodType::Alipay,
+                })),
+                StripePaymentMethodType::Alipay,
+                StripeBillingAddress::default(),
+            )),
             payments::WalletData::GooglePay(gpay_data) => Ok((
                 StripePaymentMethodData::try_from(gpay_data)?,
                 StripePaymentMethodType::Card,
                 StripeBillingAddress::default(),
             )),
-            _ => Err(
-                errors::ConnectorError::NotImplemented("This wallet for stripe".to_string()).into(),
-            ),
+            _ => Err(errors::ConnectorError::NotImplemented(
+                "This wallet is not implemented for stripe".to_string(),
+            )
+            .into()),
         },
         payments::PaymentMethodData::BankDebit(bank_debit_data) => {
             let (pm_type, bank_debit_data, billing_address) = get_bank_debit_data(bank_debit_data);
@@ -1071,8 +1188,6 @@ pub enum StripePaymentStatus {
     RequiresConfirmation,
     Canceled,
     RequiresCapture,
-    // This is the case in
-    Pending,
 }
 
 impl From<StripePaymentStatus> for enums::AttemptStatus {
@@ -1082,11 +1197,10 @@ impl From<StripePaymentStatus> for enums::AttemptStatus {
             StripePaymentStatus::Failed => Self::Failure,
             StripePaymentStatus::Processing => Self::Authorizing,
             StripePaymentStatus::RequiresCustomerAction => Self::AuthenticationPending,
-            StripePaymentStatus::RequiresPaymentMethod => Self::PaymentMethodAwaited,
+            StripePaymentStatus::RequiresPaymentMethod => Self::Failure,
             StripePaymentStatus::RequiresConfirmation => Self::ConfirmationAwaited,
             StripePaymentStatus::Canceled => Self::Voided,
             StripePaymentStatus::RequiresCapture => Self::Authorized,
-            StripePaymentStatus::Pending => Self::Pending,
         }
     }
 }
@@ -1229,7 +1343,10 @@ impl ForeignFrom<(Option<StripePaymentMethodOptions>, String)> for types::Mandat
                 | StripePaymentMethodOptions::Ach {}
                 | StripePaymentMethodOptions::Bacs {}
                 | StripePaymentMethodOptions::Becs {}
-                | StripePaymentMethodOptions::Sepa {} => None,
+                | StripePaymentMethodOptions::WechatPay {}
+                | StripePaymentMethodOptions::Alipay {}
+                | StripePaymentMethodOptions::Sepa {}
+                | StripePaymentMethodOptions::Przelewy24 {} => None,
             }),
             payment_method_id: Some(payment_method_id),
         }
@@ -1387,13 +1504,18 @@ impl ForeignFrom<Option<LatestAttempt>> for Option<String> {
 #[serde(rename_all = "snake_case", remote = "Self")]
 pub enum StripeNextActionResponse {
     RedirectToUrl(StripeRedirectToUrlResponse),
+    AlipayHandleRedirect(StripeRedirectToUrlResponse),
     VerifyWithMicrodeposits(StripeVerifyWithMicroDepositsResponse),
+    WechatPayDisplayQrCode(StripeRedirectToQr),
 }
 
 impl StripeNextActionResponse {
     fn get_url(&self) -> Url {
         match self {
-            Self::RedirectToUrl(redirect_to_url) => redirect_to_url.url.to_owned(),
+            Self::RedirectToUrl(redirect_to_url) | Self::AlipayHandleRedirect(redirect_to_url) => {
+                redirect_to_url.url.to_owned()
+            }
+            Self::WechatPayDisplayQrCode(redirect_to_url) => redirect_to_url.data.to_owned(),
             Self::VerifyWithMicrodeposits(verify_with_microdeposits) => {
                 verify_with_microdeposits.hosted_verification_url.to_owned()
             }
@@ -1425,6 +1547,11 @@ impl<'de> Deserialize<'de> for StripeNextActionResponse {
 pub struct StripeRedirectToUrlResponse {
     return_url: String,
     url: Url,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
+pub struct StripeRedirectToQr {
+    data: Url,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Deserialize)]
@@ -1586,8 +1713,8 @@ pub struct StripeBillingAddress {
 
 #[derive(Debug, Clone, serde::Deserialize, Eq, PartialEq)]
 pub struct StripeRedirectResponse {
-    pub payment_intent: String,
-    pub payment_intent_client_secret: String,
+    pub payment_intent: Option<String>,
+    pub payment_intent_client_secret: Option<String>,
     pub source_redirect_slug: Option<String>,
     pub redirect_status: Option<StripePaymentStatus>,
     pub source_type: Option<Secret<String>>,
@@ -1631,6 +1758,10 @@ pub enum StripePaymentMethodOptions {
     Becs {},
     #[serde(rename = "bacs_debit")]
     Bacs {},
+    WechatPay {},
+    Alipay {},
+    #[serde(rename = "p24")]
+    Przelewy24 {},
 }
 
 #[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
@@ -1914,6 +2045,22 @@ impl
                         pk_token_instrument_name: data.payment_method.pm_type,
                         pk_token_payment_network: data.payment_method.network,
                         pk_token_transaction_id: data.transaction_identifier,
+                    });
+                    Ok(Self::Wallet(wallet_info))
+                }
+
+                payments::WalletData::WeChatPayRedirect(_) => {
+                    let wallet_info = StripeWallet::WechatpayPayment(WechatpayPayment {
+                        client: WechatClient::Web,
+                        payment_method_types: StripePaymentMethodType::Wechatpay,
+                        payment_method_data_type: StripePaymentMethodType::Wechatpay,
+                    });
+                    Ok(Self::Wallet(wallet_info))
+                }
+                payments::WalletData::AliPay(_) => {
+                    let wallet_info = StripeWallet::AlipayPayment(AlipayPayment {
+                        payment_method_types: StripePaymentMethodType::Alipay,
+                        payment_method_data_type: StripePaymentMethodType::Alipay,
                     });
                     Ok(Self::Wallet(wallet_info))
                 }

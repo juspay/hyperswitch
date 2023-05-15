@@ -89,8 +89,19 @@ impl DummyConnector {
         {
             route = route.guard(actix_web::guard::Host("localhost"));
         }
-        route =
-            route.service(web::resource("/payment").route(web::post().to(dummy_connector_payment)));
+        route = route
+            .service(web::resource("/payment").route(web::post().to(dummy_connector_payment)))
+            .service(
+                web::resource("/payments/{payment_id}")
+                    .route(web::get().to(dummy_connector_payment_data)),
+            )
+            .service(
+                web::resource("/{payment_id}/refund").route(web::post().to(dummy_connector_refund)),
+            )
+            .service(
+                web::resource("/refunds/{refund_id}")
+                    .route(web::get().to(dummy_connector_refund_data)),
+            );
         route
     }
 }
@@ -378,6 +389,7 @@ impl Configs {
     pub fn server(config: AppState) -> Scope {
         web::scope("/configs")
             .app_data(web::Data::new(config))
+            .service(web::resource("/").route(web::post().to(config_key_create)))
             .service(
                 web::resource("/{key}")
                     .route(web::get().to(config_key_retrieve))
@@ -413,7 +425,11 @@ impl Disputes {
             .app_data(web::Data::new(state))
             .service(web::resource("/list").route(web::get().to(retrieve_disputes_list)))
             .service(web::resource("/accept/{dispute_id}").route(web::post().to(accept_dispute)))
-            .service(web::resource("/evidence").route(web::post().to(submit_dispute_evidence)))
+            .service(
+                web::resource("/evidence")
+                    .route(web::post().to(submit_dispute_evidence))
+                    .route(web::put().to(attach_dispute_evidence)),
+            )
             .service(web::resource("/{dispute_id}").route(web::get().to(retrieve_dispute)))
     }
 }
