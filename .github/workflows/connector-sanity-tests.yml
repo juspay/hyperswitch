@@ -100,4 +100,4 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --package router --test connectors -- ${{ matrix.connector }}"::" --test-threads=1
+          args: --package router --test connectors -- "${{ matrix.connector }}::" --test-threads=1

@@ -630,9 +630,45 @@ where
 pub fn log_and_return_error_response<T>(error: Report<T>) -> HttpResponse
 where
     T: actix_web::ResponseError + error_stack::Context + Clone,
+    Report<T>: EmbedError,
 {
     logger::error!(?error);
-    HttpResponse::from_error(error.current_context().clone())
+    HttpResponse::from_error(error.embed().current_context().clone())
+}
+
+pub trait EmbedError: Sized {
+    fn embed(self) -> Self {
+        self
+    }
+}
+
+impl EmbedError for Report<api_models::errors::types::ApiErrorResponse> {
+    fn embed(self) -> Self {
+        #[cfg(feature = "detailed_errors")]
+        {
+            let mut report = self;
+            let error_trace = serde_json::to_value(&report).ok().and_then(|inner| {
+                serde_json::from_value::<Vec<errors::NestedErrorStack<'_>>>(inner)
+                    .ok()
+                    .map(Into::<errors::VecLinearErrorStack<'_>>::into)
+                    .map(serde_json::to_value)
+                    .transpose()
+                    .ok()
+                    .flatten()
+            });
+
+            match report.downcast_mut::<api_models::errors::types::ApiErrorResponse>() {
+                None => {}
+                Some(inner) => {
+                    inner.get_internal_error_mut().stacktrace = error_trace;
+                }
+            }
+            report
+        }
+
+        #[cfg(not(feature = "detailed_errors"))]
+        self
+    }
 }
 
 pub fn http_response_json<T: body::MessageBody + 'static>(response: T) -> HttpResponse {

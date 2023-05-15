@@ -9,7 +9,7 @@ use super::{
     metrics,
 };
 use crate::{
-    core::{files, payments, utils},
+    core::{files, payments, utils as core_utils},
     routes::AppState,
     services,
     types::{
@@ -19,6 +19,7 @@ use crate::{
         AcceptDisputeRequestData, AcceptDisputeResponse, DefendDisputeRequestData,
         DefendDisputeResponse, SubmitEvidenceRequestData, SubmitEvidenceResponse,
     },
+    utils,
 };
 
 #[instrument(skip(state))]
@@ -112,7 +113,7 @@ pub async fn accept_dispute(
         AcceptDisputeRequestData,
         AcceptDisputeResponse,
     > = connector_data.connector.get_connector_integration();
-    let router_data = utils::construct_accept_dispute_router_data(
+    let router_data = core_utils::construct_accept_dispute_router_data(
         state,
         &payment_intent,
         &payment_attempt,
@@ -151,7 +152,7 @@ pub async fn accept_dispute(
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable_lazy(|| {
-            format!("Unable to update dispute with dispute_id: {}", dispute_id)
+            format!("Unable to update dispute with dispute_id: {dispute_id}")
         })?;
     let dispute_response = api_models::disputes::DisputeResponse::foreign_from(updated_dispute);
     Ok(services::ApplicationResponse::Json(dispute_response))
@@ -218,7 +219,7 @@ pub async fn submit_evidence(
         SubmitEvidenceRequestData,
         SubmitEvidenceResponse,
     > = connector_data.connector.get_connector_integration();
-    let router_data = utils::construct_submit_evidence_router_data(
+    let router_data = core_utils::construct_submit_evidence_router_data(
         state,
         &payment_intent,
         &payment_attempt,
@@ -255,7 +256,7 @@ pub async fn submit_evidence(
                 DefendDisputeRequestData,
                 DefendDisputeResponse,
             > = connector_data.connector.get_connector_integration();
-            let defend_dispute_router_data = utils::construct_defend_dispute_router_data(
+            let defend_dispute_router_data = core_utils::construct_defend_dispute_router_data(
                 state,
                 &payment_intent,
                 &payment_attempt,
@@ -300,7 +301,7 @@ pub async fn submit_evidence(
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable_lazy(|| {
-            format!("Unable to update dispute with dispute_id: {}", dispute_id)
+            format!("Unable to update dispute with dispute_id: {dispute_id}")
         })?;
     let dispute_response = api_models::disputes::DisputeResponse::foreign_from(updated_dispute);
     Ok(services::ApplicationResponse::Json(dispute_response))
@@ -346,8 +347,8 @@ pub async fn attach_evidence(
         attach_evidence_request.create_file_request,
     )
     .await?;
-    let file_id = match create_file_response.clone() {
-        services::ApplicationResponse::Json(res) => res.file_id,
+    let file_id = match &create_file_response {
+        services::ApplicationResponse::Json(res) => res.file_id.clone(),
         _ => Err(errors::ApiErrorResponse::InternalServerError)
             .into_report()
             .attach_printable("Unexpected response received from files create core")?,
@@ -364,16 +365,16 @@ pub async fn attach_evidence(
         file_id,
     );
     let update_dispute = storage_models::dispute::DisputeUpdate::EvidenceUpdate {
-        evidence: serde_json::to_value(updated_dispute_evidence)
-            .into_report()
+        evidence: utils::Encode::<api::DisputeEvidence>::encode_to_value(&updated_dispute_evidence)
             .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Error while encoding dispute evidence")?,
+            .attach_printable("Error while encoding dispute evidence")?
+            .into(),
     };
     db.update_dispute(dispute, update_dispute)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable_lazy(|| {
-            format!("Unable to update dispute with dispute_id: {}", dispute_id)
+            format!("Unable to update dispute with dispute_id: {dispute_id}")
         })?;
     Ok(create_file_response)
 }

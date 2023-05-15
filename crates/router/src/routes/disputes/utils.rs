@@ -1,6 +1,6 @@
 use actix_multipart::{Field, Multipart};
 use actix_web::web::Bytes;
-use common_utils::errors::CustomResult;
+use common_utils::{errors::CustomResult, ext_traits::StringExt, fp_utils};
 use error_stack::{IntoReport, ResultExt};
 use futures::{StreamExt, TryStreamExt};
 
@@ -10,37 +10,25 @@ use crate::{
     utils::OptionExt,
 };
 
-pub async fn parse_evidence_type(field: &mut Field) -> Option<api_models::disputes::EvidenceType> {
+pub async fn parse_evidence_type(
+    field: &mut Field,
+) -> CustomResult<Option<disputes::EvidenceType>, errors::ApiErrorResponse> {
     let purpose = helpers::read_string(field).await;
-    match purpose.as_deref() {
-        Some("cancellation_policy") => Some(api_models::disputes::EvidenceType::CancellationPolicy),
-        Some("customer_communication") => {
-            Some(api_models::disputes::EvidenceType::CustomerCommunication)
-        }
-        Some("customer_signature") => Some(api_models::disputes::EvidenceType::CustomerSignature),
-        Some("receipt") => Some(api_models::disputes::EvidenceType::Receipt),
-        Some("refund_policy") => Some(api_models::disputes::EvidenceType::RefundPolicy),
-        Some("service_documentation") => {
-            Some(api_models::disputes::EvidenceType::ServiceDocumentation)
-        }
-        Some("shipping_documentation") => {
-            Some(api_models::disputes::EvidenceType::ShippingDocumentation)
-        }
-        Some("invoice_showing_distinct_transactions") => {
-            Some(api_models::disputes::EvidenceType::InvoiceShowingDistinctTransactions)
-        }
-        Some("recurring_transaction_agreement") => {
-            Some(api_models::disputes::EvidenceType::RecurringTransactionAgreement)
-        }
-        Some("uncategorized_file") => Some(api_models::disputes::EvidenceType::UncategorizedFile),
-        _ => None,
+    match purpose {
+        Some(evidence_type) => Ok(Some(
+            evidence_type
+                .parse_enum("Evidence Type")
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Error parsing evidence type")?,
+        )),
+        _ => Ok(None),
     }
 }
 
 pub async fn get_attach_evidence_request(
     mut payload: Multipart,
 ) -> CustomResult<disputes::AttachEvidenceRequest, errors::ApiErrorResponse> {
-    let mut option_evidence_type: Option<api_models::disputes::EvidenceType> = None;
+    let mut option_evidence_type: Option<disputes::EvidenceType> = None;
     let mut dispute_id: Option<String> = None;
 
     let mut file_name: Option<String> = None;
@@ -61,7 +49,7 @@ pub async fn get_attach_evidence_request(
                         Ok(bytes) => file_data.push(bytes),
                         Err(err) => Err(errors::ApiErrorResponse::InternalServerError)
                             .into_report()
-                            .attach_printable(format!("{}{}", "File parsing error: ", err))?,
+                            .attach_printable_lazy(|| format!("File parsing error: {err}"))?,
                     }
                 }
                 file_content = Some(file_data)
@@ -70,19 +58,14 @@ pub async fn get_attach_evidence_request(
                 dispute_id = helpers::read_string(&mut field).await;
             }
             Some("evidence_type") => {
-                option_evidence_type = parse_evidence_type(&mut field).await;
+                option_evidence_type = parse_evidence_type(&mut field).await?;
             }
             // Can ignore other params
             _ => (),
         }
     }
     let evidence_type = option_evidence_type.get_required_value("evidence_type")?;
-    let file = match file_content {
-        Some(valid_file_content) => valid_file_content.concat().to_vec(),
-        None => Err(errors::ApiErrorResponse::MissingFile)
-            .into_report()
-            .attach_printable("Missing / Invalid file in the request")?,
-    };
+    let file = file_content.get_required_value("file")?.concat().to_vec();
     //Get and validate file size
     let file_size: i32 = file
         .len()
@@ -91,11 +74,11 @@ pub async fn get_attach_evidence_request(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("File size error")?;
     // Check if empty file and throw error
-    if file_size <= 0 {
+    fp_utils::when(file_size <= 0, || {
         Err(errors::ApiErrorResponse::MissingFile)
             .into_report()
-            .attach_printable("Missing / Invalid file in the request")?
-    }
+            .attach_printable("Missing / Invalid file in the request")
+    })?;
     // Get file mime type using 'infer'
     let kind = infer::get(&file).ok_or(errors::ApiErrorResponse::MissingFileContentType)?;
     let file_type = kind

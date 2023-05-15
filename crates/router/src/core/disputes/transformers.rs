@@ -5,7 +5,12 @@ use error_stack::ResultExt;
 use crate::{
     core::{errors, files::helpers::retrieve_file_and_provider_file_id_from_file_id},
     routes::AppState,
-    types::{api, storage, transformers::ForeignFrom, SubmitEvidenceRequestData},
+    types::{
+        api::{self, DisputeEvidence},
+        storage,
+        transformers::ForeignFrom,
+        SubmitEvidenceRequestData,
+    },
 };
 
 pub async fn get_evidence_request_data(
@@ -138,50 +143,48 @@ pub async fn get_evidence_request_data(
 }
 
 pub fn update_dispute_evidence(
-    dispute_evidence: api::DisputeEvidence,
-    evidence_type: EvidenceType,
+    dispute_evidence: DisputeEvidence,
+    evidence_type: api::EvidenceType,
     file_id: String,
-) -> api::DisputeEvidence {
+) -> DisputeEvidence {
     match evidence_type {
-        api_models::disputes::EvidenceType::CancellationPolicy => api::DisputeEvidence {
+        api::EvidenceType::CancellationPolicy => DisputeEvidence {
             cancellation_policy: Some(file_id),
             ..dispute_evidence
         },
-        api_models::disputes::EvidenceType::CustomerCommunication => api::DisputeEvidence {
+        api::EvidenceType::CustomerCommunication => DisputeEvidence {
             customer_communication: Some(file_id),
             ..dispute_evidence
         },
-        api_models::disputes::EvidenceType::CustomerSignature => api::DisputeEvidence {
+        api::EvidenceType::CustomerSignature => DisputeEvidence {
             customer_signature: Some(file_id),
             ..dispute_evidence
         },
-        api_models::disputes::EvidenceType::Receipt => api::DisputeEvidence {
+        api::EvidenceType::Receipt => DisputeEvidence {
             receipt: Some(file_id),
             ..dispute_evidence
         },
-        api_models::disputes::EvidenceType::RefundPolicy => api::DisputeEvidence {
+        api::EvidenceType::RefundPolicy => DisputeEvidence {
             refund_policy: Some(file_id),
             ..dispute_evidence
         },
-        api_models::disputes::EvidenceType::ServiceDocumentation => api::DisputeEvidence {
+        api::EvidenceType::ServiceDocumentation => DisputeEvidence {
             service_documentation: Some(file_id),
             ..dispute_evidence
         },
-        api_models::disputes::EvidenceType::ShippingDocumentation => api::DisputeEvidence {
+        api::EvidenceType::ShippingDocumentation => DisputeEvidence {
             shipping_documentation: Some(file_id),
             ..dispute_evidence
         },
-        api_models::disputes::EvidenceType::InvoiceShowingDistinctTransactions => {
-            api::DisputeEvidence {
-                invoice_showing_distinct_transactions: Some(file_id),
-                ..dispute_evidence
-            }
-        }
-        api_models::disputes::EvidenceType::RecurringTransactionAgreement => api::DisputeEvidence {
+        api::EvidenceType::InvoiceShowingDistinctTransactions => DisputeEvidence {
+            invoice_showing_distinct_transactions: Some(file_id),
+            ..dispute_evidence
+        },
+        api::EvidenceType::RecurringTransactionAgreement => DisputeEvidence {
             recurring_transaction_agreement: Some(file_id),
             ..dispute_evidence
         },
-        api_models::disputes::EvidenceType::UncategorizedFile => api::DisputeEvidence {
+        api::EvidenceType::UncategorizedFile => DisputeEvidence {
             uncategorized_file: Some(file_id),
             ..dispute_evidence
         },
@@ -211,7 +214,7 @@ pub async fn get_dispute_evidence_block(
 pub async fn get_dispute_evidence_vec(
     state: &AppState,
     merchant_account: storage::MerchantAccount,
-    dispute_evidence: api::DisputeEvidence,
+    dispute_evidence: DisputeEvidence,
 ) -> CustomResult<Vec<api_models::disputes::DisputeEvidenceBlock>, errors::ApiErrorResponse> {
     let mut dispute_evidence_blocks: Vec<api_models::disputes::DisputeEvidenceBlock> = vec![];
     if let Some(cancellation_policy_block) = dispute_evidence.cancellation_policy {
