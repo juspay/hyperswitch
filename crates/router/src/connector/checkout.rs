@@ -100,14 +100,9 @@ impl ConnectorCommon for Checkout {
                 .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
             message: response
                 .error_codes
-                .clone()
-                .map(|error_codes| {
-                    error_codes
-                        .first()
-                        .cloned()
-                        .unwrap_or(consts::NO_ERROR_MESSAGE.to_string())
-                })
-                .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
+                .as_ref()
+                .and_then(|error_codes| error_codes.first().cloned())
+                .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
             reason: Some(
                 response
                     .error_codes
