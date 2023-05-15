@@ -241,6 +241,12 @@ paypal = { currency = "USD,INR", country = "US" }
 key_id = "" # The AWS key ID used by the KMS SDK for decrypting data.
 region = "" # The AWS region used by the KMS SDK for decrypting data.
 
+# EmailClient configuration. Only applicable when the `email` feature flag is enabled.
+[email]
+from_email = "notify@example.com" # Sender email
+aws_region = "" # AWS region used by AWS SES 
+base_url = "" # Base url to be sent in email
+
 [dummy_connector]
 payment_ttl = 172800 # Time to live for dummy connector payment in redis
 payment_duration = 1000 # Fake delay duration for dummy connector payment

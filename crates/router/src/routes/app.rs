@@ -1,5 +1,10 @@
 use actix_web::{web, Scope};
 use tokio::sync::oneshot;
+#[cfg(feature = "email")]
+use {
+    error_stack::ResultExt,
+    external_services::email::{AwsSes, EmailClient, EmailError},
+};
 
 #[cfg(feature = "dummy_connector")]
 use super::dummy_connector::*;
@@ -22,12 +27,16 @@ pub struct AppState {
     pub flow_name: String,
     pub store: Box<dyn StorageInterface>,
     pub conf: Settings,
+    #[cfg(feature = "email")]
+    pub email_client: Box<dyn EmailClient>,
 }
 
 pub trait AppStateInfo {
     fn conf(&self) -> Settings;
     fn flow_name(&self) -> String;
     fn store(&self) -> Box<dyn StorageInterface>;
+    #[cfg(feature = "email")]
+    fn email_client(&self) -> Box<dyn EmailClient>;
 }
 
 impl AppStateInfo for AppState {
@@ -39,6 +48,10 @@ impl AppStateInfo for AppState {
     }
     fn store(&self) -> Box<dyn StorageInterface> {
         self.store.to_owned()
+    }
+    #[cfg(feature = "email")]
+    fn email_client(&self) -> Box<dyn EmailClient> {
+        self.email_client.to_owned()
     }
 }
 
@@ -56,10 +69,20 @@ impl AppState {
             StorageImpl::Mock => Box::new(MockDb::new(&conf).await),
         };
 
+        #[cfg(feature = "email")]
+        #[allow(clippy::expect_used)]
+        let email_client = Box::new(
+            AwsSes::new(&conf.email)
+                .await
+                .change_context(EmailError::ClientBuildingFailure)
+                .expect("Failed building email client"),
+        );
         Self {
             flow_name: String::from("default"),
             store,
             conf,
+            #[cfg(feature = "email")]
+            email_client,
         }
     }
 
