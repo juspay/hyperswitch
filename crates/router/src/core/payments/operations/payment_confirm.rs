@@ -57,20 +57,19 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
-        payment_intent.setup_future_usage = request
-            .setup_future_usage
-            .map(ForeignInto::foreign_into)
-            .or(payment_intent.setup_future_usage);
-
         helpers::validate_payment_status_against_not_allowed_statuses(
             &payment_intent.status,
             &[
-                storage_enums::IntentStatus::Failed,
                 storage_enums::IntentStatus::Succeeded,
             ],
             "confirm",
         )?;
 
+        payment_intent.setup_future_usage = request
+            .setup_future_usage
+            .map(ForeignInto::foreign_into)
+            .or(payment_intent.setup_future_usage);
+        
         let (token, payment_method, setup_mandate) = helpers::get_token_pm_type_mandate_details(
             state,
             request,
