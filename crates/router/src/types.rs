@@ -216,7 +216,7 @@ pub struct PayoutsData {
 pub struct PayoutsResponseData {
     pub status: storage_enums::PayoutStatus,
     pub connector_payout_id: String,
-    pub payout_eligible: Option<bool>
+    pub payout_eligible: Option<bool>,
 }
 
 #[derive(Debug, Clone)]

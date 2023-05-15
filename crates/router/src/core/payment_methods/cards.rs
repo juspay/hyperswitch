@@ -249,6 +249,27 @@ pub async fn add_card_hs(
     customer_id: String,
     merchant_account: &storage::MerchantAccount,
 ) -> errors::CustomResult<(api::PaymentMethodResponse, bool), errors::VaultError> {
+    let store_card_payload = call_to_card_hs(state, &card, &customer_id, merchant_account).await?;
+
+    let payment_method_resp = payment_methods::mk_add_card_response_hs(
+        card,
+        store_card_payload.card_reference,
+        req,
+        &merchant_account.merchant_id,
+    );
+    Ok((
+        payment_method_resp,
+        store_card_payload.duplicate.unwrap_or(false),
+    ))
+}
+
+#[instrument(skip_all)]
+pub async fn call_to_card_hs(
+    state: &routes::AppState,
+    card: &api::CardDetail,
+    customer_id: &str,
+    merchant_account: &storage::MerchantAccount,
+) -> errors::CustomResult<payment_methods::StoreCardRespPayload, errors::VaultError> {
     let locker = &state.conf.locker;
     let jwekey = &state.conf.jwekey;
 
@@ -267,8 +288,8 @@ pub async fn add_card_hs(
     let request = payment_methods::mk_add_card_request_hs(
         jwekey,
         locker,
-        &card,
-        &customer_id,
+        card,
+        customer_id,
         merchant_id,
         #[cfg(feature = "kms")]
         kms_config,
@@ -299,24 +320,14 @@ pub async fn add_card_hs(
         stored_card_resp
     } else {
         let card_id = generate_id(consts::ID_LENGTH, "card");
-        mock_add_card_hs(db, &card_id, &card, None, None, Some(&customer_id)).await?
+        mock_add_card_hs(db, &card_id, card, None, None, Some(customer_id)).await?
     };
 
-    let store_card_payload = stored_card_response
+    let stored_card = stored_card_response
         .payload
         .get_required_value("StoreCardRespPayload")
         .change_context(errors::VaultError::SaveCardFailed)?;
-
-    let payment_method_resp = payment_methods::mk_add_card_response_hs(
-        card,
-        store_card_payload.card_reference,
-        req,
-        merchant_id,
-    );
-    Ok((
-        payment_method_resp,
-        store_card_payload.duplicate.unwrap_or(false),
-    ))
+    Ok(stored_card)
 }
 
 // Legacy Locker Function

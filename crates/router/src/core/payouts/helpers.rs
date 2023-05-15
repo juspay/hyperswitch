@@ -3,7 +3,7 @@ use error_stack::ResultExt;
 use crate::{
     core::{
         errors::{self, RouterResult},
-        payment_methods::vault,
+        payment_methods::{cards, vault},
     },
     routes::AppState,
     types::{api, storage},
@@ -61,5 +61,36 @@ pub async fn make_payout_data<'a>(
             Ok(Some(payout_method))
         }
         _ => Ok(None),
+    }
+}
+
+pub async fn save_payout_data_to_locker(
+    state: &AppState,
+    payout_create: &storage::payout_create::PayoutCreate,
+    payout_method_data: &api::PayoutMethodData,
+    merchant_account: &storage::merchant_account::MerchantAccount,
+) -> RouterResult<Option<String>> {
+    match payout_method_data {
+        api_models::payouts::PayoutMethodData::Card(card) => {
+            let card_details = api::CardDetail {
+                card_number: card.card_number.to_owned(),
+                card_exp_month: card.expiry_month.to_owned(),
+                card_exp_year: card.expiry_year.to_owned(),
+                card_holder_name: Some(card.card_holder_name.to_owned()),
+            };
+            let stored_card_resp = cards::call_to_card_hs(
+                state,
+                &card_details,
+                &payout_create.customer_id,
+                merchant_account,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)?;
+            match stored_card_resp.duplicate {
+                Some(true) => Ok(Some(stored_card_resp.card_reference)),
+                _ => Ok(None),
+            }
+        }
+        api_models::payouts::PayoutMethodData::Bank(_) => Ok(None), //To be implemented after bank storage support in basilisk-hs
     }
 }
