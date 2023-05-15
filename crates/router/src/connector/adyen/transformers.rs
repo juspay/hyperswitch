@@ -152,7 +152,8 @@ impl ForeignFrom<(bool, AdyenStatus)> for storage_enums::AttemptStatus {
             AdyenStatus::AuthenticationNotRequired => Self::Pending,
             AdyenStatus::Authorised => match is_manual_capture {
                 true => Self::Authorized,
-                false => Self::Charged,
+                // Final outcome of the payment can be confirmed only through webhooks
+                false => Self::Pending,
             },
             AdyenStatus::Cancelled => Self::Voided,
             AdyenStatus::ChallengeShopper | AdyenStatus::RedirectShopper => {
@@ -1166,11 +1167,11 @@ impl<'a> TryFrom<&api_models::payments::BankRedirectData> for AdyenPaymentMethod
                     payment_type: PaymentType::Sofort,
                 })),
             ),
-            api_models::payments::BankRedirectData::Trustly {} => Ok(AdyenPaymentMethod::Trustly(
-                Box::new(BankRedirectionPMData {
+            api_models::payments::BankRedirectData::Trustly { .. } => Ok(
+                AdyenPaymentMethod::Trustly(Box::new(BankRedirectionPMData {
                     payment_type: PaymentType::Trustly,
-                }),
-            )),
+                })),
+            ),
             _ => Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into()),
         }
     }
@@ -1722,15 +1723,11 @@ impl TryFrom<types::PaymentsCaptureResponseRouterData<AdyenCaptureResponse>>
     fn try_from(
         item: types::PaymentsCaptureResponseRouterData<AdyenCaptureResponse>,
     ) -> Result<Self, Self::Error> {
-        let (status, amount_captured) = match item.response.status.as_str() {
-            "received" => (
-                storage_enums::AttemptStatus::Charged,
-                Some(item.response.amount.value),
-            ),
-            _ => (storage_enums::AttemptStatus::Pending, None),
-        };
         Ok(Self {
-            status,
+            // From the docs, the only value returned is "received", outcome of refund is available
+            // through refund notification webhook
+            // For more info: https://docs.adyen.com/online-payments/capture
+            status: storage_enums::AttemptStatus::Pending,
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.psp_reference),
                 redirection_data: None,
@@ -1738,7 +1735,7 @@ impl TryFrom<types::PaymentsCaptureResponseRouterData<AdyenCaptureResponse>>
                 connector_metadata: None,
                 network_txn_id: None,
             }),
-            amount_captured,
+            amount_captured: Some(item.response.amount.value),
             ..item.data
         })
     }
@@ -1802,16 +1799,13 @@ impl<F> TryFrom<types::RefundsResponseRouterData<F, AdyenRefundResponse>>
     fn try_from(
         item: types::RefundsResponseRouterData<F, AdyenRefundResponse>,
     ) -> Result<Self, Self::Error> {
-        let refund_status = match item.response.status.as_str() {
-            // From the docs, the only value returned is "received", outcome of refund is available
-            // through refund notification webhook
-            "received" => storage_enums::RefundStatus::Success,
-            _ => storage_enums::RefundStatus::Pending,
-        };
         Ok(Self {
             response: Ok(types::RefundsResponseData {
                 connector_refund_id: item.response.reference,
-                refund_status,
+                // From the docs, the only value returned is "received", outcome of refund is available
+                // through refund notification webhook
+                // For more info: https://docs.adyen.com/online-payments/refund
+                refund_status: storage_enums::RefundStatus::Pending,
             }),
             ..item.data
         })

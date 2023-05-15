@@ -300,6 +300,8 @@ impl actix_web::ResponseError for ApiErrorResponse {
     }
 }
 
+impl crate::services::EmbedError for error_stack::Report<ApiErrorResponse> {}
+
 impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorResponse>
     for ApiErrorResponse
 {
