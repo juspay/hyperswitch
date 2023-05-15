@@ -108,7 +108,7 @@ pub enum EmailError {
     #[error("Error building email client")]
     ClientBuildingFailure,
 
-    /// An error occured when sending email
+    /// An error occurred when sending email
     #[error("Error sending email to recipient")]
     EmailSendingFailure,
 }
@@ -116,7 +116,7 @@ pub enum EmailError {
 /// Errors that could occur during SES operations.
 #[derive(Debug, thiserror::Error)]
 pub enum AwsSesError {
-    /// An error occured in the SDK while sending email.
+    /// An error occurred in the SDK while sending email.
     #[error("Failed to Send Email {0:?}")]
     SendingFailure(aws_smithy_client::SdkError<SendEmailError>),
 }
