@@ -104,14 +104,12 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Co
             &request.payment_method.or(payment_attempt
                 .payment_method
                 .map(api_models::enums::PaymentMethod::foreign_from)),
-            &request.payment_method_data.clone().or(Some(
-                payment_attempt
-                    .payment_method_data
-                    .clone()
-                    .parse_value("payment method")
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Failed while parsing value for Payment Method")?,
-            )),
+            &request.payment_method_data.clone().or(payment_attempt
+                .payment_method_data
+                .clone()
+                .parse_value("payment method")
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed while parsing value for Payment Method")?),
             &request.payment_method_type.or(payment_attempt
                 .payment_method_type
                 .clone()
