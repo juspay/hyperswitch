@@ -50,23 +50,6 @@ impl AccessTokenRequestInfo for types::RefreshTokenRouterData {
     }
 }
 
-// pub trait RouterData {
-//     fn get_billing(&self) -> Result<&api::Address, Error>;
-//     fn get_billing_country(&self) -> Result<api_models::enums::CountryCode, Error>;
-//     fn get_billing_phone(&self) -> Result<&api::PhoneDetails, Error>;
-//     fn get_description(&self) -> Result<String, Error>;
-//     fn get_return_url(&self) -> Result<String, Error>;
-//     fn get_billing_address(&self) -> Result<&api::AddressDetails, Error>;
-//     fn get_shipping_address(&self) -> Result<&api::AddressDetails, Error>;
-//     fn get_connector_meta(&self) -> Result<pii::SecretSerdeValue, Error>;
-//     fn get_session_token(&self) -> Result<String, Error>;
-//     fn to_connector_meta<T>(&self) -> Result<T, Error>
-//     where
-//         T: serde::de::DeserializeOwned;
-//     fn is_three_ds(&self) -> bool;
-//     fn get_payment_method_token(&self) -> Result<String, Error>;
-// }
-
 impl<Flow: operations::Flow, Request, Response> RouterData<Flow, Request, Response> {
     pub fn get_billing(&self) -> Result<&api::Address, Error> {
         self.address
