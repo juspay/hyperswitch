@@ -398,7 +398,7 @@ pub async fn check_payout_eligibility(
     req: &payouts::PayoutCreateRequest,
     connector_data: &api::ConnectorData,
     payout_create: &storage::payout_create::PayoutCreate,
-    _payouts: &storage::payouts::Payouts,
+    payouts: &storage::payouts::Payouts,
     payout_method_data: &api::PayoutMethodData,
 ) -> RouterResult<storage::payouts::Payouts> {
     // 1. Form Router data
@@ -443,6 +443,7 @@ pub async fn check_payout_eligibility(
                 error_code: None,
                 error_message: None,
                 is_eligible: payout_response_data.payout_eligible,
+                payout_method_id: payouts.payout_method_id.to_owned(),
             };
             db.update_payout_by_merchant_id_payout_id(
                 &merchant_account.merchant_id,
@@ -460,6 +461,7 @@ pub async fn check_payout_eligibility(
                 error_code: Some(err.code),
                 error_message: Some(err.message),
                 is_eligible: None,
+                payout_method_id: payouts.payout_method_id.to_owned(),
             };
             db.update_payout_by_merchant_id_payout_id(
                 &merchant_account.merchant_id,
@@ -482,7 +484,7 @@ pub async fn create_payout(
     req: &payouts::PayoutCreateRequest,
     connector_data: &api::ConnectorData,
     payout_create: &storage::payout_create::PayoutCreate,
-    _payouts: &storage::payouts::Payouts,
+    payouts: &storage::payouts::Payouts,
     payout_method_data: &api::PayoutMethodData,
 ) -> RouterResult<storage::payouts::Payouts> {
     // 1. Form Router data
@@ -527,6 +529,7 @@ pub async fn create_payout(
                 error_code: None,
                 error_message: None,
                 is_eligible: payout_response_data.payout_eligible,
+                payout_method_id: payouts.payout_method_id.to_owned(),
             };
             db.update_payout_by_merchant_id_payout_id(
                 &merchant_account.merchant_id,
@@ -544,6 +547,7 @@ pub async fn create_payout(
                 error_code: Some(err.code),
                 error_message: Some(err.message),
                 is_eligible: None,
+                payout_method_id: payouts.payout_method_id.to_owned(),
             };
             db.update_payout_by_merchant_id_payout_id(
                 &merchant_account.merchant_id,
@@ -566,7 +570,7 @@ pub async fn fulfill_payout(
     req: &payouts::PayoutCreateRequest,
     connector_data: &api::ConnectorData,
     payout_create: &storage::payout_create::PayoutCreate,
-    _payouts: &storage::payouts::Payouts,
+    payouts: &storage::payouts::Payouts,
     payout_method_data: &api::PayoutMethodData,
 ) -> RouterResult<storage::payouts::Payouts> {
     // 1. Form Router data
@@ -605,12 +609,20 @@ pub async fn fulfill_payout(
     let db = &*state.store;
     let updated_payouts = match router_data_resp.response {
         Ok(payout_response_data) => {
+            let payment_method_id = helpers::save_payout_data_to_locker(
+                state,
+                payout_create,
+                payout_method_data,
+                merchant_account,
+            )
+            .await?;
             let updated_payouts = storage::payouts::PayoutsUpdate::StatusUpdate {
                 connector_payout_id: payout_response_data.connector_payout_id,
                 status: payout_response_data.status,
                 error_code: None,
                 error_message: None,
                 is_eligible: payout_response_data.payout_eligible,
+                payout_method_id: payment_method_id.or(payouts.payout_method_id.to_owned()),
             };
             db.update_payout_by_merchant_id_payout_id(
                 &merchant_account.merchant_id,
@@ -628,6 +640,7 @@ pub async fn fulfill_payout(
                 error_code: Some(err.code),
                 error_message: Some(err.message),
                 is_eligible: None,
+                payout_method_id: None,
             };
             db.update_payout_by_merchant_id_payout_id(
                 &merchant_account.merchant_id,
