@@ -194,6 +194,10 @@ pub enum StripeBankName {
         #[serde(rename = "payment_method_data[ideal][bank]")]
         ideal_bank_name: StripeBankNames,
     },
+    Przelewy24 {
+        #[serde(rename = "payment_method_data[p24][bank]")]
+        bank_name: StripeBankNames,
+    },
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
@@ -223,6 +227,16 @@ fn get_bank_name(
             api_models::payments::BankRedirectData::Ideal { bank_name, .. },
         ) => Ok(Some(StripeBankName::Ideal {
             ideal_bank_name: StripeBankNames::try_from(bank_name)?,
+        })),
+        (
+            StripePaymentMethodType::Przelewy24,
+            api_models::payments::BankRedirectData::Przelewy24 { bank_name, .. },
+        ) => Ok(Some(StripeBankName::Przelewy24 {
+            bank_name: StripeBankNames::try_from(&bank_name.ok_or(
+                errors::ConnectorError::MissingRequiredField {
+                    field_name: "bank_name",
+                },
+            )?)?,
         })),
         (StripePaymentMethodType::Sofort | StripePaymentMethodType::Giropay, _) => Ok(None),
         _ => Err(errors::ConnectorError::MismatchedPaymentData),
@@ -381,6 +395,8 @@ pub enum StripePaymentMethodType {
     #[serde(rename = "wechat_pay")]
     Wechatpay,
     Alipay,
+    #[serde(rename = "p24")]
+    Przelewy24,
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize, Clone)]
@@ -399,6 +415,7 @@ pub enum StripeBankNames {
     BtvVierLanderBank,
     Bunq,
     CapitalBankGraweGruppeAg,
+    CitiHandlowy,
     Dolomitenbank,
     EasybankAg,
     ErsteBankUndSparkassen,
@@ -426,6 +443,26 @@ pub enum StripeBankNames {
     SnsBank,
     TriodosBank,
     VanLanschot,
+    PlusBank,
+    EtransferPocztowy24,
+    BankiSpbdzielcze,
+    BankNowyBfgSa,
+    GetinBank,
+    Blik,
+    NoblePay,
+    #[serde(rename = "ideabank")]
+    IdeaBank,
+    #[serde(rename = "envelobank")]
+    EnveloBank,
+    NestPrzelew,
+    MbankMtransfer,
+    Inteligo,
+    PbacZIpko,
+    BnpParibas,
+    BankPekaoSa,
+    VolkswagenBank,
+    AliorBank,
+    Boz,
 }
 
 impl TryFrom<WebhookEventStatus> for api_models::webhooks::IncomingWebhookEvent {
@@ -463,6 +500,7 @@ impl TryFrom<&api_models::enums::BankNames> for StripeBankNames {
             api_models::enums::BankNames::CapitalBankGraweGruppeAg => {
                 Self::CapitalBankGraweGruppeAg
             }
+            api_models::enums::BankNames::Citi => Self::CitiHandlowy,
             api_models::enums::BankNames::Dolomitenbank => Self::Dolomitenbank,
             api_models::enums::BankNames::EasybankAg => Self::EasybankAg,
             api_models::enums::BankNames::ErsteBankUndSparkassen => Self::ErsteBankUndSparkassen,
@@ -470,6 +508,7 @@ impl TryFrom<&api_models::enums::BankNames> for StripeBankNames {
             api_models::enums::BankNames::HypoAlpeadriabankInternationalAg => {
                 Self::HypoAlpeadriabankInternationalAg
             }
+
             api_models::enums::BankNames::HypoNoeLbFurNiederosterreichUWien => {
                 Self::HypoNoeLbFurNiederosterreichUWien
             }
@@ -500,6 +539,25 @@ impl TryFrom<&api_models::enums::BankNames> for StripeBankNames {
             api_models::enums::BankNames::VolksbankGruppe => Self::VolksbankGruppe,
             api_models::enums::BankNames::VolkskreditbankAg => Self::VolkskreditbankAg,
             api_models::enums::BankNames::VrBankBraunau => Self::VrBankBraunau,
+            api_models::enums::BankNames::PlusBank => Self::PlusBank,
+            api_models::enums::BankNames::EtransferPocztowy24 => Self::EtransferPocztowy24,
+            api_models::enums::BankNames::BankiSpbdzielcze => Self::BankiSpbdzielcze,
+            api_models::enums::BankNames::BankNowyBfgSa => Self::BankNowyBfgSa,
+            api_models::enums::BankNames::GetinBank => Self::GetinBank,
+            api_models::enums::BankNames::Blik => Self::Blik,
+            api_models::enums::BankNames::NoblePay => Self::NoblePay,
+            api_models::enums::BankNames::IdeaBank => Self::IdeaBank,
+            api_models::enums::BankNames::EnveloBank => Self::EnveloBank,
+            api_models::enums::BankNames::NestPrzelew => Self::NestPrzelew,
+            api_models::enums::BankNames::MbankMtransfer => Self::MbankMtransfer,
+            api_models::enums::BankNames::Inteligo => Self::Inteligo,
+            api_models::enums::BankNames::PbacZIpko => Self::PbacZIpko,
+            api_models::enums::BankNames::BnpParibas => Self::BnpParibas,
+            api_models::enums::BankNames::BankPekaoSa => Self::BankPekaoSa,
+            api_models::enums::BankNames::VolkswagenBank => Self::VolkswagenBank,
+            api_models::enums::BankNames::AliorBank => Self::AliorBank,
+            api_models::enums::BankNames::Boz => Self::Boz,
+
             _ => Err(errors::ConnectorError::NotSupported {
                 message: api_enums::PaymentMethod::BankRedirect.to_string(),
                 connector: "Stripe",
@@ -568,6 +626,9 @@ fn infer_stripe_bank_redirect_issuer(
         Some(storage_models::enums::PaymentMethodType::Ideal) => Ok(StripePaymentMethodType::Ideal),
         Some(storage_models::enums::PaymentMethodType::Sofort) => {
             Ok(StripePaymentMethodType::Sofort)
+        }
+        Some(storage_models::enums::PaymentMethodType::Przelewy24) => {
+            Ok(StripePaymentMethodType::Przelewy24)
         }
         Some(storage_models::enums::PaymentMethodType::Eps) => Ok(StripePaymentMethodType::Eps),
         None => Err(errors::ConnectorError::MissingRequiredField {
@@ -653,19 +714,25 @@ impl TryFrom<&payments::BankRedirectData> for StripeBillingAddress {
             payments::BankRedirectData::Eps {
                 billing_details, ..
             } => Ok(Self {
-                name: Some(billing_details.billing_name.clone()),
+                name: billing_details.billing_name.clone(),
                 ..Self::default()
             }),
             payments::BankRedirectData::Giropay {
                 billing_details, ..
             } => Ok(Self {
-                name: Some(billing_details.billing_name.clone()),
+                name: billing_details.billing_name.clone(),
                 ..Self::default()
             }),
             payments::BankRedirectData::Ideal {
                 billing_details, ..
             } => Ok(Self {
-                name: Some(billing_details.billing_name.clone()),
+                name: billing_details.billing_name.clone(),
+                ..Self::default()
+            }),
+            payments::BankRedirectData::Przelewy24 {
+                billing_details, ..
+            } => Ok(Self {
+                email: Some(billing_details.email.clone()),
                 ..Self::default()
             }),
             _ => Ok(Self::default()),
@@ -1122,8 +1189,6 @@ pub enum StripePaymentStatus {
     RequiresConfirmation,
     Canceled,
     RequiresCapture,
-    // This is the case in
-    Pending,
 }
 
 impl From<StripePaymentStatus> for enums::AttemptStatus {
@@ -1133,11 +1198,10 @@ impl From<StripePaymentStatus> for enums::AttemptStatus {
             StripePaymentStatus::Failed => Self::Failure,
             StripePaymentStatus::Processing => Self::Authorizing,
             StripePaymentStatus::RequiresCustomerAction => Self::AuthenticationPending,
-            StripePaymentStatus::RequiresPaymentMethod => Self::PaymentMethodAwaited,
+            StripePaymentStatus::RequiresPaymentMethod => Self::Failure,
             StripePaymentStatus::RequiresConfirmation => Self::ConfirmationAwaited,
             StripePaymentStatus::Canceled => Self::Voided,
             StripePaymentStatus::RequiresCapture => Self::Authorized,
-            StripePaymentStatus::Pending => Self::Pending,
         }
     }
 }
@@ -1282,7 +1346,8 @@ impl ForeignFrom<(Option<StripePaymentMethodOptions>, String)> for types::Mandat
                 | StripePaymentMethodOptions::Becs {}
                 | StripePaymentMethodOptions::WechatPay {}
                 | StripePaymentMethodOptions::Alipay {}
-                | StripePaymentMethodOptions::Sepa {} => None,
+                | StripePaymentMethodOptions::Sepa {}
+                | StripePaymentMethodOptions::Przelewy24 {} => None,
             }),
             payment_method_id: Some(payment_method_id),
         }
@@ -1696,6 +1761,8 @@ pub enum StripePaymentMethodOptions {
     Bacs {},
     WechatPay {},
     Alipay {},
+    #[serde(rename = "p24")]
+    Przelewy24 {},
 }
 
 #[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]

@@ -596,9 +596,17 @@ pub enum Connector {
     Dummy,
     Iatapay,
     #[cfg(feature = "dummy_connector")]
-    #[serde(rename = "dummyconnector")]
-    #[strum(serialize = "dummyconnector")]
-    DummyConnector,
+    #[serde(rename = "dummyconnector1")]
+    #[strum(serialize = "dummyconnector1")]
+    DummyConnector1,
+    #[cfg(feature = "dummy_connector")]
+    #[serde(rename = "dummyconnector2")]
+    #[strum(serialize = "dummyconnector2")]
+    DummyConnector2,
+    #[cfg(feature = "dummy_connector")]
+    #[serde(rename = "dummyconnector3")]
+    #[strum(serialize = "dummyconnector3")]
+    DummyConnector3,
     Opennode,
     Bambora,
     Dlocal,
@@ -659,9 +667,17 @@ impl Connector {
 #[strum(serialize_all = "snake_case")]
 pub enum RoutableConnectors {
     #[cfg(feature = "dummy_connector")]
-    #[serde(rename = "dummyconnector")]
-    #[strum(serialize = "dummyconnector")]
-    DummyConnector,
+    #[serde(rename = "dummyconnector1")]
+    #[strum(serialize = "dummyconnector1")]
+    DummyConnector1,
+    #[cfg(feature = "dummy_connector")]
+    #[serde(rename = "dummyconnector2")]
+    #[strum(serialize = "dummyconnector2")]
+    DummyConnector2,
+    #[cfg(feature = "dummy_connector")]
+    #[serde(rename = "dummyconnector3")]
+    #[strum(serialize = "dummyconnector3")]
+    DummyConnector3,
     Aci,
     Adyen,
     Airwallex,
@@ -821,6 +837,24 @@ pub enum BankNames {
     VeloBank,
     #[serde(rename = "e-transfer Pocztowy24")]
     ETransferPocztowy24,
+    PlusBank,
+    EtransferPocztowy24,
+    BankiSpbdzielcze,
+    BankNowyBfgSa,
+    GetinBank,
+    Blik,
+    NoblePay,
+    IdeaBank,
+    EnveloBank,
+    NestPrzelew,
+    MbankMtransfer,
+    Inteligo,
+    PbacZIpko,
+    BnpParibas,
+    BankPekaoSa,
+    VolkswagenBank,
+    AliorBank,
+    Boz,
 }
 
 #[derive(

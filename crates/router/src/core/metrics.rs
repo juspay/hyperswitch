@@ -21,8 +21,13 @@ counter_metric!(
 counter_metric!(
     ACCEPT_DISPUTE_STATUS_VALIDATION_FAILURE_METRIC,
     GLOBAL_METER
-); //No. of status validation fialures while accpeting a dispute
+); //No. of status validation failures while accpeting a dispute
 counter_metric!(
     EVIDENCE_SUBMISSION_DISPUTE_STATUS_VALIDATION_FAILURE_METRIC,
     GLOBAL_METER
-); //No. of status validation fialures while submitting evidence for a dispute
+); //No. of status validation failures while submitting evidence for a dispute
+   //No. of status validation failures while attaching evidence for a dispute
+counter_metric!(
+    ATTACH_EVIDENCE_DISPUTE_STATUS_VALIDATION_FAILURE_METRIC,
+    GLOBAL_METER
+);
