@@ -1612,33 +1612,6 @@ pub enum ApplePaySessionResponse {
     NoSessionResponse,
 }
 
-// #[derive(Debug, Clone, serde::Serialize, ToSchema, serde::Deserialize)]
-// #[serde(rename_all = "camelCase")]
-// pub struct ApplePaySessionResponse {
-//     /// Timestamp at which session is requested
-//     pub epoch_timestamp: u64,
-//     /// Timestamp at which session expires
-//     pub expires_at: u64,
-//     /// The identifier for the merchant session
-//     pub merchant_session_identifier: String,
-//     /// Apple pay generated unique ID (UUID) value
-//     pub nonce: String,
-//     /// The identifier for the merchant
-//     pub merchant_identifier: String,
-//     /// The domain name of the merchant which is registered in Apple Pay
-//     pub domain_name: String,
-//     /// The name to be displayed on Apple Pay button
-//     pub display_name: String,
-//     /// A string which represents the properties of a payment
-//     pub signature: String,
-//     /// The identifier for the operational analytics
-//     pub operational_analytics_identifier: String,
-//     /// The number of retries to get the session response
-//     pub retries: u8,
-//     /// The identifier for the connector transaction
-//     pub psp_id: String,
-// }
-
 #[derive(Debug, Clone, serde::Serialize, ToSchema, serde::Deserialize)]
 #[serde(rename_all(deserialize = "camelCase"))]
 pub struct NoThirdPartySDKSessionResponse {
