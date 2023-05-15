@@ -956,3 +956,9 @@ pub struct UnresolvedResponseReason {
     /// A message to merchant to give hint on next action he/she should do to resolve
     pub message: String,
 }
+
+#[derive(Debug, Eq, PartialEq, Clone)]
+pub enum AttemptType {
+    New,
+    SameOld,
+}

@@ -1671,3 +1671,72 @@ pub fn router_data_type_conversion<F1, F2, Req1, Req2, Res1, Res2>(
         connector_customer: router_data.connector_customer,
     }
 }
+
+pub fn validate_tracker_data(
+    payment_intent: &storage::PaymentIntent,
+    payment_attempt: &storage::PaymentAttempt,
+    request: &api::PaymentsRequest,
+    action: &str,
+) -> RouterResult<api_enums::AttemptType> {
+    match payment_intent.status {
+        enums::IntentStatus::Failed => {
+            if request.manual_retry {
+                match payment_attempt.status {
+                    enums::AttemptStatus::Started
+                    | enums::AttemptStatus::AuthenticationPending
+                    | enums::AttemptStatus::AuthenticationSuccessful
+                    | enums::AttemptStatus::Authorized
+                    | enums::AttemptStatus::Charged
+                    | enums::AttemptStatus::Authorizing
+                    | enums::AttemptStatus::CodInitiated
+                    | enums::AttemptStatus::VoidInitiated
+                    | enums::AttemptStatus::CaptureInitiated
+                    | enums::AttemptStatus::VoidFailed  // pr: should this be here
+                    | enums::AttemptStatus::Unresolved
+                    | enums::AttemptStatus::Pending
+                    | enums::AttemptStatus::ConfirmationAwaited => Err(report!(errors::ApiErrorResponse::PreconditionFailed {
+                        message:
+                            format!("You cannot {action} this payment because the previous payment attempt has status {}. 
+                            You need to wait until the previous attempt resolves to an appropriate state so try again later. 
+                            If it doesn't resolve you can contact support if necessary or create a new payment.", payment_attempt.status)
+                        }
+                    )),
+
+                    enums::AttemptStatus::AuthenticationFailed
+                    | enums::AttemptStatus::RouterDeclined
+                    | enums::AttemptStatus::AuthorizationFailed
+                    | enums::AttemptStatus::Voided
+                    | enums::AttemptStatus::CaptureFailed
+                    | enums::AttemptStatus::AutoRefunded
+                    | enums::AttemptStatus::PartialCharged
+                    | enums::AttemptStatus::Failure
+                    | enums::AttemptStatus::PaymentMethodAwaited  // we can actually continue without creating a new payment attempt over here.
+                    | enums::AttemptStatus::DeviceDataCollectionPending => Ok(api_enums::AttemptType::New),
+                }
+            } else {
+                Err(report!(errors::ApiErrorResponse::PreconditionFailed {
+                        message:
+                            format!("You cannot {action} this payment because it has status {}, you can pass manual_retry as true in request to try this payment again", payment_intent.status)
+                        }
+                    ))
+            }
+        }
+        // pr: if any changes in the the previous validation suggested then need to change here as well
+        enums::IntentStatus::Cancelled
+        | enums::IntentStatus::RequiresCapture
+        | enums::IntentStatus::Processing
+        | enums::IntentStatus::Succeeded => {
+            Err(report!(errors::ApiErrorResponse::PreconditionFailed {
+                message: format!(
+                    "You cannot {action} this payment because it has status {}",
+                    payment_intent.status,
+                ),
+            }))
+        }
+
+        enums::IntentStatus::RequiresCustomerAction
+        | enums::IntentStatus::RequiresMerchantAction
+        | enums::IntentStatus::RequiresPaymentMethod
+        | enums::IntentStatus::RequiresConfirmation => Ok(api_enums::AttemptType::SameOld),
+    }
+}
