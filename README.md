@@ -42,7 +42,7 @@ Using HyperSwitch, you can:
 - **Improve success rates** with seamless failover and auto-retries
 - **Reduce processing fees** with smart routing
 - **Customize payment flows** with full visibility and control
-- **Increase business reach** with local / alternate payment methods
+- **Increase business reach** with local/alternate payment methods
 
 > HyperSwitch is **wire-compatible** with top processors like Stripe, making it
 > easy to integrate.
@@ -59,12 +59,12 @@ Ways to get started with Hyperswitch:
 
 1. Try it in our Sandbox Environment: Fast and easy to
    start.
-   No code or setup required in your system, [learn more](/docs/try_sandbox.md)
+   No code or setup is required in your system, [learn more](/docs/try_sandbox.md)
 
 
 <a href="https://app.hyperswitch.io"><img src="./docs/imgs/get-api-keys.svg" height="35"></a>
 
-2. A simple demo of integrating Hyperswitch with your React App, Try our React [Demo App](https://github.com/aashu331998/hyperswitch-react-demo-app/archive/refs/heads/main.zip).
+2. For a simple demo of integrating Hyperswitch with your React App, Try our React [Demo App](https://github.com/aashu331998/hyperswitch-react-demo-app/archive/refs/heads/main.zip).
 
 
 3. Install in your local system: Configurations and
@@ -150,7 +150,7 @@ Please refer to the following documentation pages:
 
 ## What's Included
 
-Within the repositories you'll find the following directories and files,
+Within the repositories, you'll find the following directories and files,
 logically grouping common assets and providing both compiled and minified
 variations.
 
@@ -179,7 +179,7 @@ should be introduced checking it agrees with actual structure -->
 │   ├── masking                  : making pii information for pci and gdpr compliance
 │   ├── router                   : the main crate
 │   └── router_derive            : utility macros for the router crate
-├── docs                         : hand written documentation
+├── docs                         : hand-written documentation
 ├── examples                     : examples
 ├── logs                         : logs generated at runtime
 ├── migrations                   : diesel db setup
