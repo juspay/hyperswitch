@@ -64,6 +64,6 @@ impl MandateDbExt for Mandate {
             .await
             .into_report()
             .change_context(errors::DatabaseError::Others)
-            .attach_printable("Error filtering records by predicate")
+            .attach_printable("Error filtering mandates by specified constraints")
     }
 }
