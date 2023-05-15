@@ -64,25 +64,14 @@ pub enum Auth3ds {
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
-#[serde(rename_all = "snake_case", untagged)]
+#[serde(rename_all = "snake_case", tag = "mandate_data[customer_acceptance][type]")]
 pub enum StripeMandateType {
     Online {
-        #[serde(rename = "mandate_data[customer_acceptance][type]")]
-        mandate_type_enum: StripeMandateTypeEnum,
         #[serde(rename = "mandate_data[customer_acceptance][online][ip_address]")]
         ip_address: Secret<String, pii::IpAddress>,
         #[serde(rename = "mandate_data[customer_acceptance][online][user_agent]")]
         user_agent: String,
     },
-    Offline {
-        #[serde(rename = "mandate_data[customer_acceptance][type]")]
-        mandate_type_enum: StripeMandateTypeEnum,
-    },
-}
-#[derive(Debug, Eq, PartialEq, Serialize)]
-#[serde(rename_all = "snake_case")]
-pub enum StripeMandateTypeEnum {
-    Online,
     Offline,
 }
 
@@ -297,7 +286,7 @@ pub struct StripeBankDebitData {
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct StripeBankDebitType {
-    #[serde(rename = "payment_method_types[]")]
+    #[serde(rename = "payment_method_types[0]")]
     pub payment_method_types: StripePaymentMethodType,
 }
 #[derive(Debug, Eq, PartialEq, Serialize)]
@@ -1037,7 +1026,6 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
                             mandate_details.customer_acceptance.online.as_ref().map(
                                 |online_details| StripeMandateRequest {
                                     mandate_type: StripeMandateType::Online {
-                                        mandate_type_enum: StripeMandateTypeEnum::Online,
                                         ip_address: online_details.ip_address.clone(),
                                         user_agent: online_details.user_agent.clone(),
                                     },
@@ -1045,9 +1033,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
                             )
                         }
                         payments::AcceptanceType::Offline => Some(StripeMandateRequest {
-                            mandate_type: StripeMandateType::Offline {
-                                mandate_type_enum: StripeMandateTypeEnum::Offline,
-                            },
+                            mandate_type: StripeMandateType::Offline
                         }),
                     }
                 });
@@ -1055,9 +1041,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
             //stripe requires us to send mandate_data when payment method is bank debit attached to the customer
             match &payment_data {
                 Some(StripePaymentMethodData::BankDebit(_)) => Some(StripeMandateRequest {
-                    mandate_type: StripeMandateType::Offline {
-                        mandate_type_enum: StripeMandateTypeEnum::Offline,
-                    },
+                    mandate_type: StripeMandateType::Offline,
                 }),
                 Some(_) => None,
                 None => None,
