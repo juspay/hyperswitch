@@ -514,14 +514,14 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
 
         let parsed_metadata: Option<api_models::payments::Metadata> = payment_data
             .payment_intent
-            .metadata
+            .meta_data
             .map(|metadata_value| {
                 metadata_value
-                    .parse_value("metadata")
+                    .parse_value("meta_data")
                     .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                        field_name: "metadata",
+                        field_name: "meta_data",
                     })
-                    .attach_printable("unable to parse metadata")
+                    .attach_printable("unable to parse meta_data")
             })
             .transpose()
             .unwrap_or_default();
@@ -534,7 +534,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
         ));
         let webhook_url = Some(helpers::create_webhook_url(
             router_base_url,
-            attempt,
+            &attempt.merchant_id,
             connector_name,
         ));
         let router_return_url = Some(helpers::create_redirect_url(
@@ -684,14 +684,14 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSessionD
         let payment_data = additional_data.payment_data;
         let parsed_metadata: Option<api_models::payments::Metadata> = payment_data
             .payment_intent
-            .metadata
+            .meta_data
             .map(|metadata_value| {
                 metadata_value
-                    .parse_value("metadata")
+                    .parse_value("meta_data")
                     .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                        field_name: "metadata",
+                        field_name: "meta_data",
                     })
-                    .attach_printable("unable to parse metadata")
+                    .attach_printable("unable to parse meta_data")
             })
             .transpose()
             .unwrap_or_default();

@@ -150,69 +150,72 @@ pub async fn mandate_procedure<F, FData>(
 where
     FData: MandateBehaviour,
 {
-    match resp.request.get_mandate_id() {
-        Some(mandate_id) => {
-            let mandate_id = &mandate_id.mandate_id;
-            let mandate = state
-                .store
-                .find_mandate_by_merchant_id_mandate_id(resp.merchant_id.as_ref(), mandate_id)
-                .await
-                .change_context(errors::ApiErrorResponse::MandateNotFound)?;
-            let mandate = match mandate.mandate_type {
-                storage_enums::MandateType::SingleUse => state
+    match resp.response {
+        Err(_) => {}
+        Ok(_) => match resp.request.get_mandate_id() {
+            Some(mandate_id) => {
+                let mandate_id = &mandate_id.mandate_id;
+                let mandate = state
                     .store
-                    .update_mandate_by_merchant_id_mandate_id(
-                        &resp.merchant_id,
-                        mandate_id,
-                        storage::MandateUpdate::StatusUpdate {
-                            mandate_status: storage_enums::MandateStatus::Revoked,
-                        },
-                    )
+                    .find_mandate_by_merchant_id_mandate_id(resp.merchant_id.as_ref(), mandate_id)
                     .await
-                    .change_context(errors::ApiErrorResponse::MandateUpdateFailed),
-                storage_enums::MandateType::MultiUse => state
-                    .store
-                    .update_mandate_by_merchant_id_mandate_id(
-                        &resp.merchant_id,
-                        mandate_id,
-                        storage::MandateUpdate::CaptureAmountUpdate {
-                            amount_captured: Some(
-                                mandate.amount_captured.unwrap_or(0) + resp.request.get_amount(),
-                            ),
-                        },
-                    )
-                    .await
-                    .change_context(errors::ApiErrorResponse::MandateUpdateFailed),
-            }?;
-            metrics::SUBSEQUENT_MANDATE_PAYMENT.add(
-                &metrics::CONTEXT,
-                1,
-                &[metrics::request::add_attributes(
-                    "connector",
-                    mandate.connector,
-                )],
-            );
-            resp.payment_method_id = Some(mandate.payment_method_id);
-        }
-        None => {
-            if resp.request.get_setup_mandate_details().is_some() {
-                resp.payment_method_id = pm_id.clone();
-                let (mandate_reference, network_txn_id) = match resp.response.as_ref().ok() {
-                    Some(types::PaymentsResponseData::TransactionResponse {
-                        mandate_reference,
-                        network_txn_id,
-                        ..
-                    }) => (mandate_reference.clone(), network_txn_id.clone()),
-                    _ => (None, None),
-                };
+                    .change_context(errors::ApiErrorResponse::MandateNotFound)?;
+                let mandate = match mandate.mandate_type {
+                    storage_enums::MandateType::SingleUse => state
+                        .store
+                        .update_mandate_by_merchant_id_mandate_id(
+                            &resp.merchant_id,
+                            mandate_id,
+                            storage::MandateUpdate::StatusUpdate {
+                                mandate_status: storage_enums::MandateStatus::Revoked,
+                            },
+                        )
+                        .await
+                        .change_context(errors::ApiErrorResponse::MandateUpdateFailed),
+                    storage_enums::MandateType::MultiUse => state
+                        .store
+                        .update_mandate_by_merchant_id_mandate_id(
+                            &resp.merchant_id,
+                            mandate_id,
+                            storage::MandateUpdate::CaptureAmountUpdate {
+                                amount_captured: Some(
+                                    mandate.amount_captured.unwrap_or(0)
+                                        + resp.request.get_amount(),
+                                ),
+                            },
+                        )
+                        .await
+                        .change_context(errors::ApiErrorResponse::MandateUpdateFailed),
+                }?;
+                metrics::SUBSEQUENT_MANDATE_PAYMENT.add(
+                    &metrics::CONTEXT,
+                    1,
+                    &[metrics::request::add_attributes(
+                        "connector",
+                        mandate.connector,
+                    )],
+                );
+                resp.payment_method_id = Some(mandate.payment_method_id);
+            }
+            None => {
+                if resp.request.get_setup_mandate_details().is_some() {
+                    resp.payment_method_id = pm_id.clone();
+                    let (mandate_reference, network_txn_id) = match resp.response.as_ref().ok() {
+                        Some(types::PaymentsResponseData::TransactionResponse {
+                            mandate_reference,
+                            network_txn_id,
+                            ..
+                        }) => (mandate_reference.clone(), network_txn_id.clone()),
+                        _ => (None, None),
+                    };
 
-                let mandate_ids = mandate_reference
-                    .map(|md| {
-                        Encode::<types::MandateReference>::encode_to_value(&md)
-                            .change_context(errors::ApiErrorResponse::MandateNotFound)
-                            .map(masking::Secret::new)
-                    })
-                    .transpose()?;
+                    let mandate_ids = mandate_reference
+                        .map(|md| {
+                            Encode::<types::MandateReference>::encode_to_value(&md)
+                                .change_context(errors::ApiErrorResponse::MandateNotFound)
+                                .map(masking::Secret::new)
+                        })
+                        .transpose()?;
 
                 if let Some(new_mandate_data) = helpers::generate_mandate(
                     resp.merchant_id.clone(),
@@ -224,7 +227,7 @@ where
                     (
                         network_txn_id,
                         get_insensitive_payment_method_data_if_exists(&resp),
-                    ), //tuple To avoid "passing too many arguments to a function" warning
+                    ), 
                 ) {
                     let connector = new_mandate_data.connector.clone();
                     logger::debug!("{:?}", new_mandate_data);
@@ -255,21 +258,23 @@ where
                                     }
                                 )))
                         }));
-                    state
-                        .store
-                        .insert_mandate(new_mandate_data)
-                        .await
-                        .to_duplicate_response(errors::ApiErrorResponse::DuplicateRefundRequest)?;
-                    metrics::MANDATE_COUNT.add(
-                        &metrics::CONTEXT,
-                        1,
-                        &[metrics::request::add_attributes("connector", connector)],
-                    );
-                };
+                        state
+                            .store
+                            .insert_mandate(new_mandate_data)
+                            .await
+                            .to_duplicate_response(
+                                errors::ApiErrorResponse::DuplicateRefundRequest,
+                            )?;
+                        metrics::MANDATE_COUNT.add(
+                            &metrics::CONTEXT,
+                            1,
+                            &[metrics::request::add_attributes("connector", connector)],
+                        );
+                    };
+                }
             }
-        }
+        },
     }
-
     Ok(resp)
 }
 
