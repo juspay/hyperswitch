@@ -7,9 +7,9 @@ use aws_sdk_sesv2::{
     types::{Body, Content, Destination, EmailContent, Message},
     Client,
 };
-use common_utils::errors::CustomResult;
+use common_utils::{errors::CustomResult, pii};
 use error_stack::{IntoReport, ResultExt};
-use router_env::logger;
+use masking::PeekInterface;
 use serde::Deserialize;
 
 /// Custom Result type alias for Email operations.
@@ -21,7 +21,7 @@ pub trait EmailClient: Sync + Send + dyn_clone::DynClone {
     /// Sends an email to the specified recipient with the given subject and body.
     async fn send_email(
         &self,
-        recipients: String,
+        recipient: pii::Email,
         subject: String,
         body: String,
     ) -> EmailResult<()>;
@@ -46,19 +46,19 @@ pub struct EmailSettings {
 #[derive(Debug, Clone)]
 pub struct AwsSes {
     ses_client: Client,
-    sender: String,
+    from_email: String,
 }
 
 impl AwsSes {
     /// Constructs a new AwsSes client
-    pub async fn new(conf: &EmailSettings) -> EmailResult<Self> {
+    pub async fn new(conf: &EmailSettings) -> Self {
         let region_provider = RegionProviderChain::first_try(Region::new(conf.aws_region.clone()));
         let sdk_config = aws_config::from_env().region(region_provider).load().await;
 
-        Ok(Self {
+        Self {
             ses_client: Client::new(&sdk_config),
-            sender: conf.from_email.clone(),
-        })
+            from_email: conf.from_email.clone(),
+        }
     }
 }
 
@@ -66,16 +66,16 @@ impl AwsSes {
 impl EmailClient for AwsSes {
     async fn send_email(
         &self,
-        recipient: String,
+        recipient: pii::Email,
         subject: String,
         body: String,
     ) -> EmailResult<()> {
         self.ses_client
             .send_email()
-            .from_email_address(self.sender.to_owned())
+            .from_email_address(self.from_email.to_owned())
             .destination(
                 Destination::builder()
-                    .to_addresses(recipient.clone())
+                    .to_addresses(recipient.peek())
                     .build(),
             )
             .content(
@@ -94,10 +94,11 @@ impl EmailClient for AwsSes {
             )
             .send()
             .await
-            .map(|i| logger::info!("Sent email to {:?} with id {:?}", recipient, i))
             .map_err(AwsSesError::SendingFailure)
             .into_report()
-            .change_context(EmailError::EmailSendingFailure)
+            .change_context(EmailError::EmailSendingFailure)?;
+
+        Ok(())
     }
 }
 

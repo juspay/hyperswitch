@@ -21,12 +21,11 @@ serde = { version = "1.0.160", features = ["derive"] }
 thiserror = "1.0.40"
 tokio = "1.27.0"
 dyn-clone = "1.0.11"
+async-trait = "0.1.66"
+aws-sdk-sesv2 = "0.27.0"
+aws-smithy-client =  "0.55.0"
 
 # First party crates
 common_utils = { version = "0.1.0", path = "../common_utils" }
 router_env = { version = "0.1.0", path = "../router_env", features = ["log_extra_implicit_fields", "log_custom_entries_to_extra"] }
-
-# Third party crates
-async-trait = "0.1.66"
-aws-sdk-sesv2 = "0.27.0"
-aws-smithy-client =  "0.55.0"
+masking = { version = "0.1.0", path = "../masking" }

@@ -1,10 +1,7 @@
 use actix_web::{web, Scope};
-use tokio::sync::oneshot;
 #[cfg(feature = "email")]
-use {
-    error_stack::ResultExt,
-    external_services::email::{AwsSes, EmailClient, EmailError},
-};
+use external_services::email::{AwsSes, EmailClient};
+use tokio::sync::oneshot;
 
 #[cfg(feature = "dummy_connector")]
 use super::dummy_connector::*;
@@ -71,12 +68,7 @@ impl AppState {
 
         #[cfg(feature = "email")]
         #[allow(clippy::expect_used)]
-        let email_client = Box::new(
-            AwsSes::new(&conf.email)
-                .await
-                .change_context(EmailError::ClientBuildingFailure)
-                .expect("Failed building email client"),
-        );
+        let email_client = Box::new(AwsSes::new(&conf.email).await);
         Self {
             flow_name: String::from("default"),
             store,
