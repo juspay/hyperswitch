@@ -270,10 +270,10 @@ pub async fn retrieve_mandates_list(
         .store
         .find_mandates_by_merchant_id(&merchant_account.merchant_id, constraints)
         .await
-        .to_not_found_response(errors::ApiErrorResponse::InternalServerError)
+        .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Unable to retrieve mandates")?;
-    let mandates_list = future::try_join_all(mandates.iter().map(|mandate| {
-        mandates::MandateResponse::from_db_mandate(state, mandate.clone(), &merchant_account)
+    let mandates_list = future::try_join_all(mandates.into_iter().map(|mandate| {
+        mandates::MandateResponse::from_db_mandate(state, mandate, &merchant_account)
     }))
     .await?;
     Ok(services::ApplicationResponse::Json(mandates_list))
