@@ -494,7 +494,7 @@ pub struct FileUploadConfig {
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct DelayedSessionConfig {
     #[serde(deserialize_with = "delayed_session_deser")]
-    pub connectors_with_delayed_session_repsonse: HashSet<api_models::enums::Connector>,
+    pub connectors_with_delayed_session_response: HashSet<api_models::enums::Connector>,
 }
 
 fn delayed_session_deser<'a, D>(

@@ -152,7 +152,7 @@ async fn create_applepay_session_token(
     let delayed_response = &state
         .conf
         .delayed_session_response
-        .connectors_with_delayed_session_repsonse;
+        .connectors_with_delayed_session_response;
 
     let connector_name = connector.connector_name;
     let applepay_metadata = get_applepay_metadata(router_data.connector_meta_data.clone())?;
