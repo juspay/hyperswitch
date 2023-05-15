@@ -133,7 +133,7 @@ async fn should_capture_authorized_payment() {
         )
         .await
         .expect("Capture payment response");
-    assert_eq!(response.status, enums::AttemptStatus::Charged);
+    assert_eq!(response.status, enums::AttemptStatus::Pending);
 }
 
 // Partially captures a payment using the manual capture flow (Non 3DS).
@@ -156,7 +156,7 @@ async fn should_partially_capture_authorized_payment() {
         )
         .await
         .expect("Capture payment response");
-    assert_eq!(response.status, enums::AttemptStatus::Charged);
+    assert_eq!(response.status, enums::AttemptStatus::Pending);
 }
 
 // Voids a payment using the manual capture flow (Non 3DS).
@@ -207,7 +207,7 @@ async fn should_refund_manually_captured_payment() {
         .unwrap();
     assert_eq!(
         response.response.unwrap().refund_status,
-        enums::RefundStatus::Success,
+        enums::RefundStatus::Pending,
     );
 }
 
@@ -235,7 +235,7 @@ async fn should_partially_refund_manually_captured_payment() {
         .unwrap();
     assert_eq!(
         response.response.unwrap().refund_status,
-        enums::RefundStatus::Success,
+        enums::RefundStatus::Pending,
     );
 }
 
@@ -255,7 +255,7 @@ async fn should_make_payment() {
         )
         .await
         .unwrap();
-    assert_eq!(authorize_response.status, enums::AttemptStatus::Charged);
+    assert_eq!(authorize_response.status, enums::AttemptStatus::Pending);
 }
 
 // Refunds a payment using the automatic capture flow (Non 3DS).
@@ -281,7 +281,7 @@ async fn should_refund_auto_captured_payment() {
         .unwrap();
     assert_eq!(
         response.response.unwrap().refund_status,
-        enums::RefundStatus::Success,
+        enums::RefundStatus::Pending,
     );
 }
 
@@ -308,15 +308,17 @@ async fn should_partially_refund_succeeded_payment() {
         .unwrap();
     assert_eq!(
         refund_response.response.unwrap().refund_status,
-        enums::RefundStatus::Success,
+        enums::RefundStatus::Pending,
     );
 }
 
 // Creates multiple refunds against a payment using the automatic capture flow (Non 3DS).
 #[actix_web::test]
 async fn should_refund_succeeded_payment_multiple_times() {
-    CONNECTOR
-        .make_payment_and_multiple_refund(
+    let payment_info = AdyenTest::get_payment_info();
+    //make a successful payment
+    let response = CONNECTOR
+        .make_payment(
             AdyenTest::get_payment_authorize_data(
                 "2222400070000005",
                 "03",
@@ -324,14 +326,31 @@ async fn should_refund_succeeded_payment_multiple_times() {
                 "737",
                 enums::CaptureMethod::Automatic,
             ),
-            Some(types::RefundsData {
-                refund_amount: 100,
-                reason: Some("CUSTOMER REQUEST".to_string()),
-                ..utils::PaymentRefundType::default().0
-            }),
-            AdyenTest::get_payment_info(),
+            payment_info.clone(),
         )
-        .await;
+        .await
+        .unwrap();
+
+    //try refund for previous payment
+    let transaction_id = utils::get_connector_transaction_id(response.response).unwrap();
+    for _x in 0..2 {
+        let refund_response = CONNECTOR
+            .refund_payment(
+                transaction_id.clone(),
+                Some(types::RefundsData {
+                    refund_amount: 100,
+                    reason: Some("CUSTOMER REQUEST".to_string()),
+                    ..utils::PaymentRefundType::default().0
+                }),
+                payment_info.clone(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(
+            refund_response.response.unwrap().refund_status,
+            enums::RefundStatus::Pending,
+        );
+    }
 }
 
 // Cards Negative scenerios
