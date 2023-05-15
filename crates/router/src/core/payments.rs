@@ -79,11 +79,6 @@ where
         .validate_request(&req, &merchant_account)?;
 
     tracing::Span::current().record("payment_id", &format!("{}", validate_result.payment_id));
-
-    // let ephemeral_key = operation.to_validate_request()?
-    //                                 .get_ephemeral_keys(state, &req, &merchant_account);
-    // let redis_conn = state.store.get_redis_conn();
-
     let (operation, mut payment_data, customer_details) = operation
         .to_get_tracker()?
         .get_trackers(
