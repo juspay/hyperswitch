@@ -1107,10 +1107,30 @@ impl<'a> TryFrom<&api_models::payments::BankRedirectData> for AdyenPaymentMethod
                 BancontactCardData {
                     payment_type: PaymentType::Scheme,
                     brand: "bcmc".to_string(),
-                    number: card_number.as_ref().ok_or(errors::ConnectorError::MissingRequiredField{field_name: "Card Number"})?.clone(),
-                    expiry_month: card_exp_month.as_ref().ok_or(errors::ConnectorError::MissingRequiredField{field_name: "Card Exp Month"})?.clone(),
-                    expiry_year: card_exp_year.as_ref().ok_or(errors::ConnectorError::MissingRequiredField{field_name: "Card Exp year"})?.clone(),
-                    holder_name: card_holder_name.as_ref().ok_or(errors::ConnectorError::MissingRequiredField{field_name: "Card Holder Nsame"})?.clone(),
+                    number: card_number
+                        .as_ref()
+                        .ok_or(errors::ConnectorError::MissingRequiredField {
+                            field_name: "Card Number",
+                        })?
+                        .clone(),
+                    expiry_month: card_exp_month
+                        .as_ref()
+                        .ok_or(errors::ConnectorError::MissingRequiredField {
+                            field_name: "Card Exp Month",
+                        })?
+                        .clone(),
+                    expiry_year: card_exp_year
+                        .as_ref()
+                        .ok_or(errors::ConnectorError::MissingRequiredField {
+                            field_name: "Card Exp year",
+                        })?
+                        .clone(),
+                    holder_name: card_holder_name
+                        .as_ref()
+                        .ok_or(errors::ConnectorError::MissingRequiredField {
+                            field_name: "Card Holder Nsame",
+                        })?
+                        .clone(),
                 },
             ))),
             api_models::payments::BankRedirectData::Blik { blik_code } => {

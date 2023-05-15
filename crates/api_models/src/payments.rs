@@ -590,11 +590,7 @@ pub enum BankRedirectData {
     BancontactCard {
         /// The card number
         #[schema(value_type = String, example = "4242424242424242")]
-<<<<<<< HEAD
-        card_number: Option<Secret<String, pii::CardNumber>>,
-=======
-        card_number: CardNumber,
->>>>>>> main
+        card_number: Option<CardNumber>,
         /// The card's expiry month
         #[schema(value_type = String, example = "24")]
         card_exp_month: Option<Secret<String>>,

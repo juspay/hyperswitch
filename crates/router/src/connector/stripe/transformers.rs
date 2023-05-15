@@ -224,8 +224,12 @@ fn get_bank_name(
         ) => Ok(Some(StripeBankName::Ideal {
             ideal_bank_name: StripeBankNames::try_from(bank_name)?,
         })),
-        (StripePaymentMethodType::Sofort | StripePaymentMethodType::Giropay
-            |StripePaymentMethodType::Bancontact, _) => Ok(None),
+        (
+            StripePaymentMethodType::Sofort
+            | StripePaymentMethodType::Giropay
+            | StripePaymentMethodType::Bancontact,
+            _,
+        ) => Ok(None),
         _ => Err(errors::ConnectorError::MismatchedPaymentData),
     }
 }
@@ -676,7 +680,15 @@ impl TryFrom<&payments::BankRedirectData> for StripeBillingAddress {
             payments::BankRedirectData::BancontactCard {
                 billing_details, ..
             } => Ok(Self {
-                name: Some(billing_details.clone().unwrap().billing_name.clone()),
+                name: Some(
+                    billing_details
+                        .as_ref()
+                        .ok_or(errors::ConnectorError::MissingRequiredField {
+                            field_name: "billing_name",
+                        })?
+                        .billing_name
+                        .clone(),
+                ),
                 ..Self::default()
             }),
             _ => Ok(Self::default()),
@@ -1025,11 +1037,13 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
                         })
                 });
 
-        crate::logger::debug!("aaaaaaaaaaaaaaaaaaa{}", item
-        .request
-        .router_return_url
-        .clone()
-        .unwrap_or_else(|| "https://juspay.in/".to_string()));
+        crate::logger::debug!(
+            "aaaaaaaaaaaaaaaaaaa{}",
+            item.request
+                .router_return_url
+                .clone()
+                .unwrap_or_else(|| "https://juspay.in/".to_string())
+        );
         Ok(Self {
             amount: item.request.amount, //hopefully we don't loose some cents here
             currency: item.request.currency.to_string(), //we need to copy the value and not transfer ownership
@@ -1299,7 +1313,7 @@ impl ForeignFrom<(Option<StripePaymentMethodOptions>, String)> for types::Mandat
                 | StripePaymentMethodOptions::WechatPay {}
                 | StripePaymentMethodOptions::Alipay {}
                 | StripePaymentMethodOptions::Sepa {}
-                |StripePaymentMethodOptions::Bancontact {}  => None,
+                | StripePaymentMethodOptions::Bancontact {} => None,
             }),
             payment_method_id: Some(payment_method_id),
         }
