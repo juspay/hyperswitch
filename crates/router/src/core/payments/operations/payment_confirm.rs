@@ -126,7 +126,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
         let attempt_type =
-            helpers::validate_tracker_data(&payment_intent, &payment_attempt, request, "confirm")?;
+            helpers::get_attempt_type(&payment_intent, &payment_attempt, request, "confirm")?;
 
         payment_attempt = match attempt_type {
             api_models::enums::AttemptType::New => {

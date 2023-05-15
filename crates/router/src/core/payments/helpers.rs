@@ -1672,7 +1672,7 @@ pub fn router_data_type_conversion<F1, F2, Req1, Req2, Res1, Res2>(
     }
 }
 
-pub fn validate_tracker_data(
+pub fn get_attempt_type(
     payment_intent: &storage::PaymentIntent,
     payment_attempt: &storage::PaymentAttempt,
     request: &api::PaymentsRequest,
