@@ -231,10 +231,6 @@ where
                 })? {
                 Some(request) => {
                     logger::debug!(connector_request=?request);
-                    let request_payload = request
-                        .payload
-                        .clone()
-                        .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?;
                     let response = call_connector_api(state, request).await;
                     logger::debug!(connector_response=?response);
                     match response {
