@@ -196,16 +196,20 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsSessionRequest> for
         F: 'b + Send,
     {
         let metadata = payment_data.payment_intent.metadata.clone();
-        payment_data.payment_intent = match metadata {
-            Some(metadata) => db
+        let meta_data = payment_data.payment_intent.meta_data.clone();
+        payment_data.payment_intent = match (metadata, meta_data) {
+            (Some(metadata), Some(meta_data)) => db
                 .update_payment_intent(
                     payment_data.payment_intent,
-                    storage::PaymentIntentUpdate::MetadataUpdate { metadata },
+                    storage::PaymentIntentUpdate::MetadataUpdate {
+                        metadata,
+                        meta_data,
+                    },
                     storage_scheme,
                 )
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?,
-            None => payment_data.payment_intent,
+            _ => payment_data.payment_intent,
         };
 
         Ok((Box::new(self), payment_data))
