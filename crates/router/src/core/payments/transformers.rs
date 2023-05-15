@@ -570,7 +570,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
         ));
         let webhook_url = Some(helpers::create_webhook_url(
             router_base_url,
-            attempt,
+            &attempt.merchant_id,
             connector_name,
         ));
         let router_return_url = Some(helpers::create_redirect_url(
