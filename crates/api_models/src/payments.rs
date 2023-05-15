@@ -524,6 +524,9 @@ pub enum BankDebitData {
         /// Sort code for Bacs payment method
         #[schema(value_type = String, example = "108800")]
         sort_code: Secret<String>,
+        /// holder name for bank debit
+        #[schema(value_type = String, example = "A. Schneider")]
+        bank_account_holder_name: Option<Secret<String>>,
     },
 }
 
