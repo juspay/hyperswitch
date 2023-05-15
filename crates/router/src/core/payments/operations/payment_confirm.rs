@@ -60,7 +60,11 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         helpers::validate_payment_status_against_not_allowed_statuses(
             &payment_intent.status,
             &[
+                storage_enums::IntentStatus::Cancelled,
                 storage_enums::IntentStatus::Succeeded,
+                // storage_enums::IntentStatus::Processing, pr: should this be added here ?
+                storage_enums::IntentStatus::RequiresCapture,
+                storage_enums::IntentStatus::RequiresMerchantAction,
             ],
             "confirm",
         )?;
@@ -69,7 +73,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             .setup_future_usage
             .map(ForeignInto::foreign_into)
             .or(payment_intent.setup_future_usage);
-        
+
         let (token, payment_method, setup_mandate) = helpers::get_token_pm_type_mandate_details(
             state,
             request,
