@@ -737,6 +737,7 @@ fn get_bank_debit_data(
             billing_details,
             account_number,
             sort_code,
+            ..
         } => {
             let bacs_data = BankDebitData::Bacs {
                 account_number: account_number.to_owned(),
