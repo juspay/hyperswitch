@@ -551,6 +551,8 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
                 None
             }
         });
+        let billing = payment_data.address.billing.get_required_value("billing")?;
+        let billing_address = billing.address.get_required_value("billing_address")?;
         Ok(Self {
             payment_method_data: payment_method_data.get_required_value("payment_method_data")?,
             setup_future_usage: payment_data.payment_intent.setup_future_usage,
@@ -574,8 +576,13 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             router_return_url,
             webhook_url,
             complete_authorize_url,
-            shipping: payment_data.address.shipping,
-            billing: payment_data.address.billing,
+            country_code: billing_address.country,
+            address_line1: billing_address.line1,
+            address_line2: billing_address.line2,
+            address_line3: billing_address.line3,
+            first_name: billing_address.first_name,
+            last_name: billing_address.last_name,
+            postal_code: billing_address.zip,
         })
     }
 }

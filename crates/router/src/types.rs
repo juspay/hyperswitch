@@ -15,6 +15,7 @@ use std::marker::PhantomData;
 pub use api_models::enums::Connector;
 use common_utils::{pii, pii::Email};
 use error_stack::{IntoReport, ResultExt};
+use masking::Secret;
 
 use self::{api::payments, storage::enums as storage_enums};
 pub use crate::core::payments::PaymentAddress;
@@ -209,8 +210,13 @@ pub struct PaymentsAuthorizeData {
     pub router_return_url: Option<String>,
     pub webhook_url: Option<String>,
     pub complete_authorize_url: Option<String>,
-    pub shipping: Option<api::Address>,
-    pub billing: Option<api::Address>,
+    pub country_code: Option<storage_enums::CountryAlpha2>,
+    pub address_line1: Option<Secret<String>>,
+    pub address_line2: Option<Secret<String>>,
+    pub address_line3: Option<Secret<String>>,
+    pub first_name: Option<Secret<String>>,
+    pub last_name: Option<Secret<String>>,
+    pub postal_code: Option<Secret<String>>,
     // Mandates
     pub setup_future_usage: Option<storage_enums::FutureUsage>,
     pub mandate_id: Option<api_models::payments::MandateIds>,
@@ -246,7 +252,7 @@ pub struct AuthorizeSessionTokenData {
 pub struct ConnectorCustomerData {
     pub description: Option<String>,
     pub email: Option<Email>,
-    pub phone: Option<masking::Secret<String>>,
+    pub phone: Option<Secret<String>>,
     pub name: Option<String>,
 }
 
@@ -696,8 +702,13 @@ impl From<&VerifyRouterData> for PaymentsAuthorizeData {
             related_transaction_id: None,
             payment_experience: None,
             payment_method_type: None,
-            shipping: None,
-            billing: None,
+            country_code: None,
+            address_line1: None,
+            address_line2: None,
+            address_line3: None,
+            first_name: None,
+            last_name: None,
+            postal_code: None,
         }
     }
 }

@@ -90,8 +90,13 @@ impl AdyenTest {
             router_return_url: Some(String::from("http://localhost:8080")),
             webhook_url: None,
             complete_authorize_url: None,
-            shipping: None,
-            billing: None,
+            country_code: None,
+            address_line1: None,
+            address_line2: None,
+            address_line3: None,
+            first_name: None,
+            last_name: None,
+            postal_code: None,
         })
     }
 }

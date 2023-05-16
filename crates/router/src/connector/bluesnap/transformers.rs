@@ -32,7 +32,7 @@ pub struct BluesnapPaymentsRequest {
 #[serde(rename_all = "camelCase")]
 pub struct BluesnapCreateWalletToken {
     wallet_type: String,
-    validation_url: String,
+    validation_url: Secret<String>,
     domain_name: String,
     display_name: Option<String>,
 }
@@ -140,9 +140,9 @@ pub struct ApplePayEncodedPaymentData {
 #[derive(Debug, Serialize, Deserialize, Eq, PartialEq, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct ApplepayHeader {
-    ephemeral_public_key: String,
-    public_key_hash: String,
-    transaction_id: String,
+    ephemeral_public_key: Secret<String>,
+    public_key_hash: Secret<String>,
+    transaction_id: Secret<String>,
 }
 
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for BluesnapPaymentsRequest {
@@ -185,30 +185,15 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BluesnapPaymentsRequest {
                         .parse_struct("ApplePayEncodedPaymentData")
                         .change_context(errors::ConnectorError::ParsingFailed)?;
 
-                    let billing = item
-                        .request
-                        .billing
-                        .to_owned()
-                        .get_required_value("billing")
-                        .change_context(errors::ConnectorError::MissingRequiredField {
-                            field_name: "billing",
-                        })?;
-                    let address = billing
-                        .address
-                        .get_required_value("address")
-                        .change_context(errors::ConnectorError::MissingRequiredField {
-                            field_name: "address",
-                        })?;
-
-                    let mut address_lines = Vec::new();
-                    if let Some(add) = address.line1 {
-                        address_lines.push(add)
+                    let mut address = Vec::new();
+                    if let Some(add) = item.request.address_line1.to_owned() {
+                        address.push(add)
                     }
-                    if let Some(add) = address.line2 {
-                        address_lines.push(add)
+                    if let Some(add) = item.request.address_line1.to_owned() {
+                        address.push(add)
                     }
-                    if let Some(add) = address.line3 {
-                        address_lines.push(add)
+                    if let Some(add) = item.request.address_line1.to_owned() {
+                        address.push(add)
                     }
 
                     let apple_pay_object = Encode::<EncodedPaymentToken>::encode_to_string_of_json(
@@ -222,11 +207,11 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BluesnapPaymentsRequest {
                                 transaction_identifier: payment_method_data.transaction_identifier,
                             },
                             billing_contact: BillingDetails {
-                                country_code: address.country,
-                                address_lines: Some(address_lines),
-                                family_name: address.last_name,
-                                given_name: address.first_name,
-                                postal_code: address.zip,
+                                country_code: item.request.country_code,
+                                address_lines: Some(address),
+                                family_name: item.request.last_name.to_owned(),
+                                given_name: item.request.first_name.to_owned(),
+                                postal_code: item.request.postal_code.to_owned(),
                             },
                         },
                     )
@@ -283,8 +268,7 @@ impl TryFrom<&types::PaymentsSessionRouterData> for BluesnapCreateWalletToken {
             .change_context(errors::ConnectorError::ParsingFailed)?;
         Ok(Self {
             wallet_type: "APPLE_PAY".to_string(),
-            validation_url: "https://apple-pay-gateway-cert.apple.com/paymentservices/startSession"
-                .to_string(),
+            validation_url: consts::APPLEPAY_VALIDATION_URL.to_string().into(),
             domain_name: applepay_metadata.data.session_token_data.initiative_context,
             display_name: Some(applepay_metadata.data.session_token_data.display_name),
         })
@@ -313,9 +297,9 @@ impl TryFrom<types::PaymentsSessionResponseRouterData<BluesnapWalletTokenRespons
             .data
             .connector_meta_data
             .clone()
-            .get_required_value("domain_name")
+            .get_required_value("metadata")
             .change_context(errors::ConnectorError::MissingRequiredField {
-                field_name: "domain_name",
+                field_name: "metadata",
             })?
             .expose();
         let applepay_metadata = metadata
@@ -341,7 +325,7 @@ impl TryFrom<types::PaymentsSessionResponseRouterData<BluesnapWalletTokenRespons
                             currency_code: item.data.request.currency.to_string(),
                             total: api_models::payments::AmountInfo {
                                 label: applepay_metadata.data.payment_request_data.label,
-                                total_type: "debit".to_string(),
+                                total_type: "final".to_string(),
                                 amount: item.data.request.amount.to_string(),
                             },
                             merchant_capabilities: applepay_metadata
