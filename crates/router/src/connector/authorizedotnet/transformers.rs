@@ -342,9 +342,9 @@ impl From<AuthorizedotnetPaymentStatus> for enums::AttemptStatus {
 }
 
 #[derive(Debug, Clone, Deserialize, PartialEq)]
-pub(super) struct ResponseMessage {
+pub struct ResponseMessage {
     code: String,
-    pub(super) text: String,
+    pub text: String,
 }
 
 #[derive(Debug, Clone, Deserialize, PartialEq)]
@@ -357,14 +357,14 @@ enum ResultCode {
 #[serde(rename_all = "camelCase")]
 pub struct ResponseMessages {
     result_code: ResultCode,
-    pub(super) message: Vec<ResponseMessage>,
+    pub message: Vec<ResponseMessage>,
 }
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
-pub(super) struct ErrorMessage {
-    pub(super) error_code: String,
-    pub(super) error_text: String,
+pub struct ErrorMessage {
+    pub error_code: String,
+    pub error_text: String,
 }
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq)]
@@ -401,8 +401,8 @@ pub struct VoidResponse {
     #[serde(rename = "transId")]
     transaction_id: String,
     network_trans_id: Option<String>,
-    pub(super) account_number: Option<String>,
-    pub(super) errors: Option<Vec<ErrorMessage>>,
+    pub account_number: Option<String>,
+    pub errors: Option<Vec<ErrorMessage>>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -475,20 +475,12 @@ impl<F, T>
                         Some(err) => Err(err),
                         None => Ok(types::PaymentsResponseData::TransactionResponse {
                             resource_id: types::ResponseId::ConnectorTransactionId(
-                                item.response
-                                    .transaction_response
-                                    .as_ref()
-                                    .map(|trans| trans.transaction_id.clone())
-                                    .unwrap_or_default(),
+                                transaction_response.transaction_id.clone(),
                             ),
                             redirection_data: None,
                             mandate_reference: None,
                             connector_metadata: metadata,
-                            network_txn_id: item
-                                .response
-                                .transaction_response
-                                .map(|trans| trans.network_trans_id)
-                                .unwrap_or_default(),
+                            network_txn_id: transaction_response.network_trans_id.clone(),
                         }),
                     },
                     ..item.data
@@ -496,12 +488,7 @@ impl<F, T>
             }
             None => Ok(Self {
                 status: enums::AttemptStatus::Failure,
-                response: Err(types::ErrorResponse {
-                    code: item.response.messages.message[0].code.clone(),
-                    message: item.response.messages.message[0].text.clone(),
-                    reason: None,
-                    status_code: item.http_code,
-                }),
+                response: Err(get_err_response(item.http_code, item.response.messages)),
                 ..item.data
             }),
         }
@@ -551,20 +538,12 @@ impl<F, T>
                         Some(err) => Err(err),
                         None => Ok(types::PaymentsResponseData::TransactionResponse {
                             resource_id: types::ResponseId::ConnectorTransactionId(
-                                item.response
-                                    .transaction_response
-                                    .as_ref()
-                                    .map(|trans| trans.transaction_id.clone())
-                                    .unwrap_or_default(),
+                                transaction_response.transaction_id.clone(),
                             ),
                             redirection_data: None,
                             mandate_reference: None,
                             connector_metadata: metadata,
-                            network_txn_id: item
-                                .response
-                                .transaction_response
-                                .map(|trans| trans.network_trans_id)
-                                .unwrap_or_default(),
+                            network_txn_id: transaction_response.network_trans_id.clone(),
                         }),
                     },
                     ..item.data
@@ -572,12 +551,7 @@ impl<F, T>
             }
             None => Ok(Self {
                 status: enums::AttemptStatus::Failure,
-                response: Err(types::ErrorResponse {
-                    code: item.response.messages.message[0].code.clone(),
-                    message: item.response.messages.message[0].text.clone(),
-                    reason: None,
-                    status_code: item.http_code,
-                }),
+                response: Err(get_err_response(item.http_code, item.response.messages)),
                 ..item.data
             }),
         }
@@ -821,12 +795,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, AuthorizedotnetSyncRes
                 })
             }
             None => Ok(Self {
-                response: Err(types::ErrorResponse {
-                    code: item.response.messages.message[0].code.clone(),
-                    message: item.response.messages.message[0].text.clone(),
-                    reason: None,
-                    status_code: item.http_code,
-                }),
+                response: Err(get_err_response(item.http_code, item.response.messages)),
                 ..item.data
             }),
         }
@@ -866,12 +835,7 @@ impl<F, Req>
                 })
             }
             None => Ok(Self {
-                response: Err(types::ErrorResponse {
-                    code: item.response.messages.message[0].code.clone(),
-                    message: item.response.messages.message[0].text.clone(),
-                    reason: None,
-                    status_code: item.http_code,
-                }),
+                response: Err(get_err_response(item.http_code, item.response.messages)),
                 ..item.data
             }),
         }
@@ -906,5 +870,14 @@ impl From<Option<enums::CaptureMethod>> for TransactionType {
             Some(enums::CaptureMethod::Manual) => Self::Authorization,
             _ => Self::Payment,
         }
+    }
+}
+
+fn get_err_response(status_code: u16, message: ResponseMessages) -> types::ErrorResponse {
+    types::ErrorResponse {
+        code: message.message[0].code.clone(),
+        message: message.message[0].text.clone(),
+        reason: None,
+        status_code,
     }
 }

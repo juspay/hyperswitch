@@ -11,7 +11,7 @@ use crate::{
     consts,
     core::errors::{self, CustomResult},
     headers,
-    services::{self, logger, ConnectorIntegration},
+    services::{self, ConnectorIntegration},
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
@@ -33,7 +33,7 @@ where
     ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
         Ok(vec![(
             headers::CONTENT_TYPE.to_string(),
-            types::PaymentsCaptureType::get_content_type(self).to_string(),
+            self.get_content_type().to_string(),
         )])
     }
 }
@@ -166,7 +166,6 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
             data: data.clone(),
             http_code: res.status_code,
         })
-        .change_context(errors::ConnectorError::ResponseDeserializationFailed)
     }
 
     fn get_error_response(
@@ -251,7 +250,6 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
             data: data.clone(),
             http_code: res.status_code,
         })
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
     fn get_error_response(
@@ -290,7 +288,6 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         &self,
         req: &types::PaymentsAuthorizeRouterData,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        logger::debug!(request=?req);
         let connector_req = authorizedotnet::CreateTransactionRequest::try_from(req)?;
         let authorizedotnet_req =
             utils::Encode::<authorizedotnet::CreateTransactionRequest>::encode_to_string_of_json(
@@ -345,14 +342,12 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
             data: data.clone(),
             http_code: res.status_code,
         })
-        .change_context(errors::ConnectorError::ResponseDeserializationFailed)
     }
 
     fn get_error_response(
         &self,
         res: types::Response,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
-        logger::debug!(authorizedotnetpayments_create_error_response=?res);
         get_error_response(res)
     }
 }
@@ -430,7 +425,6 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
             data: data.clone(),
             http_code: res.status_code,
         })
-        .change_context(errors::ConnectorError::ResponseDeserializationFailed)
     }
 
     fn get_error_response(
@@ -473,7 +467,6 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         &self,
         req: &types::RefundsRouterData<api::Execute>,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        logger::debug!(refund_request=?req);
         let connector_req = authorizedotnet::CreateRefundRequest::try_from(req)?;
         let authorizedotnet_req =
             utils::Encode::<authorizedotnet::CreateRefundRequest>::encode_to_string_of_json(
@@ -506,7 +499,6 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         res: types::Response,
     ) -> CustomResult<types::RefundsRouterData<api::Execute>, errors::ConnectorError> {
         use bytes::Buf;
-        logger::debug!(response=?res);
 
         // Handle the case where response bytes contains U+FEFF (BOM) character sent by connector
         let encoding = encoding_rs::UTF_8;
@@ -517,14 +509,12 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         let response: authorizedotnet::AuthorizedotnetRefundResponse = intermediate_response
             .parse_struct("AuthorizedotnetRefundResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        logger::info!(response=?res);
 
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
         })
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
     fn get_error_response(
@@ -609,7 +599,6 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
             data: data.clone(),
             http_code: res.status_code,
         })
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
     fn get_error_response(

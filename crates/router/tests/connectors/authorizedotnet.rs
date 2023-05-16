@@ -62,6 +62,7 @@ async fn should_only_authorize_payment() {
         )
         .await
         .expect("Authorize payment response");
+    assert_eq!(authorize_response.status, enums::AttemptStatus::Pending);
     let txn_id =
         utils::get_connector_transaction_id(authorize_response.response).unwrap_or_default();
     let psync_response = CONNECTOR
@@ -96,9 +97,10 @@ async fn should_capture_authorized_payment() {
         )
         .await
         .expect("Authorize payment response");
+    assert_eq!(authorize_response.status, enums::AttemptStatus::Pending);
     let txn_id =
         utils::get_connector_transaction_id(authorize_response.response).unwrap_or_default();
-    let _psync_response = CONNECTOR
+    let psync_response = CONNECTOR
         .psync_retry_till_status_matches(
             enums::AttemptStatus::Authorized,
             Some(types::PaymentsSyncData {
@@ -113,9 +115,10 @@ async fn should_capture_authorized_payment() {
         )
         .await
         .expect("PSync response");
+    assert_eq!(psync_response.status, enums::AttemptStatus::Authorized);
     let cap_response = CONNECTOR
         .capture_payment(
-            txn_id,
+            txn_id.clone(),
             Some(types::PaymentsCaptureData {
                 amount_to_capture: 301,
                 ..utils::PaymentCaptureType::default().0
@@ -125,6 +128,20 @@ async fn should_capture_authorized_payment() {
         .await
         .expect("Capture payment response");
     assert_eq!(cap_response.status, enums::AttemptStatus::Pending);
+    let response = CONNECTOR
+        .psync_retry_till_status_matches(
+            enums::AttemptStatus::CaptureInitiated,
+            Some(types::PaymentsSyncData {
+                connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(txn_id),
+                encoded_data: None,
+                capture_method: None,
+                ..Default::default()
+            }),
+            None,
+        )
+        .await
+        .expect("PSync response");
+    assert_eq!(response.status, enums::AttemptStatus::CaptureInitiated);
 }
 
 // Partially captures a payment using the manual capture flow (Non 3DS).
@@ -142,9 +159,10 @@ async fn should_partially_capture_authorized_payment() {
         )
         .await
         .expect("Authorize payment response");
+    assert_eq!(authorize_response.status, enums::AttemptStatus::Pending);
     let txn_id =
         utils::get_connector_transaction_id(authorize_response.response).unwrap_or_default();
-    let _psync_response = CONNECTOR
+    let psync_response = CONNECTOR
         .psync_retry_till_status_matches(
             enums::AttemptStatus::Authorized,
             Some(types::PaymentsSyncData {
@@ -159,9 +177,10 @@ async fn should_partially_capture_authorized_payment() {
         )
         .await
         .expect("PSync response");
+    assert_eq!(psync_response.status, enums::AttemptStatus::Authorized);
     let cap_response = CONNECTOR
         .capture_payment(
-            txn_id,
+            txn_id.clone(),
             Some(types::PaymentsCaptureData {
                 amount_to_capture: 150,
                 ..utils::PaymentCaptureType::default().0
@@ -171,6 +190,20 @@ async fn should_partially_capture_authorized_payment() {
         .await
         .expect("Capture payment response");
     assert_eq!(cap_response.status, enums::AttemptStatus::Pending);
+    let response = CONNECTOR
+        .psync_retry_till_status_matches(
+            enums::AttemptStatus::CaptureInitiated,
+            Some(types::PaymentsSyncData {
+                connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(txn_id),
+                encoded_data: None,
+                capture_method: None,
+                ..Default::default()
+            }),
+            None,
+        )
+        .await
+        .expect("PSync response");
+    assert_eq!(response.status, enums::AttemptStatus::CaptureInitiated);
 }
 
 // Synchronizes a payment using the manual capture flow (Non 3DS).
@@ -188,6 +221,7 @@ async fn should_sync_authorized_payment() {
         )
         .await
         .expect("Authorize payment response");
+    assert_eq!(authorize_response.status, enums::AttemptStatus::Pending);
     let txn_id =
         utils::get_connector_transaction_id(authorize_response.response).unwrap_or_default();
     let response = CONNECTOR
@@ -221,6 +255,7 @@ async fn should_void_authorized_payment() {
         )
         .await
         .expect("Authorize payment response");
+    assert_eq!(authorize_response.status, enums::AttemptStatus::Pending);
     let txn_id =
         utils::get_connector_transaction_id(authorize_response.response).unwrap_or_default();
     let psync_response = CONNECTOR
@@ -257,7 +292,7 @@ async fn should_void_authorized_payment() {
 // Creates a payment using the automatic capture flow (Non 3DS).
 #[actix_web::test]
 async fn should_make_payment() {
-    let response = CONNECTOR
+    let cap_response = CONNECTOR
         .make_payment(
             Some(types::PaymentsAuthorizeData {
                 amount: 310,
@@ -269,7 +304,27 @@ async fn should_make_payment() {
         )
         .await
         .unwrap();
-    assert_eq!(response.status, enums::AttemptStatus::Pending);
+    assert_eq!(cap_response.status, enums::AttemptStatus::Pending);
+    let txn_id = utils::get_connector_transaction_id(cap_response.response).unwrap_or_default();
+    let psync_response = CONNECTOR
+        .psync_retry_till_status_matches(
+            enums::AttemptStatus::CaptureInitiated,
+            Some(types::PaymentsSyncData {
+                connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(
+                    txn_id.clone(),
+                ),
+                encoded_data: None,
+                capture_method: None,
+                ..Default::default()
+            }),
+            None,
+        )
+        .await
+        .expect("PSync response");
+    assert_eq!(
+        psync_response.status,
+        enums::AttemptStatus::CaptureInitiated
+    );
 }
 
 // Synchronizes a payment using the automatic capture flow (Non 3DS).
@@ -322,7 +377,7 @@ async fn should_sync_refund() {
         .unwrap();
     assert_eq!(
         response.response.unwrap().refund_status,
-        enums::RefundStatus::Pending,
+        enums::RefundStatus::Success,
     );
 }
 
