@@ -990,7 +990,7 @@ pub enum PayoutStatus {
     Pending,
     Ineligible,
     RequiresCreation,
-    RequirePayoutMethodData,
+    RequiresPayoutMethodData,
     #[default]
     RequiresFulfillment,
 }
