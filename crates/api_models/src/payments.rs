@@ -654,8 +654,11 @@ pub enum BankRedirectData {
         issuer: api_enums::BankNames,
     },
     Przelewy24 {
-        // Shopper Email
-        email: Email,
+        //Issuer banks
+        bank_name: Option<api_enums::BankNames>,
+
+        // The billing details for bank redirect
+        billing_details: BankRedirectBilling,
     },
     Sofort {
         /// The billing details for bank redirection
@@ -692,7 +695,10 @@ pub struct SofortBilling {
 pub struct BankRedirectBilling {
     /// The name for which billing is issued
     #[schema(value_type = String, example = "John Doe")]
-    pub billing_name: Secret<String>,
+    pub billing_name: Option<Secret<String>>,
+    /// The billing email for bank redirect
+    #[schema(value_type = String, example = "example@example.com")]
+    pub email: Email,
 }
 
 #[derive(serde::Deserialize, serde::Serialize, Debug, Clone, ToSchema, Eq, PartialEq)]
