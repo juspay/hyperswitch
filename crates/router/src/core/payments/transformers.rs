@@ -574,6 +574,8 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             router_return_url,
             webhook_url,
             complete_authorize_url,
+            shipping: payment_data.address.shipping,
+            billing: payment_data.address.billing,
         })
     }
 }
