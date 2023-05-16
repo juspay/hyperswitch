@@ -1,12 +1,20 @@
 name: Conventional Commit Message Check
 
 on:
-  pull_request:
+  # This is a dangerous event trigger as it causes the workflow to run in the
+  # context of the target repository.
+  # Avoid checking out the head of the pull request or building code from the
+  # pull request whenever this trigger is used.
+  # Since we only label pull requests, do not have a checkout step in this
+  # workflow, and restrict permissions on the token, this is an acceptable
+  # use of this trigger.
+  pull_request_target:
     types:
       - opened
       - edited
       - reopened
       - ready_for_review
+      - synchronize
 
   merge_group:
     types:
@@ -14,7 +22,7 @@ on:
 
 permissions:
   # Reference: https://github.com/cli/cli/issues/6274
-  repository-projects: write
+  repository-projects: read
   pull-requests: write
 
 env:
@@ -39,7 +47,12 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2.2.0
         with:
-          key: "pr_title_check"
+          # We can use a single cache entry for all runs of this check, as only cocogitto needs to be cached
+          shared-key: "pr_title_check"
+          # We don't build any crates in this repository, no need to cache target directories
+          cache-targets: "false"
+          # Save cache even if commit message verification fails.
+          # Only failure not considered is failures in installing cocogitto itself.
           cache-on-failure: "true"
 
       - name: Install cocogitto
@@ -51,7 +64,7 @@ jobs:
         if: ${{ github.event_name == 'pull_request' }}
         shell: bash
         continue-on-error: true
-        run: cog verify "${{ github.event.pull_request.title }}"
+        run: cog verify '${{ github.event.pull_request.title }}'
 
       - name: Verify commit message follows conventional commit standards
         id: commit_message_check
@@ -59,7 +72,7 @@ jobs:
         shell: bash
         # Fail on error, we don't have context about PR information to update labels
         continue-on-error: false
-        run: cog verify "${{ github.event.merge_group.head_commit.message }}"
+        run: cog verify '${{ github.event.merge_group.head_commit.message }}'
 
         # GitHub CLI returns a successful error code even if the PR has the label already attached
       - name: Attach 'S-conventions-not-followed' label if PR title check failed
