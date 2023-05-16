@@ -384,6 +384,7 @@ pub struct Connectors {
     pub multisafepay: ConnectorParams,
     pub nexinets: ConnectorParams,
     pub nmi: ConnectorParams,
+    pub noon: ConnectorParams,
     pub nuvei: ConnectorParams,
     pub opennode: ConnectorParams,
     pub payeezy: ConnectorParams,

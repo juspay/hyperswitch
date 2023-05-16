@@ -2,7 +2,7 @@ use error_stack::IntoReport;
 
 use super::{cache, MockDb, Store};
 use crate::{
-    cache::CONFIG_CACHE,
+    cache::{CacheKind, CONFIG_CACHE},
     connection, consts,
     core::errors::{self, CustomResult},
     services::PubSubInterface,
@@ -78,7 +78,10 @@ impl ConfigInterface for Store {
         key: &str,
         config_update: storage::ConfigUpdate,
     ) -> CustomResult<storage::Config, errors::StorageError> {
-        cache::publish_and_redact(self, key, || self.update_config_by_key(key, config_update)).await
+        cache::publish_and_redact(self, CacheKind::Config(key.into()), || {
+            self.update_config_by_key(key, config_update)
+        })
+        .await
     }
 
     async fn find_config_by_key_cached(
@@ -98,7 +101,7 @@ impl ConfigInterface for Store {
 
         self.redis_conn()
             .map_err(Into::<errors::StorageError>::into)?
-            .publish(consts::PUB_SUB_CHANNEL, key)
+            .publish(consts::PUB_SUB_CHANNEL, CacheKind::Config(key.into()))
             .await
             .map_err(Into::<errors::StorageError>::into)?;
 
