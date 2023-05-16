@@ -395,11 +395,33 @@ diesel::table! {
     payout_create (id) {
         id -> Int4,
         payout_id -> Varchar,
+        customer_id -> Varchar,
+        merchant_id -> Varchar,
+        address_id -> Varchar,
+        connector -> Varchar,
+        connector_payout_id -> Varchar,
+        payout_token -> Nullable<Varchar>,
+        status -> PayoutStatus,
+        is_eligible -> Nullable<Bool>,
+        encoded_data -> Nullable<Text>,
+        error_message -> Nullable<Text>,
+        error_code -> Nullable<Varchar>,
+    }
+}
+
+diesel::table! {
+    use diesel::sql_types::*;
+    use crate::enums::diesel_exports::*;
+
+    payouts (id) {
+        id -> Int4,
+        payout_id -> Varchar,
         merchant_id -> Varchar,
         customer_id -> Varchar,
         address_id -> Varchar,
         payout_type -> PayoutType,
-        payout_token -> Nullable<Varchar>,
+        payout_method_id -> Nullable<Varchar>,
+        payout_method_data -> Nullable<Jsonb>,
         amount -> Int8,
         destination_currency -> Currency,
         source_currency -> Currency,
@@ -411,27 +433,6 @@ diesel::table! {
         metadata -> Nullable<Jsonb>,
         created_at -> Timestamp,
         last_modified_at -> Timestamp,
-    }
-}
-
-diesel::table! {
-    use diesel::sql_types::*;
-    use crate::enums::diesel_exports::*;
-
-    payouts (id) {
-        id -> Int4,
-        payout_id -> Varchar,
-        customer_id -> Varchar,
-        merchant_id -> Varchar,
-        address_id -> Varchar,
-        connector -> Varchar,
-        connector_payout_id -> Varchar,
-        payout_method_id -> Nullable<Varchar>,
-        status -> PayoutStatus,
-        is_eligible -> Nullable<Bool>,
-        encoded_data -> Nullable<Text>,
-        error_message -> Nullable<Text>,
-        error_code -> Nullable<Varchar>,
     }
 }
 

@@ -1,10 +1,14 @@
 use error_stack::ResultExt;
+use masking::PeekInterface;
 
 use crate::{
     core::{
         errors::{self, RouterResult},
         payment_methods::{cards, vault},
+        payments::CustomerDetails,
+        utils as core_utils,
     },
+    db::StorageInterface,
     routes::AppState,
     types::{api, storage},
     utils,
@@ -45,7 +49,6 @@ pub async fn make_payout_data<'a>(
                 None,
                 &payout_method,
                 Some(payout_create.customer_id.to_owned()),
-                payout_create.payout_type,
             )
             .await?;
             //FIXME: we should have Status field in payout_create and update status from require_payout_method_data to require_fulfillment
@@ -92,5 +95,54 @@ pub async fn save_payout_data_to_locker(
             }
         }
         api_models::payouts::PayoutMethodData::Bank(_) => Ok(None), //To be implemented after bank storage support in basilisk-hs
+    }
+}
+
+pub async fn get_or_create_customer_details(
+    state: &AppState,
+    customer_details: &CustomerDetails,
+    merchant_account: &storage::merchant_account::MerchantAccount,
+) -> RouterResult<Option<storage::Customer>> {
+    match (
+        customer_details.name.to_owned(),
+        customer_details.email.to_owned(),
+        customer_details.phone.to_owned(),
+    ) {
+        (Some(name), Some(email), Some(phone)) => {
+            let db: &dyn StorageInterface = &*state.store;
+            // Create customer_id if not passed in request
+            let customer_id = core_utils::get_or_generate_id(
+                "customer_id",
+                &customer_details.customer_id,
+                "cust",
+            )?;
+            let merchant_id = &merchant_account.merchant_id;
+
+            match db
+                .find_customer_optional_by_customer_id_merchant_id(&customer_id, merchant_id)
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)?
+            {
+                Some(customer) => Ok(Some(customer)),
+                None => {
+                    let customer = storage::CustomerNew {
+                        customer_id,
+                        merchant_id: merchant_id.to_string(),
+                        name: Some(name.peek().to_string()),
+                        email: Some(email),
+                        phone: Some(phone),
+                        description: None,
+                        phone_country_code: customer_details.phone_country_code.to_owned(),
+                        metadata: None,
+                        connector_customer: None,
+                    };
+
+                    Ok(Some(db.insert_customer(customer).await.change_context(
+                        errors::ApiErrorResponse::InternalServerError,
+                    )?))
+                }
+            }
+        }
+        _ => Ok(None),
     }
 }

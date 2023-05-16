@@ -540,7 +540,6 @@ impl Vault {
         token_id: Option<String>,
         payout_method: &api::PayoutMethodData,
         customer_id: Option<String>,
-        _payout_type: enums::PayoutType,
     ) -> RouterResult<String> {
         let value1 = payout_method
             .get_value1(customer_id.clone())
@@ -723,7 +722,6 @@ impl Vault {
         token_id: Option<String>,
         payout_method: &api::PayoutMethodData,
         customer_id: Option<String>,
-        _payout_type: enums::PayoutType,
     ) -> RouterResult<String> {
         let value1 = payout_method
             .get_value1(customer_id.clone())
