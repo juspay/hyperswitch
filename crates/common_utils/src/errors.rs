@@ -33,7 +33,7 @@ pub enum ParsingError {
 
 /// Validation errors.
 #[allow(missing_docs)] // Only to prevent warnings about struct fields not being documented
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug, thiserror::Error, Clone)]
 pub enum ValidationError {
     /// The provided input is missing a required field.
     #[error("Missing required field: {field_name}")]

@@ -8,6 +8,26 @@ use crate::{
     types::api as api_types,
 };
 
+#[instrument(skip_all, fields(flow = ?Flow::CreateConfigKey))]
+pub async fn config_key_create(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    json_payload: web::Json<api_types::Config>,
+) -> impl Responder {
+    let flow = Flow::CreateConfigKey;
+    let payload = json_payload.into_inner();
+
+    api::server_wrap(
+        flow,
+        state.get_ref(),
+        &req,
+        payload,
+        |state, _, data| configs::set_config(&*state.store, data),
+        &auth::AdminApiAuth,
+    )
+    .await
+}
+
 #[instrument(skip_all, fields(flow = ?Flow::ConfigKeyFetch))]
 pub async fn config_key_retrieve(
     state: web::Data<AppState>,
