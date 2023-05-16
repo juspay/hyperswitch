@@ -687,12 +687,8 @@ where
     types::RouterData<F, Req, Res>: Feature<F, Req> + Send,
     dyn api::Connector: services::api::ConnectorIntegration<F, Req, types::PaymentsResponseData>,
 {
-    let router_data_and_should_continue_payment = match payment_data
-        .payment_method_data
-        .as_ref()
-        .get_required_value("payment_method_data")?
-    {
-        api_models::payments::PaymentMethodData::BankTransfer(data) => match data.deref() {
+    let router_data_and_should_continue_payment = match payment_data.payment_method_data.clone() {
+        Some(api_models::payments::PaymentMethodData::BankTransfer(data)) => match data.deref() {
             api_models::payments::BankTransferData::AchBankTransfer(_) => {
                 if payment_data.payment_attempt.preprocessing_step_id.is_none() {
                     (
@@ -706,6 +702,7 @@ where
         },
         _ => (router_data, should_continue_payment),
     };
+
     Ok(router_data_and_should_continue_payment)
 }
 

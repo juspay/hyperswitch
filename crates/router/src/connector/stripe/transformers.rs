@@ -1243,6 +1243,7 @@ pub enum StripePaymentStatus {
     RequiresCapture,
     Chargeable,
     Consumed,
+    Pending,
 }
 
 impl From<StripePaymentStatus> for enums::AttemptStatus {
@@ -1258,6 +1259,7 @@ impl From<StripePaymentStatus> for enums::AttemptStatus {
             StripePaymentStatus::RequiresCapture => Self::Authorized,
             StripePaymentStatus::Chargeable => Self::Authorizing,
             StripePaymentStatus::Consumed => Self::Authorizing,
+            StripePaymentStatus::Pending => Self::Pending,
         }
     }
 }
