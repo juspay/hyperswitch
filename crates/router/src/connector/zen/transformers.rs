@@ -208,17 +208,11 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for ZenPaymentsRequest {
                 .iter()
                 .map(|data| ZenItemObject {
                     name: data.product_name.clone(),
-                    price: data.amount.to_string(),
                     quantity: data.quantity,
+                    price: data.amount.to_string(),
                     line_amount_total: order_amount.clone(),
                 })
                 .collect(),
-            // items: vec![ZenItemObject {
-            //     name: "dummy".to_string(), //order_details.product_name,
-            //     price: 500, //order_amount.clone(),
-            //     quantity: 1,
-            //     line_amount_total: 500,
-            // }],
         })
     }
 }

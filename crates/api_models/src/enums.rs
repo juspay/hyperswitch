@@ -629,6 +629,7 @@ pub enum Connector {
     Worldline,
     Worldpay,
     Zen,
+    Signifyd
 }
 
 impl Connector {
@@ -711,6 +712,7 @@ pub enum RoutableConnectors {
     Worldline,
     Worldpay,
     Zen,
+    Signifyd,
 }
 
 /// Name of banks supported by Hyperswitch
@@ -837,6 +839,24 @@ pub enum BankNames {
     VeloBank,
     #[serde(rename = "e-transfer Pocztowy24")]
     ETransferPocztowy24,
+    PlusBank,
+    EtransferPocztowy24,
+    BankiSpbdzielcze,
+    BankNowyBfgSa,
+    GetinBank,
+    Blik,
+    NoblePay,
+    IdeaBank,
+    EnveloBank,
+    NestPrzelew,
+    MbankMtransfer,
+    Inteligo,
+    PbacZIpko,
+    BnpParibas,
+    BankPekaoSa,
+    VolkswagenBank,
+    AliorBank,
+    Boz,
 }
 
 #[derive(
