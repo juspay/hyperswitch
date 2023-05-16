@@ -464,6 +464,8 @@ pub struct DrainerSettings {
 #[serde(default)]
 pub struct WebhooksSettings {
     pub outgoing_enabled: bool,
+    #[serde(deserialize_with = "connector_deser")]
+    pub trigger_only_connectors: HashSet<api_models::enums::Connector>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]

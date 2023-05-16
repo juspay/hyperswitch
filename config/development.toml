@@ -92,6 +92,7 @@ max_age = 365
 
 [webhooks]
 outgoing_enabled = true
+trigger_only_connectors = "forte"
 
 [eph_key]
 validity = 1

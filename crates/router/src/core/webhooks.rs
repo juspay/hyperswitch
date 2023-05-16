@@ -1,6 +1,7 @@
 pub mod transformers;
 pub mod utils;
 
+use api_models;
 use error_stack::{IntoReport, ResultExt};
 use masking::ExposeInterface;
 use router_env::{instrument, tracing};
@@ -32,8 +33,16 @@ async fn payments_incoming_webhook_flow<W: api::OutgoingWebhookType>(
     merchant_account: storage::MerchantAccount,
     webhook_details: api::IncomingWebhookDetails,
     source_verified: bool,
+    connector_name: api_models::enums::Connector,
 ) -> CustomResult<(), errors::WebhooksFlowError> {
-    let consume_or_trigger_flow = if source_verified {
+    // For connectors like forte, irrespective of source verification PSync has to be triggered
+    let consume_or_trigger_flow = if source_verified
+        && !state
+            .conf
+            .webhooks
+            .trigger_only_connectors
+            .contains(&connector_name)
+    {
         payments::CallConnectorAction::HandleResponse(webhook_details.resource_object)
     } else {
         payments::CallConnectorAction::Trigger
@@ -483,7 +492,7 @@ pub async fn webhooks_core<W: api::OutgoingWebhookType>(
     connector_name: &str,
     body: actix_web::web::Bytes,
 ) -> RouterResponse<serde_json::Value> {
-    let connector = api::ConnectorData::get_connector_by_name(
+    let connector_data = api::ConnectorData::get_connector_by_name(
         &state.conf.connectors,
         connector_name,
         api::GetToken::Connector,
@@ -491,7 +500,7 @@ pub async fn webhooks_core<W: api::OutgoingWebhookType>(
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Failed construction of ConnectorData")?;
 
-    let connector = connector.connector;
+    let connector = connector_data.connector;
     let mut request_details = api::IncomingWebhookRequestDetails {
         method: req.method().clone(),
         headers: req.headers(),
@@ -564,6 +573,7 @@ pub async fn webhooks_core<W: api::OutgoingWebhookType>(
                 merchant_account,
                 webhook_details,
                 source_verified,
+                connector_data.connector_name,
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
