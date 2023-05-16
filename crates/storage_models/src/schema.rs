@@ -354,6 +354,7 @@ diesel::table! {
         active_attempt_id -> Varchar,
         business_country -> CountryAlpha2,
         business_label -> Varchar,
+        meta_data -> Nullable<Jsonb>,
     }
 }
 
