@@ -12,7 +12,6 @@ use crate::{
         errors::{self, CustomResult, RouterResponse},
         payments, refunds,
     },
-    db::StorageInterface,
     logger,
     routes::AppState,
     services,
@@ -24,7 +23,7 @@ use crate::{
     utils::{generate_id, Encode, OptionExt, ValueExt},
 };
 
-const OUTGOING_WEBHOOK_TIMEOUT_MS: u64 = 5000;
+const OUTGOING_WEBHOOK_TIMEOUT_SECS: u64 = 5;
 
 #[instrument(skip_all)]
 async fn payments_incoming_webhook_flow<W: api::OutgoingWebhookType>(
@@ -402,8 +401,7 @@ async fn create_event_and_trigger_outgoing_webhook<W: api::OutgoingWebhookType>(
 
         arbiter.spawn(async move {
             let result =
-                trigger_webhook_to_merchant::<W>(merchant_account, outgoing_webhook, state.store)
-                    .await;
+                trigger_webhook_to_merchant::<W>(merchant_account, outgoing_webhook, &state).await;
 
             if let Err(e) = result {
                 logger::error!(?e);
@@ -417,7 +415,7 @@ async fn create_event_and_trigger_outgoing_webhook<W: api::OutgoingWebhookType>(
 async fn trigger_webhook_to_merchant<W: api::OutgoingWebhookType>(
     merchant_account: storage::MerchantAccount,
     webhook: api::OutgoingWebhook,
-    db: Box<dyn StorageInterface>,
+    state: &AppState,
 ) -> CustomResult<(), errors::WebhooksFlowError> {
     let webhook_details_json = merchant_account
         .webhook_details
@@ -439,29 +437,38 @@ async fn trigger_webhook_to_merchant<W: api::OutgoingWebhookType>(
 
     let transformed_outgoing_webhook = W::from(webhook);
 
-    let response = reqwest::Client::new()
-        .post(&webhook_url)
-        .header(reqwest::header::CONTENT_TYPE, "application/json")
-        .json(&transformed_outgoing_webhook)
-        .timeout(core::time::Duration::from_millis(
-            OUTGOING_WEBHOOK_TIMEOUT_MS,
-        ))
-        .send()
-        .await;
+    let transformed_outgoing_webhook_string =
+        Encode::<serde_json::Value>::encode_to_string_of_json(&transformed_outgoing_webhook)
+            .change_context(errors::WebhooksFlowError::OutgoingWebhookEncodingFailed)
+            .attach_printable("There was an issue when encoding the outgoing webhook body")?;
+
+    let request = services::RequestBuilder::new()
+        .method(services::Method::Post)
+        .url(&webhook_url)
+        .attach_default_headers()
+        .headers(vec![(
+            reqwest::header::CONTENT_TYPE.to_string(),
+            "application/json".into(),
+        )])
+        .body(Some(transformed_outgoing_webhook_string))
+        .build();
+
+    let response =
+        services::api::send_request(state, request, Some(OUTGOING_WEBHOOK_TIMEOUT_SECS)).await;
 
     match response {
         Err(e) => {
             // [#217]: Schedule webhook for retry.
-            Err(e)
-                .into_report()
-                .change_context(errors::WebhooksFlowError::CallToMerchantFailed)?;
+            Err(e).change_context(errors::WebhooksFlowError::CallToMerchantFailed)?;
         }
         Ok(res) => {
             if res.status().is_success() {
                 let update_event = storage::EventUpdate::UpdateWebhookNotified {
                     is_webhook_notified: Some(true),
                 };
-                db.update_event(outgoing_webhook_event_id, update_event)
+                state
+                    .store
+                    .update_event(outgoing_webhook_event_id, update_event)
                     .await
                     .change_context(errors::WebhooksFlowError::WebhookEventUpdationFailed)?;
             } else {

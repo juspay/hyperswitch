@@ -37,7 +37,7 @@ impl From<StripeBillingDetails> for payments::Address {
     }
 }
 
-#[derive(Default, Serialize, PartialEq, Eq, Deserialize, Clone)]
+#[derive(Default, Serialize, PartialEq, Eq, Deserialize, Clone, Debug)]
 pub struct StripeCard {
     pub number: pii::Secret<String, pii::CardNumber>,
     pub exp_month: pii::Secret<String>,
@@ -221,7 +221,7 @@ impl TryFrom<StripePaymentIntentRequest> for payments::PaymentsRequest {
     }
 }
 
-#[derive(Clone, Default, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Default, Eq, PartialEq, Serialize, Deserialize, Debug)]
 #[serde(rename_all = "snake_case")]
 pub enum StripePaymentStatus {
     Succeeded,
@@ -288,7 +288,7 @@ pub struct StripeCaptureRequest {
     pub amount_to_capture: Option<i64>,
 }
 
-#[derive(Default, Eq, PartialEq, Serialize)]
+#[derive(Default, Eq, PartialEq, Serialize, Debug)]
 pub struct StripePaymentIntentResponse {
     pub id: Option<String>,
     pub object: &'static str,
@@ -328,7 +328,7 @@ pub struct StripePaymentIntentResponse {
     pub last_payment_error: Option<LastPaymentError>,
 }
 
-#[derive(Default, Eq, PartialEq, Serialize)]
+#[derive(Default, Eq, PartialEq, Serialize, Debug)]
 pub struct LastPaymentError {
     charge: Option<String>,
     code: Option<String>,
@@ -402,7 +402,7 @@ impl From<payments::PaymentsResponse> for StripePaymentIntentResponse {
     }
 }
 
-#[derive(Default, Eq, PartialEq, Serialize)]
+#[derive(Default, Eq, PartialEq, Serialize, Debug)]
 pub struct StripePaymentMethod {
     #[serde(rename = "id")]
     payment_method_id: String,
@@ -414,7 +414,7 @@ pub struct StripePaymentMethod {
     livemode: bool,
 }
 
-#[derive(Default, Eq, PartialEq, Serialize)]
+#[derive(Default, Eq, PartialEq, Serialize, Debug)]
 pub struct Charges {
     object: &'static str,
     data: Vec<String>,
@@ -604,13 +604,13 @@ impl ForeignFrom<Option<Request3DS>> for api_models::enums::AuthenticationType {
     }
 }
 
-#[derive(Default, Eq, PartialEq, Serialize)]
+#[derive(Default, Eq, PartialEq, Serialize, Debug)]
 pub struct RedirectUrl {
     pub return_url: Option<String>,
     pub url: Option<String>,
 }
 
-#[derive(Eq, PartialEq, Serialize)]
+#[derive(Eq, PartialEq, Serialize, Debug)]
 pub struct StripeNextAction {
     #[serde(rename = "type")]
     stype: payments::NextActionType,
