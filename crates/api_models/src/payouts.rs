@@ -1,5 +1,8 @@
 use cards::CardNumber;
-use common_utils::pii;
+use common_utils::{
+    crypto,
+    pii::{self, Email},
+};
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
@@ -45,10 +48,6 @@ pub struct PayoutCreateRequest {
     #[schema(value_type = Option<Vec<Connector>>, max_length = 255, example = json!(["stripe", "adyen"]))]
     pub connector: Option<Vec<api_enums::Connector>>,
 
-    /// The payout method that is to be used
-    #[schema(value_type = PayoutType, example = "card")]
-    pub payout_type: api_enums::PayoutType,
-
     /// The boolean value to create payout with connector
     #[schema(value_type = bool, example = true, default = false)]
     pub create_payout: Option<bool>,
@@ -70,7 +69,7 @@ pub struct PayoutCreateRequest {
 
     /// description: The customer's email address
     #[schema(max_length = 255, value_type = Option<String>, example = "johntest@test.com")]
-    pub email: Option<Secret<String, pii::EmailStrategy>>,
+    pub email: Option<Email>,
 
     /// description: The customer's name
     #[schema(value_type = Option<String>, max_length = 255, example = "John Test")]
@@ -334,15 +333,15 @@ pub struct PayoutCreateResponse {
 
     /// description: The customer's email address
     #[schema(max_length = 255, value_type = Option<String>, example = "johntest@test.com")]
-    pub email: Option<Secret<String, pii::EmailStrategy>>,
+    pub email: crypto::OptionalEncryptableEmail,
 
     /// description: The customer's name
     #[schema(value_type = Option<String>, max_length = 255, example = "John Test")]
-    pub name: Option<Secret<String>>,
+    pub name: crypto::OptionalEncryptableName,
 
     /// The customer's phone number
     #[schema(value_type = Option<String>, max_length = 255, example = "3141592653")]
-    pub phone: Option<Secret<String>>,
+    pub phone: crypto::OptionalEncryptablePhone,
 
     /// The country code for the customer phone number
     #[schema(max_length = 255, example = "+1")]
