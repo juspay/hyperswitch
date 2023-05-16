@@ -1,12 +1,23 @@
 use error_stack::ResultExt;
+use masking::{ExposeInterface, PeekInterface};
 
 use crate::{
     core::{
         errors::{self, RouterResult},
         payment_methods::{cards, vault},
+        payments::CustomerDetails,
+        utils as core_utils,
     },
+    db::StorageInterface,
     routes::AppState,
-    types::{api, domain, storage},
+    types::{
+        api,
+        domain::{
+            self,
+            types::{self},
+        },
+        storage,
+    },
     utils,
 };
 
@@ -45,7 +56,6 @@ pub async fn make_payout_data<'a>(
                 None,
                 &payout_method,
                 Some(payout_create.customer_id.to_owned()),
-                payout_create.payout_type,
             )
             .await?;
             //FIXME: we should have Status field in payout_create and update status from require_payout_method_data to require_fulfillment
@@ -93,5 +103,71 @@ pub async fn save_payout_data_to_locker(
             }
         }
         api_models::payouts::PayoutMethodData::Bank(_) => Ok(None), //To be implemented after bank storage support in basilisk-hs
+    }
+}
+
+pub async fn get_or_create_customer_details(
+    state: &AppState,
+    customer_details: &CustomerDetails,
+    merchant_account: &domain::MerchantAccount,
+    key_store: &domain::MerchantKeyStore,
+) -> RouterResult<Option<domain::Customer>> {
+    match (
+        customer_details.name.to_owned(),
+        customer_details.email.to_owned(),
+        customer_details.phone.to_owned(),
+    ) {
+        (Some(name), Some(email), Some(phone)) => {
+            let db: &dyn StorageInterface = &*state.store;
+            // Create customer_id if not passed in request
+            let customer_id = core_utils::get_or_generate_id(
+                "customer_id",
+                &customer_details.customer_id,
+                "cust",
+            )?;
+            let merchant_id = &merchant_account.merchant_id;
+            let key = key_store.key.get_inner().peek();
+
+            match db
+                .find_customer_optional_by_customer_id_merchant_id(
+                    &customer_id,
+                    merchant_id,
+                    key_store,
+                )
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)?
+            {
+                Some(customer) => Ok(Some(customer)),
+                None => {
+                    let customer = domain::Customer {
+                        customer_id,
+                        merchant_id: merchant_id.to_string(),
+                        name: types::encrypt_optional(Some(name), key)
+                            .await
+                            .change_context(errors::ApiErrorResponse::InternalServerError)?,
+                        email: types::encrypt_optional(Some(email.expose()), key)
+                            .await
+                            .change_context(errors::ApiErrorResponse::InternalServerError)?,
+                        phone: types::encrypt_optional(Some(phone), key)
+                            .await
+                            .change_context(errors::ApiErrorResponse::InternalServerError)?,
+                        description: None,
+                        phone_country_code: customer_details.phone_country_code.to_owned(),
+                        metadata: None,
+                        connector_customer: None,
+                        id: None,
+                        created_at: common_utils::date_time::now(),
+                        modified_at: common_utils::date_time::now(),
+                    };
+
+                    Ok(Some(
+                        db.insert_customer(customer, key_store)
+                            .await
+                            .change_context(errors::ApiErrorResponse::InternalServerError)?,
+                    ))
+                }
+            }
+        }
+        _ => Ok(None),
     }
 }
