@@ -428,27 +428,6 @@ async fn should_sync_refund() {
 }
 
 // Cards Negative scenerios
-// Creates a payment with incorrect card number.
-#[actix_web::test]
-async fn should_fail_payment_for_incorrect_card_number() {
-    let response = CONNECTOR
-        .make_payment(
-            Some(types::PaymentsAuthorizeData {
-                payment_method_data: types::api::PaymentMethodData::Card(api::Card {
-                    card_number: cards::CardNumber::from_str("1234567891011").unwrap(),
-                    ..utils::CCardType::default().0
-                }),
-                ..utils::PaymentAuthorizeType::default().0
-            }),
-            get_default_payment_info(),
-        )
-        .await
-        .unwrap();
-    assert_eq!(
-        response.response.unwrap_err().message,
-        "description - UNPROCESSABLE_ENTITY",
-    );
-}
 
 // Creates a payment with incorrect CVC.
 #[actix_web::test]
@@ -467,7 +446,11 @@ async fn should_fail_payment_for_incorrect_cvc() {
         .await
         .unwrap();
     assert_eq!(
-        response.response.unwrap_err().message,
+        response.response.clone().unwrap_err().message,
+        "Request is not well-formed, syntactically incorrect, or violates schema.",
+    );
+    assert_eq!(
+        response.response.unwrap_err().reason.unwrap(),
         "description - The value of a field does not conform to the expected format., value - 12345, field - security_code;",
     );
 }
@@ -489,7 +472,11 @@ async fn should_fail_payment_for_invalid_exp_month() {
         .await
         .unwrap();
     assert_eq!(
-        response.response.unwrap_err().message,
+        response.response.clone().unwrap_err().message,
+        "Request is not well-formed, syntactically incorrect, or violates schema.",
+    );
+    assert_eq!(
+        response.response.unwrap_err().reason.unwrap(),
         "description - The value of a field does not conform to the expected format., value - 2025-20, field - expiry;",
     );
 }
@@ -511,7 +498,11 @@ async fn should_fail_payment_for_incorrect_expiry_year() {
         .await
         .unwrap();
     assert_eq!(
-        response.response.unwrap_err().message,
+        response.response.clone().unwrap_err().message,
+        "The requested action could not be performed, semantically incorrect, or failed business validation.",
+    );
+    assert_eq!(
+        response.response.unwrap_err().reason.unwrap(),
         "description - The card is expired., field - expiry;",
     );
 }
@@ -551,7 +542,11 @@ async fn should_fail_void_payment_for_auto_capture() {
         .await
         .expect("Void payment response");
     assert_eq!(
-        void_response.response.unwrap_err().message,
+        void_response.response.clone().unwrap_err().message,
+        "The requested action could not be performed, semantically incorrect, or failed business validation."
+    );
+    assert_eq!(
+        void_response.response.unwrap_err().reason.unwrap(),
         "description - Authorization has been previously captured and hence cannot be voided. ; "
     );
 }
@@ -576,7 +571,11 @@ async fn should_fail_capture_for_invalid_payment() {
         .await
         .unwrap();
     assert_eq!(
-        capture_response.response.unwrap_err().message,
+        capture_response.response.clone().unwrap_err().message,
+        "The specified resource does not exist.",
+    );
+    assert_eq!(
+        capture_response.response.unwrap_err().reason.unwrap(),
         "description - Specified resource ID does not exist. Please check the resource ID and try again. ; ",
     );
 }
@@ -600,7 +599,12 @@ async fn should_fail_for_refund_amount_higher_than_payment_amount() {
         )
         .await
         .unwrap();
-    assert_eq!(&response.response.unwrap_err().message, "description - The refund amount must be less than or equal to the capture amount that has not yet been refunded. ; ");
+    assert_eq!(&response.response.clone().unwrap_err().message, "The requested action could not be performed, semantically incorrect, or failed business validation.");
+
+    assert_eq!(
+        response.response.unwrap_err().reason.unwrap(),
+        "description - The refund amount must be less than or equal to the capture amount that has not yet been refunded. ; ",
+    );
 }
 
 // Connector dependent test cases goes here

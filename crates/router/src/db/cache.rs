@@ -87,9 +87,9 @@ where
     Ok(data)
 }
 
-pub async fn publish_and_redact<T, F, Fut>(
+pub async fn publish_and_redact<'a, T, F, Fut>(
     store: &Store,
-    key: &str,
+    key: cache::CacheKind<'a>,
     fun: F,
 ) -> CustomResult<T, errors::StorageError>
 where
