@@ -1130,7 +1130,7 @@ impl<'a> TryFrom<&api_models::payments::BankRedirectData> for AdyenPaymentMethod
                     expiry_month: card_exp_month
                         .as_ref()
                         .ok_or(errors::ConnectorError::MissingRequiredField {
-                            field_name: "Card Exp Month",
+                            field_name: "bancontact_card.card_exp_month",
                         })?
                         .clone(),
                     expiry_year: card_exp_year
