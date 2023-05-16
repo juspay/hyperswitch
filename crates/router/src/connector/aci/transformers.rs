@@ -332,21 +332,22 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for AciPaymentsRequest {
                                 shopper_result_url: item.request.router_return_url.clone(),
                             }))
                         }
-                        api_models::payments::BankRedirectData::Przelewy24 { billing_details, .. } => {
-                            PaymentDetails::BankRedirect(Box::new(BankRedirectionPMData {
-                                payment_brand: PaymentBrand::Przelewy,
-                                bank_account_country: None,
-                                bank_account_bank_name: None,
-                                bank_account_bic: None,
-                                bank_account_iban: None,
-                                billing_country: None,
-                                merchant_customer_id: None,
-                                merchant_transaction_id: None,
-                                customer_email: Some(billing_details.email.to_owned()),
+                        api_models::payments::BankRedirectData::Przelewy24 {
+                            billing_details,
+                            ..
+                        } => PaymentDetails::BankRedirect(Box::new(BankRedirectionPMData {
+                            payment_brand: PaymentBrand::Przelewy,
+                            bank_account_country: None,
+                            bank_account_bank_name: None,
+                            bank_account_bic: None,
+                            bank_account_iban: None,
+                            billing_country: None,
+                            merchant_customer_id: None,
+                            merchant_transaction_id: None,
+                            customer_email: Some(billing_details.email.to_owned()),
 
-                                shopper_result_url: item.request.router_return_url.clone(),
-                            }))
-                        }
+                            shopper_result_url: item.request.router_return_url.clone(),
+                        })),
                         api_models::payments::BankRedirectData::Interac { email, country } => {
                             PaymentDetails::BankRedirect(Box::new(BankRedirectionPMData {
                                 payment_brand: PaymentBrand::InteracOnline,
