@@ -101,6 +101,13 @@ pub struct DummyConnector {
     pub payment_ttl: i64,
     pub payment_duration: u64,
     pub payment_tolerance: u64,
+    pub payment_retrieve_duration: u64,
+    pub payment_retrieve_tolerance: u64,
+    pub refund_ttl: i64,
+    pub refund_duration: u64,
+    pub refund_tolerance: u64,
+    pub refund_retrieve_duration: u64,
+    pub refund_retrieve_tolerance: u64,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
