@@ -1,9 +1,9 @@
 use std::env;
 
 use router::types::ConnectorAuthType;
-use serde::Deserialize;
+use serde::{Serialize, Deserialize};
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ConnectorAuthentication {
     pub aci: Option<BodyKey>,
     pub adyen: Option<BodyKey>,
@@ -63,7 +63,7 @@ impl ConnectorAuthentication {
     }
 }
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct HeaderKey {
     pub api_key: String,
 }
@@ -76,7 +76,7 @@ impl From<HeaderKey> for ConnectorAuthType {
     }
 }
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct BodyKey {
     pub api_key: String,
     pub key1: String,
@@ -91,7 +91,7 @@ impl From<BodyKey> for ConnectorAuthType {
     }
 }
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct SignatureKey {
     pub api_key: String,
     pub key1: String,
@@ -108,7 +108,7 @@ impl From<SignatureKey> for ConnectorAuthType {
     }
 }
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct MultiAuthKey {
     pub api_key: String,
     pub key1: String,
