@@ -170,6 +170,7 @@ async fn should_fail_payment_for_invalid_exp_month() {
         x.message,
         r#"Declined - One or more fields in the request contains invalid data"#,
     );
+    assert_eq!(x.reason,Some("paymentInformation.card.expirationMonth : INVALID_DATA, paymentInformation.card.expirationMonth : INVALID_DATA".to_string()))
 }
 #[actix_web::test]
 async fn should_fail_payment_for_invalid_exp_year() {
@@ -209,6 +210,7 @@ async fn should_fail_payment_for_invalid_card_cvc() {
         x.message,
         r#"Declined - One or more fields in the request contains invalid data"#,
     );
+    assert_eq!(x.reason, Some("paymentInformation.card.securityCode : INVALID_DATA, paymentInformation.card.securityCode : INVALID_DATA".to_string()));
 }
 // Voids a payment using automatic capture flow (Non 3DS).
 #[actix_web::test]
@@ -361,3 +363,19 @@ async fn should_sync_refund() {
         enums::RefundStatus::Success,
     );
 }
+
+#[actix_web::test]
+#[ignore = "refunds tests are ignored for this connector becuase it takes one day for a payment to be settled."]
+async fn should_sync_manually_captured_refund() {}
+
+#[actix_web::test]
+#[ignore = "refunds tests are ignored for this connector becuase it takes one day for a payment to be settled."]
+async fn should_refund_auto_captured_payment() {}
+
+#[actix_web::test]
+#[ignore = "refunds tests are ignored for this connector becuase it takes one day for a payment to be settled."]
+async fn should_refund_succeeded_payment_multiple_times() {}
+
+#[actix_web::test]
+#[ignore = "refunds tests are ignored for this connector becuase it takes one day for a payment to be settled."]
+async fn should_fail_for_refund_amount_higher_than_payment_amount() {}

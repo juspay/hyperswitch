@@ -93,7 +93,7 @@ impl ConnectorCommon for Cybersource {
             .response
             .parse_struct("Cybersource ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        let details = response.details.map_or(vec![], |details| details);
+        let details = response.details.unwrap_or(vec![]);
         let mut connector_reason = String::new();
         for det in details.iter() {
             if connector_reason.is_empty() {
