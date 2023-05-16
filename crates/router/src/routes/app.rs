@@ -465,6 +465,6 @@ impl Cache {
     pub fn server(state: AppState) -> Scope {
         web::scope("/cache")
             .app_data(web::Data::new(state))
-            .service(web::resource("/invalidate/{key}").route(web::post().to(invalidate)))
+            .service(web::resource("/remove/{key}").route(web::post().to(remove)))
     }
 }

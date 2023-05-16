@@ -3,7 +3,7 @@ use common_utils::errors::CustomResult;
 use super::errors;
 use crate::{cache::CONFIG_CACHE, db::StorageInterface, services};
 
-pub async fn invalidate(
+pub async fn remove(
     store: &dyn StorageInterface,
     key: &str,
 ) -> CustomResult<services::api::ApplicationResponse<serde_json::Value>, errors::ApiErrorResponse> {

@@ -8,7 +8,7 @@ use crate::{
 };
 
 #[instrument(skip_all)]
-pub async fn invalidate(
+pub async fn remove(
     state: web::Data<AppState>,
     req: HttpRequest,
     key: web::Path<String>,
@@ -22,7 +22,7 @@ pub async fn invalidate(
         state.get_ref(),
         &req,
         &key,
-        |state, _, key| cache::invalidate(&*state.store, key),
+        |state, _, key| cache::remove(&*state.store, key),
         &auth::AdminApiAuth,
     )
     .await

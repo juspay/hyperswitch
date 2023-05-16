@@ -8,7 +8,7 @@ use router::{
 mod utils;
 
 #[actix_web::test]
-async fn invalidate_cache_success() {
+async fn remove_cache_success() {
     // Arrange
     utils::setup().await;
     let (tx, _) = tokio::sync::oneshot::channel();
@@ -32,7 +32,7 @@ async fn invalidate_cache_success() {
     // Act
     let mut response = client
         .post(format!(
-            "http://127.0.0.1:8080/cache/invalidate/{cache_key}"
+            "http://127.0.0.1:8080/cache/remove/{cache_key}"
         ))
         .insert_header(api_key)
         .send()
@@ -41,13 +41,13 @@ async fn invalidate_cache_success() {
 
     // Assert
     let response_body = response.body().await;
-    println!("invalidate Cache: {response:?} : {response_body:?}");
+    println!("remove Cache: {response:?} : {response_body:?}");
     assert_eq!(response.status(), awc::http::StatusCode::OK);
     assert!(cache::CONFIG_CACHE.get(&cache_key).is_none());
 }
 
 #[actix_web::test]
-async fn invalidate_cache_failure() {
+async fn remove_cache_failure() {
     // Arrange
     utils::setup().await;
     let cache_key = "cacheKey".to_string();
@@ -57,7 +57,7 @@ async fn invalidate_cache_failure() {
     // Act
     let mut response = client
         .post(format!(
-            "http://127.0.0.1:8080/cache/invalidate/{cache_key}"
+            "http://127.0.0.1:8080/cache/remove/{cache_key}"
         ))
         .insert_header(api_key)
         .send()
@@ -66,6 +66,6 @@ async fn invalidate_cache_failure() {
 
     // Assert
     let response_body = response.body().await;
-    println!("invalidate Cache: {response:?} : {response_body:?}");
+    println!("remove Cache: {response:?} : {response_body:?}");
     assert_eq!(response.status(), awc::http::StatusCode::NOT_FOUND);
 }
