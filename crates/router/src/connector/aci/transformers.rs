@@ -236,21 +236,22 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for AciPaymentsRequest {
                             shopper_result_url: item.request.router_return_url.clone(),
                         }))
                     }
-                    api_models::payments::BankRedirectData::Przelewy24 { email } => {
-                        PaymentDetails::BankRedirect(Box::new(BankRedirectionPMData {
-                            payment_brand: PaymentBrand::Przelewy,
-                            bank_account_country: None,
-                            bank_account_bank_name: None,
-                            bank_account_bic: None,
-                            bank_account_iban: None,
-                            billing_country: None,
-                            merchant_customer_id: None,
-                            merchant_transaction_id: None,
-                            customer_email: Some(email.to_owned()),
 
-                            shopper_result_url: item.request.router_return_url.clone(),
-                        }))
-                    }
+                    api_models::payments::BankRedirectData::Przelewy24 {
+                        billing_details, ..
+                    } => PaymentDetails::BankRedirect(Box::new(BankRedirectionPMData {
+                        payment_brand: PaymentBrand::Przelewy,
+                        bank_account_country: None,
+                        bank_account_bank_name: None,
+                        bank_account_bic: None,
+                        bank_account_iban: None,
+                        billing_country: None,
+                        merchant_customer_id: None,
+                        merchant_transaction_id: None,
+                        customer_email: billing_details.email.clone(),
+                        shopper_result_url: item.request.router_return_url.clone(),
+                    })),
+
                     api_models::payments::BankRedirectData::Interac { email, country } => {
                         PaymentDetails::BankRedirect(Box::new(BankRedirectionPMData {
                             payment_brand: PaymentBrand::InteracOnline,
@@ -265,6 +266,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for AciPaymentsRequest {
                             shopper_result_url: item.request.router_return_url.clone(),
                         }))
                     }
+
                     api_models::payments::BankRedirectData::Trustly { country } => {
                         PaymentDetails::BankRedirect(Box::new(BankRedirectionPMData {
                             payment_brand: PaymentBrand::Trustly,
@@ -285,11 +287,13 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for AciPaymentsRequest {
                             shopper_result_url: item.request.router_return_url.clone(),
                         }))
                     }
+
                     _ => Err(errors::ConnectorError::NotImplemented(
                         "Payment method".to_string(),
                     ))?,
                 }
             }
+
             api::PaymentMethodData::Crypto(_)
             | api::PaymentMethodData::BankDebit(_)
             | api::PaymentMethodData::MandatePayment => {
