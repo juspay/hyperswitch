@@ -35,7 +35,7 @@ mod tests {
 
         let payment_id = Uuid::new_v4().to_string();
         let current_time = common_utils::date_time::now();
-        let connector = types::Connector::DummyConnector.to_string();
+        let connector = types::Connector::DummyConnector1.to_string();
         let payment_attempt = PaymentAttemptNew {
             payment_id: payment_id.clone(),
             connector: Some(connector),
@@ -67,7 +67,7 @@ mod tests {
         let payment_id = Uuid::new_v4().to_string();
         let attempt_id = Uuid::new_v4().to_string();
         let merchant_id = Uuid::new_v4().to_string();
-        let connector = types::Connector::DummyConnector.to_string();
+        let connector = types::Connector::DummyConnector1.to_string();
 
         let payment_attempt = PaymentAttemptNew {
             payment_id: payment_id.clone(),
@@ -110,7 +110,7 @@ mod tests {
         let tx: oneshot::Sender<()> = oneshot::channel().0;
         let state = routes::AppState::with_storage(conf, StorageImpl::PostgresqlTest, tx).await;
         let current_time = common_utils::date_time::now();
-        let connector = types::Connector::DummyConnector.to_string();
+        let connector = types::Connector::DummyConnector1.to_string();
 
         let payment_attempt = PaymentAttemptNew {
             payment_id: uuid.clone(),
