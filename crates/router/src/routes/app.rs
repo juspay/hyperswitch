@@ -445,6 +445,10 @@ impl Disputes {
                     .route(web::post().to(submit_dispute_evidence))
                     .route(web::put().to(attach_dispute_evidence)),
             )
+            .service(
+                web::resource("/evidence/{dispute_id}")
+                    .route(web::get().to(retrieve_dispute_evidence)),
+            )
             .service(web::resource("/{dispute_id}").route(web::get().to(retrieve_dispute)))
     }
 }

@@ -73,6 +73,7 @@ cards = [
     "multisafepay",
     "nexinets",
     "nmi",
+    "noon",
     "nuvei",
     "opennode",
     "payeezy",
@@ -123,6 +124,7 @@ mollie.base_url = "https://api.mollie.com/v2/"
 multisafepay.base_url = "https://testapi.multisafepay.com/"
 nexinets.base_url = "https://apitest.payengine.de/v1"
 nmi.base_url = "https://secure.nmi.com/"
+noon.base_url = "https://api-test.noonpayments.com/"
 nuvei.base_url = "https://ppp-test.nuvei.com/"
 opennode.base_url = "https://dev-api.opennode.com"
 payeezy.base_url = "https://api-cert.payeezy.com/"
@@ -237,7 +239,7 @@ debit = { currency = "USD" }
 
 [tokenization]
 stripe = { long_lived_token = false, payment_method = "wallet", payment_method_type = { type = "disable_only", list = "google_pay" } }
-checkout = { long_lived_token = false, payment_method = "wallet"}
+checkout = { long_lived_token = false, payment_method = "wallet" }
 
 [connector_customer]
 connector_list = "bluesnap,stripe"
