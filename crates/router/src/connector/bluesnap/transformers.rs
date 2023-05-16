@@ -66,10 +66,10 @@ pub struct BluesnapWallet {
     encoded_payment_token: String,
 }
 
-#[derive(Debug, Serialize, Eq, PartialEq)]
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BluesnapGooglePayObject {
-    payment_method_data: api_models::payments::GooglePayWalletData,
+    payment_method_data: utils::GooglePayWalletData,
 }
 
 #[derive(Debug, Serialize, Eq, PartialEq)]
@@ -163,7 +163,9 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BluesnapPaymentsRequest {
                 api_models::payments::WalletData::GooglePay(payment_method_data) => {
                     let gpay_object = Encode::<BluesnapGooglePayObject>::encode_to_string_of_json(
                         &BluesnapGooglePayObject {
-                            payment_method_data,
+                            payment_method_data: utils::GooglePayWalletData::from(
+                                payment_method_data,
+                            ),
                         },
                     )
                     .change_context(errors::ConnectorError::RequestEncodingFailed)?;

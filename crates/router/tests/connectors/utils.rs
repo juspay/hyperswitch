@@ -37,6 +37,8 @@ pub struct PaymentInfo {
 
 #[async_trait]
 pub trait ConnectorActions: Connector {
+    /// For initiating payments when `CaptureMethod` is set to `Manual`
+    /// This doesn't complete the transaction, `PaymentsCapture` needs to be done manually
     async fn authorize_payment(
         &self,
         payment_data: Option<types::PaymentsAuthorizeData>,
@@ -62,6 +64,8 @@ pub trait ConnectorActions: Connector {
         call_connector(request, integration).await
     }
 
+    /// For initiating payments when `CaptureMethod` is set to `Automatic`
+    /// This does complete the transaction without user intervention to Capture the payment
     async fn make_payment(
         &self,
         payment_data: Option<types::PaymentsAuthorizeData>,
@@ -197,14 +201,14 @@ pub trait ConnectorActions: Connector {
     async fn refund_payment(
         &self,
         transaction_id: String,
-        payment_data: Option<types::RefundsData>,
+        refund_data: Option<types::RefundsData>,
         payment_info: Option<PaymentInfo>,
     ) -> Result<types::RefundExecuteRouterData, Report<ConnectorError>> {
         let integration = self.get_data().connector.get_connector_integration();
         let request = self.generate_data(
             types::RefundsData {
                 connector_transaction_id: transaction_id,
-                ..payment_data.unwrap_or(PaymentRefundType::default().0)
+                ..refund_data.unwrap_or(PaymentRefundType::default().0)
             },
             payment_info,
         );

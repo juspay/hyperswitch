@@ -176,6 +176,12 @@ pub enum Flow {
     RetrieveFile,
     /// Dispute Evidence submission flow
     DisputesEvidenceSubmit,
+    /// Create Config Key flow
+    CreateConfigKey,
+    /// Attach Dispute Evidence flow
+    AttachDisputeEvidence,
+    /// Retrieve Dispute Evidence flow
+    RetrieveDisputeEvidence,
 }
 
 ///

@@ -3,8 +3,10 @@ mod transformers;
 use std::fmt::Debug;
 
 use error_stack::{IntoReport, ResultExt};
+use storage_models::enums;
 use transformers as dummyconnector;
 
+use super::utils::RefundsRequestData;
 use crate::{
     configs::settings,
     core::errors::{self, CustomResult},
@@ -19,32 +21,33 @@ use crate::{
 };
 
 #[derive(Debug, Clone)]
-pub struct DummyConnector;
+pub struct DummyConnector<const T: u8>;
 
-impl api::Payment for DummyConnector {}
-impl api::PaymentSession for DummyConnector {}
-impl api::ConnectorAccessToken for DummyConnector {}
-impl api::PreVerify for DummyConnector {}
-impl api::PaymentAuthorize for DummyConnector {}
-impl api::PaymentSync for DummyConnector {}
-impl api::PaymentCapture for DummyConnector {}
-impl api::PaymentVoid for DummyConnector {}
-impl api::Refund for DummyConnector {}
-impl api::RefundExecute for DummyConnector {}
-impl api::RefundSync for DummyConnector {}
-impl api::PaymentToken for DummyConnector {}
+impl<const T: u8> api::Payment for DummyConnector<T> {}
+impl<const T: u8> api::PaymentSession for DummyConnector<T> {}
+impl<const T: u8> api::ConnectorAccessToken for DummyConnector<T> {}
+impl<const T: u8> api::PreVerify for DummyConnector<T> {}
+impl<const T: u8> api::PaymentAuthorize for DummyConnector<T> {}
+impl<const T: u8> api::PaymentSync for DummyConnector<T> {}
+impl<const T: u8> api::PaymentCapture for DummyConnector<T> {}
+impl<const T: u8> api::PaymentVoid for DummyConnector<T> {}
+impl<const T: u8> api::Refund for DummyConnector<T> {}
+impl<const T: u8> api::RefundExecute for DummyConnector<T> {}
+impl<const T: u8> api::RefundSync for DummyConnector<T> {}
+impl<const T: u8> api::PaymentToken for DummyConnector<T> {}
 
-impl
+impl<const T: u8>
     ConnectorIntegration<
         api::PaymentMethodToken,
         types::PaymentMethodTokenizationData,
         types::PaymentsResponseData,
-    > for DummyConnector
+    > for DummyConnector<T>
 {
     // Not Implemented (R)
 }
 
-impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for DummyConnector
+impl<const T: u8, Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response>
+    for DummyConnector<T>
 where
     Self: ConnectorIntegration<Flow, Request, Response>,
 {
@@ -63,9 +66,14 @@ where
     }
 }
 
-impl ConnectorCommon for DummyConnector {
+impl<const T: u8> ConnectorCommon for DummyConnector<T> {
     fn id(&self) -> &'static str {
-        "dummyconnector"
+        match T {
+            1 => "dummyconnector1",
+            2 => "dummyconnector2",
+            3 => "dummyconnector3",
+            _ => "dummyconnector",
+        }
     }
 
     fn common_get_content_type(&self) -> &'static str {
@@ -96,31 +104,35 @@ impl ConnectorCommon for DummyConnector {
 
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code: response.code,
-            message: response.message,
-            reason: response.reason,
+            code: response.error.code,
+            message: response.error.message,
+            reason: response.error.reason,
         })
     }
 }
 
-impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::PaymentsResponseData>
-    for DummyConnector
+impl<const T: u8>
+    ConnectorIntegration<api::Session, types::PaymentsSessionData, types::PaymentsResponseData>
+    for DummyConnector<T>
 {
     //TODO: implement sessions flow
 }
 
-impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, types::AccessToken>
-    for DummyConnector
+impl<const T: u8>
+    ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, types::AccessToken>
+    for DummyConnector<T>
 {
 }
 
-impl ConnectorIntegration<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>
-    for DummyConnector
+impl<const T: u8>
+    ConnectorIntegration<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>
+    for DummyConnector<T>
 {
 }
 
-impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::PaymentsResponseData>
-    for DummyConnector
+impl<const T: u8>
+    ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::PaymentsResponseData>
+    for DummyConnector<T>
 {
     fn get_headers(
         &self,
@@ -136,10 +148,17 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
 
     fn get_url(
         &self,
-        _req: &types::PaymentsAuthorizeRouterData,
-        _connectors: &settings::Connectors,
+        req: &types::PaymentsAuthorizeRouterData,
+        connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        match req.payment_method {
+            enums::PaymentMethod::Card => Ok(format!("{}/payment", self.base_url(connectors))),
+            _ => Err(error_stack::report!(errors::ConnectorError::NotSupported {
+                message: format!("The payment method {} is not supported", req.payment_method),
+                connector: "dummyconnector",
+                payment_experience: api::enums::PaymentExperience::InvokeSdkClient.to_string(),
+            })),
+        }
     }
 
     fn get_request_body(
@@ -180,7 +199,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         data: &types::PaymentsAuthorizeRouterData,
         res: Response,
     ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
-        let response: dummyconnector::DummyConnectorPaymentsResponse = res
+        let response: dummyconnector::PaymentsResponse = res
             .response
             .parse_struct("DummyConnector PaymentsAuthorizeResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
@@ -200,8 +219,9 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     }
 }
 
-impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>
-    for DummyConnector
+impl<const T: u8>
+    ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>
+    for DummyConnector<T>
 {
     fn get_headers(
         &self,
@@ -217,10 +237,23 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
 
     fn get_url(
         &self,
-        _req: &types::PaymentsSyncRouterData,
-        _connectors: &settings::Connectors,
+        req: &types::PaymentsSyncRouterData,
+        connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        match req
+            .request
+            .connector_transaction_id
+            .get_connector_transaction_id()
+        {
+            Ok(transaction_id) => Ok(format!(
+                "{}/payments/{}",
+                self.base_url(connectors),
+                transaction_id
+            )),
+            Err(_) => Err(error_stack::report!(
+                errors::ConnectorError::MissingConnectorTransactionID
+            )),
+        }
     }
 
     fn build_request(
@@ -243,7 +276,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         data: &types::PaymentsSyncRouterData,
         res: Response,
     ) -> CustomResult<types::PaymentsSyncRouterData, errors::ConnectorError> {
-        let response: dummyconnector::DummyConnectorPaymentsResponse = res
+        let response: dummyconnector::PaymentsResponse = res
             .response
             .parse_struct("dummyconnector PaymentsSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
@@ -263,8 +296,9 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
     }
 }
 
-impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::PaymentsResponseData>
-    for DummyConnector
+impl<const T: u8>
+    ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::PaymentsResponseData>
+    for DummyConnector<T>
 {
     fn get_headers(
         &self,
@@ -315,7 +349,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         data: &types::PaymentsCaptureRouterData,
         res: Response,
     ) -> CustomResult<types::PaymentsCaptureRouterData, errors::ConnectorError> {
-        let response: dummyconnector::DummyConnectorPaymentsResponse = res
+        let response: dummyconnector::PaymentsResponse = res
             .response
             .parse_struct("DummyConnector PaymentsCaptureResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
@@ -335,13 +369,14 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
     }
 }
 
-impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsResponseData>
-    for DummyConnector
+impl<const T: u8>
+    ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsResponseData>
+    for DummyConnector<T>
 {
 }
 
-impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsResponseData>
-    for DummyConnector
+impl<const T: u8> ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsResponseData>
+    for DummyConnector<T>
 {
     fn get_headers(
         &self,
@@ -357,10 +392,14 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
 
     fn get_url(
         &self,
-        _req: &types::RefundsRouterData<api::Execute>,
-        _connectors: &settings::Connectors,
+        req: &types::RefundsRouterData<api::Execute>,
+        connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        Ok(format!(
+            "{}/{}/refund",
+            self.base_url(connectors),
+            req.request.connector_transaction_id
+        ))
     }
 
     fn get_request_body(
@@ -418,8 +457,8 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
     }
 }
 
-impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponseData>
-    for DummyConnector
+impl<const T: u8> ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponseData>
+    for DummyConnector<T>
 {
     fn get_headers(
         &self,
@@ -435,10 +474,15 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
 
     fn get_url(
         &self,
-        _req: &types::RefundSyncRouterData,
-        _connectors: &settings::Connectors,
+        req: &types::RefundSyncRouterData,
+        connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        let refund_id = req.request.get_connector_refund_id()?;
+        Ok(format!(
+            "{}/refunds/{}",
+            self.base_url(connectors),
+            refund_id
+        ))
     }
 
     fn build_request(
@@ -483,7 +527,7 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
 }
 
 #[async_trait::async_trait]
-impl api::IncomingWebhook for DummyConnector {
+impl<const T: u8> api::IncomingWebhook for DummyConnector<T> {
     fn get_webhook_object_reference_id(
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,

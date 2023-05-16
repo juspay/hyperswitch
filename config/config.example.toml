@@ -62,7 +62,7 @@ file_name = "debug.log" # base name for log files.
 # defaults to "WARN"
 level = "WARN"
 # sets the log level for one or more crates
-filtering_directive = "WARN,router=INFO,reqwest=INFO" 
+filtering_directive = "WARN,router=INFO,reqwest=INFO"
 #                      ^^^^        ^^^^---------^^^^-- sets the log level for the
 #                      |                               router and reqwest crates to INFO.
 #                      |
@@ -77,7 +77,7 @@ log_format = "default" # Log format. "default" or "json"
 # defaults to "WARN"
 level = "DEBUG"
 # sets the log level for one or more crates
-filtering_directive = "WARN,router=INFO,reqwest=INFO" 
+filtering_directive = "WARN,router=INFO,reqwest=INFO"
 #                      ^^^^        ^^^^---------^^^^-- sets the log level for the
 #                      |                               router and reqwest crates to INFO.
 #                      |
@@ -150,6 +150,7 @@ airwallex.base_url = "https://api-demo.airwallex.com/"
 applepay.base_url = "https://apple-pay-gateway.apple.com/"
 authorizedotnet.base_url = "https://apitest.authorize.net/xml/v1/request.api"
 bambora.base_url = "https://api.na.bambora.com"
+bitpay.base_url = "https://test.bitpay.com"
 bluesnap.base_url = "https://sandbox.bluesnap.com/"
 braintree.base_url = "https://api.sandbox.braintreegateway.com/"
 checkout.base_url = "https://api.sandbox.checkout.com/"
@@ -165,10 +166,12 @@ klarna.base_url = "https://api-na.playground.klarna.com/"
 mollie.base_url = "https://api.mollie.com/v2/"
 multisafepay.base_url = "https://testapi.multisafepay.com/"
 nexinets.base_url = "https://apitest.payengine.de/v1"
+nmi.base_url = "https://secure.nmi.com/"
+noon.base_url = "https://api-test.noonpayments.com/"
 nuvei.base_url = "https://ppp-test.nuvei.com/"
 opennode.base_url = "https://dev-api.opennode.com"
 payeezy.base_url = "https://api-cert.payeezy.com/"
-paypal.base_url = "https://www.sandbox.paypal.com/" 
+paypal.base_url = "https://www.sandbox.paypal.com/"
 payu.base_url = "https://secure.snd.payu.com/"
 rapyd.base_url = "https://sandboxapi.rapyd.net"
 shift4.base_url = "https://api.shift4.com/"
@@ -238,3 +241,15 @@ paypal = { currency = "USD,INR", country = "US" }
 [kms]
 key_id = "" # The AWS key ID used by the KMS SDK for decrypting data.
 region = "" # The AWS region used by the KMS SDK for decrypting data.
+
+[dummy_connector]
+payment_ttl = 172800             # Time to live for dummy connector payment in redis
+payment_duration = 1000          # Fake delay duration for dummy connector payment
+payment_tolerance = 100          # Fake delay tolerance for dummy connector payment
+payment_retrieve_duration = 500  # Fake delay duration for dummy connector payment sync
+payment_retrieve_tolerance = 100 # Fake delay tolerance for dummy connector payment sync
+refund_ttl = 172800              # Time to live for dummy connector refund in redis
+refund_duration = 1000           # Fake delay duration for dummy connector refund
+refund_tolerance = 100           # Fake delay tolerance for dummy connector refund
+refund_retrieve_duration = 500   # Fake delay duration for dummy connector refund sync
+refund_retrieve_tolerance = 100  # Fake delay tolerance for dummy connector refund sync

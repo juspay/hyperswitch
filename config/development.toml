@@ -57,6 +57,7 @@ cards = [
     "airwallex",
     "authorizedotnet",
     "bambora",
+    "bitpay",
     "bluesnap",
     "braintree",
     "checkout",
@@ -71,6 +72,8 @@ cards = [
     "mollie",
     "multisafepay",
     "nexinets",
+    "nmi",
+    "noon",
     "nuvei",
     "opennode",
     "payeezy",
@@ -104,6 +107,7 @@ airwallex.base_url = "https://api-demo.airwallex.com/"
 applepay.base_url = "https://apple-pay-gateway.apple.com/"
 authorizedotnet.base_url = "https://apitest.authorize.net/xml/v1/request.api"
 bambora.base_url = "https://api.na.bambora.com"
+bitpay.base_url = "https://test.bitpay.com"
 bluesnap.base_url = "https://sandbox.bluesnap.com/"
 braintree.base_url = "https://api.sandbox.braintreegateway.com/"
 checkout.base_url = "https://api.sandbox.checkout.com/"
@@ -119,6 +123,8 @@ klarna.base_url = "https://api-na.playground.klarna.com/"
 mollie.base_url = "https://api.mollie.com/v2/"
 multisafepay.base_url = "https://testapi.multisafepay.com/"
 nexinets.base_url = "https://apitest.payengine.de/v1"
+nmi.base_url = "https://secure.nmi.com/"
+noon.base_url = "https://api-test.noonpayments.com/"
 nuvei.base_url = "https://ppp-test.nuvei.com/"
 opennode.base_url = "https://dev-api.opennode.com"
 payeezy.base_url = "https://api-cert.payeezy.com/"
@@ -228,7 +234,7 @@ debit = { currency = "USD" }
 
 [tokenization]
 stripe = { long_lived_token = false, payment_method = "wallet", payment_method_type = { type = "disable_only", list = "google_pay" } }
-checkout = { long_lived_token = false, payment_method = "wallet"}
+checkout = { long_lived_token = false, payment_method = "wallet" }
 
 [connector_customer]
 connector_list = "bluesnap,stripe"
@@ -237,3 +243,10 @@ connector_list = "bluesnap,stripe"
 payment_ttl = 172800
 payment_duration = 1000
 payment_tolerance = 100
+payment_retrieve_duration = 500
+payment_retrieve_tolerance = 100
+refund_ttl = 172800
+refund_duration = 1000
+refund_tolerance = 100
+refund_retrieve_duration = 500
+refund_retrieve_tolerance = 100
