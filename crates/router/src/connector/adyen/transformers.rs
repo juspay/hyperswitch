@@ -282,6 +282,7 @@ pub enum AdyenPaymentMethod<'a> {
     AchDirectDebit(Box<AchDirectDebitData>),
     #[serde(rename = "sepadirectdebit")]
     SepaDirectDebit(Box<SepaDirectDebitData>),
+    BacsDirectDebit(Box<BacsDirectDebitData>),
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -301,6 +302,16 @@ pub struct SepaDirectDebitData {
     owner_name: Secret<String>,
     #[serde(rename = "sepa.ibanNumber")]
     iban_number: Secret<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BacsDirectDebitData {
+    #[serde(rename = "type")]
+    payment_type: PaymentType,
+    bank_account_number: Secret<String>,
+    bank_location_id: Secret<String>,
+    holder_name: Secret<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -676,6 +687,8 @@ pub enum PaymentType {
     #[serde(rename = "ach")]
     AchDirectDebit,
     SepaDirectDebit,
+    #[serde(rename = "directdebit_GB")]
+    BacsDirectDebit,
 }
 
 pub struct AdyenTestBankNames<'a>(&'a str);
@@ -980,6 +993,23 @@ impl<'a> TryFrom<&api_models::payments::BankDebitData> for AdyenPaymentMethod<'a
                         },
                     )?,
                     iban_number: iban.clone(),
+                },
+            ))),
+            payments::BankDebitData::BacsBankDebit {
+                account_number,
+                sort_code,
+                bank_account_holder_name,
+                ..
+            } => Ok(AdyenPaymentMethod::BacsDirectDebit(Box::new(
+                BacsDirectDebitData {
+                    payment_type: PaymentType::BacsDirectDebit,
+                    bank_account_number: account_number.clone(),
+                    bank_location_id: sort_code.clone(),
+                    holder_name: bank_account_holder_name.clone().ok_or(
+                        errors::ConnectorError::MissingRequiredField {
+                            field_name: "bank_account_holder_name",
+                        },
+                    )?,
                 },
             ))),
             _ => Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into()),
