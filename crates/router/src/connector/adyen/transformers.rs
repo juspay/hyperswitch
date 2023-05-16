@@ -1116,14 +1116,35 @@ impl<'a> TryFrom<&api_models::payments::BankRedirectData> for AdyenPaymentMethod
                 card_exp_month,
                 card_exp_year,
                 card_holder_name,
+                ..
             } => Ok(AdyenPaymentMethod::BancontactCard(Box::new(
                 BancontactCardData {
                     payment_type: PaymentType::Scheme,
                     brand: "bcmc".to_string(),
-                    number: card_number.clone(),
-                    expiry_month: card_exp_month.clone(),
-                    expiry_year: card_exp_year.clone(),
-                    holder_name: card_holder_name.clone(),
+                    number: card_number
+                        .as_ref()
+                        .ok_or(errors::ConnectorError::MissingRequiredField {
+                            field_name: "bancontact_card.card_number",
+                        })?
+                        .clone(),
+                    expiry_month: card_exp_month
+                        .as_ref()
+                        .ok_or(errors::ConnectorError::MissingRequiredField {
+                            field_name: "bancontact_card.card_exp_month",
+                        })?
+                        .clone(),
+                    expiry_year: card_exp_year
+                        .as_ref()
+                        .ok_or(errors::ConnectorError::MissingRequiredField {
+                            field_name: "bancontact_card.card_exp_year",
+                        })?
+                        .clone(),
+                    holder_name: card_holder_name
+                        .as_ref()
+                        .ok_or(errors::ConnectorError::MissingRequiredField {
+                            field_name: "bancontact_card.card_holder_name",
+                        })?
+                        .clone(),
                 },
             ))),
             api_models::payments::BankRedirectData::Blik { blik_code } => {
