@@ -1,10 +1,14 @@
+use api_models::disputes::EvidenceType;
 use common_utils::errors::CustomResult;
+use error_stack::ResultExt;
 
 use crate::{
     core::{errors, files::helpers::retrieve_file_and_provider_file_id_from_file_id},
     routes::AppState,
     types::{
         api::{self, DisputeEvidence},
+        storage,
+        transformers::ForeignFrom,
         SubmitEvidenceRequestData,
     },
 };
@@ -185,4 +189,147 @@ pub fn update_dispute_evidence(
             ..dispute_evidence
         },
     }
+}
+
+pub async fn get_dispute_evidence_block(
+    state: &AppState,
+    merchant_account: &storage::MerchantAccount,
+    evidence_type: EvidenceType,
+    file_id: String,
+) -> CustomResult<api_models::disputes::DisputeEvidenceBlock, errors::ApiErrorResponse> {
+    let file_metadata = state
+        .store
+        .find_file_metadata_by_merchant_id_file_id(&merchant_account.merchant_id, &file_id)
+        .await
+        .change_context(errors::ApiErrorResponse::FileNotFound)
+        .attach_printable("Unable to retrieve file_metadata")?;
+    let file_metadata_response =
+        api_models::files::FileMetadataResponse::foreign_from(file_metadata);
+    Ok(api_models::disputes::DisputeEvidenceBlock {
+        evidence_type,
+        file_metadata_response,
+    })
+}
+
+pub async fn get_dispute_evidence_vec(
+    state: &AppState,
+    merchant_account: storage::MerchantAccount,
+    dispute_evidence: DisputeEvidence,
+) -> CustomResult<Vec<api_models::disputes::DisputeEvidenceBlock>, errors::ApiErrorResponse> {
+    let mut dispute_evidence_blocks: Vec<api_models::disputes::DisputeEvidenceBlock> = vec![];
+    if let Some(cancellation_policy_block) = dispute_evidence.cancellation_policy {
+        dispute_evidence_blocks.push(
+            get_dispute_evidence_block(
+                state,
+                &merchant_account,
+                EvidenceType::CancellationPolicy,
+                cancellation_policy_block,
+            )
+            .await?,
+        )
+    }
+    if let Some(customer_communication_block) = dispute_evidence.customer_communication {
+        dispute_evidence_blocks.push(
+            get_dispute_evidence_block(
+                state,
+                &merchant_account,
+                EvidenceType::CustomerCommunication,
+                customer_communication_block,
+            )
+            .await?,
+        )
+    }
+    if let Some(customer_signature_block) = dispute_evidence.customer_signature {
+        dispute_evidence_blocks.push(
+            get_dispute_evidence_block(
+                state,
+                &merchant_account,
+                EvidenceType::CustomerSignature,
+                customer_signature_block,
+            )
+            .await?,
+        )
+    }
+    if let Some(receipt_block) = dispute_evidence.receipt {
+        dispute_evidence_blocks.push(
+            get_dispute_evidence_block(
+                state,
+                &merchant_account,
+                EvidenceType::Receipt,
+                receipt_block,
+            )
+            .await?,
+        )
+    }
+    if let Some(refund_policy_block) = dispute_evidence.refund_policy {
+        dispute_evidence_blocks.push(
+            get_dispute_evidence_block(
+                state,
+                &merchant_account,
+                EvidenceType::RefundPolicy,
+                refund_policy_block,
+            )
+            .await?,
+        )
+    }
+    if let Some(service_documentation_block) = dispute_evidence.service_documentation {
+        dispute_evidence_blocks.push(
+            get_dispute_evidence_block(
+                state,
+                &merchant_account,
+                EvidenceType::ServiceDocumentation,
+                service_documentation_block,
+            )
+            .await?,
+        )
+    }
+    if let Some(shipping_documentation_block) = dispute_evidence.shipping_documentation {
+        dispute_evidence_blocks.push(
+            get_dispute_evidence_block(
+                state,
+                &merchant_account,
+                EvidenceType::ShippingDocumentation,
+                shipping_documentation_block,
+            )
+            .await?,
+        )
+    }
+    if let Some(invoice_showing_distinct_transactions_block) =
+        dispute_evidence.invoice_showing_distinct_transactions
+    {
+        dispute_evidence_blocks.push(
+            get_dispute_evidence_block(
+                state,
+                &merchant_account,
+                EvidenceType::InvoiceShowingDistinctTransactions,
+                invoice_showing_distinct_transactions_block,
+            )
+            .await?,
+        )
+    }
+    if let Some(recurring_transaction_agreement_block) =
+        dispute_evidence.recurring_transaction_agreement
+    {
+        dispute_evidence_blocks.push(
+            get_dispute_evidence_block(
+                state,
+                &merchant_account,
+                EvidenceType::RecurringTransactionAgreement,
+                recurring_transaction_agreement_block,
+            )
+            .await?,
+        )
+    }
+    if let Some(uncategorized_file_block) = dispute_evidence.uncategorized_file {
+        dispute_evidence_blocks.push(
+            get_dispute_evidence_block(
+                state,
+                &merchant_account,
+                EvidenceType::UncategorizedFile,
+                uncategorized_file_block,
+            )
+            .await?,
+        )
+    }
+    Ok(dispute_evidence_blocks)
 }
