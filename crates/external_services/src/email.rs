@@ -38,7 +38,7 @@ pub struct EmailSettings {
     /// The AWS region to send SES requests to.
     pub aws_region: String,
 
-    /// Base-url
+    /// Base-url used when adding links that should redirect to self
     pub base_url: String,
 }
 

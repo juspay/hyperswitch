@@ -246,7 +246,7 @@ region = "" # The AWS region used by the KMS SDK for decrypting data.
 [email]
 from_email = "notify@example.com" # Sender email
 aws_region = "" # AWS region used by AWS SES 
-base_url = "" # Base url to be sent in email
+base_url = "" # Base url used when adding links that should redirect to self
 
 [dummy_connector]
 payment_ttl = 172800             # Time to live for dummy connector payment in redis
