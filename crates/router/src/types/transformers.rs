@@ -562,7 +562,7 @@ impl ForeignTryFrom<storage_models::merchant_connector_account::MerchantConnecto
                     .parse_value("FrmConfigs")
                     .change_context(errors::ApiErrorResponse::InvalidDataFormat {
                         field_name: "frm_configs".to_string(),
-                        expected_format: "\"frm_configs\" : { \"frm_enabled_pms\" : [\"card\"], \"frm_enabled_pm_types\" : [\"credit\"], \"frm_enabled_gateways\" : [\"stripe\"], \"frm_action\": \"cancel_txn\", \"frm_preferred_flow_type\" : \"pre\" }".to_string(),
+                        expected_format: "\"frm_configs\" : { \"frm_enabled_pms\" : [\"card\"], \"frm_enabled_pm_types\" : [\"credit\"], \"frm_enabled_gateways\" : [\"stripe\"], \"frm_action\": \"take_action\", \"frm_preferred_flow_type\" : \"pre\" }".to_string(),
                     })?;
                 Some(configs_for_frm)
             }

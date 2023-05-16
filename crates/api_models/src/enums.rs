@@ -929,9 +929,8 @@ pub enum DisputeStatus {
 #[strum(serialize_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
 pub enum FrmAction {
-    CancelTxn,
-    AutoRefund,
-    ManualReview,
+    TakeAction,
+    DontTakeAction,
 }
 
 #[derive(

@@ -442,7 +442,7 @@ pub struct MerchantConnectorCreate {
             "frm_enabled_pms" : ["card"],
             "frm_enabled_pm_types" : ["credit"],
             "frm_enabled_gateways" : ["stripe"],
-            "frm_action": "cancel_txn",
+            "frm_action": "take_action",
             "frm_preferred_flow_type" : "pre"
         }
     ]))]
@@ -547,7 +547,7 @@ pub struct MerchantConnectorResponse {
             "frm_enabled_pms" : ["card"],
             "frm_enabled_pm_types" : ["credit"],
             "frm_enabled_gateways" : ["stripe"],
-            "frm_action": "cancel_txn",
+            "frm_action": "take_action",
             "frm_preferred_flow_type" : "pre"
         }
     ]))]
@@ -616,7 +616,7 @@ pub struct MerchantConnectorUpdate {
             "frm_enabled_pms" : ["card"],
             "frm_enabled_pm_types" : ["credit"],
             "frm_enabled_gateways" : ["stripe"],
-            "frm_action": "cancel_txn",
+            "frm_action": "take_action",
             "frm_preferred_flow_type" : "pre"
         }
     ]))]
