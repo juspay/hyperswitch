@@ -149,13 +149,13 @@ impl super::RedisConnectionPool {
 
     #[instrument(level = "DEBUG", skip(self))]
     pub async fn delete_key(&self, key: &str) -> CustomResult<(), errors::RedisError> {
-        let result : Result<DelReply, fred::error::RedisError> = self.pool.del(key).await;
+        let result: Result<DelReply, fred::error::RedisError> = self.pool.del(key).await;
         match result {
             Ok(_d) => Ok(()),
             Err(e) => match e.kind() {
                 fred::error::RedisErrorKind::NotFound => {
                     Err(errors::RedisError::NotFound).into_report()
-                },
+                }
                 _ => Err(errors::RedisError::DeleteFailed).into_report(),
             },
         }

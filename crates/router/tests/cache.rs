@@ -31,9 +31,7 @@ async fn remove_cache_success() {
 
     // Act
     let mut response = client
-        .post(format!(
-            "http://127.0.0.1:8080/cache/remove/{cache_key}"
-        ))
+        .post(format!("http://127.0.0.1:8080/cache/remove/{cache_key}"))
         .insert_header(api_key)
         .send()
         .await
@@ -56,9 +54,7 @@ async fn remove_cache_failure() {
 
     // Act
     let mut response = client
-        .post(format!(
-            "http://127.0.0.1:8080/cache/remove/{cache_key}"
-        ))
+        .post(format!("http://127.0.0.1:8080/cache/remove/{cache_key}"))
         .insert_header(api_key)
         .send()
         .await
