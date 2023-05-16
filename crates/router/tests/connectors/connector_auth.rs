@@ -20,7 +20,7 @@ pub(crate) struct ConnectorAuthentication {
     pub dummyconnector: Option<HeaderKey>,
     pub fiserv: Option<SignatureKey>,
     pub forte: Option<MultiAuthKey>,
-    pub globalpay: Option<BodyKey>,
+    pub globalpay: Option<HeaderKey>,
     pub iatapay: Option<SignatureKey>,
     pub mollie: Option<HeaderKey>,
     pub multisafepay: Option<HeaderKey>,
