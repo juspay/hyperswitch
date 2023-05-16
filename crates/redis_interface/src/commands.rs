@@ -26,7 +26,7 @@ use router_env::{instrument, logger, tracing};
 
 use crate::{
     errors,
-    types::{HsetnxReply, MsetnxReply, RedisEntryId, SetnxReply},
+    types::{DelReply, HsetnxReply, MsetnxReply, RedisEntryId, SetnxReply},
 };
 
 impl super::RedisConnectionPool {
@@ -149,10 +149,15 @@ impl super::RedisConnectionPool {
 
     #[instrument(level = "DEBUG", skip(self))]
     pub async fn delete_key(&self, key: &str) -> CustomResult<(), errors::RedisError> {
-        match self.pool.del(key).await {
-            Ok(0) | Ok(i32::MIN..=-1_i32) => Err(errors::RedisError::NotFound).into_report(),
-            Ok(1_i32..=i32::MAX) => Ok(()),
-            _ => Err(errors::RedisError::DeleteFailed).into_report(),
+        let result : Result<DelReply, fred::error::RedisError> = self.pool.del(key).await;
+        match result {
+            Ok(_d) => Ok(()),
+            Err(e) => match e.kind() {
+                fred::error::RedisErrorKind::NotFound => {
+                    Err(errors::RedisError::NotFound).into_report()
+                },
+                _ => Err(errors::RedisError::DeleteFailed).into_report(),
+            },
         }
     }
 
