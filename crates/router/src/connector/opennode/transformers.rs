@@ -97,7 +97,7 @@ impl<F: Flow, T>
         >,
     ) -> Result<Self, Self::Error> {
         let form_fields = HashMap::new();
-        let redirection_data = services::RedirectForm {
+        let redirection_data = services::RedirectForm::Form {
             endpoint: item.response.data.hosted_checkout_url.to_string(),
             method: services::Method::Get,
             form_fields,
@@ -110,6 +110,7 @@ impl<F: Flow, T>
                 redirection_data: Some(redirection_data),
                 mandate_reference: None,
                 connector_metadata: None,
+                network_txn_id: None,
             })
         } else {
             Ok(types::PaymentsResponseData::TransactionUnresolvedResponse {
@@ -224,7 +225,7 @@ fn get_crypto_specific_payment_data(
     let description = item.get_description()?;
     let auto_settle = true;
     let success_url = item.get_return_url()?;
-    let callback_url = item.request.get_webhook_url()?;
+    let callback_url = item.request.get_router_return_url()?;
 
     Ok(OpennodePaymentsRequest {
         amount,

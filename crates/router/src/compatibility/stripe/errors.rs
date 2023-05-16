@@ -88,8 +88,8 @@ pub enum StripeErrorCode {
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "resource_missing", message = "No such resource ID")]
     ResourceIdNotFound,
 
-    #[error(error_type = StripeErrorType::InvalidRequestError, code = "resource_missing", message = "No such merchant connector account")]
-    MerchantConnectorAccountNotFound,
+    #[error(error_type = StripeErrorType::InvalidRequestError, code = "resource_missing", message = "Merchant connector account with id '{id}' does not exist in our records")]
+    MerchantConnectorAccountNotFound { id: String },
 
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "resource_missing", message = "No such mandate")]
     MandateNotFound,
@@ -103,8 +103,8 @@ pub enum StripeErrorCode {
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "token_already_used", message = "duplicate merchant account")]
     DuplicateMerchantAccount,
 
-    #[error(error_type = StripeErrorType::InvalidRequestError, code = "token_already_used", message = "duplicate merchant_connector_account")]
-    DuplicateMerchantConnectorAccount,
+    #[error(error_type = StripeErrorType::InvalidRequestError, code = "token_already_used", message = "The merchant connector account with the specified connector_label '{connector_label}' already exists in our records")]
+    DuplicateMerchantConnectorAccount { connector_label: String },
 
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "token_already_used", message = "duplicate payment method")]
     DuplicatePaymentMethod,
@@ -182,6 +182,20 @@ pub enum StripeErrorCode {
     IncorrectConnectorNameGiven,
     #[error(error_type = StripeErrorType::HyperswitchError, code = "", message = "No such {object}: '{id}'")]
     ResourceMissing { object: String, id: String },
+    #[error(error_type = StripeErrorType::HyperswitchError, code = "", message = "File validation failed")]
+    FileValidationFailed,
+    #[error(error_type = StripeErrorType::HyperswitchError, code = "", message = "File not found in the request")]
+    MissingFile,
+    #[error(error_type = StripeErrorType::HyperswitchError, code = "", message = "File puropse not found in the request")]
+    MissingFilePurpose,
+    #[error(error_type = StripeErrorType::HyperswitchError, code = "", message = "File content type not found")]
+    MissingFileContentType,
+    #[error(error_type = StripeErrorType::HyperswitchError, code = "", message = "Dispute id not found in the request")]
+    MissingDisputeId,
+    #[error(error_type = StripeErrorType::HyperswitchError, code = "", message = "File does not exists in our records")]
+    FileNotFound,
+    #[error(error_type = StripeErrorType::HyperswitchError, code = "", message = "File not available")]
+    FileNotAvailable,
     // [#216]: https://github.com/juspay/hyperswitch/issues/216
     // Implement the remaining stripe error codes
 
@@ -386,7 +400,8 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
             errors::ApiErrorResponse::RefundNotPossible { connector } => Self::RefundFailed,
             errors::ApiErrorResponse::RefundFailed { data } => Self::RefundFailed, // Nothing at stripe to map
 
-            errors::ApiErrorResponse::InternalServerError => Self::InternalServerError, // not a stripe code
+            errors::ApiErrorResponse::MandateUpdateFailed
+            | errors::ApiErrorResponse::InternalServerError => Self::InternalServerError, // not a stripe code
             errors::ApiErrorResponse::ExternalConnectorError {
                 code,
                 message,
@@ -414,8 +429,8 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
             | errors::ApiErrorResponse::ClientSecretExpired => Self::ClientSecretNotFound,
             errors::ApiErrorResponse::MerchantAccountNotFound => Self::MerchantAccountNotFound,
             errors::ApiErrorResponse::ResourceIdNotFound => Self::ResourceIdNotFound,
-            errors::ApiErrorResponse::MerchantConnectorAccountNotFound => {
-                Self::MerchantConnectorAccountNotFound
+            errors::ApiErrorResponse::MerchantConnectorAccountNotFound { id } => {
+                Self::MerchantConnectorAccountNotFound { id }
             }
             errors::ApiErrorResponse::MandateNotFound => Self::MandateNotFound,
             errors::ApiErrorResponse::ApiKeyNotFound => Self::ApiKeyNotFound,
@@ -424,8 +439,8 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
             }
             errors::ApiErrorResponse::ReturnUrlUnavailable => Self::ReturnUrlUnavailable,
             errors::ApiErrorResponse::DuplicateMerchantAccount => Self::DuplicateMerchantAccount,
-            errors::ApiErrorResponse::DuplicateMerchantConnectorAccount => {
-                Self::DuplicateMerchantConnectorAccount
+            errors::ApiErrorResponse::DuplicateMerchantConnectorAccount { connector_label } => {
+                Self::DuplicateMerchantConnectorAccount { connector_label }
             }
             errors::ApiErrorResponse::DuplicatePaymentMethod => Self::DuplicatePaymentMethod,
             errors::ApiErrorResponse::ClientSecretInvalid => Self::PaymentIntentInvalidParameter {
@@ -466,6 +481,16 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
                 object: "dispute".to_owned(),
                 id: dispute_id,
             },
+            errors::ApiErrorResponse::DisputeStatusValidationFailed { reason } => {
+                Self::InternalServerError
+            }
+            errors::ApiErrorResponse::FileValidationFailed { .. } => Self::FileValidationFailed,
+            errors::ApiErrorResponse::MissingFile => Self::MissingFile,
+            errors::ApiErrorResponse::MissingFilePurpose => Self::MissingFilePurpose,
+            errors::ApiErrorResponse::MissingFileContentType => Self::MissingFileContentType,
+            errors::ApiErrorResponse::MissingDisputeId => Self::MissingDisputeId,
+            errors::ApiErrorResponse::FileNotFound => Self::FileNotFound,
+            errors::ApiErrorResponse::FileNotAvailable => Self::FileNotAvailable,
             errors::ApiErrorResponse::NotSupported { .. } => Self::InternalServerError,
         }
     }
@@ -493,11 +518,11 @@ impl actix_web::ResponseError for StripeErrorCode {
             | Self::PaymentNotFound
             | Self::PaymentMethodNotFound
             | Self::MerchantAccountNotFound
-            | Self::MerchantConnectorAccountNotFound
+            | Self::MerchantConnectorAccountNotFound { .. }
             | Self::MandateNotFound
             | Self::ApiKeyNotFound
             | Self::DuplicateMerchantAccount
-            | Self::DuplicateMerchantConnectorAccount
+            | Self::DuplicateMerchantConnectorAccount { .. }
             | Self::DuplicatePaymentMethod
             | Self::PaymentFailed
             | Self::VerificationFailed { .. }
@@ -514,7 +539,14 @@ impl actix_web::ResponseError for StripeErrorCode {
             | Self::PaymentIntentUnexpectedState { .. }
             | Self::DuplicatePayment { .. }
             | Self::IncorrectConnectorNameGiven
-            | Self::ResourceMissing { .. } => StatusCode::BAD_REQUEST,
+            | Self::ResourceMissing { .. }
+            | Self::FileValidationFailed
+            | Self::MissingFile
+            | Self::MissingFileContentType
+            | Self::MissingFilePurpose
+            | Self::MissingDisputeId
+            | Self::FileNotFound
+            | Self::FileNotAvailable => StatusCode::BAD_REQUEST,
             Self::RefundFailed
             | Self::InternalServerError
             | Self::MandateActive
@@ -577,3 +609,5 @@ impl common_utils::errors::ErrorSwitch<StripeErrorCode> for errors::ApiErrorResp
         self.clone().into()
     }
 }
+
+impl crate::services::EmbedError for error_stack::Report<StripeErrorCode> {}

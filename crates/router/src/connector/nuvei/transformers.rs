@@ -66,7 +66,7 @@ pub struct NuveiPaymentsRequest {
     pub amount: String,
     pub currency: storage_models::enums::Currency,
     /// This ID uniquely identifies your consumer/user in your system.
-    pub user_token_id: Option<Secret<String, Email>>,
+    pub user_token_id: Option<Email>,
     pub client_unique_id: String,
     pub transaction_type: TransactionType,
     pub is_rebilling: Option<String>,
@@ -177,23 +177,27 @@ pub enum AlternativePaymentMethodType {
     Ideal,
     #[serde(rename = "apmgw_EPS")]
     Eps,
+    #[serde(rename = "apmgw_Afterpay")]
+    AfterPay,
+    #[serde(rename = "apmgw_Klarna")]
+    Klarna,
 }
 
 #[serde_with::skip_serializing_none]
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BillingAddress {
-    pub email: Option<Secret<String, Email>>,
+    pub email: Email,
     pub first_name: Option<Secret<String>>,
     pub last_name: Option<Secret<String>>,
-    pub country: api_models::enums::CountryCode,
+    pub country: api_models::enums::CountryAlpha2,
 }
 
 #[serde_with::skip_serializing_none]
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Card {
-    pub card_number: Option<Secret<String, common_utils::pii::CardNumber>>,
+    pub card_number: Option<cards::CardNumber>,
     pub card_holder_name: Option<Secret<String>>,
     pub expiration_month: Option<Secret<String>>,
     pub expiration_year: Option<Secret<String>>,
@@ -425,7 +429,7 @@ impl TryFrom<payments::GooglePayWalletData> for NuveiPaymentsRequest {
                         mobile_token: common_utils::ext_traits::Encode::<
                             payments::GooglePayWalletData,
                         >::encode_to_string_of_json(
-                            &gpay_data
+                            &utils::GooglePayWalletData::from(gpay_data)
                         )
                         .change_context(errors::ConnectorError::RequestEncodingFailed)?,
                     }),
@@ -497,7 +501,7 @@ impl<F: Flow>
         let (billing_address, bank_id) = match (&payment_method, redirect) {
             (AlternativePaymentMethodType::Expresscheckout, _) => (
                 Some(BillingAddress {
-                    email: Some(item.request.get_email()?),
+                    email: item.request.get_email()?,
                     country: item.get_billing_country()?,
                     ..Default::default()
                 }),
@@ -505,7 +509,7 @@ impl<F: Flow>
             ),
             (AlternativePaymentMethodType::Giropay, _) => (
                 Some(BillingAddress {
-                    email: Some(item.request.get_email()?),
+                    email: item.request.get_email()?,
                     country: item.get_billing_country()?,
                     ..Default::default()
                 }),
@@ -517,7 +521,7 @@ impl<F: Flow>
                     Some(BillingAddress {
                         first_name: Some(address.get_first_name()?.clone()),
                         last_name: Some(address.get_last_name()?.clone()),
-                        email: Some(item.request.get_email()?),
+                        email: item.request.get_email()?,
                         country: item.get_billing_country()?,
                     }),
                     None,
@@ -532,14 +536,14 @@ impl<F: Flow>
                     Some(BillingAddress {
                         first_name: Some(address.get_first_name()?.clone()),
                         last_name: Some(address.get_last_name()?.clone()),
-                        email: Some(item.request.get_email()?),
+                        email: item.request.get_email()?,
                         country: item.get_billing_country()?,
                     }),
                     Some(NuveiBIC::try_from(bank_name)?),
                 )
             }
             _ => Err(errors::ConnectorError::NotSupported {
-                payment_method: "Bank Redirect".to_string(),
+                message: "Bank Redirect".to_string(),
                 connector: "Nuvei",
                 payment_experience: "Redirection".to_string(),
             })?,
@@ -556,6 +560,34 @@ impl<F: Flow>
             ..Default::default()
         })
     }
+}
+
+fn get_pay_later_info<F>(
+    payment_method_type: AlternativePaymentMethodType,
+    item: &types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
+) -> Result<NuveiPaymentsRequest, error_stack::Report<errors::ConnectorError>> {
+    let address = item
+        .get_billing()?
+        .address
+        .as_ref()
+        .ok_or_else(utils::missing_field_err("billing.address"))?;
+    let payment_method = payment_method_type;
+    Ok(NuveiPaymentsRequest {
+        payment_option: PaymentOption {
+            alternative_payment_method: Some(AlternativePaymentMethod {
+                payment_method,
+                ..Default::default()
+            }),
+            billing_address: Some(BillingAddress {
+                email: item.request.get_email()?,
+                first_name: Some(address.get_first_name()?.to_owned()),
+                last_name: Some(address.get_last_name()?.to_owned()),
+                country: address.get_country()?.to_owned(),
+            }),
+            ..Default::default()
+        },
+        ..Default::default()
+    })
 }
 
 impl<F: Flow>
@@ -583,7 +615,7 @@ impl<F: Flow>
                     item,
                 )),
                 _ => Err(errors::ConnectorError::NotSupported {
-                    payment_method: "Wallet".to_string(),
+                    message: "Wallet".to_string(),
                     connector: "Nuvei",
                     payment_experience: "RedirectToUrl".to_string(),
                 }
@@ -611,12 +643,27 @@ impl<F: Flow>
                     item,
                 )),
                 _ => Err(errors::ConnectorError::NotSupported {
-                    payment_method: "Bank Redirect".to_string(),
+                    message: "Bank Redirect".to_string(),
                     connector: "Nuvei",
                     payment_experience: "RedirectToUrl".to_string(),
                 }
                 .into()),
             },
+            api::PaymentMethodData::PayLater(pay_later_data) => match pay_later_data {
+                payments::PayLaterData::KlarnaRedirect { .. } => {
+                    get_pay_later_info(AlternativePaymentMethodType::Klarna, item)
+                }
+                payments::PayLaterData::AfterpayClearpayRedirect { .. } => {
+                    get_pay_later_info(AlternativePaymentMethodType::AfterPay, item)
+                }
+                _ => Err(errors::ConnectorError::NotSupported {
+                    message: "Buy Now Pay Later".to_string(),
+                    connector: "Nuvei",
+                    payment_experience: "RedirectToUrl".to_string(),
+                }
+                .into()),
+            },
+
             _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
         }?;
         let request = Self::try_from(NuveiPaymentRequestData {
@@ -1121,7 +1168,7 @@ where
                 .and_then(|o| o.card.clone())
                 .and_then(|card| card.three_d)
                 .and_then(|three_ds| three_ds.acs_url.zip(three_ds.c_req))
-                .map(|(base_url, creq)| services::RedirectForm {
+                .map(|(base_url, creq)| services::RedirectForm::Form {
                     endpoint: base_url,
                     method: services::Method::Post,
                     form_fields: std::collections::HashMap::from([("creq".to_string(), creq)]),
@@ -1143,7 +1190,11 @@ where
                     redirection_data,
                     mandate_reference: response
                         .payment_option
-                        .and_then(|po| po.user_payment_option_id),
+                        .and_then(|po| po.user_payment_option_id)
+                        .map(|id| types::MandateReference {
+                            connector_mandate_id: Some(id),
+                            payment_method_id: None,
+                        }),
                     // we don't need to save session token for capture, void flow so ignoring if it is not present
                     connector_metadata: if let Some(token) = response.session_token {
                         Some(
@@ -1156,6 +1207,7 @@ where
                     } else {
                         None
                     },
+                    network_txn_id: None,
                 })
             },
             ..item.data

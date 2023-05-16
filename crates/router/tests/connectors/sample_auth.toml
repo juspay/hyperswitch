@@ -14,8 +14,8 @@ api_key = "MyMerchantName"
 key1 = "MyTransactionKey"
 
 [checkout]
-api_key = "Bearer PublicKey"
-api_secret = "Bearer SecretKey"
+api_key = "PublicKey"
+api_secret = "SecretKey"
 key1 = "MyProcessingChannelId"
 
 [cybersource]
@@ -63,6 +63,9 @@ api_secret = "secret"
 api_key = "api_key"
 key1= "key1"
 
+[nmi]
+api_key = "NMI API Key"
+
 [nuvei]
 api_key = "api_key"
 key1 = "key1"
@@ -76,7 +79,10 @@ key1 = "key1"
 api_key = "API Key"
 
 [forte]
-api_key="API Key"
+api_key = "api_key"
+key1 = "key1"
+key2 = "key2"
+api_secret = "api_secret"
 
 
 [coinbase]
@@ -93,3 +99,14 @@ key1 = "key1"
 api_key = "api_key"
 key1 = "key1"
 api_secret = "secret"
+
+[bitpay]
+api_key="API Key"
+
+[iatapay]
+key1 = "key1"
+api_key = "api_key"
+api_secret = "secrect"
+
+[dummyconnector]
+api_key="API Key"

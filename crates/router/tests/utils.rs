@@ -14,13 +14,13 @@ use derive_deref::Deref;
 use router::{configs::settings::Settings, routes::AppState};
 use serde::{de::DeserializeOwned, Deserialize};
 use serde_json::{json, Value};
-use tokio::sync::OnceCell;
+use tokio::sync::{oneshot, OnceCell};
 
 static SERVER: OnceCell<bool> = OnceCell::const_new();
 
 async fn spawn_server() -> bool {
     let conf = Settings::new().expect("invalid settings");
-    let (server, _state) = router::start_server(conf)
+    let server = router::start_server(conf)
         .await
         .expect("failed to create server");
 
@@ -47,8 +47,8 @@ pub async fn mk_service(
     if let Some(url) = stripemock().await {
         conf.connectors.stripe.base_url = url;
     }
-
-    let app_state = AppState::with_storage(conf, router::db::StorageImpl::Mock).await;
+    let tx: oneshot::Sender<()> = oneshot::channel().0;
+    let app_state = AppState::with_storage(conf, router::db::StorageImpl::Mock, tx).await;
     actix_web::test::init_service(router::mk_app(app_state, request_body_limit)).await
 }
 

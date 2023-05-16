@@ -10,17 +10,22 @@ pub(crate) struct ConnectorAuthentication {
     pub airwallex: Option<BodyKey>,
     pub authorizedotnet: Option<BodyKey>,
     pub bambora: Option<BodyKey>,
+    pub bitpay: Option<HeaderKey>,
     pub bluesnap: Option<BodyKey>,
     pub checkout: Option<SignatureKey>,
     pub coinbase: Option<HeaderKey>,
     pub cybersource: Option<SignatureKey>,
     pub dlocal: Option<SignatureKey>,
+    #[cfg(feature = "dummy_connector")]
+    pub dummyconnector: Option<HeaderKey>,
     pub fiserv: Option<SignatureKey>,
-    pub forte: Option<HeaderKey>,
+    pub forte: Option<MultiAuthKey>,
     pub globalpay: Option<HeaderKey>,
+    pub iatapay: Option<SignatureKey>,
     pub mollie: Option<HeaderKey>,
     pub multisafepay: Option<HeaderKey>,
     pub nexinets: Option<HeaderKey>,
+    pub nmi: Option<HeaderKey>,
     pub nuvei: Option<SignatureKey>,
     pub opennode: Option<HeaderKey>,
     pub payeezy: Option<SignatureKey>,
@@ -29,14 +34,17 @@ pub(crate) struct ConnectorAuthentication {
     pub rapyd: Option<BodyKey>,
     pub shift4: Option<HeaderKey>,
     pub stripe: Option<HeaderKey>,
+    pub trustpay: Option<SignatureKey>,
     pub worldpay: Option<BodyKey>,
     pub worldline: Option<SignatureKey>,
-    pub trustpay: Option<SignatureKey>,
+    pub zen: Option<HeaderKey>,
 }
 
 impl ConnectorAuthentication {
     #[allow(clippy::expect_used)]
     pub(crate) fn new() -> Self {
+        // Do `export CONNECTOR_AUTH_FILE_PATH="/hyperswitch/crates/router/tests/connectors/sample_auth.toml"`
+        // before running tests
         let path = env::var("CONNECTOR_AUTH_FILE_PATH")
             .expect("connector authentication file path not set");
         toml::from_str(
@@ -87,6 +95,25 @@ impl From<SignatureKey> for ConnectorAuthType {
             api_key: key.api_key,
             key1: key.key1,
             api_secret: key.api_secret,
+        }
+    }
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub(crate) struct MultiAuthKey {
+    pub api_key: String,
+    pub key1: String,
+    pub api_secret: String,
+    pub key2: String,
+}
+
+impl From<MultiAuthKey> for ConnectorAuthType {
+    fn from(key: MultiAuthKey) -> Self {
+        Self::MultiAuthKey {
+            api_key: key.api_key,
+            key1: key.key1,
+            api_secret: key.api_secret,
+            key2: key.key2,
         }
     }
 }

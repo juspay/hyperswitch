@@ -72,37 +72,32 @@ impl Paypal {
             .parse_struct("Paypal ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
-        let message = match response.details {
-            Some(mes) => {
-                let mut des = "".to_owned();
-                for item in mes.iter() {
-                    let mut description = format!("description - {}", item.to_owned().description);
-
-                    if let Some(data) = &item.value {
-                        description.push_str(format!(", value - {}", data.to_owned()).as_str());
+        let error_reason = match response.details {
+            Some(order_errors) => order_errors
+                .iter()
+                .map(|error| {
+                    let mut reason = format!("description - {}", error.description);
+                    if let Some(value) = &error.value {
+                        reason.push_str(&format!(", value - {value}"));
                     }
-
-                    if let Some(data) = &item.field {
-                        let field = data
-                            .clone()
-                            .split('/')
-                            .last()
-                            .unwrap_or_default()
-                            .to_owned();
-
-                        description.push_str(format!(", field - {};", field).as_str());
+                    if let Some(field) = error
+                        .field
+                        .as_ref()
+                        .and_then(|field| field.split('/').last())
+                    {
+                        reason.push_str(&format!(", field - {field}"));
                     }
-                    des.push_str(description.as_str())
-                }
-                des
-            }
+                    reason.push(';');
+                    reason
+                })
+                .collect::<String>(),
             None => consts::NO_ERROR_MESSAGE.to_string(),
         };
         Ok(ErrorResponse {
             status_code: res.status_code,
             code: response.name,
-            message,
-            reason: None,
+            message: response.message,
+            reason: Some(error_reason),
         })
     }
 }
@@ -170,24 +165,18 @@ impl ConnectorCommon for Paypal {
             .parse_struct("Paypal ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
-        let message = match response.details {
-            Some(mes) => {
-                let mut des = "".to_owned();
-                for item in mes.iter() {
-                    let x = item.clone().description;
-                    let st = format!("description - {} ; ", x);
-                    des.push_str(&st);
-                }
-                des
-            }
+        let error_reason = match response.details {
+            Some(error_details) => error_details
+                .iter()
+                .map(|error| format!("description - {} ; ", error.description))
+                .collect::<String>(),
             None => consts::NO_ERROR_MESSAGE.to_string(),
         };
-
         Ok(ErrorResponse {
             status_code: res.status_code,
             code: response.name,
-            message,
-            reason: None,
+            message: response.message,
+            reason: Some(error_reason),
         })
     }
 }

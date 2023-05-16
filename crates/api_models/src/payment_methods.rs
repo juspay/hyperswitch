@@ -1,3 +1,4 @@
+use cards::CardNumber;
 use common_utils::pii;
 use serde::de;
 use utoipa::ToSchema;
@@ -72,7 +73,7 @@ pub struct PaymentMethodUpdate {
 pub struct CardDetail {
     /// Card Number
     #[schema(value_type = String,example = "4111111145551142")]
-    pub card_number: masking::Secret<String, pii::CardNumber>,
+    pub card_number: CardNumber,
 
     /// Card Expiry Month
     #[schema(value_type = String,example = "10")]
@@ -102,11 +103,11 @@ pub struct PaymentMethodResponse {
     pub payment_method_id: String,
 
     /// The type of payment method use for the payment.
-    #[schema(value_type = PaymentMethodType,example = "card")]
+    #[schema(value_type = PaymentMethodType, example = "card")]
     pub payment_method: api_enums::PaymentMethod,
 
     /// This is a sub-category of payment method.
-    #[schema(value_type = Option<PaymentMethodType>,example = "credit")]
+    #[schema(value_type = Option<PaymentMethodType>, example = "credit")]
     pub payment_method_type: Option<api_enums::PaymentMethodType>,
 
     /// Card details from card locker
@@ -122,15 +123,15 @@ pub struct PaymentMethodResponse {
     pub installment_payment_enabled: bool,
 
     /// Type of payment experience enabled with the connector
-    #[schema(value_type = Option<Vec<PaymentExperience>>,example = json!(["redirect_to_url"]))]
+    #[schema(value_type = Option<Vec<PaymentExperience>>, example = json!(["redirect_to_url"]))]
     pub payment_experience: Option<Vec<api_enums::PaymentExperience>>,
 
     /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
-    #[schema(value_type = Option<Object>,example = json!({ "city": "NY", "unit": "245" }))]
+    #[schema(value_type = Option<Object>, example = json!({ "city": "NY", "unit": "245" }))]
     pub metadata: Option<pii::SecretSerdeValue>,
 
     ///  A timestamp (ISO 8601 code) that determines when the customer was created
-    #[schema(value_type = Option<PrimitiveDateTime>,example = "2023-01-18T11:04:09.922Z")]
+    #[schema(value_type = Option<PrimitiveDateTime>, example = "2023-01-18T11:04:09.922Z")]
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub created: Option<time::PrimitiveDateTime>,
 }
@@ -142,7 +143,7 @@ pub struct CardDetailFromLocker {
     pub last4_digits: Option<String>,
     #[serde(skip)]
     #[schema(value_type=Option<String>)]
-    pub card_number: Option<masking::Secret<String, pii::CardNumber>>,
+    pub card_number: Option<CardNumber>,
 
     #[schema(value_type=Option<String>)]
     pub expiry_month: Option<masking::Secret<String>>,
@@ -183,6 +184,11 @@ pub struct CardNetworkTypes {
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, PartialEq, Eq)]
+pub struct BankDebitTypes {
+    pub eligible_connectors: Vec<String>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, PartialEq, Eq)]
 pub struct ResponsePaymentMethodTypes {
     /// The payment method type enabled
     #[schema(example = "klarna")]
@@ -196,6 +202,9 @@ pub struct ResponsePaymentMethodTypes {
 
     /// The list of banks enabled, if applicable for a payment method type
     pub bank_names: Option<Vec<BankCodeResponse>>,
+
+    /// The Bank debit payment method information, if applicable for a payment method type.
+    pub bank_debits: Option<BankDebitTypes>,
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -283,8 +292,8 @@ pub struct PaymentMethodListRequest {
     pub client_secret: Option<String>,
 
     /// The two-letter ISO currency code
-    #[schema(value_type = Option<Vec<Country>>, example = json!(["US", "UK", "IN"]))]
-    pub accepted_countries: Option<Vec<api_enums::CountryCode>>,
+    #[schema(value_type = Option<Vec<CountryAlpha2>>, example = json!(["US", "UK", "IN"]))]
+    pub accepted_countries: Option<Vec<api_enums::CountryAlpha2>>,
 
     /// The three-letter ISO currency code
     #[schema(value_type = Option<Vec<Currency>>,example = json!(["USD", "EUR"]))]

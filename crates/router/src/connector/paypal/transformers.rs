@@ -9,7 +9,7 @@ use crate::{
         PaymentsAuthorizeRequestData,
     },
     core::{errors, payments::operations::Flow},
-    pii, services,
+    services,
     types::{self, api, storage::enums as storage_enums, transformers::ForeignFrom},
 };
 
@@ -36,7 +36,7 @@ pub struct PurchaseUnitRequest {
 pub struct Address {
     address_line_1: Option<Secret<String>>,
     postal_code: Option<Secret<String>>,
-    country_code: api_models::enums::CountryCode,
+    country_code: api_models::enums::CountryAlpha2,
 }
 
 #[derive(Debug, Serialize)]
@@ -44,14 +44,14 @@ pub struct CardRequest {
     billing_address: Option<Address>,
     expiry: Option<Secret<String>>,
     name: Secret<String>,
-    number: Option<Secret<String, pii::CardNumber>>,
+    number: Option<cards::CardNumber>,
     security_code: Option<Secret<String>>,
 }
 
 #[derive(Debug, Serialize)]
 pub struct RedirectRequest {
     name: Secret<String>,
-    country_code: api_models::enums::CountryCode,
+    country_code: api_models::enums::CountryAlpha2,
     experience_context: ContextStruct,
 }
 
@@ -386,6 +386,7 @@ impl<F: Flow, T>
                 redirection_data: None,
                 mandate_reference: None,
                 connector_metadata: Some(connector_meta),
+                network_txn_id: None,
             }),
             ..item.data
         })
@@ -434,6 +435,7 @@ impl<F: Flow, T>
                 ))),
                 mandate_reference: None,
                 connector_metadata: Some(connector_meta),
+                network_txn_id: None,
             }),
             ..item.data
         })
@@ -461,6 +463,7 @@ impl<F: Flow, T>
                 redirection_data: None,
                 mandate_reference: None,
                 connector_metadata: None,
+                network_txn_id: None,
             }),
             ..item.data
         })
@@ -548,6 +551,7 @@ impl TryFrom<types::PaymentsCaptureResponseRouterData<PaymentCaptureResponse>>
                     order_id: item.data.request.connector_transaction_id.clone(),
                     psync_flow: PaypalPaymentIntent::Capture
                 })),
+                network_txn_id: None,
             }),
             amount_captured: Some(amount_captured),
             ..item.data
@@ -593,6 +597,7 @@ impl<F: Flow, T>
                 redirection_data: None,
                 mandate_reference: None,
                 connector_metadata: None,
+                network_txn_id: None,
             }),
             ..item.data
         })

@@ -34,8 +34,9 @@ pub struct PaymentIntent {
     pub off_session: Option<bool>,
     pub client_secret: Option<String>,
     pub active_attempt_id: String,
-    pub business_country: storage_enums::CountryCode,
+    pub business_country: storage_enums::CountryAlpha2,
     pub business_label: String,
+    pub meta_data: Option<pii::SecretSerdeValue>,
 }
 
 #[derive(
@@ -76,8 +77,9 @@ pub struct PaymentIntentNew {
     pub off_session: Option<bool>,
     pub client_secret: Option<String>,
     pub active_attempt_id: String,
-    pub business_country: storage_enums::CountryCode,
+    pub business_country: storage_enums::CountryAlpha2,
     pub business_label: String,
+    pub meta_data: Option<pii::SecretSerdeValue>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -89,6 +91,7 @@ pub enum PaymentIntentUpdate {
     },
     MetadataUpdate {
         metadata: pii::SecretSerdeValue,
+        meta_data: pii::SecretSerdeValue,
     },
     ReturnUrlUpdate {
         return_url: Option<String>,
@@ -114,7 +117,7 @@ pub enum PaymentIntentUpdate {
         shipping_address_id: Option<String>,
         billing_address_id: Option<String>,
         return_url: Option<String>,
-        business_country: Option<storage_enums::CountryCode>,
+        business_country: Option<storage_enums::CountryAlpha2>,
         business_label: Option<String>,
     },
     PaymentAttemptUpdate {
@@ -140,8 +143,9 @@ pub struct PaymentIntentUpdateInternal {
     pub shipping_address_id: Option<String>,
     pub modified_at: Option<PrimitiveDateTime>,
     pub active_attempt_id: Option<String>,
-    pub business_country: Option<storage_enums::CountryCode>,
+    pub business_country: Option<storage_enums::CountryAlpha2>,
     pub business_label: Option<String>,
+    pub meta_data: Option<pii::SecretSerdeValue>,
 }
 
 impl PaymentIntentUpdate {
@@ -169,6 +173,7 @@ impl PaymentIntentUpdate {
                 .shipping_address_id
                 .or(source.shipping_address_id),
             modified_at: common_utils::date_time::now(),
+            meta_data: internal_update.meta_data.or(source.meta_data),
             ..source
         }
     }
@@ -203,8 +208,12 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 business_label,
                 ..Default::default()
             },
-            PaymentIntentUpdate::MetadataUpdate { metadata } => Self {
+            PaymentIntentUpdate::MetadataUpdate {
+                metadata,
+                meta_data,
+            } => Self {
                 metadata: Some(metadata),
+                meta_data: Some(meta_data),
                 modified_at: Some(common_utils::date_time::now()),
                 ..Default::default()
             },

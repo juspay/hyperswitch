@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use common_utils::ext_traits::{AsyncExt, Encode};
+use common_utils::ext_traits::{AsyncExt, Encode, ValueExt};
 use error_stack::ResultExt;
 use router_derive::{PaymentOperation, ZDisplay};
 use router_env::{instrument, tracing};
@@ -67,11 +67,6 @@ impl<F: Flow> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for PaymentUpd
                 storage_enums::IntentStatus::RequiresCapture,
             ],
             "update",
-        )?;
-
-        helpers::authenticate_client_secret(
-            request.client_secret.as_ref(),
-            payment_intent.client_secret.as_ref(),
         )?;
 
         let (token, payment_method_type, setup_mandate) =
@@ -189,9 +184,38 @@ impl<F: Flow> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for PaymentUpd
                     .find_mandate_by_merchant_id_mandate_id(merchant_id, mandate_id)
                     .await
                     .change_context(errors::ApiErrorResponse::MandateNotFound);
-                Some(mandate.map(|mandate_obj| api_models::payments::MandateIds {
-                    mandate_id: mandate_obj.mandate_id,
-                    connector_mandate_id: mandate_obj.connector_mandate_id,
+                Some(mandate.and_then(|mandate_obj| {
+                    match (
+                        mandate_obj.network_transaction_id,
+                        mandate_obj.connector_mandate_ids,
+                    ) {
+                        (Some(network_tx_id), _) => Ok(api_models::payments::MandateIds {
+                            mandate_id: mandate_obj.mandate_id,
+                            mandate_reference_id: Some(
+                                api_models::payments::MandateReferenceId::NetworkMandateId(
+                                    network_tx_id,
+                                ),
+                            ),
+                        }),
+                        (_, Some(connector_mandate_id)) => connector_mandate_id
+                        .parse_value("ConnectorMandateId")
+                        .change_context(errors::ApiErrorResponse::MandateNotFound)
+                        .map(|connector_id: api_models::payments::ConnectorMandateReferenceId| {
+                            api_models::payments::MandateIds {
+                                mandate_id: mandate_obj.mandate_id,
+                                mandate_reference_id: Some(api_models::payments::MandateReferenceId::ConnectorMandateId(
+                                    api_models::payments::ConnectorMandateReferenceId {
+                                        connector_mandate_id: connector_id.connector_mandate_id,
+                                        payment_method_id: connector_id.payment_method_id,
+                                    },
+                                ))
+                            }
+                         }),
+                        (_, _) => Ok(api_models::payments::MandateIds {
+                            mandate_id: mandate_obj.mandate_id,
+                            mandate_reference_id: None,
+                        }),
+                    }
                 }))
             })
             .await
@@ -261,11 +285,13 @@ impl<F: Flow> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for PaymentUpd
                 payment_method_data: request.payment_method_data.clone(),
                 force_sync: None,
                 refunds: vec![],
+                disputes: vec![],
                 connector_response,
                 sessions_token: vec![],
                 card_cvc: request.card_cvc.clone(),
                 creds_identifier,
                 pm_token: None,
+                connector_customer_id: None,
             },
             Some(CustomerDetails {
                 customer_id: request.customer_id.clone(),
@@ -331,6 +357,7 @@ impl<F: Flow> Domain<F, api::PaymentsRequest> for PaymentUpdate {
         _merchant_account: &storage::MerchantAccount,
         state: &AppState,
         request: &api::PaymentsRequest,
+        _payment_intent: &storage::payment_intent::PaymentIntent,
     ) -> CustomResult<api::ConnectorChoice, errors::ApiErrorResponse> {
         helpers::get_connector_default(state, request.routing.clone()).await
     }
@@ -346,6 +373,7 @@ impl<F: Flow> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Payment
         mut payment_data: PaymentData<F>,
         customer: Option<storage::Customer>,
         storage_scheme: storage_enums::MerchantStorageScheme,
+        _updated_customer: Option<storage::CustomerUpdate>,
     ) -> RouterResult<(BoxedOperation<'b, F, api::PaymentsRequest>, PaymentData<F>)>
     where
         F: 'b + Send,

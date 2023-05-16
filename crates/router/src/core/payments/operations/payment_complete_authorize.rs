@@ -76,11 +76,6 @@ impl<F: Flow> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for CompleteAu
         )
         .await?;
 
-        helpers::authenticate_client_secret(
-            request.client_secret.as_ref(),
-            payment_intent.client_secret.as_ref(),
-        )?;
-
         let browser_info = request
             .browser_info
             .clone()
@@ -191,10 +186,12 @@ impl<F: Flow> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for CompleteAu
                 payment_method_data: request.payment_method_data.clone(),
                 force_sync: None,
                 refunds: vec![],
+                disputes: vec![],
                 sessions_token: vec![],
                 card_cvc: request.card_cvc.clone(),
                 creds_identifier: None,
                 pm_token: None,
+                connector_customer_id: None,
             },
             Some(CustomerDetails {
                 customer_id: request.customer_id.clone(),
@@ -267,6 +264,7 @@ impl<F: Flow> Domain<F, api::PaymentsRequest> for CompleteAuthorize {
         _merchant_account: &storage::MerchantAccount,
         state: &AppState,
         request: &api::PaymentsRequest,
+        _payment_intent: &storage::payment_intent::PaymentIntent,
     ) -> CustomResult<api::ConnectorChoice, errors::ApiErrorResponse> {
         // Use a new connector in the confirm call or use the same one which was passed when
         // creating the payment or if none is passed then use the routing algorithm
@@ -284,6 +282,7 @@ impl<F: Flow> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Complet
         payment_data: PaymentData<F>,
         _customer: Option<storage::Customer>,
         _storage_scheme: storage_enums::MerchantStorageScheme,
+        _updated_customer: Option<storage::CustomerUpdate>,
     ) -> RouterResult<(BoxedOperation<'b, F, api::PaymentsRequest>, PaymentData<F>)>
     where
         F: 'b + Send,

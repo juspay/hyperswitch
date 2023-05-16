@@ -85,6 +85,9 @@ pub struct Session;
 pub struct PaymentMethodToken;
 
 #[derive(Debug, Default, Clone, Flow)]
+pub struct CreateConnectorCustomer;
+
+#[derive(Debug, Default, Clone, Flow)]
 pub struct Verify;
 
 pub(crate) trait PaymentIdTypeExt {
@@ -170,6 +173,15 @@ pub trait PaymentToken:
 {
 }
 
+pub trait ConnectorCustomer:
+    api::ConnectorIntegration<
+    CreateConnectorCustomer,
+    types::ConnectorCustomerData,
+    types::PaymentsResponseData,
+>
+{
+}
+
 pub trait Payment:
     api_types::ConnectorCommon
     + PaymentAuthorize
@@ -180,6 +192,7 @@ pub trait Payment:
     + PreVerify
     + PaymentSession
     + PaymentToken
+    + ConnectorCustomer
 {
 }
 
@@ -192,7 +205,7 @@ mod payments_test {
     #[allow(dead_code)]
     fn card() -> Card {
         Card {
-            card_number: "1234432112344321".to_string().into(),
+            card_number: "1234432112344321".to_string().try_into().unwrap(),
             card_exp_month: "12".to_string().into(),
             card_exp_year: "99".to_string().into(),
             card_holder_name: "JohnDoe".to_string().into(),

@@ -3,9 +3,9 @@ use async_trait::async_trait;
 use super::{ConstructFlowSpecificData, Feature};
 use crate::{
     core::{
-        errors::{ConnectorErrorExt, RouterResult},
+        errors::{self, ConnectorErrorExt, RouterResult},
         mandate,
-        payments::{self, access_token, transformers, PaymentData},
+        payments::{self, access_token, customers, tokenization, transformers, PaymentData},
     },
     routes::AppState,
     services,
@@ -21,12 +21,14 @@ impl ConstructFlowSpecificData<api::Verify, types::VerifyRequestData, types::Pay
         state: &AppState,
         connector_id: &str,
         merchant_account: &storage::MerchantAccount,
+        customer: &Option<storage::Customer>,
     ) -> RouterResult<types::VerifyRouterData> {
         transformers::construct_payment_router_data::<api::Verify, types::VerifyRequestData>(
             state,
             self.clone(),
             connector_id,
             merchant_account,
+            customer,
         )
         .await
     }
@@ -61,6 +63,50 @@ impl Feature<api::Verify, types::VerifyRequestData> for types::VerifyRouterData 
     ) -> RouterResult<types::AddAccessTokenResult> {
         access_token::add_access_token(state, connector, merchant_account, self).await
     }
+
+    async fn add_payment_method_token<'a>(
+        &self,
+        state: &AppState,
+        connector: &api::ConnectorData,
+        tokenization_action: &payments::TokenizationAction,
+    ) -> RouterResult<Option<String>> {
+        tokenization::add_payment_method_token(
+            state,
+            connector,
+            tokenization_action,
+            self,
+            types::PaymentMethodTokenizationData::try_from(self.request.to_owned())?,
+        )
+        .await
+    }
+
+    async fn create_connector_customer<'a>(
+        &self,
+        state: &AppState,
+        connector: &api::ConnectorData,
+        connector_customer_map: Option<serde_json::Map<String, serde_json::Value>>,
+    ) -> RouterResult<(Option<String>, Option<storage::CustomerUpdate>)> {
+        customers::create_connector_customer(
+            state,
+            connector,
+            self,
+            types::ConnectorCustomerData::try_from(self.request.to_owned())?,
+            connector_customer_map,
+        )
+        .await
+    }
+}
+
+impl TryFrom<types::VerifyRequestData> for types::ConnectorCustomerData {
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
+    fn try_from(data: types::VerifyRequestData) -> Result<Self, Self::Error> {
+        Ok(Self {
+            email: data.email,
+            description: None,
+            phone: None,
+            name: None,
+        })
+    }
 }
 
 impl types::VerifyRouterData {
@@ -71,7 +117,7 @@ impl types::VerifyRouterData {
         maybe_customer: &Option<storage::Customer>,
         confirm: Option<bool>,
         call_connector_action: payments::CallConnectorAction,
-        _merchant_account: &storage::MerchantAccount,
+        merchant_account: &storage::MerchantAccount,
     ) -> RouterResult<Self> {
         match confirm {
             Some(true) => {
@@ -89,7 +135,17 @@ impl types::VerifyRouterData {
                 )
                 .await
                 .map_err(|err| err.to_verify_failed_response())?;
-                Ok(mandate::mandate_procedure(state, resp, maybe_customer, None).await?)
+
+                let pm_id = tokenization::save_payment_method(
+                    state,
+                    connector,
+                    resp.to_owned(),
+                    maybe_customer,
+                    merchant_account,
+                )
+                .await?;
+
+                Ok(mandate::mandate_procedure(state, resp, maybe_customer, pm_id).await?)
             }
             _ => Ok(self.clone()),
         }
@@ -109,8 +165,8 @@ impl mandate::MandateBehaviour for types::VerifyRequestData {
         self.mandate_id.as_ref()
     }
 
-    fn set_mandate_id(&mut self, new_mandate_id: api_models::payments::MandateIds) {
-        self.mandate_id = Some(new_mandate_id);
+    fn set_mandate_id(&mut self, new_mandate_id: Option<api_models::payments::MandateIds>) {
+        self.mandate_id = new_mandate_id;
     }
 
     fn get_payment_method_data(&self) -> api_models::payments::PaymentMethodData {
@@ -119,5 +175,15 @@ impl mandate::MandateBehaviour for types::VerifyRequestData {
 
     fn get_setup_mandate_details(&self) -> Option<&api_models::payments::MandateData> {
         self.setup_mandate_details.as_ref()
+    }
+}
+
+impl TryFrom<types::VerifyRequestData> for types::PaymentMethodTokenizationData {
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
+
+    fn try_from(data: types::VerifyRequestData) -> Result<Self, Self::Error> {
+        Ok(Self {
+            payment_method_data: data.payment_method_data,
+        })
     }
 }

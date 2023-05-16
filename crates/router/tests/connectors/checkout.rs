@@ -5,7 +5,6 @@ use crate::{
     connector_auth,
     utils::{self, ConnectorActions},
 };
-
 #[derive(Clone, Copy)]
 struct CheckoutTest;
 impl ConnectorActions for CheckoutTest {}
@@ -311,49 +310,6 @@ async fn should_sync_refund() {
 }
 
 // Cards Negative scenerios
-// Creates a payment with incorrect card number.
-#[serial_test::serial]
-#[actix_web::test]
-async fn should_fail_payment_for_incorrect_card_number() {
-    let response = CONNECTOR
-        .make_payment(
-            Some(types::PaymentsAuthorizeData {
-                payment_method_data: types::api::PaymentMethodData::Card(api::Card {
-                    card_number: Secret::new("1234567891011".to_string()),
-                    ..utils::CCardType::default().0
-                }),
-                ..utils::PaymentAuthorizeType::default().0
-            }),
-            get_default_payment_info(),
-        )
-        .await
-        .unwrap();
-    assert_eq!(
-        response.response.unwrap_err().code,
-        "card_number_invalid".to_string(),
-    );
-}
-
-// Creates a payment with empty card number.
-#[serial_test::serial]
-#[actix_web::test]
-async fn should_fail_payment_for_empty_card_number() {
-    let response = CONNECTOR
-        .make_payment(
-            Some(types::PaymentsAuthorizeData {
-                payment_method_data: types::api::PaymentMethodData::Card(api::Card {
-                    card_number: Secret::new(String::from("")),
-                    ..utils::CCardType::default().0
-                }),
-                ..utils::PaymentAuthorizeType::default().0
-            }),
-            get_default_payment_info(),
-        )
-        .await
-        .unwrap();
-    let x = response.response.unwrap_err();
-    assert_eq!(x.code, "card_number_required",);
-}
 
 // Creates a payment with incorrect CVC.
 #[serial_test::serial]
@@ -373,7 +329,7 @@ async fn should_fail_payment_for_incorrect_cvc() {
         .await
         .unwrap();
     assert_eq!(
-        response.response.unwrap_err().code,
+        response.response.unwrap_err().message,
         "cvv_invalid".to_string(),
     );
 }
@@ -396,7 +352,7 @@ async fn should_fail_payment_for_invalid_exp_month() {
         .await
         .unwrap();
     assert_eq!(
-        response.response.unwrap_err().code,
+        response.response.unwrap_err().message,
         "card_expiry_month_invalid".to_string(),
     );
 }
@@ -419,7 +375,7 @@ async fn should_fail_payment_for_incorrect_expiry_year() {
         .await
         .unwrap();
     assert_eq!(
-        response.response.unwrap_err().code,
+        response.response.unwrap_err().message,
         "card_expired".to_string(),
     );
 }
@@ -469,7 +425,7 @@ async fn should_fail_for_refund_amount_higher_than_payment_amount() {
         .await
         .unwrap();
     assert_eq!(
-        response.response.unwrap_err().code,
+        response.response.unwrap_err().message,
         "refund_amount_exceeds_balance",
     );
 }

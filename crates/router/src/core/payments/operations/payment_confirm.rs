@@ -77,11 +77,6 @@ impl<F: Flow> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for PaymentCon
         )
         .await?;
 
-        helpers::authenticate_client_secret(
-            request.client_secret.as_ref(),
-            payment_intent.client_secret.as_ref(),
-        )?;
-
         let browser_info = request
             .browser_info
             .clone()
@@ -210,10 +205,12 @@ impl<F: Flow> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for PaymentCon
                 payment_method_data: request.payment_method_data.clone(),
                 force_sync: None,
                 refunds: vec![],
+                disputes: vec![],
                 sessions_token: vec![],
                 card_cvc: request.card_cvc.clone(),
                 creds_identifier,
                 pm_token: None,
+                connector_customer_id: None,
             },
             Some(CustomerDetails {
                 customer_id: request.customer_id.clone(),
@@ -286,6 +283,7 @@ impl<F: Flow> Domain<F, api::PaymentsRequest> for PaymentConfirm {
         _merchant_account: &storage::MerchantAccount,
         state: &AppState,
         request: &api::PaymentsRequest,
+        _payment_intent: &storage::payment_intent::PaymentIntent,
     ) -> CustomResult<api::ConnectorChoice, errors::ApiErrorResponse> {
         // Use a new connector in the confirm call or use the same one which was passed when
         // creating the payment or if none is passed then use the routing algorithm
@@ -303,6 +301,7 @@ impl<F: Flow> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Payment
         mut payment_data: PaymentData<F>,
         customer: Option<storage::Customer>,
         storage_scheme: storage_enums::MerchantStorageScheme,
+        updated_customer: Option<storage::CustomerUpdate>,
     ) -> RouterResult<(BoxedOperation<'b, F, api::PaymentsRequest>, PaymentData<F>)>
     where
         F: 'b + Send,
@@ -363,7 +362,7 @@ impl<F: Flow> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Payment
             payment_data.payment_intent.billing_address_id.clone(),
         );
 
-        let customer_id = customer.map(|c| c.customer_id);
+        let customer_id = customer.clone().map(|c| c.customer_id);
         let return_url = payment_data.payment_intent.return_url.clone();
         let setup_future_usage = payment_data.payment_intent.setup_future_usage;
         let business_label = Some(payment_data.payment_intent.business_label.clone());
@@ -388,6 +387,17 @@ impl<F: Flow> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Payment
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+
+        if let Some((updated_customer, customer)) = updated_customer.zip(customer) {
+            db.update_customer_by_customer_id_merchant_id(
+                customer.customer_id.to_owned(),
+                customer.merchant_id.to_owned(),
+                updated_customer,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to update CustomerConnector in customer")?;
+        };
 
         Ok((Box::new(self), payment_data))
     }

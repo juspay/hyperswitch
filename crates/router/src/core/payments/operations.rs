@@ -129,6 +129,7 @@ pub trait Domain<F: Flow, R>: Send + Sync {
         merchant_account: &storage::MerchantAccount,
         state: &AppState,
         request: &R,
+        payment_intent: &storage::payment_intent::PaymentIntent,
     ) -> CustomResult<api::ConnectorChoice, errors::ApiErrorResponse>;
 }
 
@@ -141,6 +142,7 @@ pub trait UpdateTracker<F, D, Req>: Send {
         payment_data: D,
         customer: Option<storage::Customer>,
         storage_scheme: enums::MerchantStorageScheme,
+        updated_customer: Option<storage::CustomerUpdate>,
     ) -> RouterResult<(BoxedOperation<'b, F, Req>, D)>
     where
         F: 'b + Send;
@@ -197,6 +199,7 @@ where
         _merchant_account: &storage::MerchantAccount,
         state: &AppState,
         _request: &api::PaymentsRetrieveRequest,
+        _payment_intent: &storage::payment_intent::PaymentIntent,
     ) -> CustomResult<api::ConnectorChoice, errors::ApiErrorResponse> {
         helpers::get_connector_default(state, None).await
     }
@@ -264,6 +267,7 @@ where
         _merchant_account: &storage::MerchantAccount,
         state: &AppState,
         _request: &api::PaymentsCaptureRequest,
+        _payment_intent: &storage::payment_intent::PaymentIntent,
     ) -> CustomResult<api::ConnectorChoice, errors::ApiErrorResponse> {
         helpers::get_connector_default(state, None).await
     }
@@ -319,6 +323,7 @@ where
         _merchant_account: &storage::MerchantAccount,
         state: &AppState,
         _request: &api::PaymentsCancelRequest,
+        _payment_intent: &storage::payment_intent::PaymentIntent,
     ) -> CustomResult<api::ConnectorChoice, errors::ApiErrorResponse> {
         helpers::get_connector_default(state, None).await
     }

@@ -8,7 +8,7 @@ use serde::Serialize;
 use crate::{
     core::errors::{self, RouterResult},
     routes::app::AppStateInfo,
-    services::{api, authentication as auth, logger},
+    services::{self, api, authentication as auth, logger},
 };
 
 #[instrument(skip(request, payload, state, func, api_authentication))]
@@ -25,6 +25,7 @@ where
     Q: Serialize + std::fmt::Debug + 'a,
     S: TryFrom<Q> + Serialize,
     E: Serialize + error_stack::Context + actix_web::ResponseError + Clone,
+    error_stack::Report<E>: services::EmbedError,
     errors::ApiErrorResponse: ErrorSwitch<E>,
     T: std::fmt::Debug,
     A: AppStateInfo,
@@ -56,6 +57,9 @@ where
         }
         Ok(api::ApplicationResponse::StatusOk) => api::http_response_ok(),
         Ok(api::ApplicationResponse::TextPlain(text)) => api::http_response_plaintext(text),
+        Ok(api::ApplicationResponse::FileData((file_data, content_type))) => {
+            api::http_response_file_data(file_data, content_type)
+        }
         Ok(api::ApplicationResponse::JsonForRedirection(response)) => {
             match serde_json::to_string(&response) {
                 Ok(res) => api::http_redirect_response(res, response),
@@ -68,9 +72,15 @@ where
                 ),
             }
         }
-        Ok(api::ApplicationResponse::Form(form_data)) => api::build_redirection_form(&form_data)
-            .respond_to(request)
-            .map_into_boxed_body(),
+        Ok(api::ApplicationResponse::Form(redirection_data)) => api::build_redirection_form(
+            &redirection_data.redirect_form,
+            redirection_data.payment_method_data,
+            redirection_data.amount,
+            redirection_data.currency,
+        )
+        .respond_to(request)
+        .map_into_boxed_body(),
+
         Err(error) => {
             logger::error!(api_response_error=?error);
             api::log_and_return_error_response(error)

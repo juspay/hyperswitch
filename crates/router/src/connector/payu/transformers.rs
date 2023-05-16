@@ -6,7 +6,7 @@ use crate::{
     connector::utils::AccessTokenRequestInfo,
     consts,
     core::{errors, payments::operations::Flow},
-    pii::{self, Secret},
+    pii::Secret,
     types::{self, api, storage::enums},
 };
 
@@ -42,7 +42,7 @@ pub enum PayuPaymentMethodData {
 pub enum PayuCard {
     #[serde(rename_all = "camelCase")]
     Card {
-        number: Secret<String, pii::CardNumber>,
+        number: cards::CardNumber,
         expiration_month: Secret<String>,
         expiration_year: Secret<String>,
         cvv: Secret<String>,
@@ -198,6 +198,7 @@ impl<F: Flow, T>
                 redirection_data: None,
                 mandate_reference: None,
                 connector_metadata: None,
+                network_txn_id: None,
             }),
             amount_captured: None,
             ..item.data
@@ -248,6 +249,7 @@ impl<F: Flow, T>
                 redirection_data: None,
                 mandate_reference: None,
                 connector_metadata: None,
+                network_txn_id: None,
             }),
             amount_captured: None,
             ..item.data
@@ -327,6 +329,7 @@ impl<F: Flow, T>
                 redirection_data: None,
                 mandate_reference: None,
                 connector_metadata: None,
+                network_txn_id: None,
             }),
             amount_captured: None,
             ..item.data
@@ -455,6 +458,7 @@ impl<F: Flow, T>
                 redirection_data: None,
                 mandate_reference: None,
                 connector_metadata: None,
+                network_txn_id: None,
             }),
             amount_captured: Some(
                 order

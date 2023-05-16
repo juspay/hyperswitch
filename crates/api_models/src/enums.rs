@@ -268,6 +268,7 @@ pub enum Currency {
 #[strum(serialize_all = "snake_case")]
 pub enum EventType {
     PaymentSucceeded,
+    PaymentFailed,
     PaymentProcessing,
     ActionRequired,
     RefundSucceeded,
@@ -585,6 +586,7 @@ pub enum Connector {
     Airwallex,
     Applepay,
     Authorizedotnet,
+    Bitpay,
     Bluesnap,
     Braintree,
     Checkout,
@@ -592,16 +594,30 @@ pub enum Connector {
     Cybersource,
     #[default]
     Dummy,
+    Iatapay,
+    #[cfg(feature = "dummy_connector")]
+    #[serde(rename = "dummyconnector1")]
+    #[strum(serialize = "dummyconnector1")]
+    DummyConnector1,
+    #[cfg(feature = "dummy_connector")]
+    #[serde(rename = "dummyconnector2")]
+    #[strum(serialize = "dummyconnector2")]
+    DummyConnector2,
+    #[cfg(feature = "dummy_connector")]
+    #[serde(rename = "dummyconnector3")]
+    #[strum(serialize = "dummyconnector3")]
+    DummyConnector3,
     Opennode,
     Bambora,
     Dlocal,
     Fiserv,
-    //Forte,
+    Forte,
     Globalpay,
     Klarna,
     Mollie,
     Multisafepay,
-    // Nexinets, added as template code for future use
+    Nexinets,
+    Nmi,
     Nuvei,
     // Payeezy, As psync and rsync are not supported by this connector, it is added as template code for future usage
     Paypal,
@@ -609,9 +625,10 @@ pub enum Connector {
     Rapyd,
     Shift4,
     Stripe,
+    Trustpay,
     Worldline,
     Worldpay,
-    Trustpay,
+    Zen,
 }
 
 impl Connector {
@@ -623,7 +640,14 @@ impl Connector {
                 | (Self::Paypal, _)
                 | (Self::Payu, _)
                 | (Self::Trustpay, PaymentMethod::BankRedirect)
+                | (Self::Iatapay, _)
         )
+    }
+    pub fn supports_file_storage_module(&self) -> bool {
+        matches!(self, Self::Stripe | Self::Checkout)
+    }
+    pub fn requires_defend_dispute(&self) -> bool {
+        matches!(self, Self::Checkout)
     }
 }
 
@@ -642,10 +666,23 @@ impl Connector {
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum RoutableConnectors {
+    #[cfg(feature = "dummy_connector")]
+    #[serde(rename = "dummyconnector1")]
+    #[strum(serialize = "dummyconnector1")]
+    DummyConnector1,
+    #[cfg(feature = "dummy_connector")]
+    #[serde(rename = "dummyconnector2")]
+    #[strum(serialize = "dummyconnector2")]
+    DummyConnector2,
+    #[cfg(feature = "dummy_connector")]
+    #[serde(rename = "dummyconnector3")]
+    #[strum(serialize = "dummyconnector3")]
+    DummyConnector3,
     Aci,
     Adyen,
     Airwallex,
     Authorizedotnet,
+    Bitpay,
     Bambora,
     Bluesnap,
     Braintree,
@@ -654,12 +691,14 @@ pub enum RoutableConnectors {
     Cybersource,
     Dlocal,
     Fiserv,
-    //Forte,
+    Forte,
     Globalpay,
+    Iatapay,
     Klarna,
     Mollie,
     Multisafepay,
-    // Nexinets, added as template code for future use
+    Nexinets,
+    Nmi,
     Nuvei,
     Opennode,
     // Payeezy, As psync and rsync are not supported by this connector, it is added as template code for future usage
@@ -671,6 +710,7 @@ pub enum RoutableConnectors {
     Trustpay,
     Worldline,
     Worldpay,
+    Zen,
 }
 
 /// Name of banks supported by Hyperswitch
@@ -739,6 +779,7 @@ pub enum BankNames {
     #[serde(rename = "ePlatby VÚB")]
     EPlatbyVUB,
     ErsteBankUndSparkassen,
+    FrieslandBank,
     HypoAlpeadriabankInternationalAg,
     HypoNoeLbFurNiederosterreichUWien,
     HypoOberosterreichSalzburgSteiermark,
@@ -796,6 +837,24 @@ pub enum BankNames {
     VeloBank,
     #[serde(rename = "e-transfer Pocztowy24")]
     ETransferPocztowy24,
+    PlusBank,
+    EtransferPocztowy24,
+    BankiSpbdzielcze,
+    BankNowyBfgSa,
+    GetinBank,
+    Blik,
+    NoblePay,
+    IdeaBank,
+    EnveloBank,
+    NestPrzelew,
+    MbankMtransfer,
+    Inteligo,
+    PbacZIpko,
+    BnpParibas,
+    BankPekaoSa,
+    VolkswagenBank,
+    AliorBank,
+    Boz,
 }
 
 #[derive(
@@ -825,39 +884,6 @@ pub enum CardNetwork {
     Maestro,
 }
 
-impl From<AttemptStatus> for IntentStatus {
-    fn from(s: AttemptStatus) -> Self {
-        match s {
-            AttemptStatus::Charged | AttemptStatus::AutoRefunded => Self::Succeeded,
-
-            AttemptStatus::ConfirmationAwaited => Self::RequiresConfirmation,
-            AttemptStatus::PaymentMethodAwaited => Self::RequiresPaymentMethod,
-
-            AttemptStatus::Authorized => Self::RequiresCapture,
-            AttemptStatus::AuthenticationPending | AttemptStatus::DeviceDataCollectionPending => {
-                Self::RequiresCustomerAction
-            }
-            AttemptStatus::Unresolved => Self::RequiresMerchantAction,
-            AttemptStatus::PartialCharged
-            | AttemptStatus::Started
-            | AttemptStatus::AuthenticationSuccessful
-            | AttemptStatus::Authorizing
-            | AttemptStatus::CodInitiated
-            | AttemptStatus::VoidInitiated
-            | AttemptStatus::CaptureInitiated
-            | AttemptStatus::Pending => Self::Processing,
-
-            AttemptStatus::AuthenticationFailed
-            | AttemptStatus::AuthorizationFailed
-            | AttemptStatus::VoidFailed
-            | AttemptStatus::RouterDeclined
-            | AttemptStatus::CaptureFailed
-            | AttemptStatus::Failure => Self::Failed,
-            AttemptStatus::Voided => Self::Cancelled,
-        }
-    }
-}
-
 #[derive(
     Clone,
     Default,
@@ -872,6 +898,7 @@ impl From<AttemptStatus> for IntentStatus {
     frunk::LabelledGeneric,
     ToSchema,
 )]
+#[serde(rename_all = "snake_case")]
 pub enum DisputeStage {
     PreDispute,
     #[default]
@@ -893,6 +920,7 @@ pub enum DisputeStage {
     frunk::LabelledGeneric,
     ToSchema,
 )]
+#[serde(rename_all = "snake_case")]
 pub enum DisputeStatus {
     #[default]
     DisputeOpened,

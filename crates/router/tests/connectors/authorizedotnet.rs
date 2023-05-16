@@ -1,3 +1,5 @@
+use std::{marker::PhantomData, str::FromStr};
+
 use masking::Secret;
 use router::{
     configs::settings::Settings,
@@ -7,6 +9,7 @@ use router::{
     routes, services,
     types::{self, storage::enums, PaymentAddress},
 };
+use tokio::sync::oneshot;
 
 use crate::connector_auth::ConnectorAuthentication;
 
@@ -18,6 +21,7 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
     types::RouterData {
         flow: Default::default(),
         merchant_id: String::from("authorizedotnet"),
+        customer_id: Some(String::from("authorizedotnet")),
         connector: "authorizedotnet".to_string(),
         payment_id: uuid::Uuid::new_v4().to_string(),
         attempt_id: uuid::Uuid::new_v4().to_string(),
@@ -31,7 +35,7 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
             amount: 100,
             currency: enums::Currency::USD,
             payment_method_data: types::api::PaymentMethodData::Card(types::api::Card {
-                card_number: Secret::new("5424000000000015".to_string()),
+                card_number: cards::CardNumber::from_str("5424000000000015").unwrap(),
                 card_exp_month: Secret::new("10".to_string()),
                 card_exp_year: Secret::new("2025".to_string()),
                 card_holder_name: Secret::new("John Doe".to_string()),
@@ -68,6 +72,7 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
         session_token: None,
         reference_id: None,
         payment_method_token: None,
+        connector_customer: None,
     }
 }
 
@@ -80,6 +85,7 @@ fn construct_refund_router_data<F: operations::Flow>() -> types::RefundsRouterDa
         flow: Default::default(),
         connector_meta_data: None,
         merchant_id: String::from("authorizedotnet"),
+        customer_id: Some(String::from("authorizedotnet")),
         connector: "authorizedotnet".to_string(),
         payment_id: uuid::Uuid::new_v4().to_string(),
         attempt_id: uuid::Uuid::new_v4().to_string(),
@@ -95,6 +101,7 @@ fn construct_refund_router_data<F: operations::Flow>() -> types::RefundsRouterDa
             refund_id: uuid::Uuid::new_v4().to_string(),
             connector_transaction_id: String::new(),
             refund_amount: 1,
+            webhook_url: None,
             connector_metadata: None,
             reason: None,
             connector_refund_id: None,
@@ -107,6 +114,7 @@ fn construct_refund_router_data<F: operations::Flow>() -> types::RefundsRouterDa
         session_token: None,
         reference_id: None,
         payment_method_token: None,
+        connector_customer: None,
     }
 }
 
@@ -114,7 +122,8 @@ fn construct_refund_router_data<F: operations::Flow>() -> types::RefundsRouterDa
 #[ignore]
 async fn payments_create_success() {
     let conf = Settings::new().unwrap();
-    let state = routes::AppState::with_storage(conf, StorageImpl::PostgresqlTest).await;
+    let tx: oneshot::Sender<()> = oneshot::channel().0;
+    let state = routes::AppState::with_storage(conf, StorageImpl::PostgresqlTest, tx).await;
     static CV: Authorizedotnet = Authorizedotnet;
     let connector = types::api::ConnectorData {
         connector: Box::new(&CV),
@@ -157,7 +166,8 @@ async fn payments_create_failure() {
             connector_name: types::Connector::Authorizedotnet,
             get_token: types::api::GetToken::Connector,
         };
-        let state = routes::AppState::with_storage(conf, StorageImpl::PostgresqlTest).await;
+        let tx: oneshot::Sender<()> = oneshot::channel().0;
+        let state = routes::AppState::with_storage(conf, StorageImpl::PostgresqlTest, tx).await;
         let connector_integration: services::BoxedConnectorIntegration<
             '_,
             types::api::Authorize,
@@ -168,7 +178,7 @@ async fn payments_create_failure() {
 
         request.request.payment_method_data =
             types::api::PaymentMethodData::Card(types::api::Card {
-                card_number: Secret::new("542400000000001".to_string()),
+                card_number: cards::CardNumber::from_str("5424000000000015").unwrap(),
                 card_exp_month: Secret::new("10".to_string()),
                 card_exp_year: Secret::new("2025".to_string()),
                 card_holder_name: Secret::new("John Doe".to_string()),
@@ -205,7 +215,8 @@ async fn refunds_create_success() {
         connector_name: types::Connector::Authorizedotnet,
         get_token: types::api::GetToken::Connector,
     };
-    let state = routes::AppState::with_storage(conf, StorageImpl::PostgresqlTest).await;
+    let tx: oneshot::Sender<()> = oneshot::channel().0;
+    let state = routes::AppState::with_storage(conf, StorageImpl::PostgresqlTest, tx).await;
     let connector_integration: services::BoxedConnectorIntegration<
         '_,
         types::api::Execute,
@@ -242,7 +253,8 @@ async fn refunds_create_failure() {
         connector_name: types::Connector::Authorizedotnet,
         get_token: types::api::GetToken::Connector,
     };
-    let state = routes::AppState::with_storage(conf, StorageImpl::PostgresqlTest).await;
+    let tx: oneshot::Sender<()> = oneshot::channel().0;
+    let state = routes::AppState::with_storage(conf, StorageImpl::PostgresqlTest, tx).await;
     let connector_integration: services::BoxedConnectorIntegration<
         '_,
         types::api::Execute,
