@@ -1104,13 +1104,6 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
                         })
                 });
 
-        crate::logger::debug!(
-            "aaaaaaaaaaaaaaaaaaa{}",
-            item.request
-                .router_return_url
-                .clone()
-                .unwrap_or_else(|| "https://juspay.in/".to_string())
-        );
         Ok(Self {
             amount: item.request.amount, //hopefully we don't loose some cents here
             currency: item.request.currency.to_string(), //we need to copy the value and not transfer ownership

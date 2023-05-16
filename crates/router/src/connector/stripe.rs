@@ -1600,7 +1600,6 @@ impl services::ConnectorRedirectResponse for Stripe {
         _json_payload: Option<serde_json::Value>,
         _action: services::PaymentAction,
     ) -> CustomResult<crate::core::payments::CallConnectorAction, errors::ConnectorError> {
-        crate::logger::debug!("bbbbbbbbbbbbbbbb{}", query_params);
         let query =
             serde_urlencoded::from_str::<transformers::StripeRedirectResponse>(query_params)
                 .into_report()
