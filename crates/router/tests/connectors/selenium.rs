@@ -40,6 +40,7 @@ pub enum Selector {
 pub enum Assert<'a> {
     Eq(Selector, &'a str),
     Contains(Selector, &'a str),
+    ContainsAny(Selector, Vec<&'a str>),
     IsPresent(&'a str),
     IsPresentNow(&'a str),
 }
@@ -72,6 +73,13 @@ pub trait SeleniumTest {
                         }
                         _ => assert!(driver.title().await?.contains(text)),
                     },
+                    Assert::ContainsAny(selector, search_keys) => match selector {
+                        Selector::QueryParamStr => {
+                            let url = driver.current_url().await?;
+                            assert!(search_keys.iter().any(|key| url.query().unwrap().contains(key)))
+                        }
+                        _ => assert!(driver.title().await?.contains(search_keys.get(0).unwrap())),
+                    },
                     Assert::Eq(_selector, text) => assert_eq!(driver.title().await?, text),
                     Assert::IsPresent(text) => {
                         assert!(is_text_present(driver, text).await?)
@@ -90,6 +98,15 @@ pub trait SeleniumTest {
                         }
                         _ => assert!(driver.title().await?.contains(text)),
                     },
+                    Assert::ContainsAny(selector, keys) => match selector {
+                        Selector::QueryParamStr => {
+                            let url = driver.current_url().await?;
+                            if keys.iter().any(|key| url.query().unwrap().contains(key)) {
+                                self.complete_actions(driver, events).await?;
+                            }
+                        }
+                        _ => assert!(driver.title().await?.contains(keys.get(0).unwrap())),
+                    }
                     Assert::Eq(_selector, text) => {
                         if text == driver.title().await? {
                             self.complete_actions(driver, events).await?;
@@ -121,6 +138,21 @@ pub trait SeleniumTest {
                             .await?;
                         }
                         _ => assert!(driver.title().await?.contains(text)),
+                    },
+                    Assert::ContainsAny(selector, keys) => match selector {
+                        Selector::QueryParamStr => {
+                            let url = driver.current_url().await?;
+                            self.complete_actions(
+                                driver,
+                                if keys.iter().any(|key| url.query().unwrap().contains(key)) {
+                                    success
+                                } else {
+                                    failure
+                                },
+                            )
+                            .await?;
+                        }
+                        _ => assert!(driver.title().await?.contains(keys.get(0).unwrap())),
                     },
                     Assert::Eq(_selector, text) => {
                         self.complete_actions(
@@ -159,10 +191,12 @@ pub trait SeleniumTest {
                 Event::Trigger(trigger) => match trigger {
                     Trigger::Goto(url) => {
                         driver.goto(url).await?;
-                        let hs_base_url = self.get_configs().hs_base_url.unwrap_or(
-                            env::var("HS_BASE_URL").unwrap_or("http://localhost:8080".to_string()),
+                        let conf = serde_json::to_string(&self.get_configs()).unwrap();
+                        println!(">>{:?}", conf);
+                        let hs_base_url = self.get_configs().hs_base_url.unwrap_or_else(||
+                            env::var("HS_BASE_URL").unwrap_or_else(|_| "http://localhost:8080".to_string()),
                         );
-                        let hs_api_key = self.get_configs().hs_api_key.unwrap_or(
+                        let hs_api_key = self.get_configs().hs_api_key.unwrap_or_else(||
                             env::var("HS_API_KEY").expect("Hyperswitch user API key not present"),
                         );
                         driver
@@ -253,15 +287,13 @@ pub trait SeleniumTest {
         url: &str,
         actions: Vec<Event<'_>>,
     ) -> Result<(), WebDriverError> {
+        let config = self.get_configs();
+        println!(">>{:?}", config);
+        let conf = serde_json::to_string(&self.get_configs()).unwrap();
+        println!(">>{:?}", conf);
         let (email, pass) = (
-            &self
-                .get_configs()
-                .gmail_email
-                .unwrap_or(get_env("GMAIL_EMAIL")),
-            &self
-                .get_configs()
-                .gmail_pass
-                .unwrap_or(get_env("GMAIL_PASS")),
+            &config.gmail_email.unwrap_or_else(||get_env("GMAIL_EMAIL")),
+            &config.gmail_pass.unwrap_or_else(||get_env("GMAIL_PASS")),
         );
         let default_actions = vec![
             Event::Trigger(Trigger::Goto(url)),
@@ -316,8 +348,8 @@ pub trait SeleniumTest {
             &self
                 .get_configs()
                 .pypl_email
-                .unwrap_or(get_env("PYPL_EMAIL")),
-            &self.get_configs().pypl_pass.unwrap_or(get_env("PYPL_PASS")),
+                .unwrap_or_else(||get_env("PYPL_EMAIL")),
+            &self.get_configs().pypl_pass.unwrap_or_else(||get_env("PYPL_PASS")),
         );
         let mut pypl_actions = vec![
             Event::EitherOr(
@@ -414,7 +446,7 @@ macro_rules! tester {
 }
 
 pub fn get_browser() -> String {
-    env::var("HS_TEST_BROWSER").unwrap_or("firefox".to_string())
+    env::var("HS_TEST_BROWSER").unwrap_or_else(|_| "firefox".to_string())
 }
 
 pub fn make_capabilities(s: &str) -> Capabilities {
