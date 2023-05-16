@@ -886,12 +886,12 @@ fn create_stripe_payment_method(
         payments::PaymentMethodData::BankDebit(bank_debit_data) => {
             let (pm_type, bank_debit_data, billing_address) = get_bank_debit_data(bank_debit_data);
 
-            let pm_data = StripePaymentMethodData::BankDebit(StripeBankDebitEnum::SetupMandateData(
-                StripeBankDebitData {
+            let pm_data = StripePaymentMethodData::BankDebit(
+                StripeBankDebitEnum::SetupMandateData(StripeBankDebitData {
                     payment_method_types: pm_type,
                     bank_specific_data: bank_debit_data,
-                },
-            ));
+                }),
+            );
 
             Ok((pm_data, pm_type, billing_address))
         }
@@ -1003,7 +1003,8 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
         };
 
         if payment_method.is_some() {
-            payment_data = get_payment_method_data_from_mandate_metadata_for_recurring_payment(item);
+            payment_data =
+                get_payment_method_data_from_mandate_metadata_for_recurring_payment(item);
         }
         payment_data = match item.request.payment_method_data {
             payments::PaymentMethodData::Wallet(payments::WalletData::ApplePay(_)) => Some(
@@ -1019,28 +1020,31 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
             _ => payment_data,
         };
 
-        let mut setup_mandate_details =
-            item.request
-                .setup_mandate_details
-                .as_ref()
-                .and_then(|mandate_details| {
-                    match mandate_details.customer_acceptance.acceptance_type {
-                        payments::AcceptanceType::Online => {
-                            mandate_details.customer_acceptance.online.as_ref().map(
-                                |online_details| StripeMandateRequest {
-                                    mandate_type: StripeMandateType::Online {
-                                        ip_address: online_details.ip_address.clone(),
-                                        user_agent: online_details.user_agent.clone(),
-                                    },
-                                },
-                            )
-                        }
-                        payments::AcceptanceType::Offline => Some(StripeMandateRequest {
-                            mandate_type: StripeMandateType::Offline,
+        let setup_mandate_details = item
+            .request
+            .setup_mandate_details
+            .as_ref()
+            .and_then(
+                |mandate_details| match mandate_details.customer_acceptance.acceptance_type {
+                    payments::AcceptanceType::Online => mandate_details
+                        .customer_acceptance
+                        .online
+                        .as_ref()
+                        .map(|online_details| StripeMandateRequest {
+                            mandate_type: StripeMandateType::Online {
+                                ip_address: online_details.ip_address.clone(),
+                                user_agent: online_details.user_agent.clone(),
+                            },
                         }),
-                    }
-                }).or_else(|| {
-                    //stripe requires us to send mandate_data while making payment through payment method is bank debit attached to the customer
+                    payments::AcceptanceType::Offline => Some(StripeMandateRequest {
+                        mandate_type: StripeMandateType::Offline,
+                    }),
+                },
+            )
+            .or_else(|| {
+                //stripe requires us to send mandate_data while making payment through payment method is bank debit attached to the customer
+                if payment_method.is_some() {
+                    //check if payment is done through saved payment method
                     match &payment_data {
                         Some(StripePaymentMethodData::BankDebit(_)) => Some(StripeMandateRequest {
                             mandate_type: StripeMandateType::Offline,
@@ -1048,7 +1052,10 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
                         Some(_) => None,
                         None => None,
                     }
-                });
+                } else {
+                    None
+                }
+            });
         Ok(Self {
             amount: item.request.amount, //hopefully we don't loose some cents here
             currency: item.request.currency.to_string(), //we need to copy the value and not transfer ownership
@@ -1095,21 +1102,26 @@ fn get_payment_method_data_from_mandate_metadata_for_recurring_payment(
                         &payments::PaymentMethodData::BankDebit(data),
                         item.auth_type,
                     )
-                    .ok().map(|t| t.0);
+                    .ok()
+                    .map(|t| t.0);
                     match stripe_payment_method_data {
                         Some(StripePaymentMethodData::BankDebit(stripe_bank_debit_enum)) => {
                             match stripe_bank_debit_enum {
-                                StripeBankDebitEnum::RecurringMandateData(stripe_bank_debit_type) => { 
+                                StripeBankDebitEnum::RecurringMandateData(
+                                    stripe_bank_debit_type,
+                                ) => Some(StripePaymentMethodData::BankDebit(
+                                    StripeBankDebitEnum::RecurringMandateData(
+                                        stripe_bank_debit_type,
+                                    ),
+                                )),
+                                //ideally stripe_bank_debit_enum is always StripeBankDebitEnum::SetupMandateData
+                                StripeBankDebitEnum::SetupMandateData(stripe_bank_debit_data) => {
                                     Some(StripePaymentMethodData::BankDebit(
-                                        StripeBankDebitEnum::RecurringMandateData(stripe_bank_debit_type),
+                                        StripeBankDebitEnum::RecurringMandateData(
+                                            StripeBankDebitType::from(stripe_bank_debit_data),
+                                        ),
                                     ))
                                 }
-                                //ideally stripe_bank_debit_enum is always StripeBankDebitEnum::SetupMandateData
-                                StripeBankDebitEnum::SetupMandateData(stripe_bank_debit_data) => Some(
-                                    StripePaymentMethodData::BankDebit(StripeBankDebitEnum::RecurringMandateData(
-                                        StripeBankDebitType::from(stripe_bank_debit_data),
-                                    )),
-                                ),
                             }
                         }
                         _ => None,
