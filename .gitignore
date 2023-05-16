@@ -256,3 +256,5 @@ loadtest/*.tmp/
 
 # Nix output
 result*
+
+.idea/

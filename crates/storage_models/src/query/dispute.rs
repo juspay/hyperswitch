@@ -1,4 +1,4 @@
-use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods};
+use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods, Table};
 use router_env::{instrument, tracing};
 
 use super::generics;
@@ -44,6 +44,28 @@ impl Dispute {
             dsl::merchant_id
                 .eq(merchant_id.to_owned())
                 .and(dsl::dispute_id.eq(dispute_id.to_owned())),
+        )
+        .await
+    }
+
+    pub async fn find_by_merchant_id_payment_id(
+        conn: &PgPooledConn,
+        merchant_id: &str,
+        payment_id: &str,
+    ) -> StorageResult<Vec<Self>> {
+        generics::generic_filter::<
+            <Self as HasTable>::Table,
+            _,
+            <<Self as HasTable>::Table as Table>::PrimaryKey,
+            _,
+        >(
+            conn,
+            dsl::merchant_id
+                .eq(merchant_id.to_owned())
+                .and(dsl::payment_id.eq(payment_id.to_owned())),
+            None,
+            None,
+            None,
         )
         .await
     }

@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 use api_models::payments::Address;
 use masking::Secret;
 use router::types::{self, api, storage::enums, PaymentAddress};
@@ -286,28 +288,7 @@ async fn should_fail_payment_for_incorrect_card_number() {
         .make_payment(
             Some(types::PaymentsAuthorizeData {
                 payment_method_data: types::api::PaymentMethodData::Card(api::Card {
-                    card_number: Secret::new("1891011".to_string()),
-                    ..utils::CCardType::default().0
-                }),
-                ..utils::PaymentAuthorizeType::default().0
-            }),
-            Some(get_payment_info()),
-        )
-        .await
-        .unwrap();
-    let x = response.response.unwrap_err();
-    assert_eq!(x.message, "Invalid parameter",);
-    assert_eq!(x.reason, Some("card.number".to_string()));
-}
-
-// Creates a payment with empty card number.
-#[actix_web::test]
-async fn should_fail_payment_for_empty_card_number() {
-    let response = CONNECTOR
-        .make_payment(
-            Some(types::PaymentsAuthorizeData {
-                payment_method_data: types::api::PaymentMethodData::Card(api::Card {
-                    card_number: Secret::new(String::from("")),
+                    card_number: cards::CardNumber::from_str("1891011").unwrap(),
                     ..utils::CCardType::default().0
                 }),
                 ..utils::PaymentAuthorizeType::default().0
@@ -443,7 +424,7 @@ pub fn get_payment_info() -> PaymentInfo {
                 phone: None,
                 address: Some(api::AddressDetails {
                     city: None,
-                    country: Some(api_models::enums::CountryCode::PA),
+                    country: Some(api_models::enums::CountryAlpha2::PA),
                     line1: None,
                     line2: None,
                     line3: None,

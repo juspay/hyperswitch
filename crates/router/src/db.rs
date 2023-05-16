@@ -25,7 +25,10 @@ use std::sync::Arc;
 
 use futures::lock::Mutex;
 
-use crate::{services::Store, types::storage};
+use crate::{
+    services::{self, Store},
+    types::storage,
+};
 
 #[derive(PartialEq, Eq)]
 pub enum StorageImpl {
@@ -61,21 +64,12 @@ pub trait StorageInterface:
     + refund::RefundInterface
     + reverse_lookup::ReverseLookupInterface
     + cards_info::CardsInfoInterface
+    + services::RedisConnInterface
     + 'static
 {
-    async fn close(&mut self) {}
 }
-
 #[async_trait::async_trait]
-impl StorageInterface for Store {
-    #[allow(clippy::expect_used)]
-    async fn close(&mut self) {
-        std::sync::Arc::get_mut(&mut self.redis_conn)
-            .expect("Redis connection pool cannot be closed")
-            .close_connections()
-            .await;
-    }
-}
+impl StorageInterface for Store {}
 
 #[derive(Clone)]
 pub struct MockDb {
@@ -107,15 +101,7 @@ impl MockDb {
 }
 
 #[async_trait::async_trait]
-impl StorageInterface for MockDb {
-    #[allow(clippy::expect_used)]
-    async fn close(&mut self) {
-        std::sync::Arc::get_mut(&mut self.redis)
-            .expect("Redis connection pool cannot be closed")
-            .close_connections()
-            .await;
-    }
-}
+impl StorageInterface for MockDb {}
 
 pub async fn get_and_deserialize_key<T>(
     db: &dyn StorageInterface,
@@ -132,6 +118,12 @@ where
     bytes
         .parse_struct(type_name)
         .change_context(redis_interface::errors::RedisError::JsonDeserializationFailed)
+}
+
+impl services::RedisConnInterface for MockDb {
+    fn get_redis_conn(&self) -> Arc<redis_interface::RedisConnectionPool> {
+        self.redis.clone()
+    }
 }
 
 dyn_clone::clone_trait_object!(StorageInterface);
