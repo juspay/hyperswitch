@@ -85,16 +85,6 @@ pub enum BluesnapWalletTypes {
     ApplePay,
 }
 
-// #[derive(Debug, Serialize, Deserialize, Eq, PartialEq)]
-// pub struct ApplepayPayment {
-//     payment: ApplepayToken,
-// }
-
-// #[derive(Debug, Serialize, Deserialize, Eq, PartialEq)]
-// pub struct ApplepayToken {
-//     token: ApplepayPaymentData,
-// }
-
 #[derive(Debug, Serialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct EncodedPaymentToken {
@@ -285,7 +275,7 @@ impl TryFrom<types::PaymentsSessionResponseRouterData<BluesnapWalletTokenRespons
         let response = &item.response;
 
         let wallet_token = consts::BASE64_ENGINE
-            .decode(response.wallet_token.clone())
+            .decode(response.wallet_token.clone().expose())
             .into_report()
             .change_context(errors::ConnectorError::ParsingFailed)?;
 
@@ -594,7 +584,7 @@ pub struct BluesnapPaymentsResponse {
 #[serde(rename_all = "camelCase")]
 pub struct BluesnapWalletTokenResponse {
     wallet_type: String,
-    wallet_token: String,
+    wallet_token: Secret<String>,
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
