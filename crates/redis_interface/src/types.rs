@@ -5,8 +5,35 @@
 
 use common_utils::errors::CustomResult;
 use error_stack::IntoReport;
+use fred::types::RedisValue as FredRedisValue;
 
 use crate::errors;
+
+pub struct RedisValue {
+    inner: FredRedisValue,
+}
+
+impl std::ops::Deref for RedisValue {
+    type Target = FredRedisValue;
+
+    fn deref(&self) -> &Self::Target {
+        &self.inner
+    }
+}
+
+impl RedisValue {
+    pub fn new(value: FredRedisValue) -> Self {
+        Self { inner: value }
+    }
+    pub fn into_inner(self) -> FredRedisValue {
+        self.inner
+    }
+    pub fn from_string(value: String) -> Self {
+        Self {
+            inner: FredRedisValue::String(value.into()),
+        }
+    }
+}
 
 #[derive(Debug, serde::Deserialize, Clone)]
 #[serde(default)]

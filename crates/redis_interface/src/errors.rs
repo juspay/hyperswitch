@@ -58,4 +58,6 @@ pub enum RedisError {
     SubscribeError,
     #[error("Failed to publish to a channel")]
     PublishError,
+    #[error("Failed while receiving message from publisher")]
+    OnMessageError,
 }
