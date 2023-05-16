@@ -252,7 +252,7 @@ diesel::table! {
         intent_fulfillment_time -> Nullable<Int8>,
         created_at -> Timestamp,
         modified_at -> Timestamp,
-        frm_routing_algorithm -> Nullable<Json>,
+        frm_routing_algorithm -> Nullable<Jsonb>,
     }
 }
 
