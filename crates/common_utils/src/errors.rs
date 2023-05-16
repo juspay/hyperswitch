@@ -23,11 +23,17 @@ pub enum ParsingError {
     /// Failed to parse data
     #[error("Unknown error while parsing")]
     UnknownError,
+    /// Failed to parse datetime
+    #[error("Failed to parse datetime")]
+    DateTimeParsingError,
+    /// Failed to parse email
+    #[error("Failed to parse email")]
+    EmailParsingError,
 }
 
 /// Validation errors.
 #[allow(missing_docs)] // Only to prevent warnings about struct fields not being documented
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug, thiserror::Error, Clone)]
 pub enum ValidationError {
     /// The provided input is missing a required field.
     #[error("Missing required field: {field_name}")]
