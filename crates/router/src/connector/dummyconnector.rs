@@ -3,8 +3,8 @@ mod transformers;
 use std::fmt::Debug;
 
 use error_stack::{IntoReport, ResultExt};
-use transformers as dummyconnector;
 use storage_models::enums;
+use transformers as dummyconnector;
 
 use super::utils::RefundsRequestData;
 use crate::{
@@ -154,10 +154,7 @@ impl<const T: u8>
         match req.payment_method {
             enums::PaymentMethod::Card => Ok(format!("{}/payment", self.base_url(connectors))),
             _ => Err(error_stack::report!(errors::ConnectorError::NotSupported {
-                message: format!(
-                    "The payment method {} is not supported",
-                    req.payment_method
-                ),
+                message: format!("The payment method {} is not supported", req.payment_method),
                 connector: "dummyconnector",
                 payment_experience: api::enums::PaymentExperience::InvokeSdkClient.to_string(),
             })),
