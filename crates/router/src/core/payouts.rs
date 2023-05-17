@@ -5,7 +5,6 @@ use api_models::enums as api_enums;
 use common_utils::crypto::Encryptable;
 use diesel_models::enums as storage_enums;
 use error_stack::{report, ResultExt};
-use masking::Secret;
 use router_env::{instrument, tracing};
 use serde_json::{self};
 
@@ -273,7 +272,7 @@ pub async fn call_connector_payout(
     payout_data: &mut PayoutData,
 ) -> RouterResponse<payouts::PayoutCreateResponse> {
     let payout_create = &payout_data.payout_create.to_owned();
-    let payout_method_data = helpers::make_payout_data(state, req, payout_create).await?;
+    let payout_method_data = helpers::make_payout_method_data(state, req, payout_create).await?;
     let payouts: &storage_models::payouts::Payouts = &payout_data.payouts.to_owned();
     if let Some(true) = req.create_payout {
         let pmd = payout_method_data
@@ -570,14 +569,16 @@ pub async fn fulfill_payout(
     let payout_create = &payout_data.payout_create;
     match router_data_resp.response {
         Ok(payout_response_data) => {
-            // TODO: Consume this
-            let _payout_method_id = helpers::save_payout_data_to_locker(
-                state,
-                payout_create,
-                payout_method_data,
-                merchant_account,
-            )
-            .await?;
+            if payout_data.payouts.recurring {
+                helpers::save_payout_data_to_locker(
+                    state,
+                    payout_create,
+                    payout_method_data,
+                    merchant_account,
+                )
+                .await?;
+            }
+
             let updated_payouts = storage::payout_create::PayoutCreateUpdate::StatusUpdate {
                 connector_payout_id: payout_response_data.connector_payout_id,
                 status: payout_response_data.status,
@@ -743,25 +744,17 @@ pub async fn payout_create_db_entries(
         .to_owned()
         .map(ForeignInto::foreign_into)
         .get_required_value("currency")?;
-    let (payout_type, payout_method_data) = match &req.payout_method_data {
-        Some(pmd) => match pmd {
-            api::PayoutMethodData::Card(_) => Ok((api_enums::PayoutType::Card, None)),
-            api::PayoutMethodData::Bank(bank_data) => Ok((
-                api_enums::PayoutType::Bank,
-                Some(serde_json::to_value(bank_data).unwrap_or(serde_json::Value::Null)),
-            )),
-        },
-        None => Err(report!(errors::ApiErrorResponse::MissingRequiredField {
-            field_name: "payout_method_data"
-        })),
-    }?;
+    let payout_type = req
+        .payout_type
+        .to_owned()
+        .get_required_value("payout_type")?;
+
     let payouts_req = storage::PayoutsNew::default()
         .set_payout_id(payout_id.to_owned())
         .set_merchant_id(merchant_id.to_owned())
         .set_customer_id(customer_id.to_owned())
         .set_address_id(address_id.to_owned())
         .set_payout_type(payout_type.foreign_into())
-        .set_payout_method_data(payout_method_data.to_owned().map(Secret::new))
         .set_amount(req.amount.unwrap_or(api::Amount::Zero).into())
         .set_destination_currency(currency)
         .set_source_currency(currency)

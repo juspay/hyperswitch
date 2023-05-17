@@ -57,6 +57,7 @@ pub enum PayoutCreateUpdate {
     },
     PayoutTokenUpdate {
         payout_token: String,
+        status: storage_enums::PayoutStatus,
     },
 }
 
@@ -74,8 +75,12 @@ pub struct PayoutCreateUpdateInternal {
 impl From<PayoutCreateUpdate> for PayoutCreateUpdateInternal {
     fn from(payout_update: PayoutCreateUpdate) -> Self {
         match payout_update {
-            PayoutCreateUpdate::PayoutTokenUpdate { payout_token } => Self {
+            PayoutCreateUpdate::PayoutTokenUpdate {
+                payout_token,
+                status,
+            } => Self {
                 payout_token: Some(payout_token),
+                status: Some(status),
                 ..Default::default()
             },
             PayoutCreateUpdate::StatusUpdate {
