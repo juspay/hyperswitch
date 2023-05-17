@@ -48,6 +48,10 @@ pub struct PayoutCreateRequest {
     #[schema(value_type = bool, example = true, default = false)]
     pub create_payout: Option<bool>,
 
+    /// The payout_type of the payout request can be specified here
+    #[schema(value_type = PayoutType, example = "card")]
+    pub payout_type: api_enums::PayoutType,
+
     /// The payout method information required for carrying out a payout
     #[schema(value_type = Option<PayoutMethodData>)]
     pub payout_method_data: Option<PayoutMethodData>,
