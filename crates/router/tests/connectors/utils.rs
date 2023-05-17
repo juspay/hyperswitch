@@ -1,4 +1,4 @@
-use std::{fmt::Debug, marker::PhantomData, time::Duration};
+use std::{fmt::Debug, marker::PhantomData, str::FromStr, time::Duration};
 
 use async_trait::async_trait;
 use error_stack::Report;
@@ -32,10 +32,13 @@ pub struct PaymentInfo {
     pub auth_type: Option<enums::AuthenticationType>,
     pub access_token: Option<AccessToken>,
     pub connector_meta_data: Option<serde_json::Value>,
+    pub return_url: Option<String>,
 }
 
 #[async_trait]
 pub trait ConnectorActions: Connector {
+    /// For initiating payments when `CaptureMethod` is set to `Manual`
+    /// This doesn't complete the transaction, `PaymentsCapture` needs to be done manually
     async fn authorize_payment(
         &self,
         payment_data: Option<types::PaymentsAuthorizeData>,
@@ -61,6 +64,8 @@ pub trait ConnectorActions: Connector {
         call_connector(request, integration).await
     }
 
+    /// For initiating payments when `CaptureMethod` is set to `Automatic`
+    /// This does complete the transaction without user intervention to Capture the payment
     async fn make_payment(
         &self,
         payment_data: Option<types::PaymentsAuthorizeData>,
@@ -196,14 +201,14 @@ pub trait ConnectorActions: Connector {
     async fn refund_payment(
         &self,
         transaction_id: String,
-        payment_data: Option<types::RefundsData>,
+        refund_data: Option<types::RefundsData>,
         payment_info: Option<PaymentInfo>,
     ) -> Result<types::RefundExecuteRouterData, Report<ConnectorError>> {
         let integration = self.get_data().connector.get_connector_integration();
         let request = self.generate_data(
             types::RefundsData {
                 connector_transaction_id: transaction_id,
-                ..payment_data.unwrap_or(PaymentRefundType::default().0)
+                ..refund_data.unwrap_or(PaymentRefundType::default().0)
             },
             payment_info,
         );
@@ -318,6 +323,7 @@ pub trait ConnectorActions: Connector {
                 currency: enums::Currency::USD,
                 refund_id: uuid::Uuid::new_v4().to_string(),
                 connector_transaction_id: "".to_string(),
+                webhook_url: None,
                 refund_amount: 100,
                 connector_metadata: None,
                 reason: None,
@@ -364,6 +370,7 @@ pub trait ConnectorActions: Connector {
         RouterData {
             flow: PhantomData,
             merchant_id: self.get_name(),
+            customer_id: Some(self.get_name()),
             connector: self.get_name(),
             payment_id: uuid::Uuid::new_v4().to_string(),
             attempt_id: uuid::Uuid::new_v4().to_string(),
@@ -377,7 +384,7 @@ pub trait ConnectorActions: Connector {
             payment_method: enums::PaymentMethod::Card,
             connector_auth_type: self.get_auth_token(),
             description: Some("This is a test".to_string()),
-            return_url: None,
+            return_url: info.clone().and_then(|a| a.return_url),
             request: req,
             response: Err(types::ErrorResponse::default()),
             payment_method_id: None,
@@ -394,8 +401,8 @@ pub trait ConnectorActions: Connector {
             session_token: None,
             reference_id: None,
             payment_method_token: None,
+            connector_customer: None,
             preprocessing_id: None,
-            customer_id: None,
         }
     }
 
@@ -411,6 +418,7 @@ pub trait ConnectorActions: Connector {
             Ok(types::PaymentsResponseData::SessionTokenResponse { .. }) => None,
             Ok(types::PaymentsResponseData::TokenizationResponse { .. }) => None,
             Ok(types::PaymentsResponseData::TransactionUnresolvedResponse { .. }) => None,
+            Ok(types::PaymentsResponseData::ConnectorCustomerResponse { .. }) => None,
             Ok(types::PaymentsResponseData::PreProcessingResponse { .. }) => None,
             Ok(types::PaymentsResponseData::ThreeDSEnrollmentResponse { .. }) => None,
             Err(_) => None,
@@ -473,7 +481,7 @@ pub struct BrowserInfoType(pub types::BrowserInformation);
 impl Default for CCardType {
     fn default() -> Self {
         Self(api::Card {
-            card_number: Secret::new("4200000000000000".to_string()),
+            card_number: cards::CardNumber::from_str("4200000000000000").unwrap(),
             card_exp_month: Secret::new("10".to_string()),
             card_exp_year: Secret::new("2025".to_string()),
             card_holder_name: Secret::new("John Doe".to_string()),
@@ -558,6 +566,7 @@ impl Default for BrowserInfoType {
 impl Default for PaymentSyncType {
     fn default() -> Self {
         let data = types::PaymentsSyncData {
+            mandate_id: None,
             connector_transaction_id: types::ResponseId::ConnectorTransactionId(
                 "12345".to_string(),
             ),
@@ -577,6 +586,7 @@ impl Default for PaymentRefundType {
             refund_id: uuid::Uuid::new_v4().to_string(),
             connector_transaction_id: String::new(),
             refund_amount: 100,
+            webhook_url: None,
             connector_metadata: None,
             reason: Some("Customer returned product".to_string()),
             connector_refund_id: None,
@@ -597,6 +607,7 @@ pub fn get_connector_transaction_id(
         Ok(types::PaymentsResponseData::TokenizationResponse { .. }) => None,
         Ok(types::PaymentsResponseData::TransactionUnresolvedResponse { .. }) => None,
         Ok(types::PaymentsResponseData::PreProcessingResponse { .. }) => None,
+        Ok(types::PaymentsResponseData::ConnectorCustomerResponse { .. }) => None,
         Ok(types::PaymentsResponseData::ThreeDSEnrollmentResponse { .. }) => None,
         Err(_) => None,
     }
@@ -611,6 +622,7 @@ pub fn get_connector_metadata(
             redirection_data: _,
             mandate_reference: _,
             connector_metadata,
+            network_txn_id: _,
         }) => connector_metadata,
         _ => None,
     }

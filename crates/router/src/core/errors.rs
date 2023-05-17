@@ -241,6 +241,8 @@ pub enum ConnectorError {
     ResponseHandlingFailed,
     #[error("Missing required field: {field_name}")]
     MissingRequiredField { field_name: &'static str },
+    #[error("Missing required fields: {field_names:?}")]
+    MissingRequiredFields { field_names: Vec<&'static str> },
     #[error("Failed to obtain authentication type")]
     FailedToObtainAuthType,
     #[error("Failed to obtain certificate")]
@@ -251,9 +253,9 @@ pub enum ConnectorError {
     FailedToObtainCertificateKey,
     #[error("This step has not been implemented for: {0}")]
     NotImplemented(String),
-    #[error("{payment_method} is not supported by {connector}")]
+    #[error("{message} is not supported by {connector}")]
     NotSupported {
-        payment_method: String,
+        message: String,
         connector: &'static str,
         payment_experience: String,
     },
@@ -293,6 +295,12 @@ pub enum ConnectorError {
     MismatchedPaymentData,
     #[error("Failed to parse Wallet token")]
     InvalidWalletToken,
+    #[error("Missing Connector Related Transaction ID")]
+    MissingConnectorRelatedTransactionID { id: String },
+    #[error("File Validation failed")]
+    FileValidationFailed { reason: String },
+    #[error("Missing 3DS redirection payload: {field_name}")]
+    MissingConnectorRedirectionPayload { field_name: &'static str },
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -455,3 +463,47 @@ pub enum WebhooksFlowError {
     #[error("Missing required field: {field_name}")]
     MissingRequiredField { field_name: &'static str },
 }
+
+#[cfg(feature = "detailed_errors")]
+pub mod error_stack_parsing {
+
+    #[derive(serde::Deserialize)]
+    pub struct NestedErrorStack<'a> {
+        context: std::borrow::Cow<'a, str>,
+        attachments: Vec<std::borrow::Cow<'a, str>>,
+        sources: Vec<NestedErrorStack<'a>>,
+    }
+
+    #[derive(serde::Serialize, Debug)]
+    struct LinearErrorStack<'a> {
+        context: std::borrow::Cow<'a, str>,
+        #[serde(skip_serializing_if = "Vec::is_empty")]
+        attachments: Vec<std::borrow::Cow<'a, str>>,
+    }
+
+    #[derive(serde::Serialize, Debug)]
+    pub struct VecLinearErrorStack<'a>(Vec<LinearErrorStack<'a>>);
+
+    impl<'a> From<Vec<NestedErrorStack<'a>>> for VecLinearErrorStack<'a> {
+        fn from(value: Vec<NestedErrorStack<'a>>) -> Self {
+            let multi_layered_errors: Vec<_> = value
+                .into_iter()
+                .flat_map(|current_error| {
+                    [LinearErrorStack {
+                        context: current_error.context,
+                        attachments: current_error.attachments,
+                    }]
+                    .into_iter()
+                    .chain(
+                        Into::<VecLinearErrorStack<'a>>::into(current_error.sources)
+                            .0
+                            .into_iter(),
+                    )
+                })
+                .collect();
+            Self(multi_layered_errors)
+        }
+    }
+}
+#[cfg(feature = "detailed_errors")]
+pub use error_stack_parsing::*;

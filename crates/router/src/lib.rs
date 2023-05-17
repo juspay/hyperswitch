@@ -61,13 +61,14 @@ pub mod headers {
     pub const X_TRANS_KEY: &str = "X-Trans-Key";
     pub const X_VERSION: &str = "X-Version";
     pub const X_CC_VERSION: &str = "X-CC-Version";
+    pub const X_ACCEPT_VERSION: &str = "X-Accept-Version";
     pub const X_DATE: &str = "X-Date";
 }
 
 pub mod pii {
     //! Personal Identifiable Information protection.
 
-    pub(crate) use common_utils::pii::{CardNumber, Email};
+    pub(crate) use common_utils::pii::Email;
     #[doc(inline)]
     pub use masking::*;
 }
@@ -95,6 +96,12 @@ pub fn mk_app(
         );
     }
 
+    #[cfg(feature = "dummy_connector")]
+    {
+        use routes::DummyConnector;
+        server_app = server_app.service(DummyConnector::server(state.clone()));
+    }
+
     #[cfg(any(feature = "olap", feature = "oltp"))]
     {
         server_app = server_app
@@ -120,6 +127,7 @@ pub fn mk_app(
         server_app = server_app
             .service(routes::MerchantAccount::server(state.clone()))
             .service(routes::ApiKeys::server(state.clone()))
+            .service(routes::Files::server(state.clone()))
             .service(routes::Disputes::server(state.clone()));
     }
 
@@ -138,13 +146,11 @@ pub fn mk_app(
 ///
 ///  Unwrap used because without the value we can't start the server
 #[allow(clippy::expect_used, clippy::unwrap_used)]
-pub async fn start_server(conf: settings::Settings) -> ApplicationResult<(Server, AppState)> {
+pub async fn start_server(conf: settings::Settings) -> ApplicationResult<Server> {
     logger::debug!(startup_config=?conf);
     let server = conf.server.clone();
     let (tx, rx) = oneshot::channel();
     let state = routes::AppState::new(conf, tx).await;
-    // Cloning to close connections before shutdown
-    let app_state = state.clone();
     let request_body_limit = server.request_body_limit;
     let server = actix_web::HttpServer::new(move || mk_app(state.clone(), request_body_limit))
         .bind((server.host.as_str(), server.port))?
@@ -152,7 +158,7 @@ pub async fn start_server(conf: settings::Settings) -> ApplicationResult<(Server
         .shutdown_timeout(server.shutdown_timeout)
         .run();
     tokio::spawn(receiver_for_error(rx, server.handle()));
-    Ok((server, app_state))
+    Ok(server)
 }
 
 pub async fn receiver_for_error(rx: oneshot::Receiver<()>, mut server: impl Stop) {

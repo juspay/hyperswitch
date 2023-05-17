@@ -4,6 +4,7 @@ pub mod configs;
 pub mod customers;
 pub mod disputes;
 pub mod enums;
+pub mod files;
 pub mod mandates;
 pub mod payment_methods;
 pub mod payments;
@@ -15,8 +16,8 @@ use std::{fmt::Debug, str::FromStr};
 use error_stack::{report, IntoReport, ResultExt};
 
 pub use self::{
-    admin::*, api_keys::*, configs::*, customers::*, disputes::*, payment_methods::*, payments::*,
-    refunds::*, webhooks::*,
+    admin::*, api_keys::*, configs::*, customers::*, disputes::*, files::*, payment_methods::*,
+    payments::*, refunds::*, webhooks::*,
 };
 use super::ErrorResponse;
 use crate::{
@@ -106,6 +107,8 @@ pub trait Connector:
     + ConnectorRedirectResponse
     + IncomingWebhook
     + ConnectorAccessToken
+    + Dispute
+    + FileUpload
     + ConnectorTransactionId
 {
 }
@@ -122,6 +125,8 @@ impl<
             + Send
             + IncomingWebhook
             + ConnectorAccessToken
+            + Dispute
+            + FileUpload
             + ConnectorTransactionId,
     > Connector for T
 {
@@ -145,15 +150,22 @@ pub struct ConnectorData {
     pub get_token: GetToken,
 }
 
+#[derive(Clone)]
+pub struct SessionConnectorData {
+    pub payment_method_type: api_enums::PaymentMethodType,
+    pub connector: ConnectorData,
+    pub business_sub_label: Option<String>,
+}
+
 pub enum ConnectorChoice {
-    SessionMultiple(Vec<ConnectorData>),
+    SessionMultiple(Vec<SessionConnectorData>),
     StraightThrough(serde_json::Value),
     Decide,
 }
 
 #[derive(Clone)]
 pub enum ConnectorCallType {
-    Multiple(Vec<ConnectorData>),
+    Multiple(Vec<SessionConnectorData>),
     Single(ConnectorData),
 }
 
@@ -192,17 +204,26 @@ impl ConnectorData {
             "airwallex" => Ok(Box::new(&connector::Airwallex)),
             "authorizedotnet" => Ok(Box::new(&connector::Authorizedotnet)),
             "bambora" => Ok(Box::new(&connector::Bambora)),
+            "bitpay" => Ok(Box::new(&connector::Bitpay)),
             "bluesnap" => Ok(Box::new(&connector::Bluesnap)),
             "braintree" => Ok(Box::new(&connector::Braintree)),
             "checkout" => Ok(Box::new(&connector::Checkout)),
             "coinbase" => Ok(Box::new(&connector::Coinbase)),
             "cybersource" => Ok(Box::new(&connector::Cybersource)),
             "dlocal" => Ok(Box::new(&connector::Dlocal)),
+            #[cfg(feature = "dummy_connector")]
+            "dummyconnector1" => Ok(Box::new(&connector::DummyConnector::<1>)),
+            #[cfg(feature = "dummy_connector")]
+            "dummyconnector2" => Ok(Box::new(&connector::DummyConnector::<2>)),
+            #[cfg(feature = "dummy_connector")]
+            "dummyconnector3" => Ok(Box::new(&connector::DummyConnector::<3>)),
             "fiserv" => Ok(Box::new(&connector::Fiserv)),
-            // "forte" => Ok(Box::new(&connector::Forte)),
+            "forte" => Ok(Box::new(&connector::Forte)),
             "globalpay" => Ok(Box::new(&connector::Globalpay)),
+            "iatapay" => Ok(Box::new(&connector::Iatapay)),
             "klarna" => Ok(Box::new(&connector::Klarna)),
             "mollie" => Ok(Box::new(&connector::Mollie)),
+            "nmi" => Ok(Box::new(&connector::Nmi)),
             "nuvei" => Ok(Box::new(&connector::Nuvei)),
             "opennode" => Ok(Box::new(&connector::Opennode)),
             // "payeezy" => Ok(Box::new(&connector::Payeezy)), As psync and rsync are not supported by this connector, it is added as template code for future usage
@@ -213,9 +234,10 @@ impl ConnectorData {
             "worldline" => Ok(Box::new(&connector::Worldline)),
             "worldpay" => Ok(Box::new(&connector::Worldpay)),
             "multisafepay" => Ok(Box::new(&connector::Multisafepay)),
-            // "nexinets" => Ok(Box::new(&connector::Nexinets)), added as template code for future use
+            "nexinets" => Ok(Box::new(&connector::Nexinets)),
             "paypal" => Ok(Box::new(&connector::Paypal)),
             "trustpay" => Ok(Box::new(&connector::Trustpay)),
+            "zen" => Ok(Box::new(&connector::Zen)),
             _ => Err(report!(errors::ConnectorError::InvalidConnectorName)
                 .attach_printable(format!("invalid connector name: {connector_name}")))
             .change_context(errors::ApiErrorResponse::InternalServerError),

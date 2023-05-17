@@ -164,6 +164,7 @@ async fn refunds_incoming_webhook_flow<W: api::OutgoingWebhookType>(
             merchant_account.clone(),
             api_models::refunds::RefundsRetrieveRequest {
                 refund_id: refund_id.to_owned(),
+                force_sync: Some(true),
                 merchant_connector_details: None,
             },
         )
@@ -263,8 +264,9 @@ async fn get_or_update_dispute_object(
                 connector_reason: dispute_details.connector_reason,
                 connector_reason_code: dispute_details.connector_reason_code,
                 challenge_required_by: dispute_details.challenge_required_by,
-                dispute_created_at: dispute_details.created_at,
-                updated_at: dispute_details.updated_at,
+                connector_created_at: dispute_details.created_at,
+                connector_updated_at: dispute_details.updated_at,
+                evidence: None,
             };
             state
                 .store
@@ -292,7 +294,7 @@ async fn get_or_update_dispute_object(
                 connector_reason: dispute_details.connector_reason,
                 connector_reason_code: dispute_details.connector_reason_code,
                 challenge_required_by: dispute_details.challenge_required_by,
-                updated_at: dispute_details.updated_at,
+                connector_updated_at: dispute_details.updated_at,
             };
             db.update_dispute(dispute, update_dispute)
                 .await
@@ -379,22 +381,12 @@ async fn bank_transfer_webhook_flow<W: api::OutgoingWebhookType>(
             &merchant_account,
         )
         .await?;
+        let payment_id = payment_attempt.payment_id;
         let request = api::PaymentsRequest {
             payment_id: Some(api_models::payments::PaymentIdType::PaymentIntentId(
-                payment_attempt.payment_id,
+                payment_id,
             )),
-            merchant_id: Some(merchant_account.merchant_id.to_owned()),
             payment_token: payment_attempt.payment_token,
-            currency: Some(
-                payment_attempt
-                    .currency
-                    .get_required_value("currency")
-                    .change_context(errors::WebhooksFlowError::MissingRequiredField {
-                        field_name: "currency",
-                    })?
-                    .foreign_into(),
-            ),
-            amount: Some(payment_attempt.amount.into()),
             ..Default::default()
         };
         payments::payments_core::<api::Authorize, api::PaymentsResponse, _, _, _>(

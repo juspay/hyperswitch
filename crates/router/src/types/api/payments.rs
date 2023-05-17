@@ -69,9 +69,6 @@ pub struct AuthorizeSessionToken;
 pub struct CompleteAuthorize;
 
 #[derive(Debug, Clone)]
-pub struct Customer;
-
-#[derive(Debug, Clone)]
 pub struct InitPayment;
 #[derive(Debug, Clone)]
 pub struct Capture;
@@ -86,6 +83,9 @@ pub struct Session;
 
 #[derive(Debug, Clone)]
 pub struct PaymentMethodToken;
+
+#[derive(Debug, Clone)]
+pub struct CreateConnectorCustomer;
 
 #[derive(Debug, Clone)]
 pub struct Verify;
@@ -176,8 +176,12 @@ pub trait PaymentToken:
 {
 }
 
-pub trait Customers:
-    api::ConnectorIntegration<Customer, types::CustomerData, types::PaymentsResponseData>
+pub trait ConnectorCustomer:
+    api::ConnectorIntegration<
+    CreateConnectorCustomer,
+    types::ConnectorCustomerData,
+    types::PaymentsResponseData,
+>
 {
 }
 
@@ -201,6 +205,7 @@ pub trait Payment:
     + PaymentSession
     + PaymentToken
     + PaymentsPreProcessing
+    + ConnectorCustomer
 {
 }
 
@@ -213,7 +218,7 @@ mod payments_test {
     #[allow(dead_code)]
     fn card() -> Card {
         Card {
-            card_number: "1234432112344321".to_string().into(),
+            card_number: "1234432112344321".to_string().try_into().unwrap(),
             card_exp_month: "12".to_string().into(),
             card_exp_year: "99".to_string().into(),
             card_holder_name: "JohnDoe".to_string().into(),

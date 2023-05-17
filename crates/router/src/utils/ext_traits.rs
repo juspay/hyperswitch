@@ -20,7 +20,7 @@ pub trait OptionExt<T> {
 
     fn parse_value<U>(self, type_name: &'static str) -> CustomResult<U, errors::ParsingError>
     where
-        T: ValueExt<U>,
+        T: ValueExt,
         U: serde::de::DeserializeOwned;
 
     fn update_value(&mut self, value: Option<T>);
@@ -57,22 +57,22 @@ where
     {
         let value = self
             .get_required_value(enum_name)
-            .change_context(errors::ParsingError)?;
+            .change_context(errors::ParsingError::UnknownError)?;
 
         E::from_str(value.as_ref())
             .into_report()
-            .change_context(errors::ParsingError)
+            .change_context(errors::ParsingError::UnknownError)
             .attach_printable_lazy(|| format!("Invalid {{ {enum_name}: {value:?} }} "))
     }
 
     fn parse_value<U>(self, type_name: &'static str) -> CustomResult<U, errors::ParsingError>
     where
-        T: ValueExt<U>,
+        T: ValueExt,
         U: serde::de::DeserializeOwned,
     {
         let value = self
             .get_required_value(type_name)
-            .change_context(errors::ParsingError)?;
+            .change_context(errors::ParsingError::UnknownError)?;
         value.parse_value(type_name)
     }
 

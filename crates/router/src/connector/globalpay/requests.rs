@@ -1,4 +1,3 @@
-use common_utils::pii;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 
@@ -27,7 +26,7 @@ pub struct GlobalpayPaymentsRequest {
     /// related currency.
     pub convenience_amount: Option<String>,
     /// The country in ISO-3166-1(alpha-2 code) format.
-    pub country: api_models::enums::CountryCode,
+    pub country: api_models::enums::CountryAlpha2,
     /// The currency of the amount in ISO-4217(alpha-3)
     pub currency: String,
 
@@ -339,7 +338,7 @@ pub struct Card {
     /// Indicates whether the card is a debit or credit card.
     pub funding: Option<Funding>,
     /// The the card account number used to authorize the transaction. Also known as PAN.
-    pub number: Secret<String, pii::CardNumber>,
+    pub number: cards::CardNumber,
     /// Contains the pin block info, relating to the pin code the Payer entered.
     pub pin_block: Option<String>,
     /// The full card tag data for an EMV/chip card transaction.

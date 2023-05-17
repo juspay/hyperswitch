@@ -3,7 +3,7 @@ use error_stack::ResultExt;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils::RefundsRequestData,
+    connector::utils::{CardData, RefundsRequestData},
     core::errors,
     types::{self, api, storage::enums},
     utils::OptionExt,
@@ -43,7 +43,7 @@ impl TryFrom<&types::ConnectorAuthType> for MerchantAuthentication {
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
 #[serde(rename_all = "camelCase")]
 struct CreditCardDetails {
-    card_number: masking::Secret<String, common_utils::pii::CardNumber>,
+    card_number: masking::StrongSecret<String, cards::CardNumberStrategy>,
     expiration_date: masking::Secret<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     card_code: Option<masking::Secret<String>>,
@@ -69,36 +69,81 @@ enum PaymentDetails {
     BankTransfer,
 }
 
-impl TryFrom<api_models::payments::PaymentMethodData> for PaymentDetails {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(value: api_models::payments::PaymentMethodData) -> Result<Self, Self::Error> {
-        match value {
-            api::PaymentMethodData::Card(ref ccard) => {
-                Ok(Self::CreditCard(CreditCardDetails {
-                    card_number: ccard.card_number.clone(),
-                    // expiration_date: format!("{expiry_year}-{expiry_month}").into(),
-                    expiration_date: ccard
-                        .card_exp_month
-                        .clone()
-                        .zip(ccard.card_exp_year.clone())
-                        .map(|(expiry_month, expiry_year)| format!("{expiry_year}-{expiry_month}")),
-                    card_code: Some(ccard.card_cvc.clone()),
-                }))
+fn get_pm_and_subsequent_auth_detail(
+    item: &types::PaymentsAuthorizeRouterData,
+) -> Result<
+    (
+        PaymentDetails,
+        Option<ProcessingOptions>,
+        Option<SubsequentAuthInformation>,
+    ),
+    error_stack::Report<errors::ConnectorError>,
+> {
+    match item
+        .request
+        .mandate_id
+        .to_owned()
+        .and_then(|mandate_ids| mandate_ids.mandate_reference_id)
+    {
+        Some(api_models::payments::MandateReferenceId::NetworkMandateId(
+            original_network_trans_id,
+        )) => {
+            let processing_options = Some(ProcessingOptions {
+                is_subsequent_auth: true,
+            });
+            let subseuent_auth_info = Some(SubsequentAuthInformation {
+                original_network_trans_id,
+                reason: Reason::Resubmission,
+            });
+            match item.request.payment_method_data {
+                api::PaymentMethodData::Card(ref ccard) => {
+                    let payment_details = PaymentDetails::CreditCard(CreditCardDetails {
+                        card_number: (*ccard.card_number).clone(),
+                        expiration_date: ccard.get_expiry_date_as_yyyymm("-"),
+                        card_code: None,
+                    });
+                    Ok((payment_details, processing_options, subseuent_auth_info))
+                }
+                _ => Err(errors::ConnectorError::NotSupported {
+                    message: format!("{:?}", item.request.payment_method_data),
+                    connector: "AuthorizeDotNet",
+                    payment_experience: api_models::enums::PaymentExperience::RedirectToUrl
+                        .to_string(),
+                })?,
             }
-            api::PaymentMethodData::PayLater(_) => Ok(Self::Klarna),
-            api::PaymentMethodData::Wallet(_) => Ok(Self::Wallet),
-            api::PaymentMethodData::BankRedirect(_) => Ok(Self::BankRedirect),
+        }
+        _ => match item.request.payment_method_data {
+            api::PaymentMethodData::Card(ref ccard) => {
+                Ok((
+                    PaymentDetails::CreditCard(CreditCardDetails {
+                        card_number: (*ccard.card_number).clone(),
+                        // expiration_date: format!("{expiry_year}-{expiry_month}").into(),
+                        expiration_date: ccard.get_expiry_date_as_yyyymm("-"),
+                        card_code: Some(ccard.card_cvc.clone()),
+                    }),
+                    Some(ProcessingOptions {
+                        is_subsequent_auth: true,
+                    }),
+                    None,
+                ))
+            }
+            api::PaymentMethodData::PayLater(_) => Ok((PaymentDetails::Klarna, None, None)),
+            api::PaymentMethodData::Wallet(_) => Ok((PaymentDetails::Wallet, None, None)),
+            api::PaymentMethodData::BankRedirect(_) => {
+                Ok((PaymentDetails::BankRedirect, None, None))
+            }
             api::PaymentMethodData::Crypto(_)
             | api::PaymentMethodData::BankDebit(_)
+            | api::PaymentMethodData::MandatePayment
             | api::PaymentMethodData::BankTransfer(_) => {
                 Err(errors::ConnectorError::NotSupported {
-                    payment_method: format!("{value:?}"),
+                    message: format!("{:?}", item.request.payment_method_data),
                     connector: "AuthorizeDotNet",
                     payment_experience: api_models::enums::PaymentExperience::RedirectToUrl
                         .to_string(),
                 })?
             }
-        }
+        },
     }
 }
 
@@ -109,7 +154,35 @@ struct TransactionRequest {
     amount: i64,
     currency_code: String,
     payment: PaymentDetails,
+    processing_options: Option<ProcessingOptions>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    subsequent_auth_information: Option<SubsequentAuthInformation>,
     authorization_indicator_type: Option<AuthorizationIndicator>,
+}
+
+#[derive(Debug, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct ProcessingOptions {
+    is_subsequent_auth: bool,
+}
+
+#[derive(Debug, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct SubsequentAuthInformation {
+    original_network_trans_id: String,
+    // original_auth_amount: String, Required for Discover, Diners Club, JCB, and China Union Pay transactions.
+    reason: Reason,
+}
+
+#[derive(Debug, Serialize, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum Reason {
+    Resubmission,
+    #[serde(rename = "delayedCharge")]
+    DelayedCharge,
+    Reauthorization,
+    #[serde(rename = "noShow")]
+    NoShow,
 }
 
 #[derive(Debug, Serialize, PartialEq)]
@@ -171,7 +244,8 @@ impl From<enums::CaptureMethod> for AuthorizationType {
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for CreateTransactionRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
-        let payment_details = PaymentDetails::try_from(item.request.payment_method_data.clone())?;
+        let (payment_details, processing_options, subsequent_auth_information) =
+            get_pm_and_subsequent_auth_detail(item)?;
         let authorization_indicator_type =
             item.request.capture_method.map(|c| AuthorizationIndicator {
                 authorization_indicator: c.into(),
@@ -181,6 +255,8 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for CreateTransactionRequest {
             amount: item.request.amount,
             payment: payment_details,
             currency_code: item.request.currency.to_string(),
+            processing_options,
+            subsequent_auth_information,
             authorization_indicator_type,
         };
 
@@ -274,6 +350,7 @@ pub struct TransactionResponse {
     auth_code: String,
     #[serde(rename = "transId")]
     transaction_id: String,
+    network_trans_id: Option<String>,
     pub(super) account_number: Option<String>,
     pub(super) errors: Option<Vec<ErrorMessage>>,
 }
@@ -343,6 +420,7 @@ impl<F, T>
                     redirection_data: None,
                     mandate_reference: None,
                     connector_metadata: metadata,
+                    network_txn_id: item.response.transaction_response.network_trans_id,
                 }),
             },
             ..item.data
@@ -619,6 +697,7 @@ impl<F, Req>
                 redirection_data: None,
                 mandate_reference: None,
                 connector_metadata: None,
+                network_txn_id: None,
             }),
             status: payment_status,
             ..item.data

@@ -5,7 +5,10 @@ pub mod cards_info;
 pub mod configs;
 pub mod customers;
 pub mod disputes;
+#[cfg(feature = "dummy_connector")]
+pub mod dummy_connector;
 pub mod ephemeral_key;
+pub mod files;
 pub mod health;
 pub mod mandates;
 pub mod metrics;
@@ -15,8 +18,10 @@ pub mod payouts;
 pub mod refunds;
 pub mod webhooks;
 
+#[cfg(feature = "dummy_connector")]
+pub use self::app::DummyConnector;
 pub use self::app::{
-    ApiKeys, AppState, Cards, Configs, Customers, Disputes, EphemeralKey, Health, Mandates,
+    ApiKeys, AppState, Cards, Configs, Customers, Disputes, EphemeralKey, Files, Health, Mandates,
     MerchantAccount, MerchantConnectorAccount, PaymentMethods, Payments, Payouts, Refunds,
     Webhooks,
 };
