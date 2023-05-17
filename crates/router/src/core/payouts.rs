@@ -714,13 +714,17 @@ pub async fn payout_create_db_entries(
         .to_owned()
         .map(ForeignInto::foreign_into)
         .get_required_value("currency")?;
+    let payout_type = req
+        .payout_type
+        .to_owned()
+        .get_required_value("payout_type")?;
 
     let payouts_req = storage::PayoutsNew::default()
         .set_payout_id(payout_id.to_owned())
         .set_merchant_id(merchant_id.to_owned())
         .set_customer_id(customer_id.to_owned())
         .set_address_id(address_id.to_owned())
-        .set_payout_type(req.payout_type.foreign_into())
+        .set_payout_type(payout_type.foreign_into())
         .set_amount(req.amount.unwrap_or(api::Amount::Zero).into())
         .set_destination_currency(currency)
         .set_source_currency(currency)
