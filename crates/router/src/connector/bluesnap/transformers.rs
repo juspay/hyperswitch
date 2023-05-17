@@ -9,7 +9,7 @@ use masking::ExposeInterface;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils,
+    connector::utils::{self, RouterData},
     consts,
     core::errors,
     pii::Secret,
@@ -243,14 +243,7 @@ impl From<api_models::payments::ApplepayPaymentMethod> for ApplepayPaymentMethod
 impl TryFrom<&types::PaymentsSessionRouterData> for BluesnapCreateWalletToken {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsSessionRouterData) -> Result<Self, Self::Error> {
-        let apple_pay_metadata = item
-            .connector_meta_data
-            .clone()
-            .get_required_value("apple_pay_metadata")
-            .change_context(errors::ConnectorError::MissingRequiredField {
-                field_name: "apple_pay_metadata",
-            })?
-            .expose();
+        let apple_pay_metadata = item.get_connector_meta()?.expose();
         let applepay_metadata = apple_pay_metadata
             .parse_value::<api_models::payments::ApplepaySessionTokenData>(
                 "ApplepaySessionTokenData",
@@ -283,15 +276,7 @@ impl TryFrom<types::PaymentsSessionResponseRouterData<BluesnapWalletTokenRespons
             .parse_struct("ApplePayResponse")
             .change_context(errors::ConnectorError::ParsingFailed)?;
 
-        let metadata = item
-            .data
-            .connector_meta_data
-            .clone()
-            .get_required_value("metadata")
-            .change_context(errors::ConnectorError::MissingRequiredField {
-                field_name: "metadata",
-            })?
-            .expose();
+        let metadata = item.data.get_connector_meta()?.expose();
         let applepay_metadata = metadata
             .parse_value::<api_models::payments::ApplepaySessionTokenData>(
                 "ApplepaySessionTokenData",
