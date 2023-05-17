@@ -868,7 +868,7 @@ where
     pub connector_customer_id: Option<String>,
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Clone, Default)]
 pub struct CustomerDetails {
     pub customer_id: Option<String>,
     pub name: Option<Secret<String, masking::WithType>>,

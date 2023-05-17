@@ -611,3 +611,53 @@ default_imp_for_payouts_fulfill!(
     connector::Worldpay,
     connector::Zen
 );
+
+macro_rules! default_imp_for_payouts_cancel {
+    ($($path:ident::$connector:ident),*) => {
+        $(
+            impl api::PayoutCancel for $path::$connector {}
+            impl
+            services::ConnectorIntegration<
+            api::PCancel,
+            types::PayoutsData,
+            types::PayoutsResponseData,
+        > for $path::$connector
+        {}
+    )*
+    };
+}
+
+#[cfg(feature = "dummy_connector")]
+default_imp_for_payouts_cancel!(connector::DummyConnector);
+
+default_imp_for_payouts_cancel!(
+    connector::Aci,
+    connector::Airwallex,
+    connector::Authorizedotnet,
+    connector::Bambora,
+    connector::Bluesnap,
+    connector::Braintree,
+    connector::Checkout,
+    connector::Cybersource,
+    connector::Coinbase,
+    connector::Dlocal,
+    connector::Fiserv,
+    connector::Forte,
+    connector::Globalpay,
+    connector::Klarna,
+    connector::Mollie,
+    connector::Multisafepay,
+    connector::Nexinets,
+    connector::Nuvei,
+    connector::Payeezy,
+    connector::Paypal,
+    connector::Payu,
+    connector::Rapyd,
+    connector::Stripe,
+    connector::Shift4,
+    connector::Trustpay,
+    connector::Opennode,
+    connector::Worldline,
+    connector::Worldpay,
+    connector::Zen
+);
