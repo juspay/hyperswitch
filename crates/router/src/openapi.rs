@@ -38,10 +38,10 @@ account, you are given a secret key (also referred as api-key) and a publishable
 You may authenticate all API requests with Hyperswitch server by providing the appropriate key in
 the request Authorization header.
 
-| Key           |  Description                                                                                  |
-|---------------|-----------------------------------------------------------------------------------------------|
-| Sandbox       | Private key. Used to authenticate all API requests from your merchant server                  |
-| Production    | Unique identifier for your account. Used to authenticate API requests from your app's client  |
+| Key             |  Description                                                                                  |
+|-----------------|-----------------------------------------------------------------------------------------------|
+| api-key         | Private key. Used to authenticate all API requests from your merchant server                  |
+| publishable key | Unique identifier for your account. Used to authenticate API requests from your app's client  |
 
 Never share your secret api keys. Keep them guarded and secure.
 "#,
@@ -189,6 +189,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::Card,
         api_models::payments::CustomerAcceptance,
         api_models::payments::PaymentsRequest,
+        api_models::payments::PaymentsCreateRequest,
         api_models::payments::PaymentsResponse,
         api_models::payments::PaymentsStartRequest,
         api_models::payments::PaymentRetrieveBody,

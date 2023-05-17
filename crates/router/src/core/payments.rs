@@ -89,6 +89,7 @@ where
             &merchant_account,
         )
         .await?;
+
     authenticate_client_secret(
         req.get_client_secret(),
         &payment_data.payment_intent,

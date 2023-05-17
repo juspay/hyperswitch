@@ -40,7 +40,16 @@ pub struct BankCodeResponse {
     pub eligible_connectors: Vec<String>,
 }
 
-#[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+#[derive(
+    Default,
+    Debug,
+    serde::Deserialize,
+    serde::Serialize,
+    Clone,
+    ToSchema,
+    router_derive::PolymorphicSchema,
+)]
+#[generate_schemas(PaymentsCreateRequest)]
 #[serde(deny_unknown_fields)]
 pub struct PaymentsRequest {
     /// Unique identifier for the payment. This ensures idempotency for multiple payments
@@ -62,6 +71,8 @@ pub struct PaymentsRequest {
     /// The payment amount. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc.,
     #[schema(value_type = Option<u64>, example = 6540)]
     #[serde(default, deserialize_with = "amount::deserialize_option")]
+    #[mandatory_in(PaymentsCreateRequest)]
+    // Makes the field mandatory in PaymentsCreateRequest
     pub amount: Option<Amount>,
 
     #[schema(value_type = Option<RoutingAlgorithm>, example = json!({
@@ -76,6 +87,7 @@ pub struct PaymentsRequest {
 
     /// The currency of the payment request can be specified here
     #[schema(value_type = Option<Currency>, example = "USD")]
+    #[mandatory_in(PaymentsCreateRequest)]
     pub currency: Option<api_enums::Currency>,
 
     /// This is the instruction for capture/ debit the money from the users' card. On the other hand authorization refers to blocking the amount on the users' payment method.
