@@ -118,10 +118,5 @@ pub(super) fn should_bypass_proxy(locker: &Locker, url: &str) -> bool {
         basilisk_host,
         "http://localhost:8080/dummy-connector".to_string(),
     ];
-    for bypass_url in bypass_list.iter() {
-        if url.starts_with(bypass_url) {
-            return true;
-        }
-    }
-    false
+    bypass_list.iter().any(|bypass_url| url.starts_with(bypass_url))
 }
