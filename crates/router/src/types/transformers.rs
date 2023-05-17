@@ -526,6 +526,18 @@ impl ForeignFrom<storage::Dispute> for api_models::disputes::DisputeResponsePaym
     }
 }
 
+impl ForeignFrom<storage::FileMetadata> for api_models::files::FileMetadataResponse {
+    fn foreign_from(file_metadata: storage::FileMetadata) -> Self {
+        Self {
+            file_id: file_metadata.file_id,
+            file_name: file_metadata.file_name,
+            file_size: file_metadata.file_size,
+            file_type: file_metadata.file_type,
+            available: file_metadata.available,
+        }
+    }
+}
+
 impl ForeignFrom<storage_models::cards_info::CardInfo>
     for api_models::cards_info::CardInfoResponse
 {

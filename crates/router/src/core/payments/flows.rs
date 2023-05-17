@@ -101,7 +101,16 @@ macro_rules! default_imp_for_complete_authorize{
 }
 
 #[cfg(feature = "dummy_connector")]
-default_imp_for_complete_authorize!(connector::DummyConnector);
+impl<const T: u8> api::PaymentsCompleteAuthorize for connector::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    services::ConnectorIntegration<
+        api::CompleteAuthorize,
+        types::CompleteAuthorizeData,
+        types::PaymentsResponseData,
+    > for connector::DummyConnector<T>
+{
+}
 
 default_imp_for_complete_authorize!(
     connector::Aci,
@@ -120,6 +129,7 @@ default_imp_for_complete_authorize!(
     connector::Multisafepay,
     connector::Nexinets,
     connector::Nmi,
+    connector::Noon,
     connector::Opennode,
     connector::Payeezy,
     connector::Payu,
@@ -147,7 +157,16 @@ macro_rules! default_imp_for_create_customer{
 }
 
 #[cfg(feature = "dummy_connector")]
-default_imp_for_create_customer!(connector::DummyConnector);
+impl<const T: u8> api::ConnectorCustomer for connector::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    services::ConnectorIntegration<
+        api::CreateConnectorCustomer,
+        types::ConnectorCustomerData,
+        types::PaymentsResponseData,
+    > for connector::DummyConnector<T>
+{
+}
 
 default_imp_for_create_customer!(
     connector::Aci,
@@ -170,6 +189,7 @@ default_imp_for_create_customer!(
     connector::Multisafepay,
     connector::Nexinets,
     connector::Nmi,
+    connector::Noon,
     connector::Nuvei,
     connector::Opennode,
     connector::Payeezy,
@@ -201,7 +221,16 @@ macro_rules! default_imp_for_connector_redirect_response{
 }
 
 #[cfg(feature = "dummy_connector")]
-default_imp_for_connector_redirect_response!(connector::DummyConnector);
+impl<const T: u8> services::ConnectorRedirectResponse for connector::DummyConnector<T> {
+    fn get_flow_type(
+        &self,
+        _query_params: &str,
+        _json_payload: Option<serde_json::Value>,
+        _action: services::PaymentAction,
+    ) -> CustomResult<payments::CallConnectorAction, ConnectorError> {
+        Ok(payments::CallConnectorAction::Trigger)
+    }
+}
 
 default_imp_for_connector_redirect_response!(
     connector::Aci,
@@ -219,6 +248,7 @@ default_imp_for_connector_redirect_response!(
     connector::Multisafepay,
     connector::Nexinets,
     connector::Nmi,
+    connector::Noon,
     connector::Opennode,
     connector::Payeezy,
     connector::Payu,
@@ -237,7 +267,7 @@ macro_rules! default_imp_for_connector_request_id{
 }
 
 #[cfg(feature = "dummy_connector")]
-default_imp_for_connector_request_id!(connector::DummyConnector);
+impl<const T: u8> api::ConnectorTransactionId for connector::DummyConnector<T> {}
 
 default_imp_for_connector_request_id!(
     connector::Aci,
@@ -260,6 +290,7 @@ default_imp_for_connector_request_id!(
     connector::Mollie,
     connector::Multisafepay,
     connector::Nmi,
+    connector::Noon,
     connector::Nuvei,
     connector::Opennode,
     connector::Payeezy,
@@ -290,7 +321,18 @@ macro_rules! default_imp_for_accept_dispute{
 }
 
 #[cfg(feature = "dummy_connector")]
-default_imp_for_accept_dispute!(connector::DummyConnector);
+impl<const T: u8> api::Dispute for connector::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> api::AcceptDispute for connector::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    services::ConnectorIntegration<
+        api::Accept,
+        types::AcceptDisputeRequestData,
+        types::AcceptDisputeResponse,
+    > for connector::DummyConnector<T>
+{
+}
 
 default_imp_for_accept_dispute!(
     connector::Aci,
@@ -313,6 +355,7 @@ default_imp_for_accept_dispute!(
     connector::Multisafepay,
     connector::Nexinets,
     connector::Nmi,
+    connector::Noon,
     connector::Nuvei,
     connector::Payeezy,
     connector::Paypal,
@@ -352,7 +395,29 @@ macro_rules! default_imp_for_file_upload{
 }
 
 #[cfg(feature = "dummy_connector")]
-default_imp_for_file_upload!(connector::DummyConnector);
+impl<const T: u8> api::FileUpload for connector::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> api::UploadFile for connector::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    services::ConnectorIntegration<
+        api::Upload,
+        types::UploadFileRequestData,
+        types::UploadFileResponse,
+    > for connector::DummyConnector<T>
+{
+}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> api::RetrieveFile for connector::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    services::ConnectorIntegration<
+        api::Retrieve,
+        types::RetrieveFileRequestData,
+        types::RetrieveFileResponse,
+    > for connector::DummyConnector<T>
+{
+}
 
 default_imp_for_file_upload!(
     connector::Aci,
@@ -375,6 +440,7 @@ default_imp_for_file_upload!(
     connector::Multisafepay,
     connector::Nexinets,
     connector::Nmi,
+    connector::Noon,
     connector::Nuvei,
     connector::Payeezy,
     connector::Paypal,
@@ -404,7 +470,16 @@ macro_rules! default_imp_for_submit_evidence{
 }
 
 #[cfg(feature = "dummy_connector")]
-default_imp_for_submit_evidence!(connector::DummyConnector);
+impl<const T: u8> api::SubmitEvidence for connector::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    services::ConnectorIntegration<
+        api::Evidence,
+        types::SubmitEvidenceRequestData,
+        types::SubmitEvidenceResponse,
+    > for connector::DummyConnector<T>
+{
+}
 
 default_imp_for_submit_evidence!(
     connector::Aci,
@@ -427,6 +502,7 @@ default_imp_for_submit_evidence!(
     connector::Multisafepay,
     connector::Nexinets,
     connector::Nmi,
+    connector::Noon,
     connector::Nuvei,
     connector::Payeezy,
     connector::Paypal,
@@ -456,7 +532,16 @@ macro_rules! default_imp_for_defend_dispute{
 }
 
 #[cfg(feature = "dummy_connector")]
-default_imp_for_defend_dispute!(connector::DummyConnector);
+impl<const T: u8> api::DefendDispute for connector::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    services::ConnectorIntegration<
+        api::Defend,
+        types::DefendDisputeRequestData,
+        types::DefendDisputeResponse,
+    > for connector::DummyConnector<T>
+{
+}
 
 default_imp_for_defend_dispute!(
     connector::Aci,
@@ -479,6 +564,7 @@ default_imp_for_defend_dispute!(
     connector::Multisafepay,
     connector::Nexinets,
     connector::Nmi,
+    connector::Noon,
     connector::Nuvei,
     connector::Payeezy,
     connector::Paypal,

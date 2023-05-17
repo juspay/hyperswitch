@@ -212,7 +212,11 @@ impl ConnectorData {
             "cybersource" => Ok(Box::new(&connector::Cybersource)),
             "dlocal" => Ok(Box::new(&connector::Dlocal)),
             #[cfg(feature = "dummy_connector")]
-            "dummyconnector" => Ok(Box::new(&connector::DummyConnector)),
+            "dummyconnector1" => Ok(Box::new(&connector::DummyConnector::<1>)),
+            #[cfg(feature = "dummy_connector")]
+            "dummyconnector2" => Ok(Box::new(&connector::DummyConnector::<2>)),
+            #[cfg(feature = "dummy_connector")]
+            "dummyconnector3" => Ok(Box::new(&connector::DummyConnector::<3>)),
             "fiserv" => Ok(Box::new(&connector::Fiserv)),
             "forte" => Ok(Box::new(&connector::Forte)),
             "globalpay" => Ok(Box::new(&connector::Globalpay)),
@@ -220,6 +224,7 @@ impl ConnectorData {
             "klarna" => Ok(Box::new(&connector::Klarna)),
             "mollie" => Ok(Box::new(&connector::Mollie)),
             "nmi" => Ok(Box::new(&connector::Nmi)),
+            // "noon" => Ok(Box::new(&connector::Noon)), added as template code for future usage
             "nuvei" => Ok(Box::new(&connector::Nuvei)),
             "opennode" => Ok(Box::new(&connector::Opennode)),
             // "payeezy" => Ok(Box::new(&connector::Payeezy)), As psync and rsync are not supported by this connector, it is added as template code for future usage

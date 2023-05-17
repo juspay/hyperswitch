@@ -1429,6 +1429,7 @@ mod tests {
             active_attempt_id: "nopes".to_string(),
             business_country: storage_enums::CountryAlpha2::AG,
             business_label: "no".to_string(),
+            meta_data: None,
         };
         let req_cs = Some("1".to_string());
         let merchant_fulfillment_time = Some(900);
@@ -1468,6 +1469,7 @@ mod tests {
             active_attempt_id: "nopes".to_string(),
             business_country: storage_enums::CountryAlpha2::AG,
             business_label: "no".to_string(),
+            meta_data: None,
         };
         let req_cs = Some("1".to_string());
         let merchant_fulfillment_time = Some(10);
@@ -1507,6 +1509,7 @@ mod tests {
             active_attempt_id: "nopes".to_string(),
             business_country: storage_enums::CountryAlpha2::AG,
             business_label: "no".to_string(),
+            meta_data: None,
         };
         let req_cs = Some("1".to_string());
         let merchant_fulfillment_time = Some(10);
@@ -1568,6 +1571,15 @@ impl MerchantConnectorAccountType {
         match self {
             Self::DbVal(val) => val.connector_account_details.to_owned(),
             Self::CacheVal(val) => val.connector_account_details.peek().to_owned(),
+        }
+    }
+
+    pub fn is_disabled(&self) -> bool {
+        match self {
+            Self::DbVal(ref inner) => inner.disabled.unwrap_or(false),
+            // Cached merchant connector account, only contains the account details,
+            // the merchant connector account must only be cached if it's not disabled
+            Self::CacheVal(_) => false,
         }
     }
 }
