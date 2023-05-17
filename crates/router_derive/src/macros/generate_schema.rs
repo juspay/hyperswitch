@@ -117,7 +117,11 @@ pub fn polymorphic_macro_derive_inner(
                     .segments
                     .clone()
                     .into_iter()
-                    .any(|path_segment| path_segment.ident.to_string().eq("schema"))
+                    .any(|path_segment| {
+                        // Include the #schema and doc attribute
+                        path_segment.ident.to_string().eq("schema")
+                            || path_segment.ident.to_string().eq("doc")
+                    })
             })
             .for_each(|attribute| {
                 // Since attributes will be modified, the field should not contain any attributes
