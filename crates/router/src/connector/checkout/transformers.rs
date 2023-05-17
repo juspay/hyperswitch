@@ -762,7 +762,7 @@ impl From<CheckoutTransactionType> for api::IncomingWebhookEvent {
     fn from(transaction_type: CheckoutTransactionType) -> Self {
         match transaction_type {
             CheckoutTransactionType::PaymentApproved => Self::PaymentIntentSuccess,
-            CheckoutTransactionType::PaymentDeclined => Self::PaymentIntentSuccess,
+            CheckoutTransactionType::PaymentDeclined => Self::PaymentIntentFailure,
             CheckoutTransactionType::PaymentRefunded => Self::RefundSuccess,
             CheckoutTransactionType::PaymentRefundDeclined => Self::RefundFailure,
             CheckoutTransactionType::DisputeReceived
