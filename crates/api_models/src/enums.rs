@@ -1000,9 +1000,9 @@ pub enum PayoutStatus {
     Cancelled,
     Pending,
     Ineligible,
+    #[default]
     RequiresCreation,
     RequiresPayoutMethodData,
-    #[default]
     RequiresFulfillment,
 }
 
