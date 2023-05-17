@@ -1340,6 +1340,7 @@ pub enum StripePaymentStatus {
     RequiresConfirmation,
     Canceled,
     RequiresCapture,
+    Pending,
 }
 
 impl From<StripePaymentStatus> for enums::AttemptStatus {
@@ -1353,6 +1354,7 @@ impl From<StripePaymentStatus> for enums::AttemptStatus {
             StripePaymentStatus::RequiresConfirmation => Self::ConfirmationAwaited,
             StripePaymentStatus::Canceled => Self::Voided,
             StripePaymentStatus::RequiresCapture => Self::Authorized,
+            StripePaymentStatus::Pending => Self::Pending,
         }
     }
 }
