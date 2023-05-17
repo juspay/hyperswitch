@@ -18,7 +18,7 @@ use error_stack::{IntoReport, ResultExt};
 use masking::Secret;
 
 use self::{api::payments, storage::enums as storage_enums};
-pub use crate::core::payments::PaymentAddress;
+pub use crate::core::payments::{CustomerDetails, PaymentAddress};
 use crate::{core::errors, services};
 
 pub type PaymentsAuthorizeRouterData =
@@ -125,12 +125,12 @@ pub type RefundExecuteType =
 pub type RefundSyncType =
     dyn services::ConnectorIntegration<api::RSync, RefundsData, RefundsResponseData>;
 
+pub type PayoutCancelType =
+    dyn services::ConnectorIntegration<api::PCancel, PayoutsData, PayoutsResponseData>;
 pub type PayoutCreateType =
     dyn services::ConnectorIntegration<api::PCreate, PayoutsData, PayoutsResponseData>;
-
 pub type PayoutEligibilityType =
     dyn services::ConnectorIntegration<api::PEligibility, PayoutsData, PayoutsResponseData>;
-
 pub type PayoutFulfillType =
     dyn services::ConnectorIntegration<api::PFulfill, PayoutsData, PayoutsResponseData>;
 
@@ -229,6 +229,8 @@ pub struct PayoutsData {
     pub payout_method_data: payout_types::PayoutMethodData,
     pub payout_type: storage_enums::PayoutType,
     pub entity_type: storage_enums::EntityType,
+    pub country_code: storage_enums::CountryAlpha2,
+    pub customer_details: Option<CustomerDetails>,
 }
 
 #[derive(Clone, Debug, Default)]

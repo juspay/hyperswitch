@@ -622,13 +622,195 @@ impl
 }
 
 impl api::Payouts for Adyen {}
+impl api::PayoutCancel for Adyen {}
 impl api::PayoutCreate for Adyen {}
 impl api::PayoutEligibility for Adyen {}
 impl api::PayoutFulfill for Adyen {}
 
+impl services::ConnectorIntegration<api::PCancel, types::PayoutsData, types::PayoutsResponseData>
+    for Adyen
+{
+    fn get_url(
+        &self,
+        _req: &types::PayoutsRouterData<api::PCancel>,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(format!(
+            "{}pal/servlet/Payout/v68/declineThirdParty",
+            connectors.adyen.secondary_base_url
+        ))
+    }
+
+    fn get_headers(
+        &self,
+        req: &types::PayoutsRouterData<api::PCancel>,
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+        let mut header = vec![(
+            headers::CONTENT_TYPE.to_string(),
+            types::PayoutFulfillType::get_content_type(self).to_string(),
+        )];
+        let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
+        header.append(&mut api_key);
+        Ok(header)
+    }
+
+    fn get_request_body(
+        &self,
+        req: &types::PayoutsRouterData<api::PCancel>,
+    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+        let connector_req = adyen::AdyenPayoutCancelRequest::try_from(req)?;
+        let adyen_req = utils::Encode::<adyen::AdyenPayoutCancelRequest>::encode_to_string_of_json(
+            &connector_req,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        Ok(Some(adyen_req))
+    }
+
+    fn build_request(
+        &self,
+        req: &types::PayoutsRouterData<api::PCancel>,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        let request = services::RequestBuilder::new()
+            .method(services::Method::Post)
+            .url(&types::PayoutCancelType::get_url(self, req, connectors)?)
+            .attach_default_headers()
+            .headers(types::PayoutCancelType::get_headers(self, req, connectors)?)
+            .body(types::PayoutCancelType::get_request_body(self, req)?)
+            .build();
+
+        Ok(Some(request))
+    }
+
+    #[instrument(skip_all)]
+    fn handle_response(
+        &self,
+        data: &types::PayoutsRouterData<api::PCancel>,
+        res: types::Response,
+    ) -> CustomResult<types::PayoutsRouterData<api::PCancel>, errors::ConnectorError> {
+        let response: adyen::AdyenPayoutResponse = res
+            .response
+            .parse_struct("AdyenPayoutResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        logger::info!(response=?res);
+        types::RouterData::try_from(types::ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+    }
+
+    fn get_error_response(
+        &self,
+        res: types::Response,
+    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
+        let response: adyen::ErrorResponse = res
+            .response
+            .parse_struct("ErrorResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        logger::info!(response=?res);
+        Ok(types::ErrorResponse {
+            status_code: res.status_code,
+            code: response.error_code,
+            message: response.message,
+            reason: None,
+        })
+    }
+}
+
 impl services::ConnectorIntegration<api::PCreate, types::PayoutsData, types::PayoutsResponseData>
     for Adyen
 {
+    fn get_url(
+        &self,
+        _req: &types::PayoutsRouterData<api::PCreate>,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(format!(
+            "{}pal/servlet/Payout/v68/storeDetailAndSubmitThirdParty",
+            connectors.adyen.secondary_base_url
+        ))
+    }
+
+    fn get_headers(
+        &self,
+        req: &types::PayoutsRouterData<api::PCreate>,
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<Vec<(String, String)>, errors::ConnectorError> {
+        let mut header = vec![(
+            headers::CONTENT_TYPE.to_string(),
+            types::PayoutFulfillType::get_content_type(self).to_string(),
+        )];
+        let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
+        header.append(&mut api_key);
+        Ok(header)
+    }
+
+    fn get_request_body(
+        &self,
+        req: &types::PayoutsRouterData<api::PCreate>,
+    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+        let connector_req = adyen::AdyenPayoutCreateRequest::try_from(req)?;
+        let adyen_req = utils::Encode::<adyen::AdyenPayoutCreateRequest>::encode_to_string_of_json(
+            &connector_req,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        Ok(Some(adyen_req))
+    }
+
+    fn build_request(
+        &self,
+        req: &types::PayoutsRouterData<api::PCreate>,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        let request = services::RequestBuilder::new()
+            .method(services::Method::Post)
+            .url(&types::PayoutCreateType::get_url(self, req, connectors)?)
+            .attach_default_headers()
+            .headers(types::PayoutCreateType::get_headers(self, req, connectors)?)
+            .body(types::PayoutCreateType::get_request_body(self, req)?)
+            .build();
+
+        Ok(Some(request))
+    }
+
+    #[instrument(skip_all)]
+    fn handle_response(
+        &self,
+        data: &types::PayoutsRouterData<api::PCreate>,
+        res: types::Response,
+    ) -> CustomResult<types::PayoutsRouterData<api::PCreate>, errors::ConnectorError> {
+        let response: adyen::AdyenPayoutResponse = res
+            .response
+            .parse_struct("AdyenPayoutResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        logger::info!(response=?res);
+        types::RouterData::try_from(types::ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+    }
+
+    fn get_error_response(
+        &self,
+        res: types::Response,
+    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
+        let response: adyen::ErrorResponse = res
+            .response
+            .parse_struct("ErrorResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        logger::info!(response=?res);
+        Ok(types::ErrorResponse {
+            status_code: res.status_code,
+            code: response.error_code,
+            message: response.message,
+            reason: None,
+        })
+    }
 }
 
 impl

@@ -952,7 +952,7 @@ where
     pub ephemeral_key: Option<ephemeral_key::EphemeralKey>,
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Clone, Default)]
 pub struct CustomerDetails {
     pub customer_id: Option<String>,
     pub name: Option<Secret<String, masking::WithType>>,

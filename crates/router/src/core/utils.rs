@@ -3,6 +3,7 @@ use std::marker::PhantomData;
 use api_models::enums::{DisputeStage, DisputeStatus};
 use common_utils::errors::CustomResult;
 use error_stack::{IntoReport, ResultExt};
+use masking::Secret;
 use router_env::{instrument, tracing};
 
 use super::{
@@ -11,7 +12,10 @@ use super::{
 };
 use crate::{
     consts,
-    core::errors::{self, RouterResult},
+    core::{
+        errors::{self, RouterResult},
+        payments,
+    },
     routes::AppState,
     types::{
         self, api,
@@ -54,7 +58,6 @@ pub async fn get_mca_for_payout<'a>(
 }
 
 #[instrument(skip_all)]
-#[allow(clippy::too_many_arguments)]
 pub async fn construct_payout_router_data<'a, F>(
     state: &'a AppState,
     connector_id: &str,
@@ -63,6 +66,11 @@ pub async fn construct_payout_router_data<'a, F>(
     payout_data: &mut PayoutData,
     payout_method_data: &api::PayoutMethodData,
 ) -> RouterResult<types::PayoutsRouterData<F>> {
+    let (business_country, _) = helpers::get_business_details(
+        payout_data.payout_create.business_country,
+        payout_data.payout_create.business_label.as_ref(),
+        merchant_account,
+    )?;
     let merchant_connector_account =
         get_mca_for_payout(state, connector_id, merchant_account, payout_data).await?;
     payout_data.merchant_connector_account = Some(merchant_connector_account.clone());
@@ -101,6 +109,7 @@ pub async fn construct_payout_router_data<'a, F>(
 
     let payouts = &payout_data.payouts;
     let payout_create = &payout_data.payout_create;
+    let customer_details = &payout_data.customer_details;
 
     let router_data = types::RouterData {
         flow: PhantomData,
@@ -129,6 +138,16 @@ pub async fn construct_payout_router_data<'a, F>(
             entity_type: payouts.entity_type,
             payout_type: payouts.payout_type,
             payout_method_data: payout_method_data.to_owned(),
+            country_code: business_country,
+            customer_details: customer_details
+                .to_owned()
+                .map(|c| payments::CustomerDetails {
+                    customer_id: Some(c.customer_id),
+                    name: c.name.map(Secret::new),
+                    email: c.email,
+                    phone: c.phone,
+                    phone_country_code: c.phone_country_code,
+                }),
         },
         response: Ok(types::PayoutsResponseData::default()),
         access_token: None,

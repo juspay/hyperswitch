@@ -8,6 +8,9 @@ use super::ConnectorCommon;
 use crate::{services::api, types};
 
 #[derive(Debug, Clone)]
+pub struct PCancel;
+
+#[derive(Debug, Clone)]
 pub struct PCreate;
 
 #[derive(Debug, Clone)]
@@ -15,6 +18,11 @@ pub struct PEligibility;
 
 #[derive(Debug, Clone)]
 pub struct PFulfill;
+
+pub trait PayoutCancel:
+    api::ConnectorIntegration<PCancel, types::PayoutsData, types::PayoutsResponseData>
+{
+}
 
 pub trait PayoutCreate:
     api::ConnectorIntegration<PCreate, types::PayoutsData, types::PayoutsResponseData>
@@ -31,4 +39,7 @@ pub trait PayoutFulfill:
 {
 }
 
-pub trait Payouts: ConnectorCommon + PayoutCreate + PayoutEligibility + PayoutFulfill {}
+pub trait Payouts:
+    ConnectorCommon + PayoutCancel + PayoutCreate + PayoutEligibility + PayoutFulfill
+{
+}
