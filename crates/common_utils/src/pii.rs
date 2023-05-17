@@ -14,7 +14,6 @@ use diesel::{
 use error_stack::{IntoReport, ResultExt};
 use masking::{Secret, Strategy, WithType};
 
-// use crate::{errors::ValidationError, validation::validate_email};
 use crate::{
     errors::{self, ValidationError},
     validation::validate_email,
@@ -261,8 +260,7 @@ mod pii_masking_strategy_tests {
 
     #[test]
     fn test_valid_newtype_email() {
-        let email_check: Result<Email, error_stack::Report<crate::errors::ValidationError>> =
-            Email::from_str("example@abc.com");
+        let email_check = Email::from_str("example@abc.com");
         assert!(email_check.is_ok());
     }
 
