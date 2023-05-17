@@ -76,6 +76,12 @@ impl ForeignFrom<storage_enums::MandateStatus> for api_enums::MandateStatus {
     }
 }
 
+impl ForeignFrom<api_enums::MandateStatus> for storage_enums::MandateStatus {
+    fn foreign_from(status: api_enums::MandateStatus) -> Self {
+        frunk::labelled_convert_from(status)
+    }
+}
+
 impl ForeignFrom<api_enums::PaymentMethod> for storage_enums::PaymentMethod {
     fn foreign_from(pm_type: api_enums::PaymentMethod) -> Self {
         frunk::labelled_convert_from(pm_type)

@@ -1282,7 +1282,7 @@ pub(crate) fn validate_pm_or_token_given(
 }
 
 // A function to perform database lookup and then verify the client secret
-pub(crate) async fn verify_payment_intent_time_and_client_secret(
+pub async fn verify_payment_intent_time_and_client_secret(
     db: &dyn StorageInterface,
     merchant_account: &merchant_account::MerchantAccount,
     client_secret: Option<String>,

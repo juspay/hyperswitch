@@ -96,6 +96,8 @@ pub enum Flow {
     MandatesRetrieve,
     /// Mandates revoke flow.
     MandatesRevoke,
+    /// Mandates list flow.
+    MandatesList,
     /// Payment methods create flow.
     PaymentMethodsCreate,
     /// Payment methods list flow.
