@@ -704,7 +704,7 @@ impl api::IncomingWebhook for Authorizedotnet {
         let details: authorizedotnet::AuthorizedotnetWebhookEventType = request
             .body
             .parse_struct("AuthorizedotnetWebhookEventType")
-            .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
+            .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
         Ok(api::IncomingWebhookEvent::from(details.event_type))
     }
 
@@ -714,7 +714,7 @@ impl api::IncomingWebhook for Authorizedotnet {
     ) -> CustomResult<serde_json::Value, errors::ConnectorError> {
         let payload = serde_json::to_value(request.body)
             .into_report()
-            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+            .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
         Ok(payload)
     }
 }
