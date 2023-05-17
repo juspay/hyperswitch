@@ -2,11 +2,11 @@ mod transformers;
 
 use std::fmt::Debug;
 
-use api_models::payments::PaymentMethodData;
 use error_stack::{IntoReport, ResultExt};
+use storage_models::enums;
 use transformers as dummyconnector;
 
-use super::utils::{PaymentsAuthorizeRequestData, RefundsRequestData};
+use super::utils::RefundsRequestData;
 use crate::{
     configs::settings,
     core::errors::{self, CustomResult},
@@ -151,17 +151,12 @@ impl<const T: u8>
         req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let payment_method_data = req.request.payment_method_data.to_owned();
-        let payment_method_type = req.request.get_payment_method_type()?;
-        match payment_method_data {
-            PaymentMethodData::Card(_) => Ok(format!("{}/payment", self.base_url(connectors))),
+        match req.payment_method {
+            enums::PaymentMethod::Card => Ok(format!("{}/payment", self.base_url(connectors))),
             _ => Err(error_stack::report!(errors::ConnectorError::NotSupported {
-                message: format!(
-                    "The payment method {} is not supported",
-                    payment_method_type
-                ),
+                message: format!("The payment method {} is not supported", req.payment_method),
                 connector: "dummyconnector",
-                payment_experience: api::enums::PaymentExperience::RedirectToUrl.to_string(),
+                payment_experience: api::enums::PaymentExperience::InvokeSdkClient.to_string(),
             })),
         }
     }
