@@ -1002,7 +1002,7 @@ pub struct PaymentsCaptureRequest {
     /// Concatenated with the statement descriptor suffix that’s set on the account to form the complete statement descriptor.
     pub statement_descriptor_prefix: Option<String>,
     /// Merchant connector details used to make payments.
-    #[schema(value_type = MerchantConnectorDetailsWrap)]
+    #[schema(value_type = Option<MerchantConnectorDetailsWrap>)]
     pub merchant_connector_details: Option<admin::MerchantConnectorDetailsWrap>,
 }
 
@@ -1479,7 +1479,7 @@ pub struct Metadata {
     pub data: pii::SecretSerdeValue,
 
     /// Payload coming in request as a metadata field
-    #[schema(value_type = Object)]
+    #[schema(value_type = Option<Object>)]
     pub payload: Option<pii::SecretSerdeValue>,
 
     /// Allowed payment method types for a payment intent

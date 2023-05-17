@@ -8,20 +8,6 @@ use crate::{
     types::api as api_types,
 };
 
-/// Webhooks - Accept
-///
-/// Endpoint to accept incoming webhooks"
-#[utoipa::path(
-    post,
-    path = "/webhooks/{merchant_id}/{connector}",
-    request_body = String,
-    responses(
-        (status = 200, description = "Webhook Processed successfully"),
-    ),
-    tag = "Process Webhook",
-    operation_id = "Process Webhook",
-    security(("admin_api_key" = []))
-)]
 #[instrument(skip_all, fields(flow = ?Flow::IncomingWebhookReceive))]
 pub async fn receive_incoming_webhook<W: api_types::OutgoingWebhookType>(
     state: web::Data<AppState>,

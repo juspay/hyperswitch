@@ -281,7 +281,7 @@ pub async fn payment_connector_list(
         ("connector_id" = i32, Path, description = "The unique identifier for the Merchant Connector")
     ),
     responses(
-        (status = 200, description = "Merchant Connector Updated", body = MerchantConnectorUpdate),
+        (status = 200, description = "Merchant Connector Updated", body = MerchantConnectorResponse),
         (status = 404, description = "Merchant Connector does not exist in records"),
         (status = 401, description = "Unauthorized request")
     ),
