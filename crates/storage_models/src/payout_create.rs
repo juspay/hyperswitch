@@ -18,6 +18,8 @@ pub struct PayoutCreate {
     pub encoded_data: Option<String>,
     pub error_message: Option<String>,
     pub error_code: Option<String>,
+    pub business_country: Option<storage_enums::CountryAlpha2>,
+    pub business_label: Option<String>,
 }
 
 #[derive(
@@ -44,6 +46,8 @@ pub struct PayoutCreateNew {
     pub encoded_data: Option<String>,
     pub error_message: Option<String>,
     pub error_code: Option<String>,
+    pub business_country: Option<storage_enums::CountryAlpha2>,
+    pub business_label: Option<String>,
 }
 
 #[derive(Debug)]
@@ -59,6 +63,10 @@ pub enum PayoutCreateUpdate {
         payout_token: String,
         status: storage_enums::PayoutStatus,
     },
+    BusinessUpdate {
+        business_country: Option<storage_enums::CountryAlpha2>,
+        business_label: Option<String>,
+    },
 }
 
 #[derive(Clone, Debug, Default, AsChangeset, router_derive::DebugAsDisplay)]
@@ -70,6 +78,8 @@ pub struct PayoutCreateUpdateInternal {
     pub error_message: Option<String>,
     pub error_code: Option<String>,
     pub is_eligible: Option<bool>,
+    pub business_country: Option<storage_enums::CountryAlpha2>,
+    pub business_label: Option<String>,
 }
 
 impl From<PayoutCreateUpdate> for PayoutCreateUpdateInternal {
@@ -95,6 +105,14 @@ impl From<PayoutCreateUpdate> for PayoutCreateUpdateInternal {
                 error_message,
                 error_code,
                 is_eligible,
+                ..Default::default()
+            },
+            PayoutCreateUpdate::BusinessUpdate {
+                business_country,
+                business_label,
+            } => Self {
+                business_country,
+                business_label,
                 ..Default::default()
             },
         }

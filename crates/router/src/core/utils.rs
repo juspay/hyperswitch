@@ -22,39 +22,59 @@ use crate::{
 };
 
 #[instrument(skip_all)]
+pub async fn get_mca_for_payout<'a>(
+    state: &'a AppState,
+    connector_id: &str,
+    merchant_account: &domain::MerchantAccount,
+    key_store: &domain::MerchantKeyStore,
+    payout_data: &PayoutData,
+) -> RouterResult<helpers::MerchantConnectorAccountType> {
+    let payout_create = &payout_data.payout_create;
+    match payout_data.merchant_connector_account.to_owned() {
+        Some(mca) => Ok(mca),
+        None => {
+            let (business_country, business_label) = helpers::get_business_details(
+                payout_create.business_country,
+                payout_create.business_label.as_ref(),
+                merchant_account,
+            )?;
+
+            let connector_label =
+                helpers::get_connector_label(business_country, &business_label, None, connector_id);
+
+            let merchant_connector_account = helpers::get_merchant_connector_account(
+                state,
+                merchant_account.merchant_id.as_str(),
+                &connector_label,
+                None,
+                key_store,
+            )
+            .await?;
+            Ok(merchant_connector_account)
+        }
+    }
+}
+
+#[instrument(skip_all)]
 #[allow(clippy::too_many_arguments)]
 pub async fn construct_payout_router_data<'a, F>(
     state: &'a AppState,
     connector_id: &str,
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
-    request: &api_models::payouts::PayoutRequest,
-    payout_data: &PayoutData,
+    _request: &api_models::payouts::PayoutRequest,
+    payout_data: &mut PayoutData,
     payout_method_data: &api::PayoutMethodData,
 ) -> RouterResult<types::PayoutsRouterData<F>> {
-    let (business_country, business_label) = match request {
-        api_models::payouts::PayoutRequest::PayoutCreateRequest(req) => {
-            helpers::get_business_details(
-                req.business_country,
-                req.business_label.as_ref(),
-                merchant_account,
-            )?
-        }
-        _ => helpers::get_business_details(None, None, merchant_account)?,
-    };
-
-    let connector_label =
-        helpers::get_connector_label(business_country, &business_label, None, connector_id);
-
-    let merchant_connector_account = helpers::get_merchant_connector_account(
+    let merchant_connector_account = get_mca_for_payout(
         state,
-        merchant_account.merchant_id.as_str(),
-        &connector_label,
-        None,
+        connector_id,
+        merchant_account,
         key_store,
+        payout_data,
     )
     .await?;
-
+    payout_data.merchant_connector_account = Some(merchant_connector_account.clone());
     let connector_auth_type: types::ConnectorAuthType = merchant_connector_account
         .get_connector_account_details()
         .parse_value("ConnectorAuthType")
