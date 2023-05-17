@@ -103,7 +103,7 @@ pub fn polymorphic_macro_derive_inner(
                 attribute
                     .path
                     .segments
-                    .to_owned()
+                    .clone()
                     .into_iter()
                     .any(|path_segment| path_segment.ident.to_string().eq("mandatory_in"))
             });
@@ -115,7 +115,7 @@ pub fn polymorphic_macro_derive_inner(
                 attribute
                     .path
                     .segments
-                    .to_owned()
+                    .clone()
                     .into_iter()
                     .any(|path_segment| path_segment.ident.to_string().eq("schema"))
             })
