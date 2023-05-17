@@ -530,19 +530,28 @@ diesel::table! {
 
     payout_create (id) {
         id -> Int4,
+        #[max_length = 64]
         payout_id -> Varchar,
+        #[max_length = 64]
         customer_id -> Varchar,
+        #[max_length = 64]
         merchant_id -> Varchar,
+        #[max_length = 64]
         address_id -> Varchar,
+        #[max_length = 64]
         connector -> Varchar,
+        #[max_length = 64]
         connector_payout_id -> Varchar,
+        #[max_length = 64]
         payout_token -> Nullable<Varchar>,
         status -> PayoutStatus,
         is_eligible -> Nullable<Bool>,
         encoded_data -> Nullable<Text>,
         error_message -> Nullable<Text>,
+        #[max_length = 64]
         error_code -> Nullable<Varchar>,
         business_country -> Nullable<CountryAlpha2>,
+        #[max_length = 64]
         business_label -> Nullable<Varchar>,
     }
 }
@@ -553,19 +562,26 @@ diesel::table! {
 
     payouts (id) {
         id -> Int4,
+        #[max_length = 64]
         payout_id -> Varchar,
+        #[max_length = 64]
         merchant_id -> Varchar,
+        #[max_length = 64]
         customer_id -> Varchar,
+        #[max_length = 64]
         address_id -> Varchar,
         payout_type -> PayoutType,
+        #[max_length = 64]
         payout_method_id -> Nullable<Varchar>,
         payout_method_data -> Nullable<Jsonb>,
         amount -> Int8,
         destination_currency -> Currency,
         source_currency -> Currency,
+        #[max_length = 255]
         description -> Nullable<Varchar>,
         recurring -> Bool,
         auto_fulfill -> Bool,
+        #[max_length = 255]
         return_url -> Nullable<Varchar>,
         entity_type -> EntityType,
         metadata -> Nullable<Jsonb>,
