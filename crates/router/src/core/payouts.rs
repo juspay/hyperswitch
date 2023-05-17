@@ -51,11 +51,7 @@ where
     let connector_name = api_enums::Connector::Adyen;
 
     // Validate create request
-    let payout_id = validator::validate_create_request(state, &merchant_account, &req)
-        .await
-        .change_context(errors::ApiErrorResponse::InvalidRequestData {
-            message: "Invalid data passed".to_string(),
-        })?;
+    let payout_id = validator::validate_create_request(state, &merchant_account, &req).await?;
 
     // Create DB entries
     let mut payout_data = payout_create_db_entries(
@@ -66,8 +62,7 @@ where
         &payout_id,
         &connector_name,
     )
-    .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)?;
+    .await?;
 
     // Form connector data
     let connector_data: api::ConnectorData = api::ConnectorData::get_connector_by_name(
@@ -196,6 +191,20 @@ pub async fn payouts_cancel_core(
     )
     .await?;
 
+    let payout_create = payout_data.payout_create.to_owned();
+    let status = payout_create.status.foreign_into();
+
+    // Verify if fulfillment can be triggered
+    if helpers::is_payout_terminal_state(status) {
+        return Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+            message: format!(
+                "{} is in terminal state [status: {}]",
+                payout_create.payout_id.to_owned(),
+                status
+            ),
+        }));
+    }
+
     // TODO: Add connector integration
     response_handler(
         state,
@@ -221,8 +230,19 @@ pub async fn payouts_fulfill_core(
     )
     .await?;
 
+    let payout_create = payout_data.payout_create.to_owned();
+    let status = payout_create.status.foreign_into();
+
     // Verify if fulfillment can be triggered
-    // TODO: Add function for determining terminal state
+    if helpers::is_payout_terminal_state(status) {
+        return Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+            message: format!(
+                "{} is in terminal state [status: {}]",
+                payout_create.payout_id.to_owned(),
+                status
+            ),
+        }));
+    }
 
     // TODO: Remove hardcoded connector
     let connector_name = api_enums::Connector::Adyen;
@@ -248,9 +268,6 @@ pub async fn payouts_fulfill_core(
         &pmd,
     )
     .await
-    .change_context(errors::ApiErrorResponse::InvalidRequestData {
-        message: "Payout fulfillment failed".to_string(),
-    })
     .attach_printable("Payout fulfillment failed for given Payout request")?;
 
     response_handler(
@@ -291,9 +308,6 @@ pub async fn call_connector_payout(
                 &pmd,
             )
             .await
-            .change_context(errors::ApiErrorResponse::InvalidRequestData {
-                message: "Eligibility failed".to_string(),
-            })
             .attach_printable("Eligibility failed for given Payout request")?;
         }
 
@@ -316,9 +330,6 @@ pub async fn call_connector_payout(
             &pmd,
         )
         .await
-        .change_context(errors::ApiErrorResponse::InvalidRequestData {
-            message: "Payout creation failed".to_string(),
-        })
         .attach_printable("Payout creation failed for given Payout request")?;
     };
 
@@ -335,9 +346,6 @@ pub async fn call_connector_payout(
             &pmd,
         )
         .await
-        .change_context(errors::ApiErrorResponse::InvalidRequestData {
-            message: "Payout fulfillment failed".to_string(),
-        })
         .attach_printable("Payout fulfillment failed for given Payout request")?;
     }
 
@@ -631,6 +639,15 @@ pub async fn response_handler(
     let customer_details = payout_data.customer_details.to_owned();
 
     let status = api_enums::PayoutStatus::foreign_from(payout_create.status.to_owned());
+
+    if helpers::is_payout_err_state(status) {
+        return Err(report!(errors::ApiErrorResponse::PayoutFailed {
+            data: Some(
+                serde_json::json!({"payout_status": status.to_string(), "error_message": payout_create.error_message, "error_code": payout_create.error_code})
+            ),
+        }));
+    }
+
     let currency = api_enums::Currency::foreign_from(payouts.destination_currency.to_owned());
     let entity_type = api_enums::EntityType::foreign_from(payouts.entity_type.to_owned());
     let payout_type = api_enums::PayoutType::foreign_from(payouts.payout_type.to_owned());
