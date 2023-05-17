@@ -113,6 +113,7 @@ pub enum PayoutsUpdate {
     },
     PaymentMethodIdUpdate {
         payout_method_id: Option<String>,
+        payout_method_data: Option<pii::SecretSerdeValue>,
     },
     RecurringUpdate {
         recurring: bool,
@@ -165,8 +166,12 @@ impl From<PayoutsUpdate> for PayoutsUpdateInternal {
                 last_modified_at,
                 ..Default::default()
             },
-            PayoutsUpdate::PaymentMethodIdUpdate { payout_method_id } => Self {
+            PayoutsUpdate::PaymentMethodIdUpdate {
                 payout_method_id,
+                payout_method_data,
+            } => Self {
+                payout_method_id,
+                payout_method_data,
                 ..Default::default()
             },
             PayoutsUpdate::RecurringUpdate { recurring } => Self {

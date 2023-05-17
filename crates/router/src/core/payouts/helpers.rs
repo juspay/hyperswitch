@@ -1,5 +1,6 @@
-use error_stack::ResultExt;
+use error_stack::{IntoReport, ResultExt};
 use masking::ExposeInterface;
+use storage_models::enums as storage_enums;
 
 use crate::{
     core::{
@@ -21,7 +22,7 @@ use crate::{
     utils,
 };
 
-pub async fn make_payout_data<'a>(
+pub async fn make_payout_method_data<'a>(
     state: &'a AppState,
     request: &api::PayoutCreateRequest,
     payout_create: &storage::PayoutCreate,
@@ -58,8 +59,10 @@ pub async fn make_payout_data<'a>(
                 Some(payout_create.customer_id.to_owned()),
             )
             .await?;
-            //FIXME: we should have Status field in payout_create and update status from require_payout_method_data to require_fulfillment
-            let payout_update = storage::PayoutCreateUpdate::PayoutTokenUpdate { payout_token };
+            let payout_update = storage::PayoutCreateUpdate::PayoutTokenUpdate {
+                payout_token,
+                status: storage_enums::PayoutStatus::RequiresFulfillment,
+            };
             db.update_payout_create_by_merchant_id_payout_id(
                 &payout_create.merchant_id,
                 &payout_create.payout_id,
@@ -79,7 +82,7 @@ pub async fn save_payout_data_to_locker(
     payout_create: &storage::payout_create::PayoutCreate,
     payout_method_data: &api::PayoutMethodData,
     merchant_account: &domain::MerchantAccount,
-) -> RouterResult<Option<String>> {
+) -> RouterResult<()> {
     match payout_method_data {
         api_models::payouts::PayoutMethodData::Card(card) => {
             let card_details = api::CardDetail {
@@ -97,11 +100,44 @@ pub async fn save_payout_data_to_locker(
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)?;
             match stored_card_resp.duplicate {
-                Some(true) => Ok(Some(stored_card_resp.card_reference)),
-                _ => Ok(None),
+                Some(false) => {
+                    let db = &*state.store;
+                    let update_payout = storage::PayoutsUpdate::PaymentMethodIdUpdate {
+                        payout_method_id: Some(stored_card_resp.card_reference),
+                        payout_method_data: None,
+                    };
+                    db.update_payout_by_merchant_id_payout_id(
+                        &merchant_account.merchant_id,
+                        &payout_create.payout_id,
+                        update_payout,
+                    )
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Error updating payouts in saved payout method")?;
+                    Ok(())
+                }
+                _ => Ok(()),
             }
         }
-        api_models::payouts::PayoutMethodData::Bank(_) => Ok(None), //To be implemented after bank storage support in basilisk-hs
+        api_models::payouts::PayoutMethodData::Bank(_) => {
+            let db = &*state.store;
+            let value = serde_json::to_value(payout_method_data.to_owned())
+                .into_report()
+                .change_context(errors::ApiErrorResponse::InternalServerError)?;
+            let update_payout = storage::PayoutsUpdate::PaymentMethodIdUpdate {
+                payout_method_id: None,
+                payout_method_data: Some(value.into()),
+            };
+            db.update_payout_by_merchant_id_payout_id(
+                &merchant_account.merchant_id,
+                &payout_create.payout_id,
+                update_payout,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Error updating payouts in saved payout method")?;
+            Ok(())
+        }
     }
 }
 
