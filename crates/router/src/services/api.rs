@@ -302,7 +302,7 @@ async fn send_request(
 ) -> CustomResult<reqwest::Response, errors::ApiClientError> {
     logger::debug!(method=?request.method, headers=?request.headers, payload=?request.payload, ?request);
     let url = &request.url;
-    let should_bypass_proxy = client::proxy_bypass_urls(&state.conf.locker).contains(url);
+    let should_bypass_proxy = client::should_bypass_proxy(&state.conf.locker, url);
     let client = client::create_client(
         &state.conf.proxy,
         should_bypass_proxy,
