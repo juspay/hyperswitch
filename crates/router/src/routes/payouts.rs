@@ -173,7 +173,7 @@ pub async fn payouts_fulfill(
         state.get_ref(),
         &req,
         payload,
-        payouts_cancel_core,
+        payouts_fulfill_core,
         &auth::ApiKeyAuth,
     )
     .await
