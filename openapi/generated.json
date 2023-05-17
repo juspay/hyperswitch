@@ -1993,7 +1993,12 @@
             "properties": {
               "bacs_bank_debit": {
                 "type": "object",
-                "required": ["billing_details", "account_number", "sort_code"],
+                "required": [
+                  "billing_details",
+                  "account_number",
+                  "sort_code",
+                  "bank_account_holder_name"
+                ],
                 "properties": {
                   "billing_details": {
                     "$ref": "#/components/schemas/BankDebitBilling"
@@ -2007,6 +2012,11 @@
                     "type": "string",
                     "description": "Sort code for Bacs payment method",
                     "example": "108800"
+                  },
+                  "bank_account_holder_name": {
+                    "type": "string",
+                    "description": "holder name for bank debit",
+                    "example": "A. Schneider"
                   }
                 }
               }
@@ -2100,17 +2110,40 @@
           "Pay with Plus Bank",
           "Toyota Bank",
           "velo_bank",
-          "e-transfer Pocztowy24"
+          "e-transfer Pocztowy24",
+          "plus_bank",
+          "etransfer_pocztowy24",
+          "banki_spbdzielcze",
+          "bank_nowy_bfg_sa",
+          "getin_bank",
+          "blik",
+          "noble_pay",
+          "idea_bank",
+          "envelo_bank",
+          "nest_przelew",
+          "mbank_mtransfer",
+          "inteligo",
+          "pbac_z_ipko",
+          "bnp_paribas",
+          "bank_pekao_sa",
+          "volkswagen_bank",
+          "alior_bank",
+          "boz"
         ]
       },
       "BankRedirectBilling": {
         "type": "object",
-        "required": ["billing_name"],
+        "required": ["billing_name", "email"],
         "properties": {
           "billing_name": {
             "type": "string",
             "description": "The name for which billing is issued",
             "example": "John Doe"
+          },
+          "email": {
+            "type": "string",
+            "description": "The billing email for bank redirect",
+            "example": "example@example.com"
           }
         }
       },
@@ -2148,6 +2181,14 @@
                     "type": "string",
                     "description": "The card holder's name",
                     "example": "John Test"
+                  },
+                  "billing_details": {
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/BankRedirectBilling"
+                      }
+                    ],
+                    "nullable": true
                   }
                 }
               }
@@ -2314,11 +2355,18 @@
             "properties": {
               "przelewy24": {
                 "type": "object",
-                "required": ["email"],
+                "required": ["billing_details"],
                 "properties": {
-                  "email": {
-                    "type": "string",
-                    "example": "john.doe@example.com"
+                  "bank_name": {
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/BankNames"
+                      }
+                    ],
+                    "nullable": true
+                  },
+                  "billing_details": {
+                    "$ref": "#/components/schemas/BankRedirectBilling"
                   }
                 }
               }
@@ -2365,7 +2413,13 @@
             "required": ["trustly"],
             "properties": {
               "trustly": {
-                "type": "object"
+                "type": "object",
+                "required": ["country"],
+                "properties": {
+                  "country": {
+                    "$ref": "#/components/schemas/CountryAlpha2"
+                  }
+                }
               }
             }
           }
@@ -2526,6 +2580,9 @@
           "cybersource",
           "dummy",
           "iatapay",
+          "dummyconnector1",
+          "dummyconnector2",
+          "dummyconnector3",
           "opennode",
           "bambora",
           "dlocal",
@@ -4675,11 +4732,11 @@
             "required": ["payload"],
             "properties": {
               "order_details": {
-                "allOf": [
-                  {
-                    "$ref": "#/components/schemas/OrderDetails"
-                  }
-                ],
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/OrderDetails"
+                },
+                "description": "Information about the product and quantity for specific connectors. (e.g. Klarna)",
                 "nullable": true
               },
               "payload": {
@@ -4742,7 +4799,7 @@
       },
       "OrderDetails": {
         "type": "object",
-        "required": ["product_name", "quantity"],
+        "required": ["product_name", "quantity", "amount"],
         "properties": {
           "product_name": {
             "type": "string",
@@ -4756,6 +4813,11 @@
             "description": "The quantity of the product to be purchased",
             "example": 1,
             "minimum": 0.0
+          },
+          "amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "the amount per quantity of product"
           }
         }
       },
@@ -5434,12 +5496,26 @@
             ],
             "nullable": true
           },
-          "authentication_type": {
+          "card_cvc": {
+            "type": "string",
+            "nullable": true
+          },
+          "routing": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/AuthenticationType"
+                "$ref": "#/components/schemas/RoutingAlgorithm"
               }
             ],
+            "nullable": true
+          },
+          "off_session": {
+            "type": "boolean",
+            "example": true,
+            "nullable": true
+          },
+          "description": {
+            "type": "string",
+            "example": "It's my first payment request",
             "nullable": true
           },
           "amount_to_capture": {
@@ -5448,24 +5524,30 @@
             "example": 6540,
             "nullable": true
           },
-          "client_secret": {
-            "type": "string",
-            "example": "pay_U42c409qyHwOkWo3vK60_secret_el9ksDkiB8hi6j9N78yo",
-            "nullable": true
-          },
-          "capture_method": {
+          "payment_experience": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/CaptureMethod"
+                "$ref": "#/components/schemas/PaymentExperience"
               }
             ],
             "nullable": true
           },
-          "customer_id": {
+          "phone_country_code": {
             "type": "string",
-            "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
+            "example": "+1",
             "nullable": true,
             "maxLength": 255
+          },
+          "name": {
+            "type": "string",
+            "example": "John Test",
+            "nullable": true,
+            "maxLength": 255
+          },
+          "payment_token": {
+            "type": "string",
+            "example": "187282ab-40ef-47a9-9206-5099ba31e432",
+            "nullable": true
           },
           "amount": {
             "type": "integer",
@@ -5474,19 +5556,78 @@
             "nullable": true,
             "minimum": 0.0
           },
-          "card_cvc": {
+          "phone": {
             "type": "string",
-            "nullable": true
-          },
-          "statement_descriptor_suffix": {
-            "type": "string",
-            "example": "Payment for shoes purchase",
+            "example": "3141592653",
             "nullable": true,
             "maxLength": 255
+          },
+          "return_url": {
+            "type": "string",
+            "example": "https://hyperswitch.io",
+            "nullable": true
+          },
+          "business_country": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CountryAlpha2"
+              }
+            ],
+            "nullable": true
+          },
+          "merchant_connector_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MerchantConnectorDetailsWrap"
+              }
+            ],
+            "nullable": true
+          },
+          "payment_method_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethodType"
+              }
+            ],
+            "nullable": true
           },
           "email": {
             "type": "string",
             "example": "johntest@test.com",
+            "nullable": true,
+            "maxLength": 255
+          },
+          "authentication_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AuthenticationType"
+              }
+            ],
+            "nullable": true
+          },
+          "payment_method": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethod"
+              }
+            ],
+            "nullable": true
+          },
+          "capture_on": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2022-09-10T10:11:12Z",
+            "nullable": true
+          },
+          "merchant_id": {
+            "type": "string",
+            "example": "merchant_1668273825",
+            "nullable": true,
+            "maxLength": 255
+          },
+          "statement_descriptor_name": {
+            "type": "string",
+            "example": "Hyperswitch Router",
             "nullable": true,
             "maxLength": 255
           },
@@ -5506,38 +5647,17 @@
             ],
             "nullable": true
           },
-          "phone_country_code": {
-            "type": "string",
-            "example": "+1",
-            "nullable": true,
-            "maxLength": 255
-          },
-          "confirm": {
-            "type": "boolean",
-            "default": false,
-            "example": true,
-            "nullable": true
-          },
-          "mandate_id": {
-            "type": "string",
-            "example": "mandate_iwer89rnjef349dni3",
-            "nullable": true,
-            "maxLength": 255
-          },
-          "business_country": {
+          "payment_method_data": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/CountryAlpha2"
+                "$ref": "#/components/schemas/PaymentMethodData"
               }
             ],
             "nullable": true
           },
-          "routing": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/RoutingAlgorithm"
-              }
-            ],
+          "business_label": {
+            "type": "string",
+            "example": "food",
             "nullable": true
           },
           "payment_id": {
@@ -5547,20 +5667,6 @@
             "maxLength": 30,
             "minLength": 30
           },
-          "name": {
-            "type": "string",
-            "example": "John Test",
-            "nullable": true,
-            "maxLength": 255
-          },
-          "payment_method": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/PaymentMethod"
-              }
-            ],
-            "nullable": true
-          },
           "allowed_payment_method_types": {
             "type": "array",
             "items": {
@@ -5568,85 +5674,41 @@
             },
             "nullable": true
           },
-          "merchant_id": {
-            "type": "string",
-            "example": "merchant_1668273825",
-            "nullable": true,
-            "maxLength": 255
-          },
-          "payment_token": {
-            "type": "string",
-            "example": "187282ab-40ef-47a9-9206-5099ba31e432",
-            "nullable": true
-          },
-          "description": {
-            "type": "string",
-            "example": "It's my first payment request",
-            "nullable": true
-          },
-          "phone": {
-            "type": "string",
-            "example": "3141592653",
-            "nullable": true,
-            "maxLength": 255
-          },
-          "statement_descriptor_name": {
-            "type": "string",
-            "example": "Hyperswitch Router",
-            "nullable": true,
-            "maxLength": 255
-          },
-          "capture_on": {
-            "type": "string",
-            "format": "date-time",
-            "example": "2022-09-10T10:11:12Z",
-            "nullable": true
-          },
-          "return_url": {
-            "type": "string",
-            "example": "https://hyperswitch.io",
-            "nullable": true
-          },
-          "business_label": {
-            "type": "string",
-            "example": "food",
-            "nullable": true
-          },
-          "merchant_connector_details": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/MerchantConnectorDetailsWrap"
-              }
-            ],
-            "nullable": true
-          },
-          "off_session": {
+          "confirm": {
             "type": "boolean",
+            "default": false,
             "example": true,
             "nullable": true
           },
-          "payment_method_data": {
+          "statement_descriptor_suffix": {
+            "type": "string",
+            "example": "Payment for shoes purchase",
+            "nullable": true,
+            "maxLength": 255
+          },
+          "customer_id": {
+            "type": "string",
+            "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
+            "nullable": true,
+            "maxLength": 255
+          },
+          "mandate_id": {
+            "type": "string",
+            "example": "mandate_iwer89rnjef349dni3",
+            "nullable": true,
+            "maxLength": 255
+          },
+          "capture_method": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/PaymentMethodData"
+                "$ref": "#/components/schemas/CaptureMethod"
               }
             ],
             "nullable": true
           },
-          "payment_experience": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/PaymentExperience"
-              }
-            ],
-            "nullable": true
-          },
-          "payment_method_type": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/PaymentMethodType"
-              }
-            ],
+          "client_secret": {
+            "type": "string",
+            "example": "pay_U42c409qyHwOkWo3vK60_secret_el9ksDkiB8hi6j9N78yo",
             "nullable": true
           }
         }
