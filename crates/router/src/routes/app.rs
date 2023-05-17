@@ -287,7 +287,7 @@ impl Payouts {
                 .service(
                     web::resource("/{payout_id}")
                         .route(web::get().to(payouts_retrieve))
-                        .route(web::post().to(payouts_update)),
+                        .route(web::put().to(payouts_update)),
                 )
         }
         route

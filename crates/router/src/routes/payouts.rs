@@ -85,14 +85,18 @@ pub async fn payouts_retrieve(
 pub async fn payouts_update(
     state: web::Data<AppState>,
     req: HttpRequest,
+    path: web::Path<String>,
     json_payload: web::Json<payout_types::PayoutCreateRequest>,
 ) -> HttpResponse {
     let flow = Flow::PayoutsUpdate;
+    let payout_id = path.into_inner();
+    let mut payout_update_payload = json_payload.into_inner();
+    payout_update_payload.payout_id = Some(payout_id);
     api::server_wrap(
         flow,
         state.get_ref(),
         &req,
-        json_payload.into_inner(),
+        payout_update_payload,
         |state, auth, req| payouts_update_core(state, auth.merchant_account, auth.key_store, req),
         &auth::ApiKeyAuth,
     )
