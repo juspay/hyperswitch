@@ -52,6 +52,20 @@ pub async fn mk_service(
     actix_web::test::init_service(router::mk_app(app_state, request_body_limit)).await
 }
 
+pub async fn mk_service_with_db(
+) -> impl Service<Request, Response = ServiceResponse<impl MessageBody>, Error = actix_web::Error> {
+    let mut conf = Settings::new().unwrap();
+    let request_body_limit = conf.server.request_body_limit;
+
+    if let Some(url) = stripemock().await {
+        conf.connectors.stripe.base_url = url;
+    }
+    let tx: oneshot::Sender<()> = oneshot::channel().0;
+    let app_state = AppState::with_storage(conf, router::db::StorageImpl::PostgresqlTest, tx).await;
+    actix_web::test::init_service(router::mk_app(app_state, request_body_limit)).await
+}
+
+
 pub struct Guest;
 
 pub struct Admin {

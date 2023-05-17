@@ -1,0 +1,266 @@
+{
+  "admin_api_key": "test_admin",
+  "merchant_account": {
+    "merchant_id": "INTEGAPI3_1",
+    "locker_id": "m0010",
+    "merchant_name": "NewAge Retailer",
+    "merchant_details": {
+      "primary_contact_person": "John Test",
+      "primary_email": "JohnTest@test.com",
+      "primary_phone": "sunt laborum",
+      "secondary_contact_person": "John Test2",
+      "secondary_email": "JohnTest2@test.com",
+      "secondary_phone": "9876543210",
+      "website": "www.example.com",
+      "about_business": "Online Retail with a wide selection of organic products for North America",
+      "address": {
+        "line1": "1467",
+        "line2": "Harrison Street",
+        "line3": "Harrison Street",
+        "city": "San Francisco",
+        "state": "California",
+        "zip": "94122",
+        "country": "US"
+      }
+    },
+    "return_url": "https://google.com/success",
+    "webhook_details": {
+      "webhook_version": "1.0.1",
+      "webhook_username": "ekart_retail",
+      "webhook_password": "password_ekart@123",
+      "payment_created_enabled": true,
+      "payment_succeeded_enabled": true,
+      "payment_failed_enabled": true
+    },
+    "routing_algorithm": {
+      "type": "single",
+      "data": "stripe"
+    },
+    "sub_merchants_enabled": false,
+    "metadata": {
+      "city": "NY",
+      "unit": "245"
+    }
+  },
+  "api_key_create": {
+    "name": "API Key 1",
+    "description": null,
+    "expiration": "2023-09-23T01:02:03.000Z"
+  },
+  "connector_create": {
+    "connector_type": "fiz_operations",
+    "connector_name": "stripe",
+    "connector_account_details": {
+      "auth_type": "HeaderKey",
+      "api_key": "***************"
+    },
+    "test_mode": false,
+    "disabled": false,
+    "payment_methods_enabled": [
+      {
+        "payment_method": "pay_later",
+        "payment_method_types": [
+          {
+            "minimum_amount": 1,
+            "maximum_amount": 68607706,
+            "recurring_enabled": true,
+            "installment_payment_enabled": true,
+            "payment_experience": "redirect_to_url",
+            "payment_method_type": "affirm"
+          }
+        ]
+      },
+      {
+        "payment_method": "pay_later",
+        "payment_method_types": [
+          {
+            "minimum_amount": 1,
+            "maximum_amount": 68607706,
+            "recurring_enabled": true,
+            "installment_payment_enabled": true,
+            "payment_experience": "redirect_to_url",
+            "payment_method_type": "afterpay_clearpay"
+          }
+        ]
+      },
+      {
+        "payment_method": "pay_later",
+        "payment_method_types": [
+          {
+            "minimum_amount": 1,
+            "maximum_amount": 68607706,
+            "recurring_enabled": true,
+            "installment_payment_enabled": true,
+            "payment_experience": "redirect_to_url",
+            "payment_method_type": "klarna"
+          }
+        ]
+      },
+      {
+        "payment_method": "pay_later",
+        "payment_method_types": [
+          {
+            "minimum_amount": 1,
+            "maximum_amount": 68607706,
+            "recurring_enabled": true,
+            "installment_payment_enabled": true,
+            "payment_experience": "invoke_sdk_client",
+            "payment_method_type": "klarna"
+          }
+        ]
+      },
+      {
+        "payment_method": "card",
+        "payment_method_types": [
+          {
+            "payment_method_type": "credit",
+            "minimum_amount": 1,
+            "maximum_amount": 68607706,
+            "recurring_enabled": true,
+            "installment_payment_enabled": true
+          }
+        ]
+      },
+      {
+        "payment_method": "card",
+        "payment_method_types": [
+          {
+            "payment_method_type": "debit",
+            "minimum_amount": 1,
+            "maximum_amount": 68607706,
+            "recurring_enabled": true,
+            "installment_payment_enabled": true
+          }
+        ]
+      },
+      {
+        "payment_method": "wallet",
+        "payment_method_types": [
+          {
+            "payment_method_type": "apple_pay",
+            "payment_experience": "invoke_sdk_client",
+            "minimum_amount": 1,
+            "maximum_amount": 68607706,
+            "recurring_enabled": true,
+            "installment_payment_enabled": true
+          }
+        ]
+      },
+      {
+        "payment_method": "wallet",
+        "payment_method_types": [
+          {
+            "payment_method_type": "google_pay",
+            "payment_experience": "invoke_sdk_client",
+            "minimum_amount": 1,
+            "maximum_amount": 68607706,
+            "recurring_enabled": true,
+            "installment_payment_enabled": true
+          }
+        ]
+      }
+    ],
+    "metadata": {
+      "google_pay": {
+        "allowed_payment_methods": [
+          {
+            "type": "CARD",
+            "parameters": {
+              "allowed_auth_methods": [
+                "PAN_ONLY",
+                "CRYPTOGRAM_3DS"
+              ],
+              "allowed_card_networks": [
+                "AMEX",
+                "DISCOVER",
+                "INTERAC",
+                "JCB",
+                "MASTERCARD",
+                "VISA"
+              ]
+            },
+            "tokenization_specification": {
+              "type": "PAYMENT_GATEWAY",
+              "parameters": {
+                "gateway": "example",
+                "gateway_merchant_id": "pk_test_51Msk2GAGHc77EJXX78h549SX2uaOnEkUYqBfjcoD05PIpAnDkYxMn8nQ4d19im85NQuX4Z6WDyHaUw2fFTPBWsIY00Wa7oNerO"
+              }
+            }
+          }
+        ],
+        "merchant_info": {
+          "merchant_name": "Narayan Bhat"
+        }
+      }
+    }
+  },
+  "payments_create": {
+    "amount": 6540,
+    "currency": "USD",
+    "confirm": false,
+    "capture_method": "automatic",
+    "capture_on": "2022-09-10T10:11:12Z",
+    "amount_to_capture": 6540,
+    "customer_id": "cus_sgIYJgSkWhWmNKDHzN5F",
+    "email": "guest@example.com",
+    "name": "John Doe",
+    "phone": "999999999",
+    "phone_country_code": "+65",
+    "description": "Its my first payment request",
+    "authentication_type": "no_three_ds",
+    "return_url": "https://google.com",
+    "payment_method": "card",
+    "payment_method_type": "credit",
+    "payment_method_data": {
+      "card": {
+        "card_number": "4242424242424242",
+        "card_exp_month": "10",
+        "card_exp_year": "25",
+        "card_holder_name": "joseph Doe",
+        "card_cvc": "123"
+      }
+    },
+    "billing": {
+      "address": {
+        "line1": "1467",
+        "line2": "Harrison Street",
+        "line3": "Harrison Street",
+        "city": "San Fransico",
+        "state": "California",
+        "zip": "94122",
+        "country": "US",
+        "first_name": "joseph",
+        "last_name": "Doe"
+      },
+      "phone": {
+        "number": "8056594427",
+        "country_code": "+91"
+      }
+    },
+    "shipping": {
+      "address": {
+        "line1": "1467",
+        "line2": "Harrison Street",
+        "line3": "Harrison Street",
+        "city": "San Fransico",
+        "state": "California",
+        "zip": "94122",
+        "country": "US",
+        "first_name": "joseph",
+        "last_name": "Doe"
+      },
+      "phone": {
+        "number": "8056594427",
+        "country_code": "+91"
+      }
+    },
+    "statement_descriptor_name": "joseph",
+    "statement_descriptor_suffix": "JS",
+    "metadata": {
+      "udf1": "value1",
+      "new_customer": "true",
+      "login_date": "2019-09-10T10:11:12Z"
+    }
+  },
+  "retrieve_payment": {}
+}
