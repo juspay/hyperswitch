@@ -618,6 +618,7 @@ pub enum Connector {
     Multisafepay,
     Nexinets,
     Nmi,
+    // Noon, added as template code for future usage
     Nuvei,
     // Payeezy, As psync and rsync are not supported by this connector, it is added as template code for future usage
     Paypal,
@@ -629,6 +630,7 @@ pub enum Connector {
     Worldline,
     Worldpay,
     Zen,
+    Signifyd,
 }
 
 impl Connector {
@@ -699,6 +701,7 @@ pub enum RoutableConnectors {
     Multisafepay,
     Nexinets,
     Nmi,
+    // Noon, added as template code for future usage
     Nuvei,
     Opennode,
     // Payeezy, As psync and rsync are not supported by this connector, it is added as template code for future usage
