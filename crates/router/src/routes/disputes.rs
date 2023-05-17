@@ -195,3 +195,39 @@ pub async fn attach_dispute_evidence(
     )
     .await
 }
+
+/// Diputes - Retrieve Dispute
+#[utoipa::path(
+    get,
+    path = "/disputes/evidence/{dispute_id}",
+    params(
+        ("dispute_id" = String, Path, description = "The identifier for dispute")
+    ),
+    responses(
+        (status = 200, description = "The dispute evidence was retrieved successfully", body = DisputeResponse),
+        (status = 404, description = "Dispute does not exist in our records")
+    ),
+    tag = "Disputes",
+    operation_id = "Retrieve a Dispute Evidence",
+    security(("api_key" = []))
+)]
+#[instrument(skip_all, fields(flow = ?Flow::RetrieveDisputeEvidence))]
+pub async fn retrieve_dispute_evidence(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    path: web::Path<String>,
+) -> HttpResponse {
+    let flow = Flow::RetrieveDisputeEvidence;
+    let dispute_id = dispute_types::DisputeId {
+        dispute_id: path.into_inner(),
+    };
+    api::server_wrap(
+        flow,
+        state.get_ref(),
+        &req,
+        dispute_id,
+        disputes::retrieve_dispute_evidence,
+        auth::auth_type(&auth::ApiKeyAuth, &auth::JWTAuth, req.headers()),
+    )
+    .await
+}

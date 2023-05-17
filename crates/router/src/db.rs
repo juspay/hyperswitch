@@ -82,6 +82,7 @@ pub struct MockDb {
     processes: Arc<Mutex<Vec<storage::ProcessTracker>>>,
     connector_response: Arc<Mutex<Vec<storage::ConnectorResponse>>>,
     redis: Arc<redis_interface::RedisConnectionPool>,
+    api_keys: Arc<Mutex<Vec<storage::ApiKey>>>,
 }
 
 impl MockDb {
@@ -96,6 +97,7 @@ impl MockDb {
             processes: Default::default(),
             connector_response: Default::default(),
             redis: Arc::new(crate::connection::redis_connection(redis).await),
+            api_keys: Default::default(),
         }
     }
 }

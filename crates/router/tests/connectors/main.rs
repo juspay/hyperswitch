@@ -28,6 +28,7 @@ mod mollie;
 mod multisafepay;
 mod nexinets;
 mod nmi;
+mod noon;
 mod nuvei;
 mod nuvei_ui;
 mod opennode;
