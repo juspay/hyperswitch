@@ -468,6 +468,7 @@ fn get_card_issuer(card_number: &str) -> Result<CardIssuer, Error> {
 }
 pub trait WalletData {
     fn get_wallet_token(&self) -> Result<String, Error>;
+    fn get_encoded_wallet_token(&self) -> Result<String, Error>;
     fn get_wallet_token_as_json<T>(&self) -> Result<T, Error>
     where
         T: serde::de::DeserializeOwned;
@@ -482,6 +483,21 @@ impl WalletData for api::WalletData {
             _ => Err(errors::ConnectorError::InvalidWallet.into()),
         }
     }
+
+    fn get_encoded_wallet_token(&self) -> Result<String, Error> {
+        match self {
+            Self::GooglePay(_) => {
+                let json_token: serde_json::Value = self.get_wallet_token_as_json()?;
+                let token_as_vec = serde_json::to_vec(&json_token)
+                    .into_report()
+                    .change_context(errors::ConnectorError::InvalidWalletToken)?;
+                let encoded_token = consts::BASE64_ENGINE.encode(token_as_vec);
+                Ok(encoded_token)
+            }
+            _ => Err(errors::ConnectorError::InvalidWalletToken.into()),
+        }
+    }
+
     fn get_wallet_token_as_json<T>(&self) -> Result<T, Error>
     where
         T: serde::de::DeserializeOwned,
