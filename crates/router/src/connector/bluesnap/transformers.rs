@@ -14,7 +14,7 @@ use crate::{
     core::errors,
     pii::Secret,
     types::{self, api, storage::enums, transformers::ForeignTryFrom},
-    utils::{Encode, OptionExt},
+    utils::Encode,
 };
 
 #[derive(Debug, Serialize, PartialEq)]
@@ -289,14 +289,7 @@ impl TryFrom<types::PaymentsSessionResponseRouterData<BluesnapWalletTokenRespons
                     api_models::payments::ApplepaySessionTokenResponse {
                         session_token_data: session_response,
                         payment_request_data: api_models::payments::ApplePayPaymentRequest {
-                            country_code: item
-                                .data
-                                .request
-                                .country
-                                .get_required_value("country_code")
-                                .change_context(errors::ConnectorError::MissingRequiredField {
-                                    field_name: "country_code",
-                                })?,
+                            country_code: item.data.get_billing_country()?,
                             currency_code: item.data.request.currency.to_string(),
                             total: api_models::payments::AmountInfo {
                                 label: applepay_metadata.data.payment_request_data.label,
