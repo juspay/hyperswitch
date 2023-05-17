@@ -110,15 +110,19 @@ pub(super) fn create_client(
     }
 }
 
-pub(super) fn should_bypass_proxy(locker: &Locker, url: &str) -> bool {
+pub(super) fn proxy_bypass_urls(locker: &Locker) -> Vec<String> {
     let locker_host = locker.host.to_owned();
     let basilisk_host = locker.basilisk_host.to_owned();
-    let bypass_list = vec![
-        locker_host,
-        basilisk_host,
-        "http://localhost:8080/dummy-connector".to_string(),
-    ];
-    bypass_list
-        .iter()
-        .any(|bypass_url| url.starts_with(bypass_url))
+    vec![
+        format!("{locker_host}/cards/add"),
+        format!("{locker_host}/cards/retrieve"),
+        format!("{locker_host}/cards/delete"),
+        format!("{locker_host}/card/addCard"),
+        format!("{locker_host}/card/getCard"),
+        format!("{locker_host}/card/deleteCard"),
+        format!("{basilisk_host}/tokenize"),
+        format!("{basilisk_host}/tokenize/get"),
+        format!("{basilisk_host}/tokenize/delete"),
+        format!("{basilisk_host}/tokenize/delete/token"),
+    ]
 }
