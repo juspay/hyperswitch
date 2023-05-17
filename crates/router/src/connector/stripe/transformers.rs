@@ -243,10 +243,16 @@ fn get_bank_name(
                 },
             )?)?,
         })),
-        (StripePaymentMethodType::Sofort | StripePaymentMethodType::Giropay, _) => Ok(None),
+        (
+            StripePaymentMethodType::Sofort
+            | StripePaymentMethodType::Giropay
+            | StripePaymentMethodType::Bancontact,
+            _,
+        ) => Ok(None),
         _ => Err(errors::ConnectorError::MismatchedPaymentData),
     }
 }
+
 #[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct StripeBankRedirectData {
     #[serde(rename = "payment_method_types[]")]
@@ -258,6 +264,10 @@ pub struct StripeBankRedirectData {
     pub bank_name: Option<StripeBankName>,
     #[serde(flatten)]
     pub bank_specific_data: Option<BankSpecificData>,
+    #[serde(rename = "payment_method_data[billing_details][name]")]
+    pub billing_name: Option<Secret<String>>,
+    #[serde(rename = "payment_method_data[billing_details][email]")]
+    pub email: Option<Email>
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
@@ -409,6 +419,7 @@ pub enum StripePaymentMethodType {
     Becs,
     #[serde(rename = "bacs_debit")]
     Bacs,
+    Bancontact,
     #[serde(rename = "wechat_pay")]
     Wechatpay,
     Alipay,
@@ -644,6 +655,10 @@ fn infer_stripe_bank_redirect_issuer(
         Some(storage_models::enums::PaymentMethodType::Sofort) => {
             Ok(StripePaymentMethodType::Sofort)
         }
+
+        Some(storage_models::enums::PaymentMethodType::BancontactCard) => {
+            Ok(StripePaymentMethodType::Bancontact)
+        }
         Some(storage_models::enums::PaymentMethodType::Przelewy24) => {
             Ok(StripePaymentMethodType::Przelewy24)
         }
@@ -749,7 +764,19 @@ impl TryFrom<&payments::BankRedirectData> for StripeBillingAddress {
             payments::BankRedirectData::Przelewy24 {
                 billing_details, ..
             } => Ok(Self {
-                email: Some(billing_details.email.clone()),
+                email: billing_details.email.clone(),
+                ..Self::default()
+            }),
+            payments::BankRedirectData::BancontactCard {
+                billing_details, ..
+            } => Ok(Self {
+                name: billing_details
+                    .as_ref()
+                    .ok_or(errors::ConnectorError::MissingRequiredField {
+                        field_name: "bancontact_card.billing_name",
+                    })?
+                    .billing_name
+                    .clone(),
                 ..Self::default()
             }),
             _ => Ok(Self::default()),
@@ -821,6 +848,7 @@ fn get_bank_debit_data(
             billing_details,
             account_number,
             sort_code,
+            ..
         } => {
             let bacs_data = BankDebitData::Bacs {
                 account_number: account_number.to_owned(),
@@ -893,12 +921,18 @@ fn create_stripe_payment_method(
             let pm_type = infer_stripe_bank_redirect_issuer(pm_type)?;
             let bank_specific_data = get_bank_specific_data(bank_redirect_data);
             let bank_name = get_bank_name(&pm_type, bank_redirect_data)?;
+            let billing_details = get_billing_details_if_exists(&bank_redirect_data);
+            println!("\n\n\n\n");
+            dbg!(&billing_details);
+            println!("\n\n\n\n");
             Ok((
                 StripePaymentMethodData::BankRedirect(StripeBankRedirectData {
                     payment_method_types: pm_type,
                     payment_method_data_type: pm_type,
                     bank_name,
                     bank_specific_data,
+                    billing_name: billing_details.clone().and_then(|billing_details| billing_details.billing_name),
+                    email: billing_details.and_then(|billing_details| billing_details.email)
                 }),
                 pm_type,
                 billing_address,
@@ -966,6 +1000,25 @@ fn create_stripe_payment_method(
             "this payment method for stripe".to_string(),
         )
         .into()),
+    }
+}
+
+fn get_billing_details_if_exists(bank_redirect_data: &api_models::payments::BankRedirectData) -> Option<api_models::payments::BankRedirectBilling>{
+    match bank_redirect_data{
+        payments::BankRedirectData::BancontactCard { card_number, card_exp_month, card_exp_year, card_holder_name, billing_details } => billing_details.to_owned(),
+        payments::BankRedirectData::Blik { blik_code } => None,
+        payments::BankRedirectData::Eps { billing_details, bank_name } => Some(billing_details.to_owned()),
+        payments::BankRedirectData::Giropay { billing_details, bank_account_bic, bank_account_iban } => Some(billing_details.to_owned()),
+        payments::BankRedirectData::Ideal { billing_details, bank_name } => Some(billing_details.to_owned()),
+        payments::BankRedirectData::Interac { country, email } => None,
+        payments::BankRedirectData::OnlineBankingCzechRepublic { issuer } => None,
+        payments::BankRedirectData::OnlineBankingFinland { email } => None,
+        payments::BankRedirectData::OnlineBankingPoland { issuer } => None,
+        payments::BankRedirectData::OnlineBankingSlovakia { issuer } => None,
+        payments::BankRedirectData::Przelewy24 { bank_name, billing_details } => Some(billing_details.to_owned()),
+        payments::BankRedirectData::Sofort { billing_details, country, preferred_language } => Some(billing_details.to_owned()),
+        payments::BankRedirectData::Swish {  } => None,
+        payments::BankRedirectData::Trustly { country } => None,
     }
 }
 
@@ -1445,6 +1498,7 @@ impl ForeignFrom<(Option<StripePaymentMethodOptions>, String)> for types::Mandat
                 | StripePaymentMethodOptions::WechatPay {}
                 | StripePaymentMethodOptions::Alipay {}
                 | StripePaymentMethodOptions::Sepa {}
+                | StripePaymentMethodOptions::Bancontact {}
                 | StripePaymentMethodOptions::Przelewy24 {} => None,
             }),
             payment_method_id: Some(payment_method_id),
@@ -1857,6 +1911,7 @@ pub enum StripePaymentMethodOptions {
     Becs {},
     #[serde(rename = "bacs_debit")]
     Bacs {},
+    Bancontact {},
     WechatPay {},
     Alipay {},
     #[serde(rename = "p24")]
@@ -2128,6 +2183,8 @@ impl
                     payment_method_data_type: pm_type,
                     bank_name: None,
                     bank_specific_data: None,
+                    billing_name: None,
+                    email: None,   
                 }))
             }
             api::PaymentMethodData::Wallet(wallet_data) => match wallet_data {
