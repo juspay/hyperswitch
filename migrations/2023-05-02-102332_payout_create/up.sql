@@ -35,7 +35,9 @@ CREATE TABLE PAYOUT_CREATE (
     is_eligible BOOLEAN,
     encoded_data TEXT,
     error_message TEXT,
-    error_code VARCHAR (64)
+    error_code VARCHAR (64),
+    business_country "CountryAlpha2",
+    business_label VARCHAR(64)
 );
 
 CREATE TABLE PAYOUTS (

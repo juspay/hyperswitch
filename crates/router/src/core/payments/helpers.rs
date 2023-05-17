@@ -1554,6 +1554,7 @@ pub async fn insert_merchant_connector_creds_to_config(
     }
 }
 
+#[derive(Clone)]
 pub enum MerchantConnectorAccountType {
     DbVal(storage::MerchantConnectorAccount),
     CacheVal(api_models::admin::MerchantConnectorDetails),
