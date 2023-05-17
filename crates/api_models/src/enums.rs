@@ -630,6 +630,7 @@ pub enum Connector {
     Worldline,
     Worldpay,
     Zen,
+    Signifyd,
 }
 
 impl Connector {
@@ -713,6 +714,7 @@ pub enum RoutableConnectors {
     Worldline,
     Worldpay,
     Zen,
+    Signifyd,
 }
 
 /// Name of banks supported by Hyperswitch

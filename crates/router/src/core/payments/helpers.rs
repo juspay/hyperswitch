@@ -1282,7 +1282,7 @@ pub(crate) fn validate_pm_or_token_given(
 }
 
 // A function to perform database lookup and then verify the client secret
-pub(crate) async fn verify_payment_intent_time_and_client_secret(
+pub async fn verify_payment_intent_time_and_client_secret(
     db: &dyn StorageInterface,
     merchant_account: &merchant_account::MerchantAccount,
     client_secret: Option<String>,
@@ -1571,6 +1571,15 @@ impl MerchantConnectorAccountType {
         match self {
             Self::DbVal(val) => val.connector_account_details.to_owned(),
             Self::CacheVal(val) => val.connector_account_details.peek().to_owned(),
+        }
+    }
+
+    pub fn is_disabled(&self) -> bool {
+        match self {
+            Self::DbVal(ref inner) => inner.disabled.unwrap_or(false),
+            // Cached merchant connector account, only contains the account details,
+            // the merchant connector account must only be cached if it's not disabled
+            Self::CacheVal(_) => false,
         }
     }
 }
