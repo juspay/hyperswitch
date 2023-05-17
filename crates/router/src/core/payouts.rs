@@ -89,6 +89,20 @@ pub async fn payouts_update_core(
     )
     .await?;
 
+    let payout_create = payout_data.payout_create.to_owned();
+    let status = payout_create.status.foreign_into();
+
+    // Verify update feasibility
+    if helpers::is_payout_terminal_state(status) {
+        return Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+            message: format!(
+                "{} is in terminal state [status: {}]",
+                payout_create.payout_id.to_owned(),
+                status
+            ),
+        }));
+    }
+
     // Update DB with new data
     let payouts = payout_data.payouts.to_owned();
     let updated_payouts = storage::PayoutsUpdate::Update {
@@ -124,14 +138,14 @@ pub async fn payouts_update_core(
         .attach_printable("Error updating payouts")?;
 
     let payout_create = payout_data.payout_create.to_owned();
-    let updated_business_country = payout_create.business_country.map_or(
-        req.business_country.to_owned(),
-        |c| {
-            req.business_country
-                .to_owned()
-                .and_then(|nc| if nc != c { Some(nc) } else { None })
-        },
-    );
+    let updated_business_country =
+        payout_create
+            .business_country
+            .map_or(req.business_country.to_owned(), |c| {
+                req.business_country
+                    .to_owned()
+                    .and_then(|nc| if nc != c { Some(nc) } else { None })
+            });
     let updated_business_label =
         payout_create
             .business_label
@@ -314,6 +328,14 @@ pub async fn payouts_fulfill_core(
     .await
     .attach_printable("Payout fulfillment failed for given Payout request")?;
 
+    if helpers::is_payout_err_state(status) {
+        return Err(report!(errors::ApiErrorResponse::PayoutFailed {
+            data: Some(
+                serde_json::json!({"payout_status": status.to_string(), "error_message": payout_create.error_message, "error_code": payout_create.error_code})
+            ),
+        }));
+    }
+
     response_handler(
         state,
         &merchant_account,
@@ -442,9 +464,13 @@ pub async fn check_payout_eligibility(
     let payout_id = &payout_data.payouts.payout_id;
     match router_data_resp.response {
         Ok(payout_response_data) => {
+            let payout_create = &payout_data.payout_create;
+            let status = payout_response_data
+                .status
+                .unwrap_or(payout_create.status.to_owned());
             let updated_payout_create = storage::payout_create::PayoutCreateUpdate::StatusUpdate {
                 connector_payout_id: payout_response_data.connector_payout_id,
-                status: payout_response_data.status,
+                status,
                 error_code: None,
                 error_message: None,
                 is_eligible: payout_response_data.payout_eligible,
@@ -458,6 +484,13 @@ pub async fn check_payout_eligibility(
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Error updating payout_create in db")?;
+            if helpers::is_payout_err_state(status.foreign_into()) {
+                return Err(report!(errors::ApiErrorResponse::PayoutFailed {
+                    data: Some(
+                        serde_json::json!({"payout_status": status.to_string(), "error_message": payout_data.payout_create.error_message.as_ref(), "error_code": payout_data.payout_create.error_code.as_ref()})
+                    ),
+                }));
+            }
         }
         Err(err) => {
             let updated_payout_create = storage::payout_create::PayoutCreateUpdate::StatusUpdate {
@@ -529,9 +562,13 @@ pub async fn create_payout(
     let payout_id = &payout_data.payouts.payout_id;
     match router_data_resp.response {
         Ok(payout_response_data) => {
+            let payout_create = &payout_data.payout_create;
+            let status = payout_response_data
+                .status
+                .unwrap_or(payout_create.status.to_owned());
             let updated_payout_create = storage::payout_create::PayoutCreateUpdate::StatusUpdate {
                 connector_payout_id: payout_response_data.connector_payout_id,
-                status: payout_response_data.status,
+                status,
                 error_code: None,
                 error_message: None,
                 is_eligible: payout_response_data.payout_eligible,
@@ -545,6 +582,13 @@ pub async fn create_payout(
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Error updating payout_create in db")?;
+            if helpers::is_payout_err_state(status.foreign_into()) {
+                return Err(report!(errors::ApiErrorResponse::PayoutFailed {
+                    data: Some(
+                        serde_json::json!({"payout_status": status.to_string(), "error_message": payout_data.payout_create.error_message.as_ref(), "error_code": payout_data.payout_create.error_code.as_ref()})
+                    ),
+                }));
+            }
         }
         Err(err) => {
             let updated_payout_create = storage::payout_create::PayoutCreateUpdate::StatusUpdate {
@@ -612,9 +656,12 @@ pub async fn cancel_payout(
     let payout_id = &payout_data.payout_create.payout_id;
     match router_data_resp.response {
         Ok(payout_response_data) => {
-            let updated_payouts_create = storage::payout_create::PayoutCreateUpdate::StatusUpdate {
+            let status = payout_response_data
+                .status
+                .unwrap_or(payout_data.payout_create.status.to_owned());
+            let updated_payout_create = storage::payout_create::PayoutCreateUpdate::StatusUpdate {
                 connector_payout_id: payout_response_data.connector_payout_id,
-                status: payout_response_data.status,
+                status,
                 error_code: None,
                 error_message: None,
                 is_eligible: payout_response_data.payout_eligible,
@@ -623,7 +670,7 @@ pub async fn cancel_payout(
                 .update_payout_create_by_merchant_id_payout_id(
                     merchant_id,
                     payout_id,
-                    updated_payouts_create,
+                    updated_payout_create,
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -706,10 +753,12 @@ pub async fn fulfill_payout(
                 )
                 .await?;
             }
-
+            let status = payout_response_data
+                .status
+                .unwrap_or(payout_create.status.to_owned());
             let updated_payouts = storage::payout_create::PayoutCreateUpdate::StatusUpdate {
                 connector_payout_id: payout_response_data.connector_payout_id,
-                status: payout_response_data.status,
+                status,
                 error_code: None,
                 error_message: None,
                 is_eligible: payout_response_data.payout_eligible,
@@ -722,7 +771,14 @@ pub async fn fulfill_payout(
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Error updating payout_create in db")?
+                .attach_printable("Error updating payout_create in db")?;
+            if helpers::is_payout_err_state(status.foreign_into()) {
+                return Err(report!(errors::ApiErrorResponse::PayoutFailed {
+                    data: Some(
+                        serde_json::json!({"payout_status": status.to_string(), "error_message": payout_data.payout_create.error_message.as_ref(), "error_code": payout_data.payout_create.error_code.as_ref()})
+                    ),
+                }));
+            }
         }
         Err(err) => {
             let updated_payouts = storage::payout_create::PayoutCreateUpdate::StatusUpdate {
@@ -759,15 +815,6 @@ pub async fn response_handler(
     let customer_details = payout_data.customer_details.to_owned();
 
     let status = api_enums::PayoutStatus::foreign_from(payout_create.status.to_owned());
-
-    if helpers::is_payout_err_state(status) {
-        return Err(report!(errors::ApiErrorResponse::PayoutFailed {
-            data: Some(
-                serde_json::json!({"payout_status": status.to_string(), "error_message": payout_create.error_message, "error_code": payout_create.error_code})
-            ),
-        }));
-    }
-
     let currency = api_enums::Currency::foreign_from(payouts.destination_currency.to_owned());
     let entity_type = api_enums::EntityType::foreign_from(payouts.entity_type.to_owned());
     let payout_type = api_enums::PayoutType::foreign_from(payouts.payout_type.to_owned());
@@ -914,7 +961,7 @@ pub async fn payout_create_db_entries(
 
     // Make payout_create entry
     let status = if req.payout_method_data.is_some() {
-        storage_enums::PayoutStatus::RequiresFulfillment
+        storage_enums::PayoutStatus::RequiresCreation
     } else {
         storage_enums::PayoutStatus::RequiresPayoutMethodData
     };

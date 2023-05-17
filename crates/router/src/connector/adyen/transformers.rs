@@ -659,6 +659,7 @@ pub struct AdyenRefundResponse {
 pub struct AdyenAuthType {
     pub(super) api_key: String,
     pub(super) merchant_account: String,
+    pub(super) review_key: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -769,13 +770,23 @@ impl<'a> TryFrom<&api_enums::BankNames> for AdyenTestBankNames<'a> {
 impl TryFrom<&types::ConnectorAuthType> for AdyenAuthType {
     type Error = Error;
     fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
-        if let types::ConnectorAuthType::BodyKey { api_key, key1 } = auth_type {
-            Ok(Self {
+        match auth_type {
+            types::ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
                 api_key: api_key.to_string(),
                 merchant_account: key1.to_string(),
-            })
-        } else {
-            Err(errors::ConnectorError::FailedToObtainAuthType)?
+                review_key: None,
+            }),
+            types::ConnectorAuthType::MultiAuthKey {
+                api_key,
+                key1,
+                api_secret: _,
+                key2,
+            } => Ok(Self {
+                api_key: api_key.to_string(),
+                merchant_account: key1.to_string(),
+                review_key: Some(key2.to_string()),
+            }),
+            _ => Err(errors::ConnectorError::FailedToObtainAuthType)?,
         }
     }
 }
@@ -2085,12 +2096,12 @@ pub struct AdyenPayoutCreateRequest {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct PayoutBankDetails {
-    bank_name: Option<String>,
+    bank_name: String,
     bic: Option<String>,
-    country_code: Option<storage_enums::CountryAlpha2>,
+    country_code: storage_enums::CountryAlpha2,
     iban: Option<String>,
     owner_name: Option<String>,
-    bank_city: Option<String>,
+    bank_city: String,
     tax_id: Option<String>,
 }
 
@@ -2112,7 +2123,8 @@ enum Contract {
 #[serde(rename_all = "camelCase")]
 pub struct AdyenPayoutResponse {
     psp_reference: String,
-    result_code: AdyenStatus,
+    result_code: Option<AdyenStatus>,
+    response: Option<AdyenStatus>,
     amount: Option<Amount>,
     merchant_reference: Option<String>,
     refusal_reason: Option<String>,
@@ -2181,7 +2193,7 @@ pub struct PayoutFulfillCardRequest {
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AdyenPayoutCancelRequest {
-    psp_reference: String,
+    original_reference: String,
     merchant_account: String,
 }
 
@@ -2216,17 +2228,16 @@ impl<F> TryFrom<&types::PayoutsRouterData<F>> for AdyenPayoutCancelRequest {
         let auth_type = AdyenAuthType::try_from(&item.connector_auth_type)?;
 
         let merchant_account = auth_type.merchant_account;
-        item.request.connector_payout_id.to_owned().map_or(
+        if let Some(id) = &item.request.connector_payout_id {
+            Ok(Self {
+                merchant_account,
+                original_reference: id.to_string(),
+            })
+        } else {
             Err(errors::ConnectorError::MissingRequiredField {
                 field_name: "connector_payout_id",
-            })?,
-            |psp_reference| {
-                Ok(Self {
-                    merchant_account,
-                    psp_reference,
-                })
-            },
-        )
+            })?
+        }
     }
 }
 
@@ -2261,13 +2272,13 @@ impl<F> TryFrom<&types::PayoutsRouterData<F>> for AdyenPayoutCreateRequest {
                 },
                 merchant_account,
                 bank: PayoutBankDetails {
-                    bank_name: Some(b.bank_name),
+                    bank_name: b.bank_name,
                     bic: b.bic,
-                    country_code: Some(item.request.country_code),
+                    country_code: b.bank_country_code,
                     iban: b.iban,
                     owner_name: customer_name,
-                    bank_city: None, // FIXME: Remove hardcoding
-                    tax_id: None,    // FIXME: Remove hardcoding
+                    bank_city: b.bank_city,
+                    tax_id: None,
                 },
                 reference: item.request.payout_id.to_owned(),
                 shopper_reference: item.merchant_id.to_owned(),
@@ -2346,18 +2357,19 @@ impl<F> TryFrom<types::PayoutsResponseRouterData<F, AdyenPayoutResponse>>
             .map(|pe| pe == PayoutEligibility::Y || pe == PayoutEligibility::D);
 
         let status = payout_eligible.map_or(
-            match response.result_code {
-                AdyenStatus::Authorised => storage_enums::PayoutStatus::Success,
-                AdyenStatus::Cancelled => storage_enums::PayoutStatus::Cancelled,
-                AdyenStatus::Error => storage_enums::PayoutStatus::Failed,
-                AdyenStatus::Pending => storage_enums::PayoutStatus::Pending,
-                _ => storage_enums::PayoutStatus::Ineligible,
+            {
+                response.result_code.map_or(
+                    response
+                        .response
+                        .map(storage_enums::PayoutStatus::foreign_from),
+                    |rc| Some(storage_enums::PayoutStatus::foreign_from(rc)),
+                )
             },
             |pe| {
                 if pe {
-                    storage_enums::PayoutStatus::RequiresCreation
+                    Some(storage_enums::PayoutStatus::RequiresCreation)
                 } else {
-                    storage_enums::PayoutStatus::Ineligible
+                    Some(storage_enums::PayoutStatus::Ineligible)
                 }
             },
         );
@@ -2370,5 +2382,18 @@ impl<F> TryFrom<types::PayoutsResponseRouterData<F, AdyenPayoutResponse>>
             }),
             ..item.data
         })
+    }
+}
+
+impl ForeignFrom<AdyenStatus> for storage_enums::PayoutStatus {
+    fn foreign_from(adyen_status: AdyenStatus) -> Self {
+        match adyen_status {
+            AdyenStatus::Authorised | AdyenStatus::PayoutConfirmReceived => Self::Success,
+            AdyenStatus::Cancelled | AdyenStatus::PayoutDeclineReceived => Self::Cancelled,
+            AdyenStatus::Error => Self::Failed,
+            AdyenStatus::Pending => Self::Pending,
+            AdyenStatus::PayoutSubmitReceived => Self::RequiresFulfillment,
+            _ => Self::Ineligible,
+        }
     }
 }
