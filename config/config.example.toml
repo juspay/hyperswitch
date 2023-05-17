@@ -92,6 +92,7 @@ ignore_errors = false                                 # boolean [true or false],
 sampling_rate = 0.1                                   # decimal rate between 0.0 - 1.0
 otel_exporter_otlp_endpoint = "http://localhost:4317" # endpoint to send metrics and traces to, can include port number
 otel_exporter_otlp_timeout = 5000                     # timeout (in milliseconds) for sending metrics and traces
+use_xray_generator = false                            # Set this to true for AWS X-ray compatible traces
 
 # This section provides some secret values.
 [secrets]
