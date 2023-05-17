@@ -577,10 +577,12 @@ pub enum MandateType {
     MultiUse,
 }
 
-use diesel::backend::Backend;
-use diesel::deserialize::{FromSql, FromSqlRow};
-use diesel::expression::AsExpression;
-use diesel::sql_types::Jsonb;
+use diesel::{
+    backend::Backend,
+    deserialize::{FromSql, FromSqlRow},
+    expression::AsExpression,
+    sql_types::Jsonb,
+};
 #[derive(
     serde::Serialize, serde::Deserialize, Debug, Clone, PartialEq, Eq, FromSqlRow, AsExpression,
 )]
