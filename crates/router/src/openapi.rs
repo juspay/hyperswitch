@@ -29,7 +29,7 @@ Use the following base URLs when making requests to the APIs:
 | Environment   |  Base URL                          |
 |---------------|------------------------------------|
 | Sandbox       | <https://sandbox.hyperswitch.io>   |
-| Production    | Coming Soon!                       |
+| Production    | <https://api.hyperswitch.io>       |
 
 ## Authentication
 
