@@ -542,6 +542,8 @@ diesel::table! {
         encoded_data -> Nullable<Text>,
         error_message -> Nullable<Text>,
         error_code -> Nullable<Varchar>,
+        business_country -> Nullable<CountryAlpha2>,
+        business_label -> Nullable<Varchar>,
     }
 }
 
