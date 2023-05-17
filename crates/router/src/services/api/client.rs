@@ -110,7 +110,7 @@ pub(super) fn create_client(
     }
 }
 
-pub(super) fn should_bypass_proxy(locker: &Locker, url: &String) -> bool {
+pub(super) fn should_bypass_proxy(locker: &Locker, url: &str) -> bool {
     let locker_host = locker.host.to_owned();
     let basilisk_host = locker.basilisk_host.to_owned();
     let bypass_list = vec![
