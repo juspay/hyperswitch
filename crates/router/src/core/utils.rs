@@ -1,17 +1,15 @@
 use std::marker::PhantomData;
 
 use api_models::enums::{DisputeStage, DisputeStatus};
-#[cfg(feature = "payouts")]
-use common_utils::crypto::Encryptable;
 use common_utils::errors::CustomResult;
+#[cfg(feature = "payouts")]
+use common_utils::{crypto::Encryptable, pii::Email};
 use error_stack::{IntoReport, ResultExt};
 use router_env::{instrument, tracing};
 
 use super::payments::{helpers, PaymentAddress};
 #[cfg(feature = "payouts")]
 use super::payouts::PayoutData;
-#[cfg(feature = "payouts")]
-use crate::types::api;
 use crate::{
     consts,
     core::errors::{self, RouterResult},
@@ -23,6 +21,8 @@ use crate::{
     },
     utils::{generate_id, OptionExt, ValueExt},
 };
+#[cfg(feature = "payouts")]
+use crate::{core::payments, types::api};
 
 #[cfg(feature = "payouts")]
 #[instrument(skip_all)]
@@ -59,7 +59,6 @@ pub async fn get_mca_for_payout<'a>(
 
 #[cfg(feature = "payouts")]
 #[instrument(skip_all)]
-#[allow(clippy::too_many_arguments)]
 pub async fn construct_payout_router_data<'a, F>(
     state: &'a AppState,
     connector_id: &str,
@@ -68,6 +67,11 @@ pub async fn construct_payout_router_data<'a, F>(
     payout_data: &mut PayoutData,
     payout_method_data: &api::PayoutMethodData,
 ) -> RouterResult<types::PayoutsRouterData<F>> {
+    let (business_country, _) = helpers::get_business_details(
+        payout_data.payout_attempt.business_country,
+        payout_data.payout_attempt.business_label.as_ref(),
+        merchant_account,
+    )?;
     let merchant_connector_account =
         get_mca_for_payout(state, connector_id, merchant_account, payout_data).await?;
     payout_data.merchant_connector_account = Some(merchant_connector_account.clone());
@@ -106,6 +110,7 @@ pub async fn construct_payout_router_data<'a, F>(
 
     let payouts = &payout_data.payouts;
     let payout_attempt = &payout_data.payout_attempt;
+    let customer_details = &payout_data.customer_details;
 
     let router_data = types::RouterData {
         flow: PhantomData,
@@ -133,6 +138,16 @@ pub async fn construct_payout_router_data<'a, F>(
             source_currency: payouts.source_currency,
             entity_type: payouts.entity_type,
             payout_type: payouts.payout_type,
+            country_code: business_country,
+            customer_details: customer_details
+                .to_owned()
+                .map(|c| payments::CustomerDetails {
+                    customer_id: Some(c.customer_id),
+                    name: c.name.map(Encryptable::into_inner),
+                    email: c.email.map(Email::from),
+                    phone: c.phone.map(Encryptable::into_inner),
+                    phone_country_code: c.phone_country_code,
+                }),
         },
         response: Ok(types::PayoutsResponseData::default()),
         access_token: None,

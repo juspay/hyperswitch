@@ -11,6 +11,9 @@ use crate::{services::api, types};
 
 #[cfg(feature = "payouts")]
 #[derive(Debug, Clone)]
+pub struct PCancel;
+
+#[derive(Debug, Clone)]
 pub struct PCreate;
 
 #[cfg(feature = "payouts")]
@@ -20,6 +23,12 @@ pub struct PEligibility;
 #[cfg(feature = "payouts")]
 #[derive(Debug, Clone)]
 pub struct PFulfill;
+
+#[cfg(feature = "payouts")]
+pub trait PayoutCancel:
+    api::ConnectorIntegration<PCancel, types::PayoutsData, types::PayoutsResponseData>
+{
+}
 
 #[cfg(feature = "payouts")]
 pub trait PayoutCreate:
@@ -40,7 +49,9 @@ pub trait PayoutFulfill:
 }
 
 #[cfg(feature = "payouts")]
-pub trait Payouts: ConnectorCommon + PayoutCreate + PayoutEligibility + PayoutFulfill {}
-
+pub trait Payouts:
+    ConnectorCommon + PayoutCancel + PayoutCreate + PayoutEligibility + PayoutFulfill
+{
+}
 #[cfg(not(feature = "payouts"))]
 pub trait Payouts {}
