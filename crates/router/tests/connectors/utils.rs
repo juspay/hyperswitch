@@ -515,13 +515,6 @@ impl Default for PaymentAuthorizeType {
             router_return_url: None,
             complete_authorize_url: None,
             webhook_url: None,
-            country_code: None,
-            address_line1: None,
-            address_line2: None,
-            address_line3: None,
-            first_name: None,
-            last_name: None,
-            postal_code: None,
         };
         Self(data)
     }

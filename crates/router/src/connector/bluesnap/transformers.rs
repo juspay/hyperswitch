@@ -14,7 +14,7 @@ use crate::{
     core::errors,
     pii::Secret,
     types::{self, api, storage::enums, transformers::ForeignTryFrom},
-    utils::Encode,
+    utils::{Encode, OptionExt},
 };
 
 #[derive(Debug, Serialize, PartialEq)]
@@ -175,14 +175,30 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BluesnapPaymentsRequest {
                         .parse_struct("ApplePayEncodedPaymentData")
                         .change_context(errors::ConnectorError::ParsingFailed)?;
 
+                    let billing = item
+                        .address
+                        .billing
+                        .to_owned()
+                        .get_required_value("billing")
+                        .change_context(errors::ConnectorError::MissingRequiredField {
+                            field_name: "billing",
+                        })?;
+
+                    let billing_address = billing
+                        .address
+                        .get_required_value("billing_address")
+                        .change_context(errors::ConnectorError::MissingRequiredField {
+                            field_name: "billing",
+                        })?;
+
                     let mut address = Vec::new();
-                    if let Some(add) = item.request.address_line1.to_owned() {
+                    if let Some(add) = billing_address.line1.to_owned() {
                         address.push(add)
                     }
-                    if let Some(add) = item.request.address_line1.to_owned() {
+                    if let Some(add) = billing_address.line2.to_owned() {
                         address.push(add)
                     }
-                    if let Some(add) = item.request.address_line1.to_owned() {
+                    if let Some(add) = billing_address.line3.to_owned() {
                         address.push(add)
                     }
 
@@ -197,11 +213,11 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BluesnapPaymentsRequest {
                                 transaction_identifier: payment_method_data.transaction_identifier,
                             },
                             billing_contact: BillingDetails {
-                                country_code: item.request.country_code,
+                                country_code: billing_address.country,
                                 address_lines: Some(address),
-                                family_name: item.request.last_name.to_owned(),
-                                given_name: item.request.first_name.to_owned(),
-                                postal_code: item.request.postal_code.to_owned(),
+                                family_name: billing_address.last_name.to_owned(),
+                                given_name: billing_address.first_name.to_owned(),
+                                postal_code: billing_address.zip,
                             },
                         },
                     )

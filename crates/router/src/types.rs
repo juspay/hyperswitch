@@ -210,13 +210,6 @@ pub struct PaymentsAuthorizeData {
     pub router_return_url: Option<String>,
     pub webhook_url: Option<String>,
     pub complete_authorize_url: Option<String>,
-    pub country_code: Option<storage_enums::CountryAlpha2>,
-    pub address_line1: Option<Secret<String>>,
-    pub address_line2: Option<Secret<String>>,
-    pub address_line3: Option<Secret<String>>,
-    pub first_name: Option<Secret<String>>,
-    pub last_name: Option<Secret<String>>,
-    pub postal_code: Option<Secret<String>>,
     // Mandates
     pub setup_future_usage: Option<storage_enums::FutureUsage>,
     pub mandate_id: Option<api_models::payments::MandateIds>,
@@ -702,13 +695,6 @@ impl From<&VerifyRouterData> for PaymentsAuthorizeData {
             related_transaction_id: None,
             payment_experience: None,
             payment_method_type: None,
-            country_code: None,
-            address_line1: None,
-            address_line2: None,
-            address_line3: None,
-            first_name: None,
-            last_name: None,
-            postal_code: None,
         }
     }
 }
