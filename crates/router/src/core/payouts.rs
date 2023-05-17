@@ -34,6 +34,7 @@ pub struct PayoutData {
     pub payouts: storage::Payouts,
     pub payout_create: storage::PayoutCreate,
     pub payout_method_data: Option<payouts::PayoutMethodData>,
+    pub merchant_connector_account: Option<payment_helpers::MerchantConnectorAccountType>,
 }
 
 // ********************************************** CORE FLOWS **********************************************
@@ -118,6 +119,12 @@ pub async fn payouts_update_core(
         payout_method_data: None,
     };
 
+    let payout_create = payout_data.payout_create.to_owned();
+    let update_payout_create = storage::PayoutCreateUpdate::BusinessUpdate {
+        business_country: req.business_country.or(payout_create.business_country),
+        business_label: req.business_label.clone().or(payout_create.business_label),
+    };
+
     let db = &*state.store;
     let payout_id = req.payout_id.clone().get_required_value("payout_id")?;
     let merchant_id = &merchant_account.merchant_id;
@@ -126,6 +133,16 @@ pub async fn payouts_update_core(
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Error updating payouts")?;
+
+    payout_data.payout_create = db
+        .update_payout_create_by_merchant_id_payout_id(
+            merchant_id,
+            &payout_id,
+            update_payout_create,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Error updating payout_create")?;
 
     // Form connector data
     let connector_data: api::ConnectorData = api::ConnectorData::get_connector_by_name(
@@ -760,6 +777,8 @@ pub async fn payout_create_db_entries(
         .set_address_id(address_id.to_owned())
         .set_connector(connector_name.to_string())
         .set_status(status)
+        .set_business_country(req.business_country.to_owned())
+        .set_business_label(req.business_label.to_owned())
         .to_owned();
     let payout_create = db
         .insert_payout_create(payout_create_req)
@@ -776,6 +795,7 @@ pub async fn payout_create_db_entries(
         payouts,
         payout_create,
         payout_method_data: None,
+        merchant_connector_account: None,
     })
 }
 
@@ -825,5 +845,6 @@ pub async fn make_payout_data(
         payouts,
         payout_create,
         payout_method_data: None,
+        merchant_connector_account: None,
     })
 }
