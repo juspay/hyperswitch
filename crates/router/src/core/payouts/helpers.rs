@@ -12,7 +12,7 @@ use crate::{
     db::StorageInterface,
     routes::AppState,
     types::{
-        api,
+        api::{self, enums as api_enums},
         domain::{
             self,
             types::{self},
@@ -146,58 +146,69 @@ pub async fn get_or_create_customer_details(
     customer_details: &CustomerDetails,
     merchant_account: &domain::MerchantAccount,
 ) -> RouterResult<Option<domain::Customer>> {
-    match (
-        customer_details.name.to_owned(),
-        customer_details.email.to_owned(),
-        customer_details.phone.to_owned(),
-    ) {
-        (Some(name), Some(email), Some(phone)) => {
-            let db: &dyn StorageInterface = &*state.store;
-            // Create customer_id if not passed in request
-            let customer_id = core_utils::get_or_generate_id(
-                "customer_id",
-                &customer_details.customer_id,
-                "cust",
-            )?;
-            let merchant_id = &merchant_account.merchant_id;
-            let key = types::get_merchant_enc_key(db, merchant_id.to_string())
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)?;
+    let db: &dyn StorageInterface = &*state.store;
+    // Create customer_id if not passed in request
+    let customer_id =
+        core_utils::get_or_generate_id("customer_id", &customer_details.customer_id, "cust")?;
+    let merchant_id = &merchant_account.merchant_id;
 
-            match db
-                .find_customer_optional_by_customer_id_merchant_id(&customer_id, merchant_id)
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)?
-            {
-                Some(customer) => Ok(Some(customer)),
-                None => {
-                    let customer = domain::Customer {
-                        customer_id,
-                        merchant_id: merchant_id.to_string(),
-                        name: types::encrypt_optional(Some(name), &key)
-                            .await
-                            .change_context(errors::ApiErrorResponse::InternalServerError)?,
-                        email: types::encrypt_optional(Some(email.expose()), &key)
-                            .await
-                            .change_context(errors::ApiErrorResponse::InternalServerError)?,
-                        phone: types::encrypt_optional(Some(phone), &key)
-                            .await
-                            .change_context(errors::ApiErrorResponse::InternalServerError)?,
-                        description: None,
-                        phone_country_code: customer_details.phone_country_code.to_owned(),
-                        metadata: None,
-                        connector_customer: None,
-                        id: None,
-                        created_at: common_utils::date_time::now(),
-                        modified_at: common_utils::date_time::now(),
-                    };
+    let key = types::get_merchant_enc_key(db, merchant_id.to_string())
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
-                    Ok(Some(db.insert_customer(customer).await.change_context(
-                        errors::ApiErrorResponse::InternalServerError,
-                    )?))
-                }
-            }
+    match db
+        .find_customer_optional_by_customer_id_merchant_id(&customer_id, merchant_id)
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)?
+    {
+        Some(customer) => Ok(Some(customer)),
+        None => {
+            let customer = domain::Customer {
+                customer_id,
+                merchant_id: merchant_id.to_string(),
+                name: types::encrypt_optional(customer_details.name.to_owned(), &key)
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)?,
+                email: types::encrypt_optional(
+                    customer_details.email.to_owned().map(|e| e.expose()),
+                    &key,
+                )
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)?,
+                phone: types::encrypt_optional(customer_details.phone.to_owned(), &key)
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)?,
+                description: None,
+                phone_country_code: customer_details.phone_country_code.to_owned(),
+                metadata: None,
+                connector_customer: None,
+                id: None,
+                created_at: common_utils::date_time::now(),
+                modified_at: common_utils::date_time::now(),
+            };
+
+            Ok(Some(db.insert_customer(customer).await.change_context(
+                errors::ApiErrorResponse::InternalServerError,
+            )?))
         }
-        _ => Ok(None),
     }
+}
+
+pub fn is_payout_terminal_state(status: api_enums::PayoutStatus) -> bool {
+    !matches!(
+        status,
+        api_enums::PayoutStatus::Pending
+            | api_enums::PayoutStatus::RequiresCreation
+            | api_enums::PayoutStatus::RequiresFulfillment
+            | api_enums::PayoutStatus::RequiresPayoutMethodData
+    )
+}
+
+pub fn is_payout_err_state(status: api_enums::PayoutStatus) -> bool {
+    matches!(
+        status,
+        api_enums::PayoutStatus::Cancelled
+            | api_enums::PayoutStatus::Failed
+            | api_enums::PayoutStatus::Ineligible
+    )
 }
