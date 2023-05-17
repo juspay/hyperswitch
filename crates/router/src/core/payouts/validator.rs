@@ -69,7 +69,9 @@ pub async fn validate_create_request(
     let payout_id = core_utils::get_or_generate_id("payout_id", &req.payout_id, "payout")?;
     match validate_uniqueness_of_payout_id_against_merchant_id(db, &payout_id, merchant_id)
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .change_context(errors::ApiErrorResponse::DuplicatePayout {
+            payout_id: payout_id.to_owned(),
+        })
         .attach_printable_lazy(|| {
             format!(
                 "Unique violation while checking payout_id: {} against merchant_id: {}",
