@@ -209,7 +209,7 @@ where
                         pm_id.get_required_value("payment_method_id")?,
                         mandate_ids,
                         network_txn_id,
-                    ) {
+                    )? {
                         let connector = new_mandate_data.connector.clone();
                         logger::debug!("{:?}", new_mandate_data);
                         resp.request

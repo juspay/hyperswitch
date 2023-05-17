@@ -320,6 +320,7 @@ diesel::table! {
         payment_method_data -> Nullable<Jsonb>,
         business_sub_label -> Nullable<Varchar>,
         straight_through_algorithm -> Nullable<Jsonb>,
+        mandate_details -> Nullable<Jsonb>,
     }
 }
 

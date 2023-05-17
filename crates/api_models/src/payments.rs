@@ -294,7 +294,8 @@ impl From<PaymentsRequest> for VerifyRequest {
     }
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum MandateTxnType {
     NewMandateTxn,
     RecurringMandateTxn,
@@ -327,13 +328,15 @@ impl MandateIds {
     }
 }
 
+// The fields on this struct are optional, as we want to allow the merchant to provide partial
+// information about creating mandates
 #[derive(Default, Eq, PartialEq, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct MandateData {
     /// A concent from the customer to store the payment method
-    pub customer_acceptance: CustomerAcceptance,
+    pub customer_acceptance: Option<CustomerAcceptance>,
     /// A way to select the type of mandate used
-    pub mandate_type: MandateType,
+    pub mandate_type: Option<MandateType>,
 }
 
 #[derive(Clone, Eq, PartialEq, Copy, Debug, Default, serde::Serialize, serde::Deserialize)]
