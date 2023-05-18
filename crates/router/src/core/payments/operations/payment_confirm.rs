@@ -1,7 +1,7 @@
 use std::marker::PhantomData;
 
 use async_trait::async_trait;
-use common_utils::ext_traits::{AsyncExt, Encode};
+use common_utils::ext_traits::{AsyncExt, Encode, ValueExt};
 use error_stack::ResultExt;
 use router_derive::PaymentOperation;
 use router_env::{instrument, tracing};
@@ -19,7 +19,7 @@ use crate::{
         self,
         api::{self, PaymentIdTypeExt},
         storage::{self, enums as storage_enums},
-        transformers::ForeignInto,
+        transformers::{ForeignFrom, ForeignInto},
     },
     utils::{self, OptionExt},
 };
@@ -100,10 +100,22 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
 
         let token = token.or_else(|| payment_attempt.payment_token.clone());
 
+        let attempt_pm_data = payment_attempt
+            .payment_method_data
+            .clone()
+            .parse_value("payment method")
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed while parsing value for Payment Method")?;
+
         helpers::validate_pm_or_token_given(
-            &request.payment_method,
-            &request.payment_method_data,
-            &request.payment_method_type,
+            &request.payment_method.or(payment_attempt
+                .payment_method
+                .map(api_models::enums::PaymentMethod::foreign_from)),
+            &request.payment_method_data.clone().or(attempt_pm_data),
+            &request.payment_method_type.or(payment_attempt
+                .payment_method_type
+                .clone()
+                .map(api_models::enums::PaymentMethodType::foreign_from)),
             &mandate_type,
             &token,
         )?;
@@ -185,6 +197,13 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             })
             .await
             .transpose()?;
+        let attempt_pm_data = payment_attempt
+            .payment_method_data
+            .clone()
+            .map(|payment_method_data| payment_method_data.parse_value("PaymentMethodData"))
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed while parsing value for Payment Method")?;
 
         Ok((
             Box::new(self),
@@ -204,7 +223,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                     billing: billing_address.as_ref().map(|a| a.foreign_into()),
                 },
                 confirm: request.confirm,
-                payment_method_data: request.payment_method_data.clone(),
+                payment_method_data: request.payment_method_data.clone().or(attempt_pm_data),
                 force_sync: None,
                 refunds: vec![],
                 disputes: vec![],
