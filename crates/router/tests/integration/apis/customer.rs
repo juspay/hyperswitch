@@ -1,6 +1,10 @@
 use crate::integration::types::*;
-use actix_web::test::TestRequest;
 use serde_json::value::{Value};
+use actix_http::{body::MessageBody, Request};
+use actix_web::{
+  dev::{Service, ServiceResponse},
+  test::{call_and_read_body_json, TestRequest},
+};
 
 pub struct Customer;
 
@@ -22,4 +26,10 @@ impl RequestBuilder for Customer{
     
   }
 
+}
+
+pub async fn execute_customer_create_test(master_data : &mut MasterData, server: &impl Service<Request, Response = ServiceResponse<impl MessageBody>, Error = actix_web::Error>){
+  let customer_create_resp = call_and_read_body_json(&server,Customer::make_request_body(&master_data).to_request()).await;
+  Customer::verify_response(&Customer_create_resp).update_master_data(master_data,&customer_create_resp);
+  println!("{:?}",customer_create_resp);
 }

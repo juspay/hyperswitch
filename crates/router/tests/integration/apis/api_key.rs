@@ -1,7 +1,10 @@
 use crate::integration::types::*;
-use actix_web::test::TestRequest;
 use serde_json::value::{Value};
-
+use actix_http::{body::MessageBody, Request};
+use actix_web::{
+    dev::{Service, ServiceResponse},
+    test::{call_and_read_body_json, TestRequest},
+};
 pub struct ApiKey;
 
 impl RequestBuilder for ApiKey{
@@ -32,4 +35,10 @@ impl RequestBuilder for ApiKey{
     }
   }
 
+}
+
+pub async fn execute_api_key_create_tests(master_data : &mut MasterData, server: &impl Service<Request, Response = ServiceResponse<impl MessageBody>, Error = actix_web::Error>){
+  let api_resp = call_and_read_body_json(&server,ApiKey::make_request_body(&master_data).to_request()).await;
+  ApiKey::verify_response(&api_resp).update_master_data(master_data,&api_resp);
+  println!("{:?}",api_resp);
 }

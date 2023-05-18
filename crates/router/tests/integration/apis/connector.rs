@@ -1,7 +1,10 @@
 use crate::integration::types::*;
-use actix_web::test::TestRequest;
 use serde_json::value::{Value};
-
+use actix_http::{body::MessageBody, Request};
+use actix_web::{
+    dev::{Service, ServiceResponse},
+    test::{call_and_read_body_json, TestRequest},
+};
 pub struct ConnectorCreate;
 
 impl RequestBuilder for ConnectorCreate{
@@ -24,4 +27,10 @@ impl RequestBuilder for ConnectorCreate{
     
   }
 
+}
+
+pub async fn execute_connector_create_test(master_data : &mut MasterData, server: &impl Service<Request, Response = ServiceResponse<impl MessageBody>, Error = actix_web::Error>){
+  let connector_create_resp = call_and_read_body_json(&server,ConnectorCreate::make_request_body(&master_data).to_request()).await;
+  ConnectorCreate::verify_response(&connector_create_resp).update_master_data(master_data,&connector_create_resp);
+  println!("{:?}",connector_create_resp);
 }
