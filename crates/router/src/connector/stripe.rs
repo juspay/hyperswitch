@@ -1699,6 +1699,12 @@ impl api::IncomingWebhook for Stripe {
                     .status
                     .ok_or(errors::ConnectorError::WebhookEventTypeNotFound)?,
             )?,
+            stripe::WebhookEventType::PaymentIntentPartiallyFunded => {
+                api::IncomingWebhookEvent::PaymentIntentPartiallyFunded
+            }
+            stripe::WebhookEventType::PaymentIntentRequiresAction => {
+                api::IncomingWebhookEvent::PaymentActionRequired
+            }
             _ => Err(errors::ConnectorError::WebhookEventTypeNotFound).into_report()?,
         })
     }

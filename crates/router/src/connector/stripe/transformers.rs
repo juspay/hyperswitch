@@ -1672,12 +1672,37 @@ impl<F, T>
                     status_code: item.http_code,
                 });
 
+        let connector_metadata =
+            item.response
+                .next_action
+                .as_ref()
+                .and_then(|next_action_response| match next_action_response {
+                    StripeNextActionResponse::DisplayBankTransferInstructions(response) => {
+                        Some(SepaAndBacsBankTransferInstructions {
+                            sepa_bank_instructions: response.financial_addresses[0].iban.to_owned(),
+                            bacs_bank_instructions: response.financial_addresses[0]
+                                .sort_code
+                                .to_owned(),
+                            receiver: SepaAndBacsReceiver {
+                                amount_received: item.response.amount - response.amount_remaining,
+                                amount_remaining: response.amount_remaining,
+                            },
+                        })
+                    }
+                    _ => None,
+                }).map(|response| {
+                     common_utils::ext_traits::Encode::<SepaAndBacsBankTransferInstructions>::encode_to_value(
+                &response,
+            )
+            .change_context(errors::ConnectorError::RequestEncodingFailed)
+                }).transpose()?;
+
         let response = error_res.map_or(
             Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.id.clone()),
                 redirection_data,
                 mandate_reference,
-                connector_metadata: None,
+                connector_metadata,
                 network_txn_id: None,
             }),
             Err,
@@ -2366,6 +2391,8 @@ pub enum WebhookEventType {
     SourceChargeable,
     #[serde(rename = "source.transaction.created")]
     SourceTransactionCreated,
+    #[serde(rename = "payment_intent.partially_funded")]
+    PaymentIntentPartiallyFunded,
 }
 
 #[derive(Debug, Serialize, strum::Display, Deserialize, PartialEq)]

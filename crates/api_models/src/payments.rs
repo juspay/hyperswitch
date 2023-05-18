@@ -856,6 +856,7 @@ pub struct CardResponse {
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
 pub enum PaymentMethodDataResponse {
     #[serde(rename = "card")]
     Card(CardResponse),
