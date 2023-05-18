@@ -18,7 +18,7 @@ use crate::{
     },
     routes::AppState,
     types::{
-        self, api,
+        self,
         storage::{self, enums},
         ErrorResponse,
     },
@@ -64,7 +64,6 @@ pub async fn construct_payout_router_data<'a, F>(
     merchant_account: &storage::MerchantAccount,
     _request: &api_models::payouts::PayoutRequest,
     payout_data: &mut PayoutData,
-    payout_method_data: &api::PayoutMethodData,
 ) -> RouterResult<types::PayoutsRouterData<F>> {
     let (business_country, _) = helpers::get_business_details(
         payout_data.payout_create.business_country,
@@ -137,7 +136,7 @@ pub async fn construct_payout_router_data<'a, F>(
             source_currency: payouts.source_currency,
             entity_type: payouts.entity_type,
             payout_type: payouts.payout_type,
-            payout_method_data: payout_method_data.to_owned(),
+            payout_method_data: payout_data.payout_method_data.to_owned(),
             country_code: business_country,
             customer_details: customer_details
                 .to_owned()

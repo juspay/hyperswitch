@@ -906,9 +906,11 @@ fn get_country_code(
     address.and_then(|billing| billing.address.as_ref().and_then(|address| address.country))
 }
 
-fn get_payout_card_details(payout_method_data: &PayoutMethodData) -> Option<PayoutCardDetails> {
+fn get_payout_card_details(
+    payout_method_data: &Option<PayoutMethodData>,
+) -> Option<PayoutCardDetails> {
     match payout_method_data {
-        PayoutMethodData::Card(card) => Some(PayoutCardDetails {
+        Some(PayoutMethodData::Card(card)) => Some(PayoutCardDetails {
             _type: "scheme".to_string(), // FIXME: Remove hardcoding
             number: card.card_number.peek().to_string(),
             expiry_month: card.expiry_month.peek().to_string(),
@@ -2063,7 +2065,6 @@ impl<F> TryFrom<&types::PayoutsRouterData<F>> for AdyenPayoutCreateRequest {
     fn try_from(item: &types::PayoutsRouterData<F>) -> Result<Self, Self::Error> {
         let auth_type = AdyenAuthType::try_from(&item.connector_auth_type)?;
         let merchant_account = auth_type.merchant_account;
-
         let (customer_name, customer_email) = item
             .request
             .customer_details
@@ -2071,8 +2072,14 @@ impl<F> TryFrom<&types::PayoutsRouterData<F>> for AdyenPayoutCreateRequest {
             .map_or((None, None), |c| {
                 (c.name.map(|n| n.peek().to_string()), c.email)
             });
+        let pmd = item.request.payout_method_data.to_owned().map_or(
+            Err(errors::ConnectorError::MissingRequiredField {
+                field_name: "payout_method_data",
+            }),
+            Ok,
+        )?;
 
-        match item.request.payout_method_data.to_owned() {
+        match pmd {
             PayoutMethodData::Card(_) => Err(errors::ConnectorError::NotSupported {
                 message: "Card payout creation is not supported".to_string(),
                 connector: "Adyen",
@@ -2183,7 +2190,7 @@ impl<F> TryFrom<types::PayoutsResponseRouterData<F, AdyenPayoutResponse>>
             },
             |pe| {
                 if pe {
-                    Some(storage_enums::PayoutStatus::RequiresCreation)
+                    Some(storage_enums::PayoutStatus::RequiresFulfillment)
                 } else {
                     Some(storage_enums::PayoutStatus::Ineligible)
                 }
