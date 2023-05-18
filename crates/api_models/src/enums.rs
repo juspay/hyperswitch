@@ -426,6 +426,7 @@ pub enum PaymentMethodType {
     Giropay,
     GooglePay,
     Ideal,
+    Interac,
     Klarna,
     MbWay,
     MobilePay,
@@ -714,7 +715,6 @@ pub enum RoutableConnectors {
     Worldline,
     Worldpay,
     Zen,
-    Signifyd,
 }
 
 /// Name of banks supported by Hyperswitch
