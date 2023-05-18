@@ -1,6 +1,10 @@
 name: Integration test 
 
 on:
+  push:
+    branches:
+      - api-intgration-tests
+
   pull_request:
 
   merge_group:
@@ -21,8 +25,8 @@ env:
   CARGO_REGISTRIES_CRATES_IO_PROTOCOL: sparse
 
 jobs:
-  migration_verify:
-    name: Verify consistency of migrations with `schema.rs` file
+  api_tests:
+    name: Run integration tests on backend APIs
     runs-on: ubuntu-latest
 
  # Service containers to run with `container-job`
@@ -64,14 +68,6 @@ jobs:
           toolchain: stable
 
       - uses: Swatinem/rust-cache@v2.2.0
-        with:
-          # We can use a single cache entry for all runs of this check, as only diesel CLI needs to be cached
-          shared-key: "migration_verify"
-          # We don't build any crates in this repository, no need to cache target directories
-          cache-targets: "false"
-          # Save cache even if migration verification fails.
-          # Only failure not considered is failures in installing diesel CLI itself.
-          cache-on-failure: "true"
 
       - name: Install diesel_cli
         shell: bash
@@ -81,7 +77,7 @@ jobs:
         shell: bash
         env:
           DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
-        run: diesel migration --database-url $DATABASE_URL run
+        run: diesel migration run
 
       - name: Decrypt connector auth file
         run: ./scripts/decrypt_connector_auth.sh
