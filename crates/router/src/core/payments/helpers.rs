@@ -303,8 +303,6 @@ fn validate_new_mandate_request(req: api::MandateValidationFields) -> RouterResu
         }))?
     }
 
-    let _ = req.customer_id.as_ref().get_required_value("customer_id")?;
-
     let mandate_data = req
         .mandate_data
         .clone()
@@ -349,23 +347,15 @@ fn validate_new_mandate_request(req: api::MandateValidationFields) -> RouterResu
 pub fn validate_customer_id_mandatory_cases(
     has_shipping: bool,
     has_billing: bool,
-    has_setup_future_usage: bool,
     customer_id: &Option<String>,
 ) -> RouterResult<()> {
-    match (
-        has_shipping,
-        has_billing,
-        has_setup_future_usage,
-        customer_id,
-    ) {
-        (true, _, _, None) | (_, true, _, None) | (_, _, true, None) => {
-            Err(errors::ApiErrorResponse::PreconditionFailed {
-                message: "customer_id is mandatory when shipping or billing \
-                address is given or when setup_future_usage is given"
-                    .to_string(),
-            })
-            .into_report()
-        }
+    match (has_shipping, has_billing, customer_id) {
+        (true, _, None) | (_, true, None) => Err(errors::ApiErrorResponse::PreconditionFailed {
+            message: "customer_id is mandatory when shipping or billing \
+                address is given"
+                .to_string(),
+        })
+        .into_report(),
         _ => Ok(()),
     }
 }
@@ -684,7 +674,25 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R>(
             })
         }
         None => match &payment_data.payment_intent.customer_id {
-            None => None,
+            None => match &payment_data.setup_mandate {
+                //check if the payment is new mandate payment
+                //if yes create a new customer
+                Some(_) => {
+                    let new_customer = storage::CustomerNew {
+                        customer_id: api_models::customers::generate_customer_id(),
+                        merchant_id: merchant_id.to_string(),
+                        name: req.name.expose_option(),
+                        email: req.email.clone(),
+                        phone: req.phone.clone(),
+                        phone_country_code: req.phone_country_code.clone(),
+                        ..storage::CustomerNew::default()
+                    };
+
+                    metrics::CUSTOMER_CREATED.add(&metrics::CONTEXT, 1, &[]);
+                    Some(db.insert_customer(new_customer).await)
+                }
+                None => None,
+            },
             Some(customer_id) => db
                 .find_customer_optional_by_customer_id_merchant_id(customer_id, merchant_id)
                 .await?

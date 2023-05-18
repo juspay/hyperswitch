@@ -110,7 +110,6 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             helpers::validate_customer_id_mandatory_cases(
                 request.shipping.is_some(),
                 request.billing.is_some(),
-                request.setup_future_usage.is_some(),
                 &payment_intent
                     .customer_id
                     .clone()
