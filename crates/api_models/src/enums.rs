@@ -626,7 +626,6 @@ pub enum Connector {
     Worldline,
     Worldpay,
     Zen,
-    Signifyd,
 }
 
 impl Connector {
