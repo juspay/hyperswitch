@@ -1,5 +1,7 @@
 use common_utils::generate_id_with_default_len;
-use error_stack::{report, IntoReport, ResultExt};
+#[cfg(feature = "basilisk")]
+use error_stack::report;
+use error_stack::{IntoReport, ResultExt};
 #[cfg(feature = "basilisk")]
 use external_services::kms;
 #[cfg(feature = "basilisk")]
@@ -677,16 +679,13 @@ pub async fn add_delete_tokenized_data_task(
         updated_at: current_time,
     };
     let response = db.insert_process(process_tracker_entry).await;
-    match response {
-        Ok(_) => Ok(()),
-        Err(error) => match error.current_context() {
-            errors::StorageError::DatabaseError(err) => match err.current_context() {
-                storage_models::errors::DatabaseError::UniqueViolation => Ok(()),
-                _ => Err(report!(errors::ApiErrorResponse::InternalServerError)),
-            },
-            _ => Err(report!(errors::ApiErrorResponse::InternalServerError)),
-        },
-    }
+    response.map(|_| ()).or_else(|err| {
+        if err.current_context().is_db_unique_violation() {
+            Ok(())
+        } else {
+            Err(report!(errors::ApiErrorResponse::InternalServerError))
+        }
+    })
 }
 
 #[cfg(feature = "basilisk")]
