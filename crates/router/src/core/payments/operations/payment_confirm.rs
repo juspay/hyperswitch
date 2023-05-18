@@ -28,52 +28,6 @@ use crate::{
 #[operation(ops = "all", flow = "authorize")]
 pub struct PaymentConfirm;
 
-impl PaymentConfirm {
-    #[inline(always)]
-    fn make_new_payment_attempt(
-        request: &api::PaymentsRequest,
-        old_payment_attempt: storage::PaymentAttempt,
-    ) -> storage::PaymentAttemptNew {
-        let created_at @ modified_at @ last_synced = Some(common_utils::date_time::now());
-
-        storage::PaymentAttemptNew {
-            payment_id: old_payment_attempt.payment_id,
-            merchant_id: old_payment_attempt.merchant_id,
-            attempt_id: uuid::Uuid::new_v4().simple().to_string(),
-            status: helpers::payment_attempt_status_fsm(&request.payment_method_data, Some(true)),
-            amount: old_payment_attempt.amount,
-            currency: old_payment_attempt.currency,
-            save_to_locker: old_payment_attempt.save_to_locker,
-            connector: None,
-            error_message: None,
-            offer_amount: old_payment_attempt.offer_amount,
-            surcharge_amount: old_payment_attempt.surcharge_amount,
-            tax_amount: old_payment_attempt.tax_amount,
-            payment_method_id: None,
-            payment_method: None,
-            capture_method: old_payment_attempt.capture_method,
-            capture_on: old_payment_attempt.capture_on,
-            confirm: old_payment_attempt.confirm,
-            authentication_type: old_payment_attempt.authentication_type,
-            created_at,
-            modified_at,
-            last_synced,
-            cancellation_reason: None,
-            amount_to_capture: old_payment_attempt.amount_to_capture,
-            mandate_id: old_payment_attempt.mandate_id,
-            browser_info: None,
-            error_code: None,
-            payment_token: None,
-            connector_metadata: None,
-            payment_experience: None,
-            payment_method_type: None,
-            payment_method_data: None,
-            business_sub_label: old_payment_attempt.business_sub_label,
-            straight_through_algorithm: old_payment_attempt.straight_through_algorithm,
-        }
-    }
-}
-
 #[async_trait]
 impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for PaymentConfirm {
     #[instrument(skip_all)]
@@ -128,37 +82,15 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         let attempt_type =
             helpers::get_attempt_type(&payment_intent, &payment_attempt, request, "confirm")?;
 
-        payment_attempt = match attempt_type {
-            api_models::enums::AttemptType::New => {
-                let new_payment_attempt = db
-                    .insert_payment_attempt(
-                        Self::make_new_payment_attempt(request, payment_attempt),
-                        storage_scheme,
-                    )
-                    .await
-                    .to_duplicate_response(errors::ApiErrorResponse::DuplicatePayment {
-                        payment_id: payment_id.clone(),
-                    })?;
-
-                payment_intent = db
-                    .update_payment_intent(
-                        payment_intent,
-                        storage::PaymentIntentUpdate::StatusAndAttemptUpdate {
-                            status: helpers::payment_intent_status_fsm(
-                                &request.payment_method_data,
-                                Some(true),
-                            ),
-                            active_attempt_id: new_payment_attempt.attempt_id.to_owned(),
-                        },
-                        storage_scheme,
-                    )
-                    .await
-                    .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
-
-                new_payment_attempt
-            }
-            api_models::enums::AttemptType::SameOld => payment_attempt,
-        };
+        (payment_intent, payment_attempt) = attempt_type
+            .modify_payment_intent_and_payment_attempt(
+                request,
+                payment_intent,
+                payment_attempt,
+                db,
+                storage_scheme,
+            )
+            .await?;
 
         payment_intent.setup_future_usage = request
             .setup_future_usage
@@ -238,26 +170,9 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         )
         .await?;
 
-        connector_response = match attempt_type {
-            api_models::enums::AttemptType::New => db
-                .insert_connector_response(
-                    operations::PaymentCreate::make_connector_response(&payment_attempt),
-                    storage_scheme,
-                )
-                .await
-                .to_duplicate_response(errors::ApiErrorResponse::DuplicatePayment {
-                    payment_id: payment_id.clone(),
-                })?,
-            api_models::enums::AttemptType::SameOld => db
-                .find_connector_response_by_payment_id_merchant_id_attempt_id(
-                    &payment_attempt.payment_id,
-                    &payment_attempt.merchant_id,
-                    &payment_attempt.attempt_id,
-                    storage_scheme,
-                )
-                .await
-                .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?,
-        };
+        connector_response = attempt_type
+            .get_connector_response(&payment_attempt, db, storage_scheme)
+            .await?;
 
         payment_intent.shipping_address_id = shipping_address.clone().map(|i| i.address_id);
         payment_intent.billing_address_id = billing_address.clone().map(|i| i.address_id);
