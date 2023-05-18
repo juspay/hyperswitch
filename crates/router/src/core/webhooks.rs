@@ -26,7 +26,7 @@ use crate::{
 const OUTGOING_WEBHOOK_TIMEOUT_SECS: u64 = 5;
 
 #[instrument(skip_all)]
-async fn payments_incoming_webhook_flow<W: api::OutgoingWebhookType>(
+pub async fn payments_incoming_webhook_flow<W: api::OutgoingWebhookType>(
     state: AppState,
     merchant_account: storage::MerchantAccount,
     webhook_details: api::IncomingWebhookDetails,
@@ -95,7 +95,7 @@ async fn payments_incoming_webhook_flow<W: api::OutgoingWebhookType>(
 }
 
 #[instrument(skip_all)]
-async fn refunds_incoming_webhook_flow<W: api::OutgoingWebhookType>(
+pub async fn refunds_incoming_webhook_flow<W: api::OutgoingWebhookType>(
     state: AppState,
     merchant_account: storage::MerchantAccount,
     webhook_details: api::IncomingWebhookDetails,
@@ -196,7 +196,7 @@ async fn refunds_incoming_webhook_flow<W: api::OutgoingWebhookType>(
     Ok(())
 }
 
-async fn get_payment_attempt_from_object_reference_id(
+pub async fn get_payment_attempt_from_object_reference_id(
     state: AppState,
     object_reference_id: api_models::webhooks::ObjectReferenceId,
     merchant_account: &storage::MerchantAccount,
@@ -223,7 +223,7 @@ async fn get_payment_attempt_from_object_reference_id(
     }
 }
 
-async fn get_or_update_dispute_object(
+pub async fn get_or_update_dispute_object(
     state: AppState,
     option_dispute: Option<storage_models::dispute::Dispute>,
     dispute_details: api::disputes::DisputePayload,
@@ -295,7 +295,7 @@ async fn get_or_update_dispute_object(
 }
 
 #[instrument(skip_all)]
-async fn disputes_incoming_webhook_flow<W: api::OutgoingWebhookType>(
+pub async fn disputes_incoming_webhook_flow<W: api::OutgoingWebhookType>(
     state: AppState,
     merchant_account: storage::MerchantAccount,
     webhook_details: api::IncomingWebhookDetails,
@@ -361,7 +361,7 @@ async fn disputes_incoming_webhook_flow<W: api::OutgoingWebhookType>(
 
 #[allow(clippy::too_many_arguments)]
 #[instrument(skip_all)]
-async fn create_event_and_trigger_outgoing_webhook<W: api::OutgoingWebhookType>(
+pub async fn create_event_and_trigger_outgoing_webhook<W: api::OutgoingWebhookType>(
     state: AppState,
     merchant_account: storage::MerchantAccount,
     event_type: enums::EventType,
@@ -413,7 +413,7 @@ async fn create_event_and_trigger_outgoing_webhook<W: api::OutgoingWebhookType>(
     Ok(())
 }
 
-async fn trigger_webhook_to_merchant<W: api::OutgoingWebhookType>(
+pub async fn trigger_webhook_to_merchant<W: api::OutgoingWebhookType>(
     merchant_account: storage::MerchantAccount,
     webhook: api::OutgoingWebhook,
     state: &AppState,
