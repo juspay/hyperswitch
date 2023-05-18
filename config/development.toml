@@ -9,6 +9,7 @@ log_format = "default"
 [log.telemetry]
 traces_enabled = false
 metrics_enabled = false
+use_xray_generator = false
 
 # TODO: Update database credentials before running application
 [master_database]
