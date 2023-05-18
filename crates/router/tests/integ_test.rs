@@ -47,12 +47,15 @@ async fn test_api() -> Result<(), Box<dyn std::error::Error>> {
 
   let ma_json_resp : Value = call_and_read_body_json(&server,MerchantAccount::make_request_body(&master_data).to_request()).await;
   MerchantAccount::verify_response(&ma_json_resp).update_master_data(&mut master_data,&ma_json_resp);
+  println!("{:?}",ma_json_resp);
 
   let api_resp = call_and_read_body_json(&server,ApiKey::make_request_body(&master_data).to_request()).await;
   ApiKey::verify_response(&api_resp).update_master_data(&mut master_data,&api_resp);
+  println!("{:?}",api_resp);
 
   let connector_create_resp = call_and_read_body_json(&server,ConnectorCreate::make_request_body(&master_data).to_request()).await;
   ConnectorCreate::verify_response(&connector_create_resp).update_master_data(&mut master_data,&connector_create_resp);
+  println!("{:?}",connector_create_resp);
 
   let payment_create_resp = call_and_read_body_json(&server,PaymentCreate::make_request_body(&master_data).to_request()).await;
   PaymentCreate::verify_response(&payment_create_resp).update_master_data(&mut master_data,&payment_create_resp);
