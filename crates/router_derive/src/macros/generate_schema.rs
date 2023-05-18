@@ -2,6 +2,8 @@ use std::collections::{HashMap, HashSet};
 
 use syn::{self, parse_quote, punctuated::Punctuated, Token};
 
+use crate::macros::helpers;
+
 /// Parse schemas from attribute
 /// Example
 ///
@@ -14,24 +16,6 @@ fn get_inner_path_ident(attribute: &syn::Attribute) -> syn::Result<Vec<syn::Iden
         .parse_args_with(Punctuated::<syn::Ident, Token!(,)>::parse_terminated)?
         .into_iter()
         .collect::<Vec<_>>())
-}
-
-fn get_schemas_to_create(attributes: Vec<syn::Attribute>) -> syn::Result<Vec<syn::Ident>> {
-    let generate_schema_attribute = attributes
-        .into_iter()
-        .find(|attribute| {
-            attribute
-                .path
-                .get_ident()
-                .map(|ident| ident.to_string().eq("generate_schemas"))
-                .unwrap_or(false)
-        })
-        .ok_or(syn::Error::new(
-            proc_macro2::Span::call_site(),
-            "At least one schema has to be passed in #[generate_schemas]",
-        ))?;
-
-    get_inner_path_ident(&generate_schema_attribute)
 }
 
 fn get_struct_fields(data: syn::Data) -> syn::Result<Punctuated<syn::Field, syn::token::Comma>> {
@@ -49,22 +33,11 @@ fn get_struct_fields(data: syn::Data) -> syn::Result<Punctuated<syn::Field, syn:
     }
 }
 
-fn check_if_attribute_ident_matches_given_ident_string(
-    attribute: &syn::Attribute,
-    idnet_name: &str,
-) -> bool {
-    attribute
-        .path
-        .get_ident()
-        .map(|path_ident| path_ident.to_string().eq(idnet_name))
-        .unwrap_or(false)
-}
-
 pub fn polymorphic_macro_derive_inner(
     input: syn::DeriveInput,
 ) -> syn::Result<proc_macro2::TokenStream> {
-    let schemas_to_create = get_schemas_to_create(input.attrs)
-        .map_err(|error| syn::Error::new(proc_macro2::Span::call_site(), error))?;
+    let schemas_to_create =
+        helpers::get_metadata_inner::<syn::Ident>("mandatory_in", &input.attrs)?;
 
     let fields = get_struct_fields(input.data)
         .map_err(|error| syn::Error::new(proc_macro2::Span::call_site(), error))?;
@@ -73,7 +46,6 @@ pub fn polymorphic_macro_derive_inner(
     // PaymentsCreate -> ["amount","currency"]
     // This will be stored in a hashset
     // mandatory_hashset -> ((PaymentsCreate, amount), (PaymentsCreate,currency))
-
     let mut mandatory_hashset = HashSet::<(syn::Ident, syn::Ident)>::new();
     let mut other_fields_hm = HashMap::<syn::Field, Vec<syn::Attribute>>::new();
 
@@ -81,18 +53,15 @@ pub fn polymorphic_macro_derive_inner(
         // Partition the attributes of a field into two vectors
         // One with #[mandatory_in] attributes present
         // Rest of the attributes ( include only the schema attribute, serde is not required)
-        let (mandatory_attribute, other_attributes) =
-            field.attrs.iter().partition::<Vec<_>, _>(|attribute| {
-                check_if_attribute_ident_matches_given_ident_string(attribute, "mandatory_in")
-            });
+        let (mandatory_attribute, other_attributes) = field
+            .attrs
+            .iter()
+            .partition::<Vec<_>, _>(|attribute| attribute.path.is_ident("mandatory_in"));
 
         // Other attributes ( schema ) are to be printed as is
         other_attributes
             .iter()
-            .filter(|attribute| {
-                check_if_attribute_ident_matches_given_ident_string(attribute, "schema")
-                    || check_if_attribute_ident_matches_given_ident_string(attribute, "doc")
-            })
+            .filter(|attribute| attribute.path.is_ident("schema") || attribute.path.is_ident("doc"))
             .for_each(|attribute| {
                 // Since attributes will be modified, the field should not contain any attributes
                 // So create a field, with previous attributes removed
